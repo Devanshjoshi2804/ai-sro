@@ -676,8 +676,8 @@ test("a value the sentence supplied is sent, and a blank left in a form is asked
           { index: 2, intent: "Press Save." },
         ],
         parameters: [
-          { name: "operation_code", source_step_index: 0, description: "Operation code" },
-          { name: "voice_code", source_step_index: 1, description: "Voice Code" },
+          { name: "operation_code", kind: "input", source_step_index: 0, description: "Operation code" },
+          { name: "voice_code", kind: "input", source_step_index: 1, description: "Voice Code" },
         ],
       },
     ],
@@ -771,6 +771,173 @@ test("a row that could not be taught is not left dead -- 'Do the next one' works
   await doNext.listeners[0]();
 
   assert.strictEqual(doNext.disabled, false, "a failed teach left the row permanently disabled");
+});
+
+
+test("a picked ambiguous choice sends no value for a parameter nobody supplied one for -- never an empty string", async () => {
+  // The regression this round found: picking a choice off the ambiguous list
+  // called `preview(version, [])` with nothing known, every input-bearing
+  // step still got a name, and the old parameter-building sent `""` under
+  // it. `ensure_runnable` counts a present key as supplied and skips shape
+  // checks on a falsy value, so a run that used to be refused for a missing
+  // value started instead and wrote a blank field -- one click on a
+  // disambiguation button, live, if the picked skill was autonomous.
+  const { sent, row } = await openedOffer({
+    "resolve-intent": {
+      matched: null,
+      choices: [
+        { skill_id: "skl-1", name: "Create a work area", version: 1, stage: "autonomous" },
+        { skill_id: "skl-2", name: "Create a work operation", version: 1, stage: "autonomous" },
+      ],
+      missing_parameters: [],
+    },
+    skill: {
+      id: "skl-1",
+      name: "Create a work area",
+      versions: [
+        {
+          version: 1,
+          stage: "autonomous",
+          track_record: { clean_streak: 12 },
+          steps: [
+            { index: 0, intent: "Type the Area code." },
+            { index: 1, intent: "Press Save." },
+          ],
+          parameters: [{ name: "area_code", kind: "input", source_step_index: 0, description: "Area code" }],
+        },
+      ],
+    },
+  });
+
+  const [ask] = buttons(row).filter((button) => button.textContent === "Ask");
+  const [utterance] = inputs(row);
+  utterance.value = "create a work thing";
+  await ask.listeners[0]();
+
+  const [pick] = buttons(row).filter((button) => button.textContent === "Create a work area");
+  await pick.listeners[0]();
+
+  const ran = sent.filter((message) => message.kind === "run-skill");
+  assert.equal(ran.length, 1, "picking a choice did not run it");
+  assert.deepEqual(
+    ran[0].parameters,
+    {},
+    "a parameter nobody supplied a value for was sent -- as \"\", the exact refusal this closes",
+  );
+});
+
+test("two presses on 'Do it' are not two runs", async () => {
+  const { sent, row } = await openedOffer({
+    "resolve-intent": {
+      matched: { skill_id: "skl-4", name: "Log a shortage", version: 1, stage: "recorded" },
+      confident: true,
+      choices: [],
+      missing_parameters: [],
+    },
+    skill: {
+      id: "skl-4",
+      name: "Log a shortage",
+      versions: [
+        { version: 1, stage: "recorded", track_record: { clean_streak: 0 }, steps: [], parameters: [] },
+      ],
+    },
+  });
+
+  const [ask] = buttons(row).filter((button) => button.textContent === "Ask");
+  const [utterance] = inputs(row);
+  utterance.value = "log a shortage";
+  await ask.listeners[0]();
+
+  const [doIt] = buttons(row).filter((button) => button.textContent === "Do it");
+  assert.ok(doIt, "no 'Do it' button was offered for a version that has not earned silence");
+  const first = doIt.listeners[0]();
+  const second = doIt.listeners[0]();
+  await Promise.all([first, second]);
+
+  assert.equal(
+    sent.filter((message) => message.kind === "run-skill").length,
+    1,
+    "a second click on 'Do it' started a second run",
+  );
+  assert.strictEqual(doIt.disabled, true, "the button was left pressable after the first click");
+});
+
+test("a sentence naming several things says so, and runs only the first of them", async () => {
+  // "Evidence, never inference" governs what the panel runs; it governs what
+  // it tells somebody it is running just as much. Silently discarding five
+  // of six things a person asked for is the worst version of that rule
+  // broken.
+  const { row } = await openedOffer({
+    "resolve-intent": {
+      matched: { skill_id: "skl-9", name: "Create a work area", version: 1, stage: "autonomous" },
+      confident: true,
+      choices: [],
+      missing_parameters: [],
+      items: [{ area_code: "A1" }, { area_code: "A2" }, { area_code: "A3" }],
+    },
+    skill: {
+      id: "skl-9",
+      name: "Create a work area",
+      versions: [
+        { version: 1, stage: "autonomous", track_record: { clean_streak: 12 }, steps: [], parameters: [] },
+      ],
+    },
+  });
+
+  const [ask] = buttons(row).filter((button) => button.textContent === "Ask");
+  const [utterance] = inputs(row);
+  utterance.value = "create work areas A1, A2 and A3";
+  await ask.listeners[0]();
+
+  const said = words(row);
+  assert.match(said, /3 things/, "how many things the sentence named was never said");
+  assert.match(said, /area_code: A1/, "which one will actually run was never said");
+});
+
+test("a derived value is never sent as a parameter, even when the parser read something under its name", async () => {
+  // Minor from round 2: `preview()` matched a step's parameter by
+  // `source_step_index` alone, so a `derived` parameter -- "never prompted
+  // for", produced by an earlier step's response -- was named exactly like
+  // an operator-supplied one. Proven with a value present in `known` under
+  // that same name, so this fails if the fix were merely "nothing was known"
+  // rather than "derived is never eligible at all".
+  const { sent, row } = await openedOffer({
+    "resolve-intent": {
+      matched: { skill_id: "skl-5", name: "Scan a case", version: 1, stage: "recorded" },
+      confident: true,
+      choices: [],
+      missing_parameters: [],
+      items: [{ barcode: "should-not-be-sent" }],
+    },
+    skill: {
+      id: "skl-5",
+      name: "Scan a case",
+      versions: [
+        {
+          version: 1,
+          stage: "recorded",
+          track_record: { clean_streak: 0 },
+          steps: [
+            { index: 0, intent: "Scan the case barcode." },
+            { index: 1, intent: "Press Save." },
+          ],
+          parameters: [{ name: "barcode", kind: "derived", source_step_index: 0, description: "Barcode" }],
+        },
+      ],
+    },
+  });
+
+  const [ask] = buttons(row).filter((button) => button.textContent === "Ask");
+  const [utterance] = inputs(row);
+  utterance.value = "scan a case";
+  await ask.listeners[0]();
+
+  const [doIt] = buttons(row).filter((button) => button.textContent === "Do it");
+  await doIt.listeners[0]();
+
+  const ran = sent.filter((message) => message.kind === "run-skill");
+  assert.equal(ran.length, 1);
+  assert.deepEqual(ran[0].parameters, {}, "a derived value was sent as though an operator supplied it");
 });
 
 

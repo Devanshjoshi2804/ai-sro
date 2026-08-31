@@ -814,19 +814,22 @@ export function previewOf(version, steps) {
  * `resolve-intent` said is still missing, and what it already read out of the
  * sentence for the rest.
  *
- * A step is a place data was typed only where a declared parameter's
- * `source_step_index` names it -- "Press Save." matches no parameter and
- * carries `value: null` forever, which is correct: it is a gesture, not a
- * question. A step that does match one keeps its parameter's name on it
- * either way, missing or not: `renderReady` below sends a value for every
- * named step, and a step that lost its name once it stopped being missing
- * is exactly how a value the sentence supplied went unsent and the press
- * was refused for a parameter nobody was ever asked to give twice.
+ * A step is a place data was typed only where a declared *input* parameter's
+ * `source_step_index` names it -- `kind === "input"` is checked deliberately,
+ * because a derived or iterated parameter also carries a `source_step_index`
+ * and is never prompted for (see `ParameterKind` in the domain); matching on
+ * the index alone once asked a step nobody types into for a value and sent
+ * `""` under its name. "Press Save." matches no input parameter and carries
+ * `value: null` forever, which is correct: it is a gesture, not a question.
+ * A step that does match one keeps its parameter's name on it either way,
+ * missing or not -- `renderReady` below decides what to *send* for it, but
+ * losing the name here is how a value the sentence supplied stopped being
+ * sendable at all.
  */
 function preview(skillVersion, missingParameters, known = {}) {
   const steps = (skillVersion.steps || []).map((step) => {
     const parameter = (skillVersion.parameters || []).find(
-      (candidate) => candidate.source_step_index === step.index,
+      (candidate) => candidate.kind === "input" && candidate.source_step_index === step.index,
     );
     if (!parameter) return { intent: step.intent, value: null };
     if (missingParameters.includes(parameter.name)) {
@@ -866,6 +869,54 @@ async function runIt(skillId, parameters, intent) {
   return ask({ kind: "run-skill", skillId, parameters, deviceId, intent });
 }
 
+/** One item's values, said plainly rather than dumped as a raw object --
+ * "sku: A1, qty: 4" reads as English; `{"sku":"A1","qty":"4"}` reads as a
+ * bug report. */
+function describeItem(item) {
+  return Object.entries(item)
+    .map(([name, value]) => `${name}: ${value}`)
+    .join(", ");
+}
+
+/** A note appended into `box`, ahead of whatever is about to draw there.
+ * A helper only because `box` is cleared at the top of every render step
+ * between here and the press (`renderPreview`, then `renderReady`), so
+ * anything said before the preview has to be re-said by each of them rather
+ * than appended once and lost the moment the next one clears its own box. */
+function noteLine(box, text) {
+  if (!text) return;
+  const line = document.createElement("p");
+  line.className = "note";
+  line.textContent = text;
+  box.append(line);
+}
+
+/** Fetches the version, builds its preview, and hands it to `renderPreview`
+ * -- the one path both a straight match and a confirmed hedge take, so they
+ * cannot drift into asking the press for different things.
+ *
+ * `items` is `resolution.items`: one parameter set per thing the sentence
+ * named -- "these six SKUs" is six. Only the first is ever acted on here,
+ * because nothing in this panel runs more than one thing per press; where
+ * there was more than one, that is said before the preview rather than
+ * silently discarded -- five things a person asked for going unmentioned is
+ * worse than the panel admitting it can only start the first.
+ */
+async function startPreview(candidate, missingParameters, items, box, utterance) {
+  const note =
+    items && items.length > 1
+      ? `This named ${items.length} things; only the first will run now` +
+        ` (${describeItem(items[0])}). Ask again, one at a time, for the rest.`
+      : null;
+  await renderPreview(
+    preview(await fetchVersion(candidate), missingParameters, (items && items[0]) || {}),
+    candidate,
+    box,
+    utterance,
+    note,
+  );
+}
+
 /** What a sentence resolved to, drawn into `box`: one skill and its preview,
  * a hedge about the one it found, a question between a few, or nothing
  * taught at all.
@@ -885,13 +936,10 @@ async function renderResolution(resolution, box, utterance) {
   box.replaceChildren();
 
   if (resolution.matched && resolution.confident) {
-    await renderPreview(
-      preview(
-        await fetchVersion(resolution.matched),
-        resolution.missing_parameters || [],
-        (resolution.items && resolution.items[0]) || {},
-      ),
+    await startPreview(
       resolution.matched,
+      resolution.missing_parameters || [],
+      resolution.items,
       box,
       utterance,
     );
@@ -913,13 +961,10 @@ async function renderResolution(resolution, box, utterance) {
     yes.textContent = `Yes, ${resolution.matched.name}`;
     yes.addEventListener("click", async () => {
       yes.disabled = true;
-      await renderPreview(
-        preview(
-          await fetchVersion(resolution.matched),
-          resolution.missing_parameters || [],
-          (resolution.items && resolution.items[0]) || {},
-        ),
+      await startPreview(
         resolution.matched,
+        resolution.missing_parameters || [],
+        resolution.items,
         box,
         utterance,
       );
@@ -940,15 +985,18 @@ async function renderResolution(resolution, box, utterance) {
       pick.textContent = choice.name;
       pick.addEventListener("click", async () => {
         pick.disabled = true;
-        // ponytail: `resolve-intent` gives no missing-parameter list, and no
-        // extracted values, for a choice that was not the match -- only for
-        // the one it settled on. So a picked choice is previewed with
-        // nothing marked missing rather than asked a second time; a run this
-        // starts with a parameter it never asked about is refused at the
-        // press (`ensure_runnable`), not sent wrong. A second `resolve-intent`
-        // pinned to this choice is the fix if that refusal is ever felt;
-        // nothing taught needs it yet.
-        await renderPreview(preview(await fetchVersion(choice), []), choice, box, utterance);
+        // `resolve-intent` gives no missing-parameter list, and no extracted
+        // values, for a choice that was not the match -- only for the one it
+        // settled on. So a picked choice is previewed with nothing marked
+        // missing and nothing known either, which is not the same thing as
+        // previewing it with nothing required: every input parameter this
+        // version declares is simply absent from `parameters` at the press
+        // (see `renderReady` -- a value nobody supplied and the parser never
+        // read is not sent as `""`), and `ensure_runnable` refuses it by name
+        // if any of them was required. A second `resolve-intent` pinned to
+        // this choice, asking what it still needs, is the fix if that
+        // refusal is ever felt; nothing taught needs it yet.
+        await startPreview(choice, [], null, box, utterance);
       });
       box.append(pick);
     }
@@ -978,8 +1026,9 @@ async function fetchVersion(candidate) {
  * record. So a blank here is treated exactly like one never typed at all --
  * it stays asked for -- rather than accepted as a deliberate empty string.
  */
-async function renderPreview(built, candidate, box, utterance) {
+async function renderPreview(built, candidate, box, utterance, note) {
   box.replaceChildren();
+  noteLine(box, note);
   const need = built.steps.filter((step) => step.missing);
   if (need.length) {
     const fields = new Map();
@@ -1004,12 +1053,12 @@ async function renderPreview(built, candidate, box, utterance) {
         return;
       }
       for (const [step, field] of fields) step.value = field.value;
-      await renderReady(built, candidate, box, utterance);
+      await renderReady(built, candidate, box, utterance, note);
     });
     box.append(warn, go);
     return;
   }
-  await renderReady(built, candidate, box, utterance);
+  await renderReady(built, candidate, box, utterance, note);
 }
 
 /** Every value is in hand. Now it is only `built.show` deciding what an
@@ -1022,16 +1071,37 @@ async function renderPreview(built, candidate, box, utterance) {
  * could once only mean the one task a row offered; now it is ranked across
  * everything taught, so which task a press just started is no longer implied
  * by which button was on the screen, and it is said here instead.
+ *
+ * A step with no known value is left out of `parameters` -- never sent as
+ * `""`. `ensure_runnable` on the backend refuses a required parameter that
+ * is genuinely absent ("no value supplied for X"); it does not, and must
+ * not have to, refuse one that arrived as an empty string, because an empty
+ * string is a value and this panel does not get to invent one just to fill
+ * a slot. Every step still on `built.steps` with `.missing` set was already
+ * required to be filled before this function is reached (`renderPreview`
+ * refuses to advance on a blank field) -- so the only steps skipped here are
+ * ones nothing ever supplied a value for, which is exactly the case the
+ * backend's own refusal exists to catch honestly, on its own terms, rather
+ * than never seeing the gap at all.
  */
-async function renderReady(built, candidate, box, utterance) {
+async function renderReady(built, candidate, box, utterance, note) {
   box.replaceChildren();
+  noteLine(box, note);
   const parameters = {};
   for (const step of built.steps) {
     const name = step.missing || step.name;
-    if (name) parameters[name] = step.value ?? "";
+    if (name && step.value !== null && step.value !== undefined) parameters[name] = step.value;
   }
 
+  // Two presses must not be two runs. There is no second guard once this
+  // fires -- `box` is not cleared here the way it once was, because the line
+  // naming which task is running has to survive whatever the press goes on
+  // to say -- so the button disabling itself, and staying disabled, is the
+  // only thing standing between one click and two warehouse writes.
+  let pressed = false;
   const press = async () => {
+    if (pressed) return;
+    pressed = true;
     const said_ = document.createElement("p");
     said_.className = "note";
     box.append(said_);
@@ -1075,7 +1145,10 @@ async function renderReady(built, candidate, box, utterance) {
   const go = document.createElement("button");
   go.type = "button";
   go.textContent = "Do it";
-  go.addEventListener("click", () => press());
+  go.addEventListener("click", () => {
+    go.disabled = true;
+    return press();
+  });
   box.append(go);
 }
 

@@ -401,10 +401,15 @@ function performing(status) {
         primary: true,
         act: async (button) => {
           button.disabled = true;
-          await ask({ kind: "abort-run", runId: run.runId });
+          const stopped = await ask({ kind: "abort-run", runId: run.runId });
           // What is already inside the page finishes; this stops the next step,
-          // which is what the button says.
-          button.textContent = "stopping — the step already sent will finish";
+          // which is what the button says. Where the backend could not be
+          // told, this browser has still stopped taking part -- but the run
+          // itself is still being driven, and saying "stopping" for that would
+          // be the one thing a stop control must never do.
+          button.textContent = stopped?.error
+            ? `this browser has stopped — but the run could not be told: ${stopped.error}`
+            : "stopping — the step already sent will finish";
           await refresh();
         },
       },

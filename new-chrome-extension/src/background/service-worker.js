@@ -661,11 +661,28 @@ async function handle(message, sender) {
       // Chrome partitions storage for framed contexts, so the panel has to hand
       // it across. It goes to the configured origin and nowhere else.
       return { consoleUrl: await state.consoleUrl(), token: await state.token() };
-    case "abort-run":
-      // Answered even when there was nothing to stop: the panel asking twice,
-      // or asking about a run that has just finished, is not an error worth
-      // showing anybody.
-      return { ok: true, aborted: abort(message.runId) };
+    case "abort-run": {
+      // Both halves, in this order. `abort` is local and immediate: every
+      // later command for this run is refused here, so nothing else reaches
+      // the page whatever the network does next. But the run is driven from
+      // the backend, and until this told it so it went on stepping -- asking
+      // for command after command that this browser refused -- which is a
+      // Stop button that stops the browser and not the run.
+      const here_ = abort(message.runId);
+      try {
+        await api.stopRun(message.runId);
+      } catch (error) {
+        // Answered even when there was nothing to stop: the panel asking
+        // twice, or asking about a run that has just finished, is not an
+        // error worth showing anybody -- the backend refuses both with a 409
+        // and the local abort has already done the half that matters. Said
+        // rather than swallowed, though: a backend this browser could not
+        // reach at all is a run still stepping somewhere, and the operator
+        // who just pressed Stop is the one person who needs to know.
+        return { ok: true, aborted: here_, error: error.message };
+      }
+      return { ok: true, aborted: here_ };
+    }
     case "run-wrong": {
       // "Undo that" and "it's wrong" both land here first, before whichever of
       // them goes on to start a reversal run -- see `panel.js`'s `undoRun` and
@@ -1207,6 +1224,13 @@ async function noteFinished(runId) {
       derived: run.derived || {},
       reversal: run.reversal || null,
       failure: run.failure || null,
+      // Copied from the run's own record, not only written by the press that
+      // set it. A run called wrong in the console, or by a press whose row
+      // this browser has since rebuilt, came back here with `wrongBecause`
+      // unset -- so the card went on offering "It's wrong" for a run the
+      // backend refuses to hear it about a second time, and `undoRun` sent a
+      // `run-wrong` guaranteed to fail.
+      wrongBecause: run.wrong_because || null,
       at: Date.now(),
     });
   } catch {

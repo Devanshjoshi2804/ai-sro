@@ -121,3 +121,76 @@ def test_a_step_with_no_call_of_its_own_falls_back_to_the_skill_s() -> None:
 
     parameterised = _version("https://wms.example/api/waves", "https://$facility.erp.example/x")
     assert _origin_of(parameterised, parameterised.steps[1]) == "https://wms.example"
+
+
+def test_the_browser_is_told_what_to_say_on_the_page_it_is_driving() -> None:
+    """The page being driven has to be able to say so.
+
+    The panel already shows a run performing, with the step count and a button
+    to stop it. Nobody looks at the panel: they are looking at their own screen
+    watching fields fill and buttons press, and nothing there distinguishes that
+    from a colleague on the same account or the application misbehaving. So the
+    tab says it itself -- and it can only say what the driver was told, which is
+    why this travels with the command rather than being assembled in the worker.
+
+    The step's intent rather than the skill's name: somebody watching their own
+    screen change is asking what is happening to it now.
+    """
+    agents = fakes.FakeAgentDrivers()
+    executor = ExecuteStep(
+        fakes.FakeUnitOfWork(),
+        fakes.FakeHttpCaller(),
+        fakes.FakeCredentialVault(),
+        agents=agents,
+    )
+    run = Run(
+        id=RunId("run-1"),
+        tenant_id=factories.TENANT,
+        skill_id=SkillId("skill-1"),
+        skill_version=1,
+        stage=PromotionStage.ASSISTED,
+        parameters={},
+        requested_by=factories.OPERATOR,
+        started_at=factories.at(800),
+        authorized_by=factories.OPERATOR,
+        device_id=DeviceId("dev-1"),
+    )
+    version = _version("https://wms.example/api/waves", None, None)
+
+    executor._ui_for(run, version, version.steps[1])
+
+    # Counted from one, because the band is read by a person and step 0 of 3 is
+    # not a sentence anybody says.
+    assert agents.named == (version.steps[1].intent, 2, 3)
+
+
+def test_a_step_nobody_named_still_drives_rather_than_refusing() -> None:
+    """The band is a courtesy and the run is the point.
+
+    Without a step -- the vision rung asking for a driver before it knows which
+    gesture it will propose -- there is nothing to name, and the page falls back
+    to saying only that it is being driven. A run that failed because it could
+    not compose a sentence would be a worse trade than a vaguer band.
+    """
+    agents = fakes.FakeAgentDrivers()
+    executor = ExecuteStep(
+        fakes.FakeUnitOfWork(),
+        fakes.FakeHttpCaller(),
+        fakes.FakeCredentialVault(),
+        agents=agents,
+    )
+    run = Run(
+        id=RunId("run-1"),
+        tenant_id=factories.TENANT,
+        skill_id=SkillId("skill-1"),
+        skill_version=1,
+        stage=PromotionStage.ASSISTED,
+        parameters={},
+        requested_by=factories.OPERATOR,
+        started_at=factories.at(800),
+        authorized_by=factories.OPERATOR,
+        device_id=DeviceId("dev-1"),
+    )
+
+    assert executor._ui_for(run, None, None) is agents.driver
+    assert agents.named == ("", None, None)

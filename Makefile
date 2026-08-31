@@ -147,6 +147,7 @@ test-frontend: ## The console's own tests
 test-extension: ## The extension's own self-checks, in plain node
 	node new-chrome-extension/src/background/queue.test.mjs
 	node new-chrome-extension/src/background/queue.upgrade.test.mjs
+	node new-chrome-extension/src/background/showing.test.mjs
 	node new-chrome-extension/src/content/network.test.mjs
 	node new-chrome-extension/src/content/watch.test.mjs
 	node new-chrome-extension/src/panel/panel.test.mjs

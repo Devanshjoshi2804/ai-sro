@@ -13,6 +13,7 @@
 // going to lunch.
 
 import { performAtInPage, performInPage, sendInPage, viewportInPage } from "./in-page.js";
+import { hideDriving, showDriving } from "./showing.js";
 
 /** Runs whose abort has arrived. Their later commands are refused rather than
  * performed; work already inside the page cannot be recalled, so this is a
@@ -58,6 +59,41 @@ export function performing() {
   return { runId: latest.runId, kind: latest.kind, since: latest.since };
 }
 
+/** What the backend told us about this step, where it told us anything.
+ *
+ * Read rather than required: an older backend sends neither, and a band that
+ * says only "AI-SRO is working in this tab" is still the whole of the point.
+ */
+function told(command) {
+  const said = command.payload || {};
+  const of = {};
+  if (said.skill) of.skill = said.skill;
+  if (Number.isFinite(said.step)) of.step = said.step;
+  if (Number.isFinite(said.of)) of.of = said.of;
+  return of;
+}
+
+/** Put the band in whichever tab this step acts in, and take it away when the
+ * run is over. */
+async function announce(command, run) {
+  if (command.kind === "abort") {
+    for (const tabId of driving.keys()) await hideDriving(tabId);
+    return;
+  }
+  const origin = command.payload?.origin || command.payload?.url;
+  const tab = origin ? await tabOnOrigin(origin) : null;
+  if (tab?.id === undefined || tab?.id === null) return;
+  await showDriving(tab.id, {
+    skill: run.skill,
+    step: run.step,
+    of: run.of,
+    runId: run.runId,
+    // The same window this worker calls a run quiet, so the page and the panel
+    // stop saying it at the same moment rather than one outliving the other.
+    quietMs: RUN_QUIET_MS,
+  });
+}
+
 /** Stop a run from here.
  *
  * The same set the backend's own `abort` command fills, so this is not a second
@@ -70,6 +106,7 @@ export function abort(runId) {
   if (!runId) return false;
   aborted.add(runId);
   if (latest?.runId === runId) latest = null;
+  for (const tabId of driving.keys()) void hideDriving(tabId);
   return true;
 }
 
@@ -331,8 +368,12 @@ export async function perform(command) {
     const now = Date.now();
     latest =
       latest?.runId === command.run_id
-        ? { ...latest, kind: command.kind, at: now }
-        : { runId: command.run_id, kind: command.kind, since: now, at: now };
+        ? { ...latest, kind: command.kind, at: now, ...told(command) }
+        : { runId: command.run_id, kind: command.kind, since: now, at: now, ...told(command) };
+    // The page says so itself while it is being driven. The panel already
+    // does, and the panel is not where somebody is looking: they are watching
+    // fields fill and buttons press, with nothing there saying it is not them.
+    void announce(command, latest);
   }
 
   try {

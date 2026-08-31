@@ -28,6 +28,9 @@ class AgentDrivers(Protocol):
         device_id: DeviceId,
         origin: str | None = None,
         may_take_focus: bool = False,
+        doing: str = "",
+        step: int | None = None,
+        of: int | None = None,
     ) -> UiDriver:
         """A driver that performs its gestures in that device's browser.
 

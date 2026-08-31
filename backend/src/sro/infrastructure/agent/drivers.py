@@ -43,8 +43,13 @@ class RemoteAgents(AgentDrivers):
         device_id: DeviceId,
         origin: str | None = None,
         may_take_focus: bool = False,
+        doing: str = "",
+        step: int | None = None,
+        of: int | None = None,
     ) -> UiDriver:
-        return RemoteUiDriver(self._sockets, tenant_id, device_id, origin, may_take_focus)
+        return RemoteUiDriver(
+            self._sockets, tenant_id, device_id, origin, may_take_focus, doing, step, of
+        )
 
     def http(self, tenant_id: TenantId, device_id: DeviceId) -> HttpCaller:
         return RemoteHttpCaller(self._sockets, tenant_id, device_id)
@@ -64,12 +69,18 @@ class RemoteUiDriver(UiDriver):
         device_id: DeviceId,
         origin: str | None = None,
         may_take_focus: bool = False,
+        doing: str = "",
+        step: int | None = None,
+        of: int | None = None,
     ) -> None:
         self._sockets = sockets
         self._tenant_id = tenant_id
         self._device_id = device_id
         self._origin = origin
         self._may_take_focus = may_take_focus
+        self._doing = doing
+        self._step = step
+        self._of = of
 
     async def perform(
         self,
@@ -147,6 +158,16 @@ class RemoteUiDriver(UiDriver):
         # does not understand takes nobody's screen.
         if self._may_take_focus:
             payload = {**payload, "allow_focus": True}
+        # What the page says about itself while this is happening. The operator
+        # whose browser is being driven is watching the page, not the panel,
+        # and "AI-SRO is doing X, step 4 of 13" is the difference between an
+        # application behaving oddly and a task somebody can see and stop.
+        if self._doing:
+            payload = {**payload, "skill": self._doing}
+        if self._step is not None:
+            payload = {**payload, "step": self._step}
+        if self._of is not None:
+            payload = {**payload, "of": self._of}
         try:
             return await self._sockets.send(
                 self._tenant_id, self._device_id, kind=kind, payload=payload, timeout_s=timeout_s

@@ -518,7 +518,16 @@ class ExecuteStep:
         if self._agents is None:
             return None
         return self._agents.ui(
-            run.tenant_id, run.device_id, _origin_of(version, step), run.may_take_focus
+            run.tenant_id,
+            run.device_id,
+            _origin_of(version, step),
+            run.may_take_focus,
+            # What this step is for, not what the skill is called: the band is
+            # read by somebody watching their own screen change, and "adding
+            # the work area" answers what is happening to them now.
+            doing=step.intent if step is not None else "",
+            step=(step.index + 1) if step is not None else None,
+            of=len(version.steps) if version is not None else None,
         )
 
     def _caller_for(self, run: Run) -> HttpCaller:

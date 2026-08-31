@@ -170,6 +170,17 @@ operator, and `intent` = the sentence they typed.
 
 When the run finishes the panel asks one question, once.
 
+The question survives the panel being closed: it is asked about the most recent
+finished run that nobody has answered for, so an operator who shut the panel and
+came back still gets asked. It expires with the run's own evidence rather than
+nagging forever — an unanswered question is not a failure, it is a run nobody
+told us about, and the ladder treats it exactly as it treats one today.
+
+Only the person the run was performed for may answer it. A run drives one
+operator's browser and they are the only one who saw what it produced; anybody
+else in the tenant is guessing, and a guess in the track record is worse than a
+silence.
+
 **Yes** — nothing new. The run's verdict stands as judged.
 
 **No** — two things happen.
@@ -210,6 +221,8 @@ offered.
 - To act on a sentence it is not sure about. `ResolveIntent` already refuses;
   the panel must render the refusal rather than pick the top match.
 - To count a run the operator called wrong as clean, whatever its steps did.
+- To let anyone but the operator the run was performed for call its result
+  wrong.
 - To ask the operator to demonstrate anything. Every path here either uses what
   was already watched or asks them to do their own job.
 

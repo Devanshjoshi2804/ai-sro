@@ -18,14 +18,22 @@ from __future__ import annotations
 
 import pytest
 
+from sro.application.context import RequestContext
+from sro.application.induction.companions import read_skills
+from sro.application.induction.understand import UnderstandRecording
 from sro.domain.shared.errors import InvariantViolation
-from sro.domain.shared.identifiers import RecordingId
+from sro.domain.shared.identifiers import RecordingId, SkillId
 from tests import factories as f
 from tests.unit.application.test_a_task_done_many_ways import (
     _every_short_line,
     _four_carrier_cross_references,
     _induce,
 )
+from tests.unit.application.test_capabilities import _read
+from tests.unit.application.test_understand import FakeInterpreter, _recorded
+from tests.unit.fakes import FakeClock, FakeIdFactory, FakeUnitOfWork
+
+CTX = RequestContext(tenant_id=f.TENANT, principal_id=f.OPERATOR)
 
 
 def test_a_recording_cannot_be_aligned_without_being_cited_at_all() -> None:
@@ -81,3 +89,56 @@ async def test_a_loops_history_is_marked_read_for_parameters_only() -> None:
     assert set(provenance.recording_ids[2:]).isdisjoint(provenance.aligned_recording_ids), (
         "history read only for parameters must not also be claimed as aligned"
     )
+
+
+# --- The other two constructors -----------------------------------------------
+#
+# `InduceSkill` is not the only place a `Provenance` gets built. `companions.py`
+# and `understand.py` each build a version from exactly one recording, and each
+# had its own `Provenance(...)` call site that predates this field -- which
+# means the field's default, `()`, is what a fresh skill from either path would
+# say today unless each is told explicitly. That is precisely the ambiguity
+# the field exists to end, reintroduced by omission rather than by mistake: a
+# version written tomorrow reading identically to a version written before the
+# field existed.
+
+
+async def test_a_companion_read_skill_marks_its_one_recording_as_aligned() -> None:
+    """`companions._skill` builds its one read step from exactly the recording
+    it read the collection on. A single-recording constructor, the same shape
+    `understand.py` and `InduceSkill`'s one-run branch are -- and it must say
+    so the same way, not fall through to the "nobody recorded this" default."""
+    frames = (_read(0, "warehouseTransportModes", rows=3),)
+    taught = f.objective(objective_type="create_transport_mode", entity_type="transport_mode")
+
+    companions = read_skills(
+        frames,
+        taught=taught,
+        recording_id=RecordingId("rec-1"),
+        tenant_id=f.TENANT,
+        by=f.OPERATOR,
+        at=f.at(0),
+        new_id=lambda: SkillId("companion-1"),
+    )
+
+    assert len(companions) == 1
+    provenance = companions[0].versions[-1].provenance
+    assert provenance.recording_ids == (RecordingId("rec-1"),)
+    assert provenance.aligned_recording_ids == (RecordingId("rec-1"),)
+
+
+async def test_understanding_one_recording_marks_it_as_aligned() -> None:
+    """`UnderstandRecording` reads every step from the one recording it was
+    given -- there is no pair, no history, nothing else the steps could have
+    come from. Its `Provenance(...)` call site must say that plainly rather
+    than leave the default to imply nobody wrote it down."""
+    uow = FakeUnitOfWork()
+    await _recorded(uow)
+
+    await UnderstandRecording(uow, FakeInterpreter(), FakeClock(), FakeIdFactory()).execute(
+        CTX, recording_id=RecordingId("rec-1")
+    )
+
+    version = next(iter(uow.skills.rows.values())).versions[-1]
+    assert version.provenance.recording_ids == (RecordingId("rec-1"),)
+    assert version.provenance.aligned_recording_ids == (RecordingId("rec-1"),)

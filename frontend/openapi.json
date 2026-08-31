@@ -26461,6 +26461,13 @@
             "type": "array",
             "title": "Recording Ids"
           },
+          "aligned_recording_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Aligned Recording Ids"
+          },
           "repaired_from": {
             "anyOf": [
               {
@@ -26529,6 +26536,7 @@
           "induced_at",
           "induced_by",
           "recording_ids",
+          "aligned_recording_ids",
           "repaired_from",
           "provenance_note",
           "steps",

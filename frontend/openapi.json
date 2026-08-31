@@ -25579,6 +25579,28 @@
         ],
         "title": "ResumeRequest"
       },
+      "ReversalModel": {
+        "properties": {
+          "skill_id": {
+            "type": "string",
+            "title": "Skill Id"
+          },
+          "parameters": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Parameters"
+          }
+        },
+        "type": "object",
+        "required": [
+          "skill_id",
+          "parameters"
+        ],
+        "title": "ReversalModel",
+        "description": "What would take back what this run made, where anything would."
+      },
       "RunModel": {
         "properties": {
           "id": {
@@ -25683,6 +25705,16 @@
               }
             ],
             "title": "Wrong Because"
+          },
+          "reversal": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReversalModel"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "steps": {
             "items": {

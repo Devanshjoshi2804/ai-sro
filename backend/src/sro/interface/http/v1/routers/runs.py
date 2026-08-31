@@ -14,8 +14,9 @@ from fastapi import APIRouter, Query, status
 
 from sro.application.context import RequestContext
 from sro.application.execution.execute_skill import ExecutionRequest
+from sro.application.execution.reversal import reversal_for
 from sro.container import Container
-from sro.domain.execution.run import Medium, Run, RunId
+from sro.domain.execution.run import Medium, Run, RunId, RunStatus
 from sro.domain.shared.identifiers import DeviceId, SkillId
 from sro.interface.http.deps import ContainerDep, ContextDep
 from sro.interface.http.schemas import (
@@ -173,7 +174,18 @@ async def list_runs(
 @router.get("/runs/{run_id}")
 async def get_run(run_id: str, container: ContainerDep, ctx: ContextDep) -> RunModel:
     run = await container.get_run().execute(ctx, run_id=RunId(run_id))
-    return RunModel.of(run)
+    reversal = None
+    if run.status is RunStatus.SUCCEEDED:
+        # Only a run that actually made something is a candidate for an undo --
+        # a failed run has nothing settled to take back, and computing this
+        # needs the tenant's whole skill library, which the list endpoint must
+        # not pay for on every row.
+        # ponytail: first page only (default limit=50), so a tenant with more
+        # skills than that can miss a DELETE this run could actually use.
+        # Widen if a tenant's library grows past a page before this is felt.
+        skills = await container.list_skills().execute(ctx)
+        reversal = reversal_for(run, skills)
+    return RunModel.of(run, reversal=reversal)
 
 
 async def _perform(container: Container, ctx: RequestContext, run: Run) -> None:

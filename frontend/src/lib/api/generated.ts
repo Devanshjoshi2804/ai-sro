@@ -2910,6 +2910,18 @@ export interface components {
             /** Reason */
             reason: string;
         };
+        /**
+         * ReversalModel
+         * @description What would take back what this run made, where anything would.
+         */
+        ReversalModel: {
+            /** Skill Id */
+            skill_id: string;
+            /** Parameters */
+            parameters: {
+                [key: string]: string;
+            };
+        };
         /** RunModel */
         RunModel: {
             /** Id */
@@ -2949,6 +2961,7 @@ export interface components {
             failure: string | null;
             /** Wrong Because */
             wrong_because?: string | null;
+            reversal?: components["schemas"]["ReversalModel"] | null;
             /** Steps */
             steps: components["schemas"]["StepOutcomeModel"][];
         };

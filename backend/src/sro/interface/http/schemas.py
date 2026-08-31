@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field
 
 from sro.application.analytics.summary import Summary
 from sro.application.execution.pursuits import PursuitProgress
+from sro.application.execution.reversal import Reversal
 from sro.application.intent.match import Candidate
 from sro.application.intent.resolve import Resolution
 from sro.domain.chat.thread import Thread
@@ -1047,6 +1048,17 @@ class CalledWrongRequest(BaseModel):
     are different things to read a month later."""
 
 
+class ReversalModel(BaseModel):
+    """What would take back what this run made, where anything would."""
+
+    skill_id: str
+    parameters: dict[str, str]
+
+    @classmethod
+    def of(cls, reversal: Reversal) -> ReversalModel:
+        return cls(skill_id=reversal.skill_id.value, parameters=reversal.parameters)
+
+
 class RunModel(BaseModel):
     id: str
     skill_id: str
@@ -1069,10 +1081,18 @@ class RunModel(BaseModel):
     """Set once the person this ran for says the result was wrong. Null is the
     ordinary case and is not a verdict; nothing is asked after a run."""
 
+    reversal: ReversalModel | None = None
+    """What would undo this run, where the panel found three facts that say
+    one does: a write, a runnable skill that deletes that same shape, and the
+    identifier it needs, already read back. Null is not "no", it is "not
+    computed here" -- only the single-run read fills it in, because it needs
+    the tenant's skill library and the list of runs must not pay for that on
+    every row."""
+
     steps: list[StepOutcomeModel]
 
     @classmethod
-    def of(cls, run: Run) -> RunModel:
+    def of(cls, run: Run, *, reversal: Reversal | None = None) -> RunModel:
         return cls(
             id=run.id.value,
             skill_id=run.skill_id.value,
@@ -1089,6 +1109,7 @@ class RunModel(BaseModel):
             ended_at=run.ended_at,
             failure=run.failure,
             wrong_because=run.wrong_because,
+            reversal=ReversalModel.of(reversal) if reversal is not None else None,
             steps=[StepOutcomeModel.of(step) for step in run.steps],
         )
 

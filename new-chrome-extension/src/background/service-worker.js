@@ -672,13 +672,13 @@ async function handle(message, sender) {
       try {
         await api.stopRun(message.runId);
       } catch (error) {
-        // Answered even when there was nothing to stop: the panel asking
-        // twice, or asking about a run that has just finished, is not an
-        // error worth showing anybody -- the backend refuses both with a 409
-        // and the local abort has already done the half that matters. Said
-        // rather than swallowed, though: a backend this browser could not
-        // reach at all is a run still stepping somewhere, and the operator
-        // who just pressed Stop is the one person who needs to know.
+        // Only what is worth showing anybody reaches here: `api.stopRun`
+        // swallows the 409 the backend answers when there was nothing left to
+        // stop -- a run that has just finished, or a second press -- because
+        // that is an ordinary race and not a fault. What is left is a backend
+        // this browser could not reach at all, which means a run still
+        // stepping somewhere with nobody having been told to stop it, and the
+        // operator who just pressed Stop is the one person who needs to know.
         return { ok: true, aborted: here_, error: error.message };
       }
       return { ok: true, aborted: here_ };

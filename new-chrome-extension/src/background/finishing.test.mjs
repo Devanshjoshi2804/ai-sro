@@ -41,8 +41,17 @@ globalThis.chrome = {
   },
 };
 
+// What `api.call` reaches for. Set per-test by `stoppingIsNotAnAlarm` below;
+// nothing else in this file makes a request, so an unset one is a test that
+// would have gone to the network and did not mean to.
+let answer = () => {
+  throw new Error("no fetch was expected here");
+};
+globalThis.fetch = async (...args) => answer(...args);
+
 const { perform } = await import("./commands.js");
 const { activeRunAge, afterRunWrong, state } = await import("./state.js");
+const { api } = await import("./api.js");
 
 async function demo() {
   await perform({ command_id: "cmd-1", run_id: "run-1", kind: "not-a-real-kind" });
@@ -135,7 +144,59 @@ function keyedOnThePress() {
   );
 }
 
+/** Which failures of `POST /runs/{id}/stop` are worth telling an operator
+ * about, and which are the ordinary race.
+ *
+ * The Stop button does two things: it refuses every further command for the
+ * run in this browser, and it tells the backend to stop driving it. The second
+ * can fail, and the two ways it fails are not alike. A 409 is the backend
+ * saying there was nothing left to stop -- the run finished a moment ago, or
+ * the press landed twice -- which is what happens whenever somebody presses
+ * Stop as a run is ending, and reporting it made the button read "the run
+ * could not be told: that run already succeeded". A stop control alarming
+ * about a run that had already stopped is worse than the silence it replaced.
+ *
+ * Anything else means a run still stepping somewhere with nobody told to stop
+ * it, and the operator who just pressed Stop is the only person who can act
+ * on that, so it still throws.
+ *
+ * Exercised through `api.stopRun` rather than through the worker's message
+ * handler, which is where this decision used to sit: `service-worker.js`
+ * registers chrome listeners the moment it is imported and cannot be loaded
+ * here at all, and a rule nothing can test is a rule that drifts.
+ */
+async function stoppingIsNotAnAlarm() {
+  answer = async () => ({
+    ok: false,
+    status: 409,
+    json: async () => ({ detail: "that run already succeeded" }),
+  });
+  assert.strictEqual(
+    await api.stopRun("run-1"),
+    null,
+    "a run that had already ended was reported to the operator as a failure to stop",
+  );
+
+  answer = async () => {
+    throw new TypeError("Failed to fetch");
+  };
+  await assert.rejects(
+    () => api.stopRun("run-1"),
+    /Failed to fetch/,
+    "a backend that could not be reached at all was swallowed, leaving a run stepping unstopped",
+  );
+
+  // And a refusal that is neither: still the operator's business.
+  answer = async () => ({
+    ok: false,
+    status: 500,
+    json: async () => ({ detail: "the run store is down" }),
+  });
+  await assert.rejects(() => api.stopRun("run-1"), /run store is down/);
+}
+
 await demo();
 ageBound();
 keyedOnThePress();
+await stoppingIsNotAnAlarm();
 console.log("finishing.test.mjs: ok");

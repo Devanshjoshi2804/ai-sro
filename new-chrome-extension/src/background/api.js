@@ -198,8 +198,30 @@ export const api = {
    * why it is still done first -- but the backend goes on stepping regardless,
    * sending each next command into a browser that answers `aborted`, so a run
    * the operator stopped kept running until it ran out of steps. Two
-   * implementations of stopping, one of which the operator could not reach. */
-  stopRun: (runId) => call(`/v1/runs/${encodeURIComponent(runId)}/stop`, { method: "POST" }),
+   * implementations of stopping, one of which the operator could not reach.
+   *
+   * A 409 is swallowed, and only a 409. That is the backend saying there was
+   * nothing left to stop -- the run already ended, or it is not one this
+   * process drives -- and pressing Stop as a run finishes is an ordinary race,
+   * not a fault. Reporting it turned "your run is stopping" into "the run
+   * could not be told: that run already succeeded", which is a stop control
+   * raising an alarm about a run that had already stopped: louder than the
+   * silence it replaced and no more true. Everything else still throws, so a
+   * backend this browser genuinely cannot reach -- a run still stepping
+   * somewhere with nobody able to say so -- reaches the operator who just
+   * pressed Stop.
+   *
+   * The decision lives here rather than in the worker's message handler
+   * because this file is importable on its own; `service-worker.js` registers
+   * chrome listeners the moment it loads and cannot be exercised in a test. */
+  stopRun: async (runId) => {
+    try {
+      return await call(`/v1/runs/${encodeURIComponent(runId)}/stop`, { method: "POST" });
+    } catch (error) {
+      if (error.status === 409) return null;
+      throw error;
+    }
+  },
 
   /** The operator deleting their own evidence, from their own devices, for the
    * tenant on their credential. Answers with what went. */

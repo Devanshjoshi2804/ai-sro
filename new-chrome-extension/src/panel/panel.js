@@ -421,19 +421,38 @@ function performing(status) {
  * signal.
  *
  * Silence means it was fine. A run nobody touched is judged as it is today.
+ *
+ * Never claims more than the run's own record does. `derived` is read only
+ * for a run that actually succeeded -- a run that failed partway through may
+ * still have read something back before it did, and showing that as "Created
+ * ..." would be the panel saying the write happened when the run's own status
+ * says it did not. `run.reversal` is already null for anything but a
+ * succeeded run (the backend never computes an undo for one -- see
+ * `GET /runs/{id}` in `runs.py`), so nothing extra is needed to keep "Undo
+ * that" off a failed run; this only has to get the *title* right.
  */
 function finished(status) {
   const run = status.finished;
-  const made = Object.entries(run.derived || {});
+  const ok = run.status === "succeeded";
+  const made = ok ? Object.entries(run.derived || {}) : [];
   const actions = [];
-  if (run.reversal) {
+  if (ok && run.reversal) {
     actions.push({ label: "Undo that", primary: true, act: (button) => undoRun(button, run) });
   }
-  actions.push({ label: "It's wrong — I'll fix it", act: (button) => wasWrong(button, run) });
+  // Once a run has been called wrong -- through this button or "Undo that"
+  // above -- the backend refuses a second one outright (a run may be called
+  // wrong only once), so a card that has already recorded one must not go on
+  // offering a press guaranteed to fail.
+  if (ok && !run.wrongBecause) {
+    actions.push({ label: "It's wrong — I'll fix it", act: (button) => wasWrong(button, run) });
+  }
   return card({
-    title: made.length
-      ? `Created ${made.map(([, value]) => value).join(" — ")}.`
-      : "Finished. I can't show you what it made — nothing was read back.",
+    title: ok
+      ? made.length
+        ? `Created ${made.map(([, value]) => value).join(" — ")}.`
+        : "Finished. I can't show you what it made — nothing was read back."
+      : "The last run failed.",
+    says: ok ? null : run.failure || null,
     actions,
   });
 }
@@ -444,6 +463,12 @@ function finished(status) {
  * asked to take it back, and that has to land even where starting the
  * reversal in this browser goes on to fail (a tab that has since closed, say).
  *
+ * Skipped when `run.wrongBecause` is already set -- this run has already been
+ * called wrong once, whether by this button on an earlier press that failed
+ * partway through, or by "It's wrong" below, and the backend refuses a second
+ * one. What is retried here is only what could still be outstanding: starting
+ * the reversal itself.
+ *
  * `run.reversal.skill_id` and `.parameters` came back from the backend
  * already computed (`RunModel.reversal`, see the interfaces this task was
  * handed) -- nothing here decides what would undo a run, only that this is
@@ -452,7 +477,9 @@ function finished(status) {
 async function undoRun(button, run) {
   button.disabled = true;
   try {
-    await ask({ kind: "run-wrong", runId: run.id, because: "undone by the operator" });
+    if (!run.wrongBecause) {
+      await ask({ kind: "run-wrong", runId: run.id, because: "undone by the operator" });
+    }
     await runIt(run.reversal.skill_id, run.reversal.parameters, "Undo that");
     said("undoing it — a new run is reversing this one");
   } catch (error) {

@@ -14,6 +14,7 @@
 
 import { performAtInPage, performInPage, sendInPage, viewportInPage } from "./in-page.js";
 import { hideDriving, showDriving } from "./showing.js";
+import { state } from "./state.js";
 
 /** Runs whose abort has arrived. Their later commands are refused rather than
  * performed; work already inside the page cannot be recalled, so this is a
@@ -46,52 +47,19 @@ let latest = null;
 /** How long after the last command a run is still considered to be happening.
  * Longer than a step, shorter than an operator's patience -- a finished run
  * that goes on claiming the panel is worse than one that stops claiming it a
- * little early. */
-const RUN_QUIET_MS = 30_000;
-
-/** A run whose quiet timeout has landed and has not yet been confirmed, one
- * way or the other, against the backend's own record of it.
- *
- * `performing()` going quiet is a local guess -- this browser stopped being
- * asked to do anything, which usually means the run is over, but a run can
- * legitimately pause between two of its own steps for longer than
- * `RUN_QUIET_MS` too. So this is not "the run finished", it is "go find out" --
- * `service-worker.js` reads it on the panel's own status poll, asks the
- * backend what the run's status actually is, and clears this once that has an
- * answer. Left set on "still running" or on a backend it could not reach, so
- * the next poll -- two seconds later, while the panel is open -- asks again
- * rather than the answer being lost because nothing else will ever prompt
- * another look.
- *
- * A single slot, like `latest` above: this browser drives one run at a time,
- * so there is only ever one quiet run to be finding out about.
- */
-let awaitingFinish = null;
+ * little early. Exported: `service-worker.js`'s `checkFinishing()` measures
+ * the same quiet window against the storage-backed mirror below, and a second
+ * constant there would be a second number to keep in step with this one. */
+export const RUN_QUIET_MS = 30_000;
 
 /** What this browser is performing right now, or null. */
 export function performing() {
   if (!latest) return null;
   if (Date.now() - latest.at > RUN_QUIET_MS) {
-    awaitingFinish = latest.runId;
     latest = null;
     return null;
   }
   return { runId: latest.runId, kind: latest.kind, since: latest.since };
-}
-
-/** The run id `performing()` most recently quieted on and nobody has yet
- * confirmed against the backend, or null. Read, not consumed -- see
- * `awaitingFinish` above for why staying set is the point. */
-export function runAwaitingFinish() {
-  return awaitingFinish;
-}
-
-/** The backend has answered for this run, one way or the other: stop asking
- * about it. Guarded by id rather than cleared unconditionally, so an answer
- * that arrives late for a run this browser has since moved past does not
- * erase the next one's flag out from under it. */
-export function finishConfirmed(runId) {
-  if (awaitingFinish === runId) awaitingFinish = null;
 }
 
 /** What the backend told us about this step, where it told us anything.
@@ -553,14 +521,32 @@ export async function perform(command) {
 
   if (command.run_id) {
     const now = Date.now();
-    latest =
-      latest?.runId === command.run_id
-        ? { ...latest, kind: command.kind, at: now, ...told(command) }
-        : { runId: command.run_id, kind: command.kind, since: now, at: now, ...told(command) };
+    const isNewRun = latest?.runId !== command.run_id;
+    latest = isNewRun
+      ? { runId: command.run_id, kind: command.kind, since: now, at: now, ...told(command) }
+      : { ...latest, kind: command.kind, at: now, ...told(command) };
     // The page says so itself while it is being driven. The panel already
     // does, and the panel is not where somebody is looking: they are watching
     // fields fill and buttons press, with nothing there saying it is not them.
     void announce(command, latest);
+    // Mirrored to storage, not just held in `latest`: this worker is evicted
+    // between commands as a matter of course, which is the *ordinary* case
+    // for a run performed with the panel closed, and `latest` dying with it
+    // would mean the only trigger left to notice a run finishing is the panel
+    // poll -- which only ever fires for an operator already staring at the
+    // screen. `service-worker.js`'s `checkFinishing()` reads this instead,
+    // off both the panel poll and the heartbeat alarm that fires whether the
+    // panel is open or not. Only `runId` and `at`: everything else `latest`
+    // carries -- `tabId`, the step count the band shows -- is for driving
+    // this run within this worker's own lifetime and is worthless to a
+    // worker that has since been evicted and restarted.
+    void state.setActiveRun({ runId: command.run_id, at: now });
+    // A new run starting supersedes whatever the last one made. Left standing,
+    // "Undo that" for the run before this one would sit under a card saying
+    // this one is performing right now -- confusing even though neither fact
+    // is wrong, and cheaper to clear here than to wait out however long this
+    // run takes to finish on its own.
+    if (isNewRun) void state.setFinishedRun(null);
   }
 
   try {

@@ -1124,6 +1124,81 @@ test("'it's wrong' records why without offering a run it cannot take back", asyn
   assert.deepStrictEqual(sentOf(sent, "run-skill"), []);
 });
 
+test("a run that failed is not shown as though it made something", async () => {
+  // Round 1 review: `noteFinished` stores any non-"running" status and the
+  // card ignored it entirely -- a run that failed partway through, having
+  // already read something back, rendered "Created NDPCK." A card must never
+  // claim more than the run's own record says.
+  const { cards } = panel(
+    {
+      deviceId: "dev-1",
+      capturing: true,
+      watched: [{ tabId: 7, host: "wms.example", since: new Date().toISOString() }],
+      finished: {
+        id: "run-1",
+        status: "failed",
+        derived: { operation: "NDPCK" },
+        reversal: null,
+        failure: "the system rejected the write",
+      },
+    },
+    { id: 7, host: "wms.example", url: "https://wms.example/portal" },
+  );
+
+  const card = cards.find((c) => /last run failed/i.test(words(c)));
+  assert.ok(card, "a failed run was not reported at all");
+  const said = words(card);
+  assert.ok(!/Created/i.test(said), "a failed run was shown as though it made something");
+  assert.match(said, /the system rejected the write/, "the run's own failure reason was dropped");
+  assert.strictEqual(
+    buttons(card).length,
+    0,
+    "a failed run offered a button -- undo or 'wrong' -- with nothing behind it",
+  );
+});
+
+test("a run already called wrong keeps its retry, not a second way to call it wrong", async () => {
+  // Round 1 review: the worker used to delete the finished-run row the moment
+  // `run-wrong` was accepted. If starting the reversal then failed (a tab
+  // closed, a network blip), the card vanished on refresh with a marked-wrong
+  // run, nothing reversed, and no way back to retry. The worker now keeps the
+  // row and marks it `wrongBecause`; this is the panel half -- retry the
+  // reversal without recording a second, refused `run-wrong`.
+  const { cards, sent } = panel(
+    {
+      deviceId: "dev-1",
+      capturing: true,
+      watched: [{ tabId: 7, host: "wms.example", since: new Date().toISOString() }],
+      finished: {
+        id: "run-1",
+        status: "succeeded",
+        derived: { operation: "NDPCK" },
+        reversal: { skill_id: "skl-2", parameters: { operation_id: "NDPCK" } },
+        wrongBecause: "undone by the operator",
+      },
+    },
+    { id: 7, host: "wms.example", url: "https://wms.example/portal" },
+  );
+
+  const card = cards.find((c) => words(c).includes("NDPCK"));
+  assert.ok(
+    !/I'll fix it/i.test(words(card)),
+    "a run already called wrong still offered a second way to call it wrong",
+  );
+  const [undo] = buttons(card);
+  assert.strictEqual(undo.textContent, "Undo that");
+
+  await undo.listeners[0]();
+
+  assert.deepStrictEqual(
+    sentOf(sent, "run-wrong"),
+    [],
+    "an already-recorded run was called wrong a second time, which the backend refuses",
+  );
+  const [ran] = sentOf(sent, "run-skill");
+  assert.strictEqual(ran.skillId, "skl-2", "retrying the undo did not start the reversal");
+});
+
 for (const [name, fn] of tests) {
   try {
     await fn();

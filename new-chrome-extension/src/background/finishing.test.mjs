@@ -1,59 +1,74 @@
-// Self-check for the quiet-run bookkeeping `service-worker.js` reads on the
-// panel's own status poll to decide when to ask the backend whether a run
-// that stopped sending commands actually finished.
+// Self-check for what commands.js persists about the run it is driving, so a
+// run that finishes with the panel closed can still be noticed once the
+// worker wakes back up.
 //
-// `performing()` going quiet is a local guess, never a verdict -- a run can
-// legitimately pause between two of its own steps for longer than the quiet
-// window. `runAwaitingFinish()` is what turns that guess into "go ask the
-// backend", and `finishConfirmed()` is the only thing allowed to take it back,
-// and only for the run it was told to. What matters here is that flag surviving
-// exactly as long as it should: set the moment a run goes quiet, left alone by
-// a confirmation naming some other run, and cleared by the one that names it.
+// `perform()` mirrors `{runId, at}` into `chrome.storage` on every run-bearing
+// command -- `commands.js`'s own `latest` is a module variable and does not
+// survive this worker idling out, which is the *ordinary* case for a run
+// performed with nobody looking at the panel; `service-worker.js`'s
+// `checkFinishing()` reads the mirror instead, off both the panel poll and the
+// heartbeat alarm. And a new run starting clears whatever the last one left
+// behind to be shown, because "Undo that" for the run before this one, next to
+// a card saying this one is performing right now, is confusing even though
+// neither fact is wrong.
 //
 // Run with `node src/background/finishing.test.mjs`.
 
 import assert from "node:assert";
 
-import { finishConfirmed, perform, performing, runAwaitingFinish } from "./commands.js";
+// The same minimal chrome.storage.local fake `queue.test.mjs` uses: a dozen
+// keys in a Map is the whole of what state.js needs from that API.
+const held = new Map();
+globalThis.chrome = {
+  storage: {
+    local: {
+      get: async (key) => (held.has(key) ? { [key]: held.get(key) } : {}),
+      set: async (pairs) => {
+        for (const [key, value] of Object.entries(pairs)) held.set(key, value);
+      },
+      remove: async (keys) => {
+        for (const key of [keys].flat()) held.delete(key);
+      },
+    },
+  },
+};
 
-// A command this browser has no handler for still updates the run this browser
-// is performing -- `perform` records that before it ever looks at
-// `command.kind` -- so this is enough to seed one without touching `chrome.*`
-// at all (no `payload.origin`, so `announce()`'s own lookup never fires).
-const RUN = { command_id: "cmd-1", run_id: "run-1", kind: "not-a-real-kind" };
-
-const realNow = Date.now;
+const { perform } = await import("./commands.js");
+const { state } = await import("./state.js");
 
 async function demo() {
-  await perform(RUN);
-  assert.ok(performing(), "a run just given a command is not performing");
-  assert.strictEqual(runAwaitingFinish(), null, "nothing is awaiting confirmation yet");
+  await perform({ command_id: "cmd-1", run_id: "run-1", kind: "not-a-real-kind" });
+  const active = await state.activeRun();
+  assert.strictEqual(active?.runId, "run-1", "a run-bearing command was not mirrored to storage");
+  assert.ok(Number.isFinite(active.at), "no timestamp was recorded for the mirrored run");
 
-  try {
-    // Thirty-one seconds later, from this run's own point of view -- past the
-    // quiet window `commands.js` uses everywhere else.
-    Date.now = () => realNow() + 31_000;
-    assert.strictEqual(performing(), null, "a quiet run is still claiming the panel");
-    assert.strictEqual(
-      runAwaitingFinish(),
-      "run-1",
-      "going quiet did not flag the run for a backend check",
-    );
+  // Seed a finished card as though an earlier, different run had just been
+  // confirmed -- the shape `service-worker.js`'s `noteFinished` writes.
+  await state.setFinishedRun({
+    id: "run-0",
+    status: "succeeded",
+    derived: {},
+    reversal: null,
+    failure: null,
+    at: Date.now(),
+  });
 
-    // A confirmation naming a different run must not clear this one's flag --
-    // the single slot is what makes that possible to get wrong.
-    finishConfirmed("run-2");
-    assert.strictEqual(
-      runAwaitingFinish(),
-      "run-1",
-      "a different run's confirmation cleared this one's flag",
-    );
+  // The same run continuing (another command for "run-1") must not touch it.
+  await perform({ command_id: "cmd-2", run_id: "run-1", kind: "not-a-real-kind" });
+  assert.ok(
+    await state.finishedRun(),
+    "the same run continuing cleared what an earlier, different run finished",
+  );
 
-    finishConfirmed("run-1");
-    assert.strictEqual(runAwaitingFinish(), null, "confirming the right run left it flagged");
-  } finally {
-    Date.now = realNow;
-  }
+  // A genuinely new run starting supersedes it.
+  await perform({ command_id: "cmd-3", run_id: "run-2", kind: "not-a-real-kind" });
+  assert.strictEqual(
+    await state.finishedRun(),
+    null,
+    "a new run starting did not clear the last one's finished card",
+  );
+  const activeNow = await state.activeRun();
+  assert.strictEqual(activeNow.runId, "run-2", "the newly active run was not recorded");
 }
 
 await demo();

@@ -26,6 +26,7 @@ const KEYS = {
   treeTimes: "sro.treeTimes",
   teaching: "sro.teaching",
   finishedRun: "sro.finishedRun",
+  activeRun: "sro.activeRun",
 };
 
 export const DEFAULT_API_URL = "http://localhost:8000";
@@ -194,17 +195,33 @@ export const state = {
   setTeaching: (teaching) => write(KEYS.teaching, teaching),
 
   /** The last run this browser finished, and what it made -- `{ id, status,
-   * derived, reversal, at }`, or null. In storage rather than a module
-   * variable for the reason this whole file exists: the worker is evicted
-   * between the run finishing and the operator opening the panel to look, and
-   * a card that forgot itself between those two moments is a card that never
-   * existed as far as the operator is concerned. `derived` and `reversal` are
-   * copied in whole from `RunModel` -- see `service-worker.js`'s own note on
-   * why they can only be asked for, never computed here. `at` is this
-   * browser's own clock, read once when the row is written, and is what
-   * `finishedRun()` below measures a lifetime against. */
+   * derived, reversal, failure, at, wrongBecause? }`, or null. In storage
+   * rather than a module variable for the reason this whole file exists: the
+   * worker is evicted between the run finishing and the operator opening the
+   * panel to look, and a card that forgot itself between those two moments is
+   * a card that never existed as far as the operator is concerned. `status`,
+   * `derived`, `reversal` and `failure` are copied in whole from `RunModel`
+   * -- see `service-worker.js`'s own note on why they can only be asked for,
+   * never computed here. `at` is this browser's own clock, read once when the
+   * row is written, and is what `finishedRun()` below measures a lifetime
+   * against. `wrongBecause` is set once `panel.js` has already told the
+   * backend this run was wrong -- present so a `run-wrong` that already
+   * landed is never sent twice (the backend refuses a second one outright),
+   * while whatever is still left to do (starting a reversal) stays retryable
+   * rather than the whole row being deleted the moment the record lands. */
   finishedRun: () => read(KEYS.finishedRun, null),
   setFinishedRun: (run) => write(KEYS.finishedRun, run),
+
+  /** The run this browser is currently -- or was most recently -- being asked
+   * to do something for, and when it was last asked: `{ runId, at }`, or
+   * null. The storage-backed mirror of `commands.js`'s own `latest`, written
+   * on every run-bearing command; see `perform()` there for why a module
+   * variable is not enough on its own. Nothing else `latest` carries belongs
+   * here -- this exists only so a worker woken by the heartbeat alarm, with
+   * no memory of `latest` at all, can still tell whether the run it was last
+   * asked about has gone quiet. */
+  activeRun: () => read(KEYS.activeRun, null),
+  setActiveRun: (run) => write(KEYS.activeRun, run),
 
   async forget() {
     await chrome.storage.local.remove(Object.values(KEYS));

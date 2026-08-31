@@ -214,9 +214,67 @@ async function uiPerform(payload) {
   const tab = await drivenTab(payload.origin);
   if (!tab) return failure("no_tab_for_system", noPage(payload.origin));
   hold(tab.id);
-  const answer = await inPage(tab.id, performInPage, [payload]);
+  const frameId = await frameHolding(tab.id, payload);
+  const answer =
+    frameId === undefined
+      ? await inPage(tab.id, performInPage, [payload])
+      : await inFrame(tab.id, frameId, performInPage, [payload]);
   hold(tab.id);
   return answer || failure("not_actionable", "the page did not answer");
+}
+
+/** Which frame of the page holds this control.
+ *
+ * The recorder registers with `allFrames: true`, so a demonstration on a screen
+ * the application renders inside an iframe -- a portal shell hosting a
+ * configuration app, which is most enterprise WMS screens -- was recorded from
+ * inside that frame. The driver injected into the top document only, where
+ * neither the framework nor any of the recorded css paths exist, so every step
+ * of every such skill answered `control_not_found` on a screen whose controls
+ * were plainly visible. Looking in one frame and being taught in another is not
+ * a locator problem, and no amount of re-teaching would have fixed it.
+ *
+ * A probe rather than a wider act: acting where it looked would click in every
+ * frame that matched. `undefined` means "no frame claimed it" -- the top
+ * document is asked anyway, so the answer is the same `control_not_found` it
+ * would have given, with the same tried-locator list to read.
+ */
+async function frameHolding(tabId, payload) {
+  let answers;
+  try {
+    answers = await chrome.scripting.executeScript({
+      target: { tabId, allFrames: true },
+      world: "MAIN",
+      func: performInPage,
+      args: [{ ...payload, probe: true }],
+    });
+  } catch {
+    // A page that cannot be scripted at all. The single-frame attempt below
+    // fails the same way and says so in the language the run already reads.
+    return undefined;
+  }
+  return frameOf(answers);
+}
+
+/** The one frame that claimed the control, or `undefined`.
+ *
+ * None, or more than one, is `undefined`. A control that resolves in two frames
+ * is not one this can pick between, and picking wrong would act on the wrong
+ * half of a page carrying the same form twice.
+ */
+export function frameOf(answers) {
+  const holding = (answers || []).filter((each) => each?.result?.ok);
+  return holding.length === 1 ? holding[0].frameId : undefined;
+}
+
+async function inFrame(tabId, frameId, func, args, world = "MAIN") {
+  const [answer] = await chrome.scripting.executeScript({
+    target: { tabId, frameIds: [frameId] },
+    world,
+    func,
+    args,
+  });
+  return answer?.result;
 }
 
 async function uiPerformAt(payload) {

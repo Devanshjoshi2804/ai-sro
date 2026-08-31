@@ -200,6 +200,19 @@ export function performInPage(payload) {
     }
     if (!found.length) continue;
 
+    // A probe looks and does not touch.
+    //
+    // The control may be in any frame of the page, so the search runs in all of
+    // them -- and a search that acted where it looked would click in every frame
+    // that happened to match. So the frames answer where the control is, the
+    // worker picks one, and only that frame is asked to act.
+    if (payload.probe) {
+      return {
+        ok: true,
+        result: { performed: false, probed: true, matched_by: locator.strategy, candidates: found.length },
+      };
+    }
+
     const problem = act(found[0]);
     if (problem) {
       return {

@@ -25,10 +25,15 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 // is the single definition of the host rule, and a second copy in the panel is
 // how it would come to disagree with the worker about whether a page is being
 // recorded.
-const SOURCE = readFileSync(path.join(here, "panel.js"), "utf-8").replace(
-  /^import .*?;$/m,
-  "",
-);
+//
+// `export` is stripped the same way, for the same reason: a script is not a
+// module and `vm.runInContext` throws `Unexpected token 'export'` on the
+// first one. The function it was guarding is not lost -- a top-level
+// declaration in a script is a property of the sandbox's global either way,
+// which is already how this harness reaches `render` and `here`.
+const SOURCE = readFileSync(path.join(here, "panel.js"), "utf-8")
+  .replace(/^import .*?;$/m, "")
+  .replace(/^export /gm, "");
 const { hostMatches } = await import("../background/scripts.js");
 
 const OFFER = {
@@ -151,7 +156,12 @@ function panel(status, here = null, replies = {}) {
   }
   sandbox.render(status);
   const cards = ids["cards"].kids;
-  return { sent, cards, ids };
+  // `render` only ever draws the synchronous "cards" column. The list of
+  // tasks noticed on this host is a second, async fetch (`here()`, over
+  // `ask({kind: "candidates"})`) that a real load triggers separately from
+  // `whereWeAre` -- so nothing above has populated `ids["candidates"]` yet,
+  // and a test of that list has to trigger and await this itself.
+  return { sent, cards, ids, renderCandidates: sandbox.here };
 }
 
 const tests = [];
@@ -296,6 +306,46 @@ test("an ordinary watched tab is not accused of being half deaf", async () => {
   const said = cards.map(words).join(" ");
   assert.ok(/Watching this tab/i.test(said));
   assert.ok(!/only recording half/i.test(said));
+});
+
+test("the offer is about their work, not about our system", async () => {
+  // What it said before: "Create workOperations on bf56-kms-wms-web-np2
+  // .jdadelivers.com / Seen 3 times / [Teach it] [Not worth it]". The title is
+  // an API endpoint, the count is telemetry about the person reading it, and
+  // both buttons ask them to work for us or to judge us. Nobody presses that.
+  const { ids, renderCandidates } = panel(
+    {
+      deviceId: "dev-1",
+      capturing: true,
+      watched: [{ tabId: 7, host: "wms.example", since: new Date().toISOString() }],
+    },
+    { id: 7, host: "wms.example", url: "https://wms.example/portal" },
+    {
+      candidates: [
+        {
+          id: "cnd-1",
+          title: "Create workOperations on wms.example",
+          signature: "POST data/WM/wm/workOperations",
+          status: "new",
+          times_seen: 3,
+          median_duration_ms: 40000,
+          minutes_so_far: 5,
+          episodes: [],
+          joins: [],
+        },
+      ],
+    },
+  );
+  // The one card `render` never draws on its own: this is the same fetch a
+  // real load makes from `whereWeAre`, awaited here instead of raced.
+  await renderCandidates();
+
+  const said = words(ids["candidates"]);
+  assert.ok(/work operations/i.test(said), `no plain noun in: ${said.slice(0, 200)}`);
+  assert.ok(/do the next one/i.test(said), "it never offers to do anything");
+  assert.ok(!/teach/i.test(said), "the panel still asks to be taught");
+  assert.ok(!/workOperations/.test(said), "an endpoint name reached the operator");
+  assert.ok(!/seen 3 times/i.test(said), "telemetry about the operator is still shown");
 });
 
 for (const [name, fn] of tests) {

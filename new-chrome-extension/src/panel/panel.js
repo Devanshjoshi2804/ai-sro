@@ -677,44 +677,50 @@ async function here() {
   $("candidates").replaceChildren(...offerable.map(row));
 }
 
+/** The task, in the words somebody working would use.
+ *
+ * A model writes one where the deployment has one and the propose pass has run.
+ * Where it has not, the noun comes off the signature's own path -- so this never
+ * depends on a model being configured, and an operator is never shown
+ * `POST data/WM/wm/workOperations`.
+ */
+export function plainly(candidate) {
+  if (candidate.named_by_model && candidate.title) return candidate.title;
+  const path = (candidate.signature || "").split(" ")[1] || "";
+  const noun = path.split("/").filter(Boolean).pop() || "task";
+  // `workOperations` is two words to everybody except a URL.
+  const words = noun.replace(/([a-z0-9])([A-Z])/g, "$1 $2").toLowerCase();
+  return words.endsWith("s") ? words : `${words}s`;
+}
+
 function row(candidate) {
   const item = document.createElement("li");
 
-  const title = document.createElement("p");
-  title.className = "title";
-  title.textContent = candidate.title;
-  if (candidate.named_by_model) {
-    // Said out loud: a sentence a model wrote is not a fact about the task.
-    const mark = document.createElement("span");
-    mark.className = "by-model";
-    mark.textContent = " — named by a model";
-    title.append(mark);
-  }
+  const said = document.createElement("p");
+  said.className = "title";
+  // A reason, not a statistic. "Seen 3 times" is telemetry about the person
+  // reading it; "you've created 3 of these" is why we are asking.
+  said.textContent =
+    `You've created ${candidate.times_seen} ${plainly(candidate)} here — ` +
+    `about ${Math.round(candidate.median_duration_ms / 1000)}s each.`;
 
-  const facts = document.createElement("p");
-  facts.className = "note";
-  facts.textContent =
-    `Seen ${candidate.times_seen} times · ` +
-    `about ${Math.round(candidate.median_duration_ms / 1000)}s each · ` +
-    `${candidate.minutes_so_far} minutes so far`;
-
-  item.append(title, facts);
+  item.append(said);
 
   for (const join of candidate.joins || []) item.append(suggestion(candidate, join));
 
   const actions = document.createElement("div");
   actions.className = "row";
 
-  const teach = document.createElement("button");
-  teach.type = "button";
-  teach.textContent = "Teach it";
-  teach.addEventListener("click", () => taught(candidate, item));
+  const offer = document.createElement("button");
+  offer.type = "button";
+  offer.textContent = "Do the next one";
+  offer.addEventListener("click", () => beginOffer(candidate, item));
 
-  const dismiss = document.createElement("button");
-  dismiss.type = "button";
-  dismiss.className = "quiet";
-  dismiss.textContent = "Not worth it";
-  dismiss.addEventListener("click", async () => {
+  const no = document.createElement("button");
+  no.type = "button";
+  no.className = "quiet";
+  no.textContent = "No thanks";
+  no.addEventListener("click", async () => {
     try {
       await ask({ kind: "dismiss-candidate", id: candidate.id, reason: "not worth automating" });
       await here();
@@ -722,13 +728,29 @@ function row(candidate) {
       // Said on the row rather than thrown into nothing: a click that does
       // nothing and explains nothing is how somebody decides the panel is
       // broken.
-      facts.textContent = error.message;
+      said.textContent = error.message;
     }
   });
 
-  actions.append(teach, dismiss);
+  actions.append(offer, no);
   item.append(actions);
   return item;
+}
+
+/** Starts the offer this row just made: doing the operator's next occurrence
+ * of the task.
+ *
+ * A stub. What actually runs a skill against the next occurrence -- resolving
+ * an intent, starting it, and letting the operator say it went wrong -- is the
+ * next task, and this one only replaces the words on the button. Until then
+ * this says plainly that pressing it does nothing yet, because a button that
+ * looks pressed and silently does nothing is worse than one that admits it.
+ */
+function beginOffer(candidate, item) {
+  const note = document.createElement("p");
+  note.className = "note";
+  note.textContent = "doing it for you isn't wired up yet";
+  item.append(note);
 }
 
 /** What a model noticed about this candidate, and the two words a person can

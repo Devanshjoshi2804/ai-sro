@@ -266,6 +266,14 @@ _SKILL_LPN_ADJUST = {
             # preview actually list.
             "stage": "practice",
             "track_record": {"clean_streak": 0},
+            # The tab the run opens before step one. On the wire because the
+            # preview names it -- ADR 014's closed list of what an operator
+            # reads before pressing is the step intents, the resolved value of
+            # each parameter, and this. Never navigated to by anything in this
+            # suite -- the backend's driver is what opens it, and this stub is
+            # not one -- so any recognisable address does; what is under test
+            # is that the panel says which screen before the press.
+            "starts_on": "http://wms.test/inventory/lpn",
             "steps": [
                 {"index": 0, "intent": "Type the LPN barcode"},
                 {"index": 1, "intent": "Press Save"},

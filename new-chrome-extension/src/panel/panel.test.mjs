@@ -1199,6 +1199,184 @@ test("a run already called wrong keeps its retry, not a second way to call it wr
   assert.strictEqual(ran.skillId, "skl-2", "retrying the undo did not start the reversal");
 });
 
+/** Every element of one tag under `el` -- the disclosure tests need to know
+ * that the steps are *inside* a `details`, which `words()` alone cannot say
+ * because it flattens the whole tree into one string. */
+function tagged(el, tag) {
+  return [...(el.tag === tag ? [el] : []), ...el.kids.flatMap((kid) => tagged(kid, tag))];
+}
+
+/** A skill version as the API hands one back, minus whatever the test cares
+ * about itself. Two input parameters on the same step by default: that is the
+ * shape `preview()` used to lose one half of. */
+function previewableVersion(overrides = {}) {
+  return {
+    version: 3,
+    stage: "recorded",
+    track_record: { clean_streak: 0 },
+    starts_on: "https://wms.example/portal/workOperations",
+    steps: [
+      { index: 0, intent: "Type the Operation code." },
+      { index: 1, intent: "Press Save." },
+    ],
+    parameters: [
+      {
+        name: "operation_code",
+        kind: "input",
+        source_step_index: 0,
+        description: "Operation code",
+      },
+      { name: "priority", kind: "input", source_step_index: 0, description: "Priority" },
+    ],
+    ...overrides,
+  };
+}
+
+/** Drives a sentence all the way to a rendered preview: the offer row, the box
+ * it opens, and one `resolve-intent` answered by `version`. What each test
+ * below does from there is press, or read what is on the screen before
+ * pressing. */
+async function previewOf_(version, resolution = {}) {
+  const { sent, row } = await openedOffer({
+    "resolve-intent": {
+      matched: {
+        skill_id: "skl-9",
+        name: "Create a work operation",
+        version: version.version,
+        stage: version.stage,
+      },
+      confident: true,
+      choices: [],
+      missing_parameters: [],
+      items: [{ operation_code: "NDPCK", priority: "5" }],
+      ...resolution,
+    },
+    skill: { id: "skl-9", name: "Create a work operation", versions: [version] },
+  });
+  const [ask] = buttons(row).filter((button) => button.textContent === "Ask");
+  const [utterance] = inputs(row);
+  utterance.value = "create work operation NDPCK, priority 5";
+  await ask.listeners[0]();
+  return { sent, row };
+}
+
+test("the press names the version the preview was drawn from", async () => {
+  // The whole of ADR 014. `resolve-intent` matches on `skill.runnable or
+  // skill.latest`, and the preview is built from *that* version -- but the
+  // press sent no version at all, so the backend took `skill.latest`. Any
+  // skill with a newer RECORDED version (re-teaching, a drift repair, or
+  // either of the two console screens that reset a version for review) had
+  // the operator reading v1 while v2 wrote, with v1's parameters, and an
+  // unreviewed version promoted to assisted by a press that never showed it.
+  //
+  // Nothing here can prove what the backend does with the number. What it can
+  // prove is the half that lives in this file: the number the operator's
+  // preview was built from is the number the press carries.
+  const { sent, row } = await previewOf_(previewableVersion());
+
+  const [go] = buttons(row).filter((button) => button.textContent === "Do it");
+  assert.ok(go, "no press was offered at all");
+  await go.listeners[0]();
+
+  const [ran] = sentOf(sent, "run-skill");
+  assert.strictEqual(ran.version, 3, "the press could not name which version it read");
+  assert.strictEqual(ran.skillId, "skl-9");
+});
+
+test("the preview names the tab the run will act in", async () => {
+  // Design line 144 and ADR 014's closed list both say it does, and the run
+  // genuinely uses it: `starts_on` is navigated to before step one. A preview
+  // that listed the steps and left the screen out was describing the same
+  // clicks happening somewhere else, and the residual-risk argument that
+  // decision rests on depends on that list being exhaustive.
+  const { row } = await previewOf_(previewableVersion());
+
+  assert.match(
+    words(row),
+    /In https:\/\/wms\.example\/portal\/workOperations/,
+    "the preview never said which screen the run would act on",
+  );
+});
+
+test("a step that takes two typed values shows and sends both", async () => {
+  // `preview()` matched one parameter per step with `.find()`, so a step that
+  // is the source of two -- a code and a priority in the same dialog -- showed
+  // one of them and sent one of them. The other was never on the screen the
+  // operator read and never in `parameters` at the press, which means a
+  // required value silently missing and a preview that was not what ran.
+  const { sent, row } = await previewOf_(previewableVersion());
+
+  const said = words(row);
+  assert.match(said, /NDPCK/, "the first value was not shown");
+  assert.match(said, /\b5\b/, "the second value on the same step was never shown");
+
+  const [go] = buttons(row).filter((button) => button.textContent === "Do it");
+  await go.listeners[0]();
+
+  const [ran] = sentOf(sent, "run-skill");
+  assert.deepStrictEqual(
+    ran.parameters,
+    { operation_code: "NDPCK", priority: "5" },
+    "a value on the same step as another was never sent",
+  );
+});
+
+test("the one-line ask still keeps the steps one click away", async () => {
+  // Design line 154. A version with a streak has earned the shorter question
+  // -- that is the point of tying the ceremony to the rung -- but "earned a
+  // shorter question" is not "may no longer be asked what it is about to do".
+  const { row } = await previewOf_(
+    previewableVersion({ stage: "assisted", track_record: { clean_streak: 4 } }),
+  );
+
+  assert.match(words(row), /do it\?/i, "the one-line ask was not drawn");
+  const [more] = tagged(row, "details");
+  assert.ok(more, "the steps behind a disclosure were not offered at all");
+  assert.match(words(more), /Type the Operation code/, "the disclosure held no steps");
+  assert.match(words(more), /workOperations/, "the disclosure did not name the screen either");
+});
+
+test("undo says what it is about to delete, and pins the version it was offered", async () => {
+  // "Undo that" routes through the same press as any other run, and the
+  // reversal skill's steps and values are rendered nowhere -- this button is
+  // the only place it ever appears. ADR 014's argument for a press promoting
+  // a version is that the operator read what it would do; nobody could read
+  // this. One press is the design and stays one press, but one press with no
+  // idea what is about to be deleted is not something this design ever argued
+  // for.
+  const { cards, sent } = panel(
+    {
+      deviceId: "dev-1",
+      capturing: true,
+      watched: [{ tabId: 7, host: "wms.example", since: new Date().toISOString() }],
+      finished: {
+        id: "run-1",
+        status: "succeeded",
+        derived: { operation: "NDPCK" },
+        reversal: {
+          skill_id: "skl-undo",
+          version: 2,
+          removes: "Delete the work operation",
+          parameters: { operation_id: "NDPCK" },
+        },
+      },
+    },
+    { id: 7, host: "wms.example", url: "https://wms.example/portal" },
+  );
+
+  const card = cards.find((c) => words(c).includes("NDPCK"));
+  const said = words(card);
+  assert.match(said, /Delete the work operation/, "the undo never named what it would remove");
+  assert.match(said, /operation_id: NDPCK/, "the undo never named which record");
+
+  const [undo] = buttons(card).filter((button) => button.textContent === "Undo that");
+  await undo.listeners[0]();
+
+  const [ran] = sentOf(sent, "run-skill");
+  assert.strictEqual(ran.skillId, "skl-undo");
+  assert.strictEqual(ran.version, 2, "the undo ran whatever version was newest, not the one it was offered");
+});
+
 for (const [name, fn] of tests) {
   try {
     await fn();

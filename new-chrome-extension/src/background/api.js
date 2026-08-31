@@ -178,12 +178,28 @@ export const api = {
   /** The press. Promotes the version a preview just showed and starts it in
    * the operator's own browser in one call -- see ADR 014 and
    * `RunFromPreview`. Refused for a looped skill with a sentence written for
-   * an operator to read, which the panel shows rather than swallows. */
-  runFromPreview: (skillId, parameters, deviceId, intent) =>
+   * an operator to read, which the panel shows rather than swallows.
+   *
+   * `version` is the one the panel rendered, and is what makes ADR 014's
+   * central claim true rather than merely stated: the backend runs that
+   * version and refuses the press outright where the skill has been taught
+   * again since, instead of quietly running whichever version happens to be
+   * newest by the time the press lands. */
+  runFromPreview: (skillId, parameters, deviceId, intent, version) =>
     call(`/v1/skills/${encodeURIComponent(skillId)}/runs/from-preview`, {
       method: "POST",
-      body: { parameters, device_id: deviceId, intent },
+      body: { parameters, device_id: deviceId, intent, version },
     }),
+
+  /** Ask the backend to stop stepping a run it is performing in this browser.
+   *
+   * The other half of the Stop button. `commands.js`'s `abort` makes this
+   * browser refuse every later command for the run, which is immediate and is
+   * why it is still done first -- but the backend goes on stepping regardless,
+   * sending each next command into a browser that answers `aborted`, so a run
+   * the operator stopped kept running until it ran out of steps. Two
+   * implementations of stopping, one of which the operator could not reach. */
+  stopRun: (runId) => call(`/v1/runs/${encodeURIComponent(runId)}/stop`, { method: "POST" }),
 
   /** The operator deleting their own evidence, from their own devices, for the
    * tenant on their credential. Answers with what went. */

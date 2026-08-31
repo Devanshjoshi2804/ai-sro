@@ -729,6 +729,19 @@ class SkillVersionModel(BaseModel):
     because otherwise no screen can tell one from an ordinary skill until the
     backend refuses the run."""
 
+    starts_on: str | None
+    """The page the run opens before it does anything -- see
+    `SkillVersion.starts_on`.
+
+    On the wire because the panel's preview names it, and ADR 014's argument
+    depends on that: the closed list of what an operator reads before pressing
+    is the step intents, the resolved value of each parameter, and the tab the
+    run will act in. The run genuinely navigates there
+    (`ExecuteSkill` passes it to the driver), so a preview that left it out was
+    describing a run in the operator's current tab and performing one somewhere
+    else. `None` where the demonstrations began on different screens, which is
+    the evidence saying the screen is not part of the task."""
+
     @classmethod
     def of(cls, version: SkillVersion) -> SkillVersionModel:
         return cls(
@@ -764,6 +777,7 @@ class SkillVersionModel(BaseModel):
                 for loop in version.loops
             ],
             systems=list(version.systems),
+            starts_on=version.starts_on,
             steps=[
                 StepModel(
                     index=step.index,
@@ -1003,6 +1017,16 @@ class RunFromPreviewRequest(BaseModel):
     """The sentence the operator typed. Carried onto `Run.intent` unchanged --
     see that field for why there is no second place it is kept."""
 
+    version: int
+    """The version number the panel actually previewed.
+
+    Required, and not defaulted to "the latest": ADR 014's whole argument is
+    that what was on the screen when the operator pressed `Do it` is, line for
+    line, what the run is about to do, and a press that could not name which
+    version it read cannot make that claim. The backend refuses this run
+    outright if the skill has moved on since -- it neither falls forward to a
+    version nobody read nor back to one somebody has since replaced."""
+
 
 class StepOutcomeModel(BaseModel):
     index: int
@@ -1088,11 +1112,28 @@ class ReversalModel(BaseModel):
     """What would take back what this run made, where anything would."""
 
     skill_id: str
+
+    version: int
+    """The version the undo was found on and validated against. Sent back
+    unchanged on the press, so the run that reverses is the one that was
+    offered -- see `RunFromPreviewRequest.version`."""
+
+    removes: str
+    """What the delete step says it does, in the demonstration's own words.
+    Shown beside the identifying values below, before `Undo that` is pressed:
+    one press is the design, and one press that never named what it was about
+    to delete is not."""
+
     parameters: dict[str, str]
 
     @classmethod
     def of(cls, reversal: Reversal) -> ReversalModel:
-        return cls(skill_id=reversal.skill_id.value, parameters=reversal.parameters)
+        return cls(
+            skill_id=reversal.skill_id.value,
+            version=reversal.version,
+            removes=reversal.removes,
+            parameters=reversal.parameters,
+        )
 
 
 class RunModel(BaseModel):

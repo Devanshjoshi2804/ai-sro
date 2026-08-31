@@ -1591,7 +1591,10 @@ export interface paths {
          *
          *     Always in the operator's own browser: the preview this promotes on showed
          *     them the tab the run is about to act in, and a run started anywhere else
-         *     would not be the run they read. That makes this always `run_skill`'s
+         *     would not be the run they read. Pinned, too, to the version the client says
+         *     it previewed: refused outright where the skill has been taught again since,
+         *     because what the operator read has to be what runs and neither the newer
+         *     version nor the older one is that. That makes this always `run_skill`'s
          *     device path, followed exactly rather than reinvented: answered as soon as
          *     the row exists, with the rest driven in the background, because this is a
          *     run a person is watching happen on their own screen and could not if the
@@ -2962,6 +2965,10 @@ export interface components {
         ReversalModel: {
             /** Skill Id */
             skill_id: string;
+            /** Version */
+            version: number;
+            /** Removes */
+            removes: string;
             /** Parameters */
             parameters: {
                 [key: string]: string;
@@ -2984,6 +2991,8 @@ export interface components {
              * @default
              */
             intent: string;
+            /** Version */
+            version: number;
         };
         /** RunModel */
         RunModel: {
@@ -3185,6 +3194,8 @@ export interface components {
             loops: components["schemas"]["LoopModel"][];
             /** Systems */
             systems: string[];
+            /** Starts On */
+            starts_on: string | null;
         };
         /** StartRecordingRequest */
         StartRecordingRequest: {

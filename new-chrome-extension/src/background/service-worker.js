@@ -643,7 +643,18 @@ async function handle(message, sender) {
       // The press. `from-preview`, not the ordinary run endpoint -- the
       // operator read the preview this promotes on, in this browser, and a
       // run started anywhere else would not be the run they read.
-      return api.runFromPreview(message.skillId, message.parameters, message.deviceId, message.intent);
+      // `message.version` is the version the panel drew the preview from, and
+      // is sent rather than left to the backend: what the operator read has to
+      // be what runs, and "the newest one" is a different version the moment
+      // anything re-teaches or repairs the skill between the read and the
+      // press.
+      return api.runFromPreview(
+        message.skillId,
+        message.parameters,
+        message.deviceId,
+        message.intent,
+        message.version,
+      );
     case "panel-console":
       // The one place the token deliberately leaves the worker: the console
       // this browser frames cannot see the credential in its own tab, because

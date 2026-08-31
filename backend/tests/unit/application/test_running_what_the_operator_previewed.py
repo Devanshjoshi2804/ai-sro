@@ -16,6 +16,7 @@ from sro.application.context import RequestContext
 from sro.application.execution.execute_skill import ExecuteSkill, NotRunnable
 from sro.application.execution.run_from_preview import RunFromPreview
 from sro.domain.execution.run import Medium
+from sro.domain.shared.errors import InvariantViolation
 from sro.domain.shared.identifiers import DeviceId, RecordingId, SkillId
 from sro.domain.skill.loop import Binding, Loop
 from sro.domain.skill.parameter import Parameter, ParameterKind
@@ -89,12 +90,13 @@ async def test_the_press_promotes_a_recorded_version_and_runs_it() -> None:
     await uow.skills.add(skill)
     clock = FakeClock(f.at(1000))
 
-    run = await _runner(uow, clock).execute(
+    run = await _runner(uow, clock).begin(
         OPERATOR,
         skill_id=SkillId("skill-1"),
         parameters={"shipment_id": "555"},
         device_id=DEVICE,
         intent="create work operation NDPCK, north dock picking",
+        previewed=1,
     )
 
     version = (await uow.skills.get(f.TENANT, SkillId("skill-1"))).latest
@@ -116,12 +118,13 @@ async def test_a_version_already_running_is_not_promoted_again() -> None:
     await _skill_at(uow, PromotionStage.ASSISTED, at=before)
     clock = FakeClock(f.at(2000))
 
-    await _runner(uow, clock).execute(
+    await _runner(uow, clock).begin(
         OPERATOR,
         skill_id=SkillId("skill-1"),
         parameters={"shipment_id": "555"},
         device_id=DEVICE,
         intent="create work operation NDPCK, north dock picking",
+        previewed=1,
     )
 
     version = (await uow.skills.get(f.TENANT, SkillId("skill-1"))).latest
@@ -138,12 +141,13 @@ async def test_the_sentence_they_typed_is_on_the_run() -> None:
     await uow.skills.add(skill)
     clock = FakeClock(f.at(1000))
 
-    run = await _runner(uow, clock).execute(
+    run = await _runner(uow, clock).begin(
         OPERATOR,
         skill_id=SkillId("skill-1"),
         parameters={"shipment_id": "555"},
         device_id=DEVICE,
         intent="create work operation NDPCK, north dock picking",
+        previewed=1,
     )
 
     assert run.intent == "create work operation NDPCK, north dock picking"
@@ -167,12 +171,13 @@ async def test_a_write_from_one_demonstration_still_reaches_assisted() -> None:
     await uow.skills.add(skill)
     clock = FakeClock(f.at(1000))
 
-    await _runner(uow, clock).execute(
+    await _runner(uow, clock).begin(
         OPERATOR,
         skill_id=SkillId("skill-1"),
         parameters={"shipment_id": "555"},
         device_id=DEVICE,
         intent="create work operation NDPCK, north dock picking",
+        previewed=1,
     )
 
     version = (await uow.skills.get(f.TENANT, SkillId("skill-1"))).latest
@@ -208,12 +213,13 @@ async def test_the_run_is_pinned_to_the_version_this_press_promoted() -> None:
     uow.skills.get = racing_get  # type: ignore[method-assign]
     clock = FakeClock(f.at(1000))
 
-    run = await _runner(uow, clock).execute(
+    run = await _runner(uow, clock).begin(
         OPERATOR,
         skill_id=SkillId("skill-1"),
         parameters={"shipment_id": "555"},
         device_id=DEVICE,
         intent="",
+        previewed=1,
     )
 
     assert run.skill_version == 1
@@ -279,6 +285,108 @@ async def test_a_looped_skill_is_refused_and_left_unpromoted() -> None:
             parameters={},
             device_id=DEVICE,
             intent="",
+            previewed=1,
         )
 
+    assert uow.commits == 0
+
+
+async def test_the_press_runs_the_version_the_operator_read_not_the_newest() -> None:
+    """The whole of ADR 014, checked.
+
+    A skill can perfectly ordinarily hold a runnable v1 and a newer RECORDED
+    v2 -- re-teaching lands one, so does `repair_drift`, and so do the two
+    console screens that reset a version for a fresh review
+    (`map_step_to_tool`, `add_assertion`). `ResolveIntent` matches on
+    `skill.runnable or skill.latest`, so the panel previews v1's steps and v1's
+    values. This call used to take `skill.latest` regardless, which meant v2
+    ran with v1's parameters and was promoted to ASSISTED by a press that never
+    showed a line of it.
+    """
+    uow = FakeUnitOfWork()
+    at = f.at(700)
+    await _skill_at(uow, PromotionStage.ASSISTED, at=at)
+    skill = await uow.skills.get(f.TENANT, SkillId("skill-1"))
+    skill.add_version(f.skill_version(version=2))  # RECORDED, never previewed
+    clock = FakeClock(f.at(2000))
+
+    run = await _runner(uow, clock).begin(
+        OPERATOR,
+        skill_id=SkillId("skill-1"),
+        parameters={"shipment_id": "555"},
+        device_id=DEVICE,
+        intent="create work operation NDPCK, north dock picking",
+        previewed=1,
+    )
+
+    assert run.skill_version == 1, "the run performed a version nobody previewed"
+    after = await uow.skills.get(f.TENANT, SkillId("skill-1"))
+    assert after.version(2).stage is PromotionStage.RECORDED, (
+        "an unreviewed version was promoted by a press that never showed it"
+    )
+
+
+async def test_a_version_that_moved_since_the_preview_is_refused_in_words() -> None:
+    """Not silently forward and not silently back.
+
+    Between the panel rendering a preview and the operator pressing `Do it`,
+    the skill can be taught again. Running the newer version would perform
+    steps and values nobody read; running the older one would perform a version
+    somebody has since replaced. Both are the same defect -- a press that does
+    not do what the screen said -- so the only honest answer is to refuse and
+    send them back to look, in a sentence they can act on.
+    """
+    uow = FakeUnitOfWork()
+    skill = f.skill(versions=0)
+    skill.add_version(f.skill_version())  # v1, RECORDED -- what the panel previewed
+    await uow.skills.add(skill)
+    skill.add_version(f.skill_version(version=2))  # taught again, after the preview
+    clock = FakeClock(f.at(1000))
+
+    with pytest.raises(NotRunnable) as refused:
+        await _runner(uow, clock).begin(
+            OPERATOR,
+            skill_id=SkillId("skill-1"),
+            parameters={"shipment_id": "555"},
+            device_id=DEVICE,
+            intent="create work operation NDPCK, north dock picking",
+            previewed=1,
+        )
+
+    said = str(refused.value)
+    assert "no longer" in said and "read it through" in said
+    assert "version" not in said, "a field name reached an operator"
+    assert uow.commits == 0, "a refused press still moved a version up the ladder"
+
+
+async def test_a_version_demoted_for_being_wrong_is_refused_the_press() -> None:
+    """The backstop ADR 014 leans its residual-risk argument on, at the surface
+    that was undoing it.
+
+    Three wrong runs pull a version back to SHADOW. Every press promotes a
+    version below ASSISTED, so before this the operator's very next press put
+    it straight back -- a version that is wrong every single time never stayed
+    demoted. What it needs now is a person in the console with the failures in
+    front of them, which is the rung the ladder exists to provide; the refusal
+    says so without naming a field.
+    """
+    uow = FakeUnitOfWork()
+    at = f.at(700)
+    await _skill_at(uow, PromotionStage.ASSISTED, at=at)
+    skill = await uow.skills.get(f.TENANT, SkillId("skill-1"))
+    skill.latest.demote(PromotionStage.SHADOW, at, "3 runs failed in a row")
+    clock = FakeClock(f.at(2000))
+
+    with pytest.raises(InvariantViolation) as refused:
+        await _runner(uow, clock).begin(
+            OPERATOR,
+            skill_id=SkillId("skill-1"),
+            parameters={"shipment_id": "555"},
+            device_id=DEVICE,
+            intent="create work operation NDPCK, north dock picking",
+            previewed=1,
+        )
+
+    assert "went wrong three times in a row" in str(refused.value)
+    assert skill.latest.stage is PromotionStage.SHADOW
     assert uow.commits == 0

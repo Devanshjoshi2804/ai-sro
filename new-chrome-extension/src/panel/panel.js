@@ -436,8 +436,25 @@ function finished(status) {
   const ok = run.status === "succeeded";
   const made = ok ? Object.entries(run.derived || {}) : [];
   const actions = [];
+  const notes = [];
   if (ok && run.reversal) {
     actions.push({ label: "Undo that", primary: true, act: (button) => undoRun(button, run) });
+    // What the press is about to delete, named before it is pressed.
+    //
+    // One press is the design and stays one press. But the reversal is a
+    // DELETE skill whose steps and values are rendered nowhere -- this button
+    // is the only place it ever appears -- and ADR 014's argument for a press
+    // promoting a version is that the operator read what it would do. Nobody
+    // could read this. `removes` is the delete step's own intent and
+    // `parameters` are the identifiers the run read back, which together are
+    // the whole of what the reversal will address; said on the card so it is
+    // in front of the operator before the click rather than explained after
+    // it. `||` because a finished-run row stored by an older worker has
+    // neither field, and a card with no undo line is better than one saying
+    // "undefined".
+    const removes = run.reversal.removes || "Take back what this run made";
+    const which = describeItem(run.reversal.parameters || {});
+    notes.push(`“Undo that” will: ${removes}${which ? ` — ${which}` : ""}`);
   }
   // Once a run has been called wrong -- through this button or "Undo that"
   // above -- the backend refuses a second one outright (a run may be called
@@ -453,6 +470,7 @@ function finished(status) {
         : "Finished. I can't show you what it made — nothing was read back."
       : "The last run failed.",
     says: ok ? null : run.failure || null,
+    notes,
     actions,
   });
 }
@@ -489,7 +507,17 @@ async function undoRun(button, run) {
         keepForRetry: true,
       });
     }
-    await runIt(run.reversal.skill_id, run.reversal.parameters, "Undo that");
+    // Pinned to the version `reversal_for` validated -- `skill.runnable`, the
+    // one place "may this skill actually be asked to run" is answered. Without
+    // it the press ran whatever version happened to be newest by the time it
+    // landed, which is neither the version that was checked nor one anybody
+    // was shown; the backend refuses that outright now rather than running it.
+    await runIt(
+      run.reversal.skill_id,
+      run.reversal.parameters,
+      "Undo that",
+      run.reversal.version,
+    );
     said("undoing it — a new run is reversing this one");
   } catch (error) {
     said(error.message);
@@ -911,10 +939,18 @@ function row(candidate) {
  * off, because it is the version that earned it and not them.
  *
  * `version` here is the flat shape this file builds in `preview()` below
- * (`{stage, clean_streak}`), not the wire's `SkillVersionModel` -- the streak
- * lives two levels down there, under `track_record`, and a function that
- * reached through that nesting itself would be a second place to keep in
+ * (`{stage, clean_streak, starts_on}`), not the wire's `SkillVersionModel` --
+ * the streak lives two levels down there, under `track_record`, and a function
+ * that reached through that nesting itself would be a second place to keep in
  * step with the shape the API happens to use today.
+ *
+ * `startsOn` is handed back beside the steps because it is one of the three
+ * things ADR 014's closed list says an operator reads before pressing: the
+ * step intents, the resolved value of each parameter, and the tab the run will
+ * act in. The run genuinely navigates there before it does anything, so a
+ * preview that named the steps and not the screen was describing a different
+ * run from the one about to happen -- and the residual-risk argument that
+ * decision rests on depends on that list being exhaustive.
  */
 export function previewOf(version, steps) {
   const missing = steps.filter((step) => step.missing).map((step) => step.label || step.missing);
@@ -924,7 +960,7 @@ export function previewOf(version, steps) {
       : version.stage === "recorded" || !version.clean_streak
         ? "every-step"
         : "one-line";
-  return { show, steps, missing };
+  return { show, steps, missing, startsOn: version.starts_on || null };
 }
 
 /** The steps `previewOf` needs, from a skill version's own steps, what
@@ -944,11 +980,19 @@ export function previewOf(version, steps) {
  * sendable at all.
  */
 function preview(skillVersion, missingParameters, known = {}) {
-  const steps = (skillVersion.steps || []).map((step) => {
-    const parameter = (skillVersion.parameters || []).find(
+  const steps = (skillVersion.steps || []).flatMap((step) => {
+    // Every input parameter this step is the source of, not the first one.
+    // `.find()` here meant a step that takes two typed values -- a code and a
+    // quantity in the same dialog, say -- showed one of them and sent one of
+    // them, and the other was never on the screen the operator read and never
+    // in `parameters` at the press. A line each: the step's intent is repeated
+    // beside each value, which reads a little redundantly and is the honest
+    // shape, because what the operator has to check is the values.
+    const found = (skillVersion.parameters || []).filter(
       (candidate) => candidate.kind === "input" && candidate.source_step_index === step.index,
     );
-    if (!parameter) return { intent: step.intent, value: null };
+    if (!found.length) return [{ intent: step.intent, value: null }];
+    return found.map((parameter) => {
     if (missingParameters.includes(parameter.name)) {
       return {
         intent: step.intent,
@@ -965,10 +1009,19 @@ function preview(skillVersion, missingParameters, known = {}) {
     // a value the parser read as whitespace is not a value it read, and the
     // rule against sending a key with no value is the same rule whether the
     // gap is a missing name or one that resolved to "".
-    return { intent: step.intent, value: (known[parameter.name] ?? "").trim() || null, name: parameter.name };
+    return {
+      intent: step.intent,
+      value: (known[parameter.name] ?? "").trim() || null,
+      name: parameter.name,
+    };
+    });
   });
   return previewOf(
-    { stage: skillVersion.stage, clean_streak: skillVersion.track_record?.clean_streak ?? 0 },
+    {
+      stage: skillVersion.stage,
+      clean_streak: skillVersion.track_record?.clean_streak ?? 0,
+      starts_on: skillVersion.starts_on,
+    },
     steps,
   );
 }
@@ -979,14 +1032,23 @@ function preview(skillVersion, missingParameters, known = {}) {
  * the one the operator watched the preview name. A looped skill is refused
  * here with a sentence written for an operator to read; it is returned to the
  * caller to show, not swallowed into a generic failure.
+ *
+ * `version` is not optional in practice, even though nothing here enforces it:
+ * it is the version number the preview was actually drawn from, and the
+ * backend runs exactly that one. If the skill has been taught again between
+ * the preview and this press -- re-teaching, a drift repair, or either of the
+ * console screens that reset a version for review -- the press is refused
+ * with a sentence saying so rather than quietly running steps and values
+ * nobody read. That refusal is ADR 014's central claim made true: what was on
+ * the screen is what runs.
  */
-async function runIt(skillId, parameters, intent) {
+async function runIt(skillId, parameters, intent, version) {
   // The device this browser is, read fresh rather than cached: it is the one
   // thing every run in this panel already asks for at the moment it presses,
   // not before, because a device id fixed earlier in the flow is one more
   // thing that could go stale while the operator was still typing.
   const { deviceId } = await ask({ kind: "status" });
-  return ask({ kind: "run-skill", skillId, parameters, deviceId, intent });
+  return ask({ kind: "run-skill", skillId, parameters, deviceId, intent, version });
 }
 
 /** One item's values, said plainly rather than dumped as a raw object --
@@ -1228,7 +1290,7 @@ async function renderReady(built, candidate, box, utterance, note) {
     said_.className = "note";
     box.append(said_);
     try {
-      await runIt(candidate.skill_id, parameters, utterance);
+      await runIt(candidate.skill_id, parameters, utterance, candidate.version);
       said_.textContent = "started";
     } catch (error) {
       // The button stays disabled after this and must: it is the only guard
@@ -1258,16 +1320,22 @@ async function renderReady(built, candidate, box, utterance, note) {
     const said_ = document.createElement("p");
     said_.textContent = `${candidate.name} — do it?`;
     box.append(said_);
+    // The steps behind a disclosure, per the design's own table: a version
+    // with a streak has earned the one-line ask, but "earned a shorter
+    // question" is not "may no longer be asked what it is about to do".
+    // Closed by default and one click from open, which is the difference
+    // between not making somebody read it and not letting them.
+    const more = document.createElement("details");
+    const summary = document.createElement("summary");
+    summary.textContent = "What it will do";
+    more.append(summary);
+    detail(more, built);
+    box.append(more);
   } else {
     const said_ = document.createElement("p");
     said_.textContent = candidate.name;
     box.append(said_);
-    for (const step of built.steps) {
-      const line = document.createElement("p");
-      line.className = "metrics";
-      line.textContent = step.value === null ? step.intent : `${step.intent} — ${step.value}`;
-      box.append(line);
-    }
+    detail(box, built);
   }
 
   const go = document.createElement("button");
@@ -1278,6 +1346,30 @@ async function renderReady(built, candidate, box, utterance, note) {
     return press();
   });
   box.append(go);
+}
+
+/** Every step and its value, and the tab the run opens before any of them.
+ *
+ * The whole of what ADR 014 says an operator reads before pressing, in one
+ * place, so the full preview and the disclosure behind the one-line ask cannot
+ * drift into showing different things. The screen goes first because it is
+ * what the run does first -- `starts_on` is navigated to before step one, so a
+ * preview that listed the steps and left it out described the same clicks
+ * happening somewhere else entirely.
+ */
+function detail(box, built) {
+  if (built.startsOn) {
+    const where = document.createElement("p");
+    where.className = "metrics";
+    where.textContent = `In ${built.startsOn}`;
+    box.append(where);
+  }
+  for (const step of built.steps) {
+    const line = document.createElement("p");
+    line.className = "metrics";
+    line.textContent = step.value === null ? step.intent : `${step.intent} — ${step.value}`;
+    box.append(line);
+  }
 }
 
 /** The one input that turns a sentence into a run: opened here pre-filled

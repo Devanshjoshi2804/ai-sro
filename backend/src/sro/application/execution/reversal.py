@@ -32,6 +32,26 @@ from sro.domain.skill.skill import Skill
 @dataclass(frozen=True, slots=True)
 class Reversal:
     skill_id: SkillId
+    version: int
+    """The version this undo was validated against -- `skill.runnable`, the one
+    place "may this skill actually be asked to run" is answered.
+
+    Carried out to the panel and back in on the press, for the same reason the
+    preview carries one (ADR 014): a press that cannot name the version it was
+    offered against runs whatever happens to be newest by the time it lands,
+    which is a version nobody validated and nobody was shown."""
+
+    removes: str
+    """What the delete step this found says it does, in the words of the
+    demonstration it came from.
+
+    `Undo that` is one press and stays one press -- that is the design. But one
+    press with no idea what is about to be deleted is not something this design
+    ever argued for, and the reversal skill's own steps and values are never
+    rendered anywhere. This is the smallest honest answer: the intent of the
+    step that does the deleting, shown beside the identifying values the panel
+    already has, before the button is pressed rather than after."""
+
     parameters: dict[str, str]
 
 
@@ -68,6 +88,8 @@ def reversal_for(run: Run, skills: Sequence[Skill]) -> Reversal | None:
                 continue
             return Reversal(
                 skill_id=skill.id,
+                version=version.version,
+                removes=step.intent,
                 parameters={name: run.derived[name] for name in wanted},
             )
     return None

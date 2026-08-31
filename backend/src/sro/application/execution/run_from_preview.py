@@ -13,7 +13,12 @@ clicked once and walked away.
 from __future__ import annotations
 
 from sro.application.context import RequestContext
-from sro.application.execution.execute_skill import ExecuteSkill, ExecutionRequest, ensure_runnable
+from sro.application.execution.execute_skill import (
+    ExecuteSkill,
+    ExecutionRequest,
+    NotRunnable,
+    ensure_runnable,
+)
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock
 from sro.domain.execution.run import Medium, Run
@@ -35,20 +40,51 @@ class RunFromPreview:
         parameters: dict[str, str],
         device_id: DeviceId,
         intent: str,
+        previewed: int,
     ) -> Run:
         """Promote what needs it and write the run row. Nothing has stepped yet.
 
-        Split from `execute` for the same reason `ExecuteSkill` itself is
-        split: this is always a device run -- the panel's whole premise is the
+        This is always a device run -- the panel's whole premise is the
         operator's own tab -- and `run_skill`'s device path answers before the
         run finishes so the id exists for `/runs/{id}/stream` and
         `/runs/{id}/stop` while it is still running. A caller that returned
         only once the run was over would have promised a stop button the
         operator could never reach in time to use it.
+
+        `previewed` is the version number the panel actually rendered, sent
+        back by the client rather than re-derived here. That is the whole of
+        ADR 014: what is on the screen when the operator presses `Do it` is,
+        line for line, what the run is about to do. This call used to take
+        `skill.latest`, which is a different version from the one the panel
+        previewed whenever a newer RECORDED one exists -- re-teaching,
+        `repair_drift`, `map_step_to_tool` and `add_assertion` all produce one
+        -- so the operator read v1's steps and values and v2 wrote, with v1's
+        parameters, and an unreviewed version was promoted to ASSISTED on a
+        press that never showed it.
         """
         async with self._uow as uow:
             skill = await uow.skills.get(ctx.tenant_id, skill_id)
-            version = skill.latest
+            # What the panel would preview if it asked again, right now. The
+            # same expression `ResolveIntent` picks a candidate's version with
+            # (`skill.runnable or skill.latest`), so "has it moved" is asked in
+            # exactly the terms the preview was built in.
+            #
+            # Refused rather than run either way round. Falling *forward* to a
+            # newer version runs steps and values nobody read. Falling *back*
+            # to the previewed one, after a newer one exists, runs a version
+            # somebody has since decided is not the current one -- and
+            # silently, at the moment a person is least able to notice. So the
+            # only safe answer is to say so and send them back to look, which
+            # is one more read of a preview rather than one more warehouse
+            # write on a stale one.
+            current = skill.runnable or skill.latest
+            if current.version != previewed:
+                raise NotRunnable(
+                    "what you read is no longer what this task would do -- it has been "
+                    "changed since you looked at it. Ask again and read it through before "
+                    "it runs"
+                )
+            version = current
             now = self._clock.now()
             promoted = False
             # Only a version that cannot run yet, and only as far as it needs
@@ -114,10 +150,11 @@ class RunFromPreview:
             request = ExecutionRequest(
                 skill_id=skill_id,
                 parameters=parameters,
-                # Pinned to the version this call just read and, where needed,
-                # promoted. Left to resolve on its own, `ExecuteSkill` would
-                # ask for "the latest version" again when it starts -- and a
-                # second induction landing between this commit and that
+                # Pinned to the version the operator previewed, which this
+                # call has just checked is still the current one and, where
+                # needed, promoted. Left to resolve on its own, `ExecuteSkill`
+                # would ask for "the latest version" again when it starts --
+                # and a second induction landing between this commit and that
                 # lookup would promote one version and run another, silently.
                 version=version.version,
                 authorized_by=str(ctx.principal_id),
@@ -164,31 +201,3 @@ class RunFromPreview:
                 await uow.commit()
 
         return await self._execute.begin(ctx, request)
-
-    async def execute(
-        self,
-        ctx: RequestContext,
-        *,
-        skill_id: SkillId,
-        parameters: dict[str, str],
-        device_id: DeviceId,
-        intent: str,
-    ) -> Run:
-        """Promote, start and see the run through, in one call.
-
-        Mirrors `ExecuteSkill.execute`, which is exactly `begin` then
-        `resume` for the same reason: a caller that does not need to stream
-        the run gets the shortcut without re-deriving it. The HTTP router is
-        not that caller -- `device_id` is required on every call this class
-        answers, so the router always calls `begin` directly and hands the
-        result to the background pursuit `run_skill`'s device path already
-        spawns, exactly as that path does. Nothing in production calls this
-        method today; it exists for a caller this flow does not have yet --
-        a durable one, if this ever gets an equivalent to `run_skill`'s
-        non-device path -- and, until then, for tests that want the whole
-        run rather than the row it started with.
-        """
-        run = await self.begin(
-            ctx, skill_id=skill_id, parameters=parameters, device_id=device_id, intent=intent
-        )
-        return await self._execute.resume(ctx, run)

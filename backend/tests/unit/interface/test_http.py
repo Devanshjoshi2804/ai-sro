@@ -518,5 +518,11 @@ class TestRunReversal:
         assert response.status_code == 200
         assert response.json()["reversal"] == {
             "skill_id": "undoer",
+            # The version the undo was validated against, and what its delete
+            # step says it does. Both are on the wire because the panel names
+            # what "Undo that" will remove before it is pressed, and pins the
+            # version it was offered against when it is.
+            "version": 1,
+            "removes": "release the wave",
             "parameters": {"operation_id": "NDPCK"},
         }

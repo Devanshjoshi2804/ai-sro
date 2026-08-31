@@ -158,6 +158,11 @@ def test_the_offer_the_sentence_the_press_and_the_undo(
     assert "Type the LPN barcode" in previewed, previewed
     assert "LPN-4471" in previewed, previewed
     assert "Press Save" in previewed, previewed
+    # And the screen it will act in. ADR 014's argument that a preview counts
+    # as a review rests on a closed list of what the operator read -- the step
+    # intents, the resolved value of each parameter, and the starting tab --
+    # and the run genuinely navigates there before step one.
+    assert "wms.test/inventory/lpn" in previewed, previewed
 
     # -- one press: the stub receives the write ----------------------------------
     row.get_by_role("button", name="Do it").click()
@@ -173,6 +178,10 @@ def test_the_offer_the_sentence_the_press_and_the_undo(
     # preview showed, travelling again.
     assert press["parameters"] == {"lpn": "LPN-4471"}
     assert press["intent"] == SENTENCE
+    # The version the preview above was actually drawn from. Without it the
+    # backend took `skill.latest`, so any skill carrying a newer RECORDED
+    # version had the operator reading one version while another wrote.
+    assert press["version"] == 1, press
     run_id = press["run_id"]
 
     # A run in this system becomes real to the extension only once the
@@ -192,7 +201,17 @@ def test_the_offer_the_sentence_the_press_and_the_undo(
     finish_run(
         run_id,
         {"lpn": "LPN-4471", "quantity": "4"},
-        {"skill_id": SKILL_ID, "parameters": {"lpn": "LPN-4471", "quantity": "0"}},
+        {
+            "skill_id": SKILL_ID,
+            # The version the undo was validated against, and what its delete
+            # step says it does. Both are on the wire so the card can name what
+            # the press is about to remove *before* it is pressed, and so the
+            # press runs the version it was offered rather than whatever is
+            # newest by the time it lands.
+            "version": 1,
+            "removes": "Set the LPN quantity back to zero",
+            "parameters": {"lpn": "LPN-4471", "quantity": "0"},
+        },
     )
 
     # -- the panel shows what was made -------------------------------------------
@@ -206,6 +225,10 @@ def test_the_offer_the_sentence_the_press_and_the_undo(
     said = made.text_content()
     assert "LPN-4471" in said, said
     assert "4" in said, said
+    # And what pressing "Undo that" would delete, named before it is pressed:
+    # the reversal skill's own steps are rendered nowhere else, so without this
+    # the one press ADR 014 argues for is a press onto a delete nobody read.
+    assert "Set the LPN quantity back to zero" in said, said
 
     # -- and offers to take it back ------------------------------------------
     undo = panel.get_by_role("button", name="Undo that")
@@ -223,3 +246,6 @@ def test_the_offer_the_sentence_the_press_and_the_undo(
     assert reversal_press["skill_id"] == SKILL_ID
     assert reversal_press["parameters"] == {"lpn": "LPN-4471", "quantity": "0"}
     assert reversal_press["intent"] == "Undo that"
+    assert reversal_press["version"] == 1, (
+        "the undo ran whatever version was newest rather than the one it was offered"
+    )

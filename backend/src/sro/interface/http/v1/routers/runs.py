@@ -104,7 +104,10 @@ async def run_from_preview(
 
     Always in the operator's own browser: the preview this promotes on showed
     them the tab the run is about to act in, and a run started anywhere else
-    would not be the run they read. That makes this always `run_skill`'s
+    would not be the run they read. Pinned, too, to the version the client says
+    it previewed: refused outright where the skill has been taught again since,
+    because what the operator read has to be what runs and neither the newer
+    version nor the older one is that. That makes this always `run_skill`'s
     device path, followed exactly rather than reinvented: answered as soon as
     the row exists, with the rest driven in the background, because this is a
     run a person is watching happen on their own screen and could not if the
@@ -117,6 +120,7 @@ async def run_from_preview(
         parameters=body.parameters,
         device_id=DeviceId(body.device_id),
         intent=body.intent,
+        previewed=body.version,
     )
     container.pursuits.spawn(_perform(container, ctx, started))
     return RunModel.of(started)

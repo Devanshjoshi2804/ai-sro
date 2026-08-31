@@ -216,3 +216,40 @@ export async function injectInto(tabId, url, policy, granted = []) {
     return false;
   }
 }
+
+
+/** Put the recorder back into every tab this browser is already watching.
+ *
+ * Reloading the extension severs `chrome.runtime` for every content script
+ * already in a page. The script cannot report that -- there is nobody left to
+ * report it to -- so the tab goes quiet, while the panel goes on saying
+ * "watching this tab, since 65m", because the watch is a fact about the tab and
+ * not about whether anything is still listening.
+ *
+ * An operator who reloads the extension, demonstrates a task and finds nothing
+ * was recorded learns exactly one thing, and it is not a good one.
+ *
+ * Registration does not cover this: it governs the next navigation only, so a
+ * tab open across the reload runs nothing of ours until it is navigated. And
+ * telling somebody to reload the page they are working in is not an answer --
+ * they lose the form they had half filled in.
+ *
+ * Safe to run on every worker start, which is the only way it can run at all:
+ * there is no way to tell a reload from an ordinary wake-up, and a tab that
+ * still has the scripts is unharmed -- the page-realm patch refuses a `fetch`
+ * it has already patched, and Chrome does not run a file it has already put in
+ * a frame.
+ */
+export async function injectIntoWatched(tabs, policy, granted = []) {
+  const put = await Promise.all(
+    (tabs || []).map(async (tab) => {
+      // A watch outlives the tab it names -- a closed tab, or one Chrome hands
+      // the same id to later. Reading the tab back is what tells the two apart,
+      // and a watch on a tab that is gone is not one to inject into.
+      const live = await chrome.tabs.get(tab.tabId).catch(() => null);
+      if (!live?.url) return false;
+      return await injectInto(tab.tabId, live.url, policy, granted);
+    }),
+  );
+  return put.filter(Boolean).length;
+}

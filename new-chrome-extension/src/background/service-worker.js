@@ -8,7 +8,15 @@ import * as channel from "./channel.js";
 import { abort, isDriving, performing } from "./commands.js";
 import * as queue from "./queue.js";
 import { redactUrl } from "../content/sensitivity.module.js";
-import { allowsHost, applyPolicy, applyWatches, hostMatches, injectInto, unregister } from "./scripts.js";
+import {
+  allowsHost,
+  applyPolicy,
+  applyWatches,
+  hostMatches,
+  injectInto,
+  injectIntoWatched,
+  unregister,
+} from "./scripts.js";
 import { capture } from "./shots.js";
 import { capturing, state } from "./state.js";
 import * as teaching from "./teaching.js";
@@ -906,6 +914,10 @@ async function settle() {
   // policy change, and `applyPolicy` withdrawing all three ids is how the
   // watching would stop the first time a heartbeat carried a new policy.
   await applyWatches(await watchHosts());
+  // Every worker start, because a reload is one and there is no way to tell it
+  // from an ordinary wake-up. Without this a tab open across a reload records
+  // nothing while the panel goes on saying it is watched.
+  await injectIntoWatched(await watchedTabs(), policy, granted);
   await channel.settle();
   await badge();
   return status();

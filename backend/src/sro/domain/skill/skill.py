@@ -352,8 +352,21 @@ class SkillVersion:
         """
         return any(step.assertions for step in self.steps) and not self.unchecked_writes
 
-    def record_run(self, verdict: Verdict, at: datetime) -> None:
-        self.track_record = self.track_record.after(verdict, at)
+    def record_run(
+        self, verdict: Verdict, at: datetime, *, revising: Verdict | None = None
+    ) -> None:
+        """Count a finished run against this version.
+
+        `revising` names a verdict this same run has already been counted
+        under, and replaces it rather than adding beside it -- see
+        `TrackRecord.instead_of`. `CallRunWrong` is the only caller that has
+        one: it judges a run `FinishRun` finished and judged minutes earlier.
+        """
+        self.track_record = (
+            self.track_record.after(verdict, at)
+            if revising is None
+            else self.track_record.instead_of(revising, verdict, at)
+        )
 
     def earn(self, verdict: Verdict, at: datetime) -> PromotionStage | None:
         """Move up if the record now says so. Returns the rung, or None.
@@ -410,6 +423,30 @@ class SkillVersion:
                 "a preview promotes no further than assisted; "
                 f"{to} is earned by clean runs, not by a press"
             )
+        if from_where == "preview" and self.demotion_reason:
+            # The ladder's own backstop, protected from the press that would
+            # undo it. A version is only ever carrying a `demotion_reason`
+            # because it failed three runs in a row and was pulled back
+            # automatically -- and the one thing that must not put it straight
+            # back is the same kind of press that was failing. Without this, a
+            # task that is wrong every single time never stays demoted: it is
+            # demoted on the third wrong run and restored by the operator's
+            # very next press, forever.
+            #
+            # The refusal is a sentence an operator reads, not a field name,
+            # because this is raised through `RunFromPreview` and lands in the
+            # panel beside the button they just pressed. What it asks for is
+            # the rung the ladder exists to provide: somebody sitting down in
+            # the console with the evidence -- the failed runs, the steps, the
+            # assertions -- rather than somebody mid-task reading a preview of
+            # the one run in front of them. A console promotion clears
+            # `demotion_reason` below, which is what lets the version run
+            # again, and that is exactly the person this refusal holds out for.
+            raise InvariantViolation(
+                "this task went wrong three times in a row, so it was pulled back and stopped "
+                "running. Somebody needs to look at what it did before it runs again -- ask "
+                "whoever looks after these tasks to check it in the console"
+            )
         if (
             to.rung > PromotionStage.SHADOW.rung
             and self.from_one_demonstration
@@ -437,7 +474,8 @@ class SkillVersion:
         self.promoted_at = at
         self.promoted_by = by
         self.promoted_from = from_where
-        # The count that demoted it, cleared by the person who looked.
+        # The count that demoted it, cleared by the person who looked -- and
+        # only by them.
         #
         # `should_demote` is a standing condition rather than an event: it is
         # re-asked after every run, so a version demoted at three failures went
@@ -446,8 +484,23 @@ class SkillVersion:
         # would need. Promoting it was futile and looked like a bug in the
         # ladder. The streak is left alone: it is progress towards autonomy and
         # nobody may grant it by pressing a button.
-        self.track_record = replace(self.track_record, consecutive_failures=0)
-        self.demotion_reason = None
+        #
+        # A preview promotion is not that person. The clearing was written for
+        # a console promotion, where somebody sat down with the failures and
+        # decided they were understood; the operator pressing `Do it` mid-task
+        # has read the steps and the values of the one run in front of them and
+        # nothing at all about the runs that failed before it. Clearing the
+        # count on their behalf would hand every failing version a fresh three
+        # lives on every press, which is the same hole the refusal above closes
+        # from the other side -- that one stops a version that has already been
+        # demoted from being put back, this one stops a version from never
+        # being demoted in the first place. Both are needed: a version sitting
+        # at one or two failures carries no `demotion_reason` for the refusal
+        # above to catch, so a press that cleared the count would walk it back
+        # to zero and the third failure would never arrive.
+        if from_where != "preview":
+            self.track_record = replace(self.track_record, consecutive_failures=0)
+            self.demotion_reason = None
 
     def _check_step_indices(self) -> None:
         indices = [step.index for step in self.steps]

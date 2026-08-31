@@ -79,3 +79,68 @@ def test_the_cap_is_the_only_thing_refusing_a_version_that_is_actually_ready() -
 
     version.promote(PromotionStage.AUTONOMOUS, f.at(200), f.OPERATOR, from_where="console")
     assert version.stage is PromotionStage.AUTONOMOUS
+
+
+def test_a_press_does_not_hand_a_failing_version_a_fresh_three_lives() -> None:
+    """The counter that demotes is cleared by the person who looked, and a
+    press is not that person.
+
+    `promote` zeroes `consecutive_failures` because a console promotion is
+    somebody saying they have read the failures and understood them. The
+    preview press says something much smaller: this operator read the steps
+    and the values of the one run in front of them. If it cleared the count
+    too, a version that is wrong every single time would never reach three in
+    a row -- every press would walk it back to zero -- and
+    `DEMOTE_AFTER_FAILURES`, which ADR 014 leans its entire residual-risk
+    argument on, would never fire at all.
+    """
+    version = f.skill_version(stage=PromotionStage.SHADOW)
+    version.record_run(Verdict.FAILED, f.at(10))
+    version.record_run(Verdict.FAILED, f.at(20))
+
+    version.promote(PromotionStage.ASSISTED, f.at(100), f.OPERATOR, from_where="preview")
+
+    assert version.track_record.consecutive_failures == 2, (
+        "a press cleared the count that demotes, so the third failure never arrives"
+    )
+
+
+def test_a_console_promotion_still_clears_it() -> None:
+    """The other half. The clearing was written for the console path and is
+    correct there -- a version demoted at three failures would otherwise go
+    straight back down on its next run whatever that run did, because
+    `should_demote` is a standing condition re-asked after every run."""
+    version = f.skill_version(stage=PromotionStage.SHADOW)
+    version.record_run(Verdict.FAILED, f.at(10))
+    version.record_run(Verdict.FAILED, f.at(20))
+
+    version.promote(PromotionStage.ASSISTED, f.at(100), f.OPERATOR, from_where="console")
+
+    assert version.track_record.consecutive_failures == 0
+
+
+def test_a_demoted_version_is_refused_a_preview_promotion_outright() -> None:
+    """Three wrong runs pulled it back; the operator's next press must not put
+    it straight back. What a version demoted for being wrong needs is a person
+    in the console with the evidence in front of them -- that is what the
+    ladder is for, and a press mid-task is not it.
+
+    The sentence is checked, not only the refusal: this lands in the panel
+    beside the button the operator just pressed, so it has to say what went
+    wrong in their words rather than name a field.
+    """
+    version = f.skill_version(stage=PromotionStage.ASSISTED)
+    version.demote(PromotionStage.SHADOW, f.at(50), "3 runs failed in a row")
+
+    with pytest.raises(InvariantViolation) as refused:
+        version.promote(PromotionStage.ASSISTED, f.at(100), f.OPERATOR, from_where="preview")
+
+    said = str(refused.value)
+    assert "went wrong three times in a row" in said
+    assert "demotion_reason" not in said, "a field name reached an operator"
+    assert version.stage is PromotionStage.SHADOW, "the refusal still moved the version"
+
+    # And the door that is open: somebody who looks may put it back.
+    version.promote(PromotionStage.ASSISTED, f.at(200), f.OPERATOR, from_where="console")
+    assert version.stage is PromotionStage.ASSISTED
+    assert version.demotion_reason is None

@@ -290,6 +290,19 @@ class Run:
     ended_at: datetime | None = None
     failure: str | None = None
 
+    wrong_because: str | None = None
+    """Why the person this ran for said the result was wrong.
+
+    `judge` reads statuses, media and escalations, and every one of them can be
+    clean while the record the run created is not the one anybody wanted. That
+    is the failure the ladder cannot see on its own, and the only witness is
+    whoever was looking at the screen.
+
+    Collected as an undo they wanted rather than as a question they answered:
+    the press that takes the record back is the same press that says it was
+    wrong, so being honest costs them nothing.
+    """
+
     def __post_init__(self) -> None:
         if self.skill_version < 1:
             raise InvariantViolation("version numbers start at 1")
@@ -373,6 +386,19 @@ class Run:
         self.status = RunStatus.FAILED
         self.failure = reason
         self.ended_at = at
+
+    def called_wrong(self, because: str) -> None:
+        """The person this ran for says the result was wrong.
+
+        Once. The first answer is the one they gave while looking at what it
+        made; a second one later is somebody rewriting the record, and the
+        track record has already been told.
+        """
+        if self.wrong_because is not None:
+            raise InvariantViolation(f"this run was already called wrong: {self.wrong_because!r}")
+        if not because.strip():
+            raise InvariantViolation("a run called wrong says why, even if only 'undone'")
+        self.wrong_because = because
 
     def _require_running(self) -> None:
         if self.status is not RunStatus.RUNNING:

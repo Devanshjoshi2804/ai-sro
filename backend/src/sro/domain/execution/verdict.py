@@ -30,6 +30,11 @@ version never reaches the top of the ladder however clean its runs are."""
 
 
 def judge(run: Run) -> Verdict:
+    # Before anything the steps say. A run can be clean at every rung and still
+    # have made the wrong record, and the person who was looking at it is the
+    # only one who could ever know.
+    if run.wrong_because is not None:
+        return Verdict.FAILED
     if run.status is not RunStatus.SUCCEEDED:
         return Verdict.UNREACHABLE if _nothing_answered(run) else Verdict.FAILED
 

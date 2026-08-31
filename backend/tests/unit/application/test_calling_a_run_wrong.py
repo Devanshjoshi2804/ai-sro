@@ -13,6 +13,7 @@ import pytest
 from sro.application.context import RequestContext
 from sro.application.execution.call_run_wrong import CallRunWrong, NotYours, StillRunning
 from sro.domain.execution.run import Medium, Run, RunId, StepDisposition, StepOutcome
+from sro.domain.execution.verdict import apply_verdict
 from sro.domain.shared.identifiers import PrincipalId, SkillId
 from sro.domain.skill.promotion import PromotionStage
 from tests import factories as f
@@ -107,3 +108,40 @@ async def test_a_run_still_going_cannot_be_called_wrong_yet() -> None:
         await CallRunWrong(uow, clock).execute(
             OPERATOR, run_id=running.id, because="undone by the operator"
         )
+
+
+async def test_one_run_leaves_one_entry_in_the_record_not_two() -> None:
+    """`FinishRun` already judged this run when it ended. Calling it wrong
+    revises that answer; it does not add a second run.
+
+    Before this, one run that succeeded and was then called wrong left the
+    version claiming two attempts: a clean one and a failed one. `total_runs`
+    and `clean_runs` overstated permanently, and -- worse -- `earn` read that
+    phantom clean run, so a version one clean run short of a rung could be
+    promoted on the strength of a run the operator was in the middle of taking
+    back.
+
+    Both halves of the story are performed here, in order, exactly as the two
+    use cases perform them: `apply_verdict` once for the run finishing clean,
+    then `CallRunWrong` for the operator saying it was not.
+    """
+    uow, clock = FakeUnitOfWork(), FakeClock(f.at(900))
+    run = await _a_finished_run(uow)
+    skill = f.skill()
+    async with uow as open_uow:
+        await open_uow.skills.add(skill)
+        # What `FinishRun` did when this run ended: one clean run, counted.
+        apply_verdict(skill, run, f.at(60))
+        await open_uow.skills.save(skill)
+        await open_uow.commit()
+    assert skill.version(1).track_record.clean_runs == 1
+
+    await CallRunWrong(uow, clock).execute(
+        OPERATOR, run_id=run.id, because="undone by the operator"
+    )
+
+    record = skill.version(1).track_record
+    assert record.total_runs == 1, "one run left two entries in the record"
+    assert record.clean_runs == 0, "a run the operator took back is still counted clean"
+    assert record.failed_runs == 1
+    assert record.consecutive_failures == 1, "the demotion count still has to see it"

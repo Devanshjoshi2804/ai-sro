@@ -54,13 +54,18 @@ def judge(run: Run) -> Verdict:
     return Verdict.CLEAN
 
 
-def apply_verdict(skill: Skill, run: Run, now: datetime) -> Verdict:
+def apply_verdict(
+    skill: Skill, run: Run, now: datetime, *, revising: Verdict | None = None
+) -> Verdict:
     """Judge a finished run against the skill it performed, and let the ladder move.
 
     One function, called by every use case that finishes a run's story --
     `FinishRun` when a run ends on its own, `CallRunWrong` again later when the
     person who watched it run says the result was wrong -- because a skill's
-    rung must not depend on which of them happened to be the one that ran.
+    rung must not depend on which of them happened to be the one that ran. The
+    second of those is revising the first's answer about one run, never adding
+    a second run to the record, which is what `revising` is for.
+
     This codebase already refuses a second opinion on `url_shape`, on
     `blank_inputs`, on the escalation table; two hand-synced copies of
     promote-and-demote is that same defect: a future change to either would
@@ -69,7 +74,13 @@ def apply_verdict(skill: Skill, run: Run, now: datetime) -> Verdict:
     """
     version = skill.version(run.skill_version)
     verdict = judge(run)
-    version.record_run(verdict, now)
+    # `revising` is the verdict this same run was already counted under, where
+    # the caller is judging a run somebody else finished. One run is one run:
+    # counting both entries left a version claiming two attempts for one, with
+    # `total_runs` and `clean_runs` overstating for good and `earn` able to
+    # promote on the strength of a clean run the operator was in the middle of
+    # calling wrong.
+    version.record_run(verdict, now, revising=revising)
     # The ladder climbs itself. Nobody has time to notice that a skill has
     # earned the next rung, and a stage that waits for someone to notice is a
     # fact about their afternoon rather than about the skill.

@@ -16,7 +16,7 @@ from sro.application.context import RequestContext
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock
 from sro.domain.execution.run import Run, RunId, RunStatus
-from sro.domain.execution.verdict import apply_verdict
+from sro.domain.execution.verdict import apply_verdict, judge
 from sro.domain.shared.errors import Conflict
 
 
@@ -50,6 +50,16 @@ class CallRunWrong:
             if run.status is RunStatus.RUNNING:
                 raise StillRunning("this run is still going; stopping it is a different thing")
 
+            # Judged before the record is written, not after: this is the
+            # verdict `FinishRun` already counted for this run when it ended,
+            # and it is only recoverable while `wrong_because` is still unset
+            # -- `judge` reads that field before anything the steps say. Passed
+            # to `apply_verdict` below so the operator's answer replaces that
+            # entry instead of adding a second one for the same run, which had
+            # `total_runs` and `clean_runs` permanently overstating and let
+            # `earn` promote on a clean run the operator was in the middle of
+            # taking back.
+            already = judge(run)
             run.called_wrong(because)
             await uow.runs.save(run)
 
@@ -57,7 +67,7 @@ class CallRunWrong:
             # stage -- `FinishRun` reaches the same function when a run ends on
             # its own. A skill's rung must not depend on which of them ran.
             skill = await uow.skills.get(ctx.tenant_id, run.skill_id)
-            apply_verdict(skill, run, self._clock.now())
+            apply_verdict(skill, run, self._clock.now(), revising=already)
             await uow.skills.save(skill)
             await uow.commit()
         return run

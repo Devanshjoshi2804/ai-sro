@@ -130,6 +130,47 @@ class TrackRecord:
             case Verdict.WITHHELD:
                 return self
 
+    def instead_of(self, already: Verdict, verdict: Verdict, at: datetime) -> TrackRecord:
+        """The record after a verdict already counted is replaced by another.
+
+        One run is one run. `CallRunWrong` judges a run `FinishRun` has already
+        judged, so counting both left a single attempt with two entries --
+        `total_runs` and `clean_runs` overstating permanently, and `earn`
+        reading a clean run that, on the operator's own account, never
+        happened.
+
+        The count columns are exact: the verdict already recorded is undone in
+        its own column before the new one is applied. The two streak columns
+        are not rewound, because they cannot be -- both are collapsed by every
+        run that touches them, so whatever they held before the run being
+        revised was overwritten and is stored nowhere. Applying the new verdict
+        on top of them is what this codebase did before and is right in the
+        case that matters: a run called wrong is FAILED, which zeroes the
+        streak and adds one to the failures either way. It undercounts only
+        where a version already had consecutive failures, one clean run
+        interrupted them, and that clean run is the one being called wrong --
+        rare, in the safe direction for `total_runs`, and not worth storing a
+        per-run snapshot of the record to recover.
+        """
+        undone = {
+            Verdict.CLEAN: "clean_runs",
+            Verdict.DEGRADED: "degraded_runs",
+            Verdict.FAILED: "failed_runs",
+            Verdict.UNREACHABLE: "unreachable_runs",
+        }.get(already)
+        if undone is None:
+            # WITHHELD counted nothing, so there is nothing to take back.
+            return self.after(verdict, at)
+        # Clamped rather than refused. A run whose first verdict never reached
+        # this version -- one finished before the record existed, or against a
+        # version since replaced -- is a plausible thing to be handed, and the
+        # operator pressing "it's wrong" must not be the person who finds out.
+        # Taking nothing back where there is nothing to take back leaves the
+        # counts honest either way; raising would only turn a stale row into a
+        # dead button.
+        counted = max(getattr(self, undone) - 1, 0)
+        return replace(self, **{undone: counted}).after(verdict, at)
+
     @property
     def should_demote(self) -> bool:
         return self.consecutive_failures >= DEMOTE_AFTER_FAILURES

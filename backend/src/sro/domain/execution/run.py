@@ -394,6 +394,10 @@ class Run:
         made; a second one later is somebody rewriting the record, and the
         track record has already been told.
         """
+        if self.status is RunStatus.RUNNING:
+            raise InvariantViolation(
+                "a run still running has made nothing yet for anyone to call wrong"
+            )
         if self.wrong_because is not None:
             raise InvariantViolation(f"this run was already called wrong: {self.wrong_because!r}")
         if not because.strip():

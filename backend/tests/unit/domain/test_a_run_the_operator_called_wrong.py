@@ -82,3 +82,23 @@ def test_a_run_cannot_be_called_wrong_twice_with_a_different_story() -> None:
     run.called_wrong("undone by the operator")
     with raises(InvariantViolation, match="already"):
         run.called_wrong("actually it was fine")
+
+
+def test_a_run_still_running_has_made_nothing_yet_for_anyone_to_call_wrong() -> None:
+    """The operator is looking at what a run made and deciding whether to take
+    it back. One still going has made nothing yet -- there is no result there
+    for anybody to have judged."""
+    run = Run(
+        id=RunId("run-1"),
+        tenant_id=f.TENANT,
+        skill_id=SkillId("skill-1"),
+        skill_version=1,
+        stage=PromotionStage.ASSISTED,
+        parameters={},
+        requested_by=f.OPERATOR,
+        started_at=f.at(0),
+        authorized_by=f.OPERATOR,
+        target_system="blue_yonder",
+    )
+    with raises(InvariantViolation, match="still running"):
+        run.called_wrong("undone by the operator")

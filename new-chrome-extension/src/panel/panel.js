@@ -478,7 +478,16 @@ async function undoRun(button, run) {
   button.disabled = true;
   try {
     if (!run.wrongBecause) {
-      await ask({ kind: "run-wrong", runId: run.id, because: "undone by the operator" });
+      // `keepForRetry` is what tells the worker this press, unlike "It's
+      // wrong" below, still has a second step after the record lands --
+      // starting the reversal, on this same line -- so the row must survive
+      // to be retried if that fails. See `afterRunWrong` in `state.js`.
+      await ask({
+        kind: "run-wrong",
+        runId: run.id,
+        because: "undone by the operator",
+        keepForRetry: true,
+      });
     }
     await runIt(run.reversal.skill_id, run.reversal.parameters, "Undo that");
     said("undoing it — a new run is reversing this one");

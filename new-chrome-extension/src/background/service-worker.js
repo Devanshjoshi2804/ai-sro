@@ -18,7 +18,7 @@ import {
   unregister,
 } from "./scripts.js";
 import { capture } from "./shots.js";
-import { capturing, finishedRun, state } from "./state.js";
+import { activeRunAge, afterRunWrong, capturing, finishedRun, state } from "./state.js";
 import * as teaching from "./teaching.js";
 import { release as releaseTree, releaseAll, takeTree, takeTreeSoon } from "./trees.js";
 import { flush } from "./upload.js";
@@ -662,17 +662,14 @@ async function handle(message, sender) {
       // regardless of what happens next.
       const result = await api.runWrong(message.runId, message.because);
       const held = await state.finishedRun();
+      // Keyed on which button was pressed (`message.keepForRetry`, set only by
+      // `undoRun`), not on whether this run happens to have a reversal -- see
+      // `afterRunWrong` in `state.js` for why keying on `reversal` alone was
+      // wrong: it kept "Undo that" alive after "It's wrong -- I'll fix it",
+      // which would reverse the operator's own hand-made correction.
       if (held?.id === message.runId) {
-        // A run with a reversal still has a second step left after this one
-        // -- starting the reversal skill, which can fail on its own (a tab
-        // that has since closed, say) after this record has already landed.
-        // Marked answered rather than deleted, so `panel.js` knows not to
-        // send `run-wrong` again -- the backend refuses a second one outright
-        // -- while `run.reversal` stays on the row for `undoRun` to retry.
-        // A run with no reversal has nothing left to do once this lands, so
-        // it is cleared exactly as before.
         await state.setFinishedRun(
-          held.reversal ? { ...held, wrongBecause: message.because } : null,
+          afterRunWrong(held, message.because, Boolean(message.keepForRetry)),
         );
       }
       return result;
@@ -1167,7 +1164,20 @@ let checkingFinish = false;
 async function checkFinishing() {
   if (checkingFinish) return;
   const active = await state.activeRun();
-  if (!active || Date.now() - active.at < RUN_QUIET_MS) return;
+  const decision = activeRunAge(active, Date.now(), RUN_QUIET_MS);
+  if (decision === "wait") return;
+  if (decision === "stale") {
+    // Round 1 review missed this: `state.activeRun()` now survives a worker
+    // eviction, which is the whole point, but nothing bounded how *old* the
+    // survivor could be. Close the laptop before this check lands and reopen
+    // it a day later, and the first heartbeat after `onStartup` would confirm
+    // a run that went quiet yesterday and write a brand-new hour of "Undo
+    // that" for it -- exactly the staleness `FINISHED_RUN_MS` exists to keep
+    // a *stored* `finishedRun` from having. Dropped here, unconfirmed, rather
+    // than asked about and written anyway. See `activeRunAge` in `state.js`.
+    await state.setActiveRun(null);
+    return;
+  }
   checkingFinish = true;
   try {
     await noteFinished(active.runId);

@@ -279,3 +279,63 @@ export async function finishedRun() {
   }
   return held;
 }
+
+/** What to do with `state.activeRun()`, given how long ago it was last
+ * touched: `"wait"` (too recent to mean anything -- the run may just be
+ * between two of its own steps), `"confirm"` (quiet long enough to be worth
+ * asking the backend about), or `"stale"` (quiet for longer than a
+ * `finishedRun` is ever allowed to stay offerable, so there is no point
+ * asking -- the answer would be thrown away the moment it landed).
+ *
+ * Round 2 review: `state.activeRun()` surviving a worker eviction was the
+ * whole point of storage-backing it, but nothing originally bounded how old
+ * a survivor could be. Close the laptop before `RUN_QUIET_MS` lands and
+ * reopen it a day later, and the first heartbeat after `onStartup` would
+ * confirm a run that went quiet yesterday and write a brand-new hour of
+ * "Undo that" for it -- exactly the staleness `FINISHED_RUN_MS` exists to
+ * keep a *stored* `finishedRun` from having. An `activeRun` older than that
+ * limit has already missed the same window, so `"stale"` is answered without
+ * ever asking the backend.
+ *
+ * Pure and exported on its own so this boundary has a self-check that needs
+ * neither `chrome.*` nor a real wait to run it -- `now` and `quietMs` are
+ * passed in rather than read from `Date.now()` and `commands.js`'s
+ * `RUN_QUIET_MS` directly for exactly that reason.
+ */
+export function activeRunAge(active, now, quietMs) {
+  if (!active) return "wait";
+  const quietFor = now - active.at;
+  if (quietFor < quietMs) return "wait";
+  if (quietFor > FINISHED_RUN_MS) return "stale";
+  return "confirm";
+}
+
+/** What a finished-run row should become once `POST /runs/{id}/wrong` has
+ * been accepted for it -- kept, amended, or dropped entirely. Pure and
+ * exported on its own, separate from the two `chrome.storage` calls around
+ * it in `service-worker.js`'s `run-wrong` case, so the one decision that
+ * matters here has exactly one place to be right and a self-check that does
+ * not need `chrome.*` to run it.
+ *
+ * Round 2 review: this used to be keyed on whether `held.reversal` existed,
+ * on the theory that a run with nothing to undo has nothing left to do once
+ * it is called wrong. That is true for "It's wrong -- I'll fix it", but that
+ * button is offered on *every* succeeded run regardless of whether one also
+ * has a reversal (see `panel.js`'s `finished()`), and keying on `reversal`
+ * alone kept the row -- and "Undo that" -- alive for an hour after an
+ * operator pressed "I'll fix it" on a run that happened to have one too.
+ * Pressing "Undo that" then would reverse the very correction the card had
+ * just told them to make by hand and asked us to learn from: worse than the
+ * wrong record it replaces, because it destroys the evidence the operator
+ * was just asked to produce, right after telling them the matter was closed.
+ *
+ * So this is keyed on which button was pressed, carried as `keepForRetry` --
+ * true only from `panel.js`'s `undoRun`, which still has a second step left
+ * after this one (starting the reversal, which can fail on its own) and
+ * needs the row to retry it. `wasWrong` never sets it, whether or not the run
+ * it is answering for happens to have a reversal: from that press on, the
+ * operator's own hands are the correction, and the card ends.
+ */
+export function afterRunWrong(held, because, keepForRetry) {
+  return keepForRetry ? { ...held, wrongBecause: because } : null;
+}

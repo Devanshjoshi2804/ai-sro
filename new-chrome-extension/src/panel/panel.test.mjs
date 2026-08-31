@@ -1094,7 +1094,7 @@ test("undo records the ask and starts the reversal skill, nothing else", async (
   await undo.listeners[0]();
 
   assert.deepStrictEqual(sentOf(sent, "run-wrong"), [
-    { kind: "run-wrong", runId: "run-1", because: "undone by the operator" },
+    { kind: "run-wrong", runId: "run-1", because: "undone by the operator", keepForRetry: true },
   ]);
   const [ran] = sentOf(sent, "run-skill");
   assert.strictEqual(ran.skillId, "skl-2");

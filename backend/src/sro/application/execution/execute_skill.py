@@ -136,6 +136,34 @@ async def refuse_if_breaker_is_open(
         raise Refused(verdict.reason or "recent runs against this system have failed")
 
 
+async def ensure_runnable(
+    uow: UnitOfWork,
+    ctx: RequestContext,
+    skill: Skill,
+    version: SkillVersion,
+    request: ExecutionRequest,
+    now: datetime,
+) -> None:
+    """Everything that must hold before anything is sent, given a version
+    that has already been resolved -- checked here rather than folded back
+    into a single fetch-and-check step, so a caller that has already reached
+    into a skill for some other reason (promoting it, for instance) can ask
+    this about the exact object it is holding, before committing anything on
+    the strength of the answer.
+
+    This is the whole of what `StartRun._may_run` used to do inline: the
+    stage/parameter/medium refusals and the circuit breaker, in the order
+    that matters -- nothing here has side effects, so raising costs nothing
+    to undo.
+    """
+    _check_runnable(version, request)
+    # Every system it touches, not only the one it is keyed by: a workflow
+    # that writes into a second system must be stopped by that system's
+    # breaker, and keying alone would hide exactly that.
+    for system in version.systems or (skill.objective_key.target_system,):
+        await refuse_if_breaker_is_open(uow, ctx, system, now)
+
+
 @dataclass(frozen=True, slots=True)
 class ExecutionRequest:
     skill_id: SkillId
@@ -214,17 +242,7 @@ class StartRun:
     ) -> tuple[Skill, SkillVersion]:
         skill = await uow.skills.get(ctx.tenant_id, request.skill_id)
         version = _version_of(skill, request.version)
-        _check_runnable(version, request)
-
-        # Checked here because here is where nothing has happened yet. A
-        # limit enforced after the first write is a limit that has already
-        # been exceeded.
-        #
-        # Every system it touches, not only the one it is keyed by: a workflow
-        # that writes into a second system must be stopped by that system's
-        # breaker, and keying alone would hide exactly that.
-        for system in version.systems or (skill.objective_key.target_system,):
-            await refuse_if_breaker_is_open(uow, ctx, system, now)
+        await ensure_runnable(uow, ctx, skill, version, request, now)
         return skill, version
 
     async def execute(self, ctx: RequestContext, request: ExecutionRequest) -> Run:
@@ -1731,6 +1749,7 @@ __all__ = [
     "NotRunnable",
     "Refused",
     "StartRun",
+    "ensure_runnable",
 ]
 
 

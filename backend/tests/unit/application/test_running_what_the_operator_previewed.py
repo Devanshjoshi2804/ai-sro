@@ -10,12 +10,17 @@ from __future__ import annotations
 
 from dataclasses import replace
 
+import pytest
+
 from sro.application.context import RequestContext
-from sro.application.execution.execute_skill import ExecuteSkill
+from sro.application.execution.execute_skill import ExecuteSkill, NotRunnable
 from sro.application.execution.run_from_preview import RunFromPreview
 from sro.domain.execution.run import Medium
 from sro.domain.shared.identifiers import DeviceId, RecordingId, SkillId
+from sro.domain.skill.loop import Binding, Loop
+from sro.domain.skill.parameter import Parameter, ParameterKind
 from sro.domain.skill.promotion import PromotionStage
+from sro.domain.skill.template import Template
 from sro.domain.skill.track_record import REQUIRED_CLEAN_RUNS, TrackRecord
 from tests import factories as f
 from tests.unit.fakes import (
@@ -68,9 +73,19 @@ async def _skill_at(
 
 
 async def test_the_press_promotes_a_recorded_version_and_runs_it() -> None:
+    """Also folds in the claim a separate "never reaches past assisted" test
+    used to make on its own: this version's track record already has a clean
+    streak at `REQUIRED_CLEAN_RUNS` -- exactly what `earn` would act on -- and
+    the press still stops at ASSISTED, because it never reads the streak. That
+    used to be a second test, but the only revert that broke it (raising the
+    loop's ceiling) also broke this one, which means the two tests were never
+    independent: there is no code path here that only a streak-aware version
+    reaches. One test, one set of assertions, is honest about that."""
     uow = FakeUnitOfWork()
     skill = f.skill(versions=0)
-    skill.add_version(f.skill_version())  # RECORDED, the default stage
+    skill.add_version(
+        f.skill_version(track_record=replace(TrackRecord(), clean_streak=REQUIRED_CLEAN_RUNS))
+    )  # RECORDED, the default stage
     await uow.skills.add(skill)
     clock = FakeClock(f.at(1000))
 
@@ -112,39 +127,6 @@ async def test_a_version_already_running_is_not_promoted_again() -> None:
     version = (await uow.skills.get(f.TENANT, SkillId("skill-1"))).latest
     assert version.stage is PromotionStage.ASSISTED
     assert version.promoted_at == before
-
-
-async def test_the_press_never_reaches_past_assisted() -> None:
-    """A version one rung below the ceiling, with a clean streak already at
-    `REQUIRED_CLEAN_RUNS` -- exactly the record `earn` would act on -- still
-    stops at ASSISTED. Distinct from "already running": here the press *does*
-    promote (SHADOW has never been reviewed by a press before), and the
-    version it produces has every number `earn` looks at already satisfied.
-    The rungs above assisted are earned by runs, not by presses -- `earn` is a
-    separate mechanism this call never invokes."""
-    uow = FakeUnitOfWork()
-    before = f.at(700)
-    await _skill_at(
-        uow,
-        PromotionStage.SHADOW,
-        at=before,
-        track_record=replace(TrackRecord(), clean_streak=REQUIRED_CLEAN_RUNS),
-    )
-    clock = FakeClock(f.at(2000))
-
-    await _runner(uow, clock).execute(
-        OPERATOR,
-        skill_id=SkillId("skill-1"),
-        parameters={"shipment_id": "555"},
-        device_id=DEVICE,
-        intent="create work operation NDPCK, north dock picking",
-    )
-
-    version = (await uow.skills.get(f.TENANT, SkillId("skill-1"))).latest
-    assert version.stage is PromotionStage.ASSISTED
-    # It did move -- unlike the already-assisted case above -- just not past
-    # where a press is allowed to put it.
-    assert version.promoted_at == f.at(2000)
 
 
 async def test_the_sentence_they_typed_is_on_the_run() -> None:
@@ -235,3 +217,68 @@ async def test_the_run_is_pinned_to_the_version_this_press_promoted() -> None:
     )
 
     assert run.skill_version == 1
+
+
+def _looped_version() -> object:
+    """A version that does part of its work once per thing a response lists --
+    following `test_which_step_comes_next.py`'s own shape for one. Every step's
+    network plan is a plain URL with no placeholder, because the point here is
+    the loop, not the parameters; the default `f.network_plan()`'s
+    `${shipment_id}` would be undeclared once `parameters` below replaces the
+    default tuple."""
+    return f.skill_version(
+        steps=tuple(
+            f.step(
+                index=i,
+                network_plan=f.network_plan(url=Template("https://wms.test/api/x"), body=None),
+            )
+            for i in range(3)
+        ),
+        parameters=(Parameter(name="line_id", kind=ParameterKind.ITERATED, source_step_index=0),),
+        loops=(
+            Loop(
+                over_step_index=0,
+                over_pointer="/data/lines",
+                first_step=1,
+                last_step=1,
+                binds=(Binding(parameter="line_id", pointer="/lineId"),),
+            ),
+        ),
+    )
+
+
+async def test_a_looped_skill_is_refused_and_left_unpromoted() -> None:
+    """`_check_runnable` already refuses a loop through any medium but NETWORK
+    -- unrelated to this call, and not loosened here: nothing says replaying a
+    loop through the browser is safe, and this task is not the place to decide
+    that it is. What belongs to this call is *when* that refusal lands. Moving
+    a version to ASSISTED and then discovering, a moment later, that it cannot
+    actually run is the same "clicked once and walked away" state the module
+    docstring names for the promote/run race -- reached through a different
+    door. `ensure_runnable` is asked before anything is saved, so a refusal
+    for any reason `StartRun` already knows about -- this one, a missing
+    parameter, an open circuit breaker -- costs nothing to undo.
+
+    The commit count is what a fast test can honestly check here: the fakes
+    hold the same objects a use case mutated, so re-reading the version back
+    out of this same `uow` would show it already at ASSISTED regardless of
+    whether this call is correct, the same way `test_it_is_written_down.py`'s
+    own docstring explains. Whether nothing survives a restart is what
+    `uow.commits == 0` proves instead -- that this call raised before it ever
+    told the unit of work to keep anything."""
+    uow = FakeUnitOfWork()
+    skill = f.skill(versions=0)
+    skill.add_version(_looped_version())  # RECORDED
+    await uow.skills.add(skill)
+    clock = FakeClock(f.at(1000))
+
+    with pytest.raises(NotRunnable):
+        await _runner(uow, clock).begin(
+            OPERATOR,
+            skill_id=SkillId("skill-1"),
+            parameters={},
+            device_id=DEVICE,
+            intent="",
+        )
+
+    assert uow.commits == 0

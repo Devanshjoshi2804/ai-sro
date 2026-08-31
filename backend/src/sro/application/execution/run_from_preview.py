@@ -13,7 +13,7 @@ clicked once and walked away.
 from __future__ import annotations
 
 from sro.application.context import RequestContext
-from sro.application.execution.execute_skill import ExecuteSkill, ExecutionRequest
+from sro.application.execution.execute_skill import ExecuteSkill, ExecutionRequest, ensure_runnable
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock
 from sro.domain.execution.run import Medium, Run
@@ -110,22 +110,16 @@ class RunFromPreview:
                     from_where="preview",
                 )
                 promoted = True
-            if promoted:
-                await uow.skills.save(skill)
-                await uow.commit()
-            # Pinned to the version this call just read and, where needed,
-            # promoted. Left to resolve on its own, `ExecuteSkill` would ask
-            # for "the latest version" again when it starts -- and a second
-            # induction landing between this commit and that lookup would
-            # promote one version and run another, silently.
-            version_number = version.version
 
-        return await self._execute.begin(
-            ctx,
-            ExecutionRequest(
+            request = ExecutionRequest(
                 skill_id=skill_id,
                 parameters=parameters,
-                version=version_number,
+                # Pinned to the version this call just read and, where needed,
+                # promoted. Left to resolve on its own, `ExecuteSkill` would
+                # ask for "the latest version" again when it starts -- and a
+                # second induction landing between this commit and that
+                # lookup would promote one version and run another, silently.
+                version=version.version,
                 authorized_by=str(ctx.principal_id),
                 device_id=device_id,
                 intent=intent,
@@ -147,8 +141,29 @@ class RunFromPreview:
                 # bringing it up to show them, which defeats the one thing this
                 # feature is for.
                 may_take_focus=True,
-            ),
-        )
+            )
+
+            # Ask before persisting anything, not after. `_check_runnable`
+            # covers more than the stage this loop just moved past -- a loop
+            # this deployment cannot yet replay through the browser, a
+            # parameter nobody supplied, a circuit breaker already open on
+            # this system -- and every one of those is a reason `ExecuteSkill`
+            # would refuse to start regardless of the promotion. Checking
+            # after the commit above (as an earlier version of this file did)
+            # meant that exact refusal landed with the version already sitting
+            # at ASSISTED and no run to show for it -- the "clicked once and
+            # walked away" state this module exists to prevent, just reached
+            # by a different door than the race the docstring names. Reusing
+            # `ensure_runnable` rather than re-deriving these rules means
+            # every reason `StartRun` can refuse today, or gains reason to
+            # refuse later, is covered here for free.
+            await ensure_runnable(uow, ctx, skill, version, request, now)
+
+            if promoted:
+                await uow.skills.save(skill)
+                await uow.commit()
+
+        return await self._execute.begin(ctx, request)
 
     async def execute(
         self,
@@ -161,12 +176,17 @@ class RunFromPreview:
     ) -> Run:
         """Promote, start and see the run through, in one call.
 
-        For a caller that does not need to stream it -- the durable path, and
-        most of this file's own tests -- mirroring `ExecuteSkill.execute`,
-        which is exactly `begin` then `resume`. The HTTP router does not use
-        this: it calls `begin` directly and hands the result to the same
-        background pursuit `run_skill` spawns for its device path, so the
-        caller gets the run id back before the run is over.
+        Mirrors `ExecuteSkill.execute`, which is exactly `begin` then
+        `resume` for the same reason: a caller that does not need to stream
+        the run gets the shortcut without re-deriving it. The HTTP router is
+        not that caller -- `device_id` is required on every call this class
+        answers, so the router always calls `begin` directly and hands the
+        result to the background pursuit `run_skill`'s device path already
+        spawns, exactly as that path does. Nothing in production calls this
+        method today; it exists for a caller this flow does not have yet --
+        a durable one, if this ever gets an equivalent to `run_skill`'s
+        non-device path -- and, until then, for tests that want the whole
+        run rather than the row it started with.
         """
         run = await self.begin(
             ctx, skill_id=skill_id, parameters=parameters, device_id=device_id, intent=intent

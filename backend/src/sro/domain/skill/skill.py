@@ -183,7 +183,19 @@ class SkillVersion:
 
     @property
     def inputs(self) -> tuple[Parameter, ...]:
-        return tuple(p for p in self.parameters if p.kind is ParameterKind.INPUT)
+        """The values somebody has to supply for a run to be worth starting.
+
+        Optional ones are not among them. A demonstration proved the warehouse
+        accepts the record without that field and `absent_as` records exactly
+        what it sent instead, so a run with nothing in it is a run that does
+        what that demonstration did -- not one that fails.
+
+        This was every INPUT parameter, which made a skill with any optional
+        field impossible to put on a trigger at all: `CreateTrigger` demanded a
+        value for the four boxes an operator had deliberately left empty, and
+        the only way past it was to invent one.
+        """
+        return tuple(p for p in self.parameters if p.kind is ParameterKind.INPUT and not p.optional)
 
     def describe(self, *, summary: str, when_to_use: str) -> None:
         """Reword what this version is for. A label, never a behaviour."""

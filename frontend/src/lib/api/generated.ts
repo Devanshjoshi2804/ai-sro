@@ -2084,6 +2084,8 @@ export interface components {
             run_id: string | null;
             /** Skipped */
             skipped: string | null;
+            /** Confirmation Id */
+            confirmation_id?: string | null;
         };
         /** ForgottenResponse */
         ForgottenResponse: {

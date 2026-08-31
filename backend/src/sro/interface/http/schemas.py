@@ -1670,6 +1670,14 @@ class FiredModel(BaseModel):
     run_id: str | None
     skipped: str | None
 
+    confirmation_id: str | None = None
+    """Set where the fire became a card somebody has to answer.
+
+    Without it a relay reading this response cannot tell "a person will decide
+    about this" from "nothing happened at all": both answered with a null run
+    and no reason to skip, which is the one shape that means neither.
+    """
+
 
 class WatchMatchModel(BaseModel):
     """The offer a recognised mail turns into. Not a run: nothing has started.

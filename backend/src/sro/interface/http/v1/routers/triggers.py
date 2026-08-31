@@ -95,5 +95,6 @@ async def fire_trigger(trigger_id: str, container: ContainerDep, ctx: ContextDep
     return FiredModel(
         trigger_id=fired.trigger_id.value,
         run_id=fired.run_id.value if fired.run_id else None,
+        confirmation_id=fired.confirmation_id.value if fired.confirmation_id else None,
         skipped=fired.skipped,
     )

@@ -11,7 +11,7 @@ import pytest
 
 from sro.application.context import RequestContext
 from sro.application.trigger.create_trigger import CreateTrigger, NewTrigger, TriggerRefused
-from sro.application.trigger.fire_trigger import FireTrigger
+from sro.application.trigger.fire_trigger import FireTrigger, blank_inputs
 from sro.application.trigger.read_triggers import DeleteTrigger, SetTriggerEnabled
 from sro.application.trigger.receive_inbound import InboundRefused, ReceiveInbound
 from sro.domain.shared.errors import NotFound
@@ -682,3 +682,71 @@ async def test_the_mail_supplies_the_value_so_nobody_has_to_type_one() -> None:
     # Nothing on a clock and nothing on a relay: the browser holding it is the
     # only thing that ever evaluates it.
     assert scheduler.scheduled == {}
+
+
+async def test_a_trigger_may_leave_out_a_field_a_demonstration_left_out() -> None:
+    """Found by trying to trigger a real skill.
+
+    Six parameters, four of them optional because the operator's first work
+    area filled only a name and a description and the warehouse accepted it.
+    `CreateTrigger` demanded a value for all six, so the only way to put that
+    skill on a mail was to invent four -- and inventing them is the opposite of
+    what `absent_as` is for.
+    """
+    uow, scheduler = FakeUnitOfWork(), FakeScheduler()
+    version = f.skill_version(
+        steps=(
+            f.step(
+                index=0,
+                network_plan=f.network_plan(
+                    url=Template("https://wms.test/api/work-areas"), body=None
+                ),
+            ),
+        ),
+        parameters=(
+            f.parameter(name="work_area"),
+            f.parameter(name="delta_priority", absent_as="null"),
+        ),
+    )
+    skill = f.skill(versions=0)
+    skill.add_version(version)
+    version.promote(PromotionStage.SHADOW, f.at(700), f.OPERATOR)
+    version.promote(PromotionStage.ASSISTED, f.at(700), f.OPERATOR)
+    await uow.skills.add(skill)
+
+    trigger = await _create(uow, scheduler).execute(
+        CTX,
+        NewTrigger(
+            skill_id=skill.id,
+            kind=TriggerKind.INBOUND,
+            parameters={"work_area": "SROTEST9"},
+            authorized_by=True,
+        ),
+    )
+
+    assert trigger.parameters == {"work_area": "SROTEST9"}
+
+
+async def test_a_message_that_names_no_optional_value_still_fires() -> None:
+    """The same rule at the other end. A mail with no Delta Priority in it is
+    not a mail that named nothing -- it is one doing what the operator who
+    skipped that box did, and `execute_skill` sends the form they sent."""
+    version = f.skill_version(
+        parameters=(
+            f.parameter(name="work_area"),
+            f.parameter(name="delta_priority", absent_as="null"),
+        ),
+        # A step that names neither, so the parameters under test are the only
+        # ones the version has to declare.
+        steps=(
+            f.step(
+                index=0,
+                network_plan=f.network_plan(
+                    url=Template("https://wms.test/api/work-areas"), body=None
+                ),
+            ),
+        ),
+    )
+
+    assert blank_inputs(version, {"work_area": "SROTEST9"}) == []
+    assert blank_inputs(version, {}) == ["work_area"]

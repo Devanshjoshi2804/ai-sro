@@ -23310,6 +23310,17 @@
               }
             ],
             "title": "Skipped"
+          },
+          "confirmation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirmation Id"
           }
         },
         "type": "object",

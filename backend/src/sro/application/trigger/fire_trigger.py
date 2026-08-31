@@ -20,7 +20,6 @@ from sro.application.ports.schedule import Scheduler
 from sro.application.ports.system import Clock, IdFactory
 from sro.domain.execution.run import RunId
 from sro.domain.shared.identifiers import ConfirmationId, TriggerId
-from sro.domain.skill.parameter import ParameterKind
 from sro.domain.skill.skill import SkillVersion
 from sro.domain.trigger.confirmation import ANSWER_WITHIN, Confirmation
 from sro.domain.trigger.trigger import Trigger
@@ -211,12 +210,13 @@ def blank_inputs(version: SkillVersion, values: Mapping[str, str]) -> list[str]:
     A parameter present but empty counts: a relay's template renders
     `{{order}}` to nothing at all when the mail did not hold one, and an empty
     string reaches a run as a value rather than as an absence.
+
+    Optional ones do not. A demonstration proved the record is created without
+    that field, and `execute_skill` sends the absent form it actually sent, so
+    a mail that named no Delta Priority is not a mail that named nothing --
+    it is one doing what the operator who skipped that box did.
     """
-    return sorted(
-        p.name
-        for p in version.parameters
-        if p.kind is ParameterKind.INPUT and not values.get(p.name, "").strip()
-    )
+    return sorted(p.name for p in version.inputs if not values.get(p.name, "").strip())
 
 
 def _because(trigger: Trigger, message: Mapping[str, str] | None) -> str:

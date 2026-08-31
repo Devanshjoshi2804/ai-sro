@@ -25,6 +25,7 @@ const KEYS = {
   shotTimes: "sro.shotTimes",
   treeTimes: "sro.treeTimes",
   teaching: "sro.teaching",
+  finishedRun: "sro.finishedRun",
 };
 
 export const DEFAULT_API_URL = "http://localhost:8000";
@@ -192,6 +193,19 @@ export const state = {
   teaching: () => read(KEYS.teaching, null),
   setTeaching: (teaching) => write(KEYS.teaching, teaching),
 
+  /** The last run this browser finished, and what it made -- `{ id, status,
+   * derived, reversal, at }`, or null. In storage rather than a module
+   * variable for the reason this whole file exists: the worker is evicted
+   * between the run finishing and the operator opening the panel to look, and
+   * a card that forgot itself between those two moments is a card that never
+   * existed as far as the operator is concerned. `derived` and `reversal` are
+   * copied in whole from `RunModel` -- see `service-worker.js`'s own note on
+   * why they can only be asked for, never computed here. `at` is this
+   * browser's own clock, read once when the row is written, and is what
+   * `finishedRun()` below measures a lifetime against. */
+  finishedRun: () => read(KEYS.finishedRun, null),
+  setFinishedRun: (run) => write(KEYS.finishedRun, run),
+
   async forget() {
     await chrome.storage.local.remove(Object.values(KEYS));
   },
@@ -212,4 +226,39 @@ export async function capturing() {
   if (serverPaused) return { on: false, because: "paused by an administrator" };
   if (!policy?.capture_enabled) return { on: false, because: "not enabled for this tenant" };
   return { on: true, because: "" };
+}
+
+/** How long the last finished run stays offerable, and why an hour rather
+ * than the thirty seconds `performing()` uses to call a run quiet.
+ *
+ * That thirty seconds answers a different question -- "is this still
+ * happening" -- and is right to be short: a stale "running" card is a lie
+ * about the present. This is "can this still be taken back", and has to be
+ * measured against the operator, not the run: they may not open the panel
+ * again until after a break, and a card that vanished while they were away
+ * would be silence pretending to mean "it was fine" when nobody ever looked.
+ *
+ * An hour is chosen as the defensible middle of an operator's day: long
+ * enough to survive an ordinary break -- a delivery to unload, a meeting, a
+ * late lunch -- short enough that the offer does not outlive the shift it was
+ * made in. Past that point an undo is not "take this back", it is "reverse
+ * work whatever came after it may already depend on", and the honest answer
+ * is the same silence a run nobody ever touched gets: judged as it stands.
+ */
+const FINISHED_RUN_MS = 60 * 60_000;
+
+/** The last run this browser finished, or null once it has aged out of being
+ * offerable. Pruned lazily, on read, the same way an expired offer or a stale
+ * `lastError` would be if this codebase kept those on a clock -- there is no
+ * alarm dedicated to this, because the only thing that reads it is a panel
+ * that is, by definition, open and asking right now.
+ */
+export async function finishedRun() {
+  const held = await state.finishedRun();
+  if (!held) return null;
+  if (Date.now() - held.at > FINISHED_RUN_MS) {
+    await state.setFinishedRun(null);
+    return null;
+  }
+  return held;
 }

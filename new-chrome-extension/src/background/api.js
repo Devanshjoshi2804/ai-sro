@@ -132,6 +132,13 @@ export const api = {
   /** One skill, for the name and the shape of the version being run. */
   skill: (skillId) => call(`/v1/skills/${encodeURIComponent(skillId)}`),
 
+  /** The person this ran for says the result was wrong -- reached by pressing
+   * "Undo that" or "It's wrong, I'll fix it", things they wanted anyway,
+   * which is why it can be trusted the way a survey answer could not be. See
+   * `panel.js`'s `undoRun` and `wasWrong`. */
+  runWrong: (runId, because) =>
+    call(`/v1/runs/${encodeURIComponent(runId)}/wrong`, { method: "POST", body: { because } }),
+
   /** Tasks this operator keeps doing on one system. The panel asks about the
    * tab it is docked beside; the host is what makes it that question. */
   candidates: (host) =>

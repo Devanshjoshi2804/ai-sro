@@ -49,14 +49,49 @@ let latest = null;
  * little early. */
 const RUN_QUIET_MS = 30_000;
 
+/** A run whose quiet timeout has landed and has not yet been confirmed, one
+ * way or the other, against the backend's own record of it.
+ *
+ * `performing()` going quiet is a local guess -- this browser stopped being
+ * asked to do anything, which usually means the run is over, but a run can
+ * legitimately pause between two of its own steps for longer than
+ * `RUN_QUIET_MS` too. So this is not "the run finished", it is "go find out" --
+ * `service-worker.js` reads it on the panel's own status poll, asks the
+ * backend what the run's status actually is, and clears this once that has an
+ * answer. Left set on "still running" or on a backend it could not reach, so
+ * the next poll -- two seconds later, while the panel is open -- asks again
+ * rather than the answer being lost because nothing else will ever prompt
+ * another look.
+ *
+ * A single slot, like `latest` above: this browser drives one run at a time,
+ * so there is only ever one quiet run to be finding out about.
+ */
+let awaitingFinish = null;
+
 /** What this browser is performing right now, or null. */
 export function performing() {
   if (!latest) return null;
   if (Date.now() - latest.at > RUN_QUIET_MS) {
+    awaitingFinish = latest.runId;
     latest = null;
     return null;
   }
   return { runId: latest.runId, kind: latest.kind, since: latest.since };
+}
+
+/** The run id `performing()` most recently quieted on and nobody has yet
+ * confirmed against the backend, or null. Read, not consumed -- see
+ * `awaitingFinish` above for why staying set is the point. */
+export function runAwaitingFinish() {
+  return awaitingFinish;
+}
+
+/** The backend has answered for this run, one way or the other: stop asking
+ * about it. Guarded by id rather than cleared unconditionally, so an answer
+ * that arrives late for a run this browser has since moved past does not
+ * erase the next one's flag out from under it. */
+export function finishConfirmed(runId) {
+  if (awaitingFinish === runId) awaitingFinish = null;
 }
 
 /** What the backend told us about this step, where it told us anything.

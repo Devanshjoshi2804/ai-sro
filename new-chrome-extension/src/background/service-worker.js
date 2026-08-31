@@ -5,7 +5,7 @@
 
 import { api, ApiError } from "./api.js";
 import * as channel from "./channel.js";
-import { abort, isDriving, performing } from "./commands.js";
+import { abort, finishConfirmed, isDriving, performing, runAwaitingFinish } from "./commands.js";
 import * as queue from "./queue.js";
 import { redactUrl } from "../content/sensitivity.module.js";
 import {
@@ -18,7 +18,7 @@ import {
   unregister,
 } from "./scripts.js";
 import { capture } from "./shots.js";
-import { capturing, state } from "./state.js";
+import { capturing, finishedRun, state } from "./state.js";
 import * as teaching from "./teaching.js";
 import { release as releaseTree, releaseAll, takeTree, takeTreeSoon } from "./trees.js";
 import { flush } from "./upload.js";
@@ -639,6 +639,18 @@ async function handle(message, sender) {
       // or asking about a run that has just finished, is not an error worth
       // showing anybody.
       return { ok: true, aborted: abort(message.runId) };
+    case "run-wrong": {
+      // "Undo that" and "it's wrong" both land here first, before whichever of
+      // them goes on to start a reversal run -- see `panel.js`'s `undoRun` and
+      // `wasWrong`. The record is what counts against the skill; a card
+      // nobody has touched should keep offering exactly what it already did,
+      // which is why this browser's own copy is cleared only for the run that
+      // was just answered about, and only once the backend has accepted it.
+      const result = await api.runWrong(message.runId, message.because);
+      const held = await state.finishedRun();
+      if (held?.id === message.runId) await state.setFinishedRun(null);
+      return result;
+    }
     case "purge": {
       // The device's own queue first, and unconditionally. What is still
       // sitting here has not reached the server, so deleting it there and
@@ -1031,6 +1043,19 @@ async function status() {
       state.lastBeat(),
       state.lastError(),
     ]);
+  // `performing()` is read for its side effect too: the moment it finds a run
+  // quiet past its window is the moment it flags that run for a backend check
+  // (see `commands.js`'s `runAwaitingFinish`). Read once and held, not called
+  // again below -- a second call this same tick would see `latest` already
+  // cleared and never flag anything.
+  const doing = performing();
+  const awaiting = runAwaitingFinish();
+  // Not awaited: the panel polls this every two seconds and a card about a run
+  // that already finished should not make every one of those polls wait on a
+  // network round trip. The check either lands before the next poll, or it
+  // does not and that poll asks again -- `awaiting` is left set until a
+  // confirmed answer clears it, exactly so nothing is lost by not waiting here.
+  if (awaiting) void noteFinished(awaiting);
   return {
     capturing: allowed.on,
     because: allowed.because,
@@ -1040,7 +1065,12 @@ async function status() {
     // that is recording everything, and the operator finds out at the end.
     queued: await queue.count(),
     teaching: await state.teaching(),
-    performing: performing(),
+    performing: doing,
+    // What the last run this browser finished made, and how to take it back --
+    // held long past this run itself, unlike `performing` above, because an
+    // operator coming back to look is what this is measured against rather
+    // than the run going quiet. See `state.js`'s `finishedRun` for why an hour.
+    finished: await finishedRun(),
     deviceId,
     policy,
     apiUrl,
@@ -1063,6 +1093,51 @@ async function status() {
     offers: await state.offers(),
     version: VERSION,
   };
+}
+
+/**
+ * A run went quiet in this browser; find out from the backend whether that
+ * meant it finished.
+ *
+ * Never decided locally. `RunModel.derived` is what the run read back and
+ * `RunModel.reversal` is computed against the tenant's whole skill library --
+ * neither is something this browser has the material to produce itself, so
+ * both are only ever copied from what `GET /v1/runs/{run_id}` answers (see
+ * `api.run`, already used elsewhere in this file for the same run's own
+ * record).
+ *
+ * `run.status === "running"` means the quiet window landed between two of the
+ * run's own steps, not after its last one -- nothing is stored, and
+ * `runAwaitingFinish()` is left set so the next status poll asks again. Any
+ * other terminal status -- succeeded, failed, stopped -- is confirmed either
+ * way: `derived` may be empty and `reversal` may be null, and the card says so
+ * itself (see `panel.js`'s `finished()`) rather than this deciding not to show
+ * one.
+ *
+ * ponytail: a second run starting in this browser before this one is
+ * confirmed shares `runAwaitingFinish`'s single slot and loses the first
+ * one's confirmation. `latest` in `commands.js` already only tracks one run
+ * at a time, so this is the same ceiling, not a new one -- widen both to a
+ * small history together if back-to-back runs from one browser turns out to
+ * be ordinary rather than rare.
+ */
+async function noteFinished(runId) {
+  try {
+    const run = await api.run(runId);
+    if (run.status === "running") return;
+    await state.setFinishedRun({
+      id: run.id,
+      status: run.status,
+      derived: run.derived || {},
+      reversal: run.reversal || null,
+      at: Date.now(),
+    });
+    finishConfirmed(runId);
+  } catch {
+    // A backend this browser cannot reach right now is not a reason to show a
+    // stale or invented card. `runAwaitingFinish` is left set, so the next
+    // poll -- once the panel is open again -- tries once more.
+  }
 }
 
 function defaultLabel() {

@@ -176,6 +176,11 @@ function render(status) {
   if (!status.teaching) for (const offer of status.offers || []) cards.push(offering(offer));
 
   if (status.performing) cards.push(performing(status));
+  // Not while teaching, same rule as the offers above: a demonstration in
+  // progress is the only thing the panel is about. Placed after the run that
+  // is happening now and before what is wrong, because it outranks neither --
+  // it is a look back at the last thing this browser did, not a fault.
+  if (!status.teaching && status.finished) cards.push(finished(status));
   for (const trouble of troubles(status)) cards.push(trouble);
 
   $("cards").replaceChildren(...cards);
@@ -406,6 +411,71 @@ function performing(status) {
       { label: "Details in console", act: () => openConsole(`/runs/${run.runId}`) },
     ],
   });
+}
+
+/** What the last run made, and how to take it back.
+ *
+ * It asks nothing. "Did that come out right?" is a survey and surveys go
+ * unanswered; an undo is a thing they wanted, so pressing it costs them
+ * nothing to be honest about -- which is exactly what makes it the better
+ * signal.
+ *
+ * Silence means it was fine. A run nobody touched is judged as it is today.
+ */
+function finished(status) {
+  const run = status.finished;
+  const made = Object.entries(run.derived || {});
+  const actions = [];
+  if (run.reversal) {
+    actions.push({ label: "Undo that", primary: true, act: (button) => undoRun(button, run) });
+  }
+  actions.push({ label: "It's wrong — I'll fix it", act: (button) => wasWrong(button, run) });
+  return card({
+    title: made.length
+      ? `Created ${made.map(([, value]) => value).join(" — ")}.`
+      : "Finished. I can't show you what it made — nothing was read back.",
+    actions,
+  });
+}
+
+/** The two things "Undo that" means: the record that the operator asked for a
+ * reversal, and the reversal itself. `run-wrong` first and awaited before the
+ * reversal starts -- what counts against a skill is whether the operator
+ * asked to take it back, and that has to land even where starting the
+ * reversal in this browser goes on to fail (a tab that has since closed, say).
+ *
+ * `run.reversal.skill_id` and `.parameters` came back from the backend
+ * already computed (`RunModel.reversal`, see the interfaces this task was
+ * handed) -- nothing here decides what would undo a run, only that this is
+ * the moment to run it.
+ */
+async function undoRun(button, run) {
+  button.disabled = true;
+  try {
+    await ask({ kind: "run-wrong", runId: run.id, because: "undone by the operator" });
+    await runIt(run.reversal.skill_id, run.reversal.parameters, "Undo that");
+    said("undoing it — a new run is reversing this one");
+  } catch (error) {
+    said(error.message);
+  }
+  await refresh();
+}
+
+/** No note is asked for here -- see this file's header and `finished()`'s own
+ * comment above: this panel asks nothing, and a text box for "why" is the
+ * same survey question in a different shape. Pressing this button already
+ * says the one thing that matters: the run they got was not the one they
+ * wanted.
+ */
+async function wasWrong(button, run) {
+  button.disabled = true;
+  try {
+    await ask({ kind: "run-wrong", runId: run.id, because: "the operator said this was wrong" });
+    said("Fix it the way you meant. I'm watching, and I'll learn from that.");
+  } catch (error) {
+    said(error.message);
+  }
+  await refresh();
 }
 
 /** A mail this browser recognised, and the one press that acts on it.

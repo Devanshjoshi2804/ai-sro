@@ -153,6 +153,7 @@ test-extension: ## The extension's own self-checks, in plain node
 	node new-chrome-extension/src/background/showing.test.mjs
 	node new-chrome-extension/src/background/frames.test.mjs
 	node new-chrome-extension/src/background/pages.test.mjs
+	node new-chrome-extension/src/background/finishing.test.mjs
 	node new-chrome-extension/src/background/watching-across-a-reload.test.mjs
 	node new-chrome-extension/src/background/trees.test.mjs
 	node new-chrome-extension/src/content/network.test.mjs

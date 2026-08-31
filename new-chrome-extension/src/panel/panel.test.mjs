@@ -1030,6 +1030,100 @@ test("a value the parser read as empty is not sent as one", async () => {
 });
 
 
+test("it shows what it made and offers to take it back", async () => {
+  const { cards } = panel(
+    {
+      deviceId: "dev-1",
+      capturing: true,
+      watched: [{ tabId: 7, host: "wms.example", since: new Date().toISOString() }],
+      finished: {
+        id: "run-1",
+        status: "succeeded",
+        derived: { operation: "NDPCK", description: "north dock picking" },
+        reversal: { skill_id: "skl-2", parameters: { operation_id: "NDPCK" } },
+      },
+    },
+    { id: 7, host: "wms.example", url: "https://wms.example/portal" },
+  );
+
+  const said = cards.map(words).join(" ");
+  assert.ok(/NDPCK/.test(said), "it did not show what it made");
+  assert.ok(/Undo that/i.test(said), "no undo was offered when one exists");
+  assert.ok(!/come out right/i.test(said), "it is still asking a survey question");
+});
+
+test("with no way to reverse it, it says so rather than offering a dead button", async () => {
+  const { cards } = panel(
+    {
+      deviceId: "dev-1",
+      capturing: true,
+      watched: [{ tabId: 7, host: "wms.example", since: new Date().toISOString() }],
+      finished: { id: "run-1", status: "succeeded", derived: { operation: "NDPCK" }, reversal: null },
+    },
+    { id: 7, host: "wms.example", url: "https://wms.example/portal" },
+  );
+
+  const said = cards.map(words).join(" ");
+  assert.ok(!/Undo that/i.test(said), "an undo was offered with nothing behind it");
+  assert.ok(/I'll fix it/i.test(said), "no way to say it was wrong at all");
+});
+
+test("undo records the ask and starts the reversal skill, nothing else", async () => {
+  // The two things "Undo that" means: the record that the operator asked for
+  // a reversal, and the reversal run itself -- and nothing besides those two
+  // messages, because everything the reversal needs (the skill, its
+  // parameters) came back from the backend already computed.
+  const { cards, sent } = panel(
+    {
+      deviceId: "dev-1",
+      capturing: true,
+      watched: [{ tabId: 7, host: "wms.example", since: new Date().toISOString() }],
+      finished: {
+        id: "run-1",
+        status: "succeeded",
+        derived: { operation: "NDPCK" },
+        reversal: { skill_id: "skl-2", parameters: { operation_id: "NDPCK" } },
+      },
+    },
+    { id: 7, host: "wms.example", url: "https://wms.example/portal" },
+  );
+  const card = cards.find((c) => words(c).includes("NDPCK"));
+  const [undo] = buttons(card);
+  assert.strictEqual(undo.textContent, "Undo that");
+
+  await undo.listeners[0]();
+
+  assert.deepStrictEqual(sentOf(sent, "run-wrong"), [
+    { kind: "run-wrong", runId: "run-1", because: "undone by the operator" },
+  ]);
+  const [ran] = sentOf(sent, "run-skill");
+  assert.strictEqual(ran.skillId, "skl-2");
+  assert.deepStrictEqual(ran.parameters, { operation_id: "NDPCK" });
+  assert.strictEqual(ran.intent, "Undo that");
+});
+
+test("'it's wrong' records why without offering a run it cannot take back", async () => {
+  const { cards, sent } = panel(
+    {
+      deviceId: "dev-1",
+      capturing: true,
+      watched: [{ tabId: 7, host: "wms.example", since: new Date().toISOString() }],
+      finished: { id: "run-1", status: "succeeded", derived: { operation: "NDPCK" }, reversal: null },
+    },
+    { id: 7, host: "wms.example", url: "https://wms.example/portal" },
+  );
+  const card = cards.find((c) => words(c).includes("NDPCK"));
+  const [wrong] = buttons(card);
+  assert.match(wrong.textContent, /I'll fix it/i);
+
+  await wrong.listeners[0]();
+
+  assert.deepStrictEqual(sentOf(sent, "run-wrong"), [
+    { kind: "run-wrong", runId: "run-1", because: "the operator said this was wrong" },
+  ]);
+  assert.deepStrictEqual(sentOf(sent, "run-skill"), []);
+});
+
 for (const [name, fn] of tests) {
   try {
     await fn();

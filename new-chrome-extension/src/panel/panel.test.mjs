@@ -161,7 +161,7 @@ function panel(status, here = null, replies = {}) {
   // `ask({kind: "candidates"})`) that a real load triggers separately from
   // `whereWeAre` -- so nothing above has populated `ids["candidates"]` yet,
   // and a test of that list has to trigger and await this itself.
-  return { sent, cards, ids, renderCandidates: sandbox.here };
+  return { sent, cards, ids, renderCandidates: sandbox.here, plainly: sandbox.plainly };
 }
 
 const tests = [];
@@ -346,6 +346,52 @@ test("the offer is about their work, not about our system", async () => {
   assert.ok(!/teach/i.test(said), "the panel still asks to be taught");
   assert.ok(!/workOperations/.test(said), "an endpoint name reached the operator");
   assert.ok(!/seen 3 times/i.test(said), "telemetry about the operator is still shown");
+});
+
+test("a model's title is said as its own sentence, not spliced into the count's", async () => {
+  // Round 1 regression: the count template ("You've created 3 ___ here") was
+  // reused for a model's title too, which is a full sentence rather than a
+  // noun -- "You've created 3 Adjust an LPN after a short ship here — about
+  // 40s each." A model writes a title; only a noun goes in that slot.
+  const { plainly } = panel({ deviceId: "dev-1" });
+  const said = plainly({
+    id: "cnd-2",
+    title: "Adjust an LPN after a short ship",
+    signature: "POST data/WM/wm/lpnAdjustments",
+    named_by_model: true,
+    status: "new",
+    times_seen: 3,
+    median_duration_ms: 40000,
+    minutes_so_far: 5,
+  });
+  assert.ok(
+    said.startsWith("Adjust an LPN after a short ship"),
+    `the title was not said as a title: ${said}`,
+  );
+  assert.ok(!/created 3 Adjust/i.test(said), `the title was spliced into the noun's slot: ${said}`);
+  assert.match(said, /you've done this 3 times, about 40s each/i);
+  assert.match(said, /next one/i, "the offer's own meaning -- doing the next one -- was dropped");
+});
+
+test("a wildcarded id in the path is not offered as the noun, and nothing left is not either", async () => {
+  // A real, plausible shape the count-noun path didn't cover: an update-by-id
+  // endpoint like `PUT .../workOperations/*` popped the id's own `*` as the
+  // noun -- "You've created 3 *s here."
+  const { plainly } = panel({ deviceId: "dev-1" });
+  const withId = plainly({
+    signature: "PUT data/WM/wm/workOperations/*",
+    status: "new",
+    times_seen: 4,
+    median_duration_ms: 20000,
+  });
+  assert.ok(/work operations/i.test(withId), `no plain noun in: ${withId}`);
+  assert.ok(!/\*/.test(withId), `a wildcard reached the operator: ${withId}`);
+
+  // And where no real word survives the path at all, a vaguer sentence beats
+  // a visibly broken one -- never a bare placeholder standing in for a noun.
+  const noNoun = plainly({ signature: "", status: "new", times_seen: 4, median_duration_ms: 20000 });
+  assert.ok(!/\*/.test(noNoun), `a wildcard reached the operator: ${noNoun}`);
+  assert.match(noNoun, /you've done this 4 times/i);
 });
 
 for (const [name, fn] of tests) {

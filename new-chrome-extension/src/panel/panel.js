@@ -677,20 +677,55 @@ async function here() {
   $("candidates").replaceChildren(...offerable.map(row));
 }
 
-/** The task, in the words somebody working would use.
+/** The noun for this task, off the signature's own path.
  *
- * A model writes one where the deployment has one and the propose pass has run.
- * Where it has not, the noun comes off the signature's own path -- so this never
- * depends on a model being configured, and an operator is never shown
- * `POST data/WM/wm/workOperations`.
+ * Used only where no model has named the task, so this never depends on one
+ * being configured and a raw signature never reaches an operator. A numeric
+ * or otherwise substituted segment (`workOperations/*`, an update-by-id call)
+ * carries no word, so this walks back past it and any other empty segment
+ * looking for one that actually is one; `null` says none was found, which is
+ * true of some signatures and is a case the caller has to word around rather
+ * than one this can paper over with a placeholder.
+ */
+function noun(candidate) {
+  const path = (candidate.signature || "").split(" ")[1] || "";
+  const word = path
+    .split("/")
+    .filter(Boolean)
+    .reverse()
+    .find((segment) => segment !== "*");
+  if (!word) return null;
+  // `workOperations` is two words to everybody except a URL.
+  const words = word.replace(/([a-z0-9])([A-Z])/g, "$1 $2").toLowerCase();
+  return words.endsWith("s") ? words : `${words}s`;
+}
+
+/** The offer, in one sentence a warehouse operator would recognise as
+ * ordinary English -- and a second thanking them for the offer's own
+ * meaning: what they repeat, and that we will do the next one.
+ *
+ * A model writes a title -- a full sentence, conjugated as one -- where the
+ * deployment has one and the propose pass has run; that can only be said back
+ * as itself, never spliced into a noun's slot the way it was before ("You've
+ * created 3 Adjust an LPN after a short ship here"). Where there is no title,
+ * the noun taken from the signature's path *is* built to go in that slot, so
+ * the two are two different sentences, not one template serving both.
  */
 export function plainly(candidate) {
-  if (candidate.named_by_model && candidate.title) return candidate.title;
-  const path = (candidate.signature || "").split(" ")[1] || "";
-  const noun = path.split("/").filter(Boolean).pop() || "task";
-  // `workOperations` is two words to everybody except a URL.
-  const words = noun.replace(/([a-z0-9])([A-Z])/g, "$1 $2").toLowerCase();
-  return words.endsWith("s") ? words : `${words}s`;
+  const said = Math.round(candidate.median_duration_ms / 1000);
+  if (candidate.named_by_model && candidate.title) {
+    return (
+      `${candidate.title} — you've done this ${candidate.times_seen} times, ` +
+      `about ${said}s each. Want me to do the next one?`
+    );
+  }
+  const what = noun(candidate);
+  // No word survived the signature's path (every segment was `*` or blank).
+  // Vaguer is better than visibly broken: "this" reads as ordinary English no
+  // matter what the endpoint looked like, where a placeholder noun would not.
+  return what
+    ? `You've created ${candidate.times_seen} ${what} here — about ${said}s each.`
+    : `You've done this ${candidate.times_seen} times here — about ${said}s each.`;
 }
 
 function row(candidate) {
@@ -698,11 +733,7 @@ function row(candidate) {
 
   const said = document.createElement("p");
   said.className = "title";
-  // A reason, not a statistic. "Seen 3 times" is telemetry about the person
-  // reading it; "you've created 3 of these" is why we are asking.
-  said.textContent =
-    `You've created ${candidate.times_seen} ${plainly(candidate)} here — ` +
-    `about ${Math.round(candidate.median_duration_ms / 1000)}s each.`;
+  said.textContent = plainly(candidate);
 
   item.append(said);
 
@@ -838,38 +869,6 @@ function suggestion(candidate, join) {
   }
   holder.append(actions);
   return holder;
-}
-
-async function taught(candidate, item) {
-  const note = document.createElement("p");
-  note.className = "note";
-  item.append(note);
-  try {
-    const answer = await ask({ kind: "teach-candidate", id: candidate.id });
-    if (!answer.needs_demonstration) {
-      note.textContent = "learned from what was already watched";
-      await here();
-      return;
-    }
-    // The loop the console cannot close: it can say the passive evidence was
-    // too thin, and only this can start a demonstration in your browser.
-    note.textContent = `${answer.because || "the evidence was too thin"} — show me once:`;
-    const show = document.createElement("button");
-    show.type = "button";
-    show.textContent = "Show me once";
-    show.addEventListener("click", async () => {
-      const tab = await beside();
-      if (!tab) {
-        note.textContent = "open the system in this tab first";
-        return;
-      }
-      await ask({ kind: "teach-start", tabId: tab.id, label: candidate.title });
-      await refresh();
-    });
-    item.append(show);
-  } catch (error) {
-    note.textContent = error.message;
-  }
 }
 
 // -- the console -------------------------------------------------------------

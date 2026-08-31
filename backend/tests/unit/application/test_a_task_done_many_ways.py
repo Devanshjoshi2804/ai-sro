@@ -307,10 +307,22 @@ async def test_no_parameter_is_named_that_no_step_can_fill() -> None:
     assert asked_for <= _typed_by(version), (sorted(asked_for), sorted(_typed_by(version)))
 
 
-async def test_the_lookup_step_says_which_value_brings_it_about() -> None:
+async def test_the_lookup_step_says_which_value_brings_it_about(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     """Kept, and kept honestly: the address is entered only on the runs where
-    somebody supplies one, which is what `when` has meant since it existed."""
-    version = await _four_carrier_cross_references()
+    somebody supplies one, which is what `when` has meant since it existed.
+
+    And kept with nothing to check, which is also said out loud. The gesture's
+    own calls are dropped -- one observation is not two runs agreeing -- so
+    there is no evidence to build an assertion from and the step cannot be
+    verified after it runs. A reviewer reading a skill that is mostly these
+    should be told, not left to notice.
+    """
+    with caplog.at_level(logging.INFO, logger="sro.application.induction.induce_skill"):
+        version = await _four_carrier_cross_references()
+
+    assert "is a gesture with nothing to check: type, when cod_address_id" in caplog.text
 
     conditional = [step for step in version.steps if step.when]
     assert [step.when for step in conditional] == ["cod_address_id"]
@@ -422,3 +434,79 @@ def test_a_gesture_that_would_gate_on_two_supplied_values_is_refused() -> None:
 
     with pytest.raises(InductionFailed, match="cannot be written down"):
         _at_reference(two, {0: (0,)}, {})
+
+
+# --- A loop, and more doings than the pair -----------------------------------
+#
+# The interaction the first pass cleared on a case analysis that only held for
+# one history run. `keep` truncates the pair to its prefix and one iteration;
+# `history` arrives whole. Every other doing's second and third turns round the
+# block are evidential frames with nowhere to go, so they are spliced onto the
+# reference -- and they *agree with each other*, so their count climbs with the
+# number of doings rather than staying at one. Every existing loop test uses two
+# runs, where there is no history at all and none of this can happen.
+
+_ORDER = "https://wms.test/api/orders/55"
+
+
+def _opens(lines: list[str]) -> ActionFrame:
+    """The read that says which lines are short. Its answer is the list."""
+    return f.frame(
+        0,
+        action=InputAction(kind=ActionKind.CLICK, target=f.fingerprint(accessible_name="Open")),
+        requests=(
+            f.request(
+                method="GET",
+                url=_ORDER,
+                status=200,
+                response_body=f.body(
+                    json.dumps({"data": {"lines": [{"lineId": line} for line in lines]}})
+                ),
+            ),
+        ),
+    )
+
+
+def _adjusts(index: int, line: str) -> ActionFrame:
+    return f.frame(
+        index,
+        action=InputAction(kind=ActionKind.CLICK, target=f.fingerprint(accessible_name="Adjust")),
+        requests=(
+            f.request(
+                method="POST",
+                url=f"https://wms.test/api/lines/{line}/adjust",
+                status=200,
+                request_body=f.body(json.dumps({"lineId": line})),
+            ),
+        ),
+    )
+
+
+def _every_short_line(*lines: str) -> tuple[ActionFrame, ...]:
+    """One doing of "adjust every short line on this order"."""
+    return (_opens(list(lines)), *(_adjusts(at + 1, line) for at, line in enumerate(lines)))
+
+
+async def test_a_loop_is_not_taught_extra_iterations_by_the_doings_around_it() -> None:
+    """Seven doings of a looping task, five of them past the pair.
+
+    The pair is two lengths of one block and `keep` cuts it to the prefix and
+    one iteration. The five others are whole recordings, and their *second*
+    adjust matches every other doing's second adjust -- five of seven, which is
+    over two thirds, which is `ALWAYS`. It carries the block's write, so it is
+    a step neither demonstration made that nothing diffed: the pair used to
+    induce this and would now be refused outright.
+
+    The loop's own body is one step and it stays one step. What the counts can
+    say about a run that did the block five times is nothing, so they are not
+    asked.
+    """
+    version = await _induce(
+        _every_short_line("1", "2"),
+        _every_short_line("1", "2", "3"),
+        *[_every_short_line("1", "2") for _ in range(5)],
+    )
+
+    loop = version.loops[0]
+    assert len(version.steps) == 2, [step.intent for step in version.steps]
+    assert (loop.first_step, loop.last_step) == (1, 1)

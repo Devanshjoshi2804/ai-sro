@@ -271,10 +271,40 @@ class InduceSkill:
             # gestures of every other doing, which used to reach nothing -- the
             # address lookup among them. Both come back as steps, and how often
             # each happened decides whether it is one.
+            #
+            # And the pair alone where this is a loop, which is a real loss
+            # taken deliberately. `keep` is a fact about *this pair* -- the
+            # prefix and one iteration, found by `loops.detect` from two runs
+            # being two lengths of one block -- and `history` is whole
+            # recordings, however many times round each of them went. Handed
+            # in untruncated, every doing's second and third iterations are
+            # evidential frames the reference has no place for, so they are
+            # spliced in at the end and they *agree with each other*: four
+            # doings that looped twice make one extra body frame look like a
+            # step four doings made. Past two thirds it is emitted -- as a
+            # refusal where it carries the block's write, or as a duplicate
+            # gesture sitting outside the loop where it does not.
+            #
+            # Excluded rather than truncated, and the difference is the
+            # question each answers. Truncating asks "where does this doing's
+            # own block stop", and nothing can answer it: `loops.detect` reads
+            # two runs of differing length against each other and there is no
+            # such thing for one run on its own, so any prefix taken here
+            # would be the pair's `keep` applied to a recording that never
+            # agreed to it. Excluding asks "how many doings made this step",
+            # notices that a doing which made it five times cannot answer, and
+            # declines to count it. A looping task therefore induces from its
+            # pair exactly as it did before this change.
+            #
+            # ponytail: per-run loop detection would let a looping task read
+            # its whole history too -- one block per doing, counted once.
+            # Worth building when a looping task with more than two
+            # demonstrations turns up; the pair still induces it today.
+            doings = (frames_a, frames_b) if looped is not None else (frames_a, frames_b, *history)
             conditionals = _extra_steps(
-                alignment=align_all((frames_a, frames_b, *history)),
+                alignment=align_all(doings),
                 pairs=pairs,
-                runs=(frames_a, frames_b, *history),
+                runs=doings,
                 parameterisation=parameterisation,
             )
             if conditionals and looped is not None:
@@ -735,6 +765,16 @@ def _extra_steps(
     }
 
     standing = standing_of(alignment, _at_reference(parameterisation, spine, gated))
+    for index, paired in spine.items():
+        if paired and standing[index] is not Standing.ALWAYS:
+            # Kept anyway -- see above -- and said out loud, because "the
+            # counts disagreed and nothing happened" is exactly the kind of
+            # thing that is only obvious to whoever wrote it.
+            logger.info(
+                "keeping step %s: both demonstrations made it, though only %d of the doings did",
+                ", ".join(str(step) for step in paired),
+                alignment.seen[index],
+            )
     for index, frame in plain:
         # Not `.get(index, ...)`: every reference position has a standing, and
         # a missing one would be a reconciliation that lost a step rather than
@@ -990,6 +1030,19 @@ def _emit_conditional(
     call, it reaches it in the write both runs sent -- which is an aligned step,
     and already carries the parameter.
     """
+    # Nothing to check, and nothing hides that. A step with no assertions
+    # cannot be verified after it runs, and a skill where most steps are these
+    # is a skill a review cannot tell apart from one that works -- on the four
+    # real carrier recordings that is five steps of seven. The count belongs
+    # where the drops already go, so a reviewer reads it rather than infers
+    # it. Not repaired here: assertions built from frames nothing diffed would
+    # be one observation dressed as agreement, which is the trade above.
+    logger.info(
+        "step %d is a gesture with nothing to check: %s%s",
+        index,
+        conditional.frame.action.kind,
+        f", when {conditional.parameter}" if conditional.parameter else "",
+    )
     return emit_step(
         index,
         replace(conditional.frame, requests=()),

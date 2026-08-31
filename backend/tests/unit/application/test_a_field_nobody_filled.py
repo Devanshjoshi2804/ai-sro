@@ -1068,6 +1068,27 @@ def test_a_gesture_align_excused_and_nothing_can_name_refuses_the_pair() -> None
         _conditionals(without_optional, optional_fills(filled, skipped))
 
 
+def test_a_third_doings_gesture_that_names_nothing_is_dropped_not_refused() -> None:
+    """The same gesture from outside the pair, and the opposite answer.
+
+    The refusal above rests on a promise: `align` stopped refusing an unmatched
+    keystroke *because* `optional_fills` undertook to hand it back. Nobody
+    undertook anything about a gesture in some third doing -- it was never
+    excused, so there is nothing to break -- and failing a whole induction over
+    one operator's stray typing in doing eleven is how a batch of ten
+    demonstrations becomes worse evidence than a batch of two. It falls through
+    to `standing_of`, which drops it as noise with the count written down.
+    """
+    filled, skipped = _filled("ONE"), _skipped("TWO")
+    parameterisation = parameterise(filled, skipped)
+    without_optional = replace(
+        parameterisation,
+        parameters=tuple(replace(p, absent_as=None) for p in parameterisation.parameters),
+    )
+
+    assert _conditionals(without_optional, optional_fills(filled, skipped), promised=False) == ()
+
+
 def test_substitute_body_unquotes_only_the_parameter_named_for_it() -> None:
     """`json.dumps` quotes every placeholder alike; `unquoted` says which ones
     lose those quotes afterwards -- the fields whose absent form is not itself

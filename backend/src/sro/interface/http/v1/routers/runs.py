@@ -100,22 +100,26 @@ async def run_from_preview(
     skill_id: str, body: RunFromPreviewRequest, container: ContainerDep, ctx: ContextDep
 ) -> RunModel:
     """The press. Promotes a version that has never been reviewed anywhere else,
-    then runs it -- in one call, because a version promoted by a press that
-    then failed to start is a version sitting at assisted because somebody
-    clicked once and walked away. See ADR 014 and `RunFromPreview`.
+    then runs it. See ADR 014 and `RunFromPreview`.
 
     Always in the operator's own browser: the preview this promotes on showed
     them the tab the run is about to act in, and a run started anywhere else
-    would not be the run they read.
+    would not be the run they read. That makes this always `run_skill`'s
+    device path, followed exactly rather than reinvented: answered as soon as
+    the row exists, with the rest driven in the background, because this is a
+    run a person is watching happen on their own screen and could not if the
+    id only arrived with the result -- `/runs/{id}/stream` would have nothing
+    to subscribe to and `/runs/{id}/stop` nothing left to stop.
     """
-    run = await container.run_from_preview().execute(
+    started = await container.run_from_preview().begin(
         ctx,
         skill_id=SkillId(skill_id),
         parameters=body.parameters,
         device_id=DeviceId(body.device_id),
         intent=body.intent,
     )
-    return RunModel.of(run)
+    container.pursuits.spawn(_perform(container, ctx, started))
+    return RunModel.of(started)
 
 
 @router.post("/runs/{run_id}/stop", status_code=status.HTTP_202_ACCEPTED)

@@ -1587,13 +1587,16 @@ export interface paths {
         /**
          * Run From Preview
          * @description The press. Promotes a version that has never been reviewed anywhere else,
-         *     then runs it -- in one call, because a version promoted by a press that
-         *     then failed to start is a version sitting at assisted because somebody
-         *     clicked once and walked away. See ADR 014 and `RunFromPreview`.
+         *     then runs it. See ADR 014 and `RunFromPreview`.
          *
          *     Always in the operator's own browser: the preview this promotes on showed
          *     them the tab the run is about to act in, and a run started anywhere else
-         *     would not be the run they read.
+         *     would not be the run they read. That makes this always `run_skill`'s
+         *     device path, followed exactly rather than reinvented: answered as soon as
+         *     the row exists, with the rest driven in the background, because this is a
+         *     run a person is watching happen on their own screen and could not if the
+         *     id only arrived with the result -- `/runs/{id}/stream` would have nothing
+         *     to subscribe to and `/runs/{id}/stop` nothing left to stop.
          */
         post: operations["run_from_preview_v1_skills__skill_id__runs_from_preview_post"];
         delete?: never;

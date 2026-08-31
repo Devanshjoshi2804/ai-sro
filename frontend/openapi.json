@@ -21091,7 +21091,7 @@
           "runs"
         ],
         "summary": "Run From Preview",
-        "description": "The press. Promotes a version that has never been reviewed anywhere else,\nthen runs it -- in one call, because a version promoted by a press that\nthen failed to start is a version sitting at assisted because somebody\nclicked once and walked away. See ADR 014 and `RunFromPreview`.\n\nAlways in the operator's own browser: the preview this promotes on showed\nthem the tab the run is about to act in, and a run started anywhere else\nwould not be the run they read.",
+        "description": "The press. Promotes a version that has never been reviewed anywhere else,\nthen runs it. See ADR 014 and `RunFromPreview`.\n\nAlways in the operator's own browser: the preview this promotes on showed\nthem the tab the run is about to act in, and a run started anywhere else\nwould not be the run they read. That makes this always `run_skill`'s\ndevice path, followed exactly rather than reinvented: answered as soon as\nthe row exists, with the rest driven in the background, because this is a\nrun a person is watching happen on their own screen and could not if the\nid only arrived with the result -- `/runs/{id}/stream` would have nothing\nto subscribe to and `/runs/{id}/stop` nothing left to stop.",
         "operationId": "run_from_preview_v1_skills__skill_id__runs_from_preview_post",
         "parameters": [
           {

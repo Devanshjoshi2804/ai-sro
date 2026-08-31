@@ -173,14 +173,39 @@ every version induction produces. `promote` refuses a version that came from
 one demonstration and writes — every value it sends is fixed as demonstrated
 — unless the caller separately passes `acknowledging_fixed_values=True`, and
 that is exactly the shape of the skill a freshly induced task most often is:
-one demonstration, one write. This ADR does not resolve whether a preview
-promotion may set that flag on the operator's behalf. Doing so would mean the
-same press that reviews the steps and the values is also the acknowledgement
-that those values are fixed as demonstrated — which may well be a fair
-reading of the same argument this ADR makes, but it is a second governance
-question and answering it here would be deciding it in the dark. It is left
-open, for whichever piece of work turns this decision into a running call to
-answer explicitly rather than by omission.
+one demonstration, one write.
+
+**Amended.** Resolved, by the task that turned this decision into a running
+call (`RunFromPreview`): the preview promotion sets that flag on the
+operator's behalf. This was left open above, and the reasoning first written
+beside that call claimed the narrower trust the flag stands for was contained
+in the larger one this ADR already grants — that a press trusted to move a
+version from sending nothing to sending real writes has, by the same press,
+already been trusted with the smaller claim that the particular fixed values
+are the right ones. That claim does not hold, and it matters that it does
+not: "What the operator did not read", above, is a closed list —
+`SkillStep.intent`, the resolved value of each *parameter*, and the starting
+tab — and a value `acknowledging_fixed_values` guards is definitionally not a
+parameter. One demonstration means nothing was diffed, so nothing told a
+value that varies apart from a value that happens to be constant; what the
+flag exists to catch is precisely the constants that never became a parameter
+and so were never a line in the preview at all. The two sets of values do not
+overlap, and no reading of the press supplies the second set.
+
+Setting the flag here is therefore not a proof already on file; it is an
+accepted residual risk, taken on the same terms this ADR already accepts one
+for. "What the operator did not read" above does not solve *that* gap either
+— whether a step writes, to which system, checked by which assertion — and
+says so plainly: what closes it is not the preview but the backstop every
+other run already meets, `run.wrong_because` read before anything else
+`judge` reads, and `DEMOTE_AFTER_FAILURES` pulling the version back down after
+three. A write sent on a fixed value nobody actually read is exactly the kind
+of surprise that backstop exists for: the operator who sees the wrong record
+land calls it wrong, that counts against the version like any other failure,
+and the version stops running assisted on the strength of a press once three
+of them agree it was wrong. The flag is set because refusing it would dead-end
+the commonest shape a freshly induced skill has on its very first press, not
+because the press proved what it did not show.
 
 `promoted_from` costs one field and one guard, both narrow: nothing about a
 console promotion changes, and the guard composes with `check_promotion`

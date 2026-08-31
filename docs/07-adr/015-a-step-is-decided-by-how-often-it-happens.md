@@ -44,8 +44,32 @@ mean something different every week — a step three doings made is the task whe
 there were four and a rounding error when there were four thousand — and a rule
 whose meaning drifts with a task's popularity is not one anybody can reason
 about. Two in three rather than a bare majority because at four doings, which is
-the real case, a majority is one operator's habit; a rule that flips on a single
-doing is not a rule.
+the real case today, a majority is one operator's habit; a rule that flips on a
+single doing is not a rule.
+
+**And at four thousand doings the same number is aggressive, not conservative.**
+That is the harder half of this, and the half the premise of the whole project
+lands on: a task done a thousand times or more. A step made thirteen hundred
+times out of four thousand is below two in three, and thirteen hundred
+occurrences are not a mis-click by anybody's reading — nothing but the number
+itself would call them one. Two in three is defensible at four because one
+dissenter cannot move it; at four thousand it discards a third of a task's real
+variety on the strength of a fraction chosen for a batch a thousand times
+smaller.
+
+What carries a large batch is not the threshold. It is the branch rule below:
+at scale, the steps that matter and fall short of two in three are almost all
+steps that type a field somebody supplied — the shape of the address lookup —
+and those are kept regardless of share. The threshold is doing the easy work,
+which is throwing out the accidents nothing accounts for; the escape hatch is
+doing the real work. Two consequences follow honestly from that. The first is
+that if the escape hatch is ever narrowed, this number has to be revisited at
+the same time, because it is only safe while something else is catching what it
+drops. The second is that a step-shaped branch with no supplied value behind it
+— see "What it gives up" — is discarded at four thousand doings where the count
+alone would have vindicated it, and no fixed share fixes that: a share tuned low
+enough to keep thirteen hundred out of four thousand keeps two out of four,
+which is union at the batch size this actually gets handed today.
 
 **Who may change it: a person editing `PART_OF_THE_TASK`, reviewed like any
 other change.** Not a tenant setting. A threshold that differs per deployment
@@ -75,9 +99,30 @@ itself. It happened; nothing in the evidence says when it would happen again.
 That is what a fumble looks like from the outside, and it is the one thing
 rarity decides.
 
-The correlation is read narrowly, from the keystroke only —
-`Parameterisation.conditional_on`, which already draws this line for the two-run
-case. The write that carries an optional field goes out on every run regardless,
+**What the code checks is weaker than that argument, and the two must not be
+confused.** "Appears whenever the value was supplied" is a correlation between
+two counts. `standing_of` computes no such thing, because neither of its inputs
+carries per-doing supply counts: `Alignment.seen` says how many doings contained
+a step, and nothing anywhere says how many doings supplied a given parameter. So
+the test is the far weaker **"this step's keystroke types some optional field at
+all"**. A step in one doing of a hundred whose parameter was supplied in sixty
+is `CONDITIONAL` on exactly the same terms as one whose parameter was supplied
+in one. Perfect correlation and almost none are indistinguishable here.
+
+That gap is left open rather than closed with an invented number. The count that
+would close it is not hard to produce — `align_all` already walks every run
+against the reference and could record, per reference index, how many of those
+runs filled each optional field, at which point the test becomes "supplied in n
+doings, made in n of them" and means what this section's first paragraph says.
+It is not built now because the argument for building it is that a large batch
+would show the difference, and no large batch has been through this yet; at four
+doings the strong test and the weak one agree. What makes the weak test tolerable
+in the meantime is the direction it errs in, argued under "What it gives up": a
+step wrongly kept this way is skipped on every run where nobody supplies the
+parameter, so it costs a line in a preview rather than a wrong write.
+
+The keystroke, narrowly — `Parameterisation.conditional_on`, which already draws
+this line for the two-run case. The write that carries an optional field goes out on every run regardless,
 carrying the absent form ADR 010 says it must. So a rare *write* is a fumble
 however many nullable fields it fills in; only the typing is conditional on
 somebody having something to type.
@@ -119,12 +164,14 @@ a screenshot. The counts already know.
 
 ## What it gives up
 
-**A genuinely rare branch demonstrated once, where the value correlation is
+**A genuinely rare branch demonstrated once, where the value behind it is
 itself weak evidence.** One occurrence is one occurrence. A step seen once,
-alongside a field filled once, is a correlation of a single point — and a
-single point correlates with everything else that happened once. This decision
+alongside a field filled once, would be a correlation of a single point if the
+code measured one — and a single point correlates with everything else that
+happened once. It does not measure one, as the section above admits: it asks
+only whether the field is optional at all, which is weaker still. This decision
 keeps that step as `CONDITIONAL` anyway, on the argument above, knowing the
-evidence is thin.
+evidence is thin at both removes.
 
 It is thin in a cheap direction, which is why it is accepted rather than
 solved here. A step wrongly kept as `CONDITIONAL` is skipped on every run where
@@ -135,11 +182,26 @@ it existed for, on every run, silently. The asymmetry is the whole reason the
 rule leans this way.
 
 The gap the argument does leave is the other direction: a real branch
-demonstrated once *without* a supplied value behind it — a step somebody takes
-when the screen is in a particular state, say — comes out `NOISE` and is gone.
-Nothing here catches that, and no threshold could: there is no evidence in the
-recordings that distinguishes it from a mis-click. What answers it is the
-mechanism already built for evidence that arrives later. A candidate is
+*without* a supplied value behind it — a step somebody takes when the screen is
+in a particular state, say — comes out `NOISE` and is gone. Demonstrated once,
+nothing here catches it and nothing could: at one occurrence there is no
+evidence in the recordings that distinguishes it from a mis-click, and no
+threshold can separate two things that look identical.
+
+At four thousand doings that stops being true, and the sentence above holds
+only because it was scoped to one occurrence — read at scale, "no threshold
+could tell them apart" is simply false. Thirteen hundred
+occurrences separate themselves from a mis-click by count alone; what discards
+them is this decision's own fixed share, not an absence of evidence. That is the
+aggressive end described under the threshold above, and it is a loss taken with
+the count sitting in plain sight — the least defensible thing in this decision,
+and named as such rather than argued away. Nothing about the branch rule helps:
+by construction this is the case with no supplied value to point at. What would
+help is a share that moves with the batch size, or the supply counts described
+two sections up, and neither is designed here.
+
+For the single-occurrence case, what answers it is the mechanism already built
+for evidence that arrives later. A candidate is
 "derived, and recomputable" — the doings are kept verbatim, so standing is
 recomputed as more of them arrive, and a branch that happens a second time
 stops being a single point without anybody re-teaching anything. Until then the

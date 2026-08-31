@@ -27,10 +27,19 @@ flips on one doing is not a rule. Two in three is the smallest share that
 survives one dissenter at four, which is the smallest batch anyone is going to
 hand this.
 
+At the other end of the range the same number is aggressive rather than
+conservative, and that is the end this whole piece of work is about. At four
+thousand doings a step made thirteen hundred times is below two in three and is
+discarded -- unless it types a field some doing left empty, which is what
+actually carries a large batch. Thirteen hundred occurrences are not a
+mis-click by anybody's reading, and this number alone would call them one. The
+escape hatch is doing the work there, not the threshold; see ADR 015, which
+argues that trade rather than hiding it.
+
 It is not a precise number and does not pretend to be. It decides only what
-happens to a step nothing else explains: a rare step with a supplied value
-behind it is kept whatever this says, because that is a branch and not a
-frequency question at all.
+happens to a step nothing else explains: a rare step that types an optional
+field is kept whatever this says, because that is a branch and not a frequency
+question at all.
 """
 
 
@@ -64,11 +73,10 @@ def standing_of(alignment: Alignment, parameterisation: Parameterisation) -> dic
     produce a confident answer to a question the counts already answer, and
     would produce one just as confidently where they do not.
 
-    Rarity on its own drops nothing. A step below the threshold whose presence
-    tracks a supplied value is a branch, however rare: every doing that made it
-    was a doing where somebody supplied that field, and one in a hundred is the
-    rate a real branch runs at, not evidence against it. Dropping it is how a
-    skill silently stops handling the case somebody needed it for -- which is
+    Rarity on its own drops nothing. A step below the threshold that types a
+    field some doing left empty is a branch, however rare: one in a hundred is
+    the rate a real branch runs at, not evidence against it. Dropping it is how
+    a skill silently stops handling the case somebody needed it for -- which is
     exactly what happened to the address lookup. A rare step with nothing
     explaining it is a fumble, and that is the only thing rarity decides.
 
@@ -77,6 +85,30 @@ def standing_of(alignment: Alignment, parameterisation: Parameterisation) -> dic
     optional parameter". The write that carries the field goes out either way,
     carrying the absent form the demonstration sent, so a rare write is a
     fumble however many nullable fields it happens to fill in.
+
+    **What this actually checks, which is weaker than correlation.** The
+    argument for keeping a rare step is that it happened *whenever* the value
+    was supplied. This does not test that, and cannot: neither input carries
+    per-doing supply counts. `Alignment.seen` says how many doings contained
+    the step; nothing here says how many doings supplied the parameter, so the
+    two counts are never compared. What is checked is the far weaker "this
+    step's keystroke types some optional field at all". A step in one doing of
+    a hundred whose parameter was supplied in sixty comes out `CONDITIONAL`
+    exactly as one whose parameter was supplied in one -- perfect correlation
+    and none are indistinguishable here.
+
+    That is a real gap and it is left open rather than papered over, because
+    the arithmetic to close it does not exist yet and inventing a supply count
+    from what is on hand would be a confident number with nothing behind it.
+    What it costs is bounded in the cheap direction: a step wrongly kept this
+    way is skipped on every run where nobody supplies the parameter.
+
+    ponytail: closing it needs a per-doing record of which parameters each
+    doing supplied -- `align_all` already walks every run and could count, per
+    reference index, how many of them filled each optional field. Then the test
+    becomes "supplied in n doings, made in n of them" and the number means what
+    the argument says. Worth building when a batch large enough for the
+    difference to show up exists; at four doings the two tests agree anyway.
     """
     # How many doings there were. Not carried on `Alignment`, and read off the
     # counts instead: a step every doing contained is counted once per doing,

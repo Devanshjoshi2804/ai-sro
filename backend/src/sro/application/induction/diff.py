@@ -132,6 +132,22 @@ class Parameterisation:
 
         The keystroke only. The write that carries the field is not conditional
         on it -- that call goes out either way, carrying the absent form.
+
+        One, and `next` rather than an arbitrary pick from several: a step has
+        at most one keystroke site, because `_diff_action` yields at most one
+        `ActionValueSite` difference per step and nothing else in this module
+        ever builds a substitution on one -- every other source of sites is
+        `_constant_sites`, which reads URLs, queries and bodies. So the answer
+        here is determined by the evidence and not by the order the
+        substitutions happen to sit in.
+
+        If that ever stopped holding -- a gesture whose typing filled two
+        fields that some doing each left empty -- this would be the wrong
+        shape, and so would `SkillStep.when`, which is a single `str | None`.
+        A step gated on two supplied values cannot be expressed by one `when`
+        at all, and picking either one would run the step when half its
+        condition held. Whoever wires this up meets that as a refusal to
+        design, not as a silent choice made here.
         """
         return next(
             (

@@ -8,7 +8,10 @@ between the WMS and somebody's inbox is a coin toss made on their behalf.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 from sro.application.execution.execute_skill import ExecuteStep, _origin_of
+from sro.domain.connection.connection import Connection, ConnectionId
 from sro.domain.execution.run import Run, RunId
 from sro.domain.shared.identifiers import DeviceId, SkillId
 from sro.domain.skill.plan import NetworkPlan
@@ -38,6 +41,19 @@ def _version(*urls: str | None) -> object:
             factories.parameter(name="facility"),
         ),
     )
+
+
+def _connection(system: str, base_url: str) -> Connection:
+    connection = Connection(
+        id=ConnectionId(f"con-{system}"),
+        tenant_id=factories.TENANT,
+        name=system,
+        target_system=system,
+        base_url=base_url,
+        created_at=datetime(2026, 1, 1, tzinfo=UTC),
+    )
+    connection.authenticated(datetime(2026, 1, 2, tzinfo=UTC))
+    return connection
 
 
 def test_the_origin_is_read_off_the_first_recorded_call() -> None:
@@ -194,3 +210,78 @@ def test_a_step_nobody_named_still_drives_rather_than_refusing() -> None:
 
     assert executor._ui_for(run, None, None) is agents.driver
     assert agents.named == ("", None, None)
+
+
+def test_a_skill_taught_only_by_clicking_is_placed_by_the_system_it_belongs_to() -> None:
+    """The commonest kind of skill recorded no call at all.
+
+    A task demonstrated entirely by clicking -- and every task on a screen that
+    renders itself from a bundle rather than fetching as it goes -- names no URL
+    on any step, so it had no origin, so the extension drove whichever tab
+    happened to be in front. That reads back as every step reporting
+    `control_not_found`, which sends somebody to re-teach a skill that was never
+    wrong: it was performed on the wrong page.
+
+    Nothing here is inferred. The version already records which systems it
+    touched, and the connection already records the host the operator
+    authenticated to.
+    """
+    version = factories.skill_version(
+        # No call on any step, which is what "taught by clicking" means.
+        steps=(
+            factories.step(index=0, network_plan=None),
+            factories.step(index=1, network_plan=None),
+        ),
+        systems=("blue_yonder",),
+    )
+    connections = [
+        _connection("erp", "https://erp.example/portal"),
+        _connection("blue_yonder", "https://wms.example/portal?siteId=SG#wm.config"),
+    ]
+
+    # The path and the query go: a tab is chosen by origin, and the deep link
+    # the operator happened to connect through is not where the skill acts.
+    assert _origin_of(version, version.steps[0], connections) == "https://wms.example"
+
+
+def test_two_systems_and_no_recorded_call_is_still_no_answer() -> None:
+    """Picking either would send half the run to the wrong tab.
+
+    A workflow crosses systems by definition, so one origin cannot be right for
+    all of it -- and a wrong origin is worse than none, because none falls back
+    to the page the operator is actually looking at, which is at least honestly
+    a guess rather than a confident wrong one.
+    """
+    version = factories.skill_version(
+        steps=(factories.step(index=0, network_plan=None),),
+        systems=("blue_yonder", "erp"),
+    )
+    connections = [
+        _connection("blue_yonder", "https://wms.example/portal"),
+        _connection("erp", "https://erp.example/portal"),
+    ]
+
+    assert _origin_of(version, version.steps[0], connections) is None
+
+
+def test_a_recorded_call_still_wins_over_the_connection() -> None:
+    """What the demonstration did beats what the tenant configured. A connection
+    is a base URL somebody typed once; a recorded call is where the task was
+    actually performed, and the two disagree the moment a system is reached
+    through more than one host."""
+    version = factories.skill_version(
+        steps=(
+            factories.step(
+                index=0,
+                network_plan=NetworkPlan(
+                    method="POST", url=Template("https://real.example/api"), expected_status=200
+                ),
+            ),
+        ),
+        systems=("blue_yonder",),
+    )
+
+    assert (
+        _origin_of(version, version.steps[0], [_connection("blue_yonder", "https://wms.example/x")])
+        == "https://real.example"
+    )

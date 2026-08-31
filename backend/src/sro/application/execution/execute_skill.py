@@ -355,7 +355,9 @@ class ExecuteStep:
             return outcome
 
         if run.medium is Medium.UI:
-            outcome = await self._perform_in_ui(run, step, values=values, version=version)
+            outcome = await self._perform_in_ui(
+                run, step, values=values, version=version, connections=connections
+            )
             outcome = replace(
                 outcome, index=index, plan_step=nxt.step_index, iteration=nxt.iteration
             )
@@ -438,7 +440,13 @@ class ExecuteStep:
 
         if failure is not None:
             outcome = await self._escalate(
-                run, step, outcome, failure, values=values, version=version
+                run,
+                step,
+                outcome,
+                failure,
+                values=values,
+                version=version,
+                connections=connections,
             )
         outcome = replace(outcome, index=index, plan_step=nxt.step_index, iteration=nxt.iteration)
         run.record(outcome)
@@ -500,7 +508,11 @@ class ExecuteStep:
             return None
 
     def _ui_for(
-        self, run: Run, version: SkillVersion | None = None, step: SkillStep | None = None
+        self,
+        run: Run,
+        version: SkillVersion | None = None,
+        step: SkillStep | None = None,
+        connections: Sequence[Connection] = (),
     ) -> UiDriver | None:
         """The browser this run is performed in, and the page in it.
 
@@ -520,7 +532,7 @@ class ExecuteStep:
         return self._agents.ui(
             run.tenant_id,
             run.device_id,
-            _origin_of(version, step),
+            _origin_of(version, step, connections),
             run.may_take_focus,
             # What this step is for, not what the skill is called: the band is
             # read by somebody watching their own screen change, and "adding
@@ -539,7 +551,13 @@ class ExecuteStep:
         return self._agents.http(run.tenant_id, run.device_id)
 
     async def _perform_in_ui(
-        self, run: Run, step: SkillStep, *, values: dict[str, str], version: SkillVersion
+        self,
+        run: Run,
+        step: SkillStep,
+        *,
+        values: dict[str, str],
+        version: SkillVersion,
+        connections: Sequence[Connection] = (),
     ) -> StepOutcome:
         """Perform one step of a task that is being run in the browser.
 
@@ -580,7 +598,7 @@ class ExecuteStep:
                     f"would {plan.action} {plan.locators[0].describe() if plan.locators else ''}"
                 ),
             )
-        ui = self._ui_for(run, version, step)
+        ui = self._ui_for(run, version, step, connections)
         if ui is None:
             return self._failed(
                 step, None, "no browser is attached", medium=Medium.UI, unreachable=True
@@ -681,6 +699,7 @@ class ExecuteStep:
         *,
         values: dict[str, str],
         version: SkillVersion,
+        connections: Sequence[Connection] = (),
     ) -> StepOutcome:
         """Try the next rung, if the policy allows one and the run may act.
 
@@ -696,7 +715,7 @@ class ExecuteStep:
                 outcome,
                 detail=f"{outcome.detail or failure}; {run.stage} does not drive the interface",
             )
-        ui = self._ui_for(run, version, step)
+        ui = self._ui_for(run, version, step, connections)
         if ui is None or step.ui_plan is None or not step.ui_plan.replayable:
             return replace(
                 outcome,
@@ -736,6 +755,7 @@ class ExecuteStep:
                     detail=result.detail,
                 ),
                 version,
+                connections,
             )
         failures, unchecked = await self._check_on_screen(ui, step, values)
         return StepOutcome(
@@ -761,7 +781,12 @@ class ExecuteStep:
         )
 
     async def _escalate_to_vision(
-        self, run: Run, step: SkillStep, outcome: StepOutcome, version: SkillVersion
+        self,
+        run: Run,
+        step: SkillStep,
+        outcome: StepOutcome,
+        version: SkillVersion,
+        connections: Sequence[Connection] = (),
     ) -> StepOutcome:
         """The last rung, if the policy allows it and it is configured.
 
@@ -779,7 +804,7 @@ class ExecuteStep:
         # holding the deployment's driver would photograph a different screen
         # and click on it -- signed in as somebody else, on a page nobody
         # demonstrated. Falling back is the one thing it must not do.
-        ui = self._ui_for(run, version, step)
+        ui = self._ui_for(run, version, step, connections)
         if ui is None:
             return replace(
                 outcome,
@@ -1489,7 +1514,11 @@ class ExecuteSkill:
             self._stops.forget(run.id)
 
 
-def _origin_of(version: SkillVersion | None, step: SkillStep | None = None) -> str | None:
+def _origin_of(
+    version: SkillVersion | None,
+    step: SkillStep | None = None,
+    connections: Sequence[Connection] = (),
+) -> str | None:
     """The page a step acts on, as a bare scheme and host.
 
     The step's own recorded call where it has one, because a skill's steps do
@@ -1501,6 +1530,15 @@ def _origin_of(version: SkillVersion | None, step: SkillStep | None = None) -> s
     is parameterised -- the version answers instead, from the first step that
     names one. A parameterised host is no answer at all: the placeholder is not
     filled in until the step runs, and a tab cannot be chosen by a template.
+
+    And where the whole skill recorded no call, the system it belongs to
+    answers. A task taught entirely by clicking -- which is most of them, and
+    every one taught on a screen that renders itself from a bundle -- named no
+    URL anywhere, so it was driven in whichever tab happened to be in front:
+    the exact coin toss this function exists to prevent, and one that reads as
+    thirteen steps of `control_not_found` rather than as a wrong tab. The
+    version already knows its systems and a connection already knows its host,
+    so nothing here is inferred -- it is the origin the operator authenticated.
     """
     if step is not None and (named := _origin_of_call(step)) is not None:
         return named
@@ -1509,6 +1547,24 @@ def _origin_of(version: SkillVersion | None, step: SkillStep | None = None) -> s
     for each in version.steps:
         if (named := _origin_of_call(each)) is not None:
             return named
+    return _origin_of_system(version, connections)
+
+
+def _origin_of_system(version: SkillVersion, connections: Sequence[Connection]) -> str | None:
+    """The origin of the one system this skill belongs to.
+
+    Only when there is exactly one. A workflow across two systems whose steps
+    named no URL cannot be placed by this -- picking either would send half the
+    run to the wrong tab, and the frontmost page is at least honestly a guess.
+    """
+    if len(version.systems) != 1:
+        return None
+    for connection in connections:
+        if connection.target_system != version.systems[0]:
+            continue
+        parts = urlsplit(connection.base_url)
+        if parts.scheme in ("http", "https") and parts.netloc:
+            return f"{parts.scheme}://{parts.netloc}"
     return None
 
 

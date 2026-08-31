@@ -58,12 +58,23 @@ reach the top of the ladder. A console reviewer looking at the same version
 sees all of that, because the console renders the full `SkillVersionModel`;
 the operator, mid-task, sees a shorter list built to be read in the seconds
 before a press. This is a real gap, not a rounding error, and this decision
-does not pretend otherwise. What it argues is narrower: `ASSISTED` is the
-rung where a named human still authorises every run and nothing above it
-is reachable, so the question a preview has to answer is only "would I want
-this one run to happen", not "is this skill safe to leave unattended". The
-smaller thing the operator read is enough to answer the smaller question the
-rung actually asks.
+does not pretend otherwise.
+
+It is not answered here. Nothing about the preview stops a step the
+operator did not understand to be a write from writing, or to the system
+they assumed. What is already built, and does the work `judge` already does
+for every other run: "a run can be clean at every rung and still have made
+the wrong record, and the person who was looking at it is the only one who
+could ever know" — `run.wrong_because`, checked before anything else `judge`
+reads, turns that person's own surprise into `FAILED` whatever the steps
+did. A preview that undersold a write becomes a run the operator can call
+wrong the moment they see what it made; that counts against the streak
+exactly like any other failure, and `DEMOTE_AFTER_FAILURES = 3` pulls the
+version back below `ASSISTED` on the third one. The gate does not stop the
+first surprise. It stops a version that keeps surprising people from
+staying at a rung a press can reach, which is the same shape of answer ADR
+013 gives its own unmeasured claim: not solved here, solved by the rule
+every other run already meets.
 
 ## What it deliberately does not reach, and why
 
@@ -172,11 +183,18 @@ open, for whichever piece of work turns this decision into a running call to
 answer explicitly rather than by omission.
 
 `promoted_from` costs one field and one guard, both narrow: nothing about a
-console promotion changes, every existing caller of `promote` keeps its old
-behaviour by leaving the argument at its default, and the guard composes
-with `check_promotion` rather than duplicating what it already refuses — a
-one-rung jump past `AUTONOMOUS`, a demotion disguised as a promotion, and a
-target already reached are all still refused exactly as they were.
+console promotion changes, and the guard composes with `check_promotion`
+rather than duplicating what it already refuses — a one-rung jump past
+`AUTONOMOUS`, a demotion disguised as a promotion, and a target already
+reached are all still refused exactly as they were. `from_where` defaults to
+`""`, so any caller unaware of it is unaffected; the two callers that were
+already moving a version without a console press (`earn`'s clean-streak
+promotion and `repair_drift`'s climb back to an inherited rung) were each
+given an honest value of their own — `"earned"`, `"repair"` — rather than
+left on that default. Blank has to mean exactly one thing, nobody has
+promoted this version by any door, and leaving either of those two on `""`
+would have made it mean that and "a person reviewed this" at once — the same
+two-meanings-at-once failure `"console"` and `"preview"` exist to end.
 
 What it does not buy: a way to reverse a preview-promotion that a console
 promotion could not also be reversed by, and a shortcut to `AUTONOMOUS`. Both

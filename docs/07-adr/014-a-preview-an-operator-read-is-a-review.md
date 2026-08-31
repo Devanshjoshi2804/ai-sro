@@ -226,3 +226,77 @@ promotion could not also be reversed by, and a shortcut to `AUTONOMOUS`. Both
 gaps are deliberate, and both are the same gap the top of the ladder has
 always had — evidence, not a click, moves a version past `ASSISTED`, whichever
 door the click that got it to `ASSISTED` came through.
+
+## Amended: three claims above were asserted, not enforced
+
+A final review of the branch found that three of the load-bearing sentences in
+this decision were true of the argument and false of the code. Each is now
+enforced rather than asserted, and this section records what closed them
+because the argument above reads differently once they hold.
+
+**The version the operator read is the version that runs.** "What is on the
+screen when the operator presses `Do it` is, line for line, what the run is
+about to do" was not true. `ResolveIntent` matches on `skill.runnable or
+skill.latest` and the panel previewed *that* version; the press carried no
+version at all, so `RunFromPreview` took `skill.latest`. Any skill holding a
+newer `RECORDED` version — re-teaching produces one, so do `repair_drift`,
+`map_step_to_tool` and `add_assertion` — had the operator reading v1's steps
+and values while v2 wrote, with v1's parameters, and had v2 promoted to
+`ASSISTED` by a press that never showed a line of it. The panel now sends the
+version number it drew the preview from, `RunFromPreview` runs exactly that
+one, and a version that has moved between the preview and the press is
+**refused** rather than run either way round — falling forward runs steps
+nobody read, falling back runs a version somebody has since replaced. The
+refusal is a sentence: what you read is no longer what this task would do, ask
+again and read it through.
+
+**The backstop this decision's residual-risk argument rests on now holds.**
+That argument is made twice above and again beside `acknowledging_fixed_values`
+— a surprise becomes `run.wrong_because`, that counts as a failure, and
+`DEMOTE_AFTER_FAILURES = 3` pulls the version back below `ASSISTED`. It did not
+hold. `promote` zeroes `consecutive_failures`, and a press promotes any version
+below `ASSISTED`, so three wrong runs demoted a version and the operator's very
+next press restored it with the counter at zero. A version that was wrong every
+single time never stayed demoted, and the sentence above about a reviewer being
+able to "wait, because three consecutive failures pull any `ASSISTED` version
+back down" was untrue for exactly the versions this decision creates. Two guards
+now, not one:
+
+- A preview promotion does not clear `consecutive_failures`. The clearing was
+  written for the console — "cleared by the person who looked" — and the
+  operator mid-task is not that person: they read one run's steps and values
+  and nothing about the runs that failed before it. Without this a version at
+  one or two failures is walked back to zero by every press and the third never
+  arrives.
+- A version carrying a `demotion_reason` is refused a preview promotion
+  outright, in `promote` itself so every door is covered. A skill demoted for
+  being wrong three times needs a person in the console with the evidence in
+  front of them. That is what the ladder is for, and a press is not that. The
+  refusal says so in an operator's words rather than naming a field.
+
+Neither narrows what this decision grants for a version that is working. What
+they do is make the sentence "three in a row pulls it back down" mean what it
+says, which is the only thing standing behind the writes this decision admits
+the operator never read.
+
+**`promoted_from` is rendered.** "That visibility is the whole of what this
+decision buys a reviewer" was false while the field was on
+`SkillVersionModel` and drawn by no console component. It is now spelled out
+where a reviewer reads a version's rung, in words rather than as a raw value,
+so a promotion made from the panel is visibly a different thing from one made
+here.
+
+## The undo is a press this decision covers, and it shows less
+
+`Undo that` routes through the same `/runs/from-preview` and promotes the
+reversal skill under the same argument — but the reversal's steps and values
+are rendered nowhere, so "the operator read it" was not true of that press at
+all. One press is the design and stays one press; one press with no idea what
+is about to be deleted is not something this decision ever argued for. The
+reversal now carries the version it was validated against, pinned the same way,
+and the delete step's own intent alongside the identifying values the run read
+back — named on the card, before the button, so what the press removes is on
+the screen when it is pressed. That is less than the closed list above: the
+reversal skill's other steps, and which system each one calls, are still
+unread. It is bounded by the same backstop as everything else here, and the
+honest sentence is that this press shows what it deletes and not how.

@@ -695,9 +695,21 @@ function noun(candidate) {
     .reverse()
     .find((segment) => segment !== "*");
   if (!word) return null;
-  // `workOperations` is two words to everybody except a URL.
-  const words = word.replace(/([a-z0-9])([A-Z])/g, "$1 $2").toLowerCase();
-  return words.endsWith("s") ? words : `${words}s`;
+  // `workOperations` is two words to everybody except a URL. Left exactly as
+  // the path spelled it -- plural or not -- so `counted` below is the one
+  // place that decides which of those an operator actually reads.
+  return word.replace(/([a-z0-9])([A-Z])/g, "$1 $2").toLowerCase();
+}
+
+/** `word` at `count`: singular at one, plural otherwise -- "operation" once,
+ * "operations" any other time. Naive (`s`-only) on purpose: everything `noun`
+ * hands this came off a REST path (`workOperations`, `receipts`, a
+ * `shortShip`), and that is English's regular case throughout.
+ */
+function counted(word, count) {
+  const plural = word.endsWith("s");
+  if (count === 1) return plural ? word.slice(0, -1) : word;
+  return plural ? word : `${word}s`;
 }
 
 /** The offer, in one sentence a warehouse operator would recognise as
@@ -713,19 +725,21 @@ function noun(candidate) {
  */
 export function plainly(candidate) {
   const said = Math.round(candidate.median_duration_ms / 1000);
+  // "1 times" is not a sentence, and a candidate sitting at `times_seen: 1`
+  // is not theoretical -- the panel offers everything `status === "new"`
+  // regardless of how many times it's been seen, and this is what a fresh
+  // one looks like.
+  const times = candidate.times_seen === 1 ? "once" : `${candidate.times_seen} times`;
   if (candidate.named_by_model && candidate.title) {
-    return (
-      `${candidate.title} — you've done this ${candidate.times_seen} times, ` +
-      `about ${said}s each. Want me to do the next one?`
-    );
+    return `${candidate.title} — you've done this ${times}, about ${said}s each. Want me to do the next one?`;
   }
   const what = noun(candidate);
   // No word survived the signature's path (every segment was `*` or blank).
   // Vaguer is better than visibly broken: "this" reads as ordinary English no
   // matter what the endpoint looked like, where a placeholder noun would not.
-  return what
-    ? `You've created ${candidate.times_seen} ${what} here — about ${said}s each.`
-    : `You've done this ${candidate.times_seen} times here — about ${said}s each.`;
+  if (!what) return `You've done this ${times} here — about ${said}s each.`;
+  const count = candidate.times_seen === 1 ? "one" : candidate.times_seen;
+  return `You've created ${count} ${counted(what, candidate.times_seen)} here — about ${said}s each.`;
 }
 
 function row(candidate) {

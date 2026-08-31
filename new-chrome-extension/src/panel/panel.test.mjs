@@ -394,6 +394,31 @@ test("a wildcarded id in the path is not offered as the noun, and nothing left i
   assert.match(noNoun, /you've done this 4 times/i);
 });
 
+test("both offer shapes read correctly at a count of one, not '1 times'", async () => {
+  // Round 2 review: unchanged, pre-existing wording, but reachable in
+  // practice -- the panel offers everything `status === "new"` regardless of
+  // `times_seen`, and a fresh candidate really does sit at 1.
+  const { plainly } = panel({ deviceId: "dev-1" });
+
+  const titled = plainly({
+    title: "Adjust an LPN after a short ship",
+    signature: "POST data/WM/wm/lpnAdjustments",
+    named_by_model: true,
+    times_seen: 1,
+    median_duration_ms: 40000,
+  });
+  assert.match(titled, /you've done this once/i, `"1 times" survived: ${titled}`);
+  assert.ok(!/\b1 times\b/.test(titled), `"1 times" survived: ${titled}`);
+
+  const counted = plainly({
+    signature: "POST data/WM/wm/workOperations",
+    times_seen: 1,
+    median_duration_ms: 40000,
+  });
+  assert.match(counted, /created one work operation here/i, `noun stayed plural: ${counted}`);
+  assert.ok(!/\bwork operations\b/i.test(counted), `noun stayed plural: ${counted}`);
+});
+
 for (const [name, fn] of tests) {
   try {
     await fn();

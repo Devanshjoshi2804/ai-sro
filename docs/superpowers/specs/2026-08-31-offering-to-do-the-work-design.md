@@ -42,11 +42,13 @@ Then, on yes:
   [ Do it ]   [ Change something ]
 ```
 
-And afterwards:
+And afterwards it shows what it made, and offers to take it back — rather than
+asking whether it went well:
 
 ```
-Done — created NDPCK.
-Did that come out right?    [ Yes ]   [ No ]
+Created NDPCK — north dock picking, priority 5.
+
+  [ Undo that ]        [ It's wrong — I'll fix it ]
 ```
 
 ## Decisions taken before this was written
@@ -141,6 +143,29 @@ The panel shows one input. What is typed goes to `POST /v1/intent/resolve`.
 The preview lists `SkillStep.intent` for each step and the value each will use.
 It names the tab it will act in, from the version's `starts_on`.
 
+**And it shrinks as the version earns it.** A preview on every press, forever,
+is the thing the research is bluntest about: requiring approval for every action
+an agent takes defeats the point of automating it. The ceremony is tied to the
+rung, not to the press:
+
+| Rung | What the operator sees before it runs |
+|---|---|
+| first press, `RECORDED` | every step and every value |
+| `ASSISTED`, streak below `REQUIRED_CLEAN_RUNS` | one line and `Do it`; the steps behind a disclosure for anyone who wants them |
+| `AUTONOMOUS` | nothing beforehand. It runs and says what it did |
+
+Two things this deliberately is not. It is not a preference — an operator cannot
+turn the preview off, because the point is that the *version* earned it and the
+evidence for that is the track record, not somebody's patience. And it is not a
+new ladder: the rows above are the rungs that already exist, read for a purpose
+they were not being read for.
+
+The published case for this shape is Grid AI's, where approval on every change
+gave way to auto-execution with a notification after a run of consecutive
+approvals, and adoption was *higher* than in versions that offered full autonomy
+from the start. That is the same argument the promotion ladder already makes;
+this only makes the panel say it.
+
 ### 4. The press, and the ladder
 
 **This is the part that changes a governance rule, and it needs its own ADR.**
@@ -168,41 +193,63 @@ operator, and `intent` = the sentence they typed.
 
 ### 5. Afterwards
 
-When the run finishes the panel asks one question, once.
+The panel shows what was made, and offers to take it back. It asks nothing.
 
-The question survives the panel being closed: it is asked about the most recent
-finished run that nobody has answered for, so an operator who shut the panel and
-came back still gets asked. It expires with the run's own evidence rather than
-nagging forever — an unanswered question is not a failure, it is a run nobody
-told us about, and the ladder treats it exactly as it treats one today.
+```
+Created NDPCK — north dock picking, priority 5.
 
-Only the person the run was performed for may answer it. A run drives one
-operator's browser and they are the only one who saw what it produced; anybody
-else in the tenant is guessing, and a guess in the track record is worse than a
-silence.
+  [ Undo that ]        [ It's wrong — I'll fix it ]
+```
 
-**Yes** — nothing new. The run's verdict stands as judged.
+**The output, not "Done".** `Run.derived` already holds what the skill read back
+after its write, because a step that creates something reads it again to check
+it. That read-back is the record, in the system's own words, and it is what the
+panel shows. Where a run derived nothing, the panel says only that it finished
+and names the step it finished on — an honest "I cannot show you what I made" is
+better than an assured "Done" over a record nobody has seen.
 
-**No** — two things happen.
+**Undo instead of a question.** The first draft of this design asked "did that
+come out right? Yes / No". That is a survey, and operators stop answering
+surveys. Undo is a thing they *want*, so pressing it costs them nothing to be
+honest about — and it is a strictly better failure signal for exactly that
+reason. The research is unambiguous: a visible undo is the closest thing to a
+universal trust mechanism in agentic interfaces, because trust requires knowing
+you can recover from a mistake.
 
-First, `POST /v1/runs/{id}/wrong`, carrying an optional note. This sets a new
-field on the run and re-judges it: a run the operator says was wrong is
-`Verdict.FAILED` whatever its steps did, so it breaks the clean streak and
-counts toward demotion. **This is the one failure mode the ladder is blind to
-today** — `judge()` reads statuses, media and escalations, all of which can be
+**Undo is evidence, never inference.** It is offered only when the tenant has a
+skill that reverses this one, and reversing is not something this system will
+guess at:
+
+- the run's mutating call is a `POST` to some resource shape, and
+- a runnable skill in the library makes a `DELETE` on that same shape, and
+- the run derived the identifier that skill needs.
+
+All three or no button. `url_shape` already answers the first two and it is the
+same function induction uses to decide two calls are the same call. Nothing is
+proposed as an undo because a model thought it looked like one.
+
+Where there is no undo, the second action stands alone: *"It's wrong — I'll fix
+it"*, which says
+
+> *"Fix it the way you meant. I'm watching, and I'll learn from that."*
+
+**Either press marks the run wrong.** `POST /v1/runs/{id}/wrong` sets
+`Run.wrong_because` — `"undone by the operator"` or their note — and `judge()`
+returns `FAILED` whatever the steps did. It breaks the clean streak and counts
+toward demotion. **This is the one failure mode the ladder is blind to today**:
+`judge()` reads statuses, media and escalations, every one of which can be
 perfect while the record created is wrong.
 
-The domain gains exactly one concept: `Run.wrong_because: str | None`, set by a
-person after the run finished, and `judge()` returning `FAILED` when it is set.
-Nothing else in the ladder moves.
+**Silence means it was fine.** Nothing is asked, so nothing goes unanswered, and
+a run nobody touched is judged exactly as it is judged today. The two actions
+stay available on the last finished run so an operator who closed the panel and
+came back can still reach them, and only the person whose browser ran it can
+press either — they are the only one who saw what it produced, and a guess in
+the track record is worse than a silence.
 
-Second, the panel says:
-
-> *"Sorry. Fix it the way you meant — I'm watching, and I'll learn from that."*
-
-Their repair is captured by passive observation, becomes occurrence N+1 of the
-same candidate, and re-induction happens on the next mine. Nothing is asked of
-them that they were not already about to do.
+After an undo or a repair, their manual work is captured by passive observation,
+becomes occurrence N+1 of the same candidate, and re-induction happens on the
+next mine. Nothing is asked of them that they were not already about to do.
 
 ### 6. The same box runs anything
 
@@ -223,6 +270,9 @@ offered.
 - To count a run the operator called wrong as clean, whatever its steps did.
 - To let anyone but the operator the run was performed for call its result
   wrong.
+- To offer an undo it inferred. Three facts or no button.
+- To let an operator dismiss the preview. The version earns that, on its track
+  record, or it does not have it.
 - To ask the operator to demonstrate anything. Every path here either uses what
   was already watched or asks them to do their own job.
 
@@ -237,12 +287,21 @@ Per section, with each new test proved by reverting the rule it defends:
   patience sentence and leaves the candidate `NEW`.
 - **Preview**: every step is rendered by its `intent`; a resolution with a
   missing parameter asks for it by its screen label rather than its name.
+- **Preview shrinks**: a first press shows every step; the same version with a
+  clean streak shows one line; an autonomous version shows nothing beforehand.
+  Reverting the rung check makes all three identical, which is the defect.
+- **Output**: a run with derived values shows them; a run with none says so
+  rather than reporting "Done".
+- **Undo offered**: a `POST` run with a matching `DELETE` skill and a derived
+  identifier offers it; missing any one of the three does not. Reverting the
+  identifier check offers an undo that cannot name what it would remove.
 - **Ladder**: a press promotes to `ASSISTED` and no further; `promoted_from`
   distinguishes it; a version needing authorisation still refuses without a
   name.
 - **Wrong result**: `judge()` returns `FAILED` for a run marked wrong however
   clean its steps; the streak breaks; three in a row demote. Reverting the
-  `wrong_because` check makes a wrong run clean again.
+  `wrong_because` check makes a wrong run clean again. A run nobody touched is
+  judged exactly as it is today — silence is not a verdict.
 - **Re-induction**: a repair after a wrong run becomes occurrence N+1, and the
   next mine pairs it — an integration test over the mining path, not a unit
   test of the intention.
@@ -255,8 +314,9 @@ Per section, with each new test proved by reverting the rule it defends:
 |---|---|---|
 | 1 | Be offered the next one, and say no | none — the offer alone |
 | 2 | Type a sentence, read a preview, press once | assisted, per press |
-| 3 | Say it came out wrong, and have that count | assisted, with the ladder able to see a bad result |
+| 3 | See what was made, and take it back | assisted, with the ladder able to see a bad result |
 | 4 | Type any task, not only the offered one | assisted, across the library |
+| 5 | Stop being asked, once the version has earned it | the ladder's rungs, finally visible to the operator |
 
 Each is usable alone. 1 and 2 are the smallest thing worth putting in front of a
 warehouse; 3 is what stops it confidently repeating a mistake; 4 is the chat
@@ -272,4 +332,27 @@ follow-on project, and reuses all of this.
    tells a preview-promotion from a governance one.
 2. **A person can call a finished run wrong.** Why an operator's judgement of
    the result belongs in the track record beside the machine's judgement of the
-   steps, and why it counts as a failure rather than as a note.
+   steps, why it counts as a failure rather than as a note, and why it is
+   collected as an undo they wanted rather than as a question they answered.
+
+## What the field already solved, and what it did not
+
+Checked before this was planned, so the parts that are ours are ours on purpose:
+
+- **Task mining discovers and then stops.** UiPath Task Mining and Power
+  Automate's Process Advisor both record desktop actions and surface automation
+  opportunities — and hand off to a developer to build the automation in an IDE.
+  The industry path is discovery to implementation by an engineer. Nobody closes
+  the loop to "shall I do that one for you now", which is the whole of this
+  design and why there was no pattern to copy for it.
+- **Approval on every action is the known failure.** The human-in-the-loop
+  literature is direct about it: requiring approval for every action defeats the
+  point of automating it. That is what the first draft of this spec did.
+- **Progressive delegation is the answer, and we already have it.** The pattern
+  is to let the user's own approval history set the pace, expanding autonomy on
+  demonstrated reliability rather than demanding it at launch. That is the
+  promotion ladder, built and running; what was missing was the panel reading
+  it.
+- **Undo beats confirm.** A visible undo is described as the closest thing to a
+  universal trust mechanism in agentic interfaces. This design had a
+  satisfaction question instead, which is a survey, and surveys go unanswered.

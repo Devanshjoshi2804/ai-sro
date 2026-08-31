@@ -854,6 +854,17 @@ function row(candidate) {
   const said = document.createElement("p");
   said.className = "title";
   said.textContent = plainly(candidate);
+  if (candidate.named_by_model && candidate.title) {
+    // Said out loud: a sentence a model wrote is not a fact about the task.
+    // Dropped by the round-1 rewrite of this row and caught by the browser
+    // suite, not either unit-test gate -- `plainly()` says the title
+    // verbatim under the same condition, and only the DOM this builds around
+    // it can mark whose words they are.
+    const mark = document.createElement("span");
+    mark.className = "by-model";
+    mark.textContent = " — named by a model";
+    said.append(mark);
+  }
 
   item.append(said);
 

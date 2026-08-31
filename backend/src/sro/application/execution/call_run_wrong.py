@@ -16,12 +16,23 @@ from sro.application.context import RequestContext
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock
 from sro.domain.execution.run import Run, RunId, RunStatus
-from sro.domain.execution.verdict import judge
-from sro.domain.skill.promotion import PromotionStage
+from sro.domain.execution.verdict import apply_verdict
+from sro.domain.shared.errors import Conflict
 
 
 class NotYours(Exception):
-    """This is not a run this caller may pass judgement on."""
+    """This caller is not the one person who may pass judgement on this run."""
+
+
+class StillRunning(Conflict):
+    """This run has not finished; there is no result yet for anyone to judge.
+
+    A `Conflict`, not a `NotYours`: the caller is exactly the right person and
+    the request is well formed, the run just is not in a state anybody can
+    call wrong yet -- 409, the same as `StopRun`'s `CannotStop`, so a console
+    reads it as "try again once it's stopped" rather than "not allowed"."""
+
+    code = "still_running"
 
 
 class CallRunWrong:
@@ -37,30 +48,16 @@ class CallRunWrong:
                 # person who saw what it produced.
                 raise NotYours("only the person this ran for can say how it came out")
             if run.status is RunStatus.RUNNING:
-                raise NotYours("this run is still going; stopping it is a different thing")
+                raise StillRunning("this run is still going; stopping it is a different thing")
 
             run.called_wrong(because)
             await uow.runs.save(run)
 
-            # Reaches the track record exactly the way `FinishRun` does: get the
-            # version this run was performed at, re-judge it now that
-            # `wrong_because` is set, and let the ladder climb or fall on its
-            # own. A second, differently-shaped call site here would let this
-            # verdict reach the skill by a different door than every other one.
-            now = self._clock.now()
+            # The one place a verdict reaches a skill's track record and
+            # stage -- `FinishRun` reaches the same function when a run ends on
+            # its own. A skill's rung must not depend on which of them ran.
             skill = await uow.skills.get(ctx.tenant_id, run.skill_id)
-            version = skill.version(run.skill_version)
-            verdict = judge(run)
-            version.record_run(verdict, now)
-            version.earn(verdict, now)
-            if version.track_record.should_demote and version.stage.rung > (
-                PromotionStage.SHADOW.rung
-            ):
-                version.demote(
-                    PromotionStage.SHADOW,
-                    now,
-                    f"{version.track_record.consecutive_failures} runs failed in a row",
-                )
+            apply_verdict(skill, run, self._clock.now())
             await uow.skills.save(skill)
             await uow.commit()
         return run

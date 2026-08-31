@@ -11,7 +11,7 @@ from __future__ import annotations
 import pytest
 
 from sro.application.context import RequestContext
-from sro.application.execution.call_run_wrong import CallRunWrong, NotYours
+from sro.application.execution.call_run_wrong import CallRunWrong, NotYours, StillRunning
 from sro.domain.execution.run import Medium, Run, RunId, StepDisposition, StepOutcome
 from sro.domain.shared.identifiers import PrincipalId, SkillId
 from sro.domain.skill.promotion import PromotionStage
@@ -103,7 +103,7 @@ async def test_a_run_still_going_cannot_be_called_wrong_yet() -> None:
         await open_uow.runs.add(running)
         await open_uow.commit()
 
-    with pytest.raises(NotYours, match="still going"):
+    with pytest.raises(StillRunning, match="still going"):
         await CallRunWrong(uow, clock).execute(
             OPERATOR, run_id=running.id, because="undone by the operator"
         )

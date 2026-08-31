@@ -68,7 +68,7 @@ from sro.domain.execution.safety import (
     RunFact,
     assess,
 )
-from sro.domain.execution.verdict import judge
+from sro.domain.execution.verdict import apply_verdict
 from sro.domain.shared.errors import DomainError
 from sro.domain.shared.identifiers import DeviceId, PrincipalId, SkillId
 from sro.domain.shared.objective import ObjectiveKey
@@ -1387,25 +1387,13 @@ class FinishRun:
             await uow.runs.save(run)
 
             skill = await uow.skills.get(ctx.tenant_id, run.skill_id)
+            # `apply_verdict` is the one place a run's verdict reaches a
+            # skill's track record and stage; `CallRunWrong` reaches the same
+            # function later for the same reason. `version` is looked up again
+            # rather than threaded through the return, only because the code
+            # below still needs it after the `with` block closes.
+            apply_verdict(skill, run, now)
             version = skill.version(run.skill_version)
-            verdict = judge(run)
-            version.record_run(verdict, now)
-            # The ladder climbs itself. Nobody has time to notice that a skill
-            # has earned the next rung, and a stage that waits for someone to
-            # notice is a fact about their afternoon rather than about the
-            # skill. Demotion below still happens faster, and for less.
-            version.earn(verdict, now)
-            # Demotion is automatic and needs no human, which is exactly why it
-            # is bounded by a small number: confirming a few runs costs an
-            # operator minutes, and a broken autonomous skill keeps writing.
-            if version.track_record.should_demote and version.stage.rung > (
-                PromotionStage.SHADOW.rung
-            ):
-                version.demote(
-                    PromotionStage.SHADOW,
-                    now,
-                    f"{version.track_record.consecutive_failures} runs failed in a row",
-                )
             await uow.skills.save(skill)
             await uow.commit()
 

@@ -8,10 +8,14 @@ somewhere new succeeded *and* told us the recipe is stale.
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from sro.domain.execution.run import Medium, Run, RunStatus, StepDisposition
+from sro.domain.skill.promotion import PromotionStage
+from sro.domain.skill.skill import Skill
 from sro.domain.skill.track_record import Verdict
 
-__all__ = ["Verdict", "judge"]
+__all__ = ["Verdict", "apply_verdict", "judge"]
 
 _CLEAN_MEDIA = frozenset({Medium.NETWORK, Medium.TOOL})
 """The rungs a run can be clean at.
@@ -48,6 +52,38 @@ def judge(run: Run) -> Verdict:
         if step.medium not in _CLEAN_MEDIA or step.escalated_from is not None:
             return Verdict.DEGRADED
     return Verdict.CLEAN
+
+
+def apply_verdict(skill: Skill, run: Run, now: datetime) -> Verdict:
+    """Judge a finished run against the skill it performed, and let the ladder move.
+
+    One function, called by every use case that finishes a run's story --
+    `FinishRun` when a run ends on its own, `CallRunWrong` again later when the
+    person who watched it run says the result was wrong -- because a skill's
+    rung must not depend on which of them happened to be the one that ran.
+    This codebase already refuses a second opinion on `url_shape`, on
+    `blank_inputs`, on the escalation table; two hand-synced copies of
+    promote-and-demote is that same defect: a future change to either would
+    have to be remembered and hand-applied to the other, and nothing would
+    catch a miss except behavioural surprise.
+    """
+    version = skill.version(run.skill_version)
+    verdict = judge(run)
+    version.record_run(verdict, now)
+    # The ladder climbs itself. Nobody has time to notice that a skill has
+    # earned the next rung, and a stage that waits for someone to notice is a
+    # fact about their afternoon rather than about the skill.
+    version.earn(verdict, now)
+    # Demotion is automatic and needs no human, which is exactly why it is
+    # bounded by a small number: confirming a few runs costs an operator
+    # minutes, and a broken autonomous skill keeps writing.
+    if version.track_record.should_demote and version.stage.rung > PromotionStage.SHADOW.rung:
+        version.demote(
+            PromotionStage.SHADOW,
+            now,
+            f"{version.track_record.consecutive_failures} runs failed in a row",
+        )
+    return verdict
 
 
 def _nothing_answered(run: Run) -> bool:

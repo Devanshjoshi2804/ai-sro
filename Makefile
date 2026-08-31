@@ -107,7 +107,7 @@ shots: ## Every screen at three widths, for comparing before and after: make sho
 
 # --- quality ----------------------------------------------------------------
 
-lint: lint-backend lint-frontend ## Run every linter
+lint: lint-backend lint-frontend lint-extension ## Run every linter
 
 lint-backend: ## ruff + mypy --strict + import-linter
 	$(BACKEND) uv run ruff check .
@@ -118,6 +118,9 @@ lint-backend: ## ruff + mypy --strict + import-linter
 lint-frontend: ## eslint + tsc
 	$(FRONTEND) npm run lint
 	$(FRONTEND) npm run typecheck
+
+lint-extension: ## no-undef over the extension, which has no build step to catch it
+	cd new-chrome-extension && ../frontend/node_modules/.bin/eslint .
 
 format: ## Autoformat both sides
 	$(BACKEND) uv run ruff check --fix .

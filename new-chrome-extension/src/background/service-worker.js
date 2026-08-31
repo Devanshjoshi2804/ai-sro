@@ -20,6 +20,7 @@ import {
 import { capture } from "./shots.js";
 import { capturing, state } from "./state.js";
 import * as teaching from "./teaching.js";
+import { release as releaseTree, releaseAll, takeTree, takeTreeSoon } from "./trees.js";
 import { flush } from "./upload.js";
 
 const BEAT = "sro-heartbeat";

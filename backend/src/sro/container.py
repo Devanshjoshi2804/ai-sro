@@ -33,6 +33,7 @@ from sro.application.connection.session_life import SessionLife
 from sro.application.connection.sign_in import EnsureSignedIn, SignIn, StoreCredentials
 from sro.application.connection.watch_browser import WatchBrowsers
 from sro.application.execution.batch import RunBatch
+from sro.application.execution.call_run_wrong import CallRunWrong
 from sro.application.execution.choices import ListChoices
 from sro.application.execution.derived_read import AskTheSystem
 from sro.application.execution.execute_skill import (
@@ -648,6 +649,9 @@ class Container:
 
     def stop_run(self) -> StopRun:
         return StopRun(self.unit_of_work(), self.stops)
+
+    def call_run_wrong(self) -> CallRunWrong:
+        return CallRunWrong(self.unit_of_work(), self.clock)
 
     def mcp_server(self) -> SkillToolServer:
         """A tool per runnable skill. One server per process: tenant comes from

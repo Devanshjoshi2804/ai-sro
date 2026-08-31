@@ -180,6 +180,9 @@ class RunRow(Base):
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     failure: Mapped[str | None] = mapped_column(Text)
+    # Null means nobody said anything, which is the ordinary case and is not a
+    # verdict. Set only by the one person who saw what this run made.
+    wrong_because: Mapped[str | None] = mapped_column(Text)
 
     __table_args__ = (
         Index("ix_runs_tenant_started", "tenant_id", "started_at"),

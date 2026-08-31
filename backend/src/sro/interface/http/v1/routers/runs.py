@@ -22,6 +22,7 @@ from sro.interface.http.schemas import (
     BatchItemModel,
     BatchRequest,
     BatchResultModel,
+    CalledWrongRequest,
     RunModel,
     RunSkillRequest,
 )
@@ -98,6 +99,21 @@ async def stop_run(run_id: str, container: ContainerDep, ctx: ContextDep) -> Run
     control must never do.
     """
     return RunModel.of(await container.stop_run().execute(ctx, run_id=RunId(run_id)))
+
+
+@router.post("/runs/{run_id}/wrong", status_code=status.HTTP_202_ACCEPTED)
+async def called_wrong(
+    run_id: str, body: CalledWrongRequest, container: ContainerDep, ctx: ContextDep
+) -> RunModel:
+    """The person this ran for says the result was wrong.
+
+    Reached by pressing "undo that" or "it's wrong, I'll fix it" -- things they
+    wanted anyway, which is why the answer can be trusted. It counts against the
+    skill exactly as a crash does, because the question the ladder is asking is
+    "does this still work", and a run that made the wrong record did not.
+    """
+    run = await container.call_run_wrong().execute(ctx, run_id=RunId(run_id), because=body.because)
+    return RunModel.of(run)
 
 
 @router.post("/skills/{skill_id}/batch", status_code=status.HTTP_201_CREATED)

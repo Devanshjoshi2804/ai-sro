@@ -1040,6 +1040,13 @@ class StepOutcomeModel(BaseModel):
         )
 
 
+class CalledWrongRequest(BaseModel):
+    because: str = Field(min_length=1, max_length=500)
+    """Why it was wrong. "undone by the operator" where they pressed undo, or
+    what they typed. Kept because "I took it back" and "the priority was wrong"
+    are different things to read a month later."""
+
+
 class RunModel(BaseModel):
     id: str
     skill_id: str
@@ -1058,6 +1065,10 @@ class RunModel(BaseModel):
     started_at: datetime
     ended_at: datetime | None
     failure: str | None
+    wrong_because: str | None = None
+    """Set once the person this ran for says the result was wrong. Null is the
+    ordinary case and is not a verdict; nothing is asked after a run."""
+
     steps: list[StepOutcomeModel]
 
     @classmethod
@@ -1077,6 +1088,7 @@ class RunModel(BaseModel):
             started_at=run.started_at,
             ended_at=run.ended_at,
             failure=run.failure,
+            wrong_because=run.wrong_because,
             steps=[StepOutcomeModel.of(step) for step in run.steps],
         )
 

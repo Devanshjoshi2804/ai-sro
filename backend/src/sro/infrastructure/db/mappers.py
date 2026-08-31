@@ -272,6 +272,7 @@ def update_run_row(row: RunRow, run: Run) -> None:
     row.started_at = run.started_at
     row.ended_at = run.ended_at
     row.failure = run.failure
+    row.wrong_because = run.wrong_because
 
 
 def row_to_run(row: RunRow) -> Run:
@@ -301,6 +302,7 @@ def row_to_run(row: RunRow) -> Run:
     run.steps = [_step_from_json(step) for step in row.steps]
     run.ended_at = row.ended_at
     run.failure = row.failure
+    run.wrong_because = row.wrong_because
     return run
 
 

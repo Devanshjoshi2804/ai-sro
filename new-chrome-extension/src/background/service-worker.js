@@ -344,6 +344,12 @@ async function handle(message, sender) {
       // tab_id comes from the sender, not the content script -- a frame has
       // no chrome.tabs access of its own to ask for it.
       const tab_id = sender?.tab?.id ?? null;
+      // The tab's own URL, which is not the frame's. A gesture inside a portal
+      // that hosts its screens in an iframe reports the frame's src, and a run
+      // told to open that would load the frame's document on its own, outside
+      // the shell that gives it its session and its chrome. What a run has to
+      // reproduce is the address an operator would type.
+      const page_url = redactUrl(sender?.tab?.url);
       // Same rule as page events, at the same one point: a gesture carries the
       // page's own `location.href` and every event carries the frame it
       // happened in, and either can be the callback URL with the token in it.
@@ -370,6 +376,7 @@ async function handle(message, sender) {
             gesture: { ...message.gesture, url: redactUrl(message.gesture?.url) },
             tab_id,
             frame_url: redactUrl(frameUrl),
+            page_url,
           },
           shot,
           recordingId,

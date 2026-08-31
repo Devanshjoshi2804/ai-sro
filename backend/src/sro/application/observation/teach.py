@@ -601,9 +601,12 @@ def _capture(event: Mapping[str, object], episode: Episode) -> CaptureEvent | No
         return InputEvent(
             at=at,
             action=to_input_action(dict(gesture)),
-            # Sent with every gesture since the recorder existed, and until now
-            # read only where a snapshot happened to carry it.
-            page_url=_text(event.get("frame_url")),
+            # The tab's URL, not the frame's. A gesture inside a portal that
+            # hosts its screens in an iframe reports the frame's src, and a run
+            # told to open that would load the frame's document on its own,
+            # outside the shell that gives it its session. What has to be
+            # reproduced is the address an operator would type.
+            page_url=_text(event.get("page_url")),
         )
 
     if kind == "request":

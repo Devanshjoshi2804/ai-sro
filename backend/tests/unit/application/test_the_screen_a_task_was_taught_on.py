@@ -58,3 +58,75 @@ def test_nothing_recorded_anywhere_is_no_screen() -> None:
     assert _started_on(_demonstration(None, None)) is None
     assert _started_on(None) is None
     assert _started_on() is None
+
+
+def test_the_tab_is_read_off_the_gesture_and_the_frame_is_not() -> None:
+    """The tab's URL, not the frame's.
+
+    A gesture inside a portal that hosts its screens in an iframe reports the
+    frame's own src -- `/portal/page?libraryContext=...`, a document that means
+    nothing outside the shell that gives it its session. A run told to open that
+    would load half an application. What has to be reproduced is the address an
+    operator would type, which only the worker knows, and which it now sends
+    beside the frame's.
+    """
+    from datetime import UTC, datetime
+
+    from sro.application.observation.teach import _capture
+    from sro.domain.observation.candidate import Episode
+    from sro.domain.shared.identifiers import BatchId
+
+    during = Episode(
+        started_at=datetime(2026, 8, 31, 7, 0, tzinfo=UTC),
+        ended_at=datetime(2026, 8, 31, 7, 30, tzinfo=UTC),
+        host="wms.example",
+        batch_ids=(BatchId("bat-1"),),
+    )
+    read = _capture(
+        {
+            "kind": "gesture",
+            "gesture": {
+                "kind": "click",
+                "at": "2026-08-31T07:10:00Z",
+                "target": {"cssPath": "span#addButton"},
+            },
+            "frame_url": "https://wms.example/portal/page?libraryContext=f4d6755a",
+            "page_url": WORK_AREAS,
+        },
+        during,
+    )
+
+    assert read is not None
+    assert read.page_url == WORK_AREAS
+
+
+def test_a_gesture_from_a_browser_that_sends_no_page_records_none() -> None:
+    """Every extension in the field before this sent no `page_url`, and its
+    uploads still have to assemble. An absence is an absence, not a crash
+    halfway through a demonstration."""
+    from datetime import UTC, datetime
+
+    from sro.application.observation.teach import _capture
+    from sro.domain.observation.candidate import Episode
+    from sro.domain.shared.identifiers import BatchId
+
+    during = Episode(
+        started_at=datetime(2026, 8, 31, 7, 0, tzinfo=UTC),
+        ended_at=datetime(2026, 8, 31, 7, 30, tzinfo=UTC),
+        host="wms.example",
+        batch_ids=(BatchId("bat-1"),),
+    )
+    read = _capture(
+        {
+            "kind": "gesture",
+            "gesture": {
+                "kind": "click",
+                "at": "2026-08-31T07:10:00Z",
+                "target": {"cssPath": "span#addButton"},
+            },
+        },
+        during,
+    )
+
+    assert read is not None
+    assert read.page_url is None

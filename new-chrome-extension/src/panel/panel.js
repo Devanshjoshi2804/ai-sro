@@ -281,6 +281,32 @@ function watching(status) {
     });
   }
 
+  // A tab whose page-realm patch outlived the extension that installed it.
+  //
+  // It records gestures and not one call. That is invisible from both sides --
+  // the panel says watching, uploads keep arriving -- and it only shows up days
+  // later as a skill that checks nothing, by which time the demonstrations are
+  // gone. It cannot be repaired from here: the patch lives in the page's own
+  // realm, and the handshake that makes it trustworthy can only happen before
+  // any page script exists. Reloading the page is the whole fix, so the panel
+  // asks for that and says why.
+  if ((status.deaf || []).includes(mine.tabId)) {
+    return card({
+      tone: "attention",
+      title: "This tab is only recording half of what you do",
+      says:
+        "The extension was reloaded while this page was open, so what it does" +
+        " is being recorded and what it asks the system for is not. A task" +
+        " recorded that way becomes a skill that cannot check its own work," +
+        " and teaching is refused here until it is fixed. Reloading the page" +
+        " fixes it.",
+      actions: [
+        { label: "Reload this page", primary: true, act: (button) => reloadWatched(button) },
+        { label: "Stop watching", act: (button) => setWatch(button, false) },
+      ],
+    });
+  }
+
   const granted = excludedByDefault(status);
   return card({
     title: granted ? `Watching ${mine.host}, which is normally excluded` : "Watching this tab",
@@ -320,6 +346,20 @@ function pauseAction(status) {
       render(await ask({ kind: "set-paused", paused: !now.paused }));
     },
   };
+}
+
+/** Reload the watched tab, which is the whole fix for a half-deaf one.
+ *
+ * From here rather than by telling somebody to press F5, because the sentence
+ * that explains why is on this card and the button should be beside it. */
+async function reloadWatched(button) {
+  button.disabled = true;
+  try {
+    await chrome.tabs.reload(tabHere.tabId);
+  } catch (error) {
+    said(String(error));
+  }
+  await refresh();
 }
 
 async function setWatch(button, on) {

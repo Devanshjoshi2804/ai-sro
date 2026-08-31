@@ -1043,6 +1043,14 @@ async function status() {
     lastBeat,
     lastError,
     watched: await watchedTabs(),
+    // Tabs whose page-realm patch outlived the extension that installed it.
+    //
+    // They record gestures and no calls. Said out loud because it is otherwise
+    // invisible on both sides -- the panel says watching, the console shows
+    // uploads arriving, and only the shape of the evidence gives it away, days
+    // later, as a skill that checks nothing. An operator lost two
+    // demonstrations to exactly that.
+    deaf: [...halfDeaf],
     // The mails this browser recognised and nobody has answered yet. Held
     // here and nowhere else -- the panel is the same browser that read them.
     offers: await state.offers(),

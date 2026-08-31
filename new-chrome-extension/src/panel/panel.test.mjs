@@ -91,7 +91,7 @@ function sentOf(sent, kind) {
 
 /** The panel, drawn once from one status. `sent` is every message it sent the
  * worker, which is the only thing it can do to the world. */
-function panel(status) {
+function panel(status, here = null, replies = {}) {
   const sent = [];
   const ids = {};
   const sandbox = {
@@ -111,17 +111,44 @@ function panel(status) {
           // Deliberately nothing: every card under test is drawn by the
           // explicit `render` below, so a poll that raced it would be the
           // thing being asserted on.
-          return message.kind === "status" ? { deviceId: "" } : {};
+          if (message.kind === "status") return { deviceId: "" };
+          // A list where the panel expects a list. With a current tab set, it
+          // goes on to ask what is offerable here, and `{}` reaching
+          // `.filter` throws after the assertions have already passed --
+          // which is a green test run and a red exit code.
+          return Array.isArray(replies[message.kind]) ? replies[message.kind] : [];
         },
         openOptionsPage: () => {},
       },
-      tabs: { query: async () => [] },
+      // The tab the panel is docked beside. Every card about "this tab" is
+      // chosen by matching it against the watch list, so a panel with no tab
+      // draws the not-watching card whatever else the status says -- which is
+      // how two tests here passed while asserting on cards that were never
+      // drawn.
+      tabs: {
+        query: async () => (here ? [here] : []),
+        reload: async () => {},
+      },
     },
   };
   sandbox.hostMatches = hostMatches;
   sandbox.globalThis = sandbox;
   vm.createContext(sandbox);
   vm.runInContext(SOURCE, sandbox);
+  // Which tab the panel is docked beside. The real one learns this from an
+  // async `chrome.tabs.query` that `render` does not wait for, and every card
+  // about "this tab" is chosen by matching it against the watch list -- so a
+  // harness that leaves it unset draws the not-watching card whatever the
+  // status says, which is how two tests here once passed while asserting on
+  // cards that were never drawn. Assigned into the same context rather than
+  // through the sandbox object because `let` at a script's top level is a
+  // lexical binding, not a property of the global.
+  if (here) {
+    vm.runInContext(
+      `tabHere = ${JSON.stringify({ tabId: here.id, host: here.host, url: here.url })}`,
+      sandbox,
+    );
+  }
   sandbox.render(status);
   const cards = ids["cards"].kids;
   return { sent, cards, ids };
@@ -223,6 +250,52 @@ test("a demonstration in progress is the only thing the panel is about", async (
   });
 
   assert.ok(!cards.some((c) => words(c).includes("A mail matched")), words(cards[0]));
+});
+
+test("a tab that stopped recording calls says so instead of looking healthy", async () => {
+  // The worst shape a failure takes here. The page-realm patch outlives the
+  // extension that installed it, so what the operator does is recorded and what
+  // they ask the system for is not -- and nothing says so: the panel reads
+  // "watching this tab, since 65m", uploads keep arriving, and it only shows up
+  // days later as a skill that checks nothing, by which time the demonstrations
+  // are gone. An operator lost two to exactly that.
+  const { cards } = panel(
+    {
+      deviceId: "dev-1",
+      capturing: true,
+      watched: [{ tabId: 7, host: "wms.example", since: new Date().toISOString() }],
+      deaf: [7],
+    },
+    { id: 7, host: "wms.example", url: "https://wms.example/portal" },
+  );
+
+  const said = cards.map(words).join(" ");
+  assert.ok(
+    /only recording half/i.test(said),
+    `a half-deaf tab was not called out: ${said.slice(0, 200)}`,
+  );
+  // And the fix is offered, because reloading the page is the whole of it and
+  // the sentence explaining why is on this card.
+  assert.ok(/Reload this page/i.test(said), "no way to fix it was offered");
+  // Teaching is not, because a demonstration recorded this way is worse than
+  // none: it looks like a success and induces to a skill that asserts nothing.
+  assert.ok(!/Start teaching/i.test(said), "teaching was still offered on a half-deaf tab");
+});
+
+test("an ordinary watched tab is not accused of being half deaf", async () => {
+  const { cards } = panel(
+    {
+      deviceId: "dev-1",
+      capturing: true,
+      watched: [{ tabId: 7, host: "wms.example", since: new Date().toISOString() }],
+      deaf: [],
+    },
+    { id: 7, host: "wms.example", url: "https://wms.example/portal" },
+  );
+
+  const said = cards.map(words).join(" ");
+  assert.ok(/Watching this tab/i.test(said));
+  assert.ok(!/only recording half/i.test(said));
 });
 
 for (const [name, fn] of tests) {

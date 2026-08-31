@@ -36,6 +36,19 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--only", nargs="*", help="observe these hosts and nothing else")
     parser.add_argument("--keep-days", type=int, help="retention window for the evidence")
+    trees = parser.add_mutually_exclusive_group()
+    trees.add_argument(
+        "--snapshots",
+        action="store_true",
+        help="read each page's accessibility structure while watching, not only while "
+        "teaching. It is what makes a locator survive a re-render. Chrome shows a "
+        "debugging banner on every watched tab for as long as this is on, unless the "
+        "extension was force-installed by enterprise policy -- so turn it on for a fleet "
+        "you manage, and leave it off for browsers you do not.",
+    )
+    trees.add_argument(
+        "--no-snapshots", action="store_true", help="stop reading page structure while watching"
+    )
     args = parser.parse_args(argv)
 
     return asyncio.run(_run(args))
@@ -62,6 +75,7 @@ async def _run(args: argparse.Namespace) -> int:
                 "capture_enabled": changed.capture_enabled,
                 "exclude_hosts": list(changed.exclude_hosts),
                 "include_hosts": list(changed.include_hosts),
+                "capture_snapshots": changed.capture_snapshots,
                 "retention_days": changed.retention_days,
             },
             indent=2,
@@ -88,6 +102,10 @@ def _apply(policy: ObservationPolicy, args: argparse.Namespace) -> ObservationPo
         changed = changed.only(tuple(args.only))
     if args.keep_days is not None:
         changed = changed.keeping_for(args.keep_days)
+    if args.snapshots:
+        changed = changed.reading_structure(True)
+    if args.no_snapshots:
+        changed = changed.reading_structure(False)
     if args.on:
         changed = changed.enabled()
     if args.off:

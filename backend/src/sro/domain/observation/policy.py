@@ -163,3 +163,12 @@ class ObservationPolicy:
 
     def keeping_for(self, days: int) -> ObservationPolicy:
         return replace(self, version=self.version + 1, retention_days=days)
+
+    def reading_structure(self, on: bool) -> ObservationPolicy:
+        """Accessibility trees while nobody is deliberately teaching.
+
+        Its own method rather than a field somebody edits, because turning it on
+        is a decision about a browser an administrator manages: on an install
+        that is not force-installed by policy, Chrome puts a debugging banner on
+        every watched tab for as long as this is on."""
+        return replace(self, version=self.version + 1, capture_snapshots=on)

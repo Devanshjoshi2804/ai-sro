@@ -11,7 +11,7 @@
           "type": "internalRole",
           "value": 144
         },
-        "frameId": "093CFDDC46F8389DD968157FDCDD033B",
+        "frameId": "2580B8FF55281B185A58B9B17D6A4366",
         "ignored": false,
         "name": {
           "sources": [
@@ -56,7 +56,7 @@
             "name": "url",
             "value": {
               "type": "string",
-              "value": "http://127.0.0.1:49986/"
+              "value": "http://127.0.0.1:63319/"
             }
           }
         ],
@@ -354,13 +354,6 @@
           },
           {
             "name": "focusable",
-            "value": {
-              "type": "booleanOrUndefined",
-              "value": true
-            }
-          },
-          {
-            "name": "focused",
             "value": {
               "type": "booleanOrUndefined",
               "value": true
@@ -913,6 +906,13 @@
           },
           {
             "name": "focusable",
+            "value": {
+              "type": "booleanOrUndefined",
+              "value": true
+            }
+          },
+          {
+            "name": "focused",
             "value": {
               "type": "booleanOrUndefined",
               "value": true
@@ -1558,7 +1558,7 @@
       }
     ]
   },
-  "url": "http://127.0.0.1:49986/",
-  "taken_at": "2026-08-25T08:31:41.178Z",
-  "tab_id": 927171230
+  "url": "http://127.0.0.1:63319/",
+  "taken_at": "2026-08-31T08:40:04.965Z",
+  "tab_id": 1766715008
 }

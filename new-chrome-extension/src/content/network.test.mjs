@@ -241,3 +241,36 @@ const base = {
 }
 
 console.log("network.test.mjs: ok");
+
+// A reload leaves the page-realm patch installed and the isolated half fresh.
+//
+// The patch goes on emitting -- a CustomEvent needs nothing from the extension
+// that installed it -- but the half that could tell a new isolated world which
+// realm those records carry answered its one hello long ago and stopped
+// listening. So every call was emitted and every one dropped on arrival: a
+// reloaded extension recorded gestures and no calls at all, silently, until the
+// page next navigated. Which is long enough to teach a skill that asserts
+// nothing about the system it changes.
+//
+// `network.main.js` now answers for the patch already installed, reading the
+// realm back off the guard symbol. The two halves below stand in for that.
+{
+  // Nobody answers: the fresh isolated half never learns a realm, and a record
+  // that says it came from one is not one it can believe.
+  const orphaned = makeSandbox({ answerHandshake: false });
+  orphaned.__fire({ __from: NONCE, ...base });
+  assert.equal(orphaned.sent.length, 0, "a record was accepted with no handshake behind it");
+
+  // Answered late, by the execution that found the patch already there. Same
+  // realm, because it is read off the patch rather than minted fresh -- a new
+  // realm would be answering for a patch that signs with the old one.
+  const spoken = makeSandbox({ answerHandshake: true });
+  spoken.__fire({ __from: NONCE, ...base });
+  assert.equal(spoken.sent.length, 1, "a re-introduced realm did not restore capture");
+
+  // And the realm still has to match. Re-introduction restores the handshake;
+  // it does not make the isolated half take anybody's word for it.
+  const wrong = makeSandbox({ answerHandshake: true });
+  wrong.__fire({ __from: "some-other-realm", ...base });
+  assert.equal(wrong.sent.length, 0, "a record from an unknown realm was accepted");
+}

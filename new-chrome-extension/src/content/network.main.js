@@ -59,8 +59,61 @@
   // still surviving a second execution of this same file with no channel back
   // to the first run except objects the page already holds.
   const alreadyPatched = (fn) => Boolean(fn) && Object.getOwnPropertySymbols(fn).length > 0;
-  if (alreadyPatched(origFetch) || (OrigXHR && alreadyPatched(OrigXHR.prototype.open))) return;
+  if (alreadyPatched(origFetch) || (OrigXHR && alreadyPatched(OrigXHR.prototype.open))) {
+    // Patched already, and still working: a replacement emits its records as
+    // CustomEvents, which need nothing from the extension that installed it.
+    //
+    // What does not survive is the handshake. Reloading the extension replaces
+    // the isolated half with a fresh one that knows no realm, while the
+    // page-realm half that could tell it is the *old* one, which answered its
+    // one hello long ago and stopped listening. Every request went on being
+    // emitted and every one was dropped on arrival, so a reloaded extension
+    // recorded gestures and no calls at all -- silently, and only until the
+    // page next navigated, which is exactly long enough to teach a skill that
+    // asserts nothing.
+    //
+    // So a second execution does not re-patch; it answers for the patch that is
+    // already there, with the realm that patch is using.
+    reintroduce(origFetch, OrigXHR);
+    return;
+  }
   const GUARD = Symbol();
+
+  /** Which patch a record came from, so the isolated half can tell ours from a
+   * page's. Minted here, above the first `disguise` call rather than beside the
+   * emitter that uses it: `disguise` stamps it onto every replacement, and the
+   * first replacement made is the `toString` a few lines below. */
+  const REALM = crypto.randomUUID();
+
+  /** Answer hellos on behalf of the patch that is already installed.
+   *
+   * Hoisted so the early return above can call it. Reads the realm back off the
+   * replacement's own guard symbol, which is the only thing two executions of
+   * this file share -- they have no channel to each other except the objects
+   * the page is holding.
+   *
+   * Stays listening rather than answering once and unhooking, which is what the
+   * original handshake does: this run exists precisely because a fresh isolated
+   * half turned up late, and there is no reason to think it is the last one.
+   */
+  function reintroduce(patchedFetch, XHR) {
+    const realmOf = (fn) => {
+      for (const mark of Object.getOwnPropertySymbols(fn || {})) {
+        const value = fn[mark];
+        if (typeof value === "string" && value.length > 0) return value;
+      }
+      return null;
+    };
+    const realm = realmOf(patchedFetch) || realmOf(XHR?.prototype?.open);
+    // A patch from a build that marked its replacements with `true`. It emits
+    // records this page's isolated half will never accept, and nothing here can
+    // change that -- but saying nothing is better than answering with a realm
+    // that is not the one on the wire.
+    if (!realm) return;
+    const speak = () => window.dispatchEvent(new CustomEvent("sro:hello", { detail: realm }));
+    window.addEventListener("sro:need-hello", speak);
+    speak();
+  }
 
   /** What each replacement says when it is asked for its source. */
   const natives = new WeakMap();
@@ -82,7 +135,22 @@
     Object.defineProperty(replacement, "name", { value: original.name, configurable: true });
     Object.defineProperty(replacement, "length", { value: original.length, configurable: true });
     natives.set(replacement, `function ${original.name}() { [native code] }`);
-    Object.defineProperty(replacement, GUARD, { value: true, enumerable: false, configurable: true });
+    // The realm rather than `true`. It is what a later execution of this file
+    // needs to answer a fresh isolated half on this patch's behalf, and there
+    // is nowhere else to leave it: the two runs share no channel except the
+    // objects the page already holds.
+    //
+    // It does make the realm readable by a page that goes looking for it. That
+    // page had to run `getOwnPropertySymbols` on `fetch` to find it, which is
+    // the same check that already tells it we are here -- so what it buys is a
+    // forged exchange, and a forged exchange is what the isolated half's shape,
+    // size, redaction and host checks are for. Weighed against a reloaded
+    // extension recording no calls at all and saying nothing about it.
+    Object.defineProperty(replacement, GUARD, {
+      value: REALM,
+      enumerable: false,
+      configurable: true,
+    });
     return replacement;
   };
 
@@ -108,7 +176,6 @@
 
   // The random half matters: this file runs in every frame of every tab, and a
   // counter plus a millisecond collides across frames that load together.
-  const REALM = crypto.randomUUID();
   let counter = 0;
   const nextId = () => `req_${REALM.slice(0, 8)}_${counter++}`;
 

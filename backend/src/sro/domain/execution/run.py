@@ -303,6 +303,22 @@ class Run:
     wrong, so being honest costs them nothing.
     """
 
+    intent: str = ""
+    """The sentence the operator typed to ask for this run, where one started it.
+
+    `SkillStep.intent` is derived from what was observed and reads the same on
+    every replay; this is the opposite kind of thing -- a transcript of what one
+    person asked for, once. It is the audit answer to "why did this run happen
+    at all", which nothing else on a run or its skill can give, and it lives
+    here rather than in a second store because a run already outlives the
+    request that started it and a second table would just be a join that can
+    drift from this one.
+
+    Blank for every run that did not begin with somebody typing a sentence: a
+    console run against a chosen version, a batch, a trigger firing on its own
+    schedule. Nobody asked those in words, so there is nothing to keep.
+    """
+
     def __post_init__(self) -> None:
         if self.skill_version < 1:
             raise InvariantViolation("version numbers start at 1")

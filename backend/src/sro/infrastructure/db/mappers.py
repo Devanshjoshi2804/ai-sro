@@ -273,6 +273,7 @@ def update_run_row(row: RunRow, run: Run) -> None:
     row.ended_at = run.ended_at
     row.failure = run.failure
     row.wrong_because = run.wrong_because
+    row.intent = run.intent
 
 
 def row_to_run(row: RunRow) -> Run:
@@ -297,6 +298,7 @@ def row_to_run(row: RunRow) -> Run:
         # re-litigate that. A read-only assisted run has no authoriser by
         # design, and re-checking would make it unreadable ever afterwards.
         may_change_the_system=False,
+        intent=row.intent or "",
     )
     run.status = RunStatus(row.status)
     run.steps = [_step_from_json(step) for step in row.steps]

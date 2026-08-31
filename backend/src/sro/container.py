@@ -45,6 +45,7 @@ from sro.application.execution.execute_skill import (
 from sro.application.execution.pursue_goal import PursueGoal
 from sro.application.execution.pursuits import Pursuits
 from sro.application.execution.read_runs import GetRun, ListRuns, StopRun
+from sro.application.execution.run_from_preview import RunFromPreview
 from sro.application.execution.self_heal import SelfHeal
 from sro.application.execution.stops import Stops
 from sro.application.execution.vision_step import PerformWithVision
@@ -538,6 +539,9 @@ class Container:
 
     def start_run(self) -> StartRun:
         return StartRun(self.unit_of_work(), self.clock, self.ids)
+
+    def run_from_preview(self) -> RunFromPreview:
+        return RunFromPreview(self.unit_of_work(), self.clock, self.execute_skill())
 
     def pursue_goal(self) -> PursueGoal:
         return PursueGoal(

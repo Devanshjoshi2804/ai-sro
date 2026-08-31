@@ -1575,6 +1575,33 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/skills/{skill_id}/runs/from-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Run From Preview
+         * @description The press. Promotes a version that has never been reviewed anywhere else,
+         *     then runs it -- in one call, because a version promoted by a press that
+         *     then failed to start is a version sitting at assisted because somebody
+         *     clicked once and walked away. See ADR 014 and `RunFromPreview`.
+         *
+         *     Always in the operator's own browser: the preview this promotes on showed
+         *     them the tab the run is about to act in, and a run started anywhere else
+         *     would not be the run they read.
+         */
+        post: operations["run_from_preview_v1_skills__skill_id__runs_from_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/runs/{run_id}/stop": {
         parameters: {
             query?: never;
@@ -2930,6 +2957,24 @@ export interface components {
                 [key: string]: string;
             };
         };
+        /**
+         * RunFromPreviewRequest
+         * @description The press. No `authorized_by` field: reading the preview and pressing
+         *     `Do it` is the confirmation, not a second box to tick on top of it.
+         */
+        RunFromPreviewRequest: {
+            /** Parameters */
+            parameters: {
+                [key: string]: string;
+            };
+            /** Device Id */
+            device_id: string;
+            /**
+             * Intent
+             * @default
+             */
+            intent: string;
+        };
         /** RunModel */
         RunModel: {
             /** Id */
@@ -2969,6 +3014,11 @@ export interface components {
             failure: string | null;
             /** Wrong Because */
             wrong_because?: string | null;
+            /**
+             * Intent
+             * @default
+             */
+            intent: string;
             reversal?: components["schemas"]["ReversalModel"] | null;
             /** Steps */
             steps: components["schemas"]["StepOutcomeModel"][];
@@ -12637,6 +12687,134 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["RunSkillRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunModel"];
+                };
+            };
+            /** @description No credential, or one this deployment rejects. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description No such thing, or not yours. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The system's state says no, not the request. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The request cannot be processed as asked. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description Something this depends on is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+        };
+    };
+    run_from_preview_v1_skills__skill_id__runs_from_preview_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                skill_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RunFromPreviewRequest"];
             };
         };
         responses: {

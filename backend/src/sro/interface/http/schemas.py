@@ -987,6 +987,23 @@ class RunSkillRequest(BaseModel):
     """Required above shadow. The human who allowed this run to write."""
 
 
+class RunFromPreviewRequest(BaseModel):
+    """The press. No `authorized_by` field: reading the preview and pressing
+    `Do it` is the confirmation, not a second box to tick on top of it."""
+
+    parameters: dict[str, str]
+
+    device_id: str
+    """The operator's own browser -- always, not optionally, because the
+    preview this promotes on showed them the tab the run is about to act in
+    (ADR 014), and a run that then acted somewhere else would not be the run
+    they read."""
+
+    intent: str = ""
+    """The sentence the operator typed. Carried onto `Run.intent` unchanged --
+    see that field for why there is no second place it is kept."""
+
+
 class StepOutcomeModel(BaseModel):
     index: int
     medium: str
@@ -1100,6 +1117,10 @@ class RunModel(BaseModel):
     """Set once the person this ran for says the result was wrong. Null is the
     ordinary case and is not a verdict; nothing is asked after a run."""
 
+    intent: str = ""
+    """The sentence the operator typed to ask for this run. Empty for a console
+    run, a batch, or a trigger firing on its own -- nobody typed one."""
+
     reversal: ReversalModel | None = None
     """What would undo this run, where the panel found three facts that say
     one does: a write, a runnable skill that deletes that same shape, and the
@@ -1128,6 +1149,7 @@ class RunModel(BaseModel):
             ended_at=run.ended_at,
             failure=run.failure,
             wrong_because=run.wrong_because,
+            intent=run.intent,
             reversal=ReversalModel.of(reversal) if reversal is not None else None,
             steps=[StepOutcomeModel.of(step) for step in run.steps],
         )

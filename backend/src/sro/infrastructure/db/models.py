@@ -183,6 +183,10 @@ class RunRow(Base):
     # Null means nobody said anything, which is the ordinary case and is not a
     # verdict. Set only by the one person who saw what this run made.
     wrong_because: Mapped[str | None] = mapped_column(Text)
+    # Empty for a console run, a batch, a trigger -- everything that did not
+    # begin with somebody typing a sentence. The one store for it; see
+    # ``Run.intent``.
+    intent: Mapped[str] = mapped_column(Text, nullable=False, default="")
 
     __table_args__ = (
         Index("ix_runs_tenant_started", "tenant_id", "started_at"),

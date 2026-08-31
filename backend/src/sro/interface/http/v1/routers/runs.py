@@ -24,6 +24,7 @@ from sro.interface.http.schemas import (
     BatchRequest,
     BatchResultModel,
     CalledWrongRequest,
+    RunFromPreviewRequest,
     RunModel,
     RunSkillRequest,
 )
@@ -92,6 +93,29 @@ async def run_skill(
         medium=body.medium,
     )
     return RunModel.of(await container.get_run().execute(ctx, run_id=run_id))
+
+
+@router.post("/skills/{skill_id}/runs/from-preview", status_code=status.HTTP_201_CREATED)
+async def run_from_preview(
+    skill_id: str, body: RunFromPreviewRequest, container: ContainerDep, ctx: ContextDep
+) -> RunModel:
+    """The press. Promotes a version that has never been reviewed anywhere else,
+    then runs it -- in one call, because a version promoted by a press that
+    then failed to start is a version sitting at assisted because somebody
+    clicked once and walked away. See ADR 014 and `RunFromPreview`.
+
+    Always in the operator's own browser: the preview this promotes on showed
+    them the tab the run is about to act in, and a run started anywhere else
+    would not be the run they read.
+    """
+    run = await container.run_from_preview().execute(
+        ctx,
+        skill_id=SkillId(skill_id),
+        parameters=body.parameters,
+        device_id=DeviceId(body.device_id),
+        intent=body.intent,
+    )
+    return RunModel.of(run)
 
 
 @router.post("/runs/{run_id}/stop", status_code=status.HTTP_202_ACCEPTED)

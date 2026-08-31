@@ -170,6 +170,13 @@ class ExecutionRequest:
     Default no, so a caller that has not thought about it does not take
     anybody's screen."""
 
+    intent: str = ""
+    """The sentence the operator typed, carried onto ``Run.intent`` verbatim.
+
+    Blank for a console run, a batch, a trigger -- everything that did not
+    begin with somebody's own words. See ``Run.intent`` for why this is the
+    one place it is kept."""
+
 
 class Refused(DomainError):
     """A safety limit stopped this before anything was sent.
@@ -245,6 +252,7 @@ class StartRun:
                 target_system=system,
                 systems=version.systems,
                 may_change_the_system=version.changes_the_system,
+                intent=request.intent,
             )
             await uow.runs.add(run)
             await uow.commit()

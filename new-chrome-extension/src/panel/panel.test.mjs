@@ -528,6 +528,7 @@ test("the box a candidate's offer opens still runs a sentence naming a different
   const { sent, row } = await openedOffer({
     "resolve-intent": {
       matched: { skill_id: "skl-9", name: "Create a work area", version: 1, stage: "autonomous" },
+      confident: true,
       choices: [],
       missing_parameters: [],
     },
@@ -587,6 +588,191 @@ test("a sentence it is unsure about is not resolved by picking the top match", a
     "a run started before anyone said which one was meant",
   );
 });
+
+test("the row's box is prefilled with a sentence that names the task, never UI chrome", async () => {
+  // Round 1 fix: with no model title -- the common case -- the box was
+  // prefilled with the literal string "Do the next one", which names no
+  // task, and pressing Ask ranked that across the whole library.
+  const { row } = await openedOffer({});
+  const [utterance] = inputs(row);
+  assert.notEqual(utterance.value, "Do the next one", `still UI chrome: ${utterance.value}`);
+  assert.match(utterance.value, /work operation/i, `no task named in: ${utterance.value}`);
+});
+
+test("a match the reading is not confident about is asked about, never previewed straight through", async () => {
+  // Round 1 fix: `renderResolution` read only `matched`/`choices` and threw
+  // away `confident` and the hedge in `question`. An unconfident match on an
+  // autonomous version reached `renderReady` with `show: "nothing"` and
+  // pressed on its own -- a skill the operator never saw named, chosen by a
+  // ranker that said out loud it was not sure.
+  const { sent, row } = await openedOffer({
+    "resolve-intent": {
+      matched: { skill_id: "skl-9", name: "Create a work area", version: 1, stage: "autonomous" },
+      confident: false,
+      question: "Did you mean “Create a work area”? Nothing it does accounts for “urgently”.",
+      choices: [],
+      missing_parameters: [],
+    },
+  });
+
+  const [ask] = buttons(row).filter((button) => button.textContent === "Ask");
+  const [utterance] = inputs(row);
+  utterance.value = "create a work area urgently";
+  await ask.listeners[0]();
+
+  assert.ok(
+    !sent.some((message) => message.kind === "run-skill"),
+    "an unconfident match ran without being confirmed",
+  );
+  const said = words(row);
+  assert.match(said, /urgently/, "the backend's own hedge was not shown");
+
+  // Confirming it is what actually runs it -- the operator, not the ranker,
+  // said yes.
+  const [yes] = buttons(row).filter((button) => button.textContent.startsWith("Yes"));
+  await yes.listeners[0]();
+  assert.ok(sent.some((message) => message.kind === "run-skill" && message.skillId === "skl-9"));
+});
+
+test("an autonomous press still says which task it started", async () => {
+  // The second half of the same finding: "nothing beforehand" was earned for
+  // a step-by-step account, never for the operator not knowing which task a
+  // one-press run just started -- and that stopped being implied by which
+  // row's button was clicked the moment a sentence could name any taught
+  // skill, not only the one offered. The name has to survive whatever the
+  // press itself goes on to say, refusal included, so this makes the press
+  // fail and checks the name is still there rather than overwritten by it.
+  const { row } = await openedOffer({
+    "resolve-intent": {
+      matched: { skill_id: "skl-9", name: "Create a work area", version: 1, stage: "autonomous" },
+      confident: true,
+      choices: [],
+      missing_parameters: [],
+    },
+    "run-skill": { error: "a looped skill cannot be run this way" },
+  });
+
+  const [ask] = buttons(row).filter((button) => button.textContent === "Ask");
+  const [utterance] = inputs(row);
+  utterance.value = "make a work area";
+  await ask.listeners[0]();
+
+  assert.match(words(row), /Create a work area/, "the task that just ran, unattended, was never named");
+  assert.match(words(row), /looped skill cannot be run/, "the refusal itself was swallowed");
+});
+
+test("a value the sentence supplied is sent, and a blank left in a form is asked for again rather than sent as one", async () => {
+  const skillWithParameters = (stage) => ({
+    id: "skl-2",
+    name: "Adjust an LPN",
+    versions: [
+      {
+        version: 1,
+        stage,
+        track_record: { clean_streak: 0 },
+        steps: [
+          { index: 0, intent: "Type the Operation code." },
+          { index: 1, intent: "Enter the Voice Code." },
+          { index: 2, intent: "Press Save." },
+        ],
+        parameters: [
+          { name: "operation_code", source_step_index: 0, description: "Operation code" },
+          { name: "voice_code", source_step_index: 1, description: "Voice Code" },
+        ],
+      },
+    ],
+  });
+
+  // First half: the parser read `operation_code` out of the sentence, so it
+  // is not in `missing_parameters` -- and it must still reach the press.
+  const { sent, row } = await openedOffer({
+    "resolve-intent": {
+      matched: { skill_id: "skl-2", name: "Adjust an LPN", version: 1, stage: "recorded" },
+      confident: true,
+      choices: [],
+      missing_parameters: ["voice_code"],
+      items: [{ operation_code: "NDPCK" }],
+    },
+    skill: skillWithParameters("recorded"),
+  });
+
+  const [ask] = buttons(row).filter((button) => button.textContent === "Ask");
+  const [utterance] = inputs(row);
+  utterance.value = "adjust the LPN, operation NDPCK";
+  await ask.listeners[0]();
+
+  // Second half: the box for the still-missing `voice_code` is on the page.
+  // Leaving it blank and continuing must not be accepted as an answer.
+  const [voiceCode] = inputs(row).filter((field) => field !== utterance);
+  voiceCode.value = "";
+  const [go] = buttons(row).filter((button) => button.textContent === "Continue");
+  await go.listeners[0]();
+
+  assert.ok(
+    !sent.some((message) => message.kind === "run-skill"),
+    "a blank field was accepted as an answer and the run started anyway",
+  );
+  assert.match(words(row), /cannot be left blank/i, "a blank field was silently accepted");
+
+  // Filled in properly, it is accepted -- a `recorded` skill previews every
+  // step before the press, so what carries both values is that press.
+  voiceCode.value = "VC-7";
+  await go.listeners[0]();
+  const [doIt] = buttons(row).filter((button) => button.textContent === "Do it");
+  await doIt.listeners[0]();
+
+  const ran = sent.filter((message) => message.kind === "run-skill");
+  assert.equal(ran.length, 1);
+  assert.deepEqual(ran[0].parameters, { operation_code: "NDPCK", voice_code: "VC-7" });
+});
+
+test("why teaching needs one more demonstration is said in an operator's own words, not the induction failure's", async () => {
+  // `taught.because` is `str(InductionFailed)`: a recording id, an
+  // objective-key slug, a JSON pointer diffing two demonstrations -- the one
+  // place a skill id or a pointer would otherwise reach an operator's screen.
+  const { ids, renderCandidates } = panel(
+    {
+      deviceId: "dev-1",
+      capturing: true,
+      watched: [{ tabId: 7, host: "wms.example", since: new Date().toISOString() }],
+    },
+    { id: 7, host: "wms.example", url: "https://wms.example/portal" },
+    {
+      candidates: [offerableCandidate()],
+      "teach-candidate": {
+        needs_demonstration: true,
+        because: "recording rec-8f2c is draft; only sealed recordings can be induced",
+      },
+    },
+  );
+  await renderCandidates();
+  const row = ids["candidates"].kids[0];
+  const [doNext] = buttons(row);
+  await doNext.listeners[0]();
+
+  const said = words(row);
+  assert.ok(!/rec-8f2c/.test(said), `a recording id reached the operator: ${said}`);
+  assert.match(said, /I've watched this a few times/i, "no operator-facing sentence was shown");
+});
+
+test("a row that could not be taught is not left dead -- 'Do the next one' works again", async () => {
+  const { ids, renderCandidates } = panel(
+    {
+      deviceId: "dev-1",
+      capturing: true,
+      watched: [{ tabId: 7, host: "wms.example", since: new Date().toISOString() }],
+    },
+    { id: 7, host: "wms.example", url: "https://wms.example/portal" },
+    { candidates: [offerableCandidate()], "teach-candidate": { error: "the server is unreachable" } },
+  );
+  await renderCandidates();
+  const row = ids["candidates"].kids[0];
+  const [doNext] = buttons(row);
+  await doNext.listeners[0]();
+
+  assert.strictEqual(doNext.disabled, false, "a failed teach left the row permanently disabled");
+});
+
 
 for (const [name, fn] of tests) {
   try {

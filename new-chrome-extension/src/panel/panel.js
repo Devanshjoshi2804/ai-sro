@@ -761,7 +761,7 @@ function row(candidate) {
   offer.textContent = "Do the next one";
   offer.addEventListener("click", () => {
     offer.disabled = true;
-    return beginOffer(candidate, item);
+    return beginOffer(candidate, item, offer);
   });
 
   const no = document.createElement("button");
@@ -810,32 +810,39 @@ export function previewOf(version, steps) {
   return { show, steps, missing };
 }
 
-/** The steps `previewOf` needs, from a skill version's own steps and what
- * `resolve-intent` said is still missing.
+/** The steps `previewOf` needs, from a skill version's own steps, what
+ * `resolve-intent` said is still missing, and what it already read out of the
+ * sentence for the rest.
  *
  * A step is a place data was typed only where a declared parameter's
  * `source_step_index` names it -- "Press Save." matches no parameter and
  * carries `value: null` forever, which is correct: it is a gesture, not a
- * question. A step that does match one, but whose parameter is not in
- * `missingParameters`, also carries `null` here -- not because nothing is
- * there, but because `resolve-intent` does not hand back the value it read
- * out of the sentence, only which names are still unaccounted for. Showing
- * a blank for what is genuinely unknown is honest; inventing one is not.
+ * question. A step that does match one keeps its parameter's name on it
+ * either way, missing or not: `renderReady` below sends a value for every
+ * named step, and a step that lost its name once it stopped being missing
+ * is exactly how a value the sentence supplied went unsent and the press
+ * was refused for a parameter nobody was ever asked to give twice.
  */
-function preview(skillVersion, missingParameters) {
+function preview(skillVersion, missingParameters, known = {}) {
   const steps = (skillVersion.steps || []).map((step) => {
     const parameter = (skillVersion.parameters || []).find(
       (candidate) => candidate.source_step_index === step.index,
     );
-    if (parameter && missingParameters.includes(parameter.name)) {
+    if (!parameter) return { intent: step.intent, value: null };
+    if (missingParameters.includes(parameter.name)) {
       return {
         intent: step.intent,
         value: null,
+        name: parameter.name,
         missing: parameter.name,
         label: parameter.description || parameter.name,
       };
     }
-    return { intent: step.intent, value: null };
+    // Read out of the sentence, not invented: `known` is `resolution.items`,
+    // the parser's own extraction, and a name absent from it (no parser
+    // configured, or this one just was not said) is shown blank rather than
+    // guessed at.
+    return { intent: step.intent, value: known[parameter.name] ?? null, name: parameter.name };
   });
   return previewOf(
     { stage: skillVersion.stage, clean_streak: skillVersion.track_record?.clean_streak ?? 0 },
@@ -860,56 +867,96 @@ async function runIt(skillId, parameters, intent) {
 }
 
 /** What a sentence resolved to, drawn into `box`: one skill and its preview,
- * a question between a few, or nothing taught at all.
+ * a hedge about the one it found, a question between a few, or nothing
+ * taught at all.
  *
  * `resolve-intent` is never asked about one skill in particular -- see
  * `askBox` below for why -- so every one of these is a real outcome, not an
- * edge case. Two candidates too close to separate is the one this file must
- * get right and a naive reading gets wrong: the temptation is to run the
- * first, because it scored highest, and that is a warehouse write on a coin
- * toss. So this asks, with both names on the screen, and waits.
+ * edge case. Two candidates too close to separate, and one candidate that
+ * does not account for the whole sentence, are the same failure with
+ * different shapes: a naive reading runs the best-scoring guess either way,
+ * and that is a warehouse write on a coin toss. `ResolveIntent` already
+ * refuses to guess and hands back a question in the operator's own words --
+ * discarding that here, at the last surface before a live write, would spend
+ * the one thing this whole branch is built on. So both ask, with a name on
+ * the screen, and wait.
  */
 async function renderResolution(resolution, box, utterance) {
   box.replaceChildren();
 
-  if (!resolution.matched) {
-    const said_ = document.createElement("p");
-    said_.className = "note";
-    if (resolution.choices?.length) {
-      said_.textContent =
-        resolution.question ||
-        `Which one did you mean: ${resolution.choices.map((choice) => choice.name).join(" or ")}?`;
-      box.append(said_);
-      for (const choice of resolution.choices) {
-        const pick = document.createElement("button");
-        pick.type = "button";
-        pick.className = "quiet";
-        pick.textContent = choice.name;
-        pick.addEventListener("click", async () => {
-          pick.disabled = true;
-          // ponytail: `resolve-intent` gives no missing-parameter list for a
-          // choice that was not the match, only for the one it settled on --
-          // so a picked choice is previewed with nothing marked missing rather
-          // than asked a second time. If a run this starts is refused for a
-          // value it never asked about, a second `resolve-intent` pinned to
-          // this choice is the fix; nothing taught needs it yet.
-          await renderPreview(preview(await fetchVersion(choice), []), choice, box, utterance);
-        });
-        box.append(pick);
-      }
-      return;
-    }
-    said_.textContent = resolution.question || "Nothing taught matches that.";
-    box.append(said_);
+  if (resolution.matched && resolution.confident) {
+    await renderPreview(
+      preview(
+        await fetchVersion(resolution.matched),
+        resolution.missing_parameters || [],
+        (resolution.items && resolution.items[0]) || {},
+      ),
+      resolution.matched,
+      box,
+      utterance,
+    );
     return;
   }
 
-  await renderPreview(
-    preview(await fetchVersion(resolution.matched), resolution.missing_parameters || []),
-    resolution.matched,
-    box,
-    utterance,
-  );
+  const said_ = document.createElement("p");
+  said_.className = "note";
+
+  if (resolution.matched) {
+    // Exactly one skill scored best, but it does not account for the whole
+    // sentence -- `resolve-intent` says so itself, in `question`, which is
+    // rendered rather than recomposed: a second version of "did you mean X?"
+    // written here is a second sentence to keep in step with resolve.py's.
+    said_.textContent = resolution.question || `Did you mean “${resolution.matched.name}”?`;
+    box.append(said_);
+    const yes = document.createElement("button");
+    yes.type = "button";
+    yes.textContent = `Yes, ${resolution.matched.name}`;
+    yes.addEventListener("click", async () => {
+      yes.disabled = true;
+      await renderPreview(
+        preview(
+          await fetchVersion(resolution.matched),
+          resolution.missing_parameters || [],
+          (resolution.items && resolution.items[0]) || {},
+        ),
+        resolution.matched,
+        box,
+        utterance,
+      );
+    });
+    box.append(yes);
+    return;
+  }
+
+  if (resolution.choices?.length) {
+    said_.textContent =
+      resolution.question ||
+      `Which one did you mean: ${resolution.choices.map((choice) => choice.name).join(" or ")}?`;
+    box.append(said_);
+    for (const choice of resolution.choices) {
+      const pick = document.createElement("button");
+      pick.type = "button";
+      pick.className = "quiet";
+      pick.textContent = choice.name;
+      pick.addEventListener("click", async () => {
+        pick.disabled = true;
+        // ponytail: `resolve-intent` gives no missing-parameter list, and no
+        // extracted values, for a choice that was not the match -- only for
+        // the one it settled on. So a picked choice is previewed with
+        // nothing marked missing rather than asked a second time; a run this
+        // starts with a parameter it never asked about is refused at the
+        // press (`ensure_runnable`), not sent wrong. A second `resolve-intent`
+        // pinned to this choice is the fix if that refusal is ever felt;
+        // nothing taught needs it yet.
+        await renderPreview(preview(await fetchVersion(choice), []), choice, box, utterance);
+      });
+      box.append(pick);
+    }
+    return;
+  }
+
+  said_.textContent = resolution.question || "Nothing taught matches that.";
+  box.append(said_);
 }
 
 /** The skill version a candidate names, fetched fresh. Held nowhere between
@@ -923,7 +970,14 @@ async function fetchVersion(candidate) {
 }
 
 /** What is still missing, asked for by the screen's own name -- never the
- * signature's -- and then the preview `built.show` actually calls for. */
+ * signature's -- and then the preview `built.show` actually calls for.
+ *
+ * An empty box is not an answer. A field left blank and continued through
+ * would send `""` as the value, and `""` is a value: the run is not refused
+ * for missing it, it is sent, and it writes an empty field into a warehouse
+ * record. So a blank here is treated exactly like one never typed at all --
+ * it stays asked for -- rather than accepted as a deliberate empty string.
+ */
 async function renderPreview(built, candidate, box, utterance) {
   box.replaceChildren();
   const need = built.steps.filter((step) => step.missing);
@@ -938,14 +992,21 @@ async function renderPreview(built, candidate, box, utterance) {
       box.append(line);
       fields.set(step, field);
     }
+    const warn = document.createElement("p");
+    warn.className = "note";
     const go = document.createElement("button");
     go.type = "button";
     go.textContent = "Continue";
     go.addEventListener("click", async () => {
+      const blank = [...fields].filter(([, field]) => !field.value);
+      if (blank.length) {
+        warn.textContent = `${blank.map(([step]) => step.label).join(", ")} cannot be left blank.`;
+        return;
+      }
       for (const [step, field] of fields) step.value = field.value;
       await renderReady(built, candidate, box, utterance);
     });
-    box.append(go);
+    box.append(warn, go);
     return;
   }
   await renderReady(built, candidate, box, utterance);
@@ -953,27 +1014,44 @@ async function renderPreview(built, candidate, box, utterance) {
 
 /** Every value is in hand. Now it is only `built.show` deciding what an
  * operator sees before the press -- every step and its value, one line, or
- * nothing at all -- never how many times they have pressed it before. */
+ * nothing at all -- never how many times they have pressed it before.
+ *
+ * "Nothing at all" means no step-by-step account, earned by a track record
+ * good enough that reading one is not worth an operator's time -- it has
+ * never meant the operator should not know which task just ran. A sentence
+ * could once only mean the one task a row offered; now it is ranked across
+ * everything taught, so which task a press just started is no longer implied
+ * by which button was on the screen, and it is said here instead.
+ */
 async function renderReady(built, candidate, box, utterance) {
   box.replaceChildren();
   const parameters = {};
-  for (const step of built.steps) if (step.missing) parameters[step.missing] = step.value ?? "";
+  for (const step of built.steps) {
+    const name = step.missing || step.name;
+    if (name) parameters[name] = step.value ?? "";
+  }
 
   const press = async () => {
-    box.replaceChildren();
     const said_ = document.createElement("p");
     said_.className = "note";
-    said_.textContent = "starting…";
     box.append(said_);
     try {
       await runIt(candidate.skill_id, parameters, utterance);
-      said_.textContent = `“${candidate.name}” is running`;
+      said_.textContent = "started";
     } catch (error) {
       said_.textContent = error.message;
     }
   };
 
   if (built.show === "nothing") {
+    // Named on its own line, kept rather than overwritten by whatever the
+    // press turns out to say: a refusal is still a refusal of the task named
+    // here, and an operator reading it needs both, not one replacing the
+    // other.
+    const named = document.createElement("p");
+    named.className = "note";
+    named.textContent = `Running “${candidate.name}”…`;
+    box.append(named);
     await press();
     return;
   }
@@ -983,6 +1061,9 @@ async function renderReady(built, candidate, box, utterance) {
     said_.textContent = `${candidate.name} — do it?`;
     box.append(said_);
   } else {
+    const said_ = document.createElement("p");
+    said_.textContent = candidate.name;
+    box.append(said_);
     for (const step of built.steps) {
       const line = document.createElement("p");
       line.className = "metrics";
@@ -994,7 +1075,7 @@ async function renderReady(built, candidate, box, utterance) {
   const go = document.createElement("button");
   go.type = "button";
   go.textContent = "Do it";
-  go.addEventListener("click", press);
+  go.addEventListener("click", () => press());
   box.append(go);
 }
 
@@ -1039,6 +1120,23 @@ function askBox(holder, prefill) {
   holder.append(row_, said_, box);
 }
 
+/** The sentence the box in `beginOffer` opens with -- a suggestion for what
+ * to type, never a restriction on it (see `askBox`).
+ *
+ * A model's own title is a full sentence and is used as one; failing that,
+ * the noun `plainly()` already reads off the candidate's signature makes an
+ * ordinary instruction ("Do the next work operation"). Where neither exists
+ * this is left blank rather than filled with words about the button that
+ * opened it -- "Do the next one" names no task, and typing nothing into the
+ * box is a truer starting point than typing a sentence that ranks nothing
+ * because it asks for nothing.
+ */
+function suggestedSentence(candidate) {
+  if (candidate.named_by_model && candidate.title) return candidate.title;
+  const what = noun(candidate);
+  return what ? `Do the next ${counted(what, 1)}` : "";
+}
+
 /** Starts the offer this row just made: doing the operator's next occurrence
  * of the task.
  *
@@ -1049,7 +1147,7 @@ function askBox(holder, prefill) {
  * what it saw, and the honest answer is to say so and ask for one more
  * ordinary doing of it, which is what the sentence below says.
  */
-async function beginOffer(candidate, item) {
+async function beginOffer(candidate, item, offerButton) {
   const note = document.createElement("p");
   note.className = "note";
   note.textContent = "one moment…";
@@ -1060,14 +1158,20 @@ async function beginOffer(candidate, item) {
     taught = await ask({ kind: "teach-candidate", id: candidate.id });
   } catch (error) {
     note.textContent = error.message;
+    if (offerButton) offerButton.disabled = false;
     return;
   }
 
   if (taught.needs_demonstration) {
+    // `taught.because` is `str(InductionFailed)` -- a recording id, an
+    // objective-key slug, a JSON pointer diffing two demonstrations. None of
+    // that is written for an operator to read, so the sentence here is fixed
+    // rather than passed through; `taught.because` stays in the console's own
+    // review screen, where a person who wants the raw reason already is one.
     note.textContent =
-      taught.because ||
       "I've watched this a few times but the doings differ too much for me to be sure" +
-        " — do one more and I'll try again.";
+      " — do one more and I'll try again.";
+    if (offerButton) offerButton.disabled = false;
     return;
   }
 
@@ -1077,7 +1181,7 @@ async function beginOffer(candidate, item) {
   // second way to take a node out of the page for no reason worth a second
   // way.
   note.textContent = "";
-  askBox(item, candidate.named_by_model && candidate.title ? candidate.title : "Do the next one");
+  askBox(item, suggestedSentence(candidate));
 }
 
 /** What a model noticed about this candidate, and the two words a person can

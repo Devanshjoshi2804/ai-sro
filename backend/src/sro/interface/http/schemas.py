@@ -1214,6 +1214,14 @@ class ResolutionModel(BaseModel):
     why: list[str]
     proposal: ProposalModel | None
 
+    items: list[dict[str, str]] = []
+    """Values the parser read out of the sentence for the matched skill, one
+    set per thing to do -- "these six SKUs" is six. Sent so a caller that asks
+    in a sentence rather than a form can actually use what typing the sentence
+    was for; without this a matched skill whose parameters the sentence
+    supplied was refused at the press for values nobody was ever asked to
+    give twice."""
+
     @classmethod
     def of(cls, resolution: Resolution) -> ResolutionModel:
         return cls(
@@ -1225,6 +1233,7 @@ class ResolutionModel(BaseModel):
             confident=resolution.confident,
             question=resolution.question,
             why=list(resolution.why),
+            items=[dict(item) for item in resolution.items],
             proposal=(
                 ProposalModel(
                     steps=[

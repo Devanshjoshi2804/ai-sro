@@ -259,8 +259,9 @@ below `ASSISTED`, so three wrong runs demoted a version and the operator's very
 next press restored it with the counter at zero. A version that was wrong every
 single time never stayed demoted, and the sentence above about a reviewer being
 able to "wait, because three consecutive failures pull any `ASSISTED` version
-back down" was untrue for exactly the versions this decision creates. Two guards
-now, not one:
+back down" was untrue for exactly the versions this decision creates. It had a
+second door as well, which a re-review of the first fix caught: three guards
+now, not one.
 
 - A preview promotion does not clear `consecutive_failures`. The clearing was
   written for the console — "cleared by the person who looked" — and the
@@ -273,11 +274,25 @@ now, not one:
   being wrong three times needs a person in the console with the evidence in
   front of them. That is what the ladder is for, and a press is not that. The
   refusal says so in an operator's words rather than naming a field.
+- A verdict revised by the operator rewinds `consecutive_failures` to what it
+  held before the verdict it replaces. The two guards above close the press's
+  door and leave `FinishRun`'s wide open: `after(CLEAN)` zeroes the counter the
+  instant a run ends, and the operator's answer only arrives afterwards, so the
+  sequence this decision actually describes — a run finishes clean, the
+  operator sees what it made and takes it back, repeat — oscillated between
+  zero and one forever. Three was unreachable, and a version that made the
+  wrong record *every single time* ran assisted indefinitely, which is the
+  exact failure the first two guards were written to prevent arriving by a
+  different route. `TrackRecord` now remembers what the count held before the
+  most recently counted run, and `instead_of` puts it back before applying the
+  replacement; restoring what the replaced verdict cleared is precisely that
+  method's job.
 
-Neither narrows what this decision grants for a version that is working. What
-they do is make the sentence "three in a row pulls it back down" mean what it
-says, which is the only thing standing behind the writes this decision admits
-the operator never read.
+None of the three narrows what this decision grants for a version that is
+working. What they do is make the sentence "three in a row pulls it back down"
+mean what it says — through the ordinary sequence, not only through three
+outright crashes — which is the only thing standing behind the writes this
+decision admits the operator never read.
 
 **`promoted_from` is rendered.** "That visibility is the whole of what this
 decision buys a reviewer" was false while the field was on

@@ -25,7 +25,7 @@ from sro.domain.skill.plan import NetworkPlan
 from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.skill import SkillStep
 from sro.domain.skill.template import Template
-from sro.domain.skill.track_record import why_not_autonomous
+from sro.domain.skill.track_record import Verdict, why_not_autonomous
 from tests import factories as f
 from tests.unit.fakes import (
     FakeClock,
@@ -158,3 +158,39 @@ def test_the_promotion_gate_refuses_in_the_same_words_the_screen_shows() -> None
     assert version.not_ready_for_autonomy is not None
     assert version.not_ready_for_autonomy in str(refused.value)
     assert "step 1" in str(refused.value)
+
+
+def test_promoting_a_demoted_version_clears_what_demoted_it() -> None:
+    """Found by pressing the button on a real skill.
+
+    `should_demote` is a standing condition, not an event: it is re-asked after
+    every run. So a version demoted at three failures went back down on its
+    very next run whatever that run did -- and it could not do better, because
+    shadow withholds the writes a clean run would need. Promoting it was
+    futile, and read as a bug in the ladder rather than as one in the counter.
+
+    The streak is not cleared. That is progress towards autonomy, and nobody
+    gets to grant it by pressing a button.
+    """
+    version = f.skill_version(steps=(_read(0, asserts=True),))
+    version.promote(PromotionStage.SHADOW, f.at(700), f.OPERATOR)
+    version.promote(PromotionStage.ASSISTED, f.at(700), f.OPERATOR)
+    for _ in range(3):
+        version.record_run(Verdict.FAILED, f.at(800))
+    assert version.track_record.should_demote
+    version.demote(PromotionStage.SHADOW, f.at(800), "3 runs failed in a row")
+
+    version.promote(PromotionStage.ASSISTED, f.at(900), f.OPERATOR)
+
+    assert version.track_record.should_demote is False
+    assert version.demotion_reason is None
+    # The history is kept -- what happened happened.
+    assert version.track_record.failed_runs == 3
+
+
+def test_promoting_does_not_hand_a_version_a_streak_it_did_not_earn() -> None:
+    version = f.skill_version(steps=(_read(0, asserts=True),))
+    version.record_run(Verdict.CLEAN, f.at(700))
+    version.promote(PromotionStage.SHADOW, f.at(800), f.OPERATOR)
+
+    assert version.track_record.clean_streak == 1

@@ -16,9 +16,11 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from sro.application.context import RequestContext
+from sro.application.ports.dispatch import RunDispatcher
 from sro.application.ports.durable import DurableExecution
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
+from sro.application.trigger.fire_trigger import start_for
 from sro.domain.execution.run import RunId
 from sro.domain.shared.errors import InvariantViolation
 from sro.domain.shared.identifiers import ConfirmationId
@@ -39,11 +41,13 @@ class AnswerConfirmation:
         clock: Clock,
         ids: IdFactory,
         durable: DurableExecution,
+        dispatcher: RunDispatcher | None = None,
     ) -> None:
         self._uow = uow
         self._clock = clock
         self._ids = ids
         self._durable = durable
+        self._dispatcher = dispatcher
 
     async def approve(self, ctx: RequestContext, *, confirmation_id: ConfirmationId) -> Answered:
         """Yes: run it, with this person's name on the run.
@@ -72,19 +76,26 @@ class AnswerConfirmation:
             if version is None:
                 raise InvariantViolation("this skill has no version that may run")
 
-            run_id = self._ids.new_run_id()
-            await self._durable.execute_skill(
+            # The same start a fire uses, rather than a second one beside it.
+            # This called `execute_skill` directly and quietly dropped the
+            # trigger's `device_id`, so a card for a task bound to the
+            # operator's own browser drove a browser this deployment owns --
+            # and failed to attach to a CDP endpoint nobody was listening on,
+            # with the card already marked approved. Found by pressing the
+            # button.
+            #
+            # `authorized_by` is the person who answered, not the person who
+            # made the trigger: an unattended write happens because somebody
+            # said so, and this is the somebody.
+            run_id = await start_for(
                 ctx,
-                skill_id=waiting.skill_id,
-                parameters=dict(waiting.values),
+                trigger,
                 version=version.version,
-                # The person who answered, not the person who made the trigger.
-                # An unattended write happens because somebody said so, and this
-                # is the somebody.
+                values=dict(waiting.values),
+                durable=self._durable,
+                ids=self._ids,
+                dispatcher=self._dispatcher,
                 authorized_by=ctx.principal_id.value,
-                medium=trigger.medium.value,
-                run_id=run_id,
-                wait=False,
             )
             waiting.approve(ctx.principal_id, now, run_id)
             trigger.fired(now, run_id)

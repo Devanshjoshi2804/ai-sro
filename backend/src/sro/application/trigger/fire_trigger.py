@@ -155,41 +155,14 @@ class FireTrigger:
     async def _start(
         self, ctx: RequestContext, trigger: Trigger, *, version: int, values: dict[str, str]
     ) -> RunId:
-        if trigger.device_id is None:
-            # Named before it starts, the same reason the console does this --
-            # `wait=False` alone is not fire-and-forget: the durable adapter's
-            # fast path only takes it once a run id is already there to
-            # return, and without one every fire blocked a worker activity
-            # slot for the run's full duration regardless of the flag.
-            run_id = self._ids.new_run_id()
-            await self._durable.execute_skill(
-                ctx,
-                skill_id=trigger.skill_id,
-                parameters=values,
-                version=version,
-                authorized_by=trigger.authorized_by.value if trigger.authorized_by else None,
-                medium=trigger.medium.value,
-                run_id=run_id,
-                wait=False,
-            )
-            return run_id
-
-        # The channel to that browser is held by whichever process the
-        # extension connected to, and this is not that process.
-        if self._dispatcher is None:
-            raise DispatchFailed("this process cannot reach a browser")
-        return await self._dispatcher.start(
+        return await start_for(
             ctx,
-            skill_id=trigger.skill_id,
-            parameters=values,
-            device_id=trigger.device_id,
+            trigger,
             version=version,
-            authorized_by=trigger.authorized_by is not None,
-            medium=trigger.medium,
-            # Whether this fire may move the operator's tab. A schedule that
-            # runs at 3am has no business taking a screen, and a trigger the
-            # operator set up to watch may.
-            may_take_focus=trigger.may_take_focus,
+            values=values,
+            durable=self._durable,
+            ids=self._ids,
+            dispatcher=self._dispatcher,
         )
 
     async def _forget(self, trigger_id: TriggerId) -> None:
@@ -197,6 +170,70 @@ class FireTrigger:
             return
         logger.info("removing the schedule for trigger %s, which no longer exists", trigger_id)
         await self._scheduler.unschedule(trigger_id)
+
+
+async def start_for(
+    ctx: RequestContext,
+    trigger: Trigger,
+    *,
+    version: int,
+    values: dict[str, str],
+    durable: DurableExecution,
+    ids: IdFactory,
+    dispatcher: RunDispatcher | None,
+    authorized_by: str | None = None,
+) -> RunId:
+    """Start the run a trigger asks for, at the rung it asks for.
+
+    Module-level because two callers need it and they must not disagree. A fire
+    starts a run here; a confirmation somebody approved starts one too, and the
+    second used to call `execute_skill` directly -- which quietly dropped the
+    trigger's `device_id` and drove a browser this deployment owns instead of
+    the operator's own. The run then failed to attach to a CDP endpoint nobody
+    was listening on, and the card had already been marked approved.
+
+    ``authorized_by`` overrides the trigger's, because an approved card runs
+    under the name of whoever pressed the button rather than whoever made the
+    trigger.
+    """
+    named = authorized_by or (trigger.authorized_by.value if trigger.authorized_by else None)
+
+    if trigger.device_id is None:
+        # Named before it starts, the same reason the console does this --
+        # `wait=False` alone is not fire-and-forget: the durable adapter's
+        # fast path only takes it once a run id is already there to
+        # return, and without one every fire blocked a worker activity
+        # slot for the run's full duration regardless of the flag.
+        run_id = ids.new_run_id()
+        await durable.execute_skill(
+            ctx,
+            skill_id=trigger.skill_id,
+            parameters=values,
+            version=version,
+            authorized_by=named,
+            medium=trigger.medium.value,
+            run_id=run_id,
+            wait=False,
+        )
+        return run_id
+
+    # The channel to that browser is held by whichever process the extension
+    # connected to, and this is not that process.
+    if dispatcher is None:
+        raise DispatchFailed("this process cannot reach a browser")
+    return await dispatcher.start(
+        ctx,
+        skill_id=trigger.skill_id,
+        parameters=values,
+        device_id=trigger.device_id,
+        version=version,
+        authorized_by=named is not None,
+        medium=trigger.medium,
+        # Whether this fire may move the operator's tab. A schedule that runs
+        # at 3am has no business taking a screen, and a trigger the operator
+        # set up to watch may.
+        may_take_focus=trigger.may_take_focus,
+    )
 
 
 def blank_inputs(version: SkillVersion, values: Mapping[str, str]) -> list[str]:

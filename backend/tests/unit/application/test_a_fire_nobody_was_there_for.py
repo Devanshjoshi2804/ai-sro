@@ -26,7 +26,7 @@ from sro.application.trigger.answer_confirmation import (
 from sro.application.trigger.fire_trigger import FireTrigger
 from sro.domain.execution.run import Medium
 from sro.domain.shared.errors import InvariantViolation
-from sro.domain.shared.identifiers import PrincipalId, TriggerId
+from sro.domain.shared.identifiers import DeviceId, PrincipalId, TriggerId
 from sro.domain.skill.promotion import PromotionStage
 from sro.domain.trigger.confirmation import ANSWER_WITHIN, Answer
 from sro.domain.trigger.trigger import Trigger, TriggerKind
@@ -35,6 +35,7 @@ from tests.unit.fakes import (
     FakeClock,
     FakeDurableExecution,
     FakeIdFactory,
+    FakeRunDispatcher,
     FakeUnitOfWork,
 )
 
@@ -238,3 +239,28 @@ async def test_a_card_that_expired_is_no_longer_waiting() -> None:
     await ExpireConfirmations(uow, FakeClock(AT + timedelta(days=2))).execute(CTX)
 
     assert await ReadConfirmations(uow).execute(CTX) == ()
+
+
+async def test_approving_a_card_runs_it_in_the_browser_the_trigger_named() -> None:
+    """Found by pressing the button.
+
+    `approve` called `execute_skill` directly instead of the start a fire uses,
+    which quietly dropped the trigger's `device_id`: a card for a task bound to
+    the operator's own browser drove a browser this deployment owns, failed to
+    attach to a CDP endpoint nobody was listening on, and left the card already
+    marked approved.
+    """
+    uow, durable = FakeUnitOfWork(), FakeDurableExecution()
+    dispatcher = FakeRunDispatcher()
+    trigger = await _armed(uow)
+    trigger.device_id = DeviceId("dev-1")
+    await uow.triggers.save(trigger)
+    fired = await _fire(uow, durable).execute(TriggerId("trg-1"))
+
+    await AnswerConfirmation(uow, FakeClock(AT), FakeIdFactory(), durable, dispatcher).approve(
+        BY_SUPERVISOR, confirmation_id=fired.confirmation_id
+    )
+
+    # In the operator's browser, and nowhere else.
+    assert dispatcher.with_values == [{"shipment_id": "SH-1"}]
+    assert durable.started == []

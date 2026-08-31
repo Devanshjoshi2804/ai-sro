@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 
 from sro.domain.shared.errors import InvariantViolation
@@ -379,6 +379,17 @@ class SkillVersion:
         self.stage = to
         self.promoted_at = at
         self.promoted_by = by
+        # The count that demoted it, cleared by the person who looked.
+        #
+        # `should_demote` is a standing condition rather than an event: it is
+        # re-asked after every run, so a version demoted at three failures went
+        # straight back down on its next run whatever that run did -- and it
+        # could not do better, because shadow withholds the writes a clean run
+        # would need. Promoting it was futile and looked like a bug in the
+        # ladder. The streak is left alone: it is progress towards autonomy and
+        # nobody may grant it by pressing a button.
+        self.track_record = replace(self.track_record, consecutive_failures=0)
+        self.demotion_reason = None
 
     def _check_step_indices(self) -> None:
         indices = [step.index for step in self.steps]

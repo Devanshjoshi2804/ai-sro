@@ -299,7 +299,9 @@ class Container:
         )
 
     def answer_confirmation(self) -> AnswerConfirmation:
-        return AnswerConfirmation(self.unit_of_work(), self.clock, self.ids, self.durable)
+        return AnswerConfirmation(
+            self.unit_of_work(), self.clock, self.ids, self.durable, self.dispatcher
+        )
 
     def read_confirmations(self) -> ReadConfirmations:
         return ReadConfirmations(self.unit_of_work())

@@ -32,6 +32,19 @@ class Medium(StrEnum):
     """Which rung of the ladder performed a step."""
 
     NETWORK = "network"
+
+    TOOL = "tool"
+    """A call through a connector the tenant configured, rather than a replay
+    of one a demonstration produced.
+
+    Its own word rather than NETWORK, though both are calls. A run record is
+    read back months later to answer what actually happened, and one word
+    meaning "the request the operator's own click made" in some records and
+    "whatever a third party's connector decided to send" in others is a word
+    that answers nothing. What they have in common -- deterministic, and
+    checkable against a result -- is why `judge` treats them alike; what they
+    do not is why a reader can tell them apart."""
+
     UI = "ui"
     VISION = "vision"
 
@@ -277,6 +290,35 @@ class Run:
     ended_at: datetime | None = None
     failure: str | None = None
 
+    wrong_because: str | None = None
+    """Why the person this ran for said the result was wrong.
+
+    `judge` reads statuses, media and escalations, and every one of them can be
+    clean while the record the run created is not the one anybody wanted. That
+    is the failure the ladder cannot see on its own, and the only witness is
+    whoever was looking at the screen.
+
+    Collected as an undo they wanted rather than as a question they answered:
+    the press that takes the record back is the same press that says it was
+    wrong, so being honest costs them nothing.
+    """
+
+    intent: str = ""
+    """The sentence the operator typed to ask for this run, where one started it.
+
+    `SkillStep.intent` is derived from what was observed and reads the same on
+    every replay; this is the opposite kind of thing -- a transcript of what one
+    person asked for, once. It is the audit answer to "why did this run happen
+    at all", which nothing else on a run or its skill can give, and it lives
+    here rather than in a second store because a run already outlives the
+    request that started it and a second table would just be a join that can
+    drift from this one.
+
+    Blank for every run that did not begin with somebody typing a sentence: a
+    console run against a chosen version, a batch, a trigger firing on its own
+    schedule. Nobody asked those in words, so there is nothing to keep.
+    """
+
     def __post_init__(self) -> None:
         if self.skill_version < 1:
             raise InvariantViolation("version numbers start at 1")
@@ -360,6 +402,23 @@ class Run:
         self.status = RunStatus.FAILED
         self.failure = reason
         self.ended_at = at
+
+    def called_wrong(self, because: str) -> None:
+        """The person this ran for says the result was wrong.
+
+        Once. The first answer is the one they gave while looking at what it
+        made; a second one later is somebody rewriting the record, and the
+        track record has already been told.
+        """
+        if self.status is RunStatus.RUNNING:
+            raise InvariantViolation(
+                "a run still running has made nothing yet for anyone to call wrong"
+            )
+        if self.wrong_because is not None:
+            raise InvariantViolation(f"this run was already called wrong: {self.wrong_because!r}")
+        if not because.strip():
+            raise InvariantViolation("a run called wrong says why, even if only 'undone'")
+        self.wrong_because = because
 
     def _require_running(self) -> None:
         if self.status is not RunStatus.RUNNING:

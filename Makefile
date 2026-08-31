@@ -94,9 +94,20 @@ types: ## Regenerate frontend API types from the backend OpenAPI document
 gen-recorder: ## Regenerate the extension's copy of the page recorder, secrets baked in
 	$(BACKEND) uv run python -m sro.infrastructure.steel.generate_extension_recorder
 
+tokens: ## Copy the brand palette from the console into the extension
+	$(BACKEND) uv run python scripts/write_tokens.py
+
+verify-held: ## Prove a person typing in their own browser reaches the console
+	@token=$$($(BACKEND) uv run python -m sro.cli.mint $(or $(tenant),acme) $(or $(principal),operator) --days 1); \
+	  cd backend && SRO_TOKEN=$$token uv run python -u scripts/verify_held.py
+
+shots: ## Every screen at three widths, for comparing before and after: make shots out=/tmp/before
+	@token=$$($(BACKEND) uv run python -m sro.cli.mint $(or $(tenant),acme) $(or $(principal),operator) --days 1); \
+	  cd backend && SRO_TOKEN=$$token SRO_SHOTS=$(or $(out),/tmp/sro-shots) uv run python -u scripts/route_shots.py
+
 # --- quality ----------------------------------------------------------------
 
-lint: lint-backend lint-frontend ## Run every linter
+lint: lint-backend lint-frontend lint-extension ## Run every linter
 
 lint-backend: ## ruff + mypy --strict + import-linter
 	$(BACKEND) uv run ruff check .
@@ -107,6 +118,9 @@ lint-backend: ## ruff + mypy --strict + import-linter
 lint-frontend: ## eslint + tsc
 	$(FRONTEND) npm run lint
 	$(FRONTEND) npm run typecheck
+
+lint-extension: ## no-undef over the extension, which has no build step to catch it
+	cd new-chrome-extension && ../frontend/node_modules/.bin/eslint .
 
 format: ## Autoformat both sides
 	$(BACKEND) uv run ruff check --fix .
@@ -136,8 +150,15 @@ test-frontend: ## The console's own tests
 test-extension: ## The extension's own self-checks, in plain node
 	node new-chrome-extension/src/background/queue.test.mjs
 	node new-chrome-extension/src/background/queue.upgrade.test.mjs
+	node new-chrome-extension/src/background/showing.test.mjs
+	node new-chrome-extension/src/background/frames.test.mjs
+	node new-chrome-extension/src/background/pages.test.mjs
+	node new-chrome-extension/src/background/finishing.test.mjs
+	node new-chrome-extension/src/background/watching-across-a-reload.test.mjs
+	node new-chrome-extension/src/background/trees.test.mjs
 	node new-chrome-extension/src/content/network.test.mjs
 	node new-chrome-extension/src/content/watch.test.mjs
 	node new-chrome-extension/src/panel/panel.test.mjs
+	node new-chrome-extension/src/tokens.test.mjs
 
 check: lint test test-contract test-frontend test-extension test-browser ## What CI runs

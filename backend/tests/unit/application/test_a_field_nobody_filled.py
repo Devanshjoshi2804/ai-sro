@@ -2068,7 +2068,7 @@ def _adjust_line(index: int, line: str, priority: int | None) -> object:
     )
 
 
-async def _induce_the_loop_with_a_skipped_field() -> SkillVersion:
+async def _induce_the_loop_with_a_skipped_field() -> tuple[FakeUnitOfWork, SkillVersion]:
     """Two operators adjust every short line on an order. One typed a Delta
     Priority first and the other left the box alone; one order had two short
     lines and the other three. The line numbers are the order's own, so the
@@ -2087,30 +2087,130 @@ async def _induce_the_loop_with_a_skipped_field() -> SkillVersion:
         await uow.recordings.add(recording)
 
     clock = FakeClock()
-    return await InduceSkill(
+    induced = await InduceSkill(
         uow,
         clock,
         FakeIdFactory(),
         AskAbout(uow, RecordClaims(uow, clock, FakeIdFactory(), FakeEmbedder())),
     ).execute(CTX, first=RecordingId("rec-a"), second=RecordingId("rec-b"))
+    skill = await uow.skills.get(f.TENANT, induced.skill_id)
+    return uow, skill.versions[-1]
 
 
-async def test_a_loop_and_a_skipped_field_in_one_pair_is_refused() -> None:
-    """The comment in `induce_skill` that nothing checked, and what building
-    the pair it describes actually showed.
+def _looked_around(index: int, *, named: bool) -> object:
+    """A glance at a panel: no call, no typed value, nothing to prove.
 
-    A loop's bounds and substitutions are keyed by raw frame; everything the
-    diff produced is keyed by aligned step; and `_make_room` moves every key it
-    is handed. So the conditional step moved the loop's own `${line_id}` one
-    place past the step that sends it, where nothing reads it. The pair induced
-    without complaint, the version passed its own invariants, and the skill it
-    produced posted `https://wms.test/api/lines/1/adjust` once per line the
-    order had -- the same line, as many times as there were lines.
-
-    Reconciling the two spaces means deciding that they agree once every
-    dropped gesture is back, which holds for this pair and not for one with a
-    non-evidential gesture in it as well. That is a guess, so the pair refuses
-    and says which demonstration to do again.
+    Described differently in the two runs, exactly as the Delta Priority box
+    is: the shape sequence still matches, so the loop is still found, and the
+    pairing still fails, so `align` drops it. Nothing puts it back either --
+    it typed nothing, so it is not an optional fill. A frame that exists in
+    the recording and in no version, which is the gap the two index spaces
+    fell into.
     """
-    with pytest.raises(InductionFailed, match="a loop and a form somebody skipped a field on"):
-        await _induce_the_loop_with_a_skipped_field()
+    return f.frame(
+        index=index,
+        action=InputAction(
+            kind=ActionKind.CLICK,
+            target=f.fingerprint(
+                role="button",
+                accessible_name="Order details" if named else None,
+                text=None if named else "Order details",
+                css_path="button#details",
+            ),
+        ),
+        requests=(),
+    )
+
+
+async def _induce_the_loop_with_a_wander(wanders: int) -> tuple[FakeUnitOfWork, SkillVersion]:
+    """The same looping task, with a glance at a panel neither run pairs on."""
+    uow = FakeUnitOfWork()
+    for ident, lines, named in (("rec-a", ["1", "2"], True), ("rec-b", ["1", "2", "3"], False)):
+        recording = f.recording(frames=0, id=RecordingId(ident))
+        at = 0
+        recording.append_frame(_open_order(lines))
+        at += 1
+        for _ in range(wanders):
+            recording.append_frame(_looked_around(at, named=named))
+            at += 1
+        for line in lines:
+            recording.append_frame(_adjust_line(at, line, None))
+            at += 1
+        recording.seal(f.at(300))
+        await uow.recordings.add(recording)
+
+    clock = FakeClock()
+    induced = await InduceSkill(
+        uow,
+        clock,
+        FakeIdFactory(),
+        AskAbout(uow, RecordClaims(uow, clock, FakeIdFactory(), FakeEmbedder())),
+    ).execute(CTX, first=RecordingId("rec-a"), second=RecordingId("rec-b"))
+    skill = await uow.skills.get(f.TENANT, induced.skill_id)
+    return uow, skill.versions[-1]
+
+
+def _body_of(version: SkillVersion) -> tuple[object, ...]:
+    loop = version.loops[0]
+    return version.steps[loop.first_step : loop.last_step + 1]
+
+
+def _sends(step: object) -> str:
+    plan = step.network_plan  # type: ignore[attr-defined]
+    return f"{plan.url}{plan.body or ''}"
+
+
+async def test_a_loop_survives_a_gesture_only_one_operator_made() -> None:
+    """The defect, at its smallest: two unmatched frames and no conditional at
+    all produced `a loop covers steps 3-3, and this version has 2`.
+
+    `detect` counted the frames as they were recorded and everything else
+    counted the steps the two runs share, so every gesture `align` dropped
+    slid the loop one place past where its body actually was.
+    """
+    _, version = await _induce_the_loop_with_a_wander(2)
+
+    loop = version.loops[0]
+    assert loop.last_step < len(version.steps)
+    body = _body_of(version)
+    assert len(body) == 1
+    # The one thing the old bug destroyed: the element's own value reaches the
+    # step that sends it. Landing one place away made the skill adjust
+    # whichever line the first iteration happened to carry, once per line.
+    for bind in loop.binds:
+        assert f"${{{bind.parameter}}}" in _sends(body[0])
+
+
+async def test_a_loop_and_a_skipped_field_in_one_pair_now_induce_together() -> None:
+    """What the two index spaces cost, and what unifying them buys back.
+
+    A loop's bounds were keyed by raw frame and everything the diff produced by
+    aligned step, so putting the skipped field's gesture back as a step moved
+    one and not the other: the loop's own `${line_id}` landed one place past
+    the step that sends it. The pair induced without complaint, the version
+    passed its own invariants, and the skill posted
+    `https://wms.test/api/lines/1/adjust` once per line the order had -- the
+    same line, as many times as there were lines. It was walled off behind a
+    refusal rather than reconciled under time pressure.
+
+    Converted at the one seam instead, this pair is an ordinary skill: type the
+    priority if somebody supplies one, then adjust each short line the order
+    actually has.
+    """
+    _, version = await _induce_the_loop_with_a_skipped_field()
+
+    loop = version.loops[0]
+    body = _body_of(version)
+    assert len(body) == 1
+    for bind in loop.binds:
+        assert f"${{{bind.parameter}}}" in _sends(body[0])
+
+    # The list comes from a step that has already run by the time the block does.
+    assert loop.over_step_index < loop.first_step
+
+    # The skipped field is back as a step of its own, before the block, and the
+    # value it types reaches the call the block makes.
+    conditional = [step for step in version.steps if step.when is not None]
+    assert len(conditional) == 1
+    assert conditional[0].index < loop.first_step
+    assert "${delta_priority}" in _sends(body[0])

@@ -1,0 +1,115 @@
+import type { Demonstration } from "@/features/skill/api";
+
+/**
+ * Grouping demonstrations by *how* they were done rather than by what was typed.
+ *
+ * A task demonstrated ten times is usually not ten different things. Six of
+ * those doings filled exactly the same fields and left exactly the same ones
+ * out; only the values differ, and values differing is the whole point of a
+ * parameter — it is expected, not informative. What is informative is the
+ * shape: which optional fields somebody bothered with this time.
+ *
+ * So the columns are the distinct shapes, not the doings. Three columns saying
+ * "here are the three ways this job has ever been done" beat ten columns of
+ * near-identical evidence, and the shape seen once is the one worth reading.
+ */
+
+/** One doing's answer for one field, reduced to what makes shapes comparable. */
+export type Fill = "filled" | "empty" | "unread";
+
+export function fillOf(doing: Demonstration, name: string): Fill {
+  if (!(name in doing.values)) return "unread";
+  return doing.values[name] === null ? "empty" : "filled";
+}
+
+/**
+ * The fingerprint of a doing: which fields it filled, which it left empty, and
+ * which it does not answer for.
+ *
+ * Deliberately not the values. Two doings that both filled name and
+ * description and both skipped priority are the same evidence about this
+ * skill's shape, whether they typed `SROTEST1` or `SROTEST2`.
+ */
+export function shapeOf(doing: Demonstration, names: string[]): string {
+  return names.map((name) => fillOf(doing, name)[0]).join("");
+}
+
+export interface Shape {
+  key: string;
+  doings: Demonstration[];
+}
+
+/**
+ * The distinct shapes, in the order they first appear.
+ *
+ * First-appearance order rather than by size: the doings arrive freshest
+ * first, so this keeps the most recent way of doing the job leftmost, and a
+ * one-off stays as prominent as a shape repeated six times. Ordering by count
+ * would bury the exception, which is usually the one worth looking at.
+ */
+export function shapesOf(doings: Demonstration[], names: string[]): Shape[] {
+  const byKey = new Map<string, Shape>();
+  for (const doing of doings) {
+    const key = shapeOf(doing, names);
+    const seen = byKey.get(key);
+    if (seen) seen.doings.push(doing);
+    else byKey.set(key, { key, doings: [doing] });
+  }
+  return [...byKey.values()];
+}
+
+/** What one shape's doings put in one field. */
+export interface Reading {
+  fill: Fill;
+  /** The distinct values, in first-seen order. Empty unless `fill` is filled. */
+  values: string[];
+}
+
+export function readingOf(shape: Shape, name: string): Reading {
+  const fill = fillOf(shape.doings[0], name);
+  if (fill !== "filled") return { fill, values: [] };
+  const values: string[] = [];
+  for (const doing of shape.doings) {
+    const value = doing.values[name];
+    if (typeof value === "string" && !values.includes(value)) values.push(value);
+  }
+  return { fill, values };
+}
+
+/**
+ * Whether the doings disagree here — which is what made this a parameter.
+ *
+ * Compared across every doing rather than across the shapes, and only across
+ * the doings that answer: a doing whose calls do not fit what this version
+ * sends is silent, not dissenting, and counting its silence as disagreement
+ * would mark every row the moment one demonstration became unreadable. Fewer
+ * than two answers is not agreement either — with nothing to compare, the row
+ * is shown rather than hidden behind a claim the evidence does not make.
+ */
+export function differs(doings: Demonstration[], name: string): boolean {
+  const answers = doings
+    .filter((doing) => name in doing.values)
+    // "Left empty" is its own reading rather than a missing one: a field every
+    // doing left empty agrees, and a field one doing left empty while the
+    // others filled it does not — which is exactly the row that makes a field
+    // optional. `null` is that reading, kept as itself rather than swapped for
+    // a sentinel string: it already compares equal to another `null` and
+    // unequal to every string, which is the whole of what the comparison below
+    // needs. The sentinel it replaces was a literal NUL byte in this file,
+    // which made git treat the source as binary -- so no reviewer has ever
+    // seen a diff of it.
+    .map((doing) => doing.values[name]);
+  if (answers.length < 2) return true;
+  return answers.some((answer) => answer !== answers[0]);
+}
+
+/** "27 Aug" or "23–29 Aug", for a shape's header. */
+export function spanOf(shape: Shape): string {
+  const days = shape.doings.map((doing) => new Date(doing.started_at));
+  const first = new Date(Math.min(...days.map((day) => day.getTime())));
+  const last = new Date(Math.max(...days.map((day) => day.getTime())));
+  const format = (day: Date) => day.toLocaleDateString(undefined, { day: "numeric", month: "short" });
+  return first.toDateString() === last.toDateString()
+    ? format(first)
+    : `${format(first)} – ${format(last)}`;
+}

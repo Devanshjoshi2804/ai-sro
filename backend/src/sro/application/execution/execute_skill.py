@@ -29,7 +29,8 @@ from sro.application.execution.headers import client_headers, resolve_headers
 from sro.application.execution.paging import MOST_PAGES, how_it_pages, next_page
 from sro.application.execution.plan import next_step
 from sro.application.execution.self_heal import HealBudget, Healed, SelfHeal
-from sro.application.execution.verify import check, check_on_screen, extract
+from sro.application.execution.stops import Stops
+from sro.application.execution.verify import check, check_on_screen, check_text, extract
 from sro.application.execution.vision_step import PerformWithVision
 from sro.application.induction import jsonutil
 from sro.application.induction.sites import parse_json as _parse_json
@@ -45,6 +46,7 @@ from sro.application.ports.http import (
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
 from sro.application.ports.token import TokenRefused, TokenSource
+from sro.application.ports.tools import ToolCaller, ToolsUnavailable
 from sro.application.ports.ui import ResolvedLocator, UiDriver, UiUnavailable
 from sro.application.ports.vault import CredentialVault
 from sro.application.ports.vision import VisionUnavailable
@@ -66,7 +68,7 @@ from sro.domain.execution.safety import (
     RunFact,
     assess,
 )
-from sro.domain.execution.verdict import judge
+from sro.domain.execution.verdict import apply_verdict
 from sro.domain.shared.errors import DomainError
 from sro.domain.shared.identifiers import DeviceId, PrincipalId, SkillId
 from sro.domain.shared.objective import ObjectiveKey
@@ -134,6 +136,34 @@ async def refuse_if_breaker_is_open(
         raise Refused(verdict.reason or "recent runs against this system have failed")
 
 
+async def ensure_runnable(
+    uow: UnitOfWork,
+    ctx: RequestContext,
+    skill: Skill,
+    version: SkillVersion,
+    request: ExecutionRequest,
+    now: datetime,
+) -> None:
+    """Everything that must hold before anything is sent, given a version
+    that has already been resolved -- checked here rather than folded back
+    into a single fetch-and-check step, so a caller that has already reached
+    into a skill for some other reason (promoting it, for instance) can ask
+    this about the exact object it is holding, before committing anything on
+    the strength of the answer.
+
+    This is the whole of what `StartRun._may_run` used to do inline: the
+    stage/parameter/medium refusals and the circuit breaker, in the order
+    that matters -- nothing here has side effects, so raising costs nothing
+    to undo.
+    """
+    _check_runnable(version, request)
+    # Every system it touches, not only the one it is keyed by: a workflow
+    # that writes into a second system must be stopped by that system's
+    # breaker, and keying alone would hide exactly that.
+    for system in version.systems or (skill.objective_key.target_system,):
+        await refuse_if_breaker_is_open(uow, ctx, system, now)
+
+
 @dataclass(frozen=True, slots=True)
 class ExecutionRequest:
     skill_id: SkillId
@@ -167,6 +197,13 @@ class ExecutionRequest:
     changing; somebody typing at 3pm while a schedule fires behind them is.
     Default no, so a caller that has not thought about it does not take
     anybody's screen."""
+
+    intent: str = ""
+    """The sentence the operator typed, carried onto ``Run.intent`` verbatim.
+
+    Blank for a console run, a batch, a trigger -- everything that did not
+    begin with somebody's own words. See ``Run.intent`` for why this is the
+    one place it is kept."""
 
 
 class Refused(DomainError):
@@ -205,17 +242,7 @@ class StartRun:
     ) -> tuple[Skill, SkillVersion]:
         skill = await uow.skills.get(ctx.tenant_id, request.skill_id)
         version = _version_of(skill, request.version)
-        _check_runnable(version, request)
-
-        # Checked here because here is where nothing has happened yet. A
-        # limit enforced after the first write is a limit that has already
-        # been exceeded.
-        #
-        # Every system it touches, not only the one it is keyed by: a workflow
-        # that writes into a second system must be stopped by that system's
-        # breaker, and keying alone would hide exactly that.
-        for system in version.systems or (skill.objective_key.target_system,):
-            await refuse_if_breaker_is_open(uow, ctx, system, now)
+        await ensure_runnable(uow, ctx, skill, version, request, now)
         return skill, version
 
     async def execute(self, ctx: RequestContext, request: ExecutionRequest) -> Run:
@@ -243,6 +270,7 @@ class StartRun:
                 target_system=system,
                 systems=version.systems,
                 may_change_the_system=version.changes_the_system,
+                intent=request.intent,
             )
             await uow.runs.add(run)
             await uow.commit()
@@ -283,9 +311,13 @@ class ExecuteStep:
         heal: SelfHeal | None = None,
         tokens: TokenSource | None = None,
         agents: AgentDrivers | None = None,
+        tools: ToolCaller | None = None,
+        clock: Clock | None = None,
         settles_within: float = SCREEN_SETTLES_WITHIN,
     ) -> None:
         self._uow = uow
+        self._tools = tools
+        self._clock = clock
         self._http = http
         self._vault = vault
         self._ui = ui
@@ -332,8 +364,26 @@ class ExecuteStep:
         step = version.steps[nxt.step_index]
         values = nxt.values
 
+        if step.tool_plan is not None and run.medium is not Medium.UI:
+            # Chosen by the step, not by the run. A run's medium says which rung
+            # it is being performed at; a tool plan says this particular step
+            # goes through a connector, and the two are different questions. A
+            # run asked for in the interface still clicks, because that is
+            # somebody deliberately watching it happen.
+            outcome = await self._perform_with_tool(run, step, values=values)
+            outcome = replace(
+                outcome, index=index, plan_step=nxt.step_index, iteration=nxt.iteration
+            )
+            run.record(outcome)
+            async with self._uow as uow:
+                await uow.runs.save(run)
+                await uow.commit()
+            return outcome
+
         if run.medium is Medium.UI:
-            outcome = await self._perform_in_ui(run, step, values=values, version=version)
+            outcome = await self._perform_in_ui(
+                run, step, values=values, version=version, connections=connections
+            )
             outcome = replace(
                 outcome, index=index, plan_step=nxt.step_index, iteration=nxt.iteration
             )
@@ -416,7 +466,13 @@ class ExecuteStep:
 
         if failure is not None:
             outcome = await self._escalate(
-                run, step, outcome, failure, values=values, version=version
+                run,
+                step,
+                outcome,
+                failure,
+                values=values,
+                version=version,
+                connections=connections,
             )
         outcome = replace(outcome, index=index, plan_step=nxt.step_index, iteration=nxt.iteration)
         run.record(outcome)
@@ -478,7 +534,11 @@ class ExecuteStep:
             return None
 
     def _ui_for(
-        self, run: Run, version: SkillVersion | None = None, step: SkillStep | None = None
+        self,
+        run: Run,
+        version: SkillVersion | None = None,
+        step: SkillStep | None = None,
+        connections: Sequence[Connection] = (),
     ) -> UiDriver | None:
         """The browser this run is performed in, and the page in it.
 
@@ -496,7 +556,17 @@ class ExecuteStep:
         if self._agents is None:
             return None
         return self._agents.ui(
-            run.tenant_id, run.device_id, _origin_of(version, step), run.may_take_focus
+            run.tenant_id,
+            run.device_id,
+            _origin_of(version, step, connections),
+            run.may_take_focus,
+            starts_on=version.starts_on if version is not None else None,
+            # What this step is for, not what the skill is called: the band is
+            # read by somebody watching their own screen change, and "adding
+            # the work area" answers what is happening to them now.
+            doing=step.intent if step is not None else "",
+            step=(step.index + 1) if step is not None else None,
+            of=len(version.steps) if version is not None else None,
         )
 
     def _caller_for(self, run: Run) -> HttpCaller:
@@ -508,7 +578,13 @@ class ExecuteStep:
         return self._agents.http(run.tenant_id, run.device_id)
 
     async def _perform_in_ui(
-        self, run: Run, step: SkillStep, *, values: dict[str, str], version: SkillVersion
+        self,
+        run: Run,
+        step: SkillStep,
+        *,
+        values: dict[str, str],
+        version: SkillVersion,
+        connections: Sequence[Connection] = (),
     ) -> StepOutcome:
         """Perform one step of a task that is being run in the browser.
 
@@ -549,7 +625,7 @@ class ExecuteStep:
                     f"would {plan.action} {plan.locators[0].describe() if plan.locators else ''}"
                 ),
             )
-        ui = self._ui_for(run, version, step)
+        ui = self._ui_for(run, version, step, connections)
         if ui is None:
             return self._failed(
                 step, None, "no browser is attached", medium=Medium.UI, unreachable=True
@@ -650,6 +726,7 @@ class ExecuteStep:
         *,
         values: dict[str, str],
         version: SkillVersion,
+        connections: Sequence[Connection] = (),
     ) -> StepOutcome:
         """Try the next rung, if the policy allows one and the run may act.
 
@@ -665,7 +742,7 @@ class ExecuteStep:
                 outcome,
                 detail=f"{outcome.detail or failure}; {run.stage} does not drive the interface",
             )
-        ui = self._ui_for(run, version, step)
+        ui = self._ui_for(run, version, step, connections)
         if ui is None or step.ui_plan is None or not step.ui_plan.replayable:
             return replace(
                 outcome,
@@ -705,6 +782,7 @@ class ExecuteStep:
                     detail=result.detail,
                 ),
                 version,
+                connections,
             )
         failures, unchecked = await self._check_on_screen(ui, step, values)
         return StepOutcome(
@@ -730,7 +808,12 @@ class ExecuteStep:
         )
 
     async def _escalate_to_vision(
-        self, run: Run, step: SkillStep, outcome: StepOutcome, version: SkillVersion
+        self,
+        run: Run,
+        step: SkillStep,
+        outcome: StepOutcome,
+        version: SkillVersion,
+        connections: Sequence[Connection] = (),
     ) -> StepOutcome:
         """The last rung, if the policy allows it and it is configured.
 
@@ -748,7 +831,7 @@ class ExecuteStep:
         # holding the deployment's driver would photograph a different screen
         # and click on it -- signed in as somebody else, on a page nobody
         # demonstrated. Falling back is the one thing it must not do.
-        ui = self._ui_for(run, version, step)
+        ui = self._ui_for(run, version, step, connections)
         if ui is None:
             return replace(
                 outcome,
@@ -1125,6 +1208,14 @@ class ExecuteStep:
                 request_body=sent,
                 detail=oversize,
                 assertion_failures=failures,
+                # The same fact the interface rung records, on the rung that
+                # runs far more often. A step with no post-condition cannot
+                # fail one, so it came back with an empty failure list -- and
+                # empty is what a fully checked step returns too. Everything
+                # downstream read the silence as "verified": `LearnFromRun`
+                # took a claim from it, and a reviewer reading the run saw a
+                # step that had been tested.
+                unchecked=() if step.assertions else (NOTHING_ASSERTED,),
                 found_rows=answer.rows if answer else None,
                 found_total=answer.total if answer else None,
                 found_partial=bool(answer and answer.partial),
@@ -1170,6 +1261,89 @@ class ExecuteStep:
             if answer.rows < paging.limit or so_far >= MAX_ROWS:
                 break
         return merge(tuple(pages)) or first
+
+    async def _perform_with_tool(
+        self, run: Run, step: SkillStep, *, values: dict[str, str]
+    ) -> StepOutcome:
+        """Call the connector this step was mapped onto.
+
+        The one kind of step nobody demonstrated, so there is no recorded call
+        to replay and no recorded gesture to fall back to -- `escalation.py`
+        says as much, and every failure here stops rather than trying a lower
+        rung at a door the connector already answered.
+        """
+        plan = step.tool_plan
+        assert plan is not None  # noqa: S101 -- the caller checked; this is for the reader
+        key = f"{run.id}:{step.index}"
+
+        if self._tools is None or not self._tools.available:
+            return self._failed(
+                step,
+                None,
+                f"no connector is configured, so {plan.tool} on {plan.server} cannot be called",
+                medium=Medium.TOOL,
+                unreachable=True,
+            )
+
+        try:
+            arguments = {name: value.render(values) for name, value in plan.arguments}
+        except KeyError as missing:
+            return self._failed(
+                step,
+                None,
+                f"no value for {missing.args[0]}",
+                medium=Medium.TOOL,
+            )
+
+        if plan.writes:
+            # Claimed before the call and kept whatever it answers. A key
+            # released on failure would let a timeout -- the one case where the
+            # send may well have landed -- be retried into a second send, which
+            # is the thing this exists to prevent.
+            async with self._uow as uow:
+                first = await uow.tool_calls.remember(
+                    run.tenant_id,
+                    key,
+                    tool=f"{plan.server}/{plan.tool}",
+                    at=self._clock.now() if self._clock else run.started_at,
+                )
+                await uow.commit()
+            if not first:
+                return self._failed(
+                    step,
+                    key,
+                    f"{plan.tool} was already called for this step, and it may have "
+                    "landed. Nothing is sent twice on a guess -- start a new run if "
+                    "it did not",
+                    medium=Medium.TOOL,
+                )
+
+        try:
+            answered = await self._tools.call(plan.server, plan.tool, arguments)
+        except ToolsUnavailable as gone:
+            return self._failed(step, key, str(gone), medium=Medium.TOOL, unreachable=True)
+
+        failures = check_text(step.assertions, answered.text, values=values)
+        if answered.failed:
+            return self._failed(
+                step,
+                key,
+                answered.detail or f"{plan.tool} refused",
+                medium=Medium.TOOL,
+            )
+
+        return StepOutcome(
+            index=step.index,
+            medium=Medium.TOOL,
+            disposition=StepDisposition.PERFORMED,
+            intent=step.intent,
+            url=f"{plan.server}/{plan.tool}",
+            idempotency_key=key if plan.writes else None,
+            request_body=json.dumps(arguments) if plan.writes else None,
+            assertion_failures=failures,
+            unchecked=() if step.assertions else (NOTHING_ASSERTED,),
+            detail=answered.detail,
+        )
 
     @staticmethod
     def _failed(
@@ -1217,33 +1391,35 @@ class FinishRun:
         self._learn = learn
         self._repair = repair
 
-    async def execute(self, ctx: RequestContext, *, run_id: RunId) -> Run:
+    async def execute(
+        self, ctx: RequestContext, *, run_id: RunId, stopped: str | None = None
+    ) -> Run:
+        """End the run, and let the ladder read what happened.
+
+        `stopped` is for a run that could not continue rather than one that ran
+        and failed its checks -- a detached performer that raised, and in time a
+        person who pressed stop. Both are FAILED, and both count against the
+        skill: three in a row demote it. That is defensible for a real fault and
+        arguable for a deliberate stop, and the alternative is a fourth verdict,
+        a migration, and a rewrite of promotion. Not yet.
+        """
         async with self._uow as uow:
             run = await uow.runs.get(ctx.tenant_id, run_id)
             now = self._clock.now()
-            run.finish(now)
+            if stopped is None:
+                run.finish(now)
+            else:
+                run.fail(now, stopped)
             await uow.runs.save(run)
 
             skill = await uow.skills.get(ctx.tenant_id, run.skill_id)
+            # `apply_verdict` is the one place a run's verdict reaches a
+            # skill's track record and stage; `CallRunWrong` reaches the same
+            # function later for the same reason. `version` is looked up again
+            # rather than threaded through the return, only because the code
+            # below still needs it after the `with` block closes.
+            apply_verdict(skill, run, now)
             version = skill.version(run.skill_version)
-            verdict = judge(run)
-            version.record_run(verdict, now)
-            # The ladder climbs itself. Nobody has time to notice that a skill
-            # has earned the next rung, and a stage that waits for someone to
-            # notice is a fact about their afternoon rather than about the
-            # skill. Demotion below still happens faster, and for less.
-            version.earn(verdict, now)
-            # Demotion is automatic and needs no human, which is exactly why it
-            # is bounded by a small number: confirming a few runs costs an
-            # operator minutes, and a broken autonomous skill keeps writing.
-            if version.track_record.should_demote and version.stage.rung > (
-                PromotionStage.SHADOW.rung
-            ):
-                version.demote(
-                    PromotionStage.SHADOW,
-                    now,
-                    f"{version.track_record.consecutive_failures} runs failed in a row",
-                )
             await uow.skills.save(skill)
             await uow.commit()
 
@@ -1288,14 +1464,39 @@ class ExecuteSkill:
         vision: PerformWithVision | None = None,
         agents: AgentDrivers | None = None,
         repair: RepairDrift | None = None,
+        stops: Stops | None = None,
+        tools: ToolCaller | None = None,
     ) -> None:
         self._uow = uow
         self._start = StartRun(uow, clock, ids)
-        self._step = ExecuteStep(uow, http, vault, ui, vision, agents=agents)
+        self._step = ExecuteStep(
+            uow, http, vault, ui, vision, agents=agents, tools=tools, clock=clock
+        )
         self._finish = FinishRun(uow, clock, learn, repair)
+        self._stops = stops or Stops()
 
     async def execute(self, ctx: RequestContext, request: ExecutionRequest) -> Run:
-        run = await self._start.execute(ctx, request)
+        """Start it and see it through, in one call."""
+        return await self.resume(ctx, await self.begin(ctx, request))
+
+    async def begin(self, ctx: RequestContext, request: ExecutionRequest) -> Run:
+        """Write the row, refuse it here if it is going to be refused.
+
+        Everything that says no -- the circuit breaker, the blast radius, a
+        stage that may not send a write, a version that does not exist -- says
+        so from here, so a caller that means to perform the run detached still
+        gets its answer as a `4xx` rather than in a task nobody is awaiting.
+        """
+        return await self._start.execute(ctx, request)
+
+    async def resume(self, ctx: RequestContext, run: Run) -> Run:
+        """Perform a run whose row already exists.
+
+        Split out so a caller can be told the run's id before the last step
+        rather than after it. A run in an operator's own browser is watched
+        while it happens, and a console cannot watch a run whose id arrives with
+        the answer.
+        """
         async with self._uow as uow:
             skill = await uow.skills.get(ctx.tenant_id, run.skill_id)
         version = skill.version(run.skill_version)
@@ -1305,17 +1506,34 @@ class ExecuteSkill:
         # through. The run itself is the record of where this has got to, so it
         # is re-read each time rather than counted here.
         position = 0
+        stopped: str | None = None
         while True:
+            # Between steps, never mid-command. A gesture already sent cannot be
+            # recalled from a warehouse, and a stop that ended the run while one
+            # was in flight would report a write as not having happened when it
+            # had. The cost is that stopping takes until the current step's
+            # deadline, which the console says rather than hides.
+            if self._stops.asked(run.id):
+                stopped = "a person stopped this run"
+                break
             async with self._uow as uow:
                 current = await uow.runs.get(ctx.tenant_id, run.id)
             if next_step(version, current) is None:
                 break
             await self._step.execute(ctx, run_id=run.id, index=position)
             position += 1
-        return await self._finish.execute(ctx, run_id=run.id)
+        try:
+            return await self._finish.execute(ctx, run_id=run.id, stopped=stopped)
+        finally:
+            # A run id is never reused, so nothing else would ever clear this.
+            self._stops.forget(run.id)
 
 
-def _origin_of(version: SkillVersion | None, step: SkillStep | None = None) -> str | None:
+def _origin_of(
+    version: SkillVersion | None,
+    step: SkillStep | None = None,
+    connections: Sequence[Connection] = (),
+) -> str | None:
     """The page a step acts on, as a bare scheme and host.
 
     The step's own recorded call where it has one, because a skill's steps do
@@ -1327,6 +1545,15 @@ def _origin_of(version: SkillVersion | None, step: SkillStep | None = None) -> s
     is parameterised -- the version answers instead, from the first step that
     names one. A parameterised host is no answer at all: the placeholder is not
     filled in until the step runs, and a tab cannot be chosen by a template.
+
+    And where the whole skill recorded no call, the system it belongs to
+    answers. A task taught entirely by clicking -- which is most of them, and
+    every one taught on a screen that renders itself from a bundle -- named no
+    URL anywhere, so it was driven in whichever tab happened to be in front:
+    the exact coin toss this function exists to prevent, and one that reads as
+    thirteen steps of `control_not_found` rather than as a wrong tab. The
+    version already knows its systems and a connection already knows its host,
+    so nothing here is inferred -- it is the origin the operator authenticated.
     """
     if step is not None and (named := _origin_of_call(step)) is not None:
         return named
@@ -1335,6 +1562,24 @@ def _origin_of(version: SkillVersion | None, step: SkillStep | None = None) -> s
     for each in version.steps:
         if (named := _origin_of_call(each)) is not None:
             return named
+    return _origin_of_system(version, connections)
+
+
+def _origin_of_system(version: SkillVersion, connections: Sequence[Connection]) -> str | None:
+    """The origin of the one system this skill belongs to.
+
+    Only when there is exactly one. A workflow across two systems whose steps
+    named no URL cannot be placed by this -- picking either would send half the
+    run to the wrong tab, and the frontmost page is at least honestly a guess.
+    """
+    if len(version.systems) != 1:
+        return None
+    for connection in connections:
+        if connection.target_system != version.systems[0]:
+            continue
+        parts = urlsplit(connection.base_url)
+        if parts.scheme in ("http", "https") and parts.netloc:
+            return f"{parts.scheme}://{parts.netloc}"
     return None
 
 
@@ -1393,9 +1638,13 @@ def _check_runnable(version: SkillVersion, request: ExecutionRequest) -> None:
             + ", so it runs in a browser that is signed in to all of them: name a device"
         )
     supplied = set(request.parameters)
-    required = {
-        p.name for p in version.parameters if p.kind is ParameterKind.INPUT and not p.optional
-    }
+    # `version.inputs` is the one definition of "values somebody has to supply
+    # for a run to be worth starting", and it has already changed once --
+    # optional parameters were folded out of it after a skill with any optional
+    # field turned out to be impossible to put on a trigger. Re-deriving the
+    # same expression here left that rule written in two places, so the next
+    # change to it would have been correct in one of them.
+    required = {p.name for p in version.inputs}
     if absent := sorted(required - supplied):
         raise NotRunnable("no value supplied for " + ", ".join(absent))
     # And what was supplied is the shape its slot holds. A template
@@ -1504,6 +1753,7 @@ __all__ = [
     "NotRunnable",
     "Refused",
     "StartRun",
+    "ensure_runnable",
 ]
 
 

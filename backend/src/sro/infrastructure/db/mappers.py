@@ -34,6 +34,7 @@ from sro.domain.shared.identifiers import (
     BatchId,
     BrowserSessionId,
     CandidateId,
+    ConfirmationId,
     DeviceId,
     PrincipalId,
     RecordingId,
@@ -44,11 +45,13 @@ from sro.domain.shared.identifiers import (
 from sro.domain.shared.objective import Direction, ObjectiveKey
 from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.skill import Skill
+from sro.domain.trigger.confirmation import Answer, Confirmation
 from sro.domain.trigger.trigger import Trigger, TriggerKind
 from sro.infrastructure.db.codec import (
     dump_artifacts,
     dump_episodes,
     dump_frames,
+    dump_grants,
     dump_joins,
     dump_messages,
     dump_narration,
@@ -59,6 +62,7 @@ from sro.infrastructure.db.codec import (
     load_artifacts,
     load_episodes,
     load_frames,
+    load_grants,
     load_joins,
     load_messages,
     load_narration,
@@ -69,6 +73,7 @@ from sro.infrastructure.db.codec import (
 )
 from sro.infrastructure.db.models import (
     AgentDeviceRow,
+    ConfirmationRow,
     ConnectionRow,
     KnowledgeRow,
     ModelCallRow,
@@ -267,6 +272,8 @@ def update_run_row(row: RunRow, run: Run) -> None:
     row.started_at = run.started_at
     row.ended_at = run.ended_at
     row.failure = run.failure
+    row.wrong_because = run.wrong_because
+    row.intent = run.intent
 
 
 def row_to_run(row: RunRow) -> Run:
@@ -291,11 +298,13 @@ def row_to_run(row: RunRow) -> Run:
         # re-litigate that. A read-only assisted run has no authoriser by
         # design, and re-checking would make it unreadable ever afterwards.
         may_change_the_system=False,
+        intent=row.intent or "",
     )
     run.status = RunStatus(row.status)
     run.steps = [_step_from_json(step) for step in row.steps]
     run.ended_at = row.ended_at
     run.failure = row.failure
+    run.wrong_because = row.wrong_because
     return run
 
 
@@ -480,6 +489,7 @@ def update_device_row(row: AgentDeviceRow, device: AgentDevice) -> None:
     row.queued_bytes = device.queued_bytes
     row.uploads = device.uploads
     row.secret = device.secret
+    row.grants = dump_grants(device.grants)
 
 
 def row_to_device(row: AgentDeviceRow) -> AgentDevice:
@@ -497,6 +507,7 @@ def row_to_device(row: AgentDeviceRow) -> AgentDevice:
         queued_bytes=row.queued_bytes,
         uploads=row.uploads,
         secret=row.secret,
+        grants=load_grants(row.grants),
     )
 
 
@@ -649,4 +660,43 @@ def row_to_candidate(row: TaskCandidateRow) -> TaskCandidate:
         named_by_model=row.named_by_model,
         learned_from=row.learned_from or 0,
         learned_under=row.learned_under or 0,
+    )
+
+
+def confirmation_to_row(confirmation: Confirmation) -> ConfirmationRow:
+    row = ConfirmationRow(id=confirmation.id.value)
+    update_confirmation_row(row, confirmation)
+    return row
+
+
+def update_confirmation_row(row: ConfirmationRow, confirmation: Confirmation) -> None:
+    row.tenant_id = confirmation.tenant_id.value
+    row.trigger_id = confirmation.trigger_id.value
+    row.skill_id = confirmation.skill_id.value
+    row.asked_at = confirmation.asked_at
+    row.expires_at = confirmation.expires_at
+    row.values = dict(confirmation.values)
+    row.because = confirmation.because
+    row.answer = confirmation.answer.value
+    row.answered_at = confirmation.answered_at
+    row.answered_by = confirmation.answered_by.value if confirmation.answered_by else None
+    row.run_id = confirmation.run_id.value if confirmation.run_id else None
+    row.note = confirmation.note
+
+
+def row_to_confirmation(row: ConfirmationRow) -> Confirmation:
+    return Confirmation(
+        id=ConfirmationId(row.id),
+        tenant_id=TenantId(row.tenant_id),
+        trigger_id=TriggerId(row.trigger_id),
+        skill_id=SkillId(row.skill_id),
+        asked_at=row.asked_at,
+        expires_at=row.expires_at,
+        values=dict(row.values or {}),
+        because=row.because,
+        answer=Answer(row.answer),
+        answered_at=row.answered_at,
+        answered_by=PrincipalId(row.answered_by) if row.answered_by else None,
+        run_id=RunId(row.run_id) if row.run_id else None,
+        note=row.note,
     )

@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { ink } from "@/features/console/theme";
-import { whoAmI } from "@/lib/api/credential";
+import { forget, whoAmI } from "@/lib/api/credential";
 
 /**
  * One bar across every surface.
@@ -26,10 +27,16 @@ export function TopBar({ children, tenant }: { children?: ReactNode; tenant?: st
         display: "flex",
         alignItems: "stretch",
         background: ink.bar,
+        borderBottom: `1px solid ${ink.line}`,
         padding: "0 14px",
         height: 46,
+        // Below about 700px the last group used to fall off the end of the bar
+        // with nothing to say it was there. Scrolling is the smallest honest
+        // answer; a menu is a second navigation to keep in step.
+        overflowX: "auto",
+        scrollbarWidth: "none",
         flex: "0 0 auto",
-        fontFamily: "Manrope, var(--font-geist-sans), sans-serif",
+        fontFamily: "var(--font-display), system-ui, sans-serif",
       }}
     >
       <Link
@@ -66,42 +73,89 @@ export function TopBar({ children, tenant }: { children?: ReactNode; tenant?: st
           alignItems: "center",
           gap: 14,
           fontSize: 11.5,
-          color: "#7A7C7F",
+          color: ink.textMuted,
           fontWeight: 600,
         }}
       >
-        <span>
-          tenant <span style={{ color: ink.barText }}>{signedInAs}</span>
-        </span>
-        <span
+        {/* Signing out lives here rather than in a pill fixed to the corner of
+            the viewport, which covered a table row on Runs and the sentence
+            about where capture is stored on the console. This bar already had
+            to name the tenant correctly; now it is also the way out. */}
+        <button
+          type="button"
+          onClick={() => forget()}
+          title="Forget this credential on this browser"
           style={{
             padding: "3px 8px",
-            border: "1px solid #3A3C3F",
+            border: `1px solid ${ink.line}`,
             borderRadius: 5,
-            color: ink.barText,
+            background: "transparent",
+            color: ink.textMuted,
+            font: "inherit",
+            fontSize: 11.5,
+            cursor: "pointer",
+            whiteSpace: "nowrap",
           }}
         >
-          LADDER · EARNED, NOT SET
-        </span>
+          tenant <span style={{ color: ink.barText }}>{signedInAs}</span> · sign out
+        </button>
       </div>
     </nav>
   );
 }
 
+/**
+ * A link that knows whether you are standing on it.
+ *
+ * Every link in this bar rendered the same grey, including the one for the page
+ * you were already looking at, so the only thing telling a supervisor where
+ * they were was the `<h1>`. `aria-current` as well as the underline: the colour
+ * is not the answer for somebody who cannot see it.
+ */
 export function BarLink({ href, children }: { href: string; children: ReactNode }) {
+  const pathname = usePathname();
+  // Prefix rather than equality, or `/skills/skl_…` would light nothing.
+  const here = pathname === href || pathname.startsWith(`${href}/`);
   return (
     <Link
       href={href}
+      aria-current={here ? "page" : undefined}
       style={{
         display: "flex",
         alignItems: "center",
+        flex: "0 0 auto",
+        whiteSpace: "nowrap",
         padding: "0 14px",
         fontSize: 12.5,
         fontWeight: 600,
-        color: "#8A8C8F",
+        color: here ? ink.text : ink.textMuted,
+        boxShadow: here ? `inset 0 -2px 0 ${ink.accent}` : undefined,
       }}
     >
       {children}
     </Link>
+  );
+}
+
+/** The name of a group of links, so eight siblings read as four jobs. */
+export function BarGroup({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", flex: "0 0 auto" }}>
+      <span
+        style={{
+          alignSelf: "center",
+          paddingLeft: 14,
+          whiteSpace: "nowrap",
+          fontFamily: "var(--font-mono-face), monospace",
+          fontSize: 9.5,
+          letterSpacing: "0.12em",
+          textTransform: "uppercase",
+          color: ink.textMuted,
+        }}
+      >
+        {label}
+      </span>
+      {children}
+    </div>
   );
 }

@@ -50,9 +50,13 @@ minutes rather than saying so."""
 async def stream_run(run_id: str, container: ContainerDep, ctx: ContextDep) -> StreamingResponse:
     """Server-sent events: one per step as it completes, then the finished run.
 
-    Events are `step` and `done`. A client that arrives late gets every step so
-    far immediately, because what is sent is derived from the row rather than
-    from what happened to be published while it was connected.
+    Events are `step`, `waiting` and `done`. A client that arrives late gets
+    every step so far immediately, because what is sent is derived from the row
+    rather than from what happened to be published while it was connected.
+
+    `waiting` is the exception: it is a fact about right now rather than about
+    the row, and it is sent only when it changes. A client that arrives during a
+    pause is told about it on the next tick.
     """
     return StreamingResponse(
         _events(container, ctx, RunId(run_id)),
@@ -69,6 +73,7 @@ async def _events(container: Container, ctx: RequestContext, run_id: RunId) -> A
     sent = 0
     waited = 0.0
     looked_for = 0.0
+    held: bool | None = None
     while waited < GIVE_UP_AFTER:
         try:
             run = await container.get_run().execute(ctx, run_id=run_id)
@@ -93,6 +98,24 @@ async def _events(container: Container, ctx: RequestContext, run_id: RunId) -> A
         if run.status is not RunStatus.RUNNING:
             yield _event("done", model.model_dump(mode="json"))
             return
+
+        # The operator is typing into the browser this run is driving, and the
+        # backend is holding its commands back. Nothing about that reaches the
+        # row -- it lives for a few seconds in the process holding the socket --
+        # so it is reported here or nowhere. On change only: at 0.4s a ticking
+        # countdown would be two and a half events a second saying the same
+        # thing, and the client can count down on its own.
+        if run.device_id is not None:
+            seconds = await container.agents().held_for(ctx.tenant_id, run.device_id)
+            if (seconds is not None) != held:
+                held = seconds is not None
+                yield _event(
+                    "waiting",
+                    {
+                        "index": len(model.steps),
+                        "held_ms": None if seconds is None else round(seconds * 1000),
+                    },
+                )
 
         await asyncio.sleep(LOOK_EVERY)
         waited += LOOK_EVERY

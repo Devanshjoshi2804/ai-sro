@@ -62,6 +62,19 @@ export const api = {
       body: beat,
     }),
 
+  /** Watch this host too, beyond what the tenant excludes by default. */
+  grantHost: (deviceId, host) =>
+    call(`/v1/agents/${encodeURIComponent(deviceId)}/grants`, {
+      method: "POST",
+      body: { host },
+    }),
+
+  revokeHost: (deviceId, host) =>
+    call(
+      `/v1/agents/${encodeURIComponent(deviceId)}/grants/${encodeURIComponent(host)}`,
+      { method: "DELETE" },
+    ),
+
   observations: (batch) => call("/v1/observations", { method: "POST", body: batch }),
 
   /** A screenshot or an oversized body, uploaded beside the batch it
@@ -119,6 +132,13 @@ export const api = {
   /** One skill, for the name and the shape of the version being run. */
   skill: (skillId) => call(`/v1/skills/${encodeURIComponent(skillId)}`),
 
+  /** The person this ran for says the result was wrong -- reached by pressing
+   * "Undo that" or "It's wrong, I'll fix it", things they wanted anyway,
+   * which is why it can be trusted the way a survey answer could not be. See
+   * `panel.js`'s `undoRun` and `wasWrong`. */
+  runWrong: (runId, because) =>
+    call(`/v1/runs/${encodeURIComponent(runId)}/wrong`, { method: "POST", body: { because } }),
+
   /** Tasks this operator keeps doing on one system. The panel asks about the
    * tab it is docked beside; the host is what makes it that question. */
   candidates: (host) =>
@@ -148,6 +168,60 @@ export const api = {
       method: "POST",
       body: { reason },
     }),
+
+  /** What a sentence asks for. Ranks the whole taught library every time --
+   * there is no field on this request to restrict it to one skill, and the
+   * panel does not invent one: a sentence offered against one candidate that
+   * names a different taught task is answered about that task. */
+  resolveIntent: (utterance) => call("/v1/intent/resolve", { method: "POST", body: { utterance } }),
+
+  /** The press. Promotes the version a preview just showed and starts it in
+   * the operator's own browser in one call -- see ADR 014 and
+   * `RunFromPreview`. Refused for a looped skill with a sentence written for
+   * an operator to read, which the panel shows rather than swallows.
+   *
+   * `version` is the one the panel rendered, and is what makes ADR 014's
+   * central claim true rather than merely stated: the backend runs that
+   * version and refuses the press outright where the skill has been taught
+   * again since, instead of quietly running whichever version happens to be
+   * newest by the time the press lands. */
+  runFromPreview: (skillId, parameters, deviceId, intent, version) =>
+    call(`/v1/skills/${encodeURIComponent(skillId)}/runs/from-preview`, {
+      method: "POST",
+      body: { parameters, device_id: deviceId, intent, version },
+    }),
+
+  /** Ask the backend to stop stepping a run it is performing in this browser.
+   *
+   * The other half of the Stop button. `commands.js`'s `abort` makes this
+   * browser refuse every later command for the run, which is immediate and is
+   * why it is still done first -- but the backend goes on stepping regardless,
+   * sending each next command into a browser that answers `aborted`, so a run
+   * the operator stopped kept running until it ran out of steps. Two
+   * implementations of stopping, one of which the operator could not reach.
+   *
+   * A 409 is swallowed, and only a 409. That is the backend saying there was
+   * nothing left to stop -- the run already ended, or it is not one this
+   * process drives -- and pressing Stop as a run finishes is an ordinary race,
+   * not a fault. Reporting it turned "your run is stopping" into "the run
+   * could not be told: that run already succeeded", which is a stop control
+   * raising an alarm about a run that had already stopped: louder than the
+   * silence it replaced and no more true. Everything else still throws, so a
+   * backend this browser genuinely cannot reach -- a run still stepping
+   * somewhere with nobody able to say so -- reaches the operator who just
+   * pressed Stop.
+   *
+   * The decision lives here rather than in the worker's message handler
+   * because this file is importable on its own; `service-worker.js` registers
+   * chrome listeners the moment it loads and cannot be exercised in a test. */
+  stopRun: async (runId) => {
+    try {
+      return await call(`/v1/runs/${encodeURIComponent(runId)}/stop`, { method: "POST" });
+    } catch (error) {
+      if (error.status === 409) return null;
+      throw error;
+    }
+  },
 
   /** The operator deleting their own evidence, from their own devices, for the
    * tenant on their credential. Answers with what went. */

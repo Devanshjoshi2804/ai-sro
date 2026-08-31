@@ -120,6 +120,56 @@ class NetworkPlan:
 
 
 @dataclass(frozen=True, slots=True)
+class ToolPlan:
+    """Perform this step by calling a tool on a connector the tenant configured.
+
+    The one kind of plan no demonstration produces. Induction reads recordings
+    and a recording holds gestures and the calls they made, so a tool step is
+    always somebody's decision: this click on Send is `send_message` on that
+    server. Recorded as a decision with a name on it, never inferred -- which
+    is ADR 004's rule about identity applied to the thing performing the step
+    rather than to the values it carries.
+    """
+
+    server: str
+    """The connector, by the name the tenant gave it. Resolved to a URL and a
+    credential the same way `target_system` is: this is the vocabulary a
+    reviewer reads, and the address is configuration."""
+
+    tool: str
+    arguments: tuple[tuple[str, Template], ...] = ()
+    """Argument name to what goes in it, in the order the mapping named them.
+    A tuple of pairs rather than a mapping so two versions of one skill are
+    comparable and a document round-trips byte for byte."""
+
+    writes: bool = False
+    """Whether calling this changes something outside this system.
+
+    Said by whoever mapped the step, because nothing else can say it. MCP tools
+    do not declare it, a name is not a promise, and a system that guessed would
+    guess wrong in the direction of sending a mail nobody approved. It is what
+    `changes_the_system` reads, so it decides whether a run may send this at
+    all below the assisted rung.
+    """
+
+    def __post_init__(self) -> None:
+        if not self.server.strip():
+            raise InvariantViolation("a tool plan names the connector it calls")
+        if not self.tool.strip():
+            raise InvariantViolation("a tool plan names the tool it calls")
+        seen = [name for name, _ in self.arguments]
+        if len(seen) != len(set(seen)):
+            raise InvariantViolation("a tool plan gives each argument once")
+
+    @property
+    def placeholders(self) -> frozenset[str]:
+        found: frozenset[str] = frozenset()
+        for _, value in self.arguments:
+            found |= value.placeholders
+        return found
+
+
+@dataclass(frozen=True, slots=True)
 class UiPlan:
     """Drive the interface the way the human did."""
 

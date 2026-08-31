@@ -378,6 +378,7 @@ def _adopt(
         track_record=TrackRecord(),
         promoted_at=None,
         promoted_by=None,
+        promoted_from="",
         demotion_reason=None,
         provenance=replace(
             version.provenance,
@@ -419,7 +420,18 @@ def _adopt(
         # inherited rung: a fixed-value write skill only reaches ASSISTED
         # because somebody read what it sends, and this version sends the same
         # thing.
-        fresh.promote(fresh.stage.next_stage(), at, REPAIR, acknowledging_fixed_values=True)
+        fresh.promote(
+            fresh.stage.next_stage(),
+            at,
+            REPAIR,
+            acknowledging_fixed_values=True,
+            # A blank `promoted_from` beside a named `promoted_by` reads as a
+            # row written before this field existed -- which this is not.
+            # `"repair"` says plainly that the climb was mechanical: nobody
+            # reviewed this particular version, it inherited a rung the one it
+            # replaced had earned.
+            from_where="repair",
+        )
     return fresh.version
 
 

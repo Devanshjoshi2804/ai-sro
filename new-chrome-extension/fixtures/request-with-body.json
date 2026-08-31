@@ -1,11 +1,11 @@
 {
   "kind": "request",
   "request": {
-    "request_id": "req_429d5907_3",
+    "request_id": "req_808d0ef3_3",
     "method": "POST",
-    "url": "http://127.0.0.1:49986/api/legacy",
+    "url": "http://127.0.0.1:63319/api/legacy",
     "resource_type": "xhr",
-    "started_at": "2026-08-25T08:31:40.987Z",
+    "started_at": "2026-08-31T08:40:04.783Z",
     "request_headers": {
       "content-type": "application/x-www-form-urlencoded"
     },
@@ -23,7 +23,7 @@
       "access-control-allow-origin": "*",
       "content-length": "12",
       "content-type": "application/json",
-      "date": "Tue, 25 Aug 2026 08:31:40 GMT",
+      "date": "Mon, 31 Aug 2026 08:40:04 GMT",
       "server": "BaseHTTP/0.6 Python/3.14.7"
     },
     "response_body": {
@@ -39,6 +39,6 @@
     "failure_reason": null,
     "blocked_reason": null
   },
-  "tab_id": 927171230,
-  "frame_url": "http://127.0.0.1:49986/"
+  "tab_id": 1766715008,
+  "frame_url": "http://127.0.0.1:63319/"
 }

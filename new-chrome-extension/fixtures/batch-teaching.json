@@ -1,8 +1,8 @@
 {
-  "batch_id": "bat_browsertest_8fae45b6_17",
+  "batch_id": "bat_browsertest_418908ee_15",
   "device_id": "dev_browsertest",
-  "started_at": "2026-08-25T08:31:41.171Z",
-  "ended_at": "2026-08-25T08:31:41.237Z",
+  "started_at": "2026-08-31T08:40:05.005Z",
+  "ended_at": "2026-08-31T08:40:05.078Z",
   "mode": "teaching",
   "recording_id": "rec_browsertest0",
   "events": [
@@ -45,11 +45,12 @@
           }
         },
         "modifiers": [],
-        "at": 1787646701.169,
-        "url": "http://127.0.0.1:49986/"
+        "at": 1788165605.002,
+        "url": "http://127.0.0.1:63319/"
       },
-      "tab_id": 927171230,
-      "frame_url": "http://127.0.0.1:49986/"
+      "tab_id": 1766715008,
+      "frame_url": "http://127.0.0.1:63319/",
+      "page_url": "http://127.0.0.1:63319/"
     },
     {
       "kind": "snapshot",
@@ -64,7 +65,7 @@
               "type": "internalRole",
               "value": 144
             },
-            "frameId": "093CFDDC46F8389DD968157FDCDD033B",
+            "frameId": "2580B8FF55281B185A58B9B17D6A4366",
             "ignored": false,
             "name": {
               "sources": [
@@ -109,7 +110,7 @@
                 "name": "url",
                 "value": {
                   "type": "string",
-                  "value": "http://127.0.0.1:49986/"
+                  "value": "http://127.0.0.1:63319/"
                 }
               }
             ],
@@ -407,13 +408,6 @@
               },
               {
                 "name": "focusable",
-                "value": {
-                  "type": "booleanOrUndefined",
-                  "value": true
-                }
-              },
-              {
-                "name": "focused",
                 "value": {
                   "type": "booleanOrUndefined",
                   "value": true
@@ -966,6 +960,13 @@
               },
               {
                 "name": "focusable",
+                "value": {
+                  "type": "booleanOrUndefined",
+                  "value": true
+                }
+              },
+              {
+                "name": "focused",
                 "value": {
                   "type": "booleanOrUndefined",
                   "value": true
@@ -1611,9 +1612,9 @@
           }
         ]
       },
-      "url": "http://127.0.0.1:49986/",
-      "taken_at": "2026-08-25T08:31:41.178Z",
-      "tab_id": 927171230
+      "url": "http://127.0.0.1:63319/",
+      "taken_at": "2026-08-31T08:40:04.965Z",
+      "tab_id": 1766715008
     },
     {
       "kind": "gesture",
@@ -1653,11 +1654,12 @@
           }
         },
         "modifiers": [],
-        "at": 1787646701.219,
-        "url": "http://127.0.0.1:49986/"
+        "at": 1788165605.05,
+        "url": "http://127.0.0.1:63319/"
       },
-      "tab_id": 927171230,
-      "frame_url": "http://127.0.0.1:49986/"
+      "tab_id": 1766715008,
+      "frame_url": "http://127.0.0.1:63319/",
+      "page_url": "http://127.0.0.1:63319/"
     },
     {
       "kind": "snapshot",
@@ -1672,7 +1674,7 @@
               "type": "internalRole",
               "value": 144
             },
-            "frameId": "093CFDDC46F8389DD968157FDCDD033B",
+            "frameId": "2580B8FF55281B185A58B9B17D6A4366",
             "ignored": false,
             "name": {
               "sources": [
@@ -1717,7 +1719,7 @@
                 "name": "url",
                 "value": {
                   "type": "string",
-                  "value": "http://127.0.0.1:49986/"
+                  "value": "http://127.0.0.1:63319/"
                 }
               }
             ],
@@ -2015,6 +2017,13 @@
               },
               {
                 "name": "focusable",
+                "value": {
+                  "type": "booleanOrUndefined",
+                  "value": true
+                }
+              },
+              {
+                "name": "focused",
                 "value": {
                   "type": "booleanOrUndefined",
                   "value": true
@@ -2567,13 +2576,6 @@
               },
               {
                 "name": "focusable",
-                "value": {
-                  "type": "booleanOrUndefined",
-                  "value": true
-                }
-              },
-              {
-                "name": "focused",
                 "value": {
                   "type": "booleanOrUndefined",
                   "value": true
@@ -3219,18 +3221,18 @@
           }
         ]
       },
-      "url": "http://127.0.0.1:49986/",
-      "taken_at": "2026-08-25T08:31:41.223Z",
-      "tab_id": 927171230
+      "url": "http://127.0.0.1:63319/",
+      "taken_at": "2026-08-31T08:40:05.009Z",
+      "tab_id": 1766715008
     },
     {
       "kind": "request",
       "request": {
-        "request_id": "req_429d5907_5",
+        "request_id": "req_808d0ef3_5",
         "method": "GET",
-        "url": "http://127.0.0.1:49986/api/orders?facility=DC1",
+        "url": "http://127.0.0.1:63319/api/orders?facility=DC1",
         "resource_type": "fetch",
-        "started_at": "2026-08-25T08:31:41.219Z",
+        "started_at": "2026-08-31T08:40:05.050Z",
         "request_headers": {},
         "request_body": null,
         "status": 200,
@@ -3240,7 +3242,7 @@
           "access-control-allow-origin": "*",
           "content-length": "29",
           "content-type": "application/json",
-          "date": "Tue, 25 Aug 2026 08:31:41 GMT",
+          "date": "Mon, 31 Aug 2026 08:40:05 GMT",
           "server": "BaseHTTP/0.6 Python/3.14.7"
         },
         "response_body": {
@@ -3251,22 +3253,58 @@
           "redacted_fields": []
         },
         "redirect_chain": [],
-        "duration_ms": 12,
+        "duration_ms": 13,
         "from_cache": false,
         "failure_reason": null,
         "blocked_reason": null
       },
-      "tab_id": 927171230,
-      "frame_url": "http://127.0.0.1:49986/"
+      "tab_id": 1766715008,
+      "frame_url": "http://127.0.0.1:63319/"
     },
     {
       "kind": "request",
       "request": {
-        "request_id": "req_429d5907_6",
-        "method": "POST",
-        "url": "http://127.0.0.1:49986/api/orders",
+        "request_id": "req_808d0ef3_5",
+        "method": "GET",
+        "url": "http://127.0.0.1:63319/api/orders?facility=DC1",
         "resource_type": "fetch",
-        "started_at": "2026-08-25T08:31:41.232Z",
+        "started_at": "2026-08-31T08:40:05.050Z",
+        "request_headers": {},
+        "request_body": null,
+        "status": 200,
+        "status_text": "OK",
+        "response_headers": {
+          "access-control-allow-headers": "*",
+          "access-control-allow-origin": "*",
+          "content-length": "29",
+          "content-type": "application/json",
+          "date": "Mon, 31 Aug 2026 08:40:05 GMT",
+          "server": "BaseHTTP/0.6 Python/3.14.7"
+        },
+        "response_body": {
+          "text": "{\"orders\": [{\"id\": \"ORD-1\"}]}",
+          "size_bytes": 29,
+          "mime_type": "application/json",
+          "encoding": null,
+          "redacted_fields": []
+        },
+        "redirect_chain": [],
+        "duration_ms": 13,
+        "from_cache": false,
+        "failure_reason": null,
+        "blocked_reason": null
+      },
+      "tab_id": 1766715008,
+      "frame_url": "http://127.0.0.1:63319/"
+    },
+    {
+      "kind": "request",
+      "request": {
+        "request_id": "req_808d0ef3_6",
+        "method": "POST",
+        "url": "http://127.0.0.1:63319/api/orders",
+        "resource_type": "fetch",
+        "started_at": "2026-08-31T08:40:05.064Z",
         "request_headers": {
           "content-type": "application/json"
         },
@@ -3284,7 +3322,7 @@
           "access-control-allow-origin": "*",
           "content-length": "12",
           "content-type": "application/json",
-          "date": "Tue, 25 Aug 2026 08:31:41 GMT",
+          "date": "Mon, 31 Aug 2026 08:40:05 GMT",
           "server": "BaseHTTP/0.6 Python/3.14.7"
         },
         "response_body": {
@@ -3300,17 +3338,61 @@
         "failure_reason": null,
         "blocked_reason": null
       },
-      "tab_id": 927171230,
-      "frame_url": "http://127.0.0.1:49986/"
+      "tab_id": 1766715008,
+      "frame_url": "http://127.0.0.1:63319/"
     },
     {
       "kind": "request",
       "request": {
-        "request_id": "req_429d5907_7",
+        "request_id": "req_808d0ef3_6",
+        "method": "POST",
+        "url": "http://127.0.0.1:63319/api/orders",
+        "resource_type": "fetch",
+        "started_at": "2026-08-31T08:40:05.064Z",
+        "request_headers": {
+          "content-type": "application/json"
+        },
+        "request_body": {
+          "text": "{\"clientCode\":\"ACME-4471\",\"dock\":\"D3\"}",
+          "size_bytes": 38,
+          "mime_type": "application/json",
+          "encoding": null,
+          "redacted_fields": []
+        },
+        "status": 200,
+        "status_text": "OK",
+        "response_headers": {
+          "access-control-allow-headers": "*",
+          "access-control-allow-origin": "*",
+          "content-length": "12",
+          "content-type": "application/json",
+          "date": "Mon, 31 Aug 2026 08:40:05 GMT",
+          "server": "BaseHTTP/0.6 Python/3.14.7"
+        },
+        "response_body": {
+          "text": "{\"ok\": true}",
+          "size_bytes": 12,
+          "mime_type": "application/json",
+          "encoding": null,
+          "redacted_fields": []
+        },
+        "redirect_chain": [],
+        "duration_ms": 1,
+        "from_cache": false,
+        "failure_reason": null,
+        "blocked_reason": null
+      },
+      "tab_id": 1766715008,
+      "frame_url": "http://127.0.0.1:63319/"
+    },
+    {
+      "kind": "request",
+      "request": {
+        "request_id": "req_808d0ef3_7",
         "method": "GET",
         "url": "http://127.0.0.1:1/never",
         "resource_type": "fetch",
-        "started_at": "2026-08-25T08:31:41.233Z",
+        "started_at": "2026-08-31T08:40:05.065Z",
         "request_headers": {},
         "request_body": null,
         "status": null,
@@ -3318,22 +3400,45 @@
         "response_headers": {},
         "response_body": null,
         "redirect_chain": [],
-        "duration_ms": 0,
+        "duration_ms": 1,
         "from_cache": false,
         "failure_reason": "Failed to fetch",
         "blocked_reason": null
       },
-      "tab_id": 927171230,
-      "frame_url": "http://127.0.0.1:49986/"
+      "tab_id": 1766715008,
+      "frame_url": "http://127.0.0.1:63319/"
     },
     {
       "kind": "request",
       "request": {
-        "request_id": "req_429d5907_8",
+        "request_id": "req_808d0ef3_7",
+        "method": "GET",
+        "url": "http://127.0.0.1:1/never",
+        "resource_type": "fetch",
+        "started_at": "2026-08-31T08:40:05.065Z",
+        "request_headers": {},
+        "request_body": null,
+        "status": null,
+        "status_text": null,
+        "response_headers": {},
+        "response_body": null,
+        "redirect_chain": [],
+        "duration_ms": 1,
+        "from_cache": false,
+        "failure_reason": "Failed to fetch",
+        "blocked_reason": null
+      },
+      "tab_id": 1766715008,
+      "frame_url": "http://127.0.0.1:63319/"
+    },
+    {
+      "kind": "request",
+      "request": {
+        "request_id": "req_808d0ef3_8",
         "method": "POST",
-        "url": "http://127.0.0.1:49986/api/legacy",
+        "url": "http://127.0.0.1:63319/api/legacy",
         "resource_type": "xhr",
-        "started_at": "2026-08-25T08:31:41.233Z",
+        "started_at": "2026-08-31T08:40:05.066Z",
         "request_headers": {
           "content-type": "application/x-www-form-urlencoded"
         },
@@ -3351,7 +3456,7 @@
           "access-control-allow-origin": "*",
           "content-length": "12",
           "content-type": "application/json",
-          "date": "Tue, 25 Aug 2026 08:31:41 GMT",
+          "date": "Mon, 31 Aug 2026 08:40:05 GMT",
           "server": "BaseHTTP/0.6 Python/3.14.7"
         },
         "response_body": {
@@ -3367,35 +3472,106 @@
         "failure_reason": null,
         "blocked_reason": null
       },
-      "tab_id": 927171230,
-      "frame_url": "http://127.0.0.1:49986/"
+      "tab_id": 1766715008,
+      "frame_url": "http://127.0.0.1:63319/"
     },
     {
       "kind": "request",
       "request": {
-        "request_id": "req_429d5907_9",
-        "method": "GET",
-        "url": "http://127.0.0.1:49986/api/stream",
-        "resource_type": "fetch",
-        "started_at": "2026-08-25T08:31:41.235Z",
-        "request_headers": {},
-        "request_body": null,
+        "request_id": "req_808d0ef3_8",
+        "method": "POST",
+        "url": "http://127.0.0.1:63319/api/legacy",
+        "resource_type": "xhr",
+        "started_at": "2026-08-31T08:40:05.066Z",
+        "request_headers": {
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "request_body": {
+          "text": "clientCode=ACME-4471&dock=D3",
+          "size_bytes": 28,
+          "mime_type": "application/x-www-form-urlencoded",
+          "encoding": null,
+          "redacted_fields": []
+        },
         "status": 200,
         "status_text": "OK",
         "response_headers": {
-          "content-type": "text/event-stream",
-          "date": "Tue, 25 Aug 2026 08:31:41 GMT",
+          "access-control-allow-headers": "*",
+          "access-control-allow-origin": "*",
+          "content-length": "12",
+          "content-type": "application/json",
+          "date": "Mon, 31 Aug 2026 08:40:05 GMT",
           "server": "BaseHTTP/0.6 Python/3.14.7"
         },
-        "response_body": null,
+        "response_body": {
+          "text": "{\"ok\": true}",
+          "size_bytes": 12,
+          "mime_type": "application/json",
+          "encoding": null,
+          "redacted_fields": []
+        },
         "redirect_chain": [],
         "duration_ms": 1,
         "from_cache": false,
         "failure_reason": null,
         "blocked_reason": null
       },
-      "tab_id": 927171230,
-      "frame_url": "http://127.0.0.1:49986/"
+      "tab_id": 1766715008,
+      "frame_url": "http://127.0.0.1:63319/"
+    },
+    {
+      "kind": "request",
+      "request": {
+        "request_id": "req_808d0ef3_9",
+        "method": "GET",
+        "url": "http://127.0.0.1:63319/api/stream",
+        "resource_type": "fetch",
+        "started_at": "2026-08-31T08:40:05.067Z",
+        "request_headers": {},
+        "request_body": null,
+        "status": 200,
+        "status_text": "OK",
+        "response_headers": {
+          "content-type": "text/event-stream",
+          "date": "Mon, 31 Aug 2026 08:40:05 GMT",
+          "server": "BaseHTTP/0.6 Python/3.14.7"
+        },
+        "response_body": null,
+        "redirect_chain": [],
+        "duration_ms": 6,
+        "from_cache": false,
+        "failure_reason": null,
+        "blocked_reason": null
+      },
+      "tab_id": 1766715008,
+      "frame_url": "http://127.0.0.1:63319/"
+    },
+    {
+      "kind": "request",
+      "request": {
+        "request_id": "req_808d0ef3_9",
+        "method": "GET",
+        "url": "http://127.0.0.1:63319/api/stream",
+        "resource_type": "fetch",
+        "started_at": "2026-08-31T08:40:05.067Z",
+        "request_headers": {},
+        "request_body": null,
+        "status": 200,
+        "status_text": "OK",
+        "response_headers": {
+          "content-type": "text/event-stream",
+          "date": "Mon, 31 Aug 2026 08:40:05 GMT",
+          "server": "BaseHTTP/0.6 Python/3.14.7"
+        },
+        "response_body": null,
+        "redirect_chain": [],
+        "duration_ms": 6,
+        "from_cache": false,
+        "failure_reason": null,
+        "blocked_reason": null
+      },
+      "tab_id": 1766715008,
+      "frame_url": "http://127.0.0.1:63319/"
     }
   ]
 }

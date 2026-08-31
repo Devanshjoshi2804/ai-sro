@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field
 
 from sro.application.analytics.summary import Summary
 from sro.application.execution.pursuits import PursuitProgress
+from sro.application.execution.reversal import Reversal
 from sro.application.intent.match import Candidate
 from sro.application.intent.resolve import Resolution
 from sro.domain.chat.thread import Thread
@@ -31,11 +32,16 @@ from sro.domain.observation.device import AgentDevice
 from sro.domain.observation.policy import ObservationPolicy
 from sro.domain.recording.recording import Recording
 from sro.domain.shared.objective import Direction, ObjectiveKey
+from sro.domain.skill.assertion import AssertionKind
 from sro.domain.skill.locator import ControlLocator, LocatorStrategy
 from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.skill import Skill, SkillVersion
 from sro.domain.skill.template import Template
-from sro.domain.skill.track_record import why_not_autonomous
+from sro.domain.skill.track_record import (
+    DEMOTE_AFTER_FAILURES,
+    REQUIRED_CLEAN_RUNS,
+)
+from sro.domain.trigger.confirmation import Confirmation
 from sro.domain.trigger.trigger import Trigger, TriggerKind
 from sro.domain.trigger.watch import MAX_TERM, Term, TermField, ValueAt, Watch
 
@@ -463,11 +469,86 @@ class ParameterModel(BaseModel):
     source_step_index: int | None
     options: OptionsModel | None = None
 
+    optional: bool = False
+    """Some demonstration left this field out and the write still worked."""
+
+    absent_as: str | None = None
+    """What the skipping demonstration sent instead -- the JSON that stands for
+    "nobody filled this in". The answer to "why is this optional", and the
+    reason it is on the wire: a reviewer asked that has to be shown the doing
+    that proves it, not told to trust a flag."""
+
+    evidence: str = "proven"
+    """Whether two demonstrations disagreed here, or a model read one and
+    guessed. Shown, because a proposed parameter is confirmed by whoever runs
+    the skill and a proven one is not."""
+
+
+class GrantRequest(BaseModel):
+    host: str
+    seconds: int = 0
+    """How long to watch it for. Zero means as long as a grant may last; the
+    server caps whatever is asked for, so a browser cannot ask for forever."""
+
+
+class GrantModel(BaseModel):
+    host: str
+    granted_by: str
+    granted_at: datetime
+    expires_at: datetime
+
+
+class GrantsResponse(BaseModel):
+    """What this browser may watch beyond the tenant's default, now.
+
+    The whole live list rather than the one just changed: the panel draws from
+    it, and a screen that showed only the last answer would go stale the first
+    time a grant expired underneath it.
+    """
+
+    grants: list[GrantModel]
+
+    @classmethod
+    def of(cls, device: AgentDevice) -> GrantsResponse:
+        return cls(
+            grants=[
+                GrantModel(
+                    host=grant.host,
+                    granted_by=str(grant.granted_by),
+                    granted_at=grant.granted_at,
+                    expires_at=grant.expires_at,
+                )
+                for grant in device.grants
+            ]
+        )
+
+
+class DemonstrationModel(BaseModel):
+    """One demonstration behind a version, and what it put in each field.
+
+    ``values`` holds a name only where this doing answers for it: a null is
+    "sent holding nothing", which is the evidence behind an optional field,
+    and a name absent from the mapping is a field this doing does not answer
+    for at all. The two are different facts and the screen shows them
+    differently.
+    """
+
+    recording_id: str
+    started_at: datetime
+    demonstrator: str
+    frames: int
+    diffed: bool
+    values: dict[str, str | None]
+
 
 class AssertionModel(BaseModel):
     kind: str
     expected: str
     pointer: str | None
+    written_by: str | None = None
+    """Who decided this counts as success, where a person did. ``None`` means
+    induction derived it from the recordings -- two demonstrations agreeing,
+    which is evidence rather than an opinion."""
 
 
 class NetworkPlanModel(BaseModel):
@@ -489,6 +570,77 @@ class UiPlanModel(BaseModel):
     wait_for: str | None
 
 
+class ToolOfferedModel(BaseModel):
+    name: str
+    description: str
+    arguments: list[str]
+
+
+class ConfirmationModel(BaseModel):
+    """A fire waiting for somebody to say yes."""
+
+    id: str
+    trigger_id: str
+    skill_id: str
+    skill_name: str
+    asked_at: datetime
+    expires_at: datetime
+    values: dict[str, str]
+    because: str
+    answer: str
+
+    @classmethod
+    def of(cls, confirmation: Confirmation, *, skill_name: str = "") -> ConfirmationModel:
+        return cls(
+            id=confirmation.id.value,
+            trigger_id=confirmation.trigger_id.value,
+            skill_id=confirmation.skill_id.value,
+            skill_name=skill_name,
+            asked_at=confirmation.asked_at,
+            expires_at=confirmation.expires_at,
+            values=dict(confirmation.values),
+            because=confirmation.because,
+            answer=confirmation.answer.value,
+        )
+
+
+class DeclineRequest(BaseModel):
+    note: str = ""
+
+
+class AnsweredModel(BaseModel):
+    confirmation_id: str
+    answer: str
+    run_id: str | None = None
+
+
+class AssertRequest(BaseModel):
+    version: int
+    step_index: int
+    kind: AssertionKind
+    expected: str
+    pointer: str | None = None
+
+
+class MapStepRequest(BaseModel):
+    version: int
+    step_index: int
+    server: str
+    tool: str
+    arguments: dict[str, str] = {}
+    writes: bool = False
+    """Whether calling this changes something outside this system. Said by the
+    person mapping it, because nothing else can: MCP declares no such thing,
+    and a tool named `send_message` is a name rather than a promise."""
+
+
+class ToolPlanModel(BaseModel):
+    server: str
+    tool: str
+    arguments: dict[str, str]
+    writes: bool
+
+
 class StepModel(BaseModel):
     index: int
     intent: str
@@ -498,6 +650,7 @@ class StepModel(BaseModel):
     when: str | None
     network_plan: NetworkPlanModel | None
     ui_plan: UiPlanModel | None
+    tool_plan: ToolPlanModel | None = None
     assertions: list[AssertionModel]
 
 
@@ -508,6 +661,12 @@ class TrackRecordModel(BaseModel):
     degraded_runs: int
     failed_runs: int
     unreachable_runs: int
+    # The two thresholds the streak is measured against, sent rather than left
+    # for a reader to know. A console drawing "7 of 10" from a 10 it hardcoded
+    # would go on saying 10 the day `REQUIRED_CLEAN_RUNS` moved, and the bar
+    # would disagree with the rule that actually refuses the promotion.
+    clean_runs_needed: int = REQUIRED_CLEAN_RUNS
+    failures_before_demotion: int = DEMOTE_AFTER_FAILURES
 
 
 class LoopModel(BaseModel):
@@ -534,6 +693,17 @@ class SkillVersionModel(BaseModel):
     says no without saying why is a gate people work around."""
 
     demotion_reason: str | None
+
+    promoted_from: str
+    """Where the review that put this version at its current stage happened.
+    See `SkillVersion.promoted_from` for the full vocabulary; the two that
+    matter on this screen are `"console"` -- somebody reading the evidence
+    here -- and `"preview"` -- an operator reading the panel's preview and
+    pressing once. A reviewer needs both spelled out to tell the two apart
+    and disagree with either -- see ADR 014. Blank means nobody has promoted
+    this version by a click of any kind; `"earned"` and `"repair"` mean a
+    process moved it, with nobody to disagree with."""
+
     induced_at: datetime
     induced_by: str
     recording_ids: list[str]
@@ -559,6 +729,19 @@ class SkillVersionModel(BaseModel):
     because otherwise no screen can tell one from an ordinary skill until the
     backend refuses the run."""
 
+    starts_on: str | None
+    """The page the run opens before it does anything -- see
+    `SkillVersion.starts_on`.
+
+    On the wire because the panel's preview names it, and ADR 014's argument
+    depends on that: the closed list of what an operator reads before pressing
+    is the step intents, the resolved value of each parameter, and the tab the
+    run will act in. The run genuinely navigates there
+    (`ExecuteSkill` passes it to the driver), so a preview that left it out was
+    describing a run in the operator's current tab and performing one somewhere
+    else. `None` where the demonstrations began on different screens, which is
+    the evidence saying the screen is not part of the task."""
+
     @classmethod
     def of(cls, version: SkillVersion) -> SkillVersionModel:
         return cls(
@@ -574,10 +757,9 @@ class SkillVersionModel(BaseModel):
                 failed_runs=version.track_record.failed_runs,
                 unreachable_runs=version.track_record.unreachable_runs,
             ),
-            ready_for_autonomy=why_not_autonomous(
-                version.track_record, verifiable=version.verifiable
-            ),
+            ready_for_autonomy=version.not_ready_for_autonomy,
             demotion_reason=version.demotion_reason,
+            promoted_from=version.promoted_from,
             induced_at=version.provenance.induced_at,
             induced_by=version.provenance.induced_by.value,
             recording_ids=[r.value for r in version.provenance.recording_ids],
@@ -595,6 +777,7 @@ class SkillVersionModel(BaseModel):
                 for loop in version.loops
             ],
             systems=list(version.systems),
+            starts_on=version.starts_on,
             steps=[
                 StepModel(
                     index=step.index,
@@ -639,9 +822,24 @@ class SkillVersionModel(BaseModel):
                         if step.ui_plan
                         else None
                     ),
+                    tool_plan=(
+                        ToolPlanModel(
+                            server=step.tool_plan.server,
+                            tool=step.tool_plan.tool,
+                            arguments={
+                                name: str(value) for name, value in step.tool_plan.arguments
+                            },
+                            writes=step.tool_plan.writes,
+                        )
+                        if step.tool_plan
+                        else None
+                    ),
                     assertions=[
                         AssertionModel(
-                            kind=a.kind.value, expected=str(a.expected), pointer=a.pointer
+                            kind=a.kind.value,
+                            expected=str(a.expected),
+                            pointer=a.pointer,
+                            written_by=str(a.written_by) if a.written_by else None,
                         )
                         for a in step.assertions
                     ],
@@ -664,6 +862,9 @@ class SkillVersionModel(BaseModel):
                         else None
                     ),
                     source_step_index=p.source_step_index,
+                    optional=p.optional,
+                    absent_as=p.absent_as,
+                    evidence=p.evidence.value,
                 )
                 for p in version.parameters
             ],
@@ -705,6 +906,13 @@ class ChoiceModel(BaseModel):
 
 
 class PromoteRequest(BaseModel):
+    """A person, in the console, choosing to move a version up a rung.
+
+    Carries no `from_where`: this endpoint is answered by `PromoteSkill`, which
+    always tells the version it was `"console"`. A press on the panel's preview
+    promotes through a different call, because it is a different review -- see
+    ADR 014 -- and this request never stands in for it."""
+
     version: int
     to: PromotionStage
     """The rung to move to, checked here rather than in the router: coercing an
@@ -793,6 +1001,33 @@ class RunSkillRequest(BaseModel):
     """Required above shadow. The human who allowed this run to write."""
 
 
+class RunFromPreviewRequest(BaseModel):
+    """The press. No `authorized_by` field: reading the preview and pressing
+    `Do it` is the confirmation, not a second box to tick on top of it."""
+
+    parameters: dict[str, str]
+
+    device_id: str
+    """The operator's own browser -- always, not optionally, because the
+    preview this promotes on showed them the tab the run is about to act in
+    (ADR 014), and a run that then acted somewhere else would not be the run
+    they read."""
+
+    intent: str = ""
+    """The sentence the operator typed. Carried onto `Run.intent` unchanged --
+    see that field for why there is no second place it is kept."""
+
+    version: int
+    """The version number the panel actually previewed.
+
+    Required, and not defaulted to "the latest": ADR 014's whole argument is
+    that what was on the screen when the operator pressed `Do it` is, line for
+    line, what the run is about to do, and a press that could not name which
+    version it read cannot make that claim. The backend refuses this run
+    outright if the skill has moved on since -- it neither falls forward to a
+    version nobody read nor back to one somebody has since replaced."""
+
+
 class StepOutcomeModel(BaseModel):
     index: int
     medium: str
@@ -866,6 +1101,41 @@ class StepOutcomeModel(BaseModel):
         )
 
 
+class CalledWrongRequest(BaseModel):
+    because: str = Field(min_length=1, max_length=500)
+    """Why it was wrong. "undone by the operator" where they pressed undo, or
+    what they typed. Kept because "I took it back" and "the priority was wrong"
+    are different things to read a month later."""
+
+
+class ReversalModel(BaseModel):
+    """What would take back what this run made, where anything would."""
+
+    skill_id: str
+
+    version: int
+    """The version the undo was found on and validated against. Sent back
+    unchanged on the press, so the run that reverses is the one that was
+    offered -- see `RunFromPreviewRequest.version`."""
+
+    removes: str
+    """What the delete step says it does, in the demonstration's own words.
+    Shown beside the identifying values below, before `Undo that` is pressed:
+    one press is the design, and one press that never named what it was about
+    to delete is not."""
+
+    parameters: dict[str, str]
+
+    @classmethod
+    def of(cls, reversal: Reversal) -> ReversalModel:
+        return cls(
+            skill_id=reversal.skill_id.value,
+            version=reversal.version,
+            removes=reversal.removes,
+            parameters=reversal.parameters,
+        )
+
+
 class RunModel(BaseModel):
     id: str
     skill_id: str
@@ -884,10 +1154,26 @@ class RunModel(BaseModel):
     started_at: datetime
     ended_at: datetime | None
     failure: str | None
+    wrong_because: str | None = None
+    """Set once the person this ran for says the result was wrong. Null is the
+    ordinary case and is not a verdict; nothing is asked after a run."""
+
+    intent: str = ""
+    """The sentence the operator typed to ask for this run. Empty for a console
+    run, a batch, or a trigger firing on its own -- nobody typed one."""
+
+    reversal: ReversalModel | None = None
+    """What would undo this run, where the panel found three facts that say
+    one does: a write, a runnable skill that deletes that same shape, and the
+    identifier it needs, already read back. Null is not "no", it is "not
+    computed here" -- only the single-run read fills it in, because it needs
+    the tenant's skill library and the list of runs must not pay for that on
+    every row."""
+
     steps: list[StepOutcomeModel]
 
     @classmethod
-    def of(cls, run: Run) -> RunModel:
+    def of(cls, run: Run, *, reversal: Reversal | None = None) -> RunModel:
         return cls(
             id=run.id.value,
             skill_id=run.skill_id.value,
@@ -903,6 +1189,9 @@ class RunModel(BaseModel):
             started_at=run.started_at,
             ended_at=run.ended_at,
             failure=run.failure,
+            wrong_because=run.wrong_because,
+            intent=run.intent,
+            reversal=ReversalModel.of(reversal) if reversal is not None else None,
             steps=[StepOutcomeModel.of(step) for step in run.steps],
         )
 
@@ -966,6 +1255,14 @@ class ResolutionModel(BaseModel):
     why: list[str]
     proposal: ProposalModel | None
 
+    items: list[dict[str, str]] = []
+    """Values the parser read out of the sentence for the matched skill, one
+    set per thing to do -- "these six SKUs" is six. Sent so a caller that asks
+    in a sentence rather than a form can actually use what typing the sentence
+    was for; without this a matched skill whose parameters the sentence
+    supplied was refused at the press for values nobody was ever asked to
+    give twice."""
+
     @classmethod
     def of(cls, resolution: Resolution) -> ResolutionModel:
         return cls(
@@ -977,6 +1274,7 @@ class ResolutionModel(BaseModel):
             confident=resolution.confident,
             question=resolution.question,
             why=list(resolution.why),
+            items=[dict(item) for item in resolution.items],
             proposal=(
                 ProposalModel(
                     steps=[
@@ -1155,6 +1453,8 @@ class ObservationPolicyModel(BaseModel):
     include_hosts: list[str]
     capture_screenshots: bool
     screenshot_max_per_minute: int
+    capture_snapshots: bool = False
+    snapshot_max_per_minute: int = 20
     capture_response_bodies: bool
     max_body_bytes: int
     daily_budget_bytes: int
@@ -1169,6 +1469,8 @@ class ObservationPolicyModel(BaseModel):
             include_hosts=list(policy.include_hosts),
             capture_screenshots=policy.capture_screenshots,
             screenshot_max_per_minute=policy.screenshot_max_per_minute,
+            capture_snapshots=policy.capture_snapshots,
+            snapshot_max_per_minute=policy.snapshot_max_per_minute,
             capture_response_bodies=policy.capture_response_bodies,
             max_body_bytes=policy.max_body_bytes,
             daily_budget_bytes=policy.daily_budget_bytes,
@@ -1496,6 +1798,14 @@ class FiredModel(BaseModel):
     run_id: str | None
     skipped: str | None
 
+    confirmation_id: str | None = None
+    """Set where the fire became a card somebody has to answer.
+
+    Without it a relay reading this response cannot tell "a person will decide
+    about this" from "nothing happened at all": both answered with a null run
+    and no reason to skip, which is the one shape that means neither.
+    """
+
 
 class WatchMatchModel(BaseModel):
     """The offer a recognised mail turns into. Not a run: nothing has started.
@@ -1690,6 +2000,7 @@ class DoingModel(BaseModel):
 
 
 class TaskLineModel(BaseModel):
+    id: str
     title: str
     host: str
     kind: str

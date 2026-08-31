@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 
 from sro.domain.shared.errors import InvariantViolation
@@ -12,7 +12,7 @@ from sro.domain.skill.assertion import Assertion
 from sro.domain.skill.earned import earned_stage
 from sro.domain.skill.loop import Loop
 from sro.domain.skill.parameter import Parameter, ParameterKind
-from sro.domain.skill.plan import NetworkPlan, UiPlan
+from sro.domain.skill.plan import NetworkPlan, ToolPlan, UiPlan
 from sro.domain.skill.promotion import PromotionStage, check_promotion
 from sro.domain.skill.track_record import TrackRecord, Verdict, why_not_autonomous
 
@@ -23,6 +23,11 @@ class SkillStep:
     intent: str
     network_plan: NetworkPlan | None = None
     ui_plan: UiPlan | None = None
+    tool_plan: ToolPlan | None = None
+    """Somebody mapped this step onto a connector's tool. Beside the other two
+    rather than instead of them: a step that can be a call, a gesture *and* a
+    tool call is one a run can perform three ways, and which it took is what
+    the medium on the outcome says."""
     assertions: tuple[Assertion, ...] = ()
     requires_human: bool = False
 
@@ -51,9 +56,9 @@ class SkillStep:
             raise InvariantViolation("SkillStep.index must be non-negative")
         if not self.intent.strip():
             raise InvariantViolation("SkillStep requires an intent")
-        if self.network_plan is None and self.ui_plan is None:
+        if self.network_plan is None and self.ui_plan is None and self.tool_plan is None:
             raise InvariantViolation(
-                f"step {self.index} has neither a network plan nor a UI plan; "
+                f"step {self.index} has no network plan, UI plan or tool plan; "
                 "there is no way to perform it"
             )
 
@@ -64,6 +69,8 @@ class SkillStep:
             names |= self.network_plan.placeholders
         if self.ui_plan is not None:
             names |= self.ui_plan.placeholders
+        if self.tool_plan is not None:
+            names |= self.tool_plan.placeholders
         for assertion in self.assertions:
             names |= assertion.expected.placeholders
         return frozenset(names)
@@ -125,6 +132,38 @@ class SkillVersion:
     promoted_at: datetime | None = None
     promoted_by: PrincipalId | None = None
 
+    promoted_from: str = ""
+    """Where the review that put this version at its current stage happened.
+    Every writer names itself, so blank means exactly one thing: nobody has.
+
+    - `"console"` -- somebody sitting down with the evidence, through
+      `PromoteSkill`.
+    - `"preview"` -- an operator reading the steps and the values in the
+      panel and pressing once, at the screen it will act on, with a stop
+      button in front of them.
+    - `"earned"` -- `earn()`. Not a review at all: the streak did it, and
+      nobody was asked. Kept apart from blank for the same reason
+      `promoted_by` is `None` here rather than some system principal -- a
+      streak is a basis, and writing nothing would make it indistinguishable
+      from a version nobody has looked at.
+    - `"repair"` -- `repair_drift`'s inherited climb back to the rung the
+      version it replaced had earned. Mechanical, not a person's read of this
+      version; the person is `REPAIR`, the review is nobody's.
+    - `""` -- `demote()`, disambiguated by `demotion_reason` rather than by
+      this field; the three places a version is reset to `RECORDED` for a
+      fresh review (`map_step_to_tool`, `add_assertion`, `repair_drift`'s new
+      version before it climbs back up); and every row written before this
+      field existed.
+
+    `"console"` and `"preview"` are both reviews, and the second is a real
+    reading of what the ladder asks for -- but they are not the same review,
+    and somebody auditing a library has to be able to tell them apart and
+    disagree with one of them. A value that has to be decoded by joining it
+    to `promoted_by` or `stage` is not one a reviewer can filter a list by,
+    which is why every writer, including the ones with no human in them,
+    names itself rather than leaving blank to mean more than one thing.
+    """
+
     track_record: TrackRecord = field(default_factory=TrackRecord)
     """What this version has actually done. Autonomy is earned from this, never
     granted by a click."""
@@ -134,6 +173,20 @@ class SkillVersion:
 
     demotion_reason: str | None = None
     """Why this version was pulled back down, when it was."""
+
+    starts_on: str | None = None
+    """The page the task was demonstrated on.
+
+    A skill taught by clicking names no URL on any step, so a run could only be
+    performed by an operator who had already navigated to the right screen --
+    and one who had not got the same thirteen `control_not_found` lines as one
+    whose browser was on the wrong system entirely. This is what the recorder
+    saw, on the frame the demonstration opened with.
+
+    Only where every demonstration of the task began on the same screen. Two
+    that began on different ones are saying the screen is not part of the task,
+    and a run that navigated on that evidence would be guessing.
+    """
 
     systems: tuple[str, ...] = ()
     """Every system this version touches, derived from what it was taught on.
@@ -176,7 +229,19 @@ class SkillVersion:
 
     @property
     def inputs(self) -> tuple[Parameter, ...]:
-        return tuple(p for p in self.parameters if p.kind is ParameterKind.INPUT)
+        """The values somebody has to supply for a run to be worth starting.
+
+        Optional ones are not among them. A demonstration proved the warehouse
+        accepts the record without that field and `absent_as` records exactly
+        what it sent instead, so a run with nothing in it is a run that does
+        what that demonstration did -- not one that fails.
+
+        This was every INPUT parameter, which made a skill with any optional
+        field impossible to put on a trigger at all: `CreateTrigger` demanded a
+        value for the four boxes an operator had deliberately left empty, and
+        the only way past it was to invent one.
+        """
+        return tuple(p for p in self.parameters if p.kind is ParameterKind.INPUT and not p.optional)
 
     def describe(self, *, summary: str, when_to_use: str) -> None:
         """Reword what this version is for. A label, never a behaviour."""
@@ -197,10 +262,14 @@ class SkillVersion:
 
     @property
     def changes_the_system(self) -> bool:
-        """Whether performing this version writes anything."""
-        return any(
-            step.network_plan is not None and step.network_plan.is_mutation for step in self.steps
-        )
+        """Whether performing this version writes anything.
+
+        A tool call counts when whoever mapped it said it writes. Nothing else
+        can say: MCP declares no such thing and a tool named `send_message` is
+        a name, not a promise -- so this reads the decision rather than the
+        word.
+        """
+        return any(_writes(step) for step in self.steps)
 
     @property
     def from_one_demonstration(self) -> bool:
@@ -218,17 +287,86 @@ class SkillVersion:
         return len(self.provenance.recording_ids) == 1
 
     @property
-    def verifiable(self) -> bool:
-        """Whether a run of this can be checked at all.
+    def needs_a_person(self) -> bool:
+        """Whether some step can only be performed as a gesture.
 
-        A skill with no assertion anywhere produces runs that only ever prove a
-        request was sent. That may run assisted forever; it may never run
-        unattended.
+        A step with no network plan is a click or a keystroke, and `judge`
+        makes any run that performs one DEGRADED -- a medium that is not
+        NETWORK, by the rule that a gesture means the recorded call no longer
+        works. DEGRADED resets the clean streak, so such a version cannot
+        accumulate one and can never reach the top of the ladder.
+
+        That is a fact about the skill rather than about how it has been going,
+        and it is the difference between "not yet" and "not ever". Somebody
+        watching the streak sit at zero deserves to be told which one they are
+        looking at.
         """
-        return any(step.assertions for step in self.steps)
+        return any(step.network_plan is None and step.tool_plan is None for step in self.steps)
 
-    def record_run(self, verdict: Verdict, at: datetime) -> None:
-        self.track_record = self.track_record.after(verdict, at)
+    @property
+    def unchecked_writes(self) -> tuple[int, ...]:
+        """The steps that change the system and prove nothing about the result.
+
+        A write whose two demonstrations returned different statuses and shared
+        no stable response field comes out of induction with no post-condition
+        at all. Performing it can then only fail by not being sent -- the
+        warehouse can reject it, ignore it, or do something else entirely, and
+        the run says the step was fine.
+        """
+        return tuple(step.index for step in self.steps if _writes(step) and not step.assertions)
+
+    @property
+    def not_ready_for_autonomy(self) -> str | None:
+        """Why this version may not run unattended, or ``None`` when it may.
+
+        Here rather than at each caller, because there were three of them and
+        they disagreed: the console passed everything and the promotion gate
+        passed only `verifiable`, so a version refused at the gate was told
+        "no step of this skill cannot be checked" -- a sentence that is not
+        even wrong. What refuses a promotion and what a screen says about it
+        have to be the same sentence.
+        """
+        return why_not_autonomous(
+            self.track_record,
+            verifiable=self.verifiable,
+            needs_a_person=self.needs_a_person,
+            unchecked_writes=(
+                "step " + ", ".join(str(index) for index in self.unchecked_writes)
+                if self.unchecked_writes
+                else "no step"
+            ),
+        )
+
+    @property
+    def verifiable(self) -> bool:
+        """Whether a run of this can be checked.
+
+        Two conditions, because one was not enough. Something must be checked
+        at all -- a skill with no assertion anywhere produces runs that only
+        ever prove a request was sent. And every step that *changes* the system
+        must be among the checked: this was `any`, so a version whose read step
+        asserted and whose writes did not counted as verified on the strength
+        of the one step nobody is worried about.
+
+        Either way it may run assisted forever; it may never run unattended.
+        """
+        return any(step.assertions for step in self.steps) and not self.unchecked_writes
+
+    def record_run(
+        self, verdict: Verdict, at: datetime, *, revising: Verdict | None = None
+    ) -> None:
+        """Count a finished run against this version.
+
+        `revising` names a verdict this same run has already been counted
+        under, and replaces it rather than adding beside it -- see
+        `TrackRecord.instead_of`. `CallRunWrong` is the only caller that has
+        one: it judges a run `FinishRun` finished and judged minutes earlier.
+        """
+        self.track_record = (
+            self.track_record.after(verdict, at)
+            if revising is None
+            else self.track_record.instead_of(revising, verdict, at)
+        )
 
     def earn(self, verdict: Verdict, at: datetime) -> PromotionStage | None:
         """Move up if the record now says so. Returns the rung, or None.
@@ -251,6 +389,7 @@ class SkillVersion:
         self.stage = target
         self.promoted_at = at
         self.promoted_by = None
+        self.promoted_from = "earned"
         self.demotion_reason = None
         return target
 
@@ -263,6 +402,7 @@ class SkillVersion:
         self.stage = to
         self.promoted_at = at
         self.promoted_by = None
+        self.promoted_from = ""
         self.demotion_reason = why
 
     def promote(
@@ -272,8 +412,41 @@ class SkillVersion:
         by: PrincipalId,
         *,
         acknowledging_fixed_values: bool = False,
+        from_where: str = "",
     ) -> None:
         check_promotion(self.stage, to)
+        if from_where == "preview" and to.rung > PromotionStage.ASSISTED.rung:
+            # The argument for a preview being a review is that the operator
+            # read what this run would do. Nobody reads what ten future
+            # unattended runs will do.
+            raise InvariantViolation(
+                "a preview promotes no further than assisted; "
+                f"{to} is earned by clean runs, not by a press"
+            )
+        if from_where == "preview" and self.demotion_reason:
+            # The ladder's own backstop, protected from the press that would
+            # undo it. A version is only ever carrying a `demotion_reason`
+            # because it failed three runs in a row and was pulled back
+            # automatically -- and the one thing that must not put it straight
+            # back is the same kind of press that was failing. Without this, a
+            # task that is wrong every single time never stays demoted: it is
+            # demoted on the third wrong run and restored by the operator's
+            # very next press, forever.
+            #
+            # The refusal is a sentence an operator reads, not a field name,
+            # because this is raised through `RunFromPreview` and lands in the
+            # panel beside the button they just pressed. What it asks for is
+            # the rung the ladder exists to provide: somebody sitting down in
+            # the console with the evidence -- the failed runs, the steps, the
+            # assertions -- rather than somebody mid-task reading a preview of
+            # the one run in front of them. A console promotion clears
+            # `demotion_reason` below, which is what lets the version run
+            # again, and that is exactly the person this refusal holds out for.
+            raise InvariantViolation(
+                "this task went wrong three times in a row, so it was pulled back and stopped "
+                "running. Somebody needs to look at what it did before it runs again -- ask "
+                "whoever looks after these tasks to check it in the console"
+            )
         if (
             to.rung > PromotionStage.SHADOW.rung
             and self.from_one_demonstration
@@ -293,15 +466,41 @@ class SkillVersion:
                 "second time to turn those values into parameters, or promote it again saying "
                 "you have read what it sends"
             )
-        if to is PromotionStage.AUTONOMOUS and (
-            refusal := why_not_autonomous(self.track_record, verifiable=self.verifiable)
-        ):
+        if to is PromotionStage.AUTONOMOUS and (refusal := self.not_ready_for_autonomy):
             raise InvariantViolation(f"not ready to run unattended: {refusal}")
         if at.tzinfo is None:
             raise InvariantViolation("promotion timestamp must be timezone-aware")
         self.stage = to
         self.promoted_at = at
         self.promoted_by = by
+        self.promoted_from = from_where
+        # The count that demoted it, cleared by the person who looked -- and
+        # only by them.
+        #
+        # `should_demote` is a standing condition rather than an event: it is
+        # re-asked after every run, so a version demoted at three failures went
+        # straight back down on its next run whatever that run did -- and it
+        # could not do better, because shadow withholds the writes a clean run
+        # would need. Promoting it was futile and looked like a bug in the
+        # ladder. The streak is left alone: it is progress towards autonomy and
+        # nobody may grant it by pressing a button.
+        #
+        # A preview promotion is not that person. The clearing was written for
+        # a console promotion, where somebody sat down with the failures and
+        # decided they were understood; the operator pressing `Do it` mid-task
+        # has read the steps and the values of the one run in front of them and
+        # nothing at all about the runs that failed before it. Clearing the
+        # count on their behalf would hand every failing version a fresh three
+        # lives on every press, which is the same hole the refusal above closes
+        # from the other side -- that one stops a version that has already been
+        # demoted from being put back, this one stops a version from never
+        # being demoted in the first place. Both are needed: a version sitting
+        # at one or two failures carries no `demotion_reason` for the refusal
+        # above to catch, so a press that cleared the count would walk it back
+        # to zero and the third failure would never arrive.
+        if from_where != "preview":
+            self.track_record = replace(self.track_record, consecutive_failures=0)
+            self.demotion_reason = None
 
     def _check_step_indices(self) -> None:
         indices = [step.index for step in self.steps]
@@ -438,3 +637,15 @@ class Skill:
         if version.stage is not PromotionStage.RECORDED:
             raise InvariantViolation("a new version always starts at RECORDED")
         self._versions.append(version)
+
+
+def _writes(step: SkillStep) -> bool:
+    """Whether performing this step changes something outside this system.
+
+    One definition, because three rules read it -- whether a version writes at
+    all, which of its steps go unchecked, and what a run below the assisted
+    rung is allowed to send. They disagreed once already.
+    """
+    if step.network_plan is not None and step.network_plan.is_mutation:
+        return True
+    return step.tool_plan is not None and step.tool_plan.writes

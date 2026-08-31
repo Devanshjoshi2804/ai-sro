@@ -21,6 +21,7 @@ import json
 import queue
 import threading
 from collections.abc import Callable, Iterator
+from datetime import UTC, datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, ClassVar
@@ -224,7 +225,74 @@ _CANDIDATES = [
         "joins": [],
         "episodes": [],
     },
+    {
+        "id": "cnd-lpn-here",
+        # No model title: this candidate is offered on the noun `plainly()`
+        # reads off its own signature, the other of the two sentences that
+        # function says, so the end-to-end test exercises both halves of the
+        # panel between them rather than only the one `cnd-here` already
+        # covers.
+        "title": None,
+        # `localhost`, not `127.0.0.1` -- a second host aliasing the same
+        # stub (see `MAIL_WITH_NO_REFERENCE`'s sibling tests for the same
+        # trick), so a "new" candidate here is never counted by
+        # `test_the_panel_shows_only_the_tasks_of_the_system_in_front_of_it`,
+        # which asserts there is exactly one on `127.0.0.1`.
+        "host": "localhost",
+        "signature": "PUT wm/inventory/adjust",
+        "status": "new",
+        "times_seen": 3,
+        "median_duration_ms": 20000,
+        "minutes_so_far": 1.0,
+        "first_seen": None,
+        "last_seen": None,
+        "skill_id": None,
+        "dismissed_reason": None,
+        "named_by_model": False,
+        "joins": [],
+        "episodes": [],
+    },
 ]
+
+_SKILL_LPN_ADJUST = {
+    "id": "skl-lpn-adjust",
+    "name": "Adjust an LPN quantity",
+    "versions": [
+        {
+            "version": 1,
+            # Not "autonomous" and not a version with a clean streak, so
+            # `previewOf` in the panel shows every step rather than
+            # collapsing to one line -- the shape task 9 needs to see a
+            # preview actually list.
+            "stage": "practice",
+            "track_record": {"clean_streak": 0},
+            # The tab the run opens before step one. On the wire because the
+            # preview names it -- ADR 014's closed list of what an operator
+            # reads before pressing is the step intents, the resolved value of
+            # each parameter, and this. Never navigated to by anything in this
+            # suite -- the backend's driver is what opens it, and this stub is
+            # not one -- so any recognisable address does; what is under test
+            # is that the panel says which screen before the press.
+            "starts_on": "http://wms.test/inventory/lpn",
+            "steps": [
+                {"index": 0, "intent": "Type the LPN barcode"},
+                {"index": 1, "intent": "Press Save"},
+            ],
+            "parameters": [
+                {
+                    "name": "lpn",
+                    "kind": "input",
+                    "source_step_index": 0,
+                    "description": "LPN barcode",
+                }
+            ],
+        }
+    ],
+}
+"""What `GET /v1/skills/skl-lpn-adjust` answers with -- just enough of a
+version for the panel's preview to have real steps and a real parameter to
+read a sentence's value into, which the mail flow's canned skill (empty
+`versions`, used only to read a name off) never needed."""
 
 
 DEVICE_SECRET = "the-secret-this-browser-was-minted-at-registration"  # noqa: S105
@@ -267,6 +335,28 @@ class _Stub(BaseHTTPRequestHandler):
     """Answer this many artifact uploads with a 503 before taking any. A lost
     reply from the blob store is the ordinary way one of these fails."""
 
+    resolutions_asked: ClassVar[list[str]] = []
+    """Every sentence handed to intent resolution, in the operator's own
+    words -- what the box in `beginOffer` actually sent, not what it was
+    prefilled with."""
+
+    run_previews: ClassVar[list[dict[str, Any]]] = []
+    """Every press that started a run from a preview, as sent: which skill,
+    what a sentence resolved its parameters to, and the sentence itself. This
+    is the write task 9's chain promises -- the operator's own words, landing
+    as a real request rather than being kept anywhere in between."""
+
+    run_wrongs: ClassVar[list[dict[str, Any]]] = []
+    """What was recorded each time a finished run was called wrong -- pressing
+    "Undo that" is one of these before it is anything else."""
+
+    runs: ClassVar[dict[str, dict[str, Any]]] = {}
+    """Every run this stub has started, keyed by id and mutable: there is no
+    real orchestrator behind this stub to carry a run from "running" to a
+    terminal status on its own, so a test moves one there itself, the way the
+    real backend's own background worker would once its steps actually
+    finished."""
+
     def log_message(self, *args: Any) -> None:
         pass
 
@@ -278,7 +368,15 @@ class _Stub(BaseHTTPRequestHandler):
         an extension that stopped sending it would otherwise go on passing
         every test in this suite while being locked out of a real deployment.
         """
-        if not self.path.startswith("/v1/agents/") or self.path == "/v1/agents/register":
+        device_scoped = self.path.startswith("/v1/agents/") or any(
+            # The evidence paths take their device id from a request body
+            # rather than the URL, so the shape does not say they are
+            # device-scoped -- but they are, and the same secret is what says
+            # which browser is filing under whose name.
+            self.path.split("?")[0] == each
+            for each in ("/v1/observations", "/v1/observations/artifacts", "/v1/recordings")
+        )
+        if not device_scoped or self.path == "/v1/agents/register":
             return True
         if self.headers.get("X-Device-Secret") == DEVICE_SECRET:
             return True
@@ -312,15 +410,31 @@ class _Stub(BaseHTTPRequestHandler):
             self._send(200, MAIL.encode(), "text/html; charset=utf-8")
             return
         if self.path.startswith("/v1/skills/"):
+            skill_id = self.path.split("/")[3]
+            if skill_id == _SKILL_LPN_ADJUST["id"]:
+                self._send(200, json.dumps(_SKILL_LPN_ADJUST).encode())
+                return
             # Enough of a skill for the panel to name the task on the card. A
             # card that named an id would be asking somebody to decide about
             # `skl-short-ship`.
             self._send(
                 200,
                 json.dumps(
-                    {"id": self.path.split("/")[3], "name": "Resolve a short ship", "versions": []}
+                    {"id": skill_id, "name": "Resolve a short ship", "versions": []}
                 ).encode(),
             )
+            return
+        if self.path.startswith("/v1/runs/"):
+            # No real orchestrator sits behind this stub, so a run's status
+            # here is exactly what a test has put in `_Stub.runs` -- "running"
+            # from the moment `/runs/from-preview` answered until a test moves
+            # it on, the same thing the real backend's own worker would do in
+            # its own time.
+            run = _Stub.runs.get(self.path.split("/")[3])
+            if run is None:
+                self._send(404, json.dumps({"detail": "no such run"}).encode())
+                return
+            self._send(200, json.dumps(run).encode())
             return
         if self.path.startswith("/v1/candidates"):
             _Stub.candidate_queries.append(self.path)
@@ -538,6 +652,96 @@ class _Stub(BaseHTTPRequestHandler):
             _CANDIDATES[0]["joins"][0].update(answered=asked["answer"], answered_by="you")
             self._send(200, json.dumps(_CANDIDATES[0]).encode())
             return
+        if self.path.endswith("/teach"):
+            # Silent, the way `beginOffer` asks for it: nothing here needs
+            # evidence to disagree about, so the induction the real endpoint
+            # would attempt always succeeds on the first ask.
+            self._send(
+                202,
+                json.dumps(
+                    {
+                        "candidate_id": self.path.split("/")[3],
+                        "recording_id": None,
+                        "skill_id": _SKILL_LPN_ADJUST["id"],
+                        "needs_demonstration": False,
+                        "because": None,
+                    }
+                ).encode(),
+            )
+            return
+        if self.path == "/v1/intent/resolve":
+            asked = json.loads(raw)
+            _Stub.resolutions_asked.append(asked.get("utterance", ""))
+            # A fixed match regardless of what was typed: reading a sentence
+            # is `resolve_intent`'s job and is proven at the unit and contract
+            # level already (`tests/unit/application/test_resolve_intent.py`).
+            # What a browser has to prove is that the sentence really leaves
+            # the panel and a real preview comes back for it -- not that the
+            # parser is any good, which no stub could prove anyway.
+            self._send(
+                200,
+                json.dumps(
+                    {
+                        "utterance": asked.get("utterance", ""),
+                        "matched": {
+                            "skill_id": _SKILL_LPN_ADJUST["id"],
+                            "name": _SKILL_LPN_ADJUST["name"],
+                            "version": 1,
+                            "stage": "practice",
+                            "summary": "Types the LPN and saves the new quantity.",
+                            "score": 100,
+                            "why": [],
+                            "unexplained": [],
+                        },
+                        "choices": [],
+                        "missing_parameters": [],
+                        "runnable": True,
+                        "confident": True,
+                        "question": None,
+                        "why": [],
+                        "proposal": None,
+                        "items": [{"lpn": "LPN-4471"}],
+                    }
+                ).encode(),
+            )
+            return
+        if self.path.endswith("/runs/from-preview"):
+            body = json.loads(raw)
+            skill_id = self.path.split("/")[3]
+            run_id = f"run-preview-{len(_Stub.run_previews) + 1}"
+            _Stub.run_previews.append(
+                {"path": self.path, "skill_id": skill_id, "run_id": run_id, **body}
+            )
+            _Stub.runs[run_id] = {
+                "id": run_id,
+                "skill_id": skill_id,
+                "skill_version": 1,
+                "stage": "practice",
+                "medium": "extension",
+                "device_id": body.get("device_id"),
+                "status": "running",
+                "parameters": body.get("parameters", {}),
+                "derived": {},
+                "requested_by": "browser-test",
+                "authorized_by": None,
+                "started_at": datetime.now(UTC).isoformat(),
+                "ended_at": None,
+                "failure": None,
+                "wrong_because": None,
+                "intent": body.get("intent", ""),
+                "reversal": None,
+                "steps": [],
+            }
+            self._send(201, json.dumps(_Stub.runs[run_id]).encode())
+            return
+        if self.path.endswith("/wrong"):
+            run_id = self.path.split("/")[3]
+            body = json.loads(raw)
+            _Stub.run_wrongs.append({"run_id": run_id, **body})
+            run = _Stub.runs.setdefault(run_id, {})
+            run["wrong_because"] = body.get("because")
+            self._send(202, json.dumps(run).encode())
+            return
         if self.path == "/api/echo":
             # Says back what reached it, so the test can prove the call carried
             # the page's own cookies rather than the extension's origin.
@@ -619,6 +823,10 @@ def stub() -> Iterator[tuple[str, list[dict[str, Any]]]]:
     _Stub.watches = []
     _Stub.matched = []
     _Stub.fired = []
+    _Stub.resolutions_asked = []
+    _Stub.run_previews = []
+    _Stub.run_wrongs = []
+    _Stub.runs = {}
     # Threading, because the command channel holds its connection open for the
     # length of the test: on a single-threaded server that one socket is the
     # whole server, and every upload behind it waits forever.
@@ -699,6 +907,48 @@ def fired(stub: tuple[str, list[dict[str, Any]]]) -> list[dict[str, Any]]:
 def purges(stub: tuple[str, list[dict[str, Any]]]) -> list[str]:
     """The `DELETE /v1/observations` calls the extension made, as sent."""
     return _Stub.purges
+
+
+@pytest.fixture
+def resolutions_asked(stub: tuple[str, list[dict[str, Any]]]) -> list[str]:
+    """Every sentence the panel asked `/v1/intent/resolve` about, in order."""
+    return _Stub.resolutions_asked
+
+
+@pytest.fixture
+def run_previews(stub: tuple[str, list[dict[str, Any]]]) -> list[dict[str, Any]]:
+    """Every press that started a run from a preview, as sent."""
+    return _Stub.run_previews
+
+
+@pytest.fixture
+def run_wrongs(stub: tuple[str, list[dict[str, Any]]]) -> list[dict[str, Any]]:
+    """What was recorded each time a finished run was called wrong."""
+    return _Stub.run_wrongs
+
+
+@pytest.fixture
+def finish_run(
+    stub: tuple[str, list[dict[str, Any]]],
+) -> Callable[[str, dict[str, str], dict[str, Any] | None], None]:
+    """Move a run this stub started to a terminal status.
+
+    Nothing here is a real orchestrator: `/runs/from-preview` answers
+    "running" and stays there until a test says otherwise, exactly as far as
+    this stub can honestly go on its own. This is the moment a real
+    deployment's own background worker would reach on its own time, once the
+    run's steps had actually finished -- called explicitly here because
+    nothing in this process is going to reach it by itself.
+    """
+
+    def move(run_id: str, derived: dict[str, str], reversal: dict[str, Any] | None) -> None:
+        run = _Stub.runs[run_id]
+        run["status"] = "succeeded"
+        run["derived"] = derived
+        run["reversal"] = reversal
+        run["ended_at"] = datetime.now(UTC).isoformat()
+
+    return move
 
 
 @pytest.fixture

@@ -1,13 +1,18 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Space_Grotesk, Inter, JetBrains_Mono } from "next/font/google";
 import { QueryProvider } from "@/lib/query";
 import { SignInGate } from "@/features/console/sign-in-gate";
 import { Toaster } from "@/components/ui/sonner";
 import { EmbeddedCredential } from "@/features/console/embedded-credential";
 import "./globals.css";
 
-const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
-const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
+// The brand's three. Manrope was named in the top bar and JetBrains Mono in the
+// console's palette, and neither was ever loaded -- both fell back silently.
+// Mono is not decoration here: it carries every number that changes while
+// somebody watches it, and every id, host and call.
+const display = Space_Grotesk({ variable: "--font-display", subsets: ["latin"] });
+const body = Inter({ variable: "--font-body", subsets: ["latin"] });
+const mono = JetBrains_Mono({ variable: "--font-mono-face", subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "AI-SRO",
@@ -20,7 +25,14 @@ export const metadata: Metadata = {
  */
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
+    // `dark` is set here and never toggled. The brand commits to one theme, and
+    // the shadcn primitives carry `dark:` variants tuned for a dark ground --
+    // switching the variant on is what keeps `components/ui/` untouched, which
+    // the CLI overwrites on update.
+    <html
+      lang="en"
+      className={`dark ${display.variable} ${body.variable} ${mono.variable} h-full antialiased`}
+    >
       <body className="bg-background text-foreground flex min-h-full flex-col">
         {/* Before hydration, so a 400px panel never paints a top bar and a
             772px column and then collapses them. Framed *is* embedded: the

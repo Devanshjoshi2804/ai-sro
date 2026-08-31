@@ -24,6 +24,7 @@ from sro.domain.shared.identifiers import (
     BatchId,
     BrowserSessionId,
     CandidateId,
+    ConfirmationId,
     DeviceId,
     PrincipalId,
     RecordingId,
@@ -33,6 +34,7 @@ from sro.domain.shared.identifiers import (
 )
 from sro.domain.shared.objective import ObjectiveKey
 from sro.domain.skill.skill import Skill
+from sro.domain.trigger.confirmation import Confirmation
 from sro.domain.trigger.trigger import Trigger
 
 
@@ -403,6 +405,46 @@ class TriggerRepository(Protocol):
         ...
 
 
+class ConfirmationRepository(Protocol):
+    async def add(self, confirmation: Confirmation) -> None: ...
+
+    async def get(self, tenant_id: TenantId, confirmation_id: ConfirmationId) -> Confirmation: ...
+
+    async def save(self, confirmation: Confirmation) -> None: ...
+
+    async def waiting(self, tenant_id: TenantId) -> tuple[Confirmation, ...]:
+        """Everything this tenant has not answered, oldest first.
+
+        Including the ones that have run out: a card that vanished from a
+        screen is not the same as one somebody can see was never answered, and
+        the second is what tells a team its queue is not being read.
+        """
+        ...
+
+
+class ToolCallRepository(Protocol):
+    """What has already been sent through a connector, so it is not sent twice.
+
+    A network step is protected within its run: an answered write is never
+    retried, because a status code means the application saw it. Nothing
+    protected a tool call *across* runs -- the same trigger firing twice, a
+    durable workflow replayed after a crash, an operator pressing the button
+    again because the first press seemed to hang. For a mail that is one
+    message becoming two, and there is no taking it back.
+    """
+
+    async def remember(self, tenant_id: TenantId, key: str, *, tool: str, at: datetime) -> bool:
+        """Claim this key. ``False`` when somebody already claimed it.
+
+        Written *before* the call, and kept whatever the call answers. A key
+        released on failure would let a timeout -- the one case where the send
+        may well have landed -- be retried into a second send, which is the
+        exact thing this exists to prevent. So a retry is refused and somebody
+        is told the call may already have happened, which is the truth.
+        """
+        ...
+
+
 class UnitOfWork(Protocol):
     """Transaction boundary. Leaving the block without ``commit`` rolls back."""
 
@@ -419,6 +461,8 @@ class UnitOfWork(Protocol):
     observation_policies: ObservationPolicyRepository
     candidates: CandidateRepository
     triggers: TriggerRepository
+    tool_calls: ToolCallRepository
+    confirmations: ConfirmationRepository
 
     async def __aenter__(self) -> UnitOfWork: ...
 

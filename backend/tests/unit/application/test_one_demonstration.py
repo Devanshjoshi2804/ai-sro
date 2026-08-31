@@ -142,3 +142,7 @@ async def test_a_paired_write_still_earns_its_way_up() -> None:
     version = (await _taught(runs=2, writes=True)).versions[-1]
 
     assert version.earn(Verdict.WITHHELD, f.at(600)) is PromotionStage.ASSISTED
+    assert version.promoted_from == "earned", (
+        "a streak did this, not a person -- blank would be indistinguishable "
+        "from a version nobody has ever looked at"
+    )

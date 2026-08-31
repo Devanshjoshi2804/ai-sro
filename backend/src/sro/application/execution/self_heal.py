@@ -35,7 +35,7 @@ from sro.application.knowledge.record_claim import Claim, RecordClaims
 from sro.application.ports.browser import BrowserProvider, BrowserUnavailable
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.vault import CredentialVault
-from sro.domain.connection.connection import Connection
+from sro.domain.connection.connection import Connection, ConnectionStatus
 from sro.domain.execution.diagnosis import Diagnosis, Remedy, diagnose
 from sro.domain.knowledge.entry import EntryKind, EvidenceLevel
 
@@ -139,6 +139,16 @@ class SelfHeal:
                 repaired=False,
             )
         if detail is None:
+            # The session is gone and could not be brought back. Written on the
+            # connection, because until now nothing ever reached
+            # `ConnectionStatus.EXPIRED` -- the enum existed, `rejected()`
+            # existed, and no caller anywhere called it. So a console that had
+            # said "connected" the day the session died went on saying it
+            # through every run that discovered otherwise, and the one screen
+            # somebody checks before asking why a task stopped working was the
+            # one screen that did not know.
+            if finding.remedy is Remedy.REFRESH_SESSION:
+                await self._mark_expired(ctx, target_system, finding.because)
             return Healed(
                 remedy=finding.remedy,
                 because=finding.because,
@@ -148,6 +158,23 @@ class SelfHeal:
 
         await self._learn(ctx, target_system, finding, endpoint, missing_headers)
         return Healed(remedy=finding.remedy, because=finding.because, detail=detail)
+
+    async def _mark_expired(self, ctx: RequestContext, target_system: str, because: str) -> None:
+        """Say on the connection what a run just proved about its session.
+
+        Called only for `REFRESH_SESSION`, and the caller does that gating: a
+        missing minted header or a permission the operator does not have says
+        nothing about whether the login still works, and marking those expired
+        would send somebody to sign in again over a problem signing in cannot
+        fix.
+        """
+        async with self._uow as uow:
+            connection = await uow.connections.find_by_system(ctx.tenant_id, target_system)
+            if connection is None or connection.status is ConnectionStatus.EXPIRED:
+                return
+            connection.rejected(because)
+            await uow.connections.save(connection)
+            await uow.commit()
 
     async def _apply(
         self, ctx: RequestContext, remedy: Remedy, target_system: str, facility: str

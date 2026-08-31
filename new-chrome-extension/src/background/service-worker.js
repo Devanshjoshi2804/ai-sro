@@ -5,13 +5,22 @@
 
 import { api, ApiError } from "./api.js";
 import * as channel from "./channel.js";
-import { abort, isDriving, performing } from "./commands.js";
+import { abort, isDriving, performing, RUN_QUIET_MS } from "./commands.js";
 import * as queue from "./queue.js";
 import { redactUrl } from "../content/sensitivity.module.js";
-import { allowsHost, applyPolicy, applyWatches, hostMatches, injectInto, unregister } from "./scripts.js";
+import {
+  allowsHost,
+  applyPolicy,
+  applyWatches,
+  hostMatches,
+  injectInto,
+  injectIntoWatched,
+  unregister,
+} from "./scripts.js";
 import { capture } from "./shots.js";
-import { capturing, state } from "./state.js";
+import { activeRunAge, afterRunWrong, capturing, finishedRun, state } from "./state.js";
 import * as teaching from "./teaching.js";
+import { release as releaseTree, releaseAll, takeTree, takeTreeSoon } from "./trees.js";
 import { flush } from "./upload.js";
 
 const BEAT = "sro-heartbeat";
@@ -38,7 +47,16 @@ chrome.runtime.onStartup.addListener(() => {
 });
 
 chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === BEAT) void beat();
+  if (alarm.name === BEAT) {
+    void beat();
+    // The one trigger that does not need the panel open. A run performed and
+    // then left alone -- the ordinary case, not the exception -- goes quiet in
+    // a worker that idles out long before an operator comes back to look, and
+    // `commands.js`'s own `latest` dies with it. This alarm fires on its own
+    // schedule regardless, off the storage-backed mirror `perform()` writes,
+    // which is the only thing here that survives that eviction.
+    void checkFinishing();
+  }
   if (alarm.name === FLUSH) void flushQueue();
   // Every wake-up re-dials. Chrome evicts this worker while it is idle and the
   // socket goes with it, so without this a quiet browser is an unreachable one
@@ -50,7 +68,12 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 // this, and nothing rides on a page having one registered at all.
 // ponytail: main frame only; add per-iframe navigation if a miner needs it.
 chrome.webNavigation.onCommitted.addListener((d) => {
-  if (d.frameId === 0) void pageEvent("navigated", d.tabId, d.url, d.timeStamp);
+  if (d.frameId !== 0) return;
+  // A fresh document gets a fresh patch and a handshake at `document_start`,
+  // which is the only moment one can safely happen -- so whatever was wrong
+  // with the last document is not wrong with this one.
+  halfDeaf.delete(d.tabId);
+  void pageEvent("navigated", d.tabId, d.url, d.timeStamp);
 });
 chrome.webNavigation.onCompleted.addListener((d) => {
   if (d.frameId === 0) void pageEvent("loaded", d.tabId, d.url, d.timeStamp);
@@ -109,6 +132,21 @@ async function watchedTabs() {
   return kept;
 }
 
+/** Hosts this operator granted, minus the ones that have run out.
+ *
+ * Expiry is applied here as well as on the server, and for the same reason it
+ * is applied there rather than swept: a grant that has run out must stop
+ * admitting the moment it does. A browser that kept queueing against an
+ * expired one would fill the queue with events the backend then refuses.
+ */
+async function grantedHosts() {
+  const grants = await state.grants();
+  const now = Date.now();
+  return grants
+    .filter((grant) => Date.parse(grant.expires_at || "") > now)
+    .map((grant) => grant.host);
+}
+
 async function isWatched(tabId) {
   if (tabId === null || tabId === undefined) return false;
   return (await watchedTabs()).some((entry) => entry.tabId === tabId);
@@ -124,24 +162,81 @@ function watch(tabId, url) {
     } catch {
       host = "";
     }
+    // Pressing "watch" on a page the tenant excludes by default is the
+    // operator saying it may be watched after all. Asked of the server before
+    // the tab is recorded as watched, because the server is what actually
+    // admits the evidence: a browser that recorded the watch and failed to get
+    // the grant would show a watching panel over a queue being thrown away.
+    if (host && (await isExcluded(host))) await grant(host);
+
     const next = [{ tabId, host, since: Date.now() }, ...watched];
     await state.setWatched(next);
     return next;
   });
 }
 
+/** Whether the tenant's policy excludes this host by default. */
+async function isExcluded(host) {
+  const policy = await state.policy();
+  return (policy?.exclude_hosts || []).some((pattern) => hostMatches(host, pattern));
+}
+
+/** Ask the server to watch this host too, and remember what it answered.
+ *
+ * The server's list is the one that counts and it caps the duration, so what
+ * comes back is stored rather than what was asked for.
+ */
+async function grant(host) {
+  const deviceId = await state.deviceId();
+  if (!deviceId) return;
+  try {
+    const answer = await api.grantHost(deviceId, host);
+    await state.setGrants(answer.grants || []);
+  } catch (error) {
+    // Said out loud rather than swallowed: the panel will claim to be watching
+    // a tab whose evidence the backend is about to refuse, and the operator
+    // has no other way to find that out.
+    await state.setLastError(error instanceof ApiError ? error.message : String(error));
+  }
+}
+
+/** Give the host back, so a closed tab does not leave a mailbox observed. */
+async function ungrant(host) {
+  const deviceId = await state.deviceId();
+  if (!deviceId || !host) return;
+  // Only when no other watched tab is still on it: two mail tabs and closing
+  // one is not the operator withdrawing anything.
+  const watched = await watchedTabs();
+  if (watched.some((entry) => entry.host === host)) return;
+  try {
+    const answer = await api.revokeHost(deviceId, host);
+    await state.setGrants(answer.grants || []);
+  } catch {
+    // The grant expires on its own, so a revoke that could not be delivered
+    // costs a window rather than leaving the page observed forever.
+  }
+}
+
 function unwatch(tabId) {
   return serially(async () => {
     const watched = await watchedTabs();
+    const leaving = watched.find((entry) => entry.tabId === tabId);
     const next = watched.filter((entry) => entry.tabId !== tabId);
     // A tab nobody was watching closes all day long. Writing the same list
     // back for each one is how a watch set meanwhile gets overwritten.
     if (next.length !== watched.length) await state.setWatched(next);
+    // Stop watching, stop debugging. An operator who pressed "stop watching"
+    // and was left with the banner up would have every reason to disbelieve
+    // the panel about anything else it says.
+    if (next.length !== watched.length) await releaseTree(tabId);
+    if (leaving?.host && (await isExcluded(leaving.host))) await ungrant(leaving.host);
     return next;
   });
 }
 
 chrome.tabs.onRemoved.addListener((tabId) => {
+  halfDeaf.delete(tabId);
+  void releaseTree(tabId);
   void unwatch(tabId);
 });
 
@@ -229,6 +324,14 @@ function underPolicy(request, policy) {
   };
 }
 
+/** Tabs whose page-realm patch outlived the extension that installed it.
+ *
+ * Their gestures still arrive; their calls are emitted and dropped. Cleared on
+ * navigation, because a fresh document gets a fresh patch and a handshake at
+ * `document_start`, which is the only moment one can safely happen.
+ */
+const halfDeaf = new Set();
+
 chrome.runtime.onMessage.addListener((message, sender, respond) => {
   // Returning true keeps the channel open for the async answer.
   handle(message, sender).then(respond, (error) => respond({ error: String(error) }));
@@ -239,6 +342,20 @@ async function handle(message, sender) {
   switch (message?.kind) {
     case "content-ready":
       return { ok: true };
+    case "calls-not-recordable": {
+      // A tab whose page-realm patch outlived the extension that installed it.
+      // It is still emitting and nothing can accept what it emits, and the tab
+      // cannot be repaired from here -- the patch lives in the page's own realm,
+      // where the handshake that made it trustworthy can only happen before any
+      // page script exists.
+      //
+      // Recorded rather than acted on. Reloading somebody's page out from under
+      // them is not this worker's call to make; saying that the tab records
+      // gestures and no calls is, because the alternative is a demonstration
+      // that quietly asserts nothing about the system it changes.
+      halfDeaf.add(sender?.tab?.id ?? -1);
+      return { ok: true };
+    }
     case "gesture":
     case "request": {
       // Every captured event is judged here, at the one point they all pass
@@ -278,6 +395,12 @@ async function handle(message, sender) {
       // tab_id comes from the sender, not the content script -- a frame has
       // no chrome.tabs access of its own to ask for it.
       const tab_id = sender?.tab?.id ?? null;
+      // The tab's own URL, which is not the frame's. A gesture inside a portal
+      // that hosts its screens in an iframe reports the frame's src, and a run
+      // told to open that would load the frame's document on its own, outside
+      // the shell that gives it its session and its chrome. What a run has to
+      // reproduce is the address an operator would type.
+      const page_url = redactUrl(sender?.tab?.url);
       // Same rule as page events, at the same one point: a gesture carries the
       // page's own `location.href` and every event carries the frame it
       // happened in, and either can be the callback URL with the token in it.
@@ -304,6 +427,7 @@ async function handle(message, sender) {
             gesture: { ...message.gesture, url: redactUrl(message.gesture?.url) },
             tab_id,
             frame_url: redactUrl(frameUrl),
+            page_url,
           },
           shot,
           recordingId,
@@ -320,6 +444,18 @@ async function handle(message, sender) {
           if (before) await queue.enqueue(before, null, recordingId);
           // And one for whatever they do next.
           void teaching.snapshot(tab_id, redactUrl(frameUrl)).catch(() => null);
+        } else {
+          // The same thing for work nobody is deliberately demonstrating, so a
+          // skill that arrived the way this product intends -- watch, notice
+          // the repetition, offer it back -- gets the same locators as one
+          // somebody remembered to press a button for. Same ordering, because
+          // the assembler's rule is the same on both paths.
+          //
+          // Only ever `else`: Chrome allows one debugger per tab, and a
+          // deliberate demonstration is the one that asked for it.
+          const before = takeTree(tab_id);
+          if (before) await queue.enqueue(before, null, null);
+          void takeTreeSoon(tab_id, page_url, policy).catch(() => null);
         }
         return { ok: true, screenshot: Boolean(shot) };
       }
@@ -355,6 +491,13 @@ async function handle(message, sender) {
       // retry it as itself and send the new operator's queue under the old
       // operator's batch id.
       await state.setPendingBatch(null);
+      // A shared warehouse machine is the ordinary case, not the exception:
+      // the last operator's run stays offerable for an hour (`state.js`'s
+      // `finishedRun`), so without this the next operator to sign in within
+      // that hour would see somebody else's card and an "Undo that" that
+      // 403s -- this run was not performed for them.
+      await state.setFinishedRun(null);
+      await state.setActiveRun(null);
       await state.setDeviceId("");
       await state.setDeviceSecret("");
       await state.setPolicy(null);
@@ -404,6 +547,22 @@ async function handle(message, sender) {
       if (!tab?.id || !/^https?:/.test(tab.url || "")) {
         return { error: "open the system you want to teach in a tab first" };
       }
+      // A tab that can no longer record calls cannot be taught in.
+      //
+      // It would record every gesture and no call at all, which induces to a
+      // skill that checks nothing: no status to assert, no response field to
+      // compare, so it can never be verified and never earns a rung above
+      // assisted. Worse, it looks like a successful demonstration. An operator
+      // found this out by teaching the same task twice into a tab that had
+      // outlived an extension reload.
+      if (halfDeaf.has(tab.id)) {
+        return {
+          error:
+            "this tab stopped recording network calls when the extension reloaded. " +
+            "Reload the page and teach again -- a demonstration without its calls " +
+            "makes a skill that can never check its own work.",
+        };
+      }
       // Pressing "teach" in a tab is the same sentence as "watch this tab",
       // said more strongly. An operator who demonstrates in an unwatched tab
       // and gets an empty recording learns nothing except not to trust this.
@@ -411,6 +570,10 @@ async function handle(message, sender) {
       await injectInto(tab.id, tab.url, await state.policy());
       const started = await api.startRecording(deviceId, message.label || tab.title || null);
       try {
+        // Chrome allows one debugger per tab, so passive trees let go before a
+        // deliberate demonstration asks for it. That way round because the
+        // operator asked for this one and did not ask for the other.
+        await releaseTree(tab.id);
         await teaching.start(started.recording_id, tab.id);
         // The first "before": the screen as it was when the operator pressed
         // start, which is what the first gesture will be judged against.
@@ -474,17 +637,71 @@ async function handle(message, sender) {
       return api.answerJoin(message.id, message.otherId, message.joinKind, message.answer);
     case "dismiss-candidate":
       return api.dismissCandidate(message.id, message.reason);
+    case "resolve-intent":
+      return api.resolveIntent(message.utterance);
+    case "run-skill":
+      // The press. `from-preview`, not the ordinary run endpoint -- the
+      // operator read the preview this promotes on, in this browser, and a
+      // run started anywhere else would not be the run they read.
+      // `message.version` is the version the panel drew the preview from, and
+      // is sent rather than left to the backend: what the operator read has to
+      // be what runs, and "the newest one" is a different version the moment
+      // anything re-teaches or repairs the skill between the read and the
+      // press.
+      return api.runFromPreview(
+        message.skillId,
+        message.parameters,
+        message.deviceId,
+        message.intent,
+        message.version,
+      );
     case "panel-console":
       // The one place the token deliberately leaves the worker: the console
       // this browser frames cannot see the credential in its own tab, because
       // Chrome partitions storage for framed contexts, so the panel has to hand
       // it across. It goes to the configured origin and nowhere else.
       return { consoleUrl: await state.consoleUrl(), token: await state.token() };
-    case "abort-run":
-      // Answered even when there was nothing to stop: the panel asking twice,
-      // or asking about a run that has just finished, is not an error worth
-      // showing anybody.
-      return { ok: true, aborted: abort(message.runId) };
+    case "abort-run": {
+      // Both halves, in this order. `abort` is local and immediate: every
+      // later command for this run is refused here, so nothing else reaches
+      // the page whatever the network does next. But the run is driven from
+      // the backend, and until this told it so it went on stepping -- asking
+      // for command after command that this browser refused -- which is a
+      // Stop button that stops the browser and not the run.
+      const here_ = abort(message.runId);
+      try {
+        await api.stopRun(message.runId);
+      } catch (error) {
+        // Only what is worth showing anybody reaches here: `api.stopRun`
+        // swallows the 409 the backend answers when there was nothing left to
+        // stop -- a run that has just finished, or a second press -- because
+        // that is an ordinary race and not a fault. What is left is a backend
+        // this browser could not reach at all, which means a run still
+        // stepping somewhere with nobody having been told to stop it, and the
+        // operator who just pressed Stop is the one person who needs to know.
+        return { ok: true, aborted: here_, error: error.message };
+      }
+      return { ok: true, aborted: here_ };
+    }
+    case "run-wrong": {
+      // "Undo that" and "it's wrong" both land here first, before whichever of
+      // them goes on to start a reversal run -- see `panel.js`'s `undoRun` and
+      // `wasWrong`. The record is what counts against the skill and is sent
+      // regardless of what happens next.
+      const result = await api.runWrong(message.runId, message.because);
+      const held = await state.finishedRun();
+      // Keyed on which button was pressed (`message.keepForRetry`, set only by
+      // `undoRun`), not on whether this run happens to have a reversal -- see
+      // `afterRunWrong` in `state.js` for why keying on `reversal` alone was
+      // wrong: it kept "Undo that" alive after "It's wrong -- I'll fix it",
+      // which would reverse the operator's own hand-made correction.
+      if (held?.id === message.runId) {
+        await state.setFinishedRun(
+          afterRunWrong(held, message.because, Boolean(message.keepForRetry)),
+        );
+      }
+      return result;
+    }
     case "purge": {
       // The device's own queue first, and unconditionally. What is still
       // sitting here has not reached the server, so deleting it there and
@@ -823,12 +1040,23 @@ async function beat() {
 /** Make the browser match what is stored: scripts registered, badge honest,
  * and the command channel open or closed to match the credential. */
 async function settle() {
-  const [policy, allowed] = await Promise.all([state.policy(), capturing()]);
-  await applyPolicy(policy, allowed);
+  const [policy, allowed, granted] = await Promise.all([
+    state.policy(),
+    capturing(),
+    grantedHosts(),
+  ]);
+  await applyPolicy(policy, { ...allowed, granted });
   // After `applyPolicy` and by its own id: the watch script must survive a
   // policy change, and `applyPolicy` withdrawing all three ids is how the
   // watching would stop the first time a heartbeat carried a new policy.
   await applyWatches(await watchHosts());
+  // Every worker start, because a reload is one and there is no way to tell it
+  // from an ordinary wake-up. Without this a tab open across a reload records
+  // nothing while the panel goes on saying it is watched.
+  await injectIntoWatched(await watchedTabs(), policy, granted);
+  // A tenant that has just switched trees off gets the banner taken down now,
+  // not at the next tab close. Nothing re-attaches until a gesture asks.
+  if (!policy?.capture_snapshots) await releaseAll();
   await channel.settle();
   await badge();
   return status();
@@ -866,6 +1094,12 @@ async function status() {
       state.lastBeat(),
       state.lastError(),
     ]);
+  // Not awaited: the panel polls this every two seconds and a card about a run
+  // that already finished should not make every one of those polls wait on a
+  // network round trip. See `checkFinishing()` -- also run off the heartbeat
+  // alarm below, which is what notices a run finishing while the panel is
+  // closed, and is the trigger that actually matters for most runs.
+  void checkFinishing();
   return {
     capturing: allowed.on,
     because: allowed.because,
@@ -876,6 +1110,11 @@ async function status() {
     queued: await queue.count(),
     teaching: await state.teaching(),
     performing: performing(),
+    // What the last run this browser finished made, and how to take it back --
+    // held long past this run itself, unlike `performing` above, because an
+    // operator coming back to look is what this is measured against rather
+    // than the run going quiet. See `state.js`'s `finishedRun` for why an hour.
+    finished: await finishedRun(),
     deviceId,
     policy,
     apiUrl,
@@ -885,11 +1124,127 @@ async function status() {
     lastBeat,
     lastError,
     watched: await watchedTabs(),
+    // Tabs whose page-realm patch outlived the extension that installed it.
+    //
+    // They record gestures and no calls. Said out loud because it is otherwise
+    // invisible on both sides -- the panel says watching, the console shows
+    // uploads arriving, and only the shape of the evidence gives it away, days
+    // later, as a skill that checks nothing. An operator lost two
+    // demonstrations to exactly that.
+    deaf: [...halfDeaf],
     // The mails this browser recognised and nobody has answered yet. Held
     // here and nowhere else -- the panel is the same browser that read them.
     offers: await state.offers(),
     version: VERSION,
   };
+}
+
+/** Guards `checkFinishing()` against running twice at once within this
+ * worker's own lifetime -- not storage-backed, and does not need to be: a
+ * fresh worker starts with this false, which is exactly correct, since
+ * nothing it would be guarding against is in flight yet either. Without it,
+ * two status polls landing within the same couple of seconds -- the panel's
+ * own two-second cadence makes this ordinary, not rare -- would both see the
+ * same quiet run in `state.activeRun()` and both fire `GET /v1/runs/{id}`:
+ * harmless against a healthy backend, unbounded against a slow or
+ * unreachable one. */
+let checkingFinish = false;
+
+/**
+ * Ask the backend whether the run this browser was last asked to do
+ * something for has gone quiet long enough, and actually finished, to be
+ * worth noting.
+ *
+ * Run off two triggers, deliberately: the panel's own status poll, for an
+ * operator watching right now, and the `sro-heartbeat` alarm, which fires on
+ * its own schedule whether the panel is open or not. Both read
+ * `state.activeRun()` rather than `commands.js`'s own `latest` -- that module
+ * variable dies with this worker the moment it idles out, which is the
+ * *ordinary* case for a run performed with the panel closed: an operator ran
+ * a task and moved on. A check that only ever worked off `latest` would only
+ * ever fire for the one person who least needs to be told, because they are
+ * already staring at the screen.
+ *
+ * Never decided locally past the timing itself. `RunModel.derived` is what
+ * the run read back and `RunModel.reversal` is computed against the tenant's
+ * whole skill library -- neither is something this browser has the material
+ * to produce, so both are only ever copied from what `GET /v1/runs/{run_id}`
+ * answers (`api.run`, already used elsewhere in this file for the same run's
+ * own record).
+ *
+ * `run.status === "running"` means the quiet window landed between two of the
+ * run's own steps, not after its last one -- nothing is stored, and
+ * `state.activeRun()` is left as it was so the next trigger asks again. Any
+ * other status -- succeeded or failed, the only two terminal ones this domain
+ * has -- is confirmed either way: `derived` may be empty and `reversal` may
+ * be null or, for a run that did not succeed, is always null (the backend
+ * never computes an undo for one), and the card says so itself rather than
+ * this deciding not to show one at all (see `panel.js`'s `finished()`).
+ *
+ * ponytail: a second run starting in this browser before this one is
+ * confirmed overwrites `state.activeRun()`'s single slot and the first run's
+ * confirmation is lost -- it simply never gets checked. `latest` in
+ * `commands.js` already only tracks one run at a time, so this is the same
+ * ceiling, not a new one; widen both together to a small history if
+ * back-to-back runs from one browser turns out to be ordinary rather than
+ * rare.
+ */
+async function checkFinishing() {
+  if (checkingFinish) return;
+  const active = await state.activeRun();
+  const decision = activeRunAge(active, Date.now(), RUN_QUIET_MS);
+  if (decision === "wait") return;
+  if (decision === "stale") {
+    // Round 1 review missed this: `state.activeRun()` now survives a worker
+    // eviction, which is the whole point, but nothing bounded how *old* the
+    // survivor could be. Close the laptop before this check lands and reopen
+    // it a day later, and the first heartbeat after `onStartup` would confirm
+    // a run that went quiet yesterday and write a brand-new hour of "Undo
+    // that" for it -- exactly the staleness `FINISHED_RUN_MS` exists to keep
+    // a *stored* `finishedRun` from having. Dropped here, unconfirmed, rather
+    // than asked about and written anyway. See `activeRunAge` in `state.js`.
+    await state.setActiveRun(null);
+    return;
+  }
+  checkingFinish = true;
+  try {
+    await noteFinished(active.runId);
+  } finally {
+    checkingFinish = false;
+  }
+}
+
+async function noteFinished(runId) {
+  try {
+    const run = await api.run(runId);
+    if (run.status === "running") return;
+    await state.setFinishedRun({
+      id: run.id,
+      status: run.status,
+      derived: run.derived || {},
+      reversal: run.reversal || null,
+      failure: run.failure || null,
+      // Copied from the run's own record, not only written by the press that
+      // set it. A run called wrong in the console, or by a press whose row
+      // this browser has since rebuilt, came back here with `wrongBecause`
+      // unset -- so the card went on offering "It's wrong" for a run the
+      // backend refuses to hear it about a second time, and `undoRun` sent a
+      // `run-wrong` guaranteed to fail.
+      wrongBecause: run.wrong_because || null,
+      at: Date.now(),
+    });
+  } catch {
+    // A backend this browser cannot reach right now is not a reason to show a
+    // stale or invented card. `state.activeRun()` is left as it was, so the
+    // next trigger -- the next poll, or the next heartbeat -- tries again.
+    return;
+  }
+  // Resolved -- stop asking about this run. Cleared only once there is a
+  // confirmed, terminal answer to show for it, never on a failure to reach
+  // the backend: guarded by id so a slow answer for a run this browser has
+  // since moved past does not erase what the *next* run left behind instead.
+  const active = await state.activeRun();
+  if (active?.runId === runId) await state.setActiveRun(null);
 }
 
 function defaultLabel() {

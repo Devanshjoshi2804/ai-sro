@@ -223,22 +223,32 @@ def _segment(run: Sequence[Observed]) -> Segment | None:
 def _signature(calls: Sequence[Observed]) -> str:
     """What makes two doings the same task.
 
-    From the first call that changes something, where there is one: a task is
-    identified by the change it makes and what it re-reads afterwards, never by
-    the route somebody took to get there. The same creation reached from a
-    menu, from a search and from a bookmark is one task done three times, and
-    before this it was three tasks done once each -- which is the number that
-    never earns anything.
+    The changes it makes, where it makes any: a task is identified by what it
+    did to the system, never by the route somebody took to get there. The same
+    creation reached from a menu, from a search and from a bookmark is one task
+    done three times, and before this it was three tasks done once each --
+    which is the number that never earns anything.
 
-    The reads before it stay in the episode. They are evidence of the same
-    piece of work; they are just not what it *is*.
+    The reads are evidence of the same piece of work; they are just not what it
+    *is*. That went for the ones before the change and now goes for the ones
+    after it too, which is the same rule and used not to be.
+
+    Including the trailing reads made the signature depend on how fast the
+    operator clicked next. The segment is cut at the first thing they touch
+    after something changed, so an operator who paused after saving kept the
+    grid refresh and the re-reads inside it, and one who carried straight on
+    did not. Two doings of the identical task, one signature `POST
+    workOperations → GET workOperations → GET deviceClassFunctions → ...` and
+    the other `POST workOperations`, neither ever reaching a second occurrence.
+    That is the failure this function's first paragraph exists to prevent,
+    arriving through the back door.
 
     Where nothing changed, the whole run identifies it: reading a screen is a
     task too, and it has nothing else to be known by.
     """
-    first_change = next((index for index, one in enumerate(calls) if one.mutating), 0)
+    changes = [one for one in calls if one.mutating]
     steps: list[str] = []
-    for call in calls[first_change:]:
+    for call in changes or calls:
         step = f"{call.method.upper()} {url_shape(call.url)}"
         if not steps or steps[-1] != step:
             steps.append(step)

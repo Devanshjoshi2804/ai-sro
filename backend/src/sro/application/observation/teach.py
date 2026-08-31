@@ -14,27 +14,36 @@ skill nobody can trust.
 from __future__ import annotations
 
 import json
-from collections.abc import Iterator, Mapping, Sequence
+import logging
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 
-from sro.application.capture.assemble import assemble_frames
+from sro.application.capture.assemble import AssemblyResult, assemble_frames
 from sro.application.capture.decode import (
     epoch_to_datetime,
+    to_ax_graph,
     to_captured_request,
     to_input_action,
 )
-from sro.application.capture.events import CaptureEvent, InputEvent, RequestEvent
+from sro.application.capture.events import (
+    CaptureEvent,
+    InputEvent,
+    RequestEvent,
+    SnapshotEvent,
+)
 from sro.application.capture.identity import derive_objective_key
 from sro.application.context import RequestContext
 from sro.application.induction.errors import InductionFailed
 from sro.application.induction.induce_skill import InduceSkill
 from sro.application.induction.understand import UnderstandRecording
 from sro.application.observation.propose import occurrences
+from sro.application.observation.shots import ShotRef, pictures
 from sro.application.ports.blob import BlobStore
 from sro.application.ports.interpretation import WorkflowInterpreter
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
+from sro.domain.observation.batch import ObservationBatch
 from sro.domain.observation.candidate import (
     CandidateStatus,
     Episode,
@@ -44,7 +53,18 @@ from sro.domain.observation.candidate import (
 )
 from sro.domain.recording.recording import Recording
 from sro.domain.shared.errors import DomainError
-from sro.domain.shared.identifiers import CandidateId, RecordingId, SkillId
+from sro.domain.shared.identifiers import BatchId, CandidateId, RecordingId, SkillId
+
+logger = logging.getLogger(__name__)
+
+MOST_DOINGS = 10
+"""How many doings of a task one teach reads.
+
+Well above the two that are diffed and the handful `worth_offering` asks for,
+and far below the number a daily task accumulates. Every doing past this is
+read for one thing -- whether a field was left empty -- and the tenth is
+unlikely to be the first to say so.
+"""
 
 
 class NothingToTeach(DomainError):
@@ -100,8 +120,28 @@ class TeachCandidate:
         # a task rather than about the last two times somebody did it, and the
         # doing that proves the warehouse takes Absolute Priority empty may be
         # the first of three.
+        # Bounded, and the bound is said out loud. A task somebody does every
+        # morning has fifty sightings by the end of the month, and reading them
+        # all is fifty blob passes and fifty stored recordings for one teach --
+        # to answer a question the freshest handful has already answered.
+        #
+        # Dropped from the far end, so the two that get diffed are never among
+        # the losses. What a dropped doing could still have said is that some
+        # field may be left out, and not hearing it leaves that field required:
+        # a skill that asks for one value too many, which is the direction to
+        # be wrong in.
+        history = list(reversed(candidate.episodes))
+        if len(history) > MOST_DOINGS:
+            logger.info(
+                "teaching %s from the %d most recent of %d doings",
+                candidate_id,
+                MOST_DOINGS,
+                len(history),
+            )
+            history = history[:MOST_DOINGS]
+
         recordings: list[Recording] = []
-        for episode in reversed(candidate.episodes):
+        for episode in history:
             recording = await self._demonstration(ctx, candidate, episode)
             if recording is not None:
                 recordings.append(recording)
@@ -180,8 +220,8 @@ class TeachCandidate:
         """One doing of the task, read back out of the evidence plane as a
         recording. `None` where that doing cannot be replayed at all -- its
         batches have aged out, or nothing in it changed anything."""
-        events = await self._evidence(ctx, episode)
-        assembled = assemble_frames(list(events))
+        read = await self._evidence(ctx, episode)
+        assembled = assemble_frames(read.events)
         if not assembled.frames:
             return None
 
@@ -201,27 +241,22 @@ class TeachCandidate:
         if objective is None:
             return None
         recording.name_objective(objective)
+        # The pictures of the very gestures these frames describe. Attached
+        # before the seal, because a sealed recording is evidence nobody may
+        # add to afterwards.
+        for artifact in await pictures(
+            self._blobs,
+            batches=read.batches,
+            sources=assembled.sources,
+            refs=read.shots,
+            now=self._clock.now(),
+        ):
+            recording.attach_artifact(artifact)
         recording.seal(self._clock.now())
         return recording
 
-    async def _evidence(self, ctx: RequestContext, episode: Episode) -> Iterator[CaptureEvent]:
-        """The events of one episode, read back out of the evidence plane.
-
-        Addressed by time rather than by offsets: an episode spans several
-        uploads and part of each, and the timestamps already say which part.
-        """
-        events: list[CaptureEvent] = []
-        async with self._uow as uow:
-            for batch_id in episode.batch_ids:
-                batch = await uow.observations.get(ctx.tenant_id, batch_id)
-                if batch is None:
-                    continue
-                try:
-                    payload = await self._blobs.read(batch.uri)
-                except (KeyError, OSError):
-                    continue
-                events.extend(_within(payload, episode))
-        return iter(events)
+    async def _evidence(self, ctx: RequestContext, episode: Episode) -> _Evidence:
+        return await _read_episode(self._uow, self._blobs, ctx, episode)
 
 
 @dataclass(frozen=True, slots=True)
@@ -374,9 +409,9 @@ class TeachWorkflow:
         window across both: the gap between the halves is where the operator
         answered an email.
         """
-        events = list(await self._evidence(ctx, earlier))
-        events.extend(await self._evidence(ctx, later))
-        assembled = assemble_frames(events)
+        read = await self._evidence(ctx, earlier)
+        read.extend(await self._evidence(ctx, later))
+        assembled = assemble_frames(read.events)
         if not assembled.frames:
             return None
 
@@ -397,8 +432,21 @@ class TeachWorkflow:
         if objective is None:
             return None
         recording.name_objective(objective)
+        await self._illustrate(recording, read, assembled)
         recording.seal(self._clock.now())
         return recording
+
+    async def _illustrate(
+        self, recording: Recording, read: _Evidence, assembled: AssemblyResult
+    ) -> None:
+        for artifact in await pictures(
+            self._blobs,
+            batches=read.batches,
+            sources=assembled.sources,
+            refs=read.shots,
+            now=self._clock.now(),
+        ):
+            recording.attach_artifact(artifact)
 
     async def _name(self, first: TaskCandidate, second: TaskCandidate) -> str:
         """What to call the merged skill.
@@ -420,19 +468,8 @@ class TeachWorkflow:
         )
         return answer.title.strip() or plain
 
-    async def _evidence(self, ctx: RequestContext, episode: Episode) -> Sequence[CaptureEvent]:
-        events: list[CaptureEvent] = []
-        async with self._uow as uow:
-            for batch_id in episode.batch_ids:
-                batch = await uow.observations.get(ctx.tenant_id, batch_id)
-                if batch is None:
-                    continue
-                try:
-                    payload = await self._blobs.read(batch.uri)
-                except (KeyError, OSError):
-                    continue
-                events.extend(_within(payload, episode))
-        return events
+    async def _evidence(self, ctx: RequestContext, episode: Episode) -> _Evidence:
+        return await _read_episode(self._uow, self._blobs, ctx, episode)
 
 
 def _said_different(candidate: TaskCandidate, other: TaskCandidate) -> bool:
@@ -483,8 +520,63 @@ class ReadCandidates:
             return await uow.candidates.get(ctx.tenant_id, candidate_id)
 
 
-def _within(payload: bytes, episode: Episode) -> Sequence[CaptureEvent]:
-    kept: list[CaptureEvent] = []
+@dataclass(frozen=True, slots=True)
+class _Evidence:
+    """One episode, read back out of the evidence plane.
+
+    Addressed by time rather than by offsets: an episode spans several uploads
+    and part of each, and the timestamps already say which part.
+    """
+
+    events: list[CaptureEvent]
+    shots: dict[int, ShotRef]
+    """Where each gesture's picture would be, keyed by ``id()`` of the event
+    it belongs to. Identity, because `assemble_frames` hands back the very
+    objects it was given and two gestures can share a timestamp."""
+
+    batches: list[ObservationBatch]
+
+    def extend(self, other: _Evidence) -> None:
+        self.events.extend(other.events)
+        self.shots.update(other.shots)
+        self.batches.extend(other.batches)
+
+
+async def _read_episode(
+    uow: UnitOfWork, blobs: BlobStore, ctx: RequestContext, episode: Episode
+) -> _Evidence:
+    read = _Evidence(events=[], shots={}, batches=[])
+    async with uow as work:
+        for batch_id in episode.batch_ids:
+            batch = await work.observations.get(ctx.tenant_id, batch_id)
+            if batch is None:
+                continue
+            try:
+                payload = await blobs.read(batch.uri)
+            except (KeyError, OSError):
+                continue
+            read.batches.append(batch)
+            for event, ref in _within(payload, episode, batch_id):
+                read.events.append(event)
+                if ref is not None:
+                    read.shots[id(event)] = ref
+    return read
+
+
+def _within(
+    payload: bytes, episode: Episode, batch_id: BatchId
+) -> list[tuple[CaptureEvent, ShotRef | None]]:
+    """This episode's slice of one batch, each gesture carrying where its
+    picture would be.
+
+    The ordinal counts every gesture line in the batch, including the ones
+    this episode does not want and the ones `_capture` cannot read -- because
+    that is what the recorder counted when it numbered the pictures
+    (`upload.js`, ``framesOf``). Counting only the surviving gestures would
+    slide every later picture onto the wrong one.
+    """
+    kept: list[tuple[CaptureEvent, ShotRef | None]] = []
+    ordinal = -1
     for line in payload.splitlines():
         if not line.strip():
             continue
@@ -494,9 +586,12 @@ def _within(payload: bytes, episode: Episode) -> Sequence[CaptureEvent]:
             continue
         if not isinstance(event, Mapping):
             continue
+        gesture = event.get("kind") == "gesture"
+        if gesture:
+            ordinal += 1
         capture = _capture(event, episode)
         if capture is not None:
-            kept.append(capture)
+            kept.append((capture, ShotRef(batch_id, ordinal) if gesture else None))
     return kept
 
 
@@ -509,7 +604,16 @@ def _capture(event: Mapping[str, object], episode: Episode) -> CaptureEvent | No
         at = _at(gesture.get("at"))
         if at is None or not _inside(at, episode):
             return None
-        return InputEvent(at=at, action=to_input_action(dict(gesture)))
+        return InputEvent(
+            at=at,
+            action=to_input_action(dict(gesture)),
+            # The tab's URL, not the frame's. A gesture inside a portal that
+            # hosts its screens in an iframe reports the frame's src, and a run
+            # told to open that would load the frame's document on its own,
+            # outside the shell that gives it its session. What has to be
+            # reproduced is the address an operator would type.
+            page_url=_text(event.get("page_url")),
+        )
 
     if kind == "request":
         request = event.get("request")
@@ -525,6 +629,26 @@ def _capture(event: Mapping[str, object], episode: Episode) -> CaptureEvent | No
             # rather than failing the teach: one malformed call out of forty is
             # not a reason to make somebody do the task again.
             return None
+
+    if kind == "snapshot":
+        # Read here as well as on the demonstration path, because this is where
+        # a task the operator never deliberately taught becomes a skill -- which
+        # is the way this product is meant to work. Passing over the trees here
+        # meant a mined skill got the weaker locator ladder however many trees
+        # had been captured for it: a css path of framework ids assigned in
+        # render order, different on the next page load.
+        snapshot = event.get("snapshot")
+        taken_at = event.get("taken_at")
+        if not isinstance(snapshot, Mapping):
+            return None
+        at = _at(taken_at)
+        if at is None or not _inside(at, episode):
+            return None
+        try:
+            graph = to_ax_graph(dict(snapshot), url=str(event.get("url") or ""), taken_at=at)
+        except (KeyError, TypeError, ValueError):
+            return None
+        return None if graph is None else SnapshotEvent(snapshot=graph)
     return None
 
 
@@ -549,3 +673,10 @@ def _at(raw: object) -> datetime | None:
             return None
         return parsed if parsed.tzinfo is not None else None
     return None
+
+
+def _text(value: object) -> str | None:
+    """A string field of the payload, or nothing. The blob is whatever the
+    browser uploaded, so a shape nobody expected is an absence rather than a
+    crash halfway through assembling a demonstration."""
+    return value if isinstance(value, str) and value.strip() else None

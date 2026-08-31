@@ -54,6 +54,17 @@ class Answer:
 
     @property
     def detail(self) -> str:
+        """What went wrong, keeping the kind the extension named.
+
+        The detail alone used to win whenever both were sent, which threw away
+        the only machine-readable half. `focus_not_permitted` with a sentence
+        beside it arrived as the sentence, so a run that politely declined to
+        steal the operator's screen was indistinguishable from one that could
+        not find a control. Every device failure passes through here, so naming
+        the kind once covers all of them.
+        """
+        if self.error_kind and self.error_detail:
+            return f"{self.error_kind}: {self.error_detail}"
         return self.error_detail or self.error_kind or ""
 
 
@@ -195,6 +206,25 @@ class DeviceSockets:
             )
         finally:
             self._pending.pop(command_id, None)
+
+    def held_for(self, tenant_id: TenantId, device_id: DeviceId) -> float | None:
+        """How much longer this browser has asked to be left alone.
+
+        Clamped to what `_wait_out_the_operator` will actually honour, so a
+        console counting down from this never promises longer than the backend
+        intends to wait. The expired entry is dropped here as well as there:
+        two readers of one dict disagreeing about whether a pause is over is a
+        bug waiting for a quiet morning.
+        """
+        key = _key(tenant_id, device_id)
+        busy_until = self._busy.get(key)
+        if busy_until is None:
+            return None
+        remaining = busy_until - asyncio.get_running_loop().time()
+        if remaining <= 0:
+            self._busy.pop(key, None)
+            return None
+        return min(remaining, self._timeout * MAX_BUSY_WAIT)
 
     async def _wait_out_the_operator(self, key: tuple[str, str], deadline: float) -> None:
         """Hold a command back while the operator is using their own browser.

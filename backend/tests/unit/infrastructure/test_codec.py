@@ -7,9 +7,11 @@ sets of states, timezone-aware timestamps. Those are what these assert.
 
 from __future__ import annotations
 
-from sro.domain.execution.run import Medium, StepDisposition, StepOutcome
+from sro.domain.execution.run import Medium, Run, RunId, StepDisposition, StepOutcome
 from sro.domain.recording.network import Body, Initiator, InitiatorKind, StackFrame
+from sro.domain.shared.identifiers import SkillId
 from sro.domain.skill.parameter import Parameter, ParameterKind
+from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.transform import Transform
 from sro.infrastructure.db.codec import (
     dump_artifacts,
@@ -19,7 +21,7 @@ from sro.infrastructure.db.codec import (
     load_frames,
     load_versions,
 )
-from sro.infrastructure.db.mappers import _step_from_json, _step_to_json
+from sro.infrastructure.db.mappers import _step_from_json, _step_to_json, row_to_run, run_to_row
 from tests import factories as f
 
 
@@ -124,6 +126,31 @@ def test_the_body_a_shadow_run_withheld_survives_storage() -> None:
     )
 
     assert _step_from_json(_step_to_json(step)) == step
+
+
+def test_a_runs_intent_survives_the_row_round_trip() -> None:
+    """`Run.intent` is the one store for the sentence an operator typed to
+    start a run; a mapper that dropped it on the way to or from `RunRow` would
+    make that sentence unrecoverable the moment the process restarted, which is
+    exactly the failure `run_to_row`/`row_to_run` exist to rule out for every
+    other field on the aggregate."""
+    run = Run(
+        id=RunId("run-1"),
+        tenant_id=f.TENANT,
+        skill_id=SkillId("skill-1"),
+        skill_version=1,
+        stage=PromotionStage.ASSISTED,
+        parameters={},
+        requested_by=f.OPERATOR,
+        started_at=f.at(0),
+        authorized_by=f.OPERATOR,
+        target_system="blue_yonder",
+        intent="create work operation NDPCK, north dock picking",
+    )
+
+    restored = row_to_run(run_to_row(run))
+
+    assert restored.intent == "create work operation NDPCK, north dock picking"
 
 
 def test_a_step_stored_before_bodies_were_kept_still_reads() -> None:

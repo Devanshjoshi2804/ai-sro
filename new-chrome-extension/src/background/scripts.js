@@ -63,7 +63,7 @@ export function hostMatches(hostname, pattern) {
   return host === bare || host.endsWith(`.${bare}`);
 }
 
-export async function applyPolicy(policy, { on }) {
+export async function applyPolicy(policy, { on, granted = [] }) {
   // Only the two ids this function owns. `unregister()` defaults to all three
   // because sign-out means stop everything, and a policy change is not that:
   // withdrawing the watch script here would have every heartbeat that carried
@@ -75,7 +75,14 @@ export async function applyPolicy(policy, { on }) {
   const matches = policy.include_hosts?.length
     ? policy.include_hosts.flatMap(patternsFor)
     : ALL;
-  const excludeMatches = (policy.exclude_hosts || []).flatMap(patternsFor);
+  // A granted host is one the operator asked to watch, so it must actually
+  // get a script. Its patterns come out of the exclusion rather than being
+  // added to `matches`: an `include_hosts` tenant has named the only hosts
+  // that may be observed, and a grant does not widen that list -- the same
+  // line the backend's `ObservationPolicy.allows` draws.
+  const excludeMatches = (policy.exclude_hosts || [])
+    .flatMap(patternsFor)
+    .filter((pattern) => !granted.some((host) => patternsFor(host).includes(pattern)));
 
   await chrome.scripting.registerContentScripts([
     {
@@ -156,7 +163,7 @@ export async function registeredOn() {
 /** Same include/exclude rule as the content-script registration above, for
  * events (webNavigation) that never go through a registered script to enforce
  * it by absence. An excluded host must produce zero rows of every kind. */
-export function allowsHost(url, policy) {
+export function allowsHost(url, policy, granted = []) {
   if (!policy) return false;
   let parsed;
   try {
@@ -173,7 +180,12 @@ export function allowsHost(url, policy) {
   const hostname = parsed.hostname;
   const matchesHost = (pattern) => hostMatches(hostname, pattern);
   const included = !policy.include_hosts?.length || policy.include_hosts.some(matchesHost);
-  const excluded = (policy.exclude_hosts || []).some(matchesHost);
+  // Exactly the host somebody pressed the button about, never a subdomain of
+  // it: `hostMatches` is right for a policy pattern an administrator wrote and
+  // wrong for a grant, where reading one mailbox as a whole domain would admit
+  // every host under it. The backend compares the same way.
+  const excluded =
+    (policy.exclude_hosts || []).some(matchesHost) && !granted.includes(hostname);
   return included && !excluded;
 }
 
@@ -190,8 +202,8 @@ export function allowsHost(url, policy) {
  * frame -- pressing "watch" twice records one copy of a gesture, which
  * `test_watching_a_tab_that_was_already_open_needs_no_reload` holds to.
  */
-export async function injectInto(tabId, url, policy) {
-  if (!allowsHost(url, policy)) return false;
+export async function injectInto(tabId, url, policy, granted = []) {
+  if (!allowsHost(url, policy, granted)) return false;
   const into = { tabId, allFrames: true };
   try {
     await chrome.scripting.executeScript({ target: into, files: ISOLATED });
@@ -203,4 +215,41 @@ export async function injectInto(tabId, url, policy) {
     // recorded -- the next navigation injects normally.
     return false;
   }
+}
+
+
+/** Put the recorder back into every tab this browser is already watching.
+ *
+ * Reloading the extension severs `chrome.runtime` for every content script
+ * already in a page. The script cannot report that -- there is nobody left to
+ * report it to -- so the tab goes quiet, while the panel goes on saying
+ * "watching this tab, since 65m", because the watch is a fact about the tab and
+ * not about whether anything is still listening.
+ *
+ * An operator who reloads the extension, demonstrates a task and finds nothing
+ * was recorded learns exactly one thing, and it is not a good one.
+ *
+ * Registration does not cover this: it governs the next navigation only, so a
+ * tab open across the reload runs nothing of ours until it is navigated. And
+ * telling somebody to reload the page they are working in is not an answer --
+ * they lose the form they had half filled in.
+ *
+ * Safe to run on every worker start, which is the only way it can run at all:
+ * there is no way to tell a reload from an ordinary wake-up, and a tab that
+ * still has the scripts is unharmed -- the page-realm patch refuses a `fetch`
+ * it has already patched, and Chrome does not run a file it has already put in
+ * a frame.
+ */
+export async function injectIntoWatched(tabs, policy, granted = []) {
+  const put = await Promise.all(
+    (tabs || []).map(async (tab) => {
+      // A watch outlives the tab it names -- a closed tab, or one Chrome hands
+      // the same id to later. Reading the tab back is what tells the two apart,
+      // and a watch on a tab that is gone is not one to inject into.
+      const live = await chrome.tabs.get(tab.tabId).catch(() => null);
+      if (!live?.url) return false;
+      return await injectInto(tab.tabId, live.url, policy, granted);
+    }),
+  );
+  return put.filter(Boolean).length;
 }

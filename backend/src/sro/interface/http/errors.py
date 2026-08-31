@@ -15,6 +15,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from sro.application.connection.connect_system import NotAuthenticated
 from sro.application.connection.sign_in import NoCredentials
+from sro.application.execution.call_run_wrong import NotYours
 from sro.application.execution.execute_skill import NotRunnable, Refused
 from sro.application.induction.errors import InductionFailed
 from sro.application.observation.ingest import ObservationRefused
@@ -66,6 +67,10 @@ _STATUS_BY_ERROR: dict[type[Exception], int] = {
     # and "invalid_grant" want different people to do different things, and a
     # 500 tells neither of them anything.
     TokenRefused: status.HTTP_409_CONFLICT,
+    # The caller is authenticated and the run exists; they are simply not the
+    # one person who saw what it produced. That is an identity mismatch, not a
+    # missing resource or a conflicting state.
+    NotYours: status.HTTP_403_FORBIDDEN,
 }
 
 _TITLES = {

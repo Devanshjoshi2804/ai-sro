@@ -20,7 +20,7 @@ from sro.application.connection.sign_in import EnsureSignedIn, SignIn
 from sro.application.context import RequestContext
 from sro.application.execution.self_heal import HealBudget, SelfHeal
 from sro.application.knowledge.record_claim import RecordClaims
-from sro.domain.connection.connection import Connection, ConnectionId
+from sro.domain.connection.connection import Connection, ConnectionId, ConnectionStatus
 from sro.domain.execution.diagnosis import Remedy, diagnose
 from sro.domain.execution.escalation import FailureKind
 from tests import factories as f
@@ -178,6 +178,18 @@ async def test_an_outage_is_never_answered_by_signing_in() -> None:
     assert healed is not None and not healed.repaired
     assert await vault.get(connection.cookie_key) == "SESSIONID=maybe-fine"
 
+    # And written down where somebody looks. Found by firing this at the real
+    # WMS: the run diagnosed the dead session correctly, said so in the step's
+    # own detail, and `/v1/connections` went on reporting "connected" -- the
+    # one screen checked before asking why a task stopped working was the one
+    # screen that did not know. `ConnectionStatus.EXPIRED` and
+    # `Connection.rejected` both already existed; nothing anywhere called it.
+    async with uow:
+        after = await uow.connections.find_by_system(f.TENANT, "blue_yonder")
+    assert after is not None
+    assert after.status is ConnectionStatus.EXPIRED
+    assert "session is gone" in (after.last_error or "")
+
 
 @pytest.mark.asyncio
 async def test_a_live_session_with_a_rejected_call_is_repaired_as_context() -> None:
@@ -243,6 +255,14 @@ async def test_a_live_session_with_a_rejected_call_is_repaired_as_context() -> N
     assert healed is not None
     assert await vault.get("acme/blue_yonder/SG/csrf-encrypt-token") == "fresh"
     assert await vault.get("acme/blue_yonder/SG/referer") == "https://wms.example.com/page?ctx=1"
+
+    # And the connection is left alone. The session is alive -- that is what
+    # this whole branch established -- so marking it expired would send
+    # somebody to sign in again over a problem signing in cannot fix.
+    async with uow:
+        after = await uow.connections.find_by_system(f.TENANT, "blue_yonder")
+    assert after is not None
+    assert after.status is not ConnectionStatus.EXPIRED
 
 
 @pytest.mark.asyncio
@@ -374,3 +394,66 @@ async def test_a_provider_with_no_browser_says_so_instead_of_going_quiet() -> No
     assert healed is not None and not healed.repaired
     assert "login page" in healed.because
     assert "could not take a browser" in healed.detail
+
+
+@pytest.mark.asyncio
+async def test_a_context_repair_that_fails_does_not_blame_the_login() -> None:
+    """A minted header the executor could not take again says nothing about
+    whether the session still works.
+
+    Marking the connection expired here would send somebody to sign in over a
+    problem signing in cannot fix -- and worse, it would make the one screen
+    that is supposed to say whether the login is good say the opposite of what
+    is true.
+    """
+    uow, vault, browser, http = (
+        FakeUnitOfWork(),
+        FakeCredentialVault(),
+        FakeBrowserProvider(),
+        FakeHttpCaller(),
+    )
+    connection = Connection(
+        id=ConnectionId("con_1"),
+        tenant_id=f.TENANT,
+        name="WMS",
+        target_system="blue_yonder",
+        base_url="https://wms.example.com/portal",
+        created_at=datetime(2026, 1, 1, tzinfo=UTC),
+    )
+    connection.authenticated(datetime(2026, 1, 2, tzinfo=UTC))
+    async with uow:
+        await uow.connections.add(connection)
+        await uow.commit()
+    # No browser to read the page with, so taking the token again cannot work.
+    browser.unavailable = True
+
+    sign_in = SignIn(
+        uow, vault, browser, FakeSignInDriver(), RefreshSession(uow, vault, FakeClock())
+    )
+    check = CheckSession(uow, vault, http)
+    healer = SelfHeal(
+        uow,
+        vault,
+        browser,
+        check,
+        EnsureSignedIn(sign_in, check, uow),
+        RecordClaims(uow, FakeClock(), FakeIdFactory(), FakeEmbedder()),
+        RefreshSession(uow, vault, FakeClock()),
+        Browsers(browser, uow, FakeClock(), FakeIdFactory()),
+    )
+
+    healed = await healer.attempt(
+        CTX,
+        target_system="blue_yonder",
+        facility="SG",
+        step_index=0,
+        mutating=False,
+        budget=HealBudget(),
+        missing_headers=("csrf-encrypt-token",),
+    )
+
+    assert healed is not None and not healed.repaired
+    async with uow:
+        after = await uow.connections.find_by_system(f.TENANT, "blue_yonder")
+    assert after is not None
+    assert after.status is not ConnectionStatus.EXPIRED

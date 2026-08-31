@@ -30,6 +30,7 @@ from sro.application.ports.intent import Extraction, Reading
 from sro.application.ports.repositories import (
     BrowserSessionRepository,
     CandidateRepository,
+    ConfirmationRepository,
     ConnectionRepository,
     DeviceRepository,
     KnowledgeRepository,
@@ -40,12 +41,14 @@ from sro.application.ports.repositories import (
     RunRepository,
     SkillRepository,
     ThreadRepository,
+    ToolCallRepository,
     TriggerRepository,
     UnitOfWork,
 )
 from sro.application.ports.schedule import Scheduler, SchedulerUnavailable
 from sro.application.ports.sign_in import SignInDriver, SignInFailed, SignInResult
 from sro.application.ports.system import Clock, IdFactory
+from sro.application.ports.tools import ToolOffered, ToolResult, ToolsUnavailable
 from sro.application.ports.transcription import TranscribedSegment, Transcriber
 from sro.application.ports.ui import ResolvedLocator, UiDriver, UiOutcome, UiUnavailable
 from sro.application.ports.vault import CredentialVault
@@ -76,6 +79,7 @@ from sro.domain.shared.identifiers import (
     BatchId,
     BrowserSessionId,
     CandidateId,
+    ConfirmationId,
     DeviceId,
     PrincipalId,
     RecordingId,
@@ -86,6 +90,7 @@ from sro.domain.shared.identifiers import (
 from sro.domain.shared.objective import ObjectiveKey
 from sro.domain.skill.locator import LocatorStrategy
 from sro.domain.skill.skill import Skill
+from sro.domain.trigger.confirmation import Answer, Confirmation
 from sro.domain.trigger.trigger import Trigger
 
 
@@ -112,6 +117,7 @@ class FakeIdFactory:
         self._messages = count(1)
         self._devices = count(1)
         self._triggers = count(1)
+        self._confirmations = count(1)
         self._candidates = count(1)
 
     def new_recording_id(self) -> RecordingId:
@@ -137,6 +143,9 @@ class FakeIdFactory:
 
     def new_trigger_id(self) -> TriggerId:
         return TriggerId(f"trg-{next(self._triggers)}")
+
+    def new_confirmation_id(self) -> ConfirmationId:
+        return ConfirmationId(f"cnf-{next(self._confirmations)}")
 
     def new_candidate_id(self) -> CandidateId:
         return CandidateId(f"cnd-{next(self._candidates)}")
@@ -261,6 +270,13 @@ class FakeBlobStore:
         if uri.startswith(prefix):
             self.objects.pop(uri[len(prefix) :], None)
 
+    async def list_prefix(self, prefix: str) -> dict[str, int]:
+        return {
+            f"s3://sro-artifacts/{key}": len(data)
+            for key, data in self.objects.items()
+            if key.startswith(prefix)
+        }
+
     async def forget_prefix(self, prefix: str) -> int:
         doomed = [key for key in self.objects if key.startswith(prefix)]
         for key in doomed:
@@ -321,6 +337,11 @@ class FakeDurableExecution:
         given -- so a test can prove a caller asked not to be blocked, not
         just that a run id came back."""
 
+        self.authorised: list[str | None] = []
+        """One entry per call, whose name is on the write. A trigger's author
+        and the person who approved one of its fires are different people, and
+        which of them a run carries is the point of the confirmation queue."""
+
     async def induce_skill(
         self,
         ctx: RequestContext,
@@ -348,6 +369,7 @@ class FakeDurableExecution:
         self.started.append(str(skill_id))
         self.with_values.append(dict(parameters))
         self.waited.append(wait)
+        self.authorised.append(authorized_by)
         if self._execute is None:
             # A caller that only needs to know a run was started -- a trigger,
             # say -- rather than what it did.
@@ -1008,6 +1030,15 @@ class FakeAgentDrivers:
         self.connected = connected
         self.asked_for: list[tuple[str, str]] = []
         self.told: tuple[str | None, bool] = (None, False)
+        self.sent_to: str | None = None
+        """The screen the browser was told to be on, where the demonstration
+        recorded one."""
+
+        self.named: tuple[str, int | None, int | None] = ("", None, None)
+        """What the band in the operator's page would say. A run driving
+        somebody's own browser has to be legible there rather than only in the
+        panel, and the page can only say what the driver was told."""
+        self.held: float | None = None
 
     def ui(
         self,
@@ -1015,8 +1046,14 @@ class FakeAgentDrivers:
         device_id: DeviceId,
         origin: str | None = None,
         may_take_focus: bool = False,
+        starts_on: str | None = None,
+        doing: str = "",
+        step: int | None = None,
+        of: int | None = None,
     ) -> UiDriver:
         self.asked_for.append((str(tenant_id), str(device_id)))
+        self.named = (doing, step, of)
+        self.sent_to = starts_on
         # What the run said about the page and the screen, so a test can read
         # back what the browser would have been told.
         self.told = (origin, may_take_focus)
@@ -1032,6 +1069,11 @@ class FakeAgentDrivers:
 
     async def online(self, tenant_id: TenantId) -> tuple[DeviceId, ...]:
         return (DeviceId("dev-1"),) if self.connected else ()
+
+    async def held_for(self, tenant_id: TenantId, device_id: DeviceId) -> float | None:
+        """Whatever a test set. `None` unless it says otherwise, because a
+        browser that is not typing is the ordinary case."""
+        return self.held
 
 
 class FakeTriggerRepository:
@@ -1117,6 +1159,48 @@ class FakeRunDispatcher:
         return RunId(f"run-dispatched-{len(self.asked)}")
 
 
+class FakeConfirmationRepository:
+    def __init__(self) -> None:
+        self.rows: dict[str, Confirmation] = {}
+
+    async def add(self, confirmation: Confirmation) -> None:
+        self.rows[confirmation.id.value] = confirmation
+
+    async def get(self, tenant_id: TenantId, confirmation_id: ConfirmationId) -> Confirmation:
+        found = self.rows.get(confirmation_id.value)
+        if found is None or found.tenant_id != tenant_id:
+            raise NotFound(f"confirmation {confirmation_id} not found")
+        return found
+
+    async def save(self, confirmation: Confirmation) -> None:
+        self.rows[confirmation.id.value] = confirmation
+
+    async def waiting(self, tenant_id: TenantId) -> tuple[Confirmation, ...]:
+        return tuple(
+            sorted(
+                (
+                    row
+                    for row in self.rows.values()
+                    if row.tenant_id == tenant_id and row.answer is Answer.WAITING
+                ),
+                key=lambda row: row.asked_at,
+            )
+        )
+
+
+class FakeToolCallRepository:
+    """A set, which is what the real one is: a key is claimed or it is not."""
+
+    def __init__(self) -> None:
+        self.claimed: dict[tuple[str, str], str] = {}
+
+    async def remember(self, tenant_id: TenantId, key: str, *, tool: str, at: datetime) -> bool:
+        if (tenant_id.value, key) in self.claimed:
+            return False
+        self.claimed[(tenant_id.value, key)] = tool
+        return True
+
+
 class FakeUnitOfWork:
     """Counts commits. Does not simulate rollback -- the repositories hold the
     same objects the use case mutated. Transactions are proved in
@@ -1136,6 +1220,8 @@ class FakeUnitOfWork:
     observation_policies: ObservationPolicyRepository
     candidates: CandidateRepository
     triggers: TriggerRepository
+    tool_calls: ToolCallRepository
+    confirmations: ConfirmationRepository
 
     def __init__(self) -> None:
         self.recordings = FakeRecordingRepository()
@@ -1151,6 +1237,8 @@ class FakeUnitOfWork:
         self.observation_policies = FakeObservationPolicyRepository()
         self.candidates = FakeCandidateRepository()
         self.triggers = FakeTriggerRepository()
+        self.tool_calls = FakeToolCallRepository()
+        self.confirmations = FakeConfirmationRepository()
         self.commits = 0
         self.rollbacks = 0
         self.commit_raises: Exception | None = None
@@ -1227,4 +1315,40 @@ _agents: AgentDrivers = FakeAgentDrivers()
 _scheduler: Scheduler = FakeScheduler()
 _dispatcher: RunDispatcher = FakeRunDispatcher()
 _triggers: TriggerRepository = FakeTriggerRepository()
+_tool_calls: ToolCallRepository = FakeToolCallRepository()
+_confirmations: ConfirmationRepository = FakeConfirmationRepository()
 _candidates: CandidateRepository = FakeCandidateRepository()
+
+
+class FakeToolCaller:
+    """A connector that answers whatever the test told it to."""
+
+    def __init__(
+        self,
+        answers: dict[str, ToolResult] | None = None,
+        *,
+        offers: dict[str, tuple[ToolOffered, ...]] | None = None,
+        available: bool = True,
+    ) -> None:
+        self._answers = answers or {}
+        self._offers = offers or {}
+        self._available = available
+        self.calls: list[tuple[str, str, dict[str, str]]] = []
+
+    @property
+    def available(self) -> bool:
+        return self._available
+
+    async def list_tools(self, server: str) -> tuple[ToolOffered, ...]:
+        if server not in self._offers:
+            raise ToolsUnavailable(f"no connector called {server}")
+        return self._offers[server]
+
+    async def call(self, server: str, tool: str, arguments: Mapping[str, str]) -> ToolResult:
+        if not self._available:
+            raise ToolsUnavailable("no connectors are configured")
+        self.calls.append((server, tool, dict(arguments)))
+        answer = self._answers.get(tool)
+        if answer is None:
+            raise ToolsUnavailable(f"{server} offers no tool called {tool}")
+        return answer

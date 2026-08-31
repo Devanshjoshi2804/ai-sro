@@ -14,6 +14,13 @@ from sro.domain.recording.network import CapturedRequest
 class InputEvent:
     at: datetime
     action: InputAction
+    page_url: str | None = None
+    """The page the gesture happened on.
+
+    The recorder has always sent it. It only ever reached the accessibility
+    snapshot, so a demonstration made of pure gestures -- no snapshot, no call --
+    recorded nothing at all about which screen it was on, and the resulting skill
+    could only be replayed by an operator who had already navigated there."""
 
 
 @dataclass(frozen=True, slots=True)

@@ -189,7 +189,14 @@ class Trigger:
     def auto_approves(self) -> bool:
         return self.writes and not self.requires_confirmation
 
-    def fired(self, at: datetime, run_id: RunId) -> None:
+    def fired(self, at: datetime, run_id: RunId | None = None) -> None:
+        """It went off.
+
+        ``run_id`` is ``None`` where nothing started yet: a write that needs
+        confirming became a card. The trigger has still fired, and a schedule
+        that showed "never" while filling somebody's queue would be the screen
+        disagreeing with the thing it describes.
+        """
         if at.tzinfo is None:
             raise InvariantViolation("every timestamp is timezone-aware")
         self.last_fired_at = at

@@ -25,7 +25,7 @@ memorisation with a data structure around it.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from sro.application.induction import jsonutil
 from sro.application.induction.diff import (
@@ -34,6 +34,7 @@ from sro.application.induction.diff import (
     _diff_action,
     _diff_request,
     _mutations,
+    align,
     url_shape,
 )
 from sro.application.induction.errors import InductionFailed
@@ -134,6 +135,70 @@ def _try(
         parameters=parameters,
         substitutions=substitutions,
         keep=prefix + block,
+    )
+
+
+def in_step_space(
+    found: LoopFound,
+    frames_a: tuple[ActionFrame, ...],
+    frames_b: tuple[ActionFrame, ...],
+) -> LoopFound:
+    """The same loop, counting the steps the two runs share.
+
+    `detect` reads the frames as they were recorded, and has to: the runs
+    differ in length precisely because one iterated more times, so aligning
+    them first would destroy the very signal a loop is found by. Everything
+    downstream counts aligned steps instead -- what only one operator did is
+    not part of the task and `align` drops it.
+
+    Two index spaces met here and neither was converted. A pair with one
+    unmatched gesture before the block produced a loop whose body named steps
+    the version did not have (`a loop covers steps 3-3, and this version has
+    2`), and the same mismatch is why a loop and a skipped field could not be
+    induced together at all.
+
+    Refused rather than approximated where a frame of the block did not survive
+    alignment: the two runs then disagree about what one iteration is, and
+    guessing there is what ADR 004 exists to prevent.
+    """
+    pairs = align(frames_a, frames_b)
+    where = {id(frame): position for position, frame in enumerate(frames_a)}
+    step_of = {where[id(frame_a)]: step for step, (frame_a, _) in enumerate(pairs)}
+
+    loop = found.loop
+    body = range(loop.first_step, loop.last_step + 1)
+    dropped = [frame for frame in (loop.over_step_index, *body) if frame not in step_of]
+    if dropped:
+        raise InductionFailed(
+            "this pair is a loop whose body the two runs do not agree on: "
+            f"{len(dropped)} gesture(s) of it happened in one run and not the "
+            "other, so there is no single iteration to repeat. Demonstrate the "
+            "loop twice doing the same thing each time round",
+            step_index=dropped[0],
+        )
+
+    steps = [step_of[frame] for frame in body]
+    if steps != list(range(steps[0], steps[-1] + 1)):
+        # The body survived, but something the runs do not share sits inside
+        # it. A body with a hole in it is two loops somebody has to be able to
+        # see separately, which is the rule `Loop` itself states.
+        raise InductionFailed(
+            "this pair is a loop with a gesture inside its body that only one run "
+            "made, so the block is not one repeated thing",
+            step_index=loop.first_step,
+        )
+
+    return replace(
+        found,
+        loop=replace(
+            loop,
+            over_step_index=step_of[loop.over_step_index],
+            first_step=steps[0],
+            last_step=steps[-1],
+        ),
+        substitutions={
+            step_of[frame]: subs for frame, subs in found.substitutions.items() if frame in step_of
+        },
     )
 
 

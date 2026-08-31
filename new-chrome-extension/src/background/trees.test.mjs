@@ -1,0 +1,134 @@
+// Self-check for accessibility trees taken while nobody is teaching.
+//
+// The tree is what makes a locator survive a re-render. Without one a skill has
+// only a css path of framework ids assigned in render order --
+// `span#button-1350-btnIconEl` is a different element after a reload -- so
+// until this existed, every skill that arrived the way this product intends
+// got the weaker ladder, and the good locators were reserved for the one path
+// an operator has to remember to press a button for.
+//
+// What this checks is mostly what it must NOT do. A tree costs the tab's
+// debugger and, outside a policy-managed install, a banner across the
+// operator's screen; taking one where it was not agreed to is worse than
+// having none.
+//
+// Run with `node src/background/trees.test.mjs`.
+
+import assert from "node:assert";
+
+const attached = new Set();
+const detached = [];
+const commands = [];
+let attachFails = false;
+let times = [];
+
+globalThis.chrome = {
+  debugger: {
+    attach: async ({ tabId }) => {
+      if (attachFails) throw new Error("Another debugger is already attached");
+      attached.add(tabId);
+    },
+    detach: async ({ tabId }) => {
+      attached.delete(tabId);
+      detached.push(tabId);
+    },
+    sendCommand: async ({ tabId }, method) => {
+      commands.push([tabId, method]);
+      if (method === "Accessibility.enable") return {};
+      return { nodes: [{ nodeId: "1", role: { value: "button" }, name: { value: "Add" } }] };
+    },
+  },
+  storage: {
+    local: {
+      get: async (key) => ({ [key]: key === "sro.treeTimes" ? times : null }),
+      set: async (entry) => {
+        if ("sro.treeTimes" in entry) times = entry["sro.treeTimes"];
+      },
+    },
+  },
+};
+
+const { takeTree, takeTreeSoon, release, releaseAll } = await import("./trees.js");
+
+const ON = { capture_enabled: true, capture_snapshots: true, exclude_hosts: [], include_hosts: [] };
+const PAGE = "https://wms.example/portal#work.operations";
+
+// Off unless the tenant said so, and nothing is attached to find out.
+assert.equal(await takeTreeSoon(1, PAGE, { ...ON, capture_snapshots: false }), null);
+assert.equal(attached.size, 0, "a browser nobody agreed to debug was attached to");
+
+// A host the tenant excludes gets no tree and no debugger either -- the same
+// rule a screenshot goes by, and for the stronger reason: an excluded page is
+// one nothing of ours may touch.
+assert.equal(await takeTreeSoon(1, PAGE, { ...ON, exclude_hosts: ["wms.example"] }), null);
+assert.equal(attached.size, 0, "an excluded page was attached to");
+
+// The ordinary case.
+const taken = await takeTreeSoon(1, PAGE, ON);
+assert.ok(taken, "no tree was taken on an allowed page with the policy on");
+assert.equal(taken.kind, "snapshot");
+assert.equal(taken.url, PAGE);
+assert.ok(taken.snapshot.nodes.length);
+assert.deepEqual([...attached], [1]);
+
+// It is held for the gesture *after* the one that caused it. The assembler
+// attaches a snapshot to the frame of the gesture before it, and that frame's
+// locator is built from the tree -- so it has to be the screen the operator was
+// looking at when they decided to act, not the page their click produced.
+assert.equal(takeTree(1), taken);
+assert.equal(takeTree(1), null, "the same tree was handed out twice");
+
+// The debugger is held, not re-attached per gesture: attaching and detaching
+// around every click would flash the banner all day on an unmanaged install.
+const before = commands.filter(([, method]) => method === "Accessibility.enable").length;
+await takeTreeSoon(1, PAGE, ON);
+const after = commands.filter(([, method]) => method === "Accessibility.enable").length;
+assert.equal(after, before, "the debugger was re-attached for a second gesture");
+
+// The cap. Its own budget, not the screenshots': a tree is a round trip and
+// some JSON, a picture is a PNG, and one shared counter would have whichever
+// happened first spend the other's allowance.
+times = Array.from({ length: 20 }, () => Date.now());
+assert.equal(await takeTreeSoon(1, PAGE, ON), null, "the per-minute cap was not enforced");
+// A tenant that raised its own cap gets what it asked for.
+assert.ok(
+  await takeTreeSoon(1, PAGE, { ...ON, snapshot_max_per_minute: 50 }),
+  "the tenant's own cap was ignored in favour of the default",
+);
+times = [];
+
+// DevTools has the debugger, or another extension does. Their tab, their tools:
+// capture carries on without trees rather than fighting for it.
+attachFails = true;
+await release(2);
+assert.equal(await takeTreeSoon(2, PAGE, ON), null);
+assert.equal(attached.has(2), false);
+
+// And it is not asked again. A tab with DevTools open refuses every time, and
+// asking on every click spends a round trip per gesture to be told the same
+// thing -- on some Chrome versions, with an error in the operator's own console
+// for each one.
+attachFails = false;
+assert.equal(await takeTreeSoon(2, PAGE, ON), null, "a tab that refused was asked again");
+
+// Letting go clears that, so a tab that closed DevTools is asked once more the
+// next time anything releases it -- a navigation, a re-watch.
+await release(2);
+assert.ok(await takeTreeSoon(2, PAGE, ON), "a released tab was still treated as refused");
+
+// Stop watching, stop debugging. An operator left with the banner up after
+// pressing "stop watching" would have every reason to disbelieve the panel
+// about anything else it says.
+detached.length = 0;
+await release(1);
+assert.deepEqual(detached, [1]);
+assert.equal(takeTree(1), null, "a released tab kept a tree waiting for it");
+
+// And a policy that switches this off takes every banner down now, rather than
+// at the next tab close.
+detached.length = 0;
+await releaseAll();
+assert.deepEqual([...detached].sort(), [2]);
+assert.equal(attached.size, 0);
+
+console.log("trees.test.mjs: ok");

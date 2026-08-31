@@ -1,11 +1,11 @@
 {
   "kind": "request",
   "request": {
-    "request_id": "req_429d5907_1",
+    "request_id": "req_808d0ef3_1",
     "method": "POST",
-    "url": "http://127.0.0.1:49986/api/orders",
+    "url": "http://127.0.0.1:63319/api/orders",
     "resource_type": "fetch",
-    "started_at": "2026-08-25T08:31:40.984Z",
+    "started_at": "2026-08-31T08:40:04.781Z",
     "request_headers": {
       "content-type": "application/json"
     },
@@ -23,7 +23,7 @@
       "access-control-allow-origin": "*",
       "content-length": "12",
       "content-type": "application/json",
-      "date": "Tue, 25 Aug 2026 08:31:40 GMT",
+      "date": "Mon, 31 Aug 2026 08:40:04 GMT",
       "server": "BaseHTTP/0.6 Python/3.14.7"
     },
     "response_body": {
@@ -34,11 +34,11 @@
       "redacted_fields": []
     },
     "redirect_chain": [],
-    "duration_ms": 2,
+    "duration_ms": 1,
     "from_cache": false,
     "failure_reason": null,
     "blocked_reason": null
   },
-  "tab_id": 927171230,
-  "frame_url": "http://127.0.0.1:49986/"
+  "tab_id": 1766715008,
+  "frame_url": "http://127.0.0.1:63319/"
 }

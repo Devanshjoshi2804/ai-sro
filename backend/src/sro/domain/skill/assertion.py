@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from sro.domain.shared.errors import InvariantViolation
+from sro.domain.shared.identifiers import PrincipalId
 from sro.domain.skill.template import Template
 
 
@@ -26,6 +27,19 @@ class Assertion:
     kind: AssertionKind
     expected: Template
     pointer: str | None = None
+
+    written_by: PrincipalId | None = None
+    """The person who wrote this, where a person did.
+
+    ``None`` means induction derived it from the recordings the version cites:
+    two demonstrations answered the same status, or agreed on a field of the
+    response. That is evidence.
+
+    A name means somebody decided what counts as success -- which is the only
+    way a step nobody demonstrated can have a post-condition at all, and a
+    different kind of thing. A reviewer reading a version has to be able to
+    tell the two apart, and a system that could not would present a guess and
+    a measurement in the same words."""
 
     def __post_init__(self) -> None:
         needs_pointer = self.kind in _POINTER_KINDS

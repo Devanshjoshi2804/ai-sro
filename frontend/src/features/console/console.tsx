@@ -243,9 +243,7 @@ export function Console({ threadId: fromUrl }: { threadId?: string } = {}) {
   // invitation to teach is the most useful thing on screen.
   const lastDecision = (conversation.data?.messages ?? [])
     .filter((message) => message.decision)
-    .at(-1)?.decision as
-    | { matched_skill_id?: string | null; choices?: string[] }
-    | undefined;
+    .at(-1)?.decision as { matched_skill_id?: string | null; choices?: string[] } | undefined;
   // Not while there is a choice on the table. Asking "which did you mean?" and
   // printing a teach form underneath it tells the operator both that the task
   // exists twice and that it does not exist at all.
@@ -257,12 +255,13 @@ export function Console({ threadId: fromUrl }: { threadId?: string } = {}) {
   // What this conversation is about, taken from the last thing that matched.
   // `why` is the matcher's own account of the hit -- "entity: client" -- which
   // is the same word the question's key is addressed by.
-  const subjectOfThread = ((conversation.data?.messages ?? [])
-    .map((message) => (message.decision as { why?: string[] } | undefined)?.why ?? [])
-    .flat()
-    .filter((reason) => reason.startsWith("entity: "))
-    .at(-1) ?? "")
-    .replace("entity: ", "");
+  const subjectOfThread = (
+    (conversation.data?.messages ?? [])
+      .map((message) => (message.decision as { why?: string[] } | undefined)?.why ?? [])
+      .flat()
+      .filter((reason) => reason.startsWith("entity: "))
+      .at(-1) ?? ""
+  ).replace("entity: ", "");
 
   const runsSoFar = thread.sealedRecordings.length;
   const teaching = active !== null;
@@ -273,7 +272,7 @@ export function Console({ threadId: fromUrl }: { threadId?: string } = {}) {
         height: "100vh",
         display: "flex",
         flexDirection: "column",
-        fontFamily: "Manrope, var(--font-geist-sans), sans-serif",
+        fontFamily: "var(--font-body), system-ui, sans-serif",
         color: ink.text,
         background: ink.page,
         overflow: "hidden",
@@ -281,7 +280,7 @@ export function Console({ threadId: fromUrl }: { threadId?: string } = {}) {
     >
       <TopBar>
         <div style={{ display: "flex", alignItems: "flex-end", gap: 4 }}>
-          <Tab active={tab === "chat"} onClick={() => setTab("chat")} dot="#5A5C60">
+          <Tab active={tab === "chat"} onClick={() => setTab("chat")} dot={ink.textMuted}>
             Threads
           </Tab>
           {teaching && (
@@ -731,7 +730,6 @@ export function Console({ threadId: fromUrl }: { threadId?: string } = {}) {
                     style={{
                       flex: 1,
                       border: "none",
-                      outline: "none",
                       fontSize: 14.5,
                       background: "transparent",
                       color: ink.text,
@@ -804,9 +802,8 @@ function TeachForm({
             which quietly means a different thing, is how somebody ends up
             demonstrating into a window they cannot see. */}
         <div data-teach="in-panel" style={{ fontSize: 12.5, lineHeight: 1.6 }}>
-          You are already in a browser. Use <strong>Start teaching</strong> at the top of this
-          panel — it records the tab beside it, with your own session, and nothing opens
-          anywhere else.
+          You are already in a browser. Use <strong>Start teaching</strong> at the top of this panel
+          — it records the tab beside it, with your own session, and nothing opens anywhere else.
         </div>
 
         {/* Not embedded, but a browser of this operator's own is connected. It
@@ -816,8 +813,8 @@ function TeachForm({
         {devices > 0 && (
           <div data-teach="own-browser" style={{ fontSize: 12.5, lineHeight: 1.6 }}>
             Open the system in the browser you have connected, then press{" "}
-            <strong>Start teaching</strong> in the AI-SRO side panel. It records what you do in
-            your own session — the screens as you actually see them.
+            <strong>Start teaching</strong> in the AI-SRO side panel. It records what you do in your
+            own session — the screens as you actually see them.
           </div>
         )}
 
@@ -839,7 +836,7 @@ function TeachForm({
                 padding: "10px 16px",
                 borderRadius: 8,
                 border: "none",
-                background: pending ? "#E7E7E4" : ink.accent,
+                background: pending ? ink.disabled : ink.accent,
                 color: pending ? ink.textMuted : "#fff",
                 fontSize: 13,
                 fontWeight: 700,
@@ -858,7 +855,8 @@ function TeachForm({
                 padding: "10px 16px",
                 borderRadius: 8,
                 border: systems.length === 0 ? "none" : `1px solid ${ink.line}`,
-                background: systems.length === 0 ? (pending ? "#E7E7E4" : ink.accent) : "transparent",
+                background:
+                  systems.length === 0 ? (pending ? ink.disabled : ink.accent) : "transparent",
                 color: systems.length === 0 ? (pending ? ink.textMuted : "#fff") : ink.textSoft,
                 fontSize: 13,
                 fontWeight: 700,
@@ -925,7 +923,6 @@ function Field({
           padding: "8px 10px",
           fontSize: 13,
           fontFamily: mono,
-          outline: "none",
         }}
       />
     </label>
@@ -960,7 +957,7 @@ function Tab({
         fontWeight: 600,
         cursor: "pointer",
         background: active ? ink.page : "transparent",
-        color: active ? ink.text : "#8A8C8F",
+        color: active ? ink.text : ink.textMuted,
       }}
     >
       <span
@@ -1068,8 +1065,13 @@ function Operator({ children }: { children: React.ReactNode }) {
       style={{
         alignSelf: "flex-end",
         maxWidth: "60%",
-        background: ink.text,
-        color: "#F2F2F0",
+        // The operator's own words, as a filled bubble. It was a dark bubble
+        // with near-white text on a light page; a literal-for-token pass turned
+        // the text into the same token as the fill and made it invisible. On a
+        // dark ground the equivalent of "filled" is a *raised* surface, not a
+        // darker one.
+        background: "var(--brand-raised-2)",
+        color: ink.text,
         padding: "11px 15px",
         borderRadius: "14px 14px 4px 14px",
         fontSize: 14.5,
@@ -1107,9 +1109,7 @@ function Thinking() {
             : "Still working — the system is slower than usual"}
         <Dots />
         {seconds >= 8 && (
-          <span style={{ fontFamily: mono, fontSize: 11.5, color: ink.textMuted }}>
-            {seconds}s
-          </span>
+          <span style={{ fontFamily: mono, fontSize: 11.5, color: ink.textMuted }}>{seconds}s</span>
         )}
       </span>
     </div>
@@ -1167,7 +1167,7 @@ function PlusItem({
           height: 24,
           flex: "0 0 24px",
           borderRadius: 6,
-          background: disabled ? "#F1F1EE" : ink.accentWash,
+          background: disabled ? ink.disabled : ink.accentWash,
           color: disabled ? ink.textSoft : ink.accentDeep,
           display: "grid",
           placeItems: "center",
@@ -1179,7 +1179,7 @@ function PlusItem({
       </span>
       <span>
         <span style={{ display: "block", fontSize: 13, fontWeight: 700 }}>{title}</span>
-        <span style={{ display: "block", fontSize: 11.5, color: "#7A7C7F", lineHeight: 1.5 }}>
+        <span style={{ display: "block", fontSize: 11.5, color: ink.textMuted, lineHeight: 1.5 }}>
           {subtitle}
         </span>
       </span>
@@ -1203,7 +1203,6 @@ function askedBefore(messages: ChatMessage[], id: string): string | undefined {
   }
   return undefined;
 }
-
 
 function Derived({
   found,
@@ -1356,7 +1355,6 @@ function Derived({
   );
 }
 
-
 function Choices({ ids, onPick }: { ids: string[]; onPick: (text: string) => void }) {
   const skills = useQuery({ queryKey: skillKeys.all, queryFn: listSkills });
   const named = ids
@@ -1386,7 +1384,6 @@ function Choices({ ids, onPick }: { ids: string[]; onPick: (text: string) => voi
     </div>
   );
 }
-
 
 function ChatTurn({
   message,
@@ -1468,7 +1465,11 @@ function ChatTurn({
             "supplier TESTSUPPLIERSRO", the field dictionary said what that
             value is called and the taught read proved the filter. */}
         {decision.derived && (
-          <Derived found={decision.derived} suggestions={decision.suggestions ?? []} onAsk={onAsk} />
+          <Derived
+            found={decision.derived}
+            suggestions={decision.suggestions ?? []}
+            onAsk={onAsk}
+          />
         )}
 
         {decision.matched_skill_id && items.length > 0 && (

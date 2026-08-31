@@ -43,14 +43,31 @@ class RemoteAgents(AgentDrivers):
         device_id: DeviceId,
         origin: str | None = None,
         may_take_focus: bool = False,
+        starts_on: str | None = None,
+        doing: str = "",
+        step: int | None = None,
+        of: int | None = None,
     ) -> UiDriver:
-        return RemoteUiDriver(self._sockets, tenant_id, device_id, origin, may_take_focus)
+        return RemoteUiDriver(
+            self._sockets,
+            tenant_id,
+            device_id,
+            origin,
+            may_take_focus,
+            starts_on,
+            doing,
+            step,
+            of,
+        )
 
     def http(self, tenant_id: TenantId, device_id: DeviceId) -> HttpCaller:
         return RemoteHttpCaller(self._sockets, tenant_id, device_id)
 
     async def online(self, tenant_id: TenantId) -> tuple[DeviceId, ...]:
         return self._sockets.online(tenant_id)
+
+    async def held_for(self, tenant_id: TenantId, device_id: DeviceId) -> float | None:
+        return self._sockets.held_for(tenant_id, device_id)
 
 
 class RemoteUiDriver(UiDriver):
@@ -61,12 +78,20 @@ class RemoteUiDriver(UiDriver):
         device_id: DeviceId,
         origin: str | None = None,
         may_take_focus: bool = False,
+        starts_on: str | None = None,
+        doing: str = "",
+        step: int | None = None,
+        of: int | None = None,
     ) -> None:
         self._sockets = sockets
         self._tenant_id = tenant_id
         self._device_id = device_id
         self._origin = origin
         self._may_take_focus = may_take_focus
+        self._starts_on = starts_on
+        self._doing = doing
+        self._step = step
+        self._of = of
 
     async def perform(
         self,
@@ -144,6 +169,22 @@ class RemoteUiDriver(UiDriver):
         # does not understand takes nobody's screen.
         if self._may_take_focus:
             payload = {**payload, "allow_focus": True}
+        # The screen the task was demonstrated on. Without it a run could only
+        # be performed by an operator who had already navigated there, and one
+        # who had not got a page of `control_not_found` that said nothing about
+        # being on the wrong screen.
+        if self._starts_on:
+            payload = {**payload, "starts_on": self._starts_on}
+        # What the page says about itself while this is happening. The operator
+        # whose browser is being driven is watching the page, not the panel,
+        # and "AI-SRO is doing X, step 4 of 13" is the difference between an
+        # application behaving oddly and a task somebody can see and stop.
+        if self._doing:
+            payload = {**payload, "skill": self._doing}
+        if self._step is not None:
+            payload = {**payload, "step": self._step}
+        if self._of is not None:
+            payload = {**payload, "of": self._of}
         try:
             return await self._sockets.send(
                 self._tenant_id, self._device_id, kind=kind, payload=payload, timeout_s=timeout_s

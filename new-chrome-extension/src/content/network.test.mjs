@@ -48,6 +48,8 @@ function makeSandbox({ withRules = true, answerHandshake = true } = {}) {
     URL,
     URLSearchParams,
     TextEncoder,
+    setTimeout,
+    clearTimeout,
     sent,
   };
   sandbox.globalThis = sandbox;
@@ -241,3 +243,42 @@ const base = {
 }
 
 console.log("network.test.mjs: ok");
+
+
+
+// A handshake that never happened is reported, not endured in silence.
+//
+// Reloading the extension replaces this half with a fresh one that knows no
+// realm, while the page-realm half that could tell it is the *old* one, which
+// answered its single hello long ago and stopped listening. The patch is still
+// installed and still emitting; every record it sends is dropped here.
+//
+// It cannot be repaired: the patch lives in the page's own realm, so once page
+// scripts are running there is no channel to it a page cannot also read and
+// write. Answering a hello later hands the secret to whoever asked, and a
+// forged exchange becomes a candidate skill an operator is offered --
+// `test_the_page_cannot_forge_an_exchange_into_the_evidence_plane` holds that
+// line and should be read beside this.
+//
+// So the tab says so, and teaching refuses to start in it. Silence here cost an
+// operator two demonstrations: gestures recorded, every call dropped, nothing
+// anywhere saying why.
+{
+  const orphaned = makeSandbox({ answerHandshake: false });
+  await new Promise((resolve) => setTimeout(resolve, 1300));
+  const said = JSON.parse(JSON.stringify(orphaned.sent));
+  assert.ok(
+    said.some((message) => message.kind === "calls-not-recordable"),
+    "a tab that never completed the handshake said nothing about it",
+  );
+
+  // And a tab that did complete it says nothing, or the panel learns to ignore
+  // the one message that matters.
+  const whole = makeSandbox({ answerHandshake: true });
+  await new Promise((resolve) => setTimeout(resolve, 1300));
+  const quiet = JSON.parse(JSON.stringify(whole.sent));
+  assert.ok(
+    !quiet.some((message) => message.kind === "calls-not-recordable"),
+    "a tab whose handshake succeeded reported itself broken",
+  );
+}

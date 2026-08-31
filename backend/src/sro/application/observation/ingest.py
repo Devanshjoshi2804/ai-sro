@@ -15,6 +15,7 @@ from datetime import datetime
 from sro.application.context import RequestContext
 from sro.application.observation.admit import Event, admit
 from sro.application.observation.policy import current_policy
+from sro.application.observation.register import refuse_unless_itself
 from sro.application.ports.blob import BlobStore
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock
@@ -66,6 +67,7 @@ class IngestObservation:
         ctx: RequestContext,
         *,
         device_id: DeviceId,
+        secret: str,
         batch_id: BatchId,
         started_at: datetime,
         ended_at: datetime,
@@ -86,6 +88,11 @@ class IngestObservation:
 
         async with self._uow as uow:
             device = await uow.devices.get(ctx.tenant_id, device_id)
+            # The tenant credential says who is asking and can never say which
+            # browser. Without this, a colleague holding a valid token could
+            # file a day of their own browsing against somebody else's device,
+            # and every candidate mined from it would name the wrong operator.
+            refuse_unless_itself(device, secret, device_id)
             if device.paused:
                 raise ObservationRefused(
                     "this device is paused; nothing it captures will be stored"
@@ -118,7 +125,10 @@ class IngestObservation:
                     already_had_it=True,
                 )
 
-            admission = admit(events, policy)
+            # What this operator said may be watched after all, on top of
+            # what the tenant agreed to by default. Read from the device
+            # already loaded above, and expired grants simply are not in it.
+            admission = admit(events, policy, device.granted_hosts(now))
             if not admission.accepted:
                 return Ingested(
                     batch_id=batch_id,

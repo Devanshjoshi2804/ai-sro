@@ -13,6 +13,8 @@
 // going to lunch.
 
 import { performAtInPage, performInPage, sendInPage, viewportInPage } from "./in-page.js";
+import { hideDriving, showDriving } from "./showing.js";
+import { state } from "./state.js";
 
 /** Runs whose abort has arrived. Their later commands are refused rather than
  * performed; work already inside the page cannot be recalled, so this is a
@@ -45,8 +47,10 @@ let latest = null;
 /** How long after the last command a run is still considered to be happening.
  * Longer than a step, shorter than an operator's patience -- a finished run
  * that goes on claiming the panel is worse than one that stops claiming it a
- * little early. */
-const RUN_QUIET_MS = 30_000;
+ * little early. Exported: `service-worker.js`'s `checkFinishing()` measures
+ * the same quiet window against the storage-backed mirror below, and a second
+ * constant there would be a second number to keep in step with this one. */
+export const RUN_QUIET_MS = 30_000;
 
 /** What this browser is performing right now, or null. */
 export function performing() {
@@ -56,6 +60,41 @@ export function performing() {
     return null;
   }
   return { runId: latest.runId, kind: latest.kind, since: latest.since };
+}
+
+/** What the backend told us about this step, where it told us anything.
+ *
+ * Read rather than required: an older backend sends neither, and a band that
+ * says only "AI-SRO is working in this tab" is still the whole of the point.
+ */
+function told(command) {
+  const said = command.payload || {};
+  const of = {};
+  if (said.skill) of.skill = said.skill;
+  if (Number.isFinite(said.step)) of.step = said.step;
+  if (Number.isFinite(said.of)) of.of = said.of;
+  return of;
+}
+
+/** Put the band in whichever tab this step acts in, and take it away when the
+ * run is over. */
+async function announce(command, run) {
+  if (command.kind === "abort") {
+    for (const tabId of driving.keys()) await hideDriving(tabId);
+    return;
+  }
+  const origin = command.payload?.origin || command.payload?.url;
+  const tab = origin ? await tabOnOrigin(origin) : null;
+  if (tab?.id === undefined || tab?.id === null) return;
+  await showDriving(tab.id, {
+    skill: run.skill,
+    step: run.step,
+    of: run.of,
+    runId: run.runId,
+    // The same window this worker calls a run quiet, so the page and the panel
+    // stop saying it at the same moment rather than one outliving the other.
+    quietMs: RUN_QUIET_MS,
+  });
 }
 
 /** Stop a run from here.
@@ -70,6 +109,7 @@ export function abort(runId) {
   if (!runId) return false;
   aborted.add(runId);
   if (latest?.runId === runId) latest = null;
+  for (const tabId of driving.keys()) void hideDriving(tabId);
   return true;
 }
 
@@ -173,13 +213,165 @@ function bytesOf(dataUrl) {
   return bytes;
 }
 
-async function uiPerform(payload) {
-  const tab = await drivenTab(payload.origin);
+async function uiPerform(payload, runId) {
+  const tab = await tabForRun(payload, runId);
   if (!tab) return failure("no_tab_for_system", noPage(payload.origin));
   hold(tab.id);
-  const answer = await inPage(tab.id, performInPage, [payload]);
+  const frameId = await frameHolding(tab.id, payload);
+  const answer =
+    frameId === undefined
+      ? await inPage(tab.id, performInPage, [payload])
+      : await inFrame(tab.id, frameId, performInPage, [payload]);
   hold(tab.id);
   return answer || failure("not_actionable", "the page did not answer");
+}
+
+/** The tab this run acts in, opening the screen it was taught on if need be.
+ *
+ * A skill taught by clicking names no URL on any step, so until the version
+ * recorded where the demonstration began, a run could only be performed by an
+ * operator who had already navigated to the right screen themselves -- and one
+ * who had not read thirteen `control_not_found` lines that said nothing about
+ * being on the wrong page.
+ *
+ * A new tab rather than navigating the one in front. The operator is looking at
+ * that tab; taking it out from under them to do something they did not ask to
+ * watch is the kind of thing that gets an extension uninstalled. A new tab is
+ * also the honest picture of what is happening: a second window on the system,
+ * doing the task, next to the one they are working in.
+ *
+ * Decided once per run and remembered, because a task changes the page it is on
+ * -- a modal opens, a fragment changes -- and asking again at every step would
+ * open a fresh tab in the middle of the form it had just filled in.
+ */
+async function tabForRun(payload, runId) {
+  if (runId && latest?.runId === runId && latest.tabId !== undefined) {
+    const known = await chrome.tabs.get(latest.tabId).catch(() => null);
+    if (known) return known;
+  }
+
+  let tab = await drivenTab(payload.origin);
+  const wanted = payload.starts_on;
+  if (wanted && (!tab || !samePage(tab.url, wanted))) {
+    const opened = await openAt(wanted);
+    if (opened) tab = opened;
+  }
+
+  if (tab && runId && latest?.runId === runId) latest = { ...latest, tabId: tab.id };
+  return tab;
+}
+
+/** Two URLs that are the same screen.
+ *
+ * Compared without the query, because a session id or a site code in it is not
+ * what makes this the Work Areas page -- and with the fragment, because in an
+ * application that routes on the fragment it is the only thing that says which
+ * screen this is at all.
+ */
+export function samePage(a, b) {
+  const parse = (raw) => {
+    try {
+      const url = new URL(raw);
+      return `${url.origin}${url.pathname}${url.hash}`.replace(/\/+$/, "");
+    } catch {
+      return null;
+    }
+  };
+  const one = parse(a);
+  return one !== null && one === parse(b);
+}
+
+/** Open a tab on that screen and wait for it to finish loading.
+ *
+ * In the background: the run is not asking for the operator's attention, and a
+ * tab that stole focus mid-sentence would be worse than the problem it solves.
+ * The band the page shows is what tells them it is there.
+ */
+async function openAt(url) {
+  let tab;
+  try {
+    tab = await chrome.tabs.create({ url, active: false });
+  } catch {
+    return null;
+  }
+  const ready = await settled(tab.id);
+  return ready || tab;
+}
+
+const OPENS_WITHIN_MS = 20_000;
+
+function settled(tabId) {
+  return new Promise((resolve) => {
+    const done = (tab) => {
+      chrome.tabs.onUpdated.removeListener(watch);
+      clearTimeout(timer);
+      resolve(tab);
+    };
+    const watch = (id, change) => {
+      if (id === tabId && change.status === "complete") {
+        chrome.tabs.get(tabId).then(done, () => done(null));
+      }
+    };
+    // A page that never reports complete is still worth acting on: the locator
+    // says whether the control is there, and that is a better answer than a run
+    // that failed because a third-party script kept a request open.
+    const timer = setTimeout(() => done(null), OPENS_WITHIN_MS);
+    chrome.tabs.onUpdated.addListener(watch);
+  });
+}
+
+/** Which frame of the page holds this control.
+ *
+ * The recorder registers with `allFrames: true`, so a demonstration on a screen
+ * the application renders inside an iframe -- a portal shell hosting a
+ * configuration app, which is most enterprise WMS screens -- was recorded from
+ * inside that frame. The driver injected into the top document only, where
+ * neither the framework nor any of the recorded css paths exist, so every step
+ * of every such skill answered `control_not_found` on a screen whose controls
+ * were plainly visible. Looking in one frame and being taught in another is not
+ * a locator problem, and no amount of re-teaching would have fixed it.
+ *
+ * A probe rather than a wider act: acting where it looked would click in every
+ * frame that matched. `undefined` means "no frame claimed it" -- the top
+ * document is asked anyway, so the answer is the same `control_not_found` it
+ * would have given, with the same tried-locator list to read.
+ */
+async function frameHolding(tabId, payload) {
+  let answers;
+  try {
+    answers = await chrome.scripting.executeScript({
+      target: { tabId, allFrames: true },
+      world: "MAIN",
+      func: performInPage,
+      args: [{ ...payload, probe: true }],
+    });
+  } catch {
+    // A page that cannot be scripted at all. The single-frame attempt below
+    // fails the same way and says so in the language the run already reads.
+    return undefined;
+  }
+  return frameOf(answers);
+}
+
+/** The one frame that claimed the control, or `undefined`.
+ *
+ * None, or more than one, is `undefined`. A control that resolves in two frames
+ * is not one this can pick between, and picking wrong would act on the wrong
+ * half of a page carrying the same form twice.
+ */
+export function frameOf(answers) {
+  const holding = (answers || []).filter((each) => each?.result?.ok);
+  return holding.length === 1 ? holding[0].frameId : undefined;
+}
+
+async function inFrame(tabId, frameId, func, args, world = "MAIN") {
+  const [answer] = await chrome.scripting.executeScript({
+    target: { tabId, frameIds: [frameId] },
+    world,
+    func,
+    args,
+  });
+  return answer?.result;
 }
 
 async function uiPerformAt(payload) {
@@ -329,16 +521,38 @@ export async function perform(command) {
 
   if (command.run_id) {
     const now = Date.now();
-    latest =
-      latest?.runId === command.run_id
-        ? { ...latest, kind: command.kind, at: now }
-        : { runId: command.run_id, kind: command.kind, since: now, at: now };
+    const isNewRun = latest?.runId !== command.run_id;
+    latest = isNewRun
+      ? { runId: command.run_id, kind: command.kind, since: now, at: now, ...told(command) }
+      : { ...latest, kind: command.kind, at: now, ...told(command) };
+    // The page says so itself while it is being driven. The panel already
+    // does, and the panel is not where somebody is looking: they are watching
+    // fields fill and buttons press, with nothing there saying it is not them.
+    void announce(command, latest);
+    // Mirrored to storage, not just held in `latest`: this worker is evicted
+    // between commands as a matter of course, which is the *ordinary* case
+    // for a run performed with the panel closed, and `latest` dying with it
+    // would mean the only trigger left to notice a run finishing is the panel
+    // poll -- which only ever fires for an operator already staring at the
+    // screen. `service-worker.js`'s `checkFinishing()` reads this instead,
+    // off both the panel poll and the heartbeat alarm that fires whether the
+    // panel is open or not. Only `runId` and `at`: everything else `latest`
+    // carries -- `tabId`, the step count the band shows -- is for driving
+    // this run within this worker's own lifetime and is worthless to a
+    // worker that has since been evicted and restarted.
+    void state.setActiveRun({ runId: command.run_id, at: now });
+    // A new run starting supersedes whatever the last one made. Left standing,
+    // "Undo that" for the run before this one would sit under a card saying
+    // this one is performing right now -- confusing even though neither fact
+    // is wrong, and cheaper to clear here than to wait out however long this
+    // run takes to finish on its own.
+    if (isNewRun) void state.setFinishedRun(null);
   }
 
   try {
     switch (command.kind) {
       case "ui.perform":
-        return await uiPerform(command.payload || {});
+        return await uiPerform(command.payload || {}, command.run_id);
       case "ui.perform_at":
         return await uiPerformAt(command.payload || {});
       case "ui.url":

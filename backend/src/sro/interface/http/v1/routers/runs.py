@@ -7,24 +7,41 @@ rather than starting a second attempt at a warehouse it has already changed.
 
 from __future__ import annotations
 
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Query, status
 
+from sro.application.context import RequestContext
 from sro.application.execution.execute_skill import ExecutionRequest
-from sro.domain.execution.run import Medium, RunId
+from sro.application.execution.reversal import reversal_for
+from sro.container import Container
+from sro.domain.execution.run import Medium, Run, RunId, RunStatus
 from sro.domain.shared.identifiers import DeviceId, SkillId
 from sro.interface.http.deps import ContainerDep, ContextDep
 from sro.interface.http.schemas import (
     BatchItemModel,
     BatchRequest,
     BatchResultModel,
+    CalledWrongRequest,
+    RunFromPreviewRequest,
     RunModel,
     RunSkillRequest,
 )
 from sro.interface.http.v1.routers.authorising import authorising
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(tags=["runs"])
+
+_LIBRARY_PAGE = 200
+"""Same number, same reasoning as `_LIBRARY_PAGE` in
+`sro.application.intent.resolve`: a tenant's library is dozens, not millions,
+so one page holds it. It has to hold it *here* particularly -- a skill that
+would undo this run sitting on a page this fetch never asks for is not
+"no undo exists", it is an undo the operator cannot tell from one that
+doesn't, on the one button whose entire value is being reliable. Same
+ponytail note applies: query it once fetching a page stops being enough."""
 
 
 @router.post("/skills/{skill_id}/runs", status_code=status.HTTP_201_CREATED)
@@ -57,7 +74,15 @@ async def run_skill(
         # resuming into a Chrome that may be closed, on a page that has moved,
         # halfway through a task -- and a step that has already been recorded as
         # sent must never be sent again to find out.
-        return RunModel.of(await container.execute_skill().execute(ctx, request))
+        #
+        # Answered as soon as the row exists, though, rather than when the last
+        # step lands. A run in somebody's own browser is the one a person sits
+        # and watches, and they could not: the id arrived with the result, so
+        # `/runs/{id}/stream` had nothing to subscribe to until there was
+        # nothing left to see.
+        started = await container.execute_skill().begin(ctx, request)
+        container.pursuits.spawn(_perform(container, ctx, started))
+        return RunModel.of(started)
 
     run_id = await container.durable.execute_skill(
         ctx,
@@ -68,6 +93,69 @@ async def run_skill(
         medium=body.medium,
     )
     return RunModel.of(await container.get_run().execute(ctx, run_id=run_id))
+
+
+@router.post("/skills/{skill_id}/runs/from-preview", status_code=status.HTTP_201_CREATED)
+async def run_from_preview(
+    skill_id: str, body: RunFromPreviewRequest, container: ContainerDep, ctx: ContextDep
+) -> RunModel:
+    """The press. Promotes a version that has never been reviewed anywhere else,
+    then runs it. See ADR 014 and `RunFromPreview`.
+
+    Always in the operator's own browser: the preview this promotes on showed
+    them the tab the run is about to act in, and a run started anywhere else
+    would not be the run they read. Pinned, too, to the version the client says
+    it previewed: refused outright where the skill has been taught again since,
+    because what the operator read has to be what runs and neither the newer
+    version nor the older one is that. That makes this always `run_skill`'s
+    device path, followed exactly rather than reinvented: answered as soon as
+    the row exists, with the rest driven in the background, because this is a
+    run a person is watching happen on their own screen and could not if the
+    id only arrived with the result -- `/runs/{id}/stream` would have nothing
+    to subscribe to and `/runs/{id}/stop` nothing left to stop.
+    """
+    started = await container.run_from_preview().begin(
+        ctx,
+        skill_id=SkillId(skill_id),
+        parameters=body.parameters,
+        device_id=DeviceId(body.device_id),
+        intent=body.intent,
+        previewed=body.version,
+    )
+    container.pursuits.spawn(_perform(container, ctx, started))
+    return RunModel.of(started)
+
+
+@router.post("/runs/{run_id}/stop", status_code=status.HTTP_202_ACCEPTED)
+async def stop_run(run_id: str, container: ContainerDep, ctx: ContextDep) -> RunModel:
+    """Ask a run in your own browser to stop.
+
+    Accepted rather than done: it takes effect at the next step, because a
+    gesture already sent cannot be recalled from a warehouse and a stop that
+    ended the run mid-command would report a write as not having happened when
+    it had. So this can wait as long as the current step's deadline, and the
+    console says so rather than showing a button that appears to do nothing.
+
+    Refused for a run this process is not performing. Answering "stopping" for
+    a durable run the worker will finish anyway would be the one thing a stop
+    control must never do.
+    """
+    return RunModel.of(await container.stop_run().execute(ctx, run_id=RunId(run_id)))
+
+
+@router.post("/runs/{run_id}/wrong", status_code=status.HTTP_202_ACCEPTED)
+async def called_wrong(
+    run_id: str, body: CalledWrongRequest, container: ContainerDep, ctx: ContextDep
+) -> RunModel:
+    """The person this ran for says the result was wrong.
+
+    Reached by pressing "undo that" or "it's wrong, I'll fix it" -- things they
+    wanted anyway, which is why the answer can be trusted. It counts against the
+    skill exactly as a crash does, because the question the ladder is asking is
+    "does this still work", and a run that made the wrong record did not.
+    """
+    run = await container.call_run_wrong().execute(ctx, run_id=RunId(run_id), because=body.because)
+    return RunModel.of(run)
 
 
 @router.post("/skills/{skill_id}/batch", status_code=status.HTTP_201_CREATED)
@@ -127,4 +215,30 @@ async def list_runs(
 @router.get("/runs/{run_id}")
 async def get_run(run_id: str, container: ContainerDep, ctx: ContextDep) -> RunModel:
     run = await container.get_run().execute(ctx, run_id=RunId(run_id))
-    return RunModel.of(run)
+    reversal = None
+    if run.status is RunStatus.SUCCEEDED:
+        # Only a run that actually made something is a candidate for an undo --
+        # a failed run has nothing settled to take back, and computing this
+        # needs the tenant's whole skill library, which the list endpoint must
+        # not pay for on every row.
+        skills = await container.list_skills().execute(ctx, limit=_LIBRARY_PAGE)
+        reversal = reversal_for(run, skills)
+    return RunModel.of(run, reversal=reversal)
+
+
+async def _perform(container: Container, ctx: RequestContext, run: Run) -> None:
+    """Drive a run whose caller has already been answered.
+
+    Nobody is awaiting this, so nobody would see it raise. A `DomainError` mid-
+    run would leave the row saying `running` for as long as the process lived,
+    and the console watching it would count the seconds forever. Whatever goes
+    wrong, the run is ended saying so.
+    """
+    try:
+        await container.execute_skill().resume(ctx, run)
+    except Exception as error:
+        logger.exception("a run in an operator's browser could not be finished")
+        try:
+            await container.finish_run().execute(ctx, run_id=run.id, stopped=str(error))
+        except Exception:
+            logger.exception("and its row could not be closed either")

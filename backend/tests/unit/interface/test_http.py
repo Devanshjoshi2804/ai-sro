@@ -14,12 +14,23 @@ from httpx import ASGITransport
 
 from sro.application.context import RequestContext
 from sro.application.execution.pursuits import Pursuits
+from sro.application.execution.stops import Stops
 from sro.application.ports.auth import Caller
 from sro.application.ports.capture import CaptureController
 from sro.application.ports.repositories import UnitOfWork
 from sro.config import Settings, get_settings
 from sro.container import Container
-from sro.domain.shared.identifiers import BrowserSessionId, PrincipalId, RecordingId, TenantId
+from sro.domain.execution.run import Medium, Run, RunId, StepDisposition, StepOutcome
+from sro.domain.shared.identifiers import (
+    BrowserSessionId,
+    PrincipalId,
+    RecordingId,
+    SkillId,
+    TenantId,
+)
+from sro.domain.skill.plan import NetworkPlan
+from sro.domain.skill.promotion import PromotionStage
+from sro.domain.skill.template import Template
 from sro.infrastructure.agent.sockets import DeviceSockets
 from sro.infrastructure.auth.signed_tokens import SignedTokens
 from sro.infrastructure.gemini.null_interpreter import NoInterpreter
@@ -39,6 +50,7 @@ from tests.unit.fakes import (
     FakeRunDispatcher,
     FakeScheduler,
     FakeSignInDriver,
+    FakeToolCaller,
     FakeTranscriber,
     FakeUiDriver,
     FakeUnitOfWork,
@@ -76,6 +88,10 @@ class _FakeContainer(Container):
         # Here nothing is reachable and nothing is stored, so the answer is "no"
         # and the endpoint's own refusal is what the tests see.
         self.http = FakeHttpCaller()
+        # No connectors, which is what a deployment that configured none has.
+        # A skill with a tool step then records that there was nothing to call,
+        # which is the answer, rather than pretending the step is impossible.
+        self.tools = FakeToolCaller(available=False)
         self.http.unreachable = True
         self.sign_in_driver = FakeSignInDriver()
         # Real credential checking, with a key that lives for the length of the
@@ -86,6 +102,9 @@ class _FakeContainer(Container):
         self.tokens = None
         self.intent_parser = FakeIntentParser()
         self.pursuits = Pursuits()
+        # Hand-set beside the pursuits: this container writes its own
+        # `__init__`, so the dataclass defaults never run for it.
+        self.stops = Stops()
         self.agent_sockets = DeviceSockets()
         self.scheduler = FakeScheduler()
         self.dispatcher = FakeRunDispatcher()
@@ -432,3 +451,78 @@ class TestBrowsersAreNotShared:
         )
 
         assert response.status_code == 404
+
+
+class TestRunReversal:
+    """`GET /v1/runs/{id}` offers an undo by paging the tenant's whole skill
+    library, not just its first fifty -- the one button whose entire value is
+    the operator being able to rely on it. See `_LIBRARY_PAGE` in
+    `sro.interface.http.v1.routers.runs`."""
+
+    async def test_a_matching_delete_past_the_default_page_is_still_found(
+        self, client: httpx.AsyncClient, uow: FakeUnitOfWork
+    ) -> None:
+        for i in range(60):
+            await uow.skills.add(f.skill(id=SkillId(f"pad-{i}"), name=f"padding {i}"))
+
+        version = f.skill_version(
+            steps=(
+                f.step(
+                    index=0,
+                    network_plan=NetworkPlan(
+                        method="DELETE",
+                        url=Template("https://wms.test/api/workOperations/$operation_id"),
+                        body=None,
+                        expected_status=204,
+                    ),
+                    ui_plan=None,
+                ),
+            ),
+            parameters=(f.parameter(name="operation_id", observed_values=("NDPCK",)),),
+        )
+        undoer = f.skill(id=SkillId("undoer"), name="Delete a work operation", versions=0)
+        undoer.add_version(version)
+        version.promote(PromotionStage.SHADOW, f.at(10), f.OPERATOR)
+        version.promote(PromotionStage.ASSISTED, f.at(20), f.OPERATOR)
+        await uow.skills.add(undoer)
+
+        run = Run(
+            id=RunId("run-1"),
+            tenant_id=f.TENANT,
+            skill_id=SkillId("some-other-skill"),
+            skill_version=1,
+            stage=PromotionStage.ASSISTED,
+            parameters={},
+            requested_by=f.OPERATOR,
+            started_at=f.at(0),
+            authorized_by=f.OPERATOR,
+            target_system="wms",
+        )
+        run.record(
+            StepOutcome(
+                index=0,
+                medium=Medium.NETWORK,
+                disposition=StepDisposition.PERFORMED,
+                intent="create the work operation",
+                method="POST",
+                url="https://wms.test/api/workOperations",
+                status_code=201,
+            )
+        )
+        run.learn("operation_id", "NDPCK")
+        run.finish(f.at(60))
+        await uow.runs.add(run)
+
+        response = await client.get("/v1/runs/run-1")
+
+        assert response.status_code == 200
+        assert response.json()["reversal"] == {
+            "skill_id": "undoer",
+            # The version the undo was validated against, and what its delete
+            # step says it does. Both are on the wire because the panel names
+            # what "Undo that" will remove before it is pressed, and pins the
+            # version it was offered against when it is.
+            "version": 1,
+            "removes": "release the wave",
+            "parameters": {"operation_id": "NDPCK"},
+        }

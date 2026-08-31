@@ -58,6 +58,36 @@ class ObservationPolicy:
 
     capture_screenshots: bool = True
     screenshot_max_per_minute: int = 20
+
+    capture_snapshots: bool = False
+    """Accessibility trees while nobody is deliberately teaching.
+
+    The tree is the one view that says what a control *is* rather than where it
+    happens to sit today, and induction builds a locator from it. Without one, a
+    skill has only what the DOM offers -- a css path of framework ids assigned
+    in render order, different on the next page load. So every skill that
+    arrived the way this product intends -- watch, notice the repetition, offer
+    it back -- got the weaker ladder, and the good locators were reserved for
+    the path an operator has to remember to press.
+
+    Off by default, and this is the only capture setting that is, because it is
+    the only one an operator can see. Trees come from `chrome.debugger` and
+    Chrome shows "AI-SRO is debugging this browser" for as long as anything is
+    attached. An extension force-installed by enterprise policy
+    (`ExtensionInstallForcelist`) raises no banner at all, which is the
+    deployment this is for; an unpacked development copy does, and no extension
+    can suppress it from inside. Turning this on is therefore an administrator's
+    decision about a browser they manage, which is why it is written here rather
+    than defaulted on and discovered by somebody working.
+
+    It also costs the tab's debugger, and Chrome allows one. An operator who
+    opens DevTools takes it and keeps it until they close them; capture carries
+    on without trees rather than fighting them for it."""
+
+    snapshot_max_per_minute: int = 20
+    """Its own budget, not the screenshots'. A tree is a round trip and some
+    JSON, a picture is a PNG, and one shared counter would have whichever
+    happened first spend the other's allowance."""
     capture_response_bodies: bool = True
     max_body_bytes: int = 256 * 1024
     daily_budget_bytes: int = 500 * 1024 * 1024
@@ -70,26 +100,46 @@ class ObservationPolicy:
             raise InvariantViolation("evidence kept for less than a day is evidence discarded")
         for name, value in (
             ("screenshot_max_per_minute", self.screenshot_max_per_minute),
+            ("snapshot_max_per_minute", self.snapshot_max_per_minute),
             ("max_body_bytes", self.max_body_bytes),
             ("daily_budget_bytes", self.daily_budget_bytes),
         ):
             if value < 0:
                 raise InvariantViolation(f"{name} cannot be negative")
 
-    def allows(self, url: str) -> bool:
+    def allows(self, url: str, granted: frozenset[str] = frozenset()) -> bool:
         """Whether a page at this URL may be observed.
 
         The extension enforces this by not registering a content script on an
         excluded host, so an excluded page is never touched. This is the second
         check: an extension that is wrong, old or lying does not get to write
         into the evidence plane anyway.
+
+        ``granted`` are hosts the operator chose in their own panel, for a tab
+        in front of them (`domain/observation/grant.py`). They widen the
+        exclusion list and nothing else, which is where the three answers
+        below differ:
+
+        - ``capture_enabled`` is the tenant's agreement that any of this
+          happens. No operator's button overrides it.
+        - ``exclude_hosts`` is what the tenant agreed to *by default*, and a
+          default is the kind of thing the person in front of the screen may
+          decide otherwise about for one page.
+        - ``include_hosts`` is an administrator naming the only hosts that may
+          ever be observed. That is not a default, and an operator does not get
+          to widen it from a side panel.
         """
         if not self.capture_enabled:
             return False
         host = urlsplit(url).hostname or ""
         if not host:
             return False
-        if any(domain_matches(host, excluded) for excluded in self.exclude_hosts):
+        excluded_by_default = any(domain_matches(host, excluded) for excluded in self.exclude_hosts)
+        # Exactly the host, never a subdomain of it: a grant is what somebody
+        # pressed a button about while looking at one page, and reading it as
+        # a whole domain would let a click on one mailbox admit every host
+        # under it.
+        if excluded_by_default and host not in granted:
             return False
         if not self.include_hosts:
             return True
@@ -113,3 +163,12 @@ class ObservationPolicy:
 
     def keeping_for(self, days: int) -> ObservationPolicy:
         return replace(self, version=self.version + 1, retention_days=days)
+
+    def reading_structure(self, on: bool) -> ObservationPolicy:
+        """Accessibility trees while nobody is deliberately teaching.
+
+        Its own method rather than a field somebody edits, because turning it on
+        is a decision about a browser an administrator manages: on an install
+        that is not force-installed by policy, Chrome puts a debugging banner on
+        every watched tab for as long as this is on."""
+        return replace(self, version=self.version + 1, capture_snapshots=on)

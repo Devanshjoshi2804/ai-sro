@@ -200,6 +200,11 @@ class InduceSkill:
             looped = loops.detect(run_a.frames, run_b.frames) if second is not None else None
             keep = looped.keep if looped is not None else None
             frames_a, frames_b = run_a.frames[:keep], run_b.frames[:keep]
+            if looped is not None:
+                # Detection reads raw frames and everything below counts the
+                # steps the two runs share. Converted here, at the one seam
+                # between them, rather than left for each reader to reconcile.
+                looped = loops.in_step_space(looped, frames_a, frames_b)
 
             parameterisation = parameterise(frames_a, frames_b, others=history)
 
@@ -254,32 +259,45 @@ class InduceSkill:
             # steps that happen only when somebody supplies the value.
             conditionals = _conditionals(parameterisation, optional_fills(frames_a, frames_b))
             if conditionals and looped is not None:
-                # The two index spaces meet here and cannot both be right. A
-                # loop's substitutions are keyed by raw frame; everything the
-                # diff produced is keyed by aligned step; and `_make_room`
-                # moves every key it is handed. So the loop's `${line_id}` was
-                # moved one place past the step that sends it and quietly lost:
-                # the pair induced, the version passed its own invariants, and
-                # the skill adjusted line 1 once per line the order had.
-                #
-                # Refused rather than reconciled. Reconciling means deciding
-                # that a raw frame index and a step index agree once every
-                # dropped gesture is back, which holds only while every
-                # unmatched frame before the block is one of them -- true of
-                # this pair and not of a pair with one non-evidential gesture
-                # in it. That is the guess ADR 004 exists to prevent, and the
-                # cost of refusing is one demonstration done again.
-                raise InductionFailed(
-                    "this pair is a loop and a form somebody skipped a field on. The "
-                    "loop counts the frames as they were recorded and everything else "
-                    "counts the steps the two runs share, and putting the skipped "
-                    "field's gesture back as a step moves one and not the other -- so "
-                    "the loop would come out acting on whatever the first iteration "
-                    "happened to send. Demonstrate the loop with that field filled in "
-                    "both runs",
-                    step_index=conditionals[0].fill.frame.index,
-                )
+                inside = [
+                    conditional
+                    for conditional in conditionals
+                    # Strictly inside. A conditional at `first_step` is
+                    # inserted immediately *before* the body and moves the
+                    # whole block along; one past `last_step` lands after it.
+                    # Only a gesture between the two is part of an iteration.
+                    if looped.loop.first_step < conditional.fill.at <= looped.loop.last_step
+                ]
+                if inside:
+                    # A field filled on some times round and not others. Both
+                    # readings are available and the evidence does not choose:
+                    # the block is one iteration with a conditional step in it,
+                    # or it is two different iterations and not a loop at all.
+                    # A conditional *before* the body is no longer a problem --
+                    # both indices move together now -- so only this is left.
+                    raise InductionFailed(
+                        "this pair is a loop whose body has a field somebody filled on "
+                        "some iterations and not others. Whether that is one block with "
+                        "an optional step in it or two different blocks is not something "
+                        "the two runs decide. Demonstrate the loop with that field "
+                        "filled every time round, or left out every time",
+                        step_index=inside[0].fill.frame.index,
+                    )
             parameterisation = _make_room(parameterisation, conditionals)
+            if looped is not None and conditionals:
+                # The conditional steps take their places among the aligned
+                # ones and everything after them moves along. The loop's body
+                # counts the same steps, so it moves by the same rule -- which
+                # is what `_moved` was always for.
+                looped = replace(
+                    looped,
+                    loop=replace(
+                        looped.loop,
+                        over_step_index=_moved(looped.loop.over_step_index, conditionals),
+                        first_step=_moved(looped.loop.first_step, conditionals),
+                        last_step=_moved(looped.loop.last_step, conditionals),
+                    ),
+                )
             steps = _build_steps(
                 frames_a, frames_b, run_a, objective, parameterisation, conditionals
             )
@@ -333,6 +351,7 @@ class InduceSkill:
                 systems=systems_touched(
                     await uow.connections.list_for_tenant(ctx.tenant_id), run_a, run_b
                 ),
+                starts_on=_started_on(run_a, run_b),
                 # Deliberately not moved along like the indices below, and
                 # this is the one place the two must not agree: a loop counts
                 # raw frames, everything else counts aligned steps. A loop can
@@ -730,3 +749,21 @@ def _provenance_note(run_a: Recording, run_b: Recording, *, paired: bool = True)
         return alone or "induced from two silent demonstrations"
     said = f"narration available on {', '.join(str(rid) for rid in narrated)}"
     return f"{alone}; {said}" if alone else said
+
+
+def _started_on(*recordings: Recording | None) -> str | None:
+    """The page every demonstration of this task opened on.
+
+    The first frame's, because that is the screen the operator was looking at
+    when they began -- not the last, which is wherever the task left them.
+
+    Unanimous or nothing. Two demonstrations that began on different screens are
+    evidence that the screen is not part of the task, and navigating on a
+    disagreement would send a run somewhere only one of them ever was.
+    """
+    began = {
+        recording.frames[0].page_url
+        for recording in recordings
+        if recording is not None and recording.frames and recording.frames[0].page_url
+    }
+    return began.pop() if len(began) == 1 else None

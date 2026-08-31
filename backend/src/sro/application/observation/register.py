@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import secrets
 from dataclasses import dataclass
+from datetime import timedelta
+from urllib.parse import urlsplit
 
 from sro.application.context import RequestContext
 from sro.application.observation.policy import current_policy
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
 from sro.domain.observation.device import AgentDevice
+from sro.domain.observation.grant import LONGEST
 from sro.domain.observation.policy import ObservationPolicy
 from sro.domain.shared.errors import Conflict, NotFound
 from sro.domain.shared.identifiers import DeviceId
@@ -192,3 +195,82 @@ class ReadDevices:
     async def execute(self, ctx: RequestContext) -> tuple[AgentDevice, ...]:
         async with self._uow as uow:
             return await uow.devices.list_for_tenant(ctx.tenant_id)
+
+
+class GrantHost:
+    """The operator saying this page may be watched after all.
+
+    Behind the device's own secret like every device-scoped path: the tenant
+    credential says who is asking and can never say which browser, and the
+    whole justification for a grant is that the person whose browser it is
+    chose it. A grant somebody else could add for you is not consent.
+    """
+
+    def __init__(self, uow: UnitOfWork, clock: Clock) -> None:
+        self._uow = uow
+        self._clock = clock
+
+    async def execute(
+        self,
+        ctx: RequestContext,
+        *,
+        device_id: DeviceId,
+        secret: str,
+        host: str,
+        lasting: timedelta = LONGEST,
+    ) -> AgentDevice:
+        now = self._clock.now()
+        async with self._uow as uow:
+            device = await uow.devices.get(ctx.tenant_id, device_id)
+            refuse_unless_itself(device, secret, device_id)
+            if device.principal_id != ctx.principal_id:
+                # The device proved it is itself, so this is that browser --
+                # but a browser is not a person, and the panel's button is
+                # only consent when the person pressing it is the one being
+                # observed. Refused as not-found for the same reason as
+                # everything else on this path.
+                raise NotFound(f"device {device_id} was not found")
+            device.grant(
+                _hostname(host),
+                by=ctx.principal_id,
+                at=now,
+                until=now + min(lasting, LONGEST),
+            )
+            await uow.devices.save(device)
+            await uow.commit()
+        return device
+
+
+class RevokeHost:
+    """Stop watching it. The operator closing the tab, or pressing the button.
+
+    Revoking something never granted is success: a tab closing twice, a browser
+    catching up after being offline, and a grant that expired on its own all
+    end in the same place, and none of them is an error worth showing anybody.
+    """
+
+    def __init__(self, uow: UnitOfWork) -> None:
+        self._uow = uow
+
+    async def execute(
+        self, ctx: RequestContext, *, device_id: DeviceId, secret: str, host: str
+    ) -> AgentDevice:
+        async with self._uow as uow:
+            device = await uow.devices.get(ctx.tenant_id, device_id)
+            refuse_unless_itself(device, secret, device_id)
+            device.revoke(_hostname(host))
+            await uow.devices.save(device)
+            await uow.commit()
+        return device
+
+
+def _hostname(raw: str) -> str:
+    """The host a grant is for, as `ObservationPolicy.allows` will compare it.
+
+    A URL is accepted as well as a bare host because the panel has one and not
+    the other, and a grant stored as `https://mail.google.com/mail/u/0` would
+    match nothing while looking exactly like it should.
+    """
+    text = raw.strip()
+    host = urlsplit(text).hostname if "//" in text else text
+    return (host or "").strip().rstrip(".").lower()

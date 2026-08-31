@@ -72,16 +72,28 @@ export function TriggerBoard() {
   return (
     <div className="flex flex-col gap-8">
       <section className="flex flex-col gap-3">
-        <h1 className="text-xl font-semibold">On a clock</h1>
+        {/* The route is Triggers and the glossary says a trigger is `manual`,
+            `schedule` or `inbound` -- so naming the whole page after one of the
+            three left the nav and the heading disagreeing about where you were.
+            "On a clock" is the schedule section inside it. */}
+        <h1 className="text-2xl font-semibold tracking-tight">Triggers</h1>
         <p className="text-muted-foreground max-w-2xl text-sm">
-          A taught skill, a schedule, and the values it runs with. Nothing here
-          fires until somebody stands behind it: a skill that changes a warehouse
-          needs a name on every run it will ever start, and that name is the
-          person who creates the trigger.
+          A taught skill, a schedule, and the values it runs with. Nothing here fires until somebody
+          stands behind it: a skill that changes a warehouse needs a name on every run it will ever
+          start, and that name is the person who creates the trigger.
         </p>
 
         {triggers.isPending ? (
           <Skeleton className="h-32 w-full" />
+        ) : triggers.error ? (
+          /* Said, rather than falling through to "nothing runs on a clock yet"
+             -- which is what a failed request rendered, and which is a claim
+             about the schedule rather than about the request. Somebody reading
+             it would believe nothing was scheduled. */
+          <div className="border-destructive/40 bg-destructive/10 rounded-lg border px-4 py-6">
+            <p className="text-destructive text-sm font-medium">The schedule could not be read.</p>
+            <p className="text-muted-foreground mt-1 font-mono text-xs">{String(triggers.error)}</p>
+          </div>
         ) : triggers.data?.length ? (
           <Table>
             <TableHeader>
@@ -107,9 +119,7 @@ export function TriggerBoard() {
             </TableBody>
           </Table>
         ) : (
-          <p className="text-muted-foreground text-sm">
-            Nothing runs on a clock yet.
-          </p>
+          <p className="text-muted-foreground text-sm">Nothing runs on a clock yet.</p>
         )}
       </section>
 
@@ -220,6 +230,14 @@ function NewTrigger({
   // so a schedule with no browser named would refuse at every fire -- and a
   // schedule that never runs is worse than one that was never made.
   const crosses = (skills.find((skill) => skill.id === skillId)?.systems ?? []).length > 1;
+  // Derived beside the disabled condition it explains, so the two cannot drift.
+  const missing = [
+    !skillId && "a skill",
+    !cron && "a schedule",
+    crosses && !deviceId && "a browser to run it in",
+  ]
+    .filter(Boolean)
+    .join(", ");
   const [authorized, setAuthorized] = useState(false);
   const [autoApprove, setAutoApprove] = useState(false);
   const [mayTakeFocus, setMayTakeFocus] = useState(false);
@@ -309,12 +327,19 @@ function NewTrigger({
                   value={weekday}
                   onChange={(event) => setWeekday(Number(event.target.value))}
                 >
-                  {["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
-                    .map((day, index) => (
-                      <option key={day} value={index}>
-                        {day}
-                      </option>
-                    ))}
+                  {[
+                    "Sunday",
+                    "Monday",
+                    "Tuesday",
+                    "Wednesday",
+                    "Thursday",
+                    "Friday",
+                    "Saturday",
+                  ].map((day, index) => (
+                    <option key={day} value={index}>
+                      {day}
+                    </option>
+                  ))}
                 </select>
               ) : null}
               {repeat === "custom" ? null : (
@@ -358,8 +383,8 @@ function NewTrigger({
               onChange={(event) => setTimezone(event.target.value)}
             />
             <p className="text-muted-foreground text-xs">
-              The warehouse&apos;s, not the server&apos;s — so seven is seven in
-              March and in November.
+              The warehouse&apos;s, not the server&apos;s — so seven is seven in March and in
+              November.
             </p>
           </div>
         </div>
@@ -423,7 +448,11 @@ function NewTrigger({
           }
         />
 
-        <div>
+        <div className="flex flex-col gap-2">
+          {/* A disabled control that does not say what it is waiting for is a
+              control people work around. Same rule as the promotion button on a
+              skill: refuse on the page, not on the click. */}
+          {missing && <p className="text-muted-foreground text-xs">Still needed: {missing}</p>}
           <Button
             type="submit"
             disabled={!skillId || !cron || create.isPending || (crosses && !deviceId)}

@@ -33,6 +33,7 @@ from sro.application.connection.session_life import SessionLife
 from sro.application.connection.sign_in import EnsureSignedIn, SignIn, StoreCredentials
 from sro.application.connection.watch_browser import WatchBrowsers
 from sro.application.execution.batch import RunBatch
+from sro.application.execution.call_run_wrong import CallRunWrong
 from sro.application.execution.choices import ListChoices
 from sro.application.execution.derived_read import AskTheSystem
 from sro.application.execution.execute_skill import (
@@ -43,8 +44,10 @@ from sro.application.execution.execute_skill import (
 )
 from sro.application.execution.pursue_goal import PursueGoal
 from sro.application.execution.pursuits import Pursuits
-from sro.application.execution.read_runs import GetRun, ListRuns
+from sro.application.execution.read_runs import GetRun, ListRuns, StopRun
+from sro.application.execution.run_from_preview import RunFromPreview
 from sro.application.execution.self_heal import SelfHeal
+from sro.application.execution.stops import Stops
 from sro.application.execution.vision_step import PerformWithVision
 from sro.application.induction.induce_skill import InduceSkill
 from sro.application.induction.seed_from_flow import SeedSkillFromFlow
@@ -68,10 +71,12 @@ from sro.application.observation.mine import MineEverything, MineObservations
 from sro.application.observation.policy import ReadObservationPolicy, SetObservationPolicy
 from sro.application.observation.propose import AnswerJoin, ProposeAboutCandidates
 from sro.application.observation.register import (
+    GrantHost,
     ReadDevice,
     ReadDevices,
     RecordHeartbeat,
     RegisterDevice,
+    RevokeHost,
 )
 from sro.application.observation.retain import SweepRetention
 from sro.application.observation.teach import (
@@ -96,6 +101,7 @@ from sro.application.ports.schedule import Scheduler
 from sro.application.ports.sign_in import SignInDriver
 from sro.application.ports.system import Clock, IdFactory
 from sro.application.ports.token import TokenSource
+from sro.application.ports.tools import ToolCaller
 from sro.application.ports.transcription import Transcriber
 from sro.application.ports.ui import UiDriver
 from sro.application.ports.vault import CredentialVault, VaultUnavailable
@@ -108,10 +114,18 @@ from sro.application.recording.list_recordings import ListRecordings
 from sro.application.recording.live_view import GetLiveView
 from sro.application.recording.media import GetRecordingMedia
 from sro.application.recording.start_recording import StartRecording
+from sro.application.skill.add_assertion import AddAssertion
 from sro.application.skill.describe_skill import DescribeSkill
+from sro.application.skill.map_step_to_tool import MapStepToTool
 from sro.application.skill.promote_skill import PromoteSkill
+from sro.application.skill.read_doings import ReadDoings
 from sro.application.skill.read_skills import GetSkill, ListSkills
 from sro.application.skill.repair_drift import RepairDrift
+from sro.application.trigger.answer_confirmation import (
+    AnswerConfirmation,
+    ExpireConfirmations,
+    ReadConfirmations,
+)
 from sro.application.trigger.create_trigger import CreateTrigger
 from sro.application.trigger.fire_trigger import FireTrigger
 from sro.application.trigger.read_triggers import DeleteTrigger, ReadTriggers, SetTriggerEnabled
@@ -132,6 +146,7 @@ from sro.infrastructure.gemini.null_interpreter import NoInterpreter
 from sro.infrastructure.http.api_runs import ApiRunDispatcher
 from sro.infrastructure.http.httpx_caller import HttpxCaller
 from sro.infrastructure.knowledge.embedding import GeminiEmbedder, NoEmbedder
+from sro.infrastructure.mcp.client import McpServer, McpToolCaller
 from sro.infrastructure.mcp.server import SkillToolServer
 from sro.infrastructure.steel.client import SteelClient
 from sro.infrastructure.steel.sign_in import PlaywrightSignIn
@@ -166,6 +181,7 @@ class Container:
     intent_parser: IntentParser
     vault: CredentialVault
     http: HttpCaller
+    tools: ToolCaller
     ui: UiDriver
     sign_in_driver: SignInDriver
     tokens: TokenSource | None
@@ -181,6 +197,13 @@ class Container:
     In memory for the same reason as the pursuits below: a socket does not
     survive a restart, so a durable record of which browser was connected would
     only ever be a record of which browser used to be."""
+
+    stops: Stops = field(default_factory=Stops)
+
+    """Runs somebody has asked to stop. In memory beside the pursuits and the
+    sockets, and for the same reason: the task that would honour it is in this
+    process, so an intention that outlived the process would outlive the only
+    thing able to act on it."""
 
     pursuits: Pursuits = field(default_factory=Pursuits)
 
@@ -276,6 +299,17 @@ class Container:
             dispatcher=self.dispatcher,
             scheduler=self.scheduler,
         )
+
+    def answer_confirmation(self) -> AnswerConfirmation:
+        return AnswerConfirmation(
+            self.unit_of_work(), self.clock, self.ids, self.durable, self.dispatcher
+        )
+
+    def read_confirmations(self) -> ReadConfirmations:
+        return ReadConfirmations(self.unit_of_work())
+
+    def expire_confirmations(self) -> ExpireConfirmations:
+        return ExpireConfirmations(self.unit_of_work(), self.clock)
 
     def receive_inbound(self) -> ReceiveInbound:
         return ReceiveInbound(self.unit_of_work(), self.fire_trigger())
@@ -428,6 +462,21 @@ class Container:
     def get_skill(self) -> GetSkill:
         return GetSkill(self.unit_of_work())
 
+    def read_doings(self) -> ReadDoings:
+        return ReadDoings(self.unit_of_work())
+
+    def map_step_to_tool(self) -> MapStepToTool:
+        return MapStepToTool(self.unit_of_work(), self.clock, self.tools)
+
+    def add_assertion(self) -> AddAssertion:
+        return AddAssertion(self.unit_of_work(), self.clock)
+
+    def grant_host(self) -> GrantHost:
+        return GrantHost(self.unit_of_work(), self.clock)
+
+    def revoke_host(self) -> RevokeHost:
+        return RevokeHost(self.unit_of_work())
+
     def get_live_view(self) -> GetLiveView:
         return GetLiveView(self.unit_of_work(), self.browser)
 
@@ -484,10 +533,15 @@ class Container:
             self.perform_with_vision(),
             self.agents(),
             self.repair_drift(),
+            self.stops,
+            self.tools,
         )
 
     def start_run(self) -> StartRun:
         return StartRun(self.unit_of_work(), self.clock, self.ids)
+
+    def run_from_preview(self) -> RunFromPreview:
+        return RunFromPreview(self.unit_of_work(), self.clock, self.execute_skill())
 
     def pursue_goal(self) -> PursueGoal:
         return PursueGoal(
@@ -528,6 +582,8 @@ class Container:
             self.self_heal(),
             self.tokens,
             self.agents(),
+            self.tools,
+            self.clock,
         )
 
     def finish_run(self) -> FinishRun:
@@ -594,6 +650,12 @@ class Container:
 
     def get_run(self) -> GetRun:
         return GetRun(self.unit_of_work())
+
+    def stop_run(self) -> StopRun:
+        return StopRun(self.unit_of_work(), self.stops)
+
+    def call_run_wrong(self) -> CallRunWrong:
+        return CallRunWrong(self.unit_of_work(), self.clock)
 
     def mcp_server(self) -> SkillToolServer:
         """A tool per runnable skill. One server per process: tenant comes from
@@ -716,6 +778,7 @@ def build_container(settings: Settings | None = None) -> Container:
         intent_parser=_build_intent_parser(settings),
         vault=(built_vault := _build_vault(settings)),
         http=HttpxCaller(),
+        tools=McpToolCaller(_servers(settings.mcp_servers)),
         ui=PlaywrightUiDriver(settings.ui_debugger_url),
         sign_in_driver=PlaywrightSignIn(),
         tokens=(
@@ -752,3 +815,21 @@ def build_container(settings: Settings | None = None) -> Container:
         redact_secrets=settings.capture_redact_secret_values,
     )
     return container
+
+
+def _servers(configured: str) -> tuple[McpServer, ...]:
+    """`name=url#token, name=url` into connectors.
+
+    A malformed entry is skipped rather than raising: one typo in a
+    comma-separated setting must not stop a deployment whose other connectors
+    are fine, and a connector that is absent is already an answer this system
+    knows how to give.
+    """
+    found: list[McpServer] = []
+    for entry in configured.split(","):
+        name, sep, rest = entry.strip().partition("=")
+        if not sep or not name.strip() or not rest.strip():
+            continue
+        url, _, token = rest.partition("#")
+        found.append(McpServer(name=name.strip(), url=url.strip(), token=token.strip()))
+    return tuple(found)

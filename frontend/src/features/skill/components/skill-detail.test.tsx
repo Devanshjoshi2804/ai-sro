@@ -20,6 +20,9 @@ const version = {
     clean_runs: 0,
     degraded_runs: 0,
     failed_runs: 0,
+    unreachable_runs: 0,
+    clean_runs_needed: 10,
+    failures_before_demotion: 3,
   },
   ready_for_autonomy: "0 clean runs in a row, 10 needed",
   demotion_reason: null,
@@ -118,6 +121,40 @@ describe("SkillDetail", () => {
     expect(button).toBeDisabled();
   });
 
+  it("says which door a promotion came through, so a reviewer can disagree", async () => {
+    // ADR 014 lets an operator promote a version to assisted by reading the
+    // panel's own preview and pressing once, and says plainly that the
+    // visibility of *which* review happened "is the whole of what this
+    // decision buys a reviewer". `promoted_from` was on the wire and rendered
+    // nowhere, so that decision bought a reviewer nothing at all.
+    vi.spyOn(api, "getSkill").mockResolvedValue({
+      ...skill,
+      latest_stage: "assisted",
+      versions: [{ ...version, stage: "assisted", promoted_from: "preview" }],
+    } as never);
+
+    renderWithQuery(<SkillDetail skillId="skl-1" />);
+
+    expect(await screen.findByText(/an operator read the steps and the values/i)).toBeInTheDocument();
+    expect(document.body.textContent).not.toContain("Promoted here");
+  });
+
+  it("reads differently for a promotion made in this console", async () => {
+    // The other half: naming the panel promotion is only worth anything if a
+    // console one is visibly a different thing beside it.
+    vi.spyOn(api, "getSkill").mockResolvedValue({
+      ...skill,
+      latest_stage: "assisted",
+      versions: [{ ...version, stage: "assisted", promoted_from: "console" }],
+    } as never);
+
+    renderWithQuery(<SkillDetail skillId="skl-1" />);
+
+    expect(
+      await screen.findByText(/Promoted here, by somebody reading this version's evidence/i),
+    ).toBeInTheDocument();
+  });
+
   it("says why a version cannot run unattended yet", async () => {
     // A gate that says no without saying why is a gate people work around.
     vi.spyOn(api, "getSkill").mockResolvedValue({
@@ -129,6 +166,88 @@ describe("SkillDetail", () => {
     renderWithQuery(<SkillDetail skillId="skl-1" />);
 
     expect(await screen.findByText(/0 clean runs in a row, 10 needed/)).toBeInTheDocument();
+  });
+
+  it("draws the streak against what it needs, from the backend's own threshold", async () => {
+    // A console that hardcoded ten would keep saying ten the day the domain
+    // changed its mind, and the bar would disagree with the rule that actually
+    // refuses the promotion.
+    vi.spyOn(api, "getSkill").mockResolvedValue({
+      ...skill,
+      versions: [
+        {
+          ...version,
+          track_record: { ...version.track_record, clean_streak: 7, clean_runs_needed: 12 },
+        },
+      ],
+    } as never);
+
+    renderWithQuery(<SkillDetail skillId="skl-1" />);
+
+    const meter = await screen.findByRole("meter", { name: /clean runs in a row/i });
+    expect(meter).toHaveAttribute("aria-valuenow", "7");
+    expect(meter).toHaveAttribute("aria-valuemax", "12");
+    expect(screen.getByText(/7 of 12/)).toBeInTheDocument();
+  });
+
+  it("says how close a failing version is to being demoted", async () => {
+    vi.spyOn(api, "getSkill").mockResolvedValue({
+      ...skill,
+      versions: [
+        {
+          ...version,
+          track_record: { ...version.track_record, consecutive_failures: 2 },
+        },
+      ],
+    } as never);
+
+    renderWithQuery(<SkillDetail skillId="skl-1" />);
+
+    // A streak only means something beside the thing that would break it.
+    expect(await screen.findByText(/2 failures in a row/i)).toBeInTheDocument();
+    expect(screen.getByText(/1 more demotes it/i)).toBeInTheDocument();
+  });
+
+  it("says nothing about demotion for a version that has never failed", async () => {
+    vi.spyOn(api, "getSkill").mockResolvedValue(skill as never);
+
+    renderWithQuery(<SkillDetail skillId="skl-1" />);
+    await screen.findByRole("meter", { name: /clean runs in a row/i });
+
+    expect(screen.queryByText(/in a row\./i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/demotes it/i)).not.toBeInTheDocument();
+  });
+
+  it("refuses the unattended rung on the page rather than on the click", async () => {
+    // The button used to be fully enabled here, with the refusal only in a
+    // `title` — invisible on a touchscreen and to a screen reader. Inviting a
+    // click the backend will turn down is how a reviewer stops trusting the
+    // gate.
+    vi.spyOn(api, "getSkill").mockResolvedValue({
+      ...skill,
+      latest_stage: "assisted",
+      versions: [{ ...version, stage: "assisted" }],
+    } as never);
+    const promote = vi.spyOn(api, "promoteSkill");
+
+    renderWithQuery(<SkillDetail skillId="skl-1" />);
+
+    const button = await screen.findByRole("button", { name: /promote to autonomous/i });
+    expect(button).toBeDisabled();
+    await userEvent.click(button);
+    expect(promote).not.toHaveBeenCalled();
+  });
+
+  it("offers the unattended rung once the record allows it", async () => {
+    vi.spyOn(api, "getSkill").mockResolvedValue({
+      ...skill,
+      latest_stage: "assisted",
+      versions: [{ ...version, stage: "assisted", ready_for_autonomy: null }],
+    } as never);
+
+    renderWithQuery(<SkillDetail skillId="skl-1" />);
+
+    expect(await screen.findByRole("button", { name: /promote to autonomous/i })).toBeEnabled();
   });
 
   it("promotes the version the reviewer is looking at", async () => {

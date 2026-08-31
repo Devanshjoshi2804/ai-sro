@@ -8,6 +8,8 @@ import { getRun, runKeys, startRun, type RunModel } from "@/features/run/api";
 import { runInThread, threadKeys } from "@/features/console/chat-api";
 import { listDevices } from "@/features/trigger/api";
 import { useRunStream } from "@/features/run/stream";
+import { InYourBrowser, whereItIsActing } from "@/features/run/components/in-your-browser";
+import { stopRun } from "@/features/run/api";
 import { ApiError } from "@/lib/api/client";
 import { whoAmI } from "@/lib/api/credential";
 import { ChoiceField } from "@/features/console/choice-field";
@@ -119,9 +121,10 @@ export function SkillCard({
               color: ink.textMuted,
             }}
           >
-            PARAMETERS · {version.recording_ids.length === 1 ? "one run, nothing to diff" : "from the diff"}
+            PARAMETERS ·{" "}
+            {version.recording_ids.length === 1 ? "one run, nothing to diff" : "from the diff"}
           </div>
-          <div style={{ fontFamily: mono, fontSize: 11.5, lineHeight: 1.9, color: "#3F4145" }}>
+          <div style={{ fontFamily: mono, fontSize: 11.5, lineHeight: 1.9, color: ink.textSoft }}>
             {version.parameters.length === 0 && (
               <span style={{ color: ink.textMuted }}>
                 {version.recording_ids.length === 1
@@ -149,7 +152,7 @@ export function SkillCard({
           >
             VERIFICATION
           </div>
-          <div style={{ fontSize: 12, lineHeight: 1.9, color: "#3F4145" }}>
+          <div style={{ fontSize: 12, lineHeight: 1.9, color: ink.textSoft }}>
             {step?.assertions.length === 0 && (
               <span style={{ color: ink.textMuted }}>No assertions extracted.</span>
             )}
@@ -181,7 +184,7 @@ export function SkillCard({
           fontWeight: 600,
           color: ink.textSoft,
           cursor: "pointer",
-          background: "#FBFBFA",
+          background: ink.panel,
         }}
       >
         {open ? "▾" : "▸"} {open ? "Hide the plan" : "How this will be performed"}
@@ -196,7 +199,7 @@ export function SkillCard({
             fontFamily: mono,
             fontSize: 11.5,
             lineHeight: 1.95,
-            color: "#C9CACB",
+            color: ink.textMuted,
             whiteSpace: "pre-wrap",
             overflow: "auto",
           }}
@@ -390,7 +393,7 @@ const inputStyle = {
   lineHeight: 1.6,
   resize: "vertical",
   fontFamily: "inherit",
-  background: "#fff",
+  background: ink.page,
   color: ink.text,
 } as const;
 
@@ -438,7 +441,10 @@ function RunButton({
   const browsers = useQuery({
     queryKey: ["devices"],
     queryFn: listDevices,
-    enabled: crosses,
+    // Also while a run is live: this is what turns `dev_8f3a…` into the name
+    // the operator calls their own laptop, and a run happening in their browser
+    // has to say which browser.
+    enabled: crosses || Boolean(watching),
   });
   const usable = (browsers.data ?? []).filter((each) => !each.paused);
   const named = device || (usable.length === 1 ? usable[0].id : "");
@@ -455,6 +461,16 @@ function RunButton({
   // written to twice for one instruction.
   const [sent, setSent] = useState(false);
   const streamed = useRunStream(watching ?? answeredBy, Boolean(watching) || still);
+  // Asked, not done: it lands at the run's next step. The card keeps saying so
+  // until the run actually ends, or the operator presses a button that appears
+  // to have done nothing.
+  const stop = useMutation({
+    mutationFn: (runId: string) => stopRun(runId),
+    onError: (error) =>
+      toast.error("Could not stop it", {
+        description: error instanceof ApiError ? error.problem.detail : String(error),
+      }),
+  });
   // Already answered when the question was asked. Fetched rather than passed:
   // the reply is stored, and reopening the thread tomorrow should show what
   // the run found, not an empty card.
@@ -474,9 +490,14 @@ function RunButton({
       // what survives a re-render, a reload and tomorrow morning. Outside one
       // (the skills page), it is still just a run.
       if (threadId) {
-        const thread = await runInThread(threadId, skillId, { ...parameters, ...given }, {
-          version: version.version,
-        });
+        const thread = await runInThread(
+          threadId,
+          skillId,
+          { ...parameters, ...given },
+          {
+            version: version.version,
+          },
+        );
         const last = thread.messages.at(-1)?.decision as { run_id?: string } | undefined;
         // Started, not finished: the card watches it happen from here.
         setWatching(last?.run_id ?? null);
@@ -486,7 +507,15 @@ function RunButton({
       return startRun(
         skillId,
         { ...parameters, ...given },
-        { authorizedBy: "confirmed", version: version.version, deviceId: named || null },
+        {
+          authorizedBy: "confirmed",
+          version: version.version,
+          deviceId: named || null,
+          // Somebody pressed this and is looking at the card. Taking their tab
+          // is what they asked for; refusing it here would make
+          // `focus_not_permitted` a state they see for no reason.
+          mayTakeFocus: Boolean(named),
+        },
       );
     },
     onSuccess: (started) => {
@@ -530,7 +559,25 @@ function RunButton({
   if (watching || still) {
     // Steps as they land, and whatever the row already had for a run that
     // started before this browser was looking.
-    return <AsItHappens steps={streamed.steps.length ? streamed.steps : (already.data?.steps ?? [])} />;
+    const landed = streamed.steps.length ? streamed.steps : (already.data?.steps ?? []);
+    const on = streamed.run?.device_id ?? already.data?.device_id ?? null;
+    if (on) {
+      // In the operator's own Chrome, which is a different screen: it has to
+      // name where it is acting and show when it is holding back for them.
+      return (
+        <InYourBrowser
+          steps={landed}
+          waiting={streamed.waiting}
+          of={version.steps?.length ?? null}
+          where={whereItIsActing(landed)}
+          browser={(browsers.data ?? []).find((each) => each.id === on)?.label ?? null}
+          finished={Boolean(streamed.run && streamed.run.status !== "running")}
+          onStop={() => stop.mutate((watching ?? answeredBy) as string)}
+          stopping={stop.isPending || stop.isSuccess}
+        />
+      );
+    }
+    return <AsItHappens steps={landed} />;
   }
 
   // What it still needs, asked for here rather than in the next sentence. Chat
@@ -545,8 +592,7 @@ function RunButton({
     .map((parameter) => parameter.name)
     .filter((name) => !supplied[name]?.trim());
 
-  const blocked =
-    stillMissing.length > 0 || version.stage === "recorded" || (crosses && !named);
+  const blocked = stillMissing.length > 0 || version.stage === "recorded" || (crosses && !named);
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%" }}>
       {missing.length > 0 && (
@@ -579,7 +625,6 @@ function RunButton({
                     padding: "7px 9px",
                     fontSize: 12.5,
                     fontFamily: mono,
-                    outline: "none",
                   }}
                 />
               )}
@@ -657,7 +702,7 @@ function RunButton({
           padding: "6px 12px",
           borderRadius: 7,
           border: "none",
-          background: blocked ? "#E7E7E4" : ink.accent,
+          background: blocked ? ink.disabled : ink.accent,
           color: blocked ? ink.textMuted : "#fff",
           fontSize: 12,
           fontWeight: 700,
@@ -780,7 +825,6 @@ function Mark({ disposition }: { disposition: string }) {
         : ink.textMuted;
   return <span style={{ color: colour, fontWeight: 700 }}>•</span>;
 }
-
 
 function Result({
   run,

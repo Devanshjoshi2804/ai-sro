@@ -40,6 +40,17 @@ class AssemblyResult:
 
     orphaned_snapshots: int
 
+    sources: tuple[InputEvent, ...] = ()
+    """The gesture each frame was opened by, in frame order.
+
+    Which events survive to become frames is this module's rule -- a scroll is
+    dropped, an input at the same instant as its effects sorts before them --
+    and a caller that needs to know where a frame came from must not restate
+    that rule to find out. A screenshot is joined to its gesture through here,
+    by identity rather than by matching a timestamp that two gestures could
+    share.
+    """
+
     @property
     def unattached_count(self) -> int:
         return len(self.unattached_requests)
@@ -87,6 +98,7 @@ def assemble_frames(events: list[CaptureEvent]) -> AssemblyResult:
             index=index,
             occurred_at=open_frame.event.at,
             action=open_frame.event.action,
+            page_url=open_frame.event.page_url,
             ax_graph=open_frame.snapshot,
             requests=tuple(open_frame.requests),
         )
@@ -96,6 +108,7 @@ def assemble_frames(events: list[CaptureEvent]) -> AssemblyResult:
         frames=frames,
         unattached_requests=tuple(unattached),
         orphaned_snapshots=orphaned_snapshots,
+        sources=tuple(open_frame.event for open_frame in open_frames),
     )
 
 

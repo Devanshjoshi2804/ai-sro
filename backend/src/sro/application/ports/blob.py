@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import timedelta
 from typing import Protocol
 
@@ -36,6 +37,21 @@ class BlobStore(Protocol):
         is success, because a purge that fails halfway must be safe to repeat.
 
         A URI from somewhere else is left alone rather than guessed at.
+        """
+        ...
+
+    async def list_prefix(self, prefix: str) -> Mapping[str, int]:
+        """Every URI stored under a key prefix, and how big each one is.
+
+        The read half of ``forget_prefix``. A batch's screenshots have no row
+        of their own -- `StoreObservationArtifact` keys them by
+        tenant/principal/day/batch instead -- so asking the store is the only
+        way to learn which gestures were photographed. Sizes ride along
+        because the listing already carries them and an artifact has to record
+        one.
+
+        URIs rather than keys, so no caller has to construct one the way only
+        the store knows how.
         """
         ...
 

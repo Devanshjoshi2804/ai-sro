@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from sro.application.context import RequestContext
+from sro.application.observation.register import refuse_unless_itself
 from sro.application.ports.blob import BlobStore
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock
@@ -58,6 +59,7 @@ class StoreObservationArtifact:
         ctx: RequestContext,
         *,
         device_id: DeviceId,
+        secret: str,
         batch_id: BatchId,
         kind: ArtifactKind,
         data: bytes,
@@ -72,9 +74,12 @@ class StoreObservationArtifact:
             raise InvariantViolation("an artifact with no bytes in it")
 
         async with self._uow as uow:
-            # Reads the device for the same reason ingest does: it is the check
-            # that this credential's tenant owns the thing being written under.
-            await uow.devices.get(ctx.tenant_id, device_id)
+            # The same two questions ingest asks, for the same reason: the
+            # credential says which tenant, the secret says which browser, and
+            # a screenshot is a picture of somebody's screen filed under their
+            # name.
+            device = await uow.devices.get(ctx.tenant_id, device_id)
+            refuse_unless_itself(device, secret, device_id)
 
         day = (at or self._clock.now()).date().isoformat()
         name = f"{frame_index:05d}" if frame_index is not None else (label or "artifact")

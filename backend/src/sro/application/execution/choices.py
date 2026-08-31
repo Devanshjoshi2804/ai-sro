@@ -116,14 +116,19 @@ def _searched(options: Options, like: str) -> Template:
     """The listing, asked for what somebody is typing into the field.
 
     The filter is the one the demonstration proved, with its own column swapped
-    for the field being searched. The typed value is escaped for the JSON it
-    sits inside and no further: the query string is built on the way out, and
-    escaping twice searches for `ATTN%2520ALI` rather than for an address.
+    for the field being searched. The typed value goes in as it was typed:
+    `as_a_filter` builds the term with `json.dumps` and the query string with
+    `urlencode`, so both the JSON it sits inside and the URL it rides on are
+    already its business.
+
+    Escaping here as well was the double-encoding this file warns about, in the
+    other dimension. Typing a quote into a dropdown searched for the backslash
+    in front of it -- `ATTN "ALI"` went out as `ATTN \"ALI\"` -- so the field
+    that most needed the search silently found nothing.
     """
     if not like or options.search is None:
         return Template(_showing(without_filter(options.url), MOST_ROWS))
-    escaped = json.dumps(like)[1:-1]
-    searched = as_a_filter(options.url, column=options.search, placeholder=escaped)
+    searched = as_a_filter(options.url, column=options.search, placeholder=like)
     return Template(_showing(searched or options.url, MOST_ROWS))
 
 

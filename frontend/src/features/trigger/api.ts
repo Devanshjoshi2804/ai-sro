@@ -26,3 +26,26 @@ export const setTriggerEnabled = (id: string, enabled: boolean, reason = "") =>
   api.patch<TriggerModel>(`/v1/triggers/${id}`, { enabled, reason });
 
 export const fireTrigger = (id: string) => api.post(`/v1/triggers/${id}/fire`, {});
+
+export type Confirmation = Schemas["ConfirmationModel"];
+export type Answered = Schemas["AnsweredModel"];
+
+export const confirmationKeys = {
+  all: ["confirmations"] as const,
+};
+
+/**
+ * Fires waiting for somebody to say yes.
+ *
+ * A manual trigger needs none of this — the click that fires it is the
+ * confirmation. A schedule and an inbound message both go off with nobody
+ * there, and this is where those wait.
+ */
+export const listConfirmations = () => api.get<Confirmation[]>("/v1/confirmations");
+
+/** Yes — and the run starts here, with this person's name on it. */
+export const approveConfirmation = (id: string) =>
+  api.post<Answered>(`/v1/confirmations/${id}/approve`, {});
+
+export const declineConfirmation = (id: string, note: string) =>
+  api.post<Answered>(`/v1/confirmations/${id}/decline`, { note });

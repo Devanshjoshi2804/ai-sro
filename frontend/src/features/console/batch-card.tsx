@@ -121,7 +121,7 @@ export function BatchCard({
               padding: "7px 14px",
               borderRadius: 8,
               border: "none",
-              background: runnable ? ink.accent : "#E7E7E4",
+              background: runnable ? ink.accent : ink.disabled,
               color: runnable ? "#fff" : ink.textMuted,
               fontSize: 12.5,
               fontWeight: 700,

@@ -20,7 +20,11 @@ from sro.domain.recording.events import ActionKind
 from sro.domain.shared.identifiers import DeviceId, TenantId
 from sro.domain.skill.locator import LocatorStrategy
 from sro.infrastructure.agent.drivers import RemoteAgents
-from sro.infrastructure.agent.sockets import DeviceSockets
+from sro.infrastructure.agent.sockets import (
+    DEFAULT_TIMEOUT,
+    MAX_BUSY_WAIT,
+    DeviceSockets,
+)
 from tests.unit.infrastructure.test_the_channel_to_a_browser import FakeSocket
 
 ACME = TenantId("acme")
@@ -97,7 +101,35 @@ async def test_a_control_that_moved_is_a_failed_gesture_not_a_missing_browser() 
     outcome = await performing
 
     assert outcome.performed is False
-    assert outcome.detail == "gone"
+    # The kind rides along with the sentence. It used to be dropped whenever
+    # both were sent, which left the one machine-readable half on the floor.
+    assert outcome.detail == "control_not_found: gone"
+
+
+async def test_the_browser_says_which_kind_of_failure_it_was() -> None:
+    """A refusal to steal the operator's screen is not a control it could not find.
+
+    Both arrive as a failed gesture with a sentence attached, and with the kind
+    discarded the console had no way to tell a system behaving well from one
+    that could not do the work.
+    """
+    agents, sockets, socket = _wired()
+
+    performing = asyncio.create_task(
+        agents.ui(ACME, LAPTOP).perform(action=ActionKind.CLICK, locators=CLICK)
+    )
+    await _reply(
+        sockets,
+        socket,
+        ok=False,
+        error={"kind": "focus_not_permitted", "detail": "the run may not take the screen"},
+    )
+
+    # Refusing to take the screen means there was no usable browser for this
+    # gesture, so it raises rather than returning a failed one -- and the kind
+    # rides in the message, which is the whole point.
+    with pytest.raises(UiUnavailable, match="focus_not_permitted"):
+        await performing
 
 
 async def test_a_browser_that_stopped_answering_is_no_browser_at_all() -> None:
@@ -242,3 +274,40 @@ async def test_a_run_that_may_take_the_screen_says_so_and_one_that_may_not_says_
 
     assert socket.sent[0]["payload"]["allow_focus"] is True
     assert "allow_focus" not in socket.sent[1]["payload"], socket.sent[1]
+
+
+async def test_a_busy_window_that_has_passed_is_not_reported_as_held() -> None:
+    """A pause carries its own end, and both readers of it must agree.
+
+    `held_for` and the wait that actually holds commands back read the same
+    dict. If one of them thought a lapsed pause was still running, a console
+    would show "held" over a run that was moving.
+    """
+    _, sockets, _ = _wired()
+
+    sockets.deliver(json.dumps({"kind": "busy", "for_ms": 5000}), ACME, LAPTOP)
+    held = sockets.held_for(ACME, LAPTOP)
+    assert held is not None and held > 0
+
+    # A real window, waited out rather than cancelled: there is no "idle"
+    # message, so lapsing is the only way a pause ever ends.
+    sockets.deliver(json.dumps({"kind": "busy", "for_ms": 10}), ACME, LAPTOP)
+    await asyncio.sleep(0.05)
+    assert sockets.held_for(ACME, LAPTOP) is None
+
+
+async def test_being_held_never_promises_longer_than_the_backend_will_wait() -> None:
+    """The window the browser asks for is not the window it gets.
+
+    Commands are held for at most a fraction of their own deadline -- a device
+    asking for politeness must not be able to veto the work -- so a countdown
+    drawn from the raw request would tell the operator to expect a wait twice as
+    long as the one that is going to happen.
+    """
+    _, sockets, _ = _wired()
+
+    sockets.deliver(json.dumps({"kind": "busy", "for_ms": 60_000}), ACME, LAPTOP)
+
+    held = sockets.held_for(ACME, LAPTOP)
+    assert held is not None
+    assert held <= DEFAULT_TIMEOUT * MAX_BUSY_WAIT

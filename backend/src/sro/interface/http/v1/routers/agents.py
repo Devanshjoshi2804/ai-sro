@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Body, status
@@ -9,6 +10,7 @@ from fastapi import APIRouter, Body, status
 from sro.application.context import RequestContext
 from sro.application.trigger.fire_trigger import blank_inputs
 from sro.container import Container
+from sro.domain.observation.grant import LONGEST
 from sro.domain.shared.errors import NotFound
 from sro.domain.shared.identifiers import DeviceId, TriggerId
 from sro.domain.trigger.trigger import Trigger
@@ -16,6 +18,8 @@ from sro.interface.http.deps import ContainerDep, ContextDep, DeviceSecretDep
 from sro.interface.http.schemas import (
     DeviceModel,
     FiredModel,
+    GrantRequest,
+    GrantsResponse,
     HeartbeatRequest,
     HeartbeatResponse,
     ObservationPolicyModel,
@@ -81,6 +85,51 @@ async def heartbeat(
         policy=None if beat.policy is None else ObservationPolicyModel.of(beat.policy),
         pause=beat.pause,
     )
+
+
+@router.post("/{device_id}/grants", status_code=status.HTTP_201_CREATED)
+async def grant_host(
+    device_id: str,
+    body: GrantRequest,
+    container: ContainerDep,
+    ctx: ContextDep,
+    x_device_secret: DeviceSecretDep = "",
+) -> GrantsResponse:
+    """The operator saying this page may be watched after all.
+
+    The exclusion list is what the tenant agreed to by default, and webmail is
+    on it for good reason. This is the person whose browser it is deciding
+    otherwise about one host, for the tab in front of them -- which is what
+    makes teaching a task that involves their mail possible at all, and what
+    keeps it from being the silent inbox mining the exclusion exists to
+    prevent.
+
+    Expires on its own, so a browser that stopped without revoking cannot leave
+    a mailbox observed. The extension revokes when the tab closes.
+    """
+    device = await container.grant_host().execute(
+        ctx,
+        device_id=DeviceId(device_id),
+        secret=x_device_secret,
+        host=body.host,
+        lasting=timedelta(seconds=body.seconds) if body.seconds else LONGEST,
+    )
+    return GrantsResponse.of(device)
+
+
+@router.delete("/{device_id}/grants/{host}")
+async def revoke_host(
+    device_id: str,
+    host: str,
+    container: ContainerDep,
+    ctx: ContextDep,
+    x_device_secret: DeviceSecretDep = "",
+) -> GrantsResponse:
+    """Stop watching it -- the tab closed, or the operator changed their mind."""
+    device = await container.revoke_host().execute(
+        ctx, device_id=DeviceId(device_id), secret=x_device_secret, host=host
+    )
+    return GrantsResponse.of(device)
 
 
 @router.get("/{device_id}/watches")
@@ -198,6 +247,7 @@ async def watch_fire(
     return FiredModel(
         trigger_id=fired.trigger_id.value,
         run_id=fired.run_id.value if fired.run_id else None,
+        confirmation_id=fired.confirmation_id.value if fired.confirmation_id else None,
         skipped=fired.skipped,
     )
 

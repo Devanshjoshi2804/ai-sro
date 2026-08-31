@@ -2704,7 +2704,15 @@ export interface components {
              */
             evidence: string;
         };
-        /** PromoteRequest */
+        /**
+         * PromoteRequest
+         * @description A person, in the console, choosing to move a version up a rung.
+         *
+         *     Carries no `from_where`: this endpoint is answered by `PromoteSkill`, which
+         *     always tells the version it was `"console"`. A press on the panel's preview
+         *     promotes through a different call, because it is a different review -- see
+         *     ADR 014 -- and this request never stands in for it.
+         */
         PromoteRequest: {
             /** Version */
             version: number;
@@ -3094,6 +3102,8 @@ export interface components {
             ready_for_autonomy: string | null;
             /** Demotion Reason */
             demotion_reason: string | null;
+            /** Promoted From */
+            promoted_from: string;
             /**
              * Induced At
              * Format: date-time

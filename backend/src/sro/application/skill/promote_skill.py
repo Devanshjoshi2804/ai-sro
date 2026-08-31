@@ -44,6 +44,12 @@ class PromoteSkill:
                 self._clock.now(),
                 ctx.principal_id,
                 acknowledging_fixed_values=acknowledging_fixed_values,
+                # This is a person opening the console and looking at the
+                # evidence, not a press on the panel's preview. The two are
+                # both reviews, and a blank here would read as either -- an old
+                # row from before this field existed, or this one -- which is
+                # exactly the ambiguity ADR 014 exists to remove.
+                from_where="console",
             )
             await uow.skills.save(skill)
             await uow.commit()

@@ -132,6 +132,18 @@ class SkillVersion:
     promoted_at: datetime | None = None
     promoted_by: PrincipalId | None = None
 
+    promoted_from: str = ""
+    """Where the review that promoted this version happened.
+
+    `"console"` is somebody sitting down with the evidence. `"preview"` is an
+    operator reading the steps and the values in the panel and pressing once,
+    at the screen it will act on, with a stop button in front of them.
+
+    Both are reviews and the second is a real reading of what the ladder asks
+    for -- but they are not the same review, and somebody auditing a library has
+    to be able to tell them apart and disagree with one of them.
+    """
+
     track_record: TrackRecord = field(default_factory=TrackRecord)
     """What this version has actually done. Autonomy is earned from this, never
     granted by a click."""
@@ -344,6 +356,7 @@ class SkillVersion:
         self.stage = target
         self.promoted_at = at
         self.promoted_by = None
+        self.promoted_from = ""
         self.demotion_reason = None
         return target
 
@@ -356,6 +369,7 @@ class SkillVersion:
         self.stage = to
         self.promoted_at = at
         self.promoted_by = None
+        self.promoted_from = ""
         self.demotion_reason = why
 
     def promote(
@@ -365,8 +379,17 @@ class SkillVersion:
         by: PrincipalId,
         *,
         acknowledging_fixed_values: bool = False,
+        from_where: str = "",
     ) -> None:
         check_promotion(self.stage, to)
+        if from_where == "preview" and to.rung > PromotionStage.ASSISTED.rung:
+            # The argument for a preview being a review is that the operator
+            # read what this run would do. Nobody reads what ten future
+            # unattended runs will do.
+            raise InvariantViolation(
+                "a preview promotes no further than assisted; "
+                f"{to} is earned by clean runs, not by a press"
+            )
         if (
             to.rung > PromotionStage.SHADOW.rung
             and self.from_one_demonstration
@@ -393,6 +416,7 @@ class SkillVersion:
         self.stage = to
         self.promoted_at = at
         self.promoted_by = by
+        self.promoted_from = from_where
         # The count that demoted it, cleared by the person who looked.
         #
         # `should_demote` is a standing condition rather than an event: it is

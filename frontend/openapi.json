@@ -25048,7 +25048,8 @@
           "version",
           "to"
         ],
-        "title": "PromoteRequest"
+        "title": "PromoteRequest",
+        "description": "A person, in the console, choosing to move a version up a rung.\n\nCarries no `from_where`: this endpoint is answered by `PromoteSkill`, which\nalways tells the version it was `\"console\"`. A press on the panel's preview\npromotes through a different call, because it is a different review -- see\nADR 014 -- and this request never stands in for it."
       },
       "PromotionStage": {
         "type": "string",
@@ -26088,6 +26089,10 @@
             ],
             "title": "Demotion Reason"
           },
+          "promoted_from": {
+            "type": "string",
+            "title": "Promoted From"
+          },
           "induced_at": {
             "type": "string",
             "format": "date-time",
@@ -26157,6 +26162,7 @@
           "track_record",
           "ready_for_autonomy",
           "demotion_reason",
+          "promoted_from",
           "induced_at",
           "induced_by",
           "recording_ids",

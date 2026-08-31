@@ -378,6 +378,7 @@ def _adopt(
         track_record=TrackRecord(),
         promoted_at=None,
         promoted_by=None,
+        promoted_from="",
         demotion_reason=None,
         provenance=replace(
             version.provenance,

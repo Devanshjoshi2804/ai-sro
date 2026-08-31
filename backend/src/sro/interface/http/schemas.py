@@ -693,6 +693,17 @@ class SkillVersionModel(BaseModel):
     says no without saying why is a gate people work around."""
 
     demotion_reason: str | None
+
+    promoted_from: str
+    """Where the review that put this version at its current stage happened.
+
+    Blank on a version nobody has promoted, or one moved by an automatic
+    process (earned by a clean streak, demoted by failures, inherited by a
+    repair) rather than by a person. `"console"` is somebody reading the
+    evidence in this screen; `"preview"` is an operator reading the panel's
+    preview and pressing once. A reviewer here needs both spelled out to tell
+    the two apart and disagree with either -- see ADR 014."""
+
     induced_at: datetime
     induced_by: str
     recording_ids: list[str]
@@ -735,6 +746,7 @@ class SkillVersionModel(BaseModel):
             ),
             ready_for_autonomy=version.not_ready_for_autonomy,
             demotion_reason=version.demotion_reason,
+            promoted_from=version.promoted_from,
             induced_at=version.provenance.induced_at,
             induced_by=version.provenance.induced_by.value,
             recording_ids=[r.value for r in version.provenance.recording_ids],
@@ -880,6 +892,13 @@ class ChoiceModel(BaseModel):
 
 
 class PromoteRequest(BaseModel):
+    """A person, in the console, choosing to move a version up a rung.
+
+    Carries no `from_where`: this endpoint is answered by `PromoteSkill`, which
+    always tells the version it was `"console"`. A press on the panel's preview
+    promotes through a different call, because it is a different review -- see
+    ADR 014 -- and this request never stands in for it."""
+
     version: int
     to: PromotionStage
     """The rung to move to, checked here rather than in the router: coercing an

@@ -696,13 +696,13 @@ class SkillVersionModel(BaseModel):
 
     promoted_from: str
     """Where the review that put this version at its current stage happened.
-
-    Blank on a version nobody has promoted, or one moved by an automatic
-    process (earned by a clean streak, demoted by failures, inherited by a
-    repair) rather than by a person. `"console"` is somebody reading the
-    evidence in this screen; `"preview"` is an operator reading the panel's
-    preview and pressing once. A reviewer here needs both spelled out to tell
-    the two apart and disagree with either -- see ADR 014."""
+    See `SkillVersion.promoted_from` for the full vocabulary; the two that
+    matter on this screen are `"console"` -- somebody reading the evidence
+    here -- and `"preview"` -- an operator reading the panel's preview and
+    pressing once. A reviewer needs both spelled out to tell the two apart
+    and disagree with either -- see ADR 014. Blank means nobody has promoted
+    this version by a click of any kind; `"earned"` and `"repair"` mean a
+    process moved it, with nobody to disagree with."""
 
     induced_at: datetime
     induced_by: str

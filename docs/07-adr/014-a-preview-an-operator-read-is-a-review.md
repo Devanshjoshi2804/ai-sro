@@ -42,16 +42,37 @@ That is why the press counts. `_check_runnable`'s rule is not "a person must
 have clicked a button in a particular screen" — it is that nobody has looked.
 Somebody has: the operator, on the exact steps and the exact values, at the
 screen the run is about to act on, with a stop button already in front of
-them for when it starts. That is a stronger review than most of what a
-console promotion is, where the reviewer is reading an induced version's steps
-in the abstract, on a system they may not be looking at right now. A real
-reading of `_check_runnable`'s rule is not a way around it.
+them for when it starts. It is not a stronger review than a console one, or a
+weaker one — it is a different review, sufficient for the rung it reaches.
+ADR 013 makes the disciplined version of this move already: "a tool step is
+not trusted more than a network step; it is trusted the same, and the
+existing gate does the work." The same restraint applies here. A real reading
+of `_check_runnable`'s rule is not a way around it.
+
+**What the operator did not read.** A preview shows `SkillStep.intent`,
+the resolved value of each parameter, and the tab the run starts in. It does
+not show which system each step calls, whether that step writes or only
+reads, or whether any step carries an assertion at all — the very thing
+`verifiable` and `unchecked_writes` exist to check before a version may ever
+reach the top of the ladder. A console reviewer looking at the same version
+sees all of that, because the console renders the full `SkillVersionModel`;
+the operator, mid-task, sees a shorter list built to be read in the seconds
+before a press. This is a real gap, not a rounding error, and this decision
+does not pretend otherwise. What it argues is narrower: `ASSISTED` is the
+rung where a named human still authorises every run and nothing above it
+is reachable, so the question a preview has to answer is only "would I want
+this one run to happen", not "is this skill safe to leave unattended". The
+smaller thing the operator read is enough to answer the smaller question the
+rung actually asks.
 
 ## What it deliberately does not reach, and why
 
 A preview promotes to `ASSISTED` and never further, whatever the version's
 track record says once it gets there, and whatever rung it started below.
-`SkillVersion.promote` enforces this ahead of every other rule it checks:
+`SkillVersion.promote` checks this immediately after `check_promotion` — the
+existing rule for which rungs a promotion may move between at all — and
+before any of its own other rules, so a preview is refused the same jump a
+console promotion would be refused, plus this:
 
 ```python
 if from_where == "preview" and to.rung > PromotionStage.ASSISTED.rung:
@@ -118,24 +139,44 @@ problem this whole project exists to leave behind, wearing a different coat:
 it asks the operator to do something *for the system* — sit through a
 rehearsal — before the system will do the thing *for them*.
 
-It would also not have bought back the review `_check_runnable` cares about.
-A shadow run's writes are withheld and never shown to a person; nothing about
-running one adds a reader who was not there before. The preview the operator
-already reads before pressing is the review. A rehearsal after it would be
-process for its own sake — evidence nobody looks at, standing between the
-operator and the work they described.
+It would also not have bought the review `_check_runnable` cares about for
+free. A shadow run's writes are withheld today and never shown to a person —
+but that is this codebase's current choice about what `SHADOW` does with what
+it builds, not a fact about rehearsal in general. A shadow run produces
+exactly the request bodies that would make a preview stronger than the one
+described above: which system, whether the step writes, what it would send.
+The honest sentence is not "nothing could be added by rehearsing first" — it
+is that *showing the operator what a rehearsal built is work this project is
+not doing*, because it is still a second screen, on a second press, before
+the thing they typed happens — the "teach me" problem in different clothes,
+whatever ends up rendered on it. The preview the operator already reads
+before pressing is the review this decision relies on; a rehearsal shown to
+nobody, which is what `SHADOW` does today, would only be process standing
+between the operator and the work they described.
 
 ## Consequences
 
-The panel's first press on a version it just induced now reaches `ASSISTED`
-instead of `NotRunnable`, which is what makes the offer this project builds
-usable on the task it was built for. `promoted_from` costs one field and one
-guard, both narrow: nothing about a console promotion changes, every existing
-caller of `promote` keeps its old behaviour by leaving the argument at its
-default, and the guard composes with `check_promotion` rather than
-duplicating what it already refuses — a one-rung jump past `AUTONOMOUS`, a
-demotion disguised as a promotion, and a target already reached are all still
-refused exactly as they were.
+The panel's first press on a version it just induced can now reach `ASSISTED`
+instead of `NotRunnable`, for the versions this decision covers. It is not
+every version induction produces. `promote` refuses a version that came from
+one demonstration and writes — every value it sends is fixed as demonstrated
+— unless the caller separately passes `acknowledging_fixed_values=True`, and
+that is exactly the shape of the skill a freshly induced task most often is:
+one demonstration, one write. This ADR does not resolve whether a preview
+promotion may set that flag on the operator's behalf. Doing so would mean the
+same press that reviews the steps and the values is also the acknowledgement
+that those values are fixed as demonstrated — which may well be a fair
+reading of the same argument this ADR makes, but it is a second governance
+question and answering it here would be deciding it in the dark. It is left
+open, for whichever piece of work turns this decision into a running call to
+answer explicitly rather than by omission.
+
+`promoted_from` costs one field and one guard, both narrow: nothing about a
+console promotion changes, every existing caller of `promote` keeps its old
+behaviour by leaving the argument at its default, and the guard composes
+with `check_promotion` rather than duplicating what it already refuses — a
+one-rung jump past `AUTONOMOUS`, a demotion disguised as a promotion, and a
+target already reached are all still refused exactly as they were.
 
 What it does not buy: a way to reverse a preview-promotion that a console
 promotion could not also be reversed by, and a shortcut to `AUTONOMOUS`. Both

@@ -352,6 +352,10 @@ async def test_a_repair_keeps_doing_the_work_it_was_already_trusted_with() -> No
     )
     assert _run_at(fresh.stage).performs_writes, "so the work still happens"
     assert fresh.promoted_by is not None, "and the rung names who gave it"
+    assert fresh.promoted_from == "repair", (
+        "blank beside a named promoted_by would read as a review nobody gave it -- "
+        "this climb was mechanical, inherited from the version it replaced"
+    )
 
 
 async def test_the_repaired_version_starts_with_no_record() -> None:

@@ -133,15 +133,35 @@ class SkillVersion:
     promoted_by: PrincipalId | None = None
 
     promoted_from: str = ""
-    """Where the review that promoted this version happened.
+    """Where the review that put this version at its current stage happened.
+    Every writer names itself, so blank means exactly one thing: nobody has.
 
-    `"console"` is somebody sitting down with the evidence. `"preview"` is an
-    operator reading the steps and the values in the panel and pressing once,
-    at the screen it will act on, with a stop button in front of them.
+    - `"console"` -- somebody sitting down with the evidence, through
+      `PromoteSkill`.
+    - `"preview"` -- an operator reading the steps and the values in the
+      panel and pressing once, at the screen it will act on, with a stop
+      button in front of them.
+    - `"earned"` -- `earn()`. Not a review at all: the streak did it, and
+      nobody was asked. Kept apart from blank for the same reason
+      `promoted_by` is `None` here rather than some system principal -- a
+      streak is a basis, and writing nothing would make it indistinguishable
+      from a version nobody has looked at.
+    - `"repair"` -- `repair_drift`'s inherited climb back to the rung the
+      version it replaced had earned. Mechanical, not a person's read of this
+      version; the person is `REPAIR`, the review is nobody's.
+    - `""` -- `demote()`, disambiguated by `demotion_reason` rather than by
+      this field; the three places a version is reset to `RECORDED` for a
+      fresh review (`map_step_to_tool`, `add_assertion`, `repair_drift`'s new
+      version before it climbs back up); and every row written before this
+      field existed.
 
-    Both are reviews and the second is a real reading of what the ladder asks
-    for -- but they are not the same review, and somebody auditing a library has
-    to be able to tell them apart and disagree with one of them.
+    `"console"` and `"preview"` are both reviews, and the second is a real
+    reading of what the ladder asks for -- but they are not the same review,
+    and somebody auditing a library has to be able to tell them apart and
+    disagree with one of them. A value that has to be decoded by joining it
+    to `promoted_by` or `stage` is not one a reviewer can filter a list by,
+    which is why every writer, including the ones with no human in them,
+    names itself rather than leaving blank to mean more than one thing.
     """
 
     track_record: TrackRecord = field(default_factory=TrackRecord)
@@ -356,7 +376,7 @@ class SkillVersion:
         self.stage = target
         self.promoted_at = at
         self.promoted_by = None
-        self.promoted_from = ""
+        self.promoted_from = "earned"
         self.demotion_reason = None
         return target
 

@@ -38,16 +38,25 @@ def test_the_listing_is_found_in_a_doing_outside_the_pair() -> None:
         'https://wms.example/addresses?query=[{"column":"addressName","operator":"EQ","value":"test"}]',
         [{"addressId": "A1", "addressName": "test"}],
     )
+    listing_b = a_read(
+        "https://wms.example/addresses?query=[]",
+        [{"addressId": "A1", "addressName": "also test"}],
+    )
     write = a_write("https://wms.example/carrierCrossReferences", {"codAddressId": "A1"})
 
-    pair = (a_frame(write),)
+    pair_a = (a_frame(write),)
+    # pair_b also carries a listing with the wanted value, positioned before its
+    # own write -- exactly the shape `_first_mutation` would happily search. It
+    # exists only to prove index 1 is bounded by `step_index` (0, excluding it)
+    # rather than falling through to `other`'s rule.
+    pair_b = (a_frame(listing_b), a_frame(write))
     other = (a_frame(listing), a_frame(write))
 
-    # Both aligned doings (indices 0 and 1) hold only the write -- `pair` fills
-    # that role for run_a and run_b alike. `other`, at index 2, is outside the
-    # pair `_listing_of`'s `at < 2` test distinguishes, so it is searched up to
-    # its own first mutation rather than `step_index`.
-    found = _listing_of((pair, pair, other), value="A1", step_index=0)
+    # Both aligned doings (indices 0 and 1) are bounded by `step_index` -- one
+    # holds only the write, the other holds a listing that bound must exclude.
+    # `other`, at index 2, is outside the pair `_listing_of`'s `at < 2` test
+    # distinguishes, so it is searched up to its own first mutation instead.
+    found = _listing_of((pair_a, pair_b, other), value="A1", step_index=0)
 
     assert found is not None
     assert found[0].url == listing.url

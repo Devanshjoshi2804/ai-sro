@@ -5,11 +5,21 @@ better than replaying it and worse than not needing to ask: the operator picked
 that address off a screen, and the screen is in the recording.
 
 So the record they picked is found in the listing that showed it, and the
-fields beside the id are examined. A field is usable when the demonstration
-proves three things about it: the listing carried it, the write sent the same
-value, and no other record in that listing had that value. The last one is what
-makes it a way of finding the record rather than a fact about it -- there are
-forty addresses in Ontario and one called APPLIANCE HAUS.
+fields beside the id are examined. Two things can make a field usable, and
+either is enough.
+
+The first is that the write sent it: the listing carried the field, the write
+sent the same value, and no other record in the collection had that value. The
+last one is what makes it a way of finding the record rather than a fact about
+it -- there are forty addresses in Ontario and one called APPLIANCE HAUS.
+
+The second is that the operator searched by it. A read filtered on
+`addressName` is the demonstration saying, in the application's own words, how
+a human finds this record here. That evidence beats uniqueness, and it is the
+only evidence there is for a value that was picked rather than typed: the
+create sends `codAddressId` and nothing else off that record, so the write-sent
+rule can never be satisfied for it. Where both apply the searched column leads,
+because it is the one a person was seen using.
 
 Where no such field exists the id stays a question for a human, because a
 lookup that cannot identify one record is a lookup that picks the wrong one.
@@ -18,9 +28,9 @@ lookup that cannot identify one record is a lookup that picks the wrong one.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from urllib.parse import urlsplit
 
 from sro.application.induction import jsonutil
-from sro.application.induction.diff import Choice
 from sro.application.induction.headers import build_header_plans
 from sro.application.induction.sites import (
     JsonBodySite,
@@ -43,10 +53,29 @@ street beside it are what tell them apart.
 
 
 @dataclass(frozen=True, slots=True)
+class Wanted:
+    """A value the skill will ask for, and the step that sent it.
+
+    A constant the operator chose twice and a value that differed between
+    doings arrive here as the same thing, because they are the same thing: an
+    id nobody memorised, picked off a screen the recording still holds. Whether
+    the skill will vary it is a question about the parameter, not about where
+    its value comes from.
+    """
+
+    field: str
+    values: tuple[str, ...]
+    """What was picked. One value for a constant; one per run for a value that
+    varied, every one of which must be explainable or this is not one list."""
+
+    step_index: int
+
+
+@dataclass(frozen=True, slots=True)
 class PlannedLookup:
     """A field that was a dropdown, and the call that filled it."""
 
-    choice: Choice
+    field: str
     request: CapturedRequest
     """The listing the operator picked from, as the demonstration fetched it."""
 
@@ -72,7 +101,7 @@ def filtered_on(request: CapturedRequest) -> str | None:
 
 
 def plan(
-    choices: tuple[Choice, ...],
+    wanted: tuple[Wanted, ...],
     run_a: tuple[ActionFrame, ...],
     run_b: tuple[ActionFrame, ...],
     taken: set[str],
@@ -84,24 +113,24 @@ def plan(
 ) -> tuple[PlannedLookup, ...]:
     """A lookup for every chosen id the demonstration can explain.
 
-    ``run_a``/``run_b`` are the paired steps, which is what a choice's index
-    refers to. ``others`` is every other doing the candidate holds -- searched
-    for the listing too, since the two aligned doings can hold nothing but the
-    write. ``screens`` is the whole recording: the click that chose the record
-    is usually one of the steps alignment dropped as exploration, and that
-    click is the best evidence there is about how a person finds it.
+    ``run_a``/``run_b`` are the paired steps, which is what a wanted value's
+    index refers to. ``others`` is every other doing the candidate holds --
+    searched for the listing too, since the two aligned doings can hold nothing
+    but the write. ``screens`` is the whole recording: the click that chose the
+    record is usually one of the steps alignment dropped as exploration, and
+    that click is the best evidence there is about how a person finds it.
     """
     runs = (run_a, run_b, *others)
     planned: list[PlannedLookup] = []
-    for choice in choices:
-        found = _plan_one(choice, runs, run_a, taken, screens or run_a, system, facility)
+    for one in wanted:
+        found = _plan_one(one, runs, run_a, taken, screens or run_a, system, facility)
         if found is not None:
             planned.append(found)
     return tuple(planned)
 
 
 def _plan_one(
-    choice: Choice,
+    wanted: Wanted,
     runs: tuple[tuple[ActionFrame, ...], ...],
     run_a: tuple[ActionFrame, ...],
     taken: set[str],
@@ -109,28 +138,58 @@ def _plan_one(
     system: str,
     facility: str,
 ) -> PlannedLookup | None:
-    listing = _listing_of(runs, choice.value, choice.step_index)
+    value = wanted.values[0]
+    listing = _listing_of(runs, value, wanted.step_index)
     if listing is None:
         return None
     request, records = listing
 
-    picked = next((r for r in records if choice.value in [str(v) for v in r.values()]), None)
+    picked = next((r for r in records if value in [str(v) for v in r.values()]), None)
     if picked is None:  # pragma: no cover - _listing_of found it in one of them
         return None
 
-    take = next((key for key, value in picked.items() if str(value) == choice.value), None)
+    take = next((key for key, held in picked.items() if str(held) == value), None)
     if take is None:  # pragma: no cover - as above
         return None
 
-    sent = _sent_by_the_write(run_a, choice)
+    # A filtered read returns one row, and every field on one row is trivially
+    # the only one of its kind. What tells records apart is what the collection
+    # looks like unfiltered, so uniqueness is judged against the widest read of
+    # it any doing made. Where there is no wider read the narrow result stands:
+    # the operator picks from the dropdown, so an ambiguous label costs a second
+    # look, not a wrong write.
+    listing_url = request.url
+    widest = max(
+        (
+            _records(other)
+            for run in runs
+            for frame in run
+            for other in frame.requests
+            if not other.is_mutation and _same_collection(other.url, listing_url)
+        ),
+        key=len,
+        default=records,
+    )
+
+    sent = _sent_by_the_write(run_a, wanted.step_index)
     usable = [
-        (key, str(value))
-        for key, value in picked.items()
+        (key, str(held))
+        for key, held in picked.items()
         if key != take
-        and str(value).strip()
-        and sent.get(key) == str(value)
-        and _unique(records, key, str(value))
+        and str(held).strip()
+        and sent.get(key) == str(held)
+        and _unique(widest, key, str(held))
     ]
+
+    column = _searched_column(runs, wanted.values)
+    if column is not None and str(picked.get(column, "")).strip() and column != take:
+        # An operator's own search names the column. It goes first and it goes
+        # in whether or not the write sends it: the write sends the id and
+        # nothing else off this record, so requiring the write to send the
+        # identifying field is requiring the impossible for every value that
+        # was picked rather than typed.
+        usable = [(column, str(picked[column]))] + [p for p in usable if p[0] != column]
+
     if not usable:
         # Nothing on that screen tells one record from another in words. The id
         # stays a question rather than becoming a lookup that guesses.
@@ -144,7 +203,7 @@ def _plan_one(
 
     label = tuple(key for key, _ in usable[:MOST_FIELDS])
     return PlannedLookup(
-        choice=choice,
+        field=wanted.field,
         request=request,
         options=Options(
             url=without_clocks(request.url),
@@ -211,6 +270,42 @@ def _listing_of(
     return None
 
 
+def _searched_column(
+    runs: tuple[tuple[ActionFrame, ...], ...], values: tuple[str, ...]
+) -> str | None:
+    """The column the doings searched these records by, where they agree.
+
+    Every doing that filtered at all is asked. A doing that scrolled instead is
+    silent rather than dissenting -- it has no opinion about how the record is
+    found, and silence is not disagreement. Two doings naming different columns
+    is disagreement, and plans nothing.
+
+    Asked about every value, not only the first: two doings that picked
+    different records only ever disagree through the reads that found them, and
+    a doing's read holds its own doing's record, never the other's.
+    """
+    named = {
+        column
+        for run in runs
+        for frame in run
+        for request in frame.requests
+        if not request.is_mutation
+        and any(
+            value in [str(v) for v in record.values()]
+            for value in values
+            for record in _records(request)
+        )
+        and (column := filtered_on(request)) is not None
+    }
+    return named.pop() if len(named) == 1 else None
+
+
+def _same_collection(url: str, other: str) -> bool:
+    """Two reads of the same thing. The path is the collection; the query is
+    which slice of it somebody happened to ask for."""
+    return urlsplit(url).path == urlsplit(other).path
+
+
 def _first_mutation(run: tuple[ActionFrame, ...]) -> int:
     for index, frame in enumerate(run):
         if any(request.is_mutation for request in frame.requests):
@@ -224,13 +319,13 @@ def _records(request: CapturedRequest) -> list[dict[str, object]]:
     return [record for record in data if isinstance(record, dict)] if isinstance(data, list) else []
 
 
-def _sent_by_the_write(run: tuple[ActionFrame, ...], choice: Choice) -> dict[str, str]:
+def _sent_by_the_write(run: tuple[ActionFrame, ...], step_index: int) -> dict[str, str]:
     """The write's own payload, flattened to field name and value.
 
     A field the write does not send is not part of how the operator identified
     the record -- it is something the screen happened to show them.
     """
-    frame = run[choice.step_index]
+    frame = run[step_index]
     sent: dict[str, str] = {}
     for request in frame.requests:
         if not request.is_mutation:

@@ -232,15 +232,21 @@ class InduceSkill:
             # skill carries the lookup; where it cannot, the id is a question.
             pairs = align(frames_a, frames_b)
             planned = lookups.plan(
-                parameterisation.choices,
+                tuple(
+                    lookups.Wanted(
+                        field=choice.field, values=(choice.value,), step_index=choice.step_index
+                    )
+                    for choice in parameterisation.choices
+                ),
                 tuple(pair[0] for pair in pairs),
                 tuple(pair[1] for pair in pairs),
                 {parameter.name for parameter in parameterisation.parameters},
                 screens=frames_a,
+                others=tuple(history),
                 system=objective.target_system,
                 facility=objective.facility,
             )
-            resolvable = frozenset(found.choice.field for found in planned)
+            resolvable = frozenset(found.field for found in planned)
             asked = await self._settle_choices(
                 ctx,
                 objective,
@@ -666,7 +672,7 @@ def with_options(
     """
     if not planned:
         return parameters
-    options = {found.choice.field: found for found in planned}
+    options = {found.field: found for found in planned}
     return tuple(
         replace(
             parameter,

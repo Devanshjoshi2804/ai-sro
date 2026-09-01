@@ -1,4 +1,4 @@
-from sro.application.induction.lookups import _listing_of, filtered_on
+from sro.application.induction.lookups import Wanted, _listing_of, filtered_on, plan
 from tests.unit.application.lookup_fixtures import a_frame, a_read, a_write
 
 
@@ -69,3 +69,139 @@ def test_a_read_after_that_doing_s_own_write_is_not_the_listing() -> None:
     write = a_write("https://wms.example/carrierCrossReferences", {"codAddressId": "A1"})
 
     assert _listing_of(((a_frame(write), a_frame(after)),), value="A1", step_index=None) is None
+
+
+def test_a_column_the_write_never_sends_can_still_identify_the_record() -> None:
+    """The create sends `codAddressId` and nothing else off that record. Of the
+    address's own fields the write sends none, so the write-sent rule can never
+    be satisfied for a value that was picked rather than typed."""
+    listing = a_read(
+        'https://wms.example/addresses?query=[{"column":"addressName","operator":"EQ","value":"test"}]',
+        [{"addressId": "A1", "addressName": "test", "city": "BURLINGTON"}],
+    )
+    write = a_write("https://wms.example/carrierCrossReferences", {"codAddressId": "A1"})
+
+    planned = plan(
+        (Wanted(field="cod_address_id", values=("A1",), step_index=1),),
+        run_a=(a_frame(listing), a_frame(write)),
+        run_b=(a_frame(listing), a_frame(write)),
+        taken=set(),
+    )
+
+    assert len(planned) == 1
+    assert planned[0].options.search == "addressName"
+    assert planned[0].options.value == "addressId"
+
+
+def test_a_picked_id_no_doing_ever_searched_for_stays_a_question() -> None:
+    listing = a_read(
+        "https://wms.example/addresses?offset=0&limit=50",
+        [{"addressId": "A1", "addressName": "test"}],
+    )
+    write = a_write("https://wms.example/carrierCrossReferences", {"codAddressId": "A1"})
+
+    assert (
+        plan(
+            (Wanted(field="cod_address_id", values=("A1",), step_index=1),),
+            run_a=(a_frame(listing), a_frame(write)),
+            run_b=(a_frame(listing), a_frame(write)),
+            taken=set(),
+        )
+        == ()
+    )
+
+
+def test_two_doings_that_searched_different_columns_plan_nothing() -> None:
+    by_name = a_read(
+        'https://wms.example/addresses?query=[{"column":"addressName","operator":"EQ","value":"t"}]',
+        [{"addressId": "A1", "addressName": "test", "city": "BURLINGTON"}],
+    )
+    by_city = a_read(
+        'https://wms.example/addresses?query=[{"column":"city","operator":"EQ","value":"BUR"}]',
+        [{"addressId": "A2", "addressName": "other", "city": "BURLINGTON"}],
+    )
+    write_a = a_write("https://wms.example/carrierCrossReferences", {"codAddressId": "A1"})
+    write_b = a_write("https://wms.example/carrierCrossReferences", {"codAddressId": "A2"})
+
+    assert (
+        plan(
+            (Wanted(field="cod_address_id", values=("A1", "A2"), step_index=1),),
+            run_a=(a_frame(by_name), a_frame(write_a)),
+            run_b=(a_frame(by_city), a_frame(write_b)),
+            taken=set(),
+        )
+        == ()
+    )
+
+
+def test_a_filtered_column_absent_from_the_picked_record_plans_nothing() -> None:
+    listing = a_read(
+        'https://wms.example/addresses?query=[{"column":"nickname","operator":"EQ","value":"t"}]',
+        [{"addressId": "A1", "addressName": "test"}],
+    )
+    write = a_write("https://wms.example/carrierCrossReferences", {"codAddressId": "A1"})
+
+    assert (
+        plan(
+            (Wanted(field="cod_address_id", values=("A1",), step_index=1),),
+            run_a=(a_frame(listing), a_frame(write)),
+            run_b=(a_frame(listing), a_frame(write)),
+            taken=set(),
+        )
+        == ()
+    )
+
+
+def test_the_record_is_not_labelled_by_the_id_it_is_being_looked_up_by() -> None:
+    """A dialog that filters on the id column says nothing about how a person
+    finds the record: a dropdown reading `A1 -> A1` asks the operator for the
+    very id the lookup exists to spare them."""
+    listing = a_read(
+        'https://wms.example/addresses?query=[{"column":"addressId","operator":"EQ","value":"A1"}]',
+        [{"addressId": "A1", "addressName": "test"}],
+    )
+    write = a_write("https://wms.example/carrierCrossReferences", {"codAddressId": "A1"})
+
+    assert (
+        plan(
+            (Wanted(field="cod_address_id", values=("A1",), step_index=1),),
+            run_a=(a_frame(listing), a_frame(write)),
+            run_b=(a_frame(listing), a_frame(write)),
+            taken=set(),
+        )
+        == ()
+    )
+
+
+def test_a_value_unique_only_because_the_read_was_filtered_is_not_a_label() -> None:
+    """The listing the operator picked from returned one row, so every field on
+    it is trivially unique. The unfiltered read of the same collection is what
+    says whether the value tells one record from another."""
+    narrow = a_read(
+        'https://wms.example/addresses?query=[{"column":"addressName","operator":"EQ","value":"test"}]',
+        [{"addressId": "A1", "addressName": "test", "city": "BURLINGTON"}],
+    )
+    wide = a_read(
+        "https://wms.example/addresses?offset=0&limit=50",
+        [
+            {"addressId": "A1", "addressName": "test", "city": "BURLINGTON"},
+            {"addressId": "A2", "addressName": "other", "city": "BURLINGTON"},
+        ],
+    )
+    write = a_write(
+        "https://wms.example/carrierCrossReferences",
+        {"codAddressId": "A1", "city": "BURLINGTON"},
+    )
+    run = (a_frame(narrow), a_frame(wide), a_frame(write))
+
+    planned = plan(
+        (Wanted(field="cod_address_id", values=("A1",), step_index=2),),
+        run_a=run,
+        run_b=run,
+        taken=set(),
+    )
+
+    assert len(planned) == 1
+    # `city` is sent by the write and unique in the one row the filter returned,
+    # and shared by both addresses in the read that shows the collection.
+    assert planned[0].options.label == ("addressName",)

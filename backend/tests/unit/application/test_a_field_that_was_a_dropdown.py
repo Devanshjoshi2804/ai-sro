@@ -90,7 +90,10 @@ def _planned() -> tuple[lookups.PlannedLookup, ...]:
     pairs = align(run_a, run_b)
     result = parameterise(run_a, run_b)
     return lookups.plan(
-        result.choices,
+        tuple(
+            lookups.Wanted(field=c.field, values=(c.value,), step_index=c.step_index)
+            for c in result.choices
+        ),
         tuple(pair[0] for pair in pairs),
         tuple(pair[1] for pair in pairs),
         {p.name for p in result.parameters},

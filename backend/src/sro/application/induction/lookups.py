@@ -27,6 +27,7 @@ lookup that cannot identify one record is a lookup that picks the wrong one.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from dataclasses import dataclass
 from urllib.parse import urlsplit
 
@@ -155,17 +156,18 @@ def _plan_one(
     # A filtered read returns one row, and every field on one row is trivially
     # the only one of its kind. What tells records apart is what the collection
     # looks like unfiltered, so uniqueness is judged against the widest read of
-    # it any doing made. Where there is no wider read the narrow result stands:
+    # it any doing made -- but only among the reads that hold the record itself.
+    # Page two of a listing is wider and does not contain the picked row, so
+    # judging against it makes every field on that row unique nowhere and
+    # rejects the lot. Where there is no wider read the narrow result stands:
     # the operator picks from the dropdown, so an ambiguous label costs a second
     # look, not a wrong write.
     listing_url = request.url
     widest = max(
         (
-            _records(other)
-            for run in runs
-            for frame in run
-            for other in frame.requests
-            if not other.is_mutation and _same_collection(other.url, listing_url)
+            found
+            for other, found in _reads(runs, wanted.step_index)
+            if _same_collection(other.url, listing_url) and _holds(found, (value,))
         ),
         key=len,
         default=records,
@@ -181,7 +183,7 @@ def _plan_one(
         and _unique(widest, key, str(held))
     ]
 
-    column = _searched_column(runs, wanted.values)
+    column = _searched_column(runs, wanted.values, wanted.step_index, listing_url)
     if column is not None and str(picked.get(column, "")).strip() and column != take:
         # An operator's own search names the column. It goes first and it goes
         # in whether or not the write sends it: the write sends the id and
@@ -242,6 +244,37 @@ def _flat(text: str) -> str:
     return " ".join(text.split()).casefold()
 
 
+def _reads(
+    runs: tuple[tuple[ActionFrame, ...], ...], step_index: int | None
+) -> Iterator[tuple[CapturedRequest, list[dict[str, object]]]]:
+    """Every read in the candidate that counts as evidence, with its records.
+
+    One definition, because three rules used to have three: which read showed
+    the record, which column a person searched by, and how wide the collection
+    really is are all questions about the same body of evidence, and answering
+    them from different halves of it is how they drift apart.
+
+    A read counts when it did not change anything, was not the browser talking
+    to itself on a timer, and happened before the write. ``step_index`` bounds
+    the aligned runs, where a step index means something. In the other doings
+    it does not, so the bound is that doing's own first mutating request: the
+    same rule -- before the write -- said without reference to an alignment
+    those frames were never part of.
+    """
+    for at, run in enumerate(runs):
+        upto = step_index if at < 2 and step_index is not None else _first_mutation(run)
+        for frame in run[:upto]:
+            for request in frame.requests:
+                if request.is_mutation or is_background_traffic(request.url):
+                    continue
+                yield request, _records(request)
+
+
+def _holds(records: list[dict[str, object]], values: tuple[str, ...]) -> bool:
+    """Whether this read returned a record the operator picked."""
+    return any(value in [str(v) for v in record.values()] for record in records for value in values)
+
+
 def _listing_of(
     runs: tuple[tuple[ActionFrame, ...], ...], value: str, step_index: int | None
 ) -> tuple[CapturedRequest, list[dict[str, object]]] | None:
@@ -252,26 +285,18 @@ def _listing_of(
     that is a different question from which doing happened to have the dialog
     open -- in the evidence this was written against, the two aligned doings
     hold one call each and the address listing is in neither.
-
-    ``step_index`` bounds the search in the aligned runs, where a step index
-    means something. In the other doings it does not, so the bound is that
-    doing's own first mutating request: the same rule -- before the write --
-    said without reference to an alignment those frames were never part of.
     """
-    for at, run in enumerate(runs):
-        upto = step_index if at < 2 and step_index is not None else _first_mutation(run)
-        for frame in run[:upto]:
-            for request in frame.requests:
-                if request.is_mutation or is_background_traffic(request.url):
-                    continue
-                records = _records(request)
-                if any(value in [str(v) for v in record.values()] for record in records):
-                    return request, records
+    for request, records in _reads(runs, step_index):
+        if _holds(records, (value,)):
+            return request, records
     return None
 
 
 def _searched_column(
-    runs: tuple[tuple[ActionFrame, ...], ...], values: tuple[str, ...]
+    runs: tuple[tuple[ActionFrame, ...], ...],
+    values: tuple[str, ...],
+    step_index: int | None,
+    collection: str,
 ) -> str | None:
     """The column the doings searched these records by, where they agree.
 
@@ -280,21 +305,20 @@ def _searched_column(
     found, and silence is not disagreement. Two doings naming different columns
     is disagreement, and plans nothing.
 
+    Only reads of the collection the record came from get a vote. A carriers
+    listing filtered on `name` happens to carry `codAddressId`, and letting it
+    speak would re-aim the ADDRESS query at a column only the CARRIERS endpoint
+    was ever shown to accept.
+
     Asked about every value, not only the first: two doings that picked
     different records only ever disagree through the reads that found them, and
     a doing's read holds its own doing's record, never the other's.
     """
     named = {
         column
-        for run in runs
-        for frame in run
-        for request in frame.requests
-        if not request.is_mutation
-        and any(
-            value in [str(v) for v in record.values()]
-            for value in values
-            for record in _records(request)
-        )
+        for request, records in _reads(runs, step_index)
+        if _same_collection(request.url, collection)
+        and _holds(records, values)
         and (column := filtered_on(request)) is not None
     }
     return named.pop() if len(named) == 1 else None

@@ -22,7 +22,12 @@ from dataclasses import dataclass
 from sro.application.induction import jsonutil
 from sro.application.induction.diff import Choice
 from sro.application.induction.headers import build_header_plans
-from sro.application.induction.sites import JsonBodySite, parse_json, without_clocks
+from sro.application.induction.sites import (
+    JsonBodySite,
+    filter_terms_of,
+    parse_json,
+    without_clocks,
+)
 from sro.domain.recording.background import is_background_traffic
 from sro.domain.recording.events import ActionFrame
 from sro.domain.recording.network import CapturedRequest
@@ -48,6 +53,22 @@ class PlannedLookup:
     options: Options
     shown: str
     """What the picked record looked like on the screen, for the reviewer."""
+
+
+def filtered_on(request: CapturedRequest) -> str | None:
+    """The column this read was filtered on, where exactly one was.
+
+    The operator typed a name into a dialog and the application turned it into
+    `query=[{"column":"addressName","operator":"EQ","value":"test"}]`. That URL
+    is the only place in the evidence that says how a human finds this record
+    in this system -- better than any field that merely happens to be unique,
+    because a person was seen using it.
+
+    ``None`` for two columns as well as none: two answers about how a record is
+    found is not evidence, and the rule is that disagreement refuses.
+    """
+    columns = {term["column"] for term in filter_terms_of(request.url) if term.get("column")}
+    return columns.pop() if len(columns) == 1 else None
 
 
 def plan(

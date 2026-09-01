@@ -379,6 +379,55 @@ async def test_the_lookup_survives_the_reference_being_neither_run_of_the_pair()
     ]
 
 
+async def _four_carrier_cross_references_nobody_ever_typed() -> SkillVersion:
+    """The other half of the real defect, and the one task 3 cannot reach.
+
+    Every doing here picked the address out of a dialog -- a click with no
+    value in it -- or left the field alone entirely; none of the four ever
+    typed one. Task 3 fixed the pairing above by reading every doing's steps
+    instead of just the pair's, and it is right about every doing it can read
+    a step out of. It has nothing to read here: `align_all` sees the click
+    the same way it would see a stray one, and drops it as noise the way
+    `test_a_step_nothing_accounts_for_is_dropped_and_the_reason_written_down`
+    already shows it doing. `cod_address_id` still comes out of the pair as a
+    proven, optional field -- the pair disagrees on whether an address was
+    sent at all -- and there is still no step anywhere that can supply one.
+    """
+    return await _induce(
+        _picked("ACZRD", "T", "A0001"),
+        _short("005", "LT"),
+        _short("010", "LT"),
+        _picked("030", "T", "A0099"),
+    )
+
+
+async def test_a_skill_that_cannot_fill_what_it_asks_for_is_refused() -> None:
+    """The rule enforced, not merely made unreachable. The panel now induces
+    silently on a press and shows an operator whatever comes back, so a
+    version naming a field nothing can fill is not a row in a database for
+    somebody to eventually notice -- it is a skill somebody is about to be
+    offered, and it must never reach that screen.
+
+    The message is asserted verbatim, not just the type: this sentence is
+    what lands in the panel's toast through the teach-refusal path, and a
+    refusal an operator cannot read is not the refusal this task is for. It
+    names no field, no parameter, nothing internal -- an operator doing
+    warehouse work has never heard of `cod_address_id` and should not have to
+    learn it to understand why the button did not just work.
+    """
+    with pytest.raises(InductionFailed) as excinfo:
+        await _four_carrier_cross_references_nobody_ever_typed()
+
+    message = str(excinfo.value)
+    assert message == (
+        "this skill would ask for something no step of it can actually type or choose "
+        "on the screen. Demonstrate that value being entered directly, not just picked "
+        "another way, so there is a step that can fill it in"
+    )
+    assert "cod_address_id" not in message
+    assert "parameter" not in message
+
+
 def _wandered(carrier: str, level: str) -> tuple[ActionFrame, ...]:
     """A short doing with somebody typing into a box that reached nothing.
 

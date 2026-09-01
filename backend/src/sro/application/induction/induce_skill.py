@@ -39,7 +39,7 @@ from sro.domain.recording.events import ActionFrame
 from sro.domain.recording.recording import Recording, RecordingStatus
 from sro.domain.shared.identifiers import RecordingId, SkillId
 from sro.domain.shared.objective import ObjectiveKey
-from sro.domain.skill.parameter import Evidence, Parameter
+from sro.domain.skill.parameter import Evidence, Parameter, ParameterKind
 from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.skill import Provenance, Skill, SkillStep, SkillVersion
 from sro.domain.skill.track_record import TrackRecord, Verdict
@@ -443,6 +443,15 @@ class InduceSkill:
                 # that is not there.
                 loops=(looped.loop,) if looped is not None else (),
             )
+            # Checked against the finished version, not against `parameterisation`
+            # or `steps` on their own, and that is deliberate rather than tidy:
+            # `_make_room` and `_build_steps` are what fold a conditional step
+            # into the paired ones, and a check that ran before them would see
+            # `cod_address_id` as unfilled on the *good* four-doing case too,
+            # where the address lookup survives as exactly the step that fills
+            # it. Running here is running after every source of a fillable step
+            # has had its say.
+            _refuse_an_unfillable_input(version)
             # Everything else the demonstration proved. Opening the screen to
             # create a transport mode lists the existing ones first, and that
             # read is real evidence -- asking the operator to demonstrate it
@@ -546,6 +555,55 @@ def _check_pairable(run_a: Recording, run_b: Recording, *, paired: bool = True) 
             f"({key_a.slug()} and {key_b.slug()})"
         )
     return key_a
+
+
+def _refuse_an_unfillable_input(version: SkillVersion) -> None:
+    """Never hand over a version that would ask for something nothing can enter.
+
+    The failure this whole task exists for: four real demonstrations of adding
+    a carrier cross reference proved `cod_address_id` varies -- one run sent an
+    address, the others sent none -- and induced a skill that asked for it
+    anyway, with no step that could ever type or choose one, because the only
+    doing that ever supplied the address picked it out of a dialog. A click
+    with no value in it is not evidence of how the field gets filled, so
+    `standing_of` drops it as noise the same way it would drop a stray click,
+    and a parameter the pair genuinely proved is left standing with nothing
+    behind it.
+
+    Scoped to the *optional* inputs, deliberately, not every one -- see the
+    same distinction the test file already draws with `_typed_by`. A required
+    field is proven because every demonstration carried it, so the one paired
+    step that always survives already sends it exactly as shown, on whichever
+    medium runs the skill; there is no separate act of "choosing to supply it"
+    for anything to demonstrate. An optional field is proven because some
+    demonstration left it out -- and the same paired step sends it too, an
+    unconditional template with `absent_as` standing in when nobody fills it,
+    which is why checking `SkillStep.placeholders` here would never once fire:
+    the pair's own diff always wires an optional field into that step's body
+    regardless of whether anybody ever showed how to produce the value by
+    hand. What that check cannot see is the thing this one is for: whether
+    there is a *gesture* on record for the runs where somebody does supply it.
+    `ui_plan` is where that gesture shows up -- a typed value, a chosen
+    option -- and its absence, for a field the pair proved varies, is exactly
+    a parameter with a demonstrated write and no demonstrated way to make one.
+    """
+    fillable = frozenset(
+        name
+        for step in version.steps
+        if step.ui_plan is not None
+        for name in step.ui_plan.placeholders
+    )
+    if any(
+        parameter.kind is ParameterKind.INPUT
+        and parameter.optional
+        and parameter.name not in fillable
+        for parameter in version.parameters
+    ):
+        raise InductionFailed(
+            "this skill would ask for something no step of it can actually type or choose "
+            "on the screen. Demonstrate that value being entered directly, not just picked "
+            "another way, so there is a step that can fill it in"
+        )
 
 
 ASK_EACH_TIME = "ask each time"

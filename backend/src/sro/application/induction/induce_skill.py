@@ -586,6 +586,39 @@ def _refuse_an_unfillable_input(version: SkillVersion) -> None:
     `ui_plan` is where that gesture shows up -- a typed value, a chosen
     option -- and its absence, for a field the pair proved varies, is exactly
     a parameter with a demonstrated write and no demonstrated way to make one.
+
+    Deliberately wider than the test file's own `_typed_by`: that helper reads
+    only `ui_plan.value`, and this reads every name in `ui_plan.placeholders`,
+    which also picks up a locator's placeholder. The two are not the same
+    question answered twice by accident -- a step whose UI action is "click
+    the row named `${cod_address_id}`" fills the field by choosing it on the
+    screen exactly as typing it would, and the message above says as much
+    ("type or choose"). `_typed_by` stays narrow because the test it guards
+    is about one specific gesture that types; this check is about whether any
+    gesture at all stands in for the field, which is the wider of the two
+    questions and the one this refusal exists to answer.
+
+    Inert on a single-run induction. `optional` can only be true once two
+    demonstrations have disagreed about whether the field is present at all --
+    see `Parameter.optional`, derived from `absent_as`, which a lone
+    demonstration never sets. A parameter proposed from reading one recording
+    is `Evidence.PROPOSED` and unconfirmed by design (ADR 004), and nothing
+    here stands in for that confirmation; this is a guard on the paired path,
+    not a general promise that every parameter this system ever proposes has
+    a step behind it.
+
+    ponytail: `optional` is a proxy for the real question -- can whoever runs
+    this skill actually produce the value, by typing it, choosing it from
+    `options`, or having the goal supply it -- and the proxy has a known gap.
+    Four doings that all pick a COD address through the same dialog, none
+    blank, prove the field varies (the ids differ) without ever setting
+    `absent_as`, so `optional` reads False and this refusal stays silent on a
+    version that asks an operator to recite an internal id from memory. Close
+    it when that shape turns up in real data: broaden the predicate to "some
+    step fills it, or it carries `options`, or the goal supplies it" rather
+    than widening `optional` itself, which the two other rungs of this
+    ladder (network-only required fields, and `_typed_by`'s narrower reading)
+    already show is not a safe place to widen from.
     """
     fillable = frozenset(
         name

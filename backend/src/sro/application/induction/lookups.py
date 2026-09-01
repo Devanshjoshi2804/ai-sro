@@ -162,11 +162,19 @@ def _plan_one(
     # rejects the lot. Where there is no wider read the narrow result stands:
     # the operator picks from the dropdown, so an ambiguous label costs a second
     # look, not a wrong write.
+    #
+    # Every read counts here, including ones after a write. How many addresses
+    # are in BURLINGTON is a fact about the collection, not about what the
+    # operator did in what order, and the grid refreshing after the save is a
+    # perfectly good witness to it. Bounding this the way the evidence questions
+    # are bounded hides the duplicates and calls a shared value unique -- which
+    # is the exact mistake judging against the widest read exists to prevent.
     listing_url = request.url
     widest = max(
         (
             found
-            for other, found in _reads(runs, wanted.step_index)
+            for run in runs
+            for other, found in _reads_in(run)
             if _same_collection(other.url, listing_url) and _holds(found, (value,))
         ),
         key=len,
@@ -244,30 +252,43 @@ def _flat(text: str) -> str:
     return " ".join(text.split()).casefold()
 
 
+def _reads_in(
+    frames: tuple[ActionFrame, ...],
+) -> Iterator[tuple[CapturedRequest, list[dict[str, object]]]]:
+    """Every read these frames made, with the records it returned.
+
+    No bound and no judgement: this is what the application answered, which is
+    all a question about the data itself needs.
+    """
+    for frame in frames:
+        for request in frame.requests:
+            if not request.is_mutation:
+                yield request, _records(request)
+
+
 def _reads(
     runs: tuple[tuple[ActionFrame, ...], ...], step_index: int | None
 ) -> Iterator[tuple[CapturedRequest, list[dict[str, object]]]]:
-    """Every read in the candidate that counts as evidence, with its records.
+    """The reads that are evidence of what the operator did, with their records.
 
-    One definition, because three rules used to have three: which read showed
-    the record, which column a person searched by, and how wide the collection
-    really is are all questions about the same body of evidence, and answering
-    them from different halves of it is how they drift apart.
+    One definition, because two rules used to have two: which read showed the
+    record and which column a person searched by are the same question --
+    what did they do, and in what order, before the write -- and answering it
+    from different halves of the evidence is how they drift apart. How wide the
+    collection is is *not* that question, and is deliberately not asked here.
 
-    A read counts when it did not change anything, was not the browser talking
-    to itself on a timer, and happened before the write. ``step_index`` bounds
-    the aligned runs, where a step index means something. In the other doings
-    it does not, so the bound is that doing's own first mutating request: the
-    same rule -- before the write -- said without reference to an alignment
+    A read is evidence when it did not change anything, was not the browser
+    talking to itself on a timer, and happened before the write. ``step_index``
+    bounds the aligned runs, where a step index means something. In the other
+    doings it does not, so the bound is that doing's own first mutating request:
+    the same rule -- before the write -- said without reference to an alignment
     those frames were never part of.
     """
     for at, run in enumerate(runs):
         upto = step_index if at < 2 and step_index is not None else _first_mutation(run)
-        for frame in run[:upto]:
-            for request in frame.requests:
-                if request.is_mutation or is_background_traffic(request.url):
-                    continue
-                yield request, _records(request)
+        for request, records in _reads_in(run[:upto]):
+            if not is_background_traffic(request.url):
+                yield request, records
 
 
 def _holds(records: list[dict[str, object]], values: tuple[str, ...]) -> bool:

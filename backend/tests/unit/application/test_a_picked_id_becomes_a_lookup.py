@@ -342,3 +342,36 @@ def test_a_search_that_did_not_return_the_record_does_not_dissent() -> None:
 
     assert len(planned) == 1
     assert planned[0].options.search == "addressName"
+
+
+def test_the_refresh_after_the_save_still_says_how_many_share_a_value() -> None:
+    """How many addresses are in BURLINGTON is a fact about the collection, not
+    about what the operator did in what order. The grid refreshing after the
+    save is a perfectly good witness to it, and excluding it calls a value
+    shared by two records unique and labels the dropdown by it."""
+    narrow = a_read(
+        'https://wms.example/addresses?query=[{"column":"addressName","operator":"EQ","value":"test"}]',
+        [{"addressId": "A1", "addressName": "test", "city": "BURLINGTON"}],
+    )
+    write = a_write(
+        "https://wms.example/carrierCrossReferences",
+        {"codAddressId": "A1", "city": "BURLINGTON"},
+    )
+    refresh = a_read(
+        "https://wms.example/addresses?offset=0&limit=50",
+        [
+            {"addressId": "A1", "addressName": "test", "city": "BURLINGTON"},
+            {"addressId": "A2", "addressName": "other", "city": "BURLINGTON"},
+        ],
+    )
+    run = (a_frame(narrow), a_frame(write), a_frame(refresh))
+
+    planned = plan(
+        (Wanted(field="cod_address_id", values=("A1",), step_index=1),),
+        run_a=run,
+        run_b=run,
+        taken=set(),
+    )
+
+    assert len(planned) == 1
+    assert planned[0].options.label == ("addressName",)

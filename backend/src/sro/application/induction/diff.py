@@ -371,6 +371,24 @@ class Alignment:
     reference: tuple[ActionFrame, ...]
     seen: dict[int, int]
 
+    doings: int
+    """How many runs were aligned -- the denominator every count in ``seen`` is
+    a share of.
+
+    Recorded rather than inferred, and the inference it replaces is the reason
+    the field exists. ``max(seen.values())`` is the run count only where some
+    step is universal, and a batch where none is -- two operators who wandered
+    off, ten doings of a screen that grew a confirm dialog partway through the
+    month -- reads low. Low here is not a soft failure. Every share is divided
+    by it, so a denominator short by two turns "six of ten made this" into
+    "six of eight", and a step over two thirds that neither demonstration in
+    the pair made is not quietly kept: `induce_skill._extra_steps` *refuses*
+    the whole induction where such a step carries a value or a request,
+    because a step the counts call the task and nothing diffed is exactly the
+    disagreement `align` will not paper over. Guessing the denominator low
+    therefore does not cost a reviewer a question, it costs them the skill.
+    """
+
 
 def align_all(runs: Sequence[tuple[ActionFrame, ...]]) -> Alignment:
     """Align every occurrence of a task against one reference, and count them.
@@ -418,6 +436,10 @@ def align_all(runs: Sequence[tuple[ActionFrame, ...]]) -> Alignment:
     is one occurrence out of however many, and whether one occurrence is
     enough to keep is a question for whoever calls this, not for the counting.
 
+    How many runs there were is recorded alongside the counts rather than left
+    to be read back out of them -- see :attr:`Alignment.doings`. It is the one
+    number this function knows for certain and nothing downstream can recover.
+
     Refuses on no input at all: an alignment of nothing is not a task with
     zero steps, it is the absence of anything demonstrated to align.
     """
@@ -456,6 +478,7 @@ def align_all(runs: Sequence[tuple[ActionFrame, ...]]) -> Alignment:
     return Alignment(
         reference=tuple(reference),
         seen={index: seen[id(frame)] for index, frame in enumerate(reference)},
+        doings=len(runs),
     )
 
 

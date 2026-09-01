@@ -66,12 +66,14 @@ def standing_of(alignment: Alignment, parameterisation: Parameterisation) -> dic
     No model decides this, and ADR 004 is why: identity -- what a step *is*,
     what a value *means* -- is settled by evidence or not settled at all. So
     this reads two things and nothing else. How many of the doings contained
-    the step, which :func:`align_all` counted; and which parameter, if any, the
-    step's own keystroke fills, which the diff already worked out from what the
-    demonstrations sent. Both are facts somebody could check by re-reading the
-    recordings. A model asked "is this step really part of the task?" would
-    produce a confident answer to a question the counts already answer, and
-    would produce one just as confidently where they do not.
+    the step out of how many doings there were, both of which
+    :func:`align_all` counted and neither of which is estimated here; and
+    which parameter, if any, the step's own keystroke fills, which the diff
+    already worked out from what the demonstrations sent. Both are facts
+    somebody could check by re-reading the recordings. A model asked "is this
+    step really part of the task?" would produce a confident answer to a
+    question the counts already answer, and would produce one just as
+    confidently where they do not.
 
     Rarity on its own drops nothing. A step below the threshold that types a
     field some doing left empty is a branch, however rare: one in a hundred is
@@ -110,26 +112,9 @@ def standing_of(alignment: Alignment, parameterisation: Parameterisation) -> dic
     the argument says. Worth building when a batch large enough for the
     difference to show up exists; at four doings the two tests agree anyway.
     """
-    # How many doings there were. Not carried on `Alignment`, and read off the
-    # counts instead: a step every doing contained is counted once per doing,
-    # so the largest count is the number of doings whenever the task has one
-    # step everybody made -- which every task with a write does, since the
-    # write is the task. Where no step at all is universal this reads low, the
-    # shares come out high, and steps are kept that a true count would have
-    # called noise. That is the direction `align_all` already errs in, and the
-    # cheap way out of it -- keeping a step nobody can explain -- costs a
-    # reviewer a question, where the other direction costs the branch.
-    #
-    # ponytail: exact would be `align_all` recording `len(runs)` on the
-    # `Alignment` it returns. One field, worth adding the day a caller has a
-    # batch of doings with nothing in common -- not before.
-    doings = max(alignment.seen.values(), default=0)
-    if not doings:
-        return {}
-
     standing: dict[int, Standing] = {}
     for index, count in alignment.seen.items():
-        if count / doings >= PART_OF_THE_TASK:
+        if count / alignment.doings >= PART_OF_THE_TASK:
             standing[index] = Standing.ALWAYS
         elif parameterisation.conditional_on(index) is not None:
             standing[index] = Standing.CONDITIONAL

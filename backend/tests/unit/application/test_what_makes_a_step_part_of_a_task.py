@@ -24,16 +24,25 @@ from sro.domain.skill.parameter import Parameter, ParameterKind
 from tests import factories as f
 
 
-def _alignment(*counts: int) -> Alignment:
+def _alignment(*counts: int, doings: int | None = None) -> Alignment:
     """A task's steps, given as how many doings contained each one.
 
     The frames themselves are stand-ins: what decides a step's standing is the
     count beside it and the parameterisation, and building four plausible
     gestures here would only invite a reader to look for the answer in them.
+
+    ``doings`` -- the denominator -- defaults to the largest count, because
+    that is what the fixtures below are describing: a batch in which somebody
+    made every step at least once, so the busiest step happens to have been in
+    all of them. It is a separate fact from the counts and not derivable from
+    them, which is why it is a parameter at all;
+    :func:`test_the_denominator_is_the_run_count_not_the_busiest_step` is the
+    one that supplies a denominator the counts disagree with.
     """
     return Alignment(
         reference=tuple(f.frame(index) for index in range(len(counts))),
         seen=dict(enumerate(counts)),
+        doings=max(counts, default=0) if doings is None else doings,
     )
 
 
@@ -145,6 +154,29 @@ def test_the_threshold_is_a_share_not_a_count() -> None:
     assert standing_of(_alignment(4000, 3000), NOTHING_EXPLAINS_IT)[1] is Standing.ALWAYS
     assert standing_of(_alignment(4, 1), NOTHING_EXPLAINS_IT)[1] is Standing.NOISE
     assert standing_of(_alignment(4000, 1000), NOTHING_EXPLAINS_IT)[1] is Standing.NOISE
+
+
+def test_the_denominator_is_the_run_count_not_the_busiest_step() -> None:
+    """Ten doings, and no step was in all of them.
+
+    A denominator read off the counts instead -- the largest of them, on the
+    reasoning that a task has one step everybody made -- would divide by
+    seven here and call both of these the task. Neither is: at ten doings a
+    step in six is a step four operators did without.
+
+    The batch that breaks that reasoning is ordinary, not contrived. `teach`
+    now hands induction up to ten doings spread over however long the pair
+    kept happening, and a screen that grew a filter box or a confirm dialog
+    partway through gives every one of them a step the others lack. That is
+    also why this direction is not the safe one to be wrong in: an inflated
+    share on a step neither demonstration in the pair made carries the whole
+    induction into `_extra_steps`' refusal as soon as the step sends
+    anything, so guessing low does not keep a doubtful step for a reviewer to
+    look at, it loses them the skill.
+    """
+    found = standing_of(_alignment(7, 6, doings=10), NOTHING_EXPLAINS_IT)
+
+    assert found == {0: Standing.ALWAYS, 1: Standing.NOISE}
 
 
 def test_the_threshold_is_read_from_the_named_constant(monkeypatch: pytest.MonkeyPatch) -> None:

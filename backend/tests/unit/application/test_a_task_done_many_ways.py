@@ -148,6 +148,37 @@ def test_agreement_decides_it_even_when_the_winner_is_neither_first_nor_longest(
     assert [_control_of(frame) for frame in found.reference] == ["Add", "Carrier", "Save"]
 
 
+def test_the_run_count_is_recorded_not_inferred_from_the_counts() -> None:
+    """Five doings, and the busiest step was in three of them.
+
+    Two operators here wandered somewhere else entirely, and nothing they
+    touched carried evidence of itself, so nothing they did reaches the
+    reference -- but they are still two of the five doings this task was
+    demonstrated in, and every share `standing_of` computes is a share of
+    five. Reading the denominator back out of the counts, as the largest of
+    them, would say three: the two wanderers would vanish from the
+    denominator as well as from the reference, and a step three of five
+    doings made would come out unanimous.
+
+    Pinned at the source and not only at the arithmetic. `align_all` is the
+    only thing here that knows how many runs it was handed, and a later
+    reader tempted to derive the number from `seen` -- which agrees with it
+    in every fixture where somebody made every step -- has to fail this.
+    """
+    found = align_all(
+        [
+            _run("Alpha", "Beta", "Gamma"),
+            _run("Zulu", "Yankee", "Xray"),
+            _run("Add", "Carrier", "Save"),
+            _run("Add", "Carrier", "Save"),
+            _run("Add", "Carrier", "Save"),
+        ]
+    )
+
+    assert found.doings == 5
+    assert max(found.seen.values()) == 3
+
+
 def test_one_doing_alone_is_still_an_alignment() -> None:
     """A task demonstrated once has nothing to disagree with it. Every step is
     seen by everything there is."""

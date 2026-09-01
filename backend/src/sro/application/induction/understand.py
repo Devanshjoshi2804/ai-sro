@@ -153,6 +153,11 @@ class UnderstandRecording:
                 parameters=parameters,
                 provenance=Provenance(
                     recording_ids=(recording.id,),
+                    # `_steps` builds every step from this one recording's
+                    # frames -- the whole point of the single-run path -- so
+                    # this is exactly the case the default `()` must not be
+                    # left to stand in for.
+                    aligned_recording_ids=(recording.id,),
                     induced_at=now,
                     induced_by=ctx.principal_id,
                     note=(

@@ -187,10 +187,12 @@ class TeachCandidate:
 
         The two freshest doings are diffed against each other: what differs
         between them is a parameter, proved, and no model is asked. The older
-        doings are handed over too, read only for the fields somebody left
-        empty. One doing has nothing to diff, so its narrative -- what varies,
-        what each step was for -- is a model reading the same evidence, and
-        every part of it is marked as read rather than proven.
+        doings are handed over too -- for the fields somebody left empty, and
+        for the steps they made, which is how a task done four different ways
+        comes out as one task rather than as whatever two of them shared. One
+        doing has nothing to diff, so its narrative -- what varies, what each
+        step was for -- is a model reading the same evidence, and every part of
+        it is marked as read rather than proven.
 
         The difference matters most to exactly the task this exists for. A
         creation seen once yields a skill that would re-create the same record
@@ -202,10 +204,12 @@ class TeachCandidate:
                 first=recordings[0].id,
                 second=recordings[1].id,
                 name=candidate.title,
-                # The rest of the history, read for one thing: whether some
-                # doing left a field empty. Nothing else about them is used --
-                # they are not aligned, not diffed, and no step comes out of
-                # them.
+                # The rest of the history. Read for whether some doing left a
+                # field empty, and -- since ADR 015 -- for the steps they made:
+                # a step most doings contain is part of the task even when the
+                # two freshest happen not to share it, and a rare one that
+                # types a field somebody supplied is a branch rather than a
+                # fumble.
                 others=tuple(recording.id for recording in recordings[2:]),
             )
             return induced.skill_id
@@ -344,7 +348,7 @@ class TeachWorkflow:
             recording = await self._demonstration(ctx, first, second, earlier, later)
             if recording is not None:
                 recordings.append(recording)
-            if len(recordings) == 2:
+            if len(recordings) == MOST_DOINGS:
                 break
 
         if not recordings:
@@ -368,6 +372,11 @@ class TeachWorkflow:
                 first=recordings[0].id,
                 second=recordings[1].id if len(recordings) > 1 else None,
                 name=name,
+                # Every doing of the two halves together, not the freshest
+                # two: the steps of a chained task are decided by the same
+                # counts as any other, and stopping at two is the intersection
+                # ADR 015 exists to stop taking.
+                others=tuple(recording.id for recording in recordings[2:]),
             )
         except InductionFailed as thin:
             # Kept, as a single teach keeps its recording: two halves that will

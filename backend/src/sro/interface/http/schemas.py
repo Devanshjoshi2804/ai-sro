@@ -707,6 +707,13 @@ class SkillVersionModel(BaseModel):
     induced_at: datetime
     induced_by: str
     recording_ids: list[str]
+    aligned_recording_ids: list[str]
+    """The subset of `recording_ids` that actually shaped the steps, as
+    opposed to the ones read only for what they proved a parameter could be.
+    See `Provenance.aligned_recording_ids`. Carried on the wire as fact, not
+    yet rendered anywhere -- where and how a reviewer should read it is a
+    screen decision this field does not make for them."""
+
     repaired_from: str | None
     """The run whose evidence produced this version, where nobody demonstrated
     it. Named here because "did a person write this or did the system" is the
@@ -763,6 +770,7 @@ class SkillVersionModel(BaseModel):
             induced_at=version.provenance.induced_at,
             induced_by=version.provenance.induced_by.value,
             recording_ids=[r.value for r in version.provenance.recording_ids],
+            aligned_recording_ids=[r.value for r in version.provenance.aligned_recording_ids],
             repaired_from=version.provenance.repaired_from,
             provenance_note=version.provenance.note,
             loops=[

@@ -133,12 +133,19 @@ somebody needs it for.
 handful of steps so the table is smaller than the code to avoid it. That is true
 of two runs and false of a thousand pairs.
 
-The shape that scales: align each occurrence once against a **reference** — the
-occurrence that best represents the cluster — rather than every pair against
-every other. That is N alignments, not N². Choosing the reference is itself a
-decision the spec must make explicit, and the defensible choice is the occurrence
-whose steps are most often present in the others, not the longest and not the
-most recent.
+The shape that scales, once a reference is in hand: align each occurrence once
+against it rather than every pair against every other. That is N alignments,
+not N².
+
+Choosing that reference does not scale the same way, and this spec should not
+claim it does. The defensible choice is the occurrence whose steps are most
+often present in the others — not the longest, not the most recent — but
+"most often present in the others" is scored by comparing every candidate
+against every other occurrence, which is all-pairs: O(N²) in the number of
+occurrences, exactly the cost aligning-against-a-reference exists to avoid.
+Picking a reference cheaply at a thousand occurrences is a real design problem
+this spec has not solved; it names the ceiling rather than pretending the
+single-reference shape already lifted it.
 
 Retention bounds the problem in practice: evidence is kept 30 days, so the set is
 a rolling window rather than all history. That is worth stating, because it means

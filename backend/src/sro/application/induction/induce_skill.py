@@ -10,20 +10,24 @@ from urllib.parse import urlsplit
 from sro.application.capture.identity import systems_touched
 from sro.application.context import RequestContext
 from sro.application.induction import assertions as assertion_extraction
-from sro.application.induction import describe, lookups, loops, narration
+from sro.application.induction import binding, describe, lookups, loops, narration
 from sro.application.induction.companions import ambiguity_in, read_skills
 from sro.application.induction.diff import (
+    Alignment,
     Choice,
     OptionalFill,
     Parameterisation,
     Substitution,
+    _longest_common,
     align,
+    align_all,
     optional_fills,
     parameterise,
     typed_values,
 )
 from sro.application.induction.emit import emit_step
 from sro.application.induction.errors import InductionFailed
+from sro.application.induction.frequency import Standing, standing_of
 from sro.application.induction.lookups import PlannedLookup
 from sro.application.induction.sites import ActionValueSite, JsonBodySite
 from sro.application.induction.understand import as_evidence
@@ -35,7 +39,7 @@ from sro.domain.recording.events import ActionFrame
 from sro.domain.recording.recording import Recording, RecordingStatus
 from sro.domain.shared.identifiers import RecordingId, SkillId
 from sro.domain.shared.objective import ObjectiveKey
-from sro.domain.skill.parameter import Evidence, Parameter
+from sro.domain.skill.parameter import Evidence, Parameter, ParameterKind
 from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.skill import Provenance, Skill, SkillStep, SkillVersion
 from sro.domain.skill.track_record import TrackRecord, Verdict
@@ -161,15 +165,21 @@ class InduceSkill:
         parameters at all. It replays one specific act; teaching it a second time
         is what turns the values in it into questions.
 
-        ``others`` are the rest of the doings of this task, read for one thing
-        only: whether some doing left a field empty. They are never aligned,
-        never diffed, and never a source of a step -- the pair still proves
-        every parameter and still decides identity. Whether a field may be left
-        out is the one fact here that belongs to the whole history rather than
-        to two runs of it: an operator who created the same work area three
-        times and left Absolute Priority empty the first time has proved the
+        ``others`` are the rest of the doings of this task, and they are read
+        twice. Once by :func:`parameterise`, for whether some doing left a
+        field empty -- an operator who created the same work area three times
+        and left Absolute Priority empty the first time has proved the
         warehouse takes it empty, and a pair drawn from the two most recent
-        doings never sees that.
+        doings never sees that. And once by :func:`align_all`, for the steps
+        they made, which is what this used to throw away: four carrier cross
+        references went in as one pair and two histories, the pair proved four
+        parameters, and the address lookup left with the run that made it. The
+        skill named ``cod_address_id`` and had no step that could type it.
+
+        The pair still proves every parameter and still settles identity --
+        ADR 004 is untouched. What the whole history now decides is which
+        *steps* are the task: how often a step happened, and whether a rare one
+        types a field somebody supplied. See ADR 015.
         """
         now = self._clock.now()
 
@@ -187,11 +197,19 @@ class InduceSkill:
                 for other in others
                 if other not in (run_a.id, run_b.id)
             ]
-            history = tuple(
-                other.frames
+            # Named apart from `history` because `recording_ids` below cites
+            # all of `rest` -- everything read, on the theory that a reader
+            # asking "why is this recording in provenance" deserves the
+            # answer even where the answer is "it named a different task and
+            # nothing was built from it" -- while `aligned_recording_ids`
+            # must cite only the ones that actually reached `align_all`,
+            # which is this filtered subset and no other.
+            contributing = [
+                other
                 for other in rest
                 if other.status is RecordingStatus.SEALED and other.objective_key == objective
-            )
+            ]
+            history = tuple(other.frames for other in contributing)
 
             # Two demonstrations that did the same block a different number of
             # times are two lengths of one looping task, not two tasks. Read
@@ -253,11 +271,50 @@ class InduceSkill:
             if looped is not None:
                 parameterisation = _with_loop(parameterisation, looped)
 
-            # The gestures the alignment dropped: one operator filled a field
-            # the other left alone, and that keystroke is the only evidence in
-            # either recording of how the field gets filled at all. Put back as
-            # steps that happen only when somebody supplies the value.
-            conditionals = _conditionals(parameterisation, optional_fills(frames_a, frames_b))
+            # The steps the pair alone does not have. Two sources, one rule.
+            #
+            # The gestures `align` dropped: one operator filled a field the
+            # other left alone, and that keystroke is the only evidence in
+            # either recording of how the field gets filled at all. And the
+            # gestures of every other doing, which used to reach nothing -- the
+            # address lookup among them. Both come back as steps, and how often
+            # each happened decides whether it is one.
+            #
+            # And the pair alone where this is a loop, which is a real loss
+            # taken deliberately. `keep` is a fact about *this pair* -- the
+            # prefix and one iteration, found by `loops.detect` from two runs
+            # being two lengths of one block -- and `history` is whole
+            # recordings, however many times round each of them went. Handed
+            # in untruncated, every doing's second and third iterations are
+            # evidential frames the reference has no place for, so they are
+            # spliced in at the end and they *agree with each other*: four
+            # doings that looped twice make one extra body frame look like a
+            # step four doings made. Past two thirds it is emitted -- as a
+            # refusal where it carries the block's write, or as a duplicate
+            # gesture sitting outside the loop where it does not.
+            #
+            # Excluded rather than truncated, and the difference is the
+            # question each answers. Truncating asks "where does this doing's
+            # own block stop", and nothing can answer it: `loops.detect` reads
+            # two runs of differing length against each other and there is no
+            # such thing for one run on its own, so any prefix taken here
+            # would be the pair's `keep` applied to a recording that never
+            # agreed to it. Excluding asks "how many doings made this step",
+            # notices that a doing which made it five times cannot answer, and
+            # declines to count it. A looping task therefore induces from its
+            # pair exactly as it did before this change.
+            #
+            # ponytail: per-run loop detection would let a looping task read
+            # its whole history too -- one block per doing, counted once.
+            # Worth building when a looping task with more than two
+            # demonstrations turns up; the pair still induces it today.
+            doings = (frames_a, frames_b) if looped is not None else (frames_a, frames_b, *history)
+            conditionals = _extra_steps(
+                alignment=align_all(doings),
+                pairs=pairs,
+                runs=doings,
+                parameterisation=parameterisation,
+            )
             if conditionals and looped is not None:
                 inside = [
                     conditional
@@ -266,7 +323,7 @@ class InduceSkill:
                     # inserted immediately *before* the body and moves the
                     # whole block along; one past `last_step` lands after it.
                     # Only a gesture between the two is part of an iteration.
-                    if looped.loop.first_step < conditional.fill.at <= looped.loop.last_step
+                    if looped.loop.first_step < conditional.at <= looped.loop.last_step
                 ]
                 if inside:
                     # A field filled on some times round and not others. Both
@@ -281,7 +338,7 @@ class InduceSkill:
                         "an optional step in it or two different blocks is not something "
                         "the two runs decide. Demonstrate the loop with that field "
                         "filled every time round, or left out every time",
-                        step_index=inside[0].fill.frame.index,
+                        step_index=inside[0].frame.index,
                     )
             parameterisation = _make_room(parameterisation, conditionals)
             if looped is not None and conditionals:
@@ -342,6 +399,23 @@ class InduceSkill:
                         if second is not None
                         else (run_a.id,)
                     ),
+                    # The same shape `doings` was built in, above, translated
+                    # from frames to the ids that own them -- not recomputed
+                    # by some other rule that could quietly drift from it.
+                    # `contributing` is `rest` filtered to what `history`
+                    # actually held, so a recording that named a different
+                    # objective or was never sealed is honestly absent from
+                    # both, not counted as aligned on the strength of merely
+                    # having been passed in.
+                    aligned_recording_ids=(
+                        (
+                            (run_a.id, run_b.id)
+                            if looped is not None
+                            else (run_a.id, run_b.id, *(other.id for other in contributing))
+                        )
+                        if second is not None
+                        else (run_a.id,)
+                    ),
                     induced_at=now,
                     induced_by=ctx.principal_id,
                     note=_provenance_note(run_a, run_b, paired=second is not None),
@@ -352,23 +426,36 @@ class InduceSkill:
                     await uow.connections.list_for_tenant(ctx.tenant_id), run_a, run_b
                 ),
                 starts_on=_started_on(run_a, run_b),
-                # Deliberately not moved along like the indices below, and
-                # this is the one place the two must not agree: a loop counts
-                # raw frames, everything else counts aligned steps. A loop can
-                # outlive an unmatched gesture -- `loops._shape` identifies a
-                # control by name-or-text while `diff._control` uses
-                # name-or-test-id-or-css, so a keystroke named in one run and
-                # only described in the other keeps its position in the shape
-                # sequence while failing to pair.
+                # Already moved, above, and carried here as it stands. The
+                # loop's bounds count aligned steps like every other index
+                # induction produces -- `loops.in_step_space` converts them
+                # once, immediately after detection -- so a conditional step
+                # taking its place among the aligned ones moves them by the
+                # same rule as the substitutions, which is what `_moved` is
+                # for.
                 #
-                # Nothing here can be reached with a conditional step in the
-                # version: that pair is refused above, because the loop's own
-                # substitutions are keyed in the frame space and `_make_room`
-                # would move them. What is left is an unmatched gesture nobody
-                # puts back, and moving the bound for it would count a step
-                # that is not there.
+                # A conditional step alongside a loop is the ordinary case,
+                # not an impossible one. A loop outlives an unmatched gesture
+                # -- `loops._shape` identifies a control by name-or-text while
+                # `diff._control` uses name-or-test-id-or-css, so a keystroke
+                # named in one run and only described in the other keeps its
+                # position in the shape sequence while failing to pair -- and
+                # the refusal above is scoped to a conditional *strictly
+                # inside* the body, which is the only placement the evidence
+                # genuinely cannot read. One before the block or after it
+                # reaches here every time, with all three bounds moved along
+                # to match.
                 loops=(looped.loop,) if looped is not None else (),
             )
+            # Checked against the finished version, not against `parameterisation`
+            # or `steps` on their own, and that is deliberate rather than tidy:
+            # `_make_room` and `_build_steps` are what fold a conditional step
+            # into the paired ones, and a check that ran before them would see
+            # `cod_address_id` as unfilled on the *good* four-doing case too,
+            # where the address lookup survives as exactly the step that fills
+            # it. Running here is running after every source of a fillable step
+            # has had its say.
+            _refuse_an_unfillable_input(version)
             # Everything else the demonstration proved. Opening the screen to
             # create a transport mode lists the existing ones first, and that
             # read is real evidence -- asking the operator to demonstrate it
@@ -474,6 +561,88 @@ def _check_pairable(run_a: Recording, run_b: Recording, *, paired: bool = True) 
     return key_a
 
 
+def _refuse_an_unfillable_input(version: SkillVersion) -> None:
+    """Never hand over a version that would ask for something nothing can enter.
+
+    The failure this whole task exists for: four real demonstrations of adding
+    a carrier cross reference proved `cod_address_id` varies -- one run sent an
+    address, the others sent none -- and induced a skill that asked for it
+    anyway, with no step that could ever type or choose one, because the only
+    doing that ever supplied the address picked it out of a dialog. A click
+    with no value in it is not evidence of how the field gets filled, so
+    `standing_of` drops it as noise the same way it would drop a stray click,
+    and a parameter the pair genuinely proved is left standing with nothing
+    behind it.
+
+    Scoped to the *optional* inputs, deliberately, not every one -- see the
+    same distinction the test file already draws with `_typed_by`. A required
+    field is proven because every demonstration carried it, so the one paired
+    step that always survives already sends it exactly as shown, on whichever
+    medium runs the skill; there is no separate act of "choosing to supply it"
+    for anything to demonstrate. An optional field is proven because some
+    demonstration left it out -- and the same paired step sends it too, an
+    unconditional template with `absent_as` standing in when nobody fills it,
+    which is why checking `SkillStep.placeholders` here would never once fire:
+    the pair's own diff always wires an optional field into that step's body
+    regardless of whether anybody ever showed how to produce the value by
+    hand. What that check cannot see is the thing this one is for: whether
+    there is a *gesture* on record for the runs where somebody does supply it.
+    `ui_plan` is where that gesture shows up -- a typed value, a chosen
+    option -- and its absence, for a field the pair proved varies, is exactly
+    a parameter with a demonstrated write and no demonstrated way to make one.
+
+    Deliberately wider than the test file's own `_typed_by`: that helper reads
+    only `ui_plan.value`, and this reads every name in `ui_plan.placeholders`,
+    which also picks up a locator's placeholder. The two are not the same
+    question answered twice by accident -- a step whose UI action is "click
+    the row named `${cod_address_id}`" fills the field by choosing it on the
+    screen exactly as typing it would, and the message above says as much
+    ("type or choose"). `_typed_by` stays narrow because the test it guards
+    is about one specific gesture that types; this check is about whether any
+    gesture at all stands in for the field, which is the wider of the two
+    questions and the one this refusal exists to answer.
+
+    Inert on a single-run induction. `optional` can only be true once two
+    demonstrations have disagreed about whether the field is present at all --
+    see `Parameter.optional`, derived from `absent_as`, which a lone
+    demonstration never sets. A parameter proposed from reading one recording
+    is `Evidence.PROPOSED` and unconfirmed by design (ADR 004), and nothing
+    here stands in for that confirmation; this is a guard on the paired path,
+    not a general promise that every parameter this system ever proposes has
+    a step behind it.
+
+    ponytail: `optional` is a proxy for the real question -- can whoever runs
+    this skill actually produce the value, by typing it, choosing it from
+    `options`, or having the goal supply it -- and the proxy has a known gap.
+    Four doings that all pick a COD address through the same dialog, none
+    blank, prove the field varies (the ids differ) without ever setting
+    `absent_as`, so `optional` reads False and this refusal stays silent on a
+    version that asks an operator to recite an internal id from memory. Close
+    it when that shape turns up in real data: broaden the predicate to "some
+    step fills it, or it carries `options`, or the goal supplies it" rather
+    than widening `optional` itself, which the two other rungs of this
+    ladder (network-only required fields, and `_typed_by`'s narrower reading)
+    already show is not a safe place to widen from.
+    """
+    fillable = frozenset(
+        name
+        for step in version.steps
+        if step.ui_plan is not None
+        for name in step.ui_plan.placeholders
+    )
+    if any(
+        parameter.kind is ParameterKind.INPUT
+        and parameter.optional
+        and parameter.name not in fillable
+        for parameter in version.parameters
+    ):
+        raise InductionFailed(
+            "this skill would ask for something no step of it can actually type or choose "
+            "on the screen. Demonstrate that value being entered directly, not just picked "
+            "another way, so there is a step that can fill it in"
+        )
+
+
 ASK_EACH_TIME = "ask each time"
 """The answer that turns a demonstrated constant into something the operator is
 prompted for. The other answer is the value itself, which changes nothing."""
@@ -563,19 +732,31 @@ def _with_loop(parameterisation: Parameterisation, looped: loops.LoopFound) -> P
 
 @dataclass(frozen=True, slots=True)
 class _Conditional:
-    """A dropped gesture and the optional parameter it fills.
+    """A step the pair did not have, and what brings it about.
 
-    Both halves are evidence and neither is a reading: the gesture is what the
+    Both halves are evidence and neither is a reading: the gesture is what some
     operator did, and the parameter is the one the body diff already called
-    optional at the pointer that gesture's value landed on.
+    optional at the pointer that gesture's value landed on. Most of these are
+    conditional and the name has stayed; one the doings simply agree on is
+    gated on nothing, and says so with a `parameter` of ``None``.
     """
 
-    fill: OptionalFill
-    parameter: str
+    frame: ActionFrame
+    at: int
+    """How many paired steps come before it, so it can be put back in its place
+    in the order rather than at the end of it."""
+
+    parameter: str | None
+    """The optional parameter whose presence decides whether the step happens,
+    or ``None`` for a step the whole history made that the pair simply did not
+    share -- part of the task on the strength of its count, gated on nothing."""
 
 
 def _conditionals(
-    parameterisation: Parameterisation, fills: tuple[OptionalFill, ...]
+    parameterisation: Parameterisation,
+    fills: tuple[OptionalFill, ...],
+    *,
+    promised: bool = True,
 ) -> tuple[_Conditional, ...]:
     """The dropped gestures that can be said to fill something, and which.
 
@@ -586,6 +767,33 @@ def _conditionals(
     quietly becoming unfillable -- the skill still saves the form, still looks
     right, and the only gesture in either recording that fills that field is
     gone. Refusing says so, the way the pair said so before any of this existed.
+
+    ``promised`` is what that refusal rests on. `align` stopped refusing an
+    unmatched keystroke *because* `optional_fills` undertook to hand it back;
+    a gesture from some third doing was never excused by anybody, so nothing
+    was promised about it and there is nothing to break. One that names no
+    optional field is simply a gesture the diff cannot account for, which is
+    the question :func:`standing_of` answers -- and it answers `NOISE`, which
+    drops it with a reason a reviewer can read rather than failing the whole
+    induction over somebody's stray click in doing eleven.
+
+    What holds is "every gesture reaching here with ``promised`` is one of the
+    pair's", not the converse. `_extra_steps` recognises the pair's fills by
+    ``id(fill.frame)`` against the reference, and the reference is whichever
+    doing the others agreed with most -- which need not be either of the pair.
+    Where it is a history run that filled the same field, the reference holds
+    *that* run's frame at the position, the identity lookup misses the pair's
+    own, and a fill `align` did excuse arrives here as ``loose`` with
+    ``promised=False``. The refusal it should have raised is not raised.
+
+    Left as it is because nothing harmful gets through it. The outcome the
+    refusal exists to prevent -- an optional parameter with no gesture that
+    can produce its value -- is caught on the finished version by
+    :func:`_refuse_an_unfillable_input`, which reads the emitted steps rather
+    than the frames and so does not care which object the reference happened
+    to hold. What is lost is the earlier, better-worded complaint, and a
+    correct outcome reported by the wrong sentence is not worth re-keying an
+    identity lookup for at this distance from the evidence.
     """
     optional = {parameter.name for parameter in parameterisation.parameters if parameter.optional}
     named = {
@@ -595,13 +803,251 @@ def _conditionals(
         if isinstance(sub.site, JsonBodySite) and sub.parameter in optional
     }
     for fill in fills:
-        if fill.pointer not in named:
+        if fill.pointer not in named and promised:
             raise InductionFailed(
                 f"one run filled {fill.pointer} and the other left it alone, but nothing in "
                 f"the diff calls that field optional; the runs are not two runs of one task",
                 step_index=fill.frame.index,
             )
-    return tuple(_Conditional(fill, named[fill.pointer]) for fill in fills)
+    return tuple(
+        _Conditional(frame=fill.frame, at=fill.at, parameter=named[fill.pointer])
+        for fill in fills
+        if fill.pointer in named
+    )
+
+
+def _extra_steps(
+    *,
+    alignment: Alignment,
+    pairs: tuple[tuple[ActionFrame, ActionFrame], ...],
+    runs: tuple[tuple[ActionFrame, ...], ...],
+    parameterisation: Parameterisation,
+) -> tuple[_Conditional, ...]:
+    """Every step of the task the pair did not have, and where each belongs.
+
+    The pair stays the spine. Everything downstream -- the parameters, the
+    substitutions that carry them, the assertions, the narration, the loop's
+    bounds -- is addressed by position in `align(frames_a, frames_b)`, because
+    that is the one place two runs disagreed and ADR 004 says a disagreement
+    between two runs is what proves a value. `align_all` is read for what the
+    pair could not see: which *other* steps the doings made, and how many of
+    them made each. Those come back as insertions among the paired steps,
+    which is the shape a dropped gesture already came back in.
+
+    So a step the pair shares is kept whatever its count says. Two runs
+    agreeing is the standard this codebase already sets for identity, and
+    :func:`standing_of` is deciding a different question -- what to do with a
+    step only some doings made. Where a paired step does come out below the
+    threshold that is said out loud rather than acted on, because acting on it
+    means moving every index above backwards through the parameterisation, the
+    parameters' sources and the loop's bounds, and nothing in hand asks for
+    that.
+
+    ponytail: dropping a paired step needs the mirror of `_moved` -- indices
+    that close up rather than open out -- and a batch where a step two
+    demonstrations shared is genuinely not the task. Build it when one turns
+    up, not before.
+    """
+    frames_a = runs[0]
+    spine = _reconcile(alignment, pairs, frames_a)
+    # How many paired steps come before each reference position. The one
+    # number that puts an insertion back in the order, and the only place the
+    # two index spaces are allowed to meet.
+    before: dict[int, int] = {}
+    running = 0
+    for index in range(len(alignment.reference)):
+        before[index] = running
+        running += len(spine[index])
+
+    excused = {id(fill.frame): fill for fill in optional_fills(frames_a, runs[1])}
+    owner = {id(frame): run for run in runs for frame in run}
+
+    promised: list[tuple[int, OptionalFill]] = []
+    loose: list[tuple[int, OptionalFill]] = []
+    plain: list[tuple[int, ActionFrame]] = []
+    for index, frame in enumerate(alignment.reference):
+        if spine[index]:
+            continue
+        fill = excused.get(id(frame))
+        if fill is not None:
+            promised.append((index, replace(fill, at=before[index])))
+            continue
+        run = owner[id(frame)]
+        if run is frames_a or run is runs[1]:
+            # An unmatched gesture of the pair that `optional_fills` did not
+            # excuse. `align` has already had its say about this one: it
+            # refused if it was evidence of anything, so what is left is a
+            # click that fetched nothing and typed nothing.
+            plain.append((index, frame))
+            continue
+        pointer = _key_typed_into(frame, run)
+        if pointer is None:
+            plain.append((index, frame))
+            continue
+        loose.append((index, OptionalFill(frame=frame, pointer=pointer, at=before[index])))
+
+    conditionals = [
+        *_conditionals(parameterisation, tuple(fill for _, fill in promised)),
+        *_conditionals(parameterisation, tuple(fill for _, fill in loose), promised=False),
+    ]
+    # Which reference position each branch sits at, so `standing_of` reads its
+    # keystroke where it actually looks. This is the reconciliation doing its
+    # work: without it the branch has no substitution at that index and comes
+    # out `NOISE`.
+    gated = {
+        index: conditional.parameter
+        for index, fill in (*promised, *loose)
+        for conditional in conditionals
+        if conditional.frame is fill.frame and conditional.parameter is not None
+    }
+
+    standing = standing_of(alignment, _at_reference(parameterisation, spine, gated))
+    for index, paired in spine.items():
+        if paired and standing[index] is not Standing.ALWAYS:
+            # Kept anyway -- see above -- and said out loud, because "the
+            # counts disagreed and nothing happened" is exactly the kind of
+            # thing that is only obvious to whoever wrote it.
+            logger.info(
+                "keeping step %s: both demonstrations made it, though only %d of the doings did",
+                ", ".join(str(step) for step in paired),
+                alignment.seen[index],
+            )
+    for index, frame in plain:
+        # Not `.get(index, ...)`: every reference position has a standing, and
+        # a missing one would be a reconciliation that lost a step rather than
+        # a step with nothing to say about it.
+        if standing[index] is not Standing.ALWAYS:
+            logger.info(
+                "dropping a step %d of the doings made and nothing accounts for: %s",
+                alignment.seen[index],
+                frame.action.kind,
+            )
+            continue
+        if frame.action.value or frame.action.secret or frame.primary_request is not None:
+            # A step most doings made, that neither demonstration in the pair
+            # made, that carried a value or changed something. Nothing diffed
+            # what it sends, so emitting it replays one operator's typing on
+            # every run and dropping it loses a step the counts say is the
+            # task. That is the disagreement `align` refuses two runs over,
+            # and it is refused here for the same reason.
+            raise InductionFailed(
+                f"{alignment.seen[index]} of the doings made a step neither demonstration "
+                f"did, and it carries a value nothing diffed: {frame.action.kind}. "
+                "Demonstrate the task twice with that step in it",
+                step_index=frame.index,
+            )
+        conditionals.append(_Conditional(frame=frame, at=before[index], parameter=None))
+
+    return tuple(
+        sorted(conditionals, key=lambda conditional: (conditional.at, conditional.frame.index))
+    )
+
+
+def _key_typed_into(frame: ActionFrame, run: tuple[ActionFrame, ...]) -> str | None:
+    """Where this gesture's typing landed in the write its own doing sent.
+
+    `_optional_pointer` asks a second question beside this one -- did the
+    *other* run leave that field alone -- because for the pair that is what
+    makes a field optional at all. Here it is already settled and asking again
+    would answer wrongly: the field is optional because the diff proved it so,
+    from the two runs it read, and a third doing that also filled it is
+    evidence of nothing either way. Asked against run A, an address run A also
+    filled would come back "not optional" and the branch would be dropped by
+    the check meant to find it.
+    """
+    return next(
+        (pointer for write in run if (pointer := binding.key_filled_by(frame, write)) is not None),
+        None,
+    )
+
+
+def _reconcile(
+    alignment: Alignment,
+    pairs: tuple[tuple[ActionFrame, ActionFrame], ...],
+    frames_a: tuple[ActionFrame, ...],
+) -> dict[int, tuple[int, ...]]:
+    """Which paired steps each reference step speaks for. Often none, sometimes
+    several, and getting this wrong is how the address lookup is lost again.
+
+    Two index spaces meet here and they count different things.
+    :func:`standing_of` addresses a step by its position in
+    ``Alignment.reference`` -- whole gestures, of whichever run the doings
+    agreed with most, which need not be either run of the pair.
+    :class:`Parameterisation` addresses one by its position in
+    `align`'s *exploded* pairs, where a Save that sent a POST and a PUT is two
+    steps and every index is run A's. They agreed only for as long as nothing
+    called both. Left unreconciled, every `conditional_on` lookup would miss,
+    every branch would come out `NOISE`, and the lookup would go out through a
+    new door with the old door's reasoning still written above it.
+
+    Reference to run A by :func:`_longest_common`, which is what `align_all`
+    used to build the reference in the first place -- the identity pairing
+    when the reference *is* run A, and the honest one when it is not. Then run
+    A's frame to the paired steps that came out of it, by `frame.index`, which
+    `explode` preserves when it splits one gesture's calls apart: within one
+    recording that number is unique, which is what makes it safe to key on.
+    """
+    counterpart = {
+        id(reference): frame for reference, frame in _longest_common(alignment.reference, frames_a)
+    }
+    exploded: dict[int, list[int]] = {}
+    for index, (frame_a, _) in enumerate(pairs):
+        exploded.setdefault(frame_a.index, []).append(index)
+    return {
+        index: tuple(exploded.get(counterpart[id(frame)].index, ()))
+        if id(frame) in counterpart
+        else ()
+        for index, frame in enumerate(alignment.reference)
+    }
+
+
+def _at_reference(
+    parameterisation: Parameterisation,
+    spine: dict[int, tuple[int, ...]],
+    gated: dict[int, str],
+) -> Parameterisation:
+    """The same parameterisation, addressed the way :func:`standing_of` reads it.
+
+    Only the substitutions move, and only their keys: this is handed to
+    `standing_of` and nowhere else, which asks one question of it --
+    :meth:`Parameterisation.conditional_on`, the optional field this step's own
+    keystroke types.
+
+    The insertions get an entry too, holding exactly what `_make_room` will
+    give them in the paired space. Without it a gesture that came back as a
+    branch would have no substitution at the position `standing_of` looks at,
+    `conditional_on` would answer `None`, and a step made by one doing in four
+    would be `NOISE` -- the address lookup, dropped again, by the piece of code
+    written to keep it.
+    """
+    optional = {parameter.name for parameter in parameterisation.parameters if parameter.optional}
+    at: dict[int, list[Substitution]] = {}
+    for index, paired in spine.items():
+        for step in paired:
+            at.setdefault(index, []).extend(parameterisation.substitutions.get(step, ()))
+    for index, parameter in gated.items():
+        at.setdefault(index, []).append(Substitution(site=ActionValueSite(), parameter=parameter))
+
+    for subs in at.values():
+        # `conditional_on` answers with `next`, so two keystroke sites naming
+        # two optional fields at one step would be settled by whichever
+        # substitution happened to sit first. `SkillStep.when` is a single
+        # string and cannot say "when both were supplied"; running the step on
+        # half of its condition is not a smaller wrong answer than refusing, so
+        # this refuses. See `Parameterisation.conditional_on`, which names this
+        # as the wiring's problem rather than its own.
+        two_valued = {
+            sub.parameter
+            for sub in subs
+            if isinstance(sub.site, ActionValueSite) and sub.parameter in optional
+        }
+        if len(two_valued) > 1:
+            raise InductionFailed(
+                f"one gesture types {' and '.join(sorted(two_valued))}, and both are fields "
+                "some doing left empty. A step that happens only when two supplied values are "
+                "both present cannot be written down; demonstrate them as separate gestures"
+            )
+    return replace(parameterisation, substitutions={k: tuple(v) for k, v in at.items()})
 
 
 def _moved(index: int, conditionals: tuple[_Conditional, ...]) -> int:
@@ -612,7 +1058,7 @@ def _moved(index: int, conditionals: tuple[_Conditional, ...]) -> int:
     moves everything after it along, and an index left where it was would hand a
     step its neighbour's values.
     """
-    return index + sum(1 for conditional in conditionals if conditional.fill.at <= index)
+    return index + sum(1 for conditional in conditionals if conditional.at <= index)
 
 
 def _make_room(
@@ -631,7 +1077,11 @@ def _make_room(
         _moved(index, conditionals): subs for index, subs in parameterisation.substitutions.items()
     }
     for position, conditional in enumerate(conditionals):
-        substitutions[conditional.fill.at + position] = (
+        if conditional.parameter is None:
+            # A step the counts kept and no supplied value gates. It types
+            # nothing, so there is nothing to substitute into it.
+            continue
+        substitutions[conditional.at + position] = (
             Substitution(site=ActionValueSite(), parameter=conditional.parameter),
         )
     return replace(
@@ -672,7 +1122,7 @@ def _build_steps(
     steps: list[SkillStep] = []
     pending = list(conditionals)
     for index in range(len(frames_a) + 1):
-        while pending and pending[0].fill.at <= index:
+        while pending and pending[0].at <= index:
             steps.append(_emit_conditional(len(steps), pending.pop(0), parameterisation, objective))
         if index == len(frames_a):
             break
@@ -701,11 +1151,14 @@ def _emit_conditional(
     parameterisation: Parameterisation,
     objective: ObjectiveKey,
 ) -> SkillStep:
-    """The gesture one run made, as a step that happens when the value is given.
+    """The gesture the pair did not share, as a step of the skill.
+
+    With a `when` where a supplied value brings it about, and without one where
+    the doings simply agree it happens.
 
     A gesture and nothing else -- the calls it made are dropped with the same
     reasoning as the assertions. Both would be built from one observation, and
-    one observation is not two runs agreeing: only one run did this, so nothing
+    one observation is not two runs agreeing: whichever run did this, nothing
     diffed what it sent and every value in it would replay exactly as
     demonstrated. A form that PATCHes a draft on each keystroke would carry the
     work area of whoever was recorded into every later run of the skill.
@@ -714,9 +1167,22 @@ def _emit_conditional(
     call, it reaches it in the write both runs sent -- which is an aligned step,
     and already carries the parameter.
     """
+    # Nothing to check, and nothing hides that. A step with no assertions
+    # cannot be verified after it runs, and a skill where most steps are these
+    # is a skill a review cannot tell apart from one that works -- on the four
+    # real carrier recordings that is five steps of seven. The count belongs
+    # where the drops already go, so a reviewer reads it rather than infers
+    # it. Not repaired here: assertions built from frames nothing diffed would
+    # be one observation dressed as agreement, which is the trade above.
+    logger.info(
+        "step %d is a gesture with nothing to check: %s%s",
+        index,
+        conditional.frame.action.kind,
+        f", when {conditional.parameter}" if conditional.parameter else "",
+    )
     return emit_step(
         index,
-        replace(conditional.fill.frame, requests=()),
+        replace(conditional.frame, requests=()),
         parameterisation,
         assertion_extraction.StepEvidence(assertions=(), wait_for=None),
         objective,

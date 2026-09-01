@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass, replace
 from typing import Literal
 from urllib.parse import urlsplit
@@ -131,6 +132,22 @@ class Parameterisation:
 
         The keystroke only. The write that carries the field is not conditional
         on it -- that call goes out either way, carrying the absent form.
+
+        One, and `next` rather than an arbitrary pick from several: a step has
+        at most one keystroke site, because `_diff_action` yields at most one
+        `ActionValueSite` difference per step and nothing else in this module
+        ever builds a substitution on one -- every other source of sites is
+        `_constant_sites`, which reads URLs, queries and bodies. So the answer
+        here is determined by the evidence and not by the order the
+        substitutions happen to sit in.
+
+        If that ever stopped holding -- a gesture whose typing filled two
+        fields that some doing each left empty -- this would be the wrong
+        shape, and so would `SkillStep.when`, which is a single `str | None`.
+        A step gated on two supplied values cannot be expressed by one `when`
+        at all, and picking either one would run the step when half its
+        condition held. Whoever wires this up meets that as a refusal to
+        design, not as a silent choice made here.
         """
         return next(
             (
@@ -336,6 +353,162 @@ def align(
     if not paired:
         raise InductionFailed("the runs share no steps at all; they are different tasks")
     return explode(paired)
+
+
+@dataclass(frozen=True, slots=True)
+class Alignment:
+    """One run chosen to speak for all of them, and how many did what it says.
+
+    ``reference`` is that run's steps, in order -- extended with anything a
+    minority did that the majority did not, so a step nobody but one doing
+    made is present rather than silently gone. ``seen`` counts, by position in
+    ``reference``, how many of the runs handed to :func:`align_all` contained
+    a match for that step. What a count of one versus a count matching every
+    run *means* -- keep it, drop it, ask about it -- is a later decision; this
+    only refuses to throw the evidence away before that decision is made.
+    """
+
+    reference: tuple[ActionFrame, ...]
+    seen: dict[int, int]
+
+    doings: int
+    """How many runs were aligned -- the denominator every count in ``seen`` is
+    a share of.
+
+    Recorded rather than inferred, and the inference it replaces is the reason
+    the field exists. ``max(seen.values())`` is the run count only where some
+    step is universal, and a batch where none is -- two operators who wandered
+    off, ten doings of a screen that grew a confirm dialog partway through the
+    month -- reads low. Low here is not a soft failure. Every share is divided
+    by it, so a denominator short by two turns "six of ten made this" into
+    "six of eight", and a step over two thirds that neither demonstration in
+    the pair made is not quietly kept: `induce_skill._extra_steps` *refuses*
+    the whole induction where such a step carries a value or a request,
+    because a step the counts call the task and nothing diffed is exactly the
+    disagreement `align` will not paper over. Guessing the denominator low
+    therefore does not cost a reviewer a question, it costs them the skill.
+    """
+
+
+def align_all(runs: Sequence[tuple[ActionFrame, ...]]) -> Alignment:
+    """Align every occurrence of a task against one reference, and count them.
+
+    :func:`align` pairs two runs and stops there: everything past the second
+    goes to :func:`parameterise` as ``others``, read only for whether some
+    doing left a field empty, never for a step. Four demonstrations of one
+    task -- filled out differently, one of them with a whole address lookup
+    the rest skipped -- go through this as one pair and three histories, and
+    the address lookup's steps are discarded along with the run that made
+    them. Its *value* survives regardless, because ``others`` still sees it:
+    the induced skill came out with a ``cod_address_id`` parameter and no step
+    that could ever fill it. This is the fix -- every run's steps reach here,
+    not just the two that happened to be first.
+
+    Reading every run against one fixed reference, rather than pairing every
+    run against every other, is the same trade :func:`_longest_common`'s own
+    docstring makes, applied once more: a run is a handful of steps, so its
+    quadratic table costs nothing next to the code that would avoid it. That
+    holds once per pair; asking it to hold between every pair of N runs turns
+    "a handful of steps, squared" into "a handful of runs, squared, each
+    already squared". *This* step -- aligning every run against the reference
+    once it is chosen -- pays the quadratic cost N times, against one
+    reference, rather than N-squared times against each other.
+
+    Choosing that reference is a separate cost, and it is not N -- see
+    :func:`_pick_reference`, which is all-pairs on purpose and says so.
+
+    The reference is the run whose steps recur most across the others,
+    judged by :func:`_longest_common` against each one -- not the longest run
+    and not the most recently recorded. The longest run may be the one where
+    somebody wandered, and rewarding length would make wandering the way to
+    author the reference; the most recent is an accident of upload order and
+    says nothing about what the task is. See :func:`_pick_reference` for how
+    a tie between equally-agreed-with runs is broken.
+
+    Every other run is then aligned against that reference with
+    :func:`_longest_common`, the same pairing :func:`align` uses for two.
+    Where a run's step matches one already in the reference, that position's
+    count goes up. Where a run made a step :func:`_evidential` -- the same
+    test :func:`align` already uses to refuse silently dropping one -- and the
+    reference has nothing there yet, the reference gains it, at the position
+    the alignment says it belongs, counted once for the run that made it. A
+    step only one operator demonstrated is not noise to be voted out here; it
+    is one occurrence out of however many, and whether one occurrence is
+    enough to keep is a question for whoever calls this, not for the counting.
+
+    How many runs there were is recorded alongside the counts rather than left
+    to be read back out of them -- see :attr:`Alignment.doings`. It is the one
+    number this function knows for certain and nothing downstream can recover.
+
+    Refuses on no input at all: an alignment of nothing is not a task with
+    zero steps, it is the absence of anything demonstrated to align.
+    """
+    if not runs:
+        raise InductionFailed("no doings were given to align; at least one is required")
+
+    reference: list[ActionFrame] = list(_pick_reference(runs))
+    seen: dict[int, int] = {id(frame): 0 for frame in reference}
+
+    for run in runs:
+        paired = _longest_common(tuple(reference), run)
+        counterpart: dict[int, ActionFrame] = {
+            id(run_frame): ref_frame for ref_frame, run_frame in paired
+        }
+
+        # A single forward-scanning cursor into `reference`, rather than
+        # looking each matched frame's position up by value: `reference` grows
+        # under this loop as evidential steps are spliced in, and ActionFrame
+        # compares by field equality, not identity -- two distinct steps that
+        # happen to carry equal fields would make `.index()` find the wrong
+        # one. The cursor only ever moves forward, because `paired` preserves
+        # both runs' original order, so a plain identity scan is enough.
+        cursor = 0
+        for frame in run:
+            ref_frame = counterpart.get(id(frame))
+            if ref_frame is not None:
+                while reference[cursor] is not ref_frame:
+                    cursor += 1
+                seen[id(ref_frame)] += 1
+                cursor += 1
+            elif _evidential(frame):
+                reference.insert(cursor, frame)
+                seen[id(frame)] = 1
+                cursor += 1
+
+    return Alignment(
+        reference=tuple(reference),
+        seen={index: seen[id(frame)] for index, frame in enumerate(reference)},
+        doings=len(runs),
+    )
+
+
+def _pick_reference(runs: Sequence[tuple[ActionFrame, ...]]) -> tuple[ActionFrame, ...]:
+    """The run the others agree with most, on the strength of shared steps.
+
+    Scored by summing :func:`_longest_common` against every other run in the
+    batch -- every occurrence gets a say in the score, not just whichever two
+    runs a naive pairing would have compared first. Ties go to the shortest
+    candidate: a run tied on agreement with a longer one agrees on exactly the
+    same steps, and the longer one's extra length is exactly the part nothing
+    else here corroborates -- the wandering :func:`align_all`'s own docstring
+    warns against rewarding.
+
+    ponytail: this scores every run against every other run, so choosing the
+    reference is O(N^2) in the number of runs even though aligning against it
+    afterward is only O(N). A few dozen occurrences pay that cheaply; a
+    thousand do not. Cheaper here would be scoring each run against a sample
+    of the others, or clustering first and picking a reference per cluster --
+    worth designing on its own once occurrence counts make this measurably
+    slow, not improvised inline.
+    """
+
+    def score(candidate: tuple[ActionFrame, ...]) -> tuple[int, int]:
+        agreement = sum(
+            len(_longest_common(candidate, other)) for other in runs if other is not candidate
+        )
+        return agreement, -len(candidate)
+
+    return max(runs, key=score)
 
 
 @dataclass(frozen=True, slots=True)

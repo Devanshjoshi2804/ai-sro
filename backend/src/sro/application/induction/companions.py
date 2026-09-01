@@ -214,6 +214,10 @@ def _skill(
         parameters=(),
         provenance=Provenance(
             recording_ids=(recording_id,),
+            # The one step this version has -- a read -- is built from what
+            # this exact recording observed, not left to the default that
+            # means "nobody said". One recording, and it plainly shaped it.
+            aligned_recording_ids=(recording_id,),
             induced_at=at,
             induced_by=by,
             note=(

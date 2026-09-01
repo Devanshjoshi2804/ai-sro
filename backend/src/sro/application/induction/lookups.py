@@ -78,19 +78,23 @@ def plan(
     taken: set[str],
     *,
     screens: tuple[ActionFrame, ...] = (),
+    others: tuple[tuple[ActionFrame, ...], ...] = (),
     system: str = "",
     facility: str = "",
 ) -> tuple[PlannedLookup, ...]:
     """A lookup for every chosen id the demonstration can explain.
 
     ``run_a``/``run_b`` are the paired steps, which is what a choice's index
-    refers to. ``screens`` is the whole recording: the click that chose the
-    record is usually one of the steps alignment dropped as exploration, and
-    that click is the best evidence there is about how a person finds it.
+    refers to. ``others`` is every other doing the candidate holds -- searched
+    for the listing too, since the two aligned doings can hold nothing but the
+    write. ``screens`` is the whole recording: the click that chose the record
+    is usually one of the steps alignment dropped as exploration, and that
+    click is the best evidence there is about how a person finds it.
     """
+    runs = (run_a, run_b, *others)
     planned: list[PlannedLookup] = []
     for choice in choices:
-        found = _plan_one(choice, run_a, run_b, taken, screens or run_a, system, facility)
+        found = _plan_one(choice, runs, run_a, taken, screens or run_a, system, facility)
         if found is not None:
             planned.append(found)
     return tuple(planned)
@@ -98,14 +102,14 @@ def plan(
 
 def _plan_one(
     choice: Choice,
+    runs: tuple[tuple[ActionFrame, ...], ...],
     run_a: tuple[ActionFrame, ...],
-    run_b: tuple[ActionFrame, ...],
     taken: set[str],
     screens: tuple[ActionFrame, ...],
     system: str,
     facility: str,
 ) -> PlannedLookup | None:
-    listing = _listing_of(run_a, choice) or _listing_of(run_b, choice)
+    listing = _listing_of(runs, choice.value, choice.step_index)
     if listing is None:
         return None
     request, records = listing
@@ -180,17 +184,38 @@ def _flat(text: str) -> str:
 
 
 def _listing_of(
-    run: tuple[ActionFrame, ...], choice: Choice
+    runs: tuple[tuple[ActionFrame, ...], ...], value: str, step_index: int | None
 ) -> tuple[CapturedRequest, list[dict[str, object]]] | None:
-    """The read that showed this value, and the records it returned."""
-    for frame in run[: choice.step_index]:
-        for request in frame.requests:
-            if request.is_mutation or is_background_traffic(request.url):
-                continue
-            records = _records(request)
-            if any(choice.value in [str(v) for v in record.values()] for record in records):
-                return request, records
+    """The read that showed this value, and the records it returned.
+
+    Searched across every doing the candidate holds, not only the two that
+    aligned. The pair that aligns is chosen for being the same task twice, and
+    that is a different question from which doing happened to have the dialog
+    open -- in the evidence this was written against, the two aligned doings
+    hold one call each and the address listing is in neither.
+
+    ``step_index`` bounds the search in the aligned runs, where a step index
+    means something. In the other doings it does not, so the bound is that
+    doing's own first mutating request: the same rule -- before the write --
+    said without reference to an alignment those frames were never part of.
+    """
+    for at, run in enumerate(runs):
+        upto = step_index if at < 2 and step_index is not None else _first_mutation(run)
+        for frame in run[:upto]:
+            for request in frame.requests:
+                if request.is_mutation or is_background_traffic(request.url):
+                    continue
+                records = _records(request)
+                if any(value in [str(v) for v in record.values()] for record in records):
+                    return request, records
     return None
+
+
+def _first_mutation(run: tuple[ActionFrame, ...]) -> int:
+    for index, frame in enumerate(run):
+        if any(request.is_mutation for request in frame.requests):
+            return index
+    return len(run)
 
 
 def _records(request: CapturedRequest) -> list[dict[str, object]]:

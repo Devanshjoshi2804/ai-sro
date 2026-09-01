@@ -426,21 +426,25 @@ class InduceSkill:
                     await uow.connections.list_for_tenant(ctx.tenant_id), run_a, run_b
                 ),
                 starts_on=_started_on(run_a, run_b),
-                # Deliberately not moved along like the indices below, and
-                # this is the one place the two must not agree: a loop counts
-                # raw frames, everything else counts aligned steps. A loop can
-                # outlive an unmatched gesture -- `loops._shape` identifies a
-                # control by name-or-text while `diff._control` uses
-                # name-or-test-id-or-css, so a keystroke named in one run and
-                # only described in the other keeps its position in the shape
-                # sequence while failing to pair.
+                # Already moved, above, and carried here as it stands. The
+                # loop's bounds count aligned steps like every other index
+                # induction produces -- `loops.in_step_space` converts them
+                # once, immediately after detection -- so a conditional step
+                # taking its place among the aligned ones moves them by the
+                # same rule as the substitutions, which is what `_moved` is
+                # for.
                 #
-                # Nothing here can be reached with a conditional step in the
-                # version: that pair is refused above, because the loop's own
-                # substitutions are keyed in the frame space and `_make_room`
-                # would move them. What is left is an unmatched gesture nobody
-                # puts back, and moving the bound for it would count a step
-                # that is not there.
+                # A conditional step alongside a loop is the ordinary case,
+                # not an impossible one. A loop outlives an unmatched gesture
+                # -- `loops._shape` identifies a control by name-or-text while
+                # `diff._control` uses name-or-test-id-or-css, so a keystroke
+                # named in one run and only described in the other keeps its
+                # position in the shape sequence while failing to pair -- and
+                # the refusal above is scoped to a conditional *strictly
+                # inside* the body, which is the only placement the evidence
+                # genuinely cannot read. One before the block or after it
+                # reaches here every time, with all three bounds moved along
+                # to match.
                 loops=(looped.loop,) if looped is not None else (),
             )
             # Checked against the finished version, not against `parameterisation`
@@ -764,15 +768,32 @@ def _conditionals(
     right, and the only gesture in either recording that fills that field is
     gone. Refusing says so, the way the pair said so before any of this existed.
 
-    ``promised`` is what that refusal rests on, and it is true only of the
-    pair. `align` stopped refusing an unmatched keystroke *because*
-    `optional_fills` undertook to hand it back; a gesture from some third
-    doing was never excused by anybody, so nothing was promised about it and
-    there is nothing to break. One that names no optional field is simply a
-    gesture the diff cannot account for, which is the question
-    :func:`standing_of` answers -- and it answers `NOISE`, which drops it with
-    a reason a reviewer can read rather than failing the whole induction over
-    somebody's stray click in doing eleven.
+    ``promised`` is what that refusal rests on. `align` stopped refusing an
+    unmatched keystroke *because* `optional_fills` undertook to hand it back;
+    a gesture from some third doing was never excused by anybody, so nothing
+    was promised about it and there is nothing to break. One that names no
+    optional field is simply a gesture the diff cannot account for, which is
+    the question :func:`standing_of` answers -- and it answers `NOISE`, which
+    drops it with a reason a reviewer can read rather than failing the whole
+    induction over somebody's stray click in doing eleven.
+
+    What holds is "every gesture reaching here with ``promised`` is one of the
+    pair's", not the converse. `_extra_steps` recognises the pair's fills by
+    ``id(fill.frame)`` against the reference, and the reference is whichever
+    doing the others agreed with most -- which need not be either of the pair.
+    Where it is a history run that filled the same field, the reference holds
+    *that* run's frame at the position, the identity lookup misses the pair's
+    own, and a fill `align` did excuse arrives here as ``loose`` with
+    ``promised=False``. The refusal it should have raised is not raised.
+
+    Left as it is because nothing harmful gets through it. The outcome the
+    refusal exists to prevent -- an optional parameter with no gesture that
+    can produce its value -- is caught on the finished version by
+    :func:`_refuse_an_unfillable_input`, which reads the emitted steps rather
+    than the frames and so does not care which object the reference happened
+    to hold. What is lost is the earlier, better-worded complaint, and a
+    correct outcome reported by the wrong sentence is not worth re-keying an
+    identity lookup for at this distance from the evidence.
     """
     optional = {parameter.name for parameter in parameterisation.parameters if parameter.optional}
     named = {

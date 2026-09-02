@@ -235,9 +235,10 @@ def _workflows(
     Together in either shape `occurrences` counts: one after the other, or both
     tabs open and worked in at once.
 
-    An episode breaks on a host change, so this is the shape no candidate can
-    have on its own: "check the WMS, then record it in the ERP" is two
-    candidates and always will be.
+    Segmentation runs each host on its own stream, so an episode is always one
+    host's -- which makes this the shape no candidate can have on its own:
+    "check the WMS, then record it in the ERP" is two candidates and always
+    will be.
     """
     pairs = []
     for index, first in enumerate(candidates):
@@ -345,9 +346,17 @@ def _plainly(kind: JoinKind, first: TaskCandidate, second: TaskCandidate) -> str
     is "the system thinks so" is one nobody can answer.
     """
     if kind is JoinKind.WORKFLOW:
+        # Both directions, because both are what `_workflows` counted: an
+        # operator flipping tabs will not flip the same way twice, so a pair
+        # that qualified once each way is proposed on 1 + 1 -- and reporting
+        # the larger direction alone says "1 times" for something that
+        # happened twice.
         forwards, backwards = occurrences(first, second), occurrences(second, first)
-        pairs = forwards if len(forwards) >= len(backwards) else backwards
+        pairs = forwards + backwards
         times = len(pairs)
+        # The order named is the one it more often went in. With one doing each
+        # way there is no such order, and the sentence for that case does not
+        # claim one: it says both tabs were open at once.
         order = (first, second) if len(forwards) >= len(backwards) else (second, first)
         # Which shape it was, because "one after the other" is simply false about
         # somebody who kept both tabs open, and a reason a person cannot weigh is

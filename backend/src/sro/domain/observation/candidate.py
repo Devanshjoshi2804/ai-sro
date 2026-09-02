@@ -74,8 +74,9 @@ class JoinKind(StrEnum):
     is the property that keeps identity stable."""
 
     WORKFLOW = "workflow"
-    """Two halves of one piece of work, in two systems. An episode breaks on a
-    host change, so this is a shape no single candidate can ever have."""
+    """Two halves of one piece of work, in two systems. Segmentation runs each
+    host on its own stream, so an episode is always one host's: this is a shape
+    no single candidate can ever have."""
 
 
 class JoinAnswer(StrEnum):

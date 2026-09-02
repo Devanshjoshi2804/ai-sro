@@ -199,6 +199,14 @@ def _period(shapes: Sequence[str]) -> int | None:
 
 
 def _runs(ordered: Sequence[Observed]) -> Iterator[list[Observed]]:
+    """One host's stream cut into runs: a pause, or a length no work has.
+
+    `one.host != run[0].host` is unreachable now -- the one caller partitions
+    by host first, so every stream reaching here is one host's. Kept as the
+    belt on "an episode is one host's", not as the reason for it: the reason is
+    the partition above. Nothing else may cite this check as the guarantee that
+    two episodes cannot overlap, because they now can and do.
+    """
     run: list[Observed] = []
     for one in ordered:
         if run and (

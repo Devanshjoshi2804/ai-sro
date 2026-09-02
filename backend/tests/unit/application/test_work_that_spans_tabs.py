@@ -23,14 +23,14 @@ def _gesture(seconds: int, host: str) -> Observed:
     )
 
 
-def _call(seconds: int, host: str, method: str = "POST") -> Observed:
+def _call(seconds: int, host: str, method: str = "POST", collection: str = "suppliers") -> Observed:
     return Observed(
         at=AT + timedelta(seconds=seconds),
         kind="request",
         host=host,
         batch_id=BATCH,
         method=method,
-        url=f"https://{host}/api/suppliers",
+        url=f"https://{host}/api/{collection}",
         mutating=method != "GET",
     )
 
@@ -55,15 +55,24 @@ def test_another_tab_talking_does_not_cut_the_work_in_half() -> None:
 
 def test_a_real_pause_still_ends_the_work() -> None:
     """Partitioning by host must not swallow the bound that says a person went
-    away and came back to do it again."""
+    away and came back to do it again.
+
+    Reads, and two different collections, so that IDLE is the only rule that
+    can cut this. A mutation would let `_one_change_each` cut it and a repeated
+    call shape would let `_repetitions`, and then the assertion below holds
+    with `IDLE` set to a year -- which is not a test of the pause at all. The
+    first version of this test was that test. Widen `IDLE` and this must fail.
+    """
     work = [
         _gesture(0, "wms.example"),
-        _call(1, "wms.example"),
+        _call(1, "wms.example", "GET"),
         _gesture(60 * 20, "wms.example"),  # twenty minutes later, past IDLE
-        _call(60 * 20 + 1, "wms.example"),
+        _call(60 * 20 + 1, "wms.example", "GET", collection="addresses"),
     ]
 
-    assert len(segment(work)) == 2
+    pieces = segment(work)
+
+    assert len(pieces) == 2, f"the twenty-minute pause did not end the run: {len(pieces)} piece(s)"
 
 
 def test_an_episode_says_when_somebody_had_their_hands_on_it() -> None:
@@ -152,13 +161,12 @@ def test_a_recording_holds_only_its_own_host_s_calls() -> None:
 
 
 def test_a_single_host_episode_s_full_shape_is_admitted_unchanged() -> None:
-    """`_runs` ends a run on a host change, so a mined episode's evidence is
-    already all one host -- a gesture, a call, and a tree, none of them ever
-    disagreeing with the episode's own. That is the only shape this guard can
-    receive from today's segmentation, and admitting one call from it (the
-    original version of this test) is not the same claim as admitting the
-    whole episode: this guard is invisible only if nothing in that shape is
-    ever dropped."""
+    """The guard drops another host's events (the test above), and episodes on
+    two hosts really do overlap now -- so the thing left to prove is that it
+    costs an episode nothing of its own. A gesture, a call, and a tree, none of
+    them disagreeing with the episode's host, must all survive it: admitting
+    one call (the original version of this test) is not the same claim as
+    admitting the whole episode."""
     episode = Episode(
         started_at=AT,
         ended_at=AT + timedelta(seconds=10),
@@ -181,8 +189,8 @@ def test_a_single_host_episode_s_full_shape_is_admitted_unchanged() -> None:
 
 
 def test_a_url_less_event_does_not_land_in_either_of_two_overlapping_episodes() -> None:
-    """Two tabs' episodes can overlap once `_runs` stops ending a run on every
-    host change (Task 4). A gesture with no url at all -- the same shape as a
+    """Two tabs' episodes overlap now that `segment` runs each host on its own
+    stream. A gesture with no url at all -- the same shape as a
     relative-URL request, a `file://` tab, or a snapshot whose tab url the
     extension could not read -- names no host to agree with either episode's.
     Segmentation itself never mines a `host=""` episode for it either:
@@ -371,4 +379,30 @@ def test_a_job_done_across_two_tabs_is_offered_as_one() -> None:
 
     assert occurrences(_candidate(*mail), _candidate(*wms)), (
         "the two halves were not counted as done together"
+    )
+
+
+def test_the_reason_counts_both_directions() -> None:
+    """An operator who flips tabs will not flip the same way twice, so a pair
+    that qualified once each way is the normal shape rather than a curiosity.
+
+    `_workflows` proposes on `1 + 1`, so the reason must say 2. Saying "1
+    times" for a pair that qualified twice is a reason nobody can weigh, which
+    is the one thing `_plainly` exists to avoid.
+    """
+    mail = _candidate(
+        _episode(0, 120, "mail.example", (0, 100)),  # the mail first
+        _episode(3660, 3800, "mail.example", (3670, 3790)),  # the warehouse first
+    )
+    wms = _candidate(
+        _episode(60, 200, "wms.example", (70, 190)),
+        _episode(3600, 3720, "wms.example", (3600, 3700)),
+    )
+
+    assert len(occurrences(mail, wms)) == 1, "one doing qualifies mail-first"
+    assert len(occurrences(wms, mail)) == 1, "the other qualifies warehouse-first"
+    assert _workflows([mail, wms]), "the pair reached the threshold on the two summed"
+
+    assert _plainly(JoinKind.WORKFLOW, mail, wms) == (
+        "worked in both at once 2 times -- mail.example and wms.example"
     )

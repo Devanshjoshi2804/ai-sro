@@ -280,8 +280,9 @@ class TaughtTogether:
 class TeachWorkflow:
     """Two candidates a person has said are one job, taught as one skill.
 
-    An episode breaks on a host change, so "check the WMS, then record it in the
-    ERP" is two candidates and always will be. What makes it teachable is that
+    Segmentation runs each host on its own stream, so an episode is always one
+    host's -- which makes "check the WMS, then record it in the ERP" two
+    candidates and always will. What makes it teachable is that
     the operator did both halves together more than once: each of those
     occurrences is one demonstration of the whole job, and two of them are the
     pair induction wants. The two candidates are never diffed against each
@@ -324,14 +325,25 @@ class TeachWorkflow:
         if _said_different(first, second) or _said_different(second, first):
             raise NothingToTeach("somebody has already said these two are different work")
 
-        # Direction is part of the job: recording a receipt and then checking
-        # stock is a different task from checking stock and then recording it,
-        # and the miner counts both ways before it decides the pair is worth
-        # suggesting at all.
-        pairs = occurrences(first, second)
-        other = occurrences(second, first)
-        if len(other) > len(pairs):
-            pairs = other
+        # Every doing, both ways round -- not the larger direction. The miner
+        # counts both ways before it decides the pair is worth suggesting, and
+        # an operator flipping between two tabs will not flip the same way
+        # twice: taking the larger of one each way induces from a single
+        # recording while two doings sit in the evidence.
+        #
+        # Sorted back into order after the concatenation, so `reversed` below
+        # is still freshest first. `spent` is what stops a pair that somehow
+        # qualified in both directions from becoming two recordings of one
+        # doing.
+        #
+        # Where the two halves each write, the two directions name different
+        # objectives and induction refuses them by name. That is the honest
+        # answer: it is what the operator did, and it is better than diffing
+        # one recording against itself.
+        pairs = sorted(
+            occurrences(first, second) + occurrences(second, first),
+            key=lambda pair: pair[0].started_at,
+        )
 
         # Freshest first: the screens move, and the most recent doing is the one
         # most likely to still find its controls.
@@ -416,9 +428,30 @@ class TeachWorkflow:
     ) -> Recording | None:
         """One occurrence of the whole job, as one recording.
 
-        Each episode read on its own and the events concatenated, never one
-        window across both: the gap between the halves is where the operator
+        Each episode read on its own, so nothing between two halves that
+        followed one another is ever read: that gap is where the operator
         answered an email.
+
+        It is not one window across both, but it is not two watertight halves
+        either, and this is the known trade rather than a surprise. The events
+        are concatenated and `assemble_frames` folds them by time alone, so
+        where the two halves *overlap* -- an operator flipping tabs, which is
+        the shape this whole path exists for -- the other tab's traffic
+        attaches to whichever frame is open. A mail poll lands on the warehouse
+        click.
+
+        Bounded: `diff.align` and `binding` both filter on `is_mutation`, so
+        the pair still aligns and still induces the right steps. Not free:
+        `understand`, `capabilities`, `_collections_read` and
+        `_response_leaves` all read a frame's requests as they are, so a mail
+        response's JSON can be offered as a binding source for a warehouse
+        step. `is_background_traffic` does not catch it either -- a mail poll
+        matches none of its markers, which is the failure its own docstring
+        names.
+
+        Deliberately left: fixing it means folding per host, and the frame
+        boundaries that produces are a bigger question than the one this
+        branch answers.
         """
         read = await self._evidence(ctx, earlier)
         read.extend(await self._evidence(ctx, later))
@@ -673,13 +706,17 @@ def _capture(event: Mapping[str, object], episode: Episode) -> CaptureEvent | No
 def _inside(at: datetime, host: str, episode: Episode) -> bool:
     """Whether this event belongs to this episode.
 
-    Time and host, not time alone. Episodes on two hosts can overlap once the
-    episode clock stops ending a run on every host change -- an operator
-    flipping between a mailbox and the warehouse system produces exactly
-    that -- and a window is no longer enough to say which piece of work an
-    event was part of. A no-op today: `_runs` still ends a run whenever the
-    host changes, so no event of another host is ever inside an episode's
-    window yet.
+    Time and host, not time alone. Episodes on two hosts genuinely overlap now
+    that `segment` runs each host on its own stream -- an operator flipping
+    between a mailbox and the warehouse system produces exactly that -- and a
+    window is no longer enough to say which piece of work an event was part of.
+
+    Load-bearing, not a guard against a future: one batch with a mail episode
+    over 0-11s and a warehouse episode over 5-6s is the whole case. With the
+    host check the mail half holds its two mail calls; revert it to time alone
+    and the same half also holds `wms.example/api/suppliers`, and the induced
+    skill does the warehouse work twice. Anyone deleting this as dead code
+    reintroduces exactly that.
 
     No fallback for an event with no URL: an empty host is only ever right for
     a `host=""` episode, and segmentation never mines one -- `_segment` drops

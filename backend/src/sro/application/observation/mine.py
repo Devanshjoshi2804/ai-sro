@@ -18,6 +18,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from sro.application.context import RequestContext
+from sro.application.observation.evidence import once_each
 from sro.application.observation.propose import ProposeAboutCandidates
 from sro.application.observation.segment import Observed, Segment, read, segment
 from sro.application.ports.blob import BlobStore
@@ -93,7 +94,7 @@ class MineObservations:
         by_principal: dict[PrincipalId, list[Observed]] = {}
         for batch in batches:
             try:
-                payload = await self._blobs.read(batch.uri)
+                payload = once_each(await self._blobs.read(batch.uri))
             except (KeyError, OSError):
                 # Evidence that has aged out of its retention window. The
                 # candidates it fed are already counted; a missing blob is not a

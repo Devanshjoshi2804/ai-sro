@@ -37,6 +37,7 @@ from sro.application.context import RequestContext
 from sro.application.induction.errors import InductionFailed
 from sro.application.induction.induce_skill import InduceSkill
 from sro.application.induction.understand import UnderstandRecording
+from sro.application.observation.evidence import once_each
 from sro.application.observation.propose import occurrences
 from sro.application.observation.shots import ShotRef, pictures
 from sro.application.ports.blob import BlobStore
@@ -561,7 +562,7 @@ async def _read_episode(
             if batch is None:
                 continue
             try:
-                payload = await blobs.read(batch.uri)
+                payload = once_each(await blobs.read(batch.uri))
             except (KeyError, OSError):
                 continue
             read.batches.append(batch)

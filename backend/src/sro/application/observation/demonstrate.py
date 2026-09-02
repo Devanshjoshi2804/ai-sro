@@ -23,6 +23,7 @@ from sro.application.capture.assemble import assemble_frames
 from sro.application.capture.decode import to_ax_graph, to_captured_request, to_input_action
 from sro.application.capture.events import CaptureEvent, InputEvent, RequestEvent, SnapshotEvent
 from sro.application.context import RequestContext
+from sro.application.observation.evidence import once_each
 from sro.application.ports.blob import BlobStore
 from sro.application.ports.repositories import UnitOfWork
 from sro.domain.shared.errors import DomainError
@@ -65,7 +66,7 @@ class AssembleDemonstration:
         events: list[CaptureEvent] = []
         for batch in batches:
             try:
-                payload = await self._blobs.read(batch.uri)
+                payload = once_each(await self._blobs.read(batch.uri))
             except (KeyError, OSError):
                 # One unreadable upload does not lose the demonstration. The
                 # frames it held are missing from the result, which is visible

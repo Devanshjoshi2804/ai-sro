@@ -498,3 +498,120 @@ async def test_a_task_done_every_morning_is_taught_from_a_bounded_history() -> N
     first, second = induce.pairs[0]
     assert first and second
     assert len(induce.rest[0]) == MOST_DOINGS - 2
+
+
+async def _stored_with_four_doings(uow: FakeUnitOfWork, blobs: FakeBlobStore) -> TaskCandidate:
+    """The same evidence, seen four times. What varies in these tests is which
+    pair induction is willing to diff, not what the doings contain."""
+    candidate = await _stored(uow, blobs)
+    one = candidate.episodes[0]
+    # The same window four times, so all four build from the one batch this
+    # fixture holds. What these tests vary is which pair induction will diff,
+    # not what the doings contain.
+    candidate.episodes = tuple(
+        Episode(
+            started_at=one.started_at,
+            ended_at=one.ended_at,
+            host=one.host,
+            batch_ids=one.batch_ids,
+            gestures=one.gestures,
+            calls=one.calls,
+        )
+        for _ in range(4)
+    )
+    await uow.candidates.save(candidate)
+    return candidate
+
+
+class _RefusesUntil:
+    """Induction that refuses the first `refusals` pairs it is handed."""
+
+    def __init__(self, refusals: int) -> None:
+        self.refusals = refusals
+        self.pairs: list[tuple[str, str]] = []
+        self.rest: list[tuple[str, ...]] = []
+
+    async def execute(
+        self,
+        ctx: RequestContext,
+        *,
+        first: object,
+        second: object | None = None,
+        name: str | None = None,
+        others: Sequence[object] = (),
+    ) -> object:
+        self.pairs.append((str(first), str(second)))
+        self.rest.append(tuple(str(other) for other in others))
+        if len(self.pairs) <= self.refusals:
+            raise InductionFailed(
+                f"step 1: the first run did something the other did not (pair {len(self.pairs)})"
+            )
+
+        class _Induced:
+            skill_id = SkillId("skl-induced")
+
+        return _Induced()
+
+
+async def test_one_odd_doing_does_not_sink_a_candidate_seen_four_times() -> None:
+    """A real case: four doings of "create a work area", of which the second
+    freshest was a two-frame stub. Three of the six pairs aligned perfectly and
+    induction picked the one that did not, so the operator was asked to
+    demonstrate a task the system had watched four times."""
+    uow, blobs = FakeUnitOfWork(), FakeBlobStore()
+    candidate = await _stored_with_four_doings(uow, blobs)
+    induce = _RefusesUntil(1)
+
+    taught = await _teach(uow, blobs, _NoUnderstanding("thin"), induce).execute(
+        CTX, candidate_id=candidate.id
+    )
+
+    assert taught.skill_id == SkillId("skl-induced"), f"gave up instead: {taught.because}"
+    assert not taught.needs_demonstration
+    assert len(induce.pairs) == 2, "it did not try a second pair"
+
+
+async def test_the_freshest_pair_is_still_the_one_tried_first() -> None:
+    """Freshness stays the preference -- the screens move, and the most recent
+    doings are the ones most likely to still find their controls. It just stops
+    being the only chance."""
+    uow, blobs = FakeUnitOfWork(), FakeBlobStore()
+    candidate = await _stored_with_four_doings(uow, blobs)
+    induce = _RefusesUntil(0)
+
+    await _teach(uow, blobs, _NoUnderstanding("thin"), induce).execute(
+        CTX, candidate_id=candidate.id
+    )
+
+    assert len(induce.pairs) == 1, "it tried more pairs than it needed to"
+
+
+async def test_the_rest_of_the_history_travels_with_whichever_pair_wins() -> None:
+    """A field somebody left empty and a step most doings make are read from
+    every other doing, not from the two the first attempt happened to pick."""
+    uow, blobs = FakeUnitOfWork(), FakeBlobStore()
+    candidate = await _stored_with_four_doings(uow, blobs)
+    induce = _RefusesUntil(1)
+
+    await _teach(uow, blobs, _NoUnderstanding("thin"), induce).execute(
+        CTX, candidate_id=candidate.id
+    )
+
+    chosen, rest = induce.pairs[-1], induce.rest[-1]
+    assert len(rest) == 2, f"the other doings were not handed over: {rest}"
+    assert not set(chosen) & set(rest), "a doing was both in the pair and in the rest"
+
+
+async def test_when_no_two_doings_are_one_task_the_freshest_refusal_is_the_one_said() -> None:
+    """The two runs the operator most likely has in mind, so the explanation
+    that will make sense to them."""
+    uow, blobs = FakeUnitOfWork(), FakeBlobStore()
+    candidate = await _stored_with_four_doings(uow, blobs)
+    induce = _RefusesUntil(99)
+
+    taught = await _teach(uow, blobs, _NoUnderstanding("thin"), induce).execute(
+        CTX, candidate_id=candidate.id
+    )
+
+    assert taught.needs_demonstration
+    assert taught.because is not None and "pair 1" in taught.because, taught.because

@@ -499,6 +499,41 @@ def test_a_field_one_doing_left_out_is_offered_with_the_one_value_seen() -> None
     )
 
 
+def test_a_parameter_substituted_at_two_steps_is_bounded_by_the_earliest() -> None:
+    """A create and a later update both send the same picked id, so the diff
+    records the substitution at both steps. The lookup still has to be planned
+    from the read that came before the *first* of them -- the create -- not the
+    last: bounding the search at the later step lets a refresh that happened
+    after the create in between leak in as a second, disagreeing search column,
+    and the whole lookup gets refused instead of finding `addressName`."""
+    listing = a_read(
+        'https://wms.example/addresses?query=[{"column":"addressName","operator":"EQ","value":"test"}]',
+        [{"addressId": "A1", "addressName": "test", "city": "OAKVILLE"}],
+    )
+    create = a_write("https://wms.example/carrierCrossReferences", {"codAddressId": "A1"})
+    refresh = a_read(
+        'https://wms.example/addresses?query=[{"column":"city","operator":"EQ","value":"OAK"}]',
+        [{"addressId": "A1", "addressName": "test", "city": "OAKVILLE"}],
+    )
+    update = a_write("https://wms.example/carrierCrossReferences/1", {"codAddressId": "A1"})
+    run = (a_frame(listing), a_frame(create), a_frame(refresh), a_frame(update))
+
+    parameterisation = Parameterisation(
+        parameters=(
+            Parameter(name="cod_address_id", kind=ParameterKind.INPUT, observed_values=("A1",)),
+        ),
+        substitutions={
+            1: (Substitution(site=JsonBodySite("/codAddressId"), parameter="cod_address_id"),),
+            3: (Substitution(site=JsonBodySite("/codAddressId"), parameter="cod_address_id"),),
+        },
+    )
+
+    planned = plan(_wanted(parameterisation), run_a=run, run_b=run, taken=set())
+
+    assert len(planned) == 1, "the lookup was refused -- bounded by the later step, not the earlier"
+    assert planned[0].options.search == "addressName"
+
+
 def test_attaching_a_dropdown_does_not_downgrade_what_two_runs_proved() -> None:
     """`Evidence` says how firmly we know this is a parameter; `options` says
     where its value comes from. They are different questions."""

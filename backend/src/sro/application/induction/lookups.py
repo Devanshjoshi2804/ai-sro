@@ -106,6 +106,10 @@ def plan(
     run_a: tuple[ActionFrame, ...],
     run_b: tuple[ActionFrame, ...],
     taken: set[str],
+    # Unused here, pre-existing. Do not turn this into a skip-list: the caller
+    # now passes every parameter's own name, so a field being "taken" means it
+    # already has a parameter -- not that it should be refused a lookup. Wiring
+    # it up that way would silently stop every parameter from ever getting one.
     *,
     screens: tuple[ActionFrame, ...] = (),
     others: tuple[tuple[ActionFrame, ...], ...] = (),

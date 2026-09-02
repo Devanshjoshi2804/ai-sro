@@ -668,12 +668,17 @@ def _wanted(parameterisation: Parameterisation) -> tuple[lookups.Wanted, ...]:
     A parameter is offered when a human supplies it, has no list already, and
     the demonstrations saw a value for it. `substitutions` says which step sent
     it, which is what bounds the search for the read that showed it.
+
+    One INPUT parameter can substitute at more than one step, so this takes the
+    earliest -- the same reason `diff.py`'s `earliest_use` does. A later step is
+    itself the write, or comes after it, and bounding the search there lets the
+    listing search run past the write and pick up a read that came after it:
+    exactly the ordering this lookup exists to get right.
     """
-    steps_of = {
-        substitution.parameter: index
-        for index, subs in parameterisation.substitutions.items()
-        for substitution in subs
-    }
+    steps_of: dict[str, int] = {}
+    for index, subs in sorted(parameterisation.substitutions.items()):
+        for substitution in subs:
+            steps_of.setdefault(substitution.parameter, index)
     return tuple(
         lookups.Wanted(field=choice.field, values=(choice.value,), step_index=choice.step_index)
         for choice in parameterisation.choices

@@ -328,3 +328,47 @@ def test_the_reason_says_what_actually_happened() -> None:
     assert _plainly(JoinKind.WORKFLOW, mail, wms) == (
         "worked in both at once 2 times -- mail.example and wms.example"
     )
+
+
+def test_a_job_done_across_two_tabs_is_offered_as_one() -> None:
+    """The shape the owner described: read the mail, create the supplier, flip
+    back. Before these rules the mail half was cut to pieces by the warehouse
+    tab, the warehouse half by the mail tab, and the two were never counted as
+    done together because they overlapped rather than followed one another.
+
+    The flip-back is a PUT rather than a second GET: two GET calls to `_call`'s
+    fixed URL have the same shape, and `_repetitions` reads two same-shaped
+    calls in one run as a task repeated, cutting the flip-back clean off the
+    mail episode before this test ever reaches `occurrences` -- a failure of a
+    rule this test isn't about, not of the composition it is.
+    """
+    work: list[Observed] = []
+    for doing in range(2):
+        base = doing * 3600
+        work += [
+            _gesture(base + 0, "mail.example"),
+            _call(base + 1, "mail.example", "GET"),
+            _gesture(base + 5, "wms.example"),
+            _call(base + 6, "wms.example"),  # the write
+            _gesture(base + 10, "mail.example"),  # back to the mail
+            _call(base + 11, "mail.example", "PUT"),  # a follow-up touch there
+        ]
+
+    pieces = segment(work)
+    hosts = {piece.episode.host for piece in pieces}
+
+    assert hosts == {"mail.example", "wms.example"}
+    mail = [p.episode for p in pieces if p.episode.host == "mail.example"]
+    wms = [p.episode for p in pieces if p.episode.host == "wms.example"]
+    assert len(mail) == 2 and len(wms) == 2, "each doing should give one episode per host"
+
+    # The warehouse write sits inside the mail episode's own span -- it starts
+    # after the mail episode began and ends before the flip-back that closes
+    # it -- so the old sequential rule (`later.started_at >= earlier.ended_at`)
+    # never fires for this pair; only the interleaved rule can find it.
+    assert wms[0].started_at > mail[0].started_at
+    assert wms[0].ended_at < mail[0].ended_at
+
+    assert occurrences(_candidate(*mail), _candidate(*wms)), (
+        "the two halves were not counted as done together"
+    )

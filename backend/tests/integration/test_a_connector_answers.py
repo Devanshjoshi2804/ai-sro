@@ -31,6 +31,9 @@ TOOLS = {
 }
 
 
+SESSION = "a-session-the-server-handed-out"
+
+
 class _Server(BaseHTTPRequestHandler):
     """Answers as an MCP server does. `mode` decides how."""
 
@@ -48,6 +51,31 @@ class _Server(BaseHTTPRequestHandler):
         if _Server.mode == "broken":
             self._reply(500, b"not json at all", kind="text/plain")
             return
+
+        if _Server.mode == "session":
+            # What a streamable-HTTP server built on the standard SDK does, and
+            # what our own /mcp endpoint answered before this was fixed:
+            # everything before `initialize` is refused, and everything after
+            # it must carry the session it handed back.
+            if request["method"] == "initialize":
+                body = json.dumps(
+                    {"jsonrpc": "2.0", "id": request["id"], "result": {"capabilities": {}}}
+                ).encode()
+                self._reply(200, body, session=SESSION)
+                return
+            if self.headers.get("Mcp-Session-Id") != SESSION:
+                body = json.dumps(
+                    {
+                        "jsonrpc": "2.0",
+                        "id": request.get("id"),
+                        "error": {"code": -32600, "message": "Bad Request: Missing session ID"},
+                    }
+                ).encode()
+                self._reply(200, body)
+                return
+            if request["method"] == "notifications/initialized":
+                self._reply(202, b"")
+                return
 
         if request["method"] == "tools/list":
             result: dict[str, Any] = TOOLS
@@ -70,10 +98,14 @@ class _Server(BaseHTTPRequestHandler):
         else:
             self._reply(200, body)
 
-    def _reply(self, code: int, body: bytes, kind: str = "application/json") -> None:
+    def _reply(
+        self, code: int, body: bytes, kind: str = "application/json", session: str = ""
+    ) -> None:
         self.send_response(code)
         self.send_header("Content-Type", kind)
         self.send_header("Content-Length", str(len(body)))
+        if session:
+            self.send_header("Mcp-Session-Id", session)
         self.end_headers()
         self.wfile.write(body)
 
@@ -147,3 +179,35 @@ async def test_a_server_nobody_configured_is_refused_before_a_socket_is_opened(
         await connector.call("erp", "anything", {})
 
     assert _Server.seen == []
+
+
+async def test_a_connector_that_needs_a_session_is_greeted_first(
+    connector: McpToolCaller,
+) -> None:
+    """Every real MCP server built on the standard SDK needs this, and our own
+    /mcp endpoint answered "Bad Request: Missing session ID" to a client that
+    went straight to `tools/list`. So the stub above was the only server this
+    could ever talk to -- a connector that worked in its own test and nowhere
+    a tenant would actually point it.
+    """
+    _Server.mode = "session"
+
+    offered = await connector.list_tools("mail")
+
+    assert [tool.name for tool in offered] == ["send_message"]
+    greeted = [request["method"] for request in _Server.seen]
+    assert greeted[0] == "initialize", f"it asked before it greeted: {greeted}"
+    assert "notifications/initialized" in greeted, greeted
+    assert greeted[-1] == "tools/list"
+
+
+async def test_the_session_is_carried_on_the_call_itself(connector: McpToolCaller) -> None:
+    """Not only on the handshake. A server that hands one back expects it on
+    everything after, and a send that arrived without it would be refused at
+    the one moment the step cannot be retried."""
+    _Server.mode = "session"
+
+    result = await connector.call("mail", "send_message", {"to": "rudy", "body": "hello"})
+
+    assert not result.failed, result.detail
+    assert "sent" in result.text

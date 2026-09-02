@@ -13,6 +13,7 @@ tenant's integration decisions for them.
 
 from __future__ import annotations
 
+import contextlib
 import json
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -24,6 +25,13 @@ from sro.application.ports.tools import ToolCaller, ToolOffered, ToolResult, Too
 CALL_TIMEOUT = 30.0
 """Long enough for a mail to be sent, short enough that a hung connector is a
 failed step rather than a run nobody can finish."""
+
+PROTOCOL = "2025-06-18"
+"""The version this client says it speaks when it opens a session.
+
+Named rather than inlined because it is the one thing in the handshake a server
+may refuse over, and a refusal that names a version is one somebody can act on.
+"""
 
 
 @dataclass(frozen=True, slots=True)
@@ -90,9 +98,10 @@ class McpToolCaller(ToolCaller):
 
         try:
             async with httpx.AsyncClient(timeout=CALL_TIMEOUT) as client:
+                session = await self._greet(client, known, headers)
                 response = await client.post(
                     known.url,
-                    headers=headers,
+                    headers={**headers, **session},
                     json={"jsonrpc": "2.0", "id": 1, "method": method, "params": params},
                 )
         except httpx.HTTPError as unreachable:
@@ -110,6 +119,58 @@ class McpToolCaller(ToolCaller):
             raise ToolsUnavailable(f"{server} refused: {detail}")
         result = body.get("result")
         return result if isinstance(result, dict) else {}
+
+
+    async def _greet(
+        self, client: httpx.AsyncClient, known: McpServer, headers: Mapping[str, str]
+    ) -> dict[str, str]:
+        """Open a session, and the header that carries it.
+
+        A streamable-HTTP MCP server built on the standard SDK answers anything
+        before `initialize` with "Bad Request: Missing session ID", so a client
+        that went straight to `tools/list` could talk to a permissive stub and
+        to nothing else. This one greets first, then sends the session id back
+        on the call itself.
+
+        `{}` where the server needs no session: a server that does not answer
+        with `Mcp-Session-Id` is one that never asked for it, and a call
+        carrying an invented header would be worse than one carrying none.
+
+        A failed greeting is not raised here. The call that follows fails on
+        its own and says why in its own words -- reporting the handshake
+        instead would name the wrong request.
+        """
+        try:
+            answer = await client.post(
+                known.url,
+                headers=dict(headers),
+                json={
+                    "jsonrpc": "2.0",
+                    "id": 0,
+                    "method": "initialize",
+                    "params": {
+                        "protocolVersion": PROTOCOL,
+                        "capabilities": {},
+                        "clientInfo": {"name": "ai-sro", "version": "1"},
+                    },
+                },
+            )
+        except httpx.HTTPError:
+            return {}
+
+        session = answer.headers.get("mcp-session-id", "")
+        if not session:
+            return {}
+
+        # The spec's third step. A server may hold `tools/list` until it
+        # arrives, and one that does not is unbothered by receiving it.
+        with contextlib.suppress(httpx.HTTPError):
+            await client.post(
+                known.url,
+                headers={**headers, "Mcp-Session-Id": session},
+                json={"jsonrpc": "2.0", "method": "notifications/initialized"},
+            )
+        return {"Mcp-Session-Id": session}
 
 
 def _argument_names(schema: object) -> tuple[str, ...]:

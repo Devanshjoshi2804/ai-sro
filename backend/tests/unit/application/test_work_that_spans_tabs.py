@@ -1,7 +1,7 @@
 import json
 from datetime import UTC, datetime, timedelta
 
-from sro.application.capture.events import RequestEvent
+from sro.application.capture.events import RequestEvent, SnapshotEvent
 from sro.application.observation.segment import Observed, segment
 from sro.application.observation.teach import _within
 from sro.domain.observation.candidate import Episode
@@ -97,6 +97,36 @@ def _request_line(host: str, request_id: str) -> bytes:
     ).encode()
 
 
+def _gesture_line(url: str | None = None) -> bytes:
+    gesture: dict[str, object] = {
+        "kind": "click",
+        "at": AT.isoformat(),
+        "target": {"cssPath": "button"},
+    }
+    if url is not None:
+        gesture["url"] = url
+    return json.dumps({"kind": "gesture", "gesture": gesture}).encode()
+
+
+_TREE = {
+    "nodes": [
+        {
+            "nodeId": "1",
+            "role": {"value": "button"},
+            "name": {"value": "Add"},
+            "ignored": False,
+            "childIds": [],
+        }
+    ]
+}
+
+
+def _snapshot_line(url: str) -> bytes:
+    return json.dumps(
+        {"kind": "snapshot", "snapshot": _TREE, "taken_at": AT.isoformat(), "url": url}
+    ).encode()
+
+
 def test_a_recording_holds_only_its_own_host_s_calls() -> None:
     """Once two episodes can overlap in time, slicing a batch by time alone
     puts the warehouse's calls in the mail half and the mail's in the
@@ -119,10 +149,14 @@ def test_a_recording_holds_only_its_own_host_s_calls() -> None:
     )
 
 
-def test_scoping_by_host_changes_nothing_that_was_already_mined() -> None:
-    """`_runs` ends a run on a host change, so no event of another host was
-    ever inside an episode's window. This guard is invisible until episodes
-    can overlap -- and that is the point: it arrives before it is needed."""
+def test_a_single_host_episode_s_full_shape_is_admitted_unchanged() -> None:
+    """`_runs` ends a run on a host change, so a mined episode's evidence is
+    already all one host -- a gesture, a call, and a tree, none of them ever
+    disagreeing with the episode's own. That is the only shape this guard can
+    receive from today's segmentation, and admitting one call from it (the
+    original version of this test) is not the same claim as admitting the
+    whole episode: this guard is invisible only if nothing in that shape is
+    ever dropped."""
     episode = Episode(
         started_at=AT,
         ended_at=AT + timedelta(seconds=10),
@@ -131,6 +165,68 @@ def test_scoping_by_host_changes_nothing_that_was_already_mined() -> None:
         gestures=1,
         calls=1,
     )
-    payload = _request_line("wms.example", "a")
+    payload = b"\n".join(
+        (
+            _gesture_line("https://wms.example/screen"),
+            _request_line("wms.example", "a"),
+            _snapshot_line("https://wms.example/screen"),
+        )
+    )
 
-    assert len(_within(payload, episode, BATCH)) == 1
+    kept = _within(payload, episode, BATCH)
+
+    assert len(kept) == 3, "a same-host event was dropped by a guard meant to be invisible today"
+
+
+def test_a_url_less_event_does_not_land_in_either_of_two_overlapping_episodes() -> None:
+    """Two tabs' episodes can overlap once `_runs` stops ending a run on every
+    host change (Task 4). A gesture with no url at all -- the same shape as a
+    relative-URL request, a `file://` tab, or a snapshot whose tab url the
+    extension could not read -- names no host to agree with either episode's.
+    Segmentation itself never mines a `host=""` episode for it either:
+    `_segment` drops any run with no calls, and a stream of url-less gestures
+    has none. Letting an absent host stand in for a match would put this one
+    event in both recordings; it belongs in neither."""
+    wms = Episode(
+        started_at=AT,
+        ended_at=AT + timedelta(seconds=10),
+        host="wms.example",
+        batch_ids=(BATCH,),
+        gestures=1,
+        calls=1,
+    )
+    mail = Episode(
+        started_at=AT,
+        ended_at=AT + timedelta(seconds=10),
+        host="mail.example",
+        batch_ids=(BATCH,),
+        gestures=1,
+        calls=1,
+    )
+    payload = _gesture_line()  # no "url" on the gesture at all
+
+    assert _within(payload, wms, BATCH) == []
+    assert _within(payload, mail, BATCH) == []
+
+
+def test_a_snapshot_is_judged_by_time_not_host() -> None:
+    """A snapshot's own `url` is the tab's, read by `service-worker.js`'s
+    `takeTreeSoon`, while an episode's host comes from a gesture's frame url
+    -- and for a portal that hosts its screens in an iframe the two can
+    disagree. Segmentation never had a snapshot branch, so a snapshot's host
+    was never part of what defined an episode; host-checking it here would
+    silently drop it for exactly the cross-host portal `_capture`'s gesture
+    branch already documents."""
+    episode = Episode(
+        started_at=AT,
+        ended_at=AT + timedelta(seconds=10),
+        host="wms.example",
+        batch_ids=(BATCH,),
+        gestures=1,
+        calls=1,
+    )
+    payload = _snapshot_line("https://mail.example/tab")  # a different host than the episode's
+
+    (kept,) = _within(payload, episode, BATCH)
+
+    assert isinstance(kept[0], SnapshotEvent)

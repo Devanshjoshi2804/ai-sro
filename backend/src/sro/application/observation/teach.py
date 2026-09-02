@@ -658,7 +658,9 @@ def _capture(event: Mapping[str, object], episode: Episode) -> CaptureEvent | No
         if not isinstance(snapshot, Mapping):
             return None
         at = _at(taken_at)
-        if at is None or not _inside(at, _host(str(event.get("url") or "")), episode):
+        # By time alone -- see `_when`'s docstring. A snapshot's `url` is the
+        # tab's, not the frame's whose host the episode carries.
+        if at is None or not _when(at, episode):
             return None
         try:
             graph = to_ax_graph(dict(snapshot), url=str(event.get("url") or ""), taken_at=at)
@@ -679,11 +681,29 @@ def _inside(at: datetime, host: str, episode: Episode) -> bool:
     host changes, so no event of another host is ever inside an episode's
     window yet.
 
-    An event with no URL at all -- every extension in the field before this
-    one sent gestures with no `url` -- names no host to disagree with the
-    episode's, so it is judged by time alone, exactly as it always was.
+    No fallback for an event with no URL: an empty host is only ever right for
+    a `host=""` episode, and segmentation never mines one -- `_segment` drops
+    any run with no calls, and a stream of URL-less events has none. Letting
+    `""` slide into a real episode would readmit exactly the contamination
+    this guard exists to stop.
     """
-    return (not host or host == episode.host) and episode.started_at <= at <= episode.ended_at
+    return host == episode.host and _when(at, episode)
+
+
+def _when(at: datetime, episode: Episode) -> bool:
+    """Whether this event's time falls in this episode's window.
+
+    Host-blind, on purpose: a snapshot uses this instead of `_inside`.
+    Segmentation has no snapshot branch -- an episode's window is drawn from
+    its gestures and calls alone -- so a snapshot's host was never part of
+    what defined an episode, and applying a host rule to it now would invent a
+    constraint the partition never had. A snapshot's own `url` is the tab's,
+    read by `service-worker.js`'s `takeTreeSoon`, while the episode's host
+    comes from the gesture's frame URL -- the two disagree exactly for the
+    cross-host iframe portal `_capture`'s gesture branch already documents,
+    and host-checking the snapshot there would silently drop it.
+    """
+    return episode.started_at <= at <= episode.ended_at
 
 
 def _at(raw: object) -> datetime | None:

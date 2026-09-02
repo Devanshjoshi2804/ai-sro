@@ -552,3 +552,28 @@ def test_attaching_a_dropdown_does_not_downgrade_what_two_runs_proved() -> None:
 
     assert with_options((parameter,), (found,))[0].evidence is Evidence.PROVEN
     assert with_options((parameter,), (found,))[0].options is not None
+
+
+def test_the_shape_that_refused_a_whole_skill_now_induces_one() -> None:
+    """Four doings of a carrier cross reference. The two that align hold one
+    call each; the address listing is in a third. Before these rules the skill
+    was refused whole -- `_refuse_an_unfillable_input` -- because the operator
+    would have been asked to recite `A000278094`."""
+    searched = a_read(
+        'https://wms.example/addresses?query=[{"column":"addressName","operator":"EQ","value":"test"}]',
+        [{"addressId": "A000278094", "addressName": "0 C TANNER", "city": "BURLINGTON"}],
+    )
+    write = a_write("https://wms.example/carrierCrossReferences", {"codAddressId": "A000278094"})
+
+    planned = plan(
+        (Wanted(field="cod_address_id", values=("A000278094",), step_index=0),),
+        run_a=(a_frame(write),),
+        run_b=(a_frame(write),),
+        taken=set(),
+        others=((a_frame(searched), a_frame(write)),),
+    )
+
+    assert len(planned) == 1
+    assert planned[0].options.search == "addressName"
+    assert planned[0].options.value == "addressId"
+    assert "addresses" in planned[0].options.url

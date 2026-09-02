@@ -56,6 +56,21 @@ function show() {
 
 afterEach(() => vi.restoreAllMocks());
 
+describe("nobody is asked to teach", () => {
+  it("offers to learn a task rather than asking to be taught it", async () => {
+    // The product decision, pinned so it cannot drift back: the system watches
+    // the work and learns from what it already has. Asking an operator to
+    // "teach" it puts the labour on them and describes the wrong thing --
+    // nothing here asks for a demonstration.
+    vi.spyOn(api, "listCandidates").mockResolvedValue([aCandidate()]);
+
+    show();
+
+    expect(await screen.findByRole("button", { name: "Learn this one" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Teach" })).not.toBeInTheDocument();
+  });
+});
+
 describe("what a model noticed about two candidates", () => {
   it("is shown here, with the reason, and can be answered", async () => {
     vi.spyOn(api, "listCandidates").mockResolvedValue([
@@ -86,7 +101,7 @@ describe("what a model noticed about two candidates", () => {
 
     // Nothing acts on a suggestion. Merging on the model's word would be a task
     // identity a model decided.
-    expect(screen.queryByRole("button", { name: "Teach as one" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Learn them as one" })).not.toBeInTheDocument();
   });
 
   it("teaches the pair as one skill once somebody has", async () => {
@@ -110,7 +125,7 @@ describe("what a model noticed about two candidates", () => {
     // work rather than a fact the system found.
     expect(await screen.findByText(/devansh said so/)).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Teach as one" }));
+    await user.click(screen.getByRole("button", { name: "Learn them as one" }));
 
     await waitFor(() => expect(merged).toHaveBeenCalledWith("cnd-wms", "cnd-erp"));
   });
@@ -129,6 +144,6 @@ describe("what a model noticed about two candidates", () => {
     show();
     await screen.findByText(/devansh said so/);
 
-    expect(screen.queryByRole("button", { name: "Teach as one" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Learn them as one" })).not.toBeInTheDocument();
   });
 });

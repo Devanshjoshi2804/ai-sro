@@ -1,7 +1,8 @@
 """Two candidates a person has said are one job, taught as one skill.
 
-An episode breaks on a host change, so "check the WMS, then record it in the
-ERP" is two candidates and always will be. The miner already notices they go
+Segmentation runs each host on its own stream, so an episode is always one
+host's -- which makes "check the WMS, then record it in the ERP" two candidates
+and always will. The miner already notices they go
 together, a model already says why, and a person already answers. This is the
 half that acts on the answer.
 
@@ -398,3 +399,76 @@ async def test_one_doing_of_a_half_cannot_be_two_demonstrations() -> None:
     # Which is the honest outcome: one occurrence induces as a single
     # demonstration, values and all, exactly as teaching one candidate does.
     assert induce.asked[0][1] is None
+
+
+async def _flipped(
+    uow: FakeUnitOfWork, blobs: FakeBlobStore
+) -> tuple[TaskCandidate, TaskCandidate]:
+    """The same job twice, the two halves the other way round the second time.
+
+    An operator flipping between two tabs will not flip the same way twice, so
+    this is the ordinary shape rather than a curiosity -- and each way round is
+    a real doing of the whole job.
+    """
+    later = NINE + timedelta(days=7)
+    halves = {
+        "bat-wms-0": (WMS, NINE, "/api/waves/close"),
+        "bat-erp-0": (ERP, NINE + timedelta(minutes=3), "/api/receipts"),
+        "bat-erp-1": (ERP, later, "/api/receipts"),
+        "bat-wms-1": (WMS, later + timedelta(minutes=3), "/api/waves/close"),
+    }
+    for batch_id, (host, at, path) in halves.items():
+        await _batch(uow, blobs, batch_id, _half(host, at, path))
+
+    wms = TaskCandidate(
+        id=CandidateId("cnd-wms"),
+        tenant_id=f.TENANT,
+        principal_id=f.OPERATOR,
+        signature="POST api/waves/close",
+        host="wms.acme.test",
+        title="Close waves on wms.acme.test",
+        episodes=(
+            _episode("wms.acme.test", NINE, "bat-wms-0"),
+            _episode("wms.acme.test", later + timedelta(minutes=3), "bat-wms-1"),
+        ),
+    )
+    erp = TaskCandidate(
+        id=CandidateId("cnd-erp"),
+        tenant_id=f.TENANT,
+        principal_id=f.OPERATOR,
+        signature="POST api/receipts",
+        host="erp.acme.test",
+        title="Create receipts on erp.acme.test",
+        episodes=(
+            _episode("erp.acme.test", NINE + timedelta(minutes=3), "bat-erp-0"),
+            _episode("erp.acme.test", later, "bat-erp-1"),
+        ),
+    )
+    await uow.candidates.add(wms)
+    await uow.candidates.add(erp)
+    return wms, erp
+
+
+async def test_a_doing_the_other_way_round_is_still_a_doing() -> None:
+    """One occurrence each way. Taking only the larger direction leaves one
+    recording -- a single demonstration where two exist, which is a diff with
+    nothing to diff against."""
+    uow, blobs, induce = FakeUnitOfWork(), FakeBlobStore(), _Induction()
+    wms, erp = await _flipped(uow, blobs)
+
+    taught = await _teach(uow, blobs, induce).execute(CTX, first_id=wms.id, second_id=erp.id)
+
+    assert len(taught.recording_ids) == 2, (
+        f"both directions are doings; got {len(taught.recording_ids)} recording(s)"
+    )
+    async with uow:
+        recordings = [await uow.recordings.get(f.TENANT, ident) for ident in taught.recording_ids]
+    for recording in recordings:
+        hosts = {
+            request.url.split("/api/")[0]
+            for frame in recording.frames
+            for request in frame.requests
+        }
+        assert hosts == {WMS, ERP}, "a demonstration of this job is both halves"
+    # Freshest first survives the concatenation of the two directions.
+    assert recordings[0].started_at > recordings[1].started_at

@@ -75,15 +75,31 @@ def read(payload: bytes, batch_id: BatchId) -> tuple[Observed, ...]:
 
 
 def segment(observed: Sequence[Observed]) -> tuple[Segment, ...]:
-    """Pieces of work, in the order they happened."""
-    ordered = sorted(observed, key=lambda one: one.at)
-    return tuple(
-        segment
-        for run in _runs(ordered)
+    """Pieces of work, in the order they happened.
+
+    Each host on its own stream. A run used to end whenever the next event came
+    from a different host, which reads a tab the operator is not working in as a
+    boundary in the work they are: in a day of real recording, 30 of 37 run
+    boundaries were that and nothing else. A mail client polling in the
+    background would cut every task in the warehouse system in half.
+
+    Episodes were already single-host -- the old rule guaranteed it by ending
+    the run -- so this changes no episode's identity. What it changes is that a
+    run now ends only for the reasons that are about the work: a pause, or a
+    length no piece of work has.
+    """
+    by_host: dict[str, list[Observed]] = {}
+    for one in observed:
+        by_host.setdefault(one.host, []).append(one)
+    pieces = [
+        found
+        for stream in by_host.values()
+        for run in _runs(sorted(stream, key=lambda one: one.at))
         for block in _repetitions(run)
         for piece in _one_change_each(block)
-        if (segment := _segment(piece)) is not None
-    )
+        if (found := _segment(piece)) is not None
+    ]
+    return tuple(sorted(pieces, key=lambda piece: piece.episode.started_at))
 
 
 def _one_change_each(run: Sequence[Observed]) -> Iterator[Sequence[Observed]]:
@@ -183,6 +199,14 @@ def _period(shapes: Sequence[str]) -> int | None:
 
 
 def _runs(ordered: Sequence[Observed]) -> Iterator[list[Observed]]:
+    """One host's stream cut into runs: a pause, or a length no work has.
+
+    `one.host != run[0].host` is unreachable now -- the one caller partitions
+    by host first, so every stream reaching here is one host's. Kept as the
+    belt on "an episode is one host's", not as the reason for it: the reason is
+    the partition above. Nothing else may cite this check as the guarantee that
+    two episodes cannot overlap, because they now can and do.
+    """
     run: list[Observed] = []
     for one in ordered:
         if run and (
@@ -215,6 +239,8 @@ def _segment(run: Sequence[Observed]) -> Segment | None:
             batch_ids=tuple(dict.fromkeys(one.batch_id for one in run)),
             gestures=len(gestures),
             calls=len(calls),
+            touched_from=gestures[0].at,
+            touched_until=gestures[-1].at,
         ),
         signature=signature,
     )

@@ -28,6 +28,17 @@
          than a screen the operator navigated to. -->
     <main id="cards"></main>
 
+    <!-- The conversation. One continuous thread per operator, across every tab
+         and across the panel being closed: what they asked for, what the system
+         answered, and the offers it made along the way. Built in transcript.js
+         from the thread the server holds, never from markup written here -- the
+         words in it are typed by an operator or written by a model. -->
+    <section id="thread">
+      <h2>Conversation</h2>
+      <div id="said"></div>
+      <p class="note" id="thread-note"></p>
+    </section>
+
     <section id="here">
       <h2>Tasks you keep doing here</h2>
       <ul id="candidates"></ul>

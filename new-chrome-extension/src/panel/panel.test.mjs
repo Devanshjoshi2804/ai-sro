@@ -31,8 +31,22 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 // first one. The function it was guarding is not lost -- a top-level
 // declaration in a script is a property of the sandbox's global either way,
 // which is already how this harness reaches `render` and `here`.
-const SOURCE = readFileSync(path.join(here, "panel.js"), "utf-8")
-  .replace(/^import .*?;$/m, "")
+//
+// `transcript.js` is concatenated ahead of it rather than imported into the
+// sandbox the way `hostMatches` is: it builds DOM, so it has to see the fake
+// `document` this harness makes, and a function imported into the sandbox from
+// this realm would close over node's own (absent) one instead. As a script,
+// its top-level declarations are properties of the sandbox's global, which is
+// exactly how `panel.js` reaches it.
+//
+// The strip is global (`gm`, not `m`): with two import lines a first-only
+// replace leaves the second, and `vm.runInContext` throws on it.
+const SOURCE = [
+  readFileSync(path.join(here, "transcript.js"), "utf-8"),
+  readFileSync(path.join(here, "panel.js"), "utf-8"),
+]
+  .join("\n")
+  .replace(/^import .*?;$/gm, "")
   .replace(/^export /gm, "");
 const { hostMatches } = await import("../background/scripts.js");
 

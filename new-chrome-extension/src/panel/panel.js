@@ -12,6 +12,7 @@
 // while one is running the panel is about that and nothing else.
 
 import { hostMatches } from "../background/scripts.js";
+import { transcript } from "./transcript.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -199,6 +200,7 @@ function render(status) {
   // While a demonstration is being recorded the panel is about that and
   // nothing else, and none of it applies to a browser that is not connected.
   $("here").hidden = Boolean(status.teaching) || !status.deviceId;
+  $("thread").hidden = Boolean(status.teaching) || !status.deviceId;
   $("ask").disabled = !status.deviceId;
   $("purge").disabled = !status.deviceId;
   return status;
@@ -784,6 +786,91 @@ $("options").addEventListener("click", (event) => {
   event.preventDefault();
   chrome.runtime.openOptionsPage();
 });
+
+// -- the conversation --------------------------------------------------------
+
+/** The thread this panel is a client of, and what was last drawn in it.
+ *
+ * One continuous thread per operator, resolved by the server rather than
+ * guessed at here: `GET /v1/threads/current` answers with the running one and
+ * starts one when there is none, so there is exactly one place a thread is
+ * made and the panel cannot invent a second conversation by racing itself.
+ */
+let threadId = null;
+let drawn = null;
+
+/** Fetch the thread and draw it. */
+async function conversation() {
+  let thread;
+  try {
+    thread = await ask({ kind: "thread" });
+  } catch (error) {
+    $("thread-note").textContent = error.message;
+    return;
+  }
+  $("thread-note").textContent = "";
+  threadId = thread.id;
+  show(thread);
+}
+
+/** Draw a thread, if it says anything the one on screen does not.
+ *
+ * A redraw replaces the composer, which takes what somebody was half way
+ * through typing with it -- so it happens only when the thread actually
+ * changed, and never while a box on this panel has the cursor in it. Anything
+ * said in the meantime appears the moment they stop typing.
+ */
+function show(thread) {
+  const now = `${thread.id}:${(thread.messages || []).map((message) => message.id).join(",")}`;
+  if (now === drawn) return;
+  if (drawn !== null && document.activeElement?.tagName === "INPUT") return;
+  drawn = now;
+  $("said").replaceChildren(transcript(thread, { onSay: say, onPress: answered }));
+}
+
+/** What the operator typed, said into the thread.
+ *
+ * The post answers with the whole thread, so this re-renders from the answer
+ * rather than appending locally: what is on screen is what the server recorded,
+ * not a guess at it that would show the message twice when the guess was right.
+ */
+async function say(text) {
+  if (!threadId) return conversation();
+  try {
+    show(await ask({ kind: "thread-say", threadId, text }));
+  } catch (error) {
+    $("thread-note").textContent = error.message;
+  }
+}
+
+/** An offer in the thread, answered.
+ *
+ * The message is a thing that was said; this press is the authorisation, and
+ * it goes through the same call the candidate rows have always made -- so an
+ * assisted run started from the conversation records the operator's press
+ * exactly as one started from a row does. Nothing here runs because a message
+ * asked for it.
+ *
+ * The decision is spread into the candidate rather than picked apart, because
+ * the fields `beginOffer` reads beyond the id -- a model's title, a signature
+ * -- are the backend's to add to an offer later, and a panel that copied three
+ * named fields across would silently drop them.
+ */
+async function answered(answer, message, where, button) {
+  const decision = message.decision || {};
+  const candidate = { ...decision, id: decision.candidate_id };
+  if (!candidate.id) return;
+  button.disabled = true;
+  if (answer === "do") return beginOffer(candidate, where, button);
+  try {
+    await ask({ kind: "dismiss-candidate", id: candidate.id, reason: "not worth automating" });
+  } catch (error) {
+    $("thread-note").textContent = error.message;
+    button.disabled = false;
+    return;
+  }
+  await conversation();
+}
 
 // -- tasks you keep doing here ----------------------------------------------
 
@@ -1675,5 +1762,15 @@ setInterval(() => {
   void whereWeAre();
 }, 2000);
 
+// ponytail: the thread is polled too, on its own slower tick -- it is a call to
+// the API rather than a read of the worker's own state, and nothing in a
+// conversation arrives fast enough to be worth the two-second one. Make it a
+// push from the worker if an offer ever needs to land sooner than this.
+setInterval(() => {
+  if (document.visibilityState !== "visible") return;
+  void conversation();
+}, 5000);
+
 void refresh();
 void whereWeAre();
+void conversation();

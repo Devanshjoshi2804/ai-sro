@@ -248,6 +248,58 @@ test("a thread with nothing in it is still a place to say something", () => {
 });
 
 let failed = 0;
+
+test("an offer the operator already answered stops asking again", () => {
+  // The offer stays -- it is a record of what was said -- but its buttons go.
+  // Pressing one is refused by the backend ("this candidate is already
+  // taught"), which is safe and useless: the operator answered, and the thread
+  // should look like it. Seen live: two answered offers still carrying live
+  // buttons above their own answers.
+  const node = transcript(
+    {
+      messages: [
+        {
+          id: "m1",
+          speaker: "system",
+          text: "Create a supplier — you've done this 5 times. Want me to do the next one?",
+          said_at: WHEN,
+          decision: { kind: "offer", candidate_id: "cnd-1", times: 5 },
+        },
+        {
+          id: "m2",
+          speaker: "system",
+          text: "Create a supplier — you asked for this one, so I learned it.",
+          said_at: WHEN,
+          decision: { kind: "answered", candidate_id: "cnd-1", answer: "asked" },
+        },
+        {
+          id: "m3",
+          speaker: "system",
+          text: "Create a work area — you've done this 4 times. Want me to do the next one?",
+          said_at: WHEN,
+          decision: { kind: "offer", candidate_id: "cnd-2", times: 4 },
+        },
+      ],
+    },
+    {},
+  );
+
+  const said = messages(node);
+  const [answeredOffer, itsAnswer, openOffer] = said;
+  assert.equal(
+    of(answeredOffer, "button").length,
+    0,
+    "an offer that was already answered still invited an answer",
+  );
+  assert.equal(answeredOffer.dataset.answered, "asked");
+  assert.ok(
+    /Create a supplier/.test(words(answeredOffer)),
+    "the offer's own words were dropped along with its buttons",
+  );
+  assert.equal(of(itsAnswer, "button").length, 0, "the answer itself grew buttons");
+  assert.equal(of(openOffer, "button").length, 2, "an unanswered offer lost its buttons");
+});
+
 for (const [name, fn] of tests) {
   try {
     await fn();

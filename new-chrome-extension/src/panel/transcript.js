@@ -58,7 +58,9 @@ export function transcript(thread, { onSay, onPress } = {}) {
 
   const said = document.createElement("ul");
   said.className = "said";
-  for (const message of thread?.messages || []) said.append(saying(message, onPress));
+  const messages = thread?.messages || [];
+  const spent = alreadyAnswered(messages);
+  for (const message of messages) said.append(saying(message, onPress, spent));
   root.append(said);
 
   root.append(composer(onSay));
@@ -68,7 +70,31 @@ export function transcript(thread, { onSay, onPress } = {}) {
 /** One message. Three speakers, three shapes -- the shape is `data-speaker`,
  * which is a hook for the stylesheet rather than three near-identical builders
  * here. */
-function saying(message, onPress) {
+/** Which offers have already been answered, by the candidate they were about.
+ *
+ * Named for what it returns rather than `answered`, which panel.js already uses
+ * for the act of answering one. They are module-scoped and never collide in the
+ * browser, but two functions of that name in adjacent files meaning opposite
+ * halves of the same exchange is a trap for whoever reads them next.
+ *
+ * An offer is a record of something that was said, so it is never edited to
+ * report its own answer -- the answer is its own message. But an offer whose
+ * answer is further down the thread must stop carrying live buttons: pressing
+ * one is refused by the backend ("this candidate is already taught"), which is
+ * safe and useless. The operator asked; the thread should look like it.
+ */
+function alreadyAnswered(messages) {
+  const done = new Map();
+  for (const message of messages) {
+    const decision = message.decision;
+    if (decision?.kind === "answered" && decision.candidate_id) {
+      done.set(decision.candidate_id, decision.answer || "answered");
+    }
+  }
+  return done;
+}
+
+function saying(message, onPress, spent = new Map()) {
   const item = document.createElement("li");
   item.className = "message";
   item.dataset.speaker = message.speaker || "system";
@@ -85,7 +111,14 @@ function saying(message, onPress) {
   // extension has never heard of -- renders the words and nothing else. A
   // panel that blanked, or threw, on an unfamiliar `kind` would mean a backend
   // could not add one without every browser in the field going dark first.
-  if (message.decision?.kind === "offer") item.append(answers(message, item, onPress));
+  if (message.decision?.kind === "offer") {
+    const already = spent.get(message.decision.candidate_id);
+    // Answered further down the thread: the words stay, the buttons go. The
+    // offer is still what was said, and the answer is still its own message;
+    // what is gone is the invitation to answer a second time.
+    if (already) item.dataset.answered = already;
+    else item.append(answers(message, item, onPress));
+  }
   return item;
 }
 

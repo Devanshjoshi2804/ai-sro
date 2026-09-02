@@ -12,6 +12,7 @@
 // while one is running the panel is about that and nothing else.
 
 import { hostMatches } from "../background/scripts.js";
+import { transcript } from "./transcript.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -86,14 +87,22 @@ function clock(since) {
  * reading, so a card that has an action carries it; one that does not says why
  * in a sentence somebody can act on elsewhere.
  */
-function card({ title, says, metrics, notes, stage, progress, tone, actions = [] }) {
+function card({ title, says, metrics, notes, stage, progress, tone, actions = [], toggle }) {
   const holder = document.createElement("section");
   holder.className = "card";
   if (tone) holder.dataset.tone = tone;
 
   if (title) {
     const heading = document.createElement("h3");
-    heading.textContent = title;
+    // `toggle` is only ever passed by `watchCard()` below -- every other
+    // caller here gets the plain heading it always had.
+    if (toggle) {
+      const text = document.createElement("span");
+      text.textContent = title;
+      heading.append(text, chevronButton(toggle));
+    } else {
+      heading.textContent = title;
+    }
     holder.append(heading);
   }
   if (says) {
@@ -199,6 +208,7 @@ function render(status) {
   // While a demonstration is being recorded the panel is about that and
   // nothing else, and none of it applies to a browser that is not connected.
   $("here").hidden = Boolean(status.teaching) || !status.deviceId;
+  $("thread").hidden = Boolean(status.teaching) || !status.deviceId;
   $("ask").disabled = !status.deviceId;
   $("purge").disabled = !status.deviceId;
   return status;
@@ -225,10 +235,20 @@ function recording(status) {
   });
 }
 
+/** Whether the operator has opened the watching card past what its own state
+ * calls for. Remembered here, across redraws, rather than reset by the
+ * panel's own two-second poll -- a poll that closed a card the moment
+ * somebody opened it to press "Start teaching" would make the press
+ * impossible. It decides nothing on its own: a state that needs an answer
+ * (see `watchCard` below) opens regardless of it, and can only ever be
+ * opened further by it, never closed.
+ */
+let watchOpen = false;
+
 function watching(status) {
   const paused = status.paused || status.serverPaused;
   if (paused) {
-    return card({
+    return watchCard(status, true, null, {
       title: "Paused",
       says: status.serverPaused
         ? "Observation is paused for everyone on this deployment."
@@ -255,7 +275,7 @@ function watching(status) {
     // and a button that said the same thing here as on the WMS would be
     // consent nobody gave.
     const excluded = excludedByDefault(status);
-    return card({
+    return watchCard(status, true, null, {
       title: excluded ? `${tabHere.host} is not normally recorded` : "Not watching this tab",
       says: excluded
         ? `${tabHere.host} is excluded for everyone in this tenant by default.` +
@@ -296,7 +316,7 @@ function watching(status) {
   // any page script exists. Reloading the page is the whole fix, so the panel
   // asks for that and says why.
   if ((status.deaf || []).includes(mine.tabId)) {
-    return card({
+    return watchCard(status, true, mine, {
       tone: "attention",
       title: "This tab is only recording half of what you do",
       says:
@@ -312,20 +332,51 @@ function watching(status) {
     });
   }
 
+  // Watching a host the tenant excludes by default is not the resting state
+  // this row collapses to -- it is the one place somebody agreed to their own
+  // mailbox, or whatever else is excluded, being recorded, and that agreement
+  // is worth reading again every time this card is drawn, not once and then
+  // folded away with the ordinary case.
   const granted = excludedByDefault(status);
-  return card({
-    title: granted ? `Watching ${mine.host}, which is normally excluded` : "Watching this tab",
-    says: granted
-      ? `You turned this on for ${mine.host}. Everything you do here is evidence,` +
+  if (granted) {
+    return watchCard(status, true, mine, {
+      title: `Watching ${mine.host}, which is normally excluded`,
+      says:
+        `You turned this on for ${mine.host}. Everything you do here is evidence,` +
         " until you close the tab or stop watching." +
-        elsewhere
-      : `Everything you do in ${mine.host || "this tab"} is evidence. What you repeat` +
-        " becomes a task worth offering; teach one deliberately at any time." +
         elsewhere,
-    // Said out loud, because it is a change to the screen they are working on.
-    // Chrome puts a debugging banner up for it on any browser that did not
-    // install this by policy, and an operator meeting that with no explanation
-    // has been given a reason to distrust everything else the panel says.
+      // Said out loud, because it is a change to the screen they are working
+      // on. Chrome puts a debugging banner up for it on any browser that did
+      // not install this by policy, and an operator meeting that with no
+      // explanation has been given a reason to distrust everything else the
+      // panel says.
+      metrics:
+        `since ${clock(mine.since)}` +
+        (status.policy?.capture_snapshots ? " · reading this page's structure too" : ""),
+      actions: [
+        {
+          label: "Start teaching",
+          primary: true,
+          disabled: !status.capturing,
+          act: (button) => startTeaching(button),
+        },
+        { label: "Stop watching", act: (button) => setWatch(button, false) },
+        pauseAction(status),
+      ],
+    });
+  }
+
+  // Nothing here is asking to be answered: this tab has been evidence for a
+  // while and stays that way until something changes. A card the size of
+  // "not watching" or "paused" for a fact nobody needs to act on is a card
+  // people stop reading -- so this collapses to the one line that fact
+  // earns, with a chevron back to everything below (`watchCard` decides).
+  return watchCard(status, false, mine, {
+    title: "Watching this tab",
+    says:
+      `Everything you do in ${mine.host || "this tab"} is evidence. What you repeat` +
+      " becomes a task worth offering; teach one deliberately at any time." +
+      elsewhere,
     metrics:
       `since ${clock(mine.since)}` +
       (status.policy?.capture_snapshots ? " · reading this page's structure too" : ""),
@@ -340,6 +391,67 @@ function watching(status) {
       pauseAction(status),
     ],
   });
+}
+
+/** The chevron that flips `watchOpen` and redraws from the same status.
+ *
+ * Only on a card that can actually close. A state that needs an answer is
+ * open whatever `watchOpen` says (`watchCard` ORs `needsAnswer` back in), so
+ * a chevron there is a control an operator can press and watch do nothing.
+ */
+function chevronButton({ open, onToggle }) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "chevron";
+  button.setAttribute("aria-expanded", String(open));
+  button.textContent = open ? "▾" : "▸";
+  button.addEventListener("click", onToggle);
+  return button;
+}
+
+/** The watching card, collapsed or not.
+ *
+ * `needsAnswer` decides the floor, never the ceiling: a state that needs a
+ * press is always open, no matter what the operator last chose, and a
+ * steady one opens only when they choose it -- so `open` is the one OR of
+ * the two, and closing the card can only ever move `watchOpen`, never force
+ * `needsAnswer` shut.
+ *
+ * The collapsed line still has to answer the one question this whole panel
+ * exists to guarantee an answer to -- whether this tab is evidence -- so it
+ * reuses `built.title`, which already says exactly that in every branch
+ * `watching()` has ("Watching this tab", "Paused", "Not watching this
+ * tab", ...), rather than a second, shorter sentence written here that
+ * could drift from it.
+ */
+function watchCard(status, needsAnswer, mine, built) {
+  const open = needsAnswer || watchOpen;
+  const toggle = {
+    open,
+    onToggle: () => {
+      watchOpen = !watchOpen;
+      render(status);
+    },
+  };
+
+  if (!open) {
+    const holder = document.createElement("div");
+    holder.className = "card line";
+    const dot = document.createElement("span");
+    dot.className = "dot";
+    const said = document.createElement("p");
+    // `mine` is null on every state that has no watch to describe. Those all
+    // pass `needsAnswer`, so none of them reaches here today -- and a card
+    // that stopped needing an answer should collapse, not throw.
+    said.textContent = mine
+      ? `${built.title} — ${mine.host || "this tab"}, ${clock(mine.since)}`
+      : built.title;
+    holder.append(dot, said, chevronButton(toggle));
+    return holder;
+  }
+
+  // No chevron where pressing it cannot close anything.
+  return card({ ...built, toggle: needsAnswer ? undefined : toggle });
 }
 
 function pauseAction(status) {
@@ -784,6 +896,98 @@ $("options").addEventListener("click", (event) => {
   event.preventDefault();
   chrome.runtime.openOptionsPage();
 });
+
+// -- the conversation --------------------------------------------------------
+
+/** The thread this panel is a client of, and what was last drawn in it.
+ *
+ * One continuous thread per operator, resolved by the server rather than
+ * guessed at here: `GET /v1/threads/current` answers with the running one and
+ * starts one when there is none, so there is exactly one place a thread is
+ * made and the panel cannot invent a second conversation by racing itself.
+ */
+let threadId = null;
+let drawn = null;
+
+/** Fetch the thread and draw it. */
+async function conversation() {
+  let thread;
+  try {
+    thread = await ask({ kind: "thread" });
+  } catch (error) {
+    $("thread-note").textContent = error.message;
+    return;
+  }
+  $("thread-note").textContent = "";
+  threadId = thread.id;
+  show(thread);
+}
+
+/** Draw a thread, if it says anything the one on screen does not.
+ *
+ * A redraw replaces the composer, which takes what somebody was half way
+ * through typing with it -- so it happens only when the thread actually
+ * changed, and never while a box on this panel has the cursor in it. Anything
+ * said in the meantime appears the moment they stop typing.
+ *
+ * `asked` is that guard's one exception: the redraw the operator's own send
+ * triggered. Sending with Enter leaves the cursor exactly where the guard
+ * looks for it, so without this the box empties and nothing is painted in its
+ * place -- the panel's main interaction, appearing not to work. A poll landing
+ * on somebody mid-sentence is what the guard is for; their own press is not
+ * that.
+ */
+function show(thread, { asked = false } = {}) {
+  const now = `${thread.id}:${(thread.messages || []).map((message) => message.id).join(",")}`;
+  if (now === drawn) return;
+  if (!asked && drawn !== null && document.activeElement?.tagName === "INPUT") return;
+  drawn = now;
+  $("said").replaceChildren(transcript(thread, { onSay: say, onPress: answered }));
+}
+
+/** What the operator typed, said into the thread.
+ *
+ * The post answers with the whole thread, so this re-renders from the answer
+ * rather than appending locally: what is on screen is what the server recorded,
+ * not a guess at it that would show the message twice when the guess was right.
+ */
+async function say(text) {
+  if (!threadId) return conversation();
+  try {
+    show(await ask({ kind: "thread-say", threadId, text }), { asked: true });
+  } catch (error) {
+    $("thread-note").textContent = error.message;
+  }
+}
+
+/** An offer in the thread, answered.
+ *
+ * The message is a thing that was said; this press is the authorisation, and
+ * it goes through the same call the candidate rows have always made -- so an
+ * assisted run started from the conversation records the operator's press
+ * exactly as one started from a row does. Nothing here runs because a message
+ * asked for it.
+ *
+ * The decision is spread into the candidate rather than picked apart, because
+ * the fields `beginOffer` reads beyond the id -- a model's title, a signature
+ * -- are the backend's to add to an offer later, and a panel that copied three
+ * named fields across would silently drop them.
+ */
+async function answered(answer, message, where, button) {
+  const decision = message.decision || {};
+  const candidate = { ...decision, id: decision.candidate_id };
+  if (!candidate.id) return;
+  button.disabled = true;
+  if (answer === "do") return beginOffer(candidate, where, button);
+  try {
+    await ask({ kind: "dismiss-candidate", id: candidate.id, reason: "not worth automating" });
+  } catch (error) {
+    $("thread-note").textContent = error.message;
+    button.disabled = false;
+    return;
+  }
+  await conversation();
+}
 
 // -- tasks you keep doing here ----------------------------------------------
 
@@ -1675,5 +1879,15 @@ setInterval(() => {
   void whereWeAre();
 }, 2000);
 
+// ponytail: the thread is polled too, on its own slower tick -- it is a call to
+// the API rather than a read of the worker's own state, and nothing in a
+// conversation arrives fast enough to be worth the two-second one. Make it a
+// push from the worker if an offer ever needs to land sooner than this.
+setInterval(() => {
+  if (document.visibilityState !== "visible") return;
+  void conversation();
+}, 5000);
+
 void refresh();
 void whereWeAre();
+void conversation();

@@ -635,6 +635,7 @@ def update_candidate_row(row: TaskCandidateRow, candidate: TaskCandidate) -> Non
     row.status = candidate.status.value
     row.skill_id = candidate.skill_id.value if candidate.skill_id else None
     row.dismissed_reason = candidate.dismissed_reason
+    row.offered_at = candidate.offered_at
     row.episodes = dump_episodes(candidate.episodes)
     row.joins = dump_joins(candidate.joins)
     # Lifted out of the document so "offer me what happened most often" is an
@@ -656,6 +657,7 @@ def row_to_candidate(row: TaskCandidateRow) -> TaskCandidate:
         episodes=load_episodes(row.episodes),
         skill_id=SkillId(row.skill_id) if row.skill_id else None,
         dismissed_reason=row.dismissed_reason,
+        offered_at=row.offered_at,
         joins=load_joins(row.joins),
         named_by_model=row.named_by_model,
         learned_from=row.learned_from or 0,

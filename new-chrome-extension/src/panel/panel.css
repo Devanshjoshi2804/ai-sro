@@ -163,9 +163,30 @@ body {
 }
 
 .card h3 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   margin: 0 0 6px;
   font-size: 13.5px;
   font-weight: 600;
+}
+
+/* The one control on every watching card: flips it open or shut, never
+   disabled -- a state that needs an answer simply outvotes a press here. */
+.chevron {
+  flex: 0 0 auto;
+  padding: 2px 6px;
+  border: none;
+  background: none;
+  color: var(--ink-mute);
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.chevron:hover {
+  color: var(--ink);
 }
 
 .card p {
@@ -210,6 +231,29 @@ body {
 
 .progress span[data-done="true"] {
   background: var(--accent);
+}
+
+/* The watching card, once nothing about it needs a press: a dot and a line,
+   not a card's worth of padding for one sentence. */
+.card.line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+}
+
+.card.line .dot {
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--good);
+}
+
+.card.line p {
+  flex: 1;
+  margin: 0;
+  color: var(--ink-soft);
 }
 
 /* -- buttons -------------------------------------------------------------- */
@@ -396,4 +440,82 @@ footer a {
 
 #purged {
   flex-basis: 100%;
+}
+
+/* -- the conversation ------------------------------------------------------ */
+
+#thread {
+  padding: 4px 14px 6px;
+}
+
+#thread h2 {
+  margin: 8px 0;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}
+
+.thread .said {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.thread .said:not(:empty) {
+  margin-bottom: 10px;
+}
+
+/* Three speakers, three shapes. What the operator said sits to the right in
+   the accent, the way their own words do in every chat they have ever used;
+   what the system said sits left on a card. A thing that happened -- an offer,
+   a run that finished -- is neither, and is marked as the system's own note
+   rather than dressed up as a reply somebody wrote. */
+.message {
+  max-width: 92%;
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+}
+
+.message[data-speaker="operator"] {
+  align-self: flex-end;
+  border-color: var(--accent);
+  background: var(--brand-accent-tint, var(--card));
+}
+
+.message[data-speaker="system"] {
+  border-left: 2px solid var(--accent);
+}
+
+.message .what {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  /* Model- and operator-written text, shown as the text it is: a long token
+     wraps rather than pushing the column sideways, and the newlines somebody
+     typed are the newlines they see. */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.composer input {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12.5px;
+}
+
+.composer input::placeholder {
+  color: var(--ink-mute);
 }

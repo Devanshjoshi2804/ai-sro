@@ -148,6 +148,18 @@ class TaskCandidate:
     part of a candidate anything generated, and it is marked so nobody mistakes
     a sentence for a fact."""
 
+    offered_at: datetime | None = None
+    """When this was said out loud to the operator, if it has been.
+
+    Exists so a conversation does not repeat itself. The offer is a message in
+    a thread now rather than a card that vanishes with the panel, and mining
+    sweeps run every quarter of an hour over evidence they have already read --
+    without this, every one of them would post the same sentence again, and a
+    conversation that repeats itself is one nobody reads.
+
+    A timestamp rather than a flag, because "when were they asked" is the
+    question anybody debugging a re-offer actually has."""
+
     learned_from: int = 0
     """How many doings had been seen the last time learning was tried on this.
 

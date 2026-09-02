@@ -40,6 +40,28 @@ async def list_threads(container: ContainerDep, ctx: ContextDep) -> list[ThreadS
     return [ThreadSummary.of(thread) for thread in threads]
 
 
+@router.get("/current")
+async def current_thread(container: ContainerDep, ctx: ContextDep) -> ThreadDetail:
+    """The conversation this operator is in, made if they are not in one yet.
+
+    The panel needs "the thread", not a list to guess from -- one continuous
+    conversation per operator, across every tab they have open, not one per
+    host.
+
+    Declared before `/{thread_id}` in this file: FastAPI matches routes in
+    declaration order, and below that one, `current` is read as a thread id
+    and answers 404 instead of resolving here.
+
+    `ReadThreads.current` only reads; when this operator has nothing running,
+    starting one is `StartThread`'s job -- done here, once, rather than taught
+    to a reader as a second way for a thread to come into being.
+    """
+    thread = await container.read_threads().current(ctx)
+    if thread is None:
+        thread = await container.start_thread().execute(ctx)
+    return ThreadDetail.of_thread(thread)
+
+
 @router.post("/{thread_id}/runs", status_code=status.HTTP_201_CREATED)
 async def run_from_thread(
     thread_id: str, body: RunSkillRequest, container: ContainerDep, ctx: ContextDep

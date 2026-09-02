@@ -175,6 +175,17 @@ export const api = {
    * names a different taught task is answered about that task. */
   resolveIntent: (utterance) => call("/v1/intent/resolve", { method: "POST", body: { utterance } }),
 
+  /** This operator's running conversation, started if they have none. */
+  currentThread: () => call("/v1/threads/current"),
+
+  /** Say something into it. Answers with the whole thread, which is why the
+   * panel re-renders from the reply rather than appending locally. */
+  say: (threadId, text) =>
+    call(`/v1/threads/${encodeURIComponent(threadId)}/messages`, {
+      method: "POST",
+      body: { text },
+    }),
+
   /** The press. Promotes the version a preview just showed and starts it in
    * the operator's own browser in one call -- see ADR 014 and
    * `RunFromPreview`. Refused for a looped skill with a sentence written for

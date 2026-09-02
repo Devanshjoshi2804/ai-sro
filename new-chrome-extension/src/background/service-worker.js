@@ -664,6 +664,10 @@ async function handle(message, sender) {
       return api.dismissCandidate(message.id, message.reason);
     case "resolve-intent":
       return api.resolveIntent(message.utterance);
+    case "thread":
+      return api.currentThread();
+    case "thread-say":
+      return api.say(message.threadId, message.text);
     case "run-skill":
       // The press. `from-preview`, not the ordinary run endpoint -- the
       // operator read the preview this promotes on, in this browser, and a

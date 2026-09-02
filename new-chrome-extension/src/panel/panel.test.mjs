@@ -31,8 +31,22 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 // first one. The function it was guarding is not lost -- a top-level
 // declaration in a script is a property of the sandbox's global either way,
 // which is already how this harness reaches `render` and `here`.
-const SOURCE = readFileSync(path.join(here, "panel.js"), "utf-8")
-  .replace(/^import .*?;$/m, "")
+//
+// `transcript.js` is concatenated ahead of it rather than imported into the
+// sandbox the way `hostMatches` is: it builds DOM, so it has to see the fake
+// `document` this harness makes, and a function imported into the sandbox from
+// this realm would close over node's own (absent) one instead. As a script,
+// its top-level declarations are properties of the sandbox's global, which is
+// exactly how `panel.js` reaches it.
+//
+// The strip is global (`gm`, not `m`): with two import lines a first-only
+// replace leaves the second, and `vm.runInContext` throws on it.
+const SOURCE = [
+  readFileSync(path.join(here, "transcript.js"), "utf-8"),
+  readFileSync(path.join(here, "panel.js"), "utf-8"),
+]
+  .join("\n")
+  .replace(/^import .*?;$/gm, "")
   .replace(/^export /gm, "");
 const { hostMatches } = await import("../background/scripts.js");
 
@@ -74,6 +88,9 @@ function node(tag) {
     },
     addEventListener(_kind, fn) {
       this.listeners.push(fn);
+    },
+    setAttribute(name, value) {
+      this[name] = value;
     },
   };
 }
@@ -175,8 +192,19 @@ function panel(status, here = null, replies = {}) {
     cards,
     ids,
     renderCandidates: sandbox.here,
+    // Exposed so a test can simulate the panel's own two-second poll --
+    // `refresh()` calling `render(status)` again with nothing changed --
+    // separately from whatever else a click already triggered.
+    render: sandbox.render,
     plainly: sandbox.plainly,
     previewOf: sandbox.previewOf,
+    // The conversation. `say` is what the composer calls, and `focus` is what
+    // a real browser does on its own when somebody types into the box and
+    // presses Enter -- the cursor is still in there when the answer lands.
+    say: sandbox.say,
+    focus: (el) => {
+      sandbox.document.activeElement = el;
+    },
   };
 }
 
@@ -322,6 +350,137 @@ test("an ordinary watched tab is not accused of being half deaf", async () => {
   const said = cards.map(words).join(" ");
   assert.ok(/Watching this tab/i.test(said));
   assert.ok(!/only recording half/i.test(said));
+});
+
+test("a steady watching state is one line", async () => {
+  // Nothing about an ordinary watched tab is asking to be answered, so the
+  // card that used to take a third of the panel -- title, sentence, metrics,
+  // three buttons -- collapses to the one line that fact earns. Its own
+  // actions (Start teaching, Stop watching, Pause) are not gone -- see the
+  // chevron test below -- only not shouted before anybody asked for them.
+  const { cards } = panel(
+    {
+      deviceId: "dev-1",
+      capturing: true,
+      watched: [{ tabId: 7, host: "wms.example", since: new Date(Date.now() - 53 * 60_000).toISOString() }],
+    },
+    { id: 7, host: "wms.example", url: "https://wms.example/portal" },
+  );
+
+  const line = cards.find((c) => words(c).includes("wms.example"));
+  assert.ok(line, "the steady watching state was not drawn at all");
+  assert.ok(
+    !buttons(line).some((b) => ["Start teaching", "Stop watching", "Pause"].includes(b.textContent)),
+    "a steady watching state still showed its actions before being asked to",
+  );
+});
+
+test("the collapsed row has a chevron, and pressing it reveals the actions", async () => {
+  const { ids } = panel(
+    {
+      deviceId: "dev-1",
+      capturing: true,
+      watched: [{ tabId: 7, host: "wms.example", since: new Date(Date.now() - 53 * 60_000).toISOString() }],
+    },
+    { id: 7, host: "wms.example", url: "https://wms.example/portal" },
+  );
+
+  const line = ids["cards"].kids.find((c) => words(c).includes("wms.example"));
+  const [chevron] = buttons(line);
+  assert.ok(chevron, "the collapsed row carried no chevron");
+
+  chevron.listeners[0]();
+
+  const opened = ids["cards"].kids.find((c) => words(c).includes("Watching this tab"));
+  assert.ok(opened, "pressing the chevron did not redraw the watching card at all");
+  assert.ok(
+    buttons(opened).some((b) => b.textContent === "Start teaching"),
+    "pressing the chevron did not reveal the actions",
+  );
+});
+
+test("a manual expansion survives a redraw", async () => {
+  // The panel polls `status` every couple of seconds and redraws from it --
+  // `refresh()` calling `render(status)` again with nothing about the state
+  // having changed. An expansion the operator just pressed for must still be
+  // there on the far side of that, or pressing "Start teaching" a moment
+  // later is a race against the panel's own clock.
+  const status = {
+    deviceId: "dev-1",
+    capturing: true,
+    watched: [{ tabId: 7, host: "wms.example", since: new Date(Date.now() - 53 * 60_000).toISOString() }],
+  };
+  const { ids, render } = panel(status, { id: 7, host: "wms.example", url: "https://wms.example/portal" });
+
+  const line = ids["cards"].kids.find((c) => words(c).includes("wms.example"));
+  const [chevron] = buttons(line);
+  chevron.listeners[0]();
+
+  render(status); // the poll's own redraw, simulated
+
+  const opened = ids["cards"].kids.find((c) => words(c).includes("Watching this tab"));
+  assert.ok(opened, "the next redraw closed a card the operator had just opened");
+  assert.ok(
+    buttons(opened).some((b) => b.textContent === "Start teaching"),
+    "the redraw kept the card open but lost its actions",
+  );
+});
+
+test("a state with something to press expands itself", async () => {
+  // A host the tenant excludes by default, actively being watched, is the one
+  // place somebody agreed to their own mailbox being recorded -- that stays
+  // the full card, buttons included, every time it is drawn.
+  const { cards } = panel(
+    {
+      deviceId: "dev-1",
+      capturing: true,
+      policy: { exclude_hosts: ["wms.example"] },
+      watched: [{ tabId: 7, host: "wms.example", since: new Date().toISOString() }],
+    },
+    { id: 7, host: "wms.example", url: "https://wms.example/portal" },
+  );
+
+  const card = cards.find((c) => words(c).includes("normally excluded"));
+  assert.ok(card, "a watched-but-excluded host was not called out");
+  assert.ok(buttons(card).length > 0, "a state that still needs an answer offered nothing to press");
+});
+
+test("a card that cannot close has no chevron on it", async () => {
+  // A control that visibly does nothing. `needsAnswer` forces the card open
+  // whatever `watchOpen` says, so a chevron there is one an operator presses
+  // and watches nothing happen to.
+  const { cards } = panel(
+    {
+      deviceId: "dev-1",
+      capturing: true,
+      policy: { exclude_hosts: ["wms.example"] },
+      watched: [{ tabId: 7, host: "wms.example", since: new Date().toISOString() }],
+    },
+    { id: 7, host: "wms.example", url: "https://wms.example/portal" },
+  );
+
+  const card = cards.find((c) => words(c).includes("normally excluded"));
+  assert.ok(
+    !buttons(card).some((button) => button.className === "chevron"),
+    "a card that is always open still drew the control for closing it",
+  );
+});
+
+test("the collapsed row still says whether this tab is evidence", async () => {
+  // The words matter: an operator who cannot tell whether they are being
+  // recorded is the failure this panel guards against, collapsed or not.
+  const { cards } = panel(
+    {
+      deviceId: "dev-1",
+      capturing: true,
+      watched: [{ tabId: 7, host: "wms.example", since: new Date().toISOString() }],
+    },
+    { id: 7, host: "wms.example", url: "https://wms.example/portal" },
+  );
+
+  const said = cards.map(words).join(" ");
+  assert.match(said, /Watching this tab/i);
+  assert.match(said, /wms\.example/);
 });
 
 test("the offer is about their work, not about our system", async () => {
@@ -1375,6 +1534,33 @@ test("undo says what it is about to delete, and pins the version it was offered"
   const [ran] = sentOf(sent, "run-skill");
   assert.strictEqual(ran.skillId, "skl-undo");
   assert.strictEqual(ran.version, 2, "the undo ran whatever version was newest, not the one it was offered");
+});
+
+test("sending with Enter paints the answer, with the cursor still in the box", async () => {
+  // The primary way anybody sends a chat message. The redraw a poll makes must
+  // not take a half-typed sentence with it -- but this redraw is the
+  // operator's own press landing, and skipping it clears the box and paints
+  // nothing until they click away.
+  const spoke = { id: "thr-1", messages: [] };
+  const answered = {
+    id: "thr-1",
+    messages: [{ id: "m1", speaker: "operator", text: "make a work area for receiving" }],
+  };
+  const { ids, say, focus } = panel({ deviceId: "dev-1" }, null, {
+    thread: spoke,
+    "thread-say": answered,
+  });
+  // The load's own `conversation()` first, which is what learns the thread id.
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  focus({ tagName: "INPUT" });
+  await say("make a work area for receiving");
+
+  assert.match(
+    words(ids["said"]),
+    /make a work area for receiving/,
+    "what the operator sent was never painted",
+  );
 });
 
 for (const [name, fn] of tests) {

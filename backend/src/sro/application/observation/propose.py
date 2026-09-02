@@ -18,12 +18,18 @@ lot of pairs, and most of them are obviously unrelated to a `for` loop.
 from __future__ import annotations
 
 import logging
+import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import timedelta
 
+from sro.application.chat.converse import StartThread
+from sro.application.chat.read_threads import ReadThreads
 from sro.application.context import RequestContext
 from sro.application.ports.interpretation import WorkflowInterpreter
 from sro.application.ports.repositories import UnitOfWork
+from sro.application.ports.system import Clock, IdFactory
+from sro.domain.chat.thread import Message, Speaker
 from sro.domain.observation.candidate import (
     CandidateStatus,
     Episode,
@@ -57,6 +63,10 @@ candidates in one system are worth asking about."""
 class Proposed:
     named: int = 0
     joined: int = 0
+    offered: int = 0
+    """Offers written into an operator's thread. Each one is said exactly once
+    in the life of a candidate, so a sweep reporting anything but zero here is a
+    sweep that found something new to say."""
     asked: int = 0
     """Model calls made. Reported because this is the one part of the pipeline
     that costs money per candidate."""
@@ -65,9 +75,17 @@ class Proposed:
 class ProposeAboutCandidates:
     """The three model slots, run over one tenant's candidates."""
 
-    def __init__(self, uow: UnitOfWork, interpreter: WorkflowInterpreter) -> None:
+    def __init__(
+        self,
+        uow: UnitOfWork,
+        interpreter: WorkflowInterpreter,
+        clock: Clock | None = None,
+        ids: IdFactory | None = None,
+    ) -> None:
         self._uow = uow
         self._interpreter = interpreter
+        self._clock = clock
+        self._ids = ids
 
     async def execute(self, ctx: RequestContext) -> Proposed:
         async with self._uow as uow:
@@ -83,7 +101,12 @@ class ProposeAboutCandidates:
         # sentence about it was ever the model's.
         named, asked = await self._name(worth) if self._interpreter.available else (0, 0)
         joined, asked_again = await self._join(worth)
-        return Proposed(named=named, joined=joined, asked=asked + asked_again)
+        # Last, so the sentence said out loud is the one the naming slot just
+        # wrote. Over every new candidate rather than over `worth`, because the
+        # two rules an offer has to obey -- often enough, and not dismissed --
+        # are the ones this checks for itself.
+        offered = await self._offer(ctx, candidates)
+        return Proposed(named=named, joined=joined, offered=offered, asked=asked + asked_again)
 
     async def _name(self, candidates: list[TaskCandidate]) -> tuple[int, int]:
         """Slot 1: the sentence on the front.
@@ -152,6 +175,82 @@ class ProposeAboutCandidates:
                 await uow.commit()
             joined += 1
         return joined, asked
+
+    async def _offer(self, ctx: RequestContext, candidates: Sequence[TaskCandidate]) -> int:
+        """Say it out loud, in the conversation the operator is already in.
+
+        An offer used to be a card in the panel: it appeared, and when the panel
+        closed it was gone. It is a `SYSTEM` message now -- something that
+        happened rather than something anybody said -- so it survives the panel
+        closing and the console sees the same exchange.
+
+        **Posting one starts nothing.** The message carries the candidate and
+        its counts so the panel can draw the two buttons it has always drawn,
+        and pressing one makes the call it has always made. A message is a thing
+        said; the press is the authorisation, and that separation is what an
+        assisted run records as consent.
+
+        Two rules, one property: `worth_offering` is false below
+        `WORTH_OFFERING` and false for anything but a `NEW` candidate, so a task
+        done twice and a task the operator dismissed are both passed over here.
+        `offered_at` is the third: it is the whole reason a quarter-hourly sweep
+        does not repost the same sentence forever.
+        """
+        if self._clock is None or self._ids is None:
+            return 0  # a deployment with no clock or ids to write a message with
+        read, start = ReadThreads(self._uow), StartThread(self._uow, self._clock, self._ids)
+        offered = 0
+        for candidate in candidates:
+            if not candidate.worth_offering or candidate.offered_at is not None:
+                continue
+            # The candidate's operator, never the sweep's: `MineEverything`
+            # runs this as `miner`, which is nobody's conversation.
+            owner = RequestContext(ctx.tenant_id, candidate.principal_id)
+            # Started where there is none, because the moment an offer is worth
+            # making is not the moment to wait for the operator to speak first.
+            # `StartThread` is still the only way a thread comes into being.
+            found = await read.current(owner) or await start.execute(owner)
+            async with self._uow as uow:
+                thread = await uow.threads.get(owner.tenant_id, found.id)
+                said_at = self._clock.now()
+                thread.say(
+                    Message(
+                        id=self._ids.new_message_id(),
+                        speaker=Speaker.SYSTEM,
+                        text=_offered(candidate),
+                        said_at=said_at,
+                        # The prose is for the operator; this is for the panel,
+                        # which draws its buttons from `kind == "offer"` and
+                        # hands `candidate_id` straight back to the call that
+                        # already existed.
+                        #
+                        # The last three are what the ask box opens with when
+                        # the offer is accepted: the panel words that sentence
+                        # off the candidate's own title, or off its signature
+                        # where no model named it. Without them the press
+                        # opens an empty box, which asks for nothing and so
+                        # ranks nothing.
+                        decision={
+                            "kind": "offer",
+                            "candidate_id": candidate.id.value,
+                            "times": candidate.times_seen,
+                            "seconds_each": _seconds(candidate),
+                            "host": candidate.host,
+                            "title": candidate.title,
+                            "named_by_model": candidate.named_by_model,
+                            "signature": candidate.signature,
+                        },
+                    )
+                )
+                # In the same transaction as the message. Written and not
+                # recorded means the next sweep says it again; recorded and not
+                # written means it is never said at all.
+                candidate.offered_at = said_at
+                await uow.threads.save(thread)
+                await uow.candidates.save(candidate)
+                await uow.commit()
+            offered += 1
+        return offered
 
 
 class AnswerJoin:
@@ -399,3 +498,58 @@ def _describe(candidate: TaskCandidate) -> str:
             *(f"  {step}" for step in candidate.signature.split(" → ")),
         )
     )
+
+
+def _offered(candidate: TaskCandidate) -> str:
+    """The offer, worded the way the panel words it today.
+
+    A port of `plainly()` in `new-chrome-extension/src/panel/panel.js`, which
+    still says this sentence over the candidate rows. Two surfaces saying the
+    same thing in two wordings is how an operator learns that one of them is
+    lying, so this is the same three branches and the same words.
+
+    The panel's singular case ("once", "one receipt") is not ported: nothing
+    below `WORTH_OFFERING` is ever offered, so `times_seen` here is at least
+    three. The panel needs it because its rows show every `new` candidate
+    whatever its count.
+    """
+    said = _seconds(candidate)
+    times = f"{candidate.times_seen} times"
+    if candidate.named_by_model and candidate.title:
+        # A model writes a full sentence, conjugated as one. It can only be
+        # said back as itself, never spliced into a noun's slot.
+        return (
+            f"{candidate.title} — you've done this {times}, about {said}s each. "
+            "Want me to do the next one?"
+        )
+    what = _noun(candidate)
+    # No word survived the signature's path. Vaguer is better than visibly
+    # broken: "this" reads as ordinary English whatever the endpoint looked like.
+    if not what:
+        return f"You've done this {times} here — about {said}s each."
+    return f"You've created {candidate.times_seen} {_plural(what)} here — about {said}s each."
+
+
+def _seconds(candidate: TaskCandidate) -> int:
+    return round(candidate.median_duration_ms / 1000)
+
+
+def _noun(candidate: TaskCandidate) -> str:
+    """The noun for this task, off the signature's own path.
+
+    A numeric or otherwise substituted segment (`workOperations/*`) carries no
+    word, so this walks back past it looking for one that is. Empty says none
+    was found, which is true of some signatures and is a case the caller words
+    around rather than papering over with a placeholder.
+    """
+    path = ([*candidate.signature.split(" "), ""])[1]
+    word = next((part for part in reversed(path.split("/")) if part and part != "*"), "")
+    # `workOperations` is two words to everybody except a URL. Left plural or
+    # singular exactly as the path spelled it; `_plural` decides what is read.
+    return re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", word).lower()
+
+
+def _plural(word: str) -> str:
+    """Naive (`s`-only) on purpose: everything `_noun` hands this came off a
+    REST path, and that is English's regular case throughout."""
+    return word if word.endswith("s") else f"{word}s"

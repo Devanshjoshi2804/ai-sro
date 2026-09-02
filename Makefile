@@ -159,6 +159,7 @@ test-extension: ## The extension's own self-checks, in plain node
 	node new-chrome-extension/src/content/network.test.mjs
 	node new-chrome-extension/src/content/watch.test.mjs
 	node new-chrome-extension/src/panel/panel.test.mjs
+	node new-chrome-extension/src/panel/transcript.test.mjs
 	node new-chrome-extension/src/tokens.test.mjs
 
 check: lint test test-contract test-frontend test-extension test-browser ## What CI runs

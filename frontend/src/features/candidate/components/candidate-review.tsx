@@ -61,7 +61,7 @@ export function CandidateReview() {
     },
     onError: (error) => {
       const detail = error instanceof ApiError ? error.problem.detail : String(error);
-      toast.error(`Could not teach: ${detail}`);
+      toast.error(`Could not learn it: ${detail}`);
     },
   });
 
@@ -96,7 +96,7 @@ export function CandidateReview() {
     },
     onError: (error) => {
       const detail = error instanceof ApiError ? error.problem.detail : String(error);
-      toast.error(`Could not teach them as one: ${detail}`);
+      toast.error(`Could not learn them as one: ${detail}`);
     },
   });
 
@@ -120,7 +120,7 @@ export function CandidateReview() {
     <>
       <DataView
         title="Candidates"
-        description={`Tasks seen at least ${SEEN_AT_LEAST} times, watched rather than taught. Teach one to induce a skill from what was already captured, or dismiss it.`}
+        description={`Tasks somebody keeps doing here, seen at least ${SEEN_AT_LEAST} times. Learn one from what was already watched, or dismiss it \u2014 nobody is asked to demonstrate anything.`}
         loading={candidates.isLoading}
         error={candidates.error}
         rows={rows}
@@ -192,7 +192,7 @@ export function CandidateReview() {
                           disabled={teach.isPending}
                           onClick={() => teach.mutate(candidate.id)}
                         >
-                          Teach
+                          Learn this one
                         </Button>
                         <Button
                           size="sm"
@@ -230,7 +230,7 @@ export function CandidateReview() {
           <Textarea
             value={reason}
             onChange={(event) => setReason(event.target.value)}
-            placeholder="Why isn't this worth teaching?"
+            placeholder="Why isn't this worth learning?"
           />
           <DialogFooter>
             <Button
@@ -290,7 +290,7 @@ function Suggestion({
             disabled={busy}
             onClick={onMerge}
           >
-            Teach as one
+            Learn them as one
           </Button>
         )}
       </p>

@@ -99,6 +99,9 @@ ignore = [
 # A connector stood up by hand to prove the tool-step path. What it prints is
 # how you watch the handshake happen, which is the whole point of running it.
 "mock-connector/*" = ["T201", "INP001"]
+# The real one, same reason: what it prints is how you watch a grant being made
+# and a mail going out.
+"gmail-connector/*" = ["T201", "INP001"]
 
 [tool.ruff.lint.flake8-tidy-imports]
 ban-relative-imports = "all"

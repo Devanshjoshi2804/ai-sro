@@ -35,3 +35,10 @@ backend/worker.log
 
 # Subagent-driven-development scratch (ledgers, briefs, review packages)
 .superpowers/
+
+# Google OAuth client secrets, as downloaded from the Cloud console. The file
+# name is whatever Google called it, so the pattern matches the shape rather
+# than one name -- a secret that only stays out of git while somebody remembers
+# to rename it is a secret already halfway into git.
+client_secret*.json
+.gmail-token.json

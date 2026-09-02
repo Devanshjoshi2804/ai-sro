@@ -11,6 +11,28 @@
 // evidence plane keeps what arrives verbatim and there is no second chance to
 // redact it later.
 (() => {
+  // A frame routinely gets this file more than once. The worker re-injects the
+  // isolated half into every watched tab when it starts, and "watch this tab"
+  // injects on every press -- and two copies means two listeners on one
+  // `sro:request`, so the page realm's single record is forwarded twice. In a
+  // day of real recording that was 173 of 367 calls: each duplicate adjacent to
+  // its original, byte-identical, same `request_id`, because it was never a
+  // second call -- it was the same one relayed again.
+  //
+  // Not a plain "already installed" flag. After an extension reload the copy in
+  // residence is orphaned: its `chrome.runtime` is gone, it can forward nothing,
+  // and a flag it had set would keep the live replacement out -- silently
+  // recording gestures and no calls, which is the failure the reload fix exists
+  // to prevent. Asking whether the copy in residence can still reach the worker
+  // answers both cases with one question.
+  //
+  // observe.js needs no such guard, but only by accident: its top-level `const`
+  // throws on a second execution in the same world, so the second copy dies
+  // before it can add a listener. This file's IIFE has no such accident, which
+  // is the whole of why calls duplicated and gestures did not.
+  if (window.__sroRelayingCalls?.()) return;
+  window.__sroRelayingCalls = () => Boolean(chrome.runtime?.id);
+
   const MAX_TEXT = 200000;
   const REDACTED = "«redacted»";
 

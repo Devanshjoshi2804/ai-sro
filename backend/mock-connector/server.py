@@ -194,5 +194,23 @@ class Connector(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8931
+    try:
+        server = ThreadingHTTPServer(("127.0.0.1", port), Connector)
+    except OSError as taken:
+        # A stack trace for "something else is on that port" tells you what
+        # Python noticed rather than what to do about it.
+        print(f"port {port} is already in use ({taken.strerror}).")
+        print(f"  what has it:  lsof -ti :{port}")
+        print(f"  free it:      lsof -ti :{port} | xargs kill")
+        print(f"  or pick another: uv run python {sys.argv[0]} {port + 1}")
+        raise SystemExit(1) from taken
+
     print(f"mail connector on http://localhost:{port}/mcp   session={SESSION[:8]}…")
-    ThreadingHTTPServer(("127.0.0.1", port), Connector).serve_forever()
+    print("point the system at it with:")
+    print(f'  SRO_MCP_SERVERS="mail=http://localhost:{port}/mcp"')
+    print("set in the API's own environment -- a shell variable set beside it")
+    print("reaches nothing, because the API reads its settings in its own process.")
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print("\nstopped.")

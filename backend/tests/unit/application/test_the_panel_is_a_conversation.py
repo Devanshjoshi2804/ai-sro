@@ -76,6 +76,30 @@ async def test_another_operator_s_thread_is_never_returned() -> None:
     assert theirs.opened_by != CTX.principal_id
 
 
+async def test_a_busy_tenant_does_not_lose_this_operator_s_thread() -> None:
+    """The principal belongs in the query, not in a filter over a page of the
+    tenant's newest.
+
+    The console starts a thread on every first ask, so a handful of colleagues
+    between this operator's two visits is enough to push theirs out of any
+    window -- and what that silently does is start them a second conversation
+    and orphan every offer already said in the first, because `offered_at`
+    never lets one be said twice.
+    """
+    uow = FakeUnitOfWork()
+    ids, clock = FakeIdFactory(), FakeClock()
+    start = StartThread(uow, clock, ids)
+    mine = await start.execute(CTX)
+    for _ in range(50):
+        clock.advance(60)
+        await start.execute(OTHER)
+
+    found = await ReadThreads(uow).current(CTX)
+
+    assert found is not None, "the operator's own thread fell out of the tenant's newest page"
+    assert found.id == mine.id
+
+
 @pytest.fixture
 def uow() -> FakeUnitOfWork:
     return FakeUnitOfWork()
@@ -296,6 +320,29 @@ async def test_the_offer_carries_what_the_buttons_need() -> None:
     # Both halves. A decision with no prose is a message nobody can read, and
     # prose with no decision is a message the panel cannot draw buttons on.
     assert offer.text == "You've created 3 adjusts here — about 51s each."
+
+
+async def test_the_offer_carries_the_sentence_the_ask_box_will_open_with() -> None:
+    """Pressing "Do the next one" opens the same ask box every sentence goes
+    through, and the panel fills it from the candidate's own words --
+    `suggestedSentence` reads `title`, `named_by_model` and `signature`. An
+    offer that carries none of them opens that box blank, even for a task a
+    model has already named.
+    """
+    uow = FakeUnitOfWork()
+    candidate = _candidate(title="Adjust an LPN after a short ship", named_by_model=True)
+    await uow.candidates.add(candidate)
+
+    await _propose(uow).execute(CTX)
+
+    thread = await _thread_of(uow)
+    assert thread is not None
+    (offer,) = _offers_in(thread)
+    assert offer.decision["title"] == "Adjust an LPN after a short ship"
+    assert offer.decision["named_by_model"] is True
+    # The fallback, for a candidate no model named: the panel reads the noun
+    # off the signature itself.
+    assert offer.decision["signature"] == ADJUST
 
 
 async def test_a_model_named_task_is_offered_in_the_model_s_own_sentence() -> None:

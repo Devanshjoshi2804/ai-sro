@@ -223,12 +223,22 @@ class ProposeAboutCandidates:
                         # which draws its buttons from `kind == "offer"` and
                         # hands `candidate_id` straight back to the call that
                         # already existed.
+                        #
+                        # The last three are what the ask box opens with when
+                        # the offer is accepted: the panel words that sentence
+                        # off the candidate's own title, or off its signature
+                        # where no model named it. Without them the press
+                        # opens an empty box, which asks for nothing and so
+                        # ranks nothing.
                         decision={
                             "kind": "offer",
                             "candidate_id": candidate.id.value,
                             "times": candidate.times_seen,
                             "seconds_each": _seconds(candidate),
                             "host": candidate.host,
+                            "title": candidate.title,
+                            "named_by_model": candidate.named_by_model,
+                            "signature": candidate.signature,
                         },
                     )
                 )

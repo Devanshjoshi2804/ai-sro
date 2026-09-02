@@ -11,14 +11,17 @@
 
 import assert from "node:assert";
 
-/** Just enough document to build a transcript in, and to read it back out of.
+/** Every `innerHTML =` any node here was ever given.
  *
- * `querySelectorAll` is here because one test below asks the question a real
- * browser would ask -- "did an `<img>` appear?" -- and the honest answer is a
- * walk of what was actually built. A stub that only ever reported the tags it
- * was handed would answer that question the same way whether the code under
- * test used `textContent` or `innerHTML`, which is the whole point of asking.
+ * A fake document parses nothing, so asking it "did an `<img>` appear?" gets
+ * the same answer -- none -- whether the code under test wrote `textContent`
+ * or `innerHTML`. What it can see is the assignment itself, so that is what
+ * the security test below asserts on: this list staying empty is the property,
+ * and it is one the fake cannot be wrong about.
  */
+const asMarkup = [];
+
+/** Just enough document to build a transcript in, and to read it back out of. */
 function node(tag) {
   return {
     tag,
@@ -31,6 +34,12 @@ function node(tag) {
     textContent: "",
     kids: [],
     listeners: {},
+    set innerHTML(value) {
+      asMarkup.push({ tag: this.tag, value });
+    },
+    get innerHTML() {
+      return "";
+    },
     append(...added) {
       this.kids.push(...added);
     },
@@ -184,7 +193,14 @@ test("message text is never parsed as markup", () => {
     {},
   );
 
-  assert.equal(node_.querySelectorAll("img").length, 0);
+  // The property, and the one thing a fake document can actually witness: no
+  // node in this transcript was ever handed a string to parse.
+  assert.deepEqual(asMarkup, [], "message text was assigned as markup, not as text");
+  // The other half of the same mutation, from the reading side: the words
+  // reached the text of the paragraph a person reads, so a transcript that
+  // quietly stopped setting `textContent` cannot pass this by being blank.
+  const [what] = messages(node_)[0].kids;
+  assert.equal(what.textContent, "<img src=x onerror=alert(1)>");
   // And it is still readable: shown as the string it is, not swallowed.
   assert.match(words(node_), /<img src=x onerror=alert\(1\)>/);
 });

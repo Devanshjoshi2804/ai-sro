@@ -27,10 +27,12 @@ class ReadThreads:
         mailbox and the warehouse system is one piece of work, and splitting the
         conversation by tab is the same mistake as splitting the work by tab.
 
-        Filtered here rather than in the repository, because `list_for_tenant`
-        is what the repository offers and a tenant's threads are few. When they
-        are not, this wants its own query -- and the shape of that query is
-        exactly this filter, so nothing is lost by waiting for the pressure.
+        Asked of the repository as one scoped query rather than filtered out of
+        a page of the tenant's newest. The console starts a thread on every
+        first ask, so somebody else's threads are exactly what a window would
+        fill with -- and an operator whose own thread fell out of it would be
+        handed a fresh conversation, orphaning every offer already said in the
+        old one, which `offered_at` will never let be said again.
 
         Returns `None` rather than starting one itself: making a thread is
         `StartThread`'s job, not a second way for one to come into being. A
@@ -39,6 +41,7 @@ class ReadThreads:
         fallback belongs there.
         """
         async with self._uow as uow:
-            threads = await uow.threads.list_for_tenant(ctx.tenant_id, limit=50)
-        mine = [thread for thread in threads if thread.opened_by == ctx.principal_id]
-        return max(mine, key=lambda thread: thread.opened_at) if mine else None
+            mine = await uow.threads.list_for_tenant(
+                ctx.tenant_id, opened_by=ctx.principal_id, limit=1
+            )
+        return mine[0] if mine else None

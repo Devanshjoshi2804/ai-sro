@@ -489,15 +489,17 @@ class SqlThreadRepository(ThreadRepository):
         update_thread_row(await self._row(thread.tenant_id, thread.id), thread)
 
     async def list_for_tenant(
-        self, tenant_id: TenantId, *, limit: int = 50, offset: int = 0
+        self,
+        tenant_id: TenantId,
+        *,
+        opened_by: PrincipalId | None = None,
+        limit: int = 50,
+        offset: int = 0,
     ) -> tuple[Thread, ...]:
-        query = (
-            select(ThreadRow)
-            .where(ThreadRow.tenant_id == tenant_id.value)
-            .order_by(ThreadRow.opened_at.desc())
-            .limit(limit)
-            .offset(offset)
-        )
+        query = select(ThreadRow).where(ThreadRow.tenant_id == tenant_id.value)
+        if opened_by is not None:
+            query = query.where(ThreadRow.opened_by == opened_by.value)
+        query = query.order_by(ThreadRow.opened_at.desc()).limit(limit).offset(offset)
         rows = (await self._session.execute(query)).scalars().all()
         return tuple(row_to_thread(row) for row in rows)
 

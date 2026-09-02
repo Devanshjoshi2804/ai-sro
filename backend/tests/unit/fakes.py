@@ -821,9 +821,18 @@ class FakeThreadRepository:
         await self.add(thread)
 
     async def list_for_tenant(
-        self, tenant_id: TenantId, *, limit: int = 50, offset: int = 0
+        self,
+        tenant_id: TenantId,
+        *,
+        opened_by: PrincipalId | None = None,
+        limit: int = 50,
+        offset: int = 0,
     ) -> tuple[Thread, ...]:
-        rows = [t for (tenant, _), t in self.rows.items() if tenant == str(tenant_id)]
+        rows = [
+            t
+            for (tenant, _), t in self.rows.items()
+            if tenant == str(tenant_id) and (opened_by is None or t.opened_by == opened_by)
+        ]
         rows.sort(key=lambda thread: thread.opened_at, reverse=True)
         return tuple(rows[offset : offset + limit])
 

@@ -198,6 +198,13 @@ function panel(status, here = null, replies = {}) {
     render: sandbox.render,
     plainly: sandbox.plainly,
     previewOf: sandbox.previewOf,
+    // The conversation. `say` is what the composer calls, and `focus` is what
+    // a real browser does on its own when somebody types into the box and
+    // presses Enter -- the cursor is still in there when the answer lands.
+    say: sandbox.say,
+    focus: (el) => {
+      sandbox.document.activeElement = el;
+    },
   };
 }
 
@@ -436,6 +443,27 @@ test("a state with something to press expands itself", async () => {
   const card = cards.find((c) => words(c).includes("normally excluded"));
   assert.ok(card, "a watched-but-excluded host was not called out");
   assert.ok(buttons(card).length > 0, "a state that still needs an answer offered nothing to press");
+});
+
+test("a card that cannot close has no chevron on it", async () => {
+  // A control that visibly does nothing. `needsAnswer` forces the card open
+  // whatever `watchOpen` says, so a chevron there is one an operator presses
+  // and watches nothing happen to.
+  const { cards } = panel(
+    {
+      deviceId: "dev-1",
+      capturing: true,
+      policy: { exclude_hosts: ["wms.example"] },
+      watched: [{ tabId: 7, host: "wms.example", since: new Date().toISOString() }],
+    },
+    { id: 7, host: "wms.example", url: "https://wms.example/portal" },
+  );
+
+  const card = cards.find((c) => words(c).includes("normally excluded"));
+  assert.ok(
+    !buttons(card).some((button) => button.className === "chevron"),
+    "a card that is always open still drew the control for closing it",
+  );
 });
 
 test("the collapsed row still says whether this tab is evidence", async () => {
@@ -1506,6 +1534,33 @@ test("undo says what it is about to delete, and pins the version it was offered"
   const [ran] = sentOf(sent, "run-skill");
   assert.strictEqual(ran.skillId, "skl-undo");
   assert.strictEqual(ran.version, 2, "the undo ran whatever version was newest, not the one it was offered");
+});
+
+test("sending with Enter paints the answer, with the cursor still in the box", async () => {
+  // The primary way anybody sends a chat message. The redraw a poll makes must
+  // not take a half-typed sentence with it -- but this redraw is the
+  // operator's own press landing, and skipping it clears the box and paints
+  // nothing until they click away.
+  const spoke = { id: "thr-1", messages: [] };
+  const answered = {
+    id: "thr-1",
+    messages: [{ id: "m1", speaker: "operator", text: "make a work area for receiving" }],
+  };
+  const { ids, say, focus } = panel({ deviceId: "dev-1" }, null, {
+    thread: spoke,
+    "thread-say": answered,
+  });
+  // The load's own `conversation()` first, which is what learns the thread id.
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  focus({ tagName: "INPUT" });
+  await say("make a work area for receiving");
+
+  assert.match(
+    words(ids["said"]),
+    /make a work area for receiving/,
+    "what the operator sent was never painted",
+  );
 });
 
 for (const [name, fn] of tests) {

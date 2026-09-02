@@ -393,11 +393,11 @@ function watching(status) {
   });
 }
 
-/** The one control on every watching card, open or not: a chevron that
- * flips `watchOpen` and redraws from the same status. Present even on a
- * state that needs an answer -- pressing it there cannot close the card
- * (`watchCard` ORs `needsAnswer` back in), which is the "never closed" half
- * of the rule, not a special case carved out for it.
+/** The chevron that flips `watchOpen` and redraws from the same status.
+ *
+ * Only on a card that can actually close. A state that needs an answer is
+ * open whatever `watchOpen` says (`watchCard` ORs `needsAnswer` back in), so
+ * a chevron there is a control an operator can press and watch do nothing.
  */
 function chevronButton({ open, onToggle }) {
   const button = document.createElement("button");
@@ -440,12 +440,18 @@ function watchCard(status, needsAnswer, mine, built) {
     const dot = document.createElement("span");
     dot.className = "dot";
     const said = document.createElement("p");
-    said.textContent = `${built.title} — ${mine.host || "this tab"}, ${clock(mine.since)}`;
+    // `mine` is null on every state that has no watch to describe. Those all
+    // pass `needsAnswer`, so none of them reaches here today -- and a card
+    // that stopped needing an answer should collapse, not throw.
+    said.textContent = mine
+      ? `${built.title} — ${mine.host || "this tab"}, ${clock(mine.since)}`
+      : built.title;
     holder.append(dot, said, chevronButton(toggle));
     return holder;
   }
 
-  return card({ ...built, toggle });
+  // No chevron where pressing it cannot close anything.
+  return card({ ...built, toggle: needsAnswer ? undefined : toggle });
 }
 
 function pauseAction(status) {
@@ -923,11 +929,18 @@ async function conversation() {
  * through typing with it -- so it happens only when the thread actually
  * changed, and never while a box on this panel has the cursor in it. Anything
  * said in the meantime appears the moment they stop typing.
+ *
+ * `asked` is that guard's one exception: the redraw the operator's own send
+ * triggered. Sending with Enter leaves the cursor exactly where the guard
+ * looks for it, so without this the box empties and nothing is painted in its
+ * place -- the panel's main interaction, appearing not to work. A poll landing
+ * on somebody mid-sentence is what the guard is for; their own press is not
+ * that.
  */
-function show(thread) {
+function show(thread, { asked = false } = {}) {
   const now = `${thread.id}:${(thread.messages || []).map((message) => message.id).join(",")}`;
   if (now === drawn) return;
-  if (drawn !== null && document.activeElement?.tagName === "INPUT") return;
+  if (!asked && drawn !== null && document.activeElement?.tagName === "INPUT") return;
   drawn = now;
   $("said").replaceChildren(transcript(thread, { onSay: say, onPress: answered }));
 }
@@ -941,7 +954,7 @@ function show(thread) {
 async function say(text) {
   if (!threadId) return conversation();
   try {
-    show(await ask({ kind: "thread-say", threadId, text }));
+    show(await ask({ kind: "thread-say", threadId, text }), { asked: true });
   } catch (error) {
     $("thread-note").textContent = error.message;
   }

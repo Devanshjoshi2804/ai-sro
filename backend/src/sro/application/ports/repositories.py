@@ -209,9 +209,21 @@ class ThreadRepository(Protocol):
     async def save(self, thread: Thread) -> None: ...
 
     async def list_for_tenant(
-        self, tenant_id: TenantId, *, limit: int = 50, offset: int = 0
+        self,
+        tenant_id: TenantId,
+        *,
+        opened_by: PrincipalId | None = None,
+        limit: int = 50,
+        offset: int = 0,
     ) -> tuple[Thread, ...]:
-        """Most recently opened first."""
+        """Most recently opened first.
+
+        `opened_by` is one operator's own conversations, and it is a clause
+        rather than a filter the caller applies afterwards: the console starts
+        a thread on every first ask, so a page of the tenant's newest is a
+        window somebody else's threads can push an operator's out of -- which
+        would quietly begin them a second conversation.
+        """
         ...
 
 

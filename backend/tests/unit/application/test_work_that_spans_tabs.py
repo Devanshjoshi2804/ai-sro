@@ -2,10 +2,10 @@ import json
 from datetime import UTC, datetime, timedelta
 
 from sro.application.capture.events import RequestEvent, SnapshotEvent
-from sro.application.observation.propose import occurrences
+from sro.application.observation.propose import _plainly, _workflows, occurrences
 from sro.application.observation.segment import Observed, segment
 from sro.application.observation.teach import _within
-from sro.domain.observation.candidate import Episode, TaskCandidate
+from sro.domain.observation.candidate import Episode, JoinKind, TaskCandidate
 from sro.domain.shared.identifiers import BatchId, CandidateId
 from tests import factories as f
 
@@ -298,3 +298,33 @@ def test_one_interleaved_pair_counts_once_not_twice() -> None:
     )
 
     assert len(occurrences(mail, wms)) + len(occurrences(wms, mail)) == 1
+
+
+def test_two_episodes_that_start_in_the_same_second_still_count_once() -> None:
+    """Both timestamps come from event data, so a tie is not exotic. A `>` guard
+    lets a tied pair qualify in BOTH directions, and `_workflows` sums the two
+    -- offering one coincidence as a job, which is what the guard exists to
+    prevent."""
+    mail = _candidate(_episode(0, 120, "mail.example", (0, 100)))
+    wms = _candidate(_episode(0, 200, "wms.example", (10, 190)))
+
+    assert len(occurrences(mail, wms)) + len(occurrences(wms, mail)) == 1
+    assert _workflows([mail, wms]) == [], "one pair reached the threshold on its own"
+
+
+def test_the_reason_says_what_actually_happened() -> None:
+    """The reason is what a person reads when deciding whether two things are
+    one job. "One after the other" is simply false about somebody who kept both
+    tabs open."""
+    mail = _candidate(
+        _episode(0, 120, "mail.example", (0, 100)),
+        _episode(3600, 3720, "mail.example", (3600, 3700)),
+    )
+    wms = _candidate(
+        _episode(60, 200, "wms.example", (70, 190)),
+        _episode(3660, 3800, "wms.example", (3670, 3790)),
+    )
+
+    assert _plainly(JoinKind.WORKFLOW, mail, wms) == (
+        "worked in both at once 2 times -- mail.example and wms.example"
+    )

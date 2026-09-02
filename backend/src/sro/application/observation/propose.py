@@ -230,7 +230,10 @@ def _variants(
 def _workflows(
     candidates: list[TaskCandidate],
 ) -> list[tuple[JoinKind, TaskCandidate, TaskCandidate]]:
-    """Same operator, different systems, done one after the other more than once.
+    """Same operator, different systems, done together more than once.
+
+    Together in either shape `occurrences` counts: one after the other, or both
+    tabs open and worked in at once.
 
     An episode breaks on a host change, so this is the shape no candidate can
     have on its own: "check the WMS, then record it in the ERP" is two
@@ -300,8 +303,18 @@ def _interleaved(earlier: Episode, later: Episode) -> bool:
     Directional -- only the episode that started first may be the earlier half.
     `_workflows` counts both directions against `TOGETHER_TIMES`, so a
     symmetric rule would let one interleaved pair reach the threshold alone.
+
+    Ordered on `(started_at, ended_at, host)` rather than on `started_at`
+    alone, because both timestamps come from event data and two tabs starting
+    in the same second is not exotic. That is a total order for two episodes of
+    two candidates -- their hosts differ, which is what makes them a workflow
+    at all -- so exactly one direction of any pair qualifies, ties included.
     """
-    if earlier.started_at > later.started_at:
+    if (earlier.started_at, earlier.ended_at, earlier.host) >= (
+        later.started_at,
+        later.ended_at,
+        later.host,
+    ):
         return False
     if not (later.started_at < earlier.ended_at):
         return False
@@ -320,7 +333,8 @@ def _interleaved(earlier: Episode, later: Episode) -> bool:
 
 
 def _followed(first: TaskCandidate, second: TaskCandidate) -> int:
-    """How often an episode of `second` began just as one of `first` ended."""
+    """How often an episode of `second` belongs with one of `first` -- either
+    beginning just as it ended, or overlapping it with somebody's hands in both."""
     return len(occurrences(first, second))
 
 
@@ -332,8 +346,20 @@ def _plainly(kind: JoinKind, first: TaskCandidate, second: TaskCandidate) -> str
     """
     if kind is JoinKind.WORKFLOW:
         forwards, backwards = occurrences(first, second), occurrences(second, first)
-        times = max(len(forwards), len(backwards))
+        pairs = forwards if len(forwards) >= len(backwards) else backwards
+        times = len(pairs)
         order = (first, second) if len(forwards) >= len(backwards) else (second, first)
+        # Which shape it was, because "one after the other" is simply false about
+        # somebody who kept both tabs open, and a reason a person cannot weigh is
+        # a reason nobody answers.
+        at_once = sum(1 for earlier, later in pairs if _interleaved(earlier, later))
+        if at_once == times:
+            return f"worked in both at once {times} times -- {order[0].host} and {order[1].host}"
+        if at_once:
+            return (
+                f"done together {times} times -- {order[0].host} and {order[1].host}, "
+                f"{at_once} of them with both open at once"
+            )
         return f"done one after the other {times} times -- {order[0].host}, then {order[1].host}"
     steps = len(set(first.signature.split(" → ")) & set(second.signature.split(" → ")))
     return f"{steps} of their steps are the same call"

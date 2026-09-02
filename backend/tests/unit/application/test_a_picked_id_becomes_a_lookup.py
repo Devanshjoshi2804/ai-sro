@@ -54,7 +54,7 @@ def test_the_listing_is_found_in_a_doing_outside_the_pair() -> None:
         [{"addressId": "A1", "addressName": "test"}],
     )
     listing_b = a_read(
-        "https://wms.example/addresses?query=[]",
+        'https://wms.example/addresses?query=[{"column":"addressName","operator":"EQ","value":"also"}]',
         [{"addressId": "A1", "addressName": "also test"}],
     )
     write = a_write("https://wms.example/carrierCrossReferences", {"codAddressId": "A1"})
@@ -64,6 +64,11 @@ def test_the_listing_is_found_in_a_doing_outside_the_pair() -> None:
     # own write -- exactly the shape `_first_mutation` would happily search. It
     # exists only to prove index 1 is bounded by `step_index` (0, excluding it)
     # rather than falling through to `other`'s rule.
+    #
+    # It is a *filtered* read of the same collection, deliberately. An
+    # unfiltered one would be excluded twice over -- once by the bound and once
+    # by the preference for a filtered listing -- and reverting either rule
+    # alone would leave this test green, which is a guard that guards nothing.
     pair_b = (a_frame(listing_b), a_frame(write))
     other = (a_frame(listing), a_frame(write))
 

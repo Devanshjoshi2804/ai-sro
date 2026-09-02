@@ -338,6 +338,60 @@ test("an ordinary watched tab is not accused of being half deaf", async () => {
   assert.ok(!/only recording half/i.test(said));
 });
 
+test("a steady watching state is one line", async () => {
+  // Nothing about an ordinary watched tab is asking to be answered, so the
+  // card that used to take a third of the panel -- title, sentence, metrics,
+  // three buttons -- collapses to the one line that fact earns.
+  const { cards } = panel(
+    {
+      deviceId: "dev-1",
+      capturing: true,
+      watched: [{ tabId: 7, host: "wms.example", since: new Date(Date.now() - 53 * 60_000).toISOString() }],
+    },
+    { id: 7, host: "wms.example", url: "https://wms.example/portal" },
+  );
+
+  const line = cards.find((c) => words(c).includes("wms.example"));
+  assert.ok(line, "the steady watching state was not drawn at all");
+  assert.strictEqual(buttons(line).length, 0, "a steady watching state still offered something to press");
+});
+
+test("a state with something to press expands itself", async () => {
+  // A host the tenant excludes by default, actively being watched, is the one
+  // place somebody agreed to their own mailbox being recorded -- that stays
+  // the full card, buttons included, every time it is drawn.
+  const { cards } = panel(
+    {
+      deviceId: "dev-1",
+      capturing: true,
+      policy: { exclude_hosts: ["wms.example"] },
+      watched: [{ tabId: 7, host: "wms.example", since: new Date().toISOString() }],
+    },
+    { id: 7, host: "wms.example", url: "https://wms.example/portal" },
+  );
+
+  const card = cards.find((c) => words(c).includes("normally excluded"));
+  assert.ok(card, "a watched-but-excluded host was not called out");
+  assert.ok(buttons(card).length > 0, "a state that still needs an answer offered nothing to press");
+});
+
+test("the collapsed row still says whether this tab is evidence", async () => {
+  // The words matter: an operator who cannot tell whether they are being
+  // recorded is the failure this panel guards against, collapsed or not.
+  const { cards } = panel(
+    {
+      deviceId: "dev-1",
+      capturing: true,
+      watched: [{ tabId: 7, host: "wms.example", since: new Date().toISOString() }],
+    },
+    { id: 7, host: "wms.example", url: "https://wms.example/portal" },
+  );
+
+  const said = cards.map(words).join(" ");
+  assert.match(said, /Watching this tab/i);
+  assert.match(said, /wms\.example/);
+});
+
 test("the offer is about their work, not about our system", async () => {
   // What it said before: "Create workOperations on bf56-kms-wms-web-np2
   // .jdadelivers.com / Seen 3 times / [Teach it] [Not worth it]". The title is

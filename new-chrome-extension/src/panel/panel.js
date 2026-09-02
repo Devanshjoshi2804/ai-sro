@@ -314,34 +314,67 @@ function watching(status) {
     });
   }
 
+  // Watching a host the tenant excludes by default is not the resting state
+  // this row collapses to -- it is the one place somebody agreed to their own
+  // mailbox, or whatever else is excluded, being recorded, and that agreement
+  // is worth reading again every time this card is drawn, not once and then
+  // folded away with the ordinary case.
   const granted = excludedByDefault(status);
-  return card({
-    title: granted ? `Watching ${mine.host}, which is normally excluded` : "Watching this tab",
-    says: granted
-      ? `You turned this on for ${mine.host}. Everything you do here is evidence,` +
+  if (granted) {
+    return card({
+      title: `Watching ${mine.host}, which is normally excluded`,
+      says:
+        `You turned this on for ${mine.host}. Everything you do here is evidence,` +
         " until you close the tab or stop watching." +
-        elsewhere
-      : `Everything you do in ${mine.host || "this tab"} is evidence. What you repeat` +
-        " becomes a task worth offering; teach one deliberately at any time." +
         elsewhere,
-    // Said out loud, because it is a change to the screen they are working on.
-    // Chrome puts a debugging banner up for it on any browser that did not
-    // install this by policy, and an operator meeting that with no explanation
-    // has been given a reason to distrust everything else the panel says.
-    metrics:
-      `since ${clock(mine.since)}` +
-      (status.policy?.capture_snapshots ? " · reading this page's structure too" : ""),
-    actions: [
-      {
-        label: "Start teaching",
-        primary: true,
-        disabled: !status.capturing,
-        act: (button) => startTeaching(button),
-      },
-      { label: "Stop watching", act: (button) => setWatch(button, false) },
-      pauseAction(status),
-    ],
-  });
+      // Said out loud, because it is a change to the screen they are working
+      // on. Chrome puts a debugging banner up for it on any browser that did
+      // not install this by policy, and an operator meeting that with no
+      // explanation has been given a reason to distrust everything else the
+      // panel says.
+      metrics:
+        `since ${clock(mine.since)}` +
+        (status.policy?.capture_snapshots ? " · reading this page's structure too" : ""),
+      actions: [
+        {
+          label: "Start teaching",
+          primary: true,
+          disabled: !status.capturing,
+          act: (button) => startTeaching(button),
+        },
+        { label: "Stop watching", act: (button) => setWatch(button, false) },
+        pauseAction(status),
+      ],
+    });
+  }
+
+  // Nothing here is asking to be answered: this tab has been evidence for a
+  // while and stays that way until something changes. A card the size of
+  // "not watching" or "paused" for a fact nobody needs to act on is a card
+  // people stop reading -- so this is the one line that fact earns, not the
+  // full one above.
+  return watchLine(mine);
+}
+
+/** The watching state, once nothing about it needs a press: the dot, the
+ * host, and how long -- not a smaller version of `card()`'s actions row,
+ * because there is nothing in it to press.
+ *
+ * What must survive the collapse is the one thing this whole panel exists to
+ * guarantee: that an operator can tell whether the tab in front of them is
+ * evidence. So the words are the same words the full card used -- "Watching
+ * this tab" -- said in one line instead of a paragraph, never replaced by a
+ * vaguer summary that would say less.
+ */
+function watchLine(mine) {
+  const holder = document.createElement("div");
+  holder.className = "card line";
+  const dot = document.createElement("span");
+  dot.className = "dot";
+  const said = document.createElement("p");
+  said.textContent = `Watching this tab — ${mine.host || "this tab"}, ${clock(mine.since)}`;
+  holder.append(dot, said);
+  return holder;
 }
 
 function pauseAction(status) {

@@ -2,10 +2,12 @@ import json
 from datetime import UTC, datetime, timedelta
 
 from sro.application.capture.events import RequestEvent, SnapshotEvent
+from sro.application.observation.propose import occurrences
 from sro.application.observation.segment import Observed, segment
 from sro.application.observation.teach import _within
-from sro.domain.observation.candidate import Episode
-from sro.domain.shared.identifiers import BatchId
+from sro.domain.observation.candidate import Episode, TaskCandidate
+from sro.domain.shared.identifiers import BatchId, CandidateId
+from tests import factories as f
 
 AT = datetime(2026, 9, 2, 10, 0, tzinfo=UTC)
 BATCH = BatchId("bat_one")
@@ -230,3 +232,69 @@ def test_a_snapshot_is_judged_by_time_not_host() -> None:
     (kept,) = _within(payload, episode, BATCH)
 
     assert isinstance(kept[0], SnapshotEvent)
+
+
+def _episode(start: int, end: int, host: str, touched: tuple[int, int] | None) -> Episode:
+    return Episode(
+        started_at=AT + timedelta(seconds=start),
+        ended_at=AT + timedelta(seconds=end),
+        host=host,
+        batch_ids=(BATCH,),
+        gestures=1,
+        calls=1,
+        touched_from=AT + timedelta(seconds=touched[0]) if touched else None,
+        touched_until=AT + timedelta(seconds=touched[1]) if touched else None,
+    )
+
+
+def _candidate(*episodes: Episode) -> TaskCandidate:
+    """A candidate holding those episodes, in that order. Only the episodes
+    matter here -- `occurrences` reads nothing else."""
+    host = episodes[0].host
+    return TaskCandidate(
+        id=CandidateId(f"cnd-{host}"),
+        tenant_id=f.TENANT,
+        principal_id=f.OPERATOR,
+        signature="POST api/suppliers",
+        host=host,
+        title=f"Create a supplier on {host}",
+        episodes=episodes,
+    )
+
+
+def test_flipping_between_two_tabs_is_one_job() -> None:
+    """The halves overlap because the operator went back to the mail while the
+    warehouse screen was still open. That is one job, not two."""
+    mail = _episode(0, 120, "mail.example", touched=(0, 100))
+    wms = _episode(60, 200, "wms.example", touched=(70, 190))
+
+    assert occurrences(_candidate(mail), _candidate(wms))
+
+
+def test_a_mailbox_left_open_is_not_part_of_the_work() -> None:
+    """Overlapping in time proves nothing on its own: the tab was open, the
+    client polled, and nobody touched it."""
+    mail = _episode(0, 3600, "mail.example", touched=(0, 30))
+    wms = _episode(1800, 2000, "wms.example", touched=(1810, 1990))
+
+    assert not occurrences(_candidate(mail), _candidate(wms))
+
+
+def test_an_episode_with_no_touched_window_keeps_the_rule_that_mined_it() -> None:
+    mail = _episode(0, 100, "mail.example", touched=None)
+    wms = _episode(60, 200, "wms.example", touched=None)
+
+    assert not occurrences(_candidate(mail), _candidate(wms)), (
+        "an old overlapping pair must not start pairing retroactively"
+    )
+
+
+def test_one_interleaved_pair_counts_once_not_twice() -> None:
+    """`_workflows` sums both directions against TOGETHER_TIMES, so a symmetric
+    rule would let a single pair clear the bar on its own."""
+    mail, wms = (
+        _candidate(_episode(0, 120, "mail.example", (0, 100))),
+        _candidate(_episode(60, 200, "wms.example", (70, 190))),
+    )
+
+    assert len(occurrences(mail, wms)) + len(occurrences(wms, mail)) == 1

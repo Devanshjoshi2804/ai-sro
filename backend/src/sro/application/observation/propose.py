@@ -258,7 +258,13 @@ _UNANSWERED = Join(other_id=CandidateId("none"), kind=JoinKind.VARIANT, because=
 
 
 def occurrences(first: TaskCandidate, second: TaskCandidate) -> list[tuple[Episode, Episode]]:
-    """Each time an episode of `second` began just as one of `first` ended.
+    """Each time an episode of `second` belongs with one of `first`.
+
+    Two shapes, because a person does a job across two systems in two ways.
+    They finish in the mail and move to the warehouse -- sequential, which is
+    what this counted before. Or they keep both open and go back and forth,
+    which produces episodes that overlap and which this counted as nothing at
+    all, so the join built for exactly that shape was never proposed.
 
     The pairs themselves, because teaching the two candidates as one skill needs
     the halves that actually belong together: two doings a fortnight apart are
@@ -272,8 +278,45 @@ def occurrences(first: TaskCandidate, second: TaskCandidate) -> list[tuple[Episo
         (earlier, later)
         for earlier in first.episodes
         for later in second.episodes
-        if timedelta(0) <= later.started_at - earlier.ended_at <= TOGETHER_WITHIN
+        if _together(earlier, later)
     ]
+
+
+def _together(earlier: Episode, later: Episode) -> bool:
+    gap = later.started_at - earlier.ended_at
+    if timedelta(0) <= gap <= TOGETHER_WITHIN:
+        return True
+    return _interleaved(earlier, later)
+
+
+def _interleaved(earlier: Episode, later: Episode) -> bool:
+    """Overlapping in time, and touched by a person in the same stretch.
+
+    Overlap alone would pair a mailbox somebody left open with whatever else
+    they did that hour: the tab was there, the client polled, and none of it
+    was work. So the windows compared are the ones an episode records for when
+    somebody actually had their hands on it.
+
+    Directional -- only the episode that started first may be the earlier half.
+    `_workflows` counts both directions against `TOGETHER_TIMES`, so a
+    symmetric rule would let one interleaved pair reach the threshold alone.
+    """
+    if earlier.started_at > later.started_at:
+        return False
+    if not (later.started_at < earlier.ended_at):
+        return False
+    if (
+        earlier.touched_from is None
+        or earlier.touched_until is None
+        or later.touched_from is None
+        or later.touched_until is None
+    ):
+        # Mined before an episode recorded this. It keeps the meaning it had.
+        return False
+    return (
+        later.touched_from - earlier.touched_until <= TOGETHER_WITHIN
+        and earlier.touched_from - later.touched_until <= TOGETHER_WITHIN
+    )
 
 
 def _followed(first: TaskCandidate, second: TaskCandidate) -> int:

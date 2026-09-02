@@ -27329,6 +27329,18 @@
             "type": "boolean",
             "title": "Named By Model"
           },
+          "offered_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Offered At"
+          },
           "joins": {
             "items": {
               "$ref": "#/components/schemas/JoinModel"
@@ -27359,6 +27371,7 @@
           "skill_id",
           "dismissed_reason",
           "named_by_model",
+          "offered_at",
           "joins",
           "episodes"
         ],

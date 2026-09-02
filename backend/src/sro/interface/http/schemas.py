@@ -1917,6 +1917,13 @@ class TaskCandidateModel(BaseModel):
     """Whether the title is a model's sentence rather than one derived from the
     calls. On the wire so a screen can say so: a name is not a fact."""
 
+    offered_at: datetime | None
+    """When this was said out loud in the operator's conversation, if it has
+    been. On the wire so the panel's list can stop drawing what the thread is
+    already showing: an offer belongs in one place, and two surfaces carrying
+    the same two buttons is how they come to disagree about whether it was
+    answered."""
+
     joins: list[JoinModel]
     episodes: list[EpisodeModel]
 
@@ -1936,6 +1943,7 @@ class TaskCandidateModel(BaseModel):
             skill_id=candidate.skill_id.value if candidate.skill_id else None,
             dismissed_reason=candidate.dismissed_reason,
             named_by_model=candidate.named_by_model,
+            offered_at=candidate.offered_at,
             joins=[JoinModel.of(join) for join in candidate.joins],
             episodes=[EpisodeModel.of(episode) for episode in candidate.episodes],
         )

@@ -33,6 +33,7 @@ from sro.application.capture.events import (
     SnapshotEvent,
 )
 from sro.application.capture.identity import derive_objective_key
+from sro.application.chat.announce import SayWhatHappened
 from sro.application.context import RequestContext
 from sro.application.induction.errors import InductionFailed
 from sro.application.induction.induce_skill import InduceSkill
@@ -180,7 +181,32 @@ class TeachCandidate:
             await uow.candidates.save(candidate)
             await uow.commit()
 
+        await self._say_yes_was_answered(ctx, candidate)
         return Taught(candidate_id=candidate_id, recording_id=recording.id, skill_id=skill_id)
+
+    async def _say_yes_was_answered(self, ctx: RequestContext, candidate: TaskCandidate) -> None:
+        """Close the loop on an offer, where there was one.
+
+        Only where the offer was actually made: a candidate taught from the
+        console was never asked about, and answering a question nobody put
+        would start a conversation to say something into it.
+
+        After the candidate is saved, never with it. If the message fails the
+        skill is still taught and the offer merely looks unanswered; the other
+        order would record an answer to something that did not happen.
+        """
+        if candidate.offered_at is None:
+            return
+        await SayWhatHappened(self._uow, self._clock, self._ids).execute(
+            ctx,
+            for_operator=candidate.principal_id,
+            text=f"{candidate.title} — you asked for this one, so I learned it.",
+            decision={
+                "kind": "answered",
+                "candidate_id": candidate.id.value,
+                "answer": "asked",
+            },
+        )
 
     async def _learn(
         self, ctx: RequestContext, candidate: TaskCandidate, recordings: Sequence[Recording]
@@ -525,8 +551,12 @@ class DismissCandidate:
     """Kept rather than deleted, so the miner does not offer it again next week
     as if it were new."""
 
-    def __init__(self, uow: UnitOfWork) -> None:
+    def __init__(
+        self, uow: UnitOfWork, clock: Clock | None = None, ids: IdFactory | None = None
+    ) -> None:
         self._uow = uow
+        self._clock = clock
+        self._ids = ids
 
     async def execute(
         self, ctx: RequestContext, *, candidate_id: CandidateId, reason: str
@@ -536,6 +566,21 @@ class DismissCandidate:
             candidate.dismiss(reason)
             await uow.candidates.save(candidate)
             await uow.commit()
+
+        # Said only where it was asked, and only where there is a clock and ids
+        # to say it with -- a deployment without them dismisses exactly as it
+        # did before rather than failing over a sentence.
+        if candidate.offered_at is not None and self._clock and self._ids:
+            await SayWhatHappened(self._uow, self._clock, self._ids).execute(
+                ctx,
+                for_operator=candidate.principal_id,
+                text=f"{candidate.title} — you said no to this one.",
+                decision={
+                    "kind": "answered",
+                    "candidate_id": candidate.id.value,
+                    "answer": "dismissed",
+                },
+            )
         return candidate
 
 

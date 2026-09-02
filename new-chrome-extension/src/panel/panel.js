@@ -87,14 +87,22 @@ function clock(since) {
  * reading, so a card that has an action carries it; one that does not says why
  * in a sentence somebody can act on elsewhere.
  */
-function card({ title, says, metrics, notes, stage, progress, tone, actions = [] }) {
+function card({ title, says, metrics, notes, stage, progress, tone, actions = [], toggle }) {
   const holder = document.createElement("section");
   holder.className = "card";
   if (tone) holder.dataset.tone = tone;
 
   if (title) {
     const heading = document.createElement("h3");
-    heading.textContent = title;
+    // `toggle` is only ever passed by `watchCard()` below -- every other
+    // caller here gets the plain heading it always had.
+    if (toggle) {
+      const text = document.createElement("span");
+      text.textContent = title;
+      heading.append(text, chevronButton(toggle));
+    } else {
+      heading.textContent = title;
+    }
     holder.append(heading);
   }
   if (says) {
@@ -227,10 +235,20 @@ function recording(status) {
   });
 }
 
+/** Whether the operator has opened the watching card past what its own state
+ * calls for. Remembered here, across redraws, rather than reset by the
+ * panel's own two-second poll -- a poll that closed a card the moment
+ * somebody opened it to press "Start teaching" would make the press
+ * impossible. It decides nothing on its own: a state that needs an answer
+ * (see `watchCard` below) opens regardless of it, and can only ever be
+ * opened further by it, never closed.
+ */
+let watchOpen = false;
+
 function watching(status) {
   const paused = status.paused || status.serverPaused;
   if (paused) {
-    return card({
+    return watchCard(status, true, null, {
       title: "Paused",
       says: status.serverPaused
         ? "Observation is paused for everyone on this deployment."
@@ -257,7 +275,7 @@ function watching(status) {
     // and a button that said the same thing here as on the WMS would be
     // consent nobody gave.
     const excluded = excludedByDefault(status);
-    return card({
+    return watchCard(status, true, null, {
       title: excluded ? `${tabHere.host} is not normally recorded` : "Not watching this tab",
       says: excluded
         ? `${tabHere.host} is excluded for everyone in this tenant by default.` +
@@ -298,7 +316,7 @@ function watching(status) {
   // any page script exists. Reloading the page is the whole fix, so the panel
   // asks for that and says why.
   if ((status.deaf || []).includes(mine.tabId)) {
-    return card({
+    return watchCard(status, true, mine, {
       tone: "attention",
       title: "This tab is only recording half of what you do",
       says:
@@ -321,7 +339,7 @@ function watching(status) {
   // folded away with the ordinary case.
   const granted = excludedByDefault(status);
   if (granted) {
-    return card({
+    return watchCard(status, true, mine, {
       title: `Watching ${mine.host}, which is normally excluded`,
       says:
         `You turned this on for ${mine.host}. Everything you do here is evidence,` +
@@ -351,30 +369,83 @@ function watching(status) {
   // Nothing here is asking to be answered: this tab has been evidence for a
   // while and stays that way until something changes. A card the size of
   // "not watching" or "paused" for a fact nobody needs to act on is a card
-  // people stop reading -- so this is the one line that fact earns, not the
-  // full one above.
-  return watchLine(mine);
+  // people stop reading -- so this collapses to the one line that fact
+  // earns, with a chevron back to everything below (`watchCard` decides).
+  return watchCard(status, false, mine, {
+    title: "Watching this tab",
+    says:
+      `Everything you do in ${mine.host || "this tab"} is evidence. What you repeat` +
+      " becomes a task worth offering; teach one deliberately at any time." +
+      elsewhere,
+    metrics:
+      `since ${clock(mine.since)}` +
+      (status.policy?.capture_snapshots ? " · reading this page's structure too" : ""),
+    actions: [
+      {
+        label: "Start teaching",
+        primary: true,
+        disabled: !status.capturing,
+        act: (button) => startTeaching(button),
+      },
+      { label: "Stop watching", act: (button) => setWatch(button, false) },
+      pauseAction(status),
+    ],
+  });
 }
 
-/** The watching state, once nothing about it needs a press: the dot, the
- * host, and how long -- not a smaller version of `card()`'s actions row,
- * because there is nothing in it to press.
- *
- * What must survive the collapse is the one thing this whole panel exists to
- * guarantee: that an operator can tell whether the tab in front of them is
- * evidence. So the words are the same words the full card used -- "Watching
- * this tab" -- said in one line instead of a paragraph, never replaced by a
- * vaguer summary that would say less.
+/** The one control on every watching card, open or not: a chevron that
+ * flips `watchOpen` and redraws from the same status. Present even on a
+ * state that needs an answer -- pressing it there cannot close the card
+ * (`watchCard` ORs `needsAnswer` back in), which is the "never closed" half
+ * of the rule, not a special case carved out for it.
  */
-function watchLine(mine) {
-  const holder = document.createElement("div");
-  holder.className = "card line";
-  const dot = document.createElement("span");
-  dot.className = "dot";
-  const said = document.createElement("p");
-  said.textContent = `Watching this tab — ${mine.host || "this tab"}, ${clock(mine.since)}`;
-  holder.append(dot, said);
-  return holder;
+function chevronButton({ open, onToggle }) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "chevron";
+  button.setAttribute("aria-expanded", String(open));
+  button.textContent = open ? "▾" : "▸";
+  button.addEventListener("click", onToggle);
+  return button;
+}
+
+/** The watching card, collapsed or not.
+ *
+ * `needsAnswer` decides the floor, never the ceiling: a state that needs a
+ * press is always open, no matter what the operator last chose, and a
+ * steady one opens only when they choose it -- so `open` is the one OR of
+ * the two, and closing the card can only ever move `watchOpen`, never force
+ * `needsAnswer` shut.
+ *
+ * The collapsed line still has to answer the one question this whole panel
+ * exists to guarantee an answer to -- whether this tab is evidence -- so it
+ * reuses `built.title`, which already says exactly that in every branch
+ * `watching()` has ("Watching this tab", "Paused", "Not watching this
+ * tab", ...), rather than a second, shorter sentence written here that
+ * could drift from it.
+ */
+function watchCard(status, needsAnswer, mine, built) {
+  const open = needsAnswer || watchOpen;
+  const toggle = {
+    open,
+    onToggle: () => {
+      watchOpen = !watchOpen;
+      render(status);
+    },
+  };
+
+  if (!open) {
+    const holder = document.createElement("div");
+    holder.className = "card line";
+    const dot = document.createElement("span");
+    dot.className = "dot";
+    const said = document.createElement("p");
+    said.textContent = `${built.title} — ${mine.host || "this tab"}, ${clock(mine.since)}`;
+    holder.append(dot, said, chevronButton(toggle));
+    return holder;
+  }
+
+  return card({ ...built, toggle });
 }
 
 function pauseAction(status) {

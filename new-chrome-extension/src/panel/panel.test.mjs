@@ -89,6 +89,9 @@ function node(tag) {
     addEventListener(_kind, fn) {
       this.listeners.push(fn);
     },
+    setAttribute(name, value) {
+      this[name] = value;
+    },
   };
 }
 
@@ -189,6 +192,10 @@ function panel(status, here = null, replies = {}) {
     cards,
     ids,
     renderCandidates: sandbox.here,
+    // Exposed so a test can simulate the panel's own two-second poll --
+    // `refresh()` calling `render(status)` again with nothing changed --
+    // separately from whatever else a click already triggered.
+    render: sandbox.render,
     plainly: sandbox.plainly,
     previewOf: sandbox.previewOf,
   };
@@ -341,7 +348,9 @@ test("an ordinary watched tab is not accused of being half deaf", async () => {
 test("a steady watching state is one line", async () => {
   // Nothing about an ordinary watched tab is asking to be answered, so the
   // card that used to take a third of the panel -- title, sentence, metrics,
-  // three buttons -- collapses to the one line that fact earns.
+  // three buttons -- collapses to the one line that fact earns. Its own
+  // actions (Start teaching, Stop watching, Pause) are not gone -- see the
+  // chevron test below -- only not shouted before anybody asked for them.
   const { cards } = panel(
     {
       deviceId: "dev-1",
@@ -353,7 +362,61 @@ test("a steady watching state is one line", async () => {
 
   const line = cards.find((c) => words(c).includes("wms.example"));
   assert.ok(line, "the steady watching state was not drawn at all");
-  assert.strictEqual(buttons(line).length, 0, "a steady watching state still offered something to press");
+  assert.ok(
+    !buttons(line).some((b) => ["Start teaching", "Stop watching", "Pause"].includes(b.textContent)),
+    "a steady watching state still showed its actions before being asked to",
+  );
+});
+
+test("the collapsed row has a chevron, and pressing it reveals the actions", async () => {
+  const { ids } = panel(
+    {
+      deviceId: "dev-1",
+      capturing: true,
+      watched: [{ tabId: 7, host: "wms.example", since: new Date(Date.now() - 53 * 60_000).toISOString() }],
+    },
+    { id: 7, host: "wms.example", url: "https://wms.example/portal" },
+  );
+
+  const line = ids["cards"].kids.find((c) => words(c).includes("wms.example"));
+  const [chevron] = buttons(line);
+  assert.ok(chevron, "the collapsed row carried no chevron");
+
+  chevron.listeners[0]();
+
+  const opened = ids["cards"].kids.find((c) => words(c).includes("Watching this tab"));
+  assert.ok(opened, "pressing the chevron did not redraw the watching card at all");
+  assert.ok(
+    buttons(opened).some((b) => b.textContent === "Start teaching"),
+    "pressing the chevron did not reveal the actions",
+  );
+});
+
+test("a manual expansion survives a redraw", async () => {
+  // The panel polls `status` every couple of seconds and redraws from it --
+  // `refresh()` calling `render(status)` again with nothing about the state
+  // having changed. An expansion the operator just pressed for must still be
+  // there on the far side of that, or pressing "Start teaching" a moment
+  // later is a race against the panel's own clock.
+  const status = {
+    deviceId: "dev-1",
+    capturing: true,
+    watched: [{ tabId: 7, host: "wms.example", since: new Date(Date.now() - 53 * 60_000).toISOString() }],
+  };
+  const { ids, render } = panel(status, { id: 7, host: "wms.example", url: "https://wms.example/portal" });
+
+  const line = ids["cards"].kids.find((c) => words(c).includes("wms.example"));
+  const [chevron] = buttons(line);
+  chevron.listeners[0]();
+
+  render(status); // the poll's own redraw, simulated
+
+  const opened = ids["cards"].kids.find((c) => words(c).includes("Watching this tab"));
+  assert.ok(opened, "the next redraw closed a card the operator had just opened");
+  assert.ok(
+    buttons(opened).some((b) => b.textContent === "Start teaching"),
+    "the redraw kept the card open but lost its actions",
+  );
 });
 
 test("a state with something to press expands itself", async () => {

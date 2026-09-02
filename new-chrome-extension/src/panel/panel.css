@@ -163,9 +163,30 @@ body {
 }
 
 .card h3 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   margin: 0 0 6px;
   font-size: 13.5px;
   font-weight: 600;
+}
+
+/* The one control on every watching card: flips it open or shut, never
+   disabled -- a state that needs an answer simply outvotes a press here. */
+.chevron {
+  flex: 0 0 auto;
+  padding: 2px 6px;
+  border: none;
+  background: none;
+  color: var(--ink-mute);
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.chevron:hover {
+  color: var(--ink);
 }
 
 .card p {
@@ -230,6 +251,7 @@ body {
 }
 
 .card.line p {
+  flex: 1;
   margin: 0;
   color: var(--ink-soft);
 }

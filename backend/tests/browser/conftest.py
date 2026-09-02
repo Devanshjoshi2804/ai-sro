@@ -323,7 +323,7 @@ class _Stub(BaseHTTPRequestHandler):
     test here is a browser with no watch on it and nothing of ours in a
     mailbox."""
 
-    granted: list[str] = []
+    granted: ClassVar[list[str]] = []
     matched: ClassVar[list[dict[str, Any]]] = []
     """What the browser posted when it recognised a mail, as bytes and as
     parsed. The bytes are the point: a subject that reached the wire would be
@@ -575,7 +575,10 @@ class _Stub(BaseHTTPRequestHandler):
             host = json.loads(raw or b"{}").get("host", "")
             expires = (datetime.now(UTC) + timedelta(hours=1)).isoformat()
             _Stub.granted.append(host)
-            self._send(200, json.dumps({"grants": [{"host": host, "expires_at": expires}]}).encode())
+            self._send(
+                200,
+                json.dumps({"grants": [{"host": host, "expires_at": expires}]}).encode(),
+            )
             return
         if self.path.endswith("/matched"):
             _Stub.matched.append(

@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import base64
 import json
-from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
@@ -578,8 +577,7 @@ def test_a_host_the_operator_granted_is_recorded_despite_the_exclusion(
         for event in events
     ), "the grant admitted no gesture"
     assert any(
-        event["kind"] == "request" and "/api/orders" in event["request"]["url"]
-        for event in events
+        event["kind"] == "request" and "/api/orders" in event["request"]["url"] for event in events
     ), "the grant admitted no calls"
 
 

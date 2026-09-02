@@ -105,11 +105,6 @@ def plan(
     wanted: tuple[Wanted, ...],
     run_a: tuple[ActionFrame, ...],
     run_b: tuple[ActionFrame, ...],
-    taken: set[str],
-    # Unused here, pre-existing. Do not turn this into a skip-list: the caller
-    # now passes every parameter's own name, so a field being "taken" means it
-    # already has a parameter -- not that it should be refused a lookup. Wiring
-    # it up that way would silently stop every parameter from ever getting one.
     *,
     screens: tuple[ActionFrame, ...] = (),
     others: tuple[tuple[ActionFrame, ...], ...] = (),
@@ -128,7 +123,7 @@ def plan(
     runs = (run_a, run_b, *others)
     planned: list[PlannedLookup] = []
     for one in wanted:
-        found = _plan_one(one, runs, run_a, taken, screens or run_a, system, facility)
+        found = _plan_one(one, runs, run_a, screens or run_a, system, facility)
         if found is not None:
             planned.append(found)
     return tuple(planned)
@@ -138,7 +133,6 @@ def _plan_one(
     wanted: Wanted,
     runs: tuple[tuple[ActionFrame, ...], ...],
     run_a: tuple[ActionFrame, ...],
-    taken: set[str],
     screens: tuple[ActionFrame, ...],
     system: str,
     facility: str,
@@ -204,15 +198,17 @@ def _plan_one(
     ]
 
     column = _searched_column(runs, wanted.values, wanted.step_index, listing_url)
+    proven: list[tuple[str, str]] = []
     if column is not None and str(picked.get(column, "")).strip() and column != take:
         # An operator's own search names the column. It goes first and it goes
         # in whether or not the write sends it: the write sends the id and
         # nothing else off this record, so requiring the write to send the
         # identifying field is requiring the impossible for every value that
         # was picked rather than typed.
-        usable = [(column, str(picked[column]))] + [p for p in usable if p[0] != column]
+        proven = [(column, str(picked[column]))]
+        usable = [p for p in usable if p[0] != column]
 
-    if not usable:
+    if not proven and not usable:
         # Nothing on that screen tells one record from another in words. The id
         # stays a question rather than becoming a lookup that guesses.
         return None
@@ -220,8 +216,16 @@ def _plan_one(
     # What the operator actually clicked, where the recording shows it. They
     # chose that address by reading "UNIT 7 BUILDING A" off a dropdown, and a
     # field a human was seen using beats one that merely happens to be unique.
+    #
+    # Only among the fields nothing proved, though. This is a heuristic about
+    # what reads well in a dropdown, and `label[0]` is also `Options.search` --
+    # the column the live query gets re-aimed at. Letting a clicked row's text
+    # reach the front would point that query at a column no demonstration ever
+    # filtered on, and discard the one that was: inference standing on top of
+    # evidence, which ADR 004 forbids. So a searched column stays in front and
+    # this orders what is left.
     on_screen = [pair for pair in usable if _seen_on_screen(screens, pair[1])]
-    usable = on_screen + [pair for pair in usable if pair not in on_screen]
+    usable = proven + on_screen + [pair for pair in usable if pair not in on_screen]
 
     label = tuple(key for key, _ in usable[:MOST_FIELDS])
     return PlannedLookup(
@@ -318,11 +322,29 @@ def _listing_of(
     that is a different question from which doing happened to have the dialog
     open -- in the evidence this was written against, the two aligned doings
     hold one call each and the address listing is in neither.
+
+    Where the same collection was read both unfiltered and filtered, the
+    filtered read is the listing even though the page came first -- and it
+    usually does, because the dialog opens on page one and only then does
+    anybody type. `Options.url` is the call the dropdown re-issues, and
+    `as_a_filter` re-aims it by replacing the terms of a filter the URL already
+    carries. An unfiltered page has no terms to replace, so `as_a_filter`
+    returns nothing, the raw URL is fetched, and typing in the dropdown narrows
+    nothing: a `search` column read off the filtered read, pointed at a URL that
+    cannot use it.
     """
-    for request, records in _reads(runs, step_index):
-        if _holds(records, (value,)):
-            return request, records
-    return None
+    found = [pair for pair in _reads(runs, step_index) if _holds(pair[1], (value,))]
+    if not found:
+        return None
+    first = found[0]
+    return next(
+        (
+            pair
+            for pair in found
+            if _same_collection(pair[0].url, first[0].url) and filtered_on(pair[0]) is not None
+        ),
+        first,
+    )
 
 
 def _searched_column(

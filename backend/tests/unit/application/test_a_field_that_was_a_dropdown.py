@@ -96,7 +96,6 @@ def _planned() -> tuple[lookups.PlannedLookup, ...]:
         ),
         tuple(pair[0] for pair in pairs),
         tuple(pair[1] for pair in pairs),
-        {p.name for p in result.parameters},
         screens=run_a,
     )
 

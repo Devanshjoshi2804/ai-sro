@@ -235,7 +235,6 @@ class InduceSkill:
                 _wanted(parameterisation),
                 tuple(pair[0] for pair in pairs),
                 tuple(pair[1] for pair in pairs),
-                {parameter.name for parameter in parameterisation.parameters},
                 screens=frames_a,
                 others=tuple(history),
                 system=objective.target_system,
@@ -612,18 +611,25 @@ def _refuse_an_unfillable_input(version: SkillVersion) -> None:
     not a general promise that every parameter this system ever proposes has
     a step behind it.
 
-    ponytail: `optional` is a proxy for the real question -- can whoever runs
-    this skill actually produce the value, by typing it, choosing it from
-    `options`, or having the goal supply it -- and the proxy has a known gap.
-    Four doings that all pick a COD address through the same dialog, none
-    blank, prove the field varies (the ids differ) without ever setting
-    `absent_as`, so `optional` reads False and this refusal stays silent on a
-    version that asks an operator to recite an internal id from memory. Close
-    it when that shape turns up in real data: broaden the predicate to "some
-    step fills it, or it carries `options`, or the goal supplies it" rather
-    than widening `optional` itself, which the two other rungs of this
-    ladder (network-only required fields, and `_typed_by`'s narrower reading)
-    already show is not a safe place to widen from.
+    A parameter carrying `options` is answerable and is not refused. This is
+    the other half of the same question -- can whoever runs this skill produce
+    the value -- and a dropdown is a way of producing it that no step's
+    `ui_plan` records, because the console draws the field itself: it fetches
+    the list from the endpoint the demonstration's own screen used and the
+    operator picks off it exactly as they did when they taught it. Refusing
+    that is refusing the answer for lacking the shape of the question.
+
+    ponytail: `optional` is still a proxy for the rest of it, and the proxy
+    has a known gap. Four doings that all pick a COD address through the same
+    dialog, none blank, prove the field varies (the ids differ) without ever
+    setting `absent_as`, so `optional` reads False and this refusal stays
+    silent on a version that asks an operator to recite an internal id from
+    memory -- which is harmless where a lookup was planned and not where one
+    was not. Close it when that shape turns up in real data by finishing the
+    predicate with "or the goal supplies it", rather than widening `optional`
+    itself, which the two other rungs of this ladder (network-only required
+    fields, and `_typed_by`'s narrower reading) already show is not a safe
+    place to widen from.
     """
     fillable = frozenset(
         name
@@ -634,6 +640,7 @@ def _refuse_an_unfillable_input(version: SkillVersion) -> None:
     if any(
         parameter.kind is ParameterKind.INPUT
         and parameter.optional
+        and parameter.options is None
         and parameter.name not in fillable
         for parameter in version.parameters
     ):

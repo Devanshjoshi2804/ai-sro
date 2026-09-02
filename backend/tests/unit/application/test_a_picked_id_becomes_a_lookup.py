@@ -1,9 +1,20 @@
+import pytest
+
 from sro.application.induction.diff import Parameterisation, Substitution
-from sro.application.induction.induce_skill import _wanted, with_options
+from sro.application.induction.errors import InductionFailed
+from sro.application.induction.induce_skill import (
+    _refuse_an_unfillable_input,
+    _wanted,
+    with_options,
+)
 from sro.application.induction.lookups import Wanted, _listing_of, filtered_on, plan
 from sro.application.induction.sites import JsonBodySite
+from sro.domain.skill.lookup import Options
 from sro.domain.skill.parameter import Evidence, Parameter, ParameterKind
-from tests.unit.application.lookup_fixtures import a_frame, a_read, a_write
+from sro.domain.skill.skill import SkillVersion
+from sro.domain.skill.template import Template
+from tests import factories as f
+from tests.unit.application.lookup_fixtures import a_click, a_frame, a_read, a_write
 
 
 def test_a_read_the_operator_filtered_names_its_column() -> None:
@@ -66,6 +77,39 @@ def test_the_listing_is_found_in_a_doing_outside_the_pair() -> None:
     assert found[0].url == listing.url
 
 
+def test_the_listing_is_the_read_the_operator_filtered_not_the_page_before_it() -> None:
+    """The dialog opens on page one and only then does anybody type. Whichever
+    read came first, `Options.url` has to be the filtered one: `as_a_filter`
+    re-aims a query by replacing the terms of a filter the URL already carries,
+    so a dropdown built on `?offset=0&limit=50` narrows nothing at run time
+    however well the searched column was chosen.
+    """
+    page = a_read(
+        "https://wms.example/addresses?offset=0&limit=50",
+        [
+            {"addressId": "A1", "addressName": "test", "city": "BURLINGTON"},
+            {"addressId": "A2", "addressName": "other", "city": "OAKVILLE"},
+        ],
+    )
+    searched = a_read(
+        'https://wms.example/addresses?query=[{"column":"addressName","operator":"EQ","value":"test"}]',
+        [{"addressId": "A1", "addressName": "test", "city": "BURLINGTON"}],
+    )
+    write = a_write("https://wms.example/carrierCrossReferences", {"codAddressId": "A1"})
+    run = (a_frame(page), a_frame(searched), a_frame(write))
+
+    planned = plan(
+        (Wanted(field="cod_address_id", values=("A1",), step_index=2),),
+        run_a=run,
+        run_b=run,
+    )
+
+    assert len(planned) == 1
+    assert planned[0].options.search == "addressName"
+    assert "query=" in planned[0].options.url
+    assert "offset" not in planned[0].options.url
+
+
 def test_a_read_after_that_doing_s_own_write_is_not_the_listing() -> None:
     """The grid refreshing after a save shows the record that was just created.
     Reading the id back out of it proves nothing about how it was chosen."""
@@ -89,7 +133,6 @@ def test_a_column_the_write_never_sends_can_still_identify_the_record() -> None:
         (Wanted(field="cod_address_id", values=("A1",), step_index=1),),
         run_a=(a_frame(listing), a_frame(write)),
         run_b=(a_frame(listing), a_frame(write)),
-        taken=set(),
     )
 
     assert len(planned) == 1
@@ -109,7 +152,6 @@ def test_a_picked_id_no_doing_ever_searched_for_stays_a_question() -> None:
             (Wanted(field="cod_address_id", values=("A1",), step_index=1),),
             run_a=(a_frame(listing), a_frame(write)),
             run_b=(a_frame(listing), a_frame(write)),
-            taken=set(),
         )
         == ()
     )
@@ -132,7 +174,6 @@ def test_two_doings_that_searched_different_columns_plan_nothing() -> None:
             (Wanted(field="cod_address_id", values=("A1", "A2"), step_index=1),),
             run_a=(a_frame(by_name), a_frame(write_a)),
             run_b=(a_frame(by_city), a_frame(write_b)),
-            taken=set(),
         )
         == ()
     )
@@ -150,7 +191,6 @@ def test_a_filtered_column_absent_from_the_picked_record_plans_nothing() -> None
             (Wanted(field="cod_address_id", values=("A1",), step_index=1),),
             run_a=(a_frame(listing), a_frame(write)),
             run_b=(a_frame(listing), a_frame(write)),
-            taken=set(),
         )
         == ()
     )
@@ -171,7 +211,6 @@ def test_the_record_is_not_labelled_by_the_id_it_is_being_looked_up_by() -> None
             (Wanted(field="cod_address_id", values=("A1",), step_index=1),),
             run_a=(a_frame(listing), a_frame(write)),
             run_b=(a_frame(listing), a_frame(write)),
-            taken=set(),
         )
         == ()
     )
@@ -202,7 +241,6 @@ def test_a_value_unique_only_because_the_read_was_filtered_is_not_a_label() -> N
         (Wanted(field="cod_address_id", values=("A1",), step_index=2),),
         run_a=run,
         run_b=run,
-        taken=set(),
     )
 
     assert len(planned) == 1
@@ -231,7 +269,6 @@ def test_a_read_of_another_collection_does_not_name_the_search_column() -> None:
             (Wanted(field="cod_address_id", values=("A1",), step_index=2),),
             run_a=run,
             run_b=run,
-            taken=set(),
         )
         == ()
     )
@@ -262,7 +299,6 @@ def test_a_page_that_excludes_the_picked_record_does_not_judge_it() -> None:
         (Wanted(field="cod_address_id", values=("A1",), step_index=2),),
         run_a=run,
         run_b=run,
-        taken=set(),
     )
 
     assert len(planned) == 1
@@ -290,7 +326,6 @@ def test_a_filtered_read_after_the_write_does_not_name_the_search_column() -> No
             (Wanted(field="cod_address_id", values=("A1",), step_index=1),),
             run_a=run,
             run_b=run,
-            taken=set(),
         )
         == ()
     )
@@ -299,7 +334,13 @@ def test_a_filtered_read_after_the_write_does_not_name_the_search_column() -> No
 def test_the_searched_column_leads_the_fields_the_write_also_sent() -> None:
     """A dropdown whose first column is not the one being searched reads as a
     mistake, so the operator's own column goes in front of the write-sent ones
-    rather than behind them."""
+    rather than behind them.
+
+    These frames carry no on-screen text, so this proves only the order the two
+    sources of `usable` are assembled in. That the display heuristic cannot then
+    undo that order -- the part that decides `Options.search` -- is guarded by
+    `test_what_the_operator_read_on_screen_cannot_displace_what_they_searched_by`.
+    """
     listing = a_read(
         'https://wms.example/addresses?query=[{"column":"city","operator":"EQ","value":"BUR"}]',
         [{"addressId": "A1", "addressName": "test", "city": "BURLINGTON"}],
@@ -313,12 +354,41 @@ def test_the_searched_column_leads_the_fields_the_write_also_sent() -> None:
         (Wanted(field="cod_address_id", values=("A1",), step_index=1),),
         run_a=(a_frame(listing), a_frame(write)),
         run_b=(a_frame(listing), a_frame(write)),
-        taken=set(),
     )
 
     assert len(planned) == 1
     assert planned[0].options.search == "city"
     assert planned[0].options.label == ("city", "addressName")
+
+
+def test_what_the_operator_read_on_screen_cannot_displace_what_they_searched_by() -> None:
+    """`_seen_on_screen` is a display heuristic and may only order the rest of
+    the label. Letting it reach the front re-aims the live query at a column
+    nothing ever proved the endpoint accepts, and throws away the one the
+    demonstration filtered on -- the inference ADR 004 forbids.
+
+    The operator searched by `addressName` and clicked a row reading
+    "BURLINGTON", which is the `city` the write also sent.
+    """
+    listing = a_read(
+        'https://wms.example/addresses?query=[{"column":"addressName","operator":"EQ","value":"test"}]',
+        [{"addressId": "A1", "addressName": "test", "city": "BURLINGTON"}],
+    )
+    write = a_write(
+        "https://wms.example/carrierCrossReferences",
+        {"codAddressId": "A1", "city": "BURLINGTON"},
+    )
+    run = (a_frame(listing), a_click("BURLINGTON"), a_frame(write))
+
+    planned = plan(
+        (Wanted(field="cod_address_id", values=("A1",), step_index=2),),
+        run_a=run,
+        run_b=run,
+    )
+
+    assert len(planned) == 1
+    assert planned[0].options.search == "addressName"
+    assert planned[0].options.label == ("addressName", "city")
 
 
 def test_a_search_that_did_not_return_the_record_does_not_dissent() -> None:
@@ -341,7 +411,6 @@ def test_a_search_that_did_not_return_the_record_does_not_dissent() -> None:
         (Wanted(field="cod_address_id", values=("A1",), step_index=2),),
         run_a=run,
         run_b=run,
-        taken=set(),
     )
 
     assert len(planned) == 1
@@ -374,7 +443,6 @@ def test_the_refresh_after_the_save_still_says_how_many_share_a_value() -> None:
         (Wanted(field="cod_address_id", values=("A1",), step_index=1),),
         run_a=run,
         run_b=run,
-        taken=set(),
     )
 
     assert len(planned) == 1
@@ -393,7 +461,6 @@ def test_a_value_that_varies_gets_the_dropdown_a_constant_would_have() -> None:
         (Wanted(field="cod_address_id", values=("A1", "A2"), step_index=1),),
         run_a=(a_frame(listing), a_frame(a_write("https://wms.example/x", {"codAddressId": "A1"}))),
         run_b=(a_frame(listing), a_frame(a_write("https://wms.example/x", {"codAddressId": "A2"}))),
-        taken=set(),
     )
 
     assert [p.field for p in planned] == ["cod_address_id"]
@@ -421,7 +488,6 @@ def test_two_values_from_two_different_collections_are_not_one_lookup() -> None:
                 a_frame(clients),
                 a_frame(a_write("https://wms.example/x", {"codAddressId": "A2"})),
             ),
-            taken=set(),
         )
         == ()
     )
@@ -445,7 +511,6 @@ def test_a_value_no_doing_can_explain_gets_no_lookup_for_the_one_that_can() -> N
                 a_frame(listing),
                 a_frame(a_write("https://wms.example/x", {"codAddressId": "A2"})),
             ),
-            taken=set(),
         )
         == ()
     )
@@ -528,10 +593,47 @@ def test_a_parameter_substituted_at_two_steps_is_bounded_by_the_earliest() -> No
         },
     )
 
-    planned = plan(_wanted(parameterisation), run_a=run, run_b=run, taken=set())
+    planned = plan(_wanted(parameterisation), run_a=run, run_b=run)
 
     assert len(planned) == 1, "the lookup was refused -- bounded by the later step, not the earlier"
     assert planned[0].options.search == "addressName"
+
+
+def _version_asking_for(parameter: Parameter) -> SkillVersion:
+    """A skill whose one step neither types nor chooses this parameter -- the
+    shape the refusal was written against."""
+    step = f.step(
+        network_plan=f.network_plan(url=Template("https://wms.example/x"), body=None),
+        ui_plan=f.ui_plan(),
+    )
+    return f.skill_version(steps=(step,), parameters=(parameter,))
+
+
+def test_a_parameter_that_carries_its_list_is_something_an_operator_can_answer() -> None:
+    """The whole point of the branch. Planning a perfect dropdown and then
+    refusing the skill over the same field leaves the feature inert for the
+    case it was built for: the console draws the list, fetches it from the
+    endpoint the screen used, and the operator picks it the way they did when
+    they taught it. That is what fillable means."""
+    with_a_list = Parameter(
+        name="cod_address_id",
+        kind=ParameterKind.INPUT,
+        absent_as="null",
+        options=Options(
+            url="https://wms.example/addresses", label=("addressName",), value="addressId"
+        ),
+    )
+
+    _refuse_an_unfillable_input(_version_asking_for(with_a_list))
+
+
+def test_the_same_parameter_without_a_list_is_still_refused() -> None:
+    """The guard is not proved by the direction that passes. Strip the options
+    and nothing on any medium can produce the id, so the refusal stands."""
+    without_a_list = Parameter(name="cod_address_id", kind=ParameterKind.INPUT, absent_as="null")
+
+    with pytest.raises(InductionFailed, match="type or choose"):
+        _refuse_an_unfillable_input(_version_asking_for(without_a_list))
 
 
 def test_attaching_a_dropdown_does_not_downgrade_what_two_runs_proved() -> None:
@@ -546,7 +648,6 @@ def test_attaching_a_dropdown_does_not_downgrade_what_two_runs_proved() -> None:
         (Wanted(field="cod_address_id", values=("A1",), step_index=1),),
         run_a=(a_frame(listing), a_frame(write)),
         run_b=(a_frame(listing), a_frame(write)),
-        taken=set(),
     )
     parameter = Parameter(name="cod_address_id", kind=ParameterKind.INPUT)  # Evidence.PROVEN
 
@@ -569,7 +670,6 @@ def test_the_shape_that_refused_a_whole_skill_now_induces_one() -> None:
         (Wanted(field="cod_address_id", values=("A000278094",), step_index=0),),
         run_a=(a_frame(write),),
         run_b=(a_frame(write),),
-        taken=set(),
         others=((a_frame(searched), a_frame(write)),),
     )
 
@@ -577,3 +677,18 @@ def test_the_shape_that_refused_a_whole_skill_now_induces_one() -> None:
     assert planned[0].options.search == "addressName"
     assert planned[0].options.value == "addressId"
     assert "addresses" in planned[0].options.url
+
+    # And the refusal the name of this test cites is the one actually run. A
+    # planned lookup that still refuses the skill is the whole feature being
+    # inert for the case it was built for, so the end of the story is asserted
+    # here rather than assumed from the three fields above.
+    asked = Parameter(
+        name="cod_address_id",
+        kind=ParameterKind.INPUT,
+        absent_as="null",
+        observed_values=("A000278094",),
+    )
+    with pytest.raises(InductionFailed, match="type or choose"):
+        _refuse_an_unfillable_input(_version_asking_for(asked))
+
+    _refuse_an_unfillable_input(_version_asking_for(with_options((asked,), planned)[0]))

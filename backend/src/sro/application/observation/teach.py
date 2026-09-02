@@ -39,6 +39,7 @@ from sro.application.induction.induce_skill import InduceSkill
 from sro.application.induction.understand import UnderstandRecording
 from sro.application.observation.evidence import once_each
 from sro.application.observation.propose import occurrences
+from sro.application.observation.segment import _host
 from sro.application.observation.shots import ShotRef, pictures
 from sro.application.ports.blob import BlobStore
 from sro.application.ports.interpretation import WorkflowInterpreter
@@ -612,7 +613,12 @@ def _capture(event: Mapping[str, object], episode: Episode) -> CaptureEvent | No
         if not isinstance(gesture, Mapping):
             return None
         at = _at(gesture.get("at"))
-        if at is None or not _inside(at, episode):
+        # The same field segmentation bucketed this gesture by (`segment._observed`
+        # reads `gesture.url`, not the top-level `page_url` this event also
+        # carries for `InputEvent.page_url`) -- using a different one here would
+        # let this guard disagree with the partition that already decided which
+        # episode this gesture belongs to.
+        if at is None or not _inside(at, _host(str(gesture.get("url") or "")), episode):
             return None
         return InputEvent(
             at=at,
@@ -630,7 +636,7 @@ def _capture(event: Mapping[str, object], episode: Episode) -> CaptureEvent | No
         if not isinstance(request, Mapping):
             return None
         at = _at(request.get("started_at"))
-        if at is None or not _inside(at, episode):
+        if at is None or not _inside(at, _host(str(request.get("url") or "")), episode):
             return None
         try:
             return RequestEvent(request=to_captured_request(dict(request)))
@@ -652,7 +658,7 @@ def _capture(event: Mapping[str, object], episode: Episode) -> CaptureEvent | No
         if not isinstance(snapshot, Mapping):
             return None
         at = _at(taken_at)
-        if at is None or not _inside(at, episode):
+        if at is None or not _inside(at, _host(str(event.get("url") or "")), episode):
             return None
         try:
             graph = to_ax_graph(dict(snapshot), url=str(event.get("url") or ""), taken_at=at)
@@ -662,8 +668,22 @@ def _capture(event: Mapping[str, object], episode: Episode) -> CaptureEvent | No
     return None
 
 
-def _inside(at: datetime, episode: Episode) -> bool:
-    return episode.started_at <= at <= episode.ended_at
+def _inside(at: datetime, host: str, episode: Episode) -> bool:
+    """Whether this event belongs to this episode.
+
+    Time and host, not time alone. Episodes on two hosts can overlap once the
+    episode clock stops ending a run on every host change -- an operator
+    flipping between a mailbox and the warehouse system produces exactly
+    that -- and a window is no longer enough to say which piece of work an
+    event was part of. A no-op today: `_runs` still ends a run whenever the
+    host changes, so no event of another host is ever inside an episode's
+    window yet.
+
+    An event with no URL at all -- every extension in the field before this
+    one sent gestures with no `url` -- names no host to disagree with the
+    episode's, so it is judged by time alone, exactly as it always was.
+    """
+    return (not host or host == episode.host) and episode.started_at <= at <= episode.ended_at
 
 
 def _at(raw: object) -> datetime | None:

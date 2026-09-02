@@ -1,6 +1,10 @@
+import json
 from datetime import UTC, datetime, timedelta
 
+from sro.application.capture.events import RequestEvent
 from sro.application.observation.segment import Observed, segment
+from sro.application.observation.teach import _within
+from sro.domain.observation.candidate import Episode
 from sro.domain.shared.identifiers import BatchId
 
 AT = datetime(2026, 9, 2, 10, 0, tzinfo=UTC)
@@ -76,3 +80,57 @@ def test_an_episode_says_when_somebody_had_their_hands_on_it() -> None:
     assert piece.episode.touched_from == AT + timedelta(seconds=5)
     assert piece.episode.touched_until == AT + timedelta(seconds=9)
     assert piece.episode.started_at == AT, "the episode still covers the whole piece"
+
+
+def _request_line(host: str, request_id: str) -> bytes:
+    return json.dumps(
+        {
+            "kind": "request",
+            "request": {
+                "request_id": request_id,
+                "method": "POST",
+                "resource_type": "xhr",
+                "started_at": AT.isoformat(),
+                "url": f"https://{host}/api/suppliers",
+            },
+        }
+    ).encode()
+
+
+def test_a_recording_holds_only_its_own_host_s_calls() -> None:
+    """Once two episodes can overlap in time, slicing a batch by time alone
+    puts the warehouse's calls in the mail half and the mail's in the
+    warehouse's -- and the induced skill does everything twice."""
+    episode = Episode(
+        started_at=AT,
+        ended_at=AT + timedelta(seconds=10),
+        host="wms.example",
+        batch_ids=(BATCH,),
+        gestures=1,
+        calls=1,
+    )
+    payload = b"\n".join((_request_line("wms.example", "a"), _request_line("mail.example", "b")))
+
+    kept = _within(payload, episode, BATCH)
+
+    urls = [event.request.url for event, _ in kept if isinstance(event, RequestEvent)]
+    assert urls == ["https://wms.example/api/suppliers"], (
+        "another host's call landed in this episode's recording"
+    )
+
+
+def test_scoping_by_host_changes_nothing_that_was_already_mined() -> None:
+    """`_runs` ends a run on a host change, so no event of another host was
+    ever inside an episode's window. This guard is invisible until episodes
+    can overlap -- and that is the point: it arrives before it is needed."""
+    episode = Episode(
+        started_at=AT,
+        ended_at=AT + timedelta(seconds=10),
+        host="wms.example",
+        batch_ids=(BATCH,),
+        gestures=1,
+        calls=1,
+    )
+    payload = _request_line("wms.example", "a")
+
+    assert len(_within(payload, episode, BATCH)) == 1

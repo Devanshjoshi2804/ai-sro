@@ -465,6 +465,9 @@ class TaskCandidateRow(Base):
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="new")
     skill_id: Mapped[str | None] = mapped_column(String(64))
     dismissed_reason: Mapped[str | None] = mapped_column(Text)
+    # When this was offered to the operator, so a quarter-hourly sweep does not
+    # say the same sentence into their thread again.
+    offered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     episodes: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list)
     # Suggestions about this candidate -- read whole beside it, never queried,

@@ -242,9 +242,11 @@ class Container:
         return AnswerJoin(self.unit_of_work())
 
     def propose_about_candidates(self) -> ProposeAboutCandidates:
-        """The three model slots over what the miner found. Does nothing at all
-        when no interpreter is configured."""
-        return ProposeAboutCandidates(self.unit_of_work(), self.interpreter)
+        """The three model slots over what the miner found, and the offer said
+        out loud. The model slots do nothing at all when no interpreter is
+        configured; the offer is written either way, because which tasks are
+        worth offering was never a model's decision."""
+        return ProposeAboutCandidates(self.unit_of_work(), self.interpreter, self.clock, self.ids)
 
     def read_candidates(self) -> ReadCandidates:
         return ReadCandidates(self.unit_of_work())

@@ -96,6 +96,9 @@ ignore = [
 # Same reason, and one more: a script for holding this by hand is not shipped
 # code and says where the window went on stdout.
 "scripts/*" = ["T201", "INP001", "S110", "S108"]
+# A connector stood up by hand to prove the tool-step path. What it prints is
+# how you watch the handshake happen, which is the whole point of running it.
+"mock-connector/*" = ["T201", "INP001"]
 
 [tool.ruff.lint.flake8-tidy-imports]
 ban-relative-imports = "all"

@@ -139,11 +139,19 @@ def _plan_one(
     system: str,
     facility: str,
 ) -> PlannedLookup | None:
-    value = wanted.values[0]
-    listing = _listing_of(runs, value, wanted.step_index)
-    if listing is None:
+    # Every value has to be explainable, and by the same list. A value that
+    # varied between doings was picked twice, once per doing, and a dropdown
+    # can only offer both if both came off one collection: two ids found in
+    # two different endpoints are two lists, and no single lookup answers them.
+    reads = [_listing_of(runs, value, wanted.step_index) for value in wanted.values]
+    found = [read for read in reads if read is not None]
+    if len(found) != len(reads) or not found:
         return None
-    request, records = listing
+    if not all(_same_collection(read.url, found[0][0].url) for read, _ in found):
+        return None
+
+    value = wanted.values[0]
+    request, records = found[0]
 
     picked = next((r for r in records if value in [str(v) for v in r.values()]), None)
     if picked is None:  # pragma: no cover - _listing_of found it in one of them

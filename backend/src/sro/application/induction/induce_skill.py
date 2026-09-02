@@ -39,7 +39,7 @@ from sro.domain.recording.events import ActionFrame
 from sro.domain.recording.recording import Recording, RecordingStatus
 from sro.domain.shared.identifiers import RecordingId, SkillId
 from sro.domain.shared.objective import ObjectiveKey
-from sro.domain.skill.parameter import Evidence, Parameter, ParameterKind
+from sro.domain.skill.parameter import Parameter, ParameterKind
 from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.skill import Provenance, Skill, SkillStep, SkillVersion
 from sro.domain.skill.track_record import TrackRecord, Verdict
@@ -232,12 +232,7 @@ class InduceSkill:
             # skill carries the lookup; where it cannot, the id is a question.
             pairs = align(frames_a, frames_b)
             planned = lookups.plan(
-                tuple(
-                    lookups.Wanted(
-                        field=choice.field, values=(choice.value,), step_index=choice.step_index
-                    )
-                    for choice in parameterisation.choices
-                ),
+                _wanted(parameterisation),
                 tuple(pair[0] for pair in pairs),
                 tuple(pair[1] for pair in pairs),
                 {parameter.name for parameter in parameterisation.parameters},
@@ -660,6 +655,42 @@ def choice_key(objective: ObjectiveKey, field: str) -> str:
     return f"{objective.target_system}/{objective.entity_type}/{objective.objective_type}/{field}"
 
 
+def _wanted(parameterisation: Parameterisation) -> tuple[lookups.Wanted, ...]:
+    """Every value that might have come off a list, chosen or supplied.
+
+    A constant the operator picked twice and an id that differed between the
+    two doings were picked the same way, off the same screen. Only the first
+    used to be offered a lookup, so the value that varied -- the one the
+    operator must supply afresh every run, and cannot type -- was the one left
+    with no way to be answered. Whether the skill will vary it is a question
+    about the parameter, not about where its value comes from.
+
+    A parameter is offered when a human supplies it, has no list already, and
+    the demonstrations saw a value for it. `substitutions` says which step sent
+    it, which is what bounds the search for the read that showed it.
+    """
+    steps_of = {
+        substitution.parameter: index
+        for index, subs in parameterisation.substitutions.items()
+        for substitution in subs
+    }
+    return tuple(
+        lookups.Wanted(field=choice.field, values=(choice.value,), step_index=choice.step_index)
+        for choice in parameterisation.choices
+    ) + tuple(
+        lookups.Wanted(
+            field=parameter.name,
+            values=parameter.observed_values,
+            step_index=steps_of[parameter.name],
+        )
+        for parameter in parameterisation.parameters
+        if parameter.kind is ParameterKind.INPUT
+        and parameter.options is None
+        and parameter.observed_values
+        and parameter.name in steps_of
+    )
+
+
 def with_options(
     parameters: tuple[Parameter, ...],
     planned: tuple[PlannedLookup, ...],
@@ -669,6 +700,12 @@ def with_options(
     The value stays what the call needs -- the id -- and stops being something
     a person has to know: the console draws a dropdown, fills it from the same
     endpoint the screen used, and what the operator picks is what runs.
+
+    Evidence is left alone. A choice that became a parameter is already
+    `PROPOSED` where it was built; a parameter the diff produced is `PROVEN`
+    because two demonstrations disagreed about it, and hanging a dropdown off
+    it does not unprove that. Options say where a value comes from; evidence
+    says how firmly we know it is a parameter at all.
     """
     if not planned:
         return parameters
@@ -681,7 +718,6 @@ def with_options(
                 f"chosen from {_collection(options[parameter.name].options.url)}. "
                 f"The demonstration used {options[parameter.name].shown}"
             ),
-            evidence=Evidence.PROPOSED,
         )
         if parameter.name in options
         else parameter

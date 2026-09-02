@@ -1,4 +1,8 @@
+from sro.application.induction.diff import Parameterisation, Substitution
+from sro.application.induction.induce_skill import _wanted, with_options
 from sro.application.induction.lookups import Wanted, _listing_of, filtered_on, plan
+from sro.application.induction.sites import JsonBodySite
+from sro.domain.skill.parameter import Evidence, Parameter, ParameterKind
 from tests.unit.application.lookup_fixtures import a_frame, a_read, a_write
 
 
@@ -375,3 +379,141 @@ def test_the_refresh_after_the_save_still_says_how_many_share_a_value() -> None:
 
     assert len(planned) == 1
     assert planned[0].options.label == ("addressName",)
+
+
+def test_a_value_that_varies_gets_the_dropdown_a_constant_would_have() -> None:
+    """A picked id that differs between doings needs the list more than one that
+    does not: the operator must supply a different address each time, and they
+    cannot type an id."""
+    listing = a_read(
+        'https://wms.example/addresses?query=[{"column":"addressName","operator":"EQ","value":"t"}]',
+        [{"addressId": "A1", "addressName": "first"}, {"addressId": "A2", "addressName": "second"}],
+    )
+    planned = plan(
+        (Wanted(field="cod_address_id", values=("A1", "A2"), step_index=1),),
+        run_a=(a_frame(listing), a_frame(a_write("https://wms.example/x", {"codAddressId": "A1"}))),
+        run_b=(a_frame(listing), a_frame(a_write("https://wms.example/x", {"codAddressId": "A2"}))),
+        taken=set(),
+    )
+
+    assert [p.field for p in planned] == ["cod_address_id"]
+
+
+def test_two_values_from_two_different_collections_are_not_one_lookup() -> None:
+    """One dropdown cannot offer both records: they are two lists."""
+    addresses = a_read(
+        'https://wms.example/addresses?query=[{"column":"addressName","operator":"EQ","value":"t"}]',
+        [{"addressId": "A1", "addressName": "first"}],
+    )
+    clients = a_read(
+        'https://wms.example/clients?query=[{"column":"addressName","operator":"EQ","value":"t"}]',
+        [{"addressId": "A2", "addressName": "second"}],
+    )
+
+    assert (
+        plan(
+            (Wanted(field="cod_address_id", values=("A1", "A2"), step_index=1),),
+            run_a=(
+                a_frame(addresses),
+                a_frame(a_write("https://wms.example/x", {"codAddressId": "A1"})),
+            ),
+            run_b=(
+                a_frame(clients),
+                a_frame(a_write("https://wms.example/x", {"codAddressId": "A2"})),
+            ),
+            taken=set(),
+        )
+        == ()
+    )
+
+
+def test_a_value_no_doing_can_explain_gets_no_lookup_for_the_one_that_can() -> None:
+    """Run B's id is in no listing at all. Half a list is not a list."""
+    listing = a_read(
+        'https://wms.example/addresses?query=[{"column":"addressName","operator":"EQ","value":"t"}]',
+        [{"addressId": "A1", "addressName": "first"}],
+    )
+
+    assert (
+        plan(
+            (Wanted(field="cod_address_id", values=("A1", "A2"), step_index=1),),
+            run_a=(
+                a_frame(listing),
+                a_frame(a_write("https://wms.example/x", {"codAddressId": "A1"})),
+            ),
+            run_b=(
+                a_frame(listing),
+                a_frame(a_write("https://wms.example/x", {"codAddressId": "A2"})),
+            ),
+            taken=set(),
+        )
+        == ()
+    )
+
+
+def test_a_parameter_the_diff_proved_is_offered_a_lookup() -> None:
+    """The call site's job: a value that varied reaches `plan` at all, carrying
+    both doings' values and the step that sent them."""
+    parameterisation = Parameterisation(
+        parameters=(
+            Parameter(
+                name="cod_address_id",
+                kind=ParameterKind.INPUT,
+                observed_values=("A1", "A2"),
+            ),
+            Parameter(
+                name="made_by_a_step",
+                kind=ParameterKind.DERIVED,
+                observed_values=("D1",),
+                source_step_index=0,
+            ),
+        ),
+        substitutions={
+            1: (
+                Substitution(site=JsonBodySite("/codAddressId"), parameter="cod_address_id"),
+                # Substituted the same way, and still not offered: nobody
+                # supplies a derived value, so no dropdown could help.
+                Substitution(site=JsonBodySite("/madeBy"), parameter="made_by_a_step"),
+            )
+        },
+    )
+
+    assert _wanted(parameterisation) == (
+        Wanted(field="cod_address_id", values=("A1", "A2"), step_index=1),
+    )
+
+
+def test_a_field_one_doing_left_out_is_offered_with_the_one_value_seen() -> None:
+    """`observed_values` holds one value when a doing omitted the field."""
+    parameterisation = Parameterisation(
+        parameters=(
+            Parameter(name="cod_address_id", kind=ParameterKind.INPUT, observed_values=("A1",)),
+        ),
+        substitutions={
+            2: (Substitution(site=JsonBodySite("/codAddressId"), parameter="cod_address_id"),)
+        },
+    )
+
+    assert _wanted(parameterisation) == (
+        Wanted(field="cod_address_id", values=("A1",), step_index=2),
+    )
+
+
+def test_attaching_a_dropdown_does_not_downgrade_what_two_runs_proved() -> None:
+    """`Evidence` says how firmly we know this is a parameter; `options` says
+    where its value comes from. They are different questions."""
+    listing = a_read(
+        'https://wms.example/addresses?query=[{"column":"addressName","operator":"EQ","value":"t"}]',
+        [{"addressId": "A1", "addressName": "first"}],
+    )
+    write = a_write("https://wms.example/x", {"codAddressId": "A1"})
+    (found,) = plan(
+        (Wanted(field="cod_address_id", values=("A1",), step_index=1),),
+        run_a=(a_frame(listing), a_frame(write)),
+        run_b=(a_frame(listing), a_frame(write)),
+        taken=set(),
+    )
+    parameter = Parameter(name="cod_address_id", kind=ParameterKind.INPUT)  # Evidence.PROVEN
+
+    assert with_options((parameter,), (found,))[0].evidence is Evidence.PROVEN
+    assert with_options((parameter,), (found,))[0].options is not None

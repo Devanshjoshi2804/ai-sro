@@ -8,7 +8,7 @@ from sro.application.induction.induce_skill import (
     with_options,
 )
 from sro.application.induction.lookups import Wanted, _listing_of, filtered_on, plan
-from sro.application.induction.sites import JsonBodySite
+from sro.application.induction.sites import JsonBodySite, as_a_filter
 from sro.domain.skill.lookup import Options
 from sro.domain.skill.parameter import Evidence, Parameter, ParameterKind
 from sro.domain.skill.skill import SkillVersion
@@ -199,6 +199,78 @@ def test_a_filtered_column_absent_from_the_picked_record_plans_nothing() -> None
         )
         == ()
     )
+
+
+def test_a_read_filtered_on_a_column_the_record_lacks_is_not_the_listing() -> None:
+    """`nickname` is a column of the endpoint, not a field of the row that came
+    back. Promoting that read to `Options.url` makes `as_a_filter` succeed and
+    sends the live query out as `column=addressName` riding a filter shape the
+    demonstration built for `nickname` -- a real query to the warehouse system
+    filtered on a column nothing proved that endpoint accepts.
+
+    The unfiltered page wins instead, and `search` stays empty: the field the
+    write happened to send is not the field the endpoint was shown filtering
+    on, and ADR 004 has no other evidence to offer here.
+    """
+    page = a_read(
+        "https://wms.example/addresses?offset=0&limit=50",
+        [
+            {"addressId": "A1", "addressName": "test"},
+            {"addressId": "A2", "addressName": "other"},
+        ],
+    )
+    by_nickname = a_read(
+        'https://wms.example/addresses?query=[{"column":"nickname","operator":"EQ","value":"t"}]',
+        [{"addressId": "A1", "addressName": "test"}],
+    )
+    write = a_write(
+        "https://wms.example/carrierCrossReferences",
+        {"codAddressId": "A1", "addressName": "test"},
+    )
+    run = (a_frame(page), a_frame(by_nickname), a_frame(write))
+
+    planned = plan(
+        (Wanted(field="cod_address_id", values=("A1",), step_index=2),),
+        run_a=run,
+        run_b=run,
+    )
+
+    assert len(planned) == 1
+    assert planned[0].options.label == ("addressName",)
+    assert "nickname" not in planned[0].options.url
+    # Which is what makes the dropdown safe: the page carries no filter, so
+    # nothing at run time can re-aim one at a column the endpoint was never
+    # shown accepting. The whole page is fetched and narrowed in the console.
+    options = planned[0].options
+    assert as_a_filter(options.url, column=options.search or "", placeholder="x") is None
+
+
+def test_a_listing_nothing_proved_a_column_for_is_not_searched_on_one() -> None:
+    """The same evidence with no unfiltered page behind it. `Options.url` can
+    only be the read filtered on `nickname`, and that read *can* be re-aimed --
+    so `search` has to be empty, or the console sends the warehouse system a
+    live query filtered on `addressName` in a shape only `nickname` was ever
+    seen in. The field the write sent is not evidence about how the endpoint
+    is asked."""
+    by_nickname = a_read(
+        'https://wms.example/addresses?query=[{"column":"nickname","operator":"EQ","value":"t"}]',
+        [{"addressId": "A1", "addressName": "test"}],
+    )
+    write = a_write(
+        "https://wms.example/carrierCrossReferences",
+        {"codAddressId": "A1", "addressName": "test"},
+    )
+    run = (a_frame(by_nickname), a_frame(write))
+
+    planned = plan(
+        (Wanted(field="cod_address_id", values=("A1",), step_index=1),),
+        run_a=run,
+        run_b=run,
+    )
+
+    assert len(planned) == 1
+    assert planned[0].options.label == ("addressName",)
+    assert planned[0].options.search is None
 
 
 def test_the_record_is_not_labelled_by_the_id_it_is_being_looked_up_by() -> None:
@@ -393,6 +465,37 @@ def test_what_the_operator_read_on_screen_cannot_displace_what_they_searched_by(
 
     assert len(planned) == 1
     assert planned[0].options.search == "addressName"
+    assert planned[0].options.label == ("addressName", "city")
+
+
+def test_the_field_the_operator_read_on_screen_leads_the_one_they_never_saw() -> None:
+    """Both `city` and `addressName` are sent by the write and unique in the
+    collection, and the record carries `city` first. The operator picked the row
+    by reading "0 C TANNER" off it, so that is the field the dropdown leads
+    with -- a list whose first column is one nobody ever looked at reads as the
+    wrong list.
+
+    Nothing was filtered here, so no searched column pins the front of the
+    label: the order is the display heuristic's alone, which is the only shape
+    where it is observable at all.
+    """
+    page = a_read(
+        "https://wms.example/addresses?offset=0&limit=50",
+        [{"addressId": "A1", "city": "BURLINGTON", "addressName": "0 C TANNER"}],
+    )
+    write = a_write(
+        "https://wms.example/carrierCrossReferences",
+        {"codAddressId": "A1", "city": "BURLINGTON", "addressName": "0 C TANNER"},
+    )
+    run = (a_frame(page), a_click("0 C TANNER"), a_frame(write))
+
+    planned = plan(
+        (Wanted(field="cod_address_id", values=("A1",), step_index=2),),
+        run_a=run,
+        run_b=run,
+    )
+
+    assert len(planned) == 1
     assert planned[0].options.label == ("addressName", "city")
 
 

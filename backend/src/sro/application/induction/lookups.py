@@ -151,13 +151,10 @@ def _plan_one(
     value = wanted.values[0]
     request, records = found[0]
 
-    picked = next((r for r in records if value in [str(v) for v in r.values()]), None)
-    if picked is None:  # pragma: no cover - _listing_of found it in one of them
+    row = _picked(records, value)
+    if row is None:  # pragma: no cover - _listing_of found it in one of them
         return None
-
-    take = next((key for key, held in picked.items() if str(held) == value), None)
-    if take is None:  # pragma: no cover - as above
-        return None
+    picked, take = row
 
     # A filtered read returns one row, and every field on one row is trivially
     # the only one of its kind. What tells records apart is what the collection
@@ -218,12 +215,9 @@ def _plan_one(
     # field a human was seen using beats one that merely happens to be unique.
     #
     # Only among the fields nothing proved, though. This is a heuristic about
-    # what reads well in a dropdown, and `label[0]` is also `Options.search` --
-    # the column the live query gets re-aimed at. Letting a clicked row's text
-    # reach the front would point that query at a column no demonstration ever
-    # filtered on, and discard the one that was: inference standing on top of
-    # evidence, which ADR 004 forbids. So a searched column stays in front and
-    # this orders what is left.
+    # what reads well in a dropdown, and a searched column is evidence about
+    # how the record is found. So the searched one stays in front and this
+    # orders what is left.
     on_screen = [pair for pair in usable if _seen_on_screen(screens, pair[1])]
     usable = proven + on_screen + [pair for pair in usable if pair not in on_screen]
 
@@ -235,11 +229,34 @@ def _plan_one(
             url=without_clocks(request.url),
             label=label,
             value=take,
-            search=label[0],
+            search=_search_column(proven, listing_url, label),
             headers=build_header_plans(request, target_system=system, facility=facility),
         ),
         shown=" — ".join(value for _, value in usable[:MOST_FIELDS]),
     )
+
+
+def _search_column(
+    proven: list[tuple[str, str]], listing_url: str, label: tuple[str, ...]
+) -> str | None:
+    """The column the live query may be re-aimed at, where one was proved.
+
+    `Options.search` is what `as_a_filter` swaps into the demonstrated filter at
+    run time, so a column the demonstration never filtered on sends a real query
+    to the warehouse system filtered on a column nothing showed that endpoint
+    accepting -- ADR 004's inference on top of evidence, with a live request
+    behind it. Only the searched column may go here, and `Options.search` is
+    optional for exactly that reason: without one the page is fetched whole and
+    narrowed in the console, which is slower and true.
+
+    The exception is a listing that carries no filter to re-aim. `as_a_filter`
+    returns nothing there, `choices._searched` fetches the raw URL, and this
+    column is read by nobody -- the pre-existing shape where the whole page is
+    narrowed here, which this is not the change that fixes.
+    """
+    if proven:
+        return proven[0][0]
+    return label[0] if not filter_terms_of(listing_url) else None
 
 
 def _seen_on_screen(run: tuple[ActionFrame, ...], value: str) -> bool:
@@ -332,6 +349,13 @@ def _listing_of(
     returns nothing, the raw URL is fetched, and typing in the dropdown narrows
     nothing: a `search` column read off the filtered read, pointed at a URL that
     cannot use it.
+
+    Only where the column that read was filtered on is a field of the record
+    that came back, though. A read filtered on `nickname` returning a row that
+    has no `nickname` proves nothing about the record the operator picked, and
+    promoting it makes `as_a_filter` succeed with some other column riding a
+    filter shape the demonstration built for that one. The unfiltered page is
+    the honest listing there: it narrows nothing at run time and says so.
     """
     found = [pair for pair in _reads(runs, step_index) if _holds(pair[1], (value,))]
     if not found:
@@ -341,10 +365,37 @@ def _listing_of(
         (
             pair
             for pair in found
-            if _same_collection(pair[0].url, first[0].url) and filtered_on(pair[0]) is not None
+            if _same_collection(pair[0].url, first[0].url)
+            and _identifying_column(pair[0], pair[1], value) is not None
         ),
         first,
     )
+
+
+def _picked(records: list[dict[str, object]], value: str) -> tuple[dict[str, object], str] | None:
+    """The record holding this value, and the field of it that holds it."""
+    for record in records:
+        take = next((key for key, held in record.items() if str(held) == value), None)
+        if take is not None:
+            return record, take
+    return None
+
+
+def _identifying_column(
+    request: CapturedRequest, records: list[dict[str, object]], value: str
+) -> str | None:
+    """The column this read was filtered on, where the picked record has it.
+
+    The same test `_plan_one` puts a searched column through before it will use
+    one: filtered on one column, that column is a field of the record with
+    something in it, and it is not the id the lookup exists to spare anybody.
+    """
+    column = filtered_on(request)
+    row = _picked(records, value)
+    if column is None or row is None:
+        return None
+    record, take = row
+    return column if column != take and str(record.get(column, "")).strip() else None
 
 
 def _searched_column(

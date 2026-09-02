@@ -270,22 +270,47 @@ def _body_of(payload: dict[str, Any]) -> str:
     return ""
 
 
+def _answered(response: httpx.Response, what: str) -> dict[str, Any]:
+    """The body, or a refusal said out loud.
+
+    Gmail answers a disabled API, a missing scope and a revoked grant with a
+    4xx and a JSON body that simply has no results in it. Read with `.json()`
+    and no check, every one of those becomes an empty inbox -- a failure
+    wearing the face of a success, which is worse than an error because nobody
+    goes looking for the cause of nothing.
+    """
+    if response.status_code >= 400:
+        detail = ""
+        try:
+            detail = str(response.json().get("error", {}).get("message", ""))
+        except ValueError:
+            detail = response.text[:200]
+        raise RuntimeError(f"Gmail refused {what} ({response.status_code}): {detail}")
+    return dict(response.json())
+
+
 def _search(token: str, arguments: dict[str, Any]) -> str:
     limit = str(arguments.get("limit", "10"))
-    listed = httpx.get(
-        f"{GMAIL}/messages",
-        params={"q": arguments.get("query", ""), "maxResults": limit},
-        headers={"Authorization": f"Bearer {token}"},
-        timeout=20.0,
-    ).json()
-    found = []
-    for one in listed.get("messages", []) or []:
-        full = httpx.get(
-            f"{GMAIL}/messages/{one['id']}",
-            params={"format": "metadata", "metadataHeaders": ["From", "Subject", "Date"]},
+    listed = _answered(
+        httpx.get(
+            f"{GMAIL}/messages",
+            params={"q": arguments.get("query", ""), "maxResults": limit},
             headers={"Authorization": f"Bearer {token}"},
             timeout=20.0,
-        ).json()
+        ),
+        "the search",
+    )
+    found = []
+    for one in listed.get("messages", []) or []:
+        full = _answered(
+            httpx.get(
+                f"{GMAIL}/messages/{one['id']}",
+                params={"format": "metadata", "metadataHeaders": ["From", "Subject", "Date"]},
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=20.0,
+            ),
+            "one of the search results",
+        )
         head = _headers_of(full.get("payload", {}))
         found.append(
             {
@@ -300,12 +325,15 @@ def _search(token: str, arguments: dict[str, Any]) -> str:
 
 
 def _get(token: str, arguments: dict[str, Any]) -> str:
-    full = httpx.get(
-        f"{GMAIL}/messages/{arguments.get('id', '')}",
-        params={"format": "full"},
-        headers={"Authorization": f"Bearer {token}"},
-        timeout=20.0,
-    ).json()
+    full = _answered(
+        httpx.get(
+            f"{GMAIL}/messages/{arguments.get('id', '')}",
+            params={"format": "full"},
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=20.0,
+        ),
+        "that message",
+    )
     payload = full.get("payload", {})
     head = _headers_of(payload)
     return json.dumps(

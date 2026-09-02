@@ -278,7 +278,7 @@ class Container:
         )
 
     def dismiss_candidate(self) -> DismissCandidate:
-        return DismissCandidate(self.unit_of_work())
+        return DismissCandidate(self.unit_of_work(), self.clock, self.ids)
 
     def create_trigger(self) -> CreateTrigger:
         return CreateTrigger(self.unit_of_work(), self.clock, self.ids, self.scheduler)

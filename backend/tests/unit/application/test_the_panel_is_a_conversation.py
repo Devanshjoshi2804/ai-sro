@@ -21,6 +21,7 @@ from sro.application.chat.converse import StartThread
 from sro.application.chat.read_threads import ReadThreads
 from sro.application.context import RequestContext
 from sro.application.observation.propose import ProposeAboutCandidates
+from sro.application.observation.teach import DismissCandidate
 from sro.domain.chat.thread import Message, Speaker, Thread
 from sro.domain.observation.candidate import WORTH_OFFERING, Episode, TaskCandidate
 from sro.domain.shared.identifiers import BatchId, CandidateId, PrincipalId
@@ -392,3 +393,69 @@ async def test_posting_an_offer_starts_nothing() -> None:
     assert uow.runs.rows == {}, "an offer started a run nobody pressed anything for"
     stored = await uow.candidates.get(f.TENANT, CandidateId("cnd-1"))
     assert stored.status_is_new, "an offer decided something about the candidate"
+
+
+async def _answers_in(uow: FakeUnitOfWork, principal: PrincipalId) -> list[Message]:
+    """Every message recording what came of an offer, in this operator's thread."""
+    thread = await ReadThreads(uow).current(RequestContext(f.TENANT, principal))
+    if thread is None:
+        return []
+    return [m for m in thread.messages if (m.decision or {}).get("kind") == "answered"]
+
+
+async def test_saying_yes_to_an_offer_is_recorded_in_the_conversation(
+    uow: FakeUnitOfWork,
+) -> None:
+    """The console showed every offer permanently unanswered, and a reopened
+    panel drew both buttons again as though the question were still open."""
+    candidate = _candidate(times=WORTH_OFFERING)
+    candidate.offered_at = NINE
+    await uow.candidates.add(candidate)
+    await uow.commit()
+
+    await DismissCandidate(uow, FakeClock(NINE), FakeIdFactory()).execute(
+        RequestContext(f.TENANT, f.OPERATOR), candidate_id=candidate.id, reason="not this one"
+    )
+
+    (said,) = await _answers_in(uow, f.OPERATOR)
+    assert said.speaker is Speaker.SYSTEM
+    assert said.decision["answer"] == "dismissed"
+    assert said.decision["candidate_id"] == candidate.id.value
+
+
+async def test_an_offer_nobody_made_gets_no_answer(uow: FakeUnitOfWork) -> None:
+    """A candidate dismissed from the console was never asked about. Answering
+    a question nobody put would start a conversation to say it into."""
+    candidate = _candidate(times=WORTH_OFFERING)
+    assert candidate.offered_at is None
+    await uow.candidates.add(candidate)
+    await uow.commit()
+
+    await DismissCandidate(uow, FakeClock(NINE), FakeIdFactory()).execute(
+        RequestContext(f.TENANT, f.OPERATOR), candidate_id=candidate.id, reason="no"
+    )
+
+    assert await _answers_in(uow, f.OPERATOR) == []
+    assert await ReadThreads(uow).current(RequestContext(f.TENANT, f.OPERATOR)) is None, (
+        "answering an offer nobody made started a conversation"
+    )
+
+
+async def test_the_answer_lands_in_the_operator_s_thread_not_the_caller_s(
+    uow: FakeUnitOfWork,
+) -> None:
+    """Dismissal can be done on somebody's behalf. A message in the wrong
+    conversation is worse than none: the operator never sees it, and somebody
+    else sees work they did not do."""
+    theirs = PrincipalId("someone-else")
+    candidate = _candidate(principal=theirs)
+    candidate.offered_at = NINE
+    await uow.candidates.add(candidate)
+    await uow.commit()
+
+    await DismissCandidate(uow, FakeClock(NINE), FakeIdFactory()).execute(
+        RequestContext(f.TENANT, f.OPERATOR), candidate_id=candidate.id, reason="no"
+    )
+
+    assert len(await _answers_in(uow, theirs)) == 1
+    assert await _answers_in(uow, f.OPERATOR) == []

@@ -1563,6 +1563,55 @@ test("sending with Enter paints the answer, with the cursor still in the box", a
   );
 });
 
+test("a task the conversation already carries is not drawn as a row as well", async () => {
+  // The offer is a message in the thread now, with the same two buttons. Drawn
+  // here as well, the panel asks twice and then disagrees with itself: `here()`
+  // only re-runs on a host change, so dismissing in the transcript left the row
+  // live indefinitely, and dismissing on the row left the message live.
+  const { ids, renderCandidates } = panel(
+    {
+      deviceId: "dev-1",
+      capturing: true,
+      watched: [{ tabId: 7, host: "wms.example", since: new Date().toISOString() }],
+    },
+    { id: 7, host: "wms.example", url: "https://wms.example/portal" },
+    {
+      candidates: [
+        {
+          id: "cnd-said",
+          title: "Create a supplier",
+          signature: "POST data/WM/wm/suppliers",
+          status: "new",
+          times_seen: 4,
+          median_duration_ms: 40000,
+          minutes_so_far: 5,
+          offered_at: "2026-09-02T11:10:08Z",
+          episodes: [],
+          joins: [],
+        },
+        {
+          id: "cnd-building",
+          title: "Create a work area",
+          signature: "POST data/WM/wm/workAreas",
+          status: "new",
+          times_seen: 2,
+          median_duration_ms: 20000,
+          minutes_so_far: 1,
+          offered_at: null,
+          episodes: [],
+          joins: [],
+        },
+      ],
+    },
+  );
+  await renderCandidates();
+
+  const said = words(ids["candidates"]);
+  assert.ok(!/supplier/i.test(said), `the offered task was drawn twice: ${said.slice(0, 200)}`);
+  assert.ok(/work area/i.test(said), "a task still building up stopped being shown");
+});
+
+
 for (const [name, fn] of tests) {
   try {
     await fn();

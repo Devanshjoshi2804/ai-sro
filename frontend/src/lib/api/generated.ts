@@ -3391,6 +3391,8 @@ export interface components {
             dismissed_reason: string | null;
             /** Named By Model */
             named_by_model: boolean;
+            /** Offered At */
+            offered_at: string | null;
             /** Joins */
             joins: components["schemas"]["JoinModel"][];
             /** Episodes */

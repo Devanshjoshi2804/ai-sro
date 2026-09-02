@@ -1012,11 +1012,20 @@ async function here() {
   // dismissed and taught included, because the miner reads them all so it does
   // not re-offer what somebody said no to -- and a panel that offered "Teach"
   // on a dismissed one would be offering a button the backend refuses.
-  const offerable = candidates.filter((candidate) => candidate.status === "new");
+  //
+  // And not what the conversation is already carrying. A task worth offering
+  // is said out loud in the thread, with the same two buttons; drawing it here
+  // as well is the panel asking twice and then disagreeing with itself about
+  // whether it was answered -- dismissing one left the other live. So this
+  // list is what is building up and has not been offered yet, and the thread
+  // owns every real offer.
+  const offerable = candidates.filter(
+    (candidate) => candidate.status === "new" && !candidate.offered_at,
+  );
 
   $("candidates-note").textContent = offerable.length
     ? ""
-    : `nothing noticed on ${host} yet — it takes a few doings of the same task`;
+    : `nothing new noticed on ${host} — it takes a few doings of the same task`;
   $("candidates").replaceChildren(...offerable.map(row));
 }
 

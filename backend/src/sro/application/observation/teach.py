@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import json
 import logging
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -227,24 +227,76 @@ class TeachCandidate:
         by name; seen twice, the name is a parameter somebody can fill in.
         """
         if self._induce is not None and len(recordings) > 1:
-            induced = await self._induce.execute(
-                ctx,
-                first=recordings[0].id,
-                second=recordings[1].id,
-                name=candidate.title,
-                # The rest of the history. Read for whether some doing left a
-                # field empty, and -- since ADR 015 -- for the steps they made:
-                # a step most doings contain is part of the task even when the
-                # two freshest happen not to share it, and a rare one that
-                # types a field somebody supplied is a branch rather than a
-                # fumble.
-                others=tuple(recording.id for recording in recordings[2:]),
-            )
-            return induced.skill_id
+            return await self._induce_from_a_pair(ctx, candidate, recordings)
         understood = await self._understand.execute(
             ctx, recording_id=recordings[0].id, name=candidate.title
         )
         return understood.skill_id
+
+    async def _induce_from_a_pair(
+        self, ctx: RequestContext, candidate: TaskCandidate, recordings: Sequence[Recording]
+    ) -> SkillId:
+        """Induce from the first pair that really is two runs of one task.
+
+        The two freshest used to be the only pair tried, and one odd doing
+        among them sank the whole candidate. A real case: four doings of
+        "create a work area", of which the second freshest was a two-frame stub
+        where somebody typed one field. Three of the six pairs aligned
+        perfectly; induction picked the one that did not, and the operator was
+        asked to demonstrate a task the system had watched four times.
+
+        So a refusal is no longer the end of it. Freshness is still the
+        preference -- the screens move, and the most recent doings are the ones
+        most likely to still find their controls -- but it stops being a single
+        point of failure. Pairs are tried nearest-to-freshest first, and the
+        rest of the history goes along as `others` whichever pair wins, so a
+        field somebody left empty and a step most doings make are still read
+        from every doing.
+
+        Bounded on purpose. Ten doings are forty-five pairs, and a candidate
+        that cannot align in a handful of tries is telling us something --
+        that these are not doings of one task -- rather than waiting to be
+        brute-forced into agreement.
+
+        Where every pair refuses, the freshest pair's refusal is the one
+        raised: it is the two runs the operator most likely has in mind, so it
+        is the explanation that will make sense to them.
+        """
+        first_refusal: InductionFailed | None = None
+        for attempt, (near, far) in enumerate(_pairs(len(recordings))):
+            if attempt >= MOST_PAIRS:
+                break
+            try:
+                induced = await self._induce.execute(  # type: ignore[union-attr]
+                    ctx,
+                    first=recordings[near].id,
+                    second=recordings[far].id,
+                    name=candidate.title,
+                    # The rest of the history. Read for whether some doing left
+                    # a field empty, and -- since ADR 015 -- for the steps they
+                    # made: a step most doings contain is part of the task even
+                    # when the pair happens not to share it, and a rare one
+                    # that types a field somebody supplied is a branch rather
+                    # than a fumble.
+                    others=tuple(
+                        recording.id
+                        for index, recording in enumerate(recordings)
+                        if index not in (near, far)
+                    ),
+                )
+            except InductionFailed as refused:
+                if first_refusal is None:
+                    first_refusal = refused
+                logger.info(
+                    "%s: doings %d and %d are not two runs of one task (%s)",
+                    candidate.id,
+                    near,
+                    far,
+                    refused,
+                )
+                continue
+            return induced.skill_id
+        raise first_refusal if first_refusal else InductionFailed("no pair of doings to diff")
 
     async def _demonstration(
         self, ctx: RequestContext, candidate: TaskCandidate, episode: Episode
@@ -540,6 +592,33 @@ class TeachWorkflow:
 
     async def _evidence(self, ctx: RequestContext, episode: Episode) -> _Evidence:
         return await _read_episode(self._uow, self._blobs, ctx, episode)
+
+
+MOST_PAIRS = 6
+"""How many pairs to try before believing the refusal.
+
+Six is every pair among the four freshest doings. Ten doings are forty-five
+pairs, and a candidate that cannot find two runs of one task in six tries is
+saying these are not doings of one task -- which is a real answer, and the one
+`needs_demonstration` exists to give.
+"""
+
+
+def _pairs(count: int) -> Iterator[tuple[int, int]]:
+    """Every pair of doings, freshest first, nearest first.
+
+    `recordings` is ordered freshest-first, so (0,1) is the pair that used to be
+    the only one tried and stays the first. After that, `near + far` ascending
+    prefers pairs that are both recent and adjacent: two doings from this
+    morning are likelier to be two runs of one task than this morning and last
+    Tuesday, because the screens move.
+    """
+    return iter(
+        sorted(
+            ((near, far) for near in range(count) for far in range(near + 1, count)),
+            key=lambda pair: (pair[0] + pair[1], pair[0]),
+        )
+    )
 
 
 def _said_different(candidate: TaskCandidate, other: TaskCandidate) -> bool:

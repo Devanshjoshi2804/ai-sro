@@ -147,6 +147,31 @@ async function grantedHosts() {
     .map((grant) => grant.host);
 }
 
+/** Whether this URL may be recorded, the operator's own grants included.
+ *
+ * `allowsHost` takes the grants as its third argument and defaults it to none,
+ * which is right for a pure function and wrong for every caller in this file:
+ * each one is deciding about a live browser where the operator may have pressed
+ * "watch this host anyway". Three of them forgot, so pressing that button
+ * produced gestures and calls and had every one of them dropped here as an
+ * excluded host -- a surface claiming to observe, and no evidence.
+ *
+ * So the grants stop being an argument anybody can leave off.
+ */
+async function admits(url, policy) {
+  return allowsHost(url, policy, await grantedHosts());
+}
+
+/** Put the recorder into this tab, the operator's own grants included.
+ *
+ * `injectInto` defaults its grants the same way, and both call sites here
+ * forgot them -- so on a granted host the gate above would have admitted
+ * evidence that was never produced, because nothing was ever injected.
+ */
+async function injectHere(tabId, url) {
+  return injectInto(tabId, url, await state.policy(), await grantedHosts());
+}
+
 async function isWatched(tabId) {
   if (tabId === null || tabId === undefined) return false;
   return (await watchedTabs()).some((entry) => entry.tabId === tabId);
@@ -256,7 +281,7 @@ async function popupEvent(d) {
     return;
   }
   const policy = await state.policy();
-  if (!allowsHost(opener.url, policy)) return;
+  if (!(await admits(opener.url, policy))) return;
   // A window the watched application opened is part of the same piece of work
   // -- a picker, an SSO round trip, a print preview. The operator pointed at
   // the task, not at a tab id, so the watch follows it.
@@ -273,7 +298,7 @@ async function pageEvent(page_kind, tab_id, url, timeStamp) {
       capturing(),
       isWatched(tab_id),
     ]);
-    if (!allowed.on || !watching || !allowsHost(url, policy)) return;
+    if (!allowed.on || !watching || !(await admits(url, policy))) return;
     await queue.enqueue({
       kind: "page",
       at: new Date(timeStamp).toISOString(),
@@ -377,7 +402,7 @@ async function handle(message, sender) {
       // decides it, which is why a console polling its own backend all day
       // never became 97% of a day's capture again.
       if (!watching) return { ok: false, dropped: "this tab is not being watched" };
-      if (!allowsHost(frameUrl, policy)) {
+      if (!(await admits(frameUrl, policy))) {
         return { ok: false, dropped: "excluded host" };
       }
       // A tab this extension is driving for a run is not an operator working.
@@ -567,7 +592,7 @@ async function handle(message, sender) {
       // said more strongly. An operator who demonstrates in an unwatched tab
       // and gets an empty recording learns nothing except not to trust this.
       await watch(tab.id, tab.url);
-      await injectInto(tab.id, tab.url, await state.policy());
+      await injectHere(tab.id, tab.url);
       const started = await api.startRecording(deviceId, message.label || tab.title || null);
       try {
         // Chrome allows one debugger per tab, so passive trees let go before a
@@ -734,7 +759,7 @@ async function handle(message, sender) {
       // Into the tab as it stands, not on its next navigation. An operator who
       // presses this in the middle of a job should not have to reload the page
       // and lose the form they were halfway through.
-      await injectInto(tabId, url, await state.policy());
+      await injectHere(tabId, url);
       return { watched };
     }
     case "unwatch-tab": {

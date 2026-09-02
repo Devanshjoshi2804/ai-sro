@@ -44,6 +44,16 @@ class Episode:
     batch_ids: tuple[BatchId, ...]
     gestures: int = 0
     calls: int = 0
+    touched_from: datetime | None = None
+    touched_until: datetime | None = None
+    """When a person actually had their hands on this, first and last -- as
+    opposed to when the page was still talking.
+
+    Two tabs are one job when somebody worked in both, and a mail client polling
+    in the background is not somebody working. Optional because every episode
+    mined before this existed has no answer, and an episode with no answer is
+    judged by the rule that mined it.
+    """
 
     def __post_init__(self) -> None:
         for name, at in (("started_at", self.started_at), ("ended_at", self.ended_at)):
@@ -64,8 +74,9 @@ class JoinKind(StrEnum):
     is the property that keeps identity stable."""
 
     WORKFLOW = "workflow"
-    """Two halves of one piece of work, in two systems. An episode breaks on a
-    host change, so this is a shape no single candidate can ever have."""
+    """Two halves of one piece of work, in two systems. Segmentation runs each
+    host on its own stream, so an episode is always one host's: this is a shape
+    no single candidate can ever have."""
 
 
 class JoinAnswer(StrEnum):

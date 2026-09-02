@@ -230,11 +230,15 @@ def _variants(
 def _workflows(
     candidates: list[TaskCandidate],
 ) -> list[tuple[JoinKind, TaskCandidate, TaskCandidate]]:
-    """Same operator, different systems, done one after the other more than once.
+    """Same operator, different systems, done together more than once.
 
-    An episode breaks on a host change, so this is the shape no candidate can
-    have on its own: "check the WMS, then record it in the ERP" is two
-    candidates and always will be.
+    Together in either shape `occurrences` counts: one after the other, or both
+    tabs open and worked in at once.
+
+    Segmentation runs each host on its own stream, so an episode is always one
+    host's -- which makes this the shape no candidate can have on its own:
+    "check the WMS, then record it in the ERP" is two candidates and always
+    will be.
     """
     pairs = []
     for index, first in enumerate(candidates):
@@ -258,7 +262,13 @@ _UNANSWERED = Join(other_id=CandidateId("none"), kind=JoinKind.VARIANT, because=
 
 
 def occurrences(first: TaskCandidate, second: TaskCandidate) -> list[tuple[Episode, Episode]]:
-    """Each time an episode of `second` began just as one of `first` ended.
+    """Each time an episode of `second` belongs with one of `first`.
+
+    Two shapes, because a person does a job across two systems in two ways.
+    They finish in the mail and move to the warehouse -- sequential, which is
+    what this counted before. Or they keep both open and go back and forth,
+    which produces episodes that overlap and which this counted as nothing at
+    all, so the join built for exactly that shape was never proposed.
 
     The pairs themselves, because teaching the two candidates as one skill needs
     the halves that actually belong together: two doings a fortnight apart are
@@ -272,12 +282,60 @@ def occurrences(first: TaskCandidate, second: TaskCandidate) -> list[tuple[Episo
         (earlier, later)
         for earlier in first.episodes
         for later in second.episodes
-        if timedelta(0) <= later.started_at - earlier.ended_at <= TOGETHER_WITHIN
+        if _together(earlier, later)
     ]
 
 
+def _together(earlier: Episode, later: Episode) -> bool:
+    gap = later.started_at - earlier.ended_at
+    if timedelta(0) <= gap <= TOGETHER_WITHIN:
+        return True
+    return _interleaved(earlier, later)
+
+
+def _interleaved(earlier: Episode, later: Episode) -> bool:
+    """Overlapping in time, and touched by a person in the same stretch.
+
+    Overlap alone would pair a mailbox somebody left open with whatever else
+    they did that hour: the tab was there, the client polled, and none of it
+    was work. So the windows compared are the ones an episode records for when
+    somebody actually had their hands on it.
+
+    Directional -- only the episode that started first may be the earlier half.
+    `_workflows` counts both directions against `TOGETHER_TIMES`, so a
+    symmetric rule would let one interleaved pair reach the threshold alone.
+
+    Ordered on `(started_at, ended_at, host)` rather than on `started_at`
+    alone, because both timestamps come from event data and two tabs starting
+    in the same second is not exotic. That is a total order for two episodes of
+    two candidates -- their hosts differ, which is what makes them a workflow
+    at all -- so exactly one direction of any pair qualifies, ties included.
+    """
+    if (earlier.started_at, earlier.ended_at, earlier.host) >= (
+        later.started_at,
+        later.ended_at,
+        later.host,
+    ):
+        return False
+    if not (later.started_at < earlier.ended_at):
+        return False
+    if (
+        earlier.touched_from is None
+        or earlier.touched_until is None
+        or later.touched_from is None
+        or later.touched_until is None
+    ):
+        # Mined before an episode recorded this. It keeps the meaning it had.
+        return False
+    return (
+        later.touched_from - earlier.touched_until <= TOGETHER_WITHIN
+        and earlier.touched_from - later.touched_until <= TOGETHER_WITHIN
+    )
+
+
 def _followed(first: TaskCandidate, second: TaskCandidate) -> int:
-    """How often an episode of `second` began just as one of `first` ended."""
+    """How often an episode of `second` belongs with one of `first` -- either
+    beginning just as it ended, or overlapping it with somebody's hands in both."""
     return len(occurrences(first, second))
 
 
@@ -288,9 +346,29 @@ def _plainly(kind: JoinKind, first: TaskCandidate, second: TaskCandidate) -> str
     is "the system thinks so" is one nobody can answer.
     """
     if kind is JoinKind.WORKFLOW:
+        # Both directions, because both are what `_workflows` counted: an
+        # operator flipping tabs will not flip the same way twice, so a pair
+        # that qualified once each way is proposed on 1 + 1 -- and reporting
+        # the larger direction alone says "1 times" for something that
+        # happened twice.
         forwards, backwards = occurrences(first, second), occurrences(second, first)
-        times = max(len(forwards), len(backwards))
+        pairs = forwards + backwards
+        times = len(pairs)
+        # The order named is the one it more often went in. With one doing each
+        # way there is no such order, and the sentence for that case does not
+        # claim one: it says both tabs were open at once.
         order = (first, second) if len(forwards) >= len(backwards) else (second, first)
+        # Which shape it was, because "one after the other" is simply false about
+        # somebody who kept both tabs open, and a reason a person cannot weigh is
+        # a reason nobody answers.
+        at_once = sum(1 for earlier, later in pairs if _interleaved(earlier, later))
+        if at_once == times:
+            return f"worked in both at once {times} times -- {order[0].host} and {order[1].host}"
+        if at_once:
+            return (
+                f"done together {times} times -- {order[0].host} and {order[1].host}, "
+                f"{at_once} of them with both open at once"
+            )
         return f"done one after the other {times} times -- {order[0].host}, then {order[1].host}"
     steps = len(set(first.signature.split(" → ")) & set(second.signature.split(" → ")))
     return f"{steps} of their steps are the same call"

@@ -231,6 +231,8 @@ def _segment(run: Sequence[Observed]) -> Segment | None:
             batch_ids=tuple(dict.fromkeys(one.batch_id for one in run)),
             gestures=len(gestures),
             calls=len(calls),
+            touched_from=gestures[0].at,
+            touched_until=gestures[-1].at,
         ),
         signature=signature,
     )

@@ -58,3 +58,21 @@ def test_a_real_pause_still_ends_the_work() -> None:
     ]
 
     assert len(segment(work)) == 2
+
+
+def test_an_episode_says_when_somebody_had_their_hands_on_it() -> None:
+    """When the page was still talking is not when a person was working. Only
+    the second can say two tabs were one job."""
+    work = [
+        _call(0, "wms.example", "GET"),  # the screen loading
+        _gesture(5, "wms.example"),
+        _gesture(9, "wms.example"),
+        _call(10, "wms.example"),
+        _call(30, "wms.example", "GET"),  # the grid refreshing afterwards
+    ]
+
+    (piece,) = segment(work)
+
+    assert piece.episode.touched_from == AT + timedelta(seconds=5)
+    assert piece.episode.touched_until == AT + timedelta(seconds=9)
+    assert piece.episode.started_at == AT, "the episode still covers the whole piece"

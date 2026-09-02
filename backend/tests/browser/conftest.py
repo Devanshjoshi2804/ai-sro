@@ -21,7 +21,7 @@ import json
 import queue
 import threading
 from collections.abc import Callable, Iterator
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, ClassVar
@@ -323,6 +323,7 @@ class _Stub(BaseHTTPRequestHandler):
     test here is a browser with no watch on it and nothing of ours in a
     mailbox."""
 
+    granted: ClassVar[list[str]] = []
     matched: ClassVar[list[dict[str, Any]]] = []
     """What the browser posted when it recognised a mail, as bytes and as
     parsed. The bytes are the point: a subject that reached the wire would be
@@ -562,6 +563,21 @@ class _Stub(BaseHTTPRequestHandler):
                         },
                     }
                 ).encode(),
+            )
+            return
+        if self.path.endswith("/grants"):
+            # The operator pressing "watch this host anyway" on a host the
+            # tenant excludes. The real backend records the grant and answers
+            # with every grant this device now holds; the extension mirrors
+            # that answer and admits evidence from those hosts until they
+            # expire. Answered here so the grant path is exercised end to end
+            # rather than simulated by writing the extension's own storage.
+            host = json.loads(raw or b"{}").get("host", "")
+            expires = (datetime.now(UTC) + timedelta(hours=1)).isoformat()
+            _Stub.granted.append(host)
+            self._send(
+                200,
+                json.dumps({"grants": [{"host": host, "expires_at": expires}]}).encode(),
             )
             return
         if self.path.endswith("/matched"):

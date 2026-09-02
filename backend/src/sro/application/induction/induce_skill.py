@@ -39,7 +39,7 @@ from sro.domain.recording.events import ActionFrame
 from sro.domain.recording.recording import Recording, RecordingStatus
 from sro.domain.shared.identifiers import RecordingId, SkillId
 from sro.domain.shared.objective import ObjectiveKey
-from sro.domain.skill.parameter import Evidence, Parameter, ParameterKind
+from sro.domain.skill.parameter import Parameter, ParameterKind
 from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.skill import Provenance, Skill, SkillStep, SkillVersion
 from sro.domain.skill.track_record import TrackRecord, Verdict
@@ -232,15 +232,15 @@ class InduceSkill:
             # skill carries the lookup; where it cannot, the id is a question.
             pairs = align(frames_a, frames_b)
             planned = lookups.plan(
-                parameterisation.choices,
+                _wanted(parameterisation),
                 tuple(pair[0] for pair in pairs),
                 tuple(pair[1] for pair in pairs),
-                {parameter.name for parameter in parameterisation.parameters},
                 screens=frames_a,
+                others=tuple(history),
                 system=objective.target_system,
                 facility=objective.facility,
             )
-            resolvable = frozenset(found.choice.field for found in planned)
+            resolvable = frozenset(found.field for found in planned)
             asked = await self._settle_choices(
                 ctx,
                 objective,
@@ -611,18 +611,25 @@ def _refuse_an_unfillable_input(version: SkillVersion) -> None:
     not a general promise that every parameter this system ever proposes has
     a step behind it.
 
-    ponytail: `optional` is a proxy for the real question -- can whoever runs
-    this skill actually produce the value, by typing it, choosing it from
-    `options`, or having the goal supply it -- and the proxy has a known gap.
-    Four doings that all pick a COD address through the same dialog, none
-    blank, prove the field varies (the ids differ) without ever setting
-    `absent_as`, so `optional` reads False and this refusal stays silent on a
-    version that asks an operator to recite an internal id from memory. Close
-    it when that shape turns up in real data: broaden the predicate to "some
-    step fills it, or it carries `options`, or the goal supplies it" rather
-    than widening `optional` itself, which the two other rungs of this
-    ladder (network-only required fields, and `_typed_by`'s narrower reading)
-    already show is not a safe place to widen from.
+    A parameter carrying `options` is answerable and is not refused. This is
+    the other half of the same question -- can whoever runs this skill produce
+    the value -- and a dropdown is a way of producing it that no step's
+    `ui_plan` records, because the console draws the field itself: it fetches
+    the list from the endpoint the demonstration's own screen used and the
+    operator picks off it exactly as they did when they taught it. Refusing
+    that is refusing the answer for lacking the shape of the question.
+
+    ponytail: `optional` is still a proxy for the rest of it, and the proxy
+    has a known gap. Four doings that all pick a COD address through the same
+    dialog, none blank, prove the field varies (the ids differ) without ever
+    setting `absent_as`, so `optional` reads False and this refusal stays
+    silent on a version that asks an operator to recite an internal id from
+    memory -- which is harmless where a lookup was planned and not where one
+    was not. Close it when that shape turns up in real data by finishing the
+    predicate with "or the goal supplies it", rather than widening `optional`
+    itself, which the two other rungs of this ladder (network-only required
+    fields, and `_typed_by`'s narrower reading) already show is not a safe
+    place to widen from.
     """
     fillable = frozenset(
         name
@@ -633,6 +640,7 @@ def _refuse_an_unfillable_input(version: SkillVersion) -> None:
     if any(
         parameter.kind is ParameterKind.INPUT
         and parameter.optional
+        and parameter.options is None
         and parameter.name not in fillable
         for parameter in version.parameters
     ):
@@ -654,6 +662,47 @@ def choice_key(objective: ObjectiveKey, field: str) -> str:
     return f"{objective.target_system}/{objective.entity_type}/{objective.objective_type}/{field}"
 
 
+def _wanted(parameterisation: Parameterisation) -> tuple[lookups.Wanted, ...]:
+    """Every value that might have come off a list, chosen or supplied.
+
+    A constant the operator picked twice and an id that differed between the
+    two doings were picked the same way, off the same screen. Only the first
+    used to be offered a lookup, so the value that varied -- the one the
+    operator must supply afresh every run, and cannot type -- was the one left
+    with no way to be answered. Whether the skill will vary it is a question
+    about the parameter, not about where its value comes from.
+
+    A parameter is offered when a human supplies it, has no list already, and
+    the demonstrations saw a value for it. `substitutions` says which step sent
+    it, which is what bounds the search for the read that showed it.
+
+    One INPUT parameter can substitute at more than one step, so this takes the
+    earliest -- the same reason `diff.py`'s `earliest_use` does. A later step is
+    itself the write, or comes after it, and bounding the search there lets the
+    listing search run past the write and pick up a read that came after it:
+    exactly the ordering this lookup exists to get right.
+    """
+    steps_of: dict[str, int] = {}
+    for index, subs in sorted(parameterisation.substitutions.items()):
+        for substitution in subs:
+            steps_of.setdefault(substitution.parameter, index)
+    return tuple(
+        lookups.Wanted(field=choice.field, values=(choice.value,), step_index=choice.step_index)
+        for choice in parameterisation.choices
+    ) + tuple(
+        lookups.Wanted(
+            field=parameter.name,
+            values=parameter.observed_values,
+            step_index=steps_of[parameter.name],
+        )
+        for parameter in parameterisation.parameters
+        if parameter.kind is ParameterKind.INPUT
+        and parameter.options is None
+        and parameter.observed_values
+        and parameter.name in steps_of
+    )
+
+
 def with_options(
     parameters: tuple[Parameter, ...],
     planned: tuple[PlannedLookup, ...],
@@ -663,10 +712,16 @@ def with_options(
     The value stays what the call needs -- the id -- and stops being something
     a person has to know: the console draws a dropdown, fills it from the same
     endpoint the screen used, and what the operator picks is what runs.
+
+    Evidence is left alone. A choice that became a parameter is already
+    `PROPOSED` where it was built; a parameter the diff produced is `PROVEN`
+    because two demonstrations disagreed about it, and hanging a dropdown off
+    it does not unprove that. Options say where a value comes from; evidence
+    says how firmly we know it is a parameter at all.
     """
     if not planned:
         return parameters
-    options = {found.choice.field: found for found in planned}
+    options = {found.field: found for found in planned}
     return tuple(
         replace(
             parameter,
@@ -675,7 +730,6 @@ def with_options(
                 f"chosen from {_collection(options[parameter.name].options.url)}. "
                 f"The demonstration used {options[parameter.name].shown}"
             ),
-            evidence=Evidence.PROPOSED,
         )
         if parameter.name in options
         else parameter

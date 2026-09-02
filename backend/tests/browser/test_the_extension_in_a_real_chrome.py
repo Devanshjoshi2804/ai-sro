@@ -541,6 +541,46 @@ def test_an_excluded_host_produces_nothing_at_all(browser: Any, stub: Any) -> No
     assert CLIENT_CODE not in json.dumps(batches)
 
 
+def test_a_host_the_operator_granted_is_recorded_despite_the_exclusion(
+    browser: Any, stub: Any
+) -> None:
+    """Pressing "watch this host anyway" has to actually record something.
+
+    The grant is the operator's own decision to observe a host the tenant
+    excludes by default -- a mailbox they want a task learned from. It was
+    honoured where the content scripts are registered and dropped at the one
+    gate every captured event passes through, so the panel said "everything you
+    do here is evidence" while the worker discarded every gesture and every
+    call as an excluded host. A surface claiming to observe, and no evidence,
+    is the failure this file exists to catch.
+    """
+    api_url, batches = stub
+    port = api_url.rsplit(":", 1)[1]
+    worker = _service_worker(browser)
+    _sign_in(browser, worker, api_url)
+
+    # No storage poking: `_watch` on an excluded host asks the backend for the
+    # grant itself, which is exactly what the operator's press does.
+    granted = browser.new_page()
+    granted.goto(f"http://localhost:{port}/")  # excluded by the tenant policy
+    _watch(browser, worker, granted)
+    granted.fill("#client", CLIENT_CODE)
+    granted.click("#save")
+    granted.wait_for_function("() => window.__done === true", timeout=15_000)
+    _flush(browser, worker)
+    granted.close()
+
+    events = [event for batch in batches for event in batch["events"]]
+    assert events, "a granted host recorded nothing at all"
+    assert any(
+        event["kind"] == "gesture" and event["gesture"].get("value") == CLIENT_CODE
+        for event in events
+    ), "the grant admitted no gesture"
+    assert any(
+        event["kind"] == "request" and "/api/orders" in event["request"]["url"] for event in events
+    ), "the grant admitted no calls"
+
+
 def test_a_gesture_is_illustrated_by_a_screenshot_of_the_page(
     captured: dict[str, Any], artifacts: list[dict[str, Any]]
 ) -> None:
@@ -1917,3 +1957,15 @@ def test_watching_a_tab_that_was_already_open_needs_no_reload(browser: Any, stub
         if event["kind"] == "gesture" and event["gesture"].get("value") == CLIENT_CODE
     ]
     assert len(again) == 1, f"watching twice recorded the same gesture {len(again)} times"
+
+    # And the calls, which is the half the gesture assertion above never
+    # covered: a second relay in the frame forwards the *same* page-realm
+    # record a second time, so the duplicate carries an identical request_id
+    # rather than looking like a second call the page made.
+    ids = [
+        event["request"]["request_id"]
+        for batch in batches
+        for event in batch["events"]
+        if event["kind"] == "request"
+    ]
+    assert len(ids) == len(set(ids)), "watching twice recorded the same call twice"

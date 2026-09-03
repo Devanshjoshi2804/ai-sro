@@ -250,26 +250,46 @@ GPT-4o's 65.6 comes from fine-tuning, which we are not doing. ALR² (arXiv
 its useful warning is that *naive* prompting to retrieve supporting facts first,
 without that training, produces very high ungrounded-citation rates.
 
-**Self-consistency voting is dead as an option.** This is the clearest result of
-the run, and it removes something I had earlier offered as the mitigation for
-identity instability. Sampling many answers and taking the plurality gave
-**0.4% improvement from one sample to twenty on HotpotQA at roughly twenty times
-the token cost** (arXiv 2511.00751); best case anywhere was 1.6% at ~15x. In
+**Self-consistency voting defaults to off, and is measured rather than
+believed.** Sampling many answers and taking the plurality gave **0.4%
+improvement from one sample to twenty on HotpotQA at roughly twenty times the
+token cost** (arXiv 2511.00751); best case anywhere was 1.6% at ~15x. In
 automated scoring, going from one sample to seven produced **no statistically
-significant gain** (arXiv 2604.26954). Worse, *When Self-Consistency Backfires*
-(arXiv 2608.11403) found majority voting **hurts** accuracy on **56.6% of
-problems for Qwen2.5-7B and 65.7% for Llama-3-8B**, the worst single problem
-losing 47 points — harm that is concentrated and invisible in the aggregate
-score. And the obvious gate fails: an oracle router choosing when to vote would
-gain 14–17 points, while plurality-agreement and token-entropy gates captured
-almost none of it, because token entropy mostly measures prose fluency rather
-than answer confidence.
+significant gain** (arXiv 2604.26954).
 
-Two things replace it. The same scoring study found **temperature sampling
-itself helped** and that **reasoning effort has a significant positive linear
-relationship with accuracy** — so the lever is reasoning effort on the umbrella
-pass, not repetition. And identity was already moved off model judgement
-entirely, which is why this result costs us nothing.
+The evidence needs reading carefully rather than quoting, because two of these
+results do not transfer the same way.
+
+*When Self-Consistency Backfires* (arXiv 2608.11403) found majority voting
+**hurts** accuracy on 56.6% of problems for Qwen2.5-7B and 65.7% for
+Llama-3-8B, worst case losing 47 points. Those are 7–8B open models. **Nothing
+in that paper says the same happens to a frontier model**, and it should not be
+quoted as though it does.
+
+The diminishing-returns result is the one that does bear on us, and it bears in
+a direction worth stating plainly: its whole thesis is that voting helps **less
+as models get stronger**, and its headline measurement was taken on
+Gemini-2.5-Flash-Lite — a weak model, where voting had the most room to help,
+and gained 0.4%. Moving to a stronger model moves *along* that trend, not
+against it. So "our models are newer" is an argument for expecting less from
+voting, not more.
+
+That is still an argument from somebody else's benchmark, on somebody else's
+task. **Sample count is therefore a knob on the umbrella pass, defaulting to 1,
+and verification measures it on our own windows** — do repeated passes over one
+window propose the same workflows, and does a plurality over three passes beat a
+single pass at three times the price? If it does, we turn it up. Two published
+papers are a reason to set a default, not a reason to skip an experiment that
+costs one afternoon.
+
+What the same studies point at as the better lever: **temperature sampling
+itself helped** even where ensembling did not, and **reasoning effort has a
+significant positive linear relationship with accuracy**. Reasoning effort is
+the first knob to turn, before sample count.
+
+One thing that does not need settling either way: identity was already moved off
+model judgement entirely, so none of this touches whether two workflows are the
+same job.
 
 **Cross-system stitching has a quantified non-model baseline.** Cross-organisational
 process mining that reconstructs one process model from logs with independently
@@ -318,12 +338,25 @@ person whose job it is.
 
 | | input | output |
 |---|---|---|
+| **Gemini 3.8 Flash** (introductory, to 2026-12-31) | $0.75 / 1M | $3.75 / 1M |
 | Gemini 3 Flash | $0.50 / 1M | $3 / 1M |
 | Gemini 3.1 Pro, ≤ 200K prompt | $2 / 1M | $12 / 1M |
 | Gemini 3.1 Pro, > 200K prompt | **$4 / 1M** | **$18 / 1M** |
 | Batch API | 50% off | 50% off |
 | Flash-Lite (image and video input) | $0.25 / 1M | $1.50 / 1M |
 | Context caching | $0.20 / 1M read | + $4.50 / 1M per hour stored |
+
+**Which model does which job is configuration, not architecture.** Gemini 3.8
+Flash is described as the strongest workhorse for long-horizon planning and
+agentic work, which is exactly the runner's step-planner and arguably the
+umbrella pass too — at $0.75 against Pro's $2 per million input, a 150K-token
+window pass costs a third as much. Whether it is good enough at reading a whole
+day's evidence is a question our own windows answer, so the umbrella model is a
+setting and the first verification run compares them on identical input. Do not
+assume the expensive model is required; do not assume the cheap one suffices.
+
+(The Cyber variant is irrelevant here — it is a restricted-access model for
+vulnerability finding and patching, not for reading telemetry.)
 
 Per-event inference runs roughly 500 ms to several seconds, which is a real
 throughput ceiling; the standard advice is to gate events before calling a model
@@ -494,10 +527,12 @@ out  Intent {
      }
 ```
 
-At $0.50 per million input tokens and a trimmed record of roughly 400–900
-tokens, that is about **$0.0003 a gesture** — a two-thousand-gesture day for
-around **sixty cents**. Screenshots only where they are needed is what keeps that
-true.
+At Gemini 3.8 Flash's introductory $0.75 per million input tokens and a trimmed
+record of roughly 400–900 tokens, that is about **$0.0005 a gesture** — a
+two-thousand-gesture day for around **a dollar**. Screenshots only where they are
+needed is what keeps that true, and Flash-Lite at $0.25 is where per-gesture work
+goes if the cheaper model reads a gesture as well, which is a thing to measure
+rather than assume.
 
 ### Call two — Pro, once per window
 

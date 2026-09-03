@@ -185,10 +185,26 @@ of a window is multi-hop. Therefore:
   specifically once the evidence set is large.
 - **No relevance hints.** Explicitly marking the most relevant context was
   measured to *reduce* accuracy in all five languages tested.
-- **No multi-sample voting** — 0.4% gain at 20x cost, and it *hurt* accuracy on
-  56.6% / 65.7% of individual problems in one study, hidden by the aggregate.
-  The lever is **reasoning effort** on the umbrella pass, which does show a
-  significant positive relationship with accuracy.
+- **Sample count defaults to 1**, and is a knob rather than a prohibition.
+  Published gain was 0.4% at 20x cost — but measured on Gemini-2.5-Flash-Lite,
+  and the backfire result (56.6% / 65.7% of problems made worse) is from 7–8B
+  open models and does not transfer to a frontier model. What does bear on us is
+  the direction: that paper's thesis is voting helping *less* as models get
+  stronger, so newer models argue for expecting less, not more. Verification step
+  3b settles it on our own windows. **Reasoning effort is the first knob**, which
+  does show a significant positive relationship with accuracy.
+
+### Which model runs which call
+
+Configuration, not architecture. Gemini 3.8 Flash (introductory $0.75/1M in,
+$3.75/1M out to 2026-12-31) is the strongest workhorse for long-horizon and
+agentic planning, which describes both the runner's step-planner and possibly the
+umbrella pass — at a third of Gemini 3.1 Pro's input price for a 150K-token
+window. Whether it reads a whole day's evidence as well as Pro is answered by
+verification step 3c on identical input, not assumed in either direction.
+Per-gesture work starts on 3.8 Flash (~$0.0005 a gesture, ~$1 for a
+two-thousand-gesture day) and moves to Flash-Lite if that reads a gesture as
+well.
 
 ### The carryover pool
 
@@ -286,6 +302,16 @@ misreads.
    proven and citations produced. Ordering moved accuracy from 0.28 to 0.44 in
    published multi-hop work; if it moves nothing here, say so and stop paying
    attention to it.
+3b. **Does repetition buy anything on our windows?** Run one window three times
+   at sample count 1, and once at sample count 3 with a plurality over the
+   workflows proposed. Compare workflows proven, citation stability, and cost.
+   Published evidence says no (0.4% at 20x) but was measured on a weaker model
+   and a different task; three passes over one window costs an afternoon and
+   settles it for ours. Turn the default up only if this says to.
+3c. **Is Pro needed for the umbrella pass?** Same window, same prompt, Gemini
+   3.8 Flash against Gemini 3.1 Pro. Compare workflows proven, citation validity,
+   coverage skew, and cost. Flash is a third of the input price; if it reads a
+   day's evidence as well, the umbrella pass belongs on it.
 4. **Citations are enforced.** A hand-edited model response citing a fabricated
    `ges_…` is rejected, and the rejection names the identifier.
 5. **Carryover works across streams.** One operator does the Blue Yonder half,

@@ -15,6 +15,7 @@ gets is an offer -- the values the task would run with -- rather than a run.
 
 from __future__ import annotations
 
+import json
 from collections.abc import AsyncIterator
 
 import httpx
@@ -546,3 +547,56 @@ async def test_a_press_on_a_watch_that_was_switched_off_does_nothing(
 
     assert fired.status_code == 404
     assert container.dispatcher.asked == []
+
+
+async def test_a_match_is_said_in_the_thread_once_and_carries_names_not_values(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork
+) -> None:
+    """The operator has to see that a mail matched somewhere that survives the
+    panel closing, and the values it matched on must not follow it there.
+
+    `ValueAt` exists so what a watch reads out of somebody's mail stays in the
+    browser that read it. A thread is stored, so the message says which names
+    were read and leaves the values where they are -- the browser still holds
+    them, and the press that starts a run carries them then.
+    """
+    created = await _create_watch(client, uow, device_id=LENA)
+    trigger_id = created.json()["id"]
+
+    for _ in range(2):
+        answered = await client.post(
+            f"/v1/agents/{LENA.value}/watches/{trigger_id}/matched?offer=off_1",
+            json={"shipment_id": "SH-4471"},
+            headers=_proving(LENA),
+        )
+        assert answered.status_code == 200, answered.text
+
+    thread = (await client.get("/v1/threads/current")).json()
+    matches = [m for m in thread["messages"] if (m["decision"] or {}).get("kind") == "mail_match"]
+    assert len(matches) == 1, "the same offer was said into the thread twice"
+    assert matches[0]["decision"]["read"] == ["shipment_id"]
+    assert matches[0]["decision"]["offer_id"] == "off_1"
+    assert "SH-4471" not in json.dumps(thread), "a value read from a mail was written down"
+
+
+async def test_a_match_nobody_gave_an_offer_id_for_says_nothing(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork
+) -> None:
+    """An older extension posts a match with no offer id. It still gets its
+    offer back; what it cannot do is have it written once, because there is
+    nothing to recognise the second post by -- and a conversation that repeats
+    itself is one nobody reads."""
+    created = await _create_watch(client, uow, device_id=LENA)
+    trigger_id = created.json()["id"]
+
+    answered = await client.post(
+        f"/v1/agents/{LENA.value}/watches/{trigger_id}/matched",
+        json={"shipment_id": "SH-4471"},
+        headers=_proving(LENA),
+    )
+
+    assert answered.status_code == 200, answered.text
+    thread = (await client.get("/v1/threads/current")).json()
+    assert [
+        m for m in thread["messages"] if (m["decision"] or {}).get("kind") == "mail_match"
+    ] == []

@@ -14,6 +14,7 @@ the authorisation an assisted run records.
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from dataclasses import replace
 
 from sro.application.context import RequestContext
@@ -177,6 +178,58 @@ class Converse:
             await uow.threads.save(thread)
             await uow.commit()
         return thread
+
+    async def matched(
+        self,
+        ctx: RequestContext,
+        *,
+        thread_id: ThreadId,
+        offer_id: str,
+        trigger_id: str,
+        skill: Skill,
+        read: Sequence[str],
+        missing: Sequence[str],
+    ) -> None:
+        """A watched mailbox recognised a task. Said once, by name.
+
+        The operator has to see this somewhere that survives the panel closing,
+        which is the thread. What must not follow it there are the values: they
+        were read out of somebody's mail, and `ValueAt` exists so they stay in
+        the browser that read them. So the message carries which names were
+        read and not what they said. The browser still holds the values, and
+        the press that starts a run carries them then.
+
+        Once per offer. A browser reports a match per frame it sees the mail in,
+        and a conversation that says the same sentence four times is one nobody
+        reads. Recognised by the offer id the browser minted -- absent from an
+        older extension, which is why nothing is written without one: there
+        would be no way to tell the second report from the first.
+        """
+        async with self._uow as uow:
+            thread = await uow.threads.get(ctx.tenant_id, thread_id)
+            if any(
+                (message.decision or {}).get("offer_id") == offer_id for message in thread.messages
+            ):
+                return
+            thread.say(
+                Message(
+                    id=self._ids.new_message_id(),
+                    speaker=Speaker.SYSTEM,
+                    text=f"A mail matched {skill.name}",
+                    said_at=self._clock.now(),
+                    decision={
+                        "kind": Said.MAIL_MATCH,
+                        "offer_id": offer_id,
+                        "trigger_id": trigger_id,
+                        "skill_id": skill.id.value,
+                        "skill_name": skill.name,
+                        "read": list(read),
+                        "missing": list(missing),
+                    },
+                )
+            )
+            await uow.threads.save(thread)
+            await uow.commit()
 
     async def _said_to_a_run(
         self, ctx: RequestContext, *, thread_id: ThreadId, text: str, run_id: RunId

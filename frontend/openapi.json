@@ -1571,6 +1571,16 @@
             }
           },
           {
+            "name": "offer",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Offer"
+            }
+          },
+          {
             "name": "X-Device-Secret",
             "in": "header",
             "required": false,

@@ -4483,7 +4483,9 @@ export interface operations {
     };
     watch_matched_v1_agents__device_id__watches__trigger_id__matched_post: {
         parameters: {
-            query?: never;
+            query?: {
+                offer?: string;
+            };
             header?: {
                 "X-Device-Secret"?: string;
                 authorization?: string | null;

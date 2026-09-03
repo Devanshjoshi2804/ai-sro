@@ -167,6 +167,7 @@ async def watch_matched(
     container: ContainerDep,
     ctx: ContextDep,
     values: Annotated[dict[str, str], Body()] = {},  # noqa: B006
+    offer: str = "",
     x_device_secret: DeviceSecretDep = "",
 ) -> WatchMatchModel:
     """This browser recognised a mail. Nothing runs.
@@ -201,6 +202,27 @@ async def watch_matched(
     running_with = watch.values_from(values)
     skill = await container.get_skill().execute(ctx, skill_id=watch.skill_id)
     version = skill.runnable
+    missing = [] if version is None else blank_inputs(version, running_with)
+    if offer:
+        # Said into the conversation as well as answered here, so the operator
+        # sees it somewhere that survives the panel closing. Names only: the
+        # values were read out of somebody's mail and stay in the browser that
+        # read them, which is what `ValueAt` is for. Once per offer -- a browser
+        # reports a match per frame it sees the mail in, and without an id to
+        # recognise the second report by there is nothing to say it once, which
+        # is why an older extension that sends none has nothing written.
+        thread = await container.read_threads().current(ctx)
+        if thread is None:
+            thread = await container.start_thread().execute(ctx)
+        await container.converse().matched(
+            ctx,
+            thread_id=thread.id,
+            offer_id=offer,
+            trigger_id=watch.id.value,
+            skill=skill,
+            read=sorted(running_with),
+            missing=missing,
+        )
     return WatchMatchModel(
         trigger_id=watch.id.value,
         skill_id=watch.skill_id.value,

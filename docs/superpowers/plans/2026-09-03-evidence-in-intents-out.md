@@ -1608,8 +1608,10 @@ class GeminiAsker:
                 contents=parts,
                 config=build_config(schema=schema),
             )
-        except Exception as problem:  # a rig keeps going; the row records why
-            return Answer(error=f"{type(problem).__name__}: {problem}")
+        except Exception as problem:  # noqa: BLE001 - a rig keeps going
+            # unpriced, not free: the call may or may not have been billed
+            # before it failed, and from here we cannot tell which.
+            return Answer(unpriced=True, error=f"{type(problem).__name__}: {problem}")
 
         usage = getattr(response, "usage_metadata", None)
         counted = getattr(usage, "prompt_token_count", None) is not None
@@ -1690,7 +1692,7 @@ class FakeAsker:
 cd /Users/devansh.j/GreyOrange/AI-SRO/new_agent_arch && uv run pytest tests/test_models.py -v
 ```
 
-Expected: 14 passed.
+Expected: 15 passed.
 
 - [ ] **Step 5: Commit**
 

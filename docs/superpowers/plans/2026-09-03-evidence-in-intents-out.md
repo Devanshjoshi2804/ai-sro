@@ -80,6 +80,14 @@ is what "frozen" means.
 - **Money is recorded per call.** A task that adds a model call and no cost row
   is incomplete.
 - Ruff line length 100, target py312, matching `backend/pyproject.toml`.
+- **`ruff format` is the authority on layout, and this plan's code blocks are
+  not.** They are authoritative for behaviour, names, values and structure; they
+  are hand-written prose and their whitespace is not canonical. After
+  transcribing a task's code, run `uv run ruff format src tests` and commit what
+  it produces. Every task ends with three gates clean: `ruff check`,
+  `ruff format --check`, `mypy src`. Two tasks shipped un-formatted before this
+  was written down, and `make lint` would have failed in Task 7 — three tasks
+  after the cause.
 
 ## Fixture facts the code must honour
 

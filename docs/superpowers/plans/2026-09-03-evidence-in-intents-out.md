@@ -2752,7 +2752,11 @@ def test_the_page_escapes_what_it_draws() -> None:
 
     attack = "<img src=x onerror=alert(1)>"
     harness = (
-        script
+        # The page reads location.search on its first line; node has no such
+        # global, and without this the harness dies of a ReferenceError that
+        # has nothing to do with escaping.
+        "globalThis.location = { search: '' };\n"
+        + script
         + f"""
         const g = {{
           kind: {json.dumps(attack)}, calls: 0,

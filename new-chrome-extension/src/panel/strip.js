@@ -21,6 +21,11 @@
  * caller wiring it up is not reading a label to decide what happened.
  */
 const MENU = [
+  // The console, framed here rather than opened in a tab. Its own entry because
+  // it is a thing done occasionally and deliberately: it used to be a button
+  // under the composer saying "Ask for a task", which was a second copy of the
+  // box you type in and read as the way to ask.
+  { action: "frame-console", label: "Open the console here" },
   { action: "purge", label: "Delete the last hour" },
   { action: "never", label: "Never watch this site" },
   { action: "settings", label: "Settings" },

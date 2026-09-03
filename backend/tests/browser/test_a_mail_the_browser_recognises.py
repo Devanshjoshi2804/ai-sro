@@ -160,7 +160,13 @@ def test_a_mail_that_matches_puts_up_the_values_and_nothing_else(
     assert matched, "the browser never recognised the mail in front of it"
     [offer] = matched
     assert offer["values"] == {"shipment_id": SHIPMENT}
-    assert offer["path"] == "/v1/agents/dev_browsertest/watches/trg-short-ship/matched"
+    address, _, query = offer["path"].partition("?")
+    assert address == "/v1/agents/dev_browsertest/watches/trg-short-ship/matched"
+    # And which offer this match is, so the server can say it into the
+    # operator's conversation once rather than once a frame. An id and nothing
+    # else: everything about the mail itself is still in the body above, which
+    # is what this test is really guarding.
+    assert query.startswith("offer="), f"the match named no offer: {offer['path']}"
     assert SENDER not in offer["raw"], offer["raw"]
     assert "Short shipment" not in offer["raw"], offer["raw"]
     # And nothing was captured either: a mail host is excluded from observation

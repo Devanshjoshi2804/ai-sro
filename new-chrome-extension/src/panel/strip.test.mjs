@@ -86,6 +86,7 @@ test("the housekeeping is under the profile, not under the composer", () => {
     menu.kids.map((button) => button.textContent),
     [
       "Pause watching",
+      "Open the console here",
       "Delete the last hour",
       "Never watch this site",
       "Settings",
@@ -93,7 +94,7 @@ test("the housekeeping is under the profile, not under the composer", () => {
     ],
   );
 
-  menu.kids[1].listeners.click[0]();
+  menu.kids[2].listeners.click[0]();
   assert.deepEqual(pressed, ["purge"], "the menu decides nothing itself");
   assert.equal(menu.hidden, true, "pressing an item leaves the menu closed behind it");
 });

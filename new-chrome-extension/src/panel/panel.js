@@ -230,6 +230,15 @@ async function menu(action) {
   switch (action) {
     case "console":
       return openConsole();
+    case "frame-console": {
+      // The console inside the panel, which is where a supervisor's screens are
+      // reachable without leaving the tab the work is in. Toggled, because the
+      // way back is the same press.
+      const framed = $("console");
+      framed.hidden = !framed.hidden;
+      if (!framed.hidden && !$("frame").src) void frameTheConsole();
+      return undefined;
+    }
     case "pause":
     case "resume":
       await ask({ kind: "set-paused", paused: action === "pause" });
@@ -905,7 +914,6 @@ function openConsole(path = "/console") {
   });
 }
 
-$("open-console").addEventListener("click", () => openConsole());
 
 /** Deleting the operator's own last hour.
  *

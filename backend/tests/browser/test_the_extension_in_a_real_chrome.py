@@ -1503,7 +1503,13 @@ def test_the_panel_hands_the_console_the_credential_it_cannot_see(browser: Any, 
     # Asked for, because the panel no longer frames the console unasked: a
     # screen full of other work is not what somebody docked this beside their
     # WMS for. The handshake it protects is the same either way.
-    panel.get_by_role("button", name="Ask for a task").click()
+    #
+    # Under the profile rather than beside the composer. What used to open it
+    # was a button reading "Ask for a task", which was a second copy of the box
+    # you type in -- and framing a whole console is not what asking for a task
+    # means now that the panel can be asked directly.
+    panel.locator(".disc").click()
+    panel.get_by_role("button", name="Open the console here").click()
     frame = panel.frame_locator("#frame")
     frame.locator("h1").wait_for(timeout=15_000)
 

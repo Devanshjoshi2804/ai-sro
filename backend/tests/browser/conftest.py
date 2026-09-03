@@ -159,6 +159,15 @@ _CANDIDATES = [
         "id": "cnd-here",
         "title": "Adjust an LPN quantity",
         "host": "127.0.0.1",
+        # The page this task begins on, as a path. The stub puts its own
+        # address in front when it serves this, because the port is minted per
+        # run and the extension compares host *and* port -- the miner records
+        # the netloc, so two applications on one machine are two applications.
+        #
+        # The root, where the stub serves its ordinary page. `/elsewhere` is a
+        # different one, so a nudge that fired on the host rather than the page
+        # would be obvious.
+        "starts_on": "/",
         "signature": "PUT wm/inventory/adjust",
         "status": "new",
         "times_seen": 4,
@@ -443,7 +452,18 @@ class _Stub(BaseHTTPRequestHandler):
             # question is "on this system", and a test that filtered client-side
             # would prove the wrong half.
             wanted = parse_qs(urlsplit(self.path).query).get("host", [""])[0]
-            self._send(200, json.dumps([c for c in _CANDIDATES if c["host"] == wanted]).encode())
+            # `starts_on` is stored as a path and answered as an address: this
+            # stub's port is minted per run, and what the panel compares against
+            # is host-with-port. Everything else is served as written.
+            here = self.headers.get("Host", "")
+            mine = [
+                {**c, "starts_on": f"{here}{c['starts_on']}".rstrip("/")}
+                if c.get("starts_on")
+                else c
+                for c in _CANDIDATES
+                if c["host"] == wanted
+            ]
+            self._send(200, json.dumps(mine).encode())
             return
         if self.path.startswith("/elsewhere"):
             # A different page, with a control the first one does not have, so a
@@ -530,6 +550,11 @@ class _Stub(BaseHTTPRequestHandler):
         raw = self.rfile.read(length)
         if not self._proved_it_is_itself():
             return
+        # The address without its query. FastAPI routes on the path and reads
+        # the query separately; a stub that matched on both together answered
+        # 404 to every call that carried one, which is a difference between the
+        # double and the thing that has nothing to do with what is under test.
+        route = urlsplit(self.path).path
         if self.path == "/v1/agents/register":
             self._send(
                 200,
@@ -580,7 +605,10 @@ class _Stub(BaseHTTPRequestHandler):
                 json.dumps({"grants": [{"host": host, "expires_at": expires}]}).encode(),
             )
             return
-        if self.path.endswith("/matched"):
+        if route.endswith("/matched"):
+            # The whole path, query included: which offer this match is for is
+            # on the wire, and a test asserting a mail is reported once has to
+            # be able to see it.
             _Stub.matched.append(
                 {"path": self.path, "raw": raw.decode(), "values": json.loads(raw)}
             )
@@ -588,7 +616,7 @@ class _Stub(BaseHTTPRequestHandler):
                 200,
                 json.dumps(
                     {
-                        "trigger_id": self.path.split("/")[5],
+                        "trigger_id": route.split("/")[5],
                         "skill_id": "skl-short-ship",
                         "values": json.loads(raw),
                         # The real endpoint asks the skill; this asks the rule,
@@ -599,7 +627,7 @@ class _Stub(BaseHTTPRequestHandler):
                 ).encode(),
             )
             return
-        if self.path.endswith("/fire"):
+        if route.endswith("/fire"):
             _Stub.fired.append({"path": self.path, "raw": raw.decode(), "values": json.loads(raw)})
             self._send(
                 202,

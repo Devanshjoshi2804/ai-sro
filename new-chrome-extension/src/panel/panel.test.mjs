@@ -32,7 +32,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 // declaration in a script is a property of the sandbox's global either way,
 // which is already how this harness reaches `render` and `here`.
 //
-// `transcript.js` is concatenated ahead of it rather than imported into the
+// `ledger.js` is concatenated ahead of it rather than imported into the
 // sandbox the way `hostMatches` is: it builds DOM, so it has to see the fake
 // `document` this harness makes, and a function imported into the sandbox from
 // this realm would close over node's own (absent) one instead. As a script,
@@ -42,7 +42,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 // The strip is global (`gm`, not `m`): with two import lines a first-only
 // replace leaves the second, and `vm.runInContext` throws on it.
 const SOURCE = [
-  readFileSync(path.join(here, "transcript.js"), "utf-8"),
+  readFileSync(path.join(here, "ledger.js"), "utf-8"),
   readFileSync(path.join(here, "panel.js"), "utf-8"),
 ]
   .join("\n")
@@ -82,6 +82,9 @@ function node(tag) {
     },
     append(...added) {
       this.kids.push(...added);
+    },
+    prepend(...added) {
+      this.kids.unshift(...added);
     },
     replaceChildren(...added) {
       this.kids = added;
@@ -1566,7 +1569,7 @@ test("sending with Enter paints the answer, with the cursor still in the box", a
 test("a task the conversation already carries is not drawn as a row as well", async () => {
   // The offer is a message in the thread now, with the same two buttons. Drawn
   // here as well, the panel asks twice and then disagrees with itself: `here()`
-  // only re-runs on a host change, so dismissing in the transcript left the row
+  // only re-runs on a host change, so dismissing in the ledger left the row
   // live indefinitely, and dismissing on the row left the message live.
   const { ids, renderCandidates } = panel(
     {

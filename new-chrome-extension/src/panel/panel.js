@@ -12,7 +12,7 @@
 // while one is running the panel is about that and nothing else.
 
 import { hostMatches } from "../background/scripts.js";
-import { composer, transcript } from "./transcript.js";
+import { composer, ledger } from "./ledger.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -942,7 +942,7 @@ function show(thread, { asked = false } = {}) {
   if (now === drawn) return;
   if (!asked && drawn !== null && document.activeElement?.tagName === "INPUT") return;
   drawn = now;
-  $("said").replaceChildren(transcript(thread, { onPress: answered }));
+  $("said").replaceChildren(ledger(thread, undefined, { onPress: answered }));
   // Drawn once and left alone: rebuilding it on every poll would take the
   // cursor out of a half-typed sentence.
   if (!$("ask-bar").childElementCount) $("ask-bar").append(composer(say));

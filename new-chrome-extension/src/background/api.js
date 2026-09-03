@@ -234,6 +234,30 @@ export const api = {
     }
   },
 
+  /** Change what the steps still to come will run with.
+   *
+   * Only names the skill declares; the run refuses anything else rather than
+   * recording a decision that reaches nothing. Answers with the run as it
+   * stands, which is not the effect of the change -- the next step is a fresh
+   * read and renders from what this saved. */
+  reviseRun: (runId, values) =>
+    call(`/v1/runs/${encodeURIComponent(runId)}/values`, {
+      method: "POST",
+      body: { values },
+    }),
+
+  /** Say something to a run that is happening.
+   *
+   * Kept beside it and resolved against nothing: an operator watching a run who
+   * types "use the north yard address" is talking about the thing in front of
+   * them, and putting that through intent matching finds some other skill and
+   * offers to run it. */
+  sayToRun: (threadId, runId, text) =>
+    call(`/v1/threads/${encodeURIComponent(threadId)}/messages`, {
+      method: "POST",
+      body: { text, run_id: runId },
+    }),
+
   /** What this tenant has watched, noticed and done since a moment.
    *
    * The panel asks for today, to say three numbers over the ledger. Counted

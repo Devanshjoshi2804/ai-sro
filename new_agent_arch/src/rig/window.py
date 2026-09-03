@@ -50,20 +50,25 @@ class Window:
 
 
 def _clip(value: Any) -> Any:
-    """Bound every string and every list anywhere in the evidence.
+    """Bound every string anywhere in the evidence.
 
-    The cap has to hold against the whole body rather than against the one part
-    of it that happened to be large the day it was written. A cap that shrank
-    only request bodies was passed by four routes -- a huge typed value, a URL
-    with nothing to split on, two thousand calls on one gesture, and model
-    output returned at a million characters -- by 15x to 1000x. Nothing
-    upstream bounds the length of what a model returns (see
-    intents._string_field), so this is where it is bounded.
+    Strings only, and deliberately. A cap that shrank only request bodies was
+    passed by four routes -- a huge typed value, a URL with nothing to split
+    on, two thousand calls on one gesture, and model output returned at a
+    million characters -- by 15x to 1000x. Nothing upstream bounds the length
+    of what a model returns (see intents._string_field), so this is where a
+    string is bounded.
+
+    Lists are left alone here. Truncating them at this point dropped five of a
+    busy gesture's forty-five calls and returned a body that claimed to be
+    whole -- and it did so in a case the ladder below would have handled
+    better, by keeping all forty-five and dropping only their detail. Nothing
+    loses an item except on a path that has already said `truncated`.
     """
     if isinstance(value, str):
         return value[:K_MAX_TEXT_CHARS]
     if isinstance(value, list):
-        return [_clip(item) for item in value[:K_MAX_ITEMS]]
+        return [_clip(item) for item in value]
     if isinstance(value, dict):
         return {key: _clip(item) for key, item in value.items()}
     return value
@@ -104,12 +109,24 @@ def as_evidence(gesture: Gesture, intent: Intent | None) -> dict[str, Any]:
         return body
 
     # Over the cap: keep what names the gesture, drop what merely bulks it out.
-    # The full evidence stays in the store, reachable by this id.
+    # Every call survives here, stripped to what identifies it; the count is
+    # bounded only if that is still not enough. The full evidence stays in the
+    # store, reachable by this id.
     body["truncated"] = True
     body["gesture"]["calls"] = [
         {"method": call["method"], "path": call["path"], "status": call["status"]}
         for call in body["gesture"]["calls"]
     ]
+    if tokens(json.dumps(body)) <= K_MAX_GESTURE_TOKENS:
+        return body
+
+    # Still over, so the counts themselves are the bulk. Bounded here rather
+    # than on the way in, so that a gesture only ever loses an item on a path
+    # that has already said so.
+    body["gesture"]["calls"] = body["gesture"]["calls"][:K_MAX_ITEMS]
+    body["gesture"]["page"] = body["gesture"]["page"][:K_MAX_ITEMS]
+    if body["intent"] is not None:
+        body["intent"]["values_seen"] = body["intent"]["values_seen"][:K_MAX_ITEMS]
     if tokens(json.dumps(body)) <= K_MAX_GESTURE_TOKENS:
         return body
 

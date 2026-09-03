@@ -5,6 +5,7 @@ from rig.correlate import correlate
 from rig.records import Intent, ValueSeen
 from rig.window import (
     K_MAX_GESTURE_TOKENS,
+    K_MAX_ITEMS,
     K_MIN_GESTURES,
     arrange,
     as_evidence,
@@ -104,6 +105,30 @@ def test_the_cap_holds_by_every_route() -> None:
     )
     size = tokens(json.dumps(as_evidence(base, loud)))
     assert size <= K_MAX_GESTURE_TOKENS, f"intent: {size}"
+
+
+def test_nothing_is_dropped_without_the_evidence_saying_so() -> None:
+    """A body that lost five of forty-five calls and still claimed to be whole.
+    The umbrella pass cannot tell a gesture that made forty calls from one that
+    made forty-five, so a drop has to be visible where it happened."""
+    base = next(g for g in _gestures() if g.requests)
+
+    busy = copy.deepcopy(base)
+    busy.requests = [base.requests[0].model_copy(deep=True) for _ in range(45)]
+    evidence = as_evidence(busy, None)
+
+    # Forty-five calls fit once their detail is dropped, so none is lost --
+    # which is what the ladder is for, and what clipping on the way in skipped.
+    assert len(evidence["gesture"]["calls"]) == 45
+    assert evidence["truncated"] is True
+
+    swamped = copy.deepcopy(base)
+    swamped.requests = [base.requests[0].model_copy(deep=True) for _ in range(2_000)]
+    evidence = as_evidence(swamped, None)
+
+    assert len(evidence["gesture"]["calls"]) <= K_MAX_ITEMS
+    assert evidence["truncated"] is True
+    assert tokens(json.dumps(evidence)) <= K_MAX_GESTURE_TOKENS
 
 
 def test_a_credential_the_model_echoed_back_does_not_reach_the_window() -> None:

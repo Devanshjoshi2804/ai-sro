@@ -317,10 +317,14 @@ test("a matched mail draws the values the browser is holding, not the thread", (
       missing: ["address"],
     },
   };
+  // No sender and no subject, deliberately: `watch.js` is explicit that neither
+  // ever leaves the frame that read the mail, and an offer is held in
+  // `chrome.storage`. What recognised it is the operator's own terms, which are
+  // already here and say more.
   const offer = {
     id: "off_1",
-    from: "procurement@kenco.test",
-    subject: "New supplier: Acme",
+    host: "mail.example",
+    terms: [{ field: "subject", contains: "New supplier" }],
     values: { name: "Acme" },
     missing: ["address"],
   };
@@ -330,8 +334,9 @@ test("a matched mail draws the values the browser is holding, not the thread", (
     onPress: (...args) => pressed.push(args),
   });
   const item = messages(node_)[0];
-  assert.ok(/procurement@kenco.test/.test(words(item)), "the sender is what says it is real");
-  assert.ok(/New supplier: Acme/.test(words(item)));
+  assert.ok(/mail.example/.test(words(item)), "the card must say where this matched");
+  assert.ok(/subject contains/.test(words(item)), "and what the operator pointed it at");
+  assert.equal(/procurement@|New supplier: Acme <|@kenco/.test(words(item)), false);
   const fields = of(item, "input");
   assert.deepEqual(
     fields.map((f) => [f.placeholder, f.value]),

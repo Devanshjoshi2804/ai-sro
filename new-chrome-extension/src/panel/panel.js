@@ -976,8 +976,13 @@ async function say(text) {
  * -- are the backend's to add to an offer later, and a panel that copied three
  * named fields across would silently drop them.
  */
-async function answered(answer, message, where, button) {
+async function answered(answer, message, where, button, values) {
   const decision = message.decision || {};
+  // A matched mail: the values are the browser's, and the ones the operator
+  // typed into the card are what the run must use -- so they go up on the press
+  // rather than the ones the mail happened to fill.
+  if (decision.kind === "mail_match") return firedFromMail(decision, answer, button, values);
+
   const candidate = { ...decision, id: decision.candidate_id };
   if (!candidate.id) return;
   button.disabled = true;
@@ -990,6 +995,29 @@ async function answered(answer, message, where, button) {
     return;
   }
   await conversation();
+}
+
+/** A matched mail, answered from the ledger.
+ *
+ * `watch-fire` is the same call the offer card has always made; what is new is
+ * that the values come from the fields the operator may have edited. A press is
+ * still the authorisation, and the run is still the server's to start.
+ */
+async function firedFromMail(decision, answer, button, values) {
+  button.disabled = true;
+  if (answer !== "run") {
+    await ask({ kind: "drop-offer", offerId: decision.offer_id });
+    said("dismissed — the mail is untouched and nothing ran");
+    return refresh();
+  }
+  try {
+    const fired = await ask({ kind: "watch-fire", offerId: decision.offer_id, values });
+    said(fired.run_id ? "started" : `nothing started: ${fired.skipped}`);
+  } catch (error) {
+    said(error.message);
+    button.disabled = false;
+  }
+  await refresh();
 }
 
 // -- tasks you keep doing here ----------------------------------------------

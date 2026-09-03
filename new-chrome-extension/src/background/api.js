@@ -93,9 +93,10 @@ export const api = {
   /** A mail was recognised. The body is the values the operator marked and
    * nothing else -- not the subject, not the sender, not why. What comes back
    * is the offer; nothing has started. */
-  watchMatched: (deviceId, triggerId, values) =>
+  watchMatched: (deviceId, triggerId, values, offerId) =>
     call(
-      `/v1/agents/${encodeURIComponent(deviceId)}/watches/${encodeURIComponent(triggerId)}/matched`,
+      `/v1/agents/${encodeURIComponent(deviceId)}/watches/${encodeURIComponent(triggerId)}/matched` +
+        (offerId ? `?offer=${encodeURIComponent(offerId)}` : ""),
       { method: "POST", body: values },
     ),
 

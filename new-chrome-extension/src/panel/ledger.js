@@ -262,13 +262,21 @@ function pressing(answers, subject, item, onPress, values) {
   return row;
 }
 
-/** A mail that matched a task: what it was, and what it would run with.
+/** A mail that matched a task: why, and what it would run with.
  *
  * The values are the browser's, never the thread's. What a watch read out of
  * somebody's mail is not written down -- the message carries which names were
- * read, and the offer beside it, held only here, carries what they said. When
- * that offer is gone the card says so rather than drawing empty boxes and
- * pretending a press would work.
+ * read, and the offer beside it carries what they said. When that offer is gone
+ * the card says so rather than drawing empty boxes and pretending a press would
+ * work.
+ *
+ * What it says instead of the sender and the subject: the terms the operator
+ * pointed this watch at, and the host it matched on. `watch.js` is explicit
+ * that no sender, subject or body ever leaves the frame that read the mail --
+ * an offer is held in `chrome.storage`, which is disk, so carrying them here to
+ * put on a card would be writing down exactly what that rule exists to keep
+ * unwritten. The terms are the operator's own words and already stored, and
+ * they are the better answer anyway: they say why this matched.
  */
 function matched(item, message, offers, onPress) {
   const decision = message.decision || {};
@@ -282,13 +290,15 @@ function matched(item, message, offers, onPress) {
     return;
   }
 
-  const from = document.createElement("p");
-  from.className = "note";
-  from.textContent = `from ${offer.from || "unknown sender"}`;
-  const about = document.createElement("p");
-  about.className = "note";
-  about.textContent = offer.subject || "";
-  item.append(from, about);
+  const why = document.createElement("p");
+  why.className = "note";
+  const because = (offer.terms || [])
+    .map((term) => `${term.field} contains \u201c${term.contains}\u201d`)
+    .join(" and ");
+  why.textContent = because
+    ? `Recognised in ${offer.host}: ${because}`
+    : `Recognised in ${offer.host}`;
+  item.append(why);
 
   // Every value a field, whether the mail said it or not. The ones it did not
   // say are the reason a match is offered rather than run: somebody has to

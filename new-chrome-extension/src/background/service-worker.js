@@ -803,8 +803,15 @@ async function handle(message, sender) {
         const given = message.values?.[declared.name];
         if (typeof given === "string" && given) values[declared.name] = given.slice(0, MAX_VALUE);
       }
-      const offer = await api.watchMatched(deviceId, watch.id, values);
-      await hold(watch, values, offer);
+      // One identity per match, found before it is minted. `watch.js` reports
+      // per frame, so a mail sitting open reports itself repeatedly; the id is
+      // what tells the server those are one match and not four, and minting a
+      // fresh one each time would have the conversation repeat itself once a
+      // frame. Reusing the held offer's id makes the second report a no-op at
+      // both ends.
+      const offerId = (await sameOfferAs(watch, values))?.id || crypto.randomUUID();
+      const offer = await api.watchMatched(deviceId, watch.id, values, offerId);
+      await hold(watch, values, offer, offerId);
       return { ok: true, offer };
     }
     case "watch-fire": {
@@ -817,7 +824,17 @@ async function handle(message, sender) {
       const offers = await state.offers();
       const offer = offers.find((each) => each.id === message.offerId);
       if (!deviceId || !offer) return { error: "that offer is gone" };
-      const fired = await api.watchFire(deviceId, offer.triggerId, offer.read);
+      // What the operator saw on the card, not what the mail happened to fill.
+      // The two are the same until they change one, and when they do it is the
+      // change that has to reach the warehouse -- a press that silently ran the
+      // mail's value would be the panel showing one thing and doing another.
+      // Values only, and only names the offer already carries: a body assembled
+      // in a panel is not a way to reach a name the watch never declared.
+      const chosen = { ...offer.read };
+      for (const [name, value] of Object.entries(message.values || {})) {
+        if (name in chosen || (offer.missing || []).includes(name)) chosen[name] = String(value);
+      }
+      const fired = await api.watchFire(deviceId, offer.triggerId, chosen);
       // Kept when nothing started, so the card can say why. A laptop that was
       // closed is the ordinary one of these, and it is worth pressing again.
       await state.setOffers(
@@ -864,18 +881,26 @@ const MAX_OFFERS = 20;
  * were read in the frame and forgotten there, and the mail is on the screen
  * the panel is docked beside.
  */
-async function hold(watch, read, offer) {
+/** The offer already held for this match, if this mail has been seen before.
+ *
+ * The same mail seen again -- open in a second tab, or the page reloaded.
+ * `watch.js` offers once per frame; this is the frame after that one.
+ */
+async function sameOfferAs(watch, read) {
   const held = await state.offers();
-  // The same mail seen again -- open in a second tab, or the page reloaded.
-  // `watch.js` offers once per frame; this is the frame after that one.
-  const same = (each) =>
-    each.triggerId === watch.id && JSON.stringify(each.read) === JSON.stringify(read);
-  if (held.some(same)) return;
+  return held.find(
+    (each) => each.triggerId === watch.id && JSON.stringify(each.read) === JSON.stringify(read),
+  );
+}
+
+async function hold(watch, read, offer, offerId) {
+  const held = await state.offers();
+  if (await sameOfferAs(watch, read)) return;
   const skill = await api.skill(offer.skill_id).catch(() => null);
   await state.setOffers(
     [
       {
-        id: crypto.randomUUID(),
+        id: offerId,
         at: Date.now(),
         triggerId: watch.id,
         skillId: offer.skill_id,

@@ -427,6 +427,14 @@ CREATE TABLE IF NOT EXISTS orphan_requests (
     payload    TEXT NOT NULL,
     PRIMARY KEY (batch_id, request_id)
 );
+
+CREATE TABLE IF NOT EXISTS orphan_pages (
+    batch_id TEXT NOT NULL,
+    tenant   TEXT NOT NULL,
+    at       TEXT NOT NULL,
+    payload  TEXT NOT NULL,
+    PRIMARY KEY (batch_id, at, payload)
+);
 """
 
 
@@ -487,7 +495,7 @@ lint:
 cd /Users/devansh.j/GreyOrange/AI-SRO/new_agent_arch && uv sync --all-extras && uv run pytest tests/ -v
 ```
 
-Expected: 10 passed.
+Expected: 11 passed.
 
 - [ ] **Step 5: Commit**
 
@@ -863,7 +871,7 @@ class Intent:
 cd /Users/devansh.j/GreyOrange/AI-SRO/new_agent_arch && uv run pytest tests/test_wire.py -v
 ```
 
-Expected: 10 passed.
+Expected: 11 passed.
 
 - [ ] **Step 5: Commit**
 
@@ -884,9 +892,12 @@ git commit -m "feat(rig): the frozen wire, proved against the browser's own fixt
 **Interfaces:**
 - Consumes: `Batch`, `GestureEvent`, `RequestEvent`, `PageEvent`, `Request` from
   `rig.wire`; `Gesture`, `new_gesture_id` from `rig.records`.
-- Produces: `correlate(batch: Batch, tenant: str) -> tuple[list[Gesture], list[Request]]`
-  — gestures in time order with their requests and page events attached, plus the
-  orphans; `system_of(url: str | None) -> str | None`; `ATTRIBUTION_SECONDS = 10.0`.
+- Produces: `correlate(batch: Batch, tenant: str) -> tuple[list[Gesture], list[RequestEvent], list[PageEvent]]`
+  — gestures in time order with their requests and page events attached, then the
+  requests nobody owns and the page events nobody owns. Orphans are returned as
+  `RequestEvent`/`PageEvent`, not the bare inner models, so `tab_id` and
+  `frame_url` survive. `system_of(url: str | None) -> str | None`;
+  `ATTRIBUTION_SECONDS = 10.0`.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1886,7 +1897,7 @@ async def read_gesture(
 cd /Users/devansh.j/GreyOrange/AI-SRO/new_agent_arch && uv run pytest tests/test_intents.py -v
 ```
 
-Expected: 10 passed.
+Expected: 11 passed.
 
 - [ ] **Step 5: Commit**
 
@@ -2000,6 +2011,21 @@ def test_the_same_batch_twice_stores_one_copy(client: TestClient, store: Store) 
     assert again.status_code == 202
     assert again.json()["already_had_it"] is True
     assert store.query("SELECT count(*) AS n FROM gestures")[0]["n"] == 7
+
+
+def test_no_page_event_is_lost(client: TestClient, store: Store) -> None:
+    """Both page events in the fixture precede the first gesture. A page always
+    loads before the operator acts on it, so losing those loses every navigation."""
+    client.post("/v1/observations", json=BATCH, headers=_auth())
+
+    attached = sum(
+        len(json.loads(row["page_events"]))
+        for row in store.query("SELECT page_events FROM gestures")
+    )
+    orphaned = store.query("SELECT count(*) AS n FROM orphan_pages")[0]["n"]
+
+    assert attached + orphaned == 2
+    assert attached == 2
 
 
 def test_an_orphan_call_is_kept(client: TestClient, store: Store) -> None:
@@ -2139,7 +2165,7 @@ def save_batch(store: Store, batch: Batch, tenant: str) -> tuple[int, bool]:
     except sqlite3.IntegrityError:
         return 0, True
 
-    gestures, orphans = correlate(batch, tenant)
+    gestures, orphan_requests, orphan_pages = correlate(batch, tenant)
 
     with store.connect() as connection:
         for gesture in gestures:
@@ -2162,11 +2188,22 @@ def save_batch(store: Store, batch: Batch, tenant: str) -> tuple[int, bool]:
                     json.dumps([p.model_dump(mode="json") for p in gesture.page_events]),
                 ),
             )
-        for orphan in orphans:
+        for orphan in orphan_requests:
             connection.execute(
                 "INSERT OR IGNORE INTO orphan_requests (request_id, batch_id, tenant, payload)"
                 " VALUES (?, ?, ?, ?)",
-                (orphan.request_id, batch.batch_id, tenant, orphan.model_dump_json()),
+                (
+                    orphan.request.request_id,
+                    batch.batch_id,
+                    tenant,
+                    orphan.model_dump_json(),
+                ),
+            )
+        for page in orphan_pages:
+            connection.execute(
+                "INSERT OR IGNORE INTO orphan_pages (batch_id, tenant, at, payload)"
+                " VALUES (?, ?, ?, ?)",
+                (batch.batch_id, tenant, page.at, page.model_dump_json()),
             )
         connection.execute(
             "UPDATE batches SET accepted = ? WHERE batch_id = ?",
@@ -2367,7 +2404,7 @@ app = _default_app() if settings().gemini_api_key else FastAPI(title="rig (no ke
 cd /Users/devansh.j/GreyOrange/AI-SRO/new_agent_arch && uv run pytest tests/test_api.py -v
 ```
 
-Expected: 10 passed.
+Expected: 11 passed.
 
 - [ ] **Step 5: Run the whole suite and lint**
 

@@ -10,7 +10,7 @@ from datetime import datetime
 from urllib.parse import urlparse
 
 from rig.records import Gesture, new_gesture_id
-from rig.wire import Batch, GestureEvent, PageEvent, RequestEvent
+from rig.wire import Batch, GestureEvent, PageEvent, RequestEvent, SnapshotEvent
 
 ATTRIBUTION_SECONDS = 10.0
 
@@ -30,13 +30,23 @@ def _epoch(rfc3339: str) -> float:
 
 def correlate(
     batch: Batch, tenant: str
-) -> tuple[list[Gesture], list[RequestEvent], list[PageEvent]]:
+) -> tuple[list[Gesture], list[RequestEvent], list[PageEvent], int]:
+    """Returns (gestures, orphan requests, orphan pages, snapshots ignored).
+
+    Accessibility-tree snapshots are deliberately out of scope for this plan
+    -- there is nowhere in the schema to put one -- but silently dropping
+    them is not the same as never having received them. The count is the
+    difference: it says a batch had snapshots even though nothing stores them.
+    """
     gestures: list[Gesture] = []
     requests: list[RequestEvent] = []
     pages: list[tuple[float, PageEvent]] = []
+    snapshots_ignored = 0
 
     for event in batch.events:
-        if isinstance(event, GestureEvent):
+        if isinstance(event, SnapshotEvent):
+            snapshots_ignored += 1
+        elif isinstance(event, GestureEvent):
             gestures.append(
                 Gesture(
                     id=new_gesture_id(),
@@ -75,7 +85,7 @@ def correlate(
         else:
             owner.page_events.append(page)
 
-    return gestures, orphan_requests, orphan_pages
+    return gestures, orphan_requests, orphan_pages, snapshots_ignored
 
 
 def _owner(gestures: list[Gesture], when: float, tab_id: int | None) -> Gesture | None:

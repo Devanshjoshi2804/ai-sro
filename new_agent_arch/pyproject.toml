@@ -26,6 +26,12 @@ packages = ["src/rig"]
 testpaths = ["tests"]
 pythonpath = ["src", "."]
 asyncio_mode = "auto"
+filterwarnings = [
+    # google-genai still touches typing internals Python 3.17 removes, and it
+    # warns at import. Narrow to the one message and module: a blanket ignore
+    # would hide our own warnings too.
+    "ignore:'_UnionGenericAlias' is deprecated:DeprecationWarning:google.genai.types",
+]
 
 [tool.ruff]
 line-length = 100

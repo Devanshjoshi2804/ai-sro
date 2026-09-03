@@ -9,7 +9,7 @@ MODEL = "gemini-3.8-flash"
 
 
 def _gestures():
-    gestures, _, _ = correlate(Batch.model_validate(BATCH), "new")
+    gestures, _, _, _ = correlate(Batch.model_validate(BATCH), "new")
     return gestures
 
 
@@ -133,6 +133,36 @@ async def test_a_wrong_typed_field_does_not_poison_a_later_gestures_reading() ->
 
     downstream = FakeAsker(_answer())
     await read_gesture(_gestures()[1], tail=[intent], asker=downstream, model=MODEL)
+
+
+async def test_a_wrong_typed_values_seen_entry_is_dropped_not_coerced() -> None:
+    """A non-str field is unusable (dropped, not str()'d into a fake one); a
+    non-str value is treated as unseen ("") rather than fabricated."""
+    asker = FakeAsker(
+        _answer(
+            values_seen=[
+                {"field": 123, "value": "should be dropped, field is not a string"},
+                {"field": "qty", "value": 7},
+                {"field": "clientCode", "value": "ACME-4471"},
+            ]
+        )
+    )
+
+    intent = await read_gesture(_gestures()[0], tail=[], asker=asker, model=MODEL)
+
+    assert [seen.field for seen in intent.values_seen] == ["qty", "clientCode"]
+    assert intent.values_seen[0].value == ""
+    assert intent.values_seen[1].value == "ACME-4471"
+
+
+async def test_an_undeclared_confidence_value_is_unusable() -> None:
+    """confidence is declared enum ["high","medium","low"] but nothing checked
+    it; a model returning "very high" must not store it verbatim."""
+    asker = FakeAsker(_answer(confidence="very high"))
+
+    intent = await read_gesture(_gestures()[0], tail=[], asker=asker, model=MODEL)
+
+    assert intent.confidence is None
 
 
 def test_the_schema_requires_an_act_and_a_reason() -> None:

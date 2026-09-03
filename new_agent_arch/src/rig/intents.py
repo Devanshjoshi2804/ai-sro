@@ -14,6 +14,7 @@ from rig.records import Gesture, Intent, ValueSeen
 from rig.trim import thin, trim
 
 TAIL = 8
+CONFIDENCE_VALUES = frozenset({"high", "medium", "low"})  # must track INTENT_SCHEMA's enum below
 
 INSTRUCTIONS = """You are reading one thing a warehouse operator just did in a browser.
 
@@ -108,13 +109,19 @@ async def read_gesture(
     intent.system = _string_field(data, "system")
     intent.page = _string_field(data, "page")
     intent.continues = _string_field(data, "continues") or None
-    intent.confidence = _string_field(data, "confidence")
+    confidence = _string_field(data, "confidence")
+    intent.confidence = confidence if confidence in CONFIDENCE_VALUES else None
     intent.why = _string_field(data, "why")
 
     seen_list = data.get("values_seen")
     intent.values_seen = [
-        ValueSeen(field=str(seen["field"]), value=str(seen.get("value", "")))
+        # `field` unusable unless it's a str; a non-str `value` is treated as
+        # unseen ("") rather than fabricated by str()-coercing it -- same rule
+        # as `_string_field` above.
+        ValueSeen(
+            field=seen["field"], value=seen["value"] if isinstance(seen.get("value"), str) else ""
+        )
         for seen in (seen_list if isinstance(seen_list, list) else [])
-        if isinstance(seen, dict) and seen.get("field")
+        if isinstance(seen, dict) and isinstance(seen.get("field"), str) and seen["field"]
     ]
     return intent

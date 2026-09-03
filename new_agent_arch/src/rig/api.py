@@ -28,10 +28,13 @@ def _now() -> str:
     return datetime.now(tz=UTC).isoformat()
 
 
-def save_batch(store: Store, batch: Batch, tenant: str, rejected: int = 0) -> tuple[int, bool]:
-    """Store one batch and its gestures. Idempotent on batch_id."""
+def save_batch(store: Store, batch: Batch, tenant: str, rejected: int = 0) -> tuple[int, bool, int]:
+    """Store one batch and its gestures. Idempotent on batch_id.
+
+    Returns (accepted, already_had_it, snapshots_ignored).
+    """
     # Pure -- fine to call before the transaction below.
-    gestures, orphan_requests, orphan_pages = correlate(batch, tenant)
+    gestures, orphan_requests, orphan_pages, snapshots_ignored = correlate(batch, tenant)
 
     # One transaction for the claim and the writes. A batch id claimed by the
     # INSERT below but never followed by its gestures -- because something
@@ -89,15 +92,18 @@ def save_batch(store: Store, batch: Batch, tenant: str, rejected: int = 0) -> tu
                     ),
                 )
             for page in orphan_pages:
+                # No dedup key here on purpose: two distinct page events can
+                # share (batch_id, at, payload), and the surrogate id in the
+                # schema means every row is kept -- batch_id's own PRIMARY KEY
+                # on `batches` above already makes re-ingesting a batch a no-op.
                 connection.execute(
-                    "INSERT OR IGNORE INTO orphan_pages (batch_id, tenant, at, payload)"
-                    " VALUES (?, ?, ?, ?)",
+                    "INSERT INTO orphan_pages (batch_id, tenant, at, payload) VALUES (?, ?, ?, ?)",
                     (batch.batch_id, tenant, page.at, page.model_dump_json()),
                 )
     except sqlite3.IntegrityError:
-        return 0, True
+        return 0, True, 0
 
-    return len(gestures), False
+    return len(gestures), False, snapshots_ignored
 
 
 def _row_to_gesture(row: sqlite3.Row) -> Gesture:
@@ -278,7 +284,9 @@ def build_app(
             raise HTTPException(
                 status_code=422, detail=problem.errors(include_input=False)
             ) from problem
-        accepted, already = save_batch(store, batch, tenant, rejected=len(rejected))
+        accepted, already, snapshots_ignored = save_batch(
+            store, batch, tenant, rejected=len(rejected)
+        )
         if read_on_ingest and not already:
             asyncio.create_task(_read_soon(store, asker))
         return {
@@ -287,6 +295,7 @@ def build_app(
             "rejected": len(rejected),
             "problems": [{"index": r.index, "reason": r.reason} for r in rejected],
             "already_had_it": already,
+            "snapshots_ignored": snapshots_ignored,
         }
 
     @app.post("/v1/observations/artifacts", status_code=201, dependencies=[Depends(authorised)])

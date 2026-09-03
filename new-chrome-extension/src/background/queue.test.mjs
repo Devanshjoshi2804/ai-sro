@@ -173,19 +173,24 @@ assert.deepStrictEqual(
 
   const staged = await queue.peekShots(10);
   assert.strictEqual(staged.length, 2, "a re-staged batch replaced its rows instead of doubling");
+  // Order is not asserted here: re-staging bat_1:0 updates its stagedAt, and
+  // peekShots sorts by stagedAt, so which row sorts first depends on whether
+  // the two stageShots calls landed in the same millisecond. Only the keys matter.
   assert.deepStrictEqual(
-    staged.map((row) => row.id),
+    staged.map((row) => row.id).sort(),
     ["bat_1:0", "bat_1:2"],
     "keyed by the batch and the frame it illustrates",
   );
-  assert.strictEqual(staged[0].attempts, 0);
+  const byId = Object.fromEntries(staged.map((row) => [row.id, row]));
+  assert.strictEqual(byId["bat_1:0"].attempts, 0);
   assert.ok((await queue.totalBytes()) >= 300, "staged pictures are counted in the queue's bytes");
-  assert.strictEqual(staged[1].size, 200, "the picture's bytes came off the row it was captured on");
+  assert.strictEqual(byId["bat_1:2"].size, 200, "the picture's bytes came off the row it was captured on");
 
   // Counted per picture, which is what decides when one is given up.
   assert.strictEqual(await queue.noteShotAttempt("bat_1:0"), 1);
   assert.strictEqual(await queue.noteShotAttempt("bat_1:0"), 2);
-  assert.strictEqual((await queue.peekShots(10))[1].attempts, 0, "only the one that failed");
+  const afterAttempt = Object.fromEntries((await queue.peekShots(10)).map((row) => [row.id, row]));
+  assert.strictEqual(afterAttempt["bat_1:2"].attempts, 0, "only the one that failed");
 
   await queue.removeShots(["bat_1:0"]);
   assert.deepStrictEqual((await queue.peekShots(10)).map((row) => row.id), ["bat_1:2"]);

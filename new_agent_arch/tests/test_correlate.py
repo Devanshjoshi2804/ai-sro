@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 
 from rig.correlate import ATTRIBUTION_SECONDS, correlate, system_of
 from rig.wire import Batch
-from tests.fixtures import BATCH, GESTURE_TYPE, PAGE_NAVIGATED, REQUEST_POST
+from tests.fixtures import BATCH, GESTURE_TYPE, PAGE_NAVIGATED, REQUEST_POST, SNAPSHOT
 
 TENANT = "new"
 
@@ -25,7 +25,7 @@ def _request(started_at: str, request_id: str, tab_id: int) -> dict:
 
 
 def test_the_whole_committed_batch_correlates() -> None:
-    gestures, orphans, _ = correlate(Batch.model_validate(BATCH), TENANT)
+    gestures, orphans, _, _ = correlate(Batch.model_validate(BATCH), TENANT)
 
     assert len(gestures) == 7
     assert sum(len(g.requests) for g in gestures) + len(orphans) == 5
@@ -36,7 +36,7 @@ def test_a_call_belongs_to_the_gesture_that_caused_it() -> None:
     at = GESTURE_TYPE["gesture"]["at"]
     call = _request(_rfc3339(at + 0.2), "r1", tab)
 
-    gestures, orphans, _ = correlate(_batch([GESTURE_TYPE, call]), TENANT)
+    gestures, orphans, _, _ = correlate(_batch([GESTURE_TYPE, call]), TENANT)
 
     assert len(gestures[0].requests) == 1
     assert orphans == []
@@ -48,7 +48,7 @@ def test_a_call_before_any_gesture_is_an_orphan_and_is_kept() -> None:
     at = GESTURE_TYPE["gesture"]["at"]
     early = _request(_rfc3339(at - 60), "r1", tab)
 
-    gestures, orphans, _ = correlate(_batch([early, GESTURE_TYPE]), TENANT)
+    gestures, orphans, _, _ = correlate(_batch([early, GESTURE_TYPE]), TENANT)
 
     assert gestures[0].requests == []
     assert len(orphans) == 1
@@ -59,7 +59,7 @@ def test_a_call_long_after_a_gesture_is_not_attributed_to_it() -> None:
     at = GESTURE_TYPE["gesture"]["at"]
     late = _request(_rfc3339(at + ATTRIBUTION_SECONDS + 1), "r1", tab)
 
-    gestures, orphans, _ = correlate(_batch([GESTURE_TYPE, late]), TENANT)
+    gestures, orphans, _, _ = correlate(_batch([GESTURE_TYPE, late]), TENANT)
 
     assert gestures[0].requests == []
     assert len(orphans) == 1
@@ -70,7 +70,7 @@ def test_a_call_never_crosses_into_another_tab() -> None:
     at = GESTURE_TYPE["gesture"]["at"]
     other_tab = _request(_rfc3339(at + 0.2), "r1", GESTURE_TYPE["tab_id"] + 1)
 
-    gestures, orphans, _ = correlate(_batch([GESTURE_TYPE, other_tab]), TENANT)
+    gestures, orphans, _, _ = correlate(_batch([GESTURE_TYPE, other_tab]), TENANT)
 
     assert gestures[0].requests == []
     assert len(orphans) == 1
@@ -84,7 +84,7 @@ def test_a_call_goes_to_the_most_recent_gesture_in_its_tab() -> None:
     second["gesture"]["at"] = 1002.0
     call = _request(_rfc3339(1004.0), "r1", tab)
 
-    gestures, _, _ = correlate(_batch([first, second, call]), TENANT)
+    gestures, _, _, _ = correlate(_batch([first, second, call]), TENANT)
     owned = {g.at: len(g.requests) for g in gestures}
 
     assert owned[1002.0] == 1
@@ -96,7 +96,7 @@ def test_events_need_not_arrive_sorted() -> None:
     at = GESTURE_TYPE["gesture"]["at"]
     call = _request(_rfc3339(at + 0.2), "r1", tab)
 
-    gestures, _, _ = correlate(_batch([call, GESTURE_TYPE]), TENANT)
+    gestures, _, _, _ = correlate(_batch([call, GESTURE_TYPE]), TENANT)
 
     assert len(gestures[0].requests) == 1
 
@@ -110,7 +110,7 @@ def test_the_system_is_the_scheme_and_host() -> None:
 def test_the_pages_in_the_committed_batch_are_not_lost() -> None:
     """Both real page events precede the first gesture by 30ms. A page always
     loads before the operator acts on it, so losing those loses every navigation."""
-    gestures, _, orphan_pages = correlate(Batch.model_validate(BATCH), TENANT)
+    gestures, _, orphan_pages, _ = correlate(Batch.model_validate(BATCH), TENANT)
 
     kept = sum(len(g.page_events) for g in gestures)
 
@@ -119,7 +119,7 @@ def test_the_pages_in_the_committed_batch_are_not_lost() -> None:
 
 
 def test_a_navigation_belongs_to_the_gesture_it_precedes() -> None:
-    gestures, _, _ = correlate(Batch.model_validate(BATCH), TENANT)
+    gestures, _, _, _ = correlate(Batch.model_validate(BATCH), TENANT)
     first = min(gestures, key=lambda g: g.at)
 
     assert [e.page_kind for e in first.page_events] == ["navigated", "loaded"]
@@ -129,7 +129,7 @@ def test_a_page_event_nobody_can_own_is_returned_not_dropped() -> None:
     lonely = copy.deepcopy(PAGE_NAVIGATED)
     lonely["at"] = _rfc3339(GESTURE_TYPE["gesture"]["at"] + 3600)
 
-    gestures, _, orphan_pages = correlate(_batch([GESTURE_TYPE, lonely]), TENANT)
+    gestures, _, orphan_pages, _ = correlate(_batch([GESTURE_TYPE, lonely]), TENANT)
 
     assert sum(len(g.page_events) for g in gestures) == 0
     assert len(orphan_pages) == 1
@@ -142,7 +142,7 @@ def test_a_request_with_no_tab_is_orphaned_not_guessed_at() -> None:
     tabless = _request(_rfc3339(at + 0.2), "r1", GESTURE_TYPE["tab_id"])
     tabless["tab_id"] = None
 
-    gestures, orphans, _ = correlate(_batch([GESTURE_TYPE, tabless]), TENANT)
+    gestures, orphans, _, _ = correlate(_batch([GESTURE_TYPE, tabless]), TENANT)
 
     assert gestures[0].requests == []
     assert len(orphans) == 1
@@ -153,6 +153,20 @@ def test_an_orphaned_request_keeps_the_tab_it_came_from() -> None:
     at = GESTURE_TYPE["gesture"]["at"]
     late = _request(_rfc3339(at + ATTRIBUTION_SECONDS + 1), "r1", 4242)
 
-    _, orphans, _ = correlate(_batch([GESTURE_TYPE, late]), TENANT)
+    _, orphans, _, _ = correlate(_batch([GESTURE_TYPE, late]), TENANT)
 
     assert orphans[0].tab_id == 4242
+
+
+def test_a_snapshot_is_counted_ignored_not_silently_dropped() -> None:
+    """Accessibility trees are out of scope for this plan, but a batch of them
+    must not answer accepted: 0, rejected: 0 -- which reads as nothing arrived.
+    The count is the only way to tell they were there and ignored."""
+    gestures, orphans, orphan_pages, snapshots_ignored = correlate(
+        _batch([GESTURE_TYPE, SNAPSHOT, SNAPSHOT]), TENANT
+    )
+
+    assert snapshots_ignored == 2
+    assert len(gestures) == 1
+    assert orphans == []
+    assert orphan_pages == []

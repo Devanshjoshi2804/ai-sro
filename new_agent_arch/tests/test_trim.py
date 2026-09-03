@@ -9,7 +9,7 @@ from tests.fixtures import BATCH, GESTURE_TYPE
 
 
 def _typed_gesture():
-    gestures, _, _ = correlate(Batch.model_validate(BATCH), "new")
+    gestures, _, _, _ = correlate(Batch.model_validate(BATCH), "new")
     return next(g for g in gestures if g.gesture.kind == "type" and not g.gesture.secret)
 
 
@@ -21,7 +21,7 @@ def test_the_component_chain_survives_because_it_is_what_names_the_control() -> 
 
 
 def test_a_control_with_no_component_still_trims() -> None:
-    gestures, _, _ = correlate(Batch.model_validate(BATCH), "new")
+    gestures, _, _, _ = correlate(Batch.model_validate(BATCH), "new")
     select = next(g for g in gestures if g.gesture.kind == "select")
 
     trimmed = trim(select)
@@ -40,7 +40,7 @@ def test_cssPath_and_xpath_are_not_sent_to_the_model() -> None:
 
 
 def test_a_json_body_keeps_its_keys() -> None:
-    gestures, _, _ = correlate(Batch.model_validate(BATCH), "new")
+    gestures, _, _, _ = correlate(Batch.model_validate(BATCH), "new")
     with_post = next(g for g in gestures if any(r.method == "POST" for r in g.requests))
 
     calls = trim(with_post)["calls"]
@@ -78,7 +78,7 @@ def test_a_long_value_is_truncated() -> None:
 
 
 def test_a_credential_gesture_carries_no_value() -> None:
-    gestures, _, _ = correlate(Batch.model_validate(BATCH), "new")
+    gestures, _, _, _ = correlate(Batch.model_validate(BATCH), "new")
     secret = next(g for g in gestures if g.gesture.secret)
 
     assert trim(secret)["value"] is None
@@ -112,7 +112,22 @@ def test_a_segment_that_is_mostly_digits_is_an_id() -> None:
 
 
 def test_a_uuid_is_an_id() -> None:
+    """A UUID is fine to keep starred, but it does not discriminate the fix:
+    a 36-char hyphenated UUID satisfies the *old* `len > 12 and "-" in part`
+    rule too, so this assertion alone passed before the fix and after it.
+    No UUID can discriminate the two rules -- one always has both a hyphen
+    and length > 12, so it always satisfies the old rule as well. Assert the
+    new rule's actual boundary instead: len >= 8 with at least half digits.
+    """
     assert path_shape("https://x/v1/f47ac10b-58cc-4372-a567-0e02b2c3d479/edit") == "/v1/*/edit"
+
+    # len == 8, digits == 4 (exactly half): the boundary the old rule can't
+    # see at all -- no hyphen, so old_rule("ab12cd34") is False.
+    assert path_shape("https://x/api/ab12cd34") == "/api/*"
+    # len == 8, digits == 3 (just under half): stays a route segment.
+    assert path_shape("https://x/api/abc123de") == "/api/abc123de"
+    # len == 7 with enough digits: too short to qualify on digit density alone.
+    assert path_shape("https://x/api/ab1234c") == "/api/ab1234c"
 
 
 def test_a_targetless_scroll_trims_and_thins_without_a_crash() -> None:
@@ -149,7 +164,7 @@ def test_a_targetless_scroll_trims_and_thins_without_a_crash() -> None:
 def test_a_credential_cannot_be_reached_by_mutating_the_target() -> None:
     """trim() holds this itself rather than inheriting it from wire.Gesture,
     whose validator does not re-run when a nested Target is mutated."""
-    gestures, _, _ = correlate(Batch.model_validate(BATCH), "new")
+    gestures, _, _, _ = correlate(Batch.model_validate(BATCH), "new")
     ordinary = next(g for g in gestures if g.gesture.kind == "type" and not g.gesture.secret)
 
     ordinary.gesture.target.secret = True

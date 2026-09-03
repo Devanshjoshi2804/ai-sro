@@ -65,6 +65,14 @@ is what "frozen" means.
 
 ## Global Constraints
 
+**The branch is the artifact; this plan is its argument for the branch, not a
+script it was replayed from.** `parse_batch`'s per-event tolerance,
+`validate_assignment` on the wire models, `mirrorSafely`'s upload guard, and
+several others besides arrived as fixes written after the task that needed
+them had already shipped — instructions this document did not carry at the
+time, prompted by what the running code exposed under review. Re-running this
+plan from a clean checkout, task by task, would not reproduce today's branch.
+
 - Python **>= 3.12**. `uv` will fetch one; the repo's backend venv runs 3.14.7.
 - **Never import from `sro.*`.** Task 1 adds a test that fails if anything does.
 - **Credential values never reach storage or a prompt.** `secret == true` ⇒
@@ -1421,7 +1429,8 @@ git commit -m "feat(rig): a gesture, small enough to ask about thousands of time
 - Test: `new_agent_arch/tests/test_models.py`
 
 **Interfaces:**
-- Consumes: `settings()` from `rig.config`.
+- Consumes: nothing from `rig.config` -- `GeminiAsker` takes a raw `api_key: str`; the
+  caller (Task 7's `_default_app`) is what reads `settings()` and hands the key over.
 - Produces: `Answer(data: dict | None, in_tokens: int, out_tokens: int, cost_usd: float, error: str | None)`
   (frozen dataclass); `Asker` Protocol with
   `async ask(*, model: str, instructions: str, evidence: str, schema: dict, image: bytes | None = None) -> Answer`;

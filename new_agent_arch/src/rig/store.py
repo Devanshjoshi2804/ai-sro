@@ -1,6 +1,8 @@
 """SQLite, opened per call. A rig does not need a connection pool."""
 
 import sqlite3
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -63,11 +65,11 @@ CREATE TABLE IF NOT EXISTS orphan_requests (
 );
 
 CREATE TABLE IF NOT EXISTS orphan_pages (
+    id       INTEGER PRIMARY KEY AUTOINCREMENT,
     batch_id TEXT NOT NULL,
     tenant   TEXT NOT NULL,
     at       TEXT NOT NULL,
-    payload  TEXT NOT NULL,
-    PRIMARY KEY (batch_id, at, payload)
+    payload  TEXT NOT NULL
 );
 """
 
@@ -76,11 +78,24 @@ class Store:
     def __init__(self, path: Path) -> None:
         self.path = path
 
-    def connect(self) -> sqlite3.Connection:
+    @contextmanager
+    def connect(self) -> Iterator[sqlite3.Connection]:
+        """Commit on a clean exit, roll back on exception -- then close either way.
+
+        sqlite3's own connection context manager is transactional only; it
+        never closes the file handle. Wrapping it here keeps every caller's
+        `with store.connect() as connection:` and its commit/rollback
+        semantics unchanged, while making sure the connection is actually
+        closed instead of resting on CPython refcounting to do it.
+        """
         connection = sqlite3.connect(self.path)
         connection.row_factory = sqlite3.Row
         connection.execute("PRAGMA journal_mode=WAL")
-        return connection
+        try:
+            with connection:
+                yield connection
+        finally:
+            connection.close()
 
     def migrate(self) -> None:
         with self.connect() as connection:

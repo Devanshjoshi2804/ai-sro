@@ -8,7 +8,7 @@ from rig.api import build_app, read_new_gestures, save_batch
 from rig.models import Answer, FakeAsker
 from rig.store import Store
 from rig.wire import Batch
-from tests.fixtures import BATCH
+from tests.fixtures import BATCH, SNAPSHOT
 
 TOKEN = "test-token"
 
@@ -69,6 +69,24 @@ def test_a_batch_is_accepted_and_its_gestures_are_stored(client: TestClient, sto
     assert response.status_code == 202
     assert response.json()["accepted"] == 7
     assert store.query("SELECT count(*) AS n FROM gestures")[0]["n"] == 7
+
+
+def test_a_batch_of_snapshots_says_so_instead_of_reading_empty(
+    client: TestClient, store: Store
+) -> None:
+    """A batch of only snapshot events used to answer accepted: 0, rejected: 0
+    -- indistinguishable from an empty batch. snapshots_ignored is the count
+    that tells the caller something did arrive."""
+    raw = json.loads(json.dumps(BATCH))
+    raw["events"] = [SNAPSHOT, SNAPSHOT]
+
+    response = client.post("/v1/observations", json=raw, headers=_auth())
+
+    assert response.status_code == 202
+    body = response.json()
+    assert body["accepted"] == 0
+    assert body["rejected"] == 0
+    assert body["snapshots_ignored"] == 2
 
 
 def test_the_same_batch_twice_stores_one_copy(client: TestClient, store: Store) -> None:

@@ -6,6 +6,7 @@ place, and apart from the domain so the domain never learns it is stored.
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
 from sro.domain.chat.thread import Thread, ThreadId
@@ -273,6 +274,7 @@ def update_run_row(row: RunRow, run: Run) -> None:
     row.ended_at = run.ended_at
     row.failure = run.failure
     row.wrong_because = run.wrong_because
+    row.revisions = [[name, value, when.isoformat()] for name, value, when in run.revisions]
     row.intent = run.intent
 
 
@@ -305,6 +307,10 @@ def row_to_run(row: RunRow) -> Run:
     run.ended_at = row.ended_at
     run.failure = row.failure
     run.wrong_because = row.wrong_because
+    run.revisions = tuple(
+        (str(name), str(value), datetime.fromisoformat(str(when)))
+        for name, value, when in (row.revisions or ())
+    )
     return run
 
 

@@ -1958,6 +1958,17 @@ class TaskCandidateModel(BaseModel):
         )
 
 
+class ReviseRunRequest(BaseModel):
+    """What the operator changed while the run was going.
+
+    Names the skill declares and nothing else -- a name outside them reaches no
+    step, and the run refuses it rather than recording a decision with no
+    effect.
+    """
+
+    values: dict[str, str] = Field(min_length=1)
+
+
 class DismissCandidateRequest(BaseModel):
     reason: str
 

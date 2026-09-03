@@ -187,6 +187,10 @@ class RunRow(Base):
     # begin with somebody typing a sentence. The one store for it; see
     # ``Run.intent``.
     intent: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    # Values the operator changed while this was running: [name, value, when],
+    # in the order they changed them. A document because nothing queries one --
+    # they are read beside the run, by somebody asking who decided what it used.
+    revisions: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list)
 
     __table_args__ = (
         Index("ix_runs_tenant_started", "tenant_id", "started_at"),

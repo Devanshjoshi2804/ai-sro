@@ -290,6 +290,16 @@ class Run:
     ended_at: datetime | None = None
     failure: str | None = None
 
+    revisions: tuple[tuple[str, str, datetime], ...] = ()
+    """Every value the operator changed while this was running: name, what they
+    changed it to, and when.
+
+    `parameters` alone would say what the later steps used but not that anybody
+    chose it, and a run that wrote the wrong record is read afterwards by
+    somebody asking exactly that. Append-only, like the steps: a second thought
+    about the same name is another entry rather than an edit of the first.
+    """
+
     wrong_because: str | None = None
     """Why the person this ran for said the result was wrong.
 
@@ -419,6 +429,33 @@ class Run:
         if not because.strip():
             raise InvariantViolation("a run called wrong says why, even if only 'undone'")
         self.wrong_because = because
+
+    def revise(self, values: Mapping[str, str], *, at: datetime) -> None:
+        """Change what the steps still to come will run with.
+
+        A run is watched while it happens, and a step that has not been sent can
+        still be argued with -- the address was wrong, or the mail never said
+        which one. What has already gone to the warehouse has gone: steps record
+        what they sent, and nothing here rewrites them.
+
+        Recorded as well as applied. "Who decided this run would use A000221"
+        is the first question about a run that wrote the wrong thing, and the
+        answer belongs on the run rather than in a log somewhere else.
+
+        A name the skill never declared is refused rather than stored. It would
+        reach nothing -- every step renders from the names its plan carries --
+        so accepting it would record a decision with no effect, which reads
+        afterwards as a change that was made and then ignored.
+        """
+        self._require_running()
+        self._require_after_start(at)
+        if not values:
+            raise InvariantViolation("a revision that names no value changes nothing")
+        unknown = sorted(name for name in values if name not in self.parameters)
+        if unknown:
+            raise InvariantViolation(f"no parameter named {', '.join(unknown)} on this run")
+        self.parameters = {**self.parameters, **values}
+        self.revisions += tuple((name, values[name], at) for name in sorted(values))
 
     def _require_running(self) -> None:
         if self.status is not RunStatus.RUNNING:

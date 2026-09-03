@@ -91,15 +91,23 @@ def _call(request: Request) -> dict[str, Any]:
     }
 
 
+def is_secret(gesture: Gesture) -> bool:
+    """Whether this gesture's value is a credential.
+
+    Belt-and-braces: wire.Gesture already drops a credential value at parse
+    time, but that validator does not re-run if a nested Target is mutated
+    after the fact. A credential reaching a prompt is not a thing to hold by
+    inheritance alone. A scroll has no target at all, so this falls back to
+    gesture.gesture.secret alone.
+    """
+    target = gesture.gesture.target
+    return gesture.gesture.secret or (target.secret if target else False)
+
+
 def trim(gesture: Gesture) -> dict[str, Any]:
     target = gesture.gesture.target
     component = target.component if target else None
-    # Belt-and-braces: wire.Gesture already drops a credential value at parse
-    # time, but that validator does not re-run if a nested Target is mutated
-    # after the fact. A credential reaching a prompt is not a thing to hold
-    # by inheritance alone, so trim() checks it again itself. A scroll has no
-    # target at all, so this falls back to gesture.gesture.secret alone.
-    secret = gesture.gesture.secret or (target.secret if target else False)
+    secret = is_secret(gesture)
     return {
         "kind": gesture.gesture.kind,
         "target": {

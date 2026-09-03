@@ -11,17 +11,19 @@ mean of 204, and a whole day fits.
 """
 
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 from rig.records import Gesture, Intent
-from rig.trim import trim
+from rig.trim import is_secret, trim
 
 K_WINDOW_TOKENS = 150_000
 K_MIN_GESTURES = 25
 K_MAX_GESTURE_TOKENS = 2_000
 K_ENDS = 12
 K_POOL_BONUS = 0.5
+K_MAX_TEXT_CHARS = 400
+K_MAX_ITEMS = 40
 
 
 def tokens(text: str) -> int:
@@ -47,38 +49,81 @@ class Window:
     left_out: list[str] = field(default_factory=list)
 
 
+def _clip(value: Any) -> Any:
+    """Bound every string and every list anywhere in the evidence.
+
+    The cap has to hold against the whole body rather than against the one part
+    of it that happened to be large the day it was written. A cap that shrank
+    only request bodies was passed by four routes -- a huge typed value, a URL
+    with nothing to split on, two thousand calls on one gesture, and model
+    output returned at a million characters -- by 15x to 1000x. Nothing
+    upstream bounds the length of what a model returns (see
+    intents._string_field), so this is where it is bounded.
+    """
+    if isinstance(value, str):
+        return value[:K_MAX_TEXT_CHARS]
+    if isinstance(value, list):
+        return [_clip(item) for item in value[:K_MAX_ITEMS]]
+    if isinstance(value, dict):
+        return {key: _clip(item) for key, item in value.items()}
+    return value
+
+
 def as_evidence(gesture: Gesture, intent: Intent | None) -> dict[str, Any]:
     """One gesture as the umbrella pass sees it: what it was, and what a model
-    already made of it. Capped, because a single response body can be larger
-    than the whole window."""
-    body: dict[str, Any] = {
-        "id": gesture.id,
-        "at": gesture.at,
-        "system": gesture.system,
-        "gesture": trim(gesture),
-        "intent": None
-        if intent is None
-        else {
-            "act": intent.act,
-            "object": intent.object,
-            "page": intent.page,
-            "why": intent.why,
-            "confidence": intent.confidence,
-            "values_seen": [{"field": v.field, "value": v.value} for v in intent.values_seen],
-        },
-    }
+    already made of it. Capped -- and the cap is a guarantee rather than an
+    attempt: nothing over K_MAX_GESTURE_TOKENS leaves here by any route.
+    """
+    # values_seen is model output, and the model is shown what the operator
+    # typed. trim() nulls a credential; nothing nulled it on the way back, so a
+    # password the model echoed into a field it had named went into the window
+    # intact. Same rule, same gesture, applied on both paths.
+    hide = is_secret(gesture)
+    body: dict[str, Any] = _clip(
+        {
+            "id": gesture.id,
+            "at": gesture.at,
+            "system": gesture.system,
+            "gesture": trim(gesture),
+            "intent": None
+            if intent is None
+            else {
+                "act": intent.act,
+                "object": intent.object,
+                "page": intent.page,
+                "why": intent.why,
+                "confidence": intent.confidence,
+                "values_seen": [
+                    {"field": value.field, "value": None if hide else value.value}
+                    for value in intent.values_seen
+                ],
+            },
+        }
+    )
     if tokens(json.dumps(body)) <= K_MAX_GESTURE_TOKENS:
         return body
 
     # Over the cap: keep what names the gesture, drop what merely bulks it out.
     # The full evidence stays in the store, reachable by this id.
-    body["gesture"] = {key: value for key, value in body["gesture"].items() if key != "calls"}
+    body["truncated"] = True
     body["gesture"]["calls"] = [
         {"method": call["method"], "path": call["path"], "status": call["status"]}
-        for call in trim(gesture)["calls"]
+        for call in body["gesture"]["calls"]
     ]
-    body["truncated"] = True
-    return body
+    if tokens(json.dumps(body)) <= K_MAX_GESTURE_TOKENS:
+        return body
+
+    # Still over, which means something pathological is in here. Keep what
+    # identifies the gesture and nothing else: one unreadable item in a window
+    # is worth more than a window that could not be built.
+    return {
+        "id": body["id"],
+        "at": body["at"],
+        "system": body["system"],
+        "gesture": {"kind": body["gesture"]["kind"], "url": body["gesture"]["url"]},
+        "intent": None if intent is None else {"act": body["intent"]["act"]},
+        "truncated": True,
+    }
 
 
 def strength(gesture: Gesture, intent: Intent | None, linked: set[str]) -> float:
@@ -128,7 +173,9 @@ def pack(
 ) -> Window:
     """Fill the window strongest-first, then put it back in time order."""
     linked = linked or set()
-    candidates: list[Packed] = list(pool)
+    candidates: list[Packed] = [
+        replace(item, strength=item.strength + K_POOL_BONUS) for item in pool
+    ]
     for gesture in gestures:
         intent = intents.get(gesture.id)
         evidence = as_evidence(gesture, intent)
@@ -141,8 +188,6 @@ def pack(
                 tokens=tokens(json.dumps(evidence)),
             )
         )
-    for item in pool:
-        item.strength += K_POOL_BONUS
 
     room = budget - tokens(json.dumps(known)) - tokens(kb)
     chosen: list[Packed] = []

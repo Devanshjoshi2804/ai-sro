@@ -3151,6 +3151,8 @@ export interface components {
             parameters?: {
                 [key: string]: string;
             };
+            /** Run Id */
+            run_id?: string | null;
         };
         /** SessionCheckModel */
         SessionCheckModel: {

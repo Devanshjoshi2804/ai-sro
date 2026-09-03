@@ -27,7 +27,7 @@ from sro.application.knowledge.open_questions import Ambiguity, AskAbout
 from sro.application.ports.http import TargetUnreachable
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
-from sro.domain.chat.thread import Message, Speaker, Thread, ThreadId
+from sro.domain.chat.thread import Message, Said, Speaker, Thread, ThreadId
 from sro.domain.execution.run import Run, RunId, RunStatus, StepDisposition
 from sro.domain.shared.errors import DomainError
 from sro.domain.skill.skill import Skill
@@ -105,7 +105,10 @@ class Converse:
         text: str,
         system: str | None = None,
         parameters: dict[str, str] | None = None,
+        run_id: RunId | None = None,
     ) -> Thread:
+        if run_id is not None:
+            return await self._said_to_a_run(ctx, thread_id=thread_id, text=text, run_id=run_id)
         async with self._uow as uow:
             thread = await uow.threads.get(ctx.tenant_id, thread_id)
 
@@ -175,6 +178,44 @@ class Converse:
             await uow.commit()
         return thread
 
+    async def _said_to_a_run(
+        self, ctx: RequestContext, *, thread_id: ThreadId, text: str, run_id: RunId
+    ) -> Thread:
+        """Something said to a run that is happening, rather than a request.
+
+        Not `note` above, which is this class's other way of writing into a
+        thread: that one is the system reporting a pursuit that finished in the
+        background, and this one is the operator talking. Two methods of one
+        name meaning opposite halves of an exchange is a trap for whoever reads
+        them next.
+
+        Kept and not resolved. An operator watching a run who types "use the
+        north yard address" is talking about the thing in front of them; putting
+        that sentence through intent matching finds some other skill and offers
+        to run it, which is the opposite of what they meant.
+
+        Nothing acts on it yet. It is recorded against the run so it is in the
+        transcript beside the step it arrived during, and so the surface can say
+        honestly that it was heard -- what reads it is the planner, when there
+        is one. A note that silently changed a run would be worse than one that
+        does nothing: the values a run uses are changed by `ReviseRun`, where
+        the change is checked against the names the skill declares.
+        """
+        async with self._uow as uow:
+            thread = await uow.threads.get(ctx.tenant_id, thread_id)
+            thread.say(
+                Message(
+                    id=self._ids.new_message_id(),
+                    speaker=Speaker.OPERATOR,
+                    text=text,
+                    said_at=self._clock.now(),
+                    decision={"kind": Said.NOTE, "run_id": run_id.value},
+                )
+            )
+            await uow.threads.save(thread)
+            await uow.commit()
+        return thread
+
     async def started(
         self,
         ctx: RequestContext,
@@ -200,6 +241,7 @@ class Converse:
                     text=f"Running {skill.name}…",
                     said_at=self._clock.now(),
                     decision={
+                        "kind": Said.RUN,
                         "matched_skill_id": skill.id.value,
                         "matched_version": skill.latest.version,
                         "run_id": run_id.value,
@@ -245,6 +287,14 @@ class Converse:
                     text=_what_happened(run, skill_name),
                     said_at=self._clock.now(),
                     decision={
+                        "kind": (Said.FAILURE if run.status is RunStatus.FAILED else Said.RESULT),
+                        # The one thing that would help, for a surface that
+                        # shows a failure as a sentence and a single button.
+                        # A step nothing could reach is a page to open; every
+                        # other failure is somebody's to look at.
+                        "next": ("open" if any(step.unreachable for step in run.steps) else "ask")
+                        if run.status is RunStatus.FAILED
+                        else "",
                         "matched_skill_id": run.skill_id.value,
                         "matched_version": run.skill_version,
                         "run_id": run.id.value,

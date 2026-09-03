@@ -12,7 +12,7 @@ from sro.application.execution.pursue_goal import Unauthorised
 from sro.application.execution.pursuits import PursuitProgress, PursuitState
 from sro.application.intent.pursue import compose
 from sro.domain.chat.thread import ThreadId
-from sro.domain.execution.run import Medium
+from sro.domain.execution.run import Medium, RunId
 from sro.domain.shared.errors import Conflict, InvariantViolation, NotFound
 from sro.domain.shared.identifiers import SkillId
 from sro.interface.http.deps import ContainerDep, ContextDep
@@ -229,5 +229,6 @@ async def say(
         text=body.text,
         system=body.system,
         parameters=body.parameters,
+        run_id=RunId(body.run_id) if body.run_id else None,
     )
     return ThreadDetail.of_thread(thread)

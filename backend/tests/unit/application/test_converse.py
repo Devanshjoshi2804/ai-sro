@@ -8,6 +8,7 @@ from sro.application.intent.plan_task import PlanTask
 from sro.application.intent.resolve import ResolveIntent
 from sro.application.knowledge.retrieve import Retrieve
 from sro.domain.chat.thread import Speaker
+from sro.domain.execution.run import RunId
 from sro.domain.shared.identifiers import SkillId
 from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.template import Template
@@ -145,3 +146,38 @@ def test_a_write_still_waits_to_be_told_to_go() -> None:
     )
 
     assert writes(writing)
+
+
+async def test_a_run_message_says_it_is_a_run_and_its_result_says_it_is_a_result() -> None:
+    """Two surfaces draw these -- the panel and the console -- and they draw
+    different shapes for a run in progress and the record of what it made. The
+    kind is what tells them apart; without it each has to infer it from which
+    fields happen to be present, and they infer differently."""
+    uow = FakeUnitOfWork()
+    await _taught(uow)
+    start, converse = _chat(uow)
+    thread = await start.execute(CTX)
+    skill = await uow.skills.get(f.TENANT, SkillId("skill-adjust"))
+
+    thread = await converse.started(CTX, thread_id=thread.id, run_id=RunId("run-1"), skill=skill)
+
+    assert thread.messages[-1].decision["kind"] == "run"
+
+
+async def test_a_note_to_a_run_is_kept_and_resolves_nothing() -> None:
+    """Saying something to a run that is happening is not asking for a task.
+    Resolving it would match some other skill and offer to run that instead,
+    which is the opposite of what somebody watching a run means by typing."""
+    uow = FakeUnitOfWork()
+    await _taught(uow)
+    start, converse = _chat(uow)
+    thread = await start.execute(CTX)
+
+    thread = await converse.execute(
+        CTX, thread_id=thread.id, text="use the north yard address", run_id=RunId("run-1")
+    )
+
+    [only] = thread.messages
+    assert only.speaker is Speaker.OPERATOR
+    assert only.text == "use the north yard address"
+    assert only.decision == {"kind": "note", "run_id": "run-1"}

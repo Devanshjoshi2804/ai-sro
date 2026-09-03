@@ -1323,6 +1323,12 @@ class SayRequest(BaseModel):
     system: str | None = None
     parameters: dict[str, str] = Field(default_factory=dict)
 
+    run_id: str | None = None
+    """Set when this was typed at a run that is happening, rather than asked of
+    the system. Such a sentence is kept beside that run and resolved against
+    nothing: putting "use the north yard address" through intent matching finds
+    some other skill and offers to run it."""
+
 
 class MessageModel(BaseModel):
     id: str

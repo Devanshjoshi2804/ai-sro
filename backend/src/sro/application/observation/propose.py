@@ -29,7 +29,7 @@ from sro.application.context import RequestContext
 from sro.application.ports.interpretation import WorkflowInterpreter
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
-from sro.domain.chat.thread import Message, Speaker
+from sro.domain.chat.thread import Message, Said, Speaker
 from sro.domain.observation.candidate import (
     CandidateStatus,
     Episode,
@@ -231,7 +231,7 @@ class ProposeAboutCandidates:
                         # opens an empty box, which asks for nothing and so
                         # ranks nothing.
                         decision={
-                            "kind": "offer",
+                            "kind": Said.OFFER,
                             "candidate_id": candidate.id.value,
                             "times": candidate.times_seen,
                             "seconds_each": _seconds(candidate),

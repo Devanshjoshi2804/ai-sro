@@ -30,6 +30,45 @@ class Speaker(StrEnum):
     skill was induced."""
 
 
+class Said(StrEnum):
+    """What a message's ``decision["kind"]`` may be.
+
+    Two surfaces draw a thread -- the operator's side panel and the console --
+    and they draw different shapes for a run in progress, the record of what it
+    made, a task being offered, and a question waiting on somebody. The kind is
+    what tells those apart. Without it each surface infers the shape from which
+    fields happen to be present, and they infer differently.
+
+    Named here rather than as strings at the call sites so there is one list to
+    read, and so a surface meeting a kind it has never heard of knows it is
+    looking at an older client rather than a typo. Both surfaces draw the words
+    and no buttons in that case: a backend must be able to add a kind without
+    every browser in the field going dark first.
+    """
+
+    OFFER = "offer"
+    """A task done often enough to be worth doing for somebody."""
+
+    MAIL_MATCH = "mail_match"
+    """A watched mailbox recognised a task. Names only -- what was read out of
+    the mail stays in the browser that read it."""
+
+    NOTE = "note"
+    """Something said to a run while it is happening, rather than a request."""
+
+    RUN = "run"
+    """A run, from the moment it starts. The message the steps land against."""
+
+    RESULT = "result"
+    """What a finished run made."""
+
+    QUESTION = "question"
+    """A run stopped and needs a person to decide."""
+
+    FAILURE = "failure"
+    """A run that could not go on, and the one thing that would help."""
+
+
 @dataclass(frozen=True, slots=True)
 class Message:
     id: MessageId

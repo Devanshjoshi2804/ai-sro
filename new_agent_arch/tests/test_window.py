@@ -92,6 +92,12 @@ def test_the_cap_holds_by_every_route() -> None:
         size = tokens(json.dumps(as_evidence(gesture, None)))
         assert size <= K_MAX_GESTURE_TOKENS, f"{name}: {size}"
 
+    # Size alone cannot tell a bounded body from a collapsed one: with the
+    # count-bounding tier deleted this test still passed, because the skeleton
+    # backstop absorbed the swamped gesture and dropped `calls` entirely. A
+    # gesture that made two thousand calls should still say it made calls.
+    assert as_evidence(many, None)["gesture"]["calls"]
+
     # Model output, and nothing upstream bounds its length.
     loud = Intent(
         gesture_id=base.id,
@@ -117,10 +123,18 @@ def test_nothing_is_dropped_without_the_evidence_saying_so() -> None:
     busy.requests = [base.requests[0].model_copy(deep=True) for _ in range(45)]
     evidence = as_evidence(busy, None)
 
+    # Which tier forty-five calls land in depends on how long each one renders,
+    # so a change to the fixture's request moves this test to a different tier
+    # without touching a line of window.py -- measured: a 139-char path lands
+    # it in tier three, a 214-char path in the skeleton, and a path shorter
+    # than the fixture's keeps it in tier one, where nothing is cut and there
+    # is nothing to say. Assert the tier, so that shift fails here rather than
+    # quietly testing something else under the same name.
+    assert evidence["truncated"] is True, "fixture no longer overflows tier one"
+
     # Forty-five calls fit once their detail is dropped, so none is lost --
     # which is what the ladder is for, and what clipping on the way in skipped.
     assert len(evidence["gesture"]["calls"]) == 45
-    assert evidence["truncated"] is True
 
     swamped = copy.deepcopy(base)
     swamped.requests = [base.requests[0].model_copy(deep=True) for _ in range(2_000)]

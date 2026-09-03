@@ -1507,17 +1507,38 @@ from typing import Any, Protocol
 
 # Dollars per million tokens, (input, output).
 PRICES: dict[str, tuple[float, float]] = {
-    "gemini-3.8-flash": (0.75, 3.75),        # introductory, to 2026-12-31
+    "gemini-3.8-flash": (0.75, 3.75),  # introductory, to 2026-12-31
     "gemini-3-flash": (0.50, 3.00),
     "gemini-3.1-flash-lite": (0.25, 1.50),
-    "gemini-3.1-pro": (2.00, 12.00),         # doubles to (4, 18) above 200K
+    "gemini-3.1-pro": (2.00, 12.00),
+}
+
+LONG_PROMPT_TOKENS = 200_000
+
+# Above a 200K-token prompt, Gemini 3.1 Pro's rates double. The umbrella pass in
+# a later plan runs in exactly that regime, so under-billing it by half would
+# defeat the point of keeping a price table at all.
+LONG_PROMPT_PRICES: dict[str, tuple[float, float]] = {
+    "gemini-3.1-pro": (4.00, 18.00),
 }
 
 
+def is_priced(model: str) -> bool:
+    return model in PRICES
+
+
 def price(model: str, in_tokens: int, out_tokens: int) -> float:
+    """Zero for a model we have no rate for, rather than raising.
+
+    A stale price table must not crash a running rig. `Answer.unpriced` is what
+    keeps that honest -- without it, an unpriced call is indistinguishable from
+    a free one.
+    """
     rates = PRICES.get(model)
     if rates is None:
         return 0.0
+    if in_tokens > LONG_PROMPT_TOKENS:
+        rates = LONG_PROMPT_PRICES.get(model, rates)
     return in_tokens * rates[0] / 1_000_000 + out_tokens * rates[1] / 1_000_000
 
 
@@ -1527,6 +1548,10 @@ class Answer:
     in_tokens: int = 0
     out_tokens: int = 0
     cost_usd: float = 0.0
+    # True when cost_usd is not to be trusted: the model is not in PRICES, or
+    # the call came back without usage metadata. Both otherwise produce a $0.00
+    # row indistinguishable from a call that was genuinely free.
+    unpriced: bool = False
     error: str | None = None
 
 
@@ -1553,7 +1578,11 @@ def build_config(*, schema: dict[str, Any]) -> Any:
 
 
 class GeminiAsker:
-    def __init__(self, api_key: str) -> None:
+    def __init__(self, api_key: str, client: Any | None = None) -> None:
+        """`client` is the seam tests drive; production passes an api_key alone."""
+        if client is not None:
+            self._client = client
+            return
         from google import genai
 
         self._client = genai.Client(api_key=api_key)
@@ -1583,16 +1612,32 @@ class GeminiAsker:
             return Answer(error=f"{type(problem).__name__}: {problem}")
 
         usage = getattr(response, "usage_metadata", None)
+        counted = getattr(usage, "prompt_token_count", None) is not None
         in_tokens = getattr(usage, "prompt_token_count", 0) or 0
         out_tokens = getattr(usage, "candidates_token_count", 0) or 0
+        unpriced = not counted or not is_priced(model)
+        spent = price(model, in_tokens, out_tokens)
+
+        if response.text is None:
+            # The SDK returns None rather than raising when a call is blocked or
+            # comes back with no candidates. Parsing that as "{}" would file a
+            # refusal as a confident empty answer, and the caller checks `error`.
+            return Answer(
+                in_tokens=in_tokens,
+                out_tokens=out_tokens,
+                cost_usd=spent,
+                unpriced=unpriced,
+                error="the model returned no text (blocked, or no candidates)",
+            )
 
         try:
-            data = json.loads(response.text or "{}")
+            data = json.loads(response.text)
         except ValueError as problem:
             return Answer(
                 in_tokens=in_tokens,
                 out_tokens=out_tokens,
-                cost_usd=price(model, in_tokens, out_tokens),
+                cost_usd=spent,
+                unpriced=unpriced,
                 error=f"not json: {problem}",
             )
 
@@ -1600,7 +1645,8 @@ class GeminiAsker:
             data=data,
             in_tokens=in_tokens,
             out_tokens=out_tokens,
-            cost_usd=price(model, in_tokens, out_tokens),
+            cost_usd=spent,
+            unpriced=unpriced,
         )
 
 
@@ -1644,7 +1690,7 @@ class FakeAsker:
 cd /Users/devansh.j/GreyOrange/AI-SRO/new_agent_arch && uv run pytest tests/test_models.py -v
 ```
 
-Expected: 5 passed.
+Expected: 14 passed.
 
 - [ ] **Step 5: Commit**
 

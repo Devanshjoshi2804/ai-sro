@@ -666,7 +666,17 @@ async function handle(message, sender) {
       // registration, and an optional second reader is not worth re-registering
       // a browser for.
       await state.setRigUrl(message.rigUrl || "");
-      await state.setRigToken(message.rigToken || "");
+      // A blank token means "leave it alone", not "clear it". status() does not
+      // return the token, so the field is empty every time the page renders,
+      // and somebody changing only the URL would otherwise wipe the token
+      // without being told -- and mirrorSafely swallows the failure, so they
+      // would find out when somebody noticed the rig had gone quiet.
+      if (message.rigToken) {
+        await state.setRigToken(message.rigToken);
+      } else if (!message.rigUrl) {
+        // Clearing the URL turns the mirror off, and its secret goes with it.
+        await state.setRigToken("");
+      }
       return status();
     case "flush":
       // Upload now rather than on the next tick, and all of it: the options

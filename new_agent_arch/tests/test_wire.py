@@ -1,7 +1,9 @@
+import json
+
 import pytest
 from pydantic import ValidationError
 
-from rig.wire import Batch, GestureEvent, RequestEvent
+from rig.wire import Batch, GestureEvent, RequestEvent, parse_batch
 from tests.fixtures import (
     BATCH,
     GESTURE_CLICK,
@@ -95,3 +97,44 @@ def test_a_target_with_no_usable_signal_is_refused() -> None:
 
     with pytest.raises(ValidationError):
         GestureEvent.model_validate(naked)
+
+
+def test_one_unparseable_event_does_not_cost_the_batch() -> None:
+    """The protocol: "A rejected event does not reject the batch." """
+    raw = json.loads(json.dumps(BATCH))
+    good = len(raw["events"])
+    raw["events"].append(
+        {
+            "kind": "gesture",
+            "gesture": {
+                "kind": "drag",
+                "target": {"tag": "div", "cssPath": "div#x"},
+                "at": 1.0,
+                "url": "https://wms.example/",
+            },
+            "tab_id": 1,
+        }
+    )
+
+    batch, rejected = parse_batch(raw)
+
+    assert len(batch.events) == good
+    assert len(rejected) == 1
+    assert rejected[0].index == good
+    assert rejected[0].reason
+
+
+def test_a_wholly_good_batch_rejects_nothing() -> None:
+    batch, rejected = parse_batch(json.loads(json.dumps(BATCH)))
+
+    assert len(batch.events) == len(BATCH["events"])
+    assert rejected == ()
+
+
+def test_a_credential_value_cannot_be_assigned_back_in() -> None:
+    """The drop must not depend on every later author remembering."""
+    event = GestureEvent.model_validate(GESTURE_SECRET)
+
+    event.gesture.value = "hunter2"
+
+    assert event.gesture.value is None

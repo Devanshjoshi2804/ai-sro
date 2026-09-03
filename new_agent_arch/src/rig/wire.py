@@ -4,9 +4,10 @@ Copied rather than imported: see 'Decision: no path dependency' in the plan.
 Proved against new-chrome-extension/fixtures/, which a real browser produced.
 """
 
+from dataclasses import dataclass
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError, model_validator
 
 
 class Component(BaseModel):
@@ -42,6 +43,8 @@ class Target(BaseModel):
 
 
 class Gesture(BaseModel):
+    model_config = ConfigDict(validate_assignment=True)
+
     kind: Literal["click", "type", "select", "press", "upload", "scroll", "hover"]
     target: Target
     value: str | None = None  # absent on click and press
@@ -131,3 +134,31 @@ class Batch(BaseModel):
     mode: Literal["passive", "teaching"] = "passive"
     recording_id: str | None = None
     events: list[Event]
+
+
+@dataclass(frozen=True, slots=True)
+class RejectedEvent:
+    index: int
+    reason: str
+
+
+def parse_batch(raw: dict[str, Any]) -> tuple[Batch, tuple[RejectedEvent, ...]]:
+    """Parse a batch, keeping every event that parses and naming those that do not.
+
+    The protocol is explicit: "A rejected event does not reject the batch." One
+    unrecognised gesture kind must cost one event, not the three hundred good ones
+    beside it. Losing a morning of evidence because the extension shipped a new
+    gesture is the failure this system exists to prevent.
+    """
+    adapter: TypeAdapter[Event] = TypeAdapter(Event)
+    events: list[Any] = []
+    rejected: list[RejectedEvent] = []
+
+    for index, event in enumerate(raw.get("events") or []):
+        try:
+            events.append(adapter.validate_python(event))
+        except ValidationError as problem:
+            first = problem.errors()[0]
+            rejected.append(RejectedEvent(index=index, reason=first.get("msg", "invalid event")))
+
+    return Batch.model_validate({**raw, "events": events}), tuple(rejected)

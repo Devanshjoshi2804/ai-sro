@@ -3311,17 +3311,17 @@ $("rig").addEventListener("submit", async (event) => {
 });
 ```
 
-- [ ] **Step 6: Add the host permission**
+- [ ] **Step 6: Check the host permission**
 
-In `new-chrome-extension/manifest.json`, add to `host_permissions`:
-
-```json
-"http://localhost:8100/*"
-```
+`manifest.json` already lists `"<all_urls>"` in `host_permissions`, which covers
+the rig. **Add nothing.** A redundant entry in a permissions manifest is worse
+than clutter — it tells the next reader that something specific was needed.
 
 - [ ] **Step 7: Register the test**
 
-In `Makefile`, in the `test-browser` block, beside the other background tests:
+In `Makefile`, in the **`test-extension`** block, beside the other node tests.
+(`test-browser` is the real-Chrome pytest suite — a different thing entirely,
+and putting a node test there would never run it.)
 
 ```make
 	node new-chrome-extension/src/background/mirror.test.mjs
@@ -3356,6 +3356,7 @@ git add new-chrome-extension/src/background/mirror.js \
         new-chrome-extension/src/background/mirror.test.mjs \
         new-chrome-extension/src/background/api.js \
         new-chrome-extension/src/background/state.js \
+        new-chrome-extension/src/background/service-worker.js \
         new-chrome-extension/src/options/options.html \
         new-chrome-extension/src/options/options.js \
         new-chrome-extension/manifest.json \

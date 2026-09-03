@@ -894,7 +894,7 @@ git commit -m "feat(rig): the frozen wire, proved against the browser's own fixt
 
 ```python
 import copy
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from rig.correlate import ATTRIBUTION_SECONDS, correlate, system_of
 from rig.wire import Batch
@@ -904,7 +904,7 @@ TENANT = "new"
 
 
 def _rfc3339(epoch: float) -> str:
-    return datetime.fromtimestamp(epoch, tz=timezone.utc).isoformat().replace("+00:00", "Z")
+    return datetime.fromtimestamp(epoch, tz=UTC).isoformat().replace("+00:00", "Z")
 
 
 def _batch(events: list[dict]) -> Batch:
@@ -2109,7 +2109,7 @@ import asyncio
 import json
 import sqlite3
 from dataclasses import asdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Annotated, Any
 
 from fastapi import Depends, FastAPI, Form, Header, HTTPException, UploadFile
@@ -2125,7 +2125,7 @@ from rig.wire import Batch, Gesture as WireGesture, parse_batch
 
 
 def _now() -> str:
-    return datetime.now(tz=timezone.utc).isoformat()
+    return datetime.now(tz=UTC).isoformat()
 
 
 def save_batch(store: Store, batch: Batch, tenant: str) -> tuple[int, bool]:

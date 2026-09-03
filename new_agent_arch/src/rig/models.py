@@ -7,6 +7,7 @@ Search grounding is never enabled: it voids zero data retention (thirty days of
 storage, no opt-out), and this process reads live customer payloads.
 """
 
+import asyncio
 import json
 from dataclasses import dataclass
 from typing import Any, Protocol
@@ -173,6 +174,11 @@ class FakeAsker:
         schema: dict[str, Any],
         image: bytes | None = None,
     ) -> Answer:
+        # Yield, because the real thing does. Without a suspension point this
+        # double never lets another task interleave, so any test racing two
+        # callers with asyncio.gather passes whether or not the code under test
+        # actually serialises -- it proves the double, not the code.
+        await asyncio.sleep(0)
         self.asked.append(
             {
                 "model": model,

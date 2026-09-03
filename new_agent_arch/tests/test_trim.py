@@ -1,8 +1,10 @@
 import json
 
 from rig.correlate import correlate
+from rig.records import Gesture
 from rig.trim import path_shape, thin, trim
 from rig.wire import Batch, Target
+from rig.wire import Gesture as WireGesture
 from tests.fixtures import BATCH, GESTURE_TYPE
 
 
@@ -111,6 +113,37 @@ def test_a_segment_that_is_mostly_digits_is_an_id() -> None:
 
 def test_a_uuid_is_an_id() -> None:
     assert path_shape("https://x/v1/f47ac10b-58cc-4372-a567-0e02b2c3d479/edit") == "/v1/*/edit"
+
+
+def test_a_targetless_scroll_trims_and_thins_without_a_crash() -> None:
+    """The committed batch has no scroll, and correlate() only ever produces
+    a Gesture from a parsed event -- so this builds the records.Gesture
+    directly, the way correlate() itself does, rather than going through it."""
+    scroll = Gesture(
+        id="ges_scroll",
+        tenant="new",
+        stream_id="dev_test",
+        batch_id="bat_test",
+        at=1.0,
+        url="https://wms.example/portal/page",
+        system="https://wms.example",
+        tab_id=8,
+        frame_url="https://wms.example/portal/page",
+        gesture=WireGesture(kind="scroll", value="0", at=1.0),
+    )
+
+    assert thin(scroll.gesture.target) is True
+
+    trimmed = trim(scroll)
+
+    assert trimmed["target"]["role"] is None
+    assert trimmed["target"]["name"] is None
+    assert trimmed["target"]["text"] is None
+    assert trimmed["target"]["testId"] is None
+    assert trimmed["target"]["itemId"] is None
+    assert trimmed["target"]["fieldLabel"] is None
+    assert trimmed["target"]["xtype"] is None
+    assert trimmed["target"]["query"] is None
 
 
 def test_a_credential_cannot_be_reached_by_mutating_the_target() -> None:

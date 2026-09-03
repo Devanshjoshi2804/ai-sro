@@ -46,7 +46,10 @@ class Gesture(BaseModel):
     model_config = ConfigDict(validate_assignment=True)
 
     kind: Literal["click", "type", "select", "press", "upload", "scroll", "hover"]
-    target: Target
+    # A scroll has no target: you scroll a page, not an element. Real capture
+    # from the acme tenant carries scrolls with the key absent entirely, and
+    # requiring it rejected every one of them -- 15% of that sample's gestures.
+    target: Target | None = None
     value: str | None = None  # absent on click and press
     secret: bool = False  # absent on everything but a credential field
     modifiers: list[str] = Field(default_factory=list)
@@ -56,7 +59,7 @@ class Gesture(BaseModel):
     @model_validator(mode="after")
     def a_credential_value_is_dropped_here(self) -> "Gesture":
         """AGENTS.md: credential values never reach storage. This is the boundary."""
-        if self.secret or self.target.secret:
+        if self.secret or (self.target is not None and self.target.secret):
             object.__setattr__(self, "value", None)
         return self
 

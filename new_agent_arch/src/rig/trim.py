@@ -19,8 +19,14 @@ BODY_KEYS = 40
 _UUID = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
 
 
-def thin(target: Target) -> bool:
-    """True when nothing here would tell a model what the control is."""
+def thin(target: Target | None) -> bool:
+    """True when nothing here would tell a model what the control is.
+
+    A targetless gesture (a scroll) is thin by definition -- there is no
+    control to name.
+    """
+    if target is None:
+        return True
     component = target.component
     return not any(
         (
@@ -87,19 +93,20 @@ def _call(request: Request) -> dict[str, Any]:
 
 def trim(gesture: Gesture) -> dict[str, Any]:
     target = gesture.gesture.target
-    component = target.component
+    component = target.component if target else None
     # Belt-and-braces: wire.Gesture already drops a credential value at parse
     # time, but that validator does not re-run if a nested Target is mutated
     # after the fact. A credential reaching a prompt is not a thing to hold
-    # by inheritance alone, so trim() checks it again itself.
-    secret = gesture.gesture.secret or target.secret
+    # by inheritance alone, so trim() checks it again itself. A scroll has no
+    # target at all, so this falls back to gesture.gesture.secret alone.
+    secret = gesture.gesture.secret or (target.secret if target else False)
     return {
         "kind": gesture.gesture.kind,
         "target": {
-            "role": target.role,
-            "name": target.name,
-            "text": target.text,
-            "testId": target.testId,
+            "role": target.role if target else None,
+            "name": target.name if target else None,
+            "text": target.text if target else None,
+            "testId": target.testId if target else None,
             "itemId": component.itemId if component else None,
             "fieldLabel": component.fieldLabel if component else None,
             "xtype": component.xtype if component else None,

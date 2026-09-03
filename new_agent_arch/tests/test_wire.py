@@ -68,6 +68,28 @@ def test_a_credential_value_does_not_survive_parsing() -> None:
     assert "hunter2" not in event.model_dump_json()
 
 
+def test_a_scroll_carries_no_target_and_is_still_a_gesture() -> None:
+    """Real acme capture: every scroll had the target key absent, and
+    requiring it rejected 15% of that sample's gestures."""
+    scroll = {
+        "kind": "gesture",
+        "gesture": {
+            "kind": "scroll",
+            "value": "0",
+            "modifiers": [],
+            "at": 1788201874.644,
+            "url": "https://wms.example/portal/page",
+        },
+        "tab_id": 8,
+        "frame_url": "https://wms.example/portal/page",
+    }
+
+    event = GestureEvent.model_validate(scroll)
+
+    assert event.gesture.target is None
+    assert event.gesture.kind == "scroll"
+
+
 def test_a_request_event_carries_its_own_tab() -> None:
     """A1 relies on this instead of guessing a tab from a host."""
     event = RequestEvent.model_validate(REQUEST_POST)

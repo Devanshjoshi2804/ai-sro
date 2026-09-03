@@ -3235,28 +3235,80 @@ artifact: async (form) => {
 The backend call stays first and its result is what is returned, so the queue
 sees exactly what it saw before.
 
-- [ ] **Step 5: Add the options field**
+- [ ] **Step 5: Let the options page set it**
 
-In `new-chrome-extension/src/options/options.html`, after the `api-url` field:
+`options.js` has no access to `state` — it talks to the service worker with
+`ask({ kind, ... })` and renders whatever `status()` returns. And `sign-in`
+**wipes the device registration** (`setDeviceId("")`, `setDeviceSecret("")`,
+`setPolicy(null)`), so folding an optional second reader into that form would
+mean re-registering the browser every time somebody changes a URL. It gets its
+own message instead.
+
+In `new-chrome-extension/src/background/service-worker.js`, beside the other
+cases in the same `switch`:
+
+```js
+    case "rig":
+      // Its own message rather than part of sign-in: sign-in clears the device
+      // registration, and an optional second reader is not worth re-registering
+      // a browser for.
+      await state.setRigUrl(message.rigUrl || "");
+      await state.setRigToken(message.rigToken || "");
+      return status();
+```
+
+and in `status()`, add the two to the `Promise.all` destructuring and to the
+returned object, exactly as `apiUrl` and `consoleUrl` are handled.
+
+In `new-chrome-extension/src/options/options.html`, a section of its own after
+the Connection card:
 
 ```html
-<label for="rig-url">Rig URL (optional — a second reader)</label>
-<input id="rig-url" type="url" placeholder="http://localhost:8100">
-
-<label for="rig-token">Rig token</label>
-<input id="rig-token" type="text" placeholder="dev-only-not-a-secret">
+      <section class="card">
+        <h2>Rig</h2>
+        <form id="rig">
+          <label>
+            Rig URL
+            <input id="rig-url" type="url" placeholder="http://localhost:8100" />
+          </label>
+          <label>
+            Rig token
+            <input id="rig-token" type="password" placeholder="the rig's ingest token" />
+          </label>
+          <p class="note">
+            A second reader, for development. Everything uploaded to the backend
+            is copied here as well. Leave it empty and nothing is copied.
+          </p>
+          <button type="submit">Save</button>
+        </form>
+      </section>
 ```
 
-In `new-chrome-extension/src/options/options.js`, beside the `api-url` lines:
+In `new-chrome-extension/src/options/options.js`, inside `render(status)` beside
+the `api-url` line:
 
 ```js
-$("rig-url").value = await state.rigUrl();
-$("rig-token").value = await state.rigToken();
+  $("rig-url").value = status.rigUrl || "";
+  $("rig-token").value = status.rigToken || "";
 ```
 
+and a handler beside the others:
+
 ```js
-await state.setRigUrl($("rig-url").value);
-await state.setRigToken($("rig-token").value);
+$("rig").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  try {
+    render(
+      await ask({
+        kind: "rig",
+        rigUrl: $("rig-url").value.trim(),
+        rigToken: $("rig-token").value.trim(),
+      }),
+    );
+  } catch (error) {
+    trouble(error);
+  }
+});
 ```
 
 - [ ] **Step 6: Add the host permission**

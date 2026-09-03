@@ -29,10 +29,24 @@ def test_a_value_the_reading_saw_is_found_too() -> None:
 
 def test_a_credential_value_is_never_a_link() -> None:
     """It is not in the gesture to begin with, and must not arrive by any
-    other route either."""
+    other route either.
+
+    The first assertion alone cannot fail: wire.Gesture nulls a credential at
+    parse time, so it holds with the is_secret guard deleted entirely. The
+    route that can fail is the model's -- it is shown the field the value went
+    into, and values_seen comes back unvalidated, so a password echoed there
+    became a cross-system link."""
     secret = next(g for g in _gestures() if g.gesture.secret)
 
     assert typed_values(secret, None) == set()
+
+    echoed = Intent(
+        gesture_id=secret.id,
+        tenant="acme",
+        values_seen=[ValueSeen(field="password", value="hunter2")],
+    )
+
+    assert typed_values(secret, echoed) == set()
 
 
 def test_something_too_short_links_nothing() -> None:

@@ -26,9 +26,19 @@ _NEVER = frozenset({"true", "false", "null", "none", "0", "1", ""})
 def typed_values(gesture: Gesture, intent: Intent | None) -> set[str]:
     """What this gesture put into the world: what was typed, and what a reading
     saw entered. A credential is never here -- is_secret() is the one place
-    that rule lives, and this asks it rather than restating it."""
+    that rule lives, and this asks it rather than restating it.
+
+    The whole gesture is refused rather than only its typed value. values_seen
+    comes back from the model, which is shown the field it was typed into, so
+    guarding the typed value alone let a password return by the other route and
+    become a cross-system link -- the same leak found in as_evidence, in a
+    second place. wire.Gesture nulls the value at parse time and so hides this
+    from a test built on the fixture; the model's echo is not nulled by
+    anything."""
+    if is_secret(gesture):
+        return set()
     found: set[str] = set()
-    if gesture.gesture.value and not is_secret(gesture):
+    if gesture.gesture.value:
         found.add(gesture.gesture.value)
     if intent is not None:
         found.update(seen.value for seen in intent.values_seen if seen.value)

@@ -532,7 +532,11 @@ class TeachWorkflow:
         branch answers.
         """
         read = await self._evidence(ctx, earlier)
-        read.extend(await self._evidence(ctx, later))
+        late = await self._evidence(ctx, later)
+        # Snapshotted before the two are joined, because `extend` folds the
+        # second half into the first and the naming half may be either of them.
+        naming = list((read if earlier.host <= later.host else late).events)
+        read.extend(late)
         assembled = assemble_frames(read.events)
         if not assembled.frames:
             return None
@@ -547,10 +551,33 @@ class TeachWorkflow:
         for frame in assembled.frames:
             recording.append_frame(frame)
 
-        # No `system=`: the candidate's host would name whichever half happened
-        # to come first, and the key is what pairs the two occurrences with each
-        # other. Derived from the frames, both occurrences answer the same.
-        objective = derive_objective_key(recording.frames)
+        # Named from one half, and always the same half.
+        #
+        # No `system=`, because the candidate's host would name whichever half
+        # the operator opened. But the frames of the whole recording will not do
+        # either: `derive_objective_key` takes the LAST write, and
+        # `assemble_frames` folds by time, so the half the operator happened to
+        # finish with names the job. Somebody who closes waves and then records
+        # the receipt gets `close`; the week they had the ERP open already and
+        # did it the other way round gets `create` -- two names for one job, and
+        # `_check_pairable` then refuses its own pair by name.
+        #
+        # An operator flipping between two tabs does not flip the same way
+        # twice, and interleaving made that ordinary rather than odd.
+        #
+        # So the naming half is chosen by host, which is the one thing about
+        # these two that neither the operator nor the caller can vary: not the
+        # order they were done in, and not the order somebody named them when
+        # asking for the merge. Alphabetical is arbitrary and says so -- what
+        # matters is that a job spanning two systems is named by one of them by
+        # a rule that cannot depend on how anybody did it or asked for it.
+        #
+        # Falls back to the whole recording where that half asked the server
+        # nothing: a half that made no call cannot name anything, and a doing
+        # that names nothing is dropped a line below rather than kept unnamed.
+        objective = derive_objective_key(assemble_frames(naming).frames) or derive_objective_key(
+            recording.frames
+        )
         if objective is None:
             return None
         recording.name_objective(objective)

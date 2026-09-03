@@ -495,7 +495,7 @@ lint:
 cd /Users/devansh.j/GreyOrange/AI-SRO/new_agent_arch && uv sync --all-extras && uv run pytest tests/ -v
 ```
 
-Expected: 11 passed.
+Expected: 15 passed.
 
 - [ ] **Step 5: Commit**
 
@@ -871,7 +871,7 @@ class Intent:
 cd /Users/devansh.j/GreyOrange/AI-SRO/new_agent_arch && uv run pytest tests/test_wire.py -v
 ```
 
-Expected: 11 passed.
+Expected: 15 passed.
 
 - [ ] **Step 5: Commit**
 
@@ -1274,6 +1274,7 @@ and the two locators that break. The runner still reads them from the stored row
 """
 
 import json
+import re
 from typing import Any
 from urllib.parse import parse_qsl, urlparse
 
@@ -1303,8 +1304,24 @@ def path_shape(url: str) -> str:
     return "/".join("*" if _looks_like_an_id(part) else part for part in parts)
 
 
+_UUID = re.compile(
+    r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+)
+
+
 def _looks_like_an_id(part: str) -> bool:
-    return bool(part) and (part.isdigit() or (len(part) > 12 and "-" in part))
+    """Digits are what make a segment an id, not hyphens and length.
+
+    A rule keyed on length-and-a-hyphen starred ordinary route words --
+    /api/order-status became /api/* -- and still missed short numeric slugs
+    like sku-123456. Erasing the route erases what the operator did.
+    """
+    if not part:
+        return False
+    if part.isdigit() or _UUID.match(part):
+        return True
+    digits = sum(character.isdigit() for character in part)
+    return len(part) >= 8 and digits >= len(part) // 2
 
 
 def body_keys(body: Body | None) -> dict[str, str] | None:
@@ -1342,6 +1359,10 @@ def _call(request: Request) -> dict[str, Any]:
 def trim(gesture: Gesture) -> dict[str, Any]:
     target = gesture.gesture.target
     component = target.component
+    # Belt and braces over wire.Gesture's own drop. That validator does not
+    # re-run when a nested Target is mutated, and a credential reaching a prompt
+    # is not a thing to hold by inheritance from another file alone.
+    secret = gesture.gesture.secret or target.secret
     return {
         "kind": gesture.gesture.kind,
         "target": {
@@ -1354,7 +1375,7 @@ def trim(gesture: Gesture) -> dict[str, Any]:
             "xtype": component.xtype if component else None,
             "query": component.query if component else None,
         },
-        "value": gesture.gesture.value,
+        "value": None if secret else gesture.gesture.value,
         "url": path_shape(gesture.url) if gesture.url else None,
         "host": urlparse(gesture.url).netloc if gesture.url else None,
         "calls": [_call(request) for request in gesture.requests],
@@ -1368,7 +1389,7 @@ def trim(gesture: Gesture) -> dict[str, Any]:
 cd /Users/devansh.j/GreyOrange/AI-SRO/new_agent_arch && uv run pytest tests/test_trim.py -v
 ```
 
-Expected: 11 passed.
+Expected: 15 passed.
 
 - [ ] **Step 5: Commit**
 
@@ -1897,7 +1918,7 @@ async def read_gesture(
 cd /Users/devansh.j/GreyOrange/AI-SRO/new_agent_arch && uv run pytest tests/test_intents.py -v
 ```
 
-Expected: 11 passed.
+Expected: 15 passed.
 
 - [ ] **Step 5: Commit**
 
@@ -2404,7 +2425,7 @@ app = _default_app() if settings().gemini_api_key else FastAPI(title="rig (no ke
 cd /Users/devansh.j/GreyOrange/AI-SRO/new_agent_arch && uv run pytest tests/test_api.py -v
 ```
 
-Expected: 11 passed.
+Expected: 15 passed.
 
 - [ ] **Step 5: Run the whole suite and lint**
 

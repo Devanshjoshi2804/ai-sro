@@ -537,6 +537,14 @@ out  Intent {
 capture, read by Gemini 3.8 Flash: **$0.000796 a gesture**, so a
 two-thousand-gesture day costs **about $1.59**.
 
+**A caveat on every figure in this section.** They were measured before a defect
+was found in which the reader discarded each gesture's network calls on the way
+out of the database — so those readings were made from the gesture alone, and
+the numbers are for a cheaper prompt than the one the design calls for. Restoring
+the calls costs about eight tokens at the median, so the corrected figure is
+near $1.29 a day rather than far from it. The readings themselves are the part
+worth re-measuring: they looked right while being ungrounded.
+
 The shape of that bill is the part worth knowing. Input runs ~330 tokens a
 gesture and output ~130 — but output is priced at $3.75 per million against
 input's $0.75, so **output is roughly two thirds of the cost despite being a

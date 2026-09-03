@@ -2367,8 +2367,13 @@ def _row_to_gesture(row: sqlite3.Row) -> Gesture:
         tab_id=row["tab_id"],
         frame_url=row["frame_url"],
         gesture=WireGesture.model_validate_json(row["gesture_json"]),
-        requests=[],
-        page_events=[],
+        # Rehydrate both. Discarding them here meant every reading was made
+        # from the gesture alone -- no calls, no page events -- which is the
+        # entire output of correlate() and trim() arriving nowhere. The
+        # readings still looked right, because a model infers "saved a
+        # supplier" from a button labelled Save. Ungrounded and plausible.
+        requests=[Request.model_validate(r) for r in json.loads(row["requests"])],
+        page_events=[PageEvent.model_validate(p) for p in json.loads(row["page_events"])],
         shot_ref=row["shot_ref"],
     )
 

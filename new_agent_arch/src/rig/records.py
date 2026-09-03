@@ -51,4 +51,6 @@ class Intent:
     in_tokens: int = 0
     out_tokens: int = 0
     cost_usd: float = 0.0
+    # Mirrors Answer.unpriced: True when cost_usd cannot be trusted.
+    unpriced: bool = False
     error: str | None = None

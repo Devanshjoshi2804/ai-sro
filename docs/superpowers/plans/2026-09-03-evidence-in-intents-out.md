@@ -2731,12 +2731,50 @@ def test_the_gestures_route_will_not_return_the_whole_table(client: TestClient) 
 
 def test_the_page_escapes_what_it_draws() -> None:
     """Everything on that page is captured content or a model's words about it.
-    A WMS field labelled `<img src=x onerror=...>` must not run there."""
-    page = (Path(__file__).parent.parent / "src" / "rig" / "web" / "index.html").read_text()
+    A WMS field labelled `<img src=x onerror=...>` must not run there.
 
-    assert "function esc(" in page
-    assert "esc(intent.act)" in page
-    assert "esc(v.value)" in page
+    This runs the page's own `line()` in node against hostile input, rather
+    than asserting that certain strings appear in the file. A substring check
+    would pass with escaping dropped from `why`, `error`, `kind` or the stream
+    list -- which is most of the places captured text reaches innerHTML.
+    """
+    import shutil
+    import subprocess
+
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("node is not installed")
+
+    page = (Path(__file__).parent.parent / "src" / "rig" / "web" / "index.html").read_text()
+    script = page.split("<script>")[1].split("</script>")[0]
+    # The page's own code, minus the part that talks to the network.
+    script = script.split("document.getElementById(\"stream\").addEventListener")[0]
+
+    attack = "<img src=x onerror=alert(1)>"
+    harness = (
+        script
+        + f"""
+        const g = {{
+          kind: {json.dumps(attack)}, calls: 0,
+          intent: {{
+            act: {json.dumps(attack)}, why: {json.dumps(attack)},
+            error: null, cost_usd: 0,
+            values_seen: [{{ field: {json.dumps(attack)}, value: {json.dumps(attack)} }}],
+          }},
+        }};
+        const bad = {{ ...g, intent: {{ ...g.intent, act: null, error: {json.dumps(attack)} }} }};
+        console.log(line(g) + line(bad));
+        """
+    )
+
+    out = subprocess.run(
+        [node, "--input-type=module", "-e", harness],
+        capture_output=True, text=True, check=False,
+    )
+
+    assert out.returncode == 0, out.stderr
+    assert "<img src=x" not in out.stdout, "captured text reached the page unescaped"
+    assert "&lt;img src=x onerror=alert(1)&gt;" in out.stdout
 ```
 
 - [ ] **Step 2: Run them**
@@ -2967,7 +3005,13 @@ from fastapi.responses import HTMLResponse
 
     const picker = document.getElementById("stream");
     const { streams } = await get("/v1/streams");
-    if (picker.options.length !== streams.length) {
+    // Compare the ids themselves, not how many there are. A count that happens
+    // to match after a stream is renamed would leave the picker pointing at an
+    // id the server no longer knows, and every poll would quietly return
+    // nothing.
+    const shown = [...picker.options].map((o) => o.value).join("\u0000");
+    const wanted = streams.map((s) => s.stream_id).join("\u0000");
+    if (shown !== wanted) {
       picker.innerHTML = streams
         .map((s) => `<option value="${esc(s.stream_id)}">${esc(s.stream_id)} (${s.gestures})</option>`)
         .join("");

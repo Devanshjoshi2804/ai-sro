@@ -103,7 +103,9 @@
 
     const picker = document.getElementById("stream");
     const { streams } = await get("/v1/streams");
-    if (picker.options.length !== streams.length) {
+    const shown = [...picker.options].map((o) => o.value).join("\u0000");
+    const wanted = streams.map((s) => s.stream_id).join("\u0000");
+    if (shown !== wanted) {
       picker.innerHTML = streams
         .map((s) => `<option value="${esc(s.stream_id)}">${esc(s.stream_id)} (${s.gestures})</option>`)
         .join("");

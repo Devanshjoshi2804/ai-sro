@@ -382,9 +382,52 @@ def test_the_gestures_route_will_not_return_the_whole_table(client: TestClient) 
 
 def test_the_page_escapes_what_it_draws() -> None:
     """Everything on that page is captured content or a model's words about it.
-    A WMS field labelled `<img src=x onerror=...>` must not run there."""
-    page = (Path(__file__).parent.parent / "src" / "rig" / "web" / "index.html").read_text()
+    A WMS field labelled `<img src=x onerror=...>` must not run there.
 
-    assert "function esc(" in page
-    assert "esc(intent.act)" in page
-    assert "esc(v.value)" in page
+    This runs the page's own `line()` in node against hostile input, rather
+    than asserting that certain strings appear in the file. A substring check
+    would pass with escaping dropped from `why`, `error`, `kind` or the stream
+    list -- which is most of the places captured text reaches innerHTML.
+    """
+    import shutil
+    import subprocess
+
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("node is not installed")
+
+    page = (Path(__file__).parent.parent / "src" / "rig" / "web" / "index.html").read_text()
+    script = page.split("<script>")[1].split("</script>")[0]
+    # The page's own code, minus the part that talks to the network.
+    script = script.split('document.getElementById("stream").addEventListener')[0]
+
+    attack = "<img src=x onerror=alert(1)>"
+    harness = (
+        # Node has no `location` global; the page's first line reads
+        # location.search before line() is ever defined, let alone called.
+        "globalThis.location = { search: '' };\n"
+        + script
+        + f"""
+        const g = {{
+          kind: {json.dumps(attack)}, calls: 0,
+          intent: {{
+            act: {json.dumps(attack)}, why: {json.dumps(attack)},
+            error: null, cost_usd: 0,
+            values_seen: [{{ field: {json.dumps(attack)}, value: {json.dumps(attack)} }}],
+          }},
+        }};
+        const bad = {{ ...g, intent: {{ ...g.intent, act: null, error: {json.dumps(attack)} }} }};
+        console.log(line(g) + line(bad));
+        """
+    )
+
+    out = subprocess.run(
+        [node, "--input-type=module", "-e", harness],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert out.returncode == 0, out.stderr
+    assert "<img src=x" not in out.stdout, "captured text reached the page unescaped"
+    assert "&lt;img src=x onerror=alert(1)&gt;" in out.stdout

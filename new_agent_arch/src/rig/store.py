@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS batches (
 
 CREATE TABLE IF NOT EXISTS gestures (
     id           TEXT PRIMARY KEY,
-    tenant       TEXT NOT NULL,
+    tenant       TEXT NOT NULL,  -- written for plan 2's sake; nothing filters on it yet -- one tenant today
     stream_id    TEXT NOT NULL,
     batch_id     TEXT NOT NULL,
     at           REAL NOT NULL,      -- Unix seconds, float: recorder.js's own format

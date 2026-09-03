@@ -52,7 +52,9 @@ function render(status) {
   $("api-url").value = status.apiUrl || "";
   $("console-url").value = status.consoleUrl || "";
   $("rig-url").value = status.rigUrl || "";
-  $("rig-token").value = status.rigToken || "";
+  // status() no longer carries the token itself -- only whether one is saved.
+  $("rig-token").value = "";
+  $("rig-token").placeholder = status.rigTokenSet ? "saved" : "the rig's ingest token";
   $("purge").disabled = !status.deviceId;
 
 }

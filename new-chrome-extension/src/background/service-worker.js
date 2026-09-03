@@ -1301,6 +1301,10 @@ async function status() {
       state.lastBeat(),
       state.lastError(),
     ]);
+  // rigToken is read above only to compute the boolean below -- it never
+  // leaves this function. status() is polled by the side panel every two
+  // seconds and any content script can request it, the same reason `token`
+  // and `deviceSecret` are already absent from what it returns.
   // Not awaited: the panel polls this every two seconds and a card about a run
   // that already finished should not make every one of those polls wait on a
   // network round trip. See `checkFinishing()` -- also run off the heartbeat
@@ -1327,7 +1331,7 @@ async function status() {
     apiUrl,
     consoleUrl,
     rigUrl,
-    rigToken,
+    rigTokenSet: Boolean(rigToken),
     paused,
     serverPaused,
     lastBeat,

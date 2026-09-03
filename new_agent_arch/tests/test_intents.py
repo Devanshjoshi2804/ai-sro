@@ -144,3 +144,12 @@ def test_one_line_is_one_line() -> None:
 
     assert "\n" not in line
     assert "typed a code" in line
+
+
+async def test_a_reading_it_could_not_price_says_so() -> None:
+    """Deleting the unpriced hop in read_gesture left the whole suite green."""
+    asker = FakeAsker(Answer(data={"act": "did a thing", "why": "because"}, unpriced=True))
+
+    intent = await read_gesture(_gestures()[0], tail=[], asker=asker, model=MODEL)
+
+    assert intent.unpriced is True

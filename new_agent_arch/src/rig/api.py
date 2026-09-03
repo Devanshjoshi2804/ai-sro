@@ -3,6 +3,8 @@
 import asyncio
 import json
 import sqlite3
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from dataclasses import asdict
 from datetime import UTC, datetime
 from pathlib import Path
@@ -28,59 +30,72 @@ def _now() -> str:
 
 def save_batch(store: Store, batch: Batch, tenant: str, rejected: int = 0) -> tuple[int, bool]:
     """Store one batch and its gestures. Idempotent on batch_id."""
-    try:
-        store.execute(
-            "INSERT INTO batches (batch_id, device_id, tenant, mode, received_at)"
-            " VALUES (?, ?, ?, ?, ?)",
-            (batch.batch_id, batch.device_id, tenant, batch.mode, _now()),
-        )
-    except sqlite3.IntegrityError:
-        return 0, True
-
+    # Pure -- fine to call before the transaction below.
     gestures, orphan_requests, orphan_pages = correlate(batch, tenant)
 
-    with store.connect() as connection:
-        for gesture in gestures:
+    # One transaction for the claim and the writes. A batch id claimed by the
+    # INSERT below but never followed by its gestures -- because something
+    # after it raised -- is an id that can never be retried: the events it
+    # named are gone, but the id says they were already handled. Doing the
+    # claim and the writes in the same `with` means any exception in the
+    # block rolls the claim back too, so a retry with the same batch_id sees
+    # no row and tries again for real. sqlite3's connection context manager
+    # commits on a clean exit and rolls back on any exception, IntegrityError
+    # from the duplicate-batch_id case included.
+    try:
+        with store.connect() as connection:
             connection.execute(
-                "INSERT INTO gestures (id, tenant, stream_id, batch_id, at, url, system,"
-                " tab_id, frame_url, gesture_json, requests, page_events)"
-                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO batches (batch_id, device_id, tenant, mode, received_at,"
+                " accepted, rejected) VALUES (?, ?, ?, ?, ?, ?, ?)",
                 (
-                    gesture.id,
-                    gesture.tenant,
-                    gesture.stream_id,
-                    gesture.batch_id,
-                    gesture.at,
-                    gesture.url,
-                    gesture.system,
-                    gesture.tab_id,
-                    gesture.frame_url,
-                    gesture.gesture.model_dump_json(),
-                    json.dumps([r.model_dump(mode="json") for r in gesture.requests]),
-                    json.dumps([p.model_dump(mode="json") for p in gesture.page_events]),
-                ),
-            )
-        for orphan in orphan_requests:
-            connection.execute(
-                "INSERT OR IGNORE INTO orphan_requests (request_id, batch_id, tenant, payload)"
-                " VALUES (?, ?, ?, ?)",
-                (
-                    orphan.request.request_id,
                     batch.batch_id,
+                    batch.device_id,
                     tenant,
-                    orphan.model_dump_json(),
+                    batch.mode,
+                    _now(),
+                    len(gestures),
+                    rejected,
                 ),
             )
-        for page in orphan_pages:
-            connection.execute(
-                "INSERT OR IGNORE INTO orphan_pages (batch_id, tenant, at, payload)"
-                " VALUES (?, ?, ?, ?)",
-                (batch.batch_id, tenant, page.at, page.model_dump_json()),
-            )
-        connection.execute(
-            "UPDATE batches SET accepted = ?, rejected = ? WHERE batch_id = ?",
-            (len(gestures), rejected, batch.batch_id),
-        )
+            for gesture in gestures:
+                connection.execute(
+                    "INSERT INTO gestures (id, tenant, stream_id, batch_id, at, url, system,"
+                    " tab_id, frame_url, gesture_json, requests, page_events)"
+                    " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (
+                        gesture.id,
+                        gesture.tenant,
+                        gesture.stream_id,
+                        gesture.batch_id,
+                        gesture.at,
+                        gesture.url,
+                        gesture.system,
+                        gesture.tab_id,
+                        gesture.frame_url,
+                        gesture.gesture.model_dump_json(),
+                        json.dumps([r.model_dump(mode="json") for r in gesture.requests]),
+                        json.dumps([p.model_dump(mode="json") for p in gesture.page_events]),
+                    ),
+                )
+            for orphan in orphan_requests:
+                connection.execute(
+                    "INSERT OR IGNORE INTO orphan_requests (request_id, batch_id, tenant, payload)"
+                    " VALUES (?, ?, ?, ?)",
+                    (
+                        orphan.request.request_id,
+                        batch.batch_id,
+                        tenant,
+                        orphan.model_dump_json(),
+                    ),
+                )
+            for page in orphan_pages:
+                connection.execute(
+                    "INSERT OR IGNORE INTO orphan_pages (batch_id, tenant, at, payload)"
+                    " VALUES (?, ?, ?, ?)",
+                    (batch.batch_id, tenant, page.at, page.model_dump_json()),
+                )
+    except sqlite3.IntegrityError:
+        return 0, True
 
     return len(gestures), False
 
@@ -169,6 +184,13 @@ def tail_for(store: Store, stream_id: str, before: float) -> list[Intent]:
 # ponytail: a process-local lock, because the rig is one process. Claim rows in
 # the database if it ever becomes more than one.
 _reading = asyncio.Lock()
+
+# read_new_gestures reads at most 200 rows per pass; a drain must call it
+# repeatedly. Bounded because every pass must reduce the unread set: a pass
+# that returns 0 ends it, and this cap is a backstop against a row that
+# cannot be read and would otherwise spin. 200 x 100 = 20,000 gestures in one
+# drain, far beyond any real batch.
+MAX_READING_PASSES = 100
 
 
 async def read_new_gestures(store: Store, asker: Asker, model: str) -> int:
@@ -374,7 +396,16 @@ def build_app(
 
 async def _read_soon(store: Store, asker: Asker) -> None:
     try:
-        await read_new_gestures(store, asker, settings().intent_model)
+        # Drain, do not take one page. read_new_gestures reads at most 200 and
+        # fires once per batch, while a single upload can carry 500 gestures --
+        # so the remainder waited for another batch that may never come. When
+        # capture stops for the day, those readings never happen at all.
+        # Bounded because every pass must reduce the unread set: a pass that
+        # returns 0 ends it, and the cap is a backstop against a row that
+        # cannot be read and would otherwise spin.
+        for _ in range(MAX_READING_PASSES):
+            if not await read_new_gestures(store, asker, settings().intent_model):
+                return
     except Exception:  # noqa: BLE001, S110 -- a reading loop must not take the process with it
         pass
 
@@ -383,10 +414,25 @@ def _default_app() -> FastAPI:
     config = settings()
     store = Store(config.db_path)
     store.migrate()
-    asker = GeminiAsker(config.gemini_api_key) if config.gemini_api_key else None
-    if asker is None:
-        raise RuntimeError("set RIG_GEMINI_API_KEY")
+    asker = GeminiAsker(config.gemini_api_key)
     return build_app(store=store, asker=asker, token=config.ingest_token, tenant=config.tenant)
 
 
-app = _default_app() if settings().gemini_api_key else FastAPI(title="rig (no key)")
+def _refuse_to_start() -> FastAPI:
+    """No RIG_GEMINI_API_KEY. Refusing at ASGI startup -- not at import --
+    keeps `from rig.api import build_app` (every test's import, and every
+    other module that imports this one) safe, and refusing per-request would
+    just 404 forever instead of ever saying the one thing the operator needs
+    to hear. `make serve` with no key now fails loudly, once, before the
+    first request is served, naming the variable to set.
+    """
+
+    @asynccontextmanager
+    async def refuse(_: FastAPI) -> AsyncIterator[None]:
+        raise RuntimeError("set RIG_GEMINI_API_KEY")
+        yield  # pragma: no cover -- unreachable, but a lifespan must be a generator
+
+    return FastAPI(title="rig (no key)", lifespan=refuse)
+
+
+app = _default_app() if settings().gemini_api_key else _refuse_to_start()

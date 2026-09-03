@@ -628,6 +628,7 @@ def update_candidate_row(row: TaskCandidateRow, candidate: TaskCandidate) -> Non
     row.principal_id = candidate.principal_id.value
     row.signature = candidate.signature
     row.host = candidate.host
+    row.starts_on = candidate.starts_on
     row.title = candidate.title
     row.named_by_model = candidate.named_by_model
     row.learned_from = candidate.learned_from
@@ -652,6 +653,7 @@ def row_to_candidate(row: TaskCandidateRow) -> TaskCandidate:
         principal_id=PrincipalId(row.principal_id),
         signature=row.signature,
         host=row.host,
+        starts_on=row.starts_on or "",
         title=row.title,
         status=CandidateStatus(row.status),
         episodes=load_episodes(row.episodes),

@@ -55,6 +55,19 @@ class Episode:
     judged by the rule that mined it.
     """
 
+    starts_on: str = ""
+    """Host and path of the first page this episode was seen on, no query.
+
+    The page a task begins on, which is what lets the panel say "you have done
+    this here before" the moment somebody lands on it. Without the query,
+    because that is where a warehouse system puts session ids and timestamps,
+    and a page that is never the same page twice is one nothing recognises.
+
+    Empty where no URL was observed -- older evidence, and gestures an extension
+    sent before it carried one. A candidate that starts nowhere never nudges,
+    which is the honest behaviour rather than a guess at where it began.
+    """
+
     def __post_init__(self) -> None:
         for name, at in (("started_at", self.started_at), ("ended_at", self.ended_at)):
             if at.tzinfo is None:
@@ -147,6 +160,14 @@ class TaskCandidate:
     """Whether the title is a model's reading of the evidence. It is the only
     part of a candidate anything generated, and it is marked so nobody mistakes
     a sentence for a fact."""
+
+    starts_on: str = ""
+    """The page the first doing of this began on. See `Episode.starts_on`.
+
+    Lifted onto the candidate so a panel can ask "is this the page?" against a
+    list it already has, rather than loading every episode of every candidate on
+    every navigation.
+    """
 
     offered_at: datetime | None = None
     """When this was said out loud to the operator, if it has been.

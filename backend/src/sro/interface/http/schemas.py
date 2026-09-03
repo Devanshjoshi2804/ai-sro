@@ -1924,6 +1924,14 @@ class TaskCandidateModel(BaseModel):
     the same two buttons is how they come to disagree about whether it was
     answered."""
 
+    starts_on: str = ""
+    """Host and path of the page this task begins on, no query string.
+
+    On the wire so the extension can recognise that page the moment the operator
+    lands on it, against the candidate list it already holds -- without asking
+    the server on every navigation what the tab in front of somebody is for.
+    """
+
     joins: list[JoinModel]
     episodes: list[EpisodeModel]
 
@@ -1933,6 +1941,7 @@ class TaskCandidateModel(BaseModel):
             id=candidate.id.value,
             title=candidate.title,
             host=candidate.host,
+            starts_on=candidate.starts_on,
             signature=candidate.signature,
             status=candidate.status.value,
             times_seen=candidate.times_seen,

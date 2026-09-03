@@ -453,6 +453,10 @@ class TaskCandidateRow(Base):
     # it has read, and the same task must find its own row.
     signature: Mapped[str] = mapped_column(Text, nullable=False)
     host: Mapped[str] = mapped_column(String(200), nullable=False, default="")
+    # The page the first doing began on, host and path, no query. What a panel
+    # recognises when somebody lands there. Empty where no gesture carried a
+    # URL, which is every candidate mined before this column existed.
+    starts_on: Mapped[str] = mapped_column(Text, nullable=False, default="")
     title: Mapped[str] = mapped_column(Text, nullable=False)
     named_by_model: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     # How many doings had been seen when learning was last tried on this, so an

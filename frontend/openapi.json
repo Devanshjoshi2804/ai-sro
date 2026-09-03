@@ -27341,6 +27341,11 @@
             ],
             "title": "Offered At"
           },
+          "starts_on": {
+            "type": "string",
+            "title": "Starts On",
+            "default": ""
+          },
           "joins": {
             "items": {
               "$ref": "#/components/schemas/JoinModel"

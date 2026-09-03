@@ -231,11 +231,22 @@ def _segment(run: Sequence[Observed]) -> Segment | None:
     if not signature:
         return None
 
+    # Where this doing began, for a panel that has to recognise the page.
+    #
+    # A gesture's URL and not any URL: a request's is an API endpoint, and
+    # nobody ever navigates to one. Matching a nudge against `POST /api/
+    # suppliers` would be matching against an address the operator's browser
+    # never shows.
+    first_url = next((one.url for one in gestures if one.url), "")
+    parts = urlsplit(first_url)
+    starts_on = f"{parts.netloc}{parts.path}".rstrip("/") if parts.netloc else ""
+
     return Segment(
         episode=Episode(
             started_at=run[0].at,
             ended_at=run[-1].at,
             host=run[0].host,
+            starts_on=starts_on,
             batch_ids=tuple(dict.fromkeys(one.batch_id for one in run)),
             gestures=len(gestures),
             calls=len(calls),

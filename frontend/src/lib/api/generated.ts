@@ -3393,6 +3393,11 @@ export interface components {
             named_by_model: boolean;
             /** Offered At */
             offered_at: string | null;
+            /**
+             * Starts On
+             * @default
+             */
+            starts_on: string;
             /** Joins */
             joins: components["schemas"]["JoinModel"][];
             /** Episodes */

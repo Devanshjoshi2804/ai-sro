@@ -112,6 +112,7 @@ class MineObservations:
             principal_id=principal,
             signature=found.signature,
             host=found.episode.host,
+            starts_on=found.episode.starts_on,
             title=title_for(found.signature, found.episode.host),
         )
 

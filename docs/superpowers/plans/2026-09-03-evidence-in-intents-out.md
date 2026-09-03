@@ -416,6 +416,7 @@ CREATE TABLE IF NOT EXISTS intents (
     in_tokens   INTEGER NOT NULL DEFAULT 0,
     out_tokens  INTEGER NOT NULL DEFAULT 0,
     cost_usd    REAL NOT NULL DEFAULT 0.0,
+    unpriced    INTEGER NOT NULL DEFAULT 0,
     created_at  TEXT NOT NULL,
     error       TEXT
 );
@@ -862,6 +863,9 @@ class Intent:
     in_tokens: int = 0
     out_tokens: int = 0
     cost_usd: float = 0.0
+    # Carried from Answer.unpriced. Without it the spend total silently
+    # understates the bill, which is the thing that flag exists to prevent.
+    unpriced: bool = False
     error: str | None = None
 ```
 
@@ -1939,6 +1943,7 @@ async def read_gesture(
         in_tokens=answer.in_tokens,
         out_tokens=answer.out_tokens,
         cost_usd=answer.cost_usd,
+        unpriced=answer.unpriced,
         error=answer.error,
     )
     if answer.data is None:
@@ -2316,6 +2321,7 @@ def _row_to_intent(row: sqlite3.Row) -> Intent:
         in_tokens=row["in_tokens"],
         out_tokens=row["out_tokens"],
         cost_usd=row["cost_usd"],
+        unpriced=bool(row["unpriced"]),
         error=row["error"],
     )
 
@@ -2324,8 +2330,8 @@ def save_intent(store: Store, intent: Intent) -> None:
     store.execute(
         "INSERT OR REPLACE INTO intents (gesture_id, tenant, act, object, system, page,"
         " values_seen, continues, confidence, why, model, in_tokens, out_tokens,"
-        " cost_usd, created_at, error)"
-        " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        " cost_usd, unpriced, created_at, error)"
+        " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (
             intent.gesture_id,
             intent.tenant,
@@ -2341,6 +2347,7 @@ def save_intent(store: Store, intent: Intent) -> None:
             intent.in_tokens,
             intent.out_tokens,
             intent.cost_usd,
+            int(intent.unpriced),
             _now(),
             intent.error,
         ),
@@ -2559,6 +2566,34 @@ def test_the_spend_route_adds_up_what_the_readings_cost(
     assert body["gestures_read"] == 7
     assert body["cost_usd"] == pytest.approx(0.0035)
     assert body["in_tokens"] == 2800
+    assert body["unpriced"] == 0
+
+
+def test_the_spend_route_says_how_many_readings_it_could_not_price(
+    client: TestClient, store: Store
+) -> None:
+    """A total that quietly drops the calls it could not price understates the
+    bill, which is the whole reason Answer.unpriced exists."""
+    client.post("/v1/observations", json=BATCH, headers=_auth())
+    from rig.api import save_intent
+    from rig.records import Intent
+
+    rows = store.query("SELECT id, tenant FROM gestures")
+    for index, row in enumerate(rows):
+        save_intent(
+            store,
+            Intent(
+                gesture_id=row["id"],
+                tenant=row["tenant"],
+                act="x",
+                cost_usd=0.0,
+                unpriced=index < 2,
+            ),
+        )
+
+    body = client.get("/v1/spend", headers=_auth()).json()
+
+    assert body["unpriced"] == 2
 
 
 def test_the_page_is_served(client: TestClient) -> None:
@@ -2637,7 +2672,8 @@ Insert inside `build_app`, before `return app`:
     def spend() -> dict[str, Any]:
         row = store.query(
             "SELECT count(*) AS n, coalesce(sum(in_tokens), 0) AS i,"
-            " coalesce(sum(out_tokens), 0) AS o, coalesce(sum(cost_usd), 0.0) AS c"
+            " coalesce(sum(out_tokens), 0) AS o, coalesce(sum(cost_usd), 0.0) AS c,"
+            " coalesce(sum(unpriced), 0) AS u"
             " FROM intents"
         )[0]
         gestures_total = store.query("SELECT count(*) AS n FROM gestures")[0]["n"]
@@ -2647,6 +2683,9 @@ Insert inside `build_app`, before `return app`:
             "in_tokens": row["i"],
             "out_tokens": row["o"],
             "cost_usd": round(row["c"], 6),
+            # Readings whose cost we could not establish. A total that ignores
+            # these understates the bill and says nothing about it.
+            "unpriced": row["u"],
             "per_gesture_usd": round(row["c"] / row["n"], 8) if row["n"] else 0.0,
         }
 

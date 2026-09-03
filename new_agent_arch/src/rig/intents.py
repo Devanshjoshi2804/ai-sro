@@ -14,7 +14,6 @@ from rig.records import Gesture, Intent, ValueSeen
 from rig.trim import thin, trim
 
 TAIL = 8
-CONFIDENCE_VALUES = frozenset({"high", "medium", "low"})  # must track INTENT_SCHEMA's enum below
 
 INSTRUCTIONS = """You are reading one thing a warehouse operator just did in a browser.
 
@@ -48,6 +47,9 @@ INTENT_SCHEMA: dict[str, Any] = {
     },
     "required": ["act", "why"],
 }
+
+# Derived, not restated: the schema's enum is the one declaration.
+CONFIDENCE_VALUES = frozenset(INTENT_SCHEMA["properties"]["confidence"]["enum"])
 
 
 def one_line(intent: Intent) -> str:

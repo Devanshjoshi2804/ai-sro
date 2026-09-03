@@ -2991,7 +2991,7 @@ from fastapi.responses import HTMLResponse
 cd /Users/devansh.j/GreyOrange/AI-SRO/new_agent_arch && uv run pytest -q && make lint
 ```
 
-Expected: 20 passed in `test_api.py` (11 from Task 7 plus 9 here), whole suite green.
+Expected: 24 passed in `test_api.py` (16 from Task 7 plus 8 here), whole suite green.
 
 - [ ] **Step 6: Commit**
 

@@ -157,6 +157,26 @@ def strength(g):
 input price doubles from $2 to $4 per million. `K_MIN_GESTURES = 25`, so a quiet
 morning is still read. `K_ENDS = 12`, `K_POOL_BONUS = 0.5`.
 
+**The window is built from trimmed evidence, not full bodies, and that is a
+measurement rather than a preference.** Across 81 real gestures from the acme
+tenant:
+
+| | median | mean | max |
+|---|---|---|---|
+| full requests inline | 72 tok | **8,388 tok** | **203,644 tok** |
+| `trim()` | 88 tok | 204 tok | 1,916 tok |
+
+Two single gestures each carried more than the entire window, and **three of the
+eighty-one held 71% of all request bytes**. "Bodies inline until the budget is
+spent" therefore does not degrade gracefully — it lets one click starve the day,
+and which click wins is an accident of iteration order.
+
+Trimmed, a whole day fits: ~700 gestures by mean and more by median, against a
+real day of roughly 1,500. So `K_MAX_GESTURE_TOKENS = 2_000` caps any single
+gesture's contribution, full bodies stay in the store reachable by id, and the
+coarse-to-fine pass in A7 becomes the rare case it was meant to be rather than
+the normal one.
+
 **`arrange` keeps `chosen.sort(key=at)` upstream of it for a reason.** Order-
 invariant representations were measured to specifically degrade cross-application
 reconstruction, so the *middle* stays in temporal order and only the ends are

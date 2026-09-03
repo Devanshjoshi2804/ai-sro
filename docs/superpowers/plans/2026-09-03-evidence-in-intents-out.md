@@ -98,8 +98,10 @@ naive model, and each has a test:
    one. It is not an absent key; it is an explicit `null`.
 2. **A `request` event carries its own `tab_id` and `frame_url`.** A1 therefore
    never guesses a request's tab from its host.
-3. **`value` and `secret` are absent entirely** on click, press and upload
-   gestures. Both need defaults.
+3. **`secret` is absent on click, press and upload; `value` is absent only on
+   click.** `gesture-press.json` carries `"value": "Enter"` and
+   `gesture-upload.json` carries `"value": "manifest.csv"`. Both fields need
+   defaults either way.
 4. **`status`, `request_body` and `response_body` are `null`** on a failed
    request (`http://127.0.0.1:1/never`, `failure_reason: "Failed to fetch"`).
 5. **Bodies are not always JSON** — one is
@@ -485,7 +487,7 @@ lint:
 cd /Users/devansh.j/GreyOrange/AI-SRO/new_agent_arch && uv sync --all-extras && uv run pytest tests/ -v
 ```
 
-Expected: 8 passed.
+Expected: 9 passed.
 
 - [ ] **Step 5: Commit**
 
@@ -1956,6 +1958,32 @@ def _auth() -> dict[str, str]:
     return {"Authorization": f"Bearer {TOKEN}"}
 
 
+def test_one_unparseable_event_does_not_cost_the_batch(client: TestClient, store: Store) -> None:
+    """The protocol: "A rejected event does not reject the batch."""
+    raw = json.loads(json.dumps(BATCH))
+    raw["events"].append(
+        {
+            "kind": "gesture",
+            "gesture": {
+                "kind": "drag",
+                "target": {"tag": "div", "cssPath": "div#x"},
+                "at": 1.0,
+                "url": "https://wms.example/",
+            },
+            "tab_id": 1,
+        }
+    )
+
+    response = client.post("/v1/observations", json=raw, headers=_auth())
+
+    assert response.status_code == 202
+    body = response.json()
+    assert body["accepted"] == 7
+    assert body["rejected"] == 1
+    assert body["problems"][0]["index"] == len(BATCH["events"])
+    assert store.query("SELECT count(*) AS n FROM gestures")[0]["n"] == 7
+
+
 def test_a_batch_is_accepted_and_its_gestures_are_stored(client: TestClient, store: Store) -> None:
     response = client.post("/v1/observations", json=BATCH, headers=_auth())
 
@@ -2083,7 +2111,7 @@ from rig.intents import read_gesture
 from rig.models import Asker, GeminiAsker
 from rig.records import Gesture, Intent, ValueSeen
 from rig.store import Store
-from rig.wire import Batch, Gesture as WireGesture
+from rig.wire import Batch, Gesture as WireGesture, parse_batch
 
 
 def _now() -> str:
@@ -2258,15 +2286,21 @@ def build_app(
         return {"status": "ok"}
 
     @app.post("/v1/observations", status_code=202, dependencies=[Depends(authorised)])
-    async def observations(batch: Batch) -> dict[str, Any]:
+    async def observations(raw: dict[str, Any]) -> dict[str, Any]:
+        # Not `batch: Batch`. FastAPI would validate the whole envelope at once,
+        # and one unrecognised event -- a gesture kind the extension shipped
+        # last week -- would fail the request and lose every good event beside
+        # it. The protocol is explicit that a rejected event does not reject the
+        # batch, so the events are parsed one at a time.
+        batch, rejected = parse_batch(raw)
         accepted, already = save_batch(store, batch, tenant)
         if read_on_ingest and not already:
             asyncio.create_task(_read_soon(store, asker))
         return {
             "batch_id": batch.batch_id,
             "accepted": accepted,
-            "rejected": 0,
-            "problems": [],
+            "rejected": len(rejected),
+            "problems": [{"index": r.index, "reason": r.reason} for r in rejected],
             "already_had_it": already,
         }
 
@@ -2315,7 +2349,7 @@ app = _default_app() if settings().gemini_api_key else FastAPI(title="rig (no ke
 cd /Users/devansh.j/GreyOrange/AI-SRO/new_agent_arch && uv run pytest tests/test_api.py -v
 ```
 
-Expected: 8 passed.
+Expected: 9 passed.
 
 - [ ] **Step 5: Run the whole suite and lint**
 

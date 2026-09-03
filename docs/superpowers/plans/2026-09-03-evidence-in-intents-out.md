@@ -885,7 +885,7 @@ def _request(started_at: str, request_id: str, tab_id: int) -> dict:
 def test_the_whole_committed_batch_correlates() -> None:
     gestures, orphans = correlate(Batch.model_validate(BATCH), TENANT)
 
-    assert len(gestures) == 6
+    assert len(gestures) == 7
     assert sum(len(g.requests) for g in gestures) + len(orphans) == 5
 
 
@@ -1072,8 +1072,9 @@ def _owner(gestures: list[Gesture], when: float, tab_id: int | None) -> Gesture 
 cd /Users/devansh.j/GreyOrange/AI-SRO/new_agent_arch && uv run pytest tests/test_correlate.py -v
 ```
 
-Expected: 8 passed. If `test_the_whole_committed_batch_correlates` disagrees on
-counts, print the actual split before changing the algorithm — the fixture is
+Expected: 8 passed. The fixture holds **7 gestures and 5 requests**, and all five
+requests fall in the last gesture's tab and window, so orphans are 0. If a count
+disagrees, print the actual split before touching the algorithm — the fixture is
 the authority, not the number written here.
 
 - [ ] **Step 5: Commit**
@@ -1095,7 +1096,8 @@ git commit -m "feat(rig): a call belongs to the gesture that caused it, or to no
 **Interfaces:**
 - Consumes: `Gesture` from `rig.records`; `Body`, `Request`, `Target` from `rig.wire`.
 - Produces: `trim(gesture: Gesture) -> dict[str, Any]`; `thin(target: Target) -> bool`;
-  `path_shape(url: str) -> str`; `VALUE_CHARS = 80`; `BODY_KEYS = 40`.
+  `path_shape(url: str) -> str`; `body_keys(body: Body | None) -> dict[str, str] | None`;
+  `VALUE_CHARS = 80`; `BODY_KEYS = 40`.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1674,8 +1676,8 @@ async def test_only_the_last_eight_intents_are_carried_as_context() -> None:
     sent = asker.asked[0]["evidence"]
 
     assert "did 19" in sent
-    assert "did 11" in sent
-    assert "did 10" not in sent
+    assert "did 12" in sent
+    assert "did 11" not in sent
     assert TAIL == 8
 
 
@@ -1867,7 +1869,7 @@ git commit -m "feat(rig): every gesture gets a reading, and a refusal is one too
 
 **Interfaces:**
 - Consumes: everything from Tasks 1–6.
-- Produces: `app: FastAPI`; `build_app(*, store: Store, asker: Asker, token: str, tenant: str) -> FastAPI`;
+- Produces: `app: FastAPI`; `build_app(*, store: Store, asker: Asker, token: str, tenant: str, read_on_ingest: bool = True) -> FastAPI`;
   `save_batch(store: Store, batch: Batch, tenant: str) -> tuple[int, bool]`
   returning `(accepted, already_had_it)`; `async read_new_gestures(store: Store, asker: Asker, model: str) -> int`
   returning how many intents were written; `save_intent(store: Store, intent: Intent) -> None`;
@@ -1904,7 +1906,15 @@ def store(tmp_path: Path) -> Store:
 
 @pytest.fixture
 def client(store: Store) -> TestClient:
-    return TestClient(build_app(store=store, asker=FakeAsker(), token=TOKEN, tenant="new"))
+    return TestClient(
+        build_app(
+            store=store,
+            asker=FakeAsker(),
+            token=TOKEN,
+            tenant="new",
+            read_on_ingest=False,
+        )
+    )
 
 
 def _auth() -> dict[str, str]:
@@ -1915,8 +1925,8 @@ def test_a_batch_is_accepted_and_its_gestures_are_stored(client: TestClient, sto
     response = client.post("/v1/observations", json=BATCH, headers=_auth())
 
     assert response.status_code == 202
-    assert response.json()["accepted"] == 6
-    assert store.query("SELECT count(*) AS n FROM gestures")[0]["n"] == 6
+    assert response.json()["accepted"] == 7
+    assert store.query("SELECT count(*) AS n FROM gestures")[0]["n"] == 7
 
 
 def test_the_same_batch_twice_stores_one_copy(client: TestClient, store: Store) -> None:
@@ -1926,7 +1936,7 @@ def test_the_same_batch_twice_stores_one_copy(client: TestClient, store: Store) 
 
     assert again.status_code == 202
     assert again.json()["already_had_it"] is True
-    assert store.query("SELECT count(*) AS n FROM gestures")[0]["n"] == 6
+    assert store.query("SELECT count(*) AS n FROM gestures")[0]["n"] == 7
 
 
 def test_an_orphan_call_is_kept(client: TestClient, store: Store) -> None:
@@ -1941,7 +1951,11 @@ def test_an_orphan_call_is_kept(client: TestClient, store: Store) -> None:
     assert stored + owned == 5
 
 
-def test_a_credential_value_is_nowhere_in_the_database(client: TestClient, store: Store, tmp_path: Path) -> None:
+def test_a_credential_value_is_nowhere_on_disk(
+    client: TestClient, store: Store, tmp_path: Path
+) -> None:
+    """WAL mode keeps recent writes in rig.db-wal, so reading rig.db alone
+    would pass this test without proving anything."""
     loud = json.loads(json.dumps(BATCH))
     for event in loud["events"]:
         if event["kind"] == "gesture" and event["gesture"].get("secret"):
@@ -1949,7 +1963,12 @@ def test_a_credential_value_is_nowhere_in_the_database(client: TestClient, store
 
     client.post("/v1/observations", json=loud, headers=_auth())
 
-    assert "hunter2" not in (tmp_path / "rig.db").read_bytes().decode("latin-1")
+    written = b"".join(
+        path.read_bytes() for path in tmp_path.glob("rig.db*")
+    ).decode("latin-1")
+
+    assert "rig.db" in str(list(tmp_path.glob("rig.db*")))   # the files exist
+    assert "hunter2" not in written
 
 
 def test_no_token_is_refused(client: TestClient) -> None:
@@ -1966,12 +1985,12 @@ def test_a_wrong_token_is_refused(client: TestClient) -> None:
 
 async def test_every_stored_gesture_gets_read_once(store: Store) -> None:
     save_batch(store, Batch.model_validate(BATCH), "new")
-    asker = FakeAsker(*[_ok() for _ in range(6)])
+    asker = FakeAsker(*[_ok() for _ in range(7)])
 
     written = await read_new_gestures(store, asker, "gemini-3.8-flash")
 
-    assert written == 6
-    assert store.query("SELECT count(*) AS n FROM intents")[0]["n"] == 6
+    assert written == 7
+    assert store.query("SELECT count(*) AS n FROM intents")[0]["n"] == 7
 
     again = await read_new_gestures(store, asker, "gemini-3.8-flash")
 
@@ -1981,12 +2000,12 @@ async def test_every_stored_gesture_gets_read_once(store: Store) -> None:
 async def test_a_reading_that_failed_is_still_written(store: Store) -> None:
     """Otherwise the loop retries it forever and the bill never stops."""
     save_batch(store, Batch.model_validate(BATCH), "new")
-    asker = FakeAsker(*[Answer(error="503") for _ in range(6)])
+    asker = FakeAsker(*[Answer(error="503") for _ in range(7)])
 
     await read_new_gestures(store, asker, "gemini-3.8-flash")
 
     rows = store.query("SELECT error FROM intents")
-    assert len(rows) == 6
+    assert len(rows) == 7
     assert all(row["error"] == "503" for row in rows)
 
 
@@ -2179,7 +2198,16 @@ async def read_new_gestures(store: Store, asker: Asker, model: str) -> int:
     return written
 
 
-def build_app(*, store: Store, asker: Asker, token: str, tenant: str) -> FastAPI:
+def build_app(
+    *,
+    store: Store,
+    asker: Asker,
+    token: str,
+    tenant: str,
+    read_on_ingest: bool = True,
+) -> FastAPI:
+    """read_on_ingest=False in tests: a background reading task racing the
+    assertions makes every ingest test depend on scheduling."""
     app = FastAPI(title="rig")
     app.state.store = store
     app.state.asker = asker
@@ -2197,7 +2225,7 @@ def build_app(*, store: Store, asker: Asker, token: str, tenant: str) -> FastAPI
     @app.post("/v1/observations", status_code=202, dependencies=[Depends(authorised)])
     async def observations(batch: Batch) -> dict[str, Any]:
         accepted, already = save_batch(store, batch, tenant)
-        if not already:
+        if read_on_ingest and not already:
             asyncio.create_task(_read_soon(store, asker))
         return {
             "batch_id": batch.batch_id,
@@ -2293,7 +2321,7 @@ def test_the_streams_route_names_each_browser(client: TestClient) -> None:
     body = client.get("/v1/streams", headers=_auth()).json()
 
     assert body["streams"][0]["stream_id"] == "dev_browsertest"
-    assert body["streams"][0]["gestures"] == 6
+    assert body["streams"][0]["gestures"] == 7
 
 
 def test_the_gestures_route_pairs_each_gesture_with_its_reading(
@@ -2308,7 +2336,7 @@ def test_the_gestures_route_pairs_each_gesture_with_its_reading(
 
     body = client.get("/v1/gestures?stream=dev_browsertest", headers=_auth()).json()
 
-    assert len(body["gestures"]) == 6
+    assert len(body["gestures"]) == 7
     assert body["gestures"][0]["intent"]["act"] == "typed a code"
     assert body["gestures"][1]["intent"] is None
 
@@ -2335,9 +2363,9 @@ def test_the_spend_route_adds_up_what_the_readings_cost(
 
     body = client.get("/v1/spend", headers=_auth()).json()
 
-    assert body["gestures_read"] == 6
-    assert body["cost_usd"] == pytest.approx(0.003)
-    assert body["in_tokens"] == 2400
+    assert body["gestures_read"] == 7
+    assert body["cost_usd"] == pytest.approx(0.0035)
+    assert body["in_tokens"] == 2800
 
 
 def test_the_page_is_served(client: TestClient) -> None:
@@ -2826,9 +2854,21 @@ upload bookkeeping and the change is wrong.
 
 ```bash
 cd /Users/devansh.j/GreyOrange/AI-SRO
-git add new-chrome-extension/ Makefile
+git add new-chrome-extension/src/background/mirror.js \
+        new-chrome-extension/src/background/mirror.test.mjs \
+        new-chrome-extension/src/background/api.js \
+        new-chrome-extension/src/background/state.js \
+        new-chrome-extension/src/options/options.html \
+        new-chrome-extension/src/options/options.js \
+        new-chrome-extension/manifest.json \
+        Makefile
+git status --short          # confirm nothing under src/panel/ is staged
 git commit -m "feat(extension): a second reader, whose silence is not our problem"
 ```
+
+**Never `git add new-chrome-extension/`.** The working tree carries unrelated
+uncommitted edits under `src/panel/` that belong to another branch's work; a
+directory-wide add would sweep them into this commit.
 
 ---
 

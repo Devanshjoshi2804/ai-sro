@@ -5,9 +5,11 @@ import json
 import sqlite3
 from dataclasses import asdict
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Annotated, Any
 
 from fastapi import Depends, FastAPI, Form, Header, HTTPException, UploadFile
+from fastapi.responses import HTMLResponse
 from pydantic import ValidationError
 
 from rig.config import settings
@@ -195,6 +197,18 @@ async def _read_unread(store: Store, asker: Asker, model: str) -> int:
     return written
 
 
+def _target_name(target: dict[str, Any] | None) -> str | None:
+    """What to call the control a gesture touched, or nothing.
+
+    A scroll has no target at all -- you scroll a page, not an element -- so
+    this must survive None. Real capture is about 15% scrolls, and the previous
+    version took the whole route down for any stream containing one.
+    """
+    if not target:
+        return None
+    return target.get("name") or (target.get("component") or {}).get("fieldLabel")
+
+
 def build_app(
     *,
     store: Store,
@@ -273,6 +287,87 @@ def build_app(
         data = await file.read()
         (blob / name).write_bytes(data)
         return {"uri": str(blob / name), "size_bytes": len(data)}
+
+    @app.get("/v1/streams", dependencies=[Depends(authorised)])
+    def streams() -> dict[str, Any]:
+        rows = store.query(
+            "SELECT stream_id, count(*) AS gestures, min(at) AS first, max(at) AS last"
+            " FROM gestures GROUP BY stream_id ORDER BY last DESC"
+        )
+        return {"streams": [dict(row) for row in rows]}
+
+    @app.get("/v1/gestures", dependencies=[Depends(authorised)])
+    def gestures(stream: str | None = None, limit: int = 200) -> dict[str, Any]:
+        limit = max(1, min(limit, 1000))  # the page polls; an unbounded limit is a footgun
+        sql = (
+            "SELECT g.id, g.stream_id, g.at, g.url, g.system, g.gesture_json,"
+            " g.requests, i.act, i.object, i.page, i.confidence, i.why, i.values_seen,"
+            " i.cost_usd, i.error"
+            " FROM gestures g LEFT JOIN intents i ON i.gesture_id = g.id"
+        )
+        params: tuple[Any, ...] = ()
+        if stream:
+            sql += " WHERE g.stream_id = ?"
+            params = (stream,)
+        sql += " ORDER BY g.at LIMIT ?"
+        params = (*params, limit)
+
+        out = []
+        for row in store.query(sql, params):
+            wire = json.loads(row["gesture_json"])
+            out.append(
+                {
+                    "id": row["id"],
+                    "at": row["at"],
+                    "url": row["url"],
+                    "system": row["system"],
+                    "kind": wire["kind"],
+                    # A scroll carries no target at all -- you scroll a page,
+                    # not an element -- and .get() on None takes the whole route
+                    # down for any stream containing one. That is 15% of real
+                    # gestures in the acme sample.
+                    "target": _target_name(wire.get("target")),
+                    "calls": len(json.loads(row["requests"])),
+                    "intent": None
+                    if row["act"] is None and row["error"] is None
+                    else {
+                        "act": row["act"],
+                        "object": row["object"],
+                        "page": row["page"],
+                        "confidence": row["confidence"],
+                        "why": row["why"],
+                        "values_seen": json.loads(row["values_seen"] or "[]"),
+                        "cost_usd": row["cost_usd"],
+                        "error": row["error"],
+                    },
+                }
+            )
+        return {"gestures": out}
+
+    @app.get("/v1/spend", dependencies=[Depends(authorised)])
+    def spend() -> dict[str, Any]:
+        row = store.query(
+            "SELECT count(*) AS n, coalesce(sum(in_tokens), 0) AS i,"
+            " coalesce(sum(out_tokens), 0) AS o, coalesce(sum(cost_usd), 0.0) AS c,"
+            " coalesce(sum(unpriced), 0) AS u"
+            " FROM intents"
+        )[0]
+        gestures_total = store.query("SELECT count(*) AS n FROM gestures")[0]["n"]
+        return {
+            "gestures": gestures_total,
+            "gestures_read": row["n"],
+            "in_tokens": row["i"],
+            "out_tokens": row["o"],
+            "cost_usd": round(row["c"], 6),
+            # Readings whose cost we could not establish. A total that ignores
+            # these understates the bill and says nothing about it.
+            "unpriced": row["u"],
+            "per_gesture_usd": round(row["c"] / row["n"], 8) if row["n"] else 0.0,
+        }
+
+    @app.get("/", response_class=HTMLResponse)
+    def page() -> str:
+        return (Path(__file__).parent / "web" / "index.html").read_text()
 
     return app
 

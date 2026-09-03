@@ -258,3 +258,133 @@ def _ok() -> Answer:
         out_tokens=60,
         cost_usd=0.0005,
     )
+
+
+def test_the_streams_route_names_each_browser(client: TestClient) -> None:
+    client.post("/v1/observations", json=BATCH, headers=_auth())
+
+    body = client.get("/v1/streams", headers=_auth()).json()
+
+    assert body["streams"][0]["stream_id"] == "dev_browsertest"
+    assert body["streams"][0]["gestures"] == 7
+
+
+def test_the_gestures_route_pairs_each_gesture_with_its_reading(
+    client: TestClient, store: Store
+) -> None:
+    client.post("/v1/observations", json=BATCH, headers=_auth())
+    row = store.query("SELECT id, tenant FROM gestures ORDER BY at LIMIT 1")[0]
+    from rig.api import save_intent
+    from rig.records import Intent
+
+    save_intent(store, Intent(gesture_id=row["id"], tenant=row["tenant"], act="typed a code"))
+
+    body = client.get("/v1/gestures?stream=dev_browsertest", headers=_auth()).json()
+
+    assert len(body["gestures"]) == 7
+    assert body["gestures"][0]["intent"]["act"] == "typed a code"
+    assert body["gestures"][1]["intent"] is None
+
+
+def test_the_spend_route_adds_up_what_the_readings_cost(client: TestClient, store: Store) -> None:
+    client.post("/v1/observations", json=BATCH, headers=_auth())
+    from rig.api import save_intent
+    from rig.records import Intent
+
+    for row in store.query("SELECT id, tenant FROM gestures"):
+        save_intent(
+            store,
+            Intent(
+                gesture_id=row["id"],
+                tenant=row["tenant"],
+                act="x",
+                in_tokens=400,
+                out_tokens=60,
+                cost_usd=0.0005,
+            ),
+        )
+
+    body = client.get("/v1/spend", headers=_auth()).json()
+
+    assert body["gestures_read"] == 7
+    assert body["cost_usd"] == pytest.approx(0.0035)
+    assert body["in_tokens"] == 2800
+    assert body["unpriced"] == 0
+
+
+def test_the_spend_route_says_how_many_readings_it_could_not_price(
+    client: TestClient, store: Store
+) -> None:
+    """A total that quietly drops the calls it could not price understates the
+    bill, which is the whole reason Answer.unpriced exists."""
+    client.post("/v1/observations", json=BATCH, headers=_auth())
+    from rig.api import save_intent
+    from rig.records import Intent
+
+    rows = store.query("SELECT id, tenant FROM gestures")
+    for index, row in enumerate(rows):
+        save_intent(
+            store,
+            Intent(
+                gesture_id=row["id"],
+                tenant=row["tenant"],
+                act="x",
+                cost_usd=0.0,
+                unpriced=index < 2,
+            ),
+        )
+
+    body = client.get("/v1/spend", headers=_auth()).json()
+
+    assert body["unpriced"] == 2
+
+
+def test_the_page_is_served(client: TestClient) -> None:
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert "rig" in response.text.lower()
+
+
+def test_a_scroll_does_not_take_the_gestures_route_down(client: TestClient, store: Store) -> None:
+    """A scroll carries no target. Calling .get() on that None killed the whole
+    route, and real capture is about 15% scrolls."""
+    client.post("/v1/observations", json=BATCH, headers=_auth())
+    store.execute(
+        "INSERT INTO gestures (id, tenant, stream_id, batch_id, at, gesture_json)"
+        " VALUES (?, ?, ?, ?, ?, ?)",
+        (
+            "ges_scroll",
+            "new",
+            "dev_browsertest",
+            BATCH["batch_id"],
+            9_999_999_999.0,
+            json.dumps({"kind": "scroll", "target": None, "value": "0", "at": 9_999_999_999.0}),
+        ),
+    )
+
+    response = client.get("/v1/gestures?stream=dev_browsertest", headers=_auth())
+
+    assert response.status_code == 200
+    scroll = next(g for g in response.json()["gestures"] if g["id"] == "ges_scroll")
+    assert scroll["target"] is None
+
+
+def test_the_gestures_route_will_not_return_the_whole_table(client: TestClient) -> None:
+    """The page polls every three seconds; an unbounded limit is a footgun."""
+    client.post("/v1/observations", json=BATCH, headers=_auth())
+
+    response = client.get("/v1/gestures?limit=10000000", headers=_auth())
+
+    assert response.status_code == 200
+    assert len(response.json()["gestures"]) <= 1000
+
+
+def test_the_page_escapes_what_it_draws() -> None:
+    """Everything on that page is captured content or a model's words about it.
+    A WMS field labelled `<img src=x onerror=...>` must not run there."""
+    page = (Path(__file__).parent.parent / "src" / "rig" / "web" / "index.html").read_text()
+
+    assert "function esc(" in page
+    assert "esc(intent.act)" in page
+    assert "esc(v.value)" in page

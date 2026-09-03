@@ -208,6 +208,7 @@ def test_a_batch_id_is_not_written_twice(tmp_path: Path) -> None:
 `new_agent_arch/tests/test_standalone.py`:
 
 ```python
+import ast
 import subprocess
 import sys
 from pathlib import Path
@@ -216,9 +217,20 @@ SRC = Path(__file__).parent.parent / "src"
 
 
 def _imports_sro(path: Path) -> bool:
-    for line in path.read_text().splitlines():
-        if line.strip().startswith(("import sro", "from sro")):
-            return True
+    """Every static import of the backend, including the forms a prefix match
+    misses: `import os, sro` and `if x: import sro`.
+
+    Deliberately not detected: importlib.import_module("sro"), __import__, exec.
+    Those are evasion; this guard is against accidental coupling.
+    """
+    for node in ast.walk(ast.parse(path.read_text())):
+        if isinstance(node, ast.Import):
+            if any(a.name == "sro" or a.name.startswith("sro.") for a in node.names):
+                return True
+        elif isinstance(node, ast.ImportFrom):
+            module = node.module or ""
+            if module == "sro" or module.startswith("sro."):
+                return True
     return False
 
 
@@ -227,6 +239,21 @@ def test_the_rig_never_imports_the_backend() -> None:
     offenders = [str(path) for path in SRC.rglob("*.py") if _imports_sro(path)]
 
     assert offenders == []
+
+
+def test_the_guard_catches_an_import_hidden_in_a_list(tmp_path: Path) -> None:
+    """The prefix match this replaced missed exactly this form."""
+    sneaky = tmp_path / "sneaky.py"
+    sneaky.write_text("import os, sro\n")
+
+    assert _imports_sro(sneaky) is True
+
+
+def test_the_guard_leaves_an_innocent_module_alone(tmp_path: Path) -> None:
+    innocent = tmp_path / "innocent.py"
+    innocent.write_text("import srossignol\nfrom os import path\n")
+
+    assert _imports_sro(innocent) is False
 
 
 def test_the_package_imports_with_nothing_else_on_the_path() -> None:
@@ -450,7 +477,7 @@ lint:
 cd /Users/devansh.j/GreyOrange/AI-SRO/new_agent_arch && uv sync --all-extras && uv run pytest tests/ -v
 ```
 
-Expected: 6 passed.
+Expected: 8 passed.
 
 - [ ] **Step 5: Commit**
 

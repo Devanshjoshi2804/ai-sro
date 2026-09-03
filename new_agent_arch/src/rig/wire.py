@@ -31,7 +31,7 @@ class Target(BaseModel):
     xpath: str | None = None
     bounds: dict[str, float] = Field(default_factory=dict)
     attributes: dict[str, Any] = Field(default_factory=dict)
-    component: Component | None = None      # null on plain HTML; only ExtJS has one
+    component: Component | None = None  # null on plain HTML; only ExtJS has one
 
     @model_validator(mode="after")
     def must_carry_some_signal(self) -> "Target":
@@ -44,10 +44,10 @@ class Target(BaseModel):
 class Gesture(BaseModel):
     kind: Literal["click", "type", "select", "press", "upload", "scroll", "hover"]
     target: Target
-    value: str | None = None            # absent on click and press
-    secret: bool = False                # absent on everything but a credential field
+    value: str | None = None  # absent on click and press
+    secret: bool = False  # absent on everything but a credential field
     modifiers: list[str] = Field(default_factory=list)
-    at: float                           # Unix seconds, float — recorder.js's format
+    at: float  # Unix seconds, float — recorder.js's format
     url: str | None = None
 
     @model_validator(mode="after")
@@ -83,7 +83,7 @@ class Request(BaseModel):
     started_at: str
     request_headers: dict[str, str] = Field(default_factory=dict)
     request_body: Body | None = None
-    status: int | None = None           # null on a failed request
+    status: int | None = None  # null on a failed request
     status_text: str | None = None
     response_headers: dict[str, str] = Field(default_factory=dict)
     response_body: Body | None = None

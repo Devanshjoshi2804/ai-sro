@@ -36,9 +36,7 @@ def test_an_extjs_control_keeps_its_component_chain() -> None:
 def test_a_plain_html_control_has_component_null() -> None:
     """Only ExtJS widgets carry one. It is an explicit null, not an absent key."""
     select = next(
-        e
-        for e in BATCH["events"]
-        if e["kind"] == "gesture" and e["gesture"]["kind"] == "select"
+        e for e in BATCH["events"] if e["kind"] == "gesture" and e["gesture"]["kind"] == "select"
     )
 
     event = GestureEvent.model_validate(select)

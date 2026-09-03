@@ -7,9 +7,7 @@ would only prove somebody retyped it consistently.
 import json
 from pathlib import Path
 
-FIXTURES = (
-    Path(__file__).parent.parent.parent / "new-chrome-extension" / "fixtures"
-)
+FIXTURES = Path(__file__).parent.parent.parent / "new-chrome-extension" / "fixtures"
 
 
 def load(name: str) -> dict:

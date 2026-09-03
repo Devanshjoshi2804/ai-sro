@@ -487,7 +487,7 @@ lint:
 cd /Users/devansh.j/GreyOrange/AI-SRO/new_agent_arch && uv sync --all-extras && uv run pytest tests/ -v
 ```
 
-Expected: 9 passed.
+Expected: 10 passed.
 
 - [ ] **Step 5: Commit**
 
@@ -863,7 +863,7 @@ class Intent:
 cd /Users/devansh.j/GreyOrange/AI-SRO/new_agent_arch && uv run pytest tests/test_wire.py -v
 ```
 
-Expected: 9 passed.
+Expected: 10 passed.
 
 - [ ] **Step 5: Commit**
 
@@ -1886,7 +1886,7 @@ async def read_gesture(
 cd /Users/devansh.j/GreyOrange/AI-SRO/new_agent_arch && uv run pytest tests/test_intents.py -v
 ```
 
-Expected: 9 passed.
+Expected: 10 passed.
 
 - [ ] **Step 5: Commit**
 
@@ -2034,6 +2034,15 @@ def test_a_credential_value_is_nowhere_on_disk(
     assert "hunter2" not in written
 
 
+def test_a_malformed_envelope_is_refused_with_422_not_500(client: TestClient) -> None:
+    """A bad event is tolerated. A bad batch is not, and says so usefully."""
+    headless = {key: value for key, value in BATCH.items() if key != "batch_id"}
+
+    response = client.post("/v1/observations", json=headless, headers=_auth())
+
+    assert response.status_code == 422
+
+
 def test_no_token_is_refused(client: TestClient) -> None:
     assert client.post("/v1/observations", json=BATCH).status_code == 401
 
@@ -2104,6 +2113,7 @@ from datetime import datetime, timezone
 from typing import Annotated, Any
 
 from fastapi import Depends, FastAPI, Form, Header, HTTPException, UploadFile
+from pydantic import ValidationError
 
 from rig.config import settings
 from rig.correlate import correlate
@@ -2292,7 +2302,15 @@ def build_app(
         # last week -- would fail the request and lose every good event beside
         # it. The protocol is explicit that a rejected event does not reject the
         # batch, so the events are parsed one at a time.
-        batch, rejected = parse_batch(raw)
+        #
+        # The cost of taking a raw dict is that FastAPI no longer answers a
+        # malformed envelope with a 422 of its own, so this does. A bad event is
+        # tolerated; a bad batch is still refused, and refused with the status
+        # the caller can act on.
+        try:
+            batch, rejected = parse_batch(raw)
+        except ValidationError as problem:
+            raise HTTPException(status_code=422, detail=problem.errors()) from problem
         accepted, already = save_batch(store, batch, tenant)
         if read_on_ingest and not already:
             asyncio.create_task(_read_soon(store, asker))
@@ -2349,7 +2367,7 @@ app = _default_app() if settings().gemini_api_key else FastAPI(title="rig (no ke
 cd /Users/devansh.j/GreyOrange/AI-SRO/new_agent_arch && uv run pytest tests/test_api.py -v
 ```
 
-Expected: 9 passed.
+Expected: 10 passed.
 
 - [ ] **Step 5: Run the whole suite and lint**
 

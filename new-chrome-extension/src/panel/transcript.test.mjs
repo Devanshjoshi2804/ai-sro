@@ -60,7 +60,7 @@ function node(tag) {
 
 globalThis.document = { createElement: node };
 
-const { transcript } = await import("./transcript.js");
+const { composer, transcript } = await import("./transcript.js");
 
 /** Every word the node and its children carry, the way a person reads it. */
 function words(el) {
@@ -207,7 +207,10 @@ test("message text is never parsed as markup", () => {
 
 test("the composer hands over what was typed, once, and empties itself", () => {
   const heard = [];
-  const node_ = transcript({ id: "thr-1", messages: [] }, { onSay: (text) => heard.push(text) });
+  // Built on its own now: the panel pins it to the bottom of the frame rather
+  // than putting it after the last message, so a long conversation cannot push
+  // the box off the bottom.
+  const node_ = composer((text) => heard.push(text));
 
   const [box] = of(node_, "input");
   const [send] = of(node_, "button");
@@ -235,7 +238,7 @@ test("the composer hands over what was typed, once, and empties itself", () => {
   assert.equal(heard.length, 2, "a keystroke that was not Enter sent the message anyway");
 });
 
-test("a thread with nothing in it is still a place to say something", () => {
+test("a thread with nothing in it draws nothing, and does not throw", () => {
   // The first panel an operator opens. A composer and no transcript is the
   // whole surface, and it must not depend on `messages` being there at all --
   // the endpoint starts a thread when there is none, and a started thread is
@@ -243,7 +246,7 @@ test("a thread with nothing in it is still a place to say something", () => {
   for (const empty of [{ id: "thr-1", messages: [] }, { id: "thr-1" }, null]) {
     const node_ = transcript(empty, {});
     assert.equal(messages(node_).length, 0);
-    assert.equal(of(node_, "input").length, 1);
+    assert.equal(of(node_, "input").length, 0, "the composer is the panel's to place");
   }
 });
 

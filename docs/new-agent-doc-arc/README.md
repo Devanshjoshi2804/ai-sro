@@ -533,12 +533,21 @@ out  Intent {
      }
 ```
 
-At Gemini 3.8 Flash's introductory $0.75 per million input tokens and a trimmed
-record of roughly 400–900 tokens, that is about **$0.0005 a gesture** — a
-two-thousand-gesture day for around **a dollar**. Screenshots only where they are
-needed is what keeps that true, and Flash-Lite at $0.25 is where per-gesture work
-goes if the cheaper model reads a gesture as well, which is a thing to measure
-rather than assume.
+**Measured, not estimated.** Six real gestures from the acme tenant's own
+capture, read by Gemini 3.8 Flash: **$0.000796 a gesture**, so a
+two-thousand-gesture day costs **about $1.59**.
+
+The shape of that bill is the part worth knowing. Input runs ~330 tokens a
+gesture and output ~130 — but output is priced at $3.75 per million against
+input's $0.75, so **output is roughly two thirds of the cost despite being a
+quarter of the tokens**. Trimming the evidence harder saves less than it looks;
+asking for a shorter answer saves more. An earlier estimate here counted input
+alone and concluded the reading was two and a half times cheaper than budgeted.
+It is not. Counting half the tokens is how you get half the bill.
+
+Screenshots only where they are needed is what keeps even this true, and
+Flash-Lite at $0.25 is where per-gesture work goes if the cheaper model reads a
+gesture as well — a thing to measure rather than assume.
 
 ### Call two — Pro, once per window
 

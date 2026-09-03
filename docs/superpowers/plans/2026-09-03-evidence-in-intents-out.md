@@ -717,7 +717,10 @@ class Target(BaseModel):
 
 class Gesture(BaseModel):
     kind: Literal["click", "type", "select", "press", "upload", "scroll", "hover"]
-    target: Target
+    # A scroll has no target: you scroll a page, not an element. Real capture
+    # from the acme tenant carries scrolls with the key absent entirely, and
+    # requiring it rejected every one of them -- 15% of that sample's gestures.
+    target: Target | None = None
     value: str | None = None            # absent on click and press
     secret: bool = False                # absent on everything but a credential field
     modifiers: list[str] = Field(default_factory=list)
@@ -727,7 +730,7 @@ class Gesture(BaseModel):
     @model_validator(mode="after")
     def a_credential_value_is_dropped_here(self) -> "Gesture":
         """AGENTS.md: credential values never reach storage. This is the boundary."""
-        if self.secret or self.target.secret:
+        if self.secret or (self.target is not None and self.target.secret):
             object.__setattr__(self, "value", None)
         return self
 
@@ -1289,8 +1292,14 @@ VALUE_CHARS = 80
 BODY_KEYS = 40
 
 
-def thin(target: Target) -> bool:
-    """True when nothing here would tell a model what the control is."""
+def thin(target: Target | None) -> bool:
+    """True when nothing here would tell a model what the control is.
+
+    A targetless gesture -- a scroll -- is thin by definition: there is no
+    control to name.
+    """
+    if target is None:
+        return True
     component = target.component
     return not any(
         (
@@ -1362,18 +1371,18 @@ def _call(request: Request) -> dict[str, Any]:
 
 def trim(gesture: Gesture) -> dict[str, Any]:
     target = gesture.gesture.target
-    component = target.component
+    component = target.component if target else None
     # Belt and braces over wire.Gesture's own drop. That validator does not
     # re-run when a nested Target is mutated, and a credential reaching a prompt
     # is not a thing to hold by inheritance from another file alone.
-    secret = gesture.gesture.secret or target.secret
+    secret = gesture.gesture.secret or (target.secret if target else False)
     return {
         "kind": gesture.gesture.kind,
         "target": {
-            "role": target.role,
-            "name": target.name,
-            "text": target.text,
-            "testId": target.testId,
+            "role": target.role if target else None,
+            "name": target.name if target else None,
+            "text": target.text if target else None,
+            "testId": target.testId if target else None,
             "itemId": component.itemId if component else None,
             "fieldLabel": component.fieldLabel if component else None,
             "xtype": component.xtype if component else None,
@@ -1505,6 +1514,7 @@ Search grounding is never enabled: it voids zero data retention (thirty days of
 storage, no opt-out), and this process reads live customer payloads.
 """
 
+import asyncio
 import json
 from dataclasses import dataclass
 from typing import Any, Protocol
@@ -1676,6 +1686,11 @@ class FakeAsker:
         schema: dict[str, Any],
         image: bytes | None = None,
     ) -> Answer:
+        # Yield, because the real thing does. Without a suspension point this
+        # double never lets another task interleave, so any test racing two
+        # callers with asyncio.gather passes whether or not the code under test
+        # actually serialises -- it proves the double, not the code.
+        await asyncio.sleep(0)
         self.asked.append(
             {
                 "model": model,

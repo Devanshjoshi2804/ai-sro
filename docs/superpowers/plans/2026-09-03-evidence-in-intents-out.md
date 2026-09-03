@@ -2689,6 +2689,54 @@ def test_the_page_is_served(client: TestClient) -> None:
 
     assert response.status_code == 200
     assert "rig" in response.text.lower()
+
+
+def test_a_scroll_does_not_take_the_gestures_route_down(
+    client: TestClient, store: Store
+) -> None:
+    """A scroll carries no target. Calling .get() on that None killed the whole
+    route, and real capture is about 15% scrolls."""
+    client.post("/v1/observations", json=BATCH, headers=_auth())
+    store.execute(
+        "INSERT INTO gestures (id, tenant, stream_id, batch_id, at, gesture_json)"
+        " VALUES (?, ?, ?, ?, ?, ?)",
+        (
+            "ges_scroll",
+            "new",
+            "dev_browsertest",
+            BATCH["batch_id"],
+            9_999_999_999.0,
+            json.dumps(
+                {"kind": "scroll", "target": None, "value": "0", "at": 9_999_999_999.0}
+            ),
+        ),
+    )
+
+    response = client.get("/v1/gestures?stream=dev_browsertest", headers=_auth())
+
+    assert response.status_code == 200
+    scroll = next(g for g in response.json()["gestures"] if g["id"] == "ges_scroll")
+    assert scroll["target"] is None
+
+
+def test_the_gestures_route_will_not_return_the_whole_table(client: TestClient) -> None:
+    """The page polls every three seconds; an unbounded limit is a footgun."""
+    client.post("/v1/observations", json=BATCH, headers=_auth())
+
+    response = client.get("/v1/gestures?limit=10000000", headers=_auth())
+
+    assert response.status_code == 200
+    assert len(response.json()["gestures"]) <= 1000
+
+
+def test_the_page_escapes_what_it_draws() -> None:
+    """Everything on that page is captured content or a model's words about it.
+    A WMS field labelled `<img src=x onerror=...>` must not run there."""
+    page = (Path(__file__).parent.parent / "src" / "rig" / "web" / "index.html").read_text()
+
+    assert "function esc(" in page
+    assert "esc(intent.act)" in page
+    assert "esc(v.value)" in page
 ```
 
 - [ ] **Step 2: Run them**
@@ -2701,7 +2749,22 @@ Expected: FAIL — 404 on the new routes.
 
 - [ ] **Step 3: Add the routes**
 
-Insert inside `build_app`, before `return app`:
+Add this helper at module level in `api.py`, above `build_app`:
+
+```python
+def _target_name(target: dict[str, Any] | None) -> str | None:
+    """What to call the control a gesture touched, or nothing.
+
+    A scroll has no target at all -- you scroll a page, not an element -- so
+    this must survive None. Real capture is about 15% scrolls, and the previous
+    version took the whole route down for any stream containing one.
+    """
+    if not target:
+        return None
+    return target.get("name") or (target.get("component") or {}).get("fieldLabel")
+```
+
+Then insert inside `build_app`, before `return app`:
 
 ```python
     @app.get("/v1/streams", dependencies=[Depends(authorised)])
@@ -2714,6 +2777,7 @@ Insert inside `build_app`, before `return app`:
 
     @app.get("/v1/gestures", dependencies=[Depends(authorised)])
     def gestures(stream: str | None = None, limit: int = 200) -> dict[str, Any]:
+        limit = max(1, min(limit, 1000))  # the page polls; an unbounded limit is a footgun
         sql = (
             "SELECT g.id, g.stream_id, g.at, g.url, g.system, g.gesture_json,"
             " g.requests, i.act, i.object, i.page, i.confidence, i.why, i.values_seen,"
@@ -2737,8 +2801,11 @@ Insert inside `build_app`, before `return app`:
                     "url": row["url"],
                     "system": row["system"],
                     "kind": wire["kind"],
-                    "target": wire["target"].get("name")
-                    or (wire["target"].get("component") or {}).get("fieldLabel"),
+                    # A scroll carries no target at all -- you scroll a page,
+                    # not an element -- and .get() on None takes the whole route
+                    # down for any stream containing one. That is 15% of real
+                    # gestures in the acme sample.
+                    "target": _target_name(wire.get("target")),
                     "calls": len(json.loads(row["requests"])),
                     "intent": None
                     if row["act"] is None and row["error"] is None
@@ -2862,18 +2929,29 @@ from fastapi.responses import HTMLResponse
     return response.json();
   }
 
+  // Everything drawn here is either captured page content or a model's words
+  // about it. A WMS field labelled `<img src=x onerror=...>` would otherwise
+  // run in this page: capture -> trim -> model -> innerHTML. Escape at the
+  // boundary rather than trusting the far end of that chain.
+  function esc(value) {
+    return String(value ?? "").replace(
+      /[&<>"']/g,
+      (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c],
+    );
+  }
+
   function line(g) {
     const intent = g.intent;
     const what = intent?.error
-      ? `<span class="error">unread — ${intent.error}</span>`
+      ? `<span class="error">unread — ${esc(intent.error)}</span>`
       : intent?.act
-        ? `<span class="what">${intent.act}</span><div class="why">${intent.why ?? ""}</div>`
+        ? `<span class="what">${esc(intent.act)}</span><div class="why">${esc(intent.why)}</div>`
         : `<span class="unread">not read yet</span>`;
     const values = (intent?.values_seen ?? [])
-      .map((v) => `${v.field}=${v.value}`)
+      .map((v) => `${esc(v.field)}=${esc(v.value)}`)
       .join("  ");
     return `<div class="row">
-      <div class="kind">${g.kind}${g.calls ? " ·" + g.calls : ""}</div>
+      <div class="kind">${esc(g.kind)}${g.calls ? " ·" + g.calls : ""}</div>
       <div>${what}</div>
       <div class="values">${values}</div>
       <div class="cost">${intent?.cost_usd ? "$" + intent.cost_usd.toFixed(5) : ""}</div>
@@ -2891,7 +2969,7 @@ from fastapi.responses import HTMLResponse
     const { streams } = await get("/v1/streams");
     if (picker.options.length !== streams.length) {
       picker.innerHTML = streams
-        .map((s) => `<option value="${s.stream_id}">${s.stream_id} (${s.gestures})</option>`)
+        .map((s) => `<option value="${esc(s.stream_id)}">${esc(s.stream_id)} (${s.gestures})</option>`)
         .join("");
     }
 
@@ -2913,7 +2991,7 @@ from fastapi.responses import HTMLResponse
 cd /Users/devansh.j/GreyOrange/AI-SRO/new_agent_arch && uv run pytest -q && make lint
 ```
 
-Expected: 16 passed in `test_api.py` (11 from Task 7 plus 5 here), whole suite green.
+Expected: 20 passed in `test_api.py` (11 from Task 7 plus 9 here), whole suite green.
 
 - [ ] **Step 6: Commit**
 

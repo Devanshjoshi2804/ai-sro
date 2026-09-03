@@ -2467,7 +2467,14 @@ def build_app(
         try:
             batch, rejected = parse_batch(raw)
         except ValidationError as problem:
-            raise HTTPException(status_code=422, detail=problem.errors()) from problem
+            # include_input=False: parse_batch() rebuilds the envelope with
+            # already-parsed Event objects before this validation runs, so
+            # problem.errors()'s default 'input' can hold a pydantic model
+            # instance rather than plain JSON -- which blows up the response
+            # this except exists to send, turning the intended 422 into a 500.
+            raise HTTPException(
+                status_code=422, detail=problem.errors(include_input=False)
+            ) from problem
         accepted, already = save_batch(store, batch, tenant)
         if read_on_ingest and not already:
             asyncio.create_task(_read_soon(store, asker))
@@ -2499,7 +2506,7 @@ def build_app(
 async def _read_soon(store: Store, asker: Asker) -> None:
     try:
         await read_new_gestures(store, asker, settings().intent_model)
-    except Exception:  # a reading loop must not take the process with it
+    except Exception:  # noqa: BLE001, S110 -- a reading loop must not take the process with it
         pass
 
 

@@ -11,68 +11,11 @@
 
 import assert from "node:assert";
 
-/** Every `innerHTML =` any node here was ever given.
- *
- * A fake document parses nothing, so asking it "did an `<img>` appear?" gets
- * the same answer -- none -- whether the code under test wrote `textContent`
- * or `innerHTML`. What it can see is the assignment itself, so that is what
- * the security test below asserts on: this list staying empty is the property,
- * and it is one the fake cannot be wrong about.
- */
-const asMarkup = [];
+import { asMarkup, install, of, words } from "./test-support/fake-document.mjs";
 
-/** Just enough document to build a ledger in, and to read it back out of. */
-function node(tag) {
-  return {
-    tag,
-    className: "",
-    dataset: {},
-    type: "",
-    value: "",
-    placeholder: "",
-    disabled: false,
-    textContent: "",
-    kids: [],
-    listeners: {},
-    set innerHTML(value) {
-      asMarkup.push({ tag: this.tag, value });
-    },
-    get innerHTML() {
-      return "";
-    },
-    append(...added) {
-      this.kids.push(...added);
-    },
-    prepend(...added) {
-      this.kids.unshift(...added);
-    },
-    addEventListener(kind, fn) {
-      (this.listeners[kind] ??= []).push(fn);
-    },
-    querySelectorAll(selector) {
-      const all = [];
-      const walk = (el) => {
-        if (el.tag === selector) all.push(el);
-        for (const kid of el.kids) walk(kid);
-      };
-      walk(this);
-      return all;
-    },
-  };
-}
-
-globalThis.document = { createElement: node };
+install();
 
 const { composer, ledger } = await import("./ledger.js");
-
-/** Every word the node and its children carry, the way a person reads it. */
-function words(el) {
-  return [el.textContent, ...el.kids.map(words)].join(" ").replace(/\s+/g, " ").trim();
-}
-
-function of(el, tag) {
-  return el.querySelectorAll(tag);
-}
 
 /** The messages, one node each, in the order they were said. */
 function messages(node_) {

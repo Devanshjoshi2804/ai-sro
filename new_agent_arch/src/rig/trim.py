@@ -6,6 +6,7 @@ and the two locators that break. The runner still reads them from the stored row
 """
 
 import json
+import re
 from typing import Any
 from urllib.parse import parse_qsl, urlparse
 
@@ -14,6 +15,8 @@ from rig.wire import Body, Request, Target
 
 VALUE_CHARS = 80
 BODY_KEYS = 40
+
+_UUID = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
 
 
 def thin(target: Target) -> bool:
@@ -36,7 +39,18 @@ def path_shape(url: str) -> str:
 
 
 def _looks_like_an_id(part: str) -> bool:
-    return bool(part) and (part.isdigit() or (len(part) > 12 and "-" in part))
+    """Digits are what make a segment an id, not hyphens and length.
+
+    The rule this replaced starred any long hyphenated segment, which erased
+    ordinary route words -- /api/order-status became /api/* -- and still missed
+    short numeric slugs like sku-123456.
+    """
+    if not part:
+        return False
+    if part.isdigit() or _UUID.match(part):
+        return True
+    digits = sum(character.isdigit() for character in part)
+    return len(part) >= 8 and digits >= len(part) // 2
 
 
 def body_keys(body: Body | None) -> dict[str, str] | None:
@@ -74,6 +88,11 @@ def _call(request: Request) -> dict[str, Any]:
 def trim(gesture: Gesture) -> dict[str, Any]:
     target = gesture.gesture.target
     component = target.component
+    # Belt-and-braces: wire.Gesture already drops a credential value at parse
+    # time, but that validator does not re-run if a nested Target is mutated
+    # after the fact. A credential reaching a prompt is not a thing to hold
+    # by inheritance alone, so trim() checks it again itself.
+    secret = gesture.gesture.secret or target.secret
     return {
         "kind": gesture.gesture.kind,
         "target": {
@@ -86,7 +105,7 @@ def trim(gesture: Gesture) -> dict[str, Any]:
             "xtype": component.xtype if component else None,
             "query": component.query if component else None,
         },
-        "value": gesture.gesture.value,
+        "value": None if secret else gesture.gesture.value,
         "url": path_shape(gesture.url) if gesture.url else None,
         "host": urlparse(gesture.url).netloc if gesture.url else None,
         "calls": [_call(request) for request in gesture.requests],

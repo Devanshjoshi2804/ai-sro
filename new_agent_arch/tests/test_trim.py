@@ -95,3 +95,30 @@ def test_a_target_with_only_a_css_path_is_thin() -> None:
 def test_an_id_in_a_path_becomes_a_star() -> None:
     assert path_shape("https://x/data/WM/wm/addresses/1183") == "/data/WM/wm/addresses/*"
     assert path_shape("https://x/api/orders") == "/api/orders"
+
+
+def test_an_ordinary_hyphenated_route_survives() -> None:
+    """The rule this replaced starred any long hyphenated segment, erasing the
+    route information that says what the operator actually did."""
+    assert path_shape("https://x/api/client-code-detail") == "/api/client-code-detail"
+    assert path_shape("https://x/api/order-status") == "/api/order-status"
+
+
+def test_a_segment_that_is_mostly_digits_is_an_id() -> None:
+    assert path_shape("https://x/api/sku-123456") == "/api/*"
+    assert path_shape("https://x/api/product-8834726591") == "/api/*"
+
+
+def test_a_uuid_is_an_id() -> None:
+    assert path_shape("https://x/v1/f47ac10b-58cc-4372-a567-0e02b2c3d479/edit") == "/v1/*/edit"
+
+
+def test_a_credential_cannot_be_reached_by_mutating_the_target() -> None:
+    """trim() holds this itself rather than inheriting it from wire.Gesture,
+    whose validator does not re-run when a nested Target is mutated."""
+    gestures, _, _ = correlate(Batch.model_validate(BATCH), "new")
+    ordinary = next(g for g in gestures if g.gesture.kind == "type" and not g.gesture.secret)
+
+    ordinary.gesture.target.secret = True
+
+    assert trim(ordinary)["value"] is None

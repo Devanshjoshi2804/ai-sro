@@ -144,14 +144,20 @@ call shape.
 2. **Coverage.** Record which parts of the window were cited at all. Long-context
    citation shows strong primacy bias; a pass citing only its first third means
    the window is too long, and the token budget comes down.
-3. **Identity by overlap.** Jaccard overlap between this workflow's cited gesture
-   set and each known workflow's. **At or above 0.5 is the same workflow seen
-   again; below it is a new one.** Exact arithmetic, identical on every pass, so
-   re-running the miner over evidence it has already read cannot breed
-   duplicates. The threshold is the one tunable constant in the system and
-   verification step 2 is what measures it — a value that resolves a re-read to
-   the workflow already held, and does not collapse two genuinely different jobs
-   that share a lookup.
+3. **Identity, two layers, both arithmetic.** Cited-gesture-ID sets are
+   per-occurrence — two independent doings of the same job cite disjoint IDs —
+   so raw overlap on them only answers "is this a re-read of a window already
+   processed?" (Jaccard, ≥ 0.5). Whether *this* proven workflow is the *same job*
+   as one seen on different evidence is answered by a second key, derived from
+   the same cited gestures: `shape_key = [(system, target_identity, action_kind)
+   for each cited gesture, in order]`, where `target_identity` prefers
+   `component.itemId` → `component.query` → `role|name` → `testId` — the
+   `recorder.js` fingerprint the runner already turns into locators, UI-level
+   rather than network-level. Compared by **containment**
+   (`|A∩B| / min(|A|,|B|)`, not Jaccard) so a 3-step "create supplier" is
+   recognised as sitting inside a 12-step "create supplier, add item, set status
+   in SAP" rather than being called a different job. **0.5 is the one tunable
+   constant in the system**; verification steps 2 and 2a are what measure it.
 
 ### The carryover pool
 
@@ -224,9 +230,16 @@ misreads.
    gestures from both hosts. The existing pipeline, over the same evidence,
    returns two candidates that pair only through a judged suggestion — record
    both outcomes side by side.
-2. **Identity is stable across passes.** Re-run the miner over evidence it has
-   already read. No new workflow appears; overlap resolves each proposal to the
-   one already held. Repeat with the window's gesture order shuffled.
+2. **Occurrence identity is stable across passes.** Re-run the miner over
+   evidence it has already read. No new workflow appears; overlap resolves each
+   proposal to the one already held. Repeat with the window's gesture order
+   shuffled.
+2a. **Job identity holds across independent occurrences.** Do the supplier job
+   twice, on different days, no two cited-gesture sets in common. The
+   `shape_key` containment score resolves the second occurrence to the workflow
+   the first proved — proving overlap on cited IDs alone (0 here) would not.
+   Then do a *different* job that shares one lookup step; containment must not
+   fold it into the same workflow at the chosen threshold.
 3. **Coverage is honest.** A pass over a deliberately over-long window reports
    citations concentrated in its opening, and the budget reduces in response.
 4. **Citations are enforced.** A hand-edited model response citing a fabricated

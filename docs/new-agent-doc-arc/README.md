@@ -420,36 +420,76 @@ long contexts is measured and large; a pass that only ever cites its first third
 is telling us the window is too long, and the budget comes down. It is a cheap
 instrument against a failure that is otherwise invisible.
 
-**Three — identity, by overlap rather than by opinion.**
+**Three — identity, by overlap rather than by opinion.** This is two questions,
+not one, and cited-gesture-ID overlap only answers the first.
+
+*Is this a re-read of evidence already processed?* Gesture IDs are
+per-occurrence, so two independent doings of the same job cite disjoint sets —
+Jaccard 0 between them. Comparing raw cited-ID sets therefore only catches the
+miner re-reading a window it has already read (a re-run after a crash, an
+overlapping window boundary). It cannot say whether *today's* supplier job is
+the *same job* as last Tuesday's — and that question is the one that makes a
+repeated task worth automating at all. It is also exactly the question the
+architecture this document replaces answers with `(principal_id, signature)`.
+Removing the signature without replacing what it answered would be a hole, not
+a simplification.
+
+*Is this the same job as one seen before, on different evidence?* Answered by a
+second, derived key — not the call shape, not an embedding, still arithmetic:
 
 ```
-this workflow's cited gesture set   ∩   each known workflow's cited set
-                                    ─────────────────────────────────
-                                             union
+shape_key(workflow) =  [ (system, target_identity, action_kind)
+                          for each cited gesture, in evidence order ]
 
-    ≥ 0.5  → the same workflow, seen again
-    < 0.5  → a new workflow
+target_identity, first that exists:
+    component.itemId     "clientCode"                            ← ExtJS,
+                                                                     stable
+    component.query      "panel#clients textfield#clientCode"      across
+    role|name             "textbox|Client Code"                     runs
+    testId
 ```
 
-That threshold is the single tunable constant in the whole architecture, and it
-is the one place a number has to be chosen rather than derived. It earns its
-place by being measurable: too high and a re-read of the same evidence mints a
-duplicate, too low and two different jobs that share a lookup collapse into one.
-Both failures are visible in a re-run, which is why re-running the miner over
-evidence it has already read is a test rather than a waste.
+Built from the same `recorder.js` fingerprints the runner already turns into
+locators — nothing new is captured for it. It is UI-level, not network-level: the
+same fields get touched every time a person does the job, so the key survives an
+extra background `GET`, a redesigned endpoint, or one optional page in a way an
+ordered call shape never could.
 
-The model's `same_as` is read and recorded, and it does not decide. A model
-asked to re-judge its own earlier verdict disagrees with itself at roughly 90%,
-which is exactly the question `same_as` asks.
+Compared by **containment**, not Jaccard: `|A ∩ B| / min(|A|, |B|)`. Jaccard
+would call "create supplier" (3 steps) and "create supplier, then add an item,
+then set status in SAP" (12 steps) two different jobs, because the smaller set
+drowns in the union. Containment says the three-step job sits inside the
+twelve-step one — true, and exactly the variant relation the panel should
+surface, the way `TaughtTogether` already treats one skill taught from two
+candidates of different shape.
+
+```
+occurrence identity   Jaccard on cited gesture IDs        "is this a re-read?"
+job identity           containment on the shape key         "is this that job?"
+
+    ≥ 0.5  → the same job, seen again
+    < 0.5  → a new job
+```
+
+0.5 is the single tunable constant in the whole architecture. It earns its place
+by being measurable: too high and a re-read of the same evidence mints a
+duplicate, too low and two different jobs sharing one lookup step collapse into
+one. Both failures are visible in a re-run over evidence already read, and in a
+re-run with the gesture order shuffled — which is why both are verification
+steps rather than assumptions.
+
+The model's `same_as` is read and recorded, and it does not decide either
+question. A model asked to re-judge its own earlier verdict disagrees with
+itself at roughly 90%, which is exactly what `same_as` asks it to do.
 
 Notice what survives from the architecture this replaces. Identity is still
-deterministic. It is still exact set arithmetic, computed the same way on every
-pass, and it still cannot answer differently on a second reading of the same
+deterministic, still exact arithmetic, still computed the same way on every
+pass, still unable to answer differently on a second reading of the same
 evidence — the property `docs/17` spends its argument defending, and the reason
-mining can re-run without breeding duplicates. What changed is only what the set
-contains: not `(principal_id, ordered call shape)`, brittle to one extra page,
-but the evidence a model pointed at, which survives a redesigned form and spans
-two hosts.
+mining can re-run without breeding duplicates. What changed is only what the key
+is built from: not `(principal_id, ordered call shape)`, brittle to one extra
+page, but a key derived from the evidence a model pointed at, which survives a
+redesigned form and spans two hosts.
 
 ### The pool
 

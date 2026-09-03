@@ -60,6 +60,14 @@ CREATE TABLE IF NOT EXISTS orphan_requests (
     payload    TEXT NOT NULL,
     PRIMARY KEY (batch_id, request_id)
 );
+
+CREATE TABLE IF NOT EXISTS orphan_pages (
+    batch_id TEXT NOT NULL,
+    tenant   TEXT NOT NULL,
+    at       TEXT NOT NULL,
+    payload  TEXT NOT NULL,
+    PRIMARY KEY (batch_id, at, payload)
+);
 """
 
 

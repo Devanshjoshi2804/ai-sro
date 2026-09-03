@@ -10,7 +10,7 @@ from datetime import datetime
 from urllib.parse import urlparse
 
 from rig.records import Gesture, new_gesture_id
-from rig.wire import Batch, GestureEvent, PageEvent, Request, RequestEvent
+from rig.wire import Batch, GestureEvent, PageEvent, RequestEvent
 
 ATTRIBUTION_SECONDS = 10.0
 
@@ -28,9 +28,11 @@ def _epoch(rfc3339: str) -> float:
     return datetime.fromisoformat(rfc3339).timestamp()
 
 
-def correlate(batch: Batch, tenant: str) -> tuple[list[Gesture], list[Request]]:
+def correlate(
+    batch: Batch, tenant: str
+) -> tuple[list[Gesture], list[RequestEvent], list[PageEvent]]:
     gestures: list[Gesture] = []
-    requests: list[tuple[float, int | None, Request]] = []
+    requests: list[RequestEvent] = []
     pages: list[tuple[float, PageEvent]] = []
 
     for event in batch.events:
@@ -50,37 +52,70 @@ def correlate(batch: Batch, tenant: str) -> tuple[list[Gesture], list[Request]]:
                 )
             )
         elif isinstance(event, RequestEvent):
-            requests.append((_epoch(event.request.started_at), event.tab_id, event.request))
+            requests.append(event)
         elif isinstance(event, PageEvent):
             pages.append((_epoch(event.at), event))
 
     gestures.sort(key=lambda gesture: gesture.at)
 
-    orphans: list[Request] = []
-    for when, tab_id, request in sorted(requests, key=lambda triple: triple[0]):
-        owner = _owner(gestures, when, tab_id)
+    orphan_requests: list[RequestEvent] = []
+    for request_event in sorted(requests, key=lambda e: _epoch(e.request.started_at)):
+        when = _epoch(request_event.request.started_at)
+        owner = _owner(gestures, when, request_event.tab_id)
         if owner is None:
-            orphans.append(request)
+            orphan_requests.append(request_event)
         else:
-            owner.requests.append(request)
+            owner.requests.append(request_event.request)
 
+    orphan_pages: list[PageEvent] = []
     for when, page in sorted(pages, key=lambda pair: pair[0]):
-        owner = _owner(gestures, when, page.tab_id)
-        if owner is not None:
+        owner = _nearest_owner(gestures, when, page.tab_id)
+        if owner is None:
+            orphan_pages.append(page)
+        else:
             owner.page_events.append(page)
 
-    return gestures, orphans
+    return gestures, orphan_requests, orphan_pages
 
 
 def _owner(gestures: list[Gesture], when: float, tab_id: int | None) -> Gesture | None:
-    """The last gesture in the same tab, within the attribution window."""
+    """The last gesture in the same tab, within the attribution window.
+
+    Tab matching is strict equality: a request whose tab we cannot establish
+    (tab_id is None) is orphaned on purpose, never guessed at — missing
+    evidence means "I cannot prove this belongs to that gesture", not
+    "attach it to the nearest one".
+    """
     best: Gesture | None = None
     for gesture in gestures:
         if gesture.at > when:
             break
-        if tab_id is not None and gesture.tab_id != tab_id:
+        if gesture.tab_id != tab_id:
             continue
         if when - gesture.at > ATTRIBUTION_SECONDS:
             continue
         best = gesture
+    return best
+
+
+def _nearest_owner(gestures: list[Gesture], when: float, tab_id: int | None) -> Gesture | None:
+    """The closest gesture in time, in the same tab, within the window.
+
+    Requests attach backwards only: a call is caused by the gesture before
+    it. A page event is different in kind — a navigation typically lands
+    *before* the gesture it gives context to (the operator arrives, then
+    acts) — so it may attach to a gesture on either side, whichever is
+    nearer in time.
+    """
+    best: Gesture | None = None
+    best_distance: float | None = None
+    for gesture in gestures:
+        if gesture.tab_id != tab_id:
+            continue
+        distance = abs(gesture.at - when)
+        if distance > ATTRIBUTION_SECONDS:
+            continue
+        if best_distance is None or distance < best_distance:
+            best = gesture
+            best_distance = distance
     return best

@@ -159,6 +159,37 @@ call shape.
    in SAP" rather than being called a different job. **0.5 is the one tunable
    constant in the system**; verification steps 2 and 2a are what measure it.
 
+### Shared values as a fourth stitch signal
+
+Cross-organisational process mining reconstructs one process from logs with no
+shared case identifier at over 98.4% precision and 94.2% recall, by linking on
+**shared data items across the separate logs**. That signal is already in our
+evidence: a supplier name typed into Blue Yonder that reappears in an SAP request
+body links the two halves, and it is arithmetic over `Intent.values_seen`, not an
+opinion. Trivial values are excluded by length and by frequency across the
+tenant's evidence — a facility code every call carries links nothing. The
+umbrella pass is told which values crossed a boundary rather than left to notice.
+
+### How the window is arranged
+
+Ordering measurably changes the answer on multi-hop tasks — 0.28 to 0.44 by
+ordering alone on a two-supporting-fact task at 64K — and reading a workflow out
+of a window is multi-hop. Therefore:
+
+- Task instruction **first and restated after the evidence**; question-first was
+  strongest at long context.
+- Output schema puts `cites` **before** `says`: identifying relevant evidence
+  before composing the answer measurably beats composing first.
+- Strongest evidence (carryover, high-confidence intents) at **both ends**,
+  weakest in the middle — the training-free reordering whose gains appear
+  specifically once the evidence set is large.
+- **No relevance hints.** Explicitly marking the most relevant context was
+  measured to *reduce* accuracy in all five languages tested.
+- **No multi-sample voting** — 0.4% gain at 20x cost, and it *hurt* accuracy on
+  56.6% / 65.7% of individual problems in one study, hidden by the aggregate.
+  The lever is **reasoning effort** on the umbrella pass, which does show a
+  significant positive relationship with accuracy.
+
 ### The carryover pool
 
 Gestures cited by a proven workflow leave the pool. Unplaced intents enter at age
@@ -184,10 +215,14 @@ from the other direction.
 
 Per step: `ui.url` and an inline `screenshot`; Flash plans exactly one command
 (`ui.perform`, `http.send` or `navigate`); the extension performs and answers
-with `performed`, `matched_by` and `candidates`; a second screenshot; Flash
-verifies. On failure or an unclear verdict, Pro retries once with both
-screenshots, the failure, the full cited evidence and the workflow so far. Still
-failed: stop and ask.
+with `performed`, `matched_by` and `candidates`; then **verification against
+state rather than against a picture** — the response body the command returned
+first, a confirming read second where the cited evidence shows the page performs
+one, the screenshot last and least. A state-grounded verifier scored 86.9%
+against 78.8% for one reading screenshots, and most completions leave their proof
+off-screen (artifact verification was 192 of 321 tasks in that study). On failure
+or an unclear verdict, Pro retries once with both screenshots, the failure, the
+full cited evidence and the workflow so far. Still failed: stop and ask.
 
 `matched_by` is recorded as a health signal. When `component` and
 `role_and_name` both miss and `css_path` catches it, the run **succeeds and the
@@ -241,12 +276,23 @@ misreads.
    Then do a *different* job that shares one lookup step; containment must not
    fold it into the same workflow at the chosen threshold.
 3. **Coverage is honest.** A pass over a deliberately over-long window reports
-   citations concentrated in its opening, and the budget reduces in response.
+   its positional skew **in whichever direction it appears**, and the budget
+   reduces in response. Position bias is model-specific — some models favour late
+   context, and one reproduction study found no positional effect at all — so
+   this measures our models on our evidence rather than assuming a primacy bias.
+3a. **The window arrangement is measured, not assumed.** Run one window under
+   question-first and under question-last, and with strongest-evidence-at-both-
+   ends against evidence in capture order. Record the difference in workflows
+   proven and citations produced. Ordering moved accuracy from 0.28 to 0.44 in
+   published multi-hop work; if it moves nothing here, say so and stop paying
+   attention to it.
 4. **Citations are enforced.** A hand-edited model response citing a fabricated
    `ges_…` is rejected, and the rejection names the identifier.
 5. **Carryover works across streams.** One operator does the Blue Yonder half,
    another does the SAP half within the pool's lifetime. A pass proposes the
-   joined workflow.
+   joined workflow. Repeat with the shared typed value changed in the second
+   half, so no value crosses the boundary: record whether the join still
+   happens, which is what says how much work the shared-value signal is doing.
 6. **A run performs.** From chat, with one value withheld and asked back. Dry run
    first: the write is shown and withheld. Then live: the supplier exists in Blue
    Yonder and the status is set in SAP, and every step's record holds its

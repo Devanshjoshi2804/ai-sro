@@ -191,6 +191,129 @@ reconstruction.
 this replaces it, never fine-tune on our own mined workflows, and keep temporal
 order in every representation we build.
 
+### A second pass, on two narrow questions
+
+A follow-up run asked only two things the first had left thin: what actually
+reduces citation primacy bias in a long window, and how anyone else stitches two
+applications into one workflow. Ninety claims from twenty-three primary sources,
+seventy-five adversarial verification votes. The aggregation stage of that run
+malfunctioned and its summary is discarded; what follows is read from the votes
+themselves, and several claims were corrected by their verifiers rather than
+killed.
+
+**Position bias is not the reliable thing I assumed.** A SIGIR 2026
+reproduction study (*Lost in the Evidence?*, arXiv 2605.27105) **failed to
+reproduce the U-shaped "lost in the middle" curve at all**, finding flat
+performance across positions in its setup. A multilingual study (*Beyond
+Early-Token Bias*, arXiv 2505.16134) found position bias is **model-specific and
+language-specific** — Qwen2.5-7B, DeepSeek-7B and Mistral-7B favour *late*
+context, not early — with roughly ten percentage points between the best and
+worst position, and far larger effects in some languages (Hindi ~15.6%, English
+~4.3%).
+
+Two consequences. The coverage check stays, but it must measure skew **in
+whichever direction it appears** rather than looking for a primacy bias we
+assumed. And whatever this family of models does on this evidence is a thing to
+measure, not to read off a paper.
+
+**A cheap mitigation that backfires.** The same study tested explicitly marking
+which context is most relevant — *"the most relevant context to the query is
+marked as 1"* — and it **reduced accuracy in all five languages tested**. It also
+found that accuracy drops most when the evidence sits mid-context and **output
+entropy does not rise**: the model stays confident while using the wrong span.
+So a confidence signal will not catch this, and helpful hints about what matters
+are not free.
+
+**Ordering does move the number, and multi-hop is where it moves.** Testing
+three prompt orderings on long-context grounded QA (arXiv 2502.12462), accuracy
+on a two-supporting-fact task at 64K tokens ranged **0.28 to 0.44 by ordering
+alone**, with question-first strongest at long context. The reproduction study
+found single-hop QA largely order-stable while multi-hop is order-sensitive, with
+salient-evidence-last increasingly winning as context grows. Reading a workflow
+out of a window is multi-hop by construction — the steps are scattered — so this
+is our case, not the stable one.
+
+**Citation before reasoning, not after.** *Long-Context LLMs Meet RAG* (arXiv
+2410.05983, ICLR 2025) found that an explicit intermediate step identifying
+relevant passages *before* answering beats answering implicitly. The same paper
+found RAG quality is **non-monotonic in retrieved passages** — it improves, then
+declines as hard negatives accumulate — and offers a training-free reordering
+that puts the highest-scoring evidence at the start *and* end, with the weakest
+in the middle. Its gains are negligible on small sets and significant on large
+ones, which is exactly the regime a full window is in.
+
+**What does not transfer.** LongCite's coarse-to-fine pipeline (arXiv 2409.02897)
+is a **training-data construction method, not an inference-time technique** — the
+verifiers killed that framing specifically, and its 72.0 citation F1 against
+GPT-4o's 65.6 comes from fine-tuning, which we are not doing. ALR² (arXiv
+2410.03227) likewise needs supervised fine-tuning of a 35B model for its +8.4 EM;
+its useful warning is that *naive* prompting to retrieve supporting facts first,
+without that training, produces very high ungrounded-citation rates.
+
+**Self-consistency voting is dead as an option.** This is the clearest result of
+the run, and it removes something I had earlier offered as the mitigation for
+identity instability. Sampling many answers and taking the plurality gave
+**0.4% improvement from one sample to twenty on HotpotQA at roughly twenty times
+the token cost** (arXiv 2511.00751); best case anywhere was 1.6% at ~15x. In
+automated scoring, going from one sample to seven produced **no statistically
+significant gain** (arXiv 2604.26954). Worse, *When Self-Consistency Backfires*
+(arXiv 2608.11403) found majority voting **hurts** accuracy on **56.6% of
+problems for Qwen2.5-7B and 65.7% for Llama-3-8B**, the worst single problem
+losing 47 points — harm that is concentrated and invisible in the aggregate
+score. And the obvious gate fails: an oracle router choosing when to vote would
+gain 14–17 points, while plurality-agreement and token-entropy gates captured
+almost none of it, because token entropy mostly measures prose fluency rather
+than answer confidence.
+
+Two things replace it. The same scoring study found **temperature sampling
+itself helped** and that **reasoning effort has a significant positive linear
+relationship with accuracy** — so the lever is reasoning effort on the umbrella
+pass, not repetition. And identity was already moved off model judgement
+entirely, which is why this result costs us nothing.
+
+**Cross-system stitching has a quantified non-model baseline.** Cross-organisational
+process mining that reconstructs one process model from logs with independently
+managed, non-uniform ID systems — no shared case ID, our exact problem — reports
+**over 98.4% precision and over 94.2% recall on BPIC 2012 and 2017**, by
+detecting activity connections between adjacent event pairs and expanding
+iteratively, relying on **shared data items across the separate logs**. Not a
+model anywhere in it.
+
+That is a direct argument for a signal this design was not using: **a value
+typed into one system and appearing in a call to another is a stitch, and it is
+arithmetic.** `Intent.values_seen` already captures it. Added below.
+
+EC-SA-Data (arXiv 2206.10009) solves the same correlation problem by
+probabilistic optimisation over three objectives — model conformance, data
+attribute constraints, and minimised variance of activity durations — but needs
+a pre-specified process model and explicit constraints as input, which is the
+thing we do not have and are trying to derive. GUI-ReWalk composes multi-app
+trajectories as "strides" joined when a model infers a semantically related goal
+for the next application, and labels the whole thing **retrospectively** from the
+full sequence — the umbrella pass, arrived at independently.
+
+**Two failure modes worth naming.** Multi-application agent tasks fail far more
+than length-matched single-application ones, so context switching is itself the
+bottleneck; and a documented cross-app failure is **losing window focus during a
+hand-off, so data meant for the second application is typed back into the
+first**. Our per-step `origin` exists for other reasons and defends against
+exactly that.
+
+**Verify against state, not against a picture.** A propose-then-verify evaluator
+(IRA) that grounds completion judgements in environment state — configs, files,
+settings — rather than a model's reading of a screenshot scored **86.9% against
+78.8%**, with human agreement on its verdicts at **94.0% (κ 0.84)**. Its
+taxonomy is the useful part: evidence is visible-state, hidden-state, or
+artifact, and **artifact verification was the largest category, 192 of 321
+tasks** — most real task completions leave their proof somewhere other than the
+visible screen. The runner's verification changes accordingly.
+
+**A caution about asking people.** In a click-stream segmentation study, four
+domain experts who work on the product daily estimated the median time to
+complete a booking at 420, 120, 120 and 180 seconds. The measured value was
+**66 seconds**. Evidence over interview, including when the interview is with the
+person whose job it is.
+
 ### Cost, at current prices
 
 | | input | output |
@@ -491,6 +614,58 @@ is built from: not `(principal_id, ordered call shape)`, brittle to one extra
 page, but a key derived from the evidence a model pointed at, which survives a
 redesigned form and spans two hosts.
 
+### A fourth signal: a value that crossed a system boundary
+
+Cross-organisational process mining reconstructs one process from logs with no
+shared case identifier at **over 98.4% precision and 94.2% recall**, and it does
+it by linking on **shared data items across the separate logs**. That signal is
+already sitting in our evidence and this design was not using it.
+
+```
+shared_values(A, B) = { v : v ∈ A.values_seen ∧ v appears in B's requests
+                            or B.values_seen, and v is not trivial }
+```
+
+A supplier name typed into Blue Yonder that then appears in an SAP request body
+is not a coincidence and it is not an opinion — it is arithmetic over evidence
+we already store. It joins `shape_key` as a stitch signal: two candidate halves
+that share a non-trivial typed value are far likelier to be one job, and the
+umbrella pass is told so rather than being left to notice.
+
+Trivial values are excluded by length and by how often they appear across the
+tenant's evidence — a facility code every call carries links nothing, a supplier
+name typed twice in four minutes links a great deal. That exclusion is a
+frequency count, not a pattern.
+
+### How the window is put to the model
+
+Ordering is not cosmetic here. On a two-supporting-fact task at 64K tokens,
+accuracy ranged **0.28 to 0.44 by prompt ordering alone**, and multi-hop tasks
+— which is what reading a workflow out of a window is — are the order-sensitive
+kind. So the arrangement is a decision, and it is one to re-measure rather than
+settle once:
+
+- **The task first, and again at the end.** Question-first ordering was
+  strongest at long context, and restating the constraints after the evidence
+  costs almost nothing.
+- **Citations before narrative** in the output. An explicit step that identifies
+  the relevant evidence *before* composing the answer measurably beats composing
+  first. The output schema orders `cites` ahead of `says` for that reason, not
+  for tidiness.
+- **Strongest evidence at both ends, weakest in the middle.** The training-free
+  reordering from *Long-Context LLMs Meet RAG*, whose gains appear specifically
+  once the evidence set is large. For us "strongest" is the carryover pool and
+  the gestures with high-confidence intents.
+- **No hints about what matters.** Explicitly marking the most relevant context
+  was measured to *reduce* accuracy in all five languages tested. We do not tell
+  the model which gesture we think is important.
+- **No multi-sample voting.** Plurality voting over repeated samples gained
+  **0.4% at twenty times the cost**, and *hurt* accuracy on the majority of
+  individual problems in one study — 56.6% and 65.7% for two models — with the
+  damage hidden by the aggregate. The lever instead is **reasoning effort on the
+  umbrella pass**, which does show a significant positive relationship with
+  accuracy.
+
 ### The pool
 
 ```
@@ -588,7 +763,10 @@ for each step:
     the extension performs, and answers
       { performed, matched_by, candidates }
             ▼
-    screenshot again  ──▶  FLASH verifies: did it hold?
+    verify against STATE, not against a picture:
+      the response body the command itself returned
+      + a read the cited evidence shows the page makes
+      + the screenshot, last and least
             │
         held ──▶ the next step
             │
@@ -599,6 +777,18 @@ for each step:
             │
      still failed ──▶ stop, say what it saw, ask the operator
 ```
+
+**Why verification does not trust the screenshot.** A propose-then-verify
+evaluator grounded in environment state rather than a model reading a picture
+scored **86.9% against 78.8%**, with human agreement on its verdicts at 94.0%.
+More to the point, it found most task completions leave their proof somewhere
+other than the visible screen — **artifact verification was 192 of 321 tasks**,
+the largest category by far. A supplier that was created is proved by the `201`
+and the identifier in the response body, or by a read that returns it; the
+screen showing a green toast is the weakest of the three and the easiest to be
+wrong about. So the response body is read first, a confirming read second where
+the cited evidence shows the page performs one, and the picture is what remains
+when neither exists.
 
 Flash plans; Pro rescues. A clean step never touches the expensive model, and
 only the steps that surprise us cost what surprises cost. The measurement behind

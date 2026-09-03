@@ -20,7 +20,7 @@ from rig.intents import read_gesture
 from rig.models import Asker, GeminiAsker
 from rig.records import Gesture, Intent, ValueSeen
 from rig.store import Store
-from rig.wire import Batch, parse_batch
+from rig.wire import Batch, PageEvent, Request, parse_batch
 from rig.wire import Gesture as WireGesture
 
 
@@ -118,8 +118,8 @@ def _row_to_gesture(row: sqlite3.Row) -> Gesture:
         tab_id=row["tab_id"],
         frame_url=row["frame_url"],
         gesture=WireGesture.model_validate_json(row["gesture_json"]),
-        requests=[],
-        page_events=[],
+        requests=[Request.model_validate(r) for r in json.loads(row["requests"])],
+        page_events=[PageEvent.model_validate(p) for p in json.loads(row["page_events"])],
         shot_ref=row["shot_ref"],
     )
 

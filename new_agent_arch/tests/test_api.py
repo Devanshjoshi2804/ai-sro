@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from rig.api import build_app, read_new_gestures, save_batch
+from rig.api import _row_to_gesture, build_app, read_new_gestures, save_batch
 from rig.models import Answer, FakeAsker
 from rig.store import Store
 from rig.wire import Batch
@@ -255,6 +255,31 @@ async def test_every_stored_gesture_gets_read_once(store: Store) -> None:
     again = await read_new_gestures(store, asker, "gemini-3.8-flash")
 
     assert again == 0
+
+
+async def test_the_reading_is_told_about_the_calls_the_gesture_caused(store: Store) -> None:
+    """correlate exists to attach calls to a gesture and trim exists to show
+    them to the model. For a while neither reached it: _row_to_gesture dropped
+    both columns, and every reading was made from the gesture alone."""
+    save_batch(store, Batch.model_validate(BATCH), "new")
+    asker = FakeAsker(*[_ok() for _ in range(10)])
+
+    await read_new_gestures(store, asker, "gemini-3.8-flash")
+
+    prompts = [asked["evidence"] for asked in asker.asked]
+    with_calls = [p for p in prompts if '"calls": []' not in p and '"calls"' in p]
+
+    assert with_calls, "no reading was shown a single network call"
+
+
+def test_a_gesture_read_back_still_carries_its_evidence(store: Store) -> None:
+    save_batch(store, Batch.model_validate(BATCH), "new")
+    row = store.query("SELECT * FROM gestures WHERE json_array_length(requests) > 0 LIMIT 1")[0]
+
+    gesture = _row_to_gesture(row)
+
+    assert len(gesture.requests) == len(json.loads(row["requests"]))
+    assert gesture.requests[0].method
 
 
 async def test_a_reading_that_failed_is_still_written(store: Store) -> None:

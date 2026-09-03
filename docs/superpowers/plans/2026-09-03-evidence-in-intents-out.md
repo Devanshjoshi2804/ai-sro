@@ -158,7 +158,9 @@ def test_migrate_creates_every_table(tmp_path: Path) -> None:
 
     names = {
         row["name"]
-        for row in store.query("SELECT name FROM sqlite_master WHERE type='table'")
+        for row in store.query(
+            "SELECT name FROM sqlite_master WHERE type='table'"
+        )
     }
     assert {"batches", "gestures", "intents", "orphan_requests"} <= names
 
@@ -236,6 +238,7 @@ def test_the_package_imports_with_nothing_else_on_the_path() -> None:
         capture_output=True,
         text=True,
         cwd=SRC,
+        check=False,
     )
 
     assert result.returncode == 0, result.stderr

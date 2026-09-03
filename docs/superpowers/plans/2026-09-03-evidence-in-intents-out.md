@@ -1822,13 +1822,45 @@ async def test_a_named_target_is_asked_about_without_one() -> None:
 
 
 async def test_no_credential_value_reaches_the_prompt() -> None:
-    secret = next(g for g in _gestures() if g.gesture.secret)
+    """The fixture's own secret gesture already has value:null in raw JSON, so
+    it cannot prove this on its own -- there is nothing in it to leak. Mutate a
+    real value into a target's `secret` flag after parsing instead, which is
+    the one route wire.Gesture's own validator does not re-check (Task 4's
+    finding), and is exactly why trim() holds this rule for itself."""
+    ordinary = next(g for g in _gestures() if g.gesture.kind == "type" and not g.gesture.secret)
+    real_value = ordinary.gesture.value
+    assert real_value  # the fixture must actually carry something to leak
+
+    ordinary.gesture.target.secret = True
     asker = FakeAsker(_answer())
 
-    await read_gesture(secret, tail=[], asker=asker, model=MODEL)
+    await read_gesture(ordinary, tail=[], asker=asker, model=MODEL)
 
-    assert "hunter2" not in asker.asked[0]["evidence"]
+    assert real_value not in asker.asked[0]["evidence"]
     assert '"value": null' in asker.asked[0]["evidence"]
+
+
+async def test_a_stray_type_in_values_seen_does_not_crash_the_reading() -> None:
+    """The schema is advisory. A model returning values_seen as a string, or a
+    list with a non-dict entry, must not take the gesture down with it."""
+    asker = FakeAsker(_answer(values_seen="none that I can see"))
+
+    intent = await read_gesture(_gestures()[0], tail=[], asker=asker, model=MODEL)
+
+    assert intent.values_seen == []
+    assert intent.error is None
+
+
+async def test_a_wrong_typed_field_does_not_poison_a_later_gestures_reading() -> None:
+    """A list where act should be a string used to reach one_line() unguarded,
+    and crash on the NEXT gesture that pulled this intent into its tail."""
+    asker = FakeAsker(_answer(act=["typed", "something"]))
+
+    intent = await read_gesture(_gestures()[0], tail=[], asker=asker, model=MODEL)
+    assert intent.act is None  # unusable, not fabricated
+
+    downstream = FakeAsker(_answer())
+    await read_gesture(_gestures()[1], tail=[intent], asker=downstream, model=MODEL)
 
 
 def test_the_schema_requires_an_act_and_a_reason() -> None:
@@ -1913,6 +1945,16 @@ def one_line(intent: Intent) -> str:
     return " ".join(parts).replace("\n", " ")
 
 
+def _string_field(data: dict[str, Any], key: str) -> str | None:
+    """The schema is advisory, not enforced. A model can return `"act": [...]`
+    and nothing here validates it before it reaches `Intent`. Treating a
+    wrong-typed field as unusable is what stops that field poisoning `one_line`
+    the next time this intent is pulled into somebody else's tail context.
+    """
+    value = data.get(key)
+    return value if isinstance(value, str) else None
+
+
 async def read_gesture(
     gesture: Gesture,
     *,
@@ -1950,17 +1992,19 @@ async def read_gesture(
         return intent
 
     data = answer.data
-    intent.act = data.get("act")
-    intent.object = data.get("object")
-    intent.system = data.get("system")
-    intent.page = data.get("page")
-    intent.continues = data.get("continues") or None
-    intent.confidence = data.get("confidence")
-    intent.why = data.get("why")
+    intent.act = _string_field(data, "act")
+    intent.object = _string_field(data, "object")
+    intent.system = _string_field(data, "system")
+    intent.page = _string_field(data, "page")
+    intent.continues = _string_field(data, "continues") or None
+    intent.confidence = _string_field(data, "confidence")
+    intent.why = _string_field(data, "why")
+
+    seen_list = data.get("values_seen")
     intent.values_seen = [
-        ValueSeen(field=str(seen.get("field", "")), value=str(seen.get("value", "")))
-        for seen in data.get("values_seen") or []
-        if seen.get("field")
+        ValueSeen(field=str(seen["field"]), value=str(seen.get("value", "")))
+        for seen in (seen_list if isinstance(seen_list, list) else [])
+        if isinstance(seen, dict) and seen.get("field")
     ]
     return intent
 ```
@@ -1971,7 +2015,7 @@ async def read_gesture(
 cd /Users/devansh.j/GreyOrange/AI-SRO/new_agent_arch && uv run pytest tests/test_intents.py -v
 ```
 
-Expected: 9 passed.
+Expected: 11 passed.
 
 - [ ] **Step 5: Commit**
 

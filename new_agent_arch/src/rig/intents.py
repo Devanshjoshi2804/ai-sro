@@ -56,6 +56,16 @@ def one_line(intent: Intent) -> str:
     return " ".join(parts).replace("\n", " ")
 
 
+def _string_field(data: dict[str, Any], key: str) -> str | None:
+    """The schema is advisory, not enforced. A model can return `"act": [...]`
+    and nothing here validates it before it reaches `Intent`. Treating a
+    wrong-typed field as unusable is what stops that field poisoning `one_line`
+    the next time this intent is pulled into somebody else's tail context.
+    """
+    value = data.get(key)
+    return value if isinstance(value, str) else None
+
+
 async def read_gesture(
     gesture: Gesture,
     *,
@@ -93,16 +103,18 @@ async def read_gesture(
         return intent
 
     data = answer.data
-    intent.act = data.get("act")
-    intent.object = data.get("object")
-    intent.system = data.get("system")
-    intent.page = data.get("page")
-    intent.continues = data.get("continues") or None
-    intent.confidence = data.get("confidence")
-    intent.why = data.get("why")
+    intent.act = _string_field(data, "act")
+    intent.object = _string_field(data, "object")
+    intent.system = _string_field(data, "system")
+    intent.page = _string_field(data, "page")
+    intent.continues = _string_field(data, "continues") or None
+    intent.confidence = _string_field(data, "confidence")
+    intent.why = _string_field(data, "why")
+
+    seen_list = data.get("values_seen")
     intent.values_seen = [
-        ValueSeen(field=str(seen.get("field", "")), value=str(seen.get("value", "")))
-        for seen in data.get("values_seen") or []
-        if seen.get("field")
+        ValueSeen(field=str(seen["field"]), value=str(seen.get("value", "")))
+        for seen in (seen_list if isinstance(seen_list, list) else [])
+        if isinstance(seen, dict) and seen.get("field")
     ]
     return intent

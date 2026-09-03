@@ -94,13 +94,45 @@ async def test_a_named_target_is_asked_about_without_one() -> None:
 
 
 async def test_no_credential_value_reaches_the_prompt() -> None:
-    secret = next(g for g in _gestures() if g.gesture.secret)
+    """The fixture's own secret gesture already has value:null in raw JSON, so
+    it cannot prove this on its own -- there is nothing in it to leak. Mutate a
+    real value into a target's `secret` flag after parsing instead, which is
+    the one route wire.Gesture's own validator does not re-check (Task 4's
+    finding), and is exactly why trim() holds this rule for itself."""
+    ordinary = next(g for g in _gestures() if g.gesture.kind == "type" and not g.gesture.secret)
+    real_value = ordinary.gesture.value
+    assert real_value  # the fixture must actually carry something to leak
+
+    ordinary.gesture.target.secret = True
     asker = FakeAsker(_answer())
 
-    await read_gesture(secret, tail=[], asker=asker, model=MODEL)
+    await read_gesture(ordinary, tail=[], asker=asker, model=MODEL)
 
-    assert "hunter2" not in asker.asked[0]["evidence"]
+    assert real_value not in asker.asked[0]["evidence"]
     assert '"value": null' in asker.asked[0]["evidence"]
+
+
+async def test_a_stray_type_in_values_seen_does_not_crash_the_reading() -> None:
+    """The schema is advisory. A model returning values_seen as a string, or a
+    list with a non-dict entry, must not take the gesture down with it."""
+    asker = FakeAsker(_answer(values_seen="none that I can see"))
+
+    intent = await read_gesture(_gestures()[0], tail=[], asker=asker, model=MODEL)
+
+    assert intent.values_seen == []
+    assert intent.error is None
+
+
+async def test_a_wrong_typed_field_does_not_poison_a_later_gestures_reading() -> None:
+    """A list where act should be a string used to reach one_line() unguarded,
+    and crash on the NEXT gesture that pulled this intent into its tail."""
+    asker = FakeAsker(_answer(act=["typed", "something"]))
+
+    intent = await read_gesture(_gestures()[0], tail=[], asker=asker, model=MODEL)
+    assert intent.act is None  # unusable, not fabricated
+
+    downstream = FakeAsker(_answer())
+    await read_gesture(_gestures()[1], tail=[intent], asker=downstream, model=MODEL)
 
 
 def test_the_schema_requires_an_act_and_a_reason() -> None:

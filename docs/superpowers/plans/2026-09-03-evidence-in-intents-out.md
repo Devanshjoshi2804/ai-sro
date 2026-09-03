@@ -3086,7 +3086,7 @@ the extension's queue bookkeeping.
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { mirrorTo } from "./mirror.js";
+import { mirrorSafely } from "./mirror.js";
 
 test("a mirror posts the same body to the second base", async () => {
   const seen = [];
@@ -3124,6 +3124,31 @@ test("a mirror that is refused does not throw", async () => {
     body: {},
     fetcher,
   });
+});
+
+test("a rig that accepts the connection and never answers does not hang the caller", async () => {
+  // The down case fails fast. This one holds the promise open forever, and
+  // upload.js does not remove queued rows until the caller returns.
+  const fetcher = (url, options) =>
+    new Promise((_, reject) => {
+      options.signal?.addEventListener("abort", () => reject(new Error("aborted")));
+    });
+
+  await mirrorTo("http://localhost:8100", "t", "/v1/observations", {
+    body: {},
+    fetcher,
+    timeoutMs: 10,
+  });
+});
+
+test("a settings read that throws does not fail the upload", async () => {
+  // chrome.storage rejecting mid-update used to surface as a failed upload of
+  // a batch the backend had already stored.
+  const angry = async () => {
+    throw new Error("extension context invalidated");
+  };
+
+  await mirrorSafely(angry, angry, "/v1/observations", { body: {}, fetcher: async () => ({ ok: true }) });
 });
 
 test("no rig configured means no request at all", async () => {
@@ -3184,7 +3209,14 @@ it under plain node:
  * a rig that is down, slow, or refusing must never be able to reach that
  * decision.
  */
-export async function mirrorTo(base, token, path, { body, form, fetcher = fetch } = {}) {
+export const MIRROR_TIMEOUT_MS = 5000;
+
+export async function mirrorTo(
+  base,
+  token,
+  path,
+  { body, form, fetcher = fetch, timeoutMs = MIRROR_TIMEOUT_MS } = {},
+) {
   if (!base) return;
   try {
     const options = { method: "POST", headers: {} };
@@ -3195,9 +3227,34 @@ export async function mirrorTo(base, token, path, { body, form, fetcher = fetch 
       options.headers["Content-Type"] = "application/json";
       options.body = JSON.stringify(body);
     }
+    // Bounded on purpose. A rig that accepts the connection and then never
+    // answers is not the same as one that is down: the down case fails fast,
+    // this one holds the promise open forever. The caller awaits this, and
+    // upload.js does not remove queued rows until it returns -- so an
+    // unbounded wait strands batches the backend has already accepted.
+    if (typeof AbortSignal !== "undefined" && AbortSignal.timeout) {
+      options.signal = AbortSignal.timeout(timeoutMs);
+    }
     await fetcher(`${base}${path}`, options);
   } catch {
     // The rig is optional. Its silence is not the extension's problem.
+  }
+}
+
+/** Read the settings and mirror, and never let either fail the caller.
+ *
+ * The reads have to happen inside this try, not the caller's: `await
+ * state.rigUrl()` evaluated at the call site is outside `mirrorTo` entirely,
+ * so its own catch cannot see it. chrome.storage rejecting -- an extension
+ * context invalidated mid-update -- would otherwise surface as a failed upload
+ * of a batch the backend had already stored, and upload.js would keep its rows
+ * queued and report an error for work that succeeded.
+ */
+export async function mirrorSafely(readBase, readToken, path, options) {
+  try {
+    await mirrorTo(await readBase(), await readToken(), path, options);
+  } catch {
+    // Same contract as mirrorTo: the mirror cannot fail the upload.
   }
 }
 ```
@@ -3206,16 +3263,20 @@ Then in `new-chrome-extension/src/background/api.js`, add the import beside the
 existing ones:
 
 ```js
-import { mirrorTo } from "./mirror.js";
+import { mirrorSafely, mirrorTo } from "./mirror.js";
 ```
 
 and a small helper next to `call`:
 
 ```js
 async function mirror(path, options) {
-  await mirrorTo(await state.rigUrl(), await state.rigToken(), path, options);
+  await mirrorSafely(state.rigUrl, state.rigToken, path, options);
 }
 ```
+
+`mirrorSafely` rather than `mirrorTo` because the two `state` reads must happen
+inside the guard. Written at this call site they are evaluated before
+`mirrorTo` is entered, where nothing catches them.
 
 Finally wrap the two upload calls in the exported `api` object:
 
@@ -3334,7 +3395,7 @@ node /Users/devansh.j/GreyOrange/AI-SRO/new-chrome-extension/src/background/mirr
 cd /Users/devansh.j/GreyOrange/AI-SRO && npx eslint new-chrome-extension/src/background/
 ```
 
-Expected: 4 tests pass, no lint errors.
+Expected: 6 tests pass, no lint errors.
 
 - [ ] **Step 9: Prove the queue is untouched**
 

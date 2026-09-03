@@ -54,3 +54,24 @@ def test_a_batch_id_is_not_written_twice(tmp_path: Path) -> None:
 
     with pytest.raises(sqlite3.IntegrityError):
         store.execute(sql, row)
+
+
+def test_a_reading_can_record_that_its_cost_is_not_trustworthy(tmp_path: Path) -> None:
+    """unpriced distinguishes a call that cost nothing from one whose cost
+    could not be established. A schema without it silently understates the bill."""
+    store = Store(tmp_path / "rig.db")
+    store.migrate()
+    store.execute(
+        "INSERT INTO gestures (id, tenant, stream_id, batch_id, at, gesture_json)"
+        " VALUES (?, ?, ?, ?, ?, ?)",
+        ("ges_1", "new", "dev_1", "bat_1", 1.0, "{}"),
+    )
+
+    store.execute(
+        "INSERT INTO intents (gesture_id, tenant, unpriced, created_at) VALUES (?, ?, ?, ?)",
+        ("ges_1", "new", 1, "2026-09-03T10:00:00+05:30"),
+    )
+
+    row = store.query("SELECT unpriced FROM intents WHERE gesture_id = ?", ("ges_1",))[0]
+
+    assert bool(row["unpriced"]) is True

@@ -496,7 +496,7 @@ lint:
 cd /Users/devansh.j/GreyOrange/AI-SRO/new_agent_arch && uv sync --all-extras && uv run pytest tests/ -v
 ```
 
-Expected: 15 passed.
+Expected: 8 passed.
 
 - [ ] **Step 5: Commit**
 
@@ -875,7 +875,7 @@ class Intent:
 cd /Users/devansh.j/GreyOrange/AI-SRO/new_agent_arch && uv run pytest tests/test_wire.py -v
 ```
 
-Expected: 15 passed.
+Expected: 9 passed.
 
 - [ ] **Step 5: Commit**
 
@@ -1393,7 +1393,7 @@ def trim(gesture: Gesture) -> dict[str, Any]:
 cd /Users/devansh.j/GreyOrange/AI-SRO/new_agent_arch && uv run pytest tests/test_trim.py -v
 ```
 
-Expected: 15 passed.
+Expected: 11 passed.
 
 - [ ] **Step 5: Commit**
 
@@ -1696,7 +1696,7 @@ class FakeAsker:
 cd /Users/devansh.j/GreyOrange/AI-SRO/new_agent_arch && uv run pytest tests/test_models.py -v
 ```
 
-Expected: 15 passed.
+Expected: 5 passed.
 
 - [ ] **Step 5: Commit**
 
@@ -1971,7 +1971,7 @@ async def read_gesture(
 cd /Users/devansh.j/GreyOrange/AI-SRO/new_agent_arch && uv run pytest tests/test_intents.py -v
 ```
 
-Expected: 15 passed.
+Expected: 9 passed.
 
 - [ ] **Step 5: Commit**
 
@@ -2480,7 +2480,7 @@ app = _default_app() if settings().gemini_api_key else FastAPI(title="rig (no ke
 cd /Users/devansh.j/GreyOrange/AI-SRO/new_agent_arch && uv run pytest tests/test_api.py -v
 ```
 
-Expected: 15 passed.
+Expected: 11 passed.
 
 - [ ] **Step 5: Run the whole suite and lint**
 
@@ -2825,7 +2825,7 @@ from fastapi.responses import HTMLResponse
 cd /Users/devansh.j/GreyOrange/AI-SRO/new_agent_arch && uv run pytest -q && make lint
 ```
 
-Expected: 12 passed in `test_api.py`, whole suite green.
+Expected: 16 passed in `test_api.py` (11 from Task 7 plus 5 here), whole suite green.
 
 - [ ] **Step 6: Commit**
 

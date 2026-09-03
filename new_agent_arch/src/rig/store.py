@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS intents (
     in_tokens   INTEGER NOT NULL DEFAULT 0,
     out_tokens  INTEGER NOT NULL DEFAULT 0,
     cost_usd    REAL NOT NULL DEFAULT 0.0,
+    unpriced    INTEGER NOT NULL DEFAULT 0,
     created_at  TEXT NOT NULL,
     error       TEXT
 );

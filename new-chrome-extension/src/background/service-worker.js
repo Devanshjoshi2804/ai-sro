@@ -649,6 +649,8 @@ async function handle(message, sender) {
       return api.run(message.runId);
     case "skill":
       return api.skill(message.skillId);
+    case "summary":
+      return api.summary(message.since);
     case "candidates":
       // Read here rather than in the panel so the credential stays in the
       // worker: an extension page holding a token is one more place it can be

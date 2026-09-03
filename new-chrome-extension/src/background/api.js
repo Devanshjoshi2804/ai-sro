@@ -234,6 +234,14 @@ export const api = {
     }
   },
 
+  /** What this tenant has watched, noticed and done since a moment.
+   *
+   * The panel asks for today, to say three numbers over the ledger. Counted
+   * from rows somebody can open rather than tallied in the browser: a figure a
+   * person repeats to their manager has to be one an auditor can reach. */
+  summary: (since) =>
+    call(`/v1/analytics/summary?since=${encodeURIComponent(since)}`),
+
   /** The operator deleting their own evidence, from their own devices, for the
    * tenant on their credential. Answers with what went. */
   forget: (since) =>

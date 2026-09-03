@@ -31,9 +31,26 @@ body {
   margin: 0;
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  /* Exactly the viewport, not at least it: the panel is a fixed frame, and the
+     composer is pinned to its bottom rather than to the end of the page. */
+  height: 100vh;
   background: var(--ground);
   color: var(--ink);
+}
+
+/* Everything above the composer. This is what scrolls when a conversation gets
+   long -- the strip above and the ask bar below stay where they are. */
+#scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+#ask-bar {
+  flex: 0 0 auto;
+  padding: 8px 14px;
+  border-top: 1px solid var(--line);
+  background: var(--ground);
 }
 
 /* -- the strip ------------------------------------------------------------ */

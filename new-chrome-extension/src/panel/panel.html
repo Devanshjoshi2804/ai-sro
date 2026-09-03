@@ -26,6 +26,10 @@
          it. Everything here is built in panel.js from the worker's status,
          because every one of these states is a fact about this browser rather
          than a screen the operator navigated to. -->
+    <!-- Everything that scrolls. The composer below it does not, so a long
+         conversation never pushes the box you type in off the bottom of the
+         panel -- which is the one control that must always be reachable. -->
+    <div id="scroll">
     <main id="cards"></main>
 
     <!-- The conversation. One continuous thread per operator, across every tab
@@ -50,6 +54,11 @@
       <div id="console-refused" class="card" hidden></div>
       <iframe id="frame" title="AI-SRO console" hidden></iframe>
     </section>
+    </div>
+
+    <!-- Pinned. Built in transcript.js, placed here rather than after the
+         messages so it stays where the hand expects it. -->
+    <section id="ask-bar"></section>
 
     <footer>
       <button type="button" id="ask" class="quiet">Ask for a task</button>

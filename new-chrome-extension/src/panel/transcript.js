@@ -63,7 +63,6 @@ export function transcript(thread, { onSay, onPress } = {}) {
   for (const message of messages) said.append(saying(message, onPress, spent));
   root.append(said);
 
-  root.append(composer(onSay));
   return root;
 }
 
@@ -144,7 +143,13 @@ function answers(message, item, onPress) {
  * guessing at what the server recorded, and would show it twice when the guess
  * happened to be right.
  */
-function composer(onSay) {
+/** The box somebody types into, built apart from the messages.
+ *
+ * Its own export because the panel pins it to the bottom of the frame rather
+ * than putting it after the last message: a long conversation would otherwise
+ * push the one control that must always be reachable off the bottom.
+ */
+export function composer(onSay) {
   const row = document.createElement("div");
   row.className = "row composer";
 

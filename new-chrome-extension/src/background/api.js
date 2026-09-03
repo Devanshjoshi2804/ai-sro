@@ -1,7 +1,7 @@
 // Every call to the backend. See docs/14-extension-protocol.md.
 
 import { state } from "./state.js";
-import { mirrorTo } from "./mirror.js";
+import { mirrorSafely, mirrorTo } from "./mirror.js";
 
 export class ApiError extends Error {
   constructor(status, problem) {
@@ -51,9 +51,12 @@ async function call(path, { method = "GET", body, form, signal } = {}) {
 }
 
 /** Copy an upload to the rig, if one is configured. See `mirror.js`: this
- * never affects what `call` above already decided. */
+ * never affects what `call` above already decided. `mirrorSafely` rather than
+ * `mirrorTo` because the two `state` reads must happen inside its guard --
+ * written at this call site they would be evaluated before `mirrorTo` is
+ * entered, where nothing catches them. */
 async function mirror(path, options) {
-  await mirrorTo(await state.rigUrl(), await state.rigToken(), path, options);
+  await mirrorSafely(state.rigUrl, state.rigToken, path, options);
 }
 
 export const api = {

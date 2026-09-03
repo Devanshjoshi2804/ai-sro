@@ -40,6 +40,7 @@ const browser = {
   Request: "readonly",
   Response: "readonly",
   AbortController: "readonly",
+  AbortSignal: "readonly",
   TextEncoder: "readonly",
   TextDecoder: "readonly",
   CustomEvent: "readonly",

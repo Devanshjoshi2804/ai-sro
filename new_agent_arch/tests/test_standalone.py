@@ -25,6 +25,7 @@ def test_the_package_imports_with_nothing_else_on_the_path() -> None:
         capture_output=True,
         text=True,
         cwd=SRC,
+        check=False,
     )
 
     assert result.returncode == 0, result.stderr

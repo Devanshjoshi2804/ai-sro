@@ -8,8 +8,7 @@ def test_migrate_creates_every_table(tmp_path: Path) -> None:
     store.migrate()
 
     names = {
-        row["name"]
-        for row in store.query("SELECT name FROM sqlite_master WHERE type='table'")
+        row["name"] for row in store.query("SELECT name FROM sqlite_master WHERE type='table'")
     }
     assert {"batches", "gestures", "intents", "orphan_requests"} <= names
 

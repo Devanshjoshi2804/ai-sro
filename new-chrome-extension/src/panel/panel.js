@@ -12,7 +12,9 @@
 // while one is running the panel is about that and nothing else.
 
 import { hostMatches } from "../background/scripts.js";
-import { composer, ledger } from "./ledger.js";
+import { alreadyAnswered, composer, ledger } from "./ledger.js";
+import { needsAPress, strip } from "./strip.js";
+import { today } from "./today.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -162,6 +164,17 @@ function card({ title, says, metrics, notes, stage, progress, tone, actions = []
 function render(status) {
   const cards = [];
 
+  // The strip first: who this is, which tab it is beside, and what is happening
+  // to it -- as one line. What used to be a card headed "Not watching this tab"
+  // on every tab an operator switched to.
+  $("strip").replaceChildren(
+    strip(status, tabHere, { onMenu: menu, onToggle: toggleExpanded }),
+  );
+  const why = needsAPress(status, tabHere);
+  // Open when there is something only the operator can fix, or when they asked
+  // for it. Everything else is a fact a line states and a card would nag about.
+  $("expanded").hidden = !(why || expanded);
+
   if (!status.deviceId) {
     cards.push(
       card({
@@ -192,26 +205,53 @@ function render(status) {
   if (!status.teaching && status.finished) cards.push(finished(status));
   for (const trouble of troubles(status)) cards.push(trouble);
 
-  $("cards").replaceChildren(...cards);
-  // Green means this tab -- the one the panel is docked beside -- is being
-  // recorded. A dot that went green for "capture is enabled somewhere" told an
-  // operator their work was being kept when nothing in front of them was.
-  const watchedHere = (status.watched || []).some((entry) => entry.tabId === tabHere.tabId);
-  $("where").dataset.state = status.teaching
-    ? "recording"
-    : status.capturing && watchedHere
-      ? "observing"
-      : status.deviceId
-        ? "unknown"
-        : "unknown";
+  // The first card is the state of this tab, which is what the strip's chevron
+  // opens onto. The rest -- a run, what it made, what is wrong -- stay where
+  // they are, above the day.
+  const [state, ...rest] = cards;
+  $("expanded").replaceChildren(state);
+  $("cards").replaceChildren(...rest);
 
   // While a demonstration is being recorded the panel is about that and
   // nothing else, and none of it applies to a browser that is not connected.
   $("here").hidden = Boolean(status.teaching) || !status.deviceId;
   $("thread").hidden = Boolean(status.teaching) || !status.deviceId;
-  $("ask").disabled = !status.deviceId;
-  $("purge").disabled = !status.deviceId;
+  lastStatus = status;
   return status;
+}
+
+/** What the profile menu's items mean here.
+ *
+ * The strip decides nothing itself: it hands back a word about the deployment,
+ * and this is where each becomes a call. Every one of them existed already --
+ * what changed is that they are no longer in the eye line of the composer.
+ */
+async function menu(action) {
+  switch (action) {
+    case "console":
+      return openConsole();
+    case "pause":
+    case "resume":
+      await ask({ kind: "set-paused", paused: action === "pause" });
+      return refresh();
+    case "purge":
+      return purge();
+    case "never":
+      await ask({ kind: "unwatch-tab", tabId: tabHere.tabId, url: tabHere.url });
+      return refresh();
+    case "settings":
+      return chrome.runtime.openOptionsPage();
+    case "disconnect":
+      await ask({ kind: "sign-out" });
+      return refresh();
+    default:
+      return undefined;
+  }
+}
+
+function toggleExpanded() {
+  expanded = !expanded;
+  if (lastStatus) render(lastStatus);
 }
 
 /** A demonstration, while it is being recorded.
@@ -425,33 +465,14 @@ function chevronButton({ open, onToggle }) {
  * could drift from it.
  */
 function watchCard(status, needsAnswer, mine, built) {
-  const open = needsAnswer || watchOpen;
-  const toggle = {
-    open,
-    onToggle: () => {
-      watchOpen = !watchOpen;
-      render(status);
-    },
-  };
-
-  if (!open) {
-    const holder = document.createElement("div");
-    holder.className = "card line";
-    const dot = document.createElement("span");
-    dot.className = "dot";
-    const said = document.createElement("p");
-    // `mine` is null on every state that has no watch to describe. Those all
-    // pass `needsAnswer`, so none of them reaches here today -- and a card
-    // that stopped needing an answer should collapse, not throw.
-    said.textContent = mine
-      ? `${built.title} — ${mine.host || "this tab"}, ${clock(mine.since)}`
-      : built.title;
-    holder.append(dot, said, chevronButton(toggle));
-    return holder;
-  }
-
-  // No chevron where pressing it cannot close anything.
-  return card({ ...built, toggle: needsAnswer ? undefined : toggle });
+  // Always the whole card. Collapsing is the strip's job now and only the
+  // strip's: this used to keep a second copy of "is it open" beside the one in
+  // `render`, which meant two chevrons could disagree about the same tab and
+  // the line one of them drew said something the other did not.
+  void status;
+  void needsAnswer;
+  void mine;
+  return card(built);
 }
 
 function pauseAction(status) {
@@ -825,7 +846,27 @@ async function refresh() {
       // A run the panel cannot read is still a run the panel can stop.
     }
   }
+  void sayTheDay(status);
   return render(status);
+}
+
+/** The three numbers over the ledger, fetched beside the redraw rather than in
+ * it: a slow analytics answer must not hold up the state of the tab, which is
+ * the part somebody is waiting on.
+ */
+async function sayTheDay(status) {
+  if (!status.deviceId) return $("today").replaceChildren();
+  try {
+    const midnight = new Date();
+    midnight.setHours(0, 0, 0, 0);
+    const summary = await ask({ kind: "summary", since: midnight.toISOString() });
+    const line = today(summary, openOffers);
+    $("today").replaceChildren(...(line ? [line] : []));
+  } catch {
+    // Offline, or an older backend. A day nobody can count is a day this line
+    // says nothing about, which is better than a wrong number.
+    $("today").replaceChildren();
+  }
 }
 
 /** The system this panel is docked beside. */
@@ -838,11 +879,19 @@ let showing = null;
 /** The tab this panel is docked beside -- the one every card is about. */
 let tabHere = { tabId: null, host: "", url: "" };
 
+/** Whether the operator opened the state card themselves, and the last status
+ * drawn -- so opening it does not have to wait for the next poll. */
+let expanded = false;
+let lastStatus = null;
+
+/** Offers in the thread nobody has answered, counted where the thread is drawn
+ * so the day's line does not fetch it a second time. */
+let openOffers = 0;
+
 async function whereWeAre() {
   const tab = await beside();
   const host = hostOf(tab?.url || "");
   tabHere = { tabId: tab?.id ?? null, host, url: tab?.url || "" };
-  $("where").textContent = host || "no system open in this window";
   if (host !== showing) {
     showing = host;
     await here();
@@ -858,29 +907,17 @@ function openConsole(path = "/console") {
 
 $("open-console").addEventListener("click", () => openConsole());
 
-$("ask").addEventListener("click", () => {
-  // The console's chat, framed here rather than in a tab: asking for a task is
-  // the one console screen that belongs beside the work.
-  const console_ = $("console");
-  console_.hidden = !console_.hidden;
-  $("ask").textContent = console_.hidden ? "Ask for a task" : "Hide the console";
-  if (!console_.hidden && !$("frame").src) void frameTheConsole();
-});
-
-$("purge").addEventListener("click", async () => {
-  // Two clicks, in the page rather than a modal: a dialog raised here blocks
-  // the very worker being asked to do the deleting.
-  if ($("purge").dataset.armed !== "1") {
-    $("purge").dataset.armed = "1";
-    $("purge").textContent = "Really delete the last hour?";
-    setTimeout(() => {
-      $("purge").dataset.armed = "";
-      $("purge").textContent = "Delete the last hour";
-    }, 5000);
-    return;
-  }
-  $("purge").dataset.armed = "";
-  $("purge").textContent = "Delete the last hour";
+/** Deleting the operator's own last hour.
+ *
+ * Reached from the profile menu rather than a button under the composer: an
+ * escape hatch is what makes always-on observation defensible, and it is not a
+ * thing pressed daily.
+ *
+ * Confirmed by saying what went rather than by asking first. A dialog raised
+ * here would block the very worker being asked to do the deleting, and the
+ * menu item is already two presses from anything.
+ */
+async function purge() {
   try {
     const gone = await ask({ kind: "purge", hours: 1 });
     $("purged").textContent =
@@ -890,12 +927,7 @@ $("purge").addEventListener("click", async () => {
   } catch (error) {
     $("purged").textContent = `nothing was deleted: ${error.message}`;
   }
-});
-
-$("options").addEventListener("click", (event) => {
-  event.preventDefault();
-  chrome.runtime.openOptionsPage();
-});
+}
 
 // -- the conversation --------------------------------------------------------
 
@@ -942,7 +974,20 @@ function show(thread, { asked = false } = {}) {
   if (now === drawn) return;
   if (!asked && drawn !== null && document.activeElement?.tagName === "INPUT") return;
   drawn = now;
-  $("said").replaceChildren(ledger(thread, undefined, { onPress: answered }));
+  // What only this browser knows, beside what the server holds: the mails it
+  // recognised and the prompts it made on the page in front of somebody.
+  // Neither is written down, and both belong in the order things happened.
+  const local = {
+    offers: lastStatus?.offers || [],
+    nudges: (lastStatus?.nudges || []).filter(
+      (nudge) => nudge.state !== "open" || nudge.tabId === tabHere.tabId,
+    ),
+  };
+  openOffers = (thread.messages || []).filter(
+    (message) => ["offer", "mail_match"].includes(message.decision?.kind || "")
+      && !alreadyAnswered(thread.messages).has(message.decision.candidate_id),
+  ).length;
+  $("said").replaceChildren(ledger(thread, local, { onPress: answered }));
   // Drawn once and left alone: rebuilding it on every poll would take the
   // cursor out of a half-typed sentence.
   if (!$("ask-bar").childElementCount) $("ask-bar").append(composer(say));

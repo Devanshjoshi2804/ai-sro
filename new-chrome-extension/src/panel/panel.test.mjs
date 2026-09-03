@@ -43,6 +43,9 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 // replace leaves the second, and `vm.runInContext` throws on it.
 const SOURCE = [
   readFileSync(path.join(here, "ledger.js"), "utf-8"),
+  readFileSync(path.join(here, "strip.js"), "utf-8"),
+  readFileSync(path.join(here, "today.js"), "utf-8"),
+  readFileSync(path.join(here, "run-card.js"), "utf-8"),
   readFileSync(path.join(here, "panel.js"), "utf-8"),
 ]
   .join("\n")
@@ -184,7 +187,11 @@ function panel(status, here = null, replies = {}) {
     );
   }
   sandbox.render(status);
-  const cards = ids["cards"].kids;
+  // Both bands. The state of this tab moved into the one the strip's chevron
+  // opens; everything else -- a run, what it made, what is wrong -- is where it
+  // was. What each test is asking is "was this card built", which is the same
+  // question either side of that move.
+  const cards = [...(ids["expanded"]?.kids || []), ...ids["cards"].kids];
   // `render` only ever draws the synchronous "cards" column. The list of
   // tasks noticed on this host is a second, async fetch (`here()`, over
   // `ask({kind: "candidates"})`) that a real load triggers separately from
@@ -358,10 +365,12 @@ test("an ordinary watched tab is not accused of being half deaf", async () => {
 test("a steady watching state is one line", async () => {
   // Nothing about an ordinary watched tab is asking to be answered, so the
   // card that used to take a third of the panel -- title, sentence, metrics,
-  // three buttons -- collapses to the one line that fact earns. Its own
-  // actions (Start teaching, Stop watching, Pause) are not gone -- see the
-  // chevron test below -- only not shouted before anybody asked for them.
-  const { cards } = panel(
+  // three buttons -- is not on screen at all. Its actions are not gone (see
+  // the chip test below), only not shouted before anybody asked for them.
+  //
+  // Held at the band rather than in the card: the strip decides what is open,
+  // and a card that also decided would be a second answer to one question.
+  const { ids } = panel(
     {
       deviceId: "dev-1",
       capturing: true,
@@ -370,11 +379,14 @@ test("a steady watching state is one line", async () => {
     { id: 7, host: "wms.example", url: "https://wms.example/portal" },
   );
 
-  const line = cards.find((c) => words(c).includes("wms.example"));
-  assert.ok(line, "the steady watching state was not drawn at all");
-  assert.ok(
-    !buttons(line).some((b) => ["Start teaching", "Stop watching", "Pause"].includes(b.textContent)),
-    "a steady watching state still showed its actions before being asked to",
+  const chip = ids["strip"].kids
+    .flatMap((kid) => [kid, ...kid.kids])
+    .find((kid) => kid.className === "chip");
+  assert.ok(words(chip).includes("wms.example"), "the steady watching state named no tab");
+  assert.equal(
+    ids["expanded"].hidden,
+    true,
+    "a steady watching state showed its actions before being asked to",
   );
 });
 
@@ -388,17 +400,22 @@ test("the collapsed row has a chevron, and pressing it reveals the actions", asy
     { id: 7, host: "wms.example", url: "https://wms.example/portal" },
   );
 
-  const line = ids["cards"].kids.find((c) => words(c).includes("wms.example"));
-  const [chevron] = buttons(line);
-  assert.ok(chevron, "the collapsed row carried no chevron");
+  // The chip in the strip, which is where the collapsed row went: one line
+  // naming the tab and what is happening to it, and pressing it opens the card.
+  const chip = ids["strip"].kids
+    .flatMap((kid) => [kid, ...kid.kids])
+    .find((kid) => kid.className === "chip");
+  assert.ok(chip, "the strip drew no chip for the tab this panel is beside");
+  assert.ok(words(chip).includes("wms.example"), "the chip did not name the tab");
+  assert.equal(ids["expanded"].hidden, true, "a steady tab opened its card unasked");
 
-  chevron.listeners[0]();
+  chip.listeners[0]();
 
-  const opened = ids["cards"].kids.find((c) => words(c).includes("Watching this tab"));
-  assert.ok(opened, "pressing the chevron did not redraw the watching card at all");
+  const opened = ids["expanded"].kids.find((c) => words(c).includes("Watching this tab"));
+  assert.ok(opened, "pressing the chip did not redraw the watching card at all");
   assert.ok(
     buttons(opened).some((b) => b.textContent === "Start teaching"),
-    "pressing the chevron did not reveal the actions",
+    "pressing the chip did not reveal the actions",
   );
 });
 
@@ -415,14 +432,16 @@ test("a manual expansion survives a redraw", async () => {
   };
   const { ids, render } = panel(status, { id: 7, host: "wms.example", url: "https://wms.example/portal" });
 
-  const line = ids["cards"].kids.find((c) => words(c).includes("wms.example"));
-  const [chevron] = buttons(line);
-  chevron.listeners[0]();
+  const chip = ids["strip"].kids
+    .flatMap((kid) => [kid, ...kid.kids])
+    .find((kid) => kid.className === "chip");
+  chip.listeners[0]();
 
   render(status); // the poll's own redraw, simulated
 
-  const opened = ids["cards"].kids.find((c) => words(c).includes("Watching this tab"));
-  assert.ok(opened, "the next redraw closed a card the operator had just opened");
+  assert.equal(ids["expanded"].hidden, false, "the next redraw closed what the operator opened");
+  const opened = ids["expanded"].kids.find((c) => words(c).includes("Watching this tab"));
+  assert.ok(opened, "the next redraw drew no card in the band it had just opened");
   assert.ok(
     buttons(opened).some((b) => b.textContent === "Start teaching"),
     "the redraw kept the card open but lost its actions",

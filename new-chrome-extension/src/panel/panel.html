@@ -8,19 +8,19 @@
   </head>
   <body>
     <!-- What only this surface can say: it is docked beside the tab it is
-         talking about. The host under the title is that tab's, and everything
-         below is about it -- the tasks offered, the demonstration a click would
-         start, the run a command would drive. -->
-    <header id="strip">
-      <div class="brand">
-        <span class="mark" aria-hidden="true">g</span>
-        <span class="name">AI-SRO</span>
-        <button type="button" id="open-console" class="link" title="Open the console in a tab">
-          Console ↗
-        </button>
-      </div>
-      <p id="where" class="where" data-state="unknown">…</p>
-    </header>
+         talking about. Built in strip.js, because which of its states earns
+         more than one line is a rule worth testing rather than markup. The
+         housekeeping -- pause, purge, settings, disconnect -- is under the
+         profile there, out of the eye line of the composer. -->
+    <div id="strip"></div>
+
+    <!-- The state card the strip's chevron opens, and which four states open it
+         themselves. Kept out of the strip so its own state machine stays where
+         it already lives, in panel.js. -->
+    <div id="expanded" hidden></div>
+
+    <!-- Three numbers, each measured. Absent on a day with nothing in it. -->
+    <div id="today"></div>
 
     <!-- One card per thing that is true, in the order somebody should deal with
          it. Everything here is built in panel.js from the worker's status,
@@ -38,7 +38,6 @@
          from the thread the server holds, never from markup written here -- the
          words in it are typed by an operator or written by a model. -->
     <section id="thread">
-      <h2>Conversation</h2>
       <div id="said"></div>
       <p class="note" id="thread-note"></p>
     </section>
@@ -60,12 +59,12 @@
          messages so it stays where the hand expects it. -->
     <section id="ask-bar"></section>
 
-    <footer>
-      <button type="button" id="ask" class="quiet">Ask for a task</button>
-      <button type="button" id="purge" class="quiet danger">Delete the last hour</button>
-      <a id="options" href="#">Settings</a>
-      <p class="note" id="purged"></p>
-    </footer>
+    <!-- No footer. The composer above is the last thing on this surface: what
+         used to sit here -- ask, purge, settings -- was either a second copy of
+         the box you type in or something done once a month, and all of it was
+         in the eye line of the one control reached hourly. It is under the
+         profile in the strip now. -->
+    <p class="note" id="purged"></p>
 
     <script type="module" src="panel.js"></script>
   </body>

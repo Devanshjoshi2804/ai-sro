@@ -154,7 +154,7 @@ function hhmm(at) {
  * one is refused by the backend ("this candidate is already taught"), which is
  * safe and useless. The operator asked; the thread should look like it.
  */
-function alreadyAnswered(messages) {
+export function alreadyAnswered(messages) {
   const done = new Map();
   for (const message of messages) {
     const decision = message.decision;

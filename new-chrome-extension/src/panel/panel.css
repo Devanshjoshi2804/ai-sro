@@ -99,21 +99,28 @@ body {
   color: var(--ink);
 }
 
-/* The host, with a dot that says what is happening to it. A panel that does not
-   name the tab it is docked beside leaves the operator to assume, and the tab
-   they are looking at is not always the tab this is beside. */
-.where {
+/* The chip: the host, a dot that says what is happening to it, and the press
+   that opens the card. A panel that does not name the tab it is docked beside
+   leaves the operator to assume, and the tab they are looking at is not always
+   the one this is beside. */
+.chip {
   display: flex;
   align-items: center;
   gap: 7px;
+  width: 100%;
   margin: 8px 0 0;
+  padding: 0;
+  border: 0;
+  background: none;
   font-family: var(--mono);
   font-size: 11.5px;
   color: var(--ink-soft);
+  text-align: left;
+  cursor: pointer;
   overflow-wrap: anywhere;
 }
 
-.where::before {
+.chip::before {
   content: "";
   flex: 0 0 auto;
   width: 7px;
@@ -122,17 +129,95 @@ body {
   background: var(--ink-mute);
 }
 
-.where[data-state="observing"]::before {
+/* The chevron, and which way it points. Last so it stays at the right edge
+   however long the host is. */
+.chip::after {
+  content: "\203a";
+  margin-left: auto;
+  color: var(--ink-mute);
+  transform: rotate(90deg);
+}
+
+.chip[data-open="true"]::after {
+  transform: rotate(-90deg);
+}
+
+.chip .host {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chip .says {
+  flex: 0 0 auto;
+  color: var(--ink-mute);
+}
+
+.chip[data-state="observing"]::before {
   background: var(--good);
 }
 
-.where[data-state="recording"]::before {
+.chip[data-state="recording"]::before {
   background: var(--accent);
   animation: beat 1.4s ease-in-out infinite;
 }
 
-.where[data-state="trouble"]::before {
+.chip[data-state="paused"]::before {
   background: var(--warn);
+}
+
+/* The profile, and what is under it: pause, purge, settings, disconnect. Rare
+   and deliberate things, out of the eye line of the composer. */
+.disc {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: none;
+  color: var(--ink-soft);
+  font-size: 10.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.menu {
+  display: flex;
+  flex-direction: column;
+  margin-top: 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-card, 10px);
+  background: var(--card);
+  overflow: hidden;
+}
+
+.menu button {
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.menu button:hover {
+  background: var(--brand-raised);
+  color: var(--ink);
+}
+
+/* The day, over the ledger. Numbers in the mono face, because they change while
+   somebody is looking at them. */
+.today {
+  display: flex;
+  gap: 14px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--line-soft);
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-mute);
 }
 
 @keyframes beat {
@@ -431,32 +516,12 @@ button.danger:hover:not(:disabled) {
   border: 0;
 }
 
-/* -- footer --------------------------------------------------------------- */
-
-footer {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  margin-top: auto;
-  padding: 10px 14px;
-  border-top: 1px solid var(--line);
-  background: var(--card);
-}
-
-footer button {
-  font-size: 11.5px;
-  padding: 6px 11px;
-}
-
-footer a {
-  margin-left: auto;
-  color: var(--ink-mute);
-  font-size: 11.5px;
-}
-
+/* No footer. What sat here -- ask, purge, settings -- was either a second copy
+   of the box you type in or something done once a month, all of it in the eye
+   line of the one control reached hourly. Only what a purge has to say is left,
+   and it says it where the operator was looking. */
 #purged {
-  flex-basis: 100%;
+  padding: 0 14px 8px;
 }
 
 /* -- the conversation ------------------------------------------------------ */
@@ -465,14 +530,8 @@ footer a {
   padding: 4px 14px 6px;
 }
 
-#thread h2 {
-  margin: 8px 0;
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--ink-mute);
-}
+/* No heading over the conversation. It is the whole of this surface now, and a
+   label over the only thing on a screen names nothing. */
 
 .thread .said {
   margin: 0;
@@ -535,4 +594,106 @@ footer a {
 
 .composer input::placeholder {
   color: var(--ink-mute);
+}
+
+
+/* -- the time rail ---------------------------------------------------------- */
+
+/* A day of work read down one edge. The minute is said once and then not again
+   until it changes: repeating 12:04 against three things said in the same
+   minute is noise exactly where the eye is looking for structure. */
+.message .when {
+  flex: 0 0 40px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  line-height: 1.7;
+  color: var(--ink-mute);
+  text-align: right;
+}
+
+/* The rail changes the shape of a message: a fixed cell for the time, then
+   everything the message is. */
+.message {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.message > :not(.when) {
+  min-width: 0;
+}
+
+/* -- a nudge ---------------------------------------------------------------- */
+
+/* The one entry that carries the accent, because it is the one asking to be
+   answered right now. It lives about ninety seconds. */
+.message[data-kind="nudge"][data-state="open"] {
+  border-left: 2px solid var(--accent);
+  padding-left: 10px;
+}
+
+/* Once it has ended it is a line about something that happened, like the rest.
+   A prompt still coloured after it stopped asking is one that teaches somebody
+   to stop reading the colour. */
+.message[data-kind="nudge"]:not([data-state="open"]) .what {
+  color: var(--ink-mute);
+}
+
+/* -- a run, while it happens ------------------------------------------------ */
+
+.run {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.run .step {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.run .glyph {
+  flex: 0 0 12px;
+  font-family: var(--mono);
+  color: var(--ink-mute);
+  /* The one thing on this surface that animates: a step turning from happening
+     into done, while somebody is watching it happen. */
+  transition: color 180ms ease;
+}
+
+.run .step .intent {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* A step that has been checked, and one that only came back 200. The second is
+   most of them today, and saying so is the point. */
+.run .step:has(.glyph) .glyph {
+  color: var(--ink-mute);
+}
+
+.run .note {
+  flex-basis: 100%;
+  margin: 2px 0 0 20px;
+  font-size: 11.5px;
+  color: var(--ink-mute);
+}
+
+/* -- what everything focusable looks like when a keyboard reaches it -------- */
+
+button:focus-visible,
+input:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .run .glyph {
+    transition: none;
+  }
 }

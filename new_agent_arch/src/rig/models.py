@@ -108,7 +108,9 @@ class GeminiAsker:
                 config=build_config(schema=schema),
             )
         except Exception as problem:  # noqa: BLE001 -- a rig keeps going; the row records why
-            return Answer(error=f"{type(problem).__name__}: {problem}")
+            # The call may or may not have been billed before it failed, and we
+            # cannot tell -- so the cost figure (0.0 here) is not to be trusted.
+            return Answer(unpriced=True, error=f"{type(problem).__name__}: {problem}")
 
         usage = getattr(response, "usage_metadata", None)
         raw_in = getattr(usage, "prompt_token_count", None)

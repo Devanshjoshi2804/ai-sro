@@ -189,6 +189,25 @@ async def test_gemini_asker_survives_the_client_raising() -> None:
     assert answer.cost_usd == 0.0
 
 
+async def test_a_call_that_never_returned_does_not_claim_to_be_free() -> None:
+    """We cannot tell whether it was billed before it failed, so the cost
+    figure is not to be trusted -- which is what `unpriced` means."""
+
+    def _raise() -> Any:
+        raise RuntimeError("network is down")
+
+    client, _ = _fake_client(_raise)
+    asker = GeminiAsker(api_key="unused", client=client)
+
+    answer = await asker.ask(
+        model="gemini-3.8-flash", instructions="i", evidence="e", schema={"type": "object"}
+    )
+
+    assert answer.error
+    assert answer.unpriced is True
+    assert answer.cost_usd == 0.0
+
+
 async def test_gemini_asker_ask_really_routes_through_build_config() -> None:
     """The seam a future edit must not be able to slip grounding past."""
     usage = SimpleNamespace(prompt_token_count=1, candidates_token_count=1)

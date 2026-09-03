@@ -16,6 +16,12 @@ It is the evidence a model cited.
 
 Everything here is a design. Nothing in it is built yet.
 
+This file is the argument and the evidence.
+[`algorithms.md`](algorithms.md) beside it is the mechanics — fifteen algorithms
+written to be implemented, each naming the paper it came from or admitting it
+has none. The spec is
+[`docs/superpowers/specs/2026-09-03-model-first-workflow-mining-design.md`](../superpowers/specs/2026-09-03-model-first-workflow-mining-design.md).
+
 ---
 
 ## The whiteboard

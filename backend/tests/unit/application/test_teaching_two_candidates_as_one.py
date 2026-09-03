@@ -472,3 +472,93 @@ async def test_a_doing_the_other_way_round_is_still_a_doing() -> None:
         assert hosts == {WMS, ERP}, "a demonstration of this job is both halves"
     # Freshest first survives the concatenation of the two directions.
     assert recordings[0].started_at > recordings[1].started_at
+
+
+async def _mixed_world(
+    uow: FakeUnitOfWork, blobs: FakeBlobStore
+) -> tuple[TaskCandidate, TaskCandidate]:
+    """The same job twice, done in opposite orders.
+
+    Monday the operator closed waves and then recorded the receipt; the
+    following Monday they had the ERP open already and did it the other way
+    round. Somebody flipping between two tabs does not flip the same way twice,
+    which is exactly what interleaving made ordinary.
+    """
+    events: dict[str, list[dict[str, object]]] = {}
+    # Week one: WMS first.
+    events["bat-wms-0"] = _half(WMS, NINE, "/api/waves/close")
+    events["bat-erp-0"] = _half(ERP, NINE + timedelta(minutes=2), "/api/receipts")
+    # Week two: ERP first.
+    week = NINE + timedelta(days=7)
+    events["bat-erp-1"] = _half(ERP, week, "/api/receipts")
+    events["bat-wms-1"] = _half(WMS, week + timedelta(minutes=2), "/api/waves/close")
+
+    for batch_id, lines in events.items():
+        payload = b"".join(json.dumps(line).encode() + b"\n" for line in lines)
+        blobs.objects[f"{batch_id}.ndjson"] = payload
+        await uow.observations.add(
+            ObservationBatch(
+                id=BatchId(batch_id),
+                tenant_id=f.TENANT,
+                device_id=DeviceId("dev-1"),
+                principal_id=f.OPERATOR,
+                mode=CaptureMode.PASSIVE,
+                started_at=NINE,
+                ended_at=NINE + timedelta(days=8),
+                received_at=NINE,
+                uri=f"s3://sro-artifacts/{batch_id}.ndjson",
+                event_count=len(lines),
+                byte_count=len(payload),
+            )
+        )
+
+    wms = TaskCandidate(
+        id=CandidateId("cnd-wms"),
+        tenant_id=f.TENANT,
+        principal_id=f.OPERATOR,
+        signature="POST api/waves/close",
+        host="wms.acme.test",
+        title="Close waves on wms.acme.test",
+        episodes=(
+            _episode("wms.acme.test", NINE, "bat-wms-0"),
+            _episode("wms.acme.test", week + timedelta(minutes=2), "bat-wms-1"),
+        ),
+    )
+    erp = TaskCandidate(
+        id=CandidateId("cnd-erp"),
+        tenant_id=f.TENANT,
+        principal_id=f.OPERATOR,
+        signature="POST api/receipts",
+        host="erp.acme.test",
+        title="Record a receipt on erp.acme.test",
+        episodes=(
+            _episode("erp.acme.test", NINE + timedelta(minutes=2), "bat-erp-0"),
+            _episode("erp.acme.test", week, "bat-erp-1"),
+        ),
+    )
+    await uow.candidates.add(wms)
+    await uow.candidates.add(erp)
+    return wms, erp
+
+
+async def test_a_job_done_in_the_other_order_is_the_same_job() -> None:
+    """Both halves write, and the key comes off the last write in time -- so
+    the week the operator started in the ERP named a different objective than
+    the week they started in the WMS, and induction refused its own pair by
+    name. An operator who flips tabs does not flip the same way twice.
+    """
+    uow, blobs, induce = FakeUnitOfWork(), FakeBlobStore(), _Induction()
+    await _mixed_world(uow, blobs)
+
+    taught = await _teach(uow, blobs, induce).execute(
+        CTX, first_id=CandidateId("cnd-wms"), second_id=CandidateId("cnd-erp")
+    )
+
+    assert taught.skill_id is not None, f"it refused its own pair: {taught.because}"
+    async with uow:
+        keys = [
+            (await uow.recordings.get(f.TENANT, one)).objective_key
+            for one in taught.recording_ids
+        ]
+    assert len(keys) == 2, f"expected both doings, got {len(keys)}"
+    assert keys[0] == keys[1], f"the same job named two things: {keys[0]} and {keys[1]}"

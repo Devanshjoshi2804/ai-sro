@@ -24,7 +24,8 @@
     "sidePanel"
   ],
   "host_permissions": [
-    "<all_urls>"
+    "<all_urls>",
+    "http://localhost:8100/*"
   ],
   "side_panel": {
     "default_path": "src/panel/panel.html"

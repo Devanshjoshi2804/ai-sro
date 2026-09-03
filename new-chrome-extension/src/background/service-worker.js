@@ -661,6 +661,13 @@ async function handle(message, sender) {
     case "set-paused":
       await state.setPaused(Boolean(message.paused));
       return settle();
+    case "rig":
+      // Its own message rather than part of sign-in: sign-in clears the device
+      // registration, and an optional second reader is not worth re-registering
+      // a browser for.
+      await state.setRigUrl(message.rigUrl || "");
+      await state.setRigToken(message.rigToken || "");
+      return status();
     case "flush":
       // Upload now rather than on the next tick, and all of it: the options
       // page offers this so an operator about to close the laptop can watch the
@@ -1274,6 +1281,8 @@ async function status() {
     policy,
     apiUrl,
     consoleUrl,
+    rigUrl,
+    rigToken,
     paused,
     serverPaused,
     lastBeat,
@@ -1285,6 +1294,8 @@ async function status() {
       state.policy(),
       state.apiUrl(),
       state.consoleUrl(),
+      state.rigUrl(),
+      state.rigToken(),
       state.paused(),
       state.serverPaused(),
       state.lastBeat(),
@@ -1315,6 +1326,8 @@ async function status() {
     policy,
     apiUrl,
     consoleUrl,
+    rigUrl,
+    rigToken,
     paused,
     serverPaused,
     lastBeat,

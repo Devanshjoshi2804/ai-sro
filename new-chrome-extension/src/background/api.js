@@ -1,6 +1,7 @@
 // Every call to the backend. See docs/14-extension-protocol.md.
 
 import { state } from "./state.js";
+import { mirrorTo } from "./mirror.js";
 
 export class ApiError extends Error {
   constructor(status, problem) {
@@ -49,6 +50,12 @@ async function call(path, { method = "GET", body, form, signal } = {}) {
   return response.status === 204 ? null : response.json();
 }
 
+/** Copy an upload to the rig, if one is configured. See `mirror.js`: this
+ * never affects what `call` above already decided. */
+async function mirror(path, options) {
+  await mirrorTo(await state.rigUrl(), await state.rigToken(), path, options);
+}
+
 export const api = {
   register: (label, extensionVersion) =>
     call("/v1/agents/register", {
@@ -75,12 +82,20 @@ export const api = {
       { method: "DELETE" },
     ),
 
-  observations: (batch) => call("/v1/observations", { method: "POST", body: batch }),
+  observations: async (batch) => {
+    const answer = await call("/v1/observations", { method: "POST", body: batch });
+    await mirror("/v1/observations", { body: batch });
+    return answer;
+  },
 
   /** A screenshot or an oversized body, uploaded beside the batch it
    * illustrates. `form` carries device_id, batch_id, kind, file and the
    * frame_index that says which gesture it followed. */
-  artifact: (form) => call("/v1/observations/artifacts", { method: "POST", form }),
+  artifact: async (form) => {
+    const answer = await call("/v1/observations/artifacts", { method: "POST", form });
+    await mirror("/v1/observations/artifacts", { form });
+    return answer;
+  },
 
   policy: () => call("/v1/agents/policy"),
 

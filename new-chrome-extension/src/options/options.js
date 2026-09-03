@@ -51,6 +51,8 @@ function render(status) {
 
   $("api-url").value = status.apiUrl || "";
   $("console-url").value = status.consoleUrl || "";
+  $("rig-url").value = status.rigUrl || "";
+  $("rig-token").value = status.rigToken || "";
   $("purge").disabled = !status.deviceId;
 
 }
@@ -88,6 +90,21 @@ $("sign-out").addEventListener("click", async () => {
 $("paused").addEventListener("change", async (event) => {
   try {
     render(await ask({ kind: "set-paused", paused: event.target.checked }));
+  } catch (error) {
+    trouble(error);
+  }
+});
+
+$("rig").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  try {
+    render(
+      await ask({
+        kind: "rig",
+        rigUrl: $("rig-url").value.trim(),
+        rigToken: $("rig-token").value.trim(),
+      }),
+    );
   } catch (error) {
     trouble(error);
   }

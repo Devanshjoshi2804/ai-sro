@@ -1,0 +1,72 @@
+import copy
+
+from rig.correlate import correlate
+from rig.shape import containment, jaccard, shape_key, target_identity
+from rig.wire import Batch
+from tests.fixtures import BATCH
+
+
+def _gestures():
+    gestures, _, _, _ = correlate(Batch.model_validate(BATCH), "acme")
+    return gestures
+
+
+def test_an_extjs_control_is_named_by_its_item_id() -> None:
+    typed = next(g for g in _gestures() if g.gesture.kind == "type" and not g.gesture.secret)
+
+    assert target_identity(typed) == "clientCode"
+
+
+def test_a_plain_control_falls_back_to_its_name() -> None:
+    """The fixture's select carries a name and no role, so it keys by name.
+    Asserted exactly: `== "role|Dock" or "Dock" in identity` passes on either
+    outcome and so distinguishes neither."""
+    select = next(g for g in _gestures() if g.gesture.kind == "select")
+
+    assert target_identity(select) == "name|Dock"
+
+
+def test_a_scroll_has_no_target_and_is_named_anyway() -> None:
+    """A scroll carries no target at all. It must still key.
+
+    The committed fixture holds no scroll, so one is built rather than skipped:
+    a test that skips is a test that does not run, and twelve of the eighty-one
+    real acme gestures are scrolls."""
+    scroll = copy.deepcopy(_gestures()[0])
+    scroll.gesture.kind = "scroll"
+    scroll.gesture.target = None
+
+    assert target_identity(scroll) == "anon|scroll"
+
+
+def test_the_key_never_uses_a_css_path_or_an_xpath() -> None:
+    """Both encode document position and change when the page is restyled.
+    A key built on them is the brittleness this replaces."""
+    keys = [target_identity(g) for g in _gestures()]
+
+    assert not any("nth-of-type" in k or k.startswith("/html") for k in keys)
+
+
+def test_the_key_is_the_same_for_the_same_doing_twice() -> None:
+    gestures = _gestures()
+
+    assert shape_key(gestures) == shape_key(list(gestures))
+
+
+def test_containment_sees_a_small_job_inside_a_big_one() -> None:
+    """Jaccard would call these different; a three-step job really does sit
+    inside the twelve-step job that contains it."""
+    small = {("a", "x", "click"), ("a", "y", "type")}
+    big = small | {("b", f"z{n}", "click") for n in range(10)}
+
+    assert containment(small, big) == 1.0
+    assert jaccard(small, big) < 0.25
+
+
+def test_containment_of_disjoint_sets_is_zero() -> None:
+    assert containment({("a", "x", "click")}, {("b", "y", "type")}) == 0.0
+
+
+def test_containment_of_empty_sets_does_not_divide_by_zero() -> None:
+    assert containment(set(), set()) == 0.0
+    assert containment({("a", "x", "click")}, set()) == 0.0

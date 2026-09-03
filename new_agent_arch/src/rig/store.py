@@ -71,6 +71,32 @@ CREATE TABLE IF NOT EXISTS orphan_pages (
     at       TEXT NOT NULL,
     payload  TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS workflows (
+    id         TEXT PRIMARY KEY,
+    tenant     TEXT NOT NULL,
+    title      TEXT,
+    narrative  TEXT,
+    systems    TEXT NOT NULL DEFAULT '[]',
+    parameters TEXT NOT NULL DEFAULT '[]',
+    shape_key  TEXT NOT NULL DEFAULT '[]',
+    same_as    TEXT,
+    unproven   TEXT NOT NULL DEFAULT '[]',
+    cost_usd   REAL NOT NULL DEFAULT 0.0,
+    unpriced   INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS workflows_tenant ON workflows (tenant, created_at);
+
+CREATE TABLE IF NOT EXISTS workflow_steps (
+    workflow_id TEXT NOT NULL,
+    ord         INTEGER NOT NULL,
+    says        TEXT,
+    system      TEXT,
+    cites       TEXT NOT NULL DEFAULT '[]',
+    parameters  TEXT NOT NULL DEFAULT '[]',
+    PRIMARY KEY (workflow_id, ord)
+);
 """
 
 

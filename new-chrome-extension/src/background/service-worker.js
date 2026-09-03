@@ -17,6 +17,8 @@ import {
   injectIntoWatched,
   unregister,
 } from "./scripts.js";
+import { LIFETIME_MS, fire, mute, onCall, shouldFire, sweep } from "../panel/nudge.js";
+import { hideNudge, showNudge } from "./showing.js";
 import { capture } from "./shots.js";
 import { activeRunAge, afterRunWrong, capturing, finishedRun, state } from "./state.js";
 import * as teaching from "./teaching.js";
@@ -56,6 +58,11 @@ chrome.alarms.onAlarm.addListener((alarm) => {
     // schedule regardless, off the storage-backed mirror `perform()` writes,
     // which is the only thing here that survives that eviction.
     void checkFinishing();
+    // A prompt that outlives the task it offered is a prompt that was ignored.
+    // On the beat rather than a timer of its own: this worker is evicted
+    // between events, and a `setTimeout` for ninety seconds is one the platform
+    // is free to never run.
+    void sweepNudges();
   }
   if (alarm.name === FLUSH) void flushQueue();
   // Every wake-up re-dials. Chrome evicts this worker while it is idle and the
@@ -74,6 +81,10 @@ chrome.webNavigation.onCommitted.addListener((d) => {
   // with the last document is not wrong with this one.
   halfDeaf.delete(d.tabId);
   void pageEvent("navigated", d.tabId, d.url, d.timeStamp);
+  // `navigationId` is not in this event, so the visit is the tab and the moment
+  // it committed. Same property either way: one nudge per navigation rather
+  // than one per page for ever.
+  void considerNudge(d.tabId, d.url, `${d.tabId}:${d.timeStamp}`);
 });
 chrome.webNavigation.onCompleted.addListener((d) => {
   if (d.frameId === 0) void pageEvent("loaded", d.tabId, d.url, d.timeStamp);
@@ -82,6 +93,101 @@ chrome.webNavigation.onCreatedNavigationTarget.addListener((d) => {
   void popupEvent(d);
 });
 
+
+// -- offering to do the one they are about to do -----------------------------
+
+/** Cached per host, because a navigation happens far more often than a task is
+ * mined. Five minutes is well inside the quarter-hour sweep that changes it. */
+const CANDIDATES_FRESH_MS = 300_000;
+const knownHere = new Map();
+
+async function candidatesFor(host) {
+  const held = knownHere.get(host);
+  if (held && Date.now() - held.at < CANDIDATES_FRESH_MS) return held.list;
+  try {
+    const list = await api.candidates(host);
+    knownHere.set(host, { at: Date.now(), list });
+    return list;
+  } catch {
+    // Offline, or no credential. Nothing is offered, which is the right
+    // direction: a nudge is a nicety and its absence costs nobody anything.
+    return [];
+  }
+}
+
+/** Whether to say "you have done this here before", and saying it.
+ *
+ * Fired here rather than in the panel because the panel may be closed, which is
+ * exactly when this matters: the operator is looking at the page, about to do
+ * the work themselves.
+ */
+async function considerNudge(tabId, url, visit) {
+  try {
+    if (!(await isWatched(tabId))) return;
+    const host = hostOf(url || "");
+    if (!host) return;
+    const now = Date.now();
+    // Anything the operator has walked away from ends here, before anything new
+    // is offered: leaving the page is one of the three ways a nudge ends.
+    const swept = sweep(await state.nudges(), { url, now });
+    const candidate = shouldFire({
+      url,
+      visit,
+      candidates: await candidatesFor(host),
+      nudges: swept,
+      muted: await state.muted(),
+      performing: await performing(),
+      now,
+    });
+    if (!candidate) {
+      await state.setNudges(swept.slice(0, MAX_NUDGES));
+      return;
+    }
+    const made = fire(candidate, now, { tabId, visit });
+    await state.setNudges([made, ...swept].slice(0, MAX_NUDGES));
+    await showNudge(tabId, candidate.title);
+  } catch {
+    // A tab that closed mid-navigation, or a browser with no credential yet.
+    // Nothing offered is the safe answer and the quiet one.
+  }
+}
+
+/** Ends the ones that ran out, wherever the operator has got to.
+ *
+ * Called on the beat rather than by a timer of its own: a service worker is
+ * evicted between events, and a `setTimeout` for ninety seconds is one the
+ * platform is free to never run. The pill in the page removes itself for the
+ * same reason.
+ */
+async function sweepNudges() {
+  const held = await state.nudges();
+  if (!held.length) return;
+  const open = held.filter((nudge) => nudge.state === "open");
+  const swept = sweep(held, { url: "", now: Date.now() });
+  await state.setNudges(swept);
+  for (const nudge of open) {
+    if (swept.find((each) => each.id === nudge.id)?.state !== "open") {
+      void hideNudge(nudge.tabId);
+    }
+  }
+}
+
+/** How many prompts are worth keeping to draw the day. */
+const MAX_NUDGES = 20;
+
+/** A write the operator's own browser made, against what was being offered. */
+async function didItThemselves(message) {
+  const held = await state.nudges();
+  if (!held.some((nudge) => nudge.state === "open")) return;
+  const after = onCall(held, { url: message.url, method: message.method }, Date.now());
+  if (after === held) return;
+  await state.setNudges(after);
+  for (const nudge of held) {
+    if (nudge.state === "open" && after.find((each) => each.id === nudge.id)?.state !== "open") {
+      void hideNudge(nudge.tabId);
+    }
+  }
+}
 
 // -- which tabs are being watched --------------------------------------------
 //
@@ -417,6 +523,11 @@ async function handle(message, sender) {
       // queues instead of landing mid-keystroke -- only for gestures, because
       // a page's background traffic is not a person at a keyboard.
       if (message.kind === "gesture") channel.operatorIsWorking();
+      // They did the task themselves while it was being offered. One of the
+      // three ways a nudge ends, and the one that needs saying least: they did
+      // the thing, and a panel congratulating them on it is a panel nobody
+      // wants open.
+      if (message.kind === "request") void didItThemselves(message);
       // tab_id comes from the sender, not the content script -- a frame has
       // no chrome.tabs access of its own to ask for it.
       const tab_id = sender?.tab?.id ?? null;
@@ -651,6 +762,31 @@ async function handle(message, sender) {
       return api.skill(message.skillId);
     case "summary":
       return api.summary(message.since);
+    case "nudge-answer": {
+      // Answering ends it either way. What "do it" starts is the same path a
+      // candidate row has always taken -- taught if it needs teaching, run if
+      // it is already a skill -- and the panel drives that, because the press
+      // that authorises a run belongs where somebody can read what it says.
+      const held = await state.nudges();
+      const answered = held.map((nudge) =>
+        nudge.id === message.id
+          ? { ...nudge, state: "answered", answer: message.answer, endedAt: Date.now() }
+          : nudge,
+      );
+      await state.setNudges(answered);
+      const was = held.find((nudge) => nudge.id === message.id);
+      if (was) void hideNudge(was.tabId);
+      if (was && message.answer === "not-here") {
+        await state.setMuted(mute(await state.muted(), was.startsOn, Date.now()));
+      }
+      return { ok: true, nudge: was || null };
+    }
+    case "open-panel":
+      // From the pill in the page. Opening it is all it does: the offer is in
+      // the panel with its two answers, and pressing one there is what
+      // authorises anything.
+      if (sender?.tab?.id !== undefined) await chrome.sidePanel.open({ tabId: sender.tab.id });
+      return { ok: true };
     case "revise-run":
       return api.reviseRun(message.runId, message.values);
     case "say-to-run":
@@ -1195,6 +1331,10 @@ async function status() {
     // The mails this browser recognised and nobody has answered yet. Held
     // here and nowhere else -- the panel is the same browser that read them.
     offers: await state.offers(),
+    // What was offered on the page in front of them, and what came of it. Held
+    // here for the same reason the offers are: this is the browser it happened
+    // in, and none of it is worth writing down.
+    nudges: await state.nudges(),
     version: VERSION,
   };
 }

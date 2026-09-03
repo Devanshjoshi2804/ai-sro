@@ -163,6 +163,7 @@ test-extension: ## The extension's own self-checks, in plain node
 	node new-chrome-extension/src/panel/strip.test.mjs
 	node new-chrome-extension/src/panel/today.test.mjs
 	node new-chrome-extension/src/panel/run-card.test.mjs
+	node new-chrome-extension/src/panel/nudge.test.mjs
 	node new-chrome-extension/src/tokens.test.mjs
 
 check: lint test test-contract test-frontend test-extension test-browser ## What CI runs

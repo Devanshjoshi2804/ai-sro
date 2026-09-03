@@ -15,6 +15,8 @@ const KEYS = {
   grants: "sro.grants",
   watches: "sro.watches",
   offers: "sro.offers",
+  nudges: "sro.nudges",
+  muted: "sro.muted",
   watched: "sro.watched",
   paused: "sro.paused",
   serverPaused: "sro.serverPaused",
@@ -84,6 +86,17 @@ export const state = {
    * A tab id, not a host: the operator points at the window in front of them,
    * and it keeps being that window when the application navigates to a
    * different host mid-task, which every SSO flow does. */
+  /** Prompts this browser is holding, and the pages the operator said no to.
+   *
+   * Browser-held on purpose: a nudge lives about ninety seconds, only an answer
+   * produces anything durable, and the thread is the record of what was decided
+   * rather than of what was asked and ignored. */
+  nudges: () => read(KEYS.nudges, []),
+  setNudges: (nudges) => write(KEYS.nudges, nudges),
+
+  muted: () => read(KEYS.muted, {}),
+  setMuted: (muted) => write(KEYS.muted, muted),
+
   watched: () => read(KEYS.watched, []),
   setWatched: (tabs) => write(KEYS.watched, tabs),
 

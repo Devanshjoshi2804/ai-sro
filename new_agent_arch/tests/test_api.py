@@ -134,6 +134,87 @@ def test_a_malformed_envelope_is_refused_with_422_not_500(client: TestClient) ->
     assert response.status_code == 422
 
 
+def test_a_truncated_body_does_not_poison_the_batch_id(client: TestClient, store: Store) -> None:
+    """It used to answer 202 and take the id, so the real retry was discarded
+    as "already had it" and seven gestures vanished with no error anywhere."""
+    truncated = {key: value for key, value in BATCH.items() if key != "events"}
+
+    first = client.post("/v1/observations", json=truncated, headers=_auth())
+
+    assert first.status_code == 422
+
+    retry = client.post("/v1/observations", json=BATCH, headers=_auth())
+
+    assert retry.status_code == 202
+    assert retry.json()["accepted"] == 7
+    assert store.query("SELECT count(*) AS n FROM gestures")[0]["n"] == 7
+
+
+def test_events_of_the_wrong_type_is_a_malformed_envelope(client: TestClient) -> None:
+    for events in ("not a list", {"a": "dict"}, 7, None):
+        raw = {**BATCH, "events": events}
+
+        response = client.post("/v1/observations", json=raw, headers=_auth())
+
+        assert response.status_code == 422, events
+
+
+def test_an_artifact_cannot_be_written_outside_the_artifacts_directory(
+    client: TestClient,
+) -> None:
+    response = client.post(
+        "/v1/observations/artifacts",
+        headers=_auth(),
+        data={"batch_id": "../../escaped", "kind": "screenshot"},
+        files={"file": ("s.png", b"PNG", "image/png")},
+    )
+
+    assert response.status_code == 400
+
+
+def test_the_rejected_count_is_written_down_not_only_returned(
+    client: TestClient, store: Store
+) -> None:
+    raw = json.loads(json.dumps(BATCH))
+    raw["events"].append(
+        {
+            "kind": "gesture",
+            "gesture": {
+                "kind": "drag",
+                "target": {"tag": "div", "cssPath": "div#x"},
+                "at": 1.0,
+                "url": "https://wms.example/",
+            },
+            "tab_id": 1,
+        }
+    )
+
+    client.post("/v1/observations", json=raw, headers=_auth())
+
+    row = store.query("SELECT accepted, rejected FROM batches")[0]
+
+    assert row["accepted"] == 7
+    assert row["rejected"] == 1
+
+
+async def test_two_readings_of_the_same_gestures_do_not_both_run(store: Store) -> None:
+    """Both callers used to select the same unread rows and bill the model
+    twice for each, while INSERT OR REPLACE kept only one cost row."""
+    import asyncio
+
+    save_batch(store, Batch.model_validate(BATCH), "new")
+    asker = FakeAsker(*[_ok() for _ in range(14)])
+
+    first, second = await asyncio.gather(
+        read_new_gestures(store, asker, "gemini-3.8-flash"),
+        read_new_gestures(store, asker, "gemini-3.8-flash"),
+    )
+
+    assert first + second == 7
+    assert store.query("SELECT count(*) AS n FROM intents")[0]["n"] == 7
+    assert len(asker.asked) == 7
+
+
 def test_no_token_is_refused(client: TestClient) -> None:
     assert client.post("/v1/observations", json=BATCH).status_code == 401
 

@@ -24,7 +24,7 @@ def _now() -> str:
     return datetime.now(tz=UTC).isoformat()
 
 
-def save_batch(store: Store, batch: Batch, tenant: str) -> tuple[int, bool]:
+def save_batch(store: Store, batch: Batch, tenant: str, rejected: int = 0) -> tuple[int, bool]:
     """Store one batch and its gestures. Idempotent on batch_id."""
     try:
         store.execute(
@@ -76,8 +76,8 @@ def save_batch(store: Store, batch: Batch, tenant: str) -> tuple[int, bool]:
                 (batch.batch_id, tenant, page.at, page.model_dump_json()),
             )
         connection.execute(
-            "UPDATE batches SET accepted = ? WHERE batch_id = ?",
-            (len(gestures), batch.batch_id),
+            "UPDATE batches SET accepted = ?, rejected = ? WHERE batch_id = ?",
+            (len(gestures), rejected, batch.batch_id),
         )
 
     return len(gestures), False
@@ -159,8 +159,23 @@ def tail_for(store: Store, stream_id: str, before: float) -> list[Intent]:
     return list(reversed([_row_to_intent(row) for row in rows]))
 
 
+# One reading loop at a time. Two concurrent callers both SELECT the same
+# unread gestures before either writes an intent, so every gesture in the race
+# window is asked -- and billed -- twice, while INSERT OR REPLACE leaves only
+# one cost row. `read_on_ingest` fires one of these per ingest, so two batches
+# arriving together is enough to trigger it.
+# ponytail: a process-local lock, because the rig is one process. Claim rows in
+# the database if it ever becomes more than one.
+_reading = asyncio.Lock()
+
+
 async def read_new_gestures(store: Store, asker: Asker, model: str) -> int:
     """Every stored gesture with no intent gets exactly one reading."""
+    async with _reading:
+        return await _read_unread(store, asker, model)
+
+
+async def _read_unread(store: Store, asker: Asker, model: str) -> int:
     rows = store.query(
         "SELECT g.* FROM gestures g LEFT JOIN intents i ON i.gesture_id = g.id"
         " WHERE i.gesture_id IS NULL ORDER BY g.at LIMIT 200"
@@ -227,7 +242,7 @@ def build_app(
             raise HTTPException(
                 status_code=422, detail=problem.errors(include_input=False)
             ) from problem
-        accepted, already = save_batch(store, batch, tenant)
+        accepted, already = save_batch(store, batch, tenant, rejected=len(rejected))
         if read_on_ingest and not already:
             asyncio.create_task(_read_soon(store, asker))
         return {
@@ -245,7 +260,14 @@ def build_app(
         file: UploadFile,
         frame_index: Annotated[int | None, Form()] = None,
     ) -> dict[str, Any]:
-        blob = settings().db_path.parent / "artifacts" / batch_id
+        root = (settings().db_path.parent / "artifacts").resolve()
+        blob = (root / batch_id).resolve()
+        if not blob.is_relative_to(root):
+            # batch_id arrives on a form field. "../../evil" wrote outside the
+            # artifacts directory entirely -- checked on the resolved path
+            # rather than by blacklisting characters, which is the check that
+            # actually holds.
+            raise HTTPException(status_code=400, detail="batch_id is not a usable name")
         blob.mkdir(parents=True, exist_ok=True)
         name = f"{kind}-{frame_index if frame_index is not None else 'x'}.png"
         data = await file.read()

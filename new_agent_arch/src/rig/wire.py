@@ -150,11 +150,21 @@ def parse_batch(raw: dict[str, Any]) -> tuple[Batch, tuple[RejectedEvent, ...]]:
     beside it. Losing a morning of evidence because the extension shipped a new
     gesture is the failure this system exists to prevent.
     """
+    if not isinstance(raw.get("events"), list):
+        # A batch whose events cannot even be enumerated is a malformed
+        # ENVELOPE, not a batch containing bad events. Defaulting to [] here
+        # answers 202 for a truncated body and -- because save_batch is
+        # idempotent on batch_id -- permanently poisons that id, so the real
+        # retry is discarded as "already had it". Silent, total loss of a batch.
+        # Let the envelope model refuse it and say why; the route turns that
+        # into a 422.
+        return Batch.model_validate(raw), ()
+
     adapter: TypeAdapter[Event] = TypeAdapter(Event)
     events: list[Any] = []
     rejected: list[RejectedEvent] = []
 
-    for index, event in enumerate(raw.get("events") or []):
+    for index, event in enumerate(raw["events"]):
         try:
             events.append(adapter.validate_python(event))
         except ValidationError as problem:

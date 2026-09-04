@@ -10,6 +10,8 @@ Never cssPath or xpath: both encode document position, both change when the page
 is restyled, and a key built on them is the brittleness this replaces.
 """
 
+from collections.abc import Set as AbstractSet
+
 from rig.records import Gesture
 
 ShapeKey = tuple[tuple[str, str, str], ...]
@@ -47,7 +49,7 @@ def shape_key(gestures: list[Gesture]) -> ShapeKey:
     )
 
 
-def containment(a: set[object], b: set[object]) -> float:
+def containment(a: AbstractSet[object], b: AbstractSet[object]) -> float:
     """|a ∩ b| / min(|a|, |b|).
 
     Containment rather than Jaccard, because a three-step "create supplier" sits
@@ -61,7 +63,7 @@ def containment(a: set[object], b: set[object]) -> float:
     return len(a & b) / min(len(a), len(b))
 
 
-def jaccard(a: set[object], b: set[object]) -> float:
+def jaccard(a: AbstractSet[object], b: AbstractSet[object]) -> float:
     """|a ∩ b| / |a ∪ b|. For the occurrence question, where the two sets are
     the same size by construction."""
     if not a and not b:

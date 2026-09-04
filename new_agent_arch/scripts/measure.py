@@ -10,7 +10,10 @@ evidence that happened on more than one scheme+host. Everything else on the
 page is context for that one line.
 
     RIG_GEMINI_API_KEY=... uv run python scripts/measure.py \
-        --db /path/to/read/rig.db --runs 3 --model gemini-3.1-pro
+        --db /path/to/read/rig.db --runs 3 --model gemini-3.8-flash
+
+`config.mine_model` is "gemini-3.1-pro", which the API rejects with a 404 --
+models.list() offers only "gemini-3.1-pro-preview". Name the model here.
 """
 
 from __future__ import annotations
@@ -26,20 +29,11 @@ from typing import Any
 
 from rig.api import read_new_gestures, save_batch
 from rig.mine import MineResult, mine
-from rig.models import GeminiAsker, price
+from rig.models import GeminiAsker
 from rig.pool import pool_ids, retired_entries
 from rig.store import Store
 from rig.wire import parse_batch
 from rig.workflows import Workflow, cited_ids, known_workflows
-
-# A preview model is priced like the model it previews; rig.models.PRICES does
-# not carry the preview names, so a pass on one records cost_usd 0.0 with
-# unpriced=True. Priced here, in the instrument, rather than by editing the
-# library from a measurement script.
-ALIAS = {
-    "gemini-3.1-pro-preview": "gemini-3.1-pro",
-    "gemini-3-flash-preview": "gemini-3-flash",
-}
 
 
 class Recorder:
@@ -61,20 +55,23 @@ class Recorder:
         return answer
 
     def spent(self, since: int = 0) -> dict[str, Any]:
-        """The bill for the calls made since `since`, priced through ALIAS."""
+        """The bill for the calls made since `since`.
+
+        `written` and `thought` are reported apart because only their sum is
+        billed: a pass whose visible answer is 5,000 tokens can carry 40,000
+        thought ones, and a report quoting the visible half explains nothing
+        about the invoice. `unpriced_calls` is the count that says how much of
+        `cost_usd` is a guess -- a model name missing from PRICES prices at
+        zero, which is the one failure `cost_usd` alone cannot show.
+        """
         calls = self.calls[since:]
-        written = sum(a.out_tokens - a.thought_tokens for _, a in calls)
-        thought = sum(a.thought_tokens for _, a in calls)
         return {
             "calls": len(calls),
             "in_tokens": sum(a.in_tokens for _, a in calls),
-            "written_tokens": written,
-            "thought_tokens": thought,
-            "rig_cost_usd": round(sum(a.cost_usd for _, a in calls), 6),
-            "true_cost_usd": round(
-                sum(price(ALIAS.get(m, m), a.in_tokens, a.out_tokens) for m, a in calls), 6
-            ),
-            "unpriced_calls": sum(1 for m, a in calls if a.unpriced),
+            "written_tokens": sum(a.out_tokens - a.thought_tokens for _, a in calls),
+            "thought_tokens": sum(a.thought_tokens for _, a in calls),
+            "cost_usd": round(sum(a.cost_usd for _, a in calls), 6),
+            "unpriced_calls": sum(1 for _, a in calls if a.unpriced),
         }
 
 

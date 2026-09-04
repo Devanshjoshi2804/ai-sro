@@ -88,8 +88,12 @@ present — the same join, found without a model.
 - **It has not been shown on captured two-system traffic.** The mechanism
   works; the demonstration uses a constructed second system. Anyone repeating
   this should treat B and C as a proof of mechanism, not a field result.
-- **The ubiquity filter is unexercised.** Max ratio 0.037 against a threshold
-  of 0.25, and no value is ever named twice in one reading.
+- **The ubiquity filter is unexercised.** Max ratio 0.136–0.148 against a
+  threshold of 0.25 — closer than the 0.037 measured before `frequencies_over`
+  moved to counting gestures, and still never firing.
+- **The window budget is unexercised, and so is pool retirement.** `left_out`
+  was 0 on all thirteen passes and `retired_entries` empty on every one:
+  `K_POOL_AGE` counts six passes and no store here saw more than two.
 - **Redaction is unexercised by this data.** Zero credential-named fields in
   the whole capture.
 - **One window, one tenant, one day.** Nothing here says anything about the
@@ -109,8 +113,9 @@ this document into a measured one.
 
 ## Numbers worth carrying forward
 
-**Window headroom.** 268 estimated tokens per gesture, so a 150K window holds
-roughly **561 gestures** — near the 620 estimated during Task 1. A real
+**Window headroom.** 270 estimated tokens per gesture, so a 150K window holds
+roughly **555 gestures** — near the 620 estimated during Task 1. The 88-gesture
+window spends 23,840 of 150,000, so the pass runs at 16% of budget. A real
 operator day exceeding that is why evidence the budget leaves out now enters
 the carryover pool.
 
@@ -130,6 +135,128 @@ the result is unmeasured.
 A preview model name is not in `PRICES`, so the entire measurement run recorded
 `cost_usd 0.0, unpriced=True` while actually billing $1.12. The preview names
 are priced now.
+
+## Every pass, in numbers
+
+Thirteen passes on shipped `HEAD`, three per arm plus one identity re-run.
+`resolved` counts proposals that passed every check and were then folded onto a
+workflow already stored. Nothing was rejected and nothing was stranded on any
+pass — every gesture in every window was either cited by a kept workflow or in
+the pool.
+
+| arm | run | proposed | kept | resolved | coverage | skew | gini | pooled | in | written | thought | $ |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| A captured, Pro | 1 | 6 | 3 | 3 | 0.70 | +0.20 | 0.47 | 40 | 40,274 | 6,084 | 3,884 | 0.200 |
+| | 2 | 5 | 2 | 3 | 0.60 | +0.34 | 0.53 | 43 | 40,274 | 4,850 | 6,028 | 0.211 |
+| | 3 | 6 | 3 | 3 | 0.70 | +0.21 | 0.46 | 39 | 40,274 | 5,372 | 9,770 | 0.262 |
+| | re-run | 3 | **0** | 3 | — | — | — | 81 | 42,334 | 4,474 | 14,264 | 0.310 |
+| B constructed, Pro | 1 | 5 | 2 | 3 | 0.70 | +0.31 | 0.47 | 43 | 43,192 | 5,346 | 6,846 | 0.233 |
+| | 2 | 5 | 2 | 3 | 0.70 | +0.31 | 0.47 | 43 | 43,192 | 4,664 | 12,391 | 0.291 |
+| | 3 | 5 | 2 | 3 | 0.70 | +0.31 | 0.47 | 43 | 43,192 | 5,226 | 21,656 | 0.409 |
+| C constructed, Flash | 1 | 4 | 2 | 2 | 0.70 | +0.31 | 0.47 | 43 | 43,157 | 4,441 | 39,968 | 0.199 |
+| | 2 | 4 | 2 | 2 | 0.70 | +0.31 | 0.47 | 43 | 43,157 | 4,542 | 36,398 | 0.186 |
+| | 3 | 4 | 2 | 2 | 0.70 | +0.31 | 0.47 | 43 | 43,157 | 4,868 | 35,039 | 0.182 |
+| D captured, Flash | 1 | 4 | 2 | 2 | 0.60 | +0.34 | 0.53 | 43 | 40,274 | 5,018 | 38,136 | 0.192 |
+| | 2 | 4 | 2 | 2 | 0.60 | +0.34 | 0.53 | 43 | 40,274 | 4,049 | 26,100 | 0.143 |
+| | 3 | 4 | 2 | 2 | 0.60 | +0.34 | 0.53 | 43 | 40,274 | 5,473 | 37,003 | 0.189 |
+
+Two jobs are found on every pass of every arm — the work operation `AITEST9`
+and the cross reference for `Test Drive LLC` — and two captured/Pro runs also
+kept a one-step "review the Suppliers tab" fragment. Skew is positive on every
+single pass: citations cluster toward the head of the window, but never past
+`K_MAX_SKEW = 0.4`. The third of the window never cited is scrolls, mis-clicks
+and stray navigation, and it goes to the pool rather than being lost.
+
+**Duplicate absorption is load-bearing.** Across the thirteen passes, 33 of 57
+proposals were folded onto an existing workflow rather than stored. Roughly
+three per pass are the same two jobs re-described at a different granularity;
+without `resolve` the store would fill with re-descriptions of one day.
+
+## Identity, on real model output
+
+Mining the same store twice: the second pass proposed 3 and kept **0**. All
+three matched by **shape containment**, not by citation overlap — the model
+re-reading byte-identical evidence did not re-cite the same gestures closely
+enough to clear `K_SAME_EVIDENCE = 0.5`. An earlier run of the same experiment
+did clear it twice (`same_occurrence` at 1.00) and matched the rest by shape.
+
+So both mechanisms carry weight in practice, and on at least one real re-run the
+shape key was the only thing that recognised a duplicate. `identity.py`'s two
+questions are not belt-and-braces; A11's argument that cited ids alone cannot
+answer "is this the same job" is confirmed on live output.
+
+One artefact of that pass: it reports `lopsided = True`. It kept nothing —
+correctly — so `coverage()` over an empty kept-list returned 0.0, which reads as
+a lopsided window. A pass that found nothing *new* is not a lopsided reading;
+`lopsided` is only meaningful when `kept > 0`.
+
+A second artefact: because that pass claimed nothing, `add_unclaimed` re-pooled
+all 81 gestures, the 38 cited by pass 1's kept workflows included. Defensible —
+that pass placed nothing — but it means the pool refills to the whole window
+whenever a pass is a duplicate.
+
+## Does repetition buy anything, and is Pro needed
+
+**Repetition: no.** Citation Jaccard between independent passes over an
+identical window:
+
+| arm | distinct shapes | held by a plurality | Jaccard |
+|---|---|---|---|
+| A captured, Pro | 4 | 3 | 0.88 / 0.98 / 0.90 |
+| B constructed, Pro | 2 | 2 | 1.00 / 1.00 / 1.00 |
+| C constructed, Flash | 3 | 2 | 1.00 / 0.98 / 0.98 |
+| D captured, Flash | 3 | 2 | 1.00 / 0.97 / 0.97 |
+
+Across every pass run for this document, plurality voting would have changed
+exactly one outcome: a pre-redaction constructed/Pro pass split the cross-system
+job into "Check carrier details in TMS" and "Create parcel cross reference",
+losing the crossing. Its two siblings kept it whole. That is one case in
+fifteen, for three times the money. **`K_SAMPLES` stays at 1** — the published
+0.4%-for-20× result holds up here.
+
+**Pro: not needed on this evidence.** Flash found the same jobs, kept the
+cross-system workflow 3/3, produced no invalid citation, and was slightly the
+more stable of the two. It costs 20–30% less per pass — not the 3× the input
+price implies, because Flash spends 26,000–40,000 thinking tokens against Pro's
+4,000–22,000 on the same window, and thinking is billed as output. On input
+alone Flash would be $0.03 a pass against Pro's $0.086.
+
+The recommendation is to move `config.mine_model` to `gemini-3.8-flash`, on a
+sample of thirteen passes over one day. Note that the setting currently reads
+`gemini-3.1-pro`, **which the API rejects with a 404** — `models.list()` offers
+only `gemini-3.1-pro-preview`. Every Pro figure here is from the preview name;
+the configured default has never completed a pass.
+
+## The bill
+
+One operator-day of 81 gestures, end to end:
+
+| | Flash | Pro (preview) |
+|---|---|---|
+| reading 81 gestures (A3 is always Flash; $0.00243/gesture with thinking counted) | $0.20 | $0.20 |
+| one mining pass | $0.14–$0.19 | $0.20–$0.26 |
+| **a day** | **≈ $0.37** | **≈ $0.43** |
+
+Beside plan 1's $1.36. Extrapolated to a 2,000-gesture day: roughly $4.90 of
+reading plus four windows of mining, order $5–6 — extrapolated, not measured.
+
+`/v1/spend` on a mined store reads
+`{'passes': 1, 'mining_usd': 0.0, 'mining_unpriced': 1}` for a Pro pass made
+before the preview names were priced. The flag was doing its job; the table was
+missing a row.
+
+## Verification of the whole
+
+| # | claim | result |
+|---|---|---|
+| 1 | suite green, three gates clean | 314 passed; `ruff check`, `ruff format --check`, `mypy src` clean |
+| 2 | a workflow spans two systems, every step citing gestures that exist | **not shown on captured evidence — it has one system.** 6/6 on constructed two-system evidence, every citation valid |
+| 3 | re-mining adds no workflow | yes, on real output: second pass kept 0 |
+| 4 | two occurrences of one job resolve `same_job` | 33 of 57 proposals folded onto an existing workflow, mostly by shape |
+| 5 | nothing stranded | 0 on every pass |
+| 6 | an invented citation is rejected and named | yes, plus four other tampers each under its own reason |
+| 7 | an over-long window reports its skew | **not exercised** — `left_out` 0 everywhere, window at 16% of budget |
+| 8 | cost is known, beside plan 1's $1.36 | ≈ $0.37 Flash / $0.43 Pro per operator-day, after `a0ddd04` |
 
 ## Reproducing this
 

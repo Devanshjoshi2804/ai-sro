@@ -253,11 +253,36 @@ can be made not to run* -- and it is no longer an argument.
 
 The `&code=` catch is the OAuth heuristic that was nearly not implemented,
 because `code` matches seven real warehouse field names and only shipped once
-narrowed to an exact parameter name beside an OAuth companion.
+narrowed to an exact parameter name beside an OAuth companion. It earned its
+keep twice over: the token in that URL is a five-segment JWE, and the JWT
+*shape* rule -- three segments, on both sides -- would have replaced its first
+three and left 1,059 characters of ciphertext sitting beside a `«redacted»`
+marker. The name-and-companion rule took the whole parameter, so the rig's
+number is real. The shape rule has since been widened to two-to-four dots.
 
-**Still open, and it is a live exposure:** the backend's blob store holds those
-same two credentials unredacted. The rig strips them at ingest; the backend
-keeps what the browser sent.
+**Since closed, and how it went wrong first.** The backend's ingest path now
+redacts, and `backend/scripts/redact_stored_evidence.py` rewrote the 396
+already-stored objects. An independent review of that work then found two
+things the run itself could not see:
+
+- The backend had **no OAuth `code` rule at all** -- the heuristic above lived
+  only in the rig. The `&code=` in the store was caught by accident, because
+  Okta happens to emit a token starting `eyJ`. An opaque authorization code,
+  which is the common case, had nothing to stop it. Ported now, and the
+  generated extension JS with it, so all three copies agree.
+- The three-segment JWT shape left the JWE tails described above in 14 live
+  objects, and the script's own success check greps for `eyJ` -- the very
+  prefix a partial redaction removes. Both counters read `0 -> 0` and it
+  printed a clean bill over surviving ciphertext. The check now looks for a
+  marker with base64 still glued to it, which is the shape of that failure and
+  cannot be produced by the rule it verifies.
+
+**Still open, and the operator's call:** the 396 `<key>.pre-redaction` backups
+sit in the same bucket under the same tenant prefix, and they hold 14 JWTs, 14
+OAuth codes and 109 Google API keys between them. The rewrite is proven
+lossless -- 396/396 identical event counts and order, idempotent byte-for-byte
+-- so the backups have done their job and are now the largest credential store
+in the deployment. They should be deleted or moved out of the tenant prefix.
 
 ### Cost, measured rather than estimated
 
@@ -289,26 +314,45 @@ ceiling.
 
 The corpus fits one window, so `left_out` was 0 and the carry-over pool never
 bit. Constraining the budget to 20,000 tokens makes it bite exactly as a
-genuine all-tabs day would -- the window then holds 25 to 77 of 387 gestures,
-which is the 6% a real day produces against the full budget.
+genuine all-tabs day would -- the window then holds 25 to 70 of 387 gestures,
+which is the 6-18% a real day produces against the full budget.
 
-No model calls; this is `pack` and the pool alone.
+No model calls; this is `pack` and the pool alone. Run it:
+
+```
+cd new_agent_arch && uv run python scripts/rotate.py
+```
 
 ```
 pass  1: window  25  new-vs-last  25  left_out 362  seen  25/387   6%
-pass  3: window  75  new-vs-last  75  left_out 312  seen 167/387  43%
-pass  5: window  65  new-vs-last  65  left_out 322  seen 300/387  78%
-pass  7: window  49  new-vs-last  49  left_out 338  seen 387/387 100%
+pass  2: window  45  new-vs-last  36  left_out 342  seen  61/387  16%
+pass  5: window  69  new-vs-last  69  left_out 318  seen 195/387  50%
+pass  7: window  55  new-vs-last  55  left_out 332  seen 320/387  83%
+pass 10: window  45  new-vs-last  45  left_out 342  seen 387/387 100%
 
-covered 387/387 of a real day in 7 passes
+covered 387/387 of a real day in 10 passes
 retired without ever being shown: 0
 ```
 
-`new-vs-last` equals the window size on every pass: each pass shows a set
-disjoint from the one before, which is what rotation means. Before the two
-clocks -- `age` counting readings an entry was shown, `waited` counting passes
-it was passed over -- the same measurement gave 19% after ten passes and the
-identical 468 gestures every time.
+**An earlier version of this table was wrong, and the way it was wrong is the
+point of committing the script.** It published 100% at pass 7 and a
+`new-vs-last` equal to the window on *every* pass. Neither reproduces: coverage
+completes at pass 10, and pass 2 shows 45 items of which 36 are new -- nine
+carry over. The harness that produced those figures was never committed, so
+when a reviewer rebuilt it from the prose and got pass 10, there was nothing to
+arbitrate between the two runs. `scripts/rotate.py` is that arbiter now.
+
+Nine of ten passes are disjoint from the one before. The exception is pass 2,
+and the mechanism is visible rather than mysterious: an entry shown on pass 1
+keeps `pack`'s flat `K_POOL_BONUS` while its `waited` resets to 0, so a strong
+item can outrank a waiting weak one exactly once before the waiting term
+overtakes it. Rotation is what the two clocks buy, not disjointness -- and the
+two claims that carry weight both hold: **387/387 of a real day reaches the
+model, and nothing retired without ever being shown.**
+
+Before the two clocks -- `age` counting readings an entry was shown, `waited`
+counting passes it was passed over -- the same measurement gave 19% after ten
+passes and the identical 468 gestures every time.
 
 The mechanism that made it wrong is worth remembering: one counter cannot mean
 both "how long since you were read" and "how long have you waited", because an

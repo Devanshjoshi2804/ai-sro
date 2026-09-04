@@ -41,10 +41,31 @@ genuine crossing, and it contains `Test` as a whole word. The same trap as
 `pin` in `shippingPhone`.
 
 What actually separates them is shape. A lone short word collides by accident
-across five applications; two words, or one long one, do not. Measured over
-every distinct value in the real capture: this rejects `test` and keeps
-`AITEST9`, `Enveyo`, `Test Drive LLC`, `005-BEST METHOD`, `ConnectShip
-(TanData)` and every other real identifier."""
+across five applications; two words, or one long one, do not.
+
+What this costs, measured over all 109 distinct values in the real capture --
+and the earlier claim here that it "rejects `test`" was a claim about one
+value when the real number is fourteen. It rejects `test`, `test4`, `TEST!`,
+`TEST1`, `TEST2`, `TEST5`, `TESTI`, `ACZRD`, `LOCK`, `TDDS`, `TRLR` and the
+literals `True`/`False`/`None`. `TEST1` is the name of a workflow the rig
+itself mined and `TESTI` is a real work-area name; `TDDS`, `TRLR` and `ACZRD`
+read as carrier or dock codes, and a four-character SCAC is standard in this
+trade, so no lone-word floor above four can keep one.
+
+That cost is currently zero, for a reason worth stating rather than hiding
+behind the keeps. `trivial()` gates CROSSINGS only -- what may link evidence
+between systems -- and never a value, a parameter or a step, so a rejected
+value still reaches every workflow that typed it. And `shared_values` needs a
+value in two distinct systems: the real capture produces **no crossings at
+all**, at a floor of 4, 5 or 6 alike. The `test` collision that motivated this
+came from the synthetic all-tabs day. So the constant is honest about a hazard
+nobody has yet met on real evidence, it has never been exercised against a
+real crossing, and 6 rather than 5 is not a measured choice -- lowering it
+would keep seven of the fourteen and change nothing observable until a real
+two-system corpus exists to arbitrate.
+
+The keeps are real and were checked: `AITEST9`, `Enveyo`, `Test Drive LLC`,
+`005-BEST METHOD` and `ConnectShip (TanData)` all survive."""
 
 
 def typed_values(gesture: Gesture, intent: Intent | None) -> set[str]:

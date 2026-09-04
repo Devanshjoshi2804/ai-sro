@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import logging
 import sqlite3
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -22,6 +23,13 @@ from rig.records import Gesture, Intent, ValueSeen
 from rig.store import Store
 from rig.wire import Batch, PageEvent, Request, parse_batch
 from rig.wire import Gesture as WireGesture
+
+# uvicorn configures the root logger, so this reaches the same place every
+# other line the operator watches does. The rig had no logging at all; a
+# reading loop that dies is the one event that must not be inferred from
+# silence -- see service-worker.js:422, the same system making the opposite
+# choice.
+log = logging.getLogger("rig")
 
 
 def _now() -> str:
@@ -206,6 +214,14 @@ async def read_new_gestures(store: Store, asker: Asker, model: str) -> int:
 
 
 async def _read_unread(store: Store, asker: Asker, model: str) -> int:
+    # An intent row means a reading happened, whatever came back in it -- an
+    # error, or an answer whose `act` was the wrong type and got nulled. None
+    # of those is retried: the model was asked, it answered, and it was billed.
+    # Re-asking the same evidence with the same prompt bills again for the same
+    # likely answer. What a row with no usable `act` gets instead is to be
+    # visible: /v1/spend counts it in `unusable`, /v1/gestures returns an
+    # intent rather than null, and the page says so. Not both billed and
+    # hidden -- pick one, and this picks visible.
     rows = store.query(
         "SELECT g.* FROM gestures g LEFT JOIN intents i ON i.gesture_id = g.id"
         " WHERE i.gesture_id IS NULL ORDER BY g.at LIMIT 200"
@@ -288,7 +304,7 @@ def build_app(
             store, batch, tenant, rejected=len(rejected)
         )
         if read_on_ingest and not already:
-            asyncio.create_task(_read_soon(store, asker))
+            _spawn_reading(store, asker)
         return {
             "batch_id": batch.batch_id,
             "accepted": accepted,
@@ -342,8 +358,8 @@ def build_app(
         limit = max(1, min(limit, 1000))  # the page polls; an unbounded limit is a footgun
         sql = (
             "SELECT g.id, g.stream_id, g.at, g.url, g.system, g.gesture_json,"
-            " g.requests, i.act, i.object, i.page, i.confidence, i.why, i.values_seen,"
-            " i.cost_usd, i.error"
+            " g.requests, i.gesture_id AS read_id, i.act, i.object, i.page,"
+            " i.confidence, i.why, i.values_seen, i.cost_usd, i.unpriced, i.error"
             " FROM gestures g LEFT JOIN intents i ON i.gesture_id = g.id"
         )
         params: tuple[Any, ...] = ()
@@ -369,8 +385,18 @@ def build_app(
                     # gestures in the acme sample.
                     "target": _target_name(wire.get("target")),
                     "calls": len(json.loads(row["requests"])),
+                    # `read_id` is i.gesture_id: NULL only when the LEFT
+                    # JOIN found no intent at all. The test used to be
+                    # `act is None and error is None`, two of seventeen
+                    # columns, so a reading that was made and billed but came
+                    # back with an unusable `act` was served as null -- the
+                    # page said "not read yet" while /v1/spend counted it read,
+                    # and `why`, `confidence` and `cost_usd` were dropped from
+                    # the view. Every reading that happened is now reported as
+                    # one; `act` may be null inside it, and that is the thing
+                    # the reader is entitled to see.
                     "intent": None
-                    if row["act"] is None and row["error"] is None
+                    if row["read_id"] is None
                     else {
                         "act": row["act"],
                         "object": row["object"],
@@ -379,6 +405,10 @@ def build_app(
                         "why": row["why"],
                         "values_seen": json.loads(row["values_seen"] or "[]"),
                         "cost_usd": row["cost_usd"],
+                        # A $0.00 row and an honestly-unpriced row are
+                        # identical in cost_usd alone. The page draws the
+                        # difference; it could not until this was sent.
+                        "unpriced": bool(row["unpriced"]),
                         "error": row["error"],
                     },
                 }
@@ -390,7 +420,8 @@ def build_app(
         row = store.query(
             "SELECT count(*) AS n, coalesce(sum(in_tokens), 0) AS i,"
             " coalesce(sum(out_tokens), 0) AS o, coalesce(sum(cost_usd), 0.0) AS c,"
-            " coalesce(sum(unpriced), 0) AS u"
+            " coalesce(sum(unpriced), 0) AS u,"
+            " coalesce(sum(act IS NULL AND error IS NULL), 0) AS x"
             " FROM intents"
         )[0]
         gestures_total = store.query("SELECT count(*) AS n FROM gestures")[0]["n"]
@@ -403,6 +434,16 @@ def build_app(
             # Readings whose cost we could not establish. A total that ignores
             # these understates the bill and says nothing about it.
             "unpriced": row["u"],
+            # Readings that happened, cost money, and produced no act. Counted
+            # in gestures_read because they were read -- but a header saying
+            # "7/7 read" when three of them are empty is the console lying by
+            # omission, which is the same defect as `unpriced` one field over.
+            "unusable": row["x"],
+            # Divided by readings, not by gestures: a gesture nobody has read
+            # yet has cost nothing, and averaging over it says the model is
+            # getting cheaper as the backlog grows. The console's label used to
+            # say "a gesture" over this arithmetic; the label was the wrong
+            # half and now reads "a reading".
             "per_gesture_usd": round(row["c"] / row["n"], 8) if row["n"] else 0.0,
         }
 
@@ -411,6 +452,20 @@ def build_app(
         return (Path(__file__).parent / "web" / "index.html").read_text()
 
     return app
+
+
+# asyncio.create_task's return value is the only strong reference to a running
+# task: the loop keeps a weak one, so a discarded task can be garbage-collected
+# mid-execution and the reading simply never finishes. The documented fix is to
+# hold it until it is done.
+_reading_tasks: set[asyncio.Task[None]] = set()
+
+
+def _spawn_reading(store: Store, asker: Asker) -> asyncio.Task[None]:
+    task = asyncio.create_task(_read_soon(store, asker))
+    _reading_tasks.add(task)
+    task.add_done_callback(_reading_tasks.discard)
+    return task
 
 
 async def _read_soon(store: Store, asker: Asker) -> None:
@@ -425,8 +480,14 @@ async def _read_soon(store: Store, asker: Asker) -> None:
         for _ in range(MAX_READING_PASSES):
             if not await read_new_gestures(store, asker, settings().intent_model):
                 return
-    except Exception:  # noqa: BLE001, S110 -- a reading loop must not take the process with it
-        pass
+    except Exception:  # a reading loop must not take the process down with it
+        # Still caught, so one bad row cannot end the process -- but never
+        # silently. Nothing else in this system would notice: no intent rows
+        # appear, /v1/spend keeps saying 0 read, and the page looks exactly
+        # like an operator who has done nothing all morning. That is the
+        # failure the extension names at service-worker.js:422, and the rig
+        # was making the opposite choice at the other end of the same wire.
+        log.exception("the reading loop stopped; gestures are left unread")
 
 
 def _default_app() -> FastAPI:

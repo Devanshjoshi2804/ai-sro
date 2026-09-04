@@ -20,6 +20,7 @@ from tests.fixtures import (
     GESTURE_CLICK,
     GESTURE_SECRET,
     GESTURE_TYPE,
+    PAGE_NAVIGATED,
     REQUEST_FAILED,
     REQUEST_POST,
 )
@@ -309,3 +310,75 @@ def test_a_redirect_hop_carries_no_credential_to_disk() -> None:
 
     assert "hunter2" not in stored
     assert request.redirect_chain[0].status == 302  # the hop itself is still there
+
+
+def test_an_oauth_code_beside_an_oauth_parameter_is_redacted() -> None:
+    """The last row of the audit's proof table: an authorization code on a
+    redirect hop. `code` cannot join SECRET_WORDS -- that rule matches whole
+    words, and this tenant's capture has 138 distinct field names ending in
+    one. So the rule is an exact parameter name plus an OAuth companion."""
+    for companion in ("state=xyz", "client_id=abc", "redirect_uri=https%3A%2F%2Fa", "nonce=n1"):
+        url = f"https://sso.example/callback?code=hunter2Auth&{companion}"
+
+        assert "hunter2Auth" not in redact_url(url), companion
+        assert REDACTED in redact_url(url), companion
+        assert companion in redact_url(url), "only the code is touched"
+
+
+def test_a_warehouse_code_is_not_an_oauth_code() -> None:
+    """A false redaction is a real loss of evidence, and the security round
+    measured that this direction matters. Nothing here carries an OAuth
+    parameter, so nothing here is a credential."""
+    untouched = (
+        "https://wms.example/api/areas?postalCode=560103",
+        "https://wms.example/api/areas?areaCode=A1&operationCode=PICK",
+        "https://wms.example/api/orders?code=SO-4471",
+        "https://wms.example/api/orders?code=SO-4471&status=OPEN",
+        "https://wms.example/api/x?barCodeTemplateId=7&errorCode=E12",
+    )
+    for url in untouched:
+        assert redact_url(url) == url, url
+
+
+def test_a_request_whose_timestamp_cannot_be_read_is_one_rejected_event() -> None:
+    """correlate._epoch parses these strictly and runs after parse_batch, so an
+    unparseable started_at used to raise out of the ingest route and cost every
+    good event in the batch. The batch boundary owns that decision."""
+    raw = json.loads(json.dumps(BATCH))
+    bad = json.loads(json.dumps(REQUEST_POST))
+    bad["request"]["started_at"] = "2026-09-04 10:00:00 IST"
+    raw["events"].append(bad)
+
+    batch, rejected = parse_batch(raw)
+
+    assert len(batch.events) == len(BATCH["events"])
+    assert len(rejected) == 1
+    assert rejected[0].index == len(BATCH["events"])
+    assert "started_at" in rejected[0].reason.split(":", 1)[0]
+    assert "IST" in rejected[0].reason
+
+
+def test_a_page_event_whose_timestamp_cannot_be_read_is_one_rejected_event() -> None:
+    raw = json.loads(json.dumps(BATCH))
+    bad = json.loads(json.dumps(PAGE_NAVIGATED))
+    bad["at"] = "not-a-time"
+    raw["events"].append(bad)
+
+    batch, rejected = parse_batch(raw)
+
+    assert len(batch.events) == len(BATCH["events"])
+    assert [r.index for r in rejected] == [len(BATCH["events"])]
+    assert rejected[0].reason.split(":", 1)[0].endswith(".at")
+
+
+def test_a_rejected_event_names_the_field_that_could_not_be_read() -> None:
+    """ "Input should be a valid number" names nothing anyone can act on."""
+    raw = json.loads(json.dumps(BATCH))
+    bad = json.loads(json.dumps(GESTURE_TYPE))
+    bad["gesture"]["at"] = "not-a-time"
+    raw["events"].append(bad)
+
+    _, rejected = parse_batch(raw)
+
+    assert len(rejected) == 1
+    assert rejected[0].reason.split(":", 1)[0].endswith(".at")

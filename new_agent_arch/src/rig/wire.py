@@ -7,10 +7,41 @@ Proved against new-chrome-extension/fixtures/, which a real browser produced.
 import json
 import re
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Annotated, Any, Literal
 from urllib.parse import unquote_plus, urlparse
 
-from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError, model_validator
+from pydantic import (
+    AfterValidator,
+    BaseModel,
+    ConfigDict,
+    Field,
+    TypeAdapter,
+    ValidationError,
+    model_validator,
+)
+
+
+def _a_timestamp(value: str) -> str:
+    """An RFC3339 string, checked here rather than where it is finally read.
+
+    correlate._epoch parses these strictly, and it runs *after* parse_batch --
+    so one unparseable `started_at` raised out of the ingest route and cost the
+    whole batch a 500, taking the three hundred good events beside it. Worse
+    than the loss: a 500 is not a permanent 4xx, so the extension keeps the
+    rows queued and retries forever while that device's capture stalls in
+    silence. The batch boundary already owns 'a rejected event does not reject
+    the batch'; the format check belongs there with it, so the bad event
+    becomes one named RejectedEvent and nothing downstream has to defend.
+    """
+    try:
+        datetime.fromisoformat(value)
+    except ValueError as bad:
+        raise ValueError(f"not an RFC3339 timestamp: {value!r}") from bad
+    return value
+
+
+Timestamp = Annotated[str, AfterValidator(_a_timestamp)]
 
 
 class Component(BaseModel):
@@ -208,6 +239,32 @@ def is_secret_name(name: str) -> bool:
     return any(word in SECRET_WORDS for word in words) or "".join(words) in SECRET_WORDS
 
 
+# An OAuth authorization code is a credential; a warehouse `code` is not.
+# `code` cannot join SECRET_WORDS -- that rule matches whole words, and this
+# tenant's captured traffic carries 138 distinct field names ending in one
+# (areaCode, locationCode, pickZoneCode, verificationCode...). So the rule is
+# narrowed twice: the parameter must be named *exactly* `code`, not merely
+# contain the word, and the same query or fragment must carry another OAuth
+# parameter beside it -- which is what tells a callback hop from an ordinary
+# call. Measured over 23,751 URLs in that capture: no `code` parameter and no
+# `state` parameter appear at all, and the three query names containing "code"
+# (areaCode, operationCode, barCodeTemplateId) are untouched by an exact match.
+# This costs no live evidence and closes the last row of the audit's table.
+OAUTH_COMPANIONS = frozenset(
+    {
+        "client_id",
+        "code_challenge",
+        "code_verifier",
+        "grant_type",
+        "id_token",
+        "nonce",
+        "redirect_uri",
+        "response_type",
+        "state",
+    }
+)
+
+
 def _redact_query(raw: str) -> str:
     """An `a=b&c=d` string with every credential-named value replaced.
 
@@ -221,11 +278,13 @@ def _redact_query(raw: str) -> str:
     is what matched.
     """
     pairs = raw.split("&")
+    names = [unquote_plus(pair.partition("=")[0]).lower() for pair in pairs]
+    oauth = any(name in OAUTH_COMPANIONS for name in names)
     for index, pair in enumerate(pairs):
         if not pair:
             continue
         key = pair.partition("=")[0]
-        if is_secret_name(unquote_plus(key)):
+        if is_secret_name(unquote_plus(key)) or (oauth and names[index] == "code"):
             pairs[index] = f"{key}={REDACTED}"
     return "&".join(pairs)
 
@@ -413,7 +472,7 @@ class Request(BaseModel):
     method: str
     url: str
     resource_type: str | None = None
-    started_at: str
+    started_at: Timestamp
     request_headers: dict[str, str] = Field(default_factory=dict)
     request_body: Body | None = None
     status: int | None = None  # null on a failed request
@@ -480,7 +539,7 @@ class RequestEvent(BaseModel):
 
 class PageEvent(BaseModel):
     kind: Literal["page"]
-    at: str
+    at: Timestamp
     page_kind: str
     url: str | None = None
     detail: str | None = None
@@ -554,6 +613,14 @@ def parse_batch(raw: dict[str, Any]) -> tuple[Batch, tuple[RejectedEvent, ...]]:
             events.append(adapter.validate_python(event))
         except ValidationError as problem:
             first = problem.errors()[0]
-            rejected.append(RejectedEvent(index=index, reason=first.get("msg", "invalid event")))
+            # The location, not only the message: "Input should be a valid
+            # number" names nothing a person can act on, and the whole point of
+            # a RejectedEvent is that somebody can find out what the extension
+            # sent that this could not read.
+            where = ".".join(str(part) for part in first.get("loc", ()))
+            reason = first.get("msg", "invalid event")
+            rejected.append(
+                RejectedEvent(index=index, reason=f"{where}: {reason}" if where else reason)
+            )
 
     return Batch.model_validate({**raw, "events": events}), tuple(rejected)

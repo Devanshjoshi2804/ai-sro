@@ -33,6 +33,9 @@
   .what { color: var(--text); }
   .why { color: var(--muted); font-size: 12px; }
   .unread { color: var(--muted); font-style: italic; }
+  /* A reading that happened, cost money and came back with nothing usable.
+     It is neither unread nor read, so it must not look like either. */
+  .nothing { color: var(--accent); font-style: italic; }
   .error { color: var(--refused); }
   .values {
     font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 12px;
@@ -42,6 +45,7 @@
     font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 12px;
     color: var(--muted); text-align: right;
   }
+  .cost.unpriced { color: var(--accent); }
   select {
     background: var(--raised); color: var(--text); border: 1px solid var(--line);
     border-radius: 8px; padding: 6px 10px; font: inherit;
@@ -76,30 +80,54 @@
     );
   }
 
+  // Three states, not two. `intent` is present for every gesture a reading
+  // was made for, whatever came back; `intent.act` null with no error means
+  // the model answered, was billed, and said nothing usable. Rendering that as
+  // "not read yet" is the console telling the operator a lie it was paid for.
   function line(g) {
     const intent = g.intent;
     const what = intent?.error
       ? `<span class="error">unread — ${esc(intent.error)}</span>`
       : intent?.act
         ? `<span class="what">${esc(intent.act)}</span><div class="why">${esc(intent.why)}</div>`
-        : `<span class="unread">not read yet</span>`;
+        : intent
+          ? `<span class="nothing">read, nothing usable</span>${
+              intent.why ? `<div class="why">${esc(intent.why)}</div>` : ""
+            }`
+          : `<span class="unread">not read yet</span>`;
     const values = (intent?.values_seen ?? [])
       .map((v) => `${esc(v.field)}=${esc(v.value)}`)
       .join("  ");
+    // `intent?.cost_usd ? …` drew an unpriced or a $0.00 reading with an empty
+    // cell — identical to a gesture nobody has read. `unpriced` exists exactly
+    // because a $0.00 row and an honestly-unpriced row cannot be told apart by
+    // cost_usd alone, and this is the one place a human reads it.
+    const cost = !intent
+      ? ""
+      : intent.unpriced
+        ? "unpriced"
+        : "$" + Number(intent.cost_usd ?? 0).toFixed(5);
     return `<div class="row">
       <div class="kind">${esc(g.kind)}${g.calls ? " ·" + g.calls : ""}</div>
       <div>${what}</div>
       <div class="values">${values}</div>
-      <div class="cost">${intent?.cost_usd ? "$" + intent.cost_usd.toFixed(5) : ""}</div>
+      <div class="cost${intent?.unpriced ? " unpriced" : ""}">${esc(cost)}</div>
     </div>`;
   }
 
+  // A pure function so it can be run against hostile and awkward input the way
+  // line() is, rather than only ever existing inside a fetch.
+  function spendLine(s) {
+    const readings = s.gestures_read;
+    return `<b>${esc(readings)}</b>/${esc(s.gestures)} read ·
+       <b>$${Number(s.cost_usd ?? 0).toFixed(4)}</b> ·
+       $${Number(s.per_gesture_usd ?? 0).toFixed(6)} a reading${
+         s.unusable ? ` · <b class="nothing">${esc(s.unusable)}</b> unusable` : ""
+       }${s.unpriced ? ` · <b class="nothing">${esc(s.unpriced)}</b> unpriced` : ""}`;
+  }
+
   async function draw() {
-    const spend = await get("/v1/spend");
-    document.getElementById("spend").innerHTML =
-      `<b>${spend.gestures_read}</b>/${spend.gestures} read ·
-       <b>$${spend.cost_usd.toFixed(4)}</b> ·
-       $${spend.per_gesture_usd.toFixed(6)} a gesture`;
+    document.getElementById("spend").innerHTML = spendLine(await get("/v1/spend"));
 
     const picker = document.getElementById("stream");
     const { streams } = await get("/v1/streams");

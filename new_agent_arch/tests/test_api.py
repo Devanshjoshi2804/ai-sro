@@ -533,14 +533,38 @@ def test_a_scroll_does_not_take_the_gestures_route_down(client: TestClient, stor
     assert scroll["target"] is None
 
 
-def test_the_gestures_route_will_not_return_the_whole_table(client: TestClient) -> None:
-    """The page polls every three seconds; an unbounded limit is a footgun."""
+def test_the_gestures_route_will_not_return_the_whole_table(
+    client: TestClient, store: Store
+) -> None:
+    """The page polls every three seconds; an unbounded limit is a footgun.
+
+    Against the 7-gesture fixture this asserted `<= 1000` and passed with the
+    clamp deleted -- it could not fail. There have to be more rows than the cap
+    for the cap to be visible at all.
+    """
     client.post("/v1/observations", json=BATCH, headers=_auth())
+    with store.connect() as connection:
+        connection.executemany(
+            "INSERT INTO gestures (id, tenant, stream_id, batch_id, at, gesture_json)"
+            " VALUES (?, ?, ?, ?, ?, ?)",
+            [
+                (
+                    f"ges_bulk_{n}",
+                    "new",
+                    "dev_browsertest",
+                    BATCH["batch_id"],
+                    1_000_000.0 + n,
+                    json.dumps({"kind": "scroll", "target": None, "at": 1_000_000.0 + n}),
+                )
+                for n in range(1200)
+            ],
+        )
 
     response = client.get("/v1/gestures?limit=10000000", headers=_auth())
 
     assert response.status_code == 200
-    assert len(response.json()["gestures"]) <= 1000
+    assert store.query("SELECT count(*) AS n FROM gestures")[0]["n"] == 1207
+    assert len(response.json()["gestures"]) == 1000
 
 
 def test_the_page_escapes_what_it_draws() -> None:
@@ -612,3 +636,246 @@ def test_an_artifact_cannot_be_written_outside_by_its_kind_either(
 
     assert answer.status_code == 400
     assert not escape.with_name("escaped-x.png").exists()
+
+
+# --- Finding 1: one bad timestamp must cost one event, not the batch ----------
+
+
+def _with(events: list[dict[str, Any]], batch_id: str) -> dict[str, Any]:
+    raw = json.loads(json.dumps(BATCH))
+    raw["batch_id"] = batch_id
+    raw["events"].extend(events)
+    return raw
+
+
+def test_one_unreadable_timestamp_does_not_cost_the_batch(client: TestClient, store: Store) -> None:
+    """Proved by the audit: started_at='not-a-time' answered HTTP 500 and stored
+    nothing at all -- seven good gestures lost to one bad field, and a 500 is
+    not a permanent 4xx, so the extension retries that batch forever while the
+    device's capture stalls with nothing saying so."""
+
+    def first_of(kind: str) -> dict[str, Any]:
+        events = json.loads(json.dumps(BATCH["events"]))
+        return next(event for event in events if event["kind"] == kind)
+
+    bad_request = first_of("request")
+    bad_request["request"]["request_id"] = "r_broken"
+    bad_request["request"]["started_at"] = "not-a-time"
+
+    bad_page = first_of("page")
+    bad_page["at"] = "2026-09-04 10:00:00 IST"
+
+    bad_gesture = first_of("gesture")
+    bad_gesture["gesture"]["at"] = "not-a-time"
+
+    for name, event, field in (
+        ("request.started_at", bad_request, "started_at"),
+        ("page.at", bad_page, "at"),
+        ("gesture.at", bad_gesture, "at"),
+    ):
+        response = client.post(
+            "/v1/observations", json=_with([event], f"bat_{field}_{name}"), headers=_auth()
+        )
+
+        assert response.status_code == 202, name
+        body = response.json()
+        assert body["accepted"] == 7, name
+        assert body["rejected"] == 1, name
+        assert body["problems"][0]["index"] == len(BATCH["events"]), name
+        where = body["problems"][0]["reason"].split(":", 1)[0]
+        assert where.endswith(field), (name, body["problems"])
+
+    assert store.query("SELECT count(*) AS n FROM gestures")[0]["n"] == 21
+
+
+# --- Finding 2: a reading that produced nothing usable ------------------------
+
+
+def _unusable() -> Answer:
+    """What the audit's model did: an `act` of the wrong type, which
+    intents._string_field correctly nulls -- after the call was billed."""
+    return Answer(
+        data={"act": ["a", "list"], "why": "it looked like a pick"},
+        in_tokens=400,
+        out_tokens=60,
+        cost_usd=0.0037,
+    )
+
+
+async def test_a_billed_reading_with_no_act_is_neither_hidden_nor_billed_twice(
+    client: TestClient, store: Store
+) -> None:
+    """$0.0259 spent, seven intent rows written, and /v1/gestures served three
+    of them as null so the console said "not read yet" while /v1/spend said
+    seven were read. The two routes must describe the same rows the same way,
+    and the cost must stay where a person can see it."""
+    client.post("/v1/observations", json=BATCH, headers=_auth())
+
+    read = await read_new_gestures(store, FakeAsker(*[_unusable() for _ in range(7)]), "m")
+
+    assert read == 7
+    spend = client.get("/v1/spend", headers=_auth()).json()
+    served = client.get("/v1/gestures?stream=dev_browsertest", headers=_auth()).json()["gestures"]
+    with_intent = [g for g in served if g["intent"] is not None]
+
+    # The two routes agree about which rows were read.
+    assert spend["gestures_read"] == len(with_intent) == 7
+    # And say plainly that none of those readings produced anything usable.
+    assert spend["unusable"] == 7
+    assert spend["cost_usd"] == pytest.approx(0.0259)
+    # The cost of each is visible rather than dropped with the row.
+    assert all(g["intent"]["act"] is None for g in with_intent)
+    assert all(g["intent"]["cost_usd"] == pytest.approx(0.0037) for g in with_intent)
+    assert all(g["intent"]["why"] for g in with_intent)
+
+    # Billed once. A row that was asked and answered is not asked again.
+    asker = FakeAsker(*[_ok() for _ in range(7)])
+    assert await read_new_gestures(store, asker, "m") == 0
+    assert asker.asked == []
+
+
+# --- Finding 3: the reading loop must not fail in silence ---------------------
+
+
+async def test_a_reading_loop_that_dies_says_so(
+    store: Store, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """It caught Exception and passed. Nothing else in this system notices: no
+    intent rows appear, /v1/spend keeps saying 0 read, and the page looks
+    exactly like an operator who has done nothing all morning."""
+    from rig import api
+
+    async def explode(*_: Any, **__: Any) -> int:
+        raise RuntimeError("the store fell over")
+
+    monkeypatch.setattr(api, "_read_unread", explode)
+
+    with caplog.at_level("ERROR"):
+        await api._read_soon(store, FakeAsker())
+
+    assert caplog.records, "the loop died and said nothing anywhere"
+    assert "the store fell over" in caplog.text
+
+
+async def test_the_reading_task_is_held_until_it_finishes(
+    store: Store, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """asyncio.create_task's return value is the only strong reference there
+    is; the loop keeps a weak one, so a discarded task can be collected
+    mid-execution and the reading simply never happens."""
+    from rig import api
+
+    running = asyncio.Event()
+    finish = asyncio.Event()
+
+    async def slow(*_: Any, **__: Any) -> int:
+        running.set()
+        await finish.wait()
+        return 0
+
+    monkeypatch.setattr(api, "_read_unread", slow)
+
+    task = api._spawn_reading(store, FakeAsker())
+    await running.wait()
+
+    assert task in api._reading_tasks, "nothing holds the running task"
+
+    finish.set()
+    await task
+
+    assert task not in api._reading_tasks, "a finished task is never let go of"
+
+
+# --- Finding 4: unpriced, in the one place a human reads it -------------------
+
+
+def _run_page(tail: str) -> str:
+    """The page's own script in node, minus the part that talks to the network.
+
+    Running it beats grepping the file: a substring check passes with escaping
+    dropped from `why`, or with the cost cell left blank for an unpriced row.
+    """
+    import shutil
+    import subprocess
+
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("node is not installed")
+
+    page = (Path(__file__).parent.parent / "src" / "rig" / "web" / "index.html").read_text()
+    script = page.split("<script>")[1].split("</script>")[0]
+    script = script.split('document.getElementById("stream").addEventListener')[0]
+    out = subprocess.run(
+        [node, "--input-type=module", "-e", "globalThis.location={search:''};\n" + script + tail],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert out.returncode == 0, out.stderr
+    return out.stdout
+
+
+def test_the_page_tells_an_unpriced_reading_from_an_unread_gesture() -> None:
+    """`intent?.cost_usd ? ... : ""` drew an unpriced ($0.00) reading with an
+    empty cost cell -- byte-identical to a gesture nobody has read. `unpriced`
+    exists precisely because those two cannot be told apart by cost_usd alone,
+    and the console was the one place it never appeared."""
+    rendered = _run_page(
+        """
+        const base = { kind: "click", calls: 0 };
+        const unread = { ...base, intent: null };
+        const unpriced = { ...base, intent: { act: "picked", why: "w", cost_usd: 0,
+                                              unpriced: true, values_seen: [] } };
+        const free = { ...base, intent: { act: "picked", why: "w", cost_usd: 0,
+                                          unpriced: false, values_seen: [] } };
+        console.log(JSON.stringify([line(unread), line(unpriced), line(free)]));
+        """
+    )
+    unread, unpriced, free = json.loads(rendered)
+
+    assert unread != unpriced, "an unpriced reading looks exactly like an unread gesture"
+    assert unpriced != free, "an honestly-unpriced row looks exactly like a $0.00 one"
+    assert "unpriced" in unpriced
+    assert "$0.00000" in free
+
+
+def test_the_page_shows_a_reading_that_produced_nothing_usable() -> None:
+    """Neither unread nor read. The row must not claim to be either."""
+    rendered = _run_page(
+        """
+        const base = { kind: "click", calls: 0 };
+        const unread = { ...base, intent: null };
+        const nothing = { ...base, intent: { act: null, error: null, why: "could not tell",
+                                             cost_usd: 0.0037, values_seen: [] } };
+        console.log(JSON.stringify([line(unread), line(nothing)]));
+        """
+    )
+    unread, nothing = json.loads(rendered)
+
+    assert "not read yet" in unread
+    assert "not read yet" not in nothing, "a billed reading is shown as unread"
+    assert "$0.00370" in nothing, "the money it cost is not on the page"
+
+
+def test_the_header_shows_what_the_spend_route_could_not_price() -> None:
+    """/v1/spend computes `unpriced`, returns it, and the header dropped it."""
+    rendered = _run_page(
+        """
+        const clean = { gestures: 9, gestures_read: 7, cost_usd: 0.0259,
+                        per_gesture_usd: 0.0037, unpriced: 0, unusable: 0 };
+        console.log(JSON.stringify([
+          spendLine(clean),
+          spendLine({ ...clean, unpriced: 2 }),
+          spendLine({ ...clean, unusable: 3 }),
+        ]));
+        """
+    )
+    clean, unpriced, unusable = json.loads(rendered)
+
+    assert "unpriced" not in clean and "unusable" not in clean
+    assert "2" in unpriced and "unpriced" in unpriced
+    assert "3" in unusable and "unusable" in unusable
+    # The arithmetic divides the bill by readings, so the label says readings.
+    assert "a reading" in clean
+    assert "a gesture" not in clean

@@ -92,13 +92,24 @@ def test_a_call_goes_to_the_most_recent_gesture_in_its_tab() -> None:
 
 
 def test_events_need_not_arrive_sorted() -> None:
+    """`_owner` walks `gestures` in list order and breaks at the first one
+    later than the call, so an unsorted list hands a call to the wrong gesture.
+
+    With a single gesture in it, this asserted nothing: the sort it is named
+    for was a no-op, and deleting `gestures.sort(...)` left it green.
+    """
     tab = GESTURE_TYPE["tab_id"]
-    at = GESTURE_TYPE["gesture"]["at"]
-    call = _request(_rfc3339(at + 0.2), "r1", tab)
+    early = copy.deepcopy(GESTURE_TYPE)
+    early["gesture"]["at"] = 1000.0
+    late = copy.deepcopy(GESTURE_TYPE)
+    late["gesture"]["at"] = 1002.0
+    call = _request(_rfc3339(1002.5), "r1", tab)
 
-    gestures, _, _, _ = correlate(_batch([call, GESTURE_TYPE]), TENANT)
+    gestures, orphans, _, _ = correlate(_batch([call, late, early]), TENANT)
 
-    assert len(gestures[0].requests) == 1
+    assert [gesture.at for gesture in gestures] == [1000.0, 1002.0]
+    assert {gesture.at: len(gesture.requests) for gesture in gestures} == {1000.0: 0, 1002.0: 1}
+    assert orphans == []
 
 
 def test_the_system_is_the_scheme_and_host() -> None:

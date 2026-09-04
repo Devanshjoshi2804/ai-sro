@@ -464,16 +464,23 @@ def redact_url(url: str) -> str:
     query string: `#access_token=...` is how an OAuth implicit flow hands a
     token back, and the audit found one on disk.
 
-    A relative or unparseable URL is left alone rather than guessed at, as the
-    extension does -- there is no page here to resolve it against.
+    A relative URL is redacted too, unlike the extension's copy. The extension
+    leaves one alone because it cannot RESOLVE it -- the service worker has no
+    page to resolve against -- and that reasoning is about resolution, which
+    nothing here does: the query and fragment are spliced by raw string
+    position and need no scheme or host. Skipping them cost the whole corpus:
+    every one of the 611 distinct URLs in the captured knowledge base is
+    relative, so the guard that was meant to be conservative excluded 100% of
+    real evidence from URL redaction. Zero of them redact today, so closing it
+    costs nothing and covers the shape all real traffic has.
+
+    An unparseable URL is still left alone rather than guessed at.
     """
     if not url:
         return url
     try:
-        parsed = urlparse(url)
+        urlparse(url)
     except ValueError:
-        return url
-    if not parsed.scheme or not parsed.netloc:
         return url
 
     hash_at = url.find("#")

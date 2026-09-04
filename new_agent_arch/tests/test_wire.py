@@ -228,9 +228,12 @@ def test_a_credential_in_the_fragment_is_replaced() -> None:
     assert redacted == f"https://wms.example/cb#access_token={REDACTED}&state=abc"
 
 
-def test_a_relative_or_unparseable_url_is_left_alone() -> None:
-    """There is no page here to resolve it against, so it is not guessed at."""
-    for url in ("/api/orders?token=x", "not a url at all", ""):
+def test_an_unparseable_url_is_left_alone() -> None:
+    """Still not guessed at. A RELATIVE url is a different case and is now
+    redacted -- see test_a_relative_url_is_redacted_too. The two were one test
+    while both were skipped, which is how skipping 100% of the captured corpus
+    read as conservative."""
+    for url in ("not a url at all", ""):
         assert redact_url(url) == url
 
 
@@ -529,3 +532,22 @@ def test_a_credential_typed_into_an_ordinary_box_is_dropped() -> None:
     event = GestureEvent.model_validate(typed)
 
     assert event.gesture.value == f"find {REDACTED}"
+
+
+def test_a_relative_url_is_redacted_too() -> None:
+    """Every one of the 611 distinct URLs in the captured knowledge base is
+    relative, so the guard excluding them excluded all real evidence from URL
+    redaction. The extension skips a relative URL because it cannot resolve
+    one; nothing here resolves anything."""
+    assert redact_url("/oauth/callback?code=x&state=y") == (
+        "/oauth/callback?code=" + REDACTED + "&state=y"
+    )
+    assert redact_url("/api/reset#access_token=abc123") == "/api/reset#access_token=" + REDACTED
+    assert redact_url("/sso/land?t=eyJhbGciOiJIUzI1NiJ9.eyJhIjoxfQ.c2ln") == (
+        "/sso/land?t=" + REDACTED
+    )
+
+    # A relative URL with nothing to redact still comes back byte-identical --
+    # the property the hand-splicing exists to keep, now on this path too.
+    for clean in ("/wm/warehouses", "/wm/list?facility=BLR+1&facility=DEL", "/page#section"):
+        assert redact_url(clean) == clean

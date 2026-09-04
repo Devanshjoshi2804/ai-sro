@@ -11,7 +11,31 @@ from typing import Any
 from urllib.parse import parse_qsl, urlparse
 
 from rig.records import Gesture
-from rig.wire import Body, Request, Target
+from rig.wire import (
+    REDACTED,
+    SECRET_HEADER_HINTS,
+    SECRET_HEADERS,
+    Body,
+    Request,
+    Target,
+    is_secret_header,
+)
+
+# Re-exported: the header rule lives in wire.py beside the Request model that
+# applies it, because trim imports wire and the reverse would be a cycle.
+__all__ = [
+    "REDACTED",
+    "SECRET_HEADERS",
+    "SECRET_HEADER_HINTS",
+    "SECRET_WORDS",
+    "body_keys",
+    "is_secret",
+    "is_secret_header",
+    "is_secret_name",
+    "path_shape",
+    "thin",
+    "trim",
+]
 
 VALUE_CHARS = 80
 BODY_KEYS = 40
@@ -132,7 +156,6 @@ SECRET_WORDS = frozenset(
         "verificationcode",
     }
 )
-REDACTED = "«redacted»"
 
 
 def _words_of(text: str) -> list[str]:

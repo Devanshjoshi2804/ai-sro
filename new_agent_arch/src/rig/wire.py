@@ -81,6 +81,54 @@ class Body(BaseModel):
     blob_uri: str | None = None
 
 
+# Mirrors SECRET_HEADERS and SECRET_HEADER_HINTS in the extension's
+# new-chrome-extension/src/content/sensitivity.module.js. Note this rule is
+# deliberately not the field rule: a header matches on an exact lowered name OR
+# on a substring hint, because `x-acme-session-key` has to match on `sess`.
+# trim.is_secret_name() matches whole words precisely because the opposite is
+# true of body fields -- see the ten real shipping fields a substring rule
+# blanks. These live here rather than in trim.py because trim imports from
+# wire, and the Request model below is what applies them.
+SECRET_HEADERS = frozenset(
+    {
+        "api-key",
+        "authentication",
+        "authorization",
+        "csrf-token",
+        "proxy-authorization",
+        "x-access-token",
+        "x-api-key",
+        "x-auth-token",
+        "x-csrf-token",
+        "x-csrftoken",
+        "x-infor-token",
+        "x-moca-session",
+        "x-requested-with",
+        "x-session-key",
+        "x-xsrf-token",
+    }
+)
+SECRET_HEADER_HINTS = (
+    "auth",
+    "cookie",
+    "csrf",
+    "jwt",
+    "login",
+    "sess",
+    "sid",
+    "sso",
+    "token",
+    "xsrf",
+)
+REDACTED = "«redacted»"
+
+
+def is_secret_header(name: str) -> bool:
+    """Whether a header called this carries a credential."""
+    lowered = (name or "").lower().strip()
+    return lowered in SECRET_HEADERS or any(hint in lowered for hint in SECRET_HEADER_HINTS)
+
+
 class Request(BaseModel):
     request_id: str
     method: str
@@ -98,6 +146,26 @@ class Request(BaseModel):
     from_cache: bool = False
     failure_reason: str | None = None
     blocked_reason: str | None = None
+
+    @model_validator(mode="after")
+    def a_credential_header_is_dropped_here(self) -> "Request":
+        """Same boundary, same reason, as the typed credential above.
+
+        trim._call() already keeps headers out of the prompt, so this is about
+        the store: save_batch writes the request verbatim, and an Authorization
+        header or a session cookie sitting in a row is the thing AGENTS.md
+        forbids. The extension redacts these client-side and demonstrably does
+        -- 270 markers in the real acme capture -- but a rule that runs only in
+        a browser is one a browser can be made not to run.
+
+        The name is kept and the value replaced, so a reader can still see that
+        a call was authenticated.
+        """
+        for headers in (self.request_headers, self.response_headers):
+            for name in list(headers):
+                if is_secret_header(name):
+                    headers[name] = REDACTED
+        return self
 
 
 class RequestEvent(BaseModel):

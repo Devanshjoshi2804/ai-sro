@@ -3,7 +3,15 @@ import json
 import pytest
 from pydantic import ValidationError
 
-from rig.wire import Batch, GestureEvent, RequestEvent, parse_batch
+from rig.wire import (
+    REDACTED,
+    Batch,
+    GestureEvent,
+    Request,
+    RequestEvent,
+    is_secret_header,
+    parse_batch,
+)
 from tests.fixtures import (
     BATCH,
     GESTURE_CLICK,
@@ -160,3 +168,38 @@ def test_a_credential_value_cannot_be_assigned_back_in() -> None:
     event.gesture.value = "hunter2"
 
     assert event.gesture.value is None
+
+
+def test_a_credential_header_never_reaches_the_store() -> None:
+    """_call keeps headers out of the prompt; save_batch writes them to the
+    store verbatim, which is the half nothing covered."""
+    request = Request(
+        request_id="req_1",
+        method="GET",
+        url="https://wms.example/api/orders",
+        started_at="2026-09-04T10:00:00Z",
+        request_headers={
+            "Authorization": "Bearer sk-live-abc",
+            "Cookie": "session=abc123",
+            "X-Acme-Session-Key": "s3cr3t",
+            "Accept": "application/json",
+        },
+        response_headers={"Set-Cookie": "session=xyz"},
+    )
+
+    assert request.request_headers["Authorization"] == REDACTED
+    assert request.request_headers["Cookie"] == REDACTED
+    assert request.request_headers["X-Acme-Session-Key"] == REDACTED
+    assert request.request_headers["Accept"] == "application/json"
+    assert request.response_headers["Set-Cookie"] == REDACTED
+
+
+def test_a_header_is_secret_by_hint_as_well_as_by_name() -> None:
+    """Headers match on substring on purpose, unlike body field names: a
+    tenant's own `x-acme-session-key` has to match on `sess`."""
+    assert is_secret_header("Authorization")
+    assert is_secret_header("x-acme-session-key")
+    assert is_secret_header("X-XSRF-TOKEN")
+    assert not is_secret_header("Accept")
+    assert not is_secret_header("Content-Type")
+    assert not is_secret_header("")

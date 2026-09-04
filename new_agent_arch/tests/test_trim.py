@@ -1,8 +1,17 @@
 import json
+import pathlib
+import re
 
 from rig.correlate import correlate
 from rig.records import Gesture
-from rig.trim import path_shape, thin, trim
+from rig.trim import (
+    SECRET_HEADER_HINTS,
+    SECRET_HEADERS,
+    SECRET_WORDS,
+    path_shape,
+    thin,
+    trim,
+)
 from rig.wire import Batch, Target
 from rig.wire import Gesture as WireGesture
 from tests.fixtures import BATCH, GESTURE_TYPE
@@ -197,3 +206,32 @@ def test_a_field_is_secret_by_its_words_and_not_by_its_letters() -> None:
     assert not is_secret_name("Shipping Date Escalation")
     assert not is_secret_name("username")
     assert not is_secret_name("")
+
+
+def _declared_in_the_extension(name: str) -> str:
+    """The literal inside the extension's `const <name> = ...` declaration."""
+    source = pathlib.Path(__file__).parents[2] / (
+        "new-chrome-extension/src/content/sensitivity.module.js"
+    )
+    text = source.read_text(encoding="utf-8")
+    listed = re.search(rf"const {name} = (?:new Set\()?\[(.*?)\]", text, re.DOTALL)
+    assert listed, f"the extension's {name} declaration moved"
+    return listed.group(1)
+
+
+def _words(literal: str) -> set[str]:
+    return {word.strip().strip("\"'") for word in literal.split(",") if word.strip()}
+
+
+def test_the_copied_secret_words_still_match_the_extension() -> None:
+    """SECRET_WORDS is hand-copied from the extension, whose own copy is
+    generated. Nothing else checks the two agree, and a rule that silently
+    stops matching what the browser matches is worse than no rule."""
+    assert _words(_declared_in_the_extension("SECRET_WORDS")) == SECRET_WORDS
+
+
+def test_the_copied_header_rule_still_matches_the_extension() -> None:
+    """Same drift, one boundary further in: these are what wire.Request applies
+    to every stored request."""
+    assert _words(_declared_in_the_extension("SECRET_HEADERS")) == SECRET_HEADERS
+    assert _words(_declared_in_the_extension("SECRET_HEADER_HINTS")) == set(SECRET_HEADER_HINTS)

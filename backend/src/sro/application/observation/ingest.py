@@ -15,6 +15,7 @@ from datetime import datetime
 from sro.application.context import RequestContext
 from sro.application.observation.admit import Event, admit
 from sro.application.observation.policy import current_policy
+from sro.application.observation.redact import redact_events
 from sro.application.observation.register import refuse_unless_itself
 from sro.application.ports.blob import BlobStore
 from sro.application.ports.repositories import UnitOfWork
@@ -137,7 +138,14 @@ class IngestObservation:
                     stored_at=None,
                 )
 
-            payload = _ndjson(admission.accepted)
+            # Between screening and serialisation, on the whole batch, and
+            # nowhere else. `admit()` filters by host policy and says nothing
+            # about values; without this the browser's own redaction was the
+            # only one there was, and a browser can be made not to run it --
+            # measured, on this tenant's real traffic: a live JWT and the
+            # `&code=` carrying it reached the blob store with no marker on
+            # them at all.
+            payload = _ndjson(redact_events(admission.accepted))
             # ponytail: the daily byte budget is enforced in the extension only.
             # Server-side would mean summing today's batches on every upload;
             # add it here when a device is seen to ignore the policy.
@@ -180,4 +188,16 @@ def _key(ctx: RequestContext, batch_id: BatchId, *, at: datetime) -> str:
 
 
 def _ndjson(events: Sequence[Event]) -> bytes:
-    return b"".join(json.dumps(event, separators=(",", ":")).encode() + b"\n" for event in events)
+    """One event per line, as the extension streamed it.
+
+    ``ensure_ascii=False`` because the default escapes the redaction marker to
+    ``\\u00abredacted\\u00bb``: every batch already in the store carries the
+    markers the extension wrote, and grepping those objects for the «redacted»
+    that every redaction path in this codebase writes finds not one of them.
+    The same round-trip argument as `_redact_query` -- a marker a reviewer
+    cannot grep for is a hole nobody can count.
+    """
+    return b"".join(
+        json.dumps(event, separators=(",", ":"), ensure_ascii=False).encode() + b"\n"
+        for event in events
+    )

@@ -42,9 +42,9 @@ from sro.application.capture.events import CaptureEvent, InputEvent, RequestEven
 from sro.application.ports.blob import BlobStore
 from sro.domain.recording.artifact import ArtifactKind
 from sro.domain.recording.network import Body, CapturedRequest, Cookie, RedirectHop
+from sro.domain.recording.redaction import REDACTED, redact_body
 from sro.domain.recording.sensitivity import SECRET_TOKENS
 from sro.domain.recording.state import ConsoleMessage, PageEvent
-from sro.infrastructure.steel.redaction import REDACTED, redact_body
 from sro.infrastructure.steel.video import Recorded, ScreencastRecorder
 
 logger = logging.getLogger(__name__)

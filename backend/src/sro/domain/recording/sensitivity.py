@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import re
 from enum import StrEnum
+from urllib.parse import unquote_plus
 
 _AUTH_HEADERS = frozenset(
     {
@@ -430,6 +431,78 @@ def is_secret_field(name: str) -> bool:
         return True
     # Compounds that only read as credentials when joined: apiKey, api_key.
     return "".join(words) in _SECRET_TOKENS
+
+
+def _redact_query(raw: str) -> str:
+    """An ``a=b&c=d`` run with every credential-named value replaced.
+
+    Spliced by hand rather than round-tripped through ``parse_qsl`` +
+    ``urlencode``, which is the extension's rule and its stated reason:
+    re-encoding touches every pair rather than the one that matched -- it
+    collapses a repeated key to one, turns a literal space into ``+``, and
+    percent-encodes the marker itself, so grepping stored evidence for the same
+    «redacted» every other redaction path writes finds nothing on a URL.
+    Splicing leaves every untouched byte -- encoding, order, duplicates --
+    exactly as the operator's browser sent it. ``split('&')`` then ``join('&')``
+    is lossless, so a run with nothing to redact comes back byte-identical.
+
+    A pair with no ``=`` is given one, as the JavaScript does: the name alone is
+    what matched, and there is no value to leave in place.
+    """
+    pairs = raw.split("&")
+    for index, pair in enumerate(pairs):
+        if not pair:
+            continue
+        key = pair.partition("=")[0]
+        # The raw key is judged decoded and written back raw: `api%5Fkey` names
+        # the same credential as `api_key`, and re-encoding the ones that did
+        # not match is the round-trip this splicing exists to avoid.
+        if is_secret_field(unquote_plus(key)):
+            pairs[index] = f"{key}={REDACTED}"
+    return "&".join(pairs)
+
+
+def redact_url(url: str) -> str:
+    """A URL with credential-named query and fragment values replaced.
+
+    ``?token=...`` is as much a credential as the header form, and a URL is
+    stored on every event there is -- a navigation, a request, and the frame a
+    gesture happened in. This is the Python half of ``redactUrl``, which until
+    now existed only as JavaScript emitted by ``generate_extension_recorder``:
+    a rule that runs only in the browser is one a browser can be made not to
+    run, and the audit found a `&code=<jwt>` in the evidence store to prove it.
+
+    The fragment is judged by the same rule as the query when it is shaped like
+    one: ``#access_token=...`` is exactly how an OAuth implicit flow hands a
+    token back. A fragment with no ``=`` in it is an ordinary ``#section``
+    anchor and is left alone rather than split into pairs it never had.
+
+    The shape pass runs last, over the whole rebuilt URL rather than only the
+    query, because a token can sit in a path segment where there is no
+    parameter name to judge it by. It substitutes, so **a URL carrying no
+    credential comes back byte-identical** -- the property the hand-splicing in
+    ``_redact_query`` exists to keep, and the one
+    ``test_a_url_with_nothing_in_it_is_not_touched`` asserts.
+
+    A relative URL is redacted too, unlike the JavaScript copy. The extension
+    leaves one alone because it cannot RESOLVE it -- a service worker has no
+    page to resolve against -- and that reasoning is about resolution, which
+    nothing here does: the query and fragment are spliced by raw string
+    position and need no scheme or host. The rig measured the cost of the
+    guard: every one of the 611 distinct URLs in its captured knowledge base is
+    relative, so a guard meant to be careful excluded 100% of real evidence.
+    """
+    if not url:
+        return url
+
+    hash_at = url.find("#")
+    head, fragment = (url, "") if hash_at == -1 else (url[:hash_at], url[hash_at + 1 :])
+    query_at = head.find("?")
+    if query_at != -1:
+        head = head[: query_at + 1] + _redact_query(head[query_at + 1 :])
+    if "=" in fragment:
+        fragment = _redact_query(fragment)
+    return redact_shapes(head if hash_at == -1 else f"{head}#{fragment}")
 
 
 def classify_cookie(name: str) -> Sensitivity:

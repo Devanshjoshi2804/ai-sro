@@ -1,4 +1,4 @@
-"""Credential removal, at the point of capture.
+"""Credential removal, at every point of capture.
 
 Everything a demonstration does is evidence and is kept verbatim -- with one
 exception. A password is not evidence of what happened; it is a key to the
@@ -9,13 +9,19 @@ So credentials are removed here, before a body is ever written, rather than
 filtered on the way out. Matched by field name, because a name is a decision the
 target system already made; guessing from values would redact real business
 data. What is kept is the field name, so a reviewer sees what was removed.
+
+Domain rather than ``infrastructure.steel``, where this lived while Steel was
+the only thing that captured a body. It is not: the observation ingest path
+takes bodies straight from an operator's own browser, and the layering rule --
+application never imports an adapter -- meant the one body redactor in the
+codebase was unreachable from the one path that was storing bodies unredacted.
+Stdlib only, so the move is a relocation and not a rewrite.
 """
 
 from __future__ import annotations
 
 import json
 import re
-from typing import Any
 from urllib.parse import parse_qsl, urlencode
 
 from sro.domain.recording.sensitivity import REDACTED as REDACTED
@@ -71,9 +77,9 @@ def _redact_json(text: str) -> tuple[str, tuple[str, ...]]:
 
     removed: list[str] = []
 
-    def walk(node: Any) -> Any:
+    def walk(node: object) -> object:
         if isinstance(node, dict):
-            cleaned: dict[str, Any] = {}
+            cleaned: dict[str, object] = {}
             for key, value in node.items():
                 if is_secret_field(str(key)):
                     # Whatever shape it is. This used to require a scalar, so
@@ -91,7 +97,14 @@ def _redact_json(text: str) -> tuple[str, tuple[str, ...]]:
         return node
 
     cleaned_document = walk(document)
-    return (json.dumps(cleaned_document) if removed else text), tuple(dict.fromkeys(removed))
+    # ``ensure_ascii=False`` because the default escapes the marker this very
+    # function just wrote to ``\u00abredacted\u00bb``, along with any the
+    # browser had already put in the same body -- and then a reviewer grepping
+    # the evidence store for «redacted» finds neither. Measured over the 395
+    # stored batches: 15 bodies came back with escaped markers.
+    return (json.dumps(cleaned_document, ensure_ascii=False) if removed else text), tuple(
+        dict.fromkeys(removed)
+    )
 
 
 def _redact_form(text: str) -> tuple[str, tuple[str, ...]]:

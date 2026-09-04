@@ -14,9 +14,9 @@ import pytest
 
 from sro.domain.recording.element import ElementFingerprint
 from sro.domain.recording.events import ActionKind, InputAction
+from sro.domain.recording.redaction import REDACTED, redact_body
 from sro.domain.recording.sensitivity import is_secret_field
 from sro.domain.shared.errors import InvariantViolation
-from sro.infrastructure.steel.redaction import REDACTED, redact_body
 
 
 class TestBodies:
@@ -130,6 +130,21 @@ class TestValueShapes:
 
         assert "hunter2" not in cleaned and "eyJ" not in cleaned
         assert removed == ("password", "«shape: jwt»")
+
+    def test_the_marker_a_reviewer_greps_for_is_the_marker_that_is_written(self) -> None:
+        """`json.dumps` escapes «» by default, so a redacted JSON body came back
+        carrying `\\u00abredacted\\u00bb` -- and every other redaction path in
+        this codebase writes the literal characters. Measured over the 395
+        batches in the store: 15 bodies were affected, including ones where the
+        escaping hit markers the BROWSER had written, not only ours."""
+        cleaned, _ = redact_body(
+            json.dumps({"password": "hunter2", "note": f"already {REDACTED} upstream"}),
+            content_type="application/json",
+        )
+
+        assert REDACTED in cleaned
+        assert "\\u00ab" not in cleaned
+        assert cleaned.count(REDACTED) == 2
 
 
 FIELD = ElementFingerprint(tag="input", accessible_name="Password", css_path="form > input")

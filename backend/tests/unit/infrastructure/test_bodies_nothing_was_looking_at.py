@@ -11,7 +11,7 @@ reported nothing removed.
 
 from __future__ import annotations
 
-from sro.infrastructure.steel.redaction import REDACTED, redact_body
+from sro.domain.recording.redaction import REDACTED, redact_body
 
 
 def test_a_credential_in_a_list_is_still_a_credential() -> None:

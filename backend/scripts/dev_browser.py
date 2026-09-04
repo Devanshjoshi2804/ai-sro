@@ -33,7 +33,25 @@ def main() -> int:
         return 1
 
     PROFILE.mkdir(exist_ok=True)
+    # Chromium takes a comma-separated list, and a second extension is the only
+    # way one window can both capture and be driven: the recorder has to be in
+    # the same browser as whatever is clicking, or the automation happens in a
+    # window this extension never sees. Opt-in by path, because the paths are
+    # per-machine -- e.g. SRO_ALSO_LOAD="$HOME/Library/Application Support/
+    # Google/Chrome/Profile 1/Extensions/<id>/<version>".
+    also = [
+        Path(part).expanduser()
+        for part in os.environ.get("SRO_ALSO_LOAD", "").split(",")
+        if part.strip()
+    ]
+    missing = [str(path) for path in also if not path.is_dir()]
+    if missing:
+        print(f"SRO_ALSO_LOAD names a path that is not a directory: {missing}", file=sys.stderr)
+        return 1
+    loaded = ",".join(str(path) for path in [EXTENSION, *also])
     print(f"extension  {EXTENSION}")
+    for path in also:
+        print(f"also       {path}")
     print(f"profile    {PROFILE}")
     print("\nThe window stays open until you close it or press ctrl-c here.\n")
 
@@ -44,8 +62,8 @@ def main() -> int:
             channel="chromium",
             viewport=None,
             args=[
-                f"--disable-extensions-except={EXTENSION}",
-                f"--load-extension={EXTENSION}",
+                f"--disable-extensions-except={loaded}",
+                f"--load-extension={loaded}",
             ],
         )
         # The extension's pages are addressed by an id Chrome assigns at load,

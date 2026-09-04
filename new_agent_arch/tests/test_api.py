@@ -1180,7 +1180,7 @@ def test_mining_needs_the_token(client: TestClient) -> None:
     assert client.post("/v1/mine").status_code == 401
 
 
-def test_the_workflows_route_carries_the_steps_and_what_they_cost(
+def test_the_workflows_route_carries_the_steps_and_the_pass_that_found_them(
     client: TestClient, store: Store
 ) -> None:
     """The page draws a step's words, its system and how many gestures prove
@@ -1199,7 +1199,7 @@ def test_the_workflows_route_carries_the_steps_and_what_they_cost(
             steps=[Step(order=0, says="type the code", system="https://wms.example", cites=["a"])],
             parameters=[{"name": "supplier"}],
             unproven=["a click nobody could place"],
-            cost_usd=0.02,
+            pass_id="pas_1",
         ),
     )
 
@@ -1216,8 +1216,9 @@ def test_the_workflows_route_carries_the_steps_and_what_they_cost(
             "parameters": [],
         }
     ]
-    assert body["cost_usd"] == 0.02
-    assert body["unpriced"] is False
+    # The pass that found it, not a price of its own: the whole pass's bill
+    # drawn once per workflow was the same number three times over.
+    assert body["pass_id"] == "pas_1"
     # The step's siblings are emitted; the workflow's own were not.
     assert body["unproven"] == ["a click nobody could place"]
     assert body["parameters"] == [{"name": "supplier"}]
@@ -1235,7 +1236,7 @@ def test_the_page_escapes_a_workflow_the_model_wrote_out_of_a_hostile_page() -> 
           title: {json.dumps(attack)},
           narrative: {json.dumps(attack)},
           systems: [{json.dumps(attack)}],
-          cost_usd: 0.02, unpriced: false,
+          pass_id: "pas_1",
           steps: [{{ order: {json.dumps(attack)}, says: {json.dumps(attack)},
                     system: {json.dumps(attack)}, cites: ["a"] }}],
         }}));
@@ -1263,3 +1264,79 @@ def test_a_pass_over_the_route_accounts_for_every_workflow_it_proposed(
     assert body["left_out"] == 0
     assert body["lost_pool"] == []
     assert body["coverage"]["lopsided"] is True
+
+
+def test_a_pass_the_model_refused_is_not_a_pass_that_found_nothing(store: Store) -> None:
+    """`proposed: 0, kept: 0` is also what an honest empty day looks like. A
+    refused or failed call reaches the loop as an Answer carrying a reason and
+    no data; the route dropped it, so the two rendered identically."""
+
+    def passing(answer: Answer) -> dict[str, Any]:
+        app = build_app(
+            store=Store(store.path),
+            asker=FakeAsker(answer),
+            token=TOKEN,
+            tenant="new",
+            read_on_ingest=False,
+        )
+        return dict(TestClient(app).post("/v1/mine", headers=_auth()).json())
+
+    refused = passing(Answer(error="503 UNAVAILABLE", unpriced=True))
+    empty = passing(Answer(data={"workflows": []}, cost_usd=0.01))
+
+    assert refused["error"] == "503 UNAVAILABLE"
+    assert empty["error"] is None
+    assert refused["proposed"] == empty["proposed"] == 0
+    # And on record afterwards, not only in the response that reported it.
+    errors = [row["error"] for row in store.query("SELECT error FROM passes ORDER BY started_at")]
+    assert errors == ["503 UNAVAILABLE", None]
+
+
+async def test_the_mining_bill_is_the_sum_of_the_passes_not_of_the_workflows(
+    store: Store,
+) -> None:
+    """Two $0.04 passes that found five workflows between them cost $0.08. The
+    same figure copied onto each workflow summed to $0.20, and grew with how
+    well the passes did."""
+    from rig.mine import mine
+    from rig.workflows import known_workflows
+
+    save_batch(store, Batch.model_validate(BATCH), "new")
+    ids = [row["id"] for row in store.query("SELECT id FROM gestures ORDER BY at")]
+
+    def found(*pairs: tuple[int, int]) -> Answer:
+        return Answer(
+            data={
+                "workflows": [
+                    {
+                        "title": f"job {a}",
+                        "narrative": "n",
+                        "systems": ["http://127.0.0.1:63319"],
+                        "steps": [
+                            {
+                                "order": 0,
+                                "cites": ids[a:b],
+                                "says": "do it",
+                                "system": "http://127.0.0.1:63319",
+                            }
+                        ],
+                    }
+                    for a, b in pairs
+                ]
+            },
+            cost_usd=0.04,
+        )
+
+    asker = FakeAsker(found((0, 1), (1, 2), (2, 3)), found((3, 4), (4, 5)))
+    await mine(store, tenant="new", asker=asker, model="m")
+    await mine(store, tenant="new", asker=asker, model="m")
+
+    client = TestClient(
+        build_app(store=store, asker=asker, token=TOKEN, tenant="new", read_on_ingest=False)
+    )
+    body = client.get("/v1/spend", headers=_auth()).json()
+
+    assert len(known_workflows(store, "new")) == 5
+    assert body["passes"] == 2
+    assert body["mining_usd"] == 0.08
+    assert body["mining_unpriced"] == 0

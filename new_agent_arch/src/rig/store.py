@@ -70,9 +70,35 @@ CREATE TABLE IF NOT EXISTS orphan_pages (
     payload  TEXT NOT NULL
 );
 
+-- One reading of one tenant's day. This is the row that has a cost: a pass
+-- makes exactly one model call, and every workflow below names the pass that
+-- found it rather than carrying a copy of its bill. Copying it meant three
+-- workflows out of one $0.04 call summed to $0.12 -- an overstatement that
+-- grew with how well the pass did.
+CREATE TABLE IF NOT EXISTS passes (
+    id         TEXT PRIMARY KEY,
+    tenant     TEXT NOT NULL,
+    started_at TEXT NOT NULL,
+    in_tokens  INTEGER NOT NULL DEFAULT 0,
+    out_tokens INTEGER NOT NULL DEFAULT 0,
+    cost_usd   REAL NOT NULL DEFAULT 0.0,
+    unpriced   INTEGER NOT NULL DEFAULT 0,
+    proposed   INTEGER NOT NULL DEFAULT 0,
+    kept       INTEGER NOT NULL DEFAULT 0,
+    rejected   INTEGER NOT NULL DEFAULT 0,
+    coverage   REAL NOT NULL DEFAULT 0.0,
+    skew       REAL NOT NULL DEFAULT 0.0,
+    lopsided   INTEGER NOT NULL DEFAULT 0,
+    -- Why it found nothing, when it found nothing for a reason the API gave.
+    -- An honest zero and a refused call are the same row without this.
+    error      TEXT
+);
+CREATE INDEX IF NOT EXISTS passes_tenant ON passes (tenant, started_at);
+
 CREATE TABLE IF NOT EXISTS workflows (
     id         TEXT PRIMARY KEY,
     tenant     TEXT NOT NULL,
+    pass_id    TEXT NOT NULL DEFAULT '',
     title      TEXT,
     narrative  TEXT,
     systems    TEXT NOT NULL DEFAULT '[]',
@@ -80,8 +106,6 @@ CREATE TABLE IF NOT EXISTS workflows (
     shape_key  TEXT NOT NULL DEFAULT '[]',
     same_as    TEXT,
     unproven   TEXT NOT NULL DEFAULT '[]',
-    cost_usd   REAL NOT NULL DEFAULT 0.0,
-    unpriced   INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS workflows_tenant ON workflows (tenant, created_at);
@@ -134,6 +158,16 @@ class Store:
             connection.close()
 
     def migrate(self) -> None:
+        """Create what is missing. It cannot ALTER what is already there.
+
+        Every statement above is CREATE ... IF NOT EXISTS, so a column added to
+        an existing table never appears in a store that predates it -- the new
+        table arrives, the new column does not, and the first query naming it
+        fails at runtime rather than here. That is acceptable while the rig's
+        stores are scratch databases rebuilt from captured batches, which is
+        what they are today. It will not be the day one of them is worth
+        keeping.
+        """
         with self.connect() as connection:
             connection.executescript(SCHEMA)
 

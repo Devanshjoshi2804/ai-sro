@@ -102,7 +102,7 @@ def build_prompt(
     return "\n".join(parts)
 
 
-def _as_workflow(raw: object, tenant: str, answer: Answer) -> Workflow | None:
+def _as_workflow(raw: object, tenant: str) -> Workflow | None:
     if not isinstance(raw, dict):
         return None
     steps_raw = raw.get("steps")
@@ -161,8 +161,10 @@ def _as_workflow(raw: object, tenant: str, answer: Answer) -> Workflow | None:
         unproven=[u for u in raw.get("unproven", []) if isinstance(u, str)]
         if isinstance(raw.get("unproven"), list)
         else [],
-        cost_usd=answer.cost_usd,
-        unpriced=answer.unpriced,
+        # No cost here. The call that proposed this workflow proposed all of
+        # them, so its price belongs to the pass -- mine.py stamps `pass_id`
+        # on what it keeps. Copying `answer.cost_usd` onto each workflow made
+        # SUM(cost_usd) overstate the bill by the number of workflows found.
     )
 
 
@@ -194,5 +196,5 @@ async def propose(
     if not isinstance(raw, list):
         return [], answer
 
-    proposed = [_as_workflow(item, tenant, answer) for item in raw]
+    proposed = [_as_workflow(item, tenant) for item in raw]
     return [w for w in proposed if w is not None], answer

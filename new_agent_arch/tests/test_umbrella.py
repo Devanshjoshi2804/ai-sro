@@ -1,4 +1,3 @@
-from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -115,30 +114,6 @@ async def test_a_proposal_becomes_a_workflow() -> None:
     assert workflows[0].steps[0].cites == ["ges_1"]
     assert workflows[0].unproven == ["ges_2"]
     assert answer.cost_usd == 0.004
-
-
-async def test_the_pass_carries_its_own_cost() -> None:
-    """The umbrella pass is the most expensive call in the system."""
-    workflows, _ = await propose(
-        _window(), {}, [], "", asker=FakeAsker(_answer()), model=MODEL, tenant="acme"
-    )
-
-    assert workflows[0].cost_usd == 0.004
-    assert workflows[0].unpriced is False
-
-
-async def test_an_unpriced_pass_says_so_on_the_workflow() -> None:
-    """`unpriced` exists because a $0.00 row and an honestly-unpriced row look
-    the same in cost_usd alone. The False above is also the Answer default, so
-    it cannot tell a carried field from a hardcoded one."""
-    unpriced = replace(_answer(), cost_usd=0.0, unpriced=True)
-
-    workflows, _ = await propose(
-        _window(), {}, [], "", asker=FakeAsker(unpriced), model=MODEL, tenant="acme"
-    )
-
-    assert workflows[0].cost_usd == 0.0
-    assert workflows[0].unpriced is True
 
 
 async def test_a_refusal_proposes_nothing_and_says_why() -> None:

@@ -428,7 +428,18 @@ def build_app(
             " FROM intents"
         )[0]
         gestures_total = store.query("SELECT count(*) AS n FROM gestures")[0]["n"]
+        # Summed where the cost actually lives. One pass is one model call over
+        # the whole day, so its bill is one row -- and the workflows it found
+        # each carrying a copy of that figure is how SUM over workflows came to
+        # overstate the total by the number of jobs found.
+        mining = store.query(
+            "SELECT count(*) AS n, coalesce(sum(cost_usd), 0.0) AS c,"
+            " coalesce(sum(unpriced), 0) AS u FROM passes"
+        )[0]
         return {
+            "passes": mining["n"],
+            "mining_usd": round(mining["c"], 6),
+            "mining_unpriced": mining["u"],
             "gestures": gestures_total,
             "gestures_read": row["n"],
             "in_tokens": row["i"],
@@ -456,6 +467,13 @@ def build_app(
 
         result = await mine(store, tenant=tenant, asker=asker, model=settings().mine_model)
         return {
+            # The row in `passes` this reading wrote. Every workflow below
+            # names it, and it is where the pass's bill lives.
+            "pass_id": result.pass_id,
+            # A refused or failed call reaches here as an Answer carrying a
+            # reason and no data. Dropped, it left a pass that found nothing
+            # looking exactly like a pass that had nothing to find.
+            "error": result.error,
             "proposed": result.proposed,
             "kept": result.kept,
             "window": result.window_size,
@@ -490,6 +508,8 @@ def build_app(
                 # readable from them; that one did is the verdict.
                 "lopsided": result.lopsided,
             },
+            "in_tokens": result.in_tokens,
+            "out_tokens": result.out_tokens,
             "cost_usd": round(result.cost_usd, 6),
             "unpriced": result.unpriced,
         }
@@ -505,8 +525,11 @@ def build_app(
                     "title": w.title,
                     "narrative": w.narrative,
                     "systems": w.systems,
-                    "cost_usd": w.cost_usd,
-                    "unpriced": w.unpriced,
+                    # The pass that found it, rather than a per-workflow price.
+                    # One call proposes every workflow in a pass, so a copy of
+                    # its cost on each of them summed to the bill times the
+                    # number of jobs found. Ask `passes` for what it cost.
+                    "pass_id": w.pass_id,
                     # `parameters` and `unproven` are the workflow's own model
                     # output and exist nowhere a reader can reach but here --
                     # `unproven` in particular is what the pass could not place,

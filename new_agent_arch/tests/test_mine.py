@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 from pathlib import Path
 from typing import Any
@@ -258,3 +259,145 @@ async def test_a_gesture_whose_system_is_unknown_cannot_prove_a_step_that_names_
 
     assert result.kept == 0
     assert result.rejections[0].reason == "unattributed evidence"
+
+
+async def test_the_bill_belongs_to_the_pass_and_is_recorded_once(tmp_path: Path) -> None:
+    """One call proposes every workflow in a pass, so the pass is what has a
+    cost. Copying `Answer.cost_usd` onto each workflow made the total grow with
+    how well the pass did: three workflows out of this $0.04 call summed to
+    $0.12, and a four-workflow pass would have said $0.16."""
+    store = _store(tmp_path)
+    ids = _ids(store)
+    three = [
+        _proposal(ids[0:2], title="create a work operation"),
+        _proposal(ids[2:4], title="receive a shipment"),
+        _proposal(ids[4:6], title="correct a count"),
+    ]
+    asker = FakeAsker(
+        Answer(data={"workflows": three}, in_tokens=900, out_tokens=100, cost_usd=0.04)
+    )
+
+    result = await mine(store, tenant="acme", asker=asker, model="m")
+
+    assert result.kept == 3
+    billed = store.query("SELECT count(*) AS n, sum(cost_usd) AS c FROM passes")[0]
+    # One row, at the real figure -- not 0.04 * 3.
+    assert billed["n"] == 1
+    assert billed["c"] == 0.04
+    assert billed["c"] != 0.04 * result.kept
+    # And every workflow can name the row that was billed for it.
+    rows = store.query("SELECT pass_id FROM workflows")
+    assert {row["pass_id"] for row in rows} == {result.pass_id}
+
+
+async def test_a_pass_whose_price_is_unknown_says_so_in_its_row(tmp_path: Path) -> None:
+    """A $0.00 pass and a pass whose cost could not be established are the same
+    row in cost_usd alone. A total that reads the second as free understates
+    the bill and says nothing about it."""
+    store = _store(tmp_path)
+    asker = FakeAsker(Answer(data={"workflows": []}, cost_usd=0.0, unpriced=True))
+
+    await mine(store, tenant="acme", asker=asker, model="m")
+
+    row = store.query("SELECT cost_usd, unpriced FROM passes")[0]
+    assert row["cost_usd"] == 0.0
+    assert row["unpriced"] == 1
+
+
+async def test_a_refused_pass_is_still_a_row_and_still_says_why(tmp_path: Path) -> None:
+    """The call happened, may have been billed, and returned nothing. Without a
+    row it is indistinguishable from a pass that was never run."""
+    store = _store(tmp_path)
+
+    result = await mine(
+        store, tenant="acme", asker=FakeAsker(Answer(error="503", unpriced=True)), model="m"
+    )
+
+    assert result.error == "503"
+    assert [row["error"] for row in store.query("SELECT error FROM passes")] == ["503"]
+
+
+_COLUMNS = (
+    "id, tenant, stream_id, batch_id, at, url, system,"
+    " tab_id, frame_url, gesture_json, requests, page_events"
+)
+
+
+def _crowd(store: Store, strong: int, weak: int) -> tuple[list[str], list[str]]:
+    """A day bigger than one window, built out of the fixture's own rows.
+
+    A gesture carrying a write outranks a plain click in `strength`, so the
+    strong ones take their places first and the K_MIN_GESTURES floor decides
+    how many of the weak ones join them. The rest are what the budget leaves
+    out. The fixture's seven originals go, so the arithmetic is exactly these.
+    """
+    rows = store.query("SELECT * FROM gestures")
+    writing = next(r for r in rows if any(q["method"] != "GET" for q in json.loads(r["requests"])))
+    plain = next(
+        r
+        for r in rows
+        if not json.loads(r["requests"]) and json.loads(r["gesture_json"])["kind"] == "click"
+    )
+
+    def clone(template: Any, new_id: str, at: float) -> str:
+        values = [template[column.strip()] for column in _COLUMNS.split(",")]
+        values[0], values[4] = new_id, at
+        placeholders = ", ".join("?" * len(values))
+        store.execute(f"INSERT INTO gestures ({_COLUMNS}) VALUES ({placeholders})", tuple(values))
+        return new_id
+
+    strong_ids = [clone(writing, f"ges_strong_{i:02d}", 1000.0 + i) for i in range(strong)]
+    weak_ids = [clone(plain, f"ges_weak_{i:02d}", 2000.0 + i) for i in range(weak)]
+    store.execute(
+        "DELETE FROM gestures WHERE id NOT LIKE 'ges_strong_%' AND id NOT LIKE 'ges_weak_%'"
+    )
+    return strong_ids, weak_ids
+
+
+# Bigger than the window has room for once the knowledge base is subtracted
+# from it, which is how a test gets `pack` to leave evidence out without
+# reaching past mine()'s own arguments to set the budget.
+_CROWDED_KB = "x" * 600_000
+
+
+async def test_evidence_the_budget_left_out_lands_in_the_pool(tmp_path: Path) -> None:
+    """`left_out` was reported and dropped. A 150K window holds about 620
+    gestures and an operator day runs to a few thousand, so past one window the
+    same tail lost every pass forever while the count faithfully said so."""
+    store = _store(tmp_path)
+    strong_ids, weak_ids = _crowd(store, strong=20, weak=10)
+    read = strong_ids + weak_ids[:5]
+    asker = FakeAsker(Answer(data={"workflows": [_proposal(read)]}, cost_usd=0.04))
+
+    result = await mine(store, tenant="acme", asker=asker, model="m", kb=_CROWDED_KB)
+
+    assert result.rejections == []
+    assert result.window_size == len(read)
+    assert result.left_out == len(weak_ids[5:])
+    # The pass cited everything it read, so the pool holds exactly what the
+    # budget refused. Before the fix it held nothing at all.
+    assert set(pool_ids(store, "acme")) == set(weak_ids[5:])
+
+
+async def test_a_gesture_the_budget_left_out_is_read_by_the_next_pass(tmp_path: Path) -> None:
+    """Being in the pool is the point only because K_POOL_BONUS then buys it a
+    place. This asserts the place, not the row: the second pass proposes a
+    workflow over the tail, and a tail still outside the window is refused for
+    citing gestures the pass never saw."""
+    store = _store(tmp_path)
+    strong_ids, weak_ids = _crowd(store, strong=20, weak=10)
+    tail = weak_ids[5:]
+    asker = FakeAsker(
+        Answer(data={"workflows": [_proposal(strong_ids + weak_ids[:5])]}, cost_usd=0.04),
+        Answer(data={"workflows": [_proposal(tail, title="the tail")]}, cost_usd=0.04),
+    )
+
+    await mine(store, tenant="acme", asker=asker, model="m", kb=_CROWDED_KB)
+    second = await mine(store, tenant="acme", asker=asker, model="m", kb=_CROWDED_KB)
+
+    assert [r.reason for r in second.rejections] == []
+    assert second.kept == 1
+    # The window is the same size; the bonus changed who is in it. The fresh
+    # weak gestures that displaced the tail last pass are this pass's tail.
+    assert second.window_size == 25
+    assert second.left_out == len(tail)

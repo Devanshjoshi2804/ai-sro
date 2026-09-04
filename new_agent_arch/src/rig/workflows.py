@@ -40,8 +40,12 @@ class Workflow:
     # disagrees with itself at roughly 90%. identity.py decides.
     same_as: str | None = None
     unproven: list[str] = field(default_factory=list)
-    cost_usd: float = 0.0
-    unpriced: bool = False
+    # The pass that found it. A workflow has no cost of its own -- one model
+    # call proposes all of them -- so it names the row that does rather than
+    # carrying a copy of the bill that three workflows would then sum to three
+    # times. Empty for a workflow saved outside a pass, which today is only a
+    # test.
+    pass_id: str = ""
 
 
 def cited_ids(workflow: Workflow) -> set[str]:
@@ -51,12 +55,13 @@ def cited_ids(workflow: Workflow) -> set[str]:
 def save_workflow(store: Store, workflow: Workflow) -> None:
     with store.connect() as connection:
         connection.execute(
-            "INSERT OR REPLACE INTO workflows (id, tenant, title, narrative, systems,"
-            " parameters, shape_key, same_as, unproven, cost_usd, unpriced, created_at)"
-            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT OR REPLACE INTO workflows (id, tenant, pass_id, title, narrative,"
+            " systems, parameters, shape_key, same_as, unproven, created_at)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 workflow.id,
                 workflow.tenant,
+                workflow.pass_id,
                 workflow.title,
                 workflow.narrative,
                 json.dumps(workflow.systems),
@@ -64,8 +69,6 @@ def save_workflow(store: Store, workflow: Workflow) -> None:
                 json.dumps(workflow.shape_key),
                 workflow.same_as,
                 json.dumps(workflow.unproven),
-                workflow.cost_usd,
-                int(workflow.unpriced),
                 datetime.now(tz=UTC).isoformat(),
             ),
         )
@@ -115,8 +118,7 @@ def known_workflows(store: Store, tenant: str) -> list[Workflow]:
                 shape_key=json.loads(row["shape_key"]),
                 same_as=row["same_as"],
                 unproven=json.loads(row["unproven"]),
-                cost_usd=row["cost_usd"],
-                unpriced=bool(row["unpriced"]),
+                pass_id=row["pass_id"],
             )
         )
     return workflows

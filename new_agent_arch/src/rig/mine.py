@@ -3,7 +3,9 @@
 import asyncio
 import json
 import logging
+import secrets
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 
 from rig.checks import (
     K_MAX_SKEW,
@@ -35,8 +37,17 @@ log = logging.getLogger("rig")
 _mining = asyncio.Lock()
 
 
+def new_pass_id() -> str:
+    return "pas_" + secrets.token_hex(16)
+
+
 @dataclass
 class MineResult:
+    # The pass is the thing with a cost, so it is the thing with an id. Every
+    # workflow this pass kept carries it, and the bill for a day of mining is
+    # SUM(cost_usd) FROM passes -- not from workflows, where the same figure
+    # was written once per workflow found.
+    pass_id: str = ""
     proposed: int = 0
     kept: int = 0
     rejections: list[Rejection] = field(default_factory=list)
@@ -45,8 +56,14 @@ class MineResult:
     # measures as zeroes rather than as nothing. A `| None` here put a
     # branch in the route that no pass can reach.
     coverage: Coverage = field(default_factory=lambda: Coverage(0.0, 0.0, 0.0))
+    in_tokens: int = 0
+    out_tokens: int = 0
     cost_usd: float = 0.0
     unpriced: bool = False
+    # What the model said went wrong, when something did. A pass that was
+    # refused and a pass that honestly found nothing are the same result
+    # without this -- the distinction the rest of this codebase keeps.
+    error: str | None = None
     window_size: int = 0
     # Evidence this pass did not read, and evidence it could not read. The
     # window drops what will not fit the budget; a pooled id whose gesture row
@@ -81,6 +98,9 @@ def _packed(gesture: Gesture, intent: Intent | None, linked: set[str]) -> Packed
 
 
 async def _one_pass(store: Store, *, tenant: str, asker: Asker, model: str, kb: str) -> MineResult:
+    started_at = datetime.now(tz=UTC).isoformat()
+    pass_id = new_pass_id()
+
     # Imported here, not at module scope: api.py reaches for rig.mine inside
     # its own route for the same reason, and a module-level pair would be a
     # cycle. These two rebuild a Gesture and an Intent from their rows -- and
@@ -127,9 +147,13 @@ async def _one_pass(store: Store, *, tenant: str, asker: Asker, model: str, kb: 
     )
 
     result = MineResult(
+        pass_id=pass_id,
         proposed=len(proposals),
+        in_tokens=answer.in_tokens,
+        out_tokens=answer.out_tokens,
         cost_usd=answer.cost_usd,
         unpriced=answer.unpriced,
+        error=answer.error,
         window_size=len(window.items),
         left_out=len(window.left_out),
         lost_pool=lost,
@@ -159,6 +183,7 @@ async def _one_pass(store: Store, *, tenant: str, asker: Asker, model: str, kb: 
         resolution = resolve(proposal, known + kept)
         result.resolutions.append(resolution)
         if resolution.kind == "new":
+            proposal.pass_id = pass_id
             save_workflow(store, proposal)
             kept.append(proposal)
 
@@ -169,11 +194,55 @@ async def _one_pass(store: Store, *, tenant: str, asker: Asker, model: str, kb: 
     )
 
     claimed = {c for w in kept for c in cited_ids(w)}
-    add_unclaimed(store, tenant, [item.gesture_id for item in window.items], claimed)
+    # window.left_out is pooled beside what the pass read and could not place.
+    # Evidence the budget dropped never got a FIRST look, which is a worse case
+    # than the 74% recall the pool exists for, not an exempt one -- and left
+    # unpooled it earns no K_POOL_BONUS, so on the next pass it competes on
+    # exactly the terms that already lost it. Past one window's worth of
+    # evidence that is the same tail losing forever while `left_out` reports it
+    # every time.
+    #
+    # Safe against a double add: pack() puts each candidate in `items` or in
+    # `left_out`, never both, and add_unclaimed's INSERT OR IGNORE leaves an
+    # already-pooled gesture -- one that was pooled and still did not fit --
+    # with the age it has earned rather than restarting its clock. It goes on
+    # ageing like any other entry and retires named on K_POOL_AGE, which
+    # retired_entries still accounts for.
+    add_unclaimed(
+        store, tenant, [item.gesture_id for item in window.items] + window.left_out, claimed
+    )
     # Exactly once, at the end of the pass: K_POOL_AGE counts passes, and a
     # second call here would halve it.
     age_pool(store, tenant)
+    _save_pass(store, tenant, started_at, result)
     return result
+
+
+def _save_pass(store: Store, tenant: str, started_at: str, result: MineResult) -> None:
+    """One row per reading of the day, written whether it found anything or
+    not -- including when it was refused, which is the only record left of a
+    call that cost money and returned nothing."""
+    store.execute(
+        "INSERT INTO passes (id, tenant, started_at, in_tokens, out_tokens, cost_usd,"
+        " unpriced, proposed, kept, rejected, coverage, skew, lopsided, error)"
+        " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (
+            result.pass_id,
+            tenant,
+            started_at,
+            result.in_tokens,
+            result.out_tokens,
+            result.cost_usd,
+            int(result.unpriced),
+            result.proposed,
+            result.kept,
+            len(result.rejections),
+            result.coverage.coverage,
+            result.coverage.skew,
+            int(result.lopsided),
+            result.error,
+        ),
+    )
 
 
 def _ordered_cites(workflow: Workflow) -> list[str]:

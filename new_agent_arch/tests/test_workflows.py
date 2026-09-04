@@ -44,8 +44,7 @@ def _workflow(**over) -> Workflow:
         "shape_key": [["https://wms.example", "clientCode", "type"]],
         "same_as": None,
         "unproven": ["ges_9"],
-        "cost_usd": 0.42,
-        "unpriced": False,
+        "pass_id": "pas_1",
     }
     return Workflow(**{**base, **over})
 
@@ -64,15 +63,17 @@ def test_a_workflow_survives_a_round_trip(tmp_path: Path) -> None:
     assert back[0].systems == ["https://wms.example", "https://sap.example"]
 
 
-def test_the_cost_of_proving_it_is_kept(tmp_path: Path) -> None:
-    """The umbrella pass is the most expensive call in the system."""
+def test_a_workflow_names_the_pass_that_found_it(tmp_path: Path) -> None:
+    """The umbrella pass is the most expensive call in the system, and it is
+    the pass that is billed. A workflow carries the id of the pass rather than
+    a copy of its cost -- three workflows out of one $0.04 call summed to
+    $0.12, and the better the pass did the worse the figure got."""
     store = _store(tmp_path)
 
-    save_workflow(store, _workflow(cost_usd=1.25, unpriced=True))
+    save_workflow(store, _workflow(pass_id="pas_abcdef"))
     back = known_workflows(store, "acme")[0]
 
-    assert back.cost_usd == 1.25
-    assert back.unpriced is True
+    assert back.pass_id == "pas_abcdef"
 
 
 def test_another_tenants_workflows_are_not_returned(tmp_path: Path) -> None:

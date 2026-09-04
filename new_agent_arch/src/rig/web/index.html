@@ -134,7 +134,9 @@
        <b>$${Number(s.cost_usd ?? 0).toFixed(4)}</b> ·
        $${Number(s.per_gesture_usd ?? 0).toFixed(6)} a reading${
          s.unusable ? ` · <b class="nothing">${esc(s.unusable)}</b> unusable` : ""
-       }${s.unpriced ? ` · <b class="nothing">${esc(s.unpriced)}</b> unpriced` : ""}`;
+       }${s.unpriced ? ` · <b class="nothing">${esc(s.unpriced)}</b> unpriced` : ""}${
+         s.passes ? ` · <b>$${Number(s.mining_usd ?? 0).toFixed(4)}</b> mining over ${esc(s.passes)}` : ""
+       }`;
   }
 
   // A workflow's title, narrative and every step's words are model output over
@@ -154,9 +156,10 @@
   }
 
   function job(w) {
-    const cost = w.unpriced ? "unpriced" : "$" + Number(w.cost_usd ?? 0).toFixed(5);
+    // The pass, not a price. One call proposes every job in a pass, so a
+    // per-job dollar figure was the whole pass's bill drawn once per card.
     return `<div class="card">
-      <div class="cost${w.unpriced ? " unpriced" : ""}">${esc(cost)}</div>
+      <div class="cost">${esc(w.pass_id)}</div>
       <div class="what">${esc(w.title)}</div>
       <div class="why">${esc(w.narrative)}</div>
       <div class="systems">${(w.systems ?? []).map(esc).join("  ")}</div>

@@ -99,6 +99,36 @@ present — the same join, found without a model.
 - **One window, one tenant, one day.** Nothing here says anything about the
   carryover pool across users, which is the mechanism for the U1→U2→U3 case.
 
+## arrange() has no measurable effect at this scale
+
+`window.arrange` puts the strongest evidence at both ends of the prompt and the
+weakest in the middle, against the long-context finding that attention sags in
+the middle. It was found to be dead code during the whole-branch review — three
+documents described it and nothing called it — and wired in.
+
+Then measured, because a mechanism that only looks like it is working is worse
+than none. Six real passes on the 81 captured gestures, three with it and three
+without, same model, same evidence:
+
+```
+arrange=ON    coverage 0.80   skew +0.367   proposed [4, 4, 4]
+arrange=OFF   coverage 0.80   skew +0.367   proposed [4, 4, 4]
+```
+
+Identical to three decimal places. The control holds: the two prompts differ,
+74 of the 81 items change position, and the lengths match exactly.
+
+**This does not say the idea is wrong. It says the conditions are not present
+here.** The window is 81 items at 16% of budget; the attention findings it
+argues from are about prompts near their limit. The honest reading is that
+`arrange` is unproven at this scale rather than useless, and the experiment
+worth repeating is the same A/B on a window near the 555-gesture ceiling.
+
+It is kept, because it costs one sort and the hypothesis has not been tested
+under the conditions it was designed for. What is not kept is the claim: no
+document should say it improves anything until a window large enough to answer
+that has been mined.
+
 ## What evidence would settle it
 
 One operator, one session, two hosts, with a value carried between them by

@@ -218,6 +218,16 @@ def strength(gesture: Gesture, intent: Intent | None, linked: set[str]) -> float
 def arrange(items: list[Packed]) -> list[Packed]:
     """Strongest at both ends, weakest in the middle.
 
+    MEASURED, and it changes nothing at this scale: six real passes on the 81
+    captured acme gestures, three with this applied and three without, gave
+    identical coverage (0.80), identical skew (+0.367) and identical proposals.
+    The control holds -- 74 of 81 items move and the prompts differ. That window
+    is 16% of budget, while the attention findings this argues from concern
+    prompts near their limit, so it is unproven at this scale rather than
+    disproved. Kept because it costs one sort; claimed for nothing until a
+    window near the 555-gesture ceiling has been mined. See
+    docs/new-agent-doc-arc/findings.md.
+
     The middle stays in temporal order. Order-invariant representations were
     measured to degrade cross-application reconstruction specifically, and a
     workflow is a sequence -- scrambling it to chase a position effect would

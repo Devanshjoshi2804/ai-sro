@@ -1,3 +1,4 @@
+import asyncio
 import json
 from types import SimpleNamespace
 from typing import Any
@@ -279,3 +280,36 @@ async def test_an_empty_instruction_is_not_sent_as_an_empty_part() -> None:
     )
 
     assert models.last_contents == ["e"]
+
+
+def test_thinking_tokens_are_part_of_the_bill() -> None:
+    """Thinking tokens bill at the output rate with no discount, and
+    candidates_token_count does not include them -- so reading that field alone
+    understated every figure this rig produced, by more the harder the prompt.
+    K_EFFORT = "high" exists to spend them."""
+
+    class _Usage:
+        prompt_token_count = 1_000
+        candidates_token_count = 200
+        thoughts_token_count = 5_000
+
+    class _Response:
+        text = "{}"
+        usage_metadata = _Usage()
+
+    class _Models:
+        async def generate_content(self, **_: object) -> _Response:
+            return _Response()
+
+    class _Client:
+        aio = type("_Aio", (), {"models": _Models()})()
+
+    asker = GeminiAsker(api_key="", client=_Client())
+    answer = asyncio.run(
+        asker.ask(model="gemini-3.1-pro", instructions="i", evidence="e", schema={})
+    )
+
+    assert answer.thought_tokens == 5_000
+    assert answer.out_tokens == 5_200
+    assert answer.cost_usd == price("gemini-3.1-pro", 1_000, 5_200)
+    assert answer.cost_usd > price("gemini-3.1-pro", 1_000, 200)

@@ -54,6 +54,9 @@ class Answer:
     data: dict[str, Any] | None = None
     in_tokens: int = 0
     out_tokens: int = 0
+    # Part of out_tokens for pricing, kept separately so a reader can see how
+    # much of the bill was reasoning nobody ever read.
+    thought_tokens: int = 0
     cost_usd: float = 0.0
     # True when cost_usd cannot be trusted: the model is missing from PRICES,
     # or the SDK did not give back real usage counts. A $0.00 row and an
@@ -137,9 +140,19 @@ class GeminiAsker:
         usage = getattr(response, "usage_metadata", None)
         raw_in = getattr(usage, "prompt_token_count", None)
         raw_out = getattr(usage, "candidates_token_count", None)
+        # Thinking tokens are billed at the OUTPUT rate, with no discount tier,
+        # and candidates_token_count does not include them -- the SDK carries
+        # them separately. Reading only candidates_token_count understated every
+        # figure this rig has ever produced, and understated them by more the
+        # harder the prompt was. K_EFFORT = "high" exists to spend these, so a
+        # short visible answer can carry thousands of billed tokens the bill
+        # showed and we did not.
+        thought_tokens = getattr(usage, "thoughts_token_count", None) or 0
         usage_missing = raw_in is None or raw_out is None
         in_tokens = raw_in or 0
-        out_tokens = raw_out or 0
+        # Kept apart in the record and added together for the bill: one number
+        # says what the model wrote, the other says what it cost.
+        out_tokens = (raw_out or 0) + thought_tokens
         unpriced = usage_missing or not is_priced(model)
         cost = price(model, in_tokens, out_tokens)
 
@@ -150,6 +163,7 @@ class GeminiAsker:
             return Answer(
                 in_tokens=in_tokens,
                 out_tokens=out_tokens,
+                thought_tokens=thought_tokens,
                 cost_usd=cost,
                 unpriced=unpriced,
                 error="the model returned no text (blocked, or no candidates)",
@@ -161,6 +175,7 @@ class GeminiAsker:
             return Answer(
                 in_tokens=in_tokens,
                 out_tokens=out_tokens,
+                thought_tokens=thought_tokens,
                 cost_usd=cost,
                 unpriced=unpriced,
                 error=f"not json: {problem}",
@@ -170,6 +185,7 @@ class GeminiAsker:
             data=data,
             in_tokens=in_tokens,
             out_tokens=out_tokens,
+            thought_tokens=thought_tokens,
             cost_usd=cost,
             unpriced=unpriced,
         )

@@ -35,9 +35,20 @@ def _a_timestamp(value: str) -> str:
     becomes one named RejectedEvent and nothing downstream has to defend.
     """
     try:
-        datetime.fromisoformat(value)
+        parsed = datetime.fromisoformat(value)
     except ValueError as bad:
         raise ValueError(f"not an RFC3339 timestamp: {value!r}") from bad
+    if parsed.tzinfo is None:
+        # The parseable-but-zone-less case, which is worse than the
+        # unparseable one because nothing raises. correlate._epoch calls
+        # .timestamp() on this, and a naive datetime is read as LOCAL time --
+        # so on a machine at +05:30 the same instant as
+        # '2026-08-31T08:40:04.812Z' lands 19800s away, every request detaches
+        # from its gesture, and every gesture is read with no evidence at all.
+        # Silently: no error, no orphan count that looks wrong, just worse
+        # readings. AGENTS.md requires timezone-aware timestamps and this is
+        # the boundary that can still say so.
+        raise ValueError(f"timestamp has no timezone: {value!r}")
     return value
 
 

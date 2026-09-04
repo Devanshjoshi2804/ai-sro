@@ -185,8 +185,10 @@ def test_a_credential_cannot_be_reached_by_mutating_the_target() -> None:
 
 def test_a_password_in_a_request_body_never_reaches_the_prompt() -> None:
     """A click on a Login button is not a secret gesture, so every guard that
-    keys on is_secret(gesture) stands aside. The model was shown the password
-    and save_batch wrote it to the store."""
+    keys on is_secret(gesture) stands aside, and the model was shown the
+    password. This asserts the prompt half only; the store half it used to
+    claim is asserted -- on disk, WAL included -- by
+    test_api.test_a_credential_value_is_nowhere_on_disk."""
     from rig.trim import REDACTED, body_keys
     from rig.wire import Body
 
@@ -286,3 +288,51 @@ def test_body_keys_still_names_what_it_saw() -> None:
     keys = body_keys(Body(text='{"clientCode": "ACME-4471"}', mime_type="application/json"))
 
     assert keys == {"clientCode": "ACME-4471"}
+
+
+def test_a_suppressed_body_is_nothing_to_read_not_a_crash() -> None:
+    """`{"text": null, ...}` is the exact shape the extension sends when it
+    declines to keep a body, and it arrives with whatever mime type the call
+    had. `parse_qsl(None)` raises TypeError, and the json path invents a
+    `{"_": ""}` key out of a body that was never there."""
+    for body in (
+        Body(text=None, mime_type="application/x-www-form-urlencoded"),
+        Body(text=None, mime_type="application/json"),
+        Body(text=None, mime_type="text/xml"),
+        Body(text=None),
+        Body(text="", mime_type="application/json"),
+    ):
+        assert body_keys(body) is None, body
+
+
+def test_a_body_with_more_keys_than_the_cap_is_cut_to_it() -> None:
+    """BODY_KEYS. A WMS grid save posts a row per line; the prompt is not the
+    place for four hundred column names."""
+    from rig.trim import BODY_KEYS
+
+    body = Body(
+        text=json.dumps({f"column{n}": n for n in range(BODY_KEYS * 3)}),
+        mime_type="application/json",
+    )
+
+    keys = body_keys(body)
+
+    assert keys is not None
+    assert len(keys) == BODY_KEYS
+    assert list(keys) == [f"column{n}" for n in range(BODY_KEYS)]
+
+
+def test_a_body_that_is_not_an_object_is_named_rather_than_indexed() -> None:
+    """The non-dict guard. A JSON array, a bare string and a GraphQL mutation
+    all parse to something with no keys to name -- and `parsed[key]` on a list
+    whose entries are dicts is a TypeError, in the one function every request
+    body in every prompt passes through."""
+    for body in (
+        Body(text='[{"clientCode": "ACME-4471"}]', mime_type="application/json"),
+        Body(text='"clientCode=ACME-4471"', mime_type="application/json"),
+        Body(text="7", mime_type="application/json"),
+    ):
+        keys = body_keys(body)
+
+        assert keys is not None, body.text
+        assert list(keys) == ["_"], body.text

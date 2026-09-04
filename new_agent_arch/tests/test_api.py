@@ -879,3 +879,306 @@ def test_the_header_shows_what_the_spend_route_could_not_price() -> None:
     # The arithmetic divides the bill by readings, so the label says readings.
     assert "a reading" in clean
     assert "a gesture" not in clean
+
+
+# --- The tail is one operator's own history, and nobody else's ----------------
+
+
+def _as_device(device_id: str, batch_id: str, shift: float) -> dict[str, Any]:
+    """The committed batch, re-badged to another browser and moved in time."""
+    raw = json.loads(json.dumps(BATCH))
+    raw["batch_id"] = batch_id
+    raw["device_id"] = device_id
+    for event in raw["events"]:
+        if event["kind"] == "gesture":
+            event["gesture"]["at"] += shift
+    return raw
+
+
+def _saying(act: str) -> Answer:
+    return Answer(data={"act": act, "why": "because"}, in_tokens=1, out_tokens=1)
+
+
+async def test_one_operators_history_is_never_another_operators_prompt(store: Store) -> None:
+    """tail_for's `WHERE g.stream_id = ?`. Two devices in one store, and with
+    the filter gone the eight most recent readings before this gesture are
+    whoever's -- so alice's morning arrives as context for bob's click and is
+    sent to the model as what *he* was just doing. Nothing tested it.
+    """
+    save_batch(store, Batch.model_validate(_as_device("dev_alice", "bat_alice", 0.0)), "new")
+    alice = FakeAsker(*[_saying("alice cancelled order ORD-8841") for _ in range(7)])
+    await read_new_gestures(store, alice, "m")
+    assert len(alice.asked) == 7
+
+    save_batch(store, Batch.model_validate(_as_device("dev_bob", "bat_bob", 600.0)), "new")
+    bob = FakeAsker(*[_saying("bob received tote TOT-12") for _ in range(7)])
+    await read_new_gestures(store, bob, "m")
+
+    prompts = "".join(asked["evidence"] for asked in bob.asked)
+
+    assert len(bob.asked) == 7, "bob's gestures were not read, so this proves nothing"
+    # The tail reaches the prompt at all -- without this the assertion below
+    # passes just as well with `tail=[]` hard-coded.
+    assert "bob received tote TOT-12" in prompts
+    assert "alice cancelled order ORD-8841" not in prompts
+
+
+def test_the_tail_is_the_eight_readings_before_this_one_oldest_first(store: Store) -> None:
+    """`LIMIT 8` and `reversed()`, neither of which anything reached.
+
+    Newest-first context tells the model the operator did these things in the
+    opposite order to the one they did them in, and an unbounded tail sends the
+    whole morning to be billed for on every single gesture.
+    """
+    from rig.api import save_intent, tail_for
+    from rig.records import Intent
+
+    for n in range(12):
+        store.execute(
+            "INSERT INTO gestures (id, tenant, stream_id, batch_id, at, gesture_json)"
+            " VALUES (?, ?, ?, ?, ?, ?)",
+            (
+                f"ges_{n}",
+                "new",
+                "dev_a",
+                "bat_a",
+                1000.0 + n,
+                json.dumps({"kind": "click", "at": 1000.0 + n}),
+            ),
+        )
+        save_intent(store, Intent(gesture_id=f"ges_{n}", tenant="new", act=f"did {n}"))
+
+    tail = tail_for(store, "dev_a", 1000.0 + 12)
+
+    assert [intent.act for intent in tail] == [f"did {n}" for n in range(4, 12)]
+
+
+def test_a_timestamp_with_no_timezone_is_refused_where_it_arrives(
+    client: TestClient, store: Store
+) -> None:
+    """The parseable-but-zone-less case, which is worse than the unparseable
+    one because nothing raises. `_epoch` calls .timestamp() on a naive
+    datetime, which reads it as local time -- so on a +05:30 machine the same
+    instant as '...Z' lands 19800s away, every request detaches from its
+    gesture, and every gesture is read with no evidence. Silently.
+    """
+    events = json.loads(json.dumps(BATCH["events"]))
+    zoneless = next(event for event in events if event["kind"] == "page")
+    zoneless["at"] = "2026-08-31T08:40:04.582"
+
+    response = client.post(
+        "/v1/observations", json=_with([zoneless], "bat_zoneless"), headers=_auth()
+    )
+
+    assert response.status_code == 202
+    body = response.json()
+    assert body["accepted"] == 7  # the good events beside it are kept
+    assert body["rejected"] == 1
+    assert "no timezone" in body["problems"][0]["reason"]
+    assert store.query("SELECT count(*) AS n FROM gestures")[0]["n"] == 7
+
+
+def test_a_batch_already_had_is_not_read_a_second_time(
+    store: Store, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`read_on_ingest and not already`. The extension retries; a retry that
+    spawns a second drain has the reading lock, not idempotence, standing
+    between it and asking the model twice for every gesture in the batch."""
+    from rig import api
+
+    spawned: list[int] = []
+    monkeypatch.setattr(api, "_spawn_reading", lambda *_: spawned.append(1))
+
+    reading = TestClient(
+        build_app(store=store, asker=FakeAsker(), token=TOKEN, tenant="new", read_on_ingest=True)
+    )
+    reading.post("/v1/observations", json=BATCH, headers=_auth())
+    reading.post("/v1/observations", json=BATCH, headers=_auth())
+
+    assert spawned == [1], "a re-sent batch spawned a second reading of the same rows"
+
+    quiet = TestClient(
+        build_app(store=store, asker=FakeAsker(), token=TOKEN, tenant="new", read_on_ingest=False)
+    )
+    quiet.post("/v1/observations", json=_with([], "bat_quiet"), headers=_auth())
+
+    assert spawned == [1], "read_on_ingest=False still spawned a reading"
+
+
+async def test_one_upload_bigger_than_a_page_is_drained_not_left_half_read(
+    store: Store, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """_read_soon's drain loop. read_new_gestures takes at most 200 rows and
+    fires once per batch, so the remainder waited for another batch that may
+    never come -- when capture stops for the day, those readings never happen.
+    The fix shipped with no regression test."""
+    from rig import api
+
+    save_batch(store, Batch.model_validate(BATCH), "new")
+    with store.connect() as connection:
+        connection.executemany(
+            "INSERT INTO gestures (id, tenant, stream_id, batch_id, at, gesture_json)"
+            " VALUES (?, ?, ?, ?, ?, ?)",
+            [
+                (
+                    f"ges_many_{n}",
+                    "new",
+                    "dev_browsertest",
+                    BATCH["batch_id"],
+                    2_000_000.0 + n,
+                    json.dumps({"kind": "scroll", "target": None, "at": 2_000_000.0 + n}),
+                )
+                for n in range(450)
+            ],
+        )
+
+    asker = FakeAsker(*[_ok() for _ in range(457)])
+    monkeypatch.setattr(api.settings(), "intent_model", "m", raising=False)
+    await api._read_soon(store, asker)
+
+    assert store.query("SELECT count(*) AS n FROM intents")[0]["n"] == 457
+
+
+def test_the_spend_route_survives_a_rig_that_has_read_nothing(client: TestClient) -> None:
+    """`if row["n"] else 0.0`. Dividing the bill by zero readings is a 500 on
+    the one route the console polls, on a rig that has just been started."""
+    body = client.get("/v1/spend", headers=_auth()).json()
+
+    assert body["gestures"] == 0
+    assert body["gestures_read"] == 0
+    assert body["per_gesture_usd"] == 0.0
+
+
+def test_the_spend_route_counts_gestures_nobody_has_read(client: TestClient, store: Store) -> None:
+    """`gestures` is its own count, not the intents count. Taking both from
+    the intents row says "7/7 read" the moment the first reading lands."""
+    from rig.api import save_intent
+    from rig.records import Intent
+
+    client.post("/v1/observations", json=BATCH, headers=_auth())
+    row = store.query("SELECT id, tenant FROM gestures ORDER BY at LIMIT 1")[0]
+    save_intent(store, Intent(gesture_id=row["id"], tenant=row["tenant"], act="x"))
+
+    body = client.get("/v1/spend", headers=_auth()).json()
+
+    assert body["gestures"] == 7
+    assert body["gestures_read"] == 1
+
+
+def test_the_spend_route_does_not_show_the_float_noise(client: TestClient, store: Store) -> None:
+    """`round(c, 6)`. Three readings at a tenth of a cent sum to
+    0.30000000000000004 in IEEE754, and that is what the header rendered."""
+    from rig.api import save_intent
+    from rig.records import Intent
+
+    client.post("/v1/observations", json=BATCH, headers=_auth())
+    for row in store.query("SELECT id, tenant FROM gestures ORDER BY at LIMIT 3"):
+        save_intent(
+            store, Intent(gesture_id=row["id"], tenant=row["tenant"], act="x", cost_usd=0.1)
+        )
+
+    body = client.get("/v1/spend", headers=_auth()).json()
+
+    assert body["cost_usd"] == 0.3
+
+
+def test_a_control_named_only_by_its_extjs_label_still_has_a_name(
+    client: TestClient, store: Store
+) -> None:
+    """`_target_name`'s fieldLabel fallback. Half the controls in an ExtJS WMS
+    carry no `name` at all -- the label is the only thing that says what the
+    operator touched, and without the fallback the page draws a blank cell."""
+    client.post("/v1/observations", json=BATCH, headers=_auth())
+    for gesture_id, target in (
+        ("ges_label_only", {"tag": "input", "component": {"fieldLabel": "Client Code"}}),
+        ("ges_named", {"tag": "input", "name": "Dock", "component": {"fieldLabel": "ignored"}}),
+    ):
+        store.execute(
+            "INSERT INTO gestures (id, tenant, stream_id, batch_id, at, gesture_json)"
+            " VALUES (?, ?, ?, ?, ?, ?)",
+            (
+                gesture_id,
+                "new",
+                "dev_browsertest",
+                BATCH["batch_id"],
+                3_000_000.0,
+                json.dumps({"kind": "click", "target": target, "at": 3_000_000.0}),
+            ),
+        )
+
+    served = {
+        gesture["id"]: gesture["target"]
+        for gesture in client.get("/v1/gestures", headers=_auth()).json()["gestures"]
+    }
+
+    assert served["ges_label_only"] == "Client Code"
+    assert served["ges_named"] == "Dock"  # `name` still wins when there is one
+
+
+def test_the_same_call_reported_twice_does_not_lose_the_batch(
+    client: TestClient, store: Store
+) -> None:
+    """`INSERT OR IGNORE` on orphan_requests, whose key is (batch_id,
+    request_id). The extension re-reports a request across a redirect, and
+    without the IGNORE the IntegrityError rolls the whole transaction back --
+    seven gestures gone, and the batch_id already claimed."""
+
+    def orphan(request_id: str) -> dict[str, Any]:
+        event = json.loads(json.dumps(next(e for e in BATCH["events"] if e["kind"] == "request")))
+        event["request"]["request_id"] = request_id
+        event["request"]["started_at"] = "2020-01-01T00:00:00Z"  # long before any gesture
+        return event
+
+    response = client.post(
+        "/v1/observations",
+        json=_with([orphan("r_dupe"), orphan("r_dupe")], "bat_dupe_call"),
+        headers=_auth(),
+    )
+
+    assert response.status_code == 202
+    assert response.json()["accepted"] == 7
+    assert response.json()["already_had_it"] is False
+    assert store.query("SELECT count(*) AS n FROM gestures")[0]["n"] == 7
+    kept = store.query(
+        "SELECT count(*) AS n FROM orphan_requests WHERE batch_id = ?", ("bat_dupe_call",)
+    )[0]["n"]
+    assert kept == 1
+
+
+def test_a_page_event_nobody_owns_is_stored_whole_not_as_a_marker(
+    client: TestClient, store: Store
+) -> None:
+    """orphan_pages.payload. "A background poll is evidence that a background
+    poll happened" -- a row that records only that something arrived, without
+    what arrived, is not evidence of anything."""
+    lonely = json.loads(json.dumps(next(e for e in BATCH["events"] if e["kind"] == "page")))
+    lonely["at"] = "2026-08-31T23:59:00.000Z"  # hours after every gesture
+    lonely["url"] = "https://wms.example/reports/daily"
+    lonely["page_kind"] = "navigated"
+
+    client.post("/v1/observations", json=_with([lonely], "bat_lonely_page"), headers=_auth())
+
+    rows = store.query(
+        "SELECT at, payload FROM orphan_pages WHERE batch_id = ?", ("bat_lonely_page",)
+    )
+
+    assert len(rows) == 1
+    assert rows[0]["at"] == "2026-08-31T23:59:00.000Z"
+    stored = json.loads(rows[0]["payload"])
+    assert stored["url"] == "https://wms.example/reports/daily"
+    assert stored["page_kind"] == "navigated"
+
+
+def test_a_gesture_read_back_still_knows_which_screenshot_is_its_own(store: Store) -> None:
+    """`shot_ref` on the gestures table has no writer in this plan, but
+    _row_to_gesture is the only thing that carries it out of the row -- drop
+    the mapping and the column silently stops arriving the day the artifacts
+    route starts filling it."""
+    save_batch(store, Batch.model_validate(BATCH), "new")
+    store.execute(
+        "UPDATE gestures SET shot_ref = ? WHERE id = (SELECT id FROM gestures LIMIT 1)",
+        ("artifacts/bat_1/screenshot-0.png",),
+    )
+    row = store.query("SELECT * FROM gestures WHERE shot_ref IS NOT NULL")[0]
+
+    assert _row_to_gesture(row).shot_ref == "artifacts/bat_1/screenshot-0.png"

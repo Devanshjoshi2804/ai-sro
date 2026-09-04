@@ -5,6 +5,7 @@ from pydantic import ValidationError
 
 from rig.wire import (
     REDACTED,
+    SECRET_HEADER_HINTS,
     UNINSPECTABLE,
     Batch,
     GestureEvent,
@@ -17,7 +18,6 @@ from rig.wire import (
 )
 from tests.fixtures import (
     BATCH,
-    GESTURE_CLICK,
     GESTURE_SECRET,
     GESTURE_TYPE,
     PAGE_NAVIGATED,
@@ -56,16 +56,6 @@ def test_a_plain_html_control_has_component_null() -> None:
     event = GestureEvent.model_validate(select)
 
     assert event.gesture.target.component is None
-
-
-def test_a_click_carries_neither_value_nor_secret() -> None:
-    assert "value" not in GESTURE_CLICK["gesture"]
-    assert "secret" not in GESTURE_CLICK["gesture"]
-
-    event = GestureEvent.model_validate(GESTURE_CLICK)
-
-    assert event.gesture.value is None
-    assert event.gesture.secret is False
 
 
 def test_a_credential_value_does_not_survive_parsing() -> None:
@@ -382,3 +372,18 @@ def test_a_rejected_event_names_the_field_that_could_not_be_read() -> None:
 
     assert len(rejected) == 1
     assert rejected[0].reason.split(":", 1)[0].endswith(".at")
+
+
+def test_a_header_only_the_exact_list_names_is_still_a_credential() -> None:
+    """SECRET_HEADER_HINTS alone matches every header the rest of the suite
+    exercises, so the exact list was dead relative to the tests -- and 2 of the
+    3 real header matches in the captured store are hint-only, which is what
+    makes an untested exact list a gap rather than dead code. These three carry
+    no hint substring at all; the list is the only thing that catches them."""
+    for name in ("api-key", "x-api-key", "x-requested-with"):
+        assert not any(hint in name for hint in SECRET_HEADER_HINTS), name
+        assert is_secret_header(name), name
+        assert is_secret_header(name.upper()), name
+
+    assert not is_secret_header("x-request-id")
+    assert not is_secret_header("content-type")

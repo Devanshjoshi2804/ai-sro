@@ -403,7 +403,11 @@ def build_app(
                         "page": row["page"],
                         "confidence": row["confidence"],
                         "why": row["why"],
-                        "values_seen": json.loads(row["values_seen"] or "[]"),
+                        # No `or "[]"`: this arm is only evaluated when the
+                        # LEFT JOIN found an intent row, and `values_seen` is
+                        # NOT NULL DEFAULT '[]' with save_intent as its only
+                        # writer -- there is no way for it to arrive NULL.
+                        "values_seen": json.loads(row["values_seen"]),
                         "cost_usd": row["cost_usd"],
                         # A $0.00 row and an honestly-unpriced row are
                         # identical in cost_usd alone. The page draws the

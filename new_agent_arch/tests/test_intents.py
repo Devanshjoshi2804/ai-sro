@@ -1,8 +1,8 @@
 from rig.correlate import correlate
-from rig.intents import INTENT_SCHEMA, TAIL, one_line, read_gesture
+from rig.intents import INSTRUCTIONS, INTENT_SCHEMA, TAIL, one_line, read_gesture
 from rig.models import Answer, FakeAsker
 from rig.records import Intent
-from rig.trim import is_secret
+from rig.trim import is_secret, is_secret_name
 from rig.wire import Batch
 from tests.fixtures import BATCH
 
@@ -114,14 +114,23 @@ async def test_no_credential_value_reaches_the_prompt() -> None:
 
 
 async def test_a_stray_type_in_values_seen_does_not_crash_the_reading() -> None:
-    """The schema is advisory. A model returning values_seen as a string, or a
-    list with a non-dict entry, must not take the gesture down with it."""
-    asker = FakeAsker(_answer(values_seen="none that I can see"))
+    """The schema is advisory. A model returning values_seen as anything but a
+    list must not take the gesture down with it.
 
-    intent = await read_gesture(_gestures()[0], tail=[], asker=asker, model=MODEL)
+    A string here proved nothing: iterating it yields characters, and the
+    per-entry dict guard downstream drops every one of them -- so
+    `isinstance(seen_list, list)` could be deleted with this green. One
+    container checked and its sibling walked past, which is the same shape as
+    Task 4's finding. The values that discriminate are the ones that are not
+    iterable at all, and the mapping that iterates as its own keys.
+    """
+    for stray in (7, None, True, {"clientCode": "ACME-4471"}, "none that I can see"):
+        asker = FakeAsker(_answer(values_seen=stray))
 
-    assert intent.values_seen == []
-    assert intent.error is None
+        intent = await read_gesture(_gestures()[0], tail=[], asker=asker, model=MODEL)
+
+        assert intent.values_seen == [], stray
+        assert intent.error is None, stray
 
 
 async def test_a_wrong_typed_field_does_not_poison_a_later_gestures_reading() -> None:
@@ -189,14 +198,22 @@ async def test_a_reading_it_could_not_price_says_so() -> None:
 async def test_a_credential_the_model_echoed_back_is_never_stored() -> None:
     """The third place values_seen went unguarded, and the only one that
     reaches storage: save_intent writes this verbatim and GET /v1/gestures
-    serves it back. The field name is kept; the value is not."""
+    serves it back. The field name is kept; the value is not.
+
+    The field is deliberately not called "password": with that name this passed
+    on `is_secret_name` alone, and deleting the `is_secret(gesture)` half -- the
+    branch this test exists for -- left the suite green. "Employee Code" is a
+    real WMS label that no name rule flags, so the only thing that blanks it is
+    the gesture itself being a credential field.
+    """
     gesture = next(g for g in _gestures() if g.gesture.secret)
-    asker = FakeAsker(_answer(values_seen=[{"field": "password", "value": "hunter2"}]))
+    assert not is_secret_name("Employee Code")  # nothing else can blank this
+    asker = FakeAsker(_answer(values_seen=[{"field": "Employee Code", "value": "hunter2"}]))
 
     intent = await read_gesture(gesture, tail=[], asker=asker, model=MODEL)
 
     assert [seen.value for seen in intent.values_seen] == [""]
-    assert [seen.field for seen in intent.values_seen] == ["password"]
+    assert [seen.field for seen in intent.values_seen] == ["Employee Code"]
 
 
 async def test_a_credential_named_by_the_model_is_dropped_on_a_public_gesture() -> None:
@@ -210,3 +227,46 @@ async def test_a_credential_named_by_the_model_is_dropped_on_a_public_gesture() 
 
     assert [seen.value for seen in intent.values_seen] == [""]
     assert [seen.field for seen in intent.values_seen] == ["password"]
+
+
+async def test_the_model_is_told_what_to_do_and_given_a_response_schema() -> None:
+    """`INSTRUCTIONS = ""` and `INTENT_SCHEMA = {}` both left the suite green.
+
+    Nothing asserted that the prompt or the schema ever reach the API. For a
+    system whose measured claim is that citation-forcing cut hallucinated steps
+    from 21% to under 7.5%, the two rules that force it -- do not guess at a
+    value you cannot see, do not describe the HTML -- arriving at the model is
+    the claim itself, not a detail.
+    """
+    asker = FakeAsker(_answer())
+
+    await read_gesture(_gestures()[0], tail=[], asker=asker, model=MODEL)
+
+    asked = asker.asked[0]
+
+    assert asked["instructions"] == INSTRUCTIONS
+    assert "Do not guess at a value you cannot see" in asked["instructions"]
+    assert "Do not describe the HTML" in asked["instructions"]
+
+    assert asked["schema"] == INTENT_SCHEMA
+    assert set(asked["schema"]["required"]) == {"act", "why"}
+    assert set(asked["schema"]["properties"]) >= {
+        "act",
+        "object",
+        "values_seen",
+        "continues",
+        "confidence",
+        "why",
+    }
+
+
+async def test_an_empty_continues_is_not_a_continuation() -> None:
+    """The schema itself says "empty unless it continues the last doing", so
+    `""` is what a model returns for most gestures. Stored verbatim it is
+    neither a link nor an absence, and `continues` is what plan 2 walks to
+    join gestures into a workflow."""
+    asker = FakeAsker(_answer(continues=""))
+
+    intent = await read_gesture(_gestures()[0], tail=[], asker=asker, model=MODEL)
+
+    assert intent.continues is None

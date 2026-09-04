@@ -181,3 +181,50 @@ def test_a_snapshot_is_counted_ignored_not_silently_dropped() -> None:
     assert len(gestures) == 1
     assert orphans == []
     assert orphan_pages == []
+
+
+def test_a_navigation_in_another_tab_is_not_evidence_for_this_gesture() -> None:
+    """`_owner`'s tab rule has a named test; `_nearest_owner`'s sibling on the
+    page path had none -- the eighth instance of that shape here.
+
+    With the check bypassed, the operator's own mail tab loads 100ms after they
+    click in the WMS, and that navigation attaches to the WMS gesture and goes
+    to the model as evidence for it.
+    """
+    from rig.trim import trim
+
+    at = GESTURE_TYPE["gesture"]["at"]
+    mail = copy.deepcopy(PAGE_NAVIGATED)
+    mail["at"] = _rfc3339(at + 0.1)
+    mail["url"] = "https://mail.example/inbox"
+    mail["page_kind"] = "navigated"
+    mail["tab_id"] = GESTURE_TYPE["tab_id"] + 1
+
+    gestures, _, orphan_pages, _ = correlate(_batch([GESTURE_TYPE, mail]), TENANT)
+
+    assert gestures[0].page_events == []
+    assert [page.url for page in orphan_pages] == ["https://mail.example/inbox"]
+    # The half that reaches the model: trim() sends page_kind for every page
+    # event on the gesture, so an attached mail tab is a "navigated" in the
+    # prompt that the operator never made in this system.
+    assert trim(gestures[0])["page"] == []
+
+
+def test_the_calls_a_gesture_caused_are_kept_in_the_order_they_were_made() -> None:
+    """`sorted(requests, key=...)`. The batch is whatever order the extension
+    flushed its queues in; the list of calls the model is shown as `calls` is a
+    sequence it is asked to reason about, and out of order it reads as the
+    operator having saved before they searched."""
+    at = GESTURE_TYPE["gesture"]["at"]
+    first = _request(_rfc3339(at + 0.1), "r_first", GESTURE_TYPE["tab_id"])
+    second = _request(_rfc3339(at + 0.2), "r_second", GESTURE_TYPE["tab_id"])
+    third = _request(_rfc3339(at + 0.3), "r_third", GESTURE_TYPE["tab_id"])
+
+    gestures, orphans, _, _ = correlate(_batch([GESTURE_TYPE, third, first, second]), TENANT)
+
+    assert orphans == []
+    assert [request.request_id for request in gestures[0].requests] == [
+        "r_first",
+        "r_second",
+        "r_third",
+    ]

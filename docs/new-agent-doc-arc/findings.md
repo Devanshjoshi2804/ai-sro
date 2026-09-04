@@ -182,6 +182,109 @@ gestures, real values and real request shapes, but the host assignment and the
 volume are constructed. What it establishes is that the mechanisms behave
 correctly at that scale, not what a real all-tabs day contains.
 
+## The rig on real evidence
+
+Everything above was measured on 81 gestures from one afternoon, or on a
+synthetic day. This section is 387 real gestures across 170 hours of one
+operator's genuine work, replayed out of the backend's own blob store by
+`backend/scripts/mirror_backfill.py`.
+
+### What it found
+
+Eight workflows, all of them warehouse work:
+
+```
+Create Carrier Cross Reference for Test Drive LLC   10 steps, 26 citations
+Create Work Area Operation NEWTEST4                 10 steps, 21 citations
+Search and Filter Work Areas                        11 steps, 35 citations
+Create Work Area NEWTESTS                            8 steps, 22 citations
+Create Work Area TWOTEST                             8 steps, 18 citations
+Create Work Activity TEST1                           7 steps, 16 citations
+Create a Warehouse Equipment Type                    7 steps, 13 citations
+Login and Start Recording                            5 steps, 14 citations  CROSS-SYSTEM
+```
+
+The production pipeline, on the same operator, held 30 candidates of which 29
+were `localhost` -- `Read skills on localhost`, `Create __nextjs_original stack
+frames on localhost`. One was on the WMS host.
+
+`coverage 1.0, skew 0.016, gini 0.014` on the first pass: every gesture in the
+window cited, and citations spread evenly across 170 hours rather than
+clustering at the head. On the 81-gesture corpus skew was +0.37 every time.
+
+**The cross-system one is real and it is also a caution.** `Login and Start
+Recording` spans Google and the WMS, which is the architecture's central claim
+demonstrated on captured evidence rather than a constructed second host -- and
+it is the login flow, which is not a job anyone wants automated. It exists in
+the corpus because the tenant's own identity providers were not in the default
+exclusion list. They are now.
+
+### Identity, on the second pass
+
+The same 387 gestures again:
+
+```
+proposed 14   kept 0   rejected 0
+same_occurrence 1,  same_job 13
+```
+
+Zero duplicates. Thirteen of fourteen matched by **shape containment**, one by
+citation overlap -- because the model re-reading byte-identical evidence cites
+different gestures almost every time. A design keyed on citation overlap alone
+would have produced thirteen duplicate workflows from this pass and more from
+every pass after it. Scores ran 0.64 to 1.00, spread rather than clustered at
+the threshold, and `Create Work Area NEWTESTS` and `Create Work Area TWOTEST`
+stayed distinct despite sharing most of their shape.
+
+### Redaction, finally tested against credentials
+
+Every earlier measurement could only say the capture held none. This one did.
+Comparing what the browser uploaded against what the rig stored:
+
+```
+as the browser sent it:   974,397 chars, 0 «redacted» markers, 1 JWT, 1 &code=
+after the parse boundary: 518 markers, 0 JWTs, 0 &code=
+```
+
+The client-side rules did not fire at all on this traffic. The server-side ones
+caught a live JWT and a real OAuth authorization code. That is the argument
+this work rested on -- *a rule that runs only in the browser is one a browser
+can be made not to run* -- and it is no longer an argument.
+
+The `&code=` catch is the OAuth heuristic that was nearly not implemented,
+because `code` matches seven real warehouse field names and only shipped once
+narrowed to an exact parameter name beside an OAuth companion.
+
+**Still open, and it is a live exposure:** the backend's blob store holds those
+same two credentials unredacted. The rig strips them at ingest; the backend
+keeps what the browser sent.
+
+### Cost, measured rather than estimated
+
+```
+387 gestures read      $0.9459        $0.00244 each
+thinking tokens        169,246 of 211,317 billed output   (80%)
+three mining passes    ~$0.02
+```
+
+Plan 1 estimated $1.36 for a 2,000-gesture day. The real figure is about $4.90,
+and the difference is almost entirely thinking tokens, which every cost figure
+before commit `a0ddd04` excluded.
+
+`unusable` fired zero times across 387 real calls -- the billed-but-unusable
+reading Task 8 added a third state for is rare rather than routine.
+
+### What is still unexercised
+
+`validate` has now seen 92 real proposals and rejected none. Under
+citation-forcing the model does not appear to fabricate, which is the
+21%-to-7.5% finding holding on real data -- but the rejection paths remain
+proven only by deliberate tampering.
+
+387 gestures still fit one window, so `left_out` was 0 and the pool rotation
+work is still untested on real evidence. That needs a day past the ~555-gesture
+ceiling.
+
 ## What evidence would settle it
 
 One operator, one session, two hosts, with a value carried between them by

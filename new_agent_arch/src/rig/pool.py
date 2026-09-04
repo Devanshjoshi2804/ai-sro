@@ -124,21 +124,33 @@ def age_pool(store: Store, tenant: str, shown: Iterable[str] | None = None) -> i
             )
         else:
             ids = tuple(dict.fromkeys(shown))
-            marks = ",".join("?" * len(ids)) if ids else "NULL"
-            # Shown: one reading older, and its waiting starts again.
-            connection.execute(
-                f"UPDATE pool SET age = age + 1, waited = 0"
-                f" WHERE tenant = ? AND retired = 0 AND gesture_id IN ({marks})",
-                (tenant, *ids),
-            )
-            # Passed over: one pass of waiting, which is what raises it next
-            # time. Ageing was doing both jobs, so an entry read six times
-            # outranked one never seen at all and the day did not rotate.
-            connection.execute(
-                f"UPDATE pool SET waited = waited + 1"
-                f" WHERE tenant = ? AND retired = 0 AND gesture_id NOT IN ({marks})",
-                (tenant, *ids),
-            )
+            # An empty window is spelled out rather than folded into the
+            # general case. `gesture_id NOT IN (NULL)` is NULL, not TRUE, under
+            # SQL's three-valued logic, so it matches nothing -- a pass that
+            # packed no evidence would have left every entry's waiting frozen,
+            # which is the exact "the day did not rotate" failure the second
+            # clock exists to prevent, hidden behind a branch nobody reads.
+            if not ids:
+                connection.execute(
+                    "UPDATE pool SET waited = waited + 1 WHERE tenant = ? AND retired = 0",
+                    (tenant,),
+                )
+            else:
+                marks = ",".join("?" * len(ids))
+                # Shown: one reading older, and its waiting starts again.
+                connection.execute(
+                    f"UPDATE pool SET age = age + 1, waited = 0"
+                    f" WHERE tenant = ? AND retired = 0 AND gesture_id IN ({marks})",
+                    (tenant, *ids),
+                )
+                # Passed over: one pass of waiting, which is what raises it next
+                # time. Ageing was doing both jobs, so an entry read six times
+                # outranked one never seen at all and the day did not rotate.
+                connection.execute(
+                    f"UPDATE pool SET waited = waited + 1"
+                    f" WHERE tenant = ? AND retired = 0 AND gesture_id NOT IN ({marks})",
+                    (tenant, *ids),
+                )
         passes = connection.execute(
             "UPDATE pool SET retired = 1, reason = ? WHERE tenant = ? AND retired = 0 AND age > ?",
             (RETIRED_PASSES, tenant, K_POOL_AGE),
@@ -193,6 +205,7 @@ def retired_entries(store: Store, tenant: str) -> list[PoolEntry]:
             gesture_id=row["gesture_id"],
             tenant=row["tenant"],
             age=row["age"],
+            waited=row["waited"],
             entered_at=row["entered_at"],
             reason=row["reason"],
         )

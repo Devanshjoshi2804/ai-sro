@@ -20,6 +20,7 @@ import json
 import sys
 import urllib.error
 import urllib.request
+from collections.abc import Mapping
 from datetime import UTC, datetime
 from urllib.parse import urlsplit
 
@@ -84,12 +85,16 @@ async def main() -> int:
         print(f"excluding {len(excluded)} host(s) the tenant no longer watches")
 
     def watched(event: dict) -> bool:
-        url = (
-            event.get("gesture", {}).get("url")
-            or event.get("request", {}).get("url")
-            or event.get("url")
-            or ""
-        )
+        # `.get(k, {})` returns the JSON null, not the default, when the key
+        # is present and null -- and then `.get("url")` on it raises. Every
+        # other reader of this shape uses isinstance for exactly that reason.
+        def _at(key: str) -> object:
+            nested = event.get(key)
+            return nested.get("url") if isinstance(nested, Mapping) else None
+
+        url = _at("gesture") or _at("request") or event.get("url") or ""
+        if not isinstance(url, str):
+            url = ""
         host = urlsplit(url).hostname or ""
         if not host:
             # No host is not the same as a host nobody excluded: a page event

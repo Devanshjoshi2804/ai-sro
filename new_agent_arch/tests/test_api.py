@@ -1685,3 +1685,38 @@ def test_reading_stops_at_the_daily_cap_and_capture_does_not(
     assert store.query("SELECT count(*) AS n FROM gestures WHERE tenant = 'new'")[0]["n"] > 0, (
         "the evidence is still there to read tomorrow"
     )
+
+
+def test_a_day_of_unpriced_readings_stops_the_asking_too(
+    store: Store, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The one failure PRICES cannot fix, and the cap was blind to it.
+
+    A model name the table never knew about records `cost_usd = 0.0` with
+    `unpriced = 1` -- honest, and useless to a guard that sums the column. This
+    deployment already lived it: the run that proved the architecture billed
+    $1.12 and every row said free. An unattended week on a new preview name
+    would spend without limit while `SUM(cost_usd)` read zero, which is the
+    exact shape of the accident the cap exists to prevent.
+    """
+    from rig.config import Settings, settings
+
+    monkeypatch.setattr(
+        "rig.api.settings",
+        lambda: Settings(gemini_api_key="x", tenant="new", daily_usd_cap=5.0),
+    )
+    settings.cache_clear()
+    save_batch(store, Batch.model_validate(BATCH), "new")
+    store.execute(
+        "INSERT INTO intents (gesture_id, tenant, cost_usd, unpriced, created_at)"
+        " VALUES ('ges_blind', 'new', 0.0, 1, ?)",
+        (datetime.now(tz=UTC).isoformat(),),
+    )
+
+    with caplog.at_level(logging.WARNING):
+        written = asyncio.run(
+            _read_unread(store, FakeAsker(Answer(data={"act": "x"})), "gemini-3.8-flash", "new")
+        )
+
+    assert written == 0, "a reading nobody could price is not a reading known to be free"
+    assert "unpriced" in caplog.text, "and the log says which of the two caps fired"

@@ -269,3 +269,50 @@ def test_waiting_reports_how_long_each_entry_has_waited(tmp_path: Path) -> None:
     assert by_id["ges_passed_over"].age == 0, "never shown, so never read"
     assert by_id["ges_shown"].waited == 0, "shown, so its waiting restarted"
     assert by_id["ges_shown"].age == 2, "read twice and cited neither time"
+
+
+def test_a_pass_that_packed_nothing_still_makes_the_pool_wait(tmp_path: Path) -> None:
+    """`NOT IN (NULL)` is NULL, not TRUE, and NULL matches no row.
+
+    An empty window took the `shown is not None` branch and built the SQL
+    `gesture_id NOT IN (NULL)`, so the waiting update matched nothing and every
+    entry's second clock froze. A pass that packs no evidence is exactly when
+    the pool most needs to record that nobody was seen -- the budget was spent
+    on something else, and next pass these entries should outrank it. Silently
+    freezing is the "the day did not rotate" failure the second clock exists to
+    prevent, wearing a branch nobody reads.
+    """
+    store = _store(tmp_path)
+    add_unclaimed(store, "acme", ["ges_1", "ges_2"], set())
+
+    age_pool(store, "acme", [])
+
+    by_id = {entry.gesture_id: entry for entry in waiting(store, "acme")}
+    assert by_id["ges_1"].waited == 1, "an empty window passed it over"
+    assert by_id["ges_2"].waited == 1
+    assert by_id["ges_1"].age == 0, "nothing was read, so nothing aged"
+
+
+def test_a_retired_entry_reports_the_waiting_it_actually_did(tmp_path: Path) -> None:
+    """The sibling of the reader that was fixed, which was not.
+
+    `waiting()` learned to read the `waited` column; `retired_entries()` builds
+    the same PoolEntry two functions down and did not, so everything the pool
+    gave up on reported `waited=0`. That is the worst place to lose the number:
+    an entry retired by STALENESS having never once been shown is the exact
+    loss the two clocks were built to make visible, and it reported as though
+    it had been in front of the model the whole time.
+    """
+    store = _store(tmp_path)
+    add_unclaimed(store, "acme", ["ges_seen", "ges_starved"], set())
+
+    for _ in range(3):
+        age_pool(store, "acme", ["ges_seen"])
+    long_ago = (datetime.now(tz=UTC) - timedelta(days=K_POOL_DAYS + 1)).isoformat()
+    store.execute("UPDATE pool SET entered_at = ? WHERE gesture_id = ?", (long_ago, "ges_starved"))
+    age_pool(store, "acme", ["ges_seen"])
+
+    retired = {entry.gesture_id: entry for entry in retired_entries(store, "acme")}
+    assert retired["ges_starved"].reason == RETIRED_STALE
+    assert retired["ges_starved"].age == 0, "it was never once shown"
+    assert retired["ges_starved"].waited == 4, "and it was passed over every pass"

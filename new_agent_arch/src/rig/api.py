@@ -262,20 +262,31 @@ async def _read_unread(store: Store, asker: Asker, model: str, tenant: str) -> i
     cap = settings().daily_usd_cap
     if cap >= 0:
         since = datetime.now(tz=UTC).date().isoformat()
-        spent = store.query(
-            "SELECT COALESCE(SUM(cost_usd), 0.0) AS usd FROM intents"
+        # The unpriced count is read beside the sum, and stops the day just as
+        # hard. A cap that trusts SUM(cost_usd) alone is blind to the one
+        # failure PRICES cannot fix: a model name the table never knew about
+        # records $0.0000 with unpriced=1, so an unattended week on a new
+        # preview name spends without limit while the guard reads zero. This
+        # deployment already lived that once -- the run that proved the
+        # architecture billed $1.12 and every row said free.
+        today = store.query(
+            "SELECT COALESCE(SUM(cost_usd), 0.0) AS usd,"
+            " COALESCE(SUM(unpriced), 0) AS blind FROM intents"
             " WHERE tenant = ? AND created_at >= ?",
             (tenant, since),
-        )[0]["usd"]
-        if spent >= cap:
+        )[0]
+        spent, blind = today["usd"], today["blind"]
+        if spent >= cap or blind:
             # Reading stops; capture does not. The evidence is still stored, so
             # raising the cap tomorrow reads what today declined -- which is why
             # this stops the asking rather than the mirroring.
             log.warning(
-                "daily cap reached for %s: $%.4f of $%.2f, %d gesture(s) unread",
+                "daily cap reached for %s: $%.4f of $%.2f, %d unpriced reading(s),"
+                " %d gesture(s) unread",
                 tenant,
                 spent,
                 cap,
+                blind,
                 len(rows),
             )
             return 0

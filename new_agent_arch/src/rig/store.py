@@ -135,7 +135,13 @@ CREATE INDEX IF NOT EXISTS workflows_tenant ON workflows (tenant, created_at);
 CREATE TABLE IF NOT EXISTS pool (
     gesture_id TEXT NOT NULL,
     tenant     TEXT NOT NULL,
+    -- Two clocks, because they measure opposite things and one counter cannot
+    -- be both. `age` counts readings this entry was SHOWN and not cited, and
+    -- runs out at K_POOL_AGE. `waited` counts passes it was PASSED OVER, and
+    -- drives priority so the day rotates. Using age for both made an entry
+    -- that had been read six times outrank one never seen at all.
     age        INTEGER NOT NULL DEFAULT 0,
+    waited     INTEGER NOT NULL DEFAULT 0,
     retired    INTEGER NOT NULL DEFAULT 0,
     -- Why it retired, empty while it is still live. Evidence that leaves the
     -- prompt without a record is the failure this architecture exists to avoid.
@@ -169,6 +175,7 @@ ADDED_COLUMNS: tuple[tuple[str, str, str], ...] = (
     ("batches", "recording_id", "TEXT"),
     ("intents", "thought_tokens", "INTEGER NOT NULL DEFAULT 0"),
     ("passes", "thought_tokens", "INTEGER NOT NULL DEFAULT 0"),
+    ("pool", "waited", "INTEGER NOT NULL DEFAULT 0"),
 )
 
 

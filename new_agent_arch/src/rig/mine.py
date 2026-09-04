@@ -161,7 +161,7 @@ async def _one_pass(store: Store, *, tenant: str, asker: Asker, model: str, kb: 
         if gesture is None:
             continue
         item = _packed(gesture, intents.get(entry.gesture_id), linked)
-        item.strength += entry.age * K_POOL_WAIT
+        item.strength += entry.waited * K_POOL_WAIT
         pooled.append(item)
     # `pooled_ids` is the LIVE pool, so a retired gesture lands in `fresh` and is
     # packed at its own strength. That is what retirement means here -- see

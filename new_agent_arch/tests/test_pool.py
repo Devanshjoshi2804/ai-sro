@@ -10,6 +10,7 @@ from rig.pool import (
     age_pool,
     pool_ids,
     retired_entries,
+    waiting,
 )
 from rig.store import Store
 
@@ -246,3 +247,25 @@ def test_a_caller_with_no_window_ages_everything(tmp_path: Path) -> None:
         age_pool(store, "acme")
 
     assert {e.gesture_id for e in retired_entries(store, "acme")} == {"ges_a", "ges_b"}
+
+
+def test_waiting_reports_how_long_each_entry_has_waited(tmp_path: Path) -> None:
+    """Two clocks, and a reader that returned one of them as a constant.
+
+    `waiting()` built its PoolEntry without the `waited` column, so every entry
+    came back at 0 however long it had been passed over -- and the priority
+    that rotates the day is computed from exactly that number. The pool ageing
+    was correct; the reader was blind, and the window went on showing the same
+    468 gestures every pass."""
+    store = _store(tmp_path)
+    add_unclaimed(store, "acme", ["ges_shown", "ges_passed_over"], set())
+
+    age_pool(store, "acme", ["ges_shown"])
+    age_pool(store, "acme", ["ges_shown"])
+
+    by_id = {entry.gesture_id: entry for entry in waiting(store, "acme")}
+
+    assert by_id["ges_passed_over"].waited == 2, "passed over twice"
+    assert by_id["ges_passed_over"].age == 0, "never shown, so never read"
+    assert by_id["ges_shown"].waited == 0, "shown, so its waiting restarted"
+    assert by_id["ges_shown"].age == 2, "read twice and cited neither time"

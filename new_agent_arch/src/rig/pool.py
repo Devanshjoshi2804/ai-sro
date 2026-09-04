@@ -47,6 +47,7 @@ class PoolEntry:
     age: int
     entered_at: str
     reason: str = ""
+    waited: int = 0
 
 
 def add_unclaimed(store: Store, tenant: str, window_ids: list[str], claimed: set[str]) -> int:
@@ -123,13 +124,21 @@ def age_pool(store: Store, tenant: str, shown: Iterable[str] | None = None) -> i
             )
         else:
             ids = tuple(dict.fromkeys(shown))
-            if ids:
-                marks = ",".join("?" * len(ids))
-                connection.execute(
-                    f"UPDATE pool SET age = age + 1 WHERE tenant = ? AND retired = 0"
-                    f" AND gesture_id IN ({marks})",
-                    (tenant, *ids),
-                )
+            marks = ",".join("?" * len(ids)) if ids else "NULL"
+            # Shown: one reading older, and its waiting starts again.
+            connection.execute(
+                f"UPDATE pool SET age = age + 1, waited = 0"
+                f" WHERE tenant = ? AND retired = 0 AND gesture_id IN ({marks})",
+                (tenant, *ids),
+            )
+            # Passed over: one pass of waiting, which is what raises it next
+            # time. Ageing was doing both jobs, so an entry read six times
+            # outranked one never seen at all and the day did not rotate.
+            connection.execute(
+                f"UPDATE pool SET waited = waited + 1"
+                f" WHERE tenant = ? AND retired = 0 AND gesture_id NOT IN ({marks})",
+                (tenant, *ids),
+            )
         passes = connection.execute(
             "UPDATE pool SET retired = 1, reason = ? WHERE tenant = ? AND retired = 0 AND age > ?",
             (RETIRED_PASSES, tenant, K_POOL_AGE),
@@ -156,6 +165,7 @@ def waiting(store: Store, tenant: str) -> list[PoolEntry]:
             age=row["age"],
             entered_at=row["entered_at"],
             reason=row["reason"],
+            waited=row["waited"],
         )
         for row in store.query(
             "SELECT * FROM pool WHERE tenant = ? AND retired = 0 ORDER BY entered_at, gesture_id",

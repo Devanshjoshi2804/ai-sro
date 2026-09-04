@@ -75,6 +75,11 @@ async def main() -> int:
     parser.add_argument("--tenant", default="", help="one tenant; default is every one")
     parser.add_argument("--apply", action="store_true", help="write the rewritten objects back")
     parser.add_argument("--limit", type=int, default=0)
+    parser.add_argument(
+        "--backup",
+        action="store_true",
+        help="copy each object to <key>.pre-redaction before overwriting it",
+    )
     args = parser.parse_args()
 
     settings = get_settings()
@@ -96,7 +101,7 @@ async def main() -> int:
 
     before: dict[str, int] = dict.fromkeys(LIVE, 0)
     after: dict[str, int] = dict.fromkeys(LIVE, 0)
-    changed = failed = 0
+    changed = failed = backed = 0
 
     for index, row in enumerate(rows, start=1):
         if args.limit and index > args.limit:
@@ -134,6 +139,21 @@ async def main() -> int:
         if not args.apply:
             continue
 
+        if args.backup:
+            # Written to the same bucket rather than somewhere clever: the point
+            # is that a person who finds this damaged can put it back with one
+            # copy_object, and that is only true while the original is beside
+            # it. Skipped when one already exists, so a second run cannot
+            # overwrite the pristine copy with an already-redacted one.
+            spare = f"{key}.pre-redaction"
+            try:
+                store.head_object(Bucket=bucket, Key=spare)  # type: ignore[attr-defined]
+            except Exception:
+                store.copy_object(  # type: ignore[attr-defined]
+                    Bucket=bucket, Key=spare, CopySource={"Bucket": bucket, "Key": key}
+                )
+                backed += 1
+
         # Same key, so every stored uri still resolves. byte_count is the one
         # column that stops being true, and a row that disagrees with its own
         # object is worse than either.
@@ -151,6 +171,10 @@ async def main() -> int:
     await engine.dispose()
 
     print(f"\n{'rewrote' if args.apply else 'would rewrite'} {changed} object(s), {failed} failed")
+    if args.apply and args.backup:
+        print(f"  {backed} original(s) kept beside their key as <key>.pre-redaction")
+    elif args.apply:
+        print("  NO BACKUP was taken -- the originals are gone. --backup keeps them.")
     print("  what a reader greps for, before -> after:")
     for name in LIVE:
         mark = "" if after[name] == 0 else "   STILL PRESENT"

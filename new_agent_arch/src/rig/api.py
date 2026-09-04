@@ -128,7 +128,6 @@ def _row_to_gesture(row: sqlite3.Row) -> Gesture:
         gesture=WireGesture.model_validate_json(row["gesture_json"]),
         requests=[Request.model_validate(r) for r in json.loads(row["requests"])],
         page_events=[PageEvent.model_validate(p) for p in json.loads(row["page_events"])],
-        shot_ref=row["shot_ref"],
     )
 
 
@@ -449,6 +448,85 @@ def build_app(
             # say "a gesture" over this arithmetic; the label was the wrong
             # half and now reads "a reading".
             "per_gesture_usd": round(row["c"] / row["n"], 8) if row["n"] else 0.0,
+        }
+
+    @app.post("/v1/mine", dependencies=[Depends(authorised)])
+    async def run_a_pass() -> dict[str, Any]:
+        from rig.mine import mine
+
+        result = await mine(store, tenant=tenant, asker=asker, model=settings().mine_model)
+        return {
+            "proposed": result.proposed,
+            "kept": result.kept,
+            "window": result.window_size,
+            # Evidence the pass did not read. `left_out` did not fit the token
+            # budget and is offered again next pass; `lost_pool` is a pooled id
+            # with no gesture row, which no pass can ever read. Neither is
+            # inferable from `window` alone.
+            "left_out": result.left_out,
+            "lost_pool": result.lost_pool,
+            "rejections": [
+                {"title": r.workflow_title, "reason": r.reason, "detail": r.detail}
+                for r in result.rejections
+            ],
+            # A workflow that was proposed, passed every check and was still
+            # not kept was resolved onto one already stored. Without this,
+            # `proposed: 3, kept: 0, rejections: []` is three jobs that
+            # vanished with no account of where they went.
+            "resolutions": [
+                {
+                    "kind": r.kind,
+                    "workflow_id": r.workflow_id,
+                    "score": r.score,
+                    "contains": r.contains,
+                }
+                for r in result.resolutions
+            ],
+            "coverage": {
+                "coverage": result.coverage.coverage,
+                "skew": result.coverage.skew,
+                "gini": result.coverage.gini,
+                # Which of the two numbers beside it broke its threshold is
+                # readable from them; that one did is the verdict.
+                "lopsided": result.lopsided,
+            },
+            "cost_usd": round(result.cost_usd, 6),
+            "unpriced": result.unpriced,
+        }
+
+    @app.get("/v1/workflows", dependencies=[Depends(authorised)])
+    def workflows() -> dict[str, Any]:
+        from rig.workflows import known_workflows
+
+        return {
+            "workflows": [
+                {
+                    "id": w.id,
+                    "title": w.title,
+                    "narrative": w.narrative,
+                    "systems": w.systems,
+                    "cost_usd": w.cost_usd,
+                    "unpriced": w.unpriced,
+                    # `parameters` and `unproven` are the workflow's own model
+                    # output and exist nowhere a reader can reach but here --
+                    # `unproven` in particular is what the pass could not place,
+                    # which is the one thing a reader most needs and the field a
+                    # route that emits its siblings is likeliest to drop.
+                    "parameters": w.parameters,
+                    "unproven": w.unproven,
+                    "steps": [
+                        {
+                            "order": s.order,
+                            "says": s.says,
+                            "system": s.system,
+                            "cites": s.cites,
+                            "parameters": s.parameters,
+                        }
+                        for s in w.steps
+                    ],
+                }
+                for w in known_workflows(store, tenant)
+            ]
         }
 
     @app.get("/", response_class=HTMLResponse)

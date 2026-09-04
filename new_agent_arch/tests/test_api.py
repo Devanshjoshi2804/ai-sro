@@ -1169,16 +1169,97 @@ def test_a_page_event_nobody_owns_is_stored_whole_not_as_a_marker(
     assert stored["page_kind"] == "navigated"
 
 
-def test_a_gesture_read_back_still_knows_which_screenshot_is_its_own(store: Store) -> None:
-    """`shot_ref` on the gestures table has no writer in this plan, but
-    _row_to_gesture is the only thing that carries it out of the row -- drop
-    the mapping and the column silently stops arriving the day the artifacts
-    route starts filling it."""
-    save_batch(store, Batch.model_validate(BATCH), "new")
-    store.execute(
-        "UPDATE gestures SET shot_ref = ? WHERE id = (SELECT id FROM gestures LIMIT 1)",
-        ("artifacts/bat_1/screenshot-0.png",),
-    )
-    row = store.query("SELECT * FROM gestures WHERE shot_ref IS NOT NULL")[0]
+# --- What a pass proposed, once anything has proposed it ----------------------
 
-    assert _row_to_gesture(row).shot_ref == "artifacts/bat_1/screenshot-0.png"
+
+def test_the_workflows_route_is_empty_before_anything_is_mined(client: TestClient) -> None:
+    assert client.get("/v1/workflows", headers=_auth()).json()["workflows"] == []
+
+
+def test_mining_needs_the_token(client: TestClient) -> None:
+    assert client.post("/v1/mine").status_code == 401
+
+
+def test_the_workflows_route_carries_the_steps_and_what_they_cost(
+    client: TestClient, store: Store
+) -> None:
+    """The page draws a step's words, its system and how many gestures prove
+    it. A route that returned the workflow row alone would render every job as
+    a title with nothing under it."""
+    from rig.workflows import Step, Workflow, save_workflow
+
+    save_workflow(
+        store,
+        Workflow(
+            id="wfl_1",
+            tenant="new",
+            title="create a supplier",
+            narrative="in two systems",
+            systems=["https://wms.example", "https://sap.example"],
+            steps=[Step(order=0, says="type the code", system="https://wms.example", cites=["a"])],
+            parameters=[{"name": "supplier"}],
+            unproven=["a click nobody could place"],
+            cost_usd=0.02,
+        ),
+    )
+
+    body = client.get("/v1/workflows", headers=_auth()).json()["workflows"][0]
+
+    assert body["title"] == "create a supplier"
+    assert body["systems"] == ["https://wms.example", "https://sap.example"]
+    assert body["steps"] == [
+        {
+            "order": 0,
+            "says": "type the code",
+            "system": "https://wms.example",
+            "cites": ["a"],
+            "parameters": [],
+        }
+    ]
+    assert body["cost_usd"] == 0.02
+    assert body["unpriced"] is False
+    # The step's siblings are emitted; the workflow's own were not.
+    assert body["unproven"] == ["a click nobody could place"]
+    assert body["parameters"] == [{"name": "supplier"}]
+
+
+def test_the_page_escapes_a_workflow_the_model_wrote_out_of_a_hostile_page() -> None:
+    """A workflow's title, narrative and step words are model output over
+    captured page content -- the same chain as an intent's `why`, one view
+    over. A WMS field named `<img src=x onerror=...>` reaches this page
+    through it."""
+    attack = "<img src=x onerror=alert(1)>"
+    rendered = _run_page(
+        f"""
+        console.log(job({{
+          title: {json.dumps(attack)},
+          narrative: {json.dumps(attack)},
+          systems: [{json.dumps(attack)}],
+          cost_usd: 0.02, unpriced: false,
+          steps: [{{ order: {json.dumps(attack)}, says: {json.dumps(attack)},
+                    system: {json.dumps(attack)}, cites: ["a"] }}],
+        }}));
+        """
+    )
+
+    assert "<img" not in rendered
+    assert rendered.count("&lt;img src=x onerror=alert(1)&gt;") == 6
+    assert "1 cited" in rendered
+
+
+def test_a_pass_over_the_route_accounts_for_every_workflow_it_proposed(
+    client: TestClient,
+) -> None:
+    """proposed, kept, refused, already known -- and what it did not read. A
+    body that reported only `kept` would turn every other outcome into a
+    number that came out lower than expected."""
+    body = client.post("/v1/mine", headers=_auth()).json()
+
+    assert body["proposed"] == 0
+    assert body["kept"] == 0
+    assert body["rejections"] == []
+    assert body["resolutions"] == []
+    assert body["window"] == 0
+    assert body["left_out"] == 0
+    assert body["lost_pool"] == []
+    assert body["coverage"]["lopsided"] is True

@@ -29,9 +29,7 @@ CREATE TABLE IF NOT EXISTS gestures (
     frame_url    TEXT,
     gesture_json TEXT NOT NULL,
     requests     TEXT NOT NULL DEFAULT '[]',
-    page_events  TEXT NOT NULL DEFAULT '[]',
-    shot_ref     TEXT,
-    ax_ref       TEXT
+    page_events  TEXT NOT NULL DEFAULT '[]'
 );
 CREATE INDEX IF NOT EXISTS gestures_tenant_at ON gestures (tenant, at);
 CREATE INDEX IF NOT EXISTS gestures_stream    ON gestures (stream_id, at);

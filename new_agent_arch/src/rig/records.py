@@ -25,8 +25,6 @@ class Gesture:
     gesture: WireGesture
     requests: list[Request] = field(default_factory=list)
     page_events: list[PageEvent] = field(default_factory=list)
-    shot_ref: str | None = None
-    ax_ref: str | None = None
 
 
 @dataclass

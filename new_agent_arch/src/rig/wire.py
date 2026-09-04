@@ -365,7 +365,14 @@ UNINSPECTABLE = "«whole body: could not be parsed to redact»"
 # values, 4.0 blanks 14,419, 3.5 blanks 21,250 -- and 5.0 blanks nothing at
 # all. There is no threshold between useless and destructive.
 SECRET_SHAPES: tuple[tuple[str, str], ...] = (
-    ("jwt", r"eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]*"),
+    # Two to four dots, not exactly two. A signed JWT has three segments; an
+    # encrypted one (JWE compact serialisation) has five, and the real Okta
+    # authorization code in this deployment's evidence store is a JWE with
+    # segment lengths [124, 342, 16, 1035, 22]. The three-segment rule matched
+    # its first three and left 1,059 characters of ciphertext under a marker
+    # saying the token was gone -- worse than no match, because that marker is
+    # what a reader greps for to call the store clean.
+    ("jwt", r"eyJ[A-Za-z0-9_-]{10,}(?:\.[A-Za-z0-9_-]*){2,4}"),
     ("aws_key_id", r"(?:AKIA|ASIA|AIDA|AROA)[A-Z0-9]{16}"),
     ("github_token", r"gh[pousr]_[A-Za-z0-9]{36,}"),
     ("github_pat", r"github_pat_[A-Za-z0-9_]{20,}"),

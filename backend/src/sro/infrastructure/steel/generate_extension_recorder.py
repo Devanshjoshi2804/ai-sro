@@ -42,6 +42,7 @@ from sro.domain.recording.sensitivity import (
     _CSRF_HEADERS,
     _CSRF_HINTS,
     _SESSION_COOKIE_HINTS,
+    OAUTH_COMPANIONS,
     SECRET_SHAPES,
     SECRET_SHAPES_ANY_CASE,
     SECRET_TOKENS,
@@ -93,11 +94,17 @@ def _rules() -> str:
     words = json.dumps(sorted(SECRET_TOKENS))
     auth_headers = json.dumps(sorted(_AUTH_HEADERS | _CSRF_HEADERS))
     header_hints = json.dumps(sorted({*_CSRF_HINTS, *_SESSION_COOKIE_HINTS, "cookie"}))
+    companions = json.dumps(sorted(OAUTH_COMPANIONS))
     shapes = _shape_source(SECRET_SHAPES)
     shapes_any_case = _shape_source(SECRET_SHAPES_ANY_CASE)
     return f"""const SECRET_WORDS = new Set({words});
 const SECRET_HEADERS = new Set({auth_headers});
 const SECRET_HEADER_HINTS = {header_hints};
+// An OAuth authorization code is a credential; a warehouse `code` is not, and
+// this tenant's traffic carries 138 field names ending in one. So `code` is
+// matched exactly, and only beside another OAuth parameter -- which is what
+// tells a callback hop from an ordinary call.
+const OAUTH_COMPANIONS = new Set({companions});
 const REDACTED = '\u00abredacted\u00bb';
 
 // `([A-Z]{{2,}})([A-Z][a-z])` and not `([A-Z]+)(...)`: the wider rule splits the
@@ -177,10 +184,20 @@ const isSecretHeader = (name) => {{
 // same literal characters the body and header paths do. `split('&')` then
 // `join('&')` is lossless, so a run with nothing to redact comes back
 // byte-identical.
-const redactPairs = (raw) =>
-  raw
-    .split('&')
-    .map((pair) => {{
+const redactPairs = (raw) => {{
+  const pairs = raw.split('&');
+  const names = pairs.map((pair) => {{
+    const eq = pair.indexOf('=');
+    const rawKey = eq === -1 ? pair : pair.slice(0, eq);
+    try {{
+      return decodeURIComponent(rawKey.replace(/\\+/g, ' ')).toLowerCase();
+    }} catch {{
+      return rawKey.toLowerCase();
+    }}
+  }});
+  const oauth = names.some((name) => OAUTH_COMPANIONS.has(name));
+  return pairs
+    .map((pair, index) => {{
       if (!pair) return pair;
       const eq = pair.indexOf('=');
       const rawKey = eq === -1 ? pair : pair.slice(0, eq);
@@ -191,10 +208,11 @@ const redactPairs = (raw) =>
         // Not decodable: judged on the raw bytes instead of failing the whole
         // rebuild over one malformed pair.
       }}
-      if (!isSecretName(key)) return pair;
+      if (!isSecretName(key) && !(oauth && names[index] === 'code')) return pair;
       return `${{rawKey}}=${{REDACTED}}`;
     }})
     .join('&');
+}};
 
 // `?token=...` and `?api_key=...` are as much a credential as the header form,
 // and a URL is stored on every event there is: a page navigation, a request,
@@ -202,9 +220,10 @@ const redactPairs = (raw) =>
 // than guessed at -- the service worker has no page to resolve them against.
 //
 // The fragment is judged by the same rule as the query: `#access_token=...`
-// is exactly how an OAuth implicit flow hands a token back, and the backend
-// redacts bodies and headers but never URLs -- so if this does not do it,
-// nothing does. A fragment with no `=` in it is an ordinary `#section` anchor
+// is exactly how an OAuth implicit flow hands a token back. The backend now
+// redacts URLs too, at its own ingest boundary, because a rule that runs only
+// in a browser is one a browser can be made not to run -- this copy is the
+// first line, not the only one. A fragment with no `=` in it is a `#section`
 // and is left alone rather than split into pairs it never had.
 const redactUrl = (url) => {{
   if (typeof url !== 'string' || !url) return url;

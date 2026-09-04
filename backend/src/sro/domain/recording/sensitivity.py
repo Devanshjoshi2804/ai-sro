@@ -285,7 +285,15 @@ a reviewer grepping stored evidence for it found only some of the holes."""
 
 
 SECRET_SHAPES: tuple[tuple[str, str], ...] = (
-    ("jwt", r"eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]*"),
+    # Two to four dots, not exactly two. A signed JWT has three segments; an
+    # ENCRYPTED one (JWE compact serialisation) has five, and the real Okta
+    # authorization code sitting in this deployment's evidence store is a JWE
+    # with segment lengths [124, 342, 16, 1035, 22]. A three-segment rule
+    # matched its first three, replaced them, and left 1,059 characters of
+    # ciphertext and tag under a marker claiming the token had been removed --
+    # which is worse than not matching at all, because the marker is what a
+    # reader greps for to decide the store is clean.
+    ("jwt", r"eyJ[A-Za-z0-9_-]{10,}(?:\.[A-Za-z0-9_-]*){2,4}"),
     ("aws_key_id", r"(?:AKIA|ASIA|AIDA|AROA)[A-Z0-9]{16}"),
     ("github_token", r"gh[pousr]_[A-Za-z0-9]{36,}"),
     ("github_pat", r"github_pat_[A-Za-z0-9_]{20,}"),
@@ -433,6 +441,35 @@ def is_secret_field(name: str) -> bool:
     return "".join(words) in _SECRET_TOKENS
 
 
+# An OAuth authorization code is a credential; a warehouse `code` is not.
+# `code` cannot join SECRET_TOKENS -- that rule matches whole words, and this
+# tenant's captured traffic carries 138 distinct field names ending in one
+# (areaCode, locationCode, pickZoneCode, verificationCode...). So the rule is
+# narrowed twice: the parameter must be named *exactly* `code`, and the same
+# query or fragment must carry another OAuth parameter beside it, which is what
+# tells a callback hop from an ordinary call. Measured over 23,751 URLs in that
+# capture: no `code` and no `state` parameter appears at all, and the three
+# query names containing "code" are untouched by an exact match.
+#
+# This exists twice -- here and at `new_agent_arch/src/rig/wire.py` -- because
+# the rig is forbidden from importing `sro.*`. The shape that reached the blob
+# store was caught only because Okta happens to emit a JWE; an opaque
+# authorization code, which is the common case, had no rule on this side at all.
+OAUTH_COMPANIONS = frozenset(
+    {
+        "client_id",
+        "code_challenge",
+        "code_verifier",
+        "grant_type",
+        "id_token",
+        "nonce",
+        "redirect_uri",
+        "response_type",
+        "state",
+    }
+)
+
+
 def _redact_query(raw: str) -> str:
     """An ``a=b&c=d`` run with every credential-named value replaced.
 
@@ -450,6 +487,8 @@ def _redact_query(raw: str) -> str:
     what matched, and there is no value to leave in place.
     """
     pairs = raw.split("&")
+    names = [unquote_plus(pair.partition("=")[0]).lower() for pair in pairs]
+    oauth = any(name in OAUTH_COMPANIONS for name in names)
     for index, pair in enumerate(pairs):
         if not pair:
             continue
@@ -457,7 +496,7 @@ def _redact_query(raw: str) -> str:
         # The raw key is judged decoded and written back raw: `api%5Fkey` names
         # the same credential as `api_key`, and re-encoding the ones that did
         # not match is the round-trip this splicing exists to avoid.
-        if is_secret_field(unquote_plus(key)):
+        if is_secret_field(unquote_plus(key)) or (oauth and names[index] == "code"):
             pairs[index] = f"{key}={REDACTED}"
     return "&".join(pairs)
 

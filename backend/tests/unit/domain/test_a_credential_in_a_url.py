@@ -118,3 +118,60 @@ def test_a_percent_encoded_parameter_name_names_the_same_credential() -> None:
     assert redact_url("https://wms.example/app?api%5Fkey=k&note=two%20words") == (
         f"https://wms.example/app?api%5Fkey={REDACTED}&note=two%20words"
     )
+
+
+# A five-segment JWE, which is what an ENCRYPTED token looks like in compact
+# serialisation and what the real Okta authorization code in this deployment's
+# evidence store actually is: header, encrypted key, iv, ciphertext, tag.
+# `FAKE_JWT` above has three segments, so every assertion written against it
+# passed while a three-segment rule left two segments of this one on disk.
+FAKE_JWE = (
+    "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0"
+    ".QUVTLXdyYXBwZWQta2V5LXRoYXQtaXMtbm90LXJlYWw"
+    ".aXYtMTItYnl0ZXMtMA"
+    ".Y2lwaGVydGV4dC13aGljaC1pcy1ub3QtYS1yZWFsLXRva2VuLWF0LWFsbC1ub3BlLW5vdGhpbmc"
+    ".dGFnLW5vdC1yZWFs"
+)
+
+
+def test_the_encrypted_token_loses_every_segment_and_not_the_first_three() -> None:
+    """The shape actually in the blob store, which the three-segment rule missed.
+
+    A rule that matched `header.key.iv` replaced those and left `.ciphertext.tag`
+    sitting beside the marker -- 1,059 characters, in fourteen stored objects.
+    That is worse than no match: `«redacted»` is exactly what a reader greps for
+    to decide the plane is clean, so a partial redaction reports success.
+    """
+    landed = redact_url(f"https://wms.example/portal?state=1083105710&code={FAKE_JWE}")
+    assert landed == f"https://wms.example/portal?state=1083105710&code={REDACTED}"
+    # The tail is the specific failure: assert on the marker's neighbour, not
+    # on the `eyJ` prefix the rule itself removes.
+    assert "ciphertext" not in landed
+    assert f"{REDACTED}." not in landed
+
+
+def test_an_opaque_authorization_code_is_redacted_beside_an_oauth_companion() -> None:
+    """The common case, which had no rule at all on this side.
+
+    The `&code=` in this store was caught only because Okta happens to emit a
+    token starting `eyJ` -- the JWT SHAPE matched it. Most providers hand back
+    an opaque string with no shape to match, and the name rule cannot help:
+    `code` is deliberately absent from SECRET_TOKENS because this tenant's
+    traffic carries 138 field names ending in one.
+    """
+    landed = redact_url(
+        "https://wms.example/portal?state=1083105710&code=Xy7_bQ9zAbcDEF-0123456789abcdefGHIJ"
+    )
+    assert landed == f"https://wms.example/portal?state=1083105710&code={REDACTED}"
+
+
+def test_a_warehouse_code_with_no_oauth_beside_it_is_left_alone() -> None:
+    """The other half of the same rule, and the reason it is narrowed twice.
+
+    `code` as a bare word is a warehouse concept before it is an OAuth one.
+    Redacting every parameter named `code` would blank real evidence, so the
+    rule needs a companion parameter -- the thing that says this is a callback
+    hop rather than an ordinary call.
+    """
+    untouched = "https://wms.example/api/areas?operationCode=PICK&code=A12&areaCode=DOCK7"
+    assert redact_url(untouched) == untouched

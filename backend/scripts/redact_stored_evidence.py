@@ -45,9 +45,24 @@ from sro.infrastructure.db.session import create_engine, create_session_factory
 # docs/new-agent-doc-arc/findings.md.
 LIVE = {
     "JWT": re.compile(r"eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\."),
-    "oauth code": re.compile(r"[?&]code=eyJ[A-Za-z0-9_-]{8,}"),
+    "oauth code": re.compile(r"[?&]code=[A-Za-z0-9._~+/-]{16,}"),
     "bearer": re.compile(r"(?i)bearer\s+[A-Za-z0-9._~+/-]{20,}"),
+    # The counter that does not share an assumption with the rule. Both rows
+    # above anchor on `eyJ`, which is the very prefix the JWT rule replaces --
+    # so a PARTIAL redaction removes the anchor, both counts read 0, and the
+    # script prints a clean bill over surviving ciphertext. That happened: a
+    # three-segment rule on a five-segment JWE left 1,059 characters behind a
+    # marker, and this run reported success. A marker with a base64 run still
+    # glued to it is the shape of that failure and nothing else.
+    "severed token": re.compile(r"\u00abredacted\u00bb[.\-_][A-Za-z0-9._~+/-]{16,}"),
+    # Any long high-entropy run at all, priced as a warning rather than a
+    # failure: real evidence contains long ids, so this number is never
+    # expected to be zero. It is here to move when something changes.
+    "long b64 run": re.compile(r"[A-Za-z0-9_-]{60,}"),
 }
+
+ADVISORY = {"long b64 run"}
+"""Counters that report rather than judge. Everything else must reach zero."""
 
 
 def _count(text: str) -> dict[str, int]:
@@ -119,9 +134,22 @@ async def main() -> int:
         for name, n in was.items():
             before[name] += n
 
-        events = [json.loads(line) for line in text.splitlines() if line.strip()]
+        try:
+            events = [json.loads(line) for line in text.splitlines() if line.strip()]
+        except json.JSONDecodeError as problem:
+            print(f"  {row.id}: unparseable ({problem}) -- left alone")
+            failed += 1
+            continue
         cleaned = redact_events(events)
-        payload = ("\n".join(json.dumps(e, ensure_ascii=False) for e in cleaned) + "\n").encode()
+        # `separators` matches `ingest._ndjson` exactly. Default separators put
+        # a space after every `,` and `:`, which rewrote 322 objects that held
+        # no credential at all, grew the plane by 2.6 MB, and left these
+        # objects spaced while every future ingest writes compact -- one plane
+        # in two formats, for whitespace.
+        payload = (
+            "\n".join(json.dumps(e, ensure_ascii=False, separators=(",", ":")) for e in cleaned)
+            + "\n"
+        ).encode()
         now = _count(payload.decode("utf8", "replace"))
         for name, n in now.items():
             after[name] += n
@@ -177,8 +205,13 @@ async def main() -> int:
         print("  NO BACKUP was taken -- the originals are gone. --backup keeps them.")
     print("  what a reader greps for, before -> after:")
     for name in LIVE:
-        mark = "" if after[name] == 0 else "   STILL PRESENT"
-        print(f"    {name:11s} {before[name]:4d} -> {after[name]:4d}{mark}")
+        if name in ADVISORY:
+            mark = "   (advisory)"
+        else:
+            mark = "" if after[name] == 0 else "   STILL PRESENT"
+        print(f"    {name:14s} {before[name]:4d} -> {after[name]:4d}{mark}")
+    if any(after[name] for name in LIVE if name not in ADVISORY):
+        print("\n  NOT CLEAN. Do not describe this store as redacted.")
     if not args.apply and changed:
         print("\n  nothing was written. Re-run with --apply.")
     return 0

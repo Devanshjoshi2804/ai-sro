@@ -16,6 +16,11 @@
 const SECRET_WORDS = new Set(["accesskey", "accesstoken", "apikey", "apisecret", "appsecret", "authkey", "authorization", "authtoken", "backupcode", "bearer", "clientsecret", "connectionstring", "consumerkey", "consumersecret", "cookie", "credential", "credentials", "csrf", "csrftoken", "cvv", "encryptionkey", "hotp", "htpasswd", "idrsa", "idtoken", "jsessionid", "jwt", "keystore", "machinekey", "mfa", "oauthtoken", "onetimecode", "onetimepasscode", "otp", "pass", "passcode", "passphrase", "passwd", "password", "phpsessid", "pin", "privatekey", "privkey", "pwd", "recoverycode", "refreshtoken", "relaystate", "resettoken", "rsakey", "saml", "samlrequest", "samlresponse", "secret", "secretaccesskey", "secretanswer", "secretkey", "securityanswer", "securitycode", "sessionid", "sessionkey", "sessiontoken", "sshkey", "ssn", "sso", "token", "totp", "truststore", "verificationcode", "xapikey", "xauthtoken", "xsrf", "xsrftoken"]);
 const SECRET_HEADERS = new Set(["api-key", "authentication", "authorization", "csrf-token", "proxy-authorization", "x-access-token", "x-api-key", "x-auth-token", "x-csrf-token", "x-csrftoken", "x-infor-token", "x-moca-session", "x-requested-with", "x-session-key", "x-xsrf-token"]);
 const SECRET_HEADER_HINTS = ["auth", "cookie", "csrf", "jwt", "login", "sess", "sid", "sso", "token", "xsrf"];
+// An OAuth authorization code is a credential; a warehouse `code` is not, and
+// this tenant's traffic carries 138 field names ending in one. So `code` is
+// matched exactly, and only beside another OAuth parameter -- which is what
+// tells a callback hop from an ordinary call.
+const OAUTH_COMPANIONS = new Set(["client_id", "code_challenge", "code_verifier", "grant_type", "id_token", "nonce", "redirect_uri", "response_type", "state"]);
 const REDACTED = '«redacted»';
 
 // `([A-Z]{2,})([A-Z][a-z])` and not `([A-Z]+)(...)`: the wider rule splits the
@@ -46,7 +51,7 @@ const isSecretName = (name) => {
 // case-blind pair is separate because `AKIA`, `AIza` and `eyJ` are
 // case-SENSITIVE prefixes that a blind match would widen over the lowercase
 // identifiers this traffic is full of.
-const SECRET_SHAPE = new RegExp("(?<jwt>eyJ[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]*)|(?<aws_key_id>(?:AKIA|ASIA|AIDA|AROA)[A-Z0-9]{16})|(?<github_token>gh[pousr]_[A-Za-z0-9]{36,})|(?<github_pat>github_pat_[A-Za-z0-9_]{20,})|(?<google_api_key>AIza[A-Za-z0-9_-]{35})|(?<slack_token>xox[abeprs]-[A-Za-z0-9-]{10,})|(?<private_key>-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY-----(?:[\\s\\S]*?-----END (?:[A-Z0-9]+ )*PRIVATE KEY-----)?)", 'g');
+const SECRET_SHAPE = new RegExp("(?<jwt>eyJ[A-Za-z0-9_-]{10,}(?:\\.[A-Za-z0-9_-]*){2,4})|(?<aws_key_id>(?:AKIA|ASIA|AIDA|AROA)[A-Z0-9]{16})|(?<github_token>gh[pousr]_[A-Za-z0-9]{36,})|(?<github_pat>github_pat_[A-Za-z0-9_]{20,})|(?<google_api_key>AIza[A-Za-z0-9_-]{35})|(?<slack_token>xox[abeprs]-[A-Za-z0-9-]{10,})|(?<private_key>-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY-----(?:[\\s\\S]*?-----END (?:[A-Z0-9]+ )*PRIVATE KEY-----)?)", 'g');
 const SECRET_SHAPE_ANY_CASE = new RegExp("(?<bearer>\\bbearer\\s+[A-Za-z0-9._~+/-]{20,})|(?<basic_auth>\\bbasic\\s+[A-Za-z0-9+/]{16,}={0,2})", 'gi');
 
 // Every credential-shaped run replaced and every other byte left alone, so a
@@ -95,10 +100,20 @@ const isSecretHeader = (name) => {
 // same literal characters the body and header paths do. `split('&')` then
 // `join('&')` is lossless, so a run with nothing to redact comes back
 // byte-identical.
-const redactPairs = (raw) =>
-  raw
-    .split('&')
-    .map((pair) => {
+const redactPairs = (raw) => {
+  const pairs = raw.split('&');
+  const names = pairs.map((pair) => {
+    const eq = pair.indexOf('=');
+    const rawKey = eq === -1 ? pair : pair.slice(0, eq);
+    try {
+      return decodeURIComponent(rawKey.replace(/\+/g, ' ')).toLowerCase();
+    } catch {
+      return rawKey.toLowerCase();
+    }
+  });
+  const oauth = names.some((name) => OAUTH_COMPANIONS.has(name));
+  return pairs
+    .map((pair, index) => {
       if (!pair) return pair;
       const eq = pair.indexOf('=');
       const rawKey = eq === -1 ? pair : pair.slice(0, eq);
@@ -109,10 +124,11 @@ const redactPairs = (raw) =>
         // Not decodable: judged on the raw bytes instead of failing the whole
         // rebuild over one malformed pair.
       }
-      if (!isSecretName(key)) return pair;
+      if (!isSecretName(key) && !(oauth && names[index] === 'code')) return pair;
       return `${rawKey}=${REDACTED}`;
     })
     .join('&');
+};
 
 // `?token=...` and `?api_key=...` are as much a credential as the header form,
 // and a URL is stored on every event there is: a page navigation, a request,
@@ -120,9 +136,10 @@ const redactPairs = (raw) =>
 // than guessed at -- the service worker has no page to resolve them against.
 //
 // The fragment is judged by the same rule as the query: `#access_token=...`
-// is exactly how an OAuth implicit flow hands a token back, and the backend
-// redacts bodies and headers but never URLs -- so if this does not do it,
-// nothing does. A fragment with no `=` in it is an ordinary `#section` anchor
+// is exactly how an OAuth implicit flow hands a token back. The backend now
+// redacts URLs too, at its own ingest boundary, because a rule that runs only
+// in a browser is one a browser can be made not to run -- this copy is the
+// first line, not the only one. A fragment with no `=` in it is a `#section`
 // and is left alone rather than split into pairs it never had.
 const redactUrl = (url) => {
   if (typeof url !== 'string' || !url) return url;

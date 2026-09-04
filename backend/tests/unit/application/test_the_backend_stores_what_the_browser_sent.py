@@ -181,3 +181,40 @@ async def test_nothing_reaches_the_blob_store_without_passing_the_boundary() -> 
     # escaped to `\\u00abredacted\\u00bb` the way `json.dumps` writes it by
     # default -- a hole a reviewer cannot grep for is a hole nobody can count.
     assert REDACTED in written
+
+
+def test_a_key_rendered_on_screen_does_not_survive_the_snapshot_tree() -> None:
+    """The accessibility tree is 27MB of this deployment's 59MB evidence plane
+    -- every string a page rendered, and nothing guarded it."""
+    event = {
+        "kind": "snapshot",
+        "url": "https://wms.example/settings",
+        "snapshot": {
+            "nodes": [
+                {"role": "text", "name": "eyJhbGciOiJIUzI1NiJ9.eyJhIjoxfQ.c2lnbmF0dXJl"},
+                {"role": "text", "name": "Service Level"},
+            ]
+        },
+    }
+
+    out = redact_events([event])[0]
+
+    assert "eyJhbGciOiJIUzI1NiJ9" not in json.dumps(out)
+    assert out["snapshot"]["nodes"][1]["name"] == "Service Level", "real page text is untouched"
+
+
+def test_the_snapshot_tree_keeps_its_own_vocabulary() -> None:
+    """`token` and `tokenList` are CDP AXValue TYPE descriptors and this corpus
+    holds 2,573 of them. A name rule here would blank the tree's structure for
+    no protection -- the same trap as `pin` inside `shippingPhone`, and a
+    locator is built from exactly these fields."""
+    event = {
+        "kind": "snapshot",
+        "snapshot": {"nodes": [{"type": "token", "name": "Dock"}, {"type": "tokenList"}]},
+    }
+
+    nodes = redact_events([event])[0]["snapshot"]["nodes"]
+
+    assert nodes[0]["type"] == "token"
+    assert nodes[1]["type"] == "tokenList"
+    assert nodes[0]["name"] == "Dock"

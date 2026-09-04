@@ -78,6 +78,17 @@ def _event(event: Event) -> Event:
     request = out.get("request")
     if isinstance(request, Mapping):
         out["request"] = _request(request)
+    snapshot = out.get("snapshot")
+    if isinstance(snapshot, Mapping):
+        # The accessibility tree is 27MB of this deployment's 59MB evidence
+        # plane -- every string a page rendered, which is where a key shown on
+        # screen would sit. Shapes only, never the name rule: the tree's own
+        # vocabulary uses `token` and `tokenList` as CDP AXValue TYPE
+        # descriptors, and a name rule would blank 2,573 of them here for no
+        # protection at all. Measured across 70,636 real nodes: zero shapes,
+        # so this costs nothing today and covers the day a page renders one.
+        out["snapshot"] = _shapes_only(snapshot)
+
     detail = out.get("detail")
     if isinstance(detail, str) and detail:
         # Free text on a page event -- a title, an error, whatever the page
@@ -85,6 +96,21 @@ def _event(event: Event) -> Event:
         # `?magic_link_token=` landed here in the rig's audit.
         out["detail"] = redact_body(detail, content_type=None)[0]
     return out
+
+
+def _shapes_only(node: object) -> object:
+    """Every string under here through `redact_shapes`, and nothing else.
+
+    Structure is preserved exactly -- a locator is built from this tree, so a
+    key or a role that changed would change what a skill can find.
+    """
+    if isinstance(node, str):
+        return redact_shapes(node)
+    if isinstance(node, Mapping):
+        return {key: _shapes_only(value) for key, value in node.items()}
+    if isinstance(node, list):
+        return [_shapes_only(value) for value in node]
+    return node
 
 
 def _urls(node: dict[str, object]) -> None:

@@ -129,6 +129,59 @@ under the conditions it was designed for. What is not kept is the claim: no
 document should say it improves anything until a window large enough to answer
 that has been mined.
 
+## A day that does not fit one window
+
+Everything above was measured on 81 captured gestures on one host. The product
+watches every tab -- mail, WMS, TMS, ERP -- so a real day is thousands, and
+three mechanisms this document called unexercised become the ones the system
+rests on. Measured on a synthetic all-tabs day of 3,240 gestures across five
+hosts, built from the real captured shapes:
+
+**The window holds about 200 of them, 6% of the day.** That is the number every
+other figure here follows from.
+
+**The furniture filter, unexercised at 0.037 against a 0.25 threshold, works
+the moment it sees a real day.** The operator's own address appears on every
+gesture and is filtered at ratio 1.000; a supplier code at 0.007 is kept as a
+link. It also exposed a gap: `test` is exactly `K_MIN_VALUE_LEN`, scored 0.025,
+and was published as a cross-system link across five hosts. Blocklisting the
+word is what that looks like it needs, and the corpus refuses it -- `Test Drive
+LLC` is a real carrier here and a real crossing. Shape, not vocabulary: a lone
+short word collides across five applications, two words or one long one do not.
+
+**The pool retired 81% of the day unread.** `age_pool` counted passes rather
+than showings, so 2,630 of 3,240 gestures retired having never once been in
+front of the model -- the mechanism built to stop the same tail losing forever
+was guaranteeing it. It now ages only what the window showed.
+
+**And the day did not rotate.** A flat carry-over bonus reorders nothing, so
+passes two through ten packed the identical 468 gestures and ten passes had
+shown 19% of the day. More passes would never have helped.
+
+Two clocks fixed it, because showing and waiting are opposites: `age` counts
+readings an entry was shown and not cited and runs out at `K_POOL_AGE`;
+`waited` counts passes it was passed over, resets when shown, and earns
+priority. Measured after:
+
+```
+pass  1: window 200  new 200   waited in pool [0, 1]
+pass  2: window 569  new 569   waited in pool [0, 1, 2]
+pass  3: window 572  new 572   waited in pool [0, 1, 2, 3]
+...
+ever in a window after 10 passes: 3240 of 3240  (100%)
+retired without ever being shown: 0
+```
+
+`new` equals the window size on every pass -- each pass shows a set disjoint
+from the one before. About 1.4 showings per gesture to cover the day, so
+rotation is efficient rather than thrashing, and nothing retires because no
+gesture accumulates six readings before the day is covered.
+
+The honest caveat: this is a synthetic day. It is built from real captured
+gestures, real values and real request shapes, but the host assignment and the
+volume are constructed. What it establishes is that the mechanisms behave
+correctly at that scale, not what a real all-tabs day contains.
+
 ## What evidence would settle it
 
 One operator, one session, two hosts, with a value carried between them by

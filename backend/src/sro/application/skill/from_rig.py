@@ -9,13 +9,29 @@ target.
 
 So the prose a step carries is its description, and its citations are its
 mechanism. Measured over the eight workflows mined from 170 hours of real
-capture: 62 of 66 steps resolve to at least one locator, and 56 of those to a
-component query -- the framework's own handle, the strongest rung on the
-ladder. The four that do not cite only scrolls, which have no target by
-design.
+capture -- 8 workflows, 66 steps, 165 actions:
 
-Nothing here reaches for the rig. It takes the JSON the rig's own routes
-already serve, so the two systems share a shape rather than a dependency.
+- all 66 steps produce at least one action
+- 62 of 66 resolve to at least one locator; the four that do not cite only
+  scrolls, which have no target by design
+- 57 of those reach a component query -- the framework's own handle, the
+  strongest rung on the ladder
+- per action, the strongest rung available is a component query for 118, text
+  for 7, css path for 6, role-and-name for 1, and nothing at all for 33 --
+  which are the scrolls
+
+The 33 matter to how that last figure is read. An earlier version of this note
+said "118 of 132", taking as its denominator only the actions that had ANY
+locator, which quietly excluded every action that had none; against all 165 it
+is 118, not 89%.
+
+Nothing here reaches for the rig. It consumes the shape stored in the rig's
+`gestures.gesture_json` column -- the extension's own wire protocol. **No HTTP
+route serves that shape today**: `/v1/gestures` reduces a target to its name
+for a human reading a listing, so a caller wiring this to that route gets a
+plan with no locators and no error. Serving it belongs with the first consumer
+that needs it across the process boundary; until then the two systems share a
+shape rather than a dependency, and the source of that shape is the column.
 """
 
 from __future__ import annotations
@@ -145,23 +161,61 @@ def _component(component: Mapping[str, object]) -> ComponentIdentity | None:
     )
 
 
-def bindings_for(workflow: Mapping[str, object]) -> Mapping[str, str]:
-    """Every value the job is known to vary, against the name it varies under.
+def _order(step: Mapping[str, object]) -> tuple[int, float]:
+    """A step's position, from JSON that is not obliged to be sensible.
 
-    Keyed by the VALUE rather than by the control it was typed into, and that is
-    a choice. The rig names a parameter after its control -- an ExtJS itemId,
-    or the field's label -- and re-deriving that name here would be a second
-    implementation of one rule, which is how this codebase came to have three
-    word-splitters that disagreed about `SAMLResponse`. A value is evidence
-    both sides already hold.
-
-    The cost is that two parameters which have been given the same value once
-    would collide. Deliberate: `parameters_across` only reports a control whose
-    value CHANGED between doings, so a collision needs two different inputs to
-    have shared a value on some doing -- and where that happens, binding either
-    name produces the same run, because the run supplies the value.
+    Every other field here goes through `_text` or `_mapping`; `order` went
+    through neither, and a mix of `1` and `"2"` made `sorted` raise
+    TypeError -- while an all-string set sorted lexicographically, putting
+    step 10 before step 2 without raising at all, which is worse. Anything
+    unusable sorts last rather than at zero: a step whose order nobody can
+    read is not a step that ran first.
     """
-    bound: dict[str, str] = {}
+    raw = step.get("order")
+    if isinstance(raw, bool):
+        return (1, 0.0)
+    if isinstance(raw, int | float):
+        return (0, float(raw))
+    if isinstance(raw, str):
+        try:
+            return (0, float(raw.strip()))
+        except ValueError:
+            return (1, 0.0)
+    return (1, 0.0)
+
+
+def _control(target: Mapping[str, object] | None) -> str | None:
+    """The control a gesture acted on, under the name the rig parameterises by.
+
+    `rig.parameters._by_control` keys a doing by exactly this ladder -- ExtJS
+    itemId, then the field's own label, then the accessible name -- so a
+    parameter's `name` is one of these strings. Reproduced here to COMPARE
+    against, never to mint a name from: a mismatch leaves the value literal,
+    which is the safe direction.
+    """
+    if not target:
+        return None
+    component = _mapping(target.get("component"))
+    return (
+        _text(component.get("itemId"))
+        or _text(component.get("fieldLabel"))
+        or _text(target.get("name"))
+    )
+
+
+def bindings_for(workflow: Mapping[str, object]) -> Mapping[str, frozenset[str]]:
+    """Each parameter, against the values that job has been seen to take.
+
+    Keyed by the parameter -- which is to say by the CONTROL, because the rig
+    names a parameter after the control it was typed into: an ExtJS itemId, or
+    the field's own label. An earlier version keyed this by the value instead,
+    to avoid re-deriving that name on this side, and the saving was not worth
+    what it cost: two parameters each given `Active` on some doing collapsed to
+    one entry, and every gesture carrying that value got whichever name sorted
+    first. A value is evidence both sides hold, but a value is not an identity
+    -- the control is.
+    """
+    bound: dict[str, frozenset[str]] = {}
     parameters = workflow.get("parameters")
     for parameter in parameters if isinstance(parameters, list) else ():
         if not isinstance(parameter, Mapping):
@@ -170,15 +224,14 @@ def bindings_for(workflow: Mapping[str, object]) -> Mapping[str, str]:
         seen = parameter.get("seen_values")
         if not name or not isinstance(seen, list):
             continue
-        for value in seen:
-            text = _text(value)
-            if text:
-                bound.setdefault(text, name)
+        values = frozenset(text for value in seen if (text := _text(value)))
+        if values:
+            bound[name] = bound.get(name, frozenset()) | values
     return bound
 
 
 def plan_for_gesture(
-    gesture: Mapping[str, object], bindings: Mapping[str, str] | None = None
+    gesture: Mapping[str, object], bindings: Mapping[str, frozenset[str]] | None = None
 ) -> UiPlan | None:
     """One recorded gesture as one step a driver could perform.
 
@@ -206,9 +259,17 @@ def plan_for_gesture(
     # literal -- it is part of the job until evidence says otherwise, and
     # guessing which literals are really inputs is the thing two doings exist
     # to avoid.
+    #
+    # Bound only when the value was typed into the control the parameter is
+    # NAMED after. Matching on the value alone binds by coincidence: two
+    # parameters that were each given "Active" on some doing collide, and the
+    # alphabetically-first name wins for both -- and worse, a constant of the
+    # job that happens to equal some parameter's value turns into a `$name`
+    # the runner will substitute. This is one equality test against a field
+    # already in the gesture, not a second implementation of the naming rule.
     if value and bindings:
-        name = bindings.get(value)
-        if name:
+        name = _control(target)
+        if name and value in bindings.get(name, ()):
             value = f"${name}"
     return UiPlan(
         action=action,
@@ -221,7 +282,7 @@ def plan_for_gesture(
 def plans_for_step(
     step: Mapping[str, object],
     gestures: Mapping[str, Mapping[str, object]],
-    bindings: Mapping[str, str] | None = None,
+    bindings: Mapping[str, frozenset[str]] | None = None,
 ) -> tuple[UiPlan, ...]:
     """Every runnable action a step's citations name, in the order cited.
 
@@ -254,7 +315,7 @@ def plans_for_workflow(
     steps = workflow.get("steps")
     ordered: Sequence[Mapping[str, object]] = sorted(
         (s for s in (steps if isinstance(steps, list) else ()) if isinstance(s, Mapping)),
-        key=lambda step: step.get("order", 0),  # type: ignore[arg-type,return-value]
+        key=_order,
     )
     bindings = bindings_for(workflow)
     return tuple((step, plans_for_step(step, gestures, bindings)) for step in ordered)

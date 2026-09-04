@@ -1,8 +1,10 @@
 """A workflow the rig mined, as steps this system can run.
 
 Measured over the eight workflows mined from 170 hours of real capture: every
-one of 66 steps produces at least one action, and 118 of 132 actions resolve to
-a component query -- the framework's own handle rather than a DOM path.
+one of 66 steps produces at least one action, and of the 165 actions those
+steps make, 118 resolve to a component query -- the framework's own handle
+rather than a DOM path. 33 of the rest are scrolls, which have no target and
+so no locator; 13 fall to text, css path or role-and-name.
 """
 
 from sro.application.skill.from_rig import (
@@ -178,3 +180,102 @@ def test_a_workflow_with_no_parameters_binds_nothing() -> None:
     plans = plans_for_workflow(workflow, gestures)[0][1]
 
     assert plans[0].value is not None and plans[0].value.raw == "TEST1"
+
+
+def test_an_order_that_is_not_a_number_does_not_crash_the_sort() -> None:
+    """Every other field here goes through `_text` or `_mapping`; `order` went
+    through neither, and the `type: ignore` on the sort key was mypy having
+    already said so. A workflow whose orders mix `1` and `"2"` -- which is
+    ordinary JSON, from a store that moved or a model that quoted a number --
+    raised TypeError and took the whole bridge down.
+    """
+    gestures = {"g": {"kind": "click", "target": EXTJS}}
+    mixed = [
+        {"order": "2", "says": "third", "cites": ["g"]},
+        {"order": 1, "says": "second", "cites": ["g"]},
+        {"order": 0.5, "says": "first", "cites": ["g"]},
+    ]
+
+    pairs = plans_for_workflow({"steps": mixed}, gestures)
+
+    assert [step["says"] for step, _ in pairs] == ["first", "second", "third"]
+
+
+def test_orders_that_are_all_strings_sort_by_number_and_not_by_spelling() -> None:
+    """The quieter half. All-string orders never raised -- they sorted
+    lexicographically, putting step 10 before step 2 and producing a plan that
+    runs the job in the wrong order without a single error to notice."""
+    gestures = {"g": {"kind": "click", "target": EXTJS}}
+    steps = [{"order": str(n), "says": str(n), "cites": ["g"]} for n in (10, 2, 1)]
+
+    pairs = plans_for_workflow({"steps": steps}, gestures)
+
+    assert [step["says"] for step, _ in pairs] == ["1", "2", "10"]
+
+
+def test_an_order_nobody_can_read_sorts_last_rather_than_first() -> None:
+    """A missing or unreadable order defaulted to 0, which put the step the
+    workflow said least about at the front of the job."""
+    gestures = {"g": {"kind": "click", "target": EXTJS}}
+    steps = [
+        {"order": None, "says": "unreadable", "cites": ["g"]},
+        {"order": 3, "says": "third", "cites": ["g"]},
+    ]
+
+    pairs = plans_for_workflow({"steps": steps}, gestures)
+
+    assert [step["says"] for step, _ in pairs] == ["third", "unreadable"]
+
+
+OTHER_CONTROL = {
+    "role": "combobox",
+    "name": "Status",
+    "cssPath": "div#y > input",
+    "component": {"xtype": "combo", "itemId": "statusCombo", "query": "combo#statusCombo"},
+}
+
+TWO_PARAMETERS = {
+    "steps": [{"order": 0, "says": "Set both.", "cites": ["a", "b"]}],
+    "parameters": [
+        {"name": "activityCode", "seen_values": ["Active", "TEST2"]},
+        {"name": "statusCombo", "seen_values": ["Active", "Closed"]},
+    ],
+}
+
+
+def test_a_value_binds_only_to_the_control_the_parameter_is_named_after() -> None:
+    """Binding on the value alone binds by coincidence.
+
+    Two parameters that were each given `Active` on some doing collide in a
+    value-keyed map, and `setdefault` hands both to whichever name sorts first
+    -- so the status combo would be told to type `$activityCode`. The run then
+    supplies the wrong input to the wrong field, and nothing anywhere reports
+    a problem.
+    """
+    gestures = {
+        "a": {"kind": "type", "value": "Active", "target": EXTJS},
+        "b": {"kind": "type", "value": "Active", "target": OTHER_CONTROL},
+    }
+
+    plans = plans_for_workflow(TWO_PARAMETERS, gestures)[0][1]
+
+    assert plans[0].value is not None and plans[0].value.raw == "$activityCode"
+    assert plans[1].value is not None and plans[1].value.raw == "$statusCombo"
+
+
+def test_a_constant_that_happens_to_equal_a_parameters_value_stays_literal() -> None:
+    """The worse half of the same defect. A field nobody has seen vary, typed
+    with a string some other parameter was once given, became a `$name` the
+    runner substitutes -- turning a fixed part of the job into an input."""
+    gestures = {
+        "a": {"kind": "type", "value": "Active", "target": EXTJS},
+        "b": {
+            "kind": "type",
+            "value": "Active",
+            "target": {"role": "textbox", "name": "Notes", "cssPath": "div#z > input"},
+        },
+    }
+
+    plans = plans_for_workflow(TWO_PARAMETERS, gestures)[0][1]
+
+    assert plans[1].value is not None and plans[1].value.raw == "Active", "not a parameter"

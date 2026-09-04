@@ -88,6 +88,18 @@ CREATE TABLE IF NOT EXISTS workflows (
 );
 CREATE INDEX IF NOT EXISTS workflows_tenant ON workflows (tenant, created_at);
 
+CREATE TABLE IF NOT EXISTS pool (
+    gesture_id TEXT NOT NULL,
+    tenant     TEXT NOT NULL,
+    age        INTEGER NOT NULL DEFAULT 0,
+    retired    INTEGER NOT NULL DEFAULT 0,
+    -- Why it retired, empty while it is still live. Evidence that leaves the
+    -- prompt without a record is the failure this architecture exists to avoid.
+    reason     TEXT NOT NULL DEFAULT '',
+    entered_at TEXT NOT NULL,
+    PRIMARY KEY (tenant, gesture_id)
+);
+
 CREATE TABLE IF NOT EXISTS workflow_steps (
     workflow_id TEXT NOT NULL,
     ord         INTEGER NOT NULL,

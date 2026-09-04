@@ -285,6 +285,37 @@ proven only by deliberate tampering.
 work is still untested on real evidence. That needs a day past the ~555-gesture
 ceiling.
 
+## The pool rotates a real day
+
+The corpus fits one window, so `left_out` was 0 and the carry-over pool never
+bit. Constraining the budget to 20,000 tokens makes it bite exactly as a
+genuine all-tabs day would -- the window then holds 25 to 77 of 387 gestures,
+which is the 6% a real day produces against the full budget.
+
+No model calls; this is `pack` and the pool alone.
+
+```
+pass  1: window  25  new-vs-last  25  left_out 362  seen  25/387   6%
+pass  3: window  75  new-vs-last  75  left_out 312  seen 167/387  43%
+pass  5: window  65  new-vs-last  65  left_out 322  seen 300/387  78%
+pass  7: window  49  new-vs-last  49  left_out 338  seen 387/387 100%
+
+covered 387/387 of a real day in 7 passes
+retired without ever being shown: 0
+```
+
+`new-vs-last` equals the window size on every pass: each pass shows a set
+disjoint from the one before, which is what rotation means. Before the two
+clocks -- `age` counting readings an entry was shown, `waited` counting passes
+it was passed over -- the same measurement gave 19% after ten passes and the
+identical 468 gestures every time.
+
+The mechanism that made it wrong is worth remembering: one counter cannot mean
+both "how long since you were read" and "how long have you waited", because an
+entry read six times would then outrank one never seen at all. The first
+attempt at rotation made coverage worse -- 6% against 19% -- for exactly that
+reason.
+
 ## What evidence would settle it
 
 One operator, one session, two hosts, with a value carried between them by

@@ -1,6 +1,7 @@
 import json
 import pathlib
 import re
+from collections.abc import Callable
 
 from rig.correlate import correlate
 from rig.records import Gesture
@@ -14,7 +15,7 @@ from rig.trim import (
     thin,
     trim,
 )
-from rig.wire import Batch, Body, Target
+from rig.wire import Batch, Body, Request, Target, _words_of
 from rig.wire import Gesture as WireGesture
 from tests.fixtures import BATCH, GESTURE_TYPE
 
@@ -233,8 +234,64 @@ def _words(literal: str) -> set[str]:
 def test_the_copied_secret_words_still_match_the_extension() -> None:
     """SECRET_WORDS is hand-copied from the extension, whose own copy is
     generated. Nothing else checks the two agree, and a rule that silently
-    stops matching what the browser matches is worse than no rule."""
+    stops matching what the browser matches is worse than no rule.
+
+    What this and its three neighbours guarantee, precisely: the two
+    VOCABULARIES agree -- words, headers, header hints, and the marker -- and,
+    below, that the two word SPLITTERS agree. What no test here guarantees is
+    that the two sides do the same thing with those words. The rig deliberately
+    does one thing the browser does not: `_redact_query` has an OAuth rule that
+    blanks a bare `code` parameter beside another OAuth parameter, and the
+    extension has no such rule. That divergence is intended. A second,
+    accidental one in `redact_url`, `redact_body` or the header rule would not
+    be caught by anything in this file.
+    """
     assert _words(_declared_in_the_extension("SECRET_WORDS")) == SECRET_WORDS
+
+
+def _splitter_declared_in_the_extension() -> Callable[[str], list[str]]:
+    """The extension's `wordsOf`, rebuilt from its own source as a Python
+    function. Its two substitutions and its split are written in a syntax both
+    engines read the same way, so this is the rule itself rather than a
+    paraphrase of it -- and it fails if the extension gains, loses or reorders
+    a substitution."""
+    body = re.search(r"const wordsOf = \(text\) =>(.*?);\n", _extension_source(), re.DOTALL)
+    assert body, "the extension's wordsOf declaration moved"
+    steps = re.findall(r"\.replace\(/(.+?)/g, '(.*?)'\)", body.group(1))
+    assert steps, "the extension's wordsOf has no substitutions left"
+    split_on = re.search(r"\.split\(/(.+?)/\)", body.group(1))
+    assert split_on, "the extension's wordsOf no longer splits"
+
+    def words_of(text: str) -> list[str]:
+        spaced = text or ""
+        for pattern, replacement in steps:
+            spaced = re.sub(pattern, replacement.replace("$", "\\"), spaced)
+        return [word.lower() for word in re.split(split_on.group(1), spaced) if word]
+
+    return words_of
+
+
+def test_the_copied_word_splitter_still_matches_the_extension() -> None:
+    """The vocabulary test above compares words; this compares the rule that
+    finds them. `saml` was in both lists and caught `SAMLResponse` in neither,
+    because the splitter -- not the vocabulary -- was the thing that had to
+    change, and nothing here would have noticed the two sides disagreeing
+    about it."""
+    theirs = _splitter_declared_in_the_extension()
+    for name in (
+        "SAMLResponse",
+        "SSOToken",
+        "JWTToken",
+        "APIKey",
+        "pickNPassAutoDropLocation",
+        "api_key",
+        "apiKey",
+        "X-Auth-Token",
+        "Shipping Date Escalation",
+        "NLSSORTSetting",
+        "",
+    ):
+        assert _words_of(name) == theirs(name), f"the two splitters disagree about {name!r}"
 
 
 def test_the_copied_marker_still_matches_the_extension() -> None:
@@ -336,3 +393,35 @@ def test_a_body_that_is_not_an_object_is_named_rather_than_indexed() -> None:
 
         assert keys is not None, body.text
         assert list(keys) == ["_"], body.text
+
+
+def test_a_suppressed_body_does_not_read_as_an_absent_one() -> None:
+    """`None` for both told the model a call carried nothing when the truth was
+    that the extension declined to keep what it carried. Its own comment names
+    the failure: a suppressed body "reads to a reviewer as a body that was
+    checked and found clean"."""
+    assert body_keys(None) is None
+    assert body_keys(Body(text=None)) is None
+
+    for why in ("«not captured»", "«dropped: larger than the tenant's max_body_bytes»"):
+        assert body_keys(Body(text=None, redacted_fields=[why])) == {"_": why}
+
+
+def test_a_blocked_request_does_not_read_as_one_still_in_flight() -> None:
+    """status and failure are both null on a blocked request, which is exactly
+    what a request that never came back looks like."""
+    from rig.trim import _call
+
+    blocked = _call(
+        Request(
+            request_id="r1",
+            method="GET",
+            url="https://wms.example/wm/addresses",
+            started_at="2026-08-12T08:21:09.929Z",
+            blocked_reason="blocked by the browser's policy",
+        )
+    )
+
+    assert blocked["status"] is None
+    assert blocked["failed"] is None
+    assert blocked["blocked"] == "blocked by the browser's policy"

@@ -24,6 +24,22 @@ K_ENDS = 12
 K_POOL_BONUS = 0.5
 K_MAX_TEXT_CHARS = 400
 K_MAX_ITEMS = 40
+"""One bound for `calls`, `page` and `values_seen`, on purpose.
+
+Not a token budget -- the token budget is the ladder in `as_evidence`, which
+re-measures the whole body after every step and drops to the skeleton if it is
+still over. This is a PLAUSIBILITY bound: no real gesture makes forty calls,
+fires forty page events or shows forty values, so a gesture that does is
+already pathological and is being cut back for that reason, not for its size.
+
+Forty is therefore right for all three even though they are not the same size.
+A `values_seen` entry can reach ~800 characters post-clip (field and value at
+K_MAX_TEXT_CHARS each) against ~17 for a stripped call, so it has by far the
+least headroom under this number -- but sizing each field to its own worst case
+would be a second, weaker token budget standing beside the real one, disagreeing
+with it, and needing its own re-measurement every time _clip changes. The
+ladder already covers the case those numbers would be guarding against.
+"""
 
 
 def tokens(text: str) -> int:
@@ -105,7 +121,7 @@ def as_evidence(gesture: Gesture, intent: Intent | None) -> dict[str, Any]:
             },
         }
     )
-    if tokens(json.dumps(body)) <= K_MAX_GESTURE_TOKENS:
+    if tokens(json.dumps(body, ensure_ascii=False)) <= K_MAX_GESTURE_TOKENS:
         return body
 
     # Over the cap: keep what names the gesture, drop what merely bulks it out.
@@ -117,7 +133,7 @@ def as_evidence(gesture: Gesture, intent: Intent | None) -> dict[str, Any]:
         {"method": call["method"], "path": call["path"], "status": call["status"]}
         for call in body["gesture"]["calls"]
     ]
-    if tokens(json.dumps(body)) <= K_MAX_GESTURE_TOKENS:
+    if tokens(json.dumps(body, ensure_ascii=False)) <= K_MAX_GESTURE_TOKENS:
         return body
 
     # Still over, so the counts themselves are the bulk. Bounded here rather
@@ -127,7 +143,7 @@ def as_evidence(gesture: Gesture, intent: Intent | None) -> dict[str, Any]:
     body["gesture"]["page"] = body["gesture"]["page"][:K_MAX_ITEMS]
     if body["intent"] is not None:
         body["intent"]["values_seen"] = body["intent"]["values_seen"][:K_MAX_ITEMS]
-    if tokens(json.dumps(body)) <= K_MAX_GESTURE_TOKENS:
+    if tokens(json.dumps(body, ensure_ascii=False)) <= K_MAX_GESTURE_TOKENS:
         return body
 
     # Still over, which means something pathological is in here. Keep what
@@ -202,11 +218,11 @@ def pack(
                 at=gesture.at,
                 evidence=evidence,
                 strength=strength(gesture, intent, linked),
-                tokens=tokens(json.dumps(evidence)),
+                tokens=tokens(json.dumps(evidence, ensure_ascii=False)),
             )
         )
 
-    room = budget - tokens(json.dumps(known)) - tokens(kb)
+    room = budget - tokens(json.dumps(known, ensure_ascii=False)) - tokens(kb)
     chosen: list[Packed] = []
     left_out: list[str] = []
     spent = 0

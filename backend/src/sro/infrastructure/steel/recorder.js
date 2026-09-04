@@ -53,9 +53,15 @@
   // there is one list, on the Python side, and this used to be a second copy of
   // it that drifted. Injection fails loudly rather than shipping the marker.
   const SECRET_WORDS = new Set(__SECRET_WORDS__);
+  // `([A-Z]{2,})([A-Z][a-z])` and not `([A-Z]+)(...)`: the wider rule splits
+  // the lone N off `pickNPassAutoDropLocation` and leaves `Pass` bare, blanking
+  // a real warehouse field. Two-or-more needs three capitals in a row before it
+  // cuts, so `SAMLResponse` splits and `NPass` does not. Measured over 3,270
+  // real field, header and query names: this rule changes none of them.
   const wordsOf = (text) =>
     (text || '')
       .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+      .replace(/([A-Z]{2,})([A-Z][a-z])/g, '$1 $2')
       .split(/[^A-Za-z]+/)
       .filter(Boolean)
       .map((word) => word.toLowerCase());

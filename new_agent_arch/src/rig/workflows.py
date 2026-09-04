@@ -64,11 +64,11 @@ def save_workflow(store: Store, workflow: Workflow) -> None:
                 workflow.pass_id,
                 workflow.title,
                 workflow.narrative,
-                json.dumps(workflow.systems),
-                json.dumps(workflow.parameters),
-                json.dumps(workflow.shape_key),
+                json.dumps(workflow.systems, ensure_ascii=False),
+                json.dumps(workflow.parameters, ensure_ascii=False),
+                json.dumps(workflow.shape_key, ensure_ascii=False),
                 workflow.same_as,
-                json.dumps(workflow.unproven),
+                json.dumps(workflow.unproven, ensure_ascii=False),
                 datetime.now(tz=UTC).isoformat(),
             ),
         )
@@ -82,8 +82,8 @@ def save_workflow(store: Store, workflow: Workflow) -> None:
                     step.order,
                     step.says,
                     step.system,
-                    json.dumps(step.cites),
-                    json.dumps(step.parameters),
+                    json.dumps(step.cites, ensure_ascii=False),
+                    json.dumps(step.parameters, ensure_ascii=False),
                 ),
             )
 

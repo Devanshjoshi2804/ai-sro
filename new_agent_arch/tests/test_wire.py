@@ -387,3 +387,34 @@ def test_a_header_only_the_exact_list_names_is_still_a_credential() -> None:
 
     assert not is_secret_header("x-request-id")
     assert not is_secret_header("content-type")
+
+
+def test_a_pseudo_header_is_not_a_credential() -> None:
+    """`:authority` is the host and contains the hint "auth", so the hint list
+    redacted it -- a stored request that had lost the one field saying where it
+    went. Mirrors the same first check in the extension's isSecretHeader and in
+    classify_header, which decide it before any hint is consulted."""
+    from rig.wire import is_secret_header
+
+    for name in (":method", ":path", ":scheme", ":authority"):
+        assert not is_secret_header(name), name
+    # The hints still do their job on real header names.
+    assert is_secret_header("X-Vault-Token")
+    assert is_secret_header("X-Auth-Key")
+
+
+def test_a_warehouse_session_is_not_a_login_session() -> None:
+    """The bare word `session` was added this session on a 217-name subset. Over
+    3,256 distinct real names it blanks three live warehouse fields -- a WMS
+    session is a unit of picking work. The compounds carry the meaning instead
+    and cost nothing."""
+    from rig.wire import is_secret_name
+
+    for field in ("sessionGroup", "sessionNumber", "sessionTag"):
+        assert not is_secret_name(field), field
+    for field in ("sessionId", "sessionKey", "sessionToken", "JSESSIONID", "session_token"):
+        assert is_secret_name(field), field
+    # And the compound vocabulary closes an AWS-shaped body, which had exactly
+    # one compound (`apikey`) standing between it and the store.
+    for field in ("accessKey", "secretAccessKey", "privateKey", "sshKey", "clientSecret"):
+        assert is_secret_name(field), field

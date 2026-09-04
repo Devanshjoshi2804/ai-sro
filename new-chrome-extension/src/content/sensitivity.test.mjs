@@ -10,7 +10,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { isSecretName, redactUrl } from "./sensitivity.module.js";
+import { isSecretHeader, isSecretName, redactUrl } from "./sensitivity.module.js";
 
 const REDACTED = "«redacted»";
 
@@ -59,6 +59,40 @@ test("a relative or unparseable URL is still left alone", () => {
 
 // --- Open item 3: six credential words the browser did not know -------------
 
+test("a warehouse session is not a login session", () => {
+  // The bare word `session` was added this session on a measurement over 217
+  // field names from one tenant subset. Re-measured over 3,256 distinct real
+  // names (the acme store plus knowledge-base/http/exchanges) it blanked three
+  // live warehouse fields: in a WMS a session is a unit of picking work. The
+  // credential meaning lives in the compounds instead, which cost nothing.
+  for (const field of ["sessionGroup", "sessionNumber", "sessionTag"]) {
+    assert.equal(isSecretName(field), false, `${field} is picking work, not a login`);
+  }
+  for (const field of ["sessionId", "sessionKey", "sessionToken", "JSESSIONID", "PHPSESSID"]) {
+    assert.equal(isSecretName(field), true, `${field} reached storage`);
+  }
+});
+
+test("an AWS-shaped body is a credential too", () => {
+  // The vocabulary had exactly one compound in it, `apikey`, and neither
+  // `access` nor `key` is a word here -- so every one of these reached the
+  // store and the prompt verbatim. All measured at zero cost over the same
+  // 3,256 real names.
+  for (const field of [
+    "accessKey",
+    "secretAccessKey",
+    "privateKey",
+    "sshKey",
+    "encryptionKey",
+    "clientSecret",
+    "idToken",
+    "connectionString",
+    "csrfToken",
+  ]) {
+    assert.equal(isSecretName(field), true, `${field} reached storage`);
+  }
+});
+
 test("a session, cookie or SSO field name is a credential", () => {
   // `{"sessionId": "..."}` in a request body was redacted nowhere: these words
   // were in the header lists on both sides and in neither field list.
@@ -77,16 +111,27 @@ test("a session, cookie or SSO field name is a credential", () => {
 });
 
 test("an all-caps acronym still hides the word inside it", () => {
-  // Known ceiling, recorded rather than hidden: wordsOf() splits on
+  // Was the recorded ceiling and is now the behaviour: wordsOf() split on
   // lower-then-upper only, so `SAMLResponse` -- the literal field name of a
-  // SAML HTTP-POST binding -- is one word "samlresponse" and does not match.
-  // The same gap predates these six: `SSOToken` and `APIKey` are one word too.
-  // Fixing it means adding an ACRONYM|Word boundary to the shared splitter in
-  // sro/domain/recording/sensitivity.py, which changes how every field name in
-  // the deployment is judged and wants measuring against captured evidence
-  // first. See .superpowers/sdd/2026-09-04-the-miner/open-1-report.md.
-  assert.equal(isSecretName("SAMLResponse"), false);
-  assert.equal(isSecretName("SSOToken"), false);
+  // SAML HTTP-POST binding -- was one word "samlresponse" and matched nothing,
+  // which made the word `saml` useless for the field it was added for. The
+  // `([A-Z]{2,})([A-Z][a-z])` boundary in the shared splitter closes it.
+  assert.equal(isSecretName("SAMLResponse"), true, "SAMLResponse reached storage");
+  assert.equal(isSecretName("SSOToken"), true, "SSOToken reached storage");
+  assert.equal(isSecretName("JWTToken"), true, "JWTToken reached storage");
+  assert.equal(isSecretName("APIKey"), true, "APIKey reached storage");
+});
+
+test("a one-letter run is not an acronym", () => {
+  // The reason the boundary is `{2,}` and not `+`. "Pick N Pass" is a warehouse
+  // operation: `([A-Z]+)([A-Z][a-z])` splits the lone N off and leaves `Pass`
+  // bare, blanking two real field names. Measured over 3,270 distinct field,
+  // header and query-parameter names from the acme store plus
+  // knowledge-base/http/exchanges, `{2,}` changes none of them and `+` changes
+  // exactly these two -- both wrongly.
+  for (const field of ["pickNPassAutoDropLocation", "pickNPassDropWorkZone"]) {
+    assert.equal(isSecretName(field), false, `${field} is a warehouse operation, not a credential`);
+  }
 });
 
 test("the real field names those six sit inside are still kept", () => {
@@ -107,13 +152,31 @@ test("the real field names those six sit inside are still kept", () => {
 });
 
 test("a session token in a query string goes the same way as one in a header", () => {
+  // `jsessionid` is one word and the whole-word rule does not split it, so it
+  // used to pass through -- a live Java servlet session in a stored URL. It is
+  // in the vocabulary as that one word now, measured at zero cost over 3,256
+  // real names. `session_id` below still matches through the joined form, which
+  // is what lets the bare word `session` stay out (it blanked `sessionGroup`).
   assert.equal(
     redactUrl("https://wms.example/app?jsessionid=A1B2&facility=BLR1"),
-    `https://wms.example/app?jsessionid=A1B2&facility=BLR1`,
-    "jsessionid is one word, not two -- the whole-word rule does not split it",
+    `https://wms.example/app?jsessionid=${REDACTED}&facility=BLR1`,
+    "a Java servlet session id reached storage",
   );
   assert.equal(
     redactUrl("https://wms.example/app?session_id=A1B2&facility=BLR1"),
     `https://wms.example/app?session_id=${REDACTED}&facility=BLR1`,
   );
+});
+
+test("an HTTP/2 pseudo-header is the request line, not a credential", () => {
+  // `:authority` is the host and contains the hint "auth", so the hint list
+  // redacted it -- a stored request that had lost the one field saying where it
+  // went. Decided by the leading colon before any hint is consulted, on both
+  // sides: classify_header does the same first.
+  for (const name of [":method", ":path", ":scheme", ":authority"]) {
+    assert.equal(isSecretHeader(name), false, `${name} is the request line`);
+  }
+  // And the hints still do their job on real header names.
+  assert.equal(isSecretHeader("X-Vault-Token"), true);
+  assert.equal(isSecretHeader("X-Auth-Key"), true);
 });

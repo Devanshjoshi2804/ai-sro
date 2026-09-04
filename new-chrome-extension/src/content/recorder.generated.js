@@ -55,10 +55,16 @@
   // Substituted from sensitivity.SECRET_TOKENS when this file is injected --
   // there is one list, on the Python side, and this used to be a second copy of
   // it that drifted. Injection fails loudly rather than shipping the marker.
-  const SECRET_WORDS = new Set(["accesstoken", "apikey", "bearer", "cookie", "credential", "credentials", "cvv", "jwt", "mfa", "onetimecode", "onetimepasscode", "otp", "pass", "passcode", "passphrase", "passwd", "password", "pin", "pwd", "refreshtoken", "saml", "secret", "securityanswer", "securitycode", "session", "ssn", "sso", "token", "verificationcode"]);
+  const SECRET_WORDS = new Set(["accesskey", "accesstoken", "apikey", "apisecret", "appsecret", "authkey", "authorization", "authtoken", "backupcode", "bearer", "clientsecret", "connectionstring", "consumerkey", "consumersecret", "cookie", "credential", "credentials", "csrf", "csrftoken", "cvv", "encryptionkey", "hotp", "htpasswd", "idrsa", "idtoken", "jsessionid", "jwt", "keystore", "machinekey", "mfa", "oauthtoken", "onetimecode", "onetimepasscode", "otp", "pass", "passcode", "passphrase", "passwd", "password", "phpsessid", "pin", "privatekey", "privkey", "pwd", "recoverycode", "refreshtoken", "relaystate", "resettoken", "rsakey", "saml", "samlrequest", "samlresponse", "secret", "secretaccesskey", "secretanswer", "secretkey", "securityanswer", "securitycode", "sessionid", "sessionkey", "sessiontoken", "sshkey", "ssn", "sso", "token", "totp", "truststore", "verificationcode", "xapikey", "xauthtoken", "xsrf", "xsrftoken"]);
+  // `([A-Z]{2,})([A-Z][a-z])` and not `([A-Z]+)(...)`: the wider rule splits
+  // the lone N off `pickNPassAutoDropLocation` and leaves `Pass` bare, blanking
+  // a real warehouse field. Two-or-more needs three capitals in a row before it
+  // cuts, so `SAMLResponse` splits and `NPass` does not. Measured over 3,270
+  // real field, header and query names: this rule changes none of them.
   const wordsOf = (text) =>
     (text || '')
       .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+      .replace(/([A-Z]{2,})([A-Z][a-z])/g, '$1 $2')
       .split(/[^A-Za-z]+/)
       .filter(Boolean)
       .map((word) => word.toLowerCase());

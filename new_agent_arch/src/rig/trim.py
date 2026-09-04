@@ -98,6 +98,15 @@ def body_keys(body: Body | None) -> dict[str, str] | None:
     a SOAP login, a JSON array and a bare JSON string took the other three.
     """
     if body is None or not body.text:
+        # "There was no body" and "there was a body and we declined to keep it"
+        # are different facts, and returning None for both told the model the
+        # first when the truth was the second. The extension names the failure
+        # in its own comment -- a suppressed body "reads to a reviewer as a body
+        # that was checked and found clean" -- and redacted_fields is where it
+        # says which: «not captured», «dropped: larger than the tenant's
+        # max_body_bytes». One key and one line, because this goes in a prompt.
+        if body is not None and body.redacted_fields:
+            return {"_": ", ".join(body.redacted_fields)[:VALUE_CHARS]}
         return None
 
     parsed: object = None
@@ -133,6 +142,11 @@ def _call(request: Request) -> dict[str, Any]:
         "host": urlparse(request.url).netloc,
         "status": request.status,
         "failed": request.failure_reason,
+        # Carried for the same reason failure_reason is. A request the browser's
+        # own policy blocked has no status and no failure, so without this it
+        # arrives as `status: null, failed: null` -- indistinguishable from a
+        # call still in flight or one that vanished.
+        "blocked": request.blocked_reason,
         "body_keys": body_keys(request.request_body),
         "response_keys": body_keys(request.response_body),
     }

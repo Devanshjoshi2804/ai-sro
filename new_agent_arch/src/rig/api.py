@@ -56,13 +56,17 @@ def save_batch(store: Store, batch: Batch, tenant: str, rejected: int = 0) -> tu
     try:
         with store.connect() as connection:
             connection.execute(
-                "INSERT INTO batches (batch_id, device_id, tenant, mode, received_at,"
-                " accepted, rejected) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO batches (batch_id, device_id, tenant, mode, started_at,"
+                " ended_at, recording_id, received_at, accepted, rejected)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     batch.batch_id,
                     batch.device_id,
                     tenant,
                     batch.mode,
+                    batch.started_at,
+                    batch.ended_at,
+                    batch.recording_id,
                     _now(),
                     len(gestures),
                     rejected,
@@ -71,8 +75,8 @@ def save_batch(store: Store, batch: Batch, tenant: str, rejected: int = 0) -> tu
             for gesture in gestures:
                 connection.execute(
                     "INSERT INTO gestures (id, tenant, stream_id, batch_id, at, url, system,"
-                    " tab_id, frame_url, gesture_json, requests, page_events)"
-                    " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    " tab_id, frame_url, page_url, gesture_json, requests, page_events)"
+                    " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     (
                         gesture.id,
                         gesture.tenant,
@@ -83,9 +87,16 @@ def save_batch(store: Store, batch: Batch, tenant: str, rejected: int = 0) -> tu
                         gesture.system,
                         gesture.tab_id,
                         gesture.frame_url,
+                        gesture.page_url,
                         gesture.gesture.model_dump_json(),
-                        json.dumps([r.model_dump(mode="json") for r in gesture.requests]),
-                        json.dumps([p.model_dump(mode="json") for p in gesture.page_events]),
+                        json.dumps(
+                            [r.model_dump(mode="json") for r in gesture.requests],
+                            ensure_ascii=False,
+                        ),
+                        json.dumps(
+                            [p.model_dump(mode="json") for p in gesture.page_events],
+                            ensure_ascii=False,
+                        ),
                     ),
                 )
             for orphan in orphan_requests:
@@ -125,6 +136,7 @@ def _row_to_gesture(row: sqlite3.Row) -> Gesture:
         system=row["system"],
         tab_id=row["tab_id"],
         frame_url=row["frame_url"],
+        page_url=row["page_url"],
         gesture=WireGesture.model_validate_json(row["gesture_json"]),
         requests=[Request.model_validate(r) for r in json.loads(row["requests"])],
         page_events=[PageEvent.model_validate(p) for p in json.loads(row["page_events"])],
@@ -165,7 +177,7 @@ def save_intent(store: Store, intent: Intent) -> None:
             intent.object,
             intent.system,
             intent.page,
-            json.dumps([asdict(seen) for seen in intent.values_seen]),
+            json.dumps([asdict(seen) for seen in intent.values_seen], ensure_ascii=False),
             intent.continues,
             intent.confidence,
             intent.why,

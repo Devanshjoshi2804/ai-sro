@@ -12,6 +12,17 @@ CREATE TABLE IF NOT EXISTS batches (
     device_id   TEXT NOT NULL,
     tenant      TEXT NOT NULL,
     mode        TEXT NOT NULL,
+    -- The device's own clock for the window this batch covers, against
+    -- received_at's server clock. The protocol requires both and the rig
+    -- discarded both, which is the same silent loss `shot_ref` was deleted for
+    -- -- except these two carry something nothing else does.
+    started_at  TEXT NOT NULL DEFAULT '',
+    ended_at    TEXT NOT NULL DEFAULT '',
+    -- Which teaching recording this batch belongs to. `mode` says a batch was
+    -- a demonstration; without this, nothing says WHICH, and the extension
+    -- refuses to mix two recordings into one batch precisely so that this is
+    -- answerable.
+    recording_id TEXT,
     received_at TEXT NOT NULL,
     accepted    INTEGER NOT NULL DEFAULT 0,
     rejected    INTEGER NOT NULL DEFAULT 0
@@ -27,6 +38,11 @@ CREATE TABLE IF NOT EXISTS gestures (
     system       TEXT,               -- scheme+host, derived at ingest
     tab_id       INTEGER,
     frame_url    TEXT,
+    -- The TAB's url, which is not the frame's. A gesture inside a portal that
+    -- hosts its screens in an iframe reports the frame's src in `url`, and a
+    -- run told to open that would load the frame's document outside the shell
+    -- that gives it its session. This is the address an operator would type.
+    page_url     TEXT,
     gesture_json TEXT NOT NULL,
     requests     TEXT NOT NULL DEFAULT '[]',
     page_events  TEXT NOT NULL DEFAULT '[]'

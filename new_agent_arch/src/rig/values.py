@@ -16,11 +16,9 @@ values_seen -- trim() does put body_keys in front of the model, so the path
 exists, but it runs through the model rather than around it.
 """
 
-import json
 from collections import defaultdict
 
 from rig.records import Gesture, Intent
-from rig.store import Store
 from rig.trim import is_secret
 
 K_MIN_VALUE_LEN = 4
@@ -64,30 +62,34 @@ def trivial(value: str, frequency: float) -> bool:
     return len(text) < K_MIN_VALUE_LEN or text.lower() in _NEVER or frequency > K_UBIQUITY
 
 
-def frequencies_over(store: Store, tenant: str) -> dict[str, float]:
-    """How often each seen value appears across the tenant's readings.
+def frequencies_over(gestures: list[Gesture], intents: dict[str, Intent]) -> dict[str, float]:
+    """How often each value appears across the tenant's gestures.
 
     Arithmetic, not a pattern, and the only thing here that needs history: a
     value carried by a quarter of everything is furniture rather than a link.
+
+    Counted through typed_values, which is the same function shared_values
+    below counts through. It used to read `values_seen` out of the intents
+    table alone -- model output only -- so a value the operator actually TYPED
+    on every gesture and that no reading ever echoed looked up at 0.0 and could
+    never be classified as furniture, however ubiquitous it was. The two halves
+    of one signal were being weighed on different scales.
+
+    The ruling that still holds: the numerator is the number of GESTURES
+    carrying a value, never the number of mentions, because K_UBIQUITY is a
+    coverage fraction. typed_values returns a set, so a value named five times
+    on one gesture is one gesture. The unit moved from "reading" to "gesture"
+    with the source -- they are the same unit whenever a gesture has been read,
+    and the gesture is the unit shared_values already divides the world into.
     """
-    rows = store.query("SELECT values_seen FROM intents WHERE tenant = ?", (tenant,))
-    if not rows:
+    if not gestures:
         return {}
 
     counts: dict[str, int] = defaultdict(int)
-    for row in rows:
-        # Per reading, not per mention. K_UBIQUITY is a coverage fraction --
-        # "a value carried by a quarter of everything" -- so a value named five
-        # times inside one reading is one reading. Counting mentions returned
-        # 5.0 for that case, and, far more damagingly, marked a value that
-        # appeared three times in a single reading out of ten as furniture at
-        # 0.3 and dropped it from every crossing.
-        for value in {
-            str(seen.get("value", "")).strip() for seen in json.loads(row["values_seen"] or "[]")
-        }:
-            if value:
-                counts[value] += 1
-    return {value: count / len(rows) for value, count in counts.items()}
+    for gesture in gestures:
+        for value in typed_values(gesture, intents.get(gesture.id)):
+            counts[value] += 1
+    return {value: count / len(gestures) for value, count in counts.items()}
 
 
 def shared_values(

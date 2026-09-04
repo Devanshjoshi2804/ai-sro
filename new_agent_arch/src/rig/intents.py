@@ -82,6 +82,13 @@ async def read_gesture(
         {"gesture": trim(gesture), "just_before": recent},
         indent=2,
         sort_keys=True,
+        # The redaction marker is «redacted», and the default ensure_ascii
+        # writes it into the prompt as «redacted» -- a form nothing else
+        # in this system uses. The model was being asked to understand a marker
+        # written one way here and another way everywhere else, and a reviewer
+        # grepping stored prompts for it found nothing. Every json.dumps in this
+        # package on a path to a prompt or to the store now says so.
+        ensure_ascii=False,
     )
 
     answer = await asker.ask(

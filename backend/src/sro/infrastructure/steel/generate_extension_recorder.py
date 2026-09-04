@@ -83,9 +83,15 @@ const SECRET_HEADERS = new Set({auth_headers});
 const SECRET_HEADER_HINTS = {header_hints};
 const REDACTED = '\u00abredacted\u00bb';
 
+// `([A-Z]{{2,}})([A-Z][a-z])` and not `([A-Z]+)(...)`: the wider rule splits the
+// lone N off `pickNPassAutoDropLocation` and leaves `Pass` bare, blanking a real
+// warehouse field. Two-or-more needs three capitals in a row before it cuts, so
+// `SAMLResponse` splits into saml/response and `NPass` stays whole. Measured
+// over 3,270 real field, header and query names: it changes none of them.
 const wordsOf = (text) =>
   (text || '')
     .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/([A-Z]{{2,}})([A-Z][a-z])/g, '$1 $2')
     .split(/[^A-Za-z]+/)
     .filter(Boolean)
     .map((word) => word.toLowerCase());
@@ -97,6 +103,11 @@ const isSecretName = (name) => {{
 
 const isSecretHeader = (name) => {{
   const lowered = (name || '').toLowerCase().trim();
+  // An HTTP/2 pseudo-header is the request line, not a header, and never a
+  // credential. Checked first because `:authority` -- the host -- contains the
+  // hint "auth", so the hints below redacted it. classify_header decides the
+  // same case in the same order for the same reason.
+  if (lowered.startsWith(':')) return false;
   if (SECRET_HEADERS.has(lowered)) return true;
   return SECRET_HEADER_HINTS.some((hint) => lowered.includes(hint));
 }};

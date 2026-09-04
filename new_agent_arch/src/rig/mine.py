@@ -93,7 +93,7 @@ def _packed(gesture: Gesture, intent: Intent | None, linked: set[str]) -> Packed
         at=gesture.at,
         evidence=evidence,
         strength=strength(gesture, intent, linked),
-        tokens=tokens(json.dumps(evidence)),
+        tokens=tokens(json.dumps(evidence, ensure_ascii=False)),
     )
 
 
@@ -115,7 +115,7 @@ async def _one_pass(store: Store, *, tenant: str, asker: Asker, model: str, kb: 
     }
     by_id = {gesture.id: gesture for gesture in gestures}
 
-    crossings = shared_values(gestures, intents, frequencies_over(store, tenant))
+    crossings = shared_values(gestures, intents, frequencies_over(gestures, intents))
     linked = {gid for ids in crossings.values() for gid in ids}
 
     # The pool stores ids; the window takes evidence. This join is the only

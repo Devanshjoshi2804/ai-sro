@@ -1394,3 +1394,64 @@ async def test_the_mining_bill_is_the_sum_of_the_passes_not_of_the_workflows(
     assert body["passes"] == 2
     assert body["mining_usd"] == 0.08
     assert body["mining_unpriced"] == 0
+
+
+def test_the_stored_redaction_marker_is_the_one_people_grep_for(store: Store) -> None:
+    """json.dumps' default ensure_ascii wrote «redacted» into the store as
+    \\u00abredacted\\u00bb -- a form nothing else in this system uses. Measured on
+    the real acme store before the fix: 272 markers on disk, every one escaped
+    and none of them literal, so a reviewer grepping the evidence for the
+    marker the browser writes came back empty. gesture_json never had this
+    problem, because pydantic's model_dump_json does not escape -- so one row
+    held the marker in two different spellings, in two adjacent columns."""
+    batch = json.loads(json.dumps(BATCH))
+    request = next(e for e in batch["events"] if e["kind"] == "request")["request"]
+    request["request_headers"]["Authorization"] = "Bearer sk-live-abcdef"
+
+    save_batch(store, Batch.model_validate(batch), "acme")
+    stored = "".join(row["requests"] for row in store.query("SELECT requests FROM gestures"))
+
+    assert "«redacted»" in stored
+    assert "\\u00ab" not in stored
+
+
+def test_the_four_fields_the_protocol_carries_are_kept(store: Store) -> None:
+    """`page_url`, `started_at`, `ended_at` and `recording_id` were parsed,
+    validated, redacted -- and then dropped on the floor, which is how a field
+    someone eventually assumes is available turns out never to have been. Same
+    reason `shot_ref` and `ax_ref` were deleted in Task 8; these four earn their
+    place instead, so they are stored."""
+    batch = json.loads(json.dumps(BATCH))
+    batch["mode"] = "teaching"
+    batch["recording_id"] = "rec_42"
+
+    save_batch(store, Batch.model_validate(batch), "acme")
+
+    row = store.query("SELECT * FROM batches")[0]
+    assert row["started_at"] == batch["started_at"]
+    assert row["ended_at"] == batch["ended_at"]
+    assert row["recording_id"] == "rec_42"
+
+    # The tab's url, which is not the frame's: `url` is what the gesture
+    # happened in, `page_url` is the address an operator would type.
+    gesture = next(e for e in batch["events"] if e["kind"] == "gesture")
+    stored = store.query("SELECT page_url FROM gestures")
+    assert stored, "no gesture reached the store"
+    assert {r["page_url"] for r in stored} == {gesture["page_url"]}
+    rebuilt = _row_to_gesture(store.query("SELECT * FROM gestures")[0])
+    assert rebuilt.page_url == gesture["page_url"]
+
+
+def test_a_credential_in_the_tab_url_never_reaches_the_store(store: Store) -> None:
+    """page_url goes through the same parse-boundary redaction every other url
+    does. Storing it is only safe because that rule already ran."""
+    batch = json.loads(json.dumps(BATCH))
+    for event in batch["events"]:
+        if event["kind"] == "gesture":
+            event["page_url"] = "https://wms.example/back?access_token=sk-live-abcdef"
+
+    save_batch(store, Batch.model_validate(batch), "acme")
+    stored = store.query("SELECT page_url FROM gestures")[0]["page_url"]
+
+    assert "sk-live-abcdef" not in stored
+    assert stored == "https://wms.example/back?access_token=«redacted»"

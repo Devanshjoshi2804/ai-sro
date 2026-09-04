@@ -191,6 +191,12 @@ REDACTED = "«redacted»"
 def is_secret_header(name: str) -> bool:
     """Whether a header called this carries a credential."""
     lowered = (name or "").lower().strip()
+    # An HTTP/2 pseudo-header is the request line, not a header, and never a
+    # credential -- but `:authority` (the host) contains the hint "auth", so the
+    # hints below redacted it and the stored request lost its host. Mirrors the
+    # same first check in the extension's isSecretHeader.
+    if lowered.startswith(":"):
+        return False
     return lowered in SECRET_HEADERS or any(hint in lowered for hint in SECRET_HEADER_HINTS)
 
 
@@ -201,15 +207,37 @@ def is_secret_header(name: str) -> bool:
 # the store. trim.py re-exports both.
 SECRET_WORDS = frozenset(
     {
+        "accesskey",
         "accesstoken",
         "apikey",
+        "apisecret",
+        "appsecret",
+        "authkey",
+        "authorization",
+        "authtoken",
+        "backupcode",
         "bearer",
+        "clientsecret",
+        "connectionstring",
+        "consumerkey",
+        "consumersecret",
         "cookie",
         "credential",
         "credentials",
+        "csrf",
+        "csrftoken",
         "cvv",
+        "encryptionkey",
+        "hotp",
+        "htpasswd",
+        "idrsa",
+        "idtoken",
+        "jsessionid",
         "jwt",
+        "keystore",
+        "machinekey",
         "mfa",
+        "oauthtoken",
         "onetimecode",
         "onetimepasscode",
         "otp",
@@ -218,18 +246,39 @@ SECRET_WORDS = frozenset(
         "passphrase",
         "passwd",
         "password",
+        "phpsessid",
         "pin",
+        "privatekey",
+        "privkey",
         "pwd",
+        "recoverycode",
         "refreshtoken",
+        "relaystate",
+        "resettoken",
+        "rsakey",
         "saml",
+        "samlrequest",
+        "samlresponse",
         "secret",
+        "secretaccesskey",
+        "secretanswer",
+        "secretkey",
         "securityanswer",
         "securitycode",
-        "session",
+        "sessionid",
+        "sessionkey",
+        "sessiontoken",
+        "sshkey",
         "ssn",
         "sso",
         "token",
+        "totp",
+        "truststore",
         "verificationcode",
+        "xapikey",
+        "xauthtoken",
+        "xsrf",
+        "xsrftoken",
     }
 )
 
@@ -239,8 +288,19 @@ UNINSPECTABLE = "«whole body: could not be parsed to redact»"
 
 
 def _words_of(text: str) -> list[str]:
-    """camelCase, snake_case and "Shipping Date" alike, split into words."""
+    """camelCase, snake_case and "Shipping Date" alike, split into words.
+
+    The acronym rule is `([A-Z]{2,})([A-Z][a-z])` and deliberately not
+    `([A-Z]+)([A-Z][a-z])`: the wider one splits the lone `N` off
+    `pickNPassAutoDropLocation` and leaves `Pass` bare, blanking a real
+    warehouse field ("Pick N Pass"). Two-or-more needs three capitals in a row
+    before it cuts, so `SAMLResponse` splits into saml/response -- which is what
+    makes the word `saml` worth having -- and `NPass` stays whole. Measured over
+    3,270 distinct field, header and query-parameter names from the real acme
+    store plus knowledge-base/http/exchanges: it changes none of them.
+    """
     spaced = re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", text or "")
+    spaced = re.sub(r"([A-Z]{2,})([A-Z][a-z])", r"\1 \2", spaced)
     return [word.lower() for word in re.split(r"[^A-Za-z]+", spaced) if word]
 
 
@@ -469,6 +529,13 @@ class RedirectHop(BaseModel):
     audit put both a `?code=` URL and an Authorization header on disk through
     it. A key outside these three is dropped rather than stored unexamined --
     the same ruling as a body that cannot be parsed.
+
+    The cost of that ruling, recorded because it is a behaviour change on a
+    field that used to pass everything through: the day the extension starts
+    sending a fourth key on a hop, this loses it silently. Nothing warns, and
+    nothing here can -- an unknown key is exactly what the `list[Any]` vector
+    was. So a new hop field is a change to THIS class, declared and redacted
+    like the three above, and never a widening back to `Any`.
     """
 
     url: str | None = None

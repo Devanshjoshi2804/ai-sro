@@ -13,14 +13,20 @@
 // Isolated-world half: content scripts cannot be modules, so this publishes
 // onto the isolated world's window instead of exporting.
 (() => {
-  const SECRET_WORDS = new Set(["accesstoken", "apikey", "bearer", "cookie", "credential", "credentials", "cvv", "jwt", "mfa", "onetimecode", "onetimepasscode", "otp", "pass", "passcode", "passphrase", "passwd", "password", "pin", "pwd", "refreshtoken", "saml", "secret", "securityanswer", "securitycode", "session", "ssn", "sso", "token", "verificationcode"]);
+  const SECRET_WORDS = new Set(["accesskey", "accesstoken", "apikey", "apisecret", "appsecret", "authkey", "authorization", "authtoken", "backupcode", "bearer", "clientsecret", "connectionstring", "consumerkey", "consumersecret", "cookie", "credential", "credentials", "csrf", "csrftoken", "cvv", "encryptionkey", "hotp", "htpasswd", "idrsa", "idtoken", "jsessionid", "jwt", "keystore", "machinekey", "mfa", "oauthtoken", "onetimecode", "onetimepasscode", "otp", "pass", "passcode", "passphrase", "passwd", "password", "phpsessid", "pin", "privatekey", "privkey", "pwd", "recoverycode", "refreshtoken", "relaystate", "resettoken", "rsakey", "saml", "samlrequest", "samlresponse", "secret", "secretaccesskey", "secretanswer", "secretkey", "securityanswer", "securitycode", "sessionid", "sessionkey", "sessiontoken", "sshkey", "ssn", "sso", "token", "totp", "truststore", "verificationcode", "xapikey", "xauthtoken", "xsrf", "xsrftoken"]);
   const SECRET_HEADERS = new Set(["api-key", "authentication", "authorization", "csrf-token", "proxy-authorization", "x-access-token", "x-api-key", "x-auth-token", "x-csrf-token", "x-csrftoken", "x-infor-token", "x-moca-session", "x-requested-with", "x-session-key", "x-xsrf-token"]);
   const SECRET_HEADER_HINTS = ["auth", "cookie", "csrf", "jwt", "login", "sess", "sid", "sso", "token", "xsrf"];
   const REDACTED = '«redacted»';
 
+  // `([A-Z]{2,})([A-Z][a-z])` and not `([A-Z]+)(...)`: the wider rule splits the
+  // lone N off `pickNPassAutoDropLocation` and leaves `Pass` bare, blanking a real
+  // warehouse field. Two-or-more needs three capitals in a row before it cuts, so
+  // `SAMLResponse` splits into saml/response and `NPass` stays whole. Measured
+  // over 3,270 real field, header and query names: it changes none of them.
   const wordsOf = (text) =>
     (text || '')
       .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+      .replace(/([A-Z]{2,})([A-Z][a-z])/g, '$1 $2')
       .split(/[^A-Za-z]+/)
       .filter(Boolean)
       .map((word) => word.toLowerCase());
@@ -32,6 +38,11 @@
 
   const isSecretHeader = (name) => {
     const lowered = (name || '').toLowerCase().trim();
+    // An HTTP/2 pseudo-header is the request line, not a header, and never a
+    // credential. Checked first because `:authority` -- the host -- contains the
+    // hint "auth", so the hints below redacted it. classify_header decides the
+    // same case in the same order for the same reason.
+    if (lowered.startsWith(':')) return false;
     if (SECRET_HEADERS.has(lowered)) return true;
     return SECRET_HEADER_HINTS.some((hint) => lowered.includes(hint));
   };

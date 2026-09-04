@@ -87,15 +87,15 @@ def build_prompt(
     which evidence matters most -- doing that was measured to reduce accuracy.
     """
     parts = [INSTRUCTIONS, "", "## The day", ""]
-    parts.append(json.dumps([item.evidence for item in window.items], indent=1))
+    parts.append(json.dumps([item.evidence for item in window.items], indent=1, ensure_ascii=False))
     if crossings:
         parts += [
             "",
             "## Values appearing in more than one system",
-            json.dumps(crossings, indent=1),
+            json.dumps(crossings, indent=1, ensure_ascii=False),
         ]
     if known:
-        parts += ["", "## Jobs already proven", json.dumps(known, indent=1)]
+        parts += ["", "## Jobs already proven", json.dumps(known, indent=1, ensure_ascii=False)]
     if kb:
         parts += ["", "## What is known about these systems", kb]
     parts += ["", INSTRUCTIONS]
@@ -123,7 +123,17 @@ def _as_workflow(raw: object, tenant: str) -> Workflow | None:
                 says=step["says"] if isinstance(step.get("says"), str) else "",
                 system=step["system"] if isinstance(step.get("system"), str) else None,
                 cites=[c for c in cites if isinstance(c, str)] if isinstance(cites, list) else [],
-                parameters=[p for p in step.get("parameters", []) if isinstance(p, str)]
+                # Same rule as the workflow-level parameters below, which is
+                # the point: these two arrive from one model answer and were
+                # checked differently -- an empty string survived here while an
+                # empty `name` was dropped there. The SHAPES stay different
+                # because the schema declares them different (a step names a
+                # parameter, a workflow declares one), but "a parameter with no
+                # usable name is not a parameter" is one rule now, applied at
+                # both. A blank name is no name.
+                parameters=[
+                    p for p in step.get("parameters", []) if isinstance(p, str) and p.strip()
+                ]
                 if isinstance(step.get("parameters"), list)
                 else [],
             )
@@ -149,11 +159,13 @@ def _as_workflow(raw: object, tenant: str) -> Workflow | None:
         else [],
         steps=steps,
         # A parameter with no usable name is not a parameter, the way a step
-        # with no `says` is not a step.
+        # with no `says` is not a step. The step-level check above is the same
+        # rule against the same-named field one level down; `.strip()` is here
+        # too so that `{"name": "  "}` and `"  "` are refused alike.
         parameters=[
             p
             for p in raw.get("parameters", [])
-            if isinstance(p, dict) and isinstance(p.get("name"), str) and p["name"]
+            if isinstance(p, dict) and isinstance(p.get("name"), str) and p["name"].strip()
         ]
         if isinstance(raw.get("parameters"), list)
         else [],

@@ -31,6 +31,23 @@ class Resolution:
     kind: str  # "new" | "same_occurrence" | "same_job"
     workflow_id: str | None = None
     score: float = 0.0
+
+    # True when MINE is the larger shape -- mine contains theirs. Three states
+    # exist and this collapses two of them: "theirs contains mine" and "neither
+    # contains the other" are both False here, and they are not the same fact.
+    #
+    # A bool on purpose, for now. Nothing acts on it: Task 6 flagged the
+    # collapse, Task 7 confirmed there was no first consumer, and Task 8
+    # confirmed the mining loop does not branch on `same_job` at all -- so the
+    # third state would be a distinction drawn for no reader, and a guess at
+    # what that reader will want.
+    #
+    # The caller that needs it is specific and namable: the one that must decide
+    # whether to REPLACE a known workflow with this proposal rather than link to
+    # it. "Mine contains theirs" is the case for replacing; "theirs contains
+    # mine" is the case for discarding mine; "neither" is the case for keeping
+    # both. Whoever writes that caller should widen this to those three states
+    # rather than reading False as "theirs contains mine".
     contains: bool = False
 
 

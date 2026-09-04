@@ -59,6 +59,7 @@ def correlate(
                     tab_id=event.tab_id,
                     frame_url=event.frame_url,
                     gesture=event.gesture,
+                    page_url=event.page_url,
                 )
             )
         elif isinstance(event, RequestEvent):

@@ -23,6 +23,8 @@ class Gesture:
     tab_id: int | None
     frame_url: str | None
     gesture: WireGesture
+    # The tab's own url, as opposed to `url`, which is the frame's.
+    page_url: str | None = None
     requests: list[Request] = field(default_factory=list)
     page_events: list[PageEvent] = field(default_factory=list)
 

@@ -1,9 +1,7 @@
-from pathlib import Path
+from dataclasses import replace
 
-from rig.api import save_intent
 from rig.correlate import correlate
-from rig.records import Intent, ValueSeen
-from rig.store import Store
+from rig.records import Gesture, Intent, ValueSeen
 from rig.values import (
     K_MIN_VALUE_LEN,
     K_UBIQUITY,
@@ -163,24 +161,69 @@ def test_a_gesture_with_no_known_system_does_not_make_a_crossing() -> None:
     assert shared_values(gestures, intents, {}) == {}
 
 
-def test_a_value_named_twice_in_one_reading_is_one_reading(tmp_path: Path) -> None:
-    """K_UBIQUITY is a coverage fraction. Counting mentions instead of readings
-    marked a value seen in a single reading out of ten as furniture at 0.3 and
-    dropped it from every crossing."""
-    store = Store(tmp_path / "rig.db")
-    store.migrate()
-    for n in range(10):
-        seen = (
-            [ValueSeen(field="supplier", value="SUPPLIER-X")] * 2
-            if n == 0
-            else [ValueSeen(field="site", value="DC1-WAREHOUSE")]
-        )
-        save_intent(store, Intent(gesture_id=f"ges_{n}", tenant="acme", values_seen=seen))
+def _ten_gestures() -> list[Gesture]:
+    """Ten copies of one real gesture, each with its own id and no typed value.
 
-    frequencies = frequencies_over(store, "acme")
+    The value is cleared so that each test below controls exactly one source --
+    the reading, or the typing -- rather than both at once.
+    """
+    template = _gestures()[0]
+    made = []
+    for n in range(10):
+        gesture = replace(template, id=f"ges_{n}")
+        gesture.gesture = template.gesture.model_copy(update={"value": None})
+        made.append(gesture)
+    return made
+
+
+def test_a_value_named_twice_in_one_reading_is_one_gesture() -> None:
+    """K_UBIQUITY is a coverage fraction. Counting mentions instead of gestures
+    marked a value seen on a single gesture out of ten as furniture at 0.3 and
+    dropped it from every crossing."""
+    gestures = _ten_gestures()
+    intents = {
+        gesture.id: Intent(
+            gesture_id=gesture.id,
+            tenant="acme",
+            values_seen=[ValueSeen(field="supplier", value="SUPPLIER-X")] * 2
+            if n == 0
+            else [ValueSeen(field="site", value="DC1-WAREHOUSE")],
+        )
+        for n, gesture in enumerate(gestures)
+    }
+
+    frequencies = frequencies_over(gestures, intents)
 
     assert frequencies["SUPPLIER-X"] == 0.1
     assert frequencies["SUPPLIER-X"] <= K_UBIQUITY
+
+
+def test_a_value_only_ever_typed_can_still_be_furniture() -> None:
+    """The counted source used to be values_seen alone -- model output. A value
+    the operator typed on every gesture and that no reading ever echoed looked
+    up at 0.0, cleared trivial()'s ubiquity bar every time, and could never be
+    classified as furniture however much of the day it covered."""
+    gestures = _ten_gestures()
+    for gesture in gestures:
+        gesture.gesture = gesture.gesture.model_copy(update={"value": "DC1-WAREHOUSE"})
+    # Read, but the readings echo something else entirely: the only place
+    # "DC1-WAREHOUSE" appears is the typing.
+    intents = {
+        gesture.id: Intent(
+            gesture_id=gesture.id,
+            tenant="acme",
+            values_seen=[ValueSeen(field="supplier", value=f"SUPPLIER-{n}")],
+        )
+        for n, gesture in enumerate(gestures)
+    }
+
+    frequencies = frequencies_over(gestures, intents)
+
+    assert frequencies["DC1-WAREHOUSE"] == 1.0
+    assert trivial("DC1-WAREHOUSE", frequencies["DC1-WAREHOUSE"])
+    # And the value it is being told apart from is not furniture.
+    assert frequencies["SUPPLIER-0"] == 0.1
+    assert not trivial("SUPPLIER-0", frequencies["SUPPLIER-0"])
 
 
 def test_one_gesture_saying_a_value_twice_is_cited_once() -> None:

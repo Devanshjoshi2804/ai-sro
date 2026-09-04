@@ -340,6 +340,38 @@ async def test_a_parameter_with_no_name_is_not_a_parameter() -> None:
     assert [p["name"] for p in workflows[0].parameters] == ["code"]
 
 
+async def test_a_step_parameter_is_judged_by_the_same_rule() -> None:
+    """The ninth sibling: `parameters` at step level and `parameters` at
+    workflow level arrive from one model answer, and only one of them was
+    checked for a usable name. The shapes differ because the schema declares
+    them differently -- a step names a parameter, a workflow declares one --
+    but "no usable name is no parameter" is now one rule at both."""
+    answer = _answer(
+        workflows=[
+            {
+                "title": "t",
+                "narrative": "n",
+                "steps": [
+                    {
+                        "order": 0,
+                        "cites": ["ges_1"],
+                        "says": "s",
+                        "parameters": ["code", "", "   ", 7, None],
+                    }
+                ],
+                "parameters": [{"name": "code"}, {"name": "   "}],
+            }
+        ]
+    )
+
+    workflows, _ = await propose(
+        _window(), {}, [], "", asker=FakeAsker(answer), model=MODEL, tenant="acme"
+    )
+
+    assert workflows[0].steps[0].parameters == ["code"]
+    assert [p["name"] for p in workflows[0].parameters] == ["code"]
+
+
 def test_strength_never_reaches_the_prompt() -> None:
     """Telling a model which evidence is most relevant was measured to reduce
     accuracy, so strength orders the window and is never stated. That was held

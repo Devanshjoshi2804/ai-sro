@@ -208,3 +208,18 @@ def test_one_gesture_saying_a_value_twice_is_cited_once() -> None:
     crossings = shared_values(gestures, intents, {})
 
     assert crossings[typed] == [gestures[0].id, gestures[1].id]
+
+
+def test_a_non_str_value_from_the_store_does_not_take_the_crossing_down() -> None:
+    """api._row_to_intent builds ValueSeen(**seen) from unvalidated stored JSON
+    and ValueSeen is a plain dataclass, so a bare .strip() here raises
+    AttributeError on an int. Unreachable today; the defence keeps it so."""
+    gestures, _, _, _ = correlate(Batch.model_validate(BATCH), "new")
+    gesture = next(g for g in gestures if not g.gesture.secret)
+    intent = Intent(
+        gesture_id=gesture.id,
+        tenant="new",
+        values_seen=[ValueSeen(field="qty", value=42)],  # what ValueSeen(**seen) builds
+    )
+
+    assert "42" in typed_values(gesture, intent)

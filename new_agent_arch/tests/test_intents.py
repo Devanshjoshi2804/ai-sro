@@ -2,6 +2,7 @@ from rig.correlate import correlate
 from rig.intents import INTENT_SCHEMA, TAIL, one_line, read_gesture
 from rig.models import Answer, FakeAsker
 from rig.records import Intent
+from rig.trim import is_secret
 from rig.wire import Batch
 from tests.fixtures import BATCH
 
@@ -193,6 +194,19 @@ async def test_a_credential_the_model_echoed_back_is_never_stored() -> None:
     asker = FakeAsker(_answer(values_seen=[{"field": "password", "value": "hunter2"}]))
 
     intent = await read_gesture(gesture, tail=[], asker=asker, model=MODEL)
+
+    assert [seen.value for seen in intent.values_seen] == [""]
+    assert [seen.field for seen in intent.values_seen] == ["password"]
+
+
+async def test_a_credential_named_by_the_model_is_dropped_on_a_public_gesture() -> None:
+    """The gesture is not secret -- a login click never is -- so `hide` is
+    False and the field name is the only thing that says what this holds."""
+    gesture = next(g for g in _gestures() if not g.gesture.secret)
+    assert not is_secret(gesture)
+    asker = FakeAsker(_answer(values_seen=[{"field": "password", "value": "hunter2"}]))
+
+    intent = await read_gesture(gesture, asker=asker, model=MODEL, tail=[])
 
     assert [seen.value for seen in intent.values_seen] == [""]
     assert [seen.field for seen in intent.values_seen] == ["password"]

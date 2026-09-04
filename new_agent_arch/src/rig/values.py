@@ -50,10 +50,11 @@ def typed_values(gesture: Gesture, intent: Intent | None) -> set[str]:
     # where there is one. Stripping in the caller instead deduplicated
     # nothing, because the set had already been built from the raw pair.
     found: set[str] = set()
-    if gesture.gesture.value and gesture.gesture.value.strip():
-        found.add(gesture.gesture.value.strip())
+    typed = str(gesture.gesture.value).strip() if gesture.gesture.value else ""
+    if typed:
+        found.add(typed)
     if intent is not None:
-        found.update(seen.value.strip() for seen in intent.values_seen if seen.value.strip())
+        found.update(text for seen in intent.values_seen if (text := str(seen.value).strip()))
     return found
 
 

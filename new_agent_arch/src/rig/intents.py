@@ -11,7 +11,7 @@ from typing import Any
 
 from rig.models import Asker
 from rig.records import Gesture, Intent, ValueSeen
-from rig.trim import is_secret, thin, trim
+from rig.trim import is_secret, is_secret_name, thin, trim
 
 TAIL = 8
 
@@ -130,7 +130,9 @@ async def read_gesture(
         # as `_string_field` above.
         ValueSeen(
             field=seen["field"],
-            value="" if hide else (seen["value"] if isinstance(seen.get("value"), str) else ""),
+            value=""
+            if hide or is_secret_name(seen["field"])
+            else (seen["value"] if isinstance(seen.get("value"), str) else ""),
         )
         for seen in (seen_list if isinstance(seen_list, list) else [])
         if isinstance(seen, dict) and isinstance(seen.get("field"), str) and seen["field"]

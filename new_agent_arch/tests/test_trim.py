@@ -170,3 +170,30 @@ def test_a_credential_cannot_be_reached_by_mutating_the_target() -> None:
     ordinary.gesture.target.secret = True
 
     assert trim(ordinary)["value"] is None
+
+
+def test_a_password_in_a_request_body_never_reaches_the_prompt() -> None:
+    """A click on a Login button is not a secret gesture, so every guard that
+    keys on is_secret(gesture) stands aside. The model was shown the password
+    and save_batch wrote it to the store."""
+    from rig.trim import REDACTED, body_keys
+    from rig.wire import Body
+
+    keys = body_keys(
+        Body(mime_type="application/json", text='{"user": "amy", "password": "hunter2"}')
+    )
+
+    assert keys == {"user": "amy", "password": REDACTED}
+
+
+def test_a_field_is_secret_by_its_words_and_not_by_its_letters() -> None:
+    """Substring matching flags a real field in this tenant's captured data."""
+    from rig.trim import is_secret_name
+
+    assert is_secret_name("password")
+    assert is_secret_name("apiKey")
+    assert is_secret_name("api_key")
+    assert is_secret_name("X-Auth-Token")
+    assert not is_secret_name("Shipping Date Escalation")
+    assert not is_secret_name("username")
+    assert not is_secret_name("")

@@ -15,14 +15,19 @@ from rig.wire import (
     REDACTED,
     SECRET_HEADER_HINTS,
     SECRET_HEADERS,
+    SECRET_WORDS,
     Body,
     Request,
     Target,
     is_secret_header,
+    is_secret_name,
+    redact_body,
+    redact_data,
 )
 
-# Re-exported: the header rule lives in wire.py beside the Request model that
-# applies it, because trim imports wire and the reverse would be a cycle.
+# Re-exported: both redaction rules live in wire.py beside the models that
+# apply them at the parse boundary, because trim imports wire and the reverse
+# would be a cycle. Importers of trim.is_secret_name are unaffected.
 __all__ = [
     "REDACTED",
     "SECRET_HEADERS",
@@ -84,28 +89,39 @@ def _looks_like_an_id(part: str) -> bool:
 
 
 def body_keys(body: Body | None) -> dict[str, str] | None:
-    """Keys and short values. Never the prose, never the whole payload."""
+    """Keys and short values. Never the prose, never the whole payload.
+
+    The prompt-side belt. wire.Request already redacted this text on its way to
+    the store, and this runs again on the way to the model: two belts, neither
+    relying on the other. Every one of the four ways out of here is redacted,
+    which was the defect -- one of them was, and a form body with no mime type,
+    a SOAP login, a JSON array and a bare JSON string took the other three.
+    """
     if body is None or not body.text:
         return None
 
-    parsed: object
+    parsed: object = None
     if body.mime_type == "application/x-www-form-urlencoded":
         parsed = dict(parse_qsl(body.text))
     else:
         try:
             parsed = json.loads(body.text)
         except (ValueError, TypeError):
-            return {"_": body.text[:VALUE_CHARS]}
+            parsed = None
 
     if not isinstance(parsed, dict):
-        return {"_": str(parsed)[:VALUE_CHARS]}
+        # Unparseable, or parsed to something that has no keys at all: an
+        # array, a bare string. There is nothing to name, so the text goes in
+        # whole -- through the same rule the store's copy went through, which
+        # covers the shapes json.loads never sees.
+        return {"_": (redact_body(body.text, body.mime_type) or "")[:VALUE_CHARS]}
 
     # The name is kept and the value is not: that a login carried a password is
-    # worth reading, what the password was is not. The extension redacts this
-    # too, client-side; this is the server-side belt, and the reason for it is
-    # that the client-side one can be made not to run.
+    # worth reading, what the password was is not. redact_data recurses, because
+    # {"auth": {"password": ...}} is the same credential one level down and the
+    # flat version of this rule let it through.
     return {
-        key: REDACTED if is_secret_name(key) else str(parsed[key])[:VALUE_CHARS]
+        key: REDACTED if is_secret_name(key) else str(redact_data(parsed[key]))[:VALUE_CHARS]
         for key in list(parsed)[:BODY_KEYS]
     }
 
@@ -120,60 +136,6 @@ def _call(request: Request) -> dict[str, Any]:
         "body_keys": body_keys(request.request_body),
         "response_keys": body_keys(request.response_body),
     }
-
-
-# Mirrors SECRET_WORDS in the extension's
-# new-chrome-extension/src/content/sensitivity.module.js. Re-declared rather
-# than imported, for the same reason the wire protocol is re-declared here:
-# this process cannot import JavaScript, and a redaction rule that runs only
-# in the browser is one a browser can be made not to run. If the extension's
-# list changes, this one has to change with it -- that drift is the price of
-# the guarantee, and the guarantee is worth more.
-SECRET_WORDS = frozenset(
-    {
-        "accesstoken",
-        "apikey",
-        "credential",
-        "credentials",
-        "cvv",
-        "mfa",
-        "onetimecode",
-        "onetimepasscode",
-        "otp",
-        "pass",
-        "passcode",
-        "passphrase",
-        "passwd",
-        "password",
-        "pin",
-        "pwd",
-        "refreshtoken",
-        "secret",
-        "securityanswer",
-        "securitycode",
-        "ssn",
-        "token",
-        "verificationcode",
-    }
-)
-
-
-def _words_of(text: str) -> list[str]:
-    """camelCase, snake_case and "Shipping Date" alike, split into words."""
-    spaced = re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", text or "")
-    return [word.lower() for word in re.split(r"[^A-Za-z]+", spaced) if word]
-
-
-def is_secret_name(name: str) -> bool:
-    """Whether a field called this holds a credential.
-
-    Whole words, not substrings, which is the extension's rule and matters:
-    `"pin" in name` flags a real field in this tenant's captured data called
-    "Shipping Date Escalation". The joined form is checked too, so `apiKey`
-    and `api_key` both match `apikey`.
-    """
-    words = _words_of(name)
-    return any(word in SECRET_WORDS for word in words) or "".join(words) in SECRET_WORDS
 
 
 def is_secret(gesture: Gesture) -> bool:

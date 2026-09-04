@@ -5,14 +5,16 @@ import re
 from rig.correlate import correlate
 from rig.records import Gesture
 from rig.trim import (
+    REDACTED,
     SECRET_HEADER_HINTS,
     SECRET_HEADERS,
     SECRET_WORDS,
+    body_keys,
     path_shape,
     thin,
     trim,
 )
-from rig.wire import Batch, Target
+from rig.wire import Batch, Body, Target
 from rig.wire import Gesture as WireGesture
 from tests.fixtures import BATCH, GESTURE_TYPE
 
@@ -208,13 +210,16 @@ def test_a_field_is_secret_by_its_words_and_not_by_its_letters() -> None:
     assert not is_secret_name("")
 
 
-def _declared_in_the_extension(name: str) -> str:
-    """The literal inside the extension's `const <name> = ...` declaration."""
+def _extension_source() -> str:
     source = pathlib.Path(__file__).parents[2] / (
         "new-chrome-extension/src/content/sensitivity.module.js"
     )
-    text = source.read_text(encoding="utf-8")
-    listed = re.search(rf"const {name} = (?:new Set\()?\[(.*?)\]", text, re.DOTALL)
+    return source.read_text(encoding="utf-8")
+
+
+def _declared_in_the_extension(name: str) -> str:
+    """The literal inside the extension's `const <name> = ...` declaration."""
+    listed = re.search(rf"const {name} = (?:new Set\()?\[(.*?)\]", _extension_source(), re.DOTALL)
     assert listed, f"the extension's {name} declaration moved"
     return listed.group(1)
 
@@ -230,8 +235,54 @@ def test_the_copied_secret_words_still_match_the_extension() -> None:
     assert _words(_declared_in_the_extension("SECRET_WORDS")) == SECRET_WORDS
 
 
+def test_the_copied_marker_still_matches_the_extension() -> None:
+    """A marker that has drifted is worse than no marker: every reviewer's
+    grep for the redaction the browser writes comes back empty."""
+    literal = re.search(r"const REDACTED = '([^']*)'", _extension_source())
+    assert literal, "the extension's REDACTED declaration moved"
+    assert literal.group(1) == REDACTED
+
+
 def test_the_copied_header_rule_still_matches_the_extension() -> None:
     """Same drift, one boundary further in: these are what wire.Request applies
     to every stored request."""
     assert _words(_declared_in_the_extension("SECRET_HEADERS")) == SECRET_HEADERS
     assert _words(_declared_in_the_extension("SECRET_HEADER_HINTS")) == set(SECRET_HEADER_HINTS)
+
+
+def test_body_keys_redacts_on_every_way_out_of_it() -> None:
+    """Four returns, one of which was guarded. The other three are how a form
+    body with no mime type, a SOAP login and a JSON array reached the prompt."""
+    bodies = [
+        Body(text='{"password": "hunter2"}', mime_type="application/json"),
+        Body(text="user=bob&password=hunter2", mime_type="application/x-www-form-urlencoded"),
+        Body(text="user=bob&password=hunter2"),  # form shape, no mime type
+        Body(text="<Login><password>hunter2</password></Login>", mime_type="text/xml"),
+        Body(text='[{"password": "hunter2"}]', mime_type="application/json"),
+        Body(text='"password=hunter2"', mime_type="application/json"),
+        Body(text='mutation{login(password:"hunter2")}', mime_type="application/graphql"),
+    ]
+
+    for body in bodies:
+        keys = body_keys(body)
+
+        assert keys is not None
+        assert "hunter2" not in json.dumps(keys, ensure_ascii=False), body.text
+        assert REDACTED in json.dumps(keys, ensure_ascii=False), body.text
+
+
+def test_body_keys_recurses_at_every_depth() -> None:
+    """`{"auth": {"password": ...}}` walked past the flat rule. Two levels
+    here, not one: a rule that descends exactly once looks identical to a
+    recursive one on the shallow case and leaks on the real payload."""
+    keys = body_keys(
+        Body(text='{"request": {"auth": {"password": "hunter2"}}}', mime_type="application/json")
+    )
+
+    assert keys == {"request": f"{{'auth': {{'password': '{REDACTED}'}}}}"}
+
+
+def test_body_keys_still_names_what_it_saw() -> None:
+    keys = body_keys(Body(text='{"clientCode": "ACME-4471"}', mime_type="application/json"))
+
+    assert keys == {"clientCode": "ACME-4471"}

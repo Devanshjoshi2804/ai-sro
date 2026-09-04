@@ -5,12 +5,15 @@ from pydantic import ValidationError
 
 from rig.wire import (
     REDACTED,
+    UNINSPECTABLE,
     Batch,
     GestureEvent,
     Request,
     RequestEvent,
     is_secret_header,
     parse_batch,
+    redact_body,
+    redact_url,
 )
 from tests.fixtures import (
     BATCH,
@@ -203,3 +206,106 @@ def test_a_header_is_secret_by_hint_as_well_as_by_name() -> None:
     assert not is_secret_header("Accept")
     assert not is_secret_header("Content-Type")
     assert not is_secret_header("")
+
+
+CLEAN_URL = "https://wms.example/orders?tag=a&tag=b&note=two%20words&q=a+b&empty=#top"
+
+
+def test_a_url_needing_no_redaction_comes_back_byte_identical() -> None:
+    """Not a nicety. Round-tripping through a URL parser collapses the repeated
+    `tag`, turns the literal space in `a+b` into something else, re-encodes
+    `%20` -- and percent-encodes the marker itself, so grepping stored evidence
+    for «redacted» finds nothing. The extension splices by hand for exactly
+    this reason and so does this."""
+    assert redact_url(CLEAN_URL) == CLEAN_URL
+
+
+def test_only_the_credential_pair_is_touched() -> None:
+    url = f"{CLEAN_URL[:-4]}&session_token=hunter2#top"
+
+    redacted = redact_url(url)
+
+    assert f"session_token={REDACTED}" in redacted
+    assert "hunter2" not in redacted
+    assert "tag=a&tag=b&note=two%20words&q=a+b" in redacted  # every other byte as it was
+
+
+def test_a_credential_in_the_fragment_is_replaced() -> None:
+    """`#access_token=...` is how an OAuth implicit flow returns a token."""
+    redacted = redact_url("https://wms.example/cb#access_token=hunter2&state=abc")
+
+    assert redacted == f"https://wms.example/cb#access_token={REDACTED}&state=abc"
+
+
+def test_a_relative_or_unparseable_url_is_left_alone() -> None:
+    """There is no page here to resolve it against, so it is not guessed at."""
+    for url in ("/api/orders?token=x", "not a url at all", ""):
+        assert redact_url(url) == url
+
+
+def test_every_body_shape_the_audit_proved_is_redacted() -> None:
+    """Five shapes reached storage and the prompt; one of them was handled."""
+    shapes = [
+        ('{"password": "hunter2"}', "application/json"),
+        ('{"auth": {"login": {"pwd": "hunter2"}}}', "application/json"),  # at depth
+        ('[{"password": "hunter2"}]', "application/json"),  # array at the top
+        ('"password=hunter2"', "application/json"),  # a bare JSON string
+        ("user=bob&password=hunter2", "application/x-www-form-urlencoded"),
+        ("user=bob&password=hunter2", None),  # form shape, no mime type
+        ("<Login><user>bob</user><password>hunter2</password></Login>", "text/xml"),
+        ('<Login user="bob" password="hunter2"/>', None),  # XML attribute form
+        ('mutation{login(password:"hunter2")}', "application/graphql"),
+        ("user: bob\npassword: hunter2\n", "text/plain"),  # no parser fits
+        (
+            '--X\r\nContent-Disposition: form-data; name="password"\r\n\r\nhunter2\r\n--X--\r\n',
+            'multipart/form-data; boundary="X"',
+        ),
+    ]
+
+    for text, mime_type in shapes:
+        redacted = redact_body(text, mime_type)
+
+        assert redacted is not None
+        assert "hunter2" not in redacted, (text, mime_type)
+        assert REDACTED in redacted, (text, mime_type)
+
+
+def test_a_body_that_cannot_be_parsed_is_replaced_whole() -> None:
+    """Truncated JSON does not parse, so it cannot be redacted field by field.
+    Storing it unexamined is the failure; replacing it is legible and safe."""
+    assert redact_body('{"password": "hunter2", "next', "application/json") == UNINSPECTABLE
+
+
+def test_a_body_with_nothing_secret_in_it_comes_back_byte_identical() -> None:
+    """Compact on purpose: a body that merely round-tripped through json.dumps
+    would come back with a space after the colon, and every stored body would
+    then differ from what the browser sent."""
+    assert redact_body('{"clientCode":"ACME-4471"}', "application/json") == (
+        '{"clientCode":"ACME-4471"}'
+    )
+
+
+def test_a_redirect_hop_carries_no_credential_to_disk() -> None:
+    """redirect_chain was `list[Any]` -- the one field on a Request that
+    nothing validated and nothing redacted."""
+    request = Request.model_validate(
+        {
+            "request_id": "r1",
+            "method": "GET",
+            "url": "https://wms.example/app",
+            "started_at": "2026-08-31T08:40:04.765Z",
+            "redirect_chain": [
+                {
+                    "url": "https://sso.example/cb?access_token=hunter2",
+                    "status": 302,
+                    "location": "https://sso.example/next?api_key=hunter2",
+                    "headers": {"Authorization": "Bearer hunter2"},
+                }
+            ],
+        }
+    )
+
+    stored = request.model_dump_json()
+
+    assert "hunter2" not in stored
+    assert request.redirect_chain[0].status == 302  # the hop itself is still there

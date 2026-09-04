@@ -1,11 +1,13 @@
+import asyncio
 import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
 
 from rig.api import _row_to_gesture, build_app, read_new_gestures, save_batch
-from rig.models import Answer, FakeAsker
+from rig.models import Answer, Effort, FakeAsker
 from rig.store import Store
 from rig.wire import Batch
 from tests.fixtures import BATCH, SNAPSHOT
@@ -125,22 +127,140 @@ def test_an_orphan_call_is_kept(client: TestClient, store: Store) -> None:
     assert stored + owned == 5
 
 
+# Every route the audit proved carried a credential to disk, one distinctive
+# value each so a failure names the field that leaked rather than saying
+# something did. The test that used to plant only the first of these stayed
+# green while the other nine leaked in the same harness.
+PLANTED = {
+    "gesture.value": "hunter2GestureValue",
+    "gesture.url fragment": "hunter2GestureUrl",
+    "GestureEvent.frame_url": "hunter2FrameUrl",
+    "Request.url query": "hunter2RequestUrl",
+    "Request.request_headers": "hunter2RequestHeader",
+    "Request.request_body.text": "hunter2RequestBody",
+    "Request.response_body.text": "hunter2ResponseBody",
+    "Request.redirect_chain[0].url": "hunter2HopUrl",
+    "Request.redirect_chain[0].headers": "hunter2HopHeader",
+    "PageEvent.url": "hunter2PageUrl",
+    "PageEvent.detail": "hunter2PageDetail",
+}
+
+
+def _loud(batch: dict[str, Any]) -> dict[str, Any]:
+    """The fixture with a credential on every one of those routes."""
+    loud = json.loads(json.dumps(batch))
+    for event in loud["events"]:
+        if event["kind"] == "gesture":
+            gesture = event["gesture"]
+            if gesture.get("secret") or (gesture.get("target") or {}).get("secret"):
+                gesture["value"] = PLANTED["gesture.value"]
+            # OAuth implicit flow hands a token back in the fragment.
+            gesture["url"] = (
+                f"https://wms.example/app#access_token={PLANTED['gesture.url fragment']}"
+            )
+            event["frame_url"] = (
+                f"https://wms.example/app?api_key={PLANTED['GestureEvent.frame_url']}"
+            )
+        elif event["kind"] == "request":
+            request = event["request"]
+            joiner = "&" if "?" in request["url"] else "?"
+            request["url"] += f"{joiner}session_token={PLANTED['Request.url query']}"
+            request["request_headers"]["Authorization"] = (
+                f"Bearer {PLANTED['Request.request_headers']}"
+            )
+            # Nested, because the flat rule guarded only the top level.
+            request["request_body"] = {
+                "text": json.dumps({"auth": {"password": PLANTED["Request.request_body.text"]}}),
+                "mime_type": "application/json",
+            }
+            # A SOAP login: the shape the audit traced all the way to the page.
+            request["response_body"] = {
+                "text": f"<Login><password>{PLANTED['Request.response_body.text']}</password></Login>",
+                "mime_type": "text/xml",
+            }
+            request["redirect_chain"] = [
+                {
+                    "url": f"https://sso.example/cb?access_token={PLANTED['Request.redirect_chain[0].url']}",
+                    "status": 302,
+                    "headers": {
+                        "Authorization": f"Bearer {PLANTED['Request.redirect_chain[0].headers']}"
+                    },
+                }
+            ]
+        elif event["kind"] == "page":
+            event["url"] = f"https://wms.example/in?magic_link_token={PLANTED['PageEvent.url']}"
+            event["detail"] = f"password={PLANTED['PageEvent.detail']}"
+    return loud
+
+
 def test_a_credential_value_is_nowhere_on_disk(
     client: TestClient, store: Store, tmp_path: Path
 ) -> None:
     """WAL mode keeps recent writes in rig.db-wal, so reading rig.db alone
     would pass this test without proving anything."""
-    loud = json.loads(json.dumps(BATCH))
-    for event in loud["events"]:
-        if event["kind"] == "gesture" and event["gesture"].get("secret"):
-            event["gesture"]["value"] = "hunter2"
-
-    client.post("/v1/observations", json=loud, headers=_auth())
+    client.post("/v1/observations", json=_loud(BATCH), headers=_auth())
 
     written = b"".join(path.read_bytes() for path in tmp_path.glob("rig.db*")).decode("latin-1")
 
     assert "rig.db" in str(list(tmp_path.glob("rig.db*")))  # the files exist
-    assert "hunter2" not in written
+    assert store.query("SELECT count(*) AS n FROM gestures")[0]["n"] == 7  # and hold the batch
+    for route, credential in PLANTED.items():
+        assert credential not in written, route
+
+
+class _QuotingAsker:
+    """A model that quotes its evidence back, which is what the audit's did.
+
+    `values_seen` is guarded at the write point; `why`, `act` and `object` are
+    model prose and can repeat anything the prompt contained. So the only thing
+    that keeps a credential out of `why` is it never being in the prompt.
+    """
+
+    def __init__(self) -> None:
+        self.asked: list[dict[str, Any]] = []
+
+    async def ask(
+        self,
+        *,
+        model: str,
+        instructions: str,
+        evidence: str,
+        schema: dict[str, Any],
+        image: bytes | None = None,
+        effort: Effort | None = None,
+    ) -> Answer:
+        await asyncio.sleep(0)
+        self.asked.append({"evidence": evidence})
+        return Answer(data={"act": "logged in", "why": evidence}, in_tokens=1, out_tokens=1)
+
+
+async def test_an_xml_login_body_reaches_neither_the_prompt_nor_the_page(
+    client: TestClient, store: Store
+) -> None:
+    """The end-to-end route the audit traced: a SOAP login body, a model that
+    quotes its evidence into `why`, and `GET /v1/gestures`, which index.html
+    renders."""
+    loud = json.loads(json.dumps(BATCH))
+    for event in loud["events"]:
+        if event["kind"] == "request":
+            event["request"]["request_body"] = {
+                "text": "<Login><user>bob</user><password>hunter2</password></Login>",
+                "mime_type": "text/xml",
+            }
+    client.post("/v1/observations", json=loud, headers=_auth())
+    asker = _QuotingAsker()
+
+    await read_new_gestures(store, asker, "gemini-3.8-flash")
+
+    prompts = "".join(asked["evidence"] for asked in asker.asked)
+    page = client.get("/v1/gestures", headers=_auth()).text
+
+    assert prompts, "no reading happened, so this proves nothing"
+    assert "hunter2" not in prompts
+    assert "hunter2" not in page
+    # The word, not the guillemets: the evidence is json.dumps'd with the
+    # default ensure_ascii, so what reaches the page is « escaped as \u00ab.
+    assert "redacted" in page  # the marker is what says a credential was there
 
 
 def test_a_malformed_envelope_is_refused_with_422_not_500(client: TestClient) -> None:

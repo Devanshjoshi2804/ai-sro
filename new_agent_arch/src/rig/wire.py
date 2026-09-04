@@ -4,8 +4,11 @@ Copied rather than imported: see 'Decision: no path dependency' in the plan.
 Proved against new-chrome-extension/fixtures/, which a real browser produced.
 """
 
+import json
+import re
 from dataclasses import dataclass
 from typing import Annotated, Any, Literal
+from urllib.parse import unquote_plus, urlparse
 
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError, model_validator
 
@@ -63,6 +66,17 @@ class Gesture(BaseModel):
             object.__setattr__(self, "value", None)
         return self
 
+    @model_validator(mode="after")
+    def a_credential_in_the_url_is_dropped_here(self) -> "Gesture":
+        """The same boundary, one field over. `#access_token=...` on a gesture
+        url reached disk while the typed value beside it was guarded -- which
+        is the shape of every credential defect this codebase has had: a rule
+        applied at one field is a rule the next field walks past.
+        """
+        if self.url:
+            object.__setattr__(self, "url", redact_url(self.url))
+        return self
+
 
 class GestureEvent(BaseModel):
     kind: Literal["gesture"]
@@ -70,6 +84,15 @@ class GestureEvent(BaseModel):
     tab_id: int | None = None
     frame_url: str | None = None
     page_url: str | None = None
+
+    @model_validator(mode="after")
+    def a_credential_in_a_url_is_dropped_here(self) -> "GestureEvent":
+        """frame_url has its own column on `gestures`; both are stored."""
+        if self.frame_url:
+            self.frame_url = redact_url(self.frame_url)
+        if self.page_url:
+            self.page_url = redact_url(self.page_url)
+        return self
 
 
 class Body(BaseModel):
@@ -129,6 +152,262 @@ def is_secret_header(name: str) -> bool:
     return lowered in SECRET_HEADERS or any(hint in lowered for hint in SECRET_HEADER_HINTS)
 
 
+# Mirrors SECRET_WORDS and isSecretName in the same extension module. This rule
+# lives here rather than in trim.py -- where it used to -- for the reason the
+# header rule already does: trim imports wire, the reverse would be a cycle,
+# and it is the models below that have to apply it to everything that reaches
+# the store. trim.py re-exports both.
+SECRET_WORDS = frozenset(
+    {
+        "accesstoken",
+        "apikey",
+        "credential",
+        "credentials",
+        "cvv",
+        "mfa",
+        "onetimecode",
+        "onetimepasscode",
+        "otp",
+        "pass",
+        "passcode",
+        "passphrase",
+        "passwd",
+        "password",
+        "pin",
+        "pwd",
+        "refreshtoken",
+        "secret",
+        "securityanswer",
+        "securitycode",
+        "ssn",
+        "token",
+        "verificationcode",
+    }
+)
+
+# Stored in place of a body this process could not parse to redact. The
+# extension writes the same sentence in redacted_fields for the same reason.
+UNINSPECTABLE = "«whole body: could not be parsed to redact»"
+
+
+def _words_of(text: str) -> list[str]:
+    """camelCase, snake_case and "Shipping Date" alike, split into words."""
+    spaced = re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", text or "")
+    return [word.lower() for word in re.split(r"[^A-Za-z]+", spaced) if word]
+
+
+def is_secret_name(name: str) -> bool:
+    """Whether a field called this holds a credential.
+
+    Whole words, not substrings, which is the extension's rule and matters:
+    `"pin" in name` flags a real field in this tenant's captured data called
+    "Shipping Date Escalation". The joined form is checked too, so `apiKey`
+    and `api_key` both match `apikey`.
+    """
+    words = _words_of(name)
+    return any(word in SECRET_WORDS for word in words) or "".join(words) in SECRET_WORDS
+
+
+def _redact_query(raw: str) -> str:
+    """An `a=b&c=d` string with every credential-named value replaced.
+
+    Spliced by hand rather than round-tripped through parse_qsl + urlencode,
+    which is the extension's rule and its stated reason: re-encoding touches
+    every pair rather than the one that matched -- it collapses a repeated key,
+    turns a literal space into `+`, and percent-encodes the marker itself, so
+    grepping stored evidence for the «redacted» every other path writes finds
+    nothing. Splicing leaves every untouched byte exactly as the browser sent
+    it. A pair with no `=` is given one, as the extension does: the name alone
+    is what matched.
+    """
+    pairs = raw.split("&")
+    for index, pair in enumerate(pairs):
+        if not pair:
+            continue
+        key = pair.partition("=")[0]
+        if is_secret_name(unquote_plus(key)):
+            pairs[index] = f"{key}={REDACTED}"
+    return "&".join(pairs)
+
+
+def redact_url(url: str) -> str:
+    """A URL with credential-named query and fragment values replaced.
+
+    `?token=...` is as much a credential as the header form, and a URL is
+    stored on every event there is -- a navigation, a request, and the frame a
+    gesture happened in. The fragment is checked too when it is shaped like a
+    query string: `#access_token=...` is how an OAuth implicit flow hands a
+    token back, and the audit found one on disk.
+
+    A relative or unparseable URL is left alone rather than guessed at, as the
+    extension does -- there is no page here to resolve it against.
+    """
+    if not url:
+        return url
+    try:
+        parsed = urlparse(url)
+    except ValueError:
+        return url
+    if not parsed.scheme or not parsed.netloc:
+        return url
+
+    hash_at = url.find("#")
+    head, fragment = (url, "") if hash_at == -1 else (url[:hash_at], url[hash_at + 1 :])
+    query_at = head.find("?")
+    if query_at != -1:
+        head = head[: query_at + 1] + _redact_query(head[query_at + 1 :])
+    if "=" in fragment:
+        fragment = _redact_query(fragment)
+    return head if hash_at == -1 else f"{head}#{fragment}"
+
+
+_XML_FIELD = re.compile(r"<([A-Za-z_][\w.:-]*)([^>]*)>([^<]*)</\1>")
+_XML_ATTR = re.compile(r'([A-Za-z_][\w.:-]*)\s*=\s*"([^"]*)"')
+# Any `name=value` or `name: value` pair, wherever it sits in an otherwise
+# unstructured body. The parsers above each want a whole well-formed document;
+# this wants only a field name next to a field value, which is all a
+# name-based rule needs to act -- and is what catches a graphql mutation.
+_PAIR = re.compile(r"([A-Za-z_][\w.-]*)(\s*[=:]\s*)([^\s&;,]*)")
+_MULTIPART_BOUNDARY = re.compile(r'boundary=(?:"([^"]+)"|([^;]+))', re.IGNORECASE)
+_PART_NAME = re.compile(r'name="([^"]*)"', re.IGNORECASE)
+_HEADER_GAP = re.compile(r"\r?\n\r?\n")
+_PART_END = re.compile(r"\r?\n--")
+
+
+def redact_data(node: Any) -> Any:
+    """The same rule at every depth, through dicts and lists alike.
+
+    The flat version of this guarded the top level of a JSON object and
+    nothing else, so `{"auth": {"password": ...}}` walked straight past it.
+    """
+    if isinstance(node, dict):
+        return {
+            key: REDACTED if is_secret_name(str(key)) else redact_data(value)
+            for key, value in node.items()
+        }
+    if isinstance(node, list):
+        return [redact_data(item) for item in node]
+    return node
+
+
+def _redact_pairs(text: str) -> str:
+    return _PAIR.sub(
+        lambda found: f"{found[1]}{found[2]}{REDACTED}" if is_secret_name(found[1]) else found[0],
+        text,
+    )
+
+
+def _redact_json(text: str) -> str:
+    try:
+        document = json.loads(text)
+    except ValueError:
+        # Not the document it claimed to be: truncated, or never JSON at all.
+        # Replaced whole rather than stored unexamined -- see redact_body.
+        return UNINSPECTABLE
+    if isinstance(document, str):
+        # A bare JSON string is a document too, and `"password=hunter2"` is
+        # what one looks like when it carries a credential.
+        return json.dumps(_redact_pairs(document), ensure_ascii=False)
+    cleaned = redact_data(document)
+    # ensure_ascii=False for the same reason the query string is spliced rather
+    # than re-encoded: the default writes the marker as \u00abredacted\u00bb,
+    # and then grepping stored evidence for «redacted» finds nothing. The
+    # extension's JSON.stringify writes it literally; so does this.
+    #
+    # Unchanged means unchanged: the original bytes, not a reserialisation.
+    return text if cleaned == document else json.dumps(cleaned, ensure_ascii=False)
+
+
+def _redact_xml(text: str) -> str:
+    def element(found: re.Match[str]) -> str:
+        name = found[1]
+        if not is_secret_name(name.split(":")[-1]):
+            return found[0]
+        return f"<{name}{found[2]}>{REDACTED}</{name}>"
+
+    def attribute(found: re.Match[str]) -> str:
+        name = found[1]
+        if not is_secret_name(name.split(":")[-1]):
+            return found[0]
+        return f'{name}="{REDACTED}"'
+
+    return _XML_ATTR.sub(attribute, _XML_FIELD.sub(element, text))
+
+
+def _redact_multipart(text: str, mime_type: str | None) -> str:
+    """A part names its field on one line and carries the value on another, so
+    the pair scanner never sees the two together and cannot act on the name."""
+    found = _MULTIPART_BOUNDARY.search(mime_type or "")
+    boundary = (found[1] or found[2]).strip() if found else ""
+    if not boundary:
+        return _redact_pairs(text)
+    parts = []
+    for part in text.split(f"--{boundary}"):
+        gap = _HEADER_GAP.search(part)
+        name = _PART_NAME.search(part[: gap.start()]) if gap else None
+        if gap is None or name is None or not is_secret_name(name[1]):
+            parts.append(part)
+            continue
+        rest = part[gap.end() :]
+        end = _PART_END.search(rest)
+        parts.append(part[: gap.end()] + REDACTED + (rest[end.start() :] if end else ""))
+    return f"--{boundary}".join(parts)
+
+
+def redact_body(text: str | None, mime_type: str | None) -> str | None:
+    """One body, whatever shape it is, with every credential-named value gone.
+
+    Mirrors the extension's redactBody: JSON walked recursively (arrays and
+    bare strings included), XML and SOAP, multipart, form-urlencoded --
+    including when the mime type is absent and the text is merely shaped like
+    a form -- and, when no parser fits, a scan for `name=value` pairs rather
+    than storing the text unread.
+
+    Where a parser was chosen and the document did not parse, the body is
+    replaced wholesale. An unparsed body that might hold a credential is the
+    failure; a body replaced entirely is legible and safe.
+    """
+    if not text:
+        return text
+    kind = (mime_type or "").lower()
+    stripped = text.lstrip()
+    if "json" in kind or stripped[:1] in ("{", "["):
+        return _redact_json(text)
+    if "xml" in kind or stripped.startswith("<"):
+        return _redact_xml(text)
+    if "multipart/form-data" in kind:
+        return _redact_multipart(text, mime_type)
+    if "form-urlencoded" in kind or ("=" in text and "\n" not in text):
+        return _redact_query(text)
+    return _redact_pairs(text)
+
+
+class RedirectHop(BaseModel):
+    """One hop of a redirect chain, typed to what actually produces one.
+
+    The extension sends an empty list today; the Steel capture path records
+    url, status and location (sro.domain.recording.network.RedirectHop), so
+    those are the three fields here rather than protocol nobody sends. Typed
+    at all, which the `list[Any]` this replaces was not: a hop was the one
+    part of a request that nothing validated and nothing redacted, and the
+    audit put both a `?code=` URL and an Authorization header on disk through
+    it. A key outside these three is dropped rather than stored unexamined --
+    the same ruling as a body that cannot be parsed.
+    """
+
+    url: str | None = None
+    status: int | None = None
+    location: str | None = None
+
+    @model_validator(mode="after")
+    def a_credential_on_a_hop_is_dropped_here(self) -> "RedirectHop":
+        if self.url:
+            self.url = redact_url(self.url)
+        if self.location:
+            self.location = redact_url(self.location)
+        return self
+
+
 class Request(BaseModel):
     request_id: str
     method: str
@@ -141,7 +420,7 @@ class Request(BaseModel):
     status_text: str | None = None
     response_headers: dict[str, str] = Field(default_factory=dict)
     response_body: Body | None = None
-    redirect_chain: list[Any] = Field(default_factory=list)
+    redirect_chain: list[RedirectHop] = Field(default_factory=list)
     duration_ms: int | None = None
     from_cache: bool = False
     failure_reason: str | None = None
@@ -167,12 +446,36 @@ class Request(BaseModel):
                     headers[name] = REDACTED
         return self
 
+    @model_validator(mode="after")
+    def a_credential_elsewhere_on_the_call_is_dropped_here(self) -> "Request":
+        """The header rule above covered one field of this model's eight.
+
+        A `?session_token=` in the url, a `{"password": ...}` in either body,
+        and a hop in redirect_chain are the same credential by another route,
+        and the audit proved all of them on disk with the header rule right
+        there in the same class. Both belts run at the parse boundary, once,
+        because a rule that runs at a call site is a rule the next caller does
+        not run.
+        """
+        self.url = redact_url(self.url)
+        for body in (self.request_body, self.response_body):
+            if body is not None:
+                body.text = redact_body(body.text, body.mime_type)
+        return self
+
 
 class RequestEvent(BaseModel):
     kind: Literal["request"]
     request: Request
     tab_id: int | None = None
     frame_url: str | None = None
+
+    @model_validator(mode="after")
+    def a_credential_in_a_url_is_dropped_here(self) -> "RequestEvent":
+        """An orphan request is stored as the whole event, frame_url included."""
+        if self.frame_url:
+            self.frame_url = redact_url(self.frame_url)
+        return self
 
 
 class PageEvent(BaseModel):
@@ -182,6 +485,17 @@ class PageEvent(BaseModel):
     url: str | None = None
     detail: str | None = None
     tab_id: int | None = None
+
+    @model_validator(mode="after")
+    def a_credential_on_a_page_event_is_dropped_here(self) -> "PageEvent":
+        """A page event is stored whole -- attached to a gesture, or in
+        orphan_pages -- and the audit landed a `?magic_link_token=` in url and
+        a credential in detail, which is free text and so gets the body rule.
+        """
+        if self.url:
+            self.url = redact_url(self.url)
+        self.detail = redact_body(self.detail, None)
+        return self
 
 
 class SnapshotEvent(BaseModel):

@@ -78,7 +78,10 @@ def _by_control(
                 or (target.name if target else None)
                 or cited
             )
-            found[name] = sorted(values)[0]
+            # min() rather than any(): typed_values returns a set, and a
+            # parameter that changed name between runs because the set
+            # iterated differently would be a phantom difference.
+            found[name] = min(values)
     return found
 
 

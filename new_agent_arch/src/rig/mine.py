@@ -15,6 +15,7 @@ from rig.checks import (
 )
 from rig.identity import Resolution, resolve
 from rig.models import Asker, one_at_a_time
+from rig.parameters import parameters_across
 from rig.pool import add_unclaimed, age_pool, waiting
 from rig.records import Gesture, Intent
 from rig.shape import shape_key
@@ -47,6 +48,12 @@ class MineResult:
     pass_id: str = ""
     proposed: int = 0
     kept: int = 0
+    learned_parameters: int = 0
+    """Parameters a job gained because this pass saw it done a second time.
+
+    A pass that keeps nothing has still learnt something if it recognised a job
+    and found out what varies in it -- which is the difference between watching
+    the same work twice and understanding it."""
     rejections: list[Rejection] = field(default_factory=list)
     resolutions: list[Resolution] = field(default_factory=list)
     # Not optional: every pass measures its window, and an empty window
@@ -102,6 +109,41 @@ async def mine(store: Store, *, tenant: str, asker: Asker, model: str, kb: str =
     """
     async with one_at_a_time("mining"):
         return await _one_pass(store, tenant=tenant, asker=asker, model=model, kb=kb)
+
+
+def _learn_parameters(
+    store: Store,
+    tenant: str,
+    known_id: str,
+    proposal: Workflow,
+    by_id: dict[str, Gesture],
+    intents: dict[str, Intent],
+) -> int:
+    """Diff a job's two doings and keep what they disagree about.
+
+    Returns how many parameters the job now has that it did not before, so a
+    pass can say it learnt something rather than only that it recognised
+    something. Nothing is removed: a control that stopped varying may simply
+    not have been reached this time, and forgetting a parameter on that
+    evidence would be worse than carrying one too many.
+    """
+    stored = next((w for w in known_workflows(store, tenant) if w.id == known_id), None)
+    if stored is None:
+        return 0
+    found = parameters_across([(stored, by_id, intents), (proposal, by_id, intents)])
+    if not found:
+        return 0
+    had = {p.get("name") for p in stored.parameters if isinstance(p, dict)}
+    fresh = [
+        {"name": parameter.name, "seen_values": list(parameter.seen)}
+        for parameter in found
+        if parameter.name not in had
+    ]
+    if not fresh:
+        return 0
+    stored.parameters = [*stored.parameters, *fresh]
+    save_workflow(store, stored)
+    return len(fresh)
 
 
 def _packed(gesture: Gesture, intent: Intent | None, linked: set[str]) -> Packed:
@@ -235,6 +277,19 @@ async def _one_pass(store: Store, *, tenant: str, asker: Asker, model: str, kb: 
                 proposal.pass_id = pass_id
                 save_workflow(store, proposal)
                 kept.append(proposal)
+            elif resolution.kind == "same_job" and resolution.workflow_id:
+                # The same job, done again, on different evidence -- which is
+                # the only thing that can tell a parameter from a constant. One
+                # doing of "Create Work Activity TEST1" cannot say whether
+                # TEST1 names this activity or every activity; two doings that
+                # disagree about it can. Recorded on the stored workflow rather
+                # than the proposal, because the proposal is about to be
+                # discarded and the job is what learns.
+                learnt = _learn_parameters(
+                    store, tenant, resolution.workflow_id, proposal, by_id, intents
+                )
+                if learnt:
+                    result.learned_parameters += learnt
 
         result.kept = len(kept)
         result.coverage = coverage(placed, window)

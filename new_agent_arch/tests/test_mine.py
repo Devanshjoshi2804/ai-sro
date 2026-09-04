@@ -584,3 +584,68 @@ async def test_the_pass_row_is_written_even_when_the_work_after_the_call_fails(
 
     row = store.query("SELECT id, cost_usd FROM passes")[0]
     assert row["cost_usd"] == 0.04, "the call was billed and nothing recorded it"
+
+
+async def test_a_pass_that_recognises_a_job_learns_what_varies_in_it(tmp_path: Path) -> None:
+    """A pass that keeps nothing has still learnt something if it recognised a
+    job and found out what changes in it. That is the difference between
+    watching the same work twice and understanding it, and two doings are the
+    only evidence that can tell a parameter from a constant.
+
+    A second doing means NEW gestures -- that is why identity matches on shape
+    rather than on cited ids, and why a diff has two values to compare.
+    """
+    store = _store(tmp_path)
+    ids = _ids(store)
+
+    first = await mine(
+        store,
+        tenant="acme",
+        asker=FakeAsker(Answer(data={"workflows": [_proposal(ids)]}, cost_usd=0.01)),
+        model="gemini-3.1-pro",
+    )
+    assert first.kept == 1
+    assert first.learned_parameters == 0, "one doing cannot name a parameter"
+
+    # The job done again: its own gestures, and the operator typed something
+    # else into the same control.
+    again_ids = []
+    for gesture_id in ids:
+        row = store.query("SELECT * FROM gestures WHERE id = ?", (gesture_id,))[0]
+        gesture = json.loads(row["gesture_json"])
+        if gesture.get("kind") == "type" and gesture.get("value"):
+            gesture["value"] = "SOMETHING-ELSE"
+        fresh = f"{gesture_id}_again"
+        store.execute(
+            "INSERT INTO gestures (id, tenant, stream_id, batch_id, at, url, system, tab_id,"
+            " frame_url, page_url, gesture_json, requests, page_events)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                fresh,
+                row["tenant"],
+                row["stream_id"],
+                row["batch_id"],
+                row["at"] + 10_000.0,
+                row["url"],
+                row["system"],
+                row["tab_id"],
+                row["frame_url"],
+                row["page_url"],
+                json.dumps(gesture),
+                row["requests"],
+                row["page_events"],
+            ),
+        )
+        again_ids.append(fresh)
+
+    again = await mine(
+        store,
+        tenant="acme",
+        asker=FakeAsker(Answer(data={"workflows": [_proposal(again_ids)]}, cost_usd=0.01)),
+        model="gemini-3.1-pro",
+    )
+
+    assert again.kept == 0, "it is the same job, not a new one"
+    assert again.learned_parameters >= 1, "and this time it knows what varies"
+    stored = known_workflows(store, "acme")[0]
+    assert any("SOMETHING-ELSE" in (p.get("seen_values") or []) for p in stored.parameters)

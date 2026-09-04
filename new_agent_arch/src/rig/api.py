@@ -18,7 +18,7 @@ from pydantic import ValidationError
 from rig.config import settings
 from rig.correlate import correlate
 from rig.intents import read_gesture
-from rig.models import Asker, GeminiAsker
+from rig.models import Asker, GeminiAsker, one_at_a_time
 from rig.records import Gesture, Intent, ValueSeen
 from rig.store import Store
 from rig.wire import Batch, PageEvent, Request, parse_batch
@@ -201,15 +201,6 @@ def tail_for(store: Store, stream_id: str, before: float) -> list[Intent]:
     return list(reversed([_row_to_intent(row) for row in rows]))
 
 
-# One reading loop at a time. Two concurrent callers both SELECT the same
-# unread gestures before either writes an intent, so every gesture in the race
-# window is asked -- and billed -- twice, while INSERT OR REPLACE leaves only
-# one cost row. `read_on_ingest` fires one of these per ingest, so two batches
-# arriving together is enough to trigger it.
-# ponytail: a process-local lock, because the rig is one process. Claim rows in
-# the database if it ever becomes more than one.
-_reading = asyncio.Lock()
-
 # read_new_gestures reads at most 200 rows per pass; a drain must call it
 # repeatedly. Bounded because every pass must reduce the unread set: a pass
 # that returns 0 ends it, and this cap is a backstop against a row that
@@ -219,8 +210,18 @@ MAX_READING_PASSES = 100
 
 
 async def read_new_gestures(store: Store, asker: Asker, model: str) -> int:
-    """Every stored gesture with no intent gets exactly one reading."""
-    async with _reading:
+    """Every stored gesture with no intent gets exactly one reading.
+
+    One reading loop at a time. Two concurrent callers both SELECT the same
+    unread gestures before either writes an intent, so every gesture in the
+    race window is asked -- and billed -- twice, while INSERT OR REPLACE leaves
+    only one cost row. `read_on_ingest` fires one of these per ingest, so two
+    batches arriving together is enough to trigger it.
+
+    ponytail: a process-local lock, because the rig is one process. Claim rows
+    in the database if it ever becomes more than one.
+    """
+    async with one_at_a_time("reading"):
         return await _read_unread(store, asker, model)
 
 

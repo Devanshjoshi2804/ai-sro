@@ -3,7 +3,16 @@ import subprocess
 import sys
 from pathlib import Path
 
-SRC = Path(__file__).parent.parent / "src"
+from tests.fixtures import repo_root
+
+# The shipped package, not whatever copy this file happens to be running from.
+# A mutation run relocates the suite into `new_agent_arch/mutants/tests/`, and
+# counting `.parent` from there pointed both of these at `mutants/src` -- where
+# the standalone import below re-entered mutmut's own import hook with no
+# config beside it and failed for a reason that had nothing to do with the rig.
+# Neither rule here is a property of a copy: one is an architecture rule about
+# the source tree, the other is about the package as it ships.
+SRC = repo_root() / "new_agent_arch" / "src"
 
 
 def _imports_sro(path: Path) -> bool:

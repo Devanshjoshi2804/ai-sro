@@ -418,3 +418,114 @@ def test_a_warehouse_session_is_not_a_login_session() -> None:
     # one compound (`apikey`) standing between it and the store.
     for field in ("accessKey", "secretAccessKey", "privateKey", "sshKey", "clientSecret"):
         assert is_secret_name(field), field
+
+
+# A JWT nobody would write down: the header and payload are real base64url so
+# the shape is genuine, and the signature is the literal word. No system on
+# earth issues this, so nothing here is a credential anybody has to rotate.
+FAKE_JWT = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJub2JvZHkifQ.not-a-signature"
+
+
+def test_a_credential_shaped_value_goes_whatever_the_field_is_called() -> None:
+    """The point of the shape rule. `ticket` is in no vocabulary and never will
+    be -- field names are chosen by whoever wrote the vendor's API -- and the
+    value in it is unmistakably a JWT."""
+    request = Request(
+        request_id="req_1",
+        method="POST",
+        url="https://wms.example/api/login",
+        started_at="2026-09-04T10:00:00Z",
+        request_body={"text": json.dumps({"ticket": FAKE_JWT}), "mime_type": "application/json"},
+    )
+
+    assert request.request_body is not None
+    assert request.request_body.text is not None
+    assert "eyJ" not in request.request_body.text
+    assert REDACTED in request.request_body.text
+
+
+def test_a_body_says_which_rule_took_the_value() -> None:
+    """Same marker in the text, different fact in redacted_fields: "we redacted
+    this because it looked like a JWT" is not "because it was called
+    password", and a reviewer has to be able to tell them apart."""
+    request = Request(
+        request_id="req_1",
+        method="POST",
+        url="https://wms.example/api/login",
+        started_at="2026-09-04T10:00:00Z",
+        request_body={
+            "text": json.dumps({"ticket": FAKE_JWT, "key": "AKIAIOSFODNN7EXAMPLE"}),
+            "mime_type": "application/json",
+            "redacted_fields": ["password"],
+        },
+    )
+
+    assert request.request_body is not None
+    assert request.request_body.redacted_fields == [
+        "password",
+        "«shape: jwt»",
+        "«shape: aws_key_id»",
+    ]
+
+
+def test_a_private_key_loses_its_key_material_and_not_just_its_header() -> None:
+    """A pattern that matched only the BEGIN line would replace it and leave
+    the base64 sitting under a marker claiming it had been removed."""
+    pem = (
+        "-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEAsomething\n-----END RSA PRIVATE KEY-----"
+    )
+
+    cleaned = redact_body(f"note: here it is\n{pem}\nend of note", "text/plain")
+
+    assert cleaned is not None
+    assert "MIIEowIBAAKCAQEA" not in cleaned
+    assert cleaned == f"note: here it is\n{REDACTED}\nend of note"
+
+
+def test_a_shape_reaches_a_body_no_parser_could_read() -> None:
+    """The name rule gives up on a body it cannot parse and replaces the whole
+    thing; the shape rule needs no parse at all. Both run."""
+    assert redact_body("{truncated json", "application/json") == UNINSPECTABLE
+    cleaned = redact_body(f"<!doctype html><p>{FAKE_JWT}</p>", "text/html")
+    assert cleaned is not None and "eyJ" not in cleaned
+
+
+def test_a_credential_in_a_path_segment_is_redacted() -> None:
+    """No parameter name exists to judge a path segment by, so only the shape
+    can. The query beside it is left exactly as it was."""
+    redacted = redact_url(f"https://wms.example/reset/{FAKE_JWT}?tag=a&tag=b&q=a+b")
+
+    assert redacted == f"https://wms.example/reset/{REDACTED}?tag=a&tag=b&q=a+b"
+
+
+def test_the_shape_rule_leaves_a_clean_url_byte_identical() -> None:
+    """The shape pass runs over every URL, so it is the newest way to break the
+    splicing rule the fixture above exists to protect."""
+    assert redact_url(CLEAN_URL) == CLEAN_URL
+
+
+def test_a_header_nobody_named_a_credential_still_loses_one() -> None:
+    """`X-Acme-Ticket` matches no header name and no hint. Only its value says
+    what it is."""
+    request = Request(
+        request_id="req_1",
+        method="GET",
+        url="https://wms.example/api/orders",
+        started_at="2026-09-04T10:00:00Z",
+        request_headers={"X-Acme-Ticket": FAKE_JWT, "Accept": "application/json"},
+    )
+
+    assert request.request_headers["X-Acme-Ticket"] == REDACTED
+    assert request.request_headers["Accept"] == "application/json"
+
+
+def test_a_credential_typed_into_an_ordinary_box_is_dropped() -> None:
+    """A token pasted into a search field is not typed into an
+    input[type=password], so nothing upstream flags it. The shape does, and
+    what is left is the rest of what was typed."""
+    typed = {**GESTURE_TYPE}
+    typed["gesture"] = {**GESTURE_TYPE["gesture"], "secret": False, "value": f"find {FAKE_JWT}"}
+
+    event = GestureEvent.model_validate(typed)
+
+    assert event.gesture.value == f"find {REDACTED}"

@@ -106,6 +106,11 @@ class Gesture(BaseModel):
         """AGENTS.md: credential values never reach storage. This is the boundary."""
         if self.secret or (self.target is not None and self.target.secret):
             object.__setattr__(self, "value", None)
+        elif self.value:
+            # Not flagged, and still a credential: a token pasted into an
+            # ordinary search box is not typed into an input[type=password],
+            # so nothing upstream marks it. The shape does.
+            object.__setattr__(self, "value", redact_shapes(self.value))
         return self
 
     @model_validator(mode="after")
@@ -286,6 +291,90 @@ SECRET_WORDS = frozenset(
 # extension writes the same sentence in redacted_fields for the same reason.
 UNINSPECTABLE = "«whole body: could not be parsed to redact»"
 
+# Mirrors SECRET_SHAPE and SECRET_SHAPE_ANY_CASE in the same extension module,
+# which are generated from `sensitivity.SECRET_SHAPES`. The value rule beside
+# the name rules, and it exists because the name rule cannot be finished: a
+# field name is chosen by whoever wrote the vendor's API, an open vocabulary
+# guessed at forever, and the round before this one found 57 of 85 realistic
+# credential names unmatched and then blanked three real warehouse fields
+# closing the gap. A shape is not open in that way -- a JWT is a JWT in any
+# field, and a warehouse dock code is never a PEM block.
+#
+# Measured over 47,969 distinct real values from the acme store plus
+# knowledge-base/http/exchanges -- the VALUES, which nothing here had ever
+# measured, only the names: every pattern below matches zero of them.
+# tests/test_corpus.py is that measurement as a test.
+#
+# High-entropy detection is deliberately absent, on the same corpus: a Shannon
+# threshold of 4.5 bits over runs of 20+ token characters blanks 791 real
+# values, 4.0 blanks 14,419, 3.5 blanks 21,250 -- and 5.0 blanks nothing at
+# all. There is no threshold between useless and destructive.
+SECRET_SHAPES: tuple[tuple[str, str], ...] = (
+    ("jwt", r"eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]*"),
+    ("aws_key_id", r"(?:AKIA|ASIA|AIDA|AROA)[A-Z0-9]{16}"),
+    ("github_token", r"gh[pousr]_[A-Za-z0-9]{36,}"),
+    ("github_pat", r"github_pat_[A-Za-z0-9_]{20,}"),
+    ("google_api_key", r"AIza[A-Za-z0-9_-]{35}"),
+    ("slack_token", r"xox[abeprs]-[A-Za-z0-9-]{10,}"),
+    # The whole block and not just the BEGIN line, or the substitution would
+    # replace the header and leave the key material under a marker claiming it
+    # had been removed. The END clause is optional so a truncated capture still
+    # loses its opening line.
+    (
+        "private_key",
+        (
+            r"-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY-----"
+            r"(?:[\s\S]*?-----END (?:[A-Z0-9]+ )*PRIVATE KEY-----)?"
+        ),
+    ),
+)
+SECRET_SHAPES_ANY_CASE: tuple[tuple[str, str], ...] = (
+    # A scheme name plus a blob, and so case-blind -- kept apart from the set
+    # above because `AKIA`, `AIza` and `eyJ` are case-SENSITIVE prefixes that a
+    # blind match would widen over the lowercase identifiers this corpus is
+    # full of.
+    ("bearer", r"\bbearer\s+[A-Za-z0-9._~+/-]{20,}"),
+    ("basic_auth", r"\bbasic\s+[A-Za-z0-9+/]{16,}={0,2}"),
+)
+
+_SHAPE = re.compile("|".join(f"(?P<{name}>{pattern})" for name, pattern in SECRET_SHAPES))
+_SHAPE_ANY_CASE = re.compile(
+    "|".join(f"(?P<{name}>{pattern})" for name, pattern in SECRET_SHAPES_ANY_CASE), re.IGNORECASE
+)
+
+
+def shapes_in(text: str | None) -> tuple[str, ...]:
+    """Which credential shapes appear in this text, in the order first seen.
+
+    Kept apart from the redaction so a body can record *why* it lost something.
+    "This went because it looked like a JWT" is a different fact from "this
+    went because it was called password", and a reviewer wants to tell them
+    apart -- while the marker left behind is the same either way, so nothing
+    downstream has to learn a second convention.
+    """
+    return tuple(
+        dict.fromkeys(
+            match.lastgroup
+            for matcher in (_SHAPE, _SHAPE_ANY_CASE)
+            for match in matcher.finditer(text or "")
+            if match.lastgroup
+        )
+    )
+
+
+def redact_shapes(text: str) -> str:
+    """The same text with every credential-shaped run replaced.
+
+    A substitution rather than a verdict on the whole value: a shape can sit
+    inside a larger string -- a bearer scheme in free text, a PEM block in a
+    log line -- and every byte that did not match is left exactly as it
+    arrived. Text with no credential in it comes back identical, which is what
+    lets this run over a URL that must not be re-encoded.
+    """
+    if not text:
+        return text
+    return _SHAPE_ANY_CASE.sub(REDACTED, _SHAPE.sub(REDACTED, text))
+
 
 def _words_of(text: str) -> list[str]:
     """camelCase, snake_case and "Shipping Date" alike, split into words.
@@ -394,7 +483,12 @@ def redact_url(url: str) -> str:
         head = head[: query_at + 1] + _redact_query(head[query_at + 1 :])
     if "=" in fragment:
         fragment = _redact_query(fragment)
-    return head if hash_at == -1 else f"{head}#{fragment}"
+    # The shape pass runs over the whole rebuilt URL rather than only the
+    # query, because a token can sit in a path segment where there is no
+    # parameter name to judge it by. It substitutes, so a URL carrying no
+    # credential comes back byte-identical -- the property the hand-splicing
+    # above exists to keep.
+    return redact_shapes(head if hash_at == -1 else f"{head}#{fragment}")
 
 
 _XML_FIELD = re.compile(r"<([A-Za-z_][\w.:-]*)([^>]*)>([^<]*)</\1>")
@@ -490,7 +584,7 @@ def _redact_multipart(text: str, mime_type: str | None) -> str:
     return f"--{boundary}".join(parts)
 
 
-def redact_body(text: str | None, mime_type: str | None) -> str | None:
+def _redact_named(text: str | None, mime_type: str | None) -> str | None:
     """One body, whatever shape it is, with every credential-named value gone.
 
     Mirrors the extension's redactBody: JSON walked recursively (arrays and
@@ -516,6 +610,18 @@ def redact_body(text: str | None, mime_type: str | None) -> str | None:
     if "form-urlencoded" in kind or ("=" in text and "\n" not in text):
         return _redact_query(text)
     return _redact_pairs(text)
+
+
+def redact_body(text: str | None, mime_type: str | None) -> str | None:
+    """The name rule above, then the shape rule over whatever it produced.
+
+    Last and over the whole body, whatever parser ran: a shape needs no field
+    name, so it reaches a credential in a value the name rule had no name to
+    judge -- including through a body no parser fitted and through one replaced
+    by UNINSPECTABLE, where the name rule gave up entirely.
+    """
+    cleaned = _redact_named(text, mime_type)
+    return cleaned if cleaned is None else redact_shapes(cleaned)
 
 
 class RedirectHop(BaseModel):
@@ -585,8 +691,13 @@ class Request(BaseModel):
         """
         for headers in (self.request_headers, self.response_headers):
             for name in list(headers):
+                # A header nobody named a credential can still carry one: an
+                # `X-Acme-Ticket` holding a JWT is the same secret as an
+                # Authorization holding it, and only the value says so.
                 if is_secret_header(name):
                     headers[name] = REDACTED
+                else:
+                    headers[name] = redact_shapes(headers[name])
         return self
 
     @model_validator(mode="after")
@@ -603,7 +714,14 @@ class Request(BaseModel):
         self.url = redact_url(self.url)
         for body in (self.request_body, self.response_body):
             if body is not None:
+                # Read off the original text, before redact_body replaces it:
+                # a body that lost a value to the SHAPE rule says so in
+                # redacted_fields, beside the names the extension put there for
+                # the ones that went by name. Same marker in the text either
+                # way; different fact about why.
+                shaped = shapes_in(body.text)
                 body.text = redact_body(body.text, body.mime_type)
+                body.redacted_fields += [f"«shape: {shape}»" for shape in shaped]
         return self
 
 

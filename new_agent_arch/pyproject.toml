@@ -13,7 +13,17 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.3", "pytest-asyncio>=0.24", "httpx>=0.27", "ruff>=0.7", "mypy>=1.13"]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "httpx>=0.27",
+    "ruff>=0.7",
+    "mypy>=1.13",
+    # Pinned exactly: a mutation score is only comparable to the baseline it is
+    # measured against, and a new version that generates different mutants
+    # moves the number for reasons that have nothing to do with the tests.
+    "mutmut==3.7.0",
+]
 
 [build-system]
 requires = ["hatchling"]
@@ -40,3 +50,14 @@ target-version = "py312"
 [tool.mypy]
 python_version = "3.12"
 strict = true
+
+[tool.mutmut]
+# The sweeps that found most of this project's real defects were guard
+# deletions run by hand: comment a line out, see whether anything fails. This
+# is that, 2,383 times, in six and a half minutes.
+source_paths = ["src/rig/"]
+tests_dir = ["tests/"]
+# mutmut copies the tree into `mutants/` and runs there, so anything the suite
+# opens by path has to come too. The corpus fixture is the one file the tests
+# read that is not Python.
+also_copy = ["tests"]

@@ -18,13 +18,37 @@ import re
 from typing import Any
 from urllib.parse import parse_qsl, urlencode
 
-from sro.domain.recording.sensitivity import is_secret_field
+from sro.domain.recording.sensitivity import REDACTED as REDACTED
+from sro.domain.recording.sensitivity import is_secret_field, redact_shapes, shapes_in
 
-REDACTED = "«redacted»"
+# ^ Re-exported deliberately: capture.py imports the marker from here, and
+# there is one marker for every path that writes it.
 
 
 def redact_body(text: str, *, content_type: str | None) -> tuple[str, tuple[str, ...]]:
-    """Return the body with credential values removed, and their field names."""
+    """Return the body with credential values removed, and what removed them.
+
+    Two rules, and a value goes if EITHER fires. The name rule below is the
+    secondary one and has to be: a field name is chosen by whoever wrote the
+    vendor's API, an open vocabulary guessed at forever. The shape rule needs
+    no name, so it runs last and over whatever the parsers produced -- reaching
+    a credential in a field nobody thought to list, and through a body no
+    parser here fitted at all.
+
+    A shape is reported as `«shape: jwt»` rather than as a field name, because
+    "we removed this because it looked like a JWT" is a different fact from
+    "we removed this because it was called password". The marker left in the
+    text is the same either way, so nothing downstream learns a second
+    convention.
+    """
+    cleaned, removed = _redact_named(text, content_type)
+    shaped = shapes_in(cleaned)
+    if not shaped:
+        return cleaned, removed
+    return redact_shapes(cleaned), removed + tuple(f"«shape: {shape}»" for shape in shaped)
+
+
+def _redact_named(text: str, content_type: str | None) -> tuple[str, tuple[str, ...]]:
     kind = (content_type or "").lower()
     if "json" in kind or text.lstrip().startswith(("{", "[")):
         return _redact_json(text)

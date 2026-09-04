@@ -47,10 +47,19 @@
 
   const isSecretName = window.__sroIsSecretName;
   const isSecretHeader = window.__sroIsSecretHeader;
-  /** Both come from sensitivity.generated.js. If that file did not run, this
-   * one has no idea what a credential looks like, and the safe answer to
+  /** The value rule beside the name rules: a JWT, a PEM block or a bearer
+   * scheme is a credential whatever field it arrived in, and a field name is
+   * an open vocabulary chosen by whoever wrote the vendor's API. */
+  const redactShapes = window.__sroRedactShapes;
+  const shapesIn = window.__sroShapesIn;
+  /** All four come from sensitivity.generated.js. If that file did not run,
+   * this one has no idea what a credential looks like, and the safe answer to
    * "is this clean?" is no -- not "nothing matched". */
-  const canRedact = typeof isSecretName === "function" && typeof isSecretHeader === "function";
+  const canRedact =
+    typeof isSecretName === "function" &&
+    typeof isSecretHeader === "function" &&
+    typeof redactShapes === "function" &&
+    typeof shapesIn === "function";
 
   const contentTypeOf = (headers) => {
     for (const key of Object.keys(headers || {})) {
@@ -206,13 +215,21 @@
     const result = redactBody(text.slice(0, MAX_TEXT), contentType);
     if (result === null) return emptyBody(contentType, UNINSPECTABLE);
 
-    const [cleaned, redacted] = result;
+    // The shape pass runs last and over the whole body, whatever parser ran
+    // above: it needs no field name, so it reaches a credential in a value the
+    // name rule had no name to judge -- and through a body no parser fitted.
+    // Named separately in `redacted_fields` because "this went because it
+    // looked like a JWT" is a different fact from "this went because it was
+    // called password", while the marker left behind is the same either way.
+    const [named, redacted] = result;
+    const shaped = shapesIn(named);
+    const cleaned = shaped.length ? redactShapes(named) : named;
     return {
       text: cleaned,
       size_bytes: new TextEncoder().encode(cleaned).length,
       mime_type: (contentType || "").split(";")[0].trim() || null,
       encoding: null,
-      redacted_fields: redacted,
+      redacted_fields: [...redacted, ...shaped.map((shape) => `«shape: ${shape}»`)],
     };
   };
 
@@ -226,7 +243,11 @@
   const redactHeaders = (headers) => {
     const out = {};
     for (const [name, value] of Object.entries(headers || {})) {
-      out[name] = canRedact && isSecretHeader(name) ? REDACTED : value;
+      if (!canRedact) out[name] = value;
+      // A header nobody named a credential can still carry one: an
+      // `X-Acme-Ticket` holding a JWT is the same secret as an Authorization
+      // holding it, and only the value says so.
+      else out[name] = isSecretHeader(name) ? REDACTED : redactShapes(value);
     }
     return out;
   };

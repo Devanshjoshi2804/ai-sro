@@ -65,6 +65,33 @@ definitions:
           - npm test
           - npm run build
 
+    - step: &rig-quality
+        name: Rig — lint, types, tests
+        caches: [uv]
+        script:
+          - curl -LsSf https://astral.sh/uv/install.sh | sh
+          - export PATH="$HOME/.local/bin:$PATH"
+          - cd new_agent_arch
+          - uv sync --all-extras
+          - uv run ruff check .
+          - uv run ruff format --check .
+          - uv run mypy src
+          - uv run pytest -q
+
+    - step: &rig-mutation
+        name: Rig — mutation score floor
+        caches: [uv]
+        script:
+          - curl -LsSf https://astral.sh/uv/install.sh | sh
+          - export PATH="$HOME/.local/bin:$PATH"
+          - cd new_agent_arch
+          - uv sync --all-extras
+          # A passing suite says the code does what the tests say. This says
+          # whether the tests would notice if it stopped. `mutmut run` exits
+          # non-zero whenever any mutant survived, which is every run at this
+          # score, so the floor script is what decides the build.
+          - make mutants
+
     - step: &contract-is-current
         name: Contract — the committed OpenAPI matches the code
         caches: [uv]
@@ -93,6 +120,12 @@ pipelines:
           - step:
               <<: *contract-is-current
               condition: { changesets: { includePaths: ["backend/**", "frontend/openapi.json"] } }
+          - step:
+              <<: *rig-quality
+              condition: { changesets: { includePaths: ["new_agent_arch/**"] } }
+          - step:
+              <<: *rig-mutation
+              condition: { changesets: { includePaths: ["new_agent_arch/**"] } }
 
   branches:
     main:
@@ -101,3 +134,5 @@ pipelines:
           - step: *backend-tests
           - step: *frontend-quality
           - step: *contract-is-current
+          - step: *rig-quality
+          - step: *rig-mutation

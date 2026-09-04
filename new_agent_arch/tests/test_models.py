@@ -5,7 +5,15 @@ from typing import Any
 
 import pytest
 
-from rig.models import PRICES, Answer, FakeAsker, GeminiAsker, is_priced, price
+from rig.models import (
+    PRICES,
+    Answer,
+    FakeAsker,
+    GeminiAsker,
+    is_priced,
+    one_at_a_time,
+    price,
+)
 
 
 def test_a_price_is_dollars_per_million_tokens() -> None:
@@ -332,3 +340,56 @@ def test_a_preview_model_is_priced_like_what_it_previews() -> None:
     assert price("gemini-3.1-pro-preview", 250_000, 1_000) == price(
         "gemini-3.1-pro", 250_000, 1_000
     )
+
+
+def test_a_lock_belongs_to_the_loop_that_asked_for_it() -> None:
+    """`_reading` and `_mining` were module-level `asyncio.Lock()`s, so they
+    bound to whichever event loop first awaited them and every loop after that
+    got `Lock is bound to a different event loop`. Latent in production, not
+    just under a test runner: any process that restarts its loop hits it, and
+    so does any sharded or reordered CI run.
+    """
+
+    async def taken() -> asyncio.Lock:
+        async with one_at_a_time("mining") as _:
+            pass
+        return one_at_a_time("mining")
+
+    first, second = asyncio.run(taken()), asyncio.run(taken())
+
+    assert first is not second
+
+
+def test_one_loop_gets_one_lock_per_name() -> None:
+    """A fresh lock per call would exclude nothing at all, which is the way
+    this fix fails silently rather than loudly."""
+
+    async def within_one_loop() -> tuple[bool, bool]:
+        return (
+            one_at_a_time("mining") is one_at_a_time("mining"),
+            one_at_a_time("mining") is one_at_a_time("reading"),
+        )
+
+    same_name, different_names = asyncio.run(within_one_loop())
+
+    assert same_name
+    assert not different_names
+
+
+def test_the_lock_still_excludes() -> None:
+    """The property the lock exists for: the second pass waits."""
+
+    order: list[str] = []
+
+    async def pass_(name: str, hold: float) -> None:
+        async with one_at_a_time("mining"):
+            order.append(f"{name} in")
+            await asyncio.sleep(hold)
+            order.append(f"{name} out")
+
+    async def both() -> None:
+        await asyncio.gather(pass_("a", 0.01), pass_("b", 0))
+
+    asyncio.run(both())
+
+    assert order == ["a in", "a out", "b in", "b out"]

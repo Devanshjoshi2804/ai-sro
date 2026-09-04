@@ -77,6 +77,61 @@ class TestBodies:
         assert not is_secret_field(field)
 
 
+# A JWT nobody would write down: real base64url header and payload, so the
+# shape is genuine, and the word `not-a-signature` where the signature goes.
+FAKE_JWT = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJub2JvZHkifQ.not-a-signature"
+
+
+class TestValueShapes:
+    """The rule that needs no field name.
+
+    Which is the point of it: the vocabulary above missed 57 of 85 realistic
+    credential names when it was last probed, and six words added to close that
+    gap blanked three real warehouse fields. A name is an open set. A JWT is a
+    JWT whatever it is called.
+    """
+
+    def test_a_credential_goes_whatever_the_field_is_called(self) -> None:
+        cleaned, removed = redact_body(
+            json.dumps({"ticket": FAKE_JWT, "code": "ACME"}), content_type="application/json"
+        )
+
+        assert "eyJ" not in cleaned
+        assert "ACME" in cleaned
+        assert removed == ("«shape: jwt»",)
+
+    def test_a_shape_reaches_a_body_no_parser_here_fits(self) -> None:
+        """`text/plain` matches no branch and used to be returned untouched."""
+        cleaned, removed = redact_body(f"the ticket is {FAKE_JWT}", content_type="text/plain")
+
+        assert cleaned == "the ticket is «redacted»"
+        assert removed == ("«shape: jwt»",)
+
+    def test_a_private_key_loses_its_key_material_and_not_just_its_header(self) -> None:
+        pem = "-----BEGIN EC PRIVATE KEY-----\nMHcCAQEEIsomething\n-----END EC PRIVATE KEY-----"
+
+        cleaned, removed = redact_body(f"note\n{pem}\nend", content_type="text/plain")
+
+        assert cleaned == "note\n«redacted»\nend"
+        assert removed == ("«shape: private_key»",)
+
+    def test_a_body_with_no_credential_in_it_is_returned_unchanged(self) -> None:
+        """The shape pass runs over every body, so it is the newest way to
+        rewrite one that should not have been touched."""
+        body = '{"facility": "BLR1", "activityCode": "ADJAPP", "limit": 200}'
+
+        assert redact_body(body, content_type="application/json") == (body, ())
+
+    def test_both_rules_report_separately(self) -> None:
+        cleaned, removed = redact_body(
+            json.dumps({"password": "hunter2", "ticket": FAKE_JWT}),
+            content_type="application/json",
+        )
+
+        assert "hunter2" not in cleaned and "eyJ" not in cleaned
+        assert removed == ("password", "«shape: jwt»")
+
+
 FIELD = ElementFingerprint(tag="input", accessible_name="Password", css_path="form > input")
 
 

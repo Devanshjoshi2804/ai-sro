@@ -36,6 +36,42 @@ const isSecretName = (name) => {
   return words.some((word) => SECRET_WORDS.has(word)) || SECRET_WORDS.has(words.join(''));
 };
 
+// What a credential LOOKS like, whatever it is called. The words above are the
+// secondary signal and have to be: a field name is whoever wrote the vendor's
+// API's choice, an open vocabulary guessed at forever. A JWT is a JWT in any
+// field, and a warehouse dock code is never a PEM block.
+//
+// Measured over 47,969 distinct real values from the acme store plus
+// knowledge-base/http/exchanges: every pattern here matches zero of them. The
+// case-blind pair is separate because `AKIA`, `AIza` and `eyJ` are
+// case-SENSITIVE prefixes that a blind match would widen over the lowercase
+// identifiers this traffic is full of.
+const SECRET_SHAPE = new RegExp("(?<jwt>eyJ[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]*)|(?<aws_key_id>(?:AKIA|ASIA|AIDA|AROA)[A-Z0-9]{16})|(?<github_token>gh[pousr]_[A-Za-z0-9]{36,})|(?<github_pat>github_pat_[A-Za-z0-9_]{20,})|(?<google_api_key>AIza[A-Za-z0-9_-]{35})|(?<slack_token>xox[abeprs]-[A-Za-z0-9-]{10,})|(?<private_key>-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY-----(?:[\\s\\S]*?-----END (?:[A-Z0-9]+ )*PRIVATE KEY-----)?)", 'g');
+const SECRET_SHAPE_ANY_CASE = new RegExp("(?<bearer>\\bbearer\\s+[A-Za-z0-9._~+/-]{20,})|(?<basic_auth>\\bbasic\\s+[A-Za-z0-9+/]{16,}={0,2})", 'gi');
+
+// Every credential-shaped run replaced and every other byte left alone, so a
+// string with nothing in it comes back identical -- which is what lets this
+// run on a URL that must not be re-encoded.
+const redactShapes = (text) =>
+  typeof text === 'string' && text
+    ? text.replace(SECRET_SHAPE, REDACTED).replace(SECRET_SHAPE_ANY_CASE, REDACTED)
+    : text;
+
+// Which shapes are in there, first seen first, so `redacted_fields` can say
+// "this went because it looked like a JWT" rather than only that it went.
+const shapesIn = (text) => {
+  if (typeof text !== 'string' || !text) return [];
+  const found = [];
+  for (const matcher of [SECRET_SHAPE, SECRET_SHAPE_ANY_CASE]) {
+    for (const match of text.matchAll(matcher)) {
+      for (const [name, hit] of Object.entries(match.groups || {})) {
+        if (hit !== undefined && !found.includes(name)) found.push(name);
+      }
+    }
+  }
+  return found;
+};
+
 const isSecretHeader = (name) => {
   const lowered = (name || '').toLowerCase().trim();
   // An HTTP/2 pseudo-header is the request line, not a header, and never a
@@ -105,9 +141,16 @@ const redactUrl = (url) => {
     queryStart === -1
       ? head
       : head.slice(0, queryStart + 1) + redactPairs(head.slice(queryStart + 1));
-  return hashStart === -1
-    ? redacted
-    : `${redacted}#${fragment.includes('=') ? redactPairs(fragment) : fragment}`;
+  // The shape pass runs over the whole rebuilt URL, not only the query: a
+  // token can sit in a path segment, where no parameter name exists to judge
+  // it by. It substitutes rather than replaces, so a URL with no credential in
+  // it comes back byte-identical -- the property the hand-splicing above
+  // exists to keep.
+  return redactShapes(
+    hashStart === -1
+      ? redacted
+      : `${redacted}#${fragment.includes('=') ? redactPairs(fragment) : fragment}`,
+  );
 };
 
-export { isSecretName, isSecretHeader, redactUrl };
+export { isSecretName, isSecretHeader, redactUrl, redactShapes, shapesIn };

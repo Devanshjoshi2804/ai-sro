@@ -7,7 +7,23 @@ would only prove somebody retyped it consistently.
 import json
 from pathlib import Path
 
-FIXTURES = Path(__file__).parent.parent.parent / "new-chrome-extension" / "fixtures"
+
+def repo_root() -> Path:
+    """The checkout, found by looking up rather than by counting `.parent`.
+
+    A fixed count is right from `new_agent_arch/tests/` and wrong from
+    anywhere else, and a mutation run copies this whole suite into
+    `new_agent_arch/mutants/tests/` -- one directory deeper, so every fixture
+    load failed and every test in the file errored out rather than being
+    reported as a surviving mutant.
+    """
+    for parent in Path(__file__).resolve().parents:
+        if (parent / "new-chrome-extension").is_dir():
+            return parent
+    raise RuntimeError(f"no checkout above {__file__}")
+
+
+FIXTURES = repo_root() / "new-chrome-extension" / "fixtures"
 
 
 def load(name: str) -> dict:

@@ -10,7 +10,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { isSecretHeader, isSecretName, redactUrl } from "./sensitivity.module.js";
+import {
+  isSecretHeader,
+  isSecretName,
+  redactShapes,
+  redactUrl,
+  shapesIn,
+} from "./sensitivity.module.js";
 
 const REDACTED = "«redacted»";
 
@@ -179,4 +185,34 @@ test("an HTTP/2 pseudo-header is the request line, not a credential", () => {
   // And the hints still do their job on real header names.
   assert.equal(isSecretHeader("X-Vault-Token"), true);
   assert.equal(isSecretHeader("X-Auth-Key"), true);
+});
+
+// A JWT nobody would write down: real base64url header and payload, so the
+// shape is genuine, and the word `not-a-signature` where the signature goes.
+const FAKE_JWT = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJub2JvZHkifQ.not-a-signature";
+
+test("a credential in a path segment has no name to be judged by", () => {
+  assert.equal(
+    redactUrl(`https://wms.example/reset/${FAKE_JWT}?facility=BLR1`),
+    `https://wms.example/reset/${REDACTED}?facility=BLR1`,
+  );
+});
+
+test("the shape pass leaves a URL carrying no credential byte-identical", () => {
+  const url = "https://wms.example/app?tag=a&tag=b&q=a+b&note=two%20words#view=picking";
+  assert.equal(redactUrl(url), url);
+});
+
+test("shapesIn names every rule that fired, once each, first seen first", () => {
+  assert.deepEqual(shapesIn(`${FAKE_JWT} AKIAIOSFODNN7EXAMPLE ${FAKE_JWT}`), [
+    "jwt",
+    "aws_key_id",
+  ]);
+  assert.deepEqual(shapesIn("facility=BLR1&limit=200"), []);
+});
+
+test("a private key loses its key material and not just its header", () => {
+  const pem =
+    "-----BEGIN EC PRIVATE KEY-----\nMHcCAQEEIsomething\n-----END EC PRIVATE KEY-----";
+  assert.equal(redactShapes(`note\n${pem}\nend`), `note\n${REDACTED}\nend`);
 });

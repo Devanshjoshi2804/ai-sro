@@ -1,5 +1,4 @@
 import json
-import pathlib
 import re
 from collections.abc import Callable
 
@@ -15,9 +14,17 @@ from rig.trim import (
     thin,
     trim,
 )
-from rig.wire import Batch, Body, Request, Target, _words_of
+from rig.wire import (
+    SECRET_SHAPES,
+    SECRET_SHAPES_ANY_CASE,
+    Batch,
+    Body,
+    Request,
+    Target,
+    _words_of,
+)
 from rig.wire import Gesture as WireGesture
-from tests.fixtures import BATCH, GESTURE_TYPE
+from tests.fixtures import BATCH, GESTURE_TYPE, repo_root
 
 
 def _typed_gesture():
@@ -214,9 +221,7 @@ def test_a_field_is_secret_by_its_words_and_not_by_its_letters() -> None:
 
 
 def _extension_source() -> str:
-    source = pathlib.Path(__file__).parents[2] / (
-        "new-chrome-extension/src/content/sensitivity.module.js"
-    )
+    source = repo_root() / "new-chrome-extension/src/content/sensitivity.module.js"
     return source.read_text(encoding="utf-8")
 
 
@@ -292,6 +297,53 @@ def test_the_copied_word_splitter_still_matches_the_extension() -> None:
         "",
     ):
         assert _words_of(name) == theirs(name), f"the two splitters disagree about {name!r}"
+
+
+def _shape_declared_in_the_extension(name: str) -> str:
+    """The pattern string inside the extension's `const <name> = new RegExp(...)`.
+
+    A JSON string rather than a `/.../` literal on that side, because two of
+    these patterns carry a `/` inside a character class and hand-escaping a
+    slash is exactly how the two copies stop being the same expression. So
+    `json.loads` gives back the pattern itself, byte for byte.
+    """
+    declared = re.search(rf"const {name} = new RegExp\((\".*?\"), '", _extension_source())
+    assert declared, f"the extension's {name} declaration moved"
+    return json.loads(declared.group(1))
+
+
+def _as_javascript(shapes: tuple[tuple[str, str], ...]) -> str:
+    """The rig's alternation spelled the way JavaScript spells it.
+
+    One character of difference in the whole rule: `(?P<name>)` in Python is
+    `(?<name>)` in JavaScript. Everything either engine could read differently
+    -- a class, a quantifier, an escape -- is compared here literally.
+    """
+    return "|".join(f"(?<{name}>{pattern})" for name, pattern in shapes)
+
+
+def test_the_copied_secret_shapes_still_match_the_extension() -> None:
+    """The shape rule is hand-copied from the generated extension module the
+    same way SECRET_WORDS is, and a value rule that silently stops matching
+    what the browser matches is worse than no value rule: the browser's copy
+    runs first, so the rig's is the one that catches what a browser was made
+    not to run."""
+    assert _as_javascript(SECRET_SHAPES) == _shape_declared_in_the_extension("SECRET_SHAPE")
+    assert _as_javascript(SECRET_SHAPES_ANY_CASE) == _shape_declared_in_the_extension(
+        "SECRET_SHAPE_ANY_CASE"
+    )
+
+
+def test_the_case_blind_shapes_are_the_only_case_blind_ones() -> None:
+    """`AKIA`, `AIza` and `eyJ` are case-SENSITIVE prefixes, and matching them
+    blind widens each one over the lowercase identifiers this traffic is full
+    of. The split only holds if both sides put the same patterns in the same
+    half, so the flags are checked too."""
+    flags = re.findall(
+        r"const SECRET_SHAPE\w* = new RegExp\(\".*?\", '(\w+)'\)", _extension_source()
+    )
+    assert flags == ["g", "gi"], flags
+    assert not set(dict(SECRET_SHAPES)) & set(dict(SECRET_SHAPES_ANY_CASE))
 
 
 def test_the_copied_marker_still_matches_the_extension() -> None:

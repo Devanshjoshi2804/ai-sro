@@ -1,6 +1,5 @@
 """One pass, end to end: pack, ask, check, resolve, store, age the pool."""
 
-import asyncio
 import json
 import logging
 import secrets
@@ -16,7 +15,7 @@ from rig.checks import (
     validate,
 )
 from rig.identity import Resolution, resolve
-from rig.models import Asker
+from rig.models import Asker, one_at_a_time
 from rig.pool import add_unclaimed, age_pool, pool_ids
 from rig.records import Gesture, Intent
 from rig.shape import shape_key
@@ -34,7 +33,6 @@ log = logging.getLogger("rig")
 # see a row that has not been written yet. This pass costs a 150K-token call to
 # the pro model, so the race is far more expensive here than it is there.
 # ponytail: a process-local lock, because the rig is one process.
-_mining = asyncio.Lock()
 
 
 def new_pass_id() -> str:
@@ -79,7 +77,7 @@ class MineResult:
 
 
 async def mine(store: Store, *, tenant: str, asker: Asker, model: str, kb: str = "") -> MineResult:
-    async with _mining:
+    async with one_at_a_time("mining"):
         return await _one_pass(store, tenant=tenant, asker=asker, model=model, kb=kb)
 
 

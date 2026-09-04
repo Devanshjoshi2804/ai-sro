@@ -275,6 +275,110 @@ redacting rather than only the code that checks it afterwards.
 
 _SECRET_TOKENS = SECRET_TOKENS
 
+
+REDACTED = "«redacted»"
+"""The one marker. A value taken out by shape is indistinguishable in the
+output from one taken out by name, on purpose: `redaction.py`, the rig and the
+extension all write these exact characters, and a second convention would mean
+a reviewer grepping stored evidence for it found only some of the holes."""
+
+
+SECRET_SHAPES: tuple[tuple[str, str], ...] = (
+    ("jwt", r"eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]*"),
+    ("aws_key_id", r"(?:AKIA|ASIA|AIDA|AROA)[A-Z0-9]{16}"),
+    ("github_token", r"gh[pousr]_[A-Za-z0-9]{36,}"),
+    ("github_pat", r"github_pat_[A-Za-z0-9_]{20,}"),
+    ("google_api_key", r"AIza[A-Za-z0-9_-]{35}"),
+    ("slack_token", r"xox[abeprs]-[A-Za-z0-9-]{10,}"),
+    # The whole block, not the BEGIN line: a pattern that matched only the
+    # header would replace it and leave the base64 key material sitting under
+    # a marker that says it was removed. The END clause is optional so a
+    # truncated capture still loses its opening line.
+    (
+        "private_key",
+        (
+            r"-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY-----"
+            r"(?:[\s\S]*?-----END (?:[A-Z0-9]+ )*PRIVATE KEY-----)?"
+        ),
+    ),
+)
+"""What a credential looks like, regardless of what it is called.
+
+The name lists above are the secondary signal, and they have to be: a field
+name is chosen by whoever wrote the vendor's API -- an open vocabulary, guessed
+at forever, against systems nobody here controls. Six words added to close
+gaps in that vocabulary blanked three real warehouse fields in the same round,
+and the comment justifying them was measured on a subset and was false at full
+size. A value shape is not open in the same way. A JWT is a JWT whatever the
+field is called, and a warehouse dock code is never a PEM block.
+
+Measured over 47,969 distinct string values from the real acme store plus
+knowledge-base/http/exchanges -- the values, not the names, which nothing had
+ever measured: every pattern here matches ZERO of them, so the whole set costs
+no live evidence. `new_agent_arch/tests/test_corpus.py` is that measurement as
+a test, and fails naming the value if one ever starts matching.
+
+High-entropy detection is deliberately absent. Measured over the same values,
+a Shannon threshold of 4.5 bits on runs of 20+ token characters blanks 791 of
+them, 4.0 blanks 14,419 and 3.5 blanks 21,250 -- warehouse activity codes and
+`self_uri` URLs, not credentials. There is no threshold between "useless" and
+"destroys the evidence": 5.0 blanks nothing at all. It stays out.
+"""
+
+SECRET_SHAPES_ANY_CASE: tuple[tuple[str, str], ...] = (
+    ("bearer", r"\bbearer\s+[A-Za-z0-9._~+/-]{20,}"),
+    ("basic_auth", r"\bbasic\s+[A-Za-z0-9+/]{16,}={0,2}"),
+)
+"""The two shapes that are a scheme name plus a blob, and so are case-blind.
+
+Separate from the set above rather than folded into it with an inline flag:
+`AKIA`, `AIza` and `eyJ` are case-SENSITIVE prefixes and matching them blind
+widens each one over the lowercase identifiers this corpus is full of. Two
+expressions, one of each kind, is what both engines read the same way --
+JavaScript's inline `(?i:...)` is too new to rely on in a content script.
+"""
+
+
+def _shape_matcher(shapes: tuple[tuple[str, str], ...], flags: int = 0) -> re.Pattern[str]:
+    return re.compile("|".join(f"(?P<{name}>{pattern})" for name, pattern in shapes), flags)
+
+
+_SHAPE = _shape_matcher(SECRET_SHAPES)
+_SHAPE_ANY_CASE = _shape_matcher(SECRET_SHAPES_ANY_CASE, re.IGNORECASE)
+
+
+def shapes_in(text: str) -> tuple[str, ...]:
+    """Which credential shapes appear in this text, in the order first seen.
+
+    Separate from the redaction so a body can say *why* it lost something.
+    "We redacted this because it looked like a JWT" is a different fact from
+    "we redacted this because it was called password", and a reviewer wants to
+    tell them apart -- while the marker left behind stays the same either way,
+    so nothing downstream has to learn a second convention.
+    """
+    found = dict.fromkeys(
+        match.lastgroup
+        for matcher in (_SHAPE, _SHAPE_ANY_CASE)
+        for match in matcher.finditer(text or "")
+        if match.lastgroup
+    )
+    return tuple(found)
+
+
+def redact_shapes(text: str) -> str:
+    """The same text with every credential-shaped run replaced.
+
+    A substitution rather than a whole-value verdict: a shape can sit inside a
+    larger string -- a bearer scheme in free text, a PEM block in a log line --
+    and every byte that did not match is left exactly as it arrived. Text with
+    no credential in it comes back identical, which is what lets this run on a
+    URL that must not be re-encoded.
+    """
+    if not text:
+        return text
+    return _SHAPE_ANY_CASE.sub(REDACTED, _SHAPE.sub(REDACTED, text))
+
+
 # camelCase, snake_case, kebab-case and "Shipping Date" alike, split into words.
 # One rule, three copies: this one, `wordsOf` in recorder.js, and the rig's
 # `_words_of`. They must stay identical, and did not: this used to be a
@@ -292,7 +396,10 @@ _SECRET_TOKENS = SECRET_TOKENS
 # real acme capture plus knowledge-base/http/exchanges: the two-or-more rule
 # changes nothing at all, the naive rule wrongly blanks two, and this file's
 # previous findall wrongly blanked those same two.
-_ACRONYM_BOUNDARY = ((re.compile(r"([a-z0-9])([A-Z])"), r"\1 \2"), (re.compile(r"([A-Z]{2,})([A-Z][a-z])"), r"\1 \2"))
+_ACRONYM_BOUNDARY = (
+    (re.compile(r"([a-z0-9])([A-Z])"), r"\1 \2"),
+    (re.compile(r"([A-Z]{2,})([A-Z][a-z])"), r"\1 \2"),
+)
 _NOT_LETTERS = re.compile(r"[^A-Za-z]+")
 
 

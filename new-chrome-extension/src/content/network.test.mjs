@@ -136,6 +136,35 @@ const base = {
   assert.ok(body.text.includes("alice"));
 }
 
+// A JWT nobody would write down: real base64url header and payload, so the
+// shape is genuine, and the word `not-a-signature` where the signature goes.
+const FAKE_JWT = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJub2JvZHkifQ.not-a-signature";
+
+// The shape rule: `ticket` is in no vocabulary and never will be, because a
+// field name is whoever wrote the vendor's API's choice. Only the value says
+// what it is, and redacted_fields says which rule took it.
+{
+  const [sent] = run({
+    ...base,
+    request_headers: { "content-type": "application/json" },
+    request_body_text: JSON.stringify({ code: "ACME", ticket: FAKE_JWT }),
+  });
+  const body = sent.request.request_body;
+  assert.deepStrictEqual(body.redacted_fields, ["\u00abshape: jwt\u00bb"]);
+  assert.ok(!body.text.includes("eyJ"));
+  assert.ok(body.text.includes("ACME"), "ordinary field survives redaction");
+}
+
+// A header nobody named a credential can still carry one.
+{
+  const [sent] = run({
+    ...base,
+    request_headers: { "x-acme-ticket": FAKE_JWT, accept: "application/json" },
+  });
+  assert.strictEqual(sent.request.request_headers["x-acme-ticket"], "\u00abredacted\u00bb");
+  assert.strictEqual(sent.request.request_headers.accept, "application/json");
+}
+
 // No body: request_body stays null rather than an empty object.
 {
   const [sent] = run(base);

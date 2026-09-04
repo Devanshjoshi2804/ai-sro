@@ -42,6 +42,8 @@ from sro.domain.recording.sensitivity import (
     _CSRF_HEADERS,
     _CSRF_HINTS,
     _SESSION_COOKIE_HINTS,
+    SECRET_SHAPES,
+    SECRET_SHAPES_ANY_CASE,
     SECRET_TOKENS,
 )
 from sro.infrastructure.steel.capture import _recorder_script
@@ -73,11 +75,26 @@ _PURPOSE = """// The redaction rules: which field names and which header names n
 """
 
 
+def _shape_source(shapes: tuple[tuple[str, str], ...]) -> str:
+    """One alternation, as a JSON string for `new RegExp`.
+
+    A string rather than a `/.../` literal because two of these patterns
+    contain a `/` inside a character class, and hand-escaping a slash is
+    exactly how the two sides stop being the same expression. JavaScript spells
+    a named group `(?<name>)` where Python spells it `(?P<name>)`; that one
+    character is the whole difference, and `test_the_copied_secret_shapes...`
+    on the rig side re-derives these from this file to prove it.
+    """
+    return json.dumps("|".join(f"(?<{name}>{pattern})" for name, pattern in shapes))
+
+
 def _rules() -> str:
     """The rules themselves, as plain declarations both realms can wrap."""
     words = json.dumps(sorted(SECRET_TOKENS))
     auth_headers = json.dumps(sorted(_AUTH_HEADERS | _CSRF_HEADERS))
     header_hints = json.dumps(sorted({*_CSRF_HINTS, *_SESSION_COOKIE_HINTS, "cookie"}))
+    shapes = _shape_source(SECRET_SHAPES)
+    shapes_any_case = _shape_source(SECRET_SHAPES_ANY_CASE)
     return f"""const SECRET_WORDS = new Set({words});
 const SECRET_HEADERS = new Set({auth_headers});
 const SECRET_HEADER_HINTS = {header_hints};
@@ -99,6 +116,42 @@ const wordsOf = (text) =>
 const isSecretName = (name) => {{
   const words = wordsOf(name);
   return words.some((word) => SECRET_WORDS.has(word)) || SECRET_WORDS.has(words.join(''));
+}};
+
+// What a credential LOOKS like, whatever it is called. The words above are the
+// secondary signal and have to be: a field name is whoever wrote the vendor's
+// API's choice, an open vocabulary guessed at forever. A JWT is a JWT in any
+// field, and a warehouse dock code is never a PEM block.
+//
+// Measured over 47,969 distinct real values from the acme store plus
+// knowledge-base/http/exchanges: every pattern here matches zero of them. The
+// case-blind pair is separate because `AKIA`, `AIza` and `eyJ` are
+// case-SENSITIVE prefixes that a blind match would widen over the lowercase
+// identifiers this traffic is full of.
+const SECRET_SHAPE = new RegExp({shapes}, 'g');
+const SECRET_SHAPE_ANY_CASE = new RegExp({shapes_any_case}, 'gi');
+
+// Every credential-shaped run replaced and every other byte left alone, so a
+// string with nothing in it comes back identical -- which is what lets this
+// run on a URL that must not be re-encoded.
+const redactShapes = (text) =>
+  typeof text === 'string' && text
+    ? text.replace(SECRET_SHAPE, REDACTED).replace(SECRET_SHAPE_ANY_CASE, REDACTED)
+    : text;
+
+// Which shapes are in there, first seen first, so `redacted_fields` can say
+// "this went because it looked like a JWT" rather than only that it went.
+const shapesIn = (text) => {{
+  if (typeof text !== 'string' || !text) return [];
+  const found = [];
+  for (const matcher of [SECRET_SHAPE, SECRET_SHAPE_ANY_CASE]) {{
+    for (const match of text.matchAll(matcher)) {{
+      for (const [name, hit] of Object.entries(match.groups || {{}})) {{
+        if (hit !== undefined && !found.includes(name)) found.push(name);
+      }}
+    }}
+  }}
+  return found;
 }};
 
 const isSecretHeader = (name) => {{
@@ -170,9 +223,16 @@ const redactUrl = (url) => {{
     queryStart === -1
       ? head
       : head.slice(0, queryStart + 1) + redactPairs(head.slice(queryStart + 1));
-  return hashStart === -1
-    ? redacted
-    : `${{redacted}}#${{fragment.includes('=') ? redactPairs(fragment) : fragment}}`;
+  // The shape pass runs over the whole rebuilt URL, not only the query: a
+  // token can sit in a path segment, where no parameter name exists to judge
+  // it by. It substitutes rather than replaces, so a URL with no credential in
+  // it comes back byte-identical -- the property the hand-splicing above
+  // exists to keep.
+  return redactShapes(
+    hashStart === -1
+      ? redacted
+      : `${{redacted}}#${{fragment.includes('=') ? redactPairs(fragment) : fragment}}`,
+  );
 }};
 """
 
@@ -199,6 +259,8 @@ def sensitivity_source() -> str:
         + "\n  window.__sroIsSecretName = isSecretName;\n"
         + "  window.__sroIsSecretHeader = isSecretHeader;\n"
         + "  window.__sroRedactUrl = redactUrl;\n"
+        + "  window.__sroRedactShapes = redactShapes;\n"
+        + "  window.__sroShapesIn = shapesIn;\n"
         + "})();\n"
     )
 
@@ -216,7 +278,7 @@ def sensitivity_module_source() -> str:
         + "//\n// Service-worker half: a module, because that worker has no window and "
         + "no\n// content script runs for a webNavigation event.\n\n"
         + _rules()
-        + "\nexport { isSecretName, isSecretHeader, redactUrl };\n"
+        + "\nexport { isSecretName, isSecretHeader, redactUrl, redactShapes, shapesIn };\n"
     )
 
 

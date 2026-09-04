@@ -10,7 +10,7 @@ storage, no opt-out), and this process reads live customer payloads.
 import asyncio
 import json
 from dataclasses import dataclass
-from typing import Any, Protocol
+from typing import Any, Literal, Protocol
 
 # Dollars per million tokens, (input, output).
 PRICES: dict[str, tuple[float, float]] = {
@@ -41,6 +41,14 @@ def is_priced(model: str) -> bool:
     return model in PRICES
 
 
+# The levels the SDK accepts. Narrowed to a Literal rather than left as str
+# because google-genai does not reject an unknown one: ThinkingLevel("nonsense")
+# returns a pseudo-member carrying the typo straight to the API on 2.22.0. A
+# constant that silently means "model default" is the exact failure wiring
+# K_EFFORT was meant to close, one layer down, so mypy catches it instead.
+Effort = Literal["minimal", "low", "medium", "high"]
+
+
 @dataclass(frozen=True, slots=True)
 class Answer:
     data: dict[str, Any] | None = None
@@ -64,11 +72,11 @@ class Asker(Protocol):
         evidence: str,
         schema: dict[str, Any],
         image: bytes | None = None,
-        effort: str | None = None,
+        effort: Effort | None = None,
     ) -> Answer: ...
 
 
-def build_config(*, schema: dict[str, Any], effort: str | None = None) -> Any:
+def build_config(*, schema: dict[str, Any], effort: Effort | None = None) -> Any:
     """The config every call uses. No tools, ever — see the module docstring."""
     from google.genai import types
 
@@ -104,7 +112,7 @@ class GeminiAsker:
         evidence: str,
         schema: dict[str, Any],
         image: bytes | None = None,
-        effort: str | None = None,
+        effort: Effort | None = None,
     ) -> Answer:
         from google.genai import types
 
@@ -183,7 +191,7 @@ class FakeAsker:
         evidence: str,
         schema: dict[str, Any],
         image: bytes | None = None,
-        effort: str | None = None,
+        effort: Effort | None = None,
     ) -> Answer:
         # Yield, because the real thing does. Without a suspension point this
         # double never lets another task interleave, so any test racing two

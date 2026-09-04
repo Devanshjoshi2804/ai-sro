@@ -220,3 +220,20 @@ async def test_a_parameter_with_no_name_is_not_a_parameter() -> None:
     )
 
     assert [p["name"] for p in workflows[0].parameters] == ["code"]
+
+
+def test_strength_never_reaches_the_prompt() -> None:
+    """Telling a model which evidence is most relevant was measured to reduce
+    accuracy, so strength orders the window and is never stated. That was held
+    structurally -- build_prompt serialises item.evidence and never the Packed
+    -- and structure is not a regression test."""
+    window = _window()
+    for item in window.items:
+        item.strength = 99.0
+        item.tokens = 4242
+
+    prompt = build_prompt(window, {}, [], "")
+
+    assert "99.0" not in prompt
+    assert "4242" not in prompt
+    assert "strength" not in prompt.lower()

@@ -10,12 +10,12 @@ show a significant positive relationship with accuracy.
 import json
 from typing import Any
 
-from rig.models import Answer, Asker
+from rig.models import Answer, Asker, Effort
 from rig.window import Window
 from rig.workflows import Step, Workflow, new_workflow_id
 
 K_SAMPLES = 1
-K_EFFORT = "high"
+K_EFFORT: Effort = "high"
 
 INSTRUCTIONS = """You are reading a stretch of one warehouse operator's working day.
 

@@ -18,6 +18,15 @@ PRICES: dict[str, tuple[float, float]] = {
     "gemini-3-flash": (0.50, 3.00),
     "gemini-3.1-flash-lite": (0.25, 1.50),
     "gemini-3.1-pro": (2.00, 12.00),  # doubles to (4, 18) above 200K
+    # A preview is priced like the model it previews. Without these rows a real
+    # pass on a preview name records cost_usd 0.0 with unpriced=True -- which is
+    # honest, and useless: the measurement run that proved this architecture
+    # works billed $1.12 and every row said free. A name missing from this table
+    # is the one failure mode `unpriced` cannot fix, because nothing downstream
+    # can price a call the table never knew about.
+    "gemini-3.1-pro-preview": (2.00, 12.00),
+    "gemini-3-flash-preview": (0.50, 3.00),
+    "gemini-3.8-flash-preview": (0.75, 3.75),
 }
 
 LONG_PROMPT_TOKENS = 200_000
@@ -25,6 +34,7 @@ LONG_PROMPT_TOKENS = 200_000
 # Above a 200K-token prompt, Gemini 3.1 Pro's rates double.
 LONG_PROMPT_PRICES: dict[str, tuple[float, float]] = {
     "gemini-3.1-pro": (4.00, 18.00),
+    "gemini-3.1-pro-preview": (4.00, 18.00),
 }
 
 

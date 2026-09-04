@@ -69,9 +69,11 @@ class _FakeModels:
     def __init__(self, respond: Any) -> None:
         self._respond = respond
         self.last_config: Any = None
+        self.last_contents: Any = None
 
     async def generate_content(self, *, model: str, contents: Any, config: Any) -> Any:
         self.last_config = config
+        self.last_contents = contents
         return self._respond()
 
 
@@ -236,13 +238,15 @@ def test_the_config_carries_the_effort_and_still_no_tools() -> None:
     assert not getattr(config, "tools", None)
 
 
-def test_no_effort_leaves_the_model_default_alone() -> None:
+def test_no_effort_builds_no_thinking_config() -> None:
     from rig.models import build_config
 
     assert build_config(schema={"type": "object"}).thinking_config is None
 
 
 async def test_gemini_asker_hands_the_effort_to_the_config() -> None:
+    from google.genai import types
+
     usage = SimpleNamespace(prompt_token_count=1, candidates_token_count=1)
     response = SimpleNamespace(text="{}", usage_metadata=usage)
     client, models = _fake_client(lambda: response)
@@ -256,4 +260,22 @@ async def test_gemini_asker_hands_the_effort_to_the_config() -> None:
         effort="low",
     )
 
-    assert models.last_config.thinking_config is not None
+    # The level, not just the wire: hardcoding "high" inside GeminiAsker left
+    # an is-not-None assertion green.
+    assert models.last_config.thinking_config.thinking_level == types.ThinkingLevel.LOW
+
+
+async def test_an_empty_instruction_is_not_sent_as_an_empty_part() -> None:
+    """umbrella.py passes instructions="" on purpose -- the prompt states the
+    task at both ends and owns it. That reached the SDK as a leading
+    Part(text=''), which some endpoints reject."""
+    usage = SimpleNamespace(prompt_token_count=1, candidates_token_count=1)
+    response = SimpleNamespace(text="{}", usage_metadata=usage)
+    client, models = _fake_client(lambda: response)
+    asker = GeminiAsker(api_key="unused", client=client)
+
+    await asker.ask(
+        model="gemini-3.8-flash", instructions="", evidence="e", schema={"type": "object"}
+    )
+
+    assert models.last_contents == ["e"]

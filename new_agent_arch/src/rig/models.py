@@ -116,7 +116,10 @@ class GeminiAsker:
     ) -> Answer:
         from google.genai import types
 
-        parts: list[Any] = [instructions, evidence]
+        # A falsy instruction would otherwise ship as a leading Part(text=''):
+        # benign in the SDK, and rejected by some endpoints. umbrella.py passes
+        # instructions="" on every call.
+        parts: list[Any] = [part for part in (instructions, evidence) if part]
         if image is not None:
             parts.append(types.Part.from_bytes(data=image, mime_type="image/png"))
 

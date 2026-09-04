@@ -129,6 +129,16 @@ def _as_workflow(raw: object, tenant: str, answer: Answer) -> Workflow | None:
             )
         )
 
+    # Renumbered only when the model repeated itself. store.py declares
+    # PRIMARY KEY (workflow_id, ord), so two steps at order 1 is a workflow that
+    # cannot be saved -- and "order": 1 twice is schema-valid, so it is an
+    # ordinary model slip rather than a broken answer. An answer that numbered
+    # its steps correctly keeps its own numbering.
+    steps.sort(key=lambda step: step.order)
+    if len({step.order for step in steps}) != len(steps):
+        for position, step_out in enumerate(steps):
+            step_out.order = position
+
     return Workflow(
         id=new_workflow_id(),
         tenant=tenant,

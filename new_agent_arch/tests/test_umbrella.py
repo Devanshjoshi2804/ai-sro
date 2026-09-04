@@ -1,4 +1,9 @@
+from dataclasses import replace
+from pathlib import Path
+from typing import Any
+
 from rig.models import Answer, FakeAsker
+from rig.store import Store
 from rig.umbrella import (
     INSTRUCTIONS,
     K_EFFORT,
@@ -8,6 +13,7 @@ from rig.umbrella import (
     propose,
 )
 from rig.window import Packed, Window
+from rig.workflows import Workflow, known_workflows, save_workflow
 
 MODEL = "gemini-3.1-pro"
 
@@ -43,6 +49,26 @@ def _answer(**over) -> Answer:
         ]
     }
     return Answer(data={**base, **over}, in_tokens=1000, out_tokens=200, cost_usd=0.004)
+
+
+def _one(**over: Any) -> dict[str, Any]:
+    """The well-formed workflow out of `_answer`, with fields replaced."""
+    data = _answer().data
+    assert data is not None
+    return {**data["workflows"][0], **over}
+
+
+async def _propose_one(workflow: dict[str, Any]) -> list[Workflow]:
+    workflows, _ = await propose(
+        _window(),
+        {},
+        [],
+        "",
+        asker=FakeAsker(_answer(workflows=[workflow])),
+        model=MODEL,
+        tenant="acme",
+    )
+    return workflows
 
 
 def test_the_schema_puts_the_citations_before_the_sentence() -> None:
@@ -101,6 +127,20 @@ async def test_the_pass_carries_its_own_cost() -> None:
     assert workflows[0].unpriced is False
 
 
+async def test_an_unpriced_pass_says_so_on_the_workflow() -> None:
+    """`unpriced` exists because a $0.00 row and an honestly-unpriced row look
+    the same in cost_usd alone. The False above is also the Answer default, so
+    it cannot tell a carried field from a hardcoded one."""
+    unpriced = replace(_answer(), cost_usd=0.0, unpriced=True)
+
+    workflows, _ = await propose(
+        _window(), {}, [], "", asker=FakeAsker(unpriced), model=MODEL, tenant="acme"
+    )
+
+    assert workflows[0].cost_usd == 0.0
+    assert workflows[0].unpriced is True
+
+
 async def test_a_refusal_proposes_nothing_and_says_why() -> None:
     workflows, answer = await propose(
         _window(),
@@ -131,6 +171,109 @@ async def test_a_malformed_answer_does_not_take_the_pass_down() -> None:
         )
 
         assert workflows == []
+
+
+async def test_a_steps_list_that_is_not_a_list_costs_the_workflow() -> None:
+    """The test above malforms the workflows list. A model is at least as
+    likely to return a good list with a bad `steps` in it, and every guard
+    below that line had nothing exercising it."""
+    for junk in ("one two three", 7, None, {"a": "dict"}):
+        assert await _propose_one(_one(steps=junk)) == []
+
+
+async def test_a_step_that_is_not_a_step_is_dropped() -> None:
+    """`steps` is a list, so the workflow stands -- but 1 has no .get()."""
+    for junk in ([1, 2, 3], [None], ["one", "two"], [["order", 0]]):
+        workflows = await _propose_one(_one(steps=junk))
+
+        assert workflows[0].steps == []
+
+
+async def test_a_junk_field_inside_a_step_falls_back_to_nothing() -> None:
+    """says, system, cites and parameters, one level below where the malformed
+    answer test stops."""
+    workflows = await _propose_one(
+        _one(steps=[{"order": 0, "says": 7, "system": 7, "cites": "ges_1", "parameters": "code"}])
+    )
+    step = workflows[0].steps[0]
+
+    assert step.says == ""
+    assert step.system is None
+    assert step.cites == []
+    assert step.parameters == []
+
+    workflows = await _propose_one(
+        _one(
+            steps=[
+                {
+                    "order": 0,
+                    "says": "s",
+                    "system": "https://wms.example",
+                    "cites": ["ges_1", 7, None],
+                    "parameters": ["code", 7],
+                }
+            ]
+        )
+    )
+    step = workflows[0].steps[0]
+
+    assert step.cites == ["ges_1"]
+    assert step.parameters == ["code"]
+
+
+async def test_a_junk_field_beside_the_steps_falls_back_to_nothing() -> None:
+    """title, narrative, systems, unproven and same_as."""
+    workflows = await _propose_one(
+        _one(title=7, narrative=7, systems="wms", unproven="ges_2", same_as=7)
+    )
+    workflow = workflows[0]
+
+    assert workflow.title == ""
+    assert workflow.narrative == ""
+    assert workflow.systems == []
+    assert workflow.unproven == []
+    assert workflow.same_as is None
+
+    workflows = await _propose_one(_one(systems=["a", 7], unproven=["ges_2", None]))
+
+    assert workflows[0].systems == ["a"]
+    assert workflows[0].unproven == ["ges_2"]
+
+
+async def test_two_steps_claiming_the_same_order_can_still_be_stored(tmp_path: Path) -> None:
+    """PRIMARY KEY (workflow_id, ord). "order": 1 twice is schema-valid, so a
+    model that repeats itself produced a workflow that raised IntegrityError on
+    the way into the store."""
+    workflows = await _propose_one(
+        _one(
+            steps=[
+                {"order": 1, "cites": ["ges_1"], "says": "first"},
+                {"order": 1, "cites": ["ges_2"], "says": "second"},
+            ]
+        )
+    )
+    store = Store(tmp_path / "rig.db")
+    store.migrate()
+
+    save_workflow(store, workflows[0])
+    back = known_workflows(store, "acme")
+
+    assert [step.order for step in workflows[0].steps] == [0, 1]
+    assert len(back[0].steps) == 2
+
+
+async def test_steps_the_model_numbered_itself_keep_their_numbering() -> None:
+    """Renumbering is for a repeated order, not for every answer."""
+    workflows = await _propose_one(
+        _one(
+            steps=[
+                {"order": 5, "cites": ["ges_1"], "says": "first"},
+                {"order": 9, "cites": ["ges_2"], "says": "second"},
+            ]
+        )
+    )
+
+    assert [step.order for step in workflows[0].steps] == [5, 9]
 
 
 async def test_one_sample_by_default() -> None:

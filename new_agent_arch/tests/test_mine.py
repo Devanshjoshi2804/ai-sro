@@ -401,3 +401,36 @@ async def test_a_gesture_the_budget_left_out_is_read_by_the_next_pass(tmp_path: 
     # weak gestures that displaced the tail last pass are this pass's tail.
     assert second.window_size == 25
     assert second.left_out == len(tail)
+
+
+async def test_a_pass_that_keeps_nothing_still_says_it_read_the_window(tmp_path: Path) -> None:
+    """A proposal that resolved onto a stored workflow still read the window and
+    still cited real gestures. Measured on real output: an identity re-run
+    proposed three, kept none, reported coverage 0.00 with lopsided=True -- and
+    re-pooled every gesture those proposals cited -- while having read the whole
+    window correctly."""
+    store = _store(tmp_path)
+    ids = _ids(store)
+
+    first = await mine(
+        store,
+        tenant="acme",
+        asker=FakeAsker(Answer(data={"workflows": [_proposal(ids)]}, cost_usd=0.01)),
+        model="gemini-3.1-pro",
+    )
+    assert first.kept == 1
+
+    again = await mine(
+        store,
+        tenant="acme",
+        asker=FakeAsker(Answer(data={"workflows": [_proposal(ids)]}, cost_usd=0.01)),
+        model="gemini-3.1-pro",
+    )
+
+    assert again.kept == 0, "the same job again is not a new workflow"
+    assert again.rejections == [], "it was not refused, it was recognised"
+    assert again.coverage.coverage > 0.0, "it read the window; coverage must say so"
+    assert not again.lopsided, "a correct pass that keeps nothing is not lopsided"
+    assert set(ids).isdisjoint(pool_ids(store, "acme")), (
+        "evidence a stored workflow already explains must not be re-pooled"
+    )

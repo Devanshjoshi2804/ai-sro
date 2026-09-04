@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""
     ingest_token: str = "dev-only-not-a-secret"
     intent_model: str = "gemini-3.8-flash"
-    mine_model: str = "gemini-3.1-pro"
+    mine_model: str = "gemini-3.1-pro-preview"
     tenant: str = "new"
 
 

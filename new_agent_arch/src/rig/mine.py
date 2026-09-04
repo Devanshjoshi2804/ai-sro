@@ -167,6 +167,15 @@ async def _one_pass(store: Store, *, tenant: str, asker: Asker, model: str, kb: 
     evidence = {item.gesture_id: by_id[item.gesture_id].system or "" for item in window.items}
 
     kept: list[Workflow] = []
+    # Every proposal that survived validate, whether or not it was saved. A
+    # proposal that resolved onto a stored workflow still read the window and
+    # still cited real gestures -- it produced no new row, which is not the
+    # same as having explained nothing. Measured: an identity re-run proposed
+    # three, kept none, and reported coverage 0.00 with lopsided=True while
+    # having read the whole window correctly. `kept` answers "what is new";
+    # this answers "what was accounted for", and coverage and the pool both
+    # want the second.
+    placed: list[Workflow] = []
     for proposal in proposals:
         rejection = validate(proposal, evidence)
         if rejection is not None:
@@ -182,18 +191,19 @@ async def _one_pass(store: Store, *, tenant: str, asker: Asker, model: str, kb: 
         # both read an empty store and both saved.
         resolution = resolve(proposal, known + kept)
         result.resolutions.append(resolution)
+        placed.append(proposal)
         if resolution.kind == "new":
             proposal.pass_id = pass_id
             save_workflow(store, proposal)
             kept.append(proposal)
 
     result.kept = len(kept)
-    result.coverage = coverage(kept, window)
+    result.coverage = coverage(placed, window)
     result.lopsided = (
         result.coverage.coverage < K_MIN_COVERAGE or abs(result.coverage.skew) > K_MAX_SKEW
     )
 
-    claimed = {c for w in kept for c in cited_ids(w)}
+    claimed = {c for w in placed for c in cited_ids(w)}
     # window.left_out is pooled beside what the pass read and could not place.
     # Evidence the budget dropped never got a FIRST look, which is a worse case
     # than the 74% recall the pool exists for, not an exempt one -- and left

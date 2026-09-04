@@ -8,13 +8,41 @@
  */
 export const MIRROR_TIMEOUT_MS = 5000;
 
+/** Whether a configured mirror base may be posted to at all.
+ *
+ * What travels this path is a copy of every batch of live customer WMS
+ * traffic, and the base comes from a free-text options field with no default
+ * host. `mirrorTo` is silent about failure on purpose, so a typo that still
+ * parses -- or a pasted `javascript:` or `file:` value -- would send the lot
+ * somewhere else with no signal anywhere. The check therefore happens before
+ * the fetch rather than being left to the operator's typing.
+ *
+ * Scheme and shape only, and deliberately no host allowlist: this is a
+ * development second reader pointed at whatever the person debugging happens
+ * to be running, and an allowlist with nobody named to maintain it is a list
+ * that gets switched off the first time it is inconvenient. The other half of
+ * this is the options page refusing to *save* a value that fails here, so a
+ * rejected configuration is visible where it was typed.
+ */
+export function isMirrorable(base) {
+  if (typeof base !== "string" || !base) return false;
+  try {
+    const { protocol } = new URL(base);
+    return protocol === "http:" || protocol === "https:";
+  } catch {
+    // Not an absolute URL. A relative path would be resolved against the
+    // extension's own origin, which is not a rig.
+    return false;
+  }
+}
+
 export async function mirrorTo(
   base,
   token,
   path,
   { body, form, fetcher = fetch, timeoutMs = MIRROR_TIMEOUT_MS } = {},
 ) {
-  if (!base) return;
+  if (!isMirrorable(base)) return;
   try {
     const options = { method: "POST", headers: {} };
     if (token) options.headers.Authorization = `Bearer ${token}`;

@@ -143,6 +143,23 @@ SECRET_TOKENS = frozenset(
         "onetimecode",
         "onetimepasscode",
         "verificationcode",
+        # A session is a credential for as long as it lives, and `{"sessionId":
+        # "..."}` in a request body was redacted nowhere: these words were in
+        # the header lists on both sides and in neither field list, so the
+        # header form was dropped and the body form stored verbatim.
+        #
+        # Safe here only because this rule matches whole words. Measured over
+        # the 217 distinct field names in this tenant's captured evidence: none
+        # of the six matches, while as substrings they would blank five real
+        # fields -- `addressId`, `codAddressId`, `shipperAddressId` and
+        # `residentialAddress` all contain "sid", and `NLSSORTSetting` contains
+        # "sso". They must never be copied into a substring rule.
+        "session",
+        "cookie",
+        "jwt",
+        "bearer",
+        "sso",
+        "saml",
     }
 )
 """Every word that names a credential, in one place.

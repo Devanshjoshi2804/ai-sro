@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { mirrorSafely, mirrorTo } from "./mirror.js";
+import { isMirrorable, mirrorSafely, mirrorTo } from "./mirror.js";
 
 test("a mirror posts the same body to the second base", async () => {
   const seen = [];
@@ -76,4 +76,38 @@ test("no rig configured means no request at all", async () => {
   await mirrorTo("", "t", "/v1/observations", { body: {}, fetcher });
 
   assert.equal(called, false);
+});
+
+// --- Open item 1: what travels here is live customer traffic ----------------
+
+test("a mirror URL that is not http(s) is refused without a fetch", async () => {
+  // The field is free text with no default host, mirrorTo is silent about
+  // failure by design, and what goes down this path is a copy of every batch
+  // of live customer WMS traffic. A value that is not an absolute http(s) URL
+  // must not produce a request at all.
+  for (const base of ["javascript:fetch('//evil')", "file:///etc/passwd", "/v1", "not a url", ""]) {
+    let called = false;
+    const fetcher = async () => {
+      called = true;
+      return { ok: true };
+    };
+
+    await mirrorTo(base, "t", "/v1/observations", { body: {}, fetcher });
+
+    assert.equal(called, false, `${base} was posted to`);
+    assert.equal(isMirrorable(base), false, `${base} was judged mirrorable`);
+  }
+});
+
+test("an ordinary https rig still mirrors", async () => {
+  const seen = [];
+  const fetcher = async (url) => {
+    seen.push(url);
+    return { ok: true };
+  };
+
+  await mirrorTo("https://rig.example:8100", "t", "/v1/observations", { body: {}, fetcher });
+
+  assert.deepEqual(seen, ["https://rig.example:8100/v1/observations"]);
+  assert.equal(isMirrorable("http://localhost:8100"), true);
 });

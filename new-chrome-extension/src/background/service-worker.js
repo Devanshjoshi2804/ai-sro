@@ -6,6 +6,7 @@
 import { api, ApiError } from "./api.js";
 import * as channel from "./channel.js";
 import { abort, isDriving, performing, RUN_QUIET_MS } from "./commands.js";
+import { isMirrorable } from "./mirror.js";
 import * as queue from "./queue.js";
 import { redactUrl } from "../content/sensitivity.module.js";
 import {
@@ -665,6 +666,20 @@ async function handle(message, sender) {
       // Its own message rather than part of sign-in: sign-in clears the device
       // registration, and an optional second reader is not worth re-registering
       // a browser for.
+      //
+      // Refused here, not only in mirror.js: the mirror is silent about
+      // failure by design -- it must never reach upload.js's decision about a
+      // batch the backend already took -- and that silence would make a typo
+      // in this field indistinguishable from a rig that is merely down. A
+      // rejected *configuration* is not a network failure, and belongs in
+      // front of the person who typed it. The options page renders this
+      // string.
+      if (message.rigUrl && !isMirrorable(message.rigUrl)) {
+        return {
+          error:
+            "the rig URL was not saved: it must be an absolute http:// or https:// address",
+        };
+      }
       await state.setRigUrl(message.rigUrl || "");
       // A blank token means "leave it alone", not "clear it". status() does not
       // return the token, so the field is empty every time the page renders,

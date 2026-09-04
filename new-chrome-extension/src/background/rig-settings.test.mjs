@@ -101,3 +101,17 @@ test("a blank URL clears both the URL and the token", async () => {
   assert.equal(held.get("sro.rigUrl"), "");
   assert.equal(held.get("sro.rigToken"), "");
 });
+
+test("a rig URL that is not http(s) is refused, and says so where it was typed", async () => {
+  // mirrorTo would drop this silently -- correctly, since the mirror must
+  // never reach upload.js's decision -- and the operator would never learn the
+  // field was wrong. A rejected configuration is not a network failure.
+  held.clear();
+  held.set("sro.rigUrl", "http://localhost:8100");
+  held.set("sro.rigToken", "tok-1");
+
+  const answer = await sendRig({ rigUrl: "javascript:fetch('//evil')", rigToken: "" });
+
+  assert.match(answer.error ?? "", /http/, "the options page was told nothing");
+  assert.equal(held.get("sro.rigUrl"), "http://localhost:8100", "the bad URL was saved anyway");
+});

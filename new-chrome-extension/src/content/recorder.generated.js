@@ -55,7 +55,7 @@
   // Substituted from sensitivity.SECRET_TOKENS when this file is injected --
   // there is one list, on the Python side, and this used to be a second copy of
   // it that drifted. Injection fails loudly rather than shipping the marker.
-  const SECRET_WORDS = new Set(["accesstoken", "apikey", "credential", "credentials", "cvv", "mfa", "onetimecode", "onetimepasscode", "otp", "pass", "passcode", "passphrase", "passwd", "password", "pin", "pwd", "refreshtoken", "secret", "securityanswer", "securitycode", "ssn", "token", "verificationcode"]);
+  const SECRET_WORDS = new Set(["accesstoken", "apikey", "bearer", "cookie", "credential", "credentials", "cvv", "jwt", "mfa", "onetimecode", "onetimepasscode", "otp", "pass", "passcode", "passphrase", "passwd", "password", "pin", "pwd", "refreshtoken", "saml", "secret", "securityanswer", "securitycode", "session", "ssn", "sso", "token", "verificationcode"]);
   const wordsOf = (text) =>
     (text || '')
       .replace(/([a-z0-9])([A-Z])/g, '$1 $2')

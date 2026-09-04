@@ -576,25 +576,9 @@ def test_the_page_escapes_what_it_draws() -> None:
     would pass with escaping dropped from `why`, `error`, `kind` or the stream
     list -- which is most of the places captured text reaches innerHTML.
     """
-    import shutil
-    import subprocess
-
-    node = shutil.which("node")
-    if node is None:
-        pytest.skip("node is not installed")
-
-    page = (Path(__file__).parent.parent / "src" / "rig" / "web" / "index.html").read_text()
-    script = page.split("<script>")[1].split("</script>")[0]
-    # The page's own code, minus the part that talks to the network.
-    script = script.split('document.getElementById("stream").addEventListener')[0]
-
     attack = "<img src=x onerror=alert(1)>"
-    harness = (
-        # Node has no `location` global; the page's first line reads
-        # location.search before line() is ever defined, let alone called.
-        "globalThis.location = { search: '' };\n"
-        + script
-        + f"""
+    out = _run_page(
+        f"""
         const g = {{
           kind: {json.dumps(attack)}, calls: 0,
           intent: {{
@@ -608,16 +592,8 @@ def test_the_page_escapes_what_it_draws() -> None:
         """
     )
 
-    out = subprocess.run(
-        [node, "--input-type=module", "-e", harness],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-
-    assert out.returncode == 0, out.stderr
-    assert "<img src=x" not in out.stdout, "captured text reached the page unescaped"
-    assert "&lt;img src=x onerror=alert(1)&gt;" in out.stdout
+    assert "<img src=x" not in out, "captured text reached the page unescaped"
+    assert "&lt;img src=x onerror=alert(1)&gt;" in out
 
 
 def test_an_artifact_cannot_be_written_outside_by_its_kind_either(
@@ -789,7 +765,30 @@ async def test_the_reading_task_is_held_until_it_finishes(
 # --- Finding 4: unpriced, in the one place a human reads it -------------------
 
 
-def _run_page(tail: str) -> str:
+def _browser(href: str = "http://rig.test/") -> str:
+    """The browser the page runs in, as much of it as the page's top level uses.
+
+    `location.href` rather than only `location.search`, because the page reads
+    the token out of the whole URL and then puts a shortened one back through
+    `history.replaceState` -- the point of which is that the credential stops
+    being in the address bar. Both `history` and `sessionStorage` record what
+    they were given, so a test can read them back.
+    """
+    return f"""
+globalThis.location = {{ href: {json.dumps(href)} }};
+globalThis.history = {{
+  replaced: [],
+  replaceState(_state, _title, url) {{ this.replaced.push(url); }},
+}};
+globalThis.sessionStorage = {{
+  held: new Map(),
+  getItem(key) {{ return this.held.has(key) ? this.held.get(key) : null; }},
+  setItem(key, value) {{ this.held.set(key, String(value)); }},
+}};
+"""
+
+
+def _run_page(tail: str, browser: str | None = None) -> str:
     """The page's own script in node, minus the part that talks to the network.
 
     Running it beats grepping the file: a substring check passes with escaping
@@ -806,7 +805,7 @@ def _run_page(tail: str) -> str:
     script = page.split("<script>")[1].split("</script>")[0]
     script = script.split('document.getElementById("stream").addEventListener')[0]
     out = subprocess.run(
-        [node, "--input-type=module", "-e", "globalThis.location={search:''};\n" + script + tail],
+        [node, "--input-type=module", "-e", (browser or _browser()) + script + tail],
         capture_output=True,
         text=True,
         check=False,
@@ -1264,6 +1263,61 @@ def test_a_pass_over_the_route_accounts_for_every_workflow_it_proposed(
     assert body["left_out"] == 0
     assert body["lost_pool"] == []
     assert body["coverage"]["lopsided"] is True
+
+
+# --- Open item 2: the rig's own token out of the browser's address bar --------
+
+
+def test_the_token_arrives_in_the_url_and_does_not_stay_there() -> None:
+    """`?token=...` is the rig's credential in browser history, in every
+    screenshot of this window, and in the referrer of anything the page loads.
+    Arriving that way is how the operator gets here; still being there
+    afterwards is the defect. The page's own `readToken()` runs at module load,
+    so this reads back what it did to the address bar."""
+    out = _run_page(
+        """
+        console.log(JSON.stringify({
+          sent: head.headers.Authorization,
+          bar: history.replaced,
+          kept: sessionStorage.getItem(TOKEN_KEY),
+        }));
+        """,
+        browser=_browser("http://rig.test/console?stream=str_1&token=sup3r-secret#top"),
+    )
+    seen = json.loads(out)
+
+    assert seen["sent"] == "Bearer sup3r-secret", "the token from the URL was not used"
+    assert seen["kept"] == "sup3r-secret", "nothing would survive the address-bar wipe"
+    assert seen["bar"] == ["/console?stream=str_1#top"], (
+        "the token is still in the address bar, or the rest of the URL was lost with it"
+    )
+    assert "sup3r-secret" not in seen["bar"][0]
+
+
+def test_a_reload_with_no_token_in_the_url_still_has_one() -> None:
+    """The wipe is only safe if the second load still authenticates. Calling
+    `readToken()` again with a bare URL is that second load: sessionStorage is
+    the same tab's, and the token has to come back out of it."""
+    out = _run_page(
+        """
+        const first = readToken();
+        globalThis.location = { href: "http://rig.test/console" };
+        console.log(JSON.stringify([first, readToken()]));
+        """,
+        browser=_browser("http://rig.test/console?token=sup3r-secret"),
+    )
+
+    assert json.loads(out) == ["sup3r-secret", "sup3r-secret"]
+
+
+def test_no_token_anywhere_falls_back_to_the_rig_s_own_default() -> None:
+    """Absent means "assume a rig left at its defaults", not "send nothing and
+    draw a blank page". `config.py`'s `ingest_token` default is this string, so
+    a scratch rig is reachable with no token in the URL at all -- and a rig
+    with a real token answers 401, which the console reports."""
+    out = _run_page("console.log(head.headers.Authorization);")
+
+    assert out.strip() == "Bearer dev-only-not-a-secret"
 
 
 def test_a_pass_the_model_refused_is_not_a_pass_that_found_nothing(store: Store) -> None:

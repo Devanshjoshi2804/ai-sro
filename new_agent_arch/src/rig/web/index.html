@@ -71,8 +71,31 @@
 <main id="jobs" hidden></main>
 
 <script>
-  const token = new URLSearchParams(location.search).get("token") || "dev-only-not-a-secret";
-  const head = { headers: { Authorization: "Bearer " + token } };
+  // Out of the URL once, then out of the URL for good. `?token=...` in the
+  // address bar is the rig's credential written into browser history, into
+  // every screenshot of this window, and into the referrer of anything this
+  // page loads. Take it on arrival -- that is how the operator gets here --
+  // wipe the address bar, and hold it for the rest of the tab in
+  // sessionStorage, which a reload survives and another tab cannot read.
+  //
+  // The fallback is `config.py`'s own default ingest token, so a rig left at
+  // its defaults is reachable with no token anywhere: absent means "assume the
+  // default", not "send nothing and draw an empty page". A rig with a real
+  // token answers 401 and the console says so rather than going blank.
+  const TOKEN_KEY = "rig.token";
+
+  function readToken() {
+    const here = new URL(location.href);
+    const given = here.searchParams.get("token");
+    if (given) {
+      sessionStorage.setItem(TOKEN_KEY, given);
+      here.searchParams.delete("token");
+      history.replaceState(null, "", here.pathname + here.search + here.hash);
+    }
+    return sessionStorage.getItem(TOKEN_KEY) || "dev-only-not-a-secret";
+  }
+
+  const head = { headers: { Authorization: "Bearer " + readToken() } };
 
   async function get(path) {
     const response = await fetch(path, head);

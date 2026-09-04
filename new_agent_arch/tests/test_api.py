@@ -474,3 +474,21 @@ def test_the_page_escapes_what_it_draws() -> None:
     assert out.returncode == 0, out.stderr
     assert "<img src=x" not in out.stdout, "captured text reached the page unescaped"
     assert "&lt;img src=x onerror=alert(1)&gt;" in out.stdout
+
+
+def test_an_artifact_cannot_be_written_outside_by_its_kind_either(
+    client: TestClient, tmp_path: Path
+) -> None:
+    """batch_id was checked and `kind` was not, though both are form fields and
+    both go into the path. The sibling answered 201 and wrote the bytes."""
+    escape = tmp_path / "escaped"
+
+    answer = client.post(
+        "/v1/observations/artifacts",
+        data={"batch_id": "bat_1", "kind": "../" * 12 + str(escape).lstrip("/")},
+        files={"file": ("s.png", b"PWNED", "image/png")},
+        headers=_auth(),
+    )
+
+    assert answer.status_code == 400
+    assert not escape.with_name("escaped-x.png").exists()

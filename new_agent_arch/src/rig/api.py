@@ -313,11 +313,21 @@ def build_app(
             # rather than by blacklisting characters, which is the check that
             # actually holds.
             raise HTTPException(status_code=400, detail="batch_id is not a usable name")
-        blob.mkdir(parents=True, exist_ok=True)
         name = f"{kind}-{frame_index if frame_index is not None else 'x'}.png"
+        target = (blob / name).resolve()
+        if not target.is_relative_to(root):
+            # `kind` is a form field too, and it was interpolated into the name
+            # with nothing checking it -- so the check above held for batch_id
+            # while its sibling wrote anywhere this process can reach. Proved:
+            # kind="../../..{tmp}/x" answered 201 and left the bytes there.
+            # The check belongs on the path actually written rather than on the
+            # directory, because a directory that is inside the root says
+            # nothing about a name that climbs back out of it.
+            raise HTTPException(status_code=400, detail="kind is not a usable name")
+        blob.mkdir(parents=True, exist_ok=True)
         data = await file.read()
-        (blob / name).write_bytes(data)
-        return {"uri": str(blob / name), "size_bytes": len(data)}
+        target.write_bytes(data)
+        return {"uri": str(target), "size_bytes": len(data)}
 
     @app.get("/v1/streams", dependencies=[Depends(authorised)])
     def streams() -> dict[str, Any]:

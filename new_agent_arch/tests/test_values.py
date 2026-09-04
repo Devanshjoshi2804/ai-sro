@@ -3,6 +3,7 @@ from dataclasses import replace
 from rig.correlate import correlate
 from rig.records import Gesture, Intent, ValueSeen
 from rig.values import (
+    K_MIN_LONE_WORD,
     K_MIN_VALUE_LEN,
     K_UBIQUITY,
     frequencies_over,
@@ -59,8 +60,14 @@ def test_a_credential_value_is_never_a_link() -> None:
 
 
 def test_something_too_short_links_nothing() -> None:
+    """Two floors, because a lone word and a phrase collide at different
+    lengths. K_MIN_VALUE_LEN is the floor for anything with a separator in it;
+    a bare word has to clear K_MIN_LONE_WORD, since `test` in five
+    applications is a coincidence and `Test Drive LLC` in three is a carrier."""
     assert trivial("SG", 0.0) is True
-    assert trivial("x" * K_MIN_VALUE_LEN, 0.0) is False
+    assert trivial("x" * K_MIN_VALUE_LEN, 0.0) is True, "a lone word this short collides"
+    assert trivial("x" * K_MIN_LONE_WORD, 0.0) is False
+    assert trivial("x" * K_MIN_VALUE_LEN + " y", 0.0) is False, "two words clear the lower floor"
 
 
 def test_a_value_on_every_call_is_furniture() -> None:
@@ -266,3 +273,30 @@ def test_a_non_str_value_from_the_store_does_not_take_the_crossing_down() -> Non
     )
 
     assert "42" in typed_values(gesture, intent)
+
+
+def test_a_lone_short_word_is_not_a_crossing() -> None:
+    """`test` is exactly K_MIN_VALUE_LEN and, on an all-tabs day, appeared in
+    five hosts at ubiquity 0.025 -- under the furniture threshold, over the
+    length floor, published as a cross-system link. A junk crossing is worse
+    than noise: strength uses crossings to pull evidence INTO the window."""
+    assert trivial("test", 0.0)
+    assert trivial("open", 0.0)
+    assert trivial("save", 0.0)
+
+
+def test_a_real_identifier_is_kept_however_it_is_spelled() -> None:
+    """Blocklisting the word was the obvious fix and the corpus refuses it:
+    `Test Drive LLC` is a real carrier in this tenant's capture and a genuine
+    crossing, and it contains `Test` as a whole word. Every value below is from
+    the real store."""
+    for value in (
+        "Test Drive LLC",
+        "AITEST9",
+        "Enveyo",
+        "005-BEST METHOD",
+        "ConnectShip (TanData)",
+        "SHONEK TRANSPORTATION INC",
+        "Process Work Status Change For Storage Equipment",
+    ):
+        assert not trivial(value, 0.0), value

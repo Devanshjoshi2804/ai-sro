@@ -21,6 +21,26 @@ K_WINDOW_TOKENS = 150_000
 K_MIN_GESTURES = 25
 K_MAX_GESTURE_TOKENS = 2_000
 K_ENDS = 12
+K_POOL_WAIT = 0.5
+"""What each pass of waiting adds, on top of K_POOL_BONUS.
+
+Without it the carry-over is a flat bonus, which reorders nothing: every pooled
+entry gains the same 0.5, the ranking is what it was, and the window shows the
+same strongest items every pass. Measured on a synthetic all-tabs day of 3,240
+gestures across five hosts -- the scale watching every tab produces -- passes
+two through ten packed the identical 468 gestures, and ten passes had shown 19%
+of the day. Running more passes did not help and never would have.
+
+So waiting earns priority. An entry the budget has passed over six times
+outranks a stronger one that has been read six times, and the day rotates
+through the window instead of the same head of it repeating. This is ordinary
+anti-starvation scheduling, and the pool needed it the moment a day stopped
+fitting in one window.
+
+It compounds with K_POOL_AGE rather than fighting it: an entry rises for six
+passes, and if six readings still do not place it, it retires from privilege
+and competes on merit."""
+
 K_POOL_BONUS = 0.5
 """What a carried-over gesture is worth over a fresh one of the same shape.
 

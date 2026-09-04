@@ -142,6 +142,28 @@ def age_pool(store: Store, tenant: str, shown: Iterable[str] | None = None) -> i
     return passes + stale
 
 
+def waiting(store: Store, tenant: str) -> list[PoolEntry]:
+    """Live entries with the age each has waited.
+
+    `pool_ids` answers "what is carried"; this answers "and how long has it
+    been waiting", which is what stops a window repeating itself. See
+    window.K_POOL_WAIT.
+    """
+    return [
+        PoolEntry(
+            gesture_id=row["gesture_id"],
+            tenant=row["tenant"],
+            age=row["age"],
+            entered_at=row["entered_at"],
+            reason=row["reason"],
+        )
+        for row in store.query(
+            "SELECT * FROM pool WHERE tenant = ? AND retired = 0 ORDER BY entered_at, gesture_id",
+            (tenant,),
+        )
+    ]
+
+
 def pool_ids(store: Store, tenant: str) -> list[str]:
     return [
         row["gesture_id"]

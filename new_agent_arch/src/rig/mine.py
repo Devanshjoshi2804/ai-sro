@@ -15,13 +15,13 @@ from rig.checks import (
 )
 from rig.identity import Resolution, resolve
 from rig.models import Asker, one_at_a_time
-from rig.pool import add_unclaimed, age_pool, pool_ids
+from rig.pool import add_unclaimed, age_pool, waiting
 from rig.records import Gesture, Intent
 from rig.shape import shape_key
 from rig.store import Store
 from rig.umbrella import propose
 from rig.values import frequencies_over, shared_values
-from rig.window import Packed, as_evidence, evidence_tokens, pack, strength
+from rig.window import K_POOL_WAIT, Packed, as_evidence, evidence_tokens, pack, strength
 from rig.workflows import Workflow, cited_ids, known_workflows, save_workflow
 
 log = logging.getLogger("rig")
@@ -144,15 +144,25 @@ async def _one_pass(store: Store, *, tenant: str, asker: Asker, model: str, kb: 
     # nothing -- so it is named here rather than disappearing from a list
     # comprehension. Nothing deletes a gesture today, which is exactly why the
     # day something does, this is the only line that would have noticed.
-    pooled_ids = pool_ids(store, tenant)
+    carried = waiting(store, tenant)
+    pooled_ids = [entry.gesture_id for entry in carried]
     lost = [gesture_id for gesture_id in pooled_ids if gesture_id not in by_id]
     if lost:
         log.warning("%d pooled gesture(s) have no row: %s", len(lost), ", ".join(lost))
-    pooled = [
-        _packed(by_id[gesture_id], intents.get(gesture_id), linked)
-        for gesture_id in pooled_ids
-        if gesture_id in by_id
-    ]
+    # Waiting earns priority. A flat carry-over bonus reorders nothing, so the
+    # window showed the same strongest items every pass: on a 3,240-gesture
+    # all-tabs day, passes two through ten packed the identical 468 and ten
+    # passes had shown 19% of the day. K_POOL_WAIT per pass waited is what
+    # rotates the day through the window. pack() adds its flat K_POOL_BONUS on
+    # top of whatever strength arrives here.
+    pooled = []
+    for entry in carried:
+        gesture = by_id.get(entry.gesture_id)
+        if gesture is None:
+            continue
+        item = _packed(gesture, intents.get(entry.gesture_id), linked)
+        item.strength += entry.age * K_POOL_WAIT
+        pooled.append(item)
     # `pooled_ids` is the LIVE pool, so a retired gesture lands in `fresh` and is
     # packed at its own strength. That is what retirement means here -- see
     # pool.K_POOL_AGE: the entry loses K_POOL_BONUS after six readings, not its

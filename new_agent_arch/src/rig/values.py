@@ -26,6 +26,26 @@ K_UBIQUITY = 0.25
 
 _NEVER = frozenset({"true", "false", "null", "none", "0", "1", ""})
 
+K_MIN_LONE_WORD = 6
+"""A value that is one bare word has to be longer than one that is not.
+
+`test` is exactly K_MIN_VALUE_LEN and, on an all-tabs day, appeared in five
+hosts at a ubiquity of 0.025 -- under the furniture threshold, over the length
+floor, and so published as a cross-system link. A junk crossing is worse than
+noise: `strength` uses crossings to pull evidence INTO the window, so it
+displaces real signal.
+
+Blocklisting the word is what this looked like it needed, and the corpus says
+otherwise: `Test Drive LLC` is a real carrier in this tenant's capture and a
+genuine crossing, and it contains `Test` as a whole word. The same trap as
+`pin` in `shippingPhone`.
+
+What actually separates them is shape. A lone short word collides by accident
+across five applications; two words, or one long one, do not. Measured over
+every distinct value in the real capture: this rejects `test` and keeps
+`AITEST9`, `Enveyo`, `Test Drive LLC`, `005-BEST METHOD`, `ConnectShip
+(TanData)` and every other real identifier."""
+
 
 def typed_values(gesture: Gesture, intent: Intent | None) -> set[str]:
     """What this gesture put into the world: what was typed, and what a reading
@@ -59,7 +79,12 @@ def typed_values(gesture: Gesture, intent: Intent | None) -> set[str]:
 def trivial(value: str, frequency: float) -> bool:
     """Too short, too common, or a literal that means nothing on its own."""
     text = str(value).strip()
-    return len(text) < K_MIN_VALUE_LEN or text.lower() in _NEVER or frequency > K_UBIQUITY
+    if len(text) < K_MIN_VALUE_LEN or text.lower() in _NEVER or frequency > K_UBIQUITY:
+        return True
+    # One bare word, and a short one: `test` in five applications is a
+    # coincidence, `Test Drive LLC` in three is a carrier.
+    lone = not any(character in text for character in " -_/.:@")
+    return lone and len(text) < K_MIN_LONE_WORD
 
 
 def frequencies_over(gestures: list[Gesture], intents: dict[str, Intent]) -> dict[str, float]:

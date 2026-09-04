@@ -183,3 +183,16 @@ async def test_a_reading_it_could_not_price_says_so() -> None:
     intent = await read_gesture(_gestures()[0], tail=[], asker=asker, model=MODEL)
 
     assert intent.unpriced is True
+
+
+async def test_a_credential_the_model_echoed_back_is_never_stored() -> None:
+    """The third place values_seen went unguarded, and the only one that
+    reaches storage: save_intent writes this verbatim and GET /v1/gestures
+    serves it back. The field name is kept; the value is not."""
+    gesture = next(g for g in _gestures() if g.gesture.secret)
+    asker = FakeAsker(_answer(values_seen=[{"field": "password", "value": "hunter2"}]))
+
+    intent = await read_gesture(gesture, tail=[], asker=asker, model=MODEL)
+
+    assert [seen.value for seen in intent.values_seen] == [""]
+    assert [seen.field for seen in intent.values_seen] == ["password"]

@@ -1,6 +1,17 @@
+from pathlib import Path
+
+from rig.api import save_intent
 from rig.correlate import correlate
 from rig.records import Intent, ValueSeen
-from rig.values import K_MIN_VALUE_LEN, shared_values, trivial, typed_values
+from rig.store import Store
+from rig.values import (
+    K_MIN_VALUE_LEN,
+    K_UBIQUITY,
+    frequencies_over,
+    shared_values,
+    trivial,
+    typed_values,
+)
 from rig.wire import Batch
 from tests.fixtures import BATCH
 
@@ -90,3 +101,83 @@ def test_a_value_in_two_systems_is_a_crossing() -> None:
 
     assert "TestYonder2" in crossings
     assert set(crossings["TestYonder2"]) == {gestures[0].id, gestures[1].id}
+
+
+def test_furniture_with_whitespace_around_it_is_still_furniture() -> None:
+    """trivial() and frequencies_over() strip; shared_values did not, so the
+    frequency lookup missed and furniture at 1.0 was published as a link."""
+    gestures = _gestures()[:2]
+    gestures[0].system = "https://wms.example"
+    gestures[1].system = "https://sap.example"
+    intents = {
+        g.id: Intent(
+            gesture_id=g.id,
+            tenant="acme",
+            values_seen=[ValueSeen(field="site", value=" DC1-WAREHOUSE ")],
+        )
+        for g in gestures
+    }
+
+    assert shared_values(gestures, intents, {"DC1-WAREHOUSE": 1.0}) == {}
+
+
+def test_one_value_written_four_ways_is_one_crossing() -> None:
+    """Otherwise a real crossing splits into several and none of them cross."""
+    gestures = _gestures()[:2]
+    gestures[0].system = "https://wms.example"
+    gestures[1].system = "https://sap.example"
+    intents = {
+        gestures[0].id: Intent(
+            gesture_id=gestures[0].id,
+            tenant="acme",
+            values_seen=[ValueSeen(field="supplier", value="Supplier-X")],
+        ),
+        gestures[1].id: Intent(
+            gesture_id=gestures[1].id,
+            tenant="acme",
+            values_seen=[ValueSeen(field="supplier", value="Supplier-X\n")],
+        ),
+    }
+
+    crossings = shared_values(gestures, intents, {})
+
+    assert set(crossings) == {"Supplier-X"}
+    assert set(crossings["Supplier-X"]) == {gestures[0].id, gestures[1].id}
+
+
+def test_a_gesture_with_no_known_system_does_not_make_a_crossing() -> None:
+    """An unknown system is not a second system. `system or ""` made it one, so
+    one unattributable gesture beside one real system reported a crossing."""
+    gestures = _gestures()[:2]
+    gestures[0].system = None
+    gestures[1].system = "https://sap.example"
+    intents = {
+        g.id: Intent(
+            gesture_id=g.id,
+            tenant="acme",
+            values_seen=[ValueSeen(field="supplier", value="SUPPLIER-X")],
+        )
+        for g in gestures
+    }
+
+    assert shared_values(gestures, intents, {}) == {}
+
+
+def test_a_value_named_twice_in_one_reading_is_one_reading(tmp_path: Path) -> None:
+    """K_UBIQUITY is a coverage fraction. Counting mentions instead of readings
+    marked a value seen in a single reading out of ten as furniture at 0.3 and
+    dropped it from every crossing."""
+    store = Store(tmp_path / "rig.db")
+    store.migrate()
+    for n in range(10):
+        seen = (
+            [ValueSeen(field="supplier", value="SUPPLIER-X")] * 2
+            if n == 0
+            else [ValueSeen(field="site", value="DC1-WAREHOUSE")]
+        )
+        save_intent(store, Intent(gesture_id=f"ges_{n}", tenant="acme", values_seen=seen))
+
+    frequencies = frequencies_over(store, "acme")
+
+    assert frequencies["SUPPLIER-X"] == 0.1
+    assert frequencies["SUPPLIER-X"] <= K_UBIQUITY

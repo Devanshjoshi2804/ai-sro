@@ -8,6 +8,12 @@ another is that signal, and it is arithmetic over evidence already stored.
 
 A hint, not a gate: this is handed to the umbrella pass as a labelled section
 and the model decides what it means. Nothing is joined on this score alone.
+
+This is arithmetic over what was typed and what a reading reported, and it
+never reads gesture.requests. A value that appears only inside another
+system's request body is therefore found only when the model echoed it into
+values_seen -- trim() does put body_keys in front of the model, so the path
+exists, but it runs through the model rather than around it.
 """
 
 import json
@@ -47,7 +53,7 @@ def typed_values(gesture: Gesture, intent: Intent | None) -> set[str]:
 
 def trivial(value: str, frequency: float) -> bool:
     """Too short, too common, or a literal that means nothing on its own."""
-    text = value.strip()
+    text = str(value).strip()
     return len(text) < K_MIN_VALUE_LEN or text.lower() in _NEVER or frequency > K_UBIQUITY
 
 
@@ -63,8 +69,15 @@ def frequencies_over(store: Store, tenant: str) -> dict[str, float]:
 
     counts: dict[str, int] = defaultdict(int)
     for row in rows:
-        for seen in json.loads(row["values_seen"] or "[]"):
-            value = str(seen.get("value", "")).strip()
+        # Per reading, not per mention. K_UBIQUITY is a coverage fraction --
+        # "a value carried by a quarter of everything" -- so a value named five
+        # times inside one reading is one reading. Counting mentions returned
+        # 5.0 for that case, and, far more damagingly, marked a value that
+        # appeared three times in a single reading out of ten as furniture at
+        # 0.3 and dropped it from every crossing.
+        for value in {
+            str(seen.get("value", "")).strip() for seen in json.loads(row["values_seen"] or "[]")
+        }:
             if value:
                 counts[value] += 1
     return {value: count / len(rows) for value, count in counts.items()}
@@ -78,10 +91,24 @@ def shared_values(
     """Values appearing in more than one system, and the gestures carrying them."""
     seen: dict[str, list[tuple[str, str]]] = defaultdict(list)
     for gesture in gestures:
+        # A gesture whose system could not be established contributes nothing.
+        # An unknown system is not a second system, and `system or ""` made it
+        # one -- so one unattributable gesture beside one real system reported
+        # a crossing. Same rule correlate._owner already applies to requests.
+        if not gesture.system:
+            continue
         for value in typed_values(gesture, intents.get(gesture.id)):
-            if trivial(value, frequencies.get(value, 0.0)):
+            # Stripped once, here, and used for both the frequency lookup and
+            # the key. trivial() and frequencies_over() strip; this did not, so
+            # the lookup missed and furniture at frequency 1.0 was published as
+            # a link -- while one real crossing split four ways across
+            # "Supplier-X", " Supplier-X" and "Supplier-X\n" became no crossing
+            # at all. Not case-folded: the fixture has a `D3`, and welding
+            # codes that differ only in case is the worse error.
+            text = value.strip()
+            if trivial(text, frequencies.get(text, 0.0)):
                 continue
-            seen[value].append((gesture.id, gesture.system or ""))
+            seen[text].append((gesture.id, gesture.system))
 
     crossings: dict[str, list[str]] = {}
     for value, occurrences in seen.items():

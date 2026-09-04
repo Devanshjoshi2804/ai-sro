@@ -11,7 +11,7 @@ from typing import Any
 
 from rig.models import Asker
 from rig.records import Gesture, Intent, ValueSeen
-from rig.trim import thin, trim
+from rig.trim import is_secret, thin, trim
 
 TAIL = 8
 
@@ -116,12 +116,21 @@ async def read_gesture(
     intent.why = _string_field(data, "why")
 
     seen_list = data.get("values_seen")
+    # The third place a guard covered the typed value and let values_seen
+    # through -- after as_evidence and typed_values, and the only one of the
+    # three that reaches storage. save_intent writes this verbatim and
+    # GET /v1/gestures serves it back, so a password the model echoed into a
+    # field it had named was persisted and rendered. The field name is kept:
+    # that the operator typed a password is worth reading, what they typed is
+    # not. This is the single point every stored values_seen passes through.
+    hide = is_secret(gesture)
     intent.values_seen = [
         # `field` unusable unless it's a str; a non-str `value` is treated as
         # unseen ("") rather than fabricated by str()-coercing it -- same rule
         # as `_string_field` above.
         ValueSeen(
-            field=seen["field"], value=seen["value"] if isinstance(seen.get("value"), str) else ""
+            field=seen["field"],
+            value="" if hide else (seen["value"] if isinstance(seen.get("value"), str) else ""),
         )
         for seen in (seen_list if isinstance(seen_list, list) else [])
         if isinstance(seen, dict) and isinstance(seen.get("field"), str) and seen["field"]

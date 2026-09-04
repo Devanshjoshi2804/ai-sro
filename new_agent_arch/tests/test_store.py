@@ -75,3 +75,44 @@ def test_a_reading_can_record_that_its_cost_is_not_trustworthy(tmp_path: Path) -
     row = store.query("SELECT unpriced FROM intents WHERE gesture_id = ?", ("ges_1",))[0]
 
     assert bool(row["unpriced"]) is True
+
+
+def test_a_store_that_predates_a_column_gets_it(tmp_path: Path) -> None:
+    """Two columns cost a hand-patched database each in one afternoon --
+    gestures.page_url and intents.thought_tokens -- because migrate() could
+    only CREATE. Each failed at the first query naming it rather than at
+    migrate, and scripts/measure.py --db copies an old store forward, so the
+    reachable path is the ordinary one."""
+    store = Store(tmp_path / "old.db")
+    store.migrate()
+
+    # An old store: drop the columns migrate is meant to restore. SQLite can
+    # DROP COLUMN, which is exactly the operation this test needs and exactly
+    # the one a real migration cannot rely on.
+    with store.connect() as connection:
+        connection.execute("ALTER TABLE gestures DROP COLUMN page_url")
+        connection.execute("ALTER TABLE intents DROP COLUMN thought_tokens")
+
+    def columns(table: str) -> set[str]:
+        with store.connect() as connection:
+            return {row[1] for row in connection.execute(f"PRAGMA table_info({table})")}
+
+    assert "page_url" not in columns("gestures")
+    assert "thought_tokens" not in columns("intents")
+
+    store.migrate()
+
+    assert "page_url" in columns("gestures")
+    assert "thought_tokens" in columns("intents")
+
+
+def test_migrating_twice_is_not_an_error(tmp_path: Path) -> None:
+    """Every fresh store takes the already-present path for every added
+    column, so that path is the common one rather than the exception."""
+    store = Store(tmp_path / "twice.db")
+
+    store.migrate()
+    store.migrate()
+
+    with store.connect() as connection:
+        assert {row[1] for row in connection.execute("PRAGMA table_info(gestures)")} >= {"page_url"}

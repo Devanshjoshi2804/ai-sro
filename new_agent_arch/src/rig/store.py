@@ -156,6 +156,22 @@ CREATE TABLE IF NOT EXISTS workflow_steps (
 """
 
 
+# Columns added to tables that already existed in an earlier store. Append
+# only, and never reorder: a store is migrated by replaying this from wherever
+# it stopped. Every declaration needs a default, because ALTER TABLE ADD COLUMN
+# has to fill the rows already there.
+#
+# The two that earned this list: gestures.page_url and intents.thought_tokens.
+ADDED_COLUMNS: tuple[tuple[str, str, str], ...] = (
+    ("gestures", "page_url", "TEXT"),
+    ("batches", "started_at", "TEXT NOT NULL DEFAULT ''"),
+    ("batches", "ended_at", "TEXT NOT NULL DEFAULT ''"),
+    ("batches", "recording_id", "TEXT"),
+    ("intents", "thought_tokens", "INTEGER NOT NULL DEFAULT 0"),
+    ("passes", "thought_tokens", "INTEGER NOT NULL DEFAULT 0"),
+)
+
+
 class Store:
     def __init__(self, path: Path) -> None:
         self.path = path
@@ -180,18 +196,34 @@ class Store:
             connection.close()
 
     def migrate(self) -> None:
-        """Create what is missing. It cannot ALTER what is already there.
+        """Create what is missing, and add columns a store predates.
 
-        Every statement above is CREATE ... IF NOT EXISTS, so a column added to
-        an existing table never appears in a store that predates it -- the new
-        table arrives, the new column does not, and the first query naming it
-        fails at runtime rather than here. That is acceptable while the rig's
-        stores are scratch databases rebuilt from captured batches, which is
-        what they are today. It will not be the day one of them is worth
-        keeping.
+        The CREATE statements above are all IF NOT EXISTS, so they bring a new
+        TABLE to an old store and never a new COLUMN. That gap was documented
+        as acceptable while the rig's stores are scratch databases -- and then
+        cost two hand-patched databases in one afternoon, `page_url` and
+        `thought_tokens`, each failing at the first query naming it rather than
+        here. `scripts/measure.py --db` copies an old store forward, so the
+        reachable path is the ordinary one.
+
+        ADDED_COLUMNS is the honest minimum: an explicit, ordered, append-only
+        list rather than a schema differ. SQLite's ALTER TABLE ADD COLUMN is
+        the one migration it does cheaply and safely, which is why this covers
+        added columns and nothing else. A change SQLite cannot do in place --
+        dropping a column, changing a type, adding a constraint -- still needs
+        a rebuilt store, and this will not pretend otherwise.
         """
         with self.connect() as connection:
             connection.executescript(SCHEMA)
+            for table, column, declaration in ADDED_COLUMNS:
+                names = {row[1] for row in connection.execute(f"PRAGMA table_info({table})")}
+                if not names or column in names:
+                    # No table means the CREATE above just made it with the
+                    # column already in place; present means an earlier run
+                    # added it. Neither is an error, and both are the common
+                    # case -- a fresh store takes this path for every row.
+                    continue
+                connection.execute(f"ALTER TABLE {table} ADD COLUMN {column} {declaration}")
 
     def execute(self, sql: str, params: tuple[Any, ...] = ()) -> None:
         with self.connect() as connection:

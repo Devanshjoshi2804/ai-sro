@@ -259,6 +259,27 @@ async def _read_unread(store: Store, asker: Asker, model: str, tenant: str) -> i
         (tenant,),
     )
 
+    cap = settings().daily_usd_cap
+    if cap >= 0:
+        since = datetime.now(tz=UTC).date().isoformat()
+        spent = store.query(
+            "SELECT COALESCE(SUM(cost_usd), 0.0) AS usd FROM intents"
+            " WHERE tenant = ? AND created_at >= ?",
+            (tenant, since),
+        )[0]["usd"]
+        if spent >= cap:
+            # Reading stops; capture does not. The evidence is still stored, so
+            # raising the cap tomorrow reads what today declined -- which is why
+            # this stops the asking rather than the mirroring.
+            log.warning(
+                "daily cap reached for %s: $%.4f of $%.2f, %d gesture(s) unread",
+                tenant,
+                spent,
+                cap,
+                len(rows),
+            )
+            return 0
+
     written = 0
     for row in rows:
         gesture = _row_to_gesture(row)

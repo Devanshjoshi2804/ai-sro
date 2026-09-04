@@ -1,13 +1,15 @@
 import asyncio
 import json
+import logging
 import sqlite3
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
 
-from rig.api import _row_to_gesture, build_app, read_new_gestures, save_batch
+from rig.api import _read_unread, _row_to_gesture, build_app, read_new_gestures, save_batch
 from rig.models import Answer, Effort, FakeAsker
 from rig.store import Store
 from rig.wire import Batch
@@ -1650,3 +1652,36 @@ def test_the_header_shows_how_much_of_the_bill_was_thinking() -> None:
 
     assert "thought" not in silent, "a model that thought nothing says nothing"
     assert "5000" in thinking and "thought" in thinking
+
+
+def test_reading_stops_at_the_daily_cap_and_capture_does_not(
+    store: Store, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """read_on_ingest bills per gesture as capture arrives, so an unattended
+    week spends whatever the operator's day produces. The cap stops the asking,
+    never the mirroring: the evidence is still stored, so raising it tomorrow
+    reads what today declined."""
+    from rig.config import Settings, settings
+
+    monkeypatch.setattr(
+        "rig.api.settings",
+        lambda: Settings(gemini_api_key="x", tenant="new", daily_usd_cap=0.001),
+    )
+    settings.cache_clear()
+    save_batch(store, Batch.model_validate(BATCH), "new")
+    store.execute(
+        "INSERT INTO intents (gesture_id, tenant, cost_usd, created_at)"
+        " VALUES ('ges_spent', 'new', 9.99, ?)",
+        (datetime.now(tz=UTC).isoformat(),),
+    )
+
+    with caplog.at_level(logging.WARNING):
+        written = asyncio.run(
+            _read_unread(store, FakeAsker(Answer(data={"act": "x"})), "gemini-3.8-flash", "new")
+        )
+
+    assert written == 0, "over the cap, nothing is read"
+    assert "daily cap reached" in caplog.text, "and it says so rather than going quiet"
+    assert store.query("SELECT count(*) AS n FROM gestures WHERE tenant = 'new'")[0]["n"] > 0, (
+        "the evidence is still there to read tomorrow"
+    )

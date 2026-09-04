@@ -268,7 +268,10 @@ async def _one_pass(store: Store, *, tenant: str, asker: Asker, model: str, kb: 
         # reading like any other -- the pool was shown, considered and not cited,
         # which is the case it ages for.
         if result.error is None:
-            age_pool(store, tenant)
+            # Only what the window actually showed. An entry the budget left
+            # out was not read and has not used up its patience -- ageing it
+            # anyway retired 2,630 of a 3,240-gesture day unread.
+            age_pool(store, tenant, [item.gesture_id for item in window.items])
     finally:
         # In a finally, so the row exists whatever the work above did. It is
         # the only record left of a call that cost money, and it was written

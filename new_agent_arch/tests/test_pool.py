@@ -213,3 +213,36 @@ def test_dropped_evidence_is_reported_per_tenant(tmp_path: Path) -> None:
         age_pool(store, "other")
 
     assert [entry.gesture_id for entry in retired_entries(store, "acme")] == ["ges_1"]
+
+
+def test_evidence_the_budget_left_out_does_not_age(tmp_path: Path) -> None:
+    """Measured on a synthetic all-tabs day of 3,240 gestures, which is the
+    scale broad capture produces: the window holds ~200, the day needs 17
+    passes to be seen once, K_POOL_AGE is 6 -- and ageing every entry every
+    pass retired 2,630 of 3,240 having never once put them in front of the
+    model. The mechanism built to stop the same tail losing forever guaranteed
+    it instead."""
+    store = _store(tmp_path)
+    add_unclaimed(store, "acme", ["ges_shown", "ges_waiting"], set())
+
+    # Seven passes, and only one of the two is ever in a window.
+    for _ in range(K_POOL_AGE + 1):
+        age_pool(store, "acme", ["ges_shown"])
+
+    retired = {entry.gesture_id for entry in retired_entries(store, "acme")}
+
+    assert "ges_shown" in retired, "shown six times and never cited: it retires"
+    assert "ges_waiting" not in retired, "never shown, so it never spent its patience"
+    assert "ges_waiting" in pool_ids(store, "acme")
+
+
+def test_a_caller_with_no_window_ages_everything(tmp_path: Path) -> None:
+    """None is not the same as an empty window: a caller that names no window
+    is not claiming the window was empty."""
+    store = _store(tmp_path)
+    add_unclaimed(store, "acme", ["ges_a", "ges_b"], set())
+
+    for _ in range(K_POOL_AGE + 1):
+        age_pool(store, "acme")
+
+    assert {e.gesture_id for e in retired_entries(store, "acme")} == {"ges_a", "ges_b"}

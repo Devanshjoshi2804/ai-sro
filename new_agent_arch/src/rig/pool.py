@@ -10,6 +10,7 @@ Keyed by tenant, not by stream. That is the whole mechanism by which one
 operator's Blue Yonder half meets another operator's SAP half.
 """
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
@@ -85,15 +86,29 @@ def add_unclaimed(store: Store, tenant: str, window_ids: list[str], claimed: set
     return added
 
 
-def age_pool(store: Store, tenant: str) -> int:
-    """One READING older. Past either cap it retires: no longer offered ahead
-    of fresh evidence (see K_POOL_AGE for what that does and does not mean),
-    still in the store, and still packed into every later window on its own
-    merits.
+def age_pool(store: Store, tenant: str, shown: Iterable[str] | None = None) -> int:
+    """One READING older, and only for evidence a reading actually saw.
 
-    A reading, not a call: mine() ages the pool only on a pass the model
-    actually answered. Six refused calls -- an expired key, a model name the
-    API 404s, a day of 503s -- retired the whole pool having read nothing.
+    `shown` is the gesture ids that were in the window. An entry the budget
+    left out was not read, was not passed over, and has not used up any
+    patience -- so it does not age. Measured on a synthetic all-tabs day of
+    3,240 gestures, which is the scale broad capture produces: the window
+    holds ~200, a day needs 17 passes to be seen once, K_POOL_AGE is 6, and
+    ageing every entry every pass retired 2,630 of 3,240 having never once put
+    them in front of the model. The mechanism built to stop the same tail
+    losing forever guaranteed it instead.
+
+    Same shape as the refused-pass rule below, one level down: that one counts
+    calls the model answered, this one counts entries the model was shown.
+    None means every entry ages, which is what a caller with no window wants.
+
+    A reading, not a call, either: mine() ages the pool only on a pass the
+    model actually answered. Six refused calls -- an expired key, a model name
+    the API 404s, a day of 503s -- retired the whole pool having read nothing.
+
+    Past either cap an entry retires: no longer offered ahead of fresh evidence
+    (see K_POOL_AGE for what that does and does not mean), still in the store,
+    and still packed into every later window on its own merits.
 
     Two caps, because a pool that only counts passes keeps an entry forever in a
     tenant nobody is mining, and one that only counts days retires an entry a
@@ -102,9 +117,19 @@ def age_pool(store: Store, tenant: str) -> int:
     """
     stale_before = (datetime.now(tz=UTC) - timedelta(days=K_POOL_DAYS)).isoformat()
     with store.connect() as connection:
-        connection.execute(
-            "UPDATE pool SET age = age + 1 WHERE tenant = ? AND retired = 0", (tenant,)
-        )
+        if shown is None:
+            connection.execute(
+                "UPDATE pool SET age = age + 1 WHERE tenant = ? AND retired = 0", (tenant,)
+            )
+        else:
+            ids = tuple(dict.fromkeys(shown))
+            if ids:
+                marks = ",".join("?" * len(ids))
+                connection.execute(
+                    f"UPDATE pool SET age = age + 1 WHERE tenant = ? AND retired = 0"
+                    f" AND gesture_id IN ({marks})",
+                    (tenant, *ids),
+                )
         passes = connection.execute(
             "UPDATE pool SET retired = 1, reason = ? WHERE tenant = ? AND retired = 0 AND age > ?",
             (RETIRED_PASSES, tenant, K_POOL_AGE),

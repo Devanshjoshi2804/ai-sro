@@ -64,16 +64,25 @@ class Asker(Protocol):
         evidence: str,
         schema: dict[str, Any],
         image: bytes | None = None,
+        effort: str | None = None,
     ) -> Answer: ...
 
 
-def build_config(*, schema: dict[str, Any]) -> Any:
+def build_config(*, schema: dict[str, Any], effort: str | None = None) -> Any:
     """The config every call uses. No tools, ever — see the module docstring."""
     from google.genai import types
 
     return types.GenerateContentConfig(
         response_mime_type="application/json",
         response_schema=schema,
+        # Self-consistency was measured at a 0.4% gain for 20x the cost, so
+        # K_SAMPLES is 1 and this is the knob instead. None leaves the model's
+        # own default alone, which is what the per-gesture reading wants.
+        # ThinkingLevel(...) because the SDK types the field as its own enum,
+        # and a plain str fails mypy. It takes "high" case-insensitively.
+        thinking_config=None
+        if effort is None
+        else types.ThinkingConfig(thinking_level=types.ThinkingLevel(effort)),
     )
 
 
@@ -95,6 +104,7 @@ class GeminiAsker:
         evidence: str,
         schema: dict[str, Any],
         image: bytes | None = None,
+        effort: str | None = None,
     ) -> Answer:
         from google.genai import types
 
@@ -106,7 +116,7 @@ class GeminiAsker:
             response = await self._client.aio.models.generate_content(
                 model=model,
                 contents=parts,
-                config=build_config(schema=schema),
+                config=build_config(schema=schema, effort=effort),
             )
         except Exception as problem:  # noqa: BLE001 -- a rig keeps going; the row records why
             # The call may or may not have been billed before it failed, and we
@@ -173,6 +183,7 @@ class FakeAsker:
         evidence: str,
         schema: dict[str, Any],
         image: bytes | None = None,
+        effort: str | None = None,
     ) -> Answer:
         # Yield, because the real thing does. Without a suspension point this
         # double never lets another task interleave, so any test racing two
@@ -186,6 +197,7 @@ class FakeAsker:
                 "evidence": evidence,
                 "schema": schema,
                 "image": image,
+                "effort": effort,
             }
         )
         if not self.answers:

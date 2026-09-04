@@ -220,3 +220,40 @@ async def test_gemini_asker_ask_really_routes_through_build_config() -> None:
     )
 
     assert getattr(models.last_config, "tools", None) is None
+
+
+def test_the_config_carries_the_effort_and_still_no_tools() -> None:
+    """Search grounding voids zero-data-retention and this rig reads live
+    customer payloads. The effort knob must not smuggle a tool in beside it."""
+    from google.genai import types
+
+    from rig.models import build_config
+
+    config = build_config(schema={"type": "object"}, effort="high")
+
+    # The SDK coerces the string to its own enum, whose value is "HIGH".
+    assert config.thinking_config.thinking_level == types.ThinkingLevel.HIGH
+    assert not getattr(config, "tools", None)
+
+
+def test_no_effort_leaves_the_model_default_alone() -> None:
+    from rig.models import build_config
+
+    assert build_config(schema={"type": "object"}).thinking_config is None
+
+
+async def test_gemini_asker_hands_the_effort_to_the_config() -> None:
+    usage = SimpleNamespace(prompt_token_count=1, candidates_token_count=1)
+    response = SimpleNamespace(text="{}", usage_metadata=usage)
+    client, models = _fake_client(lambda: response)
+    asker = GeminiAsker(api_key="unused", client=client)
+
+    await asker.ask(
+        model="gemini-3.8-flash",
+        instructions="i",
+        evidence="e",
+        schema={"type": "object"},
+        effort="low",
+    )
+
+    assert models.last_config.thinking_config is not None

@@ -1,6 +1,7 @@
 from rig.models import Answer, FakeAsker
 from rig.umbrella import (
     INSTRUCTIONS,
+    K_EFFORT,
     K_SAMPLES,
     WORKFLOW_SCHEMA,
     build_prompt,
@@ -139,3 +140,83 @@ async def test_one_sample_by_default() -> None:
 
     assert len(asker.asked) == 1
     assert K_SAMPLES == 1
+
+
+async def test_the_task_is_not_repeated_outside_the_prompt() -> None:
+    """build_prompt states the task at both ends, which is the measured
+    decision. Sending it as the instruction too put it in three times, twice
+    adjacently, on the most expensive call in the system."""
+    asker = FakeAsker(_answer())
+
+    await propose(_window(), {}, [], "", asker=asker, model=MODEL, tenant="acme")
+
+    assert asker.asked[0]["instructions"] == ""
+    assert asker.asked[0]["evidence"].count(INSTRUCTIONS.strip()) == 2
+
+
+async def test_the_pass_asks_for_the_effort_it_names() -> None:
+    """K_SAMPLES is 1 because self-consistency bought 0.4% for 20x the cost.
+    Effort is the knob that replaced it, so it has to reach the API."""
+    asker = FakeAsker(_answer())
+
+    await propose(_window(), {}, [], "", asker=asker, model=MODEL, tenant="acme")
+
+    assert asker.asked[0]["effort"] == K_EFFORT
+
+
+async def test_a_step_order_of_true_is_not_a_step_order() -> None:
+    """True is an int in Python, and sorts as 1."""
+    answer = _answer(
+        workflows=[
+            {
+                "title": "t",
+                "narrative": "n",
+                "systems": ["https://wms.example"],
+                "steps": [
+                    {
+                        "order": True,
+                        "cites": ["ges_1"],
+                        "says": "s",
+                        "system": "https://wms.example",
+                        "parameters": [],
+                    }
+                ],
+                "parameters": [],
+                "same_as": None,
+                "unproven": [],
+            }
+        ]
+    )
+
+    workflows, _ = await propose(
+        _window(), {}, [], "", asker=FakeAsker(answer), model=MODEL, tenant="acme"
+    )
+
+    assert workflows[0].steps[0].order == 0
+    assert workflows[0].steps[0].order is not True
+
+
+async def test_a_parameter_with_no_name_is_not_a_parameter() -> None:
+    """Every other container in _as_workflow is checked down to a scalar; this
+    one filtered to dict and stopped."""
+    answer = _answer(
+        workflows=[
+            {
+                "title": "t",
+                "narrative": "n",
+                "steps": [{"order": 0, "cites": ["ges_1"], "says": "s"}],
+                "parameters": [
+                    {"name": "code", "seen_values": ["ACME"]},
+                    {"seen_values": ["nameless"]},
+                    {"name": "", "seen_values": ["empty"]},
+                    {"name": 7, "seen_values": ["not a string"]},
+                ],
+            }
+        ]
+    )
+
+    workflows, _ = await propose(
+        _window(), {}, [], "", asker=FakeAsker(answer), model=MODEL, tenant="acme"
+    )
+
+    assert [p["name"] for p in workflows[0].parameters] == ["code"]

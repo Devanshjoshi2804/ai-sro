@@ -116,7 +116,10 @@ def _as_workflow(raw: object, tenant: str, answer: Answer) -> Workflow | None:
         cites = step.get("cites")
         steps.append(
             Step(
-                order=step["order"] if isinstance(step.get("order"), int) else index,
+                # True is an int in Python, and would sort as step 1.
+                order=step["order"]
+                if isinstance(step.get("order"), int) and not isinstance(step["order"], bool)
+                else index,
                 says=step["says"] if isinstance(step.get("says"), str) else "",
                 system=step["system"] if isinstance(step.get("system"), str) else None,
                 cites=[c for c in cites if isinstance(c, str)] if isinstance(cites, list) else [],
@@ -135,7 +138,13 @@ def _as_workflow(raw: object, tenant: str, answer: Answer) -> Workflow | None:
         if isinstance(raw.get("systems"), list)
         else [],
         steps=steps,
-        parameters=[p for p in raw.get("parameters", []) if isinstance(p, dict)]
+        # A parameter with no usable name is not a parameter, the way a step
+        # with no `says` is not a step.
+        parameters=[
+            p
+            for p in raw.get("parameters", [])
+            if isinstance(p, dict) and isinstance(p.get("name"), str) and p["name"]
+        ]
         if isinstance(raw.get("parameters"), list)
         else [],
         same_as=raw["same_as"] if isinstance(raw.get("same_as"), str) else None,
@@ -160,9 +169,13 @@ async def propose(
     """One pass. Returns what it proposed and what the call cost."""
     answer = await asker.ask(
         model=model,
-        instructions=INSTRUCTIONS,
+        # build_prompt already opens and closes with INSTRUCTIONS -- stating the
+        # task at both ends is the measured decision, and the prompt owns it.
+        # Passing it here as well sent it three times, twice adjacently.
+        instructions="",
         evidence=build_prompt(window, crossings, known, kb),
         schema=WORKFLOW_SCHEMA,
+        effort=K_EFFORT,
     )
     if answer.data is None:
         return [], answer

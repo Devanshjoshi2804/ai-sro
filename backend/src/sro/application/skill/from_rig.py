@@ -145,7 +145,41 @@ def _component(component: Mapping[str, object]) -> ComponentIdentity | None:
     )
 
 
-def plan_for_gesture(gesture: Mapping[str, object]) -> UiPlan | None:
+def bindings_for(workflow: Mapping[str, object]) -> Mapping[str, str]:
+    """Every value the job is known to vary, against the name it varies under.
+
+    Keyed by the VALUE rather than by the control it was typed into, and that is
+    a choice. The rig names a parameter after its control -- an ExtJS itemId,
+    or the field's label -- and re-deriving that name here would be a second
+    implementation of one rule, which is how this codebase came to have three
+    word-splitters that disagreed about `SAMLResponse`. A value is evidence
+    both sides already hold.
+
+    The cost is that two parameters which have been given the same value once
+    would collide. Deliberate: `parameters_across` only reports a control whose
+    value CHANGED between doings, so a collision needs two different inputs to
+    have shared a value on some doing -- and where that happens, binding either
+    name produces the same run, because the run supplies the value.
+    """
+    bound: dict[str, str] = {}
+    parameters = workflow.get("parameters")
+    for parameter in parameters if isinstance(parameters, list) else ():
+        if not isinstance(parameter, Mapping):
+            continue
+        name = _text(parameter.get("name"))
+        seen = parameter.get("seen_values")
+        if not name or not isinstance(seen, list):
+            continue
+        for value in seen:
+            text = _text(value)
+            if text:
+                bound.setdefault(text, name)
+    return bound
+
+
+def plan_for_gesture(
+    gesture: Mapping[str, object], bindings: Mapping[str, str] | None = None
+) -> UiPlan | None:
     """One recorded gesture as one step a driver could perform.
 
     None where the gesture is not a thing to replay: an unknown kind, or an
@@ -167,6 +201,15 @@ def plan_for_gesture(gesture: Mapping[str, object]) -> UiPlan | None:
     # this point is the operator's own data, and it becomes a template because
     # a run may be asked to type a different one.
     value = _text(gesture.get("value"))
+    # A value the job is known to vary becomes the name it varies under, so a
+    # run can be asked for a different one. A value nobody has seen vary stays
+    # literal -- it is part of the job until evidence says otherwise, and
+    # guessing which literals are really inputs is the thing two doings exist
+    # to avoid.
+    if value and bindings:
+        name = bindings.get(value)
+        if name:
+            value = f"${name}"
     return UiPlan(
         action=action,
         target=fingerprint_for(target),
@@ -176,7 +219,9 @@ def plan_for_gesture(gesture: Mapping[str, object]) -> UiPlan | None:
 
 
 def plans_for_step(
-    step: Mapping[str, object], gestures: Mapping[str, Mapping[str, object]]
+    step: Mapping[str, object],
+    gestures: Mapping[str, Mapping[str, object]],
+    bindings: Mapping[str, str] | None = None,
 ) -> tuple[UiPlan, ...]:
     """Every runnable action a step's citations name, in the order cited.
 
@@ -191,7 +236,7 @@ def plans_for_step(
         gesture = gestures.get(_text(cited) or "")
         if gesture is None:
             continue
-        plan = plan_for_gesture(gesture)
+        plan = plan_for_gesture(gesture, bindings)
         if plan is not None:
             plans.append(plan)
     return tuple(plans)
@@ -211,4 +256,5 @@ def plans_for_workflow(
         (s for s in (steps if isinstance(steps, list) else ()) if isinstance(s, Mapping)),
         key=lambda step: step.get("order", 0),  # type: ignore[arg-type,return-value]
     )
-    return tuple((step, plans_for_step(step, gestures)) for step in ordered)
+    bindings = bindings_for(workflow)
+    return tuple((step, plans_for_step(step, gestures, bindings)) for step in ordered)

@@ -135,3 +135,46 @@ def test_steps_are_run_in_the_order_the_workflow_gives_them() -> None:
     pairs = plans_for_workflow({"steps": out_of_order}, gestures)
 
     assert [step["says"] for step, _ in pairs] == ["first", "second", "third"]
+
+
+WORKFLOW_WITH_A_PARAMETER = {
+    "steps": [{"order": 0, "says": "Enter the code.", "cites": ["g"]}],
+    "parameters": [{"name": "activityCode", "seen_values": ["TEST1", "TEST2"]}],
+}
+
+
+def test_a_value_the_job_varies_becomes_the_name_it_varies_under() -> None:
+    """This is what makes it a skill rather than a recording: a run can be
+    asked for a different code."""
+    gestures = {"g": {"kind": "type", "value": "TEST1", "target": EXTJS}}
+
+    plans = plans_for_workflow(WORKFLOW_WITH_A_PARAMETER, gestures)[0][1]
+
+    assert plans[0].value is not None
+    assert plans[0].value.raw == "$activityCode"
+    assert plans[0].placeholders == {"activityCode"}
+
+
+def test_a_value_nobody_has_seen_vary_stays_literal() -> None:
+    """It is part of the job until evidence says otherwise. Guessing which
+    literals are really inputs is the thing two doings exist to avoid -- one
+    doing of `Create Work Activity TEST1` cannot say whether TEST1 names this
+    activity or every activity."""
+    gestures = {"g": {"kind": "type", "value": "Released", "target": EXTJS}}
+
+    plans = plans_for_workflow(WORKFLOW_WITH_A_PARAMETER, gestures)[0][1]
+
+    assert plans[0].value is not None
+    assert plans[0].value.raw == "Released"
+    assert plans[0].placeholders == frozenset()
+
+
+def test_a_workflow_with_no_parameters_binds_nothing() -> None:
+    """Which is every workflow mined from the real corpus so far: one doing of
+    each job, and one doing names no parameters."""
+    gestures = {"g": {"kind": "type", "value": "TEST1", "target": EXTJS}}
+    workflow = {"steps": [{"order": 0, "says": "x", "cites": ["g"]}], "parameters": []}
+
+    plans = plans_for_workflow(workflow, gestures)[0][1]
+
+    assert plans[0].value is not None and plans[0].value.raw == "TEST1"

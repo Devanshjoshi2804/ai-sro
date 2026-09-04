@@ -43,11 +43,17 @@ def typed_values(gesture: Gesture, intent: Intent | None) -> set[str]:
     anything."""
     if is_secret(gesture):
         return set()
+    # Stripped here, which is the only place it happens: this is a set, so a
+    # gesture whose typed value is "Supplier-X" and whose reading reported
+    # " Supplier-X" collapses to one value rather than appending the same
+    # gesture id twice under one key -- two pieces of evidence, downstream,
+    # where there is one. Stripping in the caller instead deduplicated
+    # nothing, because the set had already been built from the raw pair.
     found: set[str] = set()
-    if gesture.gesture.value:
-        found.add(gesture.gesture.value)
+    if gesture.gesture.value and gesture.gesture.value.strip():
+        found.add(gesture.gesture.value.strip())
     if intent is not None:
-        found.update(seen.value for seen in intent.values_seen if seen.value)
+        found.update(seen.value.strip() for seen in intent.values_seen if seen.value.strip())
     return found
 
 
@@ -98,17 +104,16 @@ def shared_values(
         if not gesture.system:
             continue
         for value in typed_values(gesture, intents.get(gesture.id)):
-            # Stripped once, here, and used for both the frequency lookup and
-            # the key. trivial() and frequencies_over() strip; this did not, so
-            # the lookup missed and furniture at frequency 1.0 was published as
-            # a link -- while one real crossing split four ways across
-            # "Supplier-X", " Supplier-X" and "Supplier-X\n" became no crossing
-            # at all. Not case-folded: the fixture has a `D3`, and welding
-            # codes that differ only in case is the worse error.
-            text = value.strip()
-            if trivial(text, frequencies.get(text, 0.0)):
+            # Already stripped by typed_values, so the frequency lookup and
+            # the key agree with trivial() and frequencies_over(). They did not
+            # before: the lookup missed, and furniture at frequency 1.0 was
+            # published as a link, while one real crossing split four ways
+            # across "Supplier-X", " Supplier-X" and "Supplier-X\n" became no
+            # crossing at all. Not case-folded: the fixture has a `D3`, and
+            # welding codes that differ only in case is the worse error.
+            if trivial(value, frequencies.get(value, 0.0)):
                 continue
-            seen[text].append((gesture.id, gesture.system))
+            seen[value].append((gesture.id, gesture.system))
 
     crossings: dict[str, list[str]] = {}
     for value, occurrences in seen.items():

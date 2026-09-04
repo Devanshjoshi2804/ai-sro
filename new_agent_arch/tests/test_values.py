@@ -181,3 +181,30 @@ def test_a_value_named_twice_in_one_reading_is_one_reading(tmp_path: Path) -> No
 
     assert frequencies["SUPPLIER-X"] == 0.1
     assert frequencies["SUPPLIER-X"] <= K_UBIQUITY
+
+
+def test_one_gesture_saying_a_value_twice_is_cited_once() -> None:
+    """typed_values is a set, so the same value typed and reported collapses --
+    but only if it is stripped before the set is built. Stripping in the caller
+    deduplicated nothing, and the gesture was cited twice for one doing."""
+    gestures = _gestures()[:2]
+    gestures[0].system = "https://wms.example"
+    gestures[1].system = "https://sap.example"
+    typed = gestures[0].gesture.value
+    assert typed
+    intents = {
+        gestures[0].id: Intent(
+            gesture_id=gestures[0].id,
+            tenant="acme",
+            values_seen=[ValueSeen(field="code", value=f" {typed} ")],
+        ),
+        gestures[1].id: Intent(
+            gesture_id=gestures[1].id,
+            tenant="acme",
+            values_seen=[ValueSeen(field="code", value=typed)],
+        ),
+    }
+
+    crossings = shared_values(gestures, intents, {})
+
+    assert crossings[typed] == [gestures[0].id, gestures[1].id]

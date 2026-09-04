@@ -2,10 +2,11 @@
 
 None of it reads a URL, a body or a call shape. It asks whether a workflow has
 any steps at all, whether every step cites something, whether everything cited
-exists, whether every step says something a person could act on, and whether the
-workflow claims only systems its own evidence touches. Then it measures where in
-the window the citations fell, because long-context citation bias is real, is
-model-specific, and is invisible without counting.
+exists, whether every step says something a person could act on, and whether
+every system named -- by a step or by the workflow -- is one the cited evidence
+actually happened on. Then it measures where in the window the citations fell,
+because long-context citation bias is real, is model-specific, and is invisible
+without counting.
 """
 
 from dataclasses import dataclass
@@ -31,8 +32,20 @@ class Coverage:
     gini: float
 
 
-def validate(workflow: Workflow, known_ids: set[str]) -> Rejection | None:
-    """None when the workflow may be kept, a Rejection when it may not."""
+def validate(workflow: Workflow, evidence: dict[str, str]) -> Rejection | None:
+    """None when the workflow may be kept, a Rejection when it may not.
+
+    `evidence` maps a gesture id in the window to the system it happened on --
+    `Gesture.system`, which is scheme and host. A missing or empty value means
+    the system could not be established for that gesture.
+
+    A mapping rather than a set of ids because the system checks below are the
+    reason this module exists. Taking `step.system` as the evidence for
+    `step.system` compared the model against itself: it caught an answer that
+    contradicted its own step list and could not catch one that was internally
+    tidy and wholly invented -- which, in an architecture built to find jobs
+    spanning two systems, is the one lie it must not accept.
+    """
     # umbrella._as_workflow drops junk steps one at a time, so a workflow whose
     # steps were ALL junk arrives here with steps=[] and no citations at all --
     # nothing uncited for the loop below to catch. This is that rejection.
@@ -42,7 +55,7 @@ def validate(workflow: Workflow, known_ids: set[str]) -> Rejection | None:
     for step in workflow.steps:
         if not step.cites:
             return Rejection(workflow.title, "uncited step", f"step {step.order}: {step.says}")
-        unknown = set(step.cites) - known_ids
+        unknown = set(step.cites) - set(evidence)
         if unknown:
             return Rejection(workflow.title, "unknown gesture", ", ".join(sorted(unknown)))
         # cites' sibling. _as_workflow falls back to says="" for a step the
@@ -50,12 +63,41 @@ def validate(workflow: Workflow, known_ids: set[str]) -> Rejection | None:
         # however well it is cited -- it reaches an operator as a blank line.
         if not step.says.strip():
             return Rejection(workflow.title, "wordless step", f"step {step.order}")
+        # A step naming no system is not checked for one: the umbrella
+        # substitutes None for a junk value, so an absent system is a silence
+        # rather than a claim.
+        if step.system:
+            # An unknown system confirms nothing -- the rule shared_values and
+            # correlate._owner already apply. So a step whose every citation is
+            # unattributed is refused rather than waved through, and it is
+            # refused under its own reason: "you named a system none of your
+            # evidence touched" and "your evidence has no known system" are
+            # different faults and diagnose differently.
+            touched = {evidence[cite] for cite in step.cites if evidence[cite]}
+            if not touched:
+                return Rejection(
+                    workflow.title,
+                    "unattributed evidence",
+                    f"step {step.order} claims {step.system}; no cited gesture has a system",
+                )
+            if step.system not in touched:
+                return Rejection(
+                    workflow.title,
+                    "step system not in evidence",
+                    f"step {step.order}: {step.system}",
+                )
 
     claimed = {s for s in workflow.systems if s}
-    # No `if step.system` filter: `claimed` is already truthy-only, so a None
-    # here can never match anything it is subtracted from. Filtering both sides
-    # is one guard pretending to be two -- deleting it changed no test.
-    evidenced = {step.system for step in workflow.steps}
+    # Every cite is in `evidence` by now, so this is the whole of what the
+    # workflow actually stood on. `systems` is its own model output rather than
+    # a summary of the steps, so it can name a system no step ever did.
+    #
+    # No `if evidence[cite]` filter, unlike the step check above, which needs
+    # one to tell "no known system" from "the wrong system". Here `claimed` is
+    # already truthy-only, so an unknown system arriving as "" can never match
+    # anything it is subtracted from. Filtering both sides is one guard
+    # pretending to be two -- deleting it changed no test.
+    evidenced = {evidence[cite] for cite in cited_ids(workflow)}
     invented = claimed - evidenced
     if invented:
         return Rejection(workflow.title, "system not in evidence", ", ".join(sorted(invented)))

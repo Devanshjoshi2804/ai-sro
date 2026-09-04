@@ -16,6 +16,11 @@ this file with the item named.
 
   names / headers   every distinct field, query-parameter and header name
   values            every distinct string value that carries no credential
+  labels            every distinct target.name, target.text and
+                    component.name/fieldLabel/text -- the DOM plane, which the
+                    rest of this fixture had never seen
+  attribute_names   every distinct key of Target.attributes
+  attribute_values  every distinct value of Target.attributes
   secret_*          what the rules answer for those names today
   withheld          values that DO carry a credential shape -- counted by
                     shape, never stored. Empty, and measured empty.
@@ -28,6 +33,13 @@ this is what was taken out of it before it went.
 
 The VALUES are the new half. Nothing had ever measured them -- only the names
 -- and values are what the shape rule operates on.
+
+The DOM PLANE is the newer half, and it is here because its absence is why this
+gate could not catch the tenth credential route: the fixture was drawn from
+requests, page events and `values_seen`, so `Target` and `Component` shipped
+with no redaction at all and nothing measured what adding one would cost. A
+label reading "Password" is a NAME and must survive; the count below is what
+says it does.
 
 To move a line here deliberately: run the rules over the fixture, read the
 names this file prints, and put them in `secret_names` / `secret_headers`. That
@@ -61,10 +73,20 @@ CORPUS = _corpus()
 def test_the_fixture_is_the_whole_corpus() -> None:
     """A truncated fixture would pass every assertion below by having nothing
     left to disagree about."""
-    assert CORPUS["counts"] == {"names": 3227, "headers": 29, "values": 47969}
+    assert CORPUS["counts"] == {
+        "names": 3227,
+        "headers": 29,
+        "values": 47969,
+        "labels": 56,
+        "attribute_names": 13,
+        "attribute_values": 95,
+    }
     assert len(CORPUS["names"]) == 3227
     assert len(CORPUS["headers"]) == 29
     assert len(CORPUS["values"]) == 47969
+    assert len(CORPUS["labels"]) == 56
+    assert len(CORPUS["attribute_names"]) == 13
+    assert len(CORPUS["attribute_values"]) == 95
 
 
 def test_which_real_field_names_the_word_rule_calls_credentials() -> None:
@@ -110,6 +132,54 @@ def test_no_real_value_in_this_corpus_looks_like_a_credential() -> None:
     assert not flagged, "\n".join(
         f"{shapes} now matches a real value: {value[:120]!r}" for value, shapes in flagged.items()
     )
+
+
+def test_no_real_label_on_a_touched_control_is_blanked() -> None:
+    """The measurement that had to be made before Target and Component got a
+    redaction validator, because a label is the most useful thing in the
+    evidence for telling a model what the operator was doing.
+
+    Zero of 56, by both rules, and they are recorded for different reasons.
+
+    The SHAPE rule is the one wire.Target and wire.Component actually apply, and
+    zero is what makes it free: "Service Level*", "COD Address" and
+    "005-BEST METHOD" have no credential's form.
+
+    The NAME rule is recorded because it is deliberately NOT applied here, and
+    the honest version of that decision is that this corpus does not settle it:
+    these 83 gestures are carrier and work-operation config, so no label in them
+    reads "Password" and `is_secret_name` costs nothing measured. It is refused
+    on the argument instead -- a fieldLabel IS a name, trim() puts it in front of
+    the reading model precisely so the model can say which field was typed into,
+    and the VALUE beside it is already gone by three other routes. A login screen
+    would put "Password" in this list; the day one does, this assertion fails
+    with it named, and the decision gets made rather than drifting.
+    """
+    shaped = sorted(label for label in CORPUS["labels"] if shapes_in(label))
+    named = sorted(label for label in CORPUS["labels"] if is_secret_name(label))
+
+    assert shaped == [], f"the shape rule now blanks real labels: {shaped}"
+    assert named == CORPUS["secret_labels"], (
+        "these labels are NAMES a person reads on screen; wire.Target and "
+        f"wire.Component apply only the shape rule, never this one: {named}"
+    )
+
+
+def test_which_real_dom_attributes_the_rules_touch() -> None:
+    """`Target.attributes` gets all three rules, so all three are measured.
+
+    Zero of 13 names and zero of 95 values in the acme capture: `class`, `id`,
+    `placeholder`, `type`, `style` and the rest are untouched, and so is every
+    value they carry -- `type="password"` survives because the rule reads the
+    KEY, and "password" as a value is a control's type, not a credential.
+    """
+    names = sorted(name for name in CORPUS["attribute_names"] if is_secret_name(name))
+    values = sorted(value for value in CORPUS["attribute_values"] if shapes_in(value))
+
+    assert names == CORPUS["secret_attribute_names"], (
+        f"newly blanked attribute names: {sorted(set(names) - set(CORPUS['secret_attribute_names']))}"
+    )
+    assert values == [], f"the shape rule now blanks real attribute values: {values}"
 
 
 def test_the_fixture_carries_no_credential_of_its_own() -> None:

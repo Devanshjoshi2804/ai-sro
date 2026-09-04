@@ -477,3 +477,47 @@ def test_a_blocked_request_does_not_read_as_one_still_in_flight() -> None:
     assert blocked["status"] is None
     assert blocked["failed"] is None
     assert blocked["blocked"] == "blocked by the browser's policy"
+
+
+def test_no_credential_on_a_touched_control_reaches_either_prompt(tmp_path) -> None:
+    """The whole path the audit walked: parse_batch, save_batch, back out of the
+    row, and into both prompts.
+
+    trim() feeds the per-gesture reading pass and as_evidence() feeds the
+    umbrella pass, and both read target.name, target.text and
+    component.fieldLabel straight through. `attributes` never reached a prompt
+    but did reach `gestures.gesture_json`, so the stored row is asserted too.
+    """
+    from rig.api import _row_to_gesture, save_batch
+    from rig.store import Store
+    from rig.window import as_evidence
+    from rig.wire import parse_batch
+
+    jwt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJub2JvZHkifQ.not-a-signature"
+    target = GESTURE_TYPE["gesture"]["target"]
+    poisoned = {
+        **GESTURE_TYPE,
+        "gesture": {
+            **GESTURE_TYPE["gesture"],
+            "target": {
+                **target,
+                "name": jwt,
+                "text": f"key {jwt}",
+                "attributes": {**target["attributes"], "href": f"/cb?access_token={jwt}"},
+                "component": {**target["component"], "fieldLabel": jwt},
+            },
+        },
+    }
+    batch, rejected = parse_batch({**BATCH, "batch_id": "bat_dom", "events": [poisoned]})
+    assert rejected == ()
+
+    store = Store(tmp_path / "rig.db")
+    store.migrate()
+    save_batch(store, batch, "acme")
+    row = store.query("SELECT * FROM gestures")[0]
+    gesture = _row_to_gesture(row)
+
+    assert "eyJ" not in row["gesture_json"]
+    assert "eyJ" not in json.dumps(trim(gesture))
+    assert "eyJ" not in json.dumps(as_evidence(gesture, None))
+    assert trim(gesture)["target"]["fieldLabel"] == REDACTED

@@ -880,6 +880,33 @@ def test_the_header_shows_what_the_spend_route_could_not_price() -> None:
     assert "a gesture" not in clean
 
 
+def test_the_header_shows_a_mining_pass_it_could_not_price() -> None:
+    """`unpriced`'s sibling one field over. /v1/spend emits `mining_unpriced`
+    and the header rendered only `mining_usd`, so a pass on a model missing
+    from PRICES drew "$0.0000 mining over 1" -- which is exactly what happened:
+    findings.md records mining_usd 0.0 beside mining_unpriced 1 while $1.12 was
+    billed. Seventh instance of the sibling-field pattern.
+    """
+    rendered = _run_page(
+        """
+        const base = { gestures: 9, gestures_read: 7, cost_usd: 0.0259,
+                       per_gesture_usd: 0.0037, unpriced: 0, unusable: 0,
+                       passes: 1, mining_usd: 0, mining_unpriced: 0 };
+        console.log(JSON.stringify([
+          spendLine(base),
+          spendLine({ ...base, mining_unpriced: 1 }),
+          spendLine({ ...base, passes: 0, mining_unpriced: 1 }),
+        ]));
+        """
+    )
+    priced, unpriced, no_pass = json.loads(rendered)
+
+    assert priced != unpriced, "a mining pass nobody could price reads as a free one"
+    assert "unpriced" in unpriced
+    assert "unpriced" not in priced
+    assert "mining" not in no_pass, "no pass ran, so there is no mining line to qualify"
+
+
 # --- The tail is one operator's own history, and nobody else's ----------------
 
 

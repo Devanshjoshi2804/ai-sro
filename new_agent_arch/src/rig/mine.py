@@ -1,6 +1,5 @@
 """One pass, end to end: pack, ask, check, resolve, store, age the pool."""
 
-import json
 import logging
 import secrets
 from dataclasses import dataclass, field
@@ -22,7 +21,7 @@ from rig.shape import shape_key
 from rig.store import Store
 from rig.umbrella import propose
 from rig.values import frequencies_over, shared_values
-from rig.window import Packed, as_evidence, pack, strength, tokens
+from rig.window import Packed, as_evidence, evidence_tokens, pack, strength
 from rig.workflows import Workflow, cited_ids, known_workflows, save_workflow
 
 log = logging.getLogger("rig")
@@ -91,7 +90,7 @@ def _packed(gesture: Gesture, intent: Intent | None, linked: set[str]) -> Packed
         at=gesture.at,
         evidence=evidence,
         strength=strength(gesture, intent, linked),
-        tokens=tokens(json.dumps(evidence, ensure_ascii=False)),
+        tokens=evidence_tokens(evidence),
     )
 
 

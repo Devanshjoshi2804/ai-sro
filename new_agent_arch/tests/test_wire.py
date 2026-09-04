@@ -551,3 +551,87 @@ def test_a_relative_url_is_redacted_too() -> None:
     # the property the hand-splicing exists to keep, now on this path too.
     for clean in ("/wm/warehouses", "/wm/list?facility=BLR+1&facility=DEL", "/page#section"):
         assert redact_url(clean) == clean
+
+
+def test_a_credential_on_the_control_the_operator_touched_is_dropped() -> None:
+    """The tenth route of the class this file already closed nine of, and the
+    one every other model here had a validator for.
+
+    Three rules on `attributes` because it is `dict[str, Any]` -- an open dump
+    of whatever the page put on the element -- and no single rule reaches all of
+    it: `data-auth-token` goes by NAME, the `href` query by the URL rule, and
+    `data-ticket` only by SHAPE.
+    """
+    poisoned = {**GESTURE_TYPE}
+    target = GESTURE_TYPE["gesture"]["target"]
+    poisoned["gesture"] = {
+        **GESTURE_TYPE["gesture"],
+        "target": {
+            **target,
+            "name": FAKE_JWT,
+            "text": f"your key is {FAKE_JWT}",
+            "attributes": {
+                **target["attributes"],
+                "href": f"/portal/cb?access_token={FAKE_JWT}&siteId=SG",
+                "data-auth-token": "hunter2",
+                "data-password": "hunter2",
+                "data-ticket": FAKE_JWT,
+            },
+            "component": {**target["component"], "fieldLabel": FAKE_JWT},
+        },
+    }
+
+    event = GestureEvent.model_validate(poisoned)
+    landed = event.gesture.model_dump_json()
+
+    assert "eyJ" not in landed
+    assert "hunter2" not in landed
+    assert event.gesture.target is not None
+    assert event.gesture.target.name == REDACTED
+    assert event.gesture.target.text == f"your key is {REDACTED}"
+    assert (
+        event.gesture.target.attributes["href"] == f"/portal/cb?access_token={REDACTED}&siteId=SG"
+    )
+    assert event.gesture.target.component is not None
+    assert event.gesture.target.component.fieldLabel == REDACTED
+
+
+def test_a_control_named_for_a_credential_keeps_its_name() -> None:
+    """A label reading "Password" is a NAME, not a value, and it is the most
+    useful thing in the evidence for telling a model what the operator was
+    doing. Only the shape rule runs on these fields, never is_secret_name --
+    which would blank every one of them.
+
+    The identity fields are here for the other reason: shape.target_identity is
+    built on itemId, query, role, testId and cssPath, so a redaction there would
+    silently change a workflow's shape key and stop the same job matching itself
+    across occurrences.
+    """
+    target = GESTURE_TYPE["gesture"]["target"]
+    poisoned = {**GESTURE_TYPE}
+    poisoned["gesture"] = {
+        **GESTURE_TYPE["gesture"],
+        "target": {
+            **target,
+            "name": "Password",
+            "text": "Confirm Password",
+            "attributes": {"id": "pwd", "name": "password", "type": "password"},
+            "component": {
+                **target["component"],
+                "itemId": "passwordField",
+                "fieldLabel": "Password",
+                "query": "panel#login textfield#passwordField",
+            },
+        },
+    }
+
+    element = GestureEvent.model_validate(poisoned).gesture.target
+
+    assert element is not None
+    assert element.name == "Password"
+    assert element.text == "Confirm Password"
+    assert element.attributes == {"id": "pwd", "name": "password", "type": "password"}
+    assert element.component is not None
+    assert element.component.fieldLabel == "Password"
+    assert element.component.itemId == "passwordField"
+    assert element.component.query == "panel#login textfield#passwordField"

@@ -55,6 +55,26 @@ def _a_timestamp(value: str) -> str:
 Timestamp = Annotated[str, AfterValidator(_a_timestamp)]
 
 
+# The free-text fields of the two models below: what a person can read on the
+# screen, and therefore what a page can render a credential into. `label(el)` in
+# the extension's recorder falls back to innerText, so a screen showing a key
+# puts that key here.
+#
+# Everything NOT on these lists is left alone on purpose. `itemId`, `query`,
+# `xtype`, `testId`, `role` and `cssPath` are what shape.target_identity and
+# shape_key are built from, and a redaction there would silently change a
+# workflow's shape key so the same job stopped matching itself across
+# occurrences. `chain`, `tag`, `xpath` and `bounds` are locators and geometry by
+# the same argument.
+#
+# Only the SHAPE rule runs on these, never the name rule: a fieldLabel reading
+# "Password" is a NAME, and is the single most useful thing in the evidence for
+# telling a model what the operator was doing. Measured over the 83-gesture acme
+# capture: 56 distinct real labels, 0 blanked.
+_COMPONENT_PROSE = ("name", "fieldLabel", "text")
+_TARGET_PROSE = ("name", "text")
+
+
 class Component(BaseModel):
     framework: str | None = None
     xtype: str | None = None
@@ -64,6 +84,23 @@ class Component(BaseModel):
     text: str | None = None
     query: str | None = None
     chain: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def a_credential_on_the_control_is_dropped_here(self) -> "Component":
+        """The DOM plane's half of the rule every other model here already has.
+
+        `fieldLabel` and `text` are stored verbatim in `gestures.gesture_json`
+        AND go through trim() into the per-gesture reading prompt and
+        as_evidence() into the umbrella prompt -- so a token rendered as a label
+        reached both models and the disk. Same boundary as its five siblings,
+        for the reason they give: a rule applied at a call site is a rule the
+        next caller walks past.
+        """
+        for prose in _COMPONENT_PROSE:
+            value = getattr(self, prose)
+            if value:
+                setattr(self, prose, redact_shapes(value))
+        return self
 
 
 class Target(BaseModel):
@@ -84,6 +121,24 @@ class Target(BaseModel):
         """The protocol refuses a fingerprint with nothing to match on."""
         if not any((self.role, self.name, self.text, self.testId, self.cssPath, self.xpath)):
             raise ValueError("element fingerprint carries no usable signal")
+        return self
+
+    @model_validator(mode="after")
+    def a_credential_on_the_element_is_dropped_here(self) -> "Target":
+        """`name` and `text` are prose; `attributes` is an open dump.
+
+        Runs after must_carry_some_signal, and cannot defeat it: redact_shapes
+        substitutes, so a name that was entirely a JWT comes back as the marker
+        -- still a signal, and still stable across occurrences because the
+        substitution is deterministic. A control whose only name is a credential
+        has no identity worth keeping anyway.
+        """
+        for prose in _TARGET_PROSE:
+            value = getattr(self, prose)
+            if value:
+                setattr(self, prose, redact_shapes(value))
+        if self.attributes:
+            self.attributes = redact_attributes(self.attributes)
         return self
 
 
@@ -524,6 +579,38 @@ def redact_data(node: Any) -> Any:
         }
     if isinstance(node, list):
         return [redact_data(item) for item in node]
+    return node
+
+
+def redact_attributes(node: Any) -> Any:
+    """Every DOM attribute of the element the operator touched, by all three rules.
+
+    `Target.attributes` is `dict[str, Any]` -- whatever the page happened to put
+    on the element -- so no single rule reaches it. `data-auth-token` is caught
+    by its NAME, `href="/cb?access_token=..."` by the URL rule inside its value,
+    and an `X-Acme-Ticket` copied onto a `data-` attribute only by its SHAPE.
+    redact_url ends in redact_shapes, so a string leaf gets the last two from one
+    call.
+
+    redact_data one clause longer, rather than a change to redact_data: that one
+    runs over request bodies, where the shape pass already follows it in
+    redact_body and a URL rule on every JSON string leaf would be a behaviour
+    change to every stored body. Here nothing else runs at all -- this field was
+    write-only, read by nothing and redacted by nothing.
+
+    The field rule and not the header one, deliberately: an attribute named
+    `placeholder` whose value is "Password" is a LABEL. Measured over the acme
+    capture -- 13 distinct attribute names, 95 distinct values -- none move.
+    """
+    if isinstance(node, dict):
+        return {
+            key: REDACTED if is_secret_name(str(key)) else redact_attributes(value)
+            for key, value in node.items()
+        }
+    if isinstance(node, list):
+        return [redact_attributes(item) for item in node]
+    if isinstance(node, str):
+        return redact_url(node)
     return node
 
 

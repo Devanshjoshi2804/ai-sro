@@ -49,6 +49,22 @@ def tokens(text: str) -> int:
     return len(text) // 4
 
 
+def evidence_tokens(evidence: dict[str, Any]) -> int:
+    """One item measured the way umbrella.build_prompt will actually ship it.
+
+    Inside a list, at indent=1 -- because that is what build_prompt writes, and
+    budgeting it compact was a 17.6% under-count on the real acme window (22,593
+    counted against 26,566 shipped). K_WINDOW_TOKENS is a PROMPT budget whose
+    whole purpose is the 200K boundary where Gemini 3.1 Pro's input price
+    doubles, so a window filled to it under the compact count shipped ~177,000
+    tokens -- over the line, at double the price, silently.
+
+    One function rather than the expression, because pack() and mine._packed
+    both build a Packed and the two counts must be the same count.
+    """
+    return tokens(json.dumps([evidence], indent=1, ensure_ascii=False))
+
+
 @dataclass
 class Packed:
     gesture_id: str
@@ -218,11 +234,25 @@ def pack(
                 at=gesture.at,
                 evidence=evidence,
                 strength=strength(gesture, intent, linked),
-                tokens=tokens(json.dumps(evidence, ensure_ascii=False)),
+                tokens=evidence_tokens(evidence),
             )
         )
 
-    room = budget - tokens(json.dumps(known, ensure_ascii=False)) - tokens(kb)
+    # Deferred, and not at module scope: umbrella imports Window, so the pair
+    # at import time is a cycle. mine.py reaches into api.py the same way for
+    # the same reason. The subtraction belongs HERE, with `known` and `kb`,
+    # rather than at a call site -- a budget that leaves out the fixed cost of
+    # the prompt it is budgeting is not a prompt budget, and INSTRUCTIONS twice
+    # plus the response schema plus the crossings block came to ~2,600 tokens
+    # nothing subtracted.
+    from rig.umbrella import PROMPT_OVERHEAD_TOKENS
+
+    room = (
+        budget
+        - PROMPT_OVERHEAD_TOKENS
+        - tokens(json.dumps(known, indent=1, ensure_ascii=False))
+        - tokens(kb)
+    )
     chosen: list[Packed] = []
     left_out: list[str] = []
     spent = 0

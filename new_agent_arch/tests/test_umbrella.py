@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from typing import Any
 
@@ -387,3 +388,90 @@ def test_strength_never_reaches_the_prompt() -> None:
     assert "99.0" not in prompt
     assert "4242" not in prompt
     assert "strength" not in prompt.lower()
+
+
+def test_the_strongest_evidence_is_at_both_ends_of_the_prompt() -> None:
+    """`arrange` was defined, documented in three places and called by nothing
+    but its own unit test, so the reordering algorithms.md and window.py's own
+    docstring both describe was absent from every prompt this branch sent.
+
+    The middle stays in time order -- a workflow is a sequence -- and `pack`
+    still hands back a time-ordered window, because checks.coverage slices it
+    into TIME deciles.
+    """
+    from rig.window import K_ENDS
+
+    window = Window(
+        items=[Packed(f"ges_{n}", float(n), {"id": f"ges_{n}"}, float(n), 10) for n in range(40)]
+    )
+
+    order = [
+        int(line.split("ges_")[1].rstrip('",'))
+        for line in build_prompt(window, {}, [], "").splitlines()
+        if "ges_" in line
+    ]
+
+    assert order[0] == 39, "the strongest evidence opens the prompt"
+    assert order[-1] == 38, "the second strongest closes it"
+    assert order[K_ENDS // 2 : -K_ENDS // 2] == sorted(order[K_ENDS // 2 : -K_ENDS // 2])
+    assert [item.at for item in window.items] == sorted(item.at for item in window.items)
+
+
+def test_a_window_packed_to_the_budget_still_fits_the_budget() -> None:
+    """The assertion nobody wrote, and the only one that catches this.
+
+    pack() budgeted each item as compact JSON while build_prompt ships the list
+    at indent=1, and subtracted neither INSTRUCTIONS (twice), nor the response
+    schema, nor the crossings block. Measured on the real 83-gesture acme
+    window the item ratio alone is 1.176, so a window filled to
+    K_WINDOW_TOKENS shipped ~177,000 tokens -- over the 200K boundary this
+    budget exists to stay under, at double the input price.
+
+    The schema is counted because it is sent with the call and billed as input.
+    """
+    import copy
+
+    from rig.correlate import correlate
+    from rig.window import K_WINDOW_TOKENS, pack, tokens
+    from rig.wire import Batch
+    from tests.fixtures import BATCH
+
+    seed, _, _, _ = correlate(Batch.model_validate(BATCH), "acme")
+    gestures = []
+    for run in range(220):
+        for gesture in seed:
+            dup = copy.deepcopy(gesture)
+            dup.id = f"{gesture.id}_{run}"
+            gestures.append(dup)
+
+    known = [
+        {"id": f"wf_{n}", "title": "create a supplier", "systems": ["https://wms.example"]}
+        for n in range(30)
+    ]
+    crossings = {f"ACME-{n:04d}": [f"ges_{n}", f"ges_{n + 1}"] for n in range(400)}
+    kb = "The WMS is Blue Yonder. " * 200
+
+    window = pack(gestures, {}, [], known, kb)
+
+    assert window.left_out, "the budget must actually bite, or this proves nothing"
+    shipped = tokens(build_prompt(window, crossings, known, kb)) + tokens(
+        json.dumps(WORKFLOW_SCHEMA)
+    )
+    assert shipped <= K_WINDOW_TOKENS, f"prompt is {shipped} tokens against {K_WINDOW_TOKENS}"
+
+
+def test_the_crossings_block_cannot_outgrow_the_window_it_hints_at() -> None:
+    """`crossings` is computed over the whole store, so it grows with capture
+    rather than with the window -- and nothing bounded it or budgeted it."""
+    from rig.umbrella import K_MAX_CROSSING_TOKENS
+    from rig.window import tokens
+
+    crossings = {f"ACME-{n:05d}": [f"ges_{n}"] * 6 for n in range(5_000)}
+
+    prompt = build_prompt(_window(), crossings, [], "")
+    # json.dumps(indent=1) never writes a blank line, so the blank line between
+    # sections is where the block ends.
+    block = prompt.split("## Values appearing in more than one system\n")[1].split("\n\n")[0]
+
+    assert tokens(block) <= K_MAX_CROSSING_TOKENS
+    assert "ACME-00000" in block, "the crossings that fit are still there"

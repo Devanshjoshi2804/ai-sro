@@ -121,7 +121,8 @@ middle, with gains that appear specifically once the evidence set is large.
 
 ```
 def pack(new_gestures, pool, known, kb):
-    budget = K_WINDOW_TOKENS - ‖INSTRUCTION‖*2 - ‖known‖ - ‖kb‖
+    budget = K_WINDOW_TOKENS - ‖INSTRUCTION‖*2 - ‖schema‖ - K_MAX_CROSSING_TOKENS
+                             - ‖known‖ - ‖kb‖
 
     items = [ (g, strength(g)) for g in new_gestures ]
           + [ (p, strength(p) + K_POOL_BONUS) for p in pool ]
@@ -157,6 +158,21 @@ def strength(g):
 input price doubles from $2 to $4 per million. `K_MIN_GESTURES = 25`, so a quiet
 morning is still read. `K_ENDS = 12`, `K_POOL_BONUS = 0.5`.
 
+**It is a *prompt* budget, so it has to measure the prompt.** `‖item‖` is the
+item as `build_prompt` will actually write it — inside a list, at `indent=1` —
+not compact. Measured on the real 83-gesture acme window the two differ by
+**17.6%** (22,593 counted against 26,566 shipped), and `INSTRUCTION`×2 (446),
+the response schema (191, billed as input) and the crossings block were
+subtracted by nothing at all. A window filled to the budget under that
+arithmetic shipped **190,866 tokens against 150,000** — 27% over, and within
+striking distance of the boundary the number exists to stay under. Counted the
+way it is written it lands at 149,921. `crossings` is the one part that grows
+with the STORE rather than the window, so it is capped at
+`K_MAX_CROSSING_TOKENS = 2_000` (≈1.3% of the budget, well over a hundred
+crossings) and that cap is subtracted whether or not any crossing fires.
+`tests/test_umbrella.py` packs a window to the budget, assembles the prompt and
+asserts it fits.
+
 **The window is built from trimmed evidence, not full bodies, and that is a
 measurement rather than a preference.** Across 81 real gestures from the acme
 tenant:
@@ -176,6 +192,11 @@ real day of roughly 1,500. So `K_MAX_GESTURE_TOKENS = 2_000` caps any single
 gesture's contribution, full bodies stay in the store reachable by id, and the
 coarse-to-fine pass in A7 becomes the rare case it was meant to be rather than
 the normal one.
+
+**`arrange` is applied at prompt assembly, not in `pack`.** `pack` returns the
+window in time order and `checks.coverage` slices it into *time* deciles, so its
+`skew` figure only stays comparable across passes while those deciles keep
+meaning the same thing. `umbrella.build_prompt` reorders on its way out.
 
 **`arrange` keeps `chosen.sort(key=at)` upstream of it for a reason.** Order-
 invariant representations were measured to specifically degrade cross-application

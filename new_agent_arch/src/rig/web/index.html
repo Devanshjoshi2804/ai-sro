@@ -158,7 +158,15 @@
        $${Number(s.per_gesture_usd ?? 0).toFixed(6)} a reading${
          s.unusable ? ` · <b class="nothing">${esc(s.unusable)}</b> unusable` : ""
        }${s.unpriced ? ` · <b class="nothing">${esc(s.unpriced)}</b> unpriced` : ""}${
-         s.passes ? ` · <b>$${Number(s.mining_usd ?? 0).toFixed(4)}</b> mining over ${esc(s.passes)}` : ""
+         s.passes ? ` · <b>$${Number(s.mining_usd ?? 0).toFixed(4)}</b> mining over ${esc(s.passes)}${
+           // The sibling of `unpriced` one field over, and dropped here for a
+           // round: a pass on a model missing from PRICES drew "$0.0000 mining
+           // over 1", which is the $0.00-versus-honestly-unpriced confusion the
+           // flag was added to prevent -- in the one place a human reads the
+           // bill. It happened for real: findings.md records mining_usd 0.0 and
+           // mining_unpriced 1 while $1.12 was billed.
+           s.mining_unpriced ? ` · <b class="nothing">${esc(s.mining_unpriced)}</b> unpriced` : ""
+         }` : ""
        }`;
   }
 

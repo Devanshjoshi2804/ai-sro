@@ -11,11 +11,27 @@ import json
 from typing import Any
 
 from rig.models import Answer, Asker, Effort
-from rig.window import Window
+from rig.window import Window, arrange, tokens
 from rig.workflows import Step, Workflow, new_workflow_id
 
 K_SAMPLES = 1
 K_EFFORT: Effort = "high"
+K_MAX_CROSSING_TOKENS = 2_000
+"""What the crossings block may cost, and it is a cap rather than a count.
+
+Every other part of this prompt grows with the WINDOW, which the budget bounds.
+`crossings` is computed by values.shared_values over the tenant's whole store, so
+it grows with the store instead -- a second year of capture widens a block the
+window budget never sees, and the thing that gives way is the prompt.
+
+A cap and not a share of the budget, because this is a hint: the model is told
+which values appear in two systems and decides what that means. Two thousand
+tokens is ~1.3% of K_WINDOW_TOKENS and holds well over a hundred crossings,
+which is far past the point where a list of "these look like the same thing"
+stops being a hint and becomes furniture the K_UBIQUITY filter should have
+caught. It is subtracted from the budget whether or not any crossing fires, so
+the prompt fits in the case that matters -- the full one.
+"""
 
 INSTRUCTIONS = """You are reading a stretch of one warehouse operator's working day.
 
@@ -74,6 +90,28 @@ WORKFLOW_SCHEMA: dict[str, Any] = {
 }
 
 
+def bounded_crossings(crossings: dict[str, list[str]]) -> dict[str, list[str]]:
+    """The crossings that fit K_MAX_CROSSING_TOKENS, best-evidenced first.
+
+    Ordered by how many gestures carry the value: values.trivial already drops
+    anything above K_UBIQUITY, so nothing left here is furniture, and among what
+    remains a value seen on eight gestures across two systems is a firmer link
+    than one seen on two. Ties break on the value so the same store always
+    produces the same prompt.
+    """
+    kept: dict[str, list[str]] = {}
+    spent = 0
+    for value, ids in sorted(crossings.items(), key=lambda pair: (-len(pair[1]), pair[0])):
+        # Each entry measured on its own, so the count never depends on how many
+        # came before it. Slightly over -- it pays for a pair of braces per entry
+        # -- which is the direction a budget should err in.
+        spent += tokens(json.dumps({value: ids}, indent=1, ensure_ascii=False))
+        if spent > K_MAX_CROSSING_TOKENS:
+            break
+        kept[value] = ids
+    return kept
+
+
 def build_prompt(
     window: Window,
     crossings: dict[str, list[str]],
@@ -86,13 +124,23 @@ def build_prompt(
     constraints after the evidence costs almost nothing. Nothing here marks
     which evidence matters most -- doing that was measured to reduce accuracy.
     """
+    # arrange() and not window.items directly. `pack` sorts the window into time
+    # order and every reader downstream depends on that -- checks.coverage
+    # slices it into TIME deciles, and its skew figure is only comparable across
+    # passes while those deciles mean the same thing. So the reordering happens
+    # here, at the one place the evidence becomes a prompt, exactly as
+    # algorithms.md's pseudocode has it: `chosen.sort(key=at)` upstream,
+    # `arrange(chosen)` at assembly.
     parts = [INSTRUCTIONS, "", "## The day", ""]
-    parts.append(json.dumps([item.evidence for item in window.items], indent=1, ensure_ascii=False))
-    if crossings:
+    parts.append(
+        json.dumps([item.evidence for item in arrange(window.items)], indent=1, ensure_ascii=False)
+    )
+    bounded = bounded_crossings(crossings)
+    if bounded:
         parts += [
             "",
             "## Values appearing in more than one system",
-            json.dumps(crossings, indent=1, ensure_ascii=False),
+            json.dumps(bounded, indent=1, ensure_ascii=False),
         ]
     if known:
         parts += ["", "## Jobs already proven", json.dumps(known, indent=1, ensure_ascii=False)]
@@ -100,6 +148,22 @@ def build_prompt(
         parts += ["", "## What is known about these systems", kb]
     parts += ["", INSTRUCTIONS]
     return "\n".join(parts)
+
+
+# What window.pack has to subtract from K_WINDOW_TOKENS before it fills anything,
+# because none of it is evidence and all of it is billed as input: the task
+# stated at both ends (the measured decision, and 446 tokens), every section
+# heading, the response schema, and the crossings cap above.
+#
+# Probed rather than added up by hand -- one truthy value for each optional
+# section, so the headings are counted -- and the probe's own few tokens of
+# content are left in as slack. The one thing it cannot see is the evidence, and
+# that is exactly what the budget is for.
+PROMPT_OVERHEAD_TOKENS = (
+    tokens(build_prompt(Window(), {"x": ["y"]}, [{"x": "y"}], "x"))
+    + tokens(json.dumps(WORKFLOW_SCHEMA))
+    + K_MAX_CROSSING_TOKENS
+)
 
 
 def _as_workflow(raw: object, tenant: str) -> Workflow | None:

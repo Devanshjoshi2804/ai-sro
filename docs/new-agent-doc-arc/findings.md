@@ -316,6 +316,46 @@ entry read six times would then outrank one never seen at all. The first
 attempt at rotation made coverage worse -- 6% against 19% -- for exactly that
 reason.
 
+## Shape cannot tell one job done twice from two jobs on one screen
+
+The parameter machinery needs pairs: a parameter is what two doings of one job
+disagree about, and `identity.resolve` finds those by matching shapes while the
+citations differ. The real corpus contains one such pair -- `Create Work Area
+NEWTESTS` and `Create Work Area TWOTEST` are the same job with a different work
+area name -- and identity called them two jobs.
+
+That is not a threshold that needs moving. Four signals, measured over the
+eight real workflows:
+
+| signal | the same-job pair | best different-job pair |
+|---|---|---|
+| containment over the shape key | 0.47 | 0.46 |
+| the same, weighted by how rare each step is | 0.26 | 0.22 |
+| containment over filled FIELDS only | 0.50 | **1.00** |
+| containment over SCREENS touched | **1.00** | **1.00** |
+
+Plain containment separates them by one point in a hundred. Weighting by rarity
+widens that to four, which is better and still not a line anybody could draw.
+Fields-only inverts it -- a job with one field is wholly contained by anything
+sharing that field, the "half of two against half of twenty" problem
+`K_MIN_SHARED_STEPS` exists for, biting hardest where the counts are smallest.
+Screens tie, because creating a work area and searching work areas happen on
+the same screen.
+
+The cause is structural. `shape_key` keys on `system`, and `system` is a host.
+A WMS with fifty screens behind one host makes every job on it share its
+navigation, its `Add` and its `Save`, so the entries that distinguish a job are
+outnumbered by the chrome that does not.
+
+A combined signal -- screens to narrow the field, shape to discriminate inside
+it -- looks promising in these numbers. It is not implemented, and that is
+deliberate: **the corpus holds exactly one true-positive pair.** Tuning a
+multi-signal matcher against one example is fitting to noise, and this document
+has already recorded two heuristics rejected for less.
+
+What would settle it is more pairs, which is the same fifteen-minute capture
+everything else here waits on: do one job twice, with different values.
+
 ## What evidence would settle it
 
 One operator, one session, two hosts, with a value carried between them by

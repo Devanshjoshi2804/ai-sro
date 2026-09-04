@@ -1,5 +1,6 @@
 import asyncio
 import json
+import sqlite3
 from pathlib import Path
 from typing import Any
 
@@ -250,7 +251,7 @@ async def test_an_xml_login_body_reaches_neither_the_prompt_nor_the_page(
     client.post("/v1/observations", json=loud, headers=_auth())
     asker = _QuotingAsker()
 
-    await read_new_gestures(store, asker, "gemini-3.8-flash")
+    await read_new_gestures(store, asker, "gemini-3.8-flash", "new")
 
     prompts = "".join(asked["evidence"] for asked in asker.asked)
     page = client.get("/v1/gestures", headers=_auth()).text
@@ -344,8 +345,8 @@ async def test_two_readings_of_the_same_gestures_do_not_both_run(store: Store) -
     asker = FakeAsker(*[_ok() for _ in range(14)])
 
     first, second = await asyncio.gather(
-        read_new_gestures(store, asker, "gemini-3.8-flash"),
-        read_new_gestures(store, asker, "gemini-3.8-flash"),
+        read_new_gestures(store, asker, "gemini-3.8-flash", "new"),
+        read_new_gestures(store, asker, "gemini-3.8-flash", "new"),
     )
 
     assert first + second == 7
@@ -367,12 +368,12 @@ async def test_every_stored_gesture_gets_read_once(store: Store) -> None:
     save_batch(store, Batch.model_validate(BATCH), "new")
     asker = FakeAsker(*[_ok() for _ in range(7)])
 
-    written = await read_new_gestures(store, asker, "gemini-3.8-flash")
+    written = await read_new_gestures(store, asker, "gemini-3.8-flash", "new")
 
     assert written == 7
     assert store.query("SELECT count(*) AS n FROM intents")[0]["n"] == 7
 
-    again = await read_new_gestures(store, asker, "gemini-3.8-flash")
+    again = await read_new_gestures(store, asker, "gemini-3.8-flash", "new")
 
     assert again == 0
 
@@ -384,7 +385,7 @@ async def test_the_reading_is_told_about_the_calls_the_gesture_caused(store: Sto
     save_batch(store, Batch.model_validate(BATCH), "new")
     asker = FakeAsker(*[_ok() for _ in range(10)])
 
-    await read_new_gestures(store, asker, "gemini-3.8-flash")
+    await read_new_gestures(store, asker, "gemini-3.8-flash", "new")
 
     prompts = [asked["evidence"] for asked in asker.asked]
     with_calls = [p for p in prompts if '"calls": []' not in p and '"calls"' in p]
@@ -407,7 +408,7 @@ async def test_a_reading_that_failed_is_still_written(store: Store) -> None:
     save_batch(store, Batch.model_validate(BATCH), "new")
     asker = FakeAsker(*[Answer(error="503") for _ in range(7)])
 
-    await read_new_gestures(store, asker, "gemini-3.8-flash")
+    await read_new_gestures(store, asker, "gemini-3.8-flash", "new")
 
     rows = store.query("SELECT error FROM intents")
     assert len(rows) == 7
@@ -687,7 +688,7 @@ async def test_a_billed_reading_with_no_act_is_neither_hidden_nor_billed_twice(
     and the cost must stay where a person can see it."""
     client.post("/v1/observations", json=BATCH, headers=_auth())
 
-    read = await read_new_gestures(store, FakeAsker(*[_unusable() for _ in range(7)]), "m")
+    read = await read_new_gestures(store, FakeAsker(*[_unusable() for _ in range(7)]), "m", "new")
 
     assert read == 7
     spend = client.get("/v1/spend", headers=_auth()).json()
@@ -706,7 +707,7 @@ async def test_a_billed_reading_with_no_act_is_neither_hidden_nor_billed_twice(
 
     # Billed once. A row that was asked and answered is not asked again.
     asker = FakeAsker(*[_ok() for _ in range(7)])
-    assert await read_new_gestures(store, asker, "m") == 0
+    assert await read_new_gestures(store, asker, "m", "new") == 0
     assert asker.asked == []
 
 
@@ -727,7 +728,7 @@ async def test_a_reading_loop_that_dies_says_so(
     monkeypatch.setattr(api, "_read_unread", explode)
 
     with caplog.at_level("ERROR"):
-        await api._read_soon(store, FakeAsker())
+        await api._read_soon(store, FakeAsker(), "new")
 
     assert caplog.records, "the loop died and said nothing anywhere"
     assert "the store fell over" in caplog.text
@@ -751,7 +752,7 @@ async def test_the_reading_task_is_held_until_it_finishes(
 
     monkeypatch.setattr(api, "_read_unread", slow)
 
-    task = api._spawn_reading(store, FakeAsker())
+    task = api._spawn_reading(store, FakeAsker(), "new")
     await running.wait()
 
     assert task in api._reading_tasks, "nothing holds the running task"
@@ -933,12 +934,12 @@ async def test_one_operators_history_is_never_another_operators_prompt(store: St
     """
     save_batch(store, Batch.model_validate(_as_device("dev_alice", "bat_alice", 0.0)), "new")
     alice = FakeAsker(*[_saying("alice cancelled order ORD-8841") for _ in range(7)])
-    await read_new_gestures(store, alice, "m")
+    await read_new_gestures(store, alice, "m", "new")
     assert len(alice.asked) == 7
 
     save_batch(store, Batch.model_validate(_as_device("dev_bob", "bat_bob", 600.0)), "new")
     bob = FakeAsker(*[_saying("bob received tote TOT-12") for _ in range(7)])
-    await read_new_gestures(store, bob, "m")
+    await read_new_gestures(store, bob, "m", "new")
 
     prompts = "".join(asked["evidence"] for asked in bob.asked)
 
@@ -1060,7 +1061,7 @@ async def test_one_upload_bigger_than_a_page_is_drained_not_left_half_read(
 
     asker = FakeAsker(*[_ok() for _ in range(457)])
     monkeypatch.setattr(api.settings(), "intent_model", "m", raising=False)
-    await api._read_soon(store, asker)
+    await api._read_soon(store, asker, "new")
 
     assert store.query("SELECT count(*) AS n FROM intents")[0]["n"] == 457
 
@@ -1289,7 +1290,11 @@ def test_a_pass_over_the_route_accounts_for_every_workflow_it_proposed(
     assert body["window"] == 0
     assert body["left_out"] == 0
     assert body["lost_pool"] == []
-    assert body["coverage"]["lopsided"] is True
+    # The fake had no answer queued, so this pass was refused. `lopsided` is a
+    # verdict on where a model's citations fell and there was no model answer
+    # to judge -- the reason it is False here rather than True on coverage 0.0.
+    assert body["error"] == "the fake ran out of answers"
+    assert body["coverage"]["lopsided"] is False
 
 
 # --- Open item 2: the rig's own token out of the browser's address bar --------
@@ -1482,3 +1487,166 @@ def test_a_credential_in_the_tab_url_never_reaches_the_store(store: Store) -> No
 
     assert "sk-live-abcdef" not in stored
     assert stored == "https://wms.example/back?access_token=«redacted»"
+
+
+def test_the_pool_route_reports_what_stopped_being_offered_and_why(
+    client: TestClient, store: Store
+) -> None:
+    """pool.py says retirement must leave a record. `retired_entries` had no
+    reader over the wire, so a window that quietly stopped carrying yesterday's
+    tail looked exactly like one with nothing left to carry."""
+    from rig.pool import K_POOL_AGE, add_unclaimed, age_pool
+
+    add_unclaimed(store, "new", ["ges_old"], set())
+    for _ in range(K_POOL_AGE + 1):
+        age_pool(store, "new")
+    add_unclaimed(store, "new", ["ges_fresh"], set())
+
+    body = client.get("/v1/pool", headers=_auth()).json()
+
+    assert body["pooled"] == ["ges_fresh"]
+    assert [entry["gesture_id"] for entry in body["retired"]] == ["ges_old"]
+    assert body["retired"][0]["reason"] == "passes"
+    assert body["retired"][0]["age"] == K_POOL_AGE + 1
+
+
+def test_the_pool_route_answers_for_this_tenant_only(client: TestClient, store: Store) -> None:
+    from rig.pool import add_unclaimed
+
+    add_unclaimed(store, "new", ["ges_ours"], set())
+    add_unclaimed(store, "other", ["ges_theirs"], set())
+
+    body = client.get("/v1/pool", headers=_auth()).json()
+
+    assert body["pooled"] == ["ges_ours"]
+
+
+def _other_tenants_gesture(store: Store, gesture_id: str = "ges_theirs") -> None:
+    """One gesture belonging to a tenant this app was not built for."""
+    store.execute(
+        "INSERT INTO gestures (id, tenant, stream_id, batch_id, at, gesture_json)"
+        " VALUES (?, ?, ?, ?, ?, ?)",
+        (
+            gesture_id,
+            "other",
+            "dev_theirs",
+            "bat_theirs",
+            9999.0,
+            json.dumps({"kind": "click", "at": 9999.0, "url": "https://theirs.example/"}),
+        ),
+    )
+
+
+def test_the_routes_answer_for_this_tenant_and_no_other(client: TestClient, store: Store) -> None:
+    """mine, pool and workflows all filter on tenant; these three did not. A
+    second tenant in one store made /v1/spend report someone else's bill."""
+    client.post("/v1/observations", json=BATCH, headers=_auth())
+    _other_tenants_gesture(store)
+    from rig.api import save_intent
+    from rig.records import Intent
+
+    save_intent(store, Intent(gesture_id="ges_theirs", tenant="other", act="x", cost_usd=9.99))
+    store.execute(
+        "INSERT INTO passes (id, tenant, started_at, cost_usd) VALUES (?, ?, ?, ?)",
+        ("pas_theirs", "other", "2026-01-01T00:00:00+00:00", 4.5),
+    )
+
+    streams = client.get("/v1/streams", headers=_auth()).json()
+    gestures = client.get("/v1/gestures", headers=_auth()).json()
+    spend = client.get("/v1/spend", headers=_auth()).json()
+
+    assert [row["stream_id"] for row in streams["streams"]] == ["dev_browsertest"]
+    assert "ges_theirs" not in [row["id"] for row in gestures["gestures"]]
+    assert spend["gestures"] == 7, "another tenant's gestures are not our backlog"
+    assert spend["gestures_read"] == 0
+    assert spend["cost_usd"] == 0.0, "another tenant's readings are not our bill"
+    assert spend["passes"] == 0 and spend["mining_usd"] == 0.0
+
+
+async def test_the_reading_loop_pays_for_this_tenant_only(store: Store) -> None:
+    """The reading is what costs money. Unscoped, this loop read -- and billed
+    us for -- gestures no pass of ours will ever mine."""
+    save_batch(store, Batch.model_validate(BATCH), "new")
+    _other_tenants_gesture(store)
+    asker = FakeAsker(*[Answer(data={"act": "x"}, cost_usd=0.001) for _ in range(9)])
+
+    read = await read_new_gestures(store, asker, "m", "new")
+
+    assert read == 7
+    assert store.query("SELECT count(*) AS n FROM intents WHERE tenant = 'other'")[0]["n"] == 0
+
+
+async def test_the_spend_route_says_how_much_of_the_bill_was_thinking(store: Store) -> None:
+    """Thinking is billed at the output rate and is ~84% of billed output on
+    Flash. `Answer.thought_tokens` was carried out of the SDK, priced, and then
+    reached no reader at all -- so the bill said the readings were expensive and
+    nothing said what had been paid for."""
+    from rig.api import save_intent
+    from rig.mine import mine
+    from rig.records import Intent
+
+    save_batch(store, Batch.model_validate(BATCH), "new")
+    reading = FakeAsker(
+        *[Answer(data={"act": "x"}, out_tokens=100, thought_tokens=84) for _ in range(7)]
+    )
+    await read_new_gestures(store, reading, "m", "new")
+    save_intent(store, Intent(gesture_id="ges_hand", tenant="new", out_tokens=10, thought_tokens=6))
+    await mine(
+        store,
+        tenant="new",
+        asker=FakeAsker(Answer(data={"workflows": []}, out_tokens=900, thought_tokens=800)),
+        model="m",
+    )
+
+    client = TestClient(
+        build_app(store=store, asker=reading, token=TOKEN, tenant="new", read_on_ingest=False)
+    )
+    body = client.get("/v1/spend", headers=_auth()).json()
+
+    assert body["out_tokens"] == 7 * 100 + 10
+    assert body["thought_tokens"] == 7 * 84 + 6 + 800
+
+
+def test_an_integrity_failure_that_is_not_a_duplicate_batch_is_not_called_one(
+    store: Store, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`already_had_it` is what the extension reads to drop a batch it has
+    already sent. Returned for ANY integrity failure, it told the extension
+    that a batch nothing stored was handled -- and those events are gone."""
+    from rig import correlate as correlate_module
+
+    monkeypatch.setattr(correlate_module, "new_gesture_id", lambda: "ges_the_same_twice")
+
+    with pytest.raises(sqlite3.IntegrityError, match="gestures.id"):
+        save_batch(store, Batch.model_validate(BATCH), "new")
+
+    assert store.query("SELECT count(*) AS n FROM batches")[0]["n"] == 0, "the claim rolled back"
+
+
+def test_a_batch_that_really_was_sent_twice_is_still_a_no_op(store: Store) -> None:
+    """The case the narrowed except keeps."""
+    save_batch(store, Batch.model_validate(BATCH), "new")
+
+    accepted, already, _ = save_batch(store, Batch.model_validate(BATCH), "new")
+
+    assert (accepted, already) == (0, True)
+
+
+def test_the_header_shows_how_much_of_the_bill_was_thinking() -> None:
+    """The bill's biggest component on Flash, and the line where a person
+    reads the bill. /v1/spend carries it; the header dropped it."""
+    rendered = _run_page(
+        """
+        const base = { gestures: 9, gestures_read: 7, cost_usd: 0.0259,
+                       per_gesture_usd: 0.0037, unpriced: 0, unusable: 0,
+                       thought_tokens: 0 };
+        console.log(JSON.stringify([
+          spendLine(base),
+          spendLine({ ...base, thought_tokens: 5000 }),
+        ]));
+        """
+    )
+    silent, thinking = json.loads(rendered)
+
+    assert "thought" not in silent, "a model that thought nothing says nothing"
+    assert "5000" in thinking and "thought" in thinking

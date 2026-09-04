@@ -466,7 +466,10 @@ def test_the_crossings_block_cannot_outgrow_the_window_it_hints_at() -> None:
     from rig.umbrella import K_MAX_CROSSING_TOKENS
     from rig.window import tokens
 
-    crossings = {f"ACME-{n:05d}": [f"ges_{n}"] * 6 for n in range(5_000)}
+    # Every id is one of the window's own: build_prompt names only what the
+    # model may cite, so a crossing over ids outside it is not a block this cap
+    # could ever have to bound.
+    crossings = {f"ACME-{n:05d}": ["ges_1", "ges_2"] * 3 for n in range(5_000)}
 
     prompt = build_prompt(_window(), crossings, [], "")
     # json.dumps(indent=1) never writes a blank line, so the blank line between

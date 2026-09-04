@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS batches (
 
 CREATE TABLE IF NOT EXISTS gestures (
     id           TEXT PRIMARY KEY,
-    tenant       TEXT NOT NULL,  -- written for plan 2's sake; nothing filters on it yet -- one tenant today
+    tenant       TEXT NOT NULL,  -- every reader filters on it: the mining pass, the pool, the reading loop and the routes
     stream_id    TEXT NOT NULL,
     batch_id     TEXT NOT NULL,
     at           REAL NOT NULL,      -- Unix seconds, float: recorder.js's own format
@@ -64,6 +64,11 @@ CREATE TABLE IF NOT EXISTS intents (
     model       TEXT,
     in_tokens   INTEGER NOT NULL DEFAULT 0,
     out_tokens  INTEGER NOT NULL DEFAULT 0,
+    -- Inside out_tokens, not beside it: thinking is billed at the output rate
+    -- and out_tokens is what the bill is computed from. Kept as its own column
+    -- because on Flash it is ~84% of billed output, and a reader with one
+    -- number cannot tell a long answer from a long silence.
+    thought_tokens INTEGER NOT NULL DEFAULT 0,
     cost_usd    REAL NOT NULL DEFAULT 0.0,
     unpriced    INTEGER NOT NULL DEFAULT 0,
     created_at  TEXT NOT NULL,
@@ -97,6 +102,7 @@ CREATE TABLE IF NOT EXISTS passes (
     started_at TEXT NOT NULL,
     in_tokens  INTEGER NOT NULL DEFAULT 0,
     out_tokens INTEGER NOT NULL DEFAULT 0,
+    thought_tokens INTEGER NOT NULL DEFAULT 0,  -- inside out_tokens; see `intents`
     cost_usd   REAL NOT NULL DEFAULT 0.0,
     unpriced   INTEGER NOT NULL DEFAULT 0,
     proposed   INTEGER NOT NULL DEFAULT 0,

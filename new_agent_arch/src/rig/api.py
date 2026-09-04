@@ -119,7 +119,20 @@ def save_batch(store: Store, batch: Batch, tenant: str, rejected: int = 0) -> tu
                     "INSERT INTO orphan_pages (batch_id, tenant, at, payload) VALUES (?, ?, ?, ?)",
                     (batch.batch_id, tenant, page.at, page.model_dump_json()),
                 )
-    except sqlite3.IntegrityError:
+    except sqlite3.IntegrityError as problem:
+        # Only the duplicate batch_id is "we already had this". Every other
+        # integrity failure in the block -- a gesture id already stored, some
+        # constraint added later -- was answered the same way, and the answer
+        # tells the extension the batch was handled: it drops those events and
+        # never retries, so they are gone. Silent, unrecoverable, and the whole
+        # difference between "already stored" and "stored nothing".
+        #
+        # Matched on the message because sqlite3 reports no code for WHICH
+        # constraint failed -- sqlite3.IntegrityError has one errno for all of
+        # them. A rename of the table or column changes this string, which is
+        # why the case it covers is the one the tests construct.
+        if "batches.batch_id" not in str(problem):
+            raise
         return 0, True, 0
 
     return len(gestures), False, snapshots_ignored
@@ -158,6 +171,7 @@ def _row_to_intent(row: sqlite3.Row) -> Intent:
         model=row["model"],
         in_tokens=row["in_tokens"],
         out_tokens=row["out_tokens"],
+        thought_tokens=row["thought_tokens"],
         cost_usd=row["cost_usd"],
         unpriced=bool(row["unpriced"]),
         error=row["error"],
@@ -168,8 +182,8 @@ def save_intent(store: Store, intent: Intent) -> None:
     store.execute(
         "INSERT OR REPLACE INTO intents (gesture_id, tenant, act, object, system, page,"
         " values_seen, continues, confidence, why, model, in_tokens, out_tokens,"
-        " cost_usd, unpriced, created_at, error)"
-        " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        " thought_tokens, cost_usd, unpriced, created_at, error)"
+        " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (
             intent.gesture_id,
             intent.tenant,
@@ -184,6 +198,7 @@ def save_intent(store: Store, intent: Intent) -> None:
             intent.model,
             intent.in_tokens,
             intent.out_tokens,
+            intent.thought_tokens,
             intent.cost_usd,
             int(intent.unpriced),
             _now(),
@@ -209,8 +224,12 @@ def tail_for(store: Store, stream_id: str, before: float) -> list[Intent]:
 MAX_READING_PASSES = 100
 
 
-async def read_new_gestures(store: Store, asker: Asker, model: str) -> int:
-    """Every stored gesture with no intent gets exactly one reading.
+async def read_new_gestures(store: Store, asker: Asker, model: str, tenant: str) -> int:
+    """Every stored gesture of THIS TENANT with no intent gets exactly one reading.
+
+    Scoped, because the reading is what costs money: a second tenant in one
+    store had this loop paying for gestures no pass of ours will ever mine, and
+    filing intents under their tenant on our bill.
 
     One reading loop at a time. Two concurrent callers both SELECT the same
     unread gestures before either writes an intent, so every gesture in the
@@ -222,10 +241,10 @@ async def read_new_gestures(store: Store, asker: Asker, model: str) -> int:
     in the database if it ever becomes more than one.
     """
     async with one_at_a_time("reading"):
-        return await _read_unread(store, asker, model)
+        return await _read_unread(store, asker, model, tenant)
 
 
-async def _read_unread(store: Store, asker: Asker, model: str) -> int:
+async def _read_unread(store: Store, asker: Asker, model: str, tenant: str) -> int:
     # An intent row means a reading happened, whatever came back in it -- an
     # error, or an answer whose `act` was the wrong type and got nulled. None
     # of those is retried: the model was asked, it answered, and it was billed.
@@ -236,7 +255,8 @@ async def _read_unread(store: Store, asker: Asker, model: str) -> int:
     # hidden -- pick one, and this picks visible.
     rows = store.query(
         "SELECT g.* FROM gestures g LEFT JOIN intents i ON i.gesture_id = g.id"
-        " WHERE i.gesture_id IS NULL ORDER BY g.at LIMIT 200"
+        " WHERE i.gesture_id IS NULL AND g.tenant = ? ORDER BY g.at LIMIT 200",
+        (tenant,),
     )
 
     written = 0
@@ -316,7 +336,7 @@ def build_app(
             store, batch, tenant, rejected=len(rejected)
         )
         if read_on_ingest and not already:
-            _spawn_reading(store, asker)
+            _spawn_reading(store, asker, tenant)
         return {
             "batch_id": batch.batch_id,
             "accepted": accepted,
@@ -361,7 +381,8 @@ def build_app(
     def streams() -> dict[str, Any]:
         rows = store.query(
             "SELECT stream_id, count(*) AS gestures, min(at) AS first, max(at) AS last"
-            " FROM gestures GROUP BY stream_id ORDER BY last DESC"
+            " FROM gestures WHERE tenant = ? GROUP BY stream_id ORDER BY last DESC",
+            (tenant,),
         )
         return {"streams": [dict(row) for row in rows]}
 
@@ -373,11 +394,12 @@ def build_app(
             " g.requests, i.gesture_id AS read_id, i.act, i.object, i.page,"
             " i.confidence, i.why, i.values_seen, i.cost_usd, i.unpriced, i.error"
             " FROM gestures g LEFT JOIN intents i ON i.gesture_id = g.id"
+            " WHERE g.tenant = ?"
         )
-        params: tuple[Any, ...] = ()
+        params: tuple[Any, ...] = (tenant,)
         if stream:
-            sql += " WHERE g.stream_id = ?"
-            params = (stream,)
+            sql += " AND g.stream_id = ?"
+            params = (*params, stream)
         sql += " ORDER BY g.at LIMIT ?"
         params = (*params, limit)
 
@@ -435,19 +457,25 @@ def build_app(
     def spend() -> dict[str, Any]:
         row = store.query(
             "SELECT count(*) AS n, coalesce(sum(in_tokens), 0) AS i,"
-            " coalesce(sum(out_tokens), 0) AS o, coalesce(sum(cost_usd), 0.0) AS c,"
+            " coalesce(sum(out_tokens), 0) AS o, coalesce(sum(thought_tokens), 0) AS t,"
+            " coalesce(sum(cost_usd), 0.0) AS c,"
             " coalesce(sum(unpriced), 0) AS u,"
             " coalesce(sum(act IS NULL AND error IS NULL), 0) AS x"
-            " FROM intents"
+            " FROM intents WHERE tenant = ?",
+            (tenant,),
         )[0]
-        gestures_total = store.query("SELECT count(*) AS n FROM gestures")[0]["n"]
+        gestures_total = store.query(
+            "SELECT count(*) AS n FROM gestures WHERE tenant = ?", (tenant,)
+        )[0]["n"]
         # Summed where the cost actually lives. One pass is one model call over
         # the whole day, so its bill is one row -- and the workflows it found
         # each carrying a copy of that figure is how SUM over workflows came to
         # overstate the total by the number of jobs found.
         mining = store.query(
             "SELECT count(*) AS n, coalesce(sum(cost_usd), 0.0) AS c,"
-            " coalesce(sum(unpriced), 0) AS u FROM passes"
+            " coalesce(sum(unpriced), 0) AS u,"
+            " coalesce(sum(thought_tokens), 0) AS t FROM passes WHERE tenant = ?",
+            (tenant,),
         )[0]
         return {
             "passes": mining["n"],
@@ -457,6 +485,11 @@ def build_app(
             "gestures_read": row["n"],
             "in_tokens": row["i"],
             "out_tokens": row["o"],
+            # Inside out_tokens, billed at the output rate, and on Flash about
+            # 84% of it. Answer.thought_tokens reached no reader at all: the
+            # bill said the readings were expensive and nothing said that most
+            # of what was paid for was reasoning nobody ever read.
+            "thought_tokens": row["t"] + mining["t"],
             "cost_usd": round(row["c"], 6),
             # Readings whose cost we could not establish. A total that ignores
             # these understates the bill and says nothing about it.
@@ -527,6 +560,24 @@ def build_app(
             "unpriced": result.unpriced,
         }
 
+    @app.get("/v1/pool", dependencies=[Depends(authorised)])
+    def pool() -> dict[str, Any]:
+        """What the next pass will be offered first, and what it will not.
+
+        `retired` is the record pool.py says must exist: evidence that stopped
+        being privileged, when it entered and under which cap it aged out.
+        Nothing over the wire could read it, so a pass whose window quietly
+        stopped carrying yesterday's tail looked exactly like one that had
+        nothing left to carry. Retired is not gone -- it is packed again as
+        ordinary evidence, at its own strength.
+        """
+        from rig.pool import pool_ids, retired_entries
+
+        return {
+            "pooled": pool_ids(store, tenant),
+            "retired": [asdict(entry) for entry in retired_entries(store, tenant)],
+        }
+
     @app.get("/v1/workflows", dependencies=[Depends(authorised)])
     def workflows() -> dict[str, Any]:
         from rig.workflows import known_workflows
@@ -579,14 +630,14 @@ def build_app(
 _reading_tasks: set[asyncio.Task[None]] = set()
 
 
-def _spawn_reading(store: Store, asker: Asker) -> asyncio.Task[None]:
-    task = asyncio.create_task(_read_soon(store, asker))
+def _spawn_reading(store: Store, asker: Asker, tenant: str) -> asyncio.Task[None]:
+    task = asyncio.create_task(_read_soon(store, asker, tenant))
     _reading_tasks.add(task)
     task.add_done_callback(_reading_tasks.discard)
     return task
 
 
-async def _read_soon(store: Store, asker: Asker) -> None:
+async def _read_soon(store: Store, asker: Asker, tenant: str) -> None:
     try:
         # Drain, do not take one page. read_new_gestures reads at most 200 and
         # fires once per batch, while a single upload can carry 500 gestures --
@@ -596,7 +647,7 @@ async def _read_soon(store: Store, asker: Asker) -> None:
         # returns 0 ends it, and the cap is a backstop against a row that
         # cannot be read and would otherwise spin.
         for _ in range(MAX_READING_PASSES):
-            if not await read_new_gestures(store, asker, settings().intent_model):
+            if not await read_new_gestures(store, asker, settings().intent_model, tenant):
                 return
     except Exception:  # a reading loop must not take the process down with it
         # Still caught, so one bad row cannot end the process -- but never

@@ -16,6 +16,23 @@ from datetime import UTC, datetime, timedelta
 from rig.store import Store
 
 K_POOL_AGE = 6
+"""Readings of patience. After six, an entry stops being PRIVILEGED.
+
+Retirement is not removal from the window, and that is a decision rather than
+an accident. mine() draws `fresh` from every gesture in the tenant, so a
+retired gesture is packed again on the next pass at its own strength: what it
+loses is K_POOL_BONUS, not its place. The alternative -- retirement takes it
+out of the window, as this module's docstring used to imply -- is permanent
+blindness, because nothing ever un-retires: a gesture the budget dropped six
+times could then never be read again, not even on the day a second capture
+finally brings in the other half of its job. Keyed by tenant, that late-arriving
+cross-system join is the one thing this pool exists for.
+
+So the pool is a decaying priority, not a queue with an exit. Six readings of a
+boost, then compete on merit -- and the cost of the boost is bounded, which is
+what the cap is for.
+"""
+
 K_POOL_DAYS = 7
 
 RETIRED_PASSES = "passes"
@@ -56,8 +73,8 @@ def add_unclaimed(store: Store, tenant: str, window_ids: list[str], claimed: set
             # OR IGNORE: a gesture that has sat unplaced through three passes
             # keeps the age those passes gave it. Re-entering must not reset the
             # clock, or nothing in a recurring window ever retires. It also
-            # leaves a retired row retired -- retirement is a decision, and a
-            # later pass reaching that gesture another way still cites it.
+            # leaves a retired row retired -- retirement is a decision, and
+            # the gesture goes on being packed as ordinary evidence either way.
             cursor = connection.execute(
                 "INSERT OR IGNORE INTO pool"
                 " (gesture_id, tenant, age, retired, reason, entered_at)"
@@ -69,8 +86,14 @@ def add_unclaimed(store: Store, tenant: str, window_ids: list[str], claimed: set
 
 
 def age_pool(store: Store, tenant: str) -> int:
-    """One pass older. Past either cap it retires: out of the prompt, still in
-    the store, and citable if a later pass reaches it another way.
+    """One READING older. Past either cap it retires: no longer offered ahead
+    of fresh evidence (see K_POOL_AGE for what that does and does not mean),
+    still in the store, and still packed into every later window on its own
+    merits.
+
+    A reading, not a call: mine() ages the pool only on a pass the model
+    actually answered. Six refused calls -- an expired key, a model name the
+    API 404s, a day of 503s -- retired the whole pool having read nothing.
 
     Two caps, because a pool that only counts passes keeps an entry forever in a
     tenant nobody is mining, and one that only counts days retires an entry a

@@ -50,6 +50,8 @@ class Intent:
     model: str | None = None
     in_tokens: int = 0
     out_tokens: int = 0
+    # Part of out_tokens, as on Answer: what the model thought and nobody read.
+    thought_tokens: int = 0
     cost_usd: float = 0.0
     # Mirrors Answer.unpriced: True when cost_usd cannot be trusted.
     unpriced: bool = False

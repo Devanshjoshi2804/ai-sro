@@ -22,6 +22,30 @@ K_MIN_GESTURES = 25
 K_MAX_GESTURE_TOKENS = 2_000
 K_ENDS = 12
 K_POOL_BONUS = 0.5
+"""What a carried-over gesture is worth over a fresh one of the same shape.
+
+The trade this buys, stated plainly because it is a choice and not an
+oversight: everything a pass did not cite is pooled, roughly a third of a real
+window is scrolls, mis-clicks and stray navigation, and so once the budget
+bites, yesterday's scroll (1.5) outranks today's GET-only click (1.0). That is
+intended, on three grounds.
+
+The pool cannot tell junk from a gesture the model failed to place, and neither
+can this file. That judgment is the model's, and the only signal it gives is
+"the pass did not cite it" -- which is exactly what pooling records. Filtering
+the pool by gesture shape would be a second, dumber classifier standing in
+front of the real one, refusing the evidence at 74% recall the pool exists for.
+
+The junk is cheap. A scroll trims to almost nothing -- the window's own
+measurement puts a median gesture at 88 tokens -- so a pooled scroll displacing
+a fresh click costs the window one small item, not a real one.
+
+And the bonus expires. pool.K_POOL_AGE retires an entry after six readings, and
+retirement here means precisely this bonus going away: the gesture goes on
+competing as ordinary evidence at its own strength. So the priority is
+temporary by construction, which is what makes over-inclusion recoverable and
+under-inclusion not.
+"""
 K_MAX_TEXT_CHARS = 400
 K_MAX_ITEMS = 40
 """One bound for `calls`, `page` and `values_seen`, on purpose.

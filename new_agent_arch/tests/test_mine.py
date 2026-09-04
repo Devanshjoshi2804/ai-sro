@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import sqlite3
 from pathlib import Path
 from typing import Any
 
@@ -9,7 +10,7 @@ import pytest
 from rig.api import save_batch
 from rig.mine import mine
 from rig.models import Answer, FakeAsker
-from rig.pool import pool_ids
+from rig.pool import K_POOL_AGE, add_unclaimed, age_pool, pool_ids, retired_entries
 from rig.store import Store
 from rig.wire import Batch
 from rig.workflows import known_workflows
@@ -434,3 +435,152 @@ async def test_a_pass_that_keeps_nothing_still_says_it_read_the_window(tmp_path:
     assert set(ids).isdisjoint(pool_ids(store, "acme")), (
         "evidence a stored workflow already explains must not be re-pooled"
     )
+
+
+def _link(store: Store, gesture_ids: list[str], value: str, system: str) -> None:
+    """One value carried by two gestures on two systems -- a crossing.
+
+    The second of the pair is moved to `system` because values.shared_values
+    needs two systems to call anything a crossing, and _crowd clones every
+    gesture off one template.
+    """
+    from rig.api import save_intent
+    from rig.records import Intent, ValueSeen
+
+    store.execute("UPDATE gestures SET system = ? WHERE id = ?", (system, gesture_ids[1]))
+    for gesture_id in gesture_ids:
+        save_intent(
+            store,
+            Intent(
+                gesture_id=gesture_id,
+                tenant="acme",
+                act="typed it",
+                values_seen=[ValueSeen(field="supplier", value=value)],
+            ),
+        )
+
+
+async def test_the_prompt_never_names_a_crossing_the_window_left_out(tmp_path: Path) -> None:
+    """crossings are computed over the whole tenant; checks.validate refuses any
+    workflow citing an id outside the window. Named anyway, a crossing whose
+    partner the budget dropped is an instruction to produce a workflow that is
+    then discarded in full -- and it is the cross-system class this rig exists
+    to find. Proved at a 25-item window over 60 real pairs: 95 ids named, none
+    citable."""
+    store = _store(tmp_path)
+    strong_ids, weak_ids = _crowd(store, strong=25, weak=5)
+    # Both ends inside: the block must still render, or this test would pass on
+    # a prompt with no crossings section at all.
+    _link(store, strong_ids[:2], "WHOLLY-IN-WINDOW", "https://sap.example")
+    # One end outside: the weak partner is 26th by strength even with the
+    # `linked` bonus, and the window holds 25.
+    straddler = [strong_ids[2], weak_ids[-1]]
+    _link(store, straddler, "STRADDLES-THE-EDGE", "https://sap.example")
+    asker = FakeAsker(Answer(data={"workflows": []}, cost_usd=0.04))
+
+    result = await mine(store, tenant="acme", asker=asker, model="m", kb=_CROWDED_KB)
+    prompt = asker.asked[0]["evidence"]
+    # json.dumps(indent=1) never writes a blank line, so the blank line after
+    # the block is where it ends. Both values also appear in the evidence of
+    # the gestures carrying them, which is what makes the block the only place
+    # this can be read.
+    block = prompt.split("## Values appearing in more than one system\n")[1].split("\n\n")[0]
+
+    assert result.window_size == 25
+    assert result.left_out == 5, "the window must be smaller than the evidence"
+    assert "WHOLLY-IN-WINDOW" in block, "a crossing both of whose ends are citable is a hint"
+    assert weak_ids[-1] not in prompt, "the prompt named evidence the model may not cite"
+    assert "STRADDLES-THE-EDGE" not in block, "one id left is not a crossing"
+
+
+async def test_a_retired_gesture_loses_its_bonus_and_not_its_place(tmp_path: Path) -> None:
+    """The decision K_POOL_AGE records, asserted from the window's side.
+
+    Retirement takes K_POOL_BONUS away and nothing else: the gesture is packed
+    again as ordinary evidence. So a retired entry loses a contested place to
+    fresh evidence of equal strength (it no longer outranks it), and takes its
+    place in a window with room (it was never removed from the running).
+    """
+    store = _store(tmp_path)
+    strong_ids, weak_ids = _crowd(store, strong=24, weak=5)
+    retiree = weak_ids[-1]
+    add_unclaimed(store, "acme", [retiree], set())
+    for _ in range(K_POOL_AGE + 1):
+        age_pool(store, "acme")
+    assert [entry.gesture_id for entry in retired_entries(store, "acme")] == [retiree]
+
+    asker = FakeAsker(
+        Answer(data={"workflows": []}, cost_usd=0.01),
+        Answer(data={"workflows": []}, cost_usd=0.01),
+    )
+    tight = await mine(store, tenant="acme", asker=asker, model="m", kb=_CROWDED_KB)
+    roomy = await mine(store, tenant="acme", asker=asker, model="m")
+
+    # 24 strong and one weak, and the weak place goes to the earliest of them
+    # rather than to the retiree, which would have taken it at 1.5.
+    assert tight.window_size == 25
+    assert retiree not in asker.asked[0]["evidence"], "a retired entry competes without its bonus"
+    assert weak_ids[0] in asker.asked[0]["evidence"], "the place it lost went to fresh evidence"
+    # Same store, a budget with room for everything: it is still evidence.
+    assert roomy.window_size == len(strong_ids) + len(weak_ids)
+    assert retiree in asker.asked[1]["evidence"], "retirement is not removal from the window"
+
+
+async def test_a_day_of_refused_calls_does_not_retire_the_pool(tmp_path: Path) -> None:
+    """K_POOL_AGE is six readings, not six attempts. An expired key, a model
+    name the API 404s, or a day of 503s ages nothing: the pool was never read,
+    so its patience was never spent."""
+    store = _store(tmp_path)
+    ids = _ids(store)
+    add_unclaimed(store, "acme", ids, set())
+    refused = FakeAsker(*[Answer(error="ServerError: 503 UNAVAILABLE") for _ in range(8)])
+
+    for _ in range(8):
+        result = await mine(store, tenant="acme", asker=refused, model="m")
+        assert result.error == "ServerError: 503 UNAVAILABLE"
+
+    assert retired_entries(store, "acme") == []
+    assert set(pool_ids(store, "acme")) == set(ids)
+    assert {row["age"] for row in store.query("SELECT age FROM pool")} == {0}
+
+
+async def test_a_refused_pass_is_not_recorded_as_lopsided(tmp_path: Path) -> None:
+    """`lopsided` says a model's citations fell in one corner of the window.
+    A refused call cited nothing at all, so coverage is 0.0 and the flag fired
+    on every 503 -- the `passes` table, which is what a person reads, blaming
+    citation bias for a reading that never happened."""
+    store = _store(tmp_path)
+
+    result = await mine(
+        store, tenant="acme", asker=FakeAsker(Answer(error="ServerError: 503")), model="m"
+    )
+
+    assert result.lopsided is False
+    row = store.query("SELECT lopsided, coverage, error FROM passes")[0]
+    assert row["lopsided"] == 0
+    assert row["coverage"] == 0.0
+    assert row["error"] == "ServerError: 503"
+
+
+async def test_the_pass_row_is_written_even_when_the_work_after_the_call_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The row is the only record of a call that cost money. Written last, an
+    exception anywhere after the model answered lost the bill -- and left any
+    workflow already saved pointing at a pass_id with no row behind it."""
+    import rig.mine
+
+    store = _store(tmp_path)
+    ids = _ids(store)
+
+    def boom(*_: Any, **__: Any) -> None:
+        raise sqlite3.OperationalError("database is locked")
+
+    monkeypatch.setattr(rig.mine, "save_workflow", boom)
+    asker = FakeAsker(Answer(data={"workflows": [_proposal(ids[:2])]}, cost_usd=0.04))
+
+    with pytest.raises(sqlite3.OperationalError):
+        await mine(store, tenant="acme", asker=asker, model="m")
+
+    row = store.query("SELECT id, cost_usd FROM passes")[0]
+    assert row["cost_usd"] == 0.04, "the call was billed and nothing recorded it"

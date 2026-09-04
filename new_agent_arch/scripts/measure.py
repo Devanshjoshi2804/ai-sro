@@ -39,10 +39,11 @@ from rig.workflows import Workflow, cited_ids, known_workflows
 class Recorder:
     """Delegates to the real asker and keeps every Answer.
 
-    The rig records a pass's in_tokens/out_tokens and its own cost. It does not
-    carry `thought_tokens` past `Answer`, and thinking is billed at the output
-    rate -- so what the model was paid to think is not recoverable from the
-    `passes` table. This keeps it, per call, alongside the model that was asked.
+    The rig now stores `thought_tokens` on both `intents` and `passes` and
+    /v1/spend adds them up, so this is no longer the only way to see what the
+    model was paid to think. It is kept for what those tables still cannot
+    say: the bill PER CALL, alongside the model that was asked, which is what
+    a measurement run compares across models.
     """
 
     def __init__(self, inner: Any) -> None:
@@ -241,7 +242,8 @@ async def run(args: argparse.Namespace) -> None:
         print("=== INGEST ===")
         ingest(store, Path(args.acme), args.tenant)
         print("=== READ (one model call per unread gesture, billed) ===")
-        print(f"  {await read_new_gestures(store, asker, args.intent_model)} gestures read")
+        read = await read_new_gestures(store, asker, args.intent_model, args.tenant)
+        print(f"  {read} gestures read")
         print(f"  reading cost {asker.spent()}")
         asker.calls.clear()
 

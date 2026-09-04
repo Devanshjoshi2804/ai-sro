@@ -158,6 +158,13 @@
        $${Number(s.per_gesture_usd ?? 0).toFixed(6)} a reading${
          s.unusable ? ` · <b class="nothing">${esc(s.unusable)}</b> unusable` : ""
        }${s.unpriced ? ` · <b class="nothing">${esc(s.unpriced)}</b> unpriced` : ""}${
+         // Billed at the output rate, inside out_tokens, and on Flash about
+         // 84% of it. Shown here because this line is the one place a person
+         // reads the bill, and without it the bill says the readings were
+         // expensive without saying that most of what was paid for was
+         // reasoning nobody ever read.
+         s.thought_tokens ? ` · <b>${esc(s.thought_tokens)}</b> thought` : ""
+       }${
          s.passes ? ` · <b>$${Number(s.mining_usd ?? 0).toFixed(4)}</b> mining over ${esc(s.passes)}${
            // The sibling of `unpriced` one field over, and dropped here for a
            // round: a pass on a model missing from PRICES drew "$0.0000 mining

@@ -105,6 +105,7 @@ async def read_gesture(
         model=model,
         in_tokens=answer.in_tokens,
         out_tokens=answer.out_tokens,
+        thought_tokens=answer.thought_tokens,
         cost_usd=answer.cost_usd,
         unpriced=answer.unpriced,
         error=answer.error,

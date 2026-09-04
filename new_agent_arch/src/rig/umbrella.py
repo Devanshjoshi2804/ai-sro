@@ -11,7 +11,7 @@ import json
 from typing import Any
 
 from rig.models import Answer, Asker, Effort
-from rig.window import Window, arrange, tokens
+from rig.window import Packed, Window, arrange, tokens
 from rig.workflows import Step, Workflow, new_workflow_id
 
 K_SAMPLES = 1
@@ -135,7 +135,30 @@ def build_prompt(
     parts.append(
         json.dumps([item.evidence for item in arrange(window.items)], indent=1, ensure_ascii=False)
     )
-    bounded = bounded_crossings(crossings)
+    # Only the crossings the model is allowed to cite. checks.validate refuses
+    # any workflow naming an id outside the window, so a crossing whose partner
+    # the budget left out is not a hint but a trap: the prompt says those ids
+    # carry the same value, the model cites them, and the whole workflow --
+    # the cross-system one this rig exists to find -- is discarded. Measured at
+    # a 25-item window over 60 genuine pairs: 95 of the ids named were outside
+    # it, every one of them a rejection waiting to happen.
+    #
+    # Filtered HERE, at the render, and not where mine.py builds them:
+    # `crossings` is computed over the whole tenant on purpose, because
+    # window.strength gives every id in one a `linked` bonus and that bonus is
+    # what pulls a crossing's partner INTO the window. Narrowing upstream would
+    # spend that. What the model may be TOLD and what earns a place are two
+    # questions, and only the first one is about the window.
+    #
+    # A value left with one id in the window is dropped rather than shown: one
+    # id is not a crossing, and "this value appears in more than one system"
+    # over a single gesture is a claim the prompt cannot support.
+    in_window = {item.gesture_id for item in window.items}
+    citable = {
+        value: [gesture_id for gesture_id in ids if gesture_id in in_window]
+        for value, ids in crossings.items()
+    }
+    bounded = bounded_crossings({v: ids for v, ids in citable.items() if len(ids) > 1})
     if bounded:
         parts += [
             "",
@@ -159,8 +182,14 @@ def build_prompt(
 # section, so the headings are counted -- and the probe's own few tokens of
 # content are left in as slack. The one thing it cannot see is the evidence, and
 # that is exactly what the budget is for.
+#
+# The probe's window holds the two ids its crossing names, because build_prompt
+# renders only crossings whose gestures are IN the window: probed with an empty
+# one the block disappears, and the probe would stop counting a heading the real
+# prompt still pays for.
+_PROBE = [Packed(gesture_id=name, at=0.0, evidence={}, strength=0.0, tokens=0) for name in "yz"]
 PROMPT_OVERHEAD_TOKENS = (
-    tokens(build_prompt(Window(), {"x": ["y"]}, [{"x": "y"}], "x"))
+    tokens(build_prompt(Window(items=_PROBE), {"x": ["y", "z"]}, [{"x": "y"}], "x"))
     + tokens(json.dumps(WORKFLOW_SCHEMA))
     + K_MAX_CROSSING_TOKENS
 )

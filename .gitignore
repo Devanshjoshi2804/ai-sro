@@ -42,3 +42,16 @@ backend/worker.log
 # to rename it is a secret already halfway into git.
 client_secret*.json
 .gmail-token.json
+
+# ...and the same shapes after somebody renames one. The two patterns above
+# were already here, with the comment above them, and three real credential
+# files still sat untracked in backend/ -- `old-client_secret_...json.disabled`
+# and `.gmail-token.json.old-client`. A prefix and a suffix were enough to walk
+# past both. Anchored patterns guard the name a file was downloaded with; these
+# guard the shape it keeps after being renamed out of the way.
+*client_secret*
+*gmail-token*
+
+# Named individually because the name says nothing: a real Google OAuth token
+# saved from an editor's "save as" with the default filename.
+backend/Untitled

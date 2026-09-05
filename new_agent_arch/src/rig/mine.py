@@ -133,13 +133,28 @@ def _learn_parameters(
     found = parameters_across([(stored, by_id, intents), (proposal, by_id, intents)])
     if not found:
         return 0
-    had = {p.get("name") for p in stored.parameters if isinstance(p, dict)}
-    fresh = [
-        {"name": parameter.name, "seen_values": list(parameter.seen)}
-        for parameter in found
-        if parameter.name not in had
-    ]
-    if not fresh:
+    # A third doing widens what an existing parameter has been given rather
+    # than being discarded. This always diffs the STORED steps -- doing #1 --
+    # against the proposal, so a name already present used to be skipped
+    # outright and `Parameter.seen`'s promise of "every value observed" was
+    # two values, forever. A parameter's range is the useful part of it: a
+    # runner asked for `$statusCombo` wants to know it has been Active, Closed
+    # and Staged, not only the first two.
+    by_name = {p["name"]: p for p in stored.parameters if isinstance(p, dict) and "name" in p}
+    fresh: list[dict[str, object]] = []
+    widened = False
+    for parameter in found:
+        existing = by_name.get(parameter.name)
+        if existing is None:
+            fresh.append({"name": parameter.name, "seen_values": list(parameter.seen)})
+            continue
+        seen = existing.get("seen_values")
+        seen = list(seen) if isinstance(seen, list) else []
+        added = [value for value in parameter.seen if value not in seen]
+        if added:
+            existing["seen_values"] = [*seen, *added]
+            widened = True
+    if not fresh and not widened:
         return 0
     stored.parameters = [*stored.parameters, *fresh]
     save_workflow(store, stored)

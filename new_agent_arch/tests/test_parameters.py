@@ -12,7 +12,7 @@ import pytest
 
 from rig.correlate import correlate
 from rig.parameters import parameters_across
-from rig.records import Intent
+from rig.records import Intent, ValueSeen
 from rig.wire import Batch
 from rig.workflows import Step, Workflow
 from tests.fixtures import BATCH
@@ -117,3 +117,50 @@ def test_a_reading_can_supply_the_value_the_gesture_did_not() -> None:
     target = next(iter(second[1]))
     intents = {target: Intent(gesture_id=target, tenant="acme", values_seen=[])}
     assert parameters_across([first, (second[0], second[1], intents)]) == ()
+
+
+def test_the_operator_wins_over_the_models_echo_of_what_it_saw() -> None:
+    """typed_values merges both into one set and provenance is gone by the time
+    it returns, so a doing where the two disagree was settled by string order.
+    The operator typed the value; the reading only reports on it.
+
+    `ZZZZ_TYPED` and `AAAA_ECHO` are chosen so that min() picks the WRONG one:
+    a test where the alphabet happens to agree with provenance proves nothing.
+    """
+    first, second = _doing("TEST1", "a"), _doing("ZZZZ_TYPED", "b")
+    typed = next(
+        gesture.id for gesture in second[1].values() if gesture.gesture.value == "ZZZZ_TYPED"
+    )
+    intents = {
+        typed: Intent(
+            gesture_id=typed,
+            tenant="acme",
+            values_seen=[ValueSeen(field="clientCode", value="AAAA_ECHO")],
+        )
+    }
+
+    found = parameters_across([first, (second[0], second[1], intents)])
+
+    assert [p.seen for p in found] == [("TEST1", "ZZZZ_TYPED")], "the operator, not min()"
+
+
+def test_a_control_typed_twice_keeps_the_latest_and_not_the_last_cited() -> None:
+    """`workArea` got TESTI and then NEWTESTS in the real corpus. Whichever is
+    written last wins by dict overwrite, and last has to mean latest -- nothing
+    sorts a step's citations, so it was depending on the order the model
+    happened to list them in."""
+    workflow, by_id, _ = _doing("SECOND", "a")
+    typed = [g for g in by_id.values() if g.gesture.kind == "type" and not g.gesture.secret]
+    assert len(typed) == 1, "the fixture types once; this test gives it a second"
+    earlier = copy.deepcopy(typed[0])
+    earlier.id = f"{earlier.id}_earlier"
+    earlier.gesture.value = "FIRST"
+    earlier.at = typed[0].at - 1000
+    by_id[earlier.id] = earlier
+    # Cited EARLIEST-last, which is what a model listing citations out of order
+    # produces and what the old code would have taken as final.
+    workflow.steps[0].cites = [*workflow.steps[0].cites, earlier.id]
+
+    found = parameters_across([(workflow, by_id, {}), _doing("SECOND", "b")])
+
+    assert found == (), "both doings end on SECOND, so nothing varies"

@@ -649,3 +649,74 @@ async def test_a_pass_that_recognises_a_job_learns_what_varies_in_it(tmp_path: P
     assert again.learned_parameters >= 1, "and this time it knows what varies"
     stored = known_workflows(store, "acme")[0]
     assert any("SOMETHING-ELSE" in (p.get("seen_values") or []) for p in stored.parameters)
+
+
+async def test_a_third_doing_widens_a_parameter_it_does_not_discard_it(tmp_path: Path) -> None:
+    """`Parameter.seen` promises "every value observed" and delivered two.
+
+    _learn_parameters always diffs the STORED steps -- doing #1 -- against the
+    proposal, and a name already present was skipped outright, so a parameter's
+    range froze at the first pair however many times the job was done again. A
+    range is the useful part of a parameter: a runner asked for `$clientCode`
+    wants to know it has been TEST1, SOMETHING-ELSE and A-THIRD-ONE.
+    """
+    store = _store(tmp_path)
+    ids = _ids(store)
+
+    await mine(
+        store,
+        tenant="acme",
+        asker=FakeAsker(Answer(data={"workflows": [_proposal(ids)]}, cost_usd=0.01)),
+        model="gemini-3.1-pro",
+    )
+
+    def _redo(value: str, suffix: str, offset: float) -> list[str]:
+        fresh_ids = []
+        for gesture_id in ids:
+            row = store.query("SELECT * FROM gestures WHERE id = ?", (gesture_id,))[0]
+            gesture = json.loads(row["gesture_json"])
+            if gesture.get("kind") == "type" and gesture.get("value"):
+                gesture["value"] = value
+            fresh = f"{gesture_id}_{suffix}"
+            store.execute(
+                "INSERT INTO gestures (id, tenant, stream_id, batch_id, at, url, system, tab_id,"
+                " frame_url, page_url, gesture_json, requests, page_events)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    fresh,
+                    row["tenant"],
+                    row["stream_id"],
+                    row["batch_id"],
+                    row["at"] + offset,
+                    row["url"],
+                    row["system"],
+                    row["tab_id"],
+                    row["frame_url"],
+                    row["page_url"],
+                    json.dumps(gesture),
+                    row["requests"],
+                    row["page_events"],
+                ),
+            )
+            fresh_ids.append(fresh)
+        return fresh_ids
+
+    for value, suffix, offset in (
+        ("SOMETHING-ELSE", "again", 10_000.0),
+        ("A-THIRD-ONE", "thrice", 20_000.0),
+    ):
+        await mine(
+            store,
+            tenant="acme",
+            asker=FakeAsker(
+                Answer(data={"workflows": [_proposal(_redo(value, suffix, offset))]}, cost_usd=0.01)
+            ),
+            model="gemini-3.1-pro",
+        )
+
+    stored = known_workflows(store, "acme")[0]
+    seen = [p.get("seen_values") for p in stored.parameters if p.get("name") == "clientCode"]
+    assert seen, "the parameter is still there"
+    assert "A-THIRD-ONE" in seen[0], "and the third doing widened it"
+    assert "SOMETHING-ELSE" in seen[0], "without losing the second"
+    assert len(stored.parameters) == 1, "one control, not one parameter per doing"

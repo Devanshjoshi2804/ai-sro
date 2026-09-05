@@ -58,30 +58,50 @@ def _by_control(
     prose freshly each time, and a step index is its opinion. The control is
     the evidence.
     """
-    found: dict[str, str] = {}
+    # In time order, not citation order. A control typed twice in one doing --
+    # `workArea` got TESTI then NEWTESTS in the real corpus -- keeps whichever
+    # value is written last, and last should mean latest, not "whichever the
+    # model happened to list second". Measured: 0 of 66 real steps cite out of
+    # order, so this changes nothing today and stops depending on that.
+    acted: list[tuple[str, Gesture]] = []
     for step in workflow.steps:
         for cited in step.cites:
             gesture = gestures.get(cited)
             if gesture is None or gesture.gesture.kind not in ("type", "select", "upload"):
                 continue
-            values = typed_values(gesture, intents.get(cited))
-            if not values:
-                # A credential, or nothing typed. typed_values refuses the
-                # whole gesture when it is secret, so this is where that
-                # refusal keeps a password out of a skill's parameters.
-                continue
-            target = gesture.gesture.target
-            component = target.component if target else None
-            name = (
-                (component.itemId if component else None)
-                or (component.fieldLabel if component else None)
-                or (target.name if target else None)
-                or cited
-            )
-            # min() rather than any(): typed_values returns a set, and a
-            # parameter that changed name between runs because the set
-            # iterated differently would be a phantom difference.
-            found[name] = min(values)
+            acted.append((cited, gesture))
+    acted.sort(key=lambda pair: (pair[1].at, pair[0]))
+
+    found: dict[str, str] = {}
+    for cited, gesture in acted:
+        values = typed_values(gesture, intents.get(cited))
+        if not values:
+            # A credential, or nothing typed. typed_values refuses the whole
+            # gesture when it is secret, so this is where that refusal keeps a
+            # password out of a skill's parameters.
+            continue
+        target = gesture.gesture.target
+        component = target.component if target else None
+        name = (
+            (component.itemId if component else None)
+            or (component.fieldLabel if component else None)
+            or (target.name if target else None)
+            or cited
+        )
+        # What the OPERATOR typed, where that is known. typed_values merges the
+        # operator's own value with the model's `values_seen` echo into one set
+        # and provenance is gone by the time it returns -- so a doing where the
+        # two disagree was being settled by string order. min() stays as the
+        # fallback for a gesture with no typed value of its own (a select the
+        # extension could not read, where the echo is all there is): it is
+        # arbitrary, but it is arbitrary the SAME way every run, and a
+        # parameter that changed value because a set iterated differently would
+        # be a phantom difference. Measured: 0 of 63 real type/select/upload
+        # gestures return more than one value, so nothing moves today --
+        # `values_seen` is populated on 110 of 387 intents, so the mechanism is
+        # armed.
+        typed = str(gesture.gesture.value).strip() if gesture.gesture.value else ""
+        found[name] = typed if typed in values else min(values)
     return found
 
 

@@ -11,8 +11,9 @@ step whose evidence carries a mutation is shown in full and withheld. A person
 presses through to live.
 """
 
+import asyncio
 import base64
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from datetime import UTC, datetime
 from typing import Any, ClassVar
 
@@ -54,6 +55,53 @@ class Aborts:
     @classmethod
     def forget(cls, run_id: str) -> None:
         cls._stopped.discard(run_id)
+
+
+K_APPROVAL_WAIT_S = 300.0
+"""How long a live write waits for a tap before the run stops and asks. Five
+minutes is a person reading the panel, not a person who has gone home."""
+
+
+class Approvals:
+    """A write waiting for a person, keyed by run. In-process, like `Aborts`,
+    and for the same reason: one uvicorn worker owns every run."""
+
+    _waiting: ClassVar[dict[str, asyncio.Event]] = {}
+
+    @classmethod
+    async def wait_for(cls, run_id: str, timeout: float) -> bool:
+        event = cls._waiting.setdefault(run_id, asyncio.Event())
+        try:
+            await asyncio.wait_for(event.wait(), timeout=timeout)
+            return True
+        except TimeoutError:
+            return False
+        finally:
+            cls._waiting.pop(run_id, None)
+
+    @classmethod
+    def approve(cls, run_id: str) -> bool:
+        event = cls._waiting.get(run_id)
+        if event is None:
+            return False
+        event.set()
+        return True
+
+    @classmethod
+    def awaiting(cls, run_id: str) -> bool:
+        return run_id in cls._waiting
+
+    @classmethod
+    def awaiting_any(cls) -> bool:
+        return bool(cls._waiting)
+
+    @classmethod
+    def waiting(cls) -> set[str]:
+        return set(cls._waiting)
+
+    @classmethod
+    def forget(cls, run_id: str) -> None:
+        cls._waiting.pop(run_id, None)
 
 
 def mark_stale(store: Store, workflow_id: str, step_order: int, matched_by: str | None) -> None:
@@ -227,6 +275,7 @@ async def run_workflow(
     started_by: str,
     run_id: str | None = None,
     from_step: int = 0,
+    earned: Callable[[str], bool] = lambda _workflow_id: False,
 ) -> Run:
     # A run the caller already claimed. `POST /v1/runs` writes the `running` row
     # itself, before it answers, so a second press for the same browser is
@@ -415,6 +464,29 @@ async def run_workflow(
                     record.result = {"withheld": True}
                     break
 
+                # A live write, on a job that has not yet earned the right to
+                # write unasked: shown in the panel with what would go out, and
+                # held until somebody taps. Dry runs never reach here.
+                if mutates and not earned(workflow.id):
+                    record.verdict, record.verdict_by = "awaiting", "none"
+                    record.reason = "waiting for a person to approve the write"
+                    record.sent = {"kind": planned.kind, "payload": planned.payload}
+                    _total(run)
+                    save_run(store, run)
+                    if not await Approvals.wait_for(run.id, K_APPROVAL_WAIT_S):
+                        record.verdict, record.verdict_by = "failed", "none"
+                        record.reason = "nobody approved the write within five minutes"
+                        verdict = Verdict("failed", "none", record.reason)
+                        break
+                    # The stop button releases the wait as well as setting the
+                    # flag, so a person who pressed Stop rather than Approve
+                    # gets an aborted run and not a write.
+                    if Aborts.is_aborted(run.id):
+                        record.verdict, record.verdict_by = "failed", "none"
+                        record.reason = "stopped while waiting for approval"
+                        run.outcome = "aborted"
+                        break
+
                 reply = await channel.send(
                     device_id, kind=planned.kind, run_id=run.id, payload=planned.payload
                 )
@@ -517,4 +589,5 @@ async def run_workflow(
         _total(run)
         save_run(store, run)
         Aborts.forget(run.id)
+        Approvals.forget(run.id)
     return run

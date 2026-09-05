@@ -907,12 +907,17 @@ def build_app(
 
     @app.post("/v1/runs/{run_id}/abort", dependencies=[Depends(authorised)])
     async def abort_run(run_id: str, body: dict[str, Any]) -> dict[str, Any]:
-        from rig.runner import Aborts
+        from rig.runner import Aborts, Approvals
 
         # The flag first, then the browser: the loop checks it between steps,
         # and a device that has gone away must not stop the run from being
         # marked aborted.
         Aborts.abort(run_id)
+        # A run parked on a write is not between steps and would sit there for
+        # the full approval wait. Releasing it lets the loop see the flag now;
+        # the write does not go out, because the runner checks `Aborts` on the
+        # way out of the wait.
+        Approvals.approve(run_id)
         device_id = str(body.get("device_id") or "")
         if device_id in app.state.channel.online():
             try:
@@ -932,6 +937,15 @@ def build_app(
             except DeviceUnreachable:
                 pass
         return {"aborted": True}
+
+    @app.post("/v1/runs/{run_id}/approve", dependencies=[Depends(authorised)])
+    async def approve_run(run_id: str, body: dict[str, Any]) -> dict[str, Any]:
+        """A person saw the write the panel showed and said go."""
+        from rig.runner import Approvals
+
+        if not Approvals.approve(run_id):
+            raise HTTPException(status_code=409, detail="nothing is awaiting approval on this run")
+        return {"approved": True}
 
     @app.post("/v1/chat", dependencies=[Depends(authorised)])
     async def chat(body: dict[str, Any]) -> dict[str, Any]:

@@ -12,7 +12,7 @@ from rig.channel import Answer as Reply
 from rig.channel import DeviceUnreachable, FakeChannel
 from rig.models import Answer, FakeAsker
 from rig.planner import PLAN_SCHEMA
-from rig.runner import K_STEP_SLACK, Aborts, run_workflow
+from rig.runner import K_STEP_SLACK, Aborts, Approvals, run_workflow
 from rig.runs import Run, load_run, save_run
 from rig.store import Store
 from rig.wire import Batch
@@ -57,6 +57,13 @@ def _plan(action: str, value: str | None = None) -> Answer:
         data={"kind": "ui.perform", "action": action, "value": value, "url": None, "why": "w"},
         cost_usd=0.001,
     )
+
+
+def _earned(_workflow_id: str) -> bool:
+    """These tests predate the approval pause, and are about the loop rather
+    than about the tap. They run as a job that has earned the right to write
+    unasked; the tests that are about the pause take the default."""
+    return True
 
 
 def _looks(n: int) -> dict[str, list[Reply]]:
@@ -217,6 +224,7 @@ async def test_a_live_run_sends_the_write(tmp_path: Path) -> None:
         plan_model="flash",
         rescue_model="pro",
         live=True,
+        earned=_earned,
         allow_focus=True,
         started_by="form",
     )
@@ -250,6 +258,7 @@ async def test_an_origin_outside_the_evidence_is_refused_before_it_is_sent(tmp_p
         plan_model="flash",
         rescue_model="pro",
         live=True,
+        earned=_earned,
         allow_focus=True,
         started_by="form",
     )
@@ -284,6 +293,7 @@ async def test_a_failed_step_is_retried_once_with_pro_then_the_run_stops_and_ask
         plan_model="flash",
         rescue_model="pro",
         live=True,
+        earned=_earned,
         allow_focus=True,
         started_by="form",
     )
@@ -415,6 +425,7 @@ async def test_the_stop_button_is_honoured_between_steps(tmp_path: Path) -> None
         plan_model="flash",
         rescue_model="pro",
         live=True,
+        earned=_earned,
         allow_focus=True,
         started_by="form",
         run_id="run_stop",
@@ -461,6 +472,7 @@ async def test_the_step_budget_is_the_workflows_steps_plus_slack(tmp_path: Path)
         plan_model="flash",
         rescue_model="pro",
         live=True,
+        earned=_earned,
         allow_focus=True,
         started_by="form",
     )
@@ -569,6 +581,7 @@ async def test_a_step_the_planner_could_not_plan_stops_the_run(tmp_path: Path) -
         plan_model="flash",
         rescue_model="pro",
         live=True,
+        earned=_earned,
         allow_focus=True,
         started_by="form",
     )
@@ -608,6 +621,7 @@ async def test_a_step_with_nothing_actionable_to_cite_stops_the_run(tmp_path: Pa
         plan_model="flash",
         rescue_model="pro",
         live=True,
+        earned=_earned,
         allow_focus=True,
         started_by="form",
     )
@@ -653,6 +667,7 @@ async def test_the_record_keeps_what_the_browser_answered_not_what_it_answered_w
         plan_model="flash",
         rescue_model="pro",
         live=True,
+        earned=_earned,
         allow_focus=True,
         started_by="form",
     )
@@ -683,6 +698,7 @@ async def test_a_failed_reply_keeps_the_error_kind_as_its_own_field(tmp_path: Pa
         plan_model="flash",
         rescue_model="pro",
         live=True,
+        earned=_earned,
         allow_focus=True,
         started_by="form",
     )
@@ -768,6 +784,7 @@ async def test_a_browser_that_goes_away_mid_step_fails_that_step(tmp_path: Path)
         plan_model="flash",
         rescue_model="pro",
         live=True,
+        earned=_earned,
         allow_focus=True,
         started_by="form",
     )
@@ -804,6 +821,7 @@ async def test_a_write_that_went_out_is_not_performed_a_second_time(tmp_path: Pa
         plan_model="flash",
         rescue_model="pro",
         live=True,
+        earned=_earned,
         allow_focus=True,
         started_by="form",
     )
@@ -842,6 +860,7 @@ async def test_a_read_that_failed_is_still_rescued(tmp_path: Path) -> None:
         plan_model="flash",
         rescue_model="pro",
         live=True,
+        earned=_earned,
         allow_focus=True,
         started_by="form",
     )
@@ -889,6 +908,7 @@ async def test_a_run_that_dies_of_something_unexpected_is_not_left_saying_runnin
             plan_model="flash",
             rescue_model="pro",
             live=True,
+            earned=_earned,
             allow_focus=True,
             started_by="form",
         )
@@ -923,6 +943,7 @@ async def test_a_click_the_capture_heard_nothing_from_is_not_clicked_twice(
         plan_model="flash",
         rescue_model="pro",
         live=True,
+        earned=_earned,
         allow_focus=True,
         started_by="form",
     )
@@ -972,6 +993,7 @@ async def test_a_click_that_fired_a_read_still_gets_its_rescue(tmp_path: Path) -
         plan_model="flash",
         rescue_model="pro",
         live=True,
+        earned=_earned,
         allow_focus=True,
         started_by="form",
     )
@@ -1005,6 +1027,7 @@ async def test_a_rung_that_reached_no_command_leaves_the_previous_rungs_plan_sta
         plan_model="flash",
         rescue_model="pro",
         live=True,
+        earned=_earned,
         allow_focus=True,
         started_by="form",
     )
@@ -1159,6 +1182,7 @@ async def test_a_navigate_to_a_url_that_names_no_system_is_refused(tmp_path: Pat
         plan_model="flash",
         rescue_model="pro",
         live=True,
+        earned=_earned,
         allow_focus=True,
         started_by="form",
     )
@@ -1191,6 +1215,7 @@ async def test_a_run_started_mid_job_records_the_operators_steps_and_performs_th
         plan_model="flash",
         rescue_model="pro",
         live=True,
+        earned=_earned,
         allow_focus=True,
         started_by="offer",
         from_step=1,
@@ -1230,6 +1255,7 @@ async def test_a_run_started_mid_job_starts_on_the_page_of_the_step_it_starts_at
         plan_model="flash",
         rescue_model="pro",
         live=True,
+        earned=_earned,
         allow_focus=True,
         started_by="offer",
         from_step=1,
@@ -1274,6 +1300,7 @@ async def test_the_steps_the_operator_did_buy_no_budget(tmp_path: Path) -> None:
         plan_model="flash",
         rescue_model="pro",
         live=True,
+        earned=_earned,
         allow_focus=True,
         started_by="offer",
         from_step=1,
@@ -1284,3 +1311,176 @@ async def test_the_steps_the_operator_did_buy_no_budget(tmp_path: Path) -> None:
     assert last.order == 4 and last.verdict == "refused"
     assert str(budget) in last.reason, "the operator's step is not slack for the rig"
     assert len([a for a in asker.asked if a["schema"] is PLAN_SCHEMA]) == budget
+
+
+async def test_a_live_write_waits_for_approval_and_goes_out_when_it_comes(tmp_path: Path) -> None:
+    store = _store(tmp_path)
+    wf = _workflow(store)
+    channel = FakeChannel(
+        {
+            **_looks(4),
+            "ui.perform": [
+                Reply(ok=True, result={"performed": True, "matched_by": "component"}),
+                Reply(ok=True, result={"performed": True, "matched_by": "component"}),
+            ],
+        }
+    )
+    asker = _per_schema_asker(plan=_plan("click"), verdict=Answer(data={"held": True, "why": "ok"}))
+
+    task = asyncio.create_task(
+        run_workflow(
+            store,
+            wf,
+            values={"clientCode": "THIRD"},
+            channel=channel,
+            device_id="dev_test",
+            asker=asker,
+            plan_model="flash",
+            rescue_model="pro",
+            live=True,
+            allow_focus=True,
+            started_by="offer",
+        )
+    )
+    for _ in range(200):
+        await asyncio.sleep(0.01)
+        if Approvals.awaiting_any():
+            break
+    else:
+        raise AssertionError("the write never paused")
+
+    run_id = next(iter(Approvals.waiting()))
+    saved = load_run(store, "acme", run_id)
+    assert saved is not None and saved.steps[-1].verdict == "awaiting"
+    assert saved.steps[-1].sent is not None, "the panel shows what would go out"
+    assert [s["kind"] for s in channel.sent].count("ui.perform") == 1, (
+        "the read step went; the write waits"
+    )
+
+    assert Approvals.approve(run_id) is True
+    run = await task
+    assert run.outcome == "held"
+    assert [s["kind"] for s in channel.sent].count("ui.perform") == 2
+
+
+async def test_a_write_nobody_approves_stops_the_run(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import rig.runner as runner_module
+
+    monkeypatch.setattr(runner_module, "K_APPROVAL_WAIT_S", 0.05)
+    store = _store(tmp_path)
+    wf = _workflow(store)
+    channel = FakeChannel({**_looks(4), "ui.perform": [Reply(ok=True, result={"performed": True})]})
+    asker = _per_schema_asker(plan=_plan("click"), verdict=Answer(data={"held": True, "why": "ok"}))
+
+    run = await run_workflow(
+        store,
+        wf,
+        values={"clientCode": "THIRD"},
+        channel=channel,
+        device_id="dev_test",
+        asker=asker,
+        plan_model="flash",
+        rescue_model="pro",
+        live=True,
+        allow_focus=True,
+        started_by="offer",
+    )
+
+    assert run.outcome == "stopped"
+    assert "nobody approved" in run.steps[-1].reason
+    assert [s["kind"] for s in channel.sent].count("ui.perform") == 1
+
+
+async def test_a_stop_pressed_during_the_wait_aborts_the_run(tmp_path: Path) -> None:
+    store = _store(tmp_path)
+    wf = _workflow(store)
+    channel = FakeChannel({**_looks(4), "ui.perform": [Reply(ok=True, result={"performed": True})]})
+    asker = _per_schema_asker(plan=_plan("click"), verdict=Answer(data={"held": True, "why": "ok"}))
+
+    task = asyncio.create_task(
+        run_workflow(
+            store,
+            wf,
+            values={"clientCode": "THIRD"},
+            channel=channel,
+            device_id="dev_test",
+            asker=asker,
+            plan_model="flash",
+            rescue_model="pro",
+            live=True,
+            allow_focus=True,
+            started_by="offer",
+        )
+    )
+    for _ in range(200):
+        await asyncio.sleep(0.01)
+        if Approvals.awaiting_any():
+            break
+    else:  # pragma: no cover - the pause is asserted above
+        raise AssertionError("the write never paused")
+
+    run_id = next(iter(Approvals.waiting()))
+    Aborts.abort(run_id)
+    Approvals.approve(run_id)
+    run = await task
+    assert run.outcome == "aborted"
+    assert [s["kind"] for s in channel.sent].count("ui.perform") == 1
+
+
+async def test_a_dry_run_never_pauses(tmp_path: Path) -> None:
+    store = _store(tmp_path)
+    wf = _workflow(store)
+    channel = FakeChannel({**_looks(4), "ui.perform": [Reply(ok=True, result={"performed": True})]})
+    asker = _per_schema_asker(plan=_plan("click"), verdict=Answer(data={"held": True, "why": "ok"}))
+    run = await asyncio.wait_for(
+        run_workflow(
+            store,
+            wf,
+            values={"clientCode": "THIRD"},
+            channel=channel,
+            device_id="dev_test",
+            asker=asker,
+            plan_model="flash",
+            rescue_model="pro",
+            live=False,
+            allow_focus=True,
+            started_by="form",
+        ),
+        timeout=5,
+    )
+    assert [s.verdict for s in run.steps] == ["held", "withheld"]
+
+
+async def test_an_earned_workflow_writes_without_asking(tmp_path: Path) -> None:
+    store = _store(tmp_path)
+    wf = _workflow(store)
+    channel = FakeChannel(
+        {
+            **_looks(4),
+            "ui.perform": [
+                Reply(ok=True, result={"performed": True}),
+                Reply(ok=True, result={"performed": True}),
+            ],
+        }
+    )
+    asker = _per_schema_asker(plan=_plan("click"), verdict=Answer(data={"held": True, "why": "ok"}))
+    run = await asyncio.wait_for(
+        run_workflow(
+            store,
+            wf,
+            values={"clientCode": "THIRD"},
+            channel=channel,
+            device_id="dev_test",
+            asker=asker,
+            plan_model="flash",
+            rescue_model="pro",
+            live=True,
+            allow_focus=True,
+            started_by="offer",
+            earned=lambda _wid: True,
+        ),
+        timeout=5,
+    )
+    assert run.outcome == "held" and not Approvals.awaiting_any()

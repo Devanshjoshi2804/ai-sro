@@ -2358,3 +2358,21 @@ def test_a_from_step_past_the_job_is_refused(client: TestClient, store: Store) -
     assert client.post("/v1/runs", json=body, headers=_auth()).status_code == 400
     body["from_step"] = True
     assert client.post("/v1/runs", json=body, headers=_auth()).status_code == 400
+
+
+def test_approve_with_nothing_waiting_is_refused(client: TestClient) -> None:
+    assert client.post("/v1/runs/run_x/approve", json={}, headers=_auth()).status_code == 409
+
+
+def test_approve_releases_a_waiting_write(client: TestClient) -> None:
+    from rig.runner import Approvals
+
+    loop = asyncio.new_event_loop()
+    try:
+        task = loop.create_task(Approvals.wait_for("run_w", timeout=2))
+        loop.run_until_complete(asyncio.sleep(0))
+        got = client.post("/v1/runs/run_w/approve", json={}, headers=_auth())
+        assert got.status_code == 200 and got.json() == {"approved": True}
+        assert loop.run_until_complete(task) is True
+    finally:
+        loop.close()

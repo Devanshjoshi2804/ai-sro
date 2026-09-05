@@ -1201,3 +1201,86 @@ async def test_a_run_started_mid_job_records_the_operators_steps_and_performs_th
     assert run.steps[0].sent is None and run.steps[0].in_tokens == 0, "nothing asked, nothing sent"
     assert [s["kind"] for s in channel.sent].count("ui.perform") == 1
     assert run.outcome == "held"
+
+
+async def test_a_run_started_mid_job_starts_on_the_page_of_the_step_it_starts_at(
+    tmp_path: Path,
+) -> None:
+    """`starts_on` is what the extension opens a tab at when the operator's own
+    tab is elsewhere. Aimed at step 0 for a run that starts at step 1, it would
+    abandon the very progress the offer was made on."""
+    store = _store(tmp_path)
+    wf = _workflow(store)
+    saved_on = "http://127.0.0.1:63319/client/new"
+    store.execute("UPDATE gestures SET page_url = ? WHERE id = ?", (saved_on, wf.steps[1].cites[0]))
+    channel = FakeChannel(
+        {
+            **_looks(2),
+            "ui.perform": [Reply(ok=True, result={"performed": True, "matched_by": "component"})],
+        }
+    )
+
+    await run_workflow(
+        store,
+        wf,
+        values={"clientCode": "THIRD"},
+        channel=channel,
+        device_id="dev_test",
+        asker=_per_schema_asker(_plan("click"), Answer(data={"held": True, "why": "saved"})),
+        plan_model="flash",
+        rescue_model="pro",
+        live=True,
+        allow_focus=True,
+        started_by="offer",
+        from_step=1,
+    )
+
+    [performed] = [s for s in channel.sent if s["kind"] == "ui.perform"]
+    assert performed["payload"]["starts_on"] == saved_on
+
+
+async def test_the_steps_the_operator_did_buy_no_budget(tmp_path: Path) -> None:
+    """A run that starts at step k attempts fewer steps, so it gets fewer
+    attempts. The slack is for the job that is left."""
+    store = _store(tmp_path)
+    wf = _repeated(store, 5)
+    budget = len(wf.steps) - 1 + K_STEP_SLACK
+    channel = FakeChannel(
+        {
+            **_looks(budget * 2),
+            "navigate": [Reply(ok=True, result={"navigated": True})] * len(wf.steps),
+            "ui.perform": [Reply(ok=True, result={"performed": True, "matched_by": "component"})]
+            * len(wf.steps),
+        }
+    )
+    # Three of the four steps left take a navigate and a command each, which is
+    # six of the seven; the fourth's navigate spends the last.
+    asker = FakeAsker(
+        *[
+            answer
+            for _ in range(3)
+            for answer in (_navigate(), _plan("type", "x"), Answer(data={"held": True, "why": ""}))
+        ],
+        _navigate(),
+    )
+
+    run = await run_workflow(
+        store,
+        wf,
+        values={"clientCode": "x"},
+        channel=channel,
+        device_id="dev_test",
+        asker=asker,
+        plan_model="flash",
+        rescue_model="pro",
+        live=True,
+        allow_focus=True,
+        started_by="offer",
+        from_step=1,
+    )
+
+    assert run.outcome == "refused"
+    last = run.steps[-1]
+    assert last.order == 4 and last.verdict == "refused"
+    assert str(budget) in last.reason, "the operator's step is not slack for the rig"
+    assert len([a for a in asker.asked if a["schema"] is PLAN_SCHEMA]) == budget

@@ -268,7 +268,11 @@ async def run_workflow(
     budget = len(ordered) - len(skipped_by_operator) + K_STEP_SLACK
     attempts = 0
     starts_on = None
-    first = primary_gesture(workflow.steps[0], by_id) if workflow.steps else None
+    # The page this run begins on, which is the page of the step it begins at
+    # -- not the job's first page. The extension opens a tab at `starts_on`
+    # when the operator's own tab is elsewhere, and aiming a run that starts
+    # at step k there would abandon the progress the offer was made on.
+    first = primary_gesture(ordered[from_step], by_id) if from_step < len(ordered) else None
     if first is not None:
         starts_on = first.page_url or first.url
 

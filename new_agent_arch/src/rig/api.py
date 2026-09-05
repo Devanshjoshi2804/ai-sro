@@ -843,6 +843,8 @@ def build_app(
         # bool is not a step number here: `True` would start a two-step job at
         # its second step because Python says so, not because anyone asked.
         from_step = body.get("from_step", 0)
+        if not workflow.steps:
+            raise HTTPException(status_code=400, detail="this job has no steps")
         if (
             isinstance(from_step, bool)
             or not isinstance(from_step, int)

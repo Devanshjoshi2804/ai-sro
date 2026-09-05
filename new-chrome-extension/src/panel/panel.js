@@ -1066,6 +1066,13 @@ async function say(text) {
  * named fields across would silently drop them.
  */
 async function answered(answer, message, where, button, values) {
+  // An offer the rig made about the job in front of somebody. Its two answers
+  // are its own -- `nudge-answer` is the backend nudge's -- because the worker
+  // reports one fate per path, and an offer that took both would be counted
+  // twice.
+  if (answer === "start-rig-run" || answer === "drop-nudge") {
+    return answeredOffer(answer, message, button, values);
+  }
   const decision = message.decision || {};
   // A matched mail: the values are the browser's, and the ones the operator
   // typed into the card are what the run must use -- so they go up on the press
@@ -1084,6 +1091,31 @@ async function answered(answer, message, where, button, values) {
     return;
   }
   await conversation();
+}
+
+/** The rig's offer, answered.
+ *
+ * The values are the ones on the card: the prefix read some off the page and
+ * the operator typed the rest, and both are in front of them when they press.
+ * The run is started in the worker, which holds the credential; this is the
+ * press that authorises it.
+ */
+async function answeredOffer(answer, nudge, button, values) {
+  button.disabled = true;
+  if (answer === "drop-nudge") {
+    await ask({ kind: "drop-nudge", nudgeId: nudge.id });
+    said("dismissed \u2014 nothing ran");
+    return refresh();
+  }
+  try {
+    const got = await ask({ kind: "start-rig-run", nudgeId: nudge.id, values: values?.values || {} });
+    said(got.ok ? "started \u2014 watching it below" : got.error || "nothing started");
+    if (!got.ok) button.disabled = false;
+  } catch (error) {
+    said(error.message);
+    button.disabled = false;
+  }
+  await refresh();
 }
 
 /** A matched mail, answered from the ledger.

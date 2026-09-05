@@ -407,6 +407,75 @@ test("an offer the operator already answered stops asking again", () => {
   assert.equal(of(openOffer, "button").length, 2, "an unanswered offer lost its buttons");
 });
 
+// -- the rig's own offer ------------------------------------------------------
+
+/** One nudge, drawn through the whole ledger, handed back as its list item.
+ *
+ * The fake document matches on tags, so the assertions below read fields off
+ * the nodes rather than through a selector engine that is not there. */
+function renderNudge(nudge) {
+  const local = { offers: [], nudges: [{ at: WHEN, ...nudge }] };
+  return messages(ledger({ id: "thr-1", messages: [] }, local))[0];
+}
+const what = (item) => of(item, "p").find((p) => p.className === "what").textContent;
+const named = (item, placeholder) => of(item, "input").find((f) => f.placeholder === placeholder);
+const labelled = (item, label) => of(item, "button").find((b) => label.test(b.textContent));
+/** What a browser does on a keystroke, the way this fake supports. */
+const typing = (field, value) => {
+  field.value = value;
+  for (const fn of field.listeners.input || []) fn();
+};
+
+test("a rig offer asks for what is missing and cannot start until it has it", () => {
+  const nudge = { id: "n_1", source: "rig", state: "open", title: "Create Work Area", k: 2,
+    values: { workArea: "NEWTESTS" }, missing: ["description"], parameters: ["workArea", "description"], tabId: 1 };
+  const item = renderNudge(nudge);
+  assert.match(what(item), /NEWTESTS, so far\. Want me to finish it\?/);
+  const field = named(item, "description");
+  assert.ok(field);
+  const yes = labelled(item, /Yes, finish it/);
+  assert.equal(yes.disabled, true);
+  typing(field, "north dock");
+  assert.equal(yes.disabled, false);
+  // Blank again is blank: a space is not an answer to a question the run needs.
+  typing(field, "   ");
+  assert.equal(yes.disabled, true, "a field of spaces started a run");
+});
+
+test("a rig arrival nudge offers to do it from the start", () => {
+  const nudge = { id: "n_2", source: "rig", state: "open", title: "Create Work Area", k: 0,
+    values: {}, missing: ["workArea"], parameters: ["workArea"], tabId: 1 };
+  const item = renderNudge(nudge);
+  assert.match(what(item), /want me to do it\?/);
+  assert.ok(labelled(item, /Yes, do it/));
+});
+
+test("a rig offer hands the press the values that were typed into it", () => {
+  const pressed = [];
+  const nudge = { id: "n_4", source: "rig", state: "open", title: "Create Work Area", k: 1,
+    values: { workArea: "NEWTESTS" }, missing: ["description"], parameters: ["workArea", "description"], tabId: 1 };
+  const item = messages(
+    ledger({ id: "thr-1", messages: [] }, { offers: [], nudges: [{ at: WHEN, ...nudge }] }, {
+      onPress: (...args) => pressed.push(args),
+    }),
+  )[0];
+  typing(named(item, "description"), "  north dock  ");
+  for (const fn of labelled(item, /Yes, finish it/).listeners.click) fn();
+  for (const fn of labelled(item, /No thanks/).listeners.click) fn();
+  assert.deepEqual(pressed.map((each) => each[0]), ["start-rig-run", "drop-nudge"]);
+  assert.deepEqual(pressed[0][4], { values: { description: "north dock" } });
+});
+
+test("a backend nudge is drawn exactly as before", () => {
+  const item = renderNudge({ id: "n_3", state: "open", title: "Create workOperations", tabId: 1 });
+  assert.match(what(item), /you have done this here before/);
+  assert.equal(of(item, "input").length, 0);
+  assert.deepEqual(
+    of(item, "button").map((b) => b.textContent),
+    ["Do it", "Not for this page"],
+  );
+});
+
 for (const [name, fn] of tests) {
   try {
     await fn();

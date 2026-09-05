@@ -166,6 +166,7 @@ export function alreadyAnswered(messages) {
 }
 
 function nudging(nudge, onPress) {
+  if (nudge.source === "rig" && nudge.state === "open") return offeringToFinish(nudge, onPress);
   const item = document.createElement("li");
   item.className = "message";
   item.dataset.speaker = "system";
@@ -190,6 +191,73 @@ function nudging(nudge, onPress) {
   if (nudge.state === "open") {
     item.append(pressing(KINDS.nudge, nudge, item, onPress));
   }
+  return item;
+}
+
+/** The rig's own offer: what it read, what it still needs, and the two answers.
+ *
+ * A backend nudge says "you have done this here before" and offers to do the
+ * next one. This one is about the job in front of somebody right now -- half
+ * typed, or just arrived at -- so it says back what it read off the page, asks
+ * for the rest, and offers to finish. The fields are the reason it is an offer
+ * and not a run: nothing starts until every blank the job needs has something
+ * in it, because a run that stops at the first empty box is worse than never
+ * having offered.
+ *
+ * Its Yes is `start-rig-run` and its No is `drop-nudge`, both distinct from the
+ * `nudge-answer` a backend nudge sends. The worker reports one fate per path,
+ * and an offer that reported two is one the rig cannot count.
+ */
+function offeringToFinish(nudge, onPress) {
+  const item = document.createElement("li");
+  item.className = "message";
+  item.dataset.speaker = "system";
+  item.dataset.kind = "nudge";
+  item.dataset.state = "open";
+  item.dataset.id = nudge.id;
+
+  const typed = Object.values(nudge.values || {}).join(", ");
+  const what = document.createElement("p");
+  what.className = "what";
+  what.textContent =
+    nudge.k > 0
+      ? `${nudge.title} \u2014 ${typed}, so far. Want me to finish it?`
+      : `${nudge.title} \u2014 want me to do it?`;
+  item.append(what);
+
+  const fields = new Map();
+  for (const name of nudge.missing || []) {
+    const field = document.createElement("input");
+    field.type = "text";
+    field.placeholder = name;
+    fields.set(name, field);
+    item.append(field);
+  }
+
+  const yes = document.createElement("button");
+  yes.type = "button";
+  yes.textContent = nudge.k > 0 ? "Yes, finish it" : "Yes, do it";
+  const no = document.createElement("button");
+  no.type = "button";
+  no.className = "quiet";
+  no.textContent = "No thanks";
+  // Blank is blank after trimming: a field of spaces is not an answer to a
+  // question the run is going to ask the system on the other side.
+  const ready = () => [...fields.values()].every((field) => String(field.value || "").trim());
+  yes.disabled = !ready();
+  for (const field of fields.values()) {
+    field.addEventListener("input", () => {
+      yes.disabled = !ready();
+    });
+  }
+  yes.addEventListener("click", () => {
+    const values = Object.fromEntries(
+      [...fields].map(([name, field]) => [name, String(field.value || "").trim()]),
+    );
+    onPress?.("start-rig-run", nudge, item, yes, { values });
+  });
+  no.addEventListener("click", () => onPress?.("drop-nudge", nudge, item, no));
+  item.append(yes, no);
   return item;
 }
 

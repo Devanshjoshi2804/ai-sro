@@ -105,9 +105,18 @@ def bounded_crossings(crossings: dict[str, list[str]]) -> dict[str, list[str]]:
         # Each entry measured on its own, so the count never depends on how many
         # came before it. Slightly over -- it pays for a pair of braces per entry
         # -- which is the direction a budget should err in.
-        spent += tokens(json.dumps({value: ids}, indent=1, ensure_ascii=False))
-        if spent > K_MAX_CROSSING_TOKENS:
-            break
+        cost = tokens(json.dumps({value: ids}, indent=1, ensure_ascii=False))
+        # Skipped, not stopped at. These are sorted by how many gestures carry
+        # the value, so the expensive ones come FIRST -- and a single value on
+        # 200 in-window gestures costs 2,100 tokens against a 2,000 cap, while
+        # `values.trivial` only discards a value above a quarter of the store.
+        # Breaking there emptied the whole block: the section that exists so the
+        # model can see a job crossing two systems, gone, because one link was
+        # too well evidenced to print. Nothing says so downstream, and the
+        # architecture's central claim quietly loses its input.
+        if spent + cost > K_MAX_CROSSING_TOKENS:
+            continue
+        spent += cost
         kept[value] = ids
     return kept
 

@@ -478,3 +478,88 @@ def test_the_crossings_block_cannot_outgrow_the_window_it_hints_at() -> None:
 
     assert tokens(block) <= K_MAX_CROSSING_TOKENS
     assert "ACME-00000" in block, "the crossings that fit are still there"
+
+
+def test_every_section_adds_to_the_prompt_rather_than_replacing_it() -> None:
+    """`parts +=` and `parts =` look alike and differ by everything.
+
+    Assigning instead of appending at any of the optional sections drops the
+    instructions AND the evidence that came before it -- and the citation
+    requirement is the thing that took hallucinated steps from 21% to under
+    7.5%. A prompt that quietly lost it would still return workflows, and they
+    would be worse in a way no assertion here was watching for.
+    """
+    crossings = {"SUP-1": ["ges_1", "ges_2"]}
+    known = [{"id": "wfl_1", "title": "a job already proven", "shape_key": ["x"]}]
+
+    prompt = build_prompt(_window(), crossings, known, "the knowledge base")
+
+    for section in (
+        INSTRUCTIONS[:40],
+        "## The day",
+        "ges_1",
+        "## Values appearing in more than one system",
+        "## Jobs already proven",
+        "a job already proven",
+        "## What is known about these systems",
+        "the knowledge base",
+    ):
+        assert section in prompt, section
+    assert prompt.rstrip().endswith(INSTRUCTIONS.strip()[-40:]), "and the task is still restated"
+
+
+def test_a_crossing_too_big_to_fit_does_not_take_the_smaller_ones_with_it() -> None:
+    """`break` walks away from every crossing after the one that overflowed, and
+    they are sorted by how many gestures carry them -- so the entry that breaks
+    the budget is followed by the cheapest, most numerous links, which are
+    exactly the ones worth keeping. Bounded means bounded, not truncated at the
+    first expensive value."""
+    from rig.umbrella import K_MAX_CROSSING_TOKENS, bounded_crossings
+
+    huge = {"HUGE": [f"ges_{n}" for n in range(K_MAX_CROSSING_TOKENS)]}
+    small = {f"S{n}": [f"ges_{n}", f"ges_{n + 1}"] for n in range(3)}
+
+    kept = bounded_crossings({**huge, **small})
+
+    assert "HUGE" not in kept, "it does not fit"
+    assert kept == small, "and the ones that do come through whole, ids and all"
+
+
+def test_a_proposal_missing_its_optional_fields_is_still_a_workflow() -> None:
+    """Everything here came off the model. `systems`, `parameters`, `unproven`
+    and `same_as` are all optional in practice -- a model that returned only
+    the required fields would have crashed the parse on a missing key rather
+    than being read as a workflow with none of them."""
+    from rig.umbrella import _as_workflow
+
+    bare = {
+        "title": "a job",
+        "narrative": "what happened",
+        "steps": [{"order": 0, "says": "did a thing", "cites": ["ges_1"]}],
+    }
+
+    workflow = _as_workflow(bare, tenant="acme")
+
+    assert workflow is not None
+    assert workflow.title == "a job"
+    assert (workflow.systems, workflow.parameters, workflow.unproven) == ([], [], [])
+    assert workflow.same_as is None
+    assert workflow.steps[0].parameters == []
+
+
+def test_the_model_saying_which_job_this_already_is_survives_the_parse() -> None:
+    """`same_as` is how a proposal says it recognised an existing workflow, and
+    identity reads it. Dropped, every re-reading of a known job looks new."""
+    from rig.umbrella import _as_workflow
+
+    said = {
+        "title": "a job",
+        "narrative": "what happened",
+        "same_as": "wfl_already_known",
+        "steps": [{"order": 0, "says": "did a thing", "cites": ["ges_1"]}],
+    }
+
+    workflow = _as_workflow(said, tenant="acme")
+
+    assert workflow is not None and workflow.same_as == "wfl_already_known"
+    assert _as_workflow({**said, "same_as": 7}, tenant="acme").same_as is None, "and only a string"

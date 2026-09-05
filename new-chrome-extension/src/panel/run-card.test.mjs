@@ -209,6 +209,69 @@ test("a finished rig run offers no reversal, and says what the dry run held back
   );
 });
 
+test("an awaiting step shows what would go out and asks for approval", () => {
+  // The whole of the approval gate, seen from the panel: the write has not
+  // gone, what it would send is in front of the operator in words, and the two
+  // answers are on the row rather than at the bottom of the card. A press
+  // decides nothing here -- `panel.js` is what carries it to the worker, which
+  // is where the rig's bearer lives.
+  const run = {
+    id: "run_1",
+    source: "rig",
+    status: "running",
+    steps: [
+      { index: 0, outcome: "held", says: "type the code" },
+      {
+        index: 1,
+        outcome: "awaiting",
+        says: "save",
+        sent: {
+          kind: "ui.perform",
+          payload: {
+            action: "click",
+            locators: [{ strategy: "role_and_name", query: "button|Save" }],
+          },
+        },
+      },
+    ],
+  };
+  const pressed = [];
+  const card = runCard({ run }, { onPress: (answer) => pressed.push(answer) });
+  const row = card.kids.filter((kid) => kid.className === "step")[1];
+
+  assert.equal(row.kids[0].textContent, "⏸", "a step waiting on a person was not drawn as waiting");
+  assert.match(words(row), /click button\|Save/, "the operator was asked to approve an unnamed write");
+
+  const approve = of(row, "button").find((button) => button.textContent === "Approve");
+  const stop = of(row, "button").find((button) => button.textContent === "Stop");
+  assert.ok(approve, "a step waiting for approval offered no way to give it");
+  assert.ok(stop, "a step waiting for approval offered no way to refuse it");
+
+  approve.listeners.click[0]();
+  assert.deepEqual(pressed, ["approve"]);
+  assert.deepEqual(asMarkup, [], "a planned command reached the page as markup");
+});
+
+test("a step the operator did is drawn done, not in flight", () => {
+  // The operator went and did it themselves while the rig waited. That step is
+  // over -- drawing it as the one in flight would leave the panel pointing at
+  // a write nobody is going to send.
+  const run = {
+    id: "run_1",
+    source: "rig",
+    status: "running",
+    steps: [{ index: 0, outcome: "done_by_operator", says: "type the code" }],
+  };
+  const card = runCard({ run }, {});
+  const row = card.kids.filter((kid) => kid.className === "step")[0];
+  assert.equal(row.kids[0].textContent, "✓", "a step the operator did was not drawn as done");
+  assert.deepEqual(
+    of(row, "button").map((button) => button.textContent),
+    [],
+    "a step nothing is waiting on offered an approval",
+  );
+});
+
 let failed = 0;
 for (const [name, fn] of tests) {
   try {

@@ -184,6 +184,12 @@ export const api = {
         outcome: step.verdict,
         says: step.says,
         reason: step.reason,
+        // What the step would send, on a step the rig has stopped to ask
+        // about. Nothing has gone out yet -- this is the command itself, and
+        // it is the only thing the panel can put in front of the person whose
+        // approval the run is waiting for. `null` where there is none, so the
+        // card has one shape whichever verdict the step carries.
+        sent: step.sent || null,
       })),
       withheld: run.withheld || [],
     };

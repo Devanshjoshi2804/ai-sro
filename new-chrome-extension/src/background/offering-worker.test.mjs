@@ -98,16 +98,29 @@ const SHAPE = {
 
 /** Every call this browser made to the rig, in order. */
 let calls = [];
+/** What the rig says the started run looks like, for the poll to find.
+ *
+ * Deliberately not `running`: the poll only asks again while it is, and a test
+ * that left a one-second timer behind would hold the process open forever.
+ */
+let rigRunServed = { id: "run-9", outcome: "held", steps: [] };
 let shapesServed = [SHAPE];
 
-globalThis.fetch = async (url, options = {}) => {
+/** The rig, as far as this browser can tell. Re-installed by `ready()`: a test
+ * that swaps it for one of its own must not leave every later test dialling
+ * that one. */
+const rigServer = async (url, options = {}) => {
   const path = String(url).slice(RIG.length);
   calls.push({ path, method: options.method || "GET", body: options.body });
   if (path === "/v1/shapes") return json({ shapes: shapesServed });
   if (path === "/v1/offers") return json({ offer_id: "off_1" });
   if (path === "/v1/runs") return json({ run_id: "run-9" });
+  if (path === "/v1/runs/run-9") return json(rigRunServed);
+  if (path === "/v1/runs/run-9/approve") return json({ ok: true });
   return json({ detail: `nothing serves ${path}` }, 404);
 };
+
+globalThis.fetch = rigServer;
 
 function json(body, status = 200) {
   return {
@@ -162,6 +175,8 @@ function ready() {
   calls = [];
   painted.length = 0;
   shapesServed = [SHAPE];
+  rigRunServed = { id: "run-9", outcome: "held", steps: [] };
+  globalThis.fetch = rigServer;
   held.set("sro.token", "tok");
   held.set("sro.deviceId", "dev-1");
   held.set("sro.policy", { capture_enabled: true });
@@ -320,3 +335,35 @@ test("an offer that was dropped cannot then be started", async () => {
 // caches for five minutes in module scope, so once any test in this process
 // has seen a shape every later one does too, and a test that ran first would
 // cache the empty list for every test after it.
+
+test("the run the rig is driving is drawn while it runs, and Approve reaches the rig", async () => {
+  // Two halves of the same gate. The panel can only show a live rig run if
+  // something in this worker keeps asking the rig for it -- nothing pushes --
+  // and the Approve on that row has to land on the rig without the panel ever
+  // holding the bearer, which is why it is a message and not a fetch.
+  ready();
+  await gesture("a", "NEW");
+  await gesture("b", "north");
+  await until(() => openOnes().length === 1, "no offer to accept");
+
+  await send({ kind: "start-rig-run", nudgeId: openOnes()[0].id, values: {} });
+  await until(
+    () => calls.some((call) => call.path === "/v1/runs/run-9"),
+    "nothing asked the rig what the run it had just started was doing",
+  );
+
+  // Live in this browser, as it is once the rig's channel has had a command
+  // performed for it -- which is also what records that the rig is driving.
+  await perform({ run_id: "run-9", kind: "nothing-doing" }, "rig");
+  const shown = (await send({ kind: "status" })).performing;
+  assert.equal(shown.source, "rig");
+  assert.equal(shown.run?.id, "run-9", "the panel was told a rig run is happening but not which");
+  abort("run-9");
+
+  const answer = await send({ kind: "approve-rig-run", runId: "run-9" });
+  const approve = calls.find((call) => call.path === "/v1/runs/run-9/approve");
+  assert.ok(approve, "Approve never reached the rig");
+  assert.equal(approve.method, "POST");
+  assert.equal(approve.body, "{}", "the rig's approve route refuses a request with no JSON body");
+  assert.deepEqual(answer, { ok: true });
+});

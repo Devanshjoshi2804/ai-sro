@@ -529,7 +529,7 @@ function performing(status) {
   const run = status.performing;
   const done = Number.isFinite(run.step) ? run.step : null;
   const total = run.of && done !== null && done <= run.of ? run.of : null;
-  return card({
+  const holder = card({
     title: run.skill ? `“${run.skill}” is running` : "A run is performing here",
     says:
       (run.because || "Started elsewhere") +
@@ -570,6 +570,36 @@ function performing(status) {
         : { label: "Details in console", act: () => openConsole(`/runs/${run.runId}`) },
     ],
   });
+
+  // The run itself, while it is happening: a row per step as the rig judges
+  // it, and on the step it has stopped to ask about, the two answers. Only the
+  // rig's runs carry this -- a backend run is stepped from the server and this
+  // card has only ever said which step it is on. `run.id` rather than
+  // `run.runId`: this is the rig's own record, in the same shape `finished`
+  // draws a rig run that has ended.
+  if (run.run) {
+    holder.append(
+      runCard(
+        { run: run.run },
+        {
+          onPress: async (answer, drawn, row, button) => {
+            button.disabled = true;
+            if (answer === "approve") {
+              // The panel never holds the rig's bearer. The press goes to the
+              // worker, which is where it lives -- the same path the offer's
+              // "yes" takes.
+              const got = await ask({ kind: "approve-rig-run", runId: drawn.id });
+              if (got?.error) said(got.error);
+            } else if (answer === "stop") {
+              await ask({ kind: "abort-run", runId: drawn.id });
+            }
+            await refresh();
+          },
+        },
+      ),
+    );
+  }
+  return holder;
 }
 
 /** What the rig's own outcomes are, said in a sentence. Its vocabulary is not

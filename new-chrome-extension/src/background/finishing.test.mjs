@@ -169,7 +169,20 @@ async function theRigsRunInThePanelsWords() {
     json: async () => ({
       id: "run_a1b2",
       outcome: "held",
-      steps: [{ order: 0, says: "open the supplier form", verdict: "held", reason: "it did" }],
+      steps: [
+        { order: 0, says: "open the supplier form", verdict: "held", reason: "it did" },
+        // A step the rig has stopped on: the write is planned, nothing has
+        // been sent, and it is waiting for a person. The panel cannot ask for
+        // approval of a command it was never given, so `sent` comes across
+        // with the rest of the record rather than being dropped here.
+        {
+          order: 1,
+          says: "save",
+          verdict: "awaiting",
+          reason: "",
+          sent: { kind: "ui.perform", payload: { action: "click" } },
+        },
+      ],
       withheld: [{ origin: "https://wms.test" }],
     }),
   });
@@ -177,7 +190,14 @@ async function theRigsRunInThePanelsWords() {
   assert.strictEqual(mapped.source, "rig");
   assert.strictEqual(mapped.status, "held", "the rig's outcome is the panel's status");
   assert.deepStrictEqual(mapped.steps, [
-    { index: 0, outcome: "held", says: "open the supplier form", reason: "it did" },
+    { index: 0, outcome: "held", says: "open the supplier form", reason: "it did", sent: null },
+    {
+      index: 1,
+      outcome: "awaiting",
+      says: "save",
+      reason: "",
+      sent: { kind: "ui.perform", payload: { action: "click" } },
+    },
   ]);
   assert.strictEqual(mapped.withheld.length, 1);
 

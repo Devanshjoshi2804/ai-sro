@@ -1047,6 +1047,12 @@ async function handle(message, sender) {
         return { ok: false, error: error.problem?.detail || error.message };
       }
       await state.setActiveRun({ runId: started.run_id, at: Date.now(), source: "rig" });
+      // From here the panel draws the run itself, a row per step as it lands.
+      // Beside the record that says a rig run is active, because that record is
+      // the whole of what `pollRigRun` reads. Not awaited: the press answers as
+      // soon as the run exists, and the first picture of it is a moment behind
+      // that either way.
+      void pollRigRun();
       // Read again, after the POST. The list captured before it is a minute
       // old by warehouse standards: a sweep or another gesture may have
       // written it since, and marking this offer accepted by writing that copy
@@ -1135,6 +1141,16 @@ async function handle(message, sender) {
       // Chrome partitions storage for framed contexts, so the panel has to hand
       // it across. It goes to the configured origin and nowhere else.
       return { consoleUrl: await state.consoleUrl(), token: await state.token() };
+    case "approve-rig-run": {
+      // The press on the awaiting row. It comes here rather than going to the
+      // rig from the panel for the same reason `start-rig-run` does: the rig's
+      // bearer lives in this worker and in nothing a page can reach.
+      try {
+        return await api.rigApprove(message.runId);
+      } catch (error) {
+        return { ok: false, error: error.problem?.detail || error.message };
+      }
+    }
     case "abort-run": {
       // Both halves, in this order. `abort` is local and immediate: every
       // later command for this run is refused here, so nothing else reaches
@@ -1647,6 +1663,11 @@ async function status() {
     performing: live && {
       ...live,
       source: (active?.runId === live.runId && active.source) || "backend",
+      // The rig's own record of it, for the card that draws a row per step.
+      // Only for a rig run, and only the run being drawn: a backend run's
+      // steps come from its skill, and a picture left over from the previous
+      // rig run would draw somebody else's writes under this one's title.
+      run: rigRunShown?.id === live.runId ? rigRunShown : undefined,
     },
     // What the last run this browser finished made, and how to take it back --
     // held long past this run itself, unlike `performing` above, because an
@@ -1693,6 +1714,56 @@ async function status() {
  * harmless against a healthy backend, unbounded against a slow or
  * unreachable one. */
 let checkingFinish = false;
+
+/** How often the panel's picture of a live rig run is refreshed.
+ *
+ * A second, because the rig steps in about that and a row that appears four
+ * seconds after the click reads as a panel that has stopped working. Only
+ * while a run is actually running -- see `pollRigRun`, which stops rather than
+ * ticking against a rig nobody is using.
+ */
+const K_RUN_POLL_MS = 1000;
+
+/** The rig's own record of the run happening now, as the panel's card wants
+ * it. Module scope, so it dies with the worker -- which is correct: a fresh
+ * worker has no picture yet and asks for one. */
+let rigRunShown = null;
+let rigPoll = null;
+
+/**
+ * Keep asking the rig what the run it is driving is doing.
+ *
+ * Nothing pushes. The rig performs a step, waits on this browser to carry it
+ * out, judges the reading and moves on -- and none of that reaches the panel
+ * unless something here asks. So the panel showed "A run is performing here"
+ * and nothing else until the run ended, which is the whole of what somebody
+ * watching a live warehouse wants to see.
+ *
+ * A failed ask keeps the last picture rather than blanking the card: the rig
+ * being briefly unreachable is not the run having no steps, and drawing it as
+ * one would be worse than a picture that is a second old.
+ */
+async function pollRigRun() {
+  const active = await state.activeRun();
+  if (!active || active.source !== "rig") {
+    rigRunShown = null;
+    return;
+  }
+  try {
+    rigRunShown = await api.rigRun(active.runId);
+  } catch {
+    // Keep the last picture; the next tick asks again.
+  }
+  if (rigRunShown?.status === "running") {
+    clearTimeout(rigPoll);
+    rigPoll = setTimeout(() => void pollRigRun(), K_RUN_POLL_MS);
+  }
+}
+
+// On worker start, because Chrome evicts this worker between events and a run
+// started before that eviction is still running in the warehouse. Costs
+// nothing where there is no rig run: the first line reads one key and returns.
+void pollRigRun();
 
 /**
  * Ask the backend whether the run this browser was last asked to do

@@ -44,8 +44,21 @@ export function glyphFor(outcome) {
   // records a disposition: `held` is its reading of "the thing I said would
   // happen did", `unclear` is the same honesty `✓!` carries here -- it went
   // out and nothing could say whether it landed.
+  //
+  // `awaiting` is `withheld`'s glyph because it is the same fact to the person
+  // reading it: the write has not gone. `done_by_operator` is a plain tick --
+  // they went and did it themselves while the rig waited, and that step is as
+  // over as one the rig performed.
   if (typeof outcome === "string") {
-    return { held: "✓", withheld: "⏸", failed: "✗", refused: "✗", skipped: "○" }[outcome] || "✓!";
+    return {
+      held: "✓",
+      done_by_operator: "✓",
+      withheld: "⏸",
+      awaiting: "⏸",
+      failed: "✗",
+      refused: "✗",
+      skipped: "○",
+    }[outcome] || "✓!";
   }
   if (outcome.disposition === "failed") return "✗";
   if (outcome.disposition === "withheld") return "⏸";
@@ -92,7 +105,7 @@ export function runCard({ run, skill, message, notes = [] }, { onPress, onChange
   // doing, and the verdict on it. Everything below -- the glyphs, a note said
   // during a step -- is the same code for both.
   const plan = rig
-    ? (run.steps || []).map((step) => ({ index: step.index, intent: step.says }))
+    ? (run.steps || []).map((step) => ({ index: step.index, intent: step.says, sent: step.sent }))
     : skill?.latest?.steps || [];
   for (const step of plan) {
     card.append(
@@ -103,6 +116,7 @@ export function runCard({ run, skill, message, notes = [] }, { onPress, onChange
         inFlight,
         run,
         notes,
+        onPress,
         onChange: rig ? undefined : onChange,
       }),
     );
@@ -145,7 +159,18 @@ export function runCard({ run, skill, message, notes = [] }, { onPress, onChange
   return card;
 }
 
-function stepRow({ step, outcome, live, inFlight, run, notes, onChange }) {
+/** A planned command in words. `textContent` only; the payload is the model's
+ * and the page's. */
+function wordsFor(sent) {
+  if (!sent) return "";
+  const p = sent.payload || {};
+  if (sent.kind === "http.send") return `${p.method || "call"} ${p.url || ""}`;
+  if (sent.kind === "navigate") return `open ${p.url || ""}`;
+  const where = (p.locators || [])[0]?.query || "";
+  return `${p.action || "act"}${p.value ? ` "${p.value}"` : ""} ${where}`.trim();
+}
+
+function stepRow({ step, outcome, live, inFlight, run, notes, onPress, onChange }) {
   const row = document.createElement("div");
   row.className = "step";
   row.dataset.index = String(step.index);
@@ -157,6 +182,28 @@ function stepRow({ step, outcome, live, inFlight, run, notes, onChange }) {
   intent.className = "intent";
   intent.textContent = step.intent || "";
   row.append(glyph, intent);
+
+  // The rig has stopped here to ask. What it would send is drawn in words --
+  // this is the one moment somebody can read a write before it happens -- and
+  // the two answers go on this row rather than under the card, because "yes"
+  // means yes to *this* step and a button anywhere else would not say which.
+  // Only while the run is live: an `awaiting` row on a run that has since
+  // ended is a record, and pressing Approve on it would approve nothing.
+  if (outcome === "awaiting" && live) {
+    const words = document.createElement("span");
+    words.className = "planned";
+    words.textContent = wordsFor(step.sent);
+    const approve = document.createElement("button");
+    approve.type = "button";
+    approve.textContent = "Approve";
+    approve.addEventListener("click", () => onPress?.("approve", run, row, approve));
+    const stop = document.createElement("button");
+    stop.type = "button";
+    stop.className = "quiet";
+    stop.textContent = "Stop";
+    stop.addEventListener("click", () => onPress?.("stop", run, row, stop));
+    row.append(words, approve, stop);
+  }
 
   // Only a step that is still to come, and only one that has values of its own.
   // The step in flight is excluded with the rest of the past: its request may

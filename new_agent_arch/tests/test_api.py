@@ -13,6 +13,7 @@ from rig.api import _read_unread, _row_to_gesture, build_app, read_new_gestures,
 from rig.models import Answer, Effort, FakeAsker
 from rig.store import Store
 from rig.wire import Batch
+from rig.workflows import Step, Workflow, save_workflow
 from tests.fixtures import BATCH, SNAPSHOT
 
 TOKEN = "test-token"
@@ -40,6 +41,44 @@ def client(store: Store) -> TestClient:
 
 def _auth() -> dict[str, str]:
     return {"Authorization": f"Bearer {TOKEN}"}
+
+
+def _seed_workflow(store: Store) -> Workflow:
+    """The fixture workflow, under this file's tenant.
+
+    The body is `tests/test_shapes.py::_workflow`; the two files are allowed to
+    repeat it rather than one importing the other's private helper.
+    """
+    save_batch(store, Batch.model_validate(BATCH), "new")
+    ids = [r["id"] for r in store.query("SELECT id FROM gestures ORDER BY at")]
+    # `gesture_json` is pydantic's own compact dump, so a substring probe for
+    # `"kind": "type"` never matches. Read the column rather than grep it.
+    typed = next(
+        r["id"]
+        for r in store.query("SELECT id, gesture_json FROM gestures ORDER BY at")
+        if json.loads(r["gesture_json"]).get("kind") == "type"
+        and json.loads(r["gesture_json"]).get("value") == "ACME-4471"
+    )
+    workflow = Workflow(
+        id="wfl_1",
+        tenant="new",
+        title="create a client",
+        narrative="n",
+        systems=["http://127.0.0.1:63319"],
+        steps=[
+            Step(
+                order=0,
+                says="type the code",
+                system=None,
+                cites=[typed],
+                parameters=["clientCode"],
+            ),
+            Step(order=1, says="save", system=None, cites=[ids[-1]]),
+        ],
+        parameters=[{"name": "clientCode", "seen_values": ["ACME-4471"]}],
+    )
+    save_workflow(store, workflow)
+    return workflow
 
 
 def test_one_unparseable_event_does_not_cost_the_batch(client: TestClient, store: Store) -> None:
@@ -2220,3 +2259,40 @@ def test_the_redraw_carries_an_open_runner_into_the_fresh_card() -> None:
 
     assert got["same"], "the box was re-rendered, so the typed values and the poll's div are gone"
     assert got["boxes"] == [["runner-a", "<form>typed</form>"], ["runner-b", ""]], got
+
+
+def test_the_shapes_route_serves_what_shapes_for_computes(client: TestClient, store: Store) -> None:
+    _seed_workflow(store)
+
+    got = client.get("/v1/shapes", headers=_auth())
+
+    assert got.status_code == 200
+    [shape] = got.json()["shapes"]
+    assert shape["id"] == "wfl_1" and shape["parameters"] == [{"name": "clientCode", "at": 0}]
+
+
+def test_an_offer_and_its_fate_are_recorded(client: TestClient, store: Store) -> None:
+    _seed_workflow(store)
+    body = {
+        "workflow_id": "wfl_1",
+        "k": 2,
+        "fate": "diverged",
+        "device_id": "dev_1",
+        "at": "2026-09-06T10:00:00+00:00",
+    }
+
+    got = client.post("/v1/offers", json=body, headers=_auth())
+
+    assert got.status_code == 201 and got.json()["offer_id"].startswith("off_")
+    rows = store.query("SELECT workflow_id, k, fate, run_id FROM offers")
+    assert [tuple(r) for r in rows] == [("wfl_1", 2, "diverged", None)]
+
+
+def test_an_offer_with_a_fate_nobody_named_is_refused(client: TestClient, store: Store) -> None:
+    _seed_workflow(store)
+    body = {"workflow_id": "wfl_1", "k": 2, "fate": "maybe", "device_id": "dev_1", "at": "x"}
+
+    assert client.post("/v1/offers", json=body, headers=_auth()).status_code == 400
+
+    body["fate"], body["workflow_id"] = "accepted", "wfl_nope"
+    assert client.post("/v1/offers", json=body, headers=_auth()).status_code == 400

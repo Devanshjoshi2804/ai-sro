@@ -171,6 +171,21 @@ CREATE TABLE IF NOT EXISTS workflow_stale (
     PRIMARY KEY (workflow_id, ord)
 );
 
+-- Every offer the extension made from a recognised prefix, and what became of
+-- it. The labelled record of whether recognition was right: the share of
+-- `diverged` is what decides whether the prefix length ever moves.
+CREATE TABLE IF NOT EXISTS offers (
+    id          TEXT PRIMARY KEY,
+    tenant      TEXT NOT NULL,
+    workflow_id TEXT NOT NULL,
+    device_id   TEXT NOT NULL,
+    k           INTEGER NOT NULL,
+    fate        TEXT NOT NULL,
+    run_id      TEXT,
+    at          TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS offers_by_workflow ON offers (tenant, workflow_id, at);
+
 CREATE TABLE IF NOT EXISTS runs (
     id          TEXT PRIMARY KEY,
     tenant      TEXT NOT NULL,

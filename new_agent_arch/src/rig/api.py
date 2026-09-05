@@ -928,6 +928,41 @@ def build_app(
         )
         return {"workflow_id": got.workflow_id, "values": got.values, "missing": got.missing}
 
+    @app.get("/v1/shapes", dependencies=[Depends(authorised)])
+    async def shapes() -> dict[str, Any]:
+        """What the extension matches a live tail against. Arithmetic on the
+        way out and arithmetic on the way in: no model is on this path."""
+        from rig.shapes import shapes_for
+
+        return {"shapes": [s.as_json() for s in shapes_for(store, tenant)]}
+
+    @app.post("/v1/offers", status_code=201, dependencies=[Depends(authorised)])
+    async def offered(body: dict[str, Any]) -> dict[str, Any]:
+        from rig.offers import FATES, record_offer
+        from rig.workflows import known_workflows
+
+        workflow_id = str(body.get("workflow_id") or "")
+        if workflow_id not in {w.id for w in known_workflows(store, tenant)}:
+            raise HTTPException(status_code=400, detail="no such workflow")
+        fate = str(body.get("fate") or "")
+        if fate not in FATES:
+            raise HTTPException(status_code=400, detail=f"fate must be one of {', '.join(FATES)}")
+        k = body.get("k")
+        if not isinstance(k, int) or k < 0:
+            raise HTTPException(status_code=400, detail="k must be a non-negative integer")
+        run_id = body.get("run_id")
+        offer_id = record_offer(
+            store,
+            tenant=tenant,
+            workflow_id=workflow_id,
+            k=k,
+            fate=fate,
+            run_id=str(run_id) if isinstance(run_id, str) and run_id else None,
+            device_id=str(body.get("device_id") or ""),
+            at=str(body.get("at") or _now()),
+        )
+        return {"offer_id": offer_id}
+
     @app.get("/", response_class=HTMLResponse)
     def page() -> str:
         return (Path(__file__).parent / "web" / "index.html").read_text()

@@ -22,6 +22,7 @@ DEFAULT_EXCLUSIONS: tuple[str, ...] = (
     "mail.yahoo.com",
     "accounts.google.com",
     "login.microsoftonline.com",
+    "b2clogin.com",
 )
 """Webmail and the identity providers in front of it.
 
@@ -37,6 +38,20 @@ host-or-subdomain test, so excluding `login.microsoftonline.com` protected the
 sign-in page and not the mailbox behind it -- and a tenant that switched
 observation on with the defaults was recording message bodies, recipients and a
 screenshot of the open message every gesture, for thirty days.
+
+`b2clogin.com` is the same family as `login.microsoftonline.com` and was missing
+beside it: Azure AD B2C, where the host is always `<tenant>.b2clogin.com` and
+`domain_matches` is a host-or-subdomain test. It is here rather than in one
+customer's policy because it is Microsoft's host, not theirs -- this deployment
+captured a real sign-in on `blueyonderalphaus.b2clogin.com` and closed it by
+editing that tenant's stored list, which left the next tenant exactly where this
+one started. Nothing but sign-in is served from b2clogin.com, so excluding the
+domain costs no evidence anybody wanted.
+
+A customer's OWN identity host stays out. This deployment also excluded a
+Keycloak at `keycloak-…-wms-keycloak-prod.us.live.external.byp.ai`, and that
+name belongs to one warehouse rather than to a vendor -- guessing at those is
+the "coverage that provides none" this list exists to avoid.
 
 This list is still the wrong shape for anything nobody predicted, and no list of
 hosts is ever complete. `only()` turns the policy into an allow-list, which is

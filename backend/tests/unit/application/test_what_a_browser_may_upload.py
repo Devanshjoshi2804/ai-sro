@@ -227,3 +227,25 @@ def test_a_url_with_an_unreadable_port_is_left_to_the_tenants_policy() -> None:
     ).our_own_origins()
 
     assert ours == frozenset(), "nothing, rather than a portless `localhost`"
+
+
+def test_the_sign_in_a_warehouse_actually_used_is_excluded_by_default() -> None:
+    """`login.microsoftonline.com` was in the defaults and `b2clogin.com` was
+    not, which is the same half-covered shape the Microsoft 365 mailbox hosts
+    were in. Azure AD B2C is always `<tenant>.b2clogin.com` and serves nothing
+    but sign-in; this deployment captured a real one on
+    `blueyonderalphaus.b2clogin.com` and closed it by editing that tenant's
+    stored policy, which left the next tenant where this one started."""
+    admission = admit([_at("https://blueyonderalphaus.b2clogin.com/oauth2/authorize")], ON)
+
+    assert admission.accepted == ()
+    assert admission.rejected[0].reason == "this page is outside what the tenant agreed to observe"
+
+
+def test_a_customers_own_identity_host_is_not_guessed_at() -> None:
+    """A Keycloak named for one warehouse belongs in that tenant's policy, not
+    in a list shipped to everybody. Guessing at those is the coverage-that-
+    provides-none this list exists to avoid."""
+    keycloak = "https://keycloak-service-exec-wms-keycloak-prod.us.live.external.byp.ai/auth"
+
+    assert admit([_at(keycloak)], ON).accepted_count == 1

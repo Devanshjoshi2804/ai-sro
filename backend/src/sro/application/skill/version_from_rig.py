@@ -15,20 +15,29 @@ move the citation requirement exists to stop. So this builds the version and
 the objective stays a person's decision, which is where it belongs: naming what
 a job is FOR is the reviewer's half of induction.
 
-**What it will not fake.** `Provenance.recording_ids` must be non-empty, and
-the rig has no `Recording`. Its nearest equivalent is the capture stream a
-gesture arrived on, which lives in a column of the gestures table rather than
-in the gesture itself -- so the caller passes it and this refuses without it.
-Minting an id from something to hand would satisfy the invariant and lie to
-`from_one_demonstration`, a live safety rule: it decides whether a write
-skill's values were ever diffed.
+**What it will not fake.** `Provenance.recording_ids` must be non-empty and the
+rig has no `Recording`. What the caller passes is the rig's `stream_id`, and
+that field deserves stating plainly rather than being called a near-equivalent:
+`correlate.py` sets it to `batch.device_id`, so a rig "stream" is **one browser
+profile for all time**, not a capture session. The id therefore names a device,
+will never resolve to a `Recording` row, and `ReadDoings` shows a version citing
+it as having zero doings rather than crashing.
 
-That rule also decides the direction this errs in. Two doings of one job inside
-a single capture stream report as ONE recording, so a version whose parameters
-were genuinely proven can still read as `from_one_demonstration` -- and that
-answer is the strict one. `values_are_fixed` follows it, and promotion asks
-more of a skill nobody diffed. Understating the evidence costs a reviewer's
-time; overstating it promotes something on a diff that never happened.
+It is still passed rather than invented here, because it is the only provenance
+the rig holds and because minting one from something to hand would lie to
+`from_one_demonstration` -- a live safety rule deciding whether a write skill's
+values were ever diffed.
+
+`from_one_demonstration` is therefore always true of a rig version, and an
+earlier note here called that a conservative approximation. It is not an
+approximation: **a version's steps come from one proposal, and one proposal is
+one telling of the job.** A second reading becomes v2 rather than merging, so
+there genuinely is one demonstration behind each version. The residual is that
+nothing stops a model citing gestures from two occurrences in a single
+proposal -- `identity.resolve` tells those apart afterwards, not before -- and
+where that happens the count understates. Understating is the safe direction:
+`values_are_fixed` follows it and promotion asks more of a skill nobody
+diffed.
 
 Every version comes out at `RECORDED`. Nothing about a mined workflow has been
 reviewed by anybody, and the stage is the one field that says so.
@@ -179,12 +188,15 @@ def version_from_rig(
             note=_text(workflow.get("narrative")) or "",
         ),
         summary=_text(workflow.get("title")) or "",
-        # What the recorder saw on the frame the first action happened on. Only
-        # from one stream: two demonstrations that began on different screens
-        # are saying the screen is not part of the task, and this cannot tell
-        # which case it is holding, so it speaks only for the single-recording
-        # one.
-        starts_on=_starts_on(workflow, gestures) if len(named) == 1 else None,
+        # The screen the first cited gesture happened on.
+        #
+        # `starts_on` means "every demonstration of this task began here", and
+        # an earlier version guarded it with `len(named) == 1` -- which is
+        # structurally always true, since a rig stream is a device. A guard that
+        # cannot be false guards nothing. What actually makes the claim true is
+        # that a version's steps come from one proposal, so there is one
+        # demonstration to speak for.
+        starts_on=_starts_on(workflow, gestures),
         systems=tuple(text for s in _as_list(workflow.get("systems")) if (text := _text(s))),
     )
 
@@ -206,7 +218,13 @@ def _as_list(value: object) -> Sequence[object]:
 def _starts_on(
     workflow: Mapping[str, object], gestures: Mapping[str, Mapping[str, object]]
 ) -> str | None:
-    """The url of the first gesture any step cites, in workflow order."""
+    """The url of the first gesture any step cites, in workflow order.
+
+    Workflow order rather than clock order: the steps are what a run performs,
+    and the screen a run must start on is the one the first STEP acts on. A
+    gesture that happened earlier but is cited by a later step was part of the
+    job's middle, whatever the clock says.
+    """
     for step in _ordered(workflow):
         cites = step.get("cites")
         for cited in cites if isinstance(cites, list) else ():

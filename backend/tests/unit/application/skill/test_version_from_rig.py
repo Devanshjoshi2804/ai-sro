@@ -157,13 +157,46 @@ def test_two_doings_in_one_stream_report_the_strict_answer() -> None:
     assert version.parameters[0].evidence is Evidence.PROVEN, "and the diff still happened"
 
 
-def test_the_starting_screen_is_claimed_only_for_a_single_recording() -> None:
-    """`starts_on` means every demonstration began here. Two that began on
-    different screens are saying the screen is not part of the task, and this
-    cannot tell which case it is holding."""
+def test_the_starting_screen_is_the_one_the_first_step_acts_on() -> None:
+    """`starts_on` means every demonstration of this task began here, and a
+    skill taught by clicking names no URL on any step -- so without it a run
+    could only be performed by an operator who had already navigated to the
+    right screen.
+
+    An earlier version guarded this with "only one recording", which is
+    structurally always true of a rig version: `correlate.py` sets `stream_id`
+    to `batch.device_id`, so a rig stream is one browser profile for all time
+    rather than a capture session. A guard that cannot be false guards nothing.
+    What makes the claim true is that a version's steps come from one proposal,
+    and one proposal is one telling of the job.
+    """
     assert _built().starts_on == "https://wms.example/activities"
     two = _version(recordings=["str_1", "str_2"])
-    assert two is not None and two.starts_on is None
+    assert two is not None
+    assert two.starts_on == "https://wms.example/activities", "a device count decides nothing"
+
+
+def test_the_starting_screen_follows_the_steps_and_not_the_clock() -> None:
+    """The screen a run must start on is the one the first STEP acts on. A
+    gesture that happened earlier but is cited by a later step was part of the
+    job's middle, whatever its timestamp says."""
+    gestures = {
+        "late": {"kind": "click", "at": 9.0, "url": "https://wms.example/first", "target": EXTJS},
+        "early": {"kind": "click", "at": 1.0, "url": "https://wms.example/second", "target": EXTJS},
+    }
+    workflow = {
+        **WORKFLOW,
+        "steps": [
+            {"order": 0, "says": "start here", "cites": ["late"]},
+            {"order": 1, "says": "then here", "cites": ["early"]},
+        ],
+    }
+    version = version_from_rig(
+        workflow, gestures, recordings=["str_1"], induced_by="rig", induced_at=NOW
+    )
+
+    assert version is not None
+    assert version.starts_on == "https://wms.example/first"
 
 
 def test_a_duplicated_recording_id_is_still_one_recording() -> None:

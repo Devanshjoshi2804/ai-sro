@@ -1,9 +1,12 @@
+import copy
+from collections.abc import Mapping
 from pathlib import Path
 
 from rig.api import save_batch
 from rig.channel import Answer as Reply
-from rig.channel import FakeChannel
+from rig.channel import DeviceUnreachable, FakeChannel
 from rig.models import Answer, FakeAsker
+from rig.planner import PLAN_SCHEMA
 from rig.runner import K_STEP_SLACK, Aborts, run_workflow
 from rig.runs import load_run
 from rig.store import Store
@@ -57,6 +60,52 @@ def _looks(n: int) -> dict[str, list[Reply]]:
         "screenshot": [Reply(ok=True, result={"image_base64": "aVBORw0=", "text_digest": "Save"})]
         * n,
     }
+
+
+def _navigate() -> Answer:
+    return Answer(
+        data={
+            "kind": "navigate",
+            "action": None,
+            "value": None,
+            "url": "http://127.0.0.1:63319/form",
+            "why": "wrong page",
+        }
+    )
+
+
+def _repeated(store: Store, steps: int) -> Workflow:
+    """One workflow of `steps` identical read steps, all citing the same typed
+    gesture. Nothing here writes, so every step is performable in a live run."""
+    typed = _ids(store)[0]
+    wf = Workflow(
+        id="wfl_n",
+        tenant="acme",
+        title="type it again",
+        narrative="n",
+        systems=["http://127.0.0.1:63319"],
+        steps=[
+            Step(
+                order=i, says="type the code", system=None, cites=[typed], parameters=["clientCode"]
+            )
+            for i in range(steps)
+        ],
+    )
+    save_workflow(store, wf)
+    return wf
+
+
+def _one_step(store: Store, cite: str, says: str = "save") -> Workflow:
+    wf = Workflow(
+        id="wfl_one",
+        tenant="acme",
+        title=says,
+        narrative="n",
+        systems=["http://127.0.0.1:63319"],
+        steps=[Step(order=0, says=says, system=None, cites=[cite])],
+    )
+    save_workflow(store, wf)
+    return wf
 
 
 async def test_a_dry_run_sends_the_reads_and_withholds_the_write_in_full(tmp_path: Path) -> None:
@@ -340,18 +389,32 @@ async def test_the_stop_button_is_honoured_between_steps(tmp_path: Path) -> None
 
 
 async def test_the_step_budget_is_the_workflows_steps_plus_slack(tmp_path: Path) -> None:
-    """Every attempt counts against it, so a model looping on a form runs out."""
+    """Every attempt counts against it, including the ones that only moved the
+    browser, so a planner that navigates its way around a job runs out before
+    it has spent the day."""
     store = _store(tmp_path)
-    wf = _workflow(store)
+    wf = _repeated(store, 4)
     assert K_STEP_SLACK == 3
-    attempts = len(wf.steps) + K_STEP_SLACK + 2
+    budget = len(wf.steps) + K_STEP_SLACK
     channel = FakeChannel(
         {
-            **_looks(attempts * 2),
-            "ui.perform": [Reply(ok=False, error_kind="not_visible", error_detail="")] * attempts,
+            **_looks(budget * 2),
+            "navigate": [Reply(ok=True, result={"navigated": True})] * len(wf.steps),
+            "ui.perform": [Reply(ok=True, result={"performed": True, "matched_by": "component"})]
+            * len(wf.steps),
         }
     )
-    asker = FakeAsker(*[_plan("type", "x")] * attempts)
+    # Every rung is asked twice: once for the navigate that gets to the page,
+    # once for the command itself. Three steps at two attempts each spends six
+    # of the seven, and the fourth step's navigate spends the last.
+    asker = FakeAsker(
+        *[
+            answer
+            for _ in range(3)
+            for answer in (_navigate(), _plan("type", "x"), Answer(data={"held": True, "why": ""}))
+        ],
+        _navigate(),
+    )
 
     run = await run_workflow(
         store,
@@ -367,10 +430,11 @@ async def test_the_step_budget_is_the_workflows_steps_plus_slack(tmp_path: Path)
         started_by="form",
     )
 
-    assert run.outcome in ("stopped", "refused")
-    assert (
-        len([s for s in channel.sent if s["kind"] == "ui.perform"]) <= len(wf.steps) + K_STEP_SLACK
-    )
+    assert run.outcome == "refused"
+    last = run.steps[-1]
+    assert last.order == 3 and last.verdict == "refused", "the budget stopped the last step"
+    assert str(budget) in last.reason and "budget" in last.reason
+    assert len([a for a in asker.asked if a["schema"] is PLAN_SCHEMA]) == budget
 
 
 async def test_every_model_call_on_a_run_is_billed_to_its_step(tmp_path: Path) -> None:
@@ -447,3 +511,305 @@ def test_a_stale_step_is_recorded_once_per_step_not_once_per_run(tmp_path: Path)
 
     rows = store.query("SELECT * FROM workflow_stale WHERE workflow_id = ?", ("wfl_1",))
     assert len(rows) == 1 and rows[0]["ord"] == 0 and rows[0]["matched_by"] is None
+
+
+async def test_a_step_the_planner_could_not_plan_stops_the_run(tmp_path: Path) -> None:
+    """A rung that never reached a command left its reason on nothing but a
+    local, and the run walked past the step as if it had been skipped."""
+    store = _store(tmp_path)
+    wf = _workflow(store)
+    channel = FakeChannel(_looks(4))
+    asker = FakeAsker(
+        Answer(data={"kind": "nope", "why": "no idea"}),
+        Answer(data={"kind": "nope", "why": "still no idea"}),
+    )
+
+    run = await run_workflow(
+        store,
+        wf,
+        values={"clientCode": "x"},
+        channel=channel,
+        device_id="dev_test",
+        asker=asker,
+        plan_model="flash",
+        rescue_model="pro",
+        live=True,
+        allow_focus=True,
+        started_by="form",
+    )
+
+    assert run.outcome == "stopped"
+    assert len(asker.asked) == 2, "step 1 was never planned"
+    assert not [s for s in channel.sent if s["kind"] == "ui.perform"], "nothing was performed"
+    assert run.steps[0].verdict == "failed" and run.steps[0].reason, "it says why"
+
+
+async def test_a_step_with_nothing_actionable_to_cite_stops_the_run(tmp_path: Path) -> None:
+    """You scroll a page, not a control. A step whose whole evidence is a
+    scroll cannot be performed, and a job that carries on past it is a job
+    doing its later steps on an assumption nobody checked."""
+    store = _store(tmp_path)
+    raw = copy.deepcopy(BATCH)
+    raw["batch_id"] = "bat_scroll"
+    event = next(e for e in raw["events"] if e["kind"] == "gesture")
+    event["gesture"] = {**event["gesture"], "kind": "scroll", "target": None, "value": None}
+    raw["events"] = [event]
+    save_batch(store, Batch.model_validate(raw), "acme")
+    scrolled = store.query("SELECT id FROM gestures WHERE batch_id = ?", ("bat_scroll",))[0]["id"]
+
+    wf = _workflow(store)
+    wf.steps[0].cites = [scrolled]
+    save_workflow(store, wf)
+    channel = FakeChannel(_looks(4))
+    asker = FakeAsker(_plan("click"))
+
+    run = await run_workflow(
+        store,
+        wf,
+        values={},
+        channel=channel,
+        device_id="dev_test",
+        asker=asker,
+        plan_model="flash",
+        rescue_model="pro",
+        live=True,
+        allow_focus=True,
+        started_by="form",
+    )
+
+    assert run.outcome == "stopped"
+    assert len(run.steps) == 1 and run.steps[0].verdict == "skipped"
+    assert not asker.asked and not channel.sent, "nothing was planned and nothing was sent"
+
+
+async def test_the_record_keeps_what_the_browser_answered_not_what_it_answered_with(
+    tmp_path: Path,
+) -> None:
+    """`verify` keeps a response body out of a prompt; the run record holds it
+    for far longer than a prompt does, so it does not hold it at all."""
+    store = _store(tmp_path)
+    wf = _one_step(store, _ids(store)[-1])
+    channel = FakeChannel(
+        {
+            **_looks(2),
+            "http.send": [
+                Reply(
+                    ok=True,
+                    result={
+                        "status": 200,
+                        "body": '{"id": 41, "clientCode": "ACME-4471"}',
+                        "headers": {"set-cookie": "session=secret"},
+                    },
+                )
+            ],
+        }
+    )
+    asker = FakeAsker(
+        Answer(data={"kind": "http.send", "action": None, "value": None, "url": None, "why": ""})
+    )
+
+    run = await run_workflow(
+        store,
+        wf,
+        values={},
+        channel=channel,
+        device_id="dev_test",
+        asker=asker,
+        plan_model="flash",
+        rescue_model="pro",
+        live=True,
+        allow_focus=True,
+        started_by="form",
+    )
+
+    assert run.steps[0].verdict == "held" and run.steps[0].verdict_by == "status"
+    assert run.steps[0].result == {"ok": True, "status": 200, "matched_by": None}
+
+
+async def test_a_failed_reply_keeps_the_error_kind_as_its_own_field(tmp_path: Path) -> None:
+    store = _store(tmp_path)
+    wf = _workflow(store)
+    channel = FakeChannel(
+        {
+            **_looks(6),
+            "ui.perform": [Reply(ok=False, error_kind="control_not_found", error_detail="gone")]
+            * 2,
+        }
+    )
+    asker = FakeAsker(_plan("type", "x"), _plan("type", "x"))
+
+    run = await run_workflow(
+        store,
+        wf,
+        values={"clientCode": "x"},
+        channel=channel,
+        device_id="dev_test",
+        asker=asker,
+        plan_model="flash",
+        rescue_model="pro",
+        live=True,
+        allow_focus=True,
+        started_by="form",
+    )
+
+    assert run.steps[0].result == {
+        "ok": False,
+        "status": None,
+        "matched_by": None,
+        "error_kind": "control_not_found",
+    }
+    assert "gone" in run.steps[0].reason, (
+        "the detail is in the reason, not concatenated into a kind"
+    )
+
+
+class _GoesAway(FakeChannel):
+    """A browser that stops listening on the nth `ui.perform`."""
+
+    def __init__(self, script: dict[str, list[Reply]], on_perform: int) -> None:
+        super().__init__(script)
+        self.on_perform = on_perform
+        self.performs = 0
+
+    async def send(
+        self,
+        device_id: str,
+        *,
+        kind: str,
+        payload: Mapping[str, object],
+        run_id: str | None = None,
+        deadline_s: float | None = None,
+    ) -> Reply:
+        if kind == "ui.perform":
+            self.performs += 1
+            if self.performs >= self.on_perform:
+                raise DeviceUnreachable(f"{device_id} stopped listening")
+        return await super().send(
+            device_id, kind=kind, payload=payload, run_id=run_id, deadline_s=deadline_s
+        )
+
+
+async def test_a_browser_that_goes_away_mid_step_fails_that_step(tmp_path: Path) -> None:
+    """The step in flight is the one that failed -- with the order the workflow
+    gave it and the tokens its plan already cost -- not a fabricated one whose
+    order collides with a real step's."""
+    store = _store(tmp_path)
+    typed = _ids(store)[0]
+    wf = Workflow(
+        id="wfl_ordered",
+        tenant="acme",
+        title="two",
+        narrative="n",
+        systems=["http://127.0.0.1:63319"],
+        steps=[
+            Step(order=1, says="type the code", system=None, cites=[typed]),
+            Step(order=2, says="type it again", system=None, cites=[typed]),
+        ],
+    )
+    save_workflow(store, wf)
+    channel = _GoesAway(
+        {
+            **_looks(4),
+            "ui.perform": [Reply(ok=True, result={"performed": True, "matched_by": "component"})],
+        },
+        on_perform=2,
+    )
+    asker = FakeAsker(
+        _plan("type", "x"),
+        Answer(data={"held": True, "why": ""}),
+        Answer(
+            data={"kind": "ui.perform", "action": "type", "value": "x", "url": None, "why": ""},
+            in_tokens=11,
+        ),
+    )
+
+    run = await run_workflow(
+        store,
+        wf,
+        values={"clientCode": "x"},
+        channel=channel,
+        device_id="dev_test",
+        asker=asker,
+        plan_model="flash",
+        rescue_model="pro",
+        live=True,
+        allow_focus=True,
+        started_by="form",
+    )
+
+    assert run.outcome == "failed"
+    assert [s.order for s in run.steps] == [1, 2], "the step in flight kept its own order"
+    assert run.steps[1].verdict == "failed" and "dev_test" in run.steps[1].reason
+    assert run.steps[1].in_tokens == 11, "the plan it already paid for is still billed"
+    saved = load_run(store, "acme", run.id)
+    assert saved is not None and saved.outcome == "failed", "and it was saved"
+
+
+async def test_a_write_that_went_out_is_not_performed_a_second_time(tmp_path: Path) -> None:
+    """The rescue exists for a step that did not happen. A write the browser
+    sent and the server accepted, which then could not be shown to have held,
+    is not that: retrying it creates the order twice."""
+    store = _store(tmp_path)
+    wf = _one_step(store, _ids(store)[-1])
+    channel = FakeChannel(
+        {
+            **_looks(4),
+            "ui.perform": [Reply(ok=True, result={"performed": True, "matched_by": "component"})],
+        }
+    )
+    asker = FakeAsker(_plan("click"), Answer(data={"held": False, "why": "no confirmation"}))
+
+    run = await run_workflow(
+        store,
+        wf,
+        values={"clientCode": "x"},
+        channel=channel,
+        device_id="dev_test",
+        asker=asker,
+        plan_model="flash",
+        rescue_model="pro",
+        live=True,
+        allow_focus=True,
+        started_by="form",
+    )
+
+    assert run.outcome == "stopped"
+    assert len([s for s in channel.sent if s["kind"] == "ui.perform"]) == 1, "sent once"
+    assert [a["model"] for a in asker.asked] == ["flash", "flash"], "Pro was never asked"
+    assert run.steps[0].reason.startswith("state unknown after a write; not retried: ")
+
+
+async def test_a_read_that_failed_is_still_rescued(tmp_path: Path) -> None:
+    """The write rule must not cost every step its rescue."""
+    store = _store(tmp_path)
+    wf = _one_step(store, _ids(store)[0], says="type the code")
+    channel = FakeChannel(
+        {
+            **_looks(8),
+            "ui.perform": [Reply(ok=True, result={"performed": True, "matched_by": "component"})]
+            * 2,
+        }
+    )
+    asker = FakeAsker(
+        _plan("type", "x"),
+        Answer(data={"held": False, "why": "nothing typed"}),
+        _plan("type", "x"),
+        Answer(data={"held": True, "why": "typed"}),
+    )
+
+    run = await run_workflow(
+        store,
+        wf,
+        values={"clientCode": "x"},
+        channel=channel,
+        device_id="dev_test",
+        asker=asker,
+        plan_model="flash",
+        rescue_model="pro",
+        live=True,
+        allow_focus=True,
+        started_by="form",
+    )
+
+    assert run.outcome == "held" and run.steps[0].planned_by == "pro"
+    assert [a["model"] for a in asker.asked] == ["flash", "flash", "pro", "flash"]

@@ -16,6 +16,7 @@ from collections.abc import Mapping
 from datetime import UTC, datetime
 from typing import Any, ClassVar
 
+from rig.channel import Answer as Reply
 from rig.channel import Channel, DeviceUnreachable
 from rig.correlate import system_of
 from rig.locators import allowlist, origin_of, primary_gesture, recorded_call, writes
@@ -143,6 +144,28 @@ async def _look(
     return Look(url=url, screenshot=image, digest=digest)
 
 
+def _result(reply: Reply) -> dict[str, Any]:
+    """What the extension answered -- not what it answered WITH.
+
+    An `http.send` reply carries the response body and headers, and `verify`
+    deliberately keeps those out of a prompt. A run record has no more business
+    holding customer payload than a prompt does, and it holds it for longer, so
+    only the three facts anything downstream reads are kept. `error_kind` stays
+    its own field rather than `Answer.detail`, which concatenates kind and
+    detail into prose nothing can branch on.
+    """
+    status = reply.result.get("status")
+    matched = reply.result.get("matched_by")
+    shown: dict[str, Any] = {
+        "ok": reply.ok,
+        "status": status if isinstance(status, int) else None,
+        "matched_by": matched if isinstance(matched, str) else None,
+    }
+    if not reply.ok:
+        shown["error_kind"] = reply.error_kind
+    return shown
+
+
 def _withheld(step: Step, planned: Planned, by_id: Mapping[str, Gesture]) -> dict[str, Any]:
     """The write a dry run did not send, in full: what a person reads before
     pressing through to live."""
@@ -196,6 +219,10 @@ async def run_workflow(
     if first is not None:
         starts_on = first.page_url or first.url
 
+    # The step being worked on, so a browser that goes away mid-step fails THAT
+    # step -- with the tokens its plan already cost, and its own order -- rather
+    # than a fabricated one whose order can collide on (run_id, ord).
+    in_flight: RunStep | None = None
     try:
         for step in sorted(workflow.steps, key=lambda s: s.order):
             if Aborts.is_aborted(run.id):
@@ -207,7 +234,10 @@ async def run_workflow(
             cited = [by_id[c] for c in step.cites if c in by_id]
             primary = primary_gesture(step, by_id)
             record = RunStep(order=step.order, says=step.says, verdict="skipped")
+            in_flight = record
+            run.steps.append(record)
             origin = origin_of(primary) if primary is not None else None
+            mutates = writes(step, by_id)
             if primary is None:
                 record.reason = "no cited gesture can be acted on"
 
@@ -241,7 +271,7 @@ async def run_workflow(
                         allow_focus=allow_focus,
                         asker=asker,
                         model=model,
-                        failure=None if navigated else (verdict.reason if verdict else None),
+                        failure=verdict.reason if verdict else None,
                     )
                     record.planned_by = model
                     record.before_url = before.url
@@ -282,7 +312,7 @@ async def run_workflow(
                 if planned is None:
                     continue
 
-                if not live and writes(step, by_id):
+                if not live and mutates:
                     run.withheld.append(_withheld(step, planned, by_id))
                     record.verdict, record.verdict_by = "withheld", "dry"
                     record.reason = "a dry run does not send writes"
@@ -292,8 +322,8 @@ async def run_workflow(
                 reply = await channel.send(
                     device_id, kind=planned.kind, run_id=run.id, payload=planned.payload
                 )
-                record.result = dict(reply.result) if reply.ok else {"error": reply.detail}
-                record.matched_by = reply.result.get("matched_by") if reply.ok else None
+                record.result = _result(reply)
+                record.matched_by = record.result["matched_by"] if reply.ok else None
                 after = await _look(channel, device_id, run.id, origin, allow_focus)
                 record.after_url = after.url
                 verdict = await verify(
@@ -319,27 +349,55 @@ async def run_workflow(
                         record.stale = True
                         mark_stale(store, workflow.id, step.order, record.matched_by)
                     break
+                # A write that went out and was accepted, and then could not be
+                # shown to have held, is not a step to try again: the second
+                # attempt would create the order twice. Only a write the server
+                # itself refused -- or one the browser never sent -- is safe to
+                # rescue. A read is always safe.
+                if (
+                    mutates
+                    and reply.ok
+                    and not (verdict.state == "failed" and verdict.by == "status")
+                ):
+                    record.reason = f"state unknown after a write; not retried: {record.reason}"
+                    break
 
-            run.steps.append(record)
+            # A rung that never reached a command -- an unplannable step, a
+            # navigate that would not go -- left its reason on the local
+            # verdict and nothing on the record, which then read `skipped` and
+            # let the run walk past it.
+            if record.verdict == "skipped" and verdict is not None:
+                record.verdict, record.verdict_by = verdict.state, verdict.by
+                record.reason = verdict.reason
+
+            in_flight = None
             _total(run)
             save_run(store, run)
             if run.outcome != "running":
                 break
-            if record.verdict in ("failed", "unclear"):
+            # Held, or deliberately withheld by a dry run. Anything else --
+            # failed, unclear, or a step with nothing actionable to cite -- is
+            # a step nobody watched succeed, and the rest of the job assumes it
+            # did. Nothing runs unattended past one.
+            if record.verdict not in ("held", "withheld"):
                 run.outcome = "stopped"
                 break
         else:
             run.outcome = "held"
     except DeviceUnreachable as gone:
-        run.steps.append(
-            RunStep(
-                order=len(run.steps), says="", verdict="failed", verdict_by="none", reason=str(gone)
+        if in_flight is None:
+            in_flight = RunStep(
+                order=max((s.order for s in run.steps), default=-1) + 1, says="", verdict="failed"
             )
-        )
+            run.steps.append(in_flight)
+        in_flight.verdict, in_flight.verdict_by = "failed", "none"
+        in_flight.reason = str(gone)
         run.outcome = "failed"
-
-    run.finished_at = _now()
-    _total(run)
-    save_run(store, run)
-    Aborts.forget(run.id)
+    finally:
+        # In the finally, so an exception this function does not handle still
+        # leaves a saved record rather than a row that says `running` forever.
+        run.finished_at = _now()
+        _total(run)
+        save_run(store, run)
+        Aborts.forget(run.id)
     return run

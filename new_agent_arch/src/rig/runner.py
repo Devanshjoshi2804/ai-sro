@@ -69,8 +69,15 @@ class Approvals:
     _waiting: ClassVar[dict[str, asyncio.Event]] = {}
 
     @classmethod
+    def register(cls, run_id: str) -> None:
+        """This run is about to park. Called before the row is saved, so an
+        approve racing the save finds an event rather than a 409."""
+        cls._waiting.setdefault(run_id, asyncio.Event())
+
+    @classmethod
     async def wait_for(cls, run_id: str, timeout: float) -> bool:
-        event = cls._waiting.setdefault(run_id, asyncio.Event())
+        cls.register(run_id)
+        event = cls._waiting[run_id]
         try:
             await asyncio.wait_for(event.wait(), timeout=timeout)
             return True
@@ -464,18 +471,42 @@ async def run_workflow(
                     record.result = {"withheld": True}
                     break
 
+                # `writes()` is not the whole of a write. It is False when the
+                # cited evidence records no mutating call AT ALL, which is what
+                # a click on Save looks like when the recorder never saw the
+                # traffic -- a beacon, a worker, a frame nothing was attached
+                # to. A click or a press on evidence that came back silent is
+                # the same unknown state as an accepted write; a click that
+                # fired a completed read -- a menu, a tab -- is not.
+                #
+                # One predicate, both gates below: a step nobody may retry
+                # afterwards is a step nobody may send unasked either.
+                may_write = mutates or (
+                    planned.kind == "ui.perform"
+                    and planned.payload.get("action") in ("click", "press")
+                    and _saw_nothing(step, by_id)
+                )
+
                 # A live write, on a job that has not yet earned the right to
                 # write unasked: shown in the panel with what would go out, and
-                # held until somebody taps. Dry runs never reach here.
-                if mutates and not earned(workflow.id):
+                # held until somebody taps. `live` is checked here rather than
+                # inherited from the block above, whose narrower `mutates` lets
+                # a dry run walk past it: a dry run withholds, never waits.
+                if live and may_write and not earned(workflow.id):
                     record.verdict, record.verdict_by = "awaiting", "none"
                     record.reason = "waiting for a person to approve the write"
                     record.sent = {"kind": planned.kind, "payload": planned.payload}
+                    # Registered before the save, not by the wait below: the
+                    # save is what puts this step in front of a person, and a
+                    # tap that lands before the wait starts must find an event
+                    # to set rather than a 409.
+                    Approvals.register(run.id)
                     _total(run)
                     save_run(store, run)
                     if not await Approvals.wait_for(run.id, K_APPROVAL_WAIT_S):
+                        waited = f"{K_APPROVAL_WAIT_S / 60:.0f} minutes"
                         record.verdict, record.verdict_by = "failed", "none"
-                        record.reason = "nobody approved the write within five minutes"
+                        record.reason = f"nobody approved the write within {waited}"
                         verdict = Verdict("failed", "none", record.reason)
                         break
                     # The stop button releases the wait as well as setting the
@@ -521,23 +552,10 @@ async def run_workflow(
                 # shown to have held, is not a step to try again: the second
                 # attempt would create the order twice. Only a write the server
                 # itself refused -- or one the browser never sent -- is safe to
-                # rescue. A read is always safe.
-                #
-                # `writes()` is not the whole of it. It is False when the cited
-                # evidence records no mutating call AT ALL, which is what a
-                # click on Save looks like when the recorder never saw the
-                # traffic -- a beacon, a worker, a frame nothing was attached
-                # to. A click or a press on evidence that came back silent is
-                # the same unknown state as an accepted write, so it does not
-                # rescue either. A click that fired a completed read -- a menu,
-                # a tab -- still does.
-                unknown = mutates or (
-                    planned.kind == "ui.perform"
-                    and planned.payload.get("action") in ("click", "press")
-                    and _saw_nothing(step, by_id)
-                )
+                # rescue. A read is always safe. `may_write` above is the same
+                # reading of "this may have changed something" the tap uses.
                 if (
-                    unknown
+                    may_write
                     and reply.ok
                     and not (verdict.state == "failed" and verdict.by == "status")
                 ):

@@ -160,8 +160,9 @@ unchanged. A `from_step` beyond the last step is a 400.
 Two new step verdicts, `awaiting` and `done_by_operator`, join `VERDICTS`. No
 new run outcome: an awaiting run is `running`.
 
-Before the runner sends a step that `writes()`, on a live run, when the
-workflow is not earned: it records the step `awaiting` with `sent` set to the
+Before the runner sends a step that may write -- `writes()` is true, or it is a
+click or press whose cited gestures recorded no completed request -- on a live
+run, when the workflow is not earned: it records the step `awaiting` with `sent` set to the
 planned command, saves, and waits on an `asyncio.Event` held in `Approvals`
 (the `Aborts` shape: in-process, keyed by run id, forgotten in the `finally`).
 `K_APPROVAL_WAIT_S = 300`. Approved: the event is set, the write goes out,

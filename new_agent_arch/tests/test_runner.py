@@ -1325,7 +1325,9 @@ async def test_a_live_write_waits_for_approval_and_goes_out_when_it_comes(tmp_pa
             ],
         }
     )
-    asker = _per_schema_asker(plan=_plan("click"), verdict=Answer(data={"held": True, "why": "ok"}))
+    asker = _per_schema_asker(
+        plan=_plan("type", "THIRD"), verdict=Answer(data={"held": True, "why": "ok"})
+    )
 
     task = asyncio.create_task(
         run_workflow(
@@ -1372,7 +1374,9 @@ async def test_a_write_nobody_approves_stops_the_run(
     store = _store(tmp_path)
     wf = _workflow(store)
     channel = FakeChannel({**_looks(4), "ui.perform": [Reply(ok=True, result={"performed": True})]})
-    asker = _per_schema_asker(plan=_plan("click"), verdict=Answer(data={"held": True, "why": "ok"}))
+    asker = _per_schema_asker(
+        plan=_plan("type", "THIRD"), verdict=Answer(data={"held": True, "why": "ok"})
+    )
 
     run = await run_workflow(
         store,
@@ -1397,7 +1401,9 @@ async def test_a_stop_pressed_during_the_wait_aborts_the_run(tmp_path: Path) -> 
     store = _store(tmp_path)
     wf = _workflow(store)
     channel = FakeChannel({**_looks(4), "ui.perform": [Reply(ok=True, result={"performed": True})]})
-    asker = _per_schema_asker(plan=_plan("click"), verdict=Answer(data={"held": True, "why": "ok"}))
+    asker = _per_schema_asker(
+        plan=_plan("type", "THIRD"), verdict=Answer(data={"held": True, "why": "ok"})
+    )
 
     task = asyncio.create_task(
         run_workflow(
@@ -1433,7 +1439,9 @@ async def test_a_dry_run_never_pauses(tmp_path: Path) -> None:
     store = _store(tmp_path)
     wf = _workflow(store)
     channel = FakeChannel({**_looks(4), "ui.perform": [Reply(ok=True, result={"performed": True})]})
-    asker = _per_schema_asker(plan=_plan("click"), verdict=Answer(data={"held": True, "why": "ok"}))
+    asker = _per_schema_asker(
+        plan=_plan("type", "THIRD"), verdict=Answer(data={"held": True, "why": "ok"})
+    )
     run = await asyncio.wait_for(
         run_workflow(
             store,
@@ -1465,7 +1473,9 @@ async def test_an_earned_workflow_writes_without_asking(tmp_path: Path) -> None:
             ],
         }
     )
-    asker = _per_schema_asker(plan=_plan("click"), verdict=Answer(data={"held": True, "why": "ok"}))
+    asker = _per_schema_asker(
+        plan=_plan("type", "THIRD"), verdict=Answer(data={"held": True, "why": "ok"})
+    )
     run = await asyncio.wait_for(
         run_workflow(
             store,
@@ -1484,3 +1494,45 @@ async def test_an_earned_workflow_writes_without_asking(tmp_path: Path) -> None:
         timeout=5,
     )
     assert run.outcome == "held" and not Approvals.awaiting_any()
+
+
+async def test_a_click_the_capture_heard_nothing_from_also_waits(tmp_path: Path) -> None:
+    """`writes()` is False for a Save whose call the recorder never saw, and
+    the rescue gate below already refuses to retry it. A step nobody may retry
+    is a step nobody may send unasked either, so it waits for the tap too."""
+    store = _store(tmp_path)
+    wf = _one_step(store, _silent_click(store), says="press Save")
+    channel = FakeChannel({**_looks(2), "ui.perform": [Reply(ok=True, result={"performed": True})]})
+    asker = _per_schema_asker(plan=_plan("click"), verdict=Answer(data={"held": True, "why": "ok"}))
+
+    task = asyncio.create_task(
+        run_workflow(
+            store,
+            wf,
+            values={"clientCode": "THIRD"},
+            channel=channel,
+            device_id="dev_test",
+            asker=asker,
+            plan_model="flash",
+            rescue_model="pro",
+            live=True,
+            allow_focus=True,
+            started_by="offer",
+        )
+    )
+    for _ in range(200):
+        await asyncio.sleep(0.01)
+        if Approvals.awaiting_any():
+            break
+    else:  # pragma: no cover - the pause is asserted below
+        raise AssertionError("the silent click never paused")
+
+    run_id = next(iter(Approvals.waiting()))
+    saved = load_run(store, "acme", run_id)
+    assert saved is not None and saved.steps[-1].verdict == "awaiting"
+    assert not [s for s in channel.sent if s["kind"] == "ui.perform"], "nothing went out"
+
+    assert Approvals.approve(run_id) is True
+    run = await task
+    assert run.outcome == "held"
+    assert len([s for s in channel.sent if s["kind"] == "ui.perform"]) == 1

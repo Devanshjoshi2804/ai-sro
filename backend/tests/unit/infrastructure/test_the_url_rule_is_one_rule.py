@@ -35,6 +35,18 @@ from sro.infrastructure.steel.generate_extension_recorder import SENSITIVITY_MOD
 
 FAKE_JWT = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJub2JvZHkifQ.not-a-signature"
 
+# Five segments, which is what an ENCRYPTED token looks like and what the real
+# authorization code in this deployment's evidence store actually is. Every URL
+# in this list carried three segments, so both copies agreed -- identically
+# wrong -- while a three-segment rule left two segments of this one on disk.
+FAKE_JWE = (
+    "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0"
+    ".QUVTLXdyYXBwZWQta2V5LXRoYXQtaXMtbm90LXJlYWw"
+    ".aXYtMTItYnl0ZXMtMA"
+    ".Y2lwaGVydGV4dC13aGljaC1pcy1ub3QtYS1yZWFsLXRva2VuLWF0LWFsbC1ub3BlLW5vdGhpbmc"
+    ".dGFnLW5vdC1yZWFs"
+)
+
 ABSOLUTE = (
     # Nothing to redact, and every awkward encoding there is.
     "https://wms.example/app?tag=a&tag=b&q=a+b&note=two%20words#view=picking",
@@ -45,6 +57,13 @@ ABSOLUTE = (
     # Real shapes, from the batch this change was measured against.
     "https://wms.example/data/MCS/rpux/currencies?siteId=SG&subsites=----&subsites=NEWTEST1",
     f"https://wms.example/portal?state=10831057103308876786&code={FAKE_JWT}",
+    f"https://wms.example/portal?state=10831057103308876786&code={FAKE_JWE}",
+    # An OAuth code with no shape at all to match: the common case, and the one
+    # the name-and-companion rule is the only thing standing in front of.
+    "https://wms.example/portal?state=1083105710&code=Xy7_bQ9zAbcDEF-0123456789abGHIJ",
+    # And the same parameter name where nothing says this is a callback, which
+    # must come back untouched on both sides.
+    "https://wms.example/api/areas?operationCode=PICK&code=A12&areaCode=DOCK7",
     "https://wms.example/auth/realms/x/login-actions/authenticate?session_code=Nz3Xq7&tab_id=50_a",
     # Names, in both cases and both encodings.
     "https://wms.example/app?facility=BLR%201&api_key=k",

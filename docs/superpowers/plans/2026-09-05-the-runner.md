@@ -1480,7 +1480,7 @@ async def test_a_ui_plan_carries_the_evidence_locators_not_the_models() -> None:
 
     assert planned.kind == "ui.perform"
     assert planned.payload["action"] == "type" and planned.payload["value"] == "THIRD"
-    assert planned.payload["locators"][0] == {"strategy": "component", "query": "#clientCode", "within": None, "visible_only": True}
+    assert planned.payload["locators"][0] == {"strategy": "component", "query": "panel#clients textfield#clientCode", "within": None, "visible_only": True}
     assert planned.payload["origin"] == "http://127.0.0.1:63319"
     assert planned.payload["allow_focus"] is True
     assert planned.answer.cost_usd == 0.0003
@@ -2525,7 +2525,7 @@ def test_a_run_is_started_from_the_form_door_and_can_be_read_back(
     save_workflow(store, Workflow(id="wfl_1", tenant="new", title="t", narrative="n",
                                   steps=[Step(order=0, says="type", system=None, cites=[ids[0]])]))
     fake = FakeChannel({"ui.url": [Reply(ok=True, result={"url": "u"})] * 4,
-                        "screenshot": [Reply(ok=False, error_kind="focus_not_permitted")] * 4,
+                        "screenshot": [Reply(ok=True, result={"image_base64": "aVBORw0=", "text_digest": "Save"})] * 4,
                         "ui.perform": [Reply(ok=True, result={"performed": True, "matched_by": "component", "candidates": 1})]})
     client.app.state.channel = fake
     client.app.state.asker = FakeAsker(
@@ -2545,7 +2545,7 @@ def test_a_run_is_started_from_the_form_door_and_can_be_read_back(
             break
         time.sleep(0.05)
     assert body["outcome"] == "held"
-    assert body["steps"][0]["verdict"] in ("held", "unclear")
+    assert body["steps"][0]["verdict"] == "held" and body["steps"][0]["verdict_by"] == "screen"
 
 
 def test_a_run_against_a_device_that_is_not_connected_is_refused_at_the_door(client: TestClient) -> None:
@@ -2667,12 +2667,14 @@ Before `@app.get("/", response_class=HTMLResponse)`:
         from rig.runs import new_run_id
         from rig.workflows import known_workflows
 
-        workflow = next((w for w in known_workflows(store, tenant) if w.id == body.get("workflow_id")), None)
-        if workflow is None:
-            raise HTTPException(status_code=404, detail="no such workflow")
+        # The browser first, then the workflow: "your browser is not connected"
+        # is the answer a person can act on, and it holds whatever they asked for.
         device_id = str(body.get("device_id") or "")
         if device_id not in app.state.channel.online():
             raise HTTPException(status_code=409, detail=f"{device_id or 'no device'} is not connected to the rig")
+        workflow = next((w for w in known_workflows(store, tenant) if w.id == body.get("workflow_id")), None)
+        if workflow is None:
+            raise HTTPException(status_code=404, detail="no such workflow")
         values = body.get("values") if isinstance(body.get("values"), dict) else {}
         run_id = new_run_id()
         asyncio.create_task(

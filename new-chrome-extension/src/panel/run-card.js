@@ -40,6 +40,13 @@ function namesIn(step) {
  */
 export function glyphFor(outcome) {
   if (!outcome) return "○";
+  // The rig words this differently, because it judges a step rather than
+  // records a disposition: `held` is its reading of "the thing I said would
+  // happen did", `unclear` is the same honesty `✓!` carries here -- it went
+  // out and nothing could say whether it landed.
+  if (typeof outcome === "string") {
+    return { held: "✓", withheld: "⏸", failed: "✗", refused: "✗", skipped: "○" }[outcome] || "✓!";
+  }
   if (outcome.disposition === "failed") return "✗";
   if (outcome.disposition === "withheld") return "⏸";
   if (outcome.disposition === "performed") {
@@ -68,6 +75,11 @@ export function runCard({ run, skill, message, notes = [] }, { onPress, onChange
   title.textContent = message?.text || `Running ${skill?.name || ""}`.trim();
   card.append(title);
 
+  // Who drove it, and so what there is to draw and to press. A record with no
+  // `source` is a backend run -- older rows have none, and reading a missing
+  // field as "rig" would send a backend run's Stop somewhere it has never been
+  // heard of.
+  const rig = run.source === "rig";
   const done = new Map((run.steps || []).map((step) => [step.index, step]));
   const live = run.status === "running";
   // The next position nothing has recorded. Positions rather than a count: a
@@ -75,17 +87,52 @@ export function runCard({ run, skill, message, notes = [] }, { onPress, onChange
   // until the system answers, which is why the executor asks per step too.
   const inFlight = Math.max(-1, ...done.keys()) + 1;
 
-  for (const step of skill?.latest?.steps || []) {
-    card.append(stepRow({ step, outcome: done.get(step.index), live, inFlight, run, notes, onChange }));
+  // The rig plans one step at a time and there is no skill in this browser to
+  // draw the rest from, so its rows are its own record: what it said it was
+  // doing, and the verdict on it. Everything below -- the glyphs, a note said
+  // during a step -- is the same code for both.
+  const plan = rig
+    ? (run.steps || []).map((step) => ({ index: step.index, intent: step.says }))
+    : skill?.latest?.steps || [];
+  for (const step of plan) {
+    card.append(
+      stepRow({
+        step,
+        outcome: rig ? done.get(step.index)?.outcome : done.get(step.index),
+        live,
+        inFlight,
+        run,
+        notes,
+        onChange: rig ? undefined : onChange,
+      }),
+    );
+  }
+
+  // What a dry run held back. Said on the card rather than left to the rig's
+  // own screen: the operator watching this browser is the person who needs to
+  // know the writes they just watched be planned did not happen.
+  const withheld = rig && !live ? (run.withheld || []).length : 0;
+  if (withheld) {
+    const line = document.createElement("p");
+    line.className = "note";
+    line.textContent =
+      `dry run — ${withheld} write${withheld === 1 ? "" : "s"} shown on the rig, not sent`;
+    card.append(line);
   }
 
   if (live) {
     const row = document.createElement("div");
     row.className = "row";
-    for (const [answer, label] of [
-      ["pause", "Stop after this step"],
-      ["stop", "Stop"],
-    ]) {
+    // The rig has no pause: its loop checks one flag between steps, and a
+    // control offering to stop after this one would be offering something the
+    // process behind it cannot do.
+    const buttons = rig
+      ? [["stop", "Stop"]]
+      : [
+          ["pause", "Stop after this step"],
+          ["stop", "Stop"],
+        ];
+    for (const [answer, label] of buttons) {
       const button = document.createElement("button");
       button.type = "button";
       button.className = "quiet";

@@ -13,6 +13,7 @@
 
 import { hostMatches } from "../background/scripts.js";
 import { alreadyAnswered, composer, ledger } from "./ledger.js";
+import { runCard } from "./run-card.js";
 import { needsAPress, strip } from "./strip.js";
 import { today } from "./today.js";
 
@@ -560,6 +561,18 @@ function performing(status) {
   });
 }
 
+/** What the rig's own outcomes are, said in a sentence. Its vocabulary is not
+ * the backend's -- there is no "succeeded", because the rig judges each step's
+ * reading and a run is what those add up to. See `OUTCOMES` in `rig/runs.py`.
+ */
+const RIG_ENDINGS = {
+  held: "The run finished — every step held.",
+  stopped: "The run stopped to ask.",
+  refused: "The run was refused.",
+  aborted: "The run was stopped.",
+  failed: "The run failed.",
+};
+
 /** What the last run made, and how to take it back.
  *
  * It asks nothing. "Did that come out right?" is a survey and surveys go
@@ -580,6 +593,18 @@ function performing(status) {
  */
 function finished(status) {
   const run = status.finished;
+  // A run the rig drove: its steps are its own record, and it has neither a
+  // reversal nor anywhere to send "It's wrong" -- so the card offers neither,
+  // rather than offering both and failing on the press. `runCard` is the same
+  // card a backend run is drawn in; what changes is which list it draws and
+  // which buttons it puts under it.
+  if (run.source === "rig") {
+    return runCard({
+      run,
+      skill: null,
+      message: { text: RIG_ENDINGS[run.status] || "The run ended." },
+    });
+  }
   const ok = run.status === "succeeded";
   const made = ok ? Object.entries(run.derived || {}) : [];
   const actions = [];

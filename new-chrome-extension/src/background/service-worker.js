@@ -22,6 +22,7 @@ import {
 import { LIFETIME_MS, fire, mute, onCall, shouldFire, sweep } from "../panel/nudge.js";
 import { hideNudge, showNudge } from "./showing.js";
 import { capture } from "./shots.js";
+import { noteFinished } from "./finishing.js";
 import { activeRunAge, afterRunWrong, capturing, finishedRun, state } from "./state.js";
 import * as teaching from "./teaching.js";
 import { release as releaseTree, releaseAll, takeTree, takeTreeSoon } from "./trees.js";
@@ -892,7 +893,22 @@ async function handle(message, sender) {
       // Stop button that stops the browser and not the run.
       const here_ = abort(message.runId);
       try {
-        await api.stopRun(message.runId);
+        // Whoever is driving it is who has to be told. A run the rig started
+        // is a run the backend has never heard of, and `POST /runs/{id}/stop`
+        // there would answer 404 while the rig went on stepping -- a Stop
+        // button that stops the browser and not the run, which is the one
+        // thing a stop control must never be. Read off the same mirrored
+        // `source` `noteFinished` reads; a record with no source is a backend
+        // run. ponytail: `state.activeRun()` is one slot, so a rig run and a
+        // backend run in flight at once would answer for each other here --
+        // the same ceiling `commands.js`'s `latest` already has, widened
+        // together or not at all.
+        const active = await state.activeRun();
+        if (active?.runId === message.runId && active.source === "rig") {
+          await api.rigAbort(message.runId, await state.deviceId());
+        } else {
+          await api.stopRun(message.runId);
+        }
       } catch (error) {
         // Only what is worth showing anybody reaches here: `api.stopRun`
         // swallows the 409 the backend answers when there was nothing left to
@@ -1443,6 +1459,10 @@ let checkingFinish = false;
  * never computes an undo for one), and the card says so itself rather than
  * this deciding not to show one at all (see `panel.js`'s `finished()`).
  *
+ * *Which* process is asked is `noteFinished`'s in `finishing.js` -- a run the
+ * rig drove is a run the backend has never heard of -- and the whole record is
+ * handed over rather than its id, because the `source` that decides is on it.
+ *
  * ponytail: a second run starting in this browser before this one is
  * confirmed overwrites `state.activeRun()`'s single slot and the first run's
  * confirmation is lost -- it simply never gets checked. `latest` in
@@ -1470,43 +1490,10 @@ async function checkFinishing() {
   }
   checkingFinish = true;
   try {
-    await noteFinished(active.runId);
+    await noteFinished(active);
   } finally {
     checkingFinish = false;
   }
-}
-
-async function noteFinished(runId) {
-  try {
-    const run = await api.run(runId);
-    if (run.status === "running") return;
-    await state.setFinishedRun({
-      id: run.id,
-      status: run.status,
-      derived: run.derived || {},
-      reversal: run.reversal || null,
-      failure: run.failure || null,
-      // Copied from the run's own record, not only written by the press that
-      // set it. A run called wrong in the console, or by a press whose row
-      // this browser has since rebuilt, came back here with `wrongBecause`
-      // unset -- so the card went on offering "It's wrong" for a run the
-      // backend refuses to hear it about a second time, and `undoRun` sent a
-      // `run-wrong` guaranteed to fail.
-      wrongBecause: run.wrong_because || null,
-      at: Date.now(),
-    });
-  } catch {
-    // A backend this browser cannot reach right now is not a reason to show a
-    // stale or invented card. `state.activeRun()` is left as it was, so the
-    // next trigger -- the next poll, or the next heartbeat -- tries again.
-    return;
-  }
-  // Resolved -- stop asking about this run. Cleared only once there is a
-  // confirmed, terminal answer to show for it, never on a failure to reach
-  // the backend: guarded by id so a slow answer for a run this browser has
-  // since moved past does not erase what the *next* run left behind instead.
-  const active = await state.activeRun();
-  if (active?.runId === runId) await state.setActiveRun(null);
 }
 
 function defaultLabel() {

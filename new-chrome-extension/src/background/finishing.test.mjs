@@ -52,6 +52,7 @@ globalThis.fetch = async (...args) => answer(...args);
 const { perform } = await import("./commands.js");
 const { activeRunAge, afterRunWrong, state } = await import("./state.js");
 const { api } = await import("./api.js");
+const { noteFinished } = await import("./finishing.js");
 
 async function demo() {
   await perform({ command_id: "cmd-1", run_id: "run-1", kind: "not-a-real-kind" });
@@ -195,7 +196,78 @@ async function stoppingIsNotAnAlarm() {
   await assert.rejects(() => api.stopRun("run-1"), /run store is down/);
 }
 
+/** Which process is asked how a run ended.
+ *
+ * A run the rig drove is a run the backend has never heard of: its id is the
+ * rig's, and `GET /v1/runs/{id}` there answers 404 -- so a browser that asked
+ * the backend about it would store nothing and go on asking forever. What
+ * decides is the `source` the command arrived on, mirrored beside the run id
+ * by `perform()` above.
+ *
+ * A record with no `source` at all is a backend run: older workers wrote none,
+ * and reading a missing field as "rig" would send every one of them to a rig
+ * that may not even be configured.
+ */
+async function whoIsAskedHowItEnded() {
+  const asked = [];
+  const realRun = api.run;
+  const realRigRun = api.rigRun;
+  api.run = async (runId) => {
+    asked.push(["backend", runId]);
+    return { id: runId, status: "succeeded", derived: {}, reversal: null };
+  };
+  api.rigRun = async (runId) => {
+    asked.push(["rig", runId]);
+    return {
+      id: runId,
+      source: "rig",
+      status: "held",
+      steps: [{ index: 0, outcome: "held", says: "open the supplier form", reason: "" }],
+      withheld: [{ origin: "https://wms.test" }],
+    };
+  };
+  try {
+    await state.setActiveRun({ runId: "run-rig", at: Date.now(), source: "rig" });
+    await noteFinished(await state.activeRun());
+    const rigRow = await state.finishedRun();
+    assert.strictEqual(rigRow?.source, "rig", "a rig run was not recorded as one");
+    assert.strictEqual(rigRow.status, "held", "the rig's own outcome was not kept");
+    assert.deepStrictEqual(
+      rigRow.steps.map((step) => step.says),
+      ["open the supplier form"],
+      "the rig run's steps were not kept, so the card has nothing to draw",
+    );
+    assert.strictEqual(rigRow.withheld.length, 1, "what the dry run withheld was dropped");
+    assert.deepStrictEqual(
+      asked,
+      [["rig", "run-rig"]],
+      "the backend was asked how a rig run ended -- it has never heard of it",
+    );
+    assert.strictEqual(
+      await state.activeRun(),
+      null,
+      "a confirmed rig run stayed active, so it will be asked about forever",
+    );
+
+    // No `source` at all: an older worker's row, or the backend's own path.
+    asked.length = 0;
+    await state.setActiveRun({ runId: "run-old", at: Date.now() });
+    await noteFinished(await state.activeRun());
+    const backendRow = await state.finishedRun();
+    assert.strictEqual(
+      backendRow?.source,
+      "backend",
+      "a record with no source was not read as a backend run",
+    );
+    assert.deepStrictEqual(asked, [["backend", "run-old"]], "a backend run went to the rig");
+  } finally {
+    api.run = realRun;
+    api.rigRun = realRigRun;
+  }
+}
+
 await demo();
+await whoIsAskedHowItEnded();
 ageBound();
 keyedOnThePress();
 await stoppingIsNotAnAlarm();

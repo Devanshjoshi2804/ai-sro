@@ -36,6 +36,20 @@ const RUNNING = {
   steps: [{ index: 0, medium: "network", disposition: "performed", assertion_failures: [] }],
 };
 
+/** A run the rig drove. It has no skill in this browser -- the plan was the
+ * model's, one step at a time -- so the steps are the run's own record, and
+ * `outcome` is the rig's verdict rather than the backend's disposition. */
+const RIG = {
+  id: "run_a1b2",
+  source: "rig",
+  status: "running",
+  steps: [
+    { index: 0, outcome: "held", says: "open the supplier form", reason: "" },
+    { index: 1, outcome: "withheld", says: "save the supplier", reason: "dry run" },
+  ],
+  withheld: [{ origin: "https://wms.test" }],
+};
+
 const tests = [];
 const test = (name, fn) => tests.push([name, fn]);
 
@@ -152,6 +166,47 @@ test("a run whose skill is unknown still draws what it has", () => {
   const card = runCard({ run: RUNNING, skill: null, message: { text: "Running" } }, {});
   assert.match(words(card), /Running/);
   assert.deepEqual(asMarkup, []);
+});
+
+test("a rig run draws its own steps -- there is no skill in this browser to draw", () => {
+  const card = runCard({ run: RIG, skill: null, message: {} }, {});
+  const rows = card.kids.filter((kid) => kid.className === "step");
+  assert.equal(rows.length, 2, "a rig run drew nothing: it has no skill, only its own record");
+  assert.match(words(rows[0]), /open the supplier form/);
+  assert.equal(rows[0].kids[0].textContent, "✓", "a step whose reading held was not drawn as held");
+  assert.equal(rows[1].kids[0].textContent, "⏸", "a withheld step was not drawn as withheld");
+  assert.deepEqual(asMarkup, [], "run text reached the page as markup");
+});
+
+test("a rig run can be stopped, and offers nothing the rig cannot do", () => {
+  const pressed = [];
+  const card = runCard({ run: RIG, skill: null, message: {} }, { onPress: (...a) => pressed.push(a) });
+  const labels = of(card, "button").map((button) => button.textContent);
+  assert.ok(labels.includes("Stop"), "a rig run that is happening could not be stopped");
+  assert.ok(
+    !labels.includes("Stop after this step"),
+    "a rig run offered a pause the rig has no way to honour",
+  );
+  of(card, "button")
+    .find((button) => button.textContent === "Stop")
+    .listeners.click[0]();
+  assert.equal(pressed[0][0], "stop");
+  assert.equal(pressed[0][1], RIG);
+});
+
+test("a finished rig run offers no reversal, and says what the dry run held back", () => {
+  const card = runCard({ run: { ...RIG, status: "held" }, skill: null, message: {} }, {});
+  assert.deepEqual(
+    of(card, "button").map((button) => button.textContent),
+    [],
+    "a finished rig run offered a press -- the rig has no reversal and no 'It's wrong'",
+  );
+  assert.doesNotMatch(words(card), /wrong|Undo/i, "a rig run offered an undo it cannot perform");
+  assert.match(
+    words(card),
+    /dry run — 1 write shown on the rig, not sent/,
+    "a dry run did not say what it withheld",
+  );
 });
 
 let failed = 0;

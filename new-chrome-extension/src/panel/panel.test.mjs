@@ -1249,6 +1249,33 @@ test("with no way to reverse it, it says so rather than offering a dead button",
   assert.ok(/I'll fix it/i.test(said), "no way to say it was wrong at all");
 });
 
+test("a run the rig drove shows its own steps and offers nothing the rig cannot do", async () => {
+  // The rig has no reversal and nowhere to send "It's wrong", and its outcomes
+  // are not the backend's -- "held" is not "succeeded", and a card that read it
+  // through the backend's vocabulary would call every rig run a failure.
+  const { cards } = panel(
+    {
+      deviceId: "dev-1",
+      capturing: true,
+      watched: [{ tabId: 7, host: "wms.example", since: new Date().toISOString() }],
+      finished: {
+        id: "run_a1b2",
+        source: "rig",
+        status: "held",
+        steps: [{ index: 0, outcome: "held", says: "open the supplier form" }],
+        withheld: [{ origin: "https://wms.example" }],
+      },
+    },
+    { id: 7, host: "wms.example", url: "https://wms.example/portal" },
+  );
+
+  const said = cards.map(words).join(" ");
+  assert.ok(/open the supplier form/.test(said), "a rig run drew none of its own steps");
+  assert.ok(!/Undo that|I'll fix it/i.test(said), "a rig run offered a press the rig cannot answer");
+  assert.ok(!/last run failed/i.test(said), "a rig run that held was called a failure");
+  assert.ok(/not sent/.test(said), "a dry run did not say what it withheld");
+});
+
 test("undo records the ask and starts the reversal skill, nothing else", async () => {
   // The two things "Undo that" means: the record that the operator asked for
   // a reversal, and the reversal run itself -- and nothing besides those two

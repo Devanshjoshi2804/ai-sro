@@ -148,6 +148,50 @@ export const api = {
    * which rung it is on and how far through it is are the run's own record. */
   run: (runId) => call(`/v1/runs/${encodeURIComponent(runId)}`),
 
+  /** A run the rig is performing, in the panel's vocabulary.
+   *
+   * Not `call`: the rig has one token and no device registry, so it takes the
+   * same bearer `rig-channel.js` dials with and none of the backend's headers.
+   * The rig's `outcome` is the panel's `status` -- `running` means running and
+   * every other one of them is finished -- and its steps are `{order, says,
+   * verdict}` where the card wants `{index, outcome}`. Mapped here rather than
+   * in the card, so the card has one shape to draw whoever drove the run.
+   */
+  rigRun: async (runId) => {
+    const [base, token] = await Promise.all([state.rigUrl(), state.rigToken()]);
+    const response = await fetch(`${base}/v1/runs/${encodeURIComponent(runId)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) throw new ApiError(response.status, { detail: `the rig has no run ${runId}` });
+    const run = await response.json();
+    return {
+      id: run.id,
+      source: "rig",
+      status: run.outcome,
+      steps: (run.steps || []).map((step) => ({
+        index: step.order,
+        outcome: step.verdict,
+        says: step.says,
+        reason: step.reason,
+      })),
+      withheld: run.withheld || [],
+    };
+  },
+
+  /** Stop a run the rig is driving. The rig's own abort: it sets the flag its
+   * loop checks between steps and, best effort, tells this browser -- which
+   * has already stopped taking part by the time this is called. */
+  rigAbort: async (runId, deviceId) => {
+    const [base, token] = await Promise.all([state.rigUrl(), state.rigToken()]);
+    const response = await fetch(`${base}/v1/runs/${encodeURIComponent(runId)}/abort`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ device_id: deviceId }),
+    });
+    if (!response.ok) throw new ApiError(response.status, { detail: `the rig would not stop ${runId}` });
+    return null;
+  },
+
   /** One skill, for the name and the shape of the version being run. */
   skill: (skillId) => call(`/v1/skills/${encodeURIComponent(skillId)}`),
 

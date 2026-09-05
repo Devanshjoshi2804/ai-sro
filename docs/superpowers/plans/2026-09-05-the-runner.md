@@ -1233,7 +1233,7 @@ git commit -m "feat(rig): the Run record -- what a run leaves behind"
 - Consumes: `rig.records.Gesture`, `rig.wire.Target`, `rig.correlate.system_of`, `rig.workflows.Workflow`, `rig.wire.REDACTED`.
 - Produces:
   - `locators.locators_for(gesture: Gesture) -> list[dict[str, Any]]` — protocol shape, priority order
-  - `locators.origin_of(gesture: Gesture) -> str | None`
+  - `locators.origin_of(gesture: Gesture) -> str | None` — **the page first** (`gesture.system`, else `system_of(gesture.url)`), then the first request that *completed* and names a system, then any request naming one. Ruled during execution: every consumer of `origin` is about the tab the operator was on, and request-first steered a run at a dead host when a failed call was earliest.
   - `locators.allowlist(workflow: Workflow, by_id: Mapping[str, Gesture]) -> set[str]`
   - `locators.primary_gesture(step: Step, by_id) -> Gesture | None` — first cited gesture that exists and is not a scroll
   - `locators.writes(step: Step, by_id) -> bool` — any cited gesture carries a non-GET request

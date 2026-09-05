@@ -104,6 +104,8 @@ let calls = [];
  * that left a one-second timer behind would hold the process open forever.
  */
 let rigRunServed = { id: "run-9", outcome: "held", steps: [] };
+/** A rig that cannot be reached, for the tick that has to be retried. */
+let rigRunFails = false;
 let shapesServed = [SHAPE];
 
 /** The rig, as far as this browser can tell. Re-installed by `ready()`: a test
@@ -115,7 +117,9 @@ const rigServer = async (url, options = {}) => {
   if (path === "/v1/shapes") return json({ shapes: shapesServed });
   if (path === "/v1/offers") return json({ offer_id: "off_1" });
   if (path === "/v1/runs") return json({ run_id: "run-9" });
-  if (path === "/v1/runs/run-9") return json(rigRunServed);
+  if (path === "/v1/runs/run-9") {
+    return rigRunFails ? json({ detail: "the rig is down" }, 503) : json(rigRunServed);
+  }
   if (path === "/v1/runs/run-9/approve") return json({ ok: true });
   return json({ detail: `nothing serves ${path}` }, 404);
 };
@@ -176,6 +180,7 @@ function ready() {
   painted.length = 0;
   shapesServed = [SHAPE];
   rigRunServed = { id: "run-9", outcome: "held", steps: [] };
+  rigRunFails = false;
   globalThis.fetch = rigServer;
   held.set("sro.token", "tok");
   held.set("sro.deviceId", "dev-1");
@@ -366,4 +371,89 @@ test("the run the rig is driving is drawn while it runs, and Approve reaches the
   assert.equal(approve.method, "POST");
   assert.equal(approve.body, "{}", "the rig's approve route refuses a request with no JSON body");
   assert.deepEqual(answer, { ok: true });
+});
+
+/** How many times this browser has asked the rig what the run is doing. */
+const asked = () => calls.filter((call) => call.path === "/v1/runs/run-9").length;
+
+test("a rig run this browser did not start is polled from status, and a failed ask is asked again", async () => {
+  // No `start-rig-run` here. `commands.js` writes this record for every command
+  // that arrives on the rig's channel, whoever started the run -- a run started
+  // from the rig's own screen, or one this worker was evicted in the middle of
+  // -- and none of those routes goes through the panel's press.
+  ready();
+  held.set("sro.activeRun", { runId: "run-9", at: Date.now(), source: "rig" });
+  rigRunFails = true;
+
+  await send({ kind: "status" });
+  await until(() => asked() === 1, "opening the panel over a rig run asked the rig nothing");
+  // One ask per status read, however slow the rig is. Without the in-flight
+  // guard the panel's two-second poll would stack a request per read on top of
+  // the timer's own.
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  assert.equal(asked(), 1, "one status read asked the rig more than once");
+
+  // The rig comes back. Nothing rescheduled off a *successful* answer here --
+  // the first ask failed -- so if a failed tick did not keep the chain alive,
+  // this next status read is the only thing left that can restart it.
+  rigRunFails = false;
+  await send({ kind: "status" });
+  await until(() => asked() >= 2, "a poll whose first ask failed was never asked again");
+
+  held.delete("sro.activeRun");
+});
+
+test("a run parked on an approval is still drawn, and nothing is offered over it", async () => {
+  // The failure this exists for: `commands.js` calls a run over thirty seconds
+  // after its last command, and a write waiting on a person can wait five
+  // minutes. For four and a half of them the panel showed no run, no steps and
+  // no Approve -- the one control the run was actually waiting on.
+  ready();
+  rigRunServed = {
+    id: "run-9",
+    outcome: "running",
+    steps: [{ order: 0, says: "save the work area", verdict: "awaiting" }],
+  };
+  held.set("sro.activeRun", { runId: "run-9", at: Date.now(), source: "rig" });
+
+  let shown = null;
+  for (let tries = 0; tries < 200 && !shown?.run; tries += 1) {
+    shown = (await send({ kind: "status" })).performing;
+    if (!shown?.run) await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+  assert.ok(shown, "a run waiting on an approval vanished from the panel");
+  assert.equal(shown.source, "rig");
+  assert.equal(shown.kind, "rig");
+  assert.equal(shown.run?.id, "run-9");
+  assert.equal(shown.run.steps[0].outcome, "awaiting");
+
+  // And no offer over it. The gestures arriving now are the operator doing that
+  // very step by hand while the rig waits, and offering to start a second run
+  // on top of a parked write is the worst moment this panel has.
+  await gesture("a", "NEW");
+  await gesture("b", "north");
+  await new Promise((resolve) => setTimeout(resolve, 60));
+  assert.deepEqual(openOnes(), [], "it offered a run over a write parked for approval");
+
+  held.delete("sro.activeRun");
+});
+
+test("Approve is refused for a run this browser is not driving", async () => {
+  // The panel draws Approve off a status read that can be seconds old. A card
+  // left standing after the run ended, or a second window showing a superseded
+  // one, must not be able to authorise a live write against it.
+  ready();
+  held.set("sro.activeRun", { runId: "run-9", at: Date.now(), source: "rig" });
+
+  assert.deepEqual(await send({ kind: "approve-rig-run", runId: "run-8" }), {
+    ok: false,
+    error: "that run is not the one this browser is driving",
+  });
+  assert.equal(
+    calls.filter((call) => call.path.endsWith("/approve")).length,
+    0,
+    "a write was approved against a run this browser is not driving",
+  );
+
+  held.delete("sro.activeRun");
 });

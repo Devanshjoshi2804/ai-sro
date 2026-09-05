@@ -105,7 +105,7 @@ export function runCard({ run, skill, message, notes = [] }, { onPress, onChange
   // doing, and the verdict on it. Everything below -- the glyphs, a note said
   // during a step -- is the same code for both.
   const plan = rig
-    ? (run.steps || []).map((step) => ({ index: step.index, intent: step.says, sent: step.sent }))
+    ? (run.steps || []).map((step) => ({ ...step, intent: step.says }))
     : skill?.latest?.steps || [];
   for (const step of plan) {
     card.append(
@@ -182,6 +182,22 @@ function stepRow({ step, outcome, live, inFlight, run, notes, onPress, onChange 
   intent.className = "intent";
   intent.textContent = step.intent || "";
   row.append(glyph, intent);
+
+  // What the rig charged this step to, in the two senses. `matched_by` is the
+  // taught step the model said this one is; the money is what the call that
+  // planned it cost. `unpriced` is said in the word rather than drawn as
+  // $0.0000 -- a call that never returned is not a free one, and a ledger that
+  // rounds it to nothing is a ledger nobody can add up.
+  const meta = [
+    step.matched_by || null,
+    step.unpriced ? "unpriced" : step.cost_usd > 0 ? `$${step.cost_usd.toFixed(4)}` : null,
+  ].filter(Boolean);
+  if (meta.length) {
+    const said = document.createElement("span");
+    said.className = "meta";
+    said.textContent = meta.join(" · ");
+    row.append(said);
+  }
 
   // The rig has stopped here to ask. What it would send is drawn in words --
   // this is the one moment somebody can read a write before it happens -- and

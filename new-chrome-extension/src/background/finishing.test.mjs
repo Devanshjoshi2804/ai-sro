@@ -170,7 +170,14 @@ async function theRigsRunInThePanelsWords() {
       id: "run_a1b2",
       outcome: "held",
       steps: [
-        { order: 0, says: "open the supplier form", verdict: "held", reason: "it did" },
+        {
+          order: 0,
+          says: "open the supplier form",
+          verdict: "held",
+          reason: "it did",
+          matched_by: "step 2",
+          cost_usd: 0.0123,
+        },
         // A step the rig has stopped on: the write is planned, nothing has
         // been sent, and it is waiting for a person. The panel cannot ask for
         // approval of a command it was never given, so `sent` comes across
@@ -181,6 +188,9 @@ async function theRigsRunInThePanelsWords() {
           verdict: "awaiting",
           reason: "",
           sent: { kind: "ui.perform", payload: { action: "click" } },
+          // A call that never returned. It is not a free one, and the panel
+          // must not draw it as $0.0000.
+          unpriced: true,
         },
       ],
       withheld: [{ origin: "https://wms.test" }],
@@ -190,13 +200,25 @@ async function theRigsRunInThePanelsWords() {
   assert.strictEqual(mapped.source, "rig");
   assert.strictEqual(mapped.status, "held", "the rig's outcome is the panel's status");
   assert.deepStrictEqual(mapped.steps, [
-    { index: 0, outcome: "held", says: "open the supplier form", reason: "it did", sent: null },
+    {
+      index: 0,
+      outcome: "held",
+      says: "open the supplier form",
+      reason: "it did",
+      sent: null,
+      matched_by: "step 2",
+      cost_usd: 0.0123,
+      unpriced: false,
+    },
     {
       index: 1,
       outcome: "awaiting",
       says: "save",
       reason: "",
       sent: { kind: "ui.perform", payload: { action: "click" } },
+      matched_by: null,
+      cost_usd: null,
+      unpriced: true,
     },
   ]);
   assert.strictEqual(mapped.withheld.length, 1);

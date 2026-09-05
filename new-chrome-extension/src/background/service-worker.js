@@ -64,6 +64,11 @@ chrome.alarms.onAlarm.addListener((alarm) => {
     // schedule regardless, off the storage-backed mirror `perform()` writes,
     // which is the only thing here that survives that eviction.
     void checkFinishing();
+    // And the same for a rig run: the timer chain dies with the worker, so
+    // without this a run parked on an approval across an eviction would never
+    // be asked about again. Self-guarding -- it returns at once unless the
+    // active run is the rig's.
+    void pollRigRun();
     // A prompt that outlives the task it offered is a prompt that was ignored.
     // On the beat rather than a timer of its own: this worker is evicted
     // between events, and a `setTimeout` for ninety seconds is one the platform
@@ -268,7 +273,11 @@ async function considerOffer(tabId, gesture) {
     if (tabId === null || !(await isWatched(tabId))) return;
     // The browser is already being driven. Offering to drive it again is the
     // panel talking over itself -- and the gestures would be the run's own.
-    if (performing()) return;
+    // `parkedRigRun` too: a run waiting on somebody to approve a write has sent
+    // no command for however long they have been thinking about it, and the
+    // gestures arriving meanwhile are them doing that step by hand. Offering
+    // to start a second run over it is the worst moment this panel has.
+    if (performing() || parkedRigRun(await state.activeRun())) return;
     const origin = originOf(gesture.url);
     if (!origin) return;
     // Asked before the tail is written: a browser with no rig has nothing to
@@ -1145,6 +1154,15 @@ async function handle(message, sender) {
       // The press on the awaiting row. It comes here rather than going to the
       // rig from the panel for the same reason `start-rig-run` does: the rig's
       // bearer lives in this worker and in nothing a page can reach.
+      //
+      // And only for the run this browser is actually driving. The panel draws
+      // Approve off a status read that can be a couple of seconds old, so a
+      // card left standing after the run ended -- or a second window showing a
+      // run that has since been superseded -- could otherwise authorise a live
+      // write in somebody's warehouse against a run nobody here is watching.
+      if (message.runId !== (await state.activeRun())?.runId) {
+        return { ok: false, error: "that run is not the one this browser is driving" };
+      }
       try {
         return await api.rigApprove(message.runId);
       } catch (error) {
@@ -1644,7 +1662,18 @@ async function status() {
   // closed, and is the trigger that actually matters for most runs.
   void checkFinishing();
   const live = performing();
-  const active = live ? await state.activeRun() : null;
+  // Read whether or not a command is in flight: a rig run parked on an
+  // approval is one that has sent nothing for minutes, and `active` is the
+  // only record that says it exists at all.
+  const active = await state.activeRun();
+  // The panel is open and looking. Kicking here as well as from
+  // `start-rig-run` is what covers every other way a rig run becomes the
+  // active one -- `commands.js` writes `source: "rig"` for every command that
+  // arrives on the rig's channel, whoever started the run -- and what restarts
+  // a chain whose first tick failed. Guarded against piling up by
+  // `pollingRig`; not awaited, for the same reason `checkFinishing` is not.
+  if (active?.source === "rig") void pollRigRun();
+  const shown = live || parkedRigRun(active);
   return {
     capturing: allowed.on,
     because: allowed.because,
@@ -1660,14 +1689,14 @@ async function status() {
     // `finishing.js` read -- so the panel's "details" link and its Stop agree
     // on who is driving without a second answer to the question. Missing means
     // backend, as everywhere else.
-    performing: live && {
-      ...live,
-      source: (active?.runId === live.runId && active.source) || "backend",
+    performing: shown && {
+      ...shown,
+      source: (active?.runId === shown.runId && active.source) || "backend",
       // The rig's own record of it, for the card that draws a row per step.
       // Only for a rig run, and only the run being drawn: a backend run's
       // steps come from its skill, and a picture left over from the previous
       // rig run would draw somebody else's writes under this one's title.
-      run: rigRunShown?.id === live.runId ? rigRunShown : undefined,
+      run: rigRunShown?.id === shown.runId ? rigRunShown : undefined,
     },
     // What the last run this browser finished made, and how to take it back --
     // held long past this run itself, unlike `performing` above, because an
@@ -1721,6 +1750,12 @@ let checkingFinish = false;
  * seconds after the click reads as a panel that has stopped working. Only
  * while a run is actually running -- see `pollRigRun`, which stops rather than
  * ticking against a rig nobody is using.
+ *
+ * ponytail: the panel re-reads `status()` every two seconds, so a picture
+ * refreshed faster than that is never seen any sooner. Kept at a second
+ * anyway, because the two cadences are unsynchronised -- a step landing just
+ * after a poll is on screen within one panel read either way -- and worth
+ * revisiting only if the rig's `/v1/runs/{id}` ever gets expensive.
  */
 const K_RUN_POLL_MS = 1000;
 
@@ -1729,6 +1764,11 @@ const K_RUN_POLL_MS = 1000;
  * worker has no picture yet and asks for one. */
 let rigRunShown = null;
 let rigPoll = null;
+/** One ask at a time. `status()` and the heartbeat both kick this, and the
+ * panel polls status every two seconds -- without this, a slow or unreachable
+ * rig would collect one in-flight request per poll on top of the timer's own.
+ * The same guard, for the same reason, as `checkingFinish` above. */
+let pollingRig = false;
 
 /**
  * Keep asking the rig what the run it is driving is doing.
@@ -1744,20 +1784,52 @@ let rigPoll = null;
  * one would be worse than a picture that is a second old.
  */
 async function pollRigRun() {
-  const active = await state.activeRun();
-  if (!active || active.source !== "rig") {
-    rigRunShown = null;
-    return;
-  }
+  if (pollingRig) return;
+  pollingRig = true;
   try {
-    rigRunShown = await api.rigRun(active.runId);
-  } catch {
-    // Keep the last picture; the next tick asks again.
+    const active = await state.activeRun();
+    if (!active || active.source !== "rig") {
+      rigRunShown = null;
+      return;
+    }
+    // A picture of some other run is worse than none: it would draw one run's
+    // writes under another's title, and `status()` would hand the panel a card
+    // for a run that is not the one happening.
+    if (rigRunShown && rigRunShown.id !== active.runId) rigRunShown = null;
+    try {
+      rigRunShown = await api.rigRun(active.runId);
+    } catch {
+      // Keep the last picture; the next tick asks again.
+    }
+    // Only a successful answer saying the run has ended stops the timer. A
+    // failed ask does not: a rig that is briefly unreachable while a run is
+    // parked on an approval would otherwise leave the panel with a card that
+    // never updates again and an Approve nothing is behind.
+    if (!rigRunShown || rigRunShown.status === "running") {
+      clearTimeout(rigPoll);
+      rigPoll = setTimeout(() => void pollRigRun(), K_RUN_POLL_MS);
+    }
+  } finally {
+    pollingRig = false;
   }
-  if (rigRunShown?.status === "running") {
-    clearTimeout(rigPoll);
-    rigPoll = setTimeout(() => void pollRigRun(), K_RUN_POLL_MS);
-  }
+}
+
+/** A rig run that is happening but has sent this browser nothing lately.
+ *
+ * `commands.js`'s `performing()` expires thirty seconds after the last command,
+ * which is right for a run being stepped and wrong for one parked on an
+ * approval: a write can wait five minutes for a person, and for four and a half
+ * of them the panel would have shown no run, no steps and no Approve -- the
+ * control the run is actually waiting on. Read off the poll's own picture, so
+ * it is the rig saying the run is still running rather than this browser
+ * assuming it.
+ */
+function parkedRigRun(active) {
+  return active?.source === "rig" &&
+    rigRunShown?.id === active.runId &&
+    rigRunShown.status === "running"
+    ? { runId: active.runId, kind: "rig", since: active.at }
+    : null;
 }
 
 // On worker start, because Chrome evicts this worker between events and a run

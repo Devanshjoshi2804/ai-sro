@@ -670,6 +670,24 @@ button.danger:hover:not(:disabled) {
   min-width: 0;
 }
 
+/* The command a step would send, on the row the rig has stopped to ask about.
+   Monospaced and in the strong ink because it is the one thing on this surface
+   somebody is being asked to read before it happens. */
+.run .step .planned {
+  flex-basis: 100%;
+  font-family: var(--mono);
+  color: var(--ink);
+}
+
+/* What the step was matched to, and what it cost. Beside the intent and out of
+   the way of it: an operator watching a run is reading the words, not the
+   ledger. */
+.run .step .meta {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-mute);
+}
+
 /* A step that has been checked, and one that only came back 200. The second is
    most of them today, and saying so is the point. */
 .run .step:has(.glyph) .glyph {

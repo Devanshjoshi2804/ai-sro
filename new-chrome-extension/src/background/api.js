@@ -190,6 +190,14 @@ export const api = {
         // approval the run is waiting for. `null` where there is none, so the
         // card has one shape whichever verdict the step carries.
         sent: step.sent || null,
+        // Which taught step the model matched this one to, and what the call
+        // that planned it cost. Both are the rig's own accounting and neither
+        // is invented here: `unpriced` is a call whose cost could not be
+        // established -- not a free one -- and the row says so rather than
+        // drawing a zero.
+        matched_by: step.matched_by || null,
+        cost_usd: typeof step.cost_usd === "number" ? step.cost_usd : null,
+        unpriced: Boolean(step.unpriced),
       })),
       withheld: run.withheld || [],
     };

@@ -272,6 +272,52 @@ test("a step the operator did is drawn done, not in flight", () => {
   );
 });
 
+test("a rig row says what it was matched to and what it cost, and never prices a call it could not", () => {
+  const run = {
+    id: "run_1",
+    source: "rig",
+    status: "held",
+    steps: [
+      { index: 0, outcome: "held", says: "open the form", matched_by: "step 2", cost_usd: 0.0123 },
+      // A call that never returned. Drawing this as $0.0000 would be the panel
+      // reporting a cost the rig explicitly said it could not establish.
+      { index: 1, outcome: "held", says: "save", cost_usd: null, unpriced: true },
+    ],
+  };
+  const card = runCard({ run }, {});
+  const rows = card.kids.filter((kid) => kid.className === "step");
+  assert.match(words(rows[0]), /step 2/, "the row did not say which taught step it matched");
+  assert.match(words(rows[0]), /\$0\.0123/, "the row did not say what the step cost");
+  assert.match(words(rows[1]), /unpriced/, "a call that never returned was not said to be unpriced");
+  assert.doesNotMatch(words(rows[1]), /\$/, "a call with no established cost was given a price");
+  assert.deepEqual(asMarkup, [], "the rig's own accounting reached the page as markup");
+});
+
+test("only the step the rig is waiting on is offered an approval", () => {
+  // Two ways to draw an Approve where nothing is waiting. A step already held
+  // is over; an `awaiting` row on a run that has since ended is a record, and
+  // pressing it would approve a run that is not running.
+  const live = {
+    id: "run_1",
+    source: "rig",
+    status: "running",
+    steps: [{ index: 0, outcome: "held", says: "open the form" }],
+  };
+  const over = {
+    id: "run_1",
+    source: "rig",
+    status: "aborted",
+    steps: [{ index: 0, outcome: "awaiting", says: "save", sent: { kind: "ui.perform", payload: {} } }],
+  };
+  const approvesIn = (run) =>
+    runCard({ run }, {})
+      .kids.filter((kid) => kid.className === "step")
+      .flatMap((row) => of(row, "button").map((button) => button.textContent));
+
+  assert.deepEqual(approvesIn(live), [], "a step already held offered an approval");
+  assert.deepEqual(approvesIn(over), [], "a run that has ended offered to approve a write");
+});
+
 let failed = 0;
 for (const [name, fn] of tests) {
   try {

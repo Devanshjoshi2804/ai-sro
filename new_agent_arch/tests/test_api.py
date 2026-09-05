@@ -2104,3 +2104,67 @@ def test_no_door_of_the_runner_opens_without_the_token(
     """Every one of these either drives the operator's own browser or reads
     what it did."""
     assert client.request(method, path, json={}).status_code == 401
+
+
+# --- Task 9: the page starts a run, watches it, and stops it ------------------
+
+
+def test_the_page_can_start_watch_and_stop_a_run() -> None:
+    page = (Path(__file__).resolve().parents[1] / "src/rig/web/index.html").read_text()
+    for needed in (
+        "/v1/devices",
+        "/v1/runs",
+        "/abort",
+        "what a live run would have sent",
+        'type="checkbox"',
+        "stop",
+    ):
+        assert needed in page, needed
+
+
+def test_the_page_escapes_a_run_and_says_when_a_step_could_not_be_priced() -> None:
+    """A run's text is a model's plan over a page the extension read back --
+    the same chain as an intent's `why`, and the same reason to escape it. The
+    substring test above passes with esc() dropped from every one of them, so
+    render a run whose every field is a script tag and count.
+
+    The unpriced step is `line()`'s three states again, one table over: a step
+    billed on a model missing from PRICES drawn as "$0.0000" is a price the
+    page made up.
+    """
+    hostile = "<img src=x onerror=go()>"
+    rendered = _run_page(
+        """
+        const hostile = "<img src=x onerror=go()>";
+        // Not `step`: the page already has a function by that name.
+        const one = { order: 1, says: hostile, verdict: "held", verdict_by: "model",
+                      reason: hostile, matched_by: hostile, stale: false,
+                      cost_usd: 0.0031, unpriced: false };
+        const run = {
+          outcome: "held", cost_usd: 0.0062, unpriced: false,
+          steps: [one, { ...one, order: 2 }],
+          // No method/url/body: a withheld write whose step has no recorded
+          // call carries only the planned command, and that is the whole of
+          // what a live run would have sent.
+          withheld: [{ step: 2, planned: { kind: "click", payload: { text: hostile } } }],
+        };
+        console.log(JSON.stringify([
+          runView(run),
+          runView({ ...run, outcome: "running" }),
+          ranStep({ ...one, cost_usd: 0, unpriced: true }),
+          ranStep({ ...one, cost_usd: 0, unpriced: false }),
+        ]));
+        """
+    )
+    held, running, unpriced, free = json.loads(rendered)
+
+    assert hostile not in held, "a run's text reaches the DOM unescaped"
+    # says, reason and matched_by on each of two steps, plus the withheld
+    # payload: seven fields, every one of them through esc().
+    assert held.count("&lt;img src=x onerror=go()&gt;") == 7, held
+    assert "what a live run would have sent" in held
+    assert "click" in held, "a withheld write with no recorded call draws an empty box"
+    assert 'class="stop"' in running, "a running run cannot be stopped"
+    assert 'class="stop"' not in held, "a finished run still offers a stop button"
+    assert "unpriced" in unpriced and "$0.0000" not in unpriced
+    assert "$0.0000" in free, "an honestly-free step and an unpriced one read the same"

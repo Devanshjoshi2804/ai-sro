@@ -46,11 +46,12 @@
     color: var(--muted); text-align: right;
   }
   .cost.unpriced { color: var(--accent); }
-  select, button {
+  select, button, input {
     background: var(--raised); color: var(--text); border: 1px solid var(--line);
     border-radius: 8px; padding: 6px 10px; font: inherit;
   }
   button { cursor: pointer; }
+  button[disabled] { cursor: not-allowed; color: var(--muted); }
   .card {
     border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px;
     margin-bottom: 12px; background: var(--raised); position: relative;
@@ -59,6 +60,27 @@
   .systems { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 12px; }
   .step { display: grid; grid-template-columns: 24px 1fr; gap: 12px; padding: 6px 0 0; }
   .none { color: var(--muted); font-style: italic; }
+  .runner { margin-top: 10px; }
+  .runner form {
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0;
+  }
+  .runner label { display: inline-flex; gap: 6px; align-items: center; color: var(--body); }
+  .runner input[type="checkbox"] { padding: 0; }
+  .runner h4 {
+    color: var(--text); font: 600 13px Inter, system-ui, sans-serif; margin: 14px 0 6px;
+  }
+  .runner pre {
+    background: var(--ground); border: 1px solid var(--line); border-radius: 8px;
+    padding: 8px 10px; font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; margin: 0 0 8px;
+  }
+  .outcome { color: var(--text); padding: 6px 0; }
+  .ran { padding: 5px 0; border-top: 1px solid var(--line); }
+  .ran.held { color: var(--clean); }
+  .ran.failed, .ran.refused { color: var(--refused); }
+  .ran.withheld { color: var(--accent); }
+  .spent { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 12px; }
+  .spent.unpriced { color: var(--accent); }
 </style>
 
 <header>
@@ -202,16 +224,156 @@
       <div class="why">${esc(w.narrative)}</div>
       <div class="systems">${(w.systems ?? []).map(esc).join("  ")}</div>
       ${(w.steps ?? []).map(step).join("")}
+      <button class="run" data-id="${esc(w.id)}">run</button>
+      <div class="runner" id="runner-${esc(w.id)}"></div>
     </div>`;
+  }
+
+  // What a step cost, or that nobody could price it. The same three states as
+  // a reading's cost cell: a step billed on a model missing from PRICES drawn
+  // as "$0.0000" is a bill this page invented.
+  function money(thing) {
+    return thing?.unpriced ? "unpriced" : "$" + Number(thing?.cost_usd ?? 0).toFixed(4);
+  }
+
+  // A run's step is a model's plan over a page the extension read back. Same
+  // chain as an intent's `why`, so the same esc() on every field of it --
+  // `says` and `reason` came from the model, `matched_by` from the page.
+  function ranStep(s) {
+    return `<div class="ran ${esc(s.verdict)}">
+      <span class="kind">${esc(s.order)}</span> ${esc(s.says)} ·
+      <b>${esc(s.verdict)}</b>${s.verdict_by ? " by " + esc(s.verdict_by) : ""}${
+        s.matched_by ? " · matched " + esc(s.matched_by) : ""
+      }${s.stale ? " · <i>stale</i>" : ""} ·
+      <span class="spent${s.unpriced ? " unpriced" : ""}">${esc(money(s))}</span>
+      ${s.reason ? `<div class="why">${esc(s.reason)}</div>` : ""}
+    </div>`;
+  }
+
+  // In full, which is more than the recorded call. A withheld write always
+  // carries the command the planner produced; `method`/`url`/`body` are there
+  // only when the step had a call recorded against it, so printing those alone
+  // draws an empty box for the writes that have no recording behind them.
+  function withheldWrites(run) {
+    const writes = run.withheld ?? [];
+    if (!writes.length) return "";
+    return `<h4>what a live run would have sent</h4>` + writes
+      .map((w) => `<pre>step ${esc(w.step)}\n${esc(w.method ?? "")} ${esc(w.url ?? "")}\n${
+        esc(w.body ?? "")}\n${esc(JSON.stringify(w.planned ?? {}, null, 2))}</pre>`)
+      .join("");
+  }
+
+  function runView(run) {
+    return `<div class="outcome">${esc(run.outcome)} ·
+      <span class="spent${run.unpriced ? " unpriced" : ""}">${esc(money(run))}</span>
+      ${run.outcome === "running" ? `<button class="stop">stop</button>` : ""}</div>
+      ${(run.steps ?? []).map(ranStep).join("")}${withheldWrites(run)}`;
+  }
+
+  // `get`'s sibling: the same bearer, and the same refusal to swallow a
+  // non-2xx. The runner's doors refuse for reasons a person can act on -- the
+  // browser is busy, the browser is gone, a declared value is blank -- and
+  // every one of them arrives as `detail`.
+  async function post(path, body) {
+    const response = await fetch(path, {
+      method: "POST",
+      headers: { ...head.headers, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const said = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const detail = said.detail ?? path + " " + response.status;
+      throw new Error(typeof detail === "string" ? detail : JSON.stringify(detail));
+    }
+    return said;
+  }
+
+  // Poll while it runs, and only while it runs: the other five OUTCOMES are
+  // terminal, so a poll after one of them asks a question that can never come
+  // back different.
+  async function watch(runId, device, into) {
+    let run;
+    try {
+      run = await get(`/v1/runs/${encodeURIComponent(runId)}`);
+    } catch (error) {
+      into.innerHTML = `<div class="error">${esc(error.message)}</div>`;
+      return;
+    }
+    into.innerHTML = runView(run);
+    into.querySelector(".stop")?.addEventListener("click", (event) => {
+      event.target.disabled = true;
+      post(`/v1/runs/${encodeURIComponent(runId)}/abort`, { device_id: device }).catch(
+        (error) => {
+          into.querySelector(".outcome").innerHTML += `<span class="error">${
+            esc(error.message)
+          }</span>`;
+        },
+      );
+    });
+    if (run.outcome === "running") setTimeout(() => watch(runId, device, into), 1000);
+  }
+
+  async function openRunner(w) {
+    const { devices } = await get("/v1/devices");
+    // Prefilled with the last value the recording actually carried, and
+    // `required`: POST /v1/runs refuses a declared parameter left blank rather
+    // than performing the job with somebody else's client code, and the field
+    // saying so beats a round trip to hear it.
+    const fields = (w.parameters ?? [])
+      .map((p) => {
+        const seen = (p.seen_values ?? []).slice(-1)[0] ?? "";
+        return `<label>${esc(p.name)}
+          <input name="${esc(p.name)}" value="${esc(seen)}" required></label>`;
+      })
+      .join("");
+    const picker = devices.length
+      ? `<select name="device">${devices.map((d) => `<option>${esc(d)}</option>`).join("")}</select>`
+      : `<span class="none">no browser is connected to the rig</span>`;
+    const box = document.getElementById(`runner-${w.id}`);
+    // Dry unless a person ticks it. The first press of a mined job is a run
+    // that reads everything and sends nothing.
+    box.innerHTML = `<form class="start">${fields}${picker}
+      <label><input type="checkbox" name="live"> live — send the writes</label>
+      <button ${devices.length ? "" : "disabled"}>start</button></form>
+      <div class="note"></div><div class="live"></div>`;
+    box.querySelector("form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const form = new FormData(event.target);
+      const values = {};
+      for (const p of w.parameters ?? []) values[p.name] = form.get(p.name) ?? "";
+      const note = box.querySelector(".note");
+      note.innerHTML = "";
+      try {
+        const { run_id } = await post("/v1/runs", {
+          workflow_id: w.id,
+          values,
+          live: form.get("live") === "on",
+          device_id: form.get("device"),
+          allow_focus: true,
+          started_by: "form",
+        });
+        watch(run_id, form.get("device"), box.querySelector(".live"));
+      } catch (error) {
+        note.innerHTML = `<div class="error">${esc(error.message)}</div>`;
+      }
+    });
   }
 
   let showing = "gestures";
 
   async function drawJobs() {
+    // The three-second redraw would take an open runner with it: half-typed
+    // values, and the run being watched under them. The cards say nothing new
+    // while somebody is using one.
+    if (document.querySelector(".runner form")) return;
     const { workflows } = await get("/v1/workflows");
     document.getElementById("jobs").innerHTML = workflows.length
       ? workflows.map(job).join("")
       : `<div class="none">nothing mined yet — POST /v1/mine</div>`;
+    for (const b of document.querySelectorAll("button.run")) {
+      b.addEventListener("click", () =>
+        openRunner(workflows.find((w) => w.id === b.dataset.id)));
+    }
   }
 
   async function draw() {

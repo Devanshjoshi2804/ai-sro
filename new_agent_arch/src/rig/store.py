@@ -160,6 +160,17 @@ CREATE TABLE IF NOT EXISTS workflow_steps (
     PRIMARY KEY (workflow_id, ord)
 );
 
+-- A step whose control was only found by the weakest rung of the locator
+-- ladder. The run succeeded; the step is about to break. One row per step, so
+-- a workflow run daily reports the same weak step once rather than daily.
+CREATE TABLE IF NOT EXISTS workflow_stale (
+    workflow_id TEXT NOT NULL,
+    ord         INTEGER NOT NULL,
+    matched_by  TEXT,
+    noticed_at  TEXT NOT NULL,
+    PRIMARY KEY (workflow_id, ord)
+);
+
 CREATE TABLE IF NOT EXISTS runs (
     id          TEXT PRIMARY KEY,
     tenant      TEXT NOT NULL,

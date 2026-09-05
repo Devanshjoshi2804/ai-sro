@@ -1,0 +1,345 @@
+"""A15: the loop. Look, plan, refuse-or-perform, verify, escalate once, stop.
+
+Flash plans; Pro rescues. A clean step never touches the expensive model, and
+only the steps that surprise us cost what surprises cost. Between steps the
+stop button and the budget are checked; after every step the run is saved, so
+the page can watch it and so a crash mid-run leaves a record rather than a
+mystery.
+
+The first execution of any workflow is dry. Reads and navigations go out; a
+step whose evidence carries a mutation is shown in full and withheld. A person
+presses through to live.
+"""
+
+import base64
+from collections.abc import Mapping
+from datetime import UTC, datetime
+from typing import Any, ClassVar
+
+from rig.channel import Channel, DeviceUnreachable
+from rig.correlate import system_of
+from rig.locators import allowlist, origin_of, primary_gesture, recorded_call, writes
+from rig.models import Answer, Asker
+from rig.planner import Look, Planned, plan_step
+from rig.records import Gesture
+from rig.runs import Run, RunStep, new_run_id, save_run
+from rig.store import Store
+from rig.verify import Verdict, verify
+from rig.workflows import Step, Workflow
+
+K_STEP_SLACK = 3
+"""Attempts a run may make beyond its step count before it stops. A model
+looping on a form is money spent and a warehouse confused."""
+
+K_WEAK_LOCATORS = frozenset({"css_path", None})
+"""A step that only ever matches on the last fallback is a step about to break.
+The run succeeds and the step is flagged stale."""
+
+
+class Aborts:
+    """The stop button. In-process, like the channel it belongs beside: a run
+    does not survive a restart either."""
+
+    _stopped: ClassVar[set[str]] = set()
+
+    @classmethod
+    def abort(cls, run_id: str) -> None:
+        cls._stopped.add(run_id)
+
+    @classmethod
+    def is_aborted(cls, run_id: str) -> bool:
+        return run_id in cls._stopped
+
+    @classmethod
+    def forget(cls, run_id: str) -> None:
+        cls._stopped.discard(run_id)
+
+
+def mark_stale(store: Store, workflow_id: str, step_order: int, matched_by: str | None) -> None:
+    """This step's control was only found by the weakest rung of the ladder.
+
+    A row rather than an entry appended to the workflow, because the workflow
+    is what the mining pass writes and this is what a run learned: rewriting
+    the workflow from here would race a re-mine and lose one of the two. One
+    row per step, replaced, so a job run every morning reports its weak step
+    once.
+    """
+    store.execute(
+        "INSERT OR REPLACE INTO workflow_stale (workflow_id, ord, matched_by, noticed_at)"
+        " VALUES (?, ?, ?, ?)",
+        (workflow_id, step_order, matched_by, _now()),
+    )
+
+
+def _now() -> str:
+    return datetime.now(tz=UTC).isoformat()
+
+
+def _bill(step: RunStep, *answers: Answer | None) -> None:
+    for answer in answers:
+        if answer is None:
+            continue
+        step.in_tokens += answer.in_tokens
+        step.out_tokens += answer.out_tokens
+        step.thought_tokens += answer.thought_tokens
+        step.cost_usd += answer.cost_usd
+        step.unpriced = step.unpriced or answer.unpriced
+
+
+def _total(run: Run) -> None:
+    run.in_tokens = sum(s.in_tokens for s in run.steps)
+    run.out_tokens = sum(s.out_tokens for s in run.steps)
+    run.thought_tokens = sum(s.thought_tokens for s in run.steps)
+    run.cost_usd = sum(s.cost_usd for s in run.steps)
+    run.unpriced = any(s.unpriced for s in run.steps)
+
+
+def _gestures_for(store: Store, workflow: Workflow) -> dict[str, Gesture]:
+    from rig.api import _row_to_gesture  # deferred: api imports runner for the route
+
+    wanted = sorted({c for s in workflow.steps for c in s.cites})
+    if not wanted:
+        return {}
+    marks = ",".join("?" * len(wanted))
+    rows = store.query(
+        f"SELECT * FROM gestures WHERE tenant = ? AND id IN ({marks})",
+        (workflow.tenant, *wanted),
+    )
+    return {row["id"]: _row_to_gesture(row) for row in rows}
+
+
+def _target_origin(planned: Planned) -> str | None:
+    """The origin a planned command would actually reach. For `http.send` and
+    `navigate` that is the url's own host, not the step's: those two are the
+    only ways a plan can leave the system the evidence was recorded on."""
+    if planned.kind in ("http.send", "navigate"):
+        return system_of(str(planned.payload.get("url")))
+    origin = planned.payload.get("origin")
+    return origin if isinstance(origin, str) else None
+
+
+async def _look(
+    channel: Channel, device_id: str, run_id: str, origin: str | None, allow_focus: bool
+) -> Look:
+    """Where the browser is and what is on the screen. A refused screenshot --
+    `focus_not_permitted` -- is no picture, not a failure: the planner works
+    from the url and the digest."""
+    where = await channel.send(device_id, kind="ui.url", run_id=run_id, payload={"origin": origin})
+    url = str(where.result.get("url")) if where.ok and where.result.get("url") else None
+    payload: dict[str, Any] = {"inline": True, "origin": origin}
+    if allow_focus:
+        payload["allow_focus"] = True
+    shot = await channel.send(device_id, kind="screenshot", run_id=run_id, payload=payload)
+    image = None
+    digest = ""
+    if shot.ok:
+        raw = shot.result.get("image_base64")
+        if isinstance(raw, str) and raw:
+            try:
+                image = base64.b64decode(raw)
+            except ValueError:
+                image = None
+        digest = str(shot.result.get("text_digest") or "")
+    return Look(url=url, screenshot=image, digest=digest)
+
+
+def _withheld(step: Step, planned: Planned, by_id: Mapping[str, Gesture]) -> dict[str, Any]:
+    """The write a dry run did not send, in full: what a person reads before
+    pressing through to live."""
+    call = recorded_call(step, by_id)
+    shown: dict[str, Any] = {
+        "step": step.order,
+        "planned": {"kind": planned.kind, "payload": planned.payload},
+    }
+    if call is not None:
+        shown.update(
+            method=call.method.upper(),
+            url=call.url,
+            body=call.request_body.text if call.request_body else None,
+        )
+    return shown
+
+
+async def run_workflow(
+    store: Store,
+    workflow: Workflow,
+    *,
+    values: Mapping[str, str],
+    channel: Channel,
+    device_id: str,
+    asker: Asker,
+    plan_model: str,
+    rescue_model: str,
+    live: bool,
+    allow_focus: bool,
+    started_by: str,
+    run_id: str | None = None,
+) -> Run:
+    run = Run(
+        id=run_id or new_run_id(),
+        tenant=workflow.tenant,
+        workflow_id=workflow.id,
+        device_id=device_id,
+        values=dict(values),
+        started_by=started_by,
+        live=live,
+        allow_focus=allow_focus,
+        started_at=_now(),
+    )
+    save_run(store, run)
+    by_id = _gestures_for(store, workflow)
+    allowed = allowlist(workflow, by_id)
+    budget = len(workflow.steps) + K_STEP_SLACK
+    attempts = 0
+    starts_on = None
+    first = primary_gesture(workflow.steps[0], by_id) if workflow.steps else None
+    if first is not None:
+        starts_on = first.page_url or first.url
+
+    try:
+        for step in sorted(workflow.steps, key=lambda s: s.order):
+            if Aborts.is_aborted(run.id):
+                await channel.send(
+                    device_id, kind="abort", run_id=run.id, payload={"run_id": run.id}
+                )
+                run.outcome = "aborted"
+                break
+            cited = [by_id[c] for c in step.cites if c in by_id]
+            primary = primary_gesture(step, by_id)
+            record = RunStep(order=step.order, says=step.says, verdict="skipped")
+            origin = origin_of(primary) if primary is not None else None
+            if primary is None:
+                record.reason = "no cited gesture can be acted on"
+
+            # Flash, then Pro once. A step with nothing actionable cited gets
+            # neither: it is recorded skipped and the run carries on.
+            rungs = (plan_model, rescue_model) if primary is not None else ()
+            verdict: Verdict | None = None
+            for model in rungs:
+                # One rung of the ladder: plan, and plan again once if getting
+                # to the right page was all the model asked for. Getting there
+                # is not doing the step, so a navigate must not spend the one
+                # Pro rescue -- it does spend budget, so a planner that only
+                # ever navigates still runs out.
+                planned: Planned | None = None
+                navigated = False
+                while planned is None:
+                    if attempts >= budget:
+                        record.verdict = "refused"
+                        record.reason = f"the step budget of {budget} attempts is spent"
+                        run.outcome = "refused"
+                        break
+                    attempts += 1
+                    before = await _look(channel, device_id, run.id, origin, allow_focus)
+                    proposal = await plan_step(
+                        step=step,
+                        cited=cited,
+                        values=values,
+                        look=before,
+                        origin=origin,
+                        starts_on=starts_on,
+                        allow_focus=allow_focus,
+                        asker=asker,
+                        model=model,
+                        failure=None if navigated else (verdict.reason if verdict else None),
+                    )
+                    record.planned_by = model
+                    record.before_url = before.url
+                    _bill(record, proposal.answer)
+                    record.sent = {"kind": proposal.kind, "payload": proposal.payload}
+
+                    if proposal.kind == "none":
+                        verdict = Verdict("failed", "none", proposal.why)
+                        break
+                    off = _target_origin(proposal)
+                    if off is not None and off not in allowed:
+                        record.verdict = "refused"
+                        record.reason = f"{off} is not a system this job's evidence names"
+                        run.outcome = "refused"
+                        break
+                    if proposal.kind != "navigate":
+                        planned = proposal
+                    elif navigated:
+                        verdict = Verdict(
+                            "failed",
+                            "none",
+                            proposal.why or "still on the wrong page after navigating",
+                        )
+                        break
+                    else:
+                        moved = await channel.send(
+                            device_id, kind="navigate", run_id=run.id, payload=proposal.payload
+                        )
+                        if not moved.ok:
+                            verdict = Verdict(
+                                "failed", "none", f"could not navigate: {moved.detail}"
+                            )
+                            break
+                        navigated = True
+
+                if run.outcome != "running":
+                    break
+                if planned is None:
+                    continue
+
+                if not live and writes(step, by_id):
+                    run.withheld.append(_withheld(step, planned, by_id))
+                    record.verdict, record.verdict_by = "withheld", "dry"
+                    record.reason = "a dry run does not send writes"
+                    record.result = {"withheld": True}
+                    break
+
+                reply = await channel.send(
+                    device_id, kind=planned.kind, run_id=run.id, payload=planned.payload
+                )
+                record.result = dict(reply.result) if reply.ok else {"error": reply.detail}
+                record.matched_by = reply.result.get("matched_by") if reply.ok else None
+                after = await _look(channel, device_id, run.id, origin, allow_focus)
+                record.after_url = after.url
+                verdict = await verify(
+                    step=step,
+                    sent_kind=planned.kind,
+                    answer=reply,
+                    cited=cited,
+                    values=values,
+                    look_before=before,
+                    look_after=after,
+                    channel=channel,
+                    device_id=device_id,
+                    run_id=run.id,
+                    origin=origin,
+                    asker=asker,
+                    model=plan_model,
+                )
+                _bill(record, verdict.answer)
+                record.verdict, record.verdict_by = verdict.state, verdict.by
+                record.reason = verdict.reason
+                if verdict.state == "held":
+                    if planned.kind == "ui.perform" and record.matched_by in K_WEAK_LOCATORS:
+                        record.stale = True
+                        mark_stale(store, workflow.id, step.order, record.matched_by)
+                    break
+
+            run.steps.append(record)
+            _total(run)
+            save_run(store, run)
+            if run.outcome != "running":
+                break
+            if record.verdict in ("failed", "unclear"):
+                run.outcome = "stopped"
+                break
+        else:
+            run.outcome = "held"
+    except DeviceUnreachable as gone:
+        run.steps.append(
+            RunStep(
+                order=len(run.steps), says="", verdict="failed", verdict_by="none", reason=str(gone)
+            )
+        )
+        run.outcome = "failed"
+
+    run.finished_at = _now()
+    _total(run)
+    save_run(store, run)
+    Aborts.forget(run.id)
+    return run

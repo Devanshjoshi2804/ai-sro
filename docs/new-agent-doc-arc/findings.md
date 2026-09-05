@@ -799,10 +799,11 @@ the channel, verifies, bills, and saves after every step;
 `GET /v1/runs/{id}` reads the whole thing back, withheld writes included. The
 dry-first rule holds over the steps these runs reached: every one of those whose
 evidence carries a mutation was withheld and shown. It says nothing about the
-steps a stopped run never got to — of the nine *Search and Filter Work Areas*
-never reached, one carries a recorded `sessionKeepAlive` POST that was therefore
-neither withheld nor shown; *Create Work Area Operation NEWTEST4*'s nine carry
-none. The origin allowlist is built and checked on every plan, but no step of
+steps a stopped run never got to. The script names those: of the nine *Search
+and Filter Work Areas* never reached, one carries
+`POST bf56-kms-wms-web-np2.jdadelivers.com/refs/data/api/v1/rp/admin/sessionKeepAlive`
+— never withheld, never shown — and *Create Work Area Operation NEWTEST4*'s nine
+carry no mutation at all. The origin allowlist is built and checked on every plan, but no step of
 these eight was refused, so that path is proven by the suite rather than here.
 
 **What it does not prove**, and nothing below should be read as if it did:

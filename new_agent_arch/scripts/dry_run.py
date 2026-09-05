@@ -25,6 +25,7 @@ from collections.abc import Mapping
 from contextlib import closing
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 import httpx
 
@@ -32,7 +33,7 @@ from rig.api import build_app
 from rig.channel import Answer as Reply
 from rig.channel import FakeChannel
 from rig.config import settings
-from rig.locators import allowlist, primary_gesture, writes
+from rig.locators import allowlist, primary_gesture, recorded_call, writes
 from rig.models import Answer, Effort
 from rig.records import Gesture
 from rig.runner import _gestures_for
@@ -143,14 +144,25 @@ def what_it_is(url: str) -> str:
 
 def unreached(
     workflow: Workflow, run: Mapping[str, Any], by_id: Mapping[str, Gesture]
-) -> tuple[int, int]:
-    """Steps the run never got to, and how many of those carry a recorded
-    mutation. A run that stops early withholds only what it reached; the rest
-    are writes nobody has been shown, which is the difference between "this job
-    has no writes" and "this run did not get that far"."""
+) -> tuple[int, list[str]]:
+    """Steps the run never got to, and the mutation each of those carries, as
+    `METHOD host/path`. A run that stops early withholds only what it reached;
+    the rest are writes nobody has been shown, which is the difference between
+    "this job has no writes" and "this run did not get that far" -- and naming
+    them is the difference between a count and something a reader can check.
+
+    No query string: these urls carry session ids and cache-busters, and the
+    one thing this line has to answer is which call it is.
+    """
     done = {step["order"] for step in run["steps"]}
     rest = [step for step in workflow.steps if step.order not in done]
-    return len(rest), sum(1 for step in rest if writes(step, by_id))
+    named: list[str] = []
+    for step in rest:
+        call = recorded_call(step, by_id) if writes(step, by_id) else None
+        if call is not None:
+            where = urlsplit(call.url)
+            named.append(f"{call.method.upper()} {where.netloc}{where.path}")
+    return len(rest), named
 
 
 def values_for(workflow: Workflow) -> dict[str, str]:
@@ -265,8 +277,10 @@ async def main() -> int:
                     f"  {workflow.title[:44]}: stopped at step {stopper['order']}"
                     f" of {len(workflow.steps)} ({stopper['verdict']}) -- {stopper['reason']};"
                     f" {left} later step(s) never reached,"
-                    f" {mutating} of them carry a recorded mutation"
+                    f" {len(mutating)} of them carry a recorded mutation"
                 )
+                for call in mutating:
+                    print(f"      never withheld, never shown: {call}")
         print(
             f"{len(runs)} workflows / {steps} steps / {withheld} withheld /"
             f" {' '.join(f'{k}:{n}' for k, n in sorted(outcomes.items()))}"
@@ -294,11 +308,13 @@ async def main() -> int:
                     f"    nothing withheld: of the {reached} step(s) this run reached,"
                     f" none carries a recorded mutation"
                     + (
-                        f"; a recorded mutation sits in {mutating} of the {left} it never reached"
+                        f"; not so for {len(mutating)} of the {left} it never reached"
                         if mutating
                         else ""
                     )
                 )
+                for call in mutating:
+                    print(f"    never withheld, never shown: {call}")
             for held_back in run["withheld"]:
                 what = what_it_is(str(held_back.get("url") or ""))
                 kinds[what] = kinds.get(what, 0) + 1

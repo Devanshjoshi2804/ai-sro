@@ -92,6 +92,20 @@ definitions:
           # score, so the floor script is what decides the build.
           - make mutants
 
+    - step: &backend-mutation
+        name: Backend — mutation score floor
+        caches: [uv]
+        script:
+          - curl -LsSf https://astral.sh/uv/install.sh | sh
+          - export PATH="$HOME/.local/bin:$PATH"
+          - (cd backend && uv sync --all-extras)
+          # Scoped to `sro/application/skill/`, which is what turns a model's
+          # reading of a captured day into a Skill something goes and performs.
+          # Same shape as the rig step: `mutmut run` exits non-zero whenever any
+          # mutant survived, which is every run at this score, so the floor
+          # script is what decides the build.
+          - make mutants-backend
+
     - step: &contract-is-current
         name: Contract — the committed OpenAPI matches the code
         caches: [uv]
@@ -126,6 +140,9 @@ pipelines:
           - step:
               <<: *rig-mutation
               condition: { changesets: { includePaths: ["new_agent_arch/**"] } }
+          - step:
+              <<: *backend-mutation
+              condition: { changesets: { includePaths: ["backend/**"] } }
 
   branches:
     main:
@@ -136,3 +153,4 @@ pipelines:
           - step: *contract-is-current
           - step: *rig-quality
           - step: *rig-mutation
+          - step: *backend-mutation

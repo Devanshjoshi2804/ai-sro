@@ -743,6 +743,142 @@ reading plus four windows of mining, order $5–6 — extrapolated, not measured
 before the preview names were priced. The flag was doing its job; the table was
 missing a row.
 
+## A run performs
+
+Verification 6 and 7 need two things this work could not supply: the operator's
+own Chrome with the extension pointed at the rig, and a WMS session. So the
+part that can be measured unattended was measured, and the part that needs a
+person is written down below as the measurement it is, with the commands.
+
+### The chain, against a fake browser (measured)
+
+`new_agent_arch/scripts/dry_run.py` starts every workflow in the store dry, over
+`POST /v1/runs`, against a `FakeChannel` that answers every look and every
+perform as a success and an asker that is not a model: it plans `ui.perform`
+with the primary gesture's own kind and holds every verification. It works on a
+copy of `rig.db` in a temp directory — the live file is opened read-only and
+still holds zero runs afterwards, which the script's last line checks.
+
+```
+cd new_agent_arch && uv run python scripts/dry_run.py
+```
+
+| workflow | steps | withheld | outcome | cost | verdicts |
+|---|---|---|---|---|---|
+| Login and Start Recording | 5 | 2 | held | not asked | held:3 withheld:2 |
+| Create a Warehouse Equipment Type | 7 | 1 | held | not asked | held:6 withheld:1 |
+| Create Work Area NEWTESTS | 8 | 2 | held | not asked | held:6 withheld:2 |
+| Create Work Area TWOTEST | 8 | 1 | held | not asked | held:7 withheld:1 |
+| Search and Filter Work Areas | 2 | 0 | stopped | not asked | held:1 skipped:1 |
+| Create Work Area Operation NEWTEST4 | 1 | 0 | stopped | not asked | skipped:1 |
+| Create Carrier Cross Reference for Test Drive LLC | 10 | 2 | held | not asked | held:8 withheld:2 |
+| Create Work Activity TEST1 | 7 | 2 | held | not asked | held:5 withheld:2 |
+
+8 workflows / 48 steps / 10 withheld / held:6 stopped:2. Both stops are the
+runner refusing to walk past a step nobody watched succeed: *Search and Filter
+Work Areas* step 2 and *Create Work Area Operation NEWTEST4* step 1 are
+`skipped` — "no cited gesture can be acted on" — and a run does not continue
+past one. Cost is not `$0.0000`: **no model was asked**, so these records carry
+no tokens at all, which is the absence of a bill rather than a cheap run.
+
+The ten withheld writes are printed in full by the script — planned kind, the
+locator list the payload carries, and the recorded `method`, `url` and `body`.
+Six are real WMS mutations (`POST …/wm/workAreas` with `{"workArea":"NEWTESTS"…}`
+and `{"workArea":"TWOTEST"…}`, `…/wm/equipmentTypes`, `…/wm/carrierCrossReferences`,
+`…/wm/activityCodes`), the rest are the incidental POSTs the pages make
+(`sessionKeepAlive`, a performance-entry batch, an analytics beacon, the
+recorder's own `finish` call). Exactly one `«redacted»` marker survives into
+them — a Google analytics cookie inside a query string — and it is printed as it
+stands rather than re-redacted; a withheld record carries no headers at all, and
+what a plan does send goes through `wire.headers_without_markers` first.
+
+**What that proves:** the chain from the door to the record. `POST /v1/runs`
+claims the run and answers 202; the runner reads the row back, builds the
+allowlist and the locators from the cited evidence, asks a planner, refuses or
+sends over the channel, verifies, bills, and saves after every step;
+`GET /v1/runs/{id}` reads the whole thing back, withheld writes included. The
+dry-first rule holds on real mined evidence: every step whose evidence carries a
+mutation was withheld and shown.
+
+**What it does not prove**, and nothing below should be read as if it did:
+
+- **No real browser.** Nothing matched a locator against a DOM. `matched_by:
+  "component"` was asserted by the fake, so the health signal that says a step
+  is about to break is untested against a real page.
+- **No WMS.** No session, no server; no write left the process and no read came
+  back. `verify`'s strongest rung — a confirming read of hidden state — never
+  ran: none of the eight workflows declares a parameter, so every run's `values`
+  was `{}`, and that rung needs a value to look for.
+- **No model.** Both the plan and the verdict were fixed answers. Whether Flash
+  picks the right command for a step, whether it navigates when it is on the
+  wrong page, whether Pro rescues a step Flash lost, and whether the verifier can
+  tell a failure from a green toast are all unmeasured.
+- **No parameters fired live.** With no declared parameters there was nothing to
+  substitute, so the form's prefill and the value-into-control path are exercised
+  by tests only.
+
+### The real one, for whoever has the browser (not yet performed)
+
+1. **Start the rig.** `cd new_agent_arch && make serve` — `uvicorn rig.api:app`
+   on `:8100`, reading `new_agent_arch/.env`. With no `RIG_GEMINI_API_KEY` it
+   refuses at startup and names the variable; a run needs a real key, since the
+   planner and the verifier are the model.
+2. **Point the extension at it.** `chrome://extensions` → this extension →
+   *Extension options* → the **Rig** section: **Rig URL** `http://localhost:8100`,
+   **Rig token** the value of `RIG_INGEST_TOKEN` from `new_agent_arch/.env`.
+   Save. The extension dials `ws://localhost:8100/v1/agents/<device>/commands`
+   on its own; nothing on the rig can reach into a browser that has not dialled.
+3. **Confirm the rig sees the browser.**
+   `curl -s -H "Authorization: Bearer $RIG_INGEST_TOKEN" http://localhost:8100/v1/devices`
+   must list one device id. That id is what the run form's picker offers; an
+   empty list means the socket is not up, and no run can be started (`409`).
+4. **Sign in to the WMS in that same Chrome** —
+   `https://bf56-kms-wms-web-np2.jdadelivers.com` — and leave the tab open. The
+   run drives that session; there is no server-side login.
+5. **Dry run.** Open `http://localhost:8100/`, find **Create Work Area
+   NEWTESTS**, press **run**, pick the device, leave **live** unticked, start.
+   The page polls the run and, under *what a live run would have sent*, prints
+   the withheld `POST …/wm/workAreas`. Read it before going further: it is the
+   whole point of the first execution being dry.
+6. **Record what happened.** Per step: `verdict`, `verdict_by`, `matched_by`,
+   `before_url`/`after_url`, and whether `stale` was set (a step that only ever
+   matched on `css_path` is a step about to break). Then the withheld POST, the
+   run's `cost_usd` (and `unpriced`), and the extension's own `sro.lastError`,
+   which the panel shows as a *Last error* card.
+   `curl -s -H "Authorization: Bearer $RIG_INGEST_TOKEN" http://localhost:8100/v1/runs/<run_id>`
+   is the same record the page is drawing.
+7. **Then live.** Same form, **live** ticked. Watch four things while it runs:
+   the **band across the page** that says a run is driving it (it takes itself
+   away if nothing refreshes it); the panel's run card, one row per step, where
+   `✓` is held, `⏸` withheld, `✗` failed or refused, `○` not reached — and the
+   **Stop this run** button, which is the only stop there is; the rig holding
+   commands while you type (the extension sends `busy`, and the rig waits out
+   part of the deadline rather than fighting for the keyboard); and whether the
+   supplier of the value — here the work area — actually exists in the WMS
+   afterwards. A second press against the same browser is refused with `409`
+   while the first run is still going: one browser, one hand.
+8. **The boundary.** A step whose plan names an origin the job's own evidence
+   does not is `refused` before anything is sent, and the record says
+   `<origin> is not a system this job's evidence names`. Note what the allowlists
+   actually are, because it changes the measurement the plan expected: *Create
+   Work Area NEWTESTS* and *Create Work Area TWOTEST* are the **same origin**
+   (`https://bf56-kms-wms-web-np2.jdadelivers.com`), so pointing one job at the
+   other's write is not a cross-origin refusal and will not produce a `refused`
+   step. Six of the eight workflows allow that one host and nothing else; only
+   *Login and Start Recording* spans several (`workspace.google.com`,
+   `b2clogin.com`, the Keycloak host, `localhost:3000`, `localhost:8000`,
+   `analytics.google.com`). A live `refused` therefore cannot be provoked from
+   the form — the planner chooses the origin, and on this evidence it has one to
+   choose from. What can be recorded is the negative: **no** step of a live run
+   ever sent to an origin outside the job's list. The positive is held by
+   `tests/test_runner.py::test_an_origin_outside_the_evidence_is_refused_before_it_is_sent`,
+   and would be measurable live only against evidence that spans two hosts —
+   which is the same two-system capture verification 1 is still waiting for.
+
+Until this section is rewritten with those numbers in it, **verification 6 and 7
+are not done.** The dry run above proves the chain; only the real one proves the
+claim.
+
 ## Verification of the whole
 
 | # | claim | result |
@@ -764,6 +900,7 @@ published without its harness, and when a reviewer rebuilt it from the prose
 they got a different answer with nothing to arbitrate between the two.
 
 ```
+new_agent_arch/scripts/dry_run.py     the whole run loop against a fake browser, no model
 new_agent_arch/scripts/measure.py     the mining instrument: A/B over evidence sets
 new_agent_arch/scripts/rotate.py      the pool rotation table, pack and the pool alone
 new_agent_arch/scripts/compare.py     the rig's workflows against the pipeline's

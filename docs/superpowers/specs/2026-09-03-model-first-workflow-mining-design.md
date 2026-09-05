@@ -40,7 +40,7 @@ Each was the owner's, chosen from alternatives offered:
 | Evidence source | **Live from the extension.** Its own ingest endpoint; the extension dual-posts. Not a replay of stored recordings. |
 | Umbrella trigger | **Sliding window.** Fires as new gestures accumulate, continuously. Not idle-triggered, not on demand. |
 | What a proven workflow becomes | **Executable.** The full loop, not an inspection report. |
-| How it executes | **The model plans, the extension performs.** The frozen `docs/14` command channel, in the operator's own Chrome. Not server-side computer use, not parameter substitution into recorded calls. |
+| How it executes | **The model plans, the extension performs.** The frozen `docs/14` command channel, in the operator's own Chrome. Not server-side computer use, not parameter substitution into recorded calls. `backend/src/sro/application/skill/from_rig.py` and its siblings turn a mined workflow into the backend's skill shape — recorded calls with values substituted — for the backend's promotion ladder. That is the governance path anything unattended must pass through; it is not how a run performs. `new_agent_arch/src/rig/runner.py` is. |
 | Starting a run | **Chat, with the form as fallback.** |
 | Streams | **Multi-stream from day one.** Carryover is tenant-wide, so one operator's leftover intent can complete against another's evidence. |
 | Reuse | **The backend may be reused.** Wire schemas, the Gemini client, blob storage, config — never `observation/`, `induction/`, `domain/skill/` or Temporal. |

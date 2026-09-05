@@ -126,6 +126,14 @@ def _learn_parameters(
     something. Nothing is removed: a control that stopped varying may simply
     not have been reached this time, and forgetting a parameter on that
     evidence would be worse than carrying one too many.
+
+    ponytail: read-modify-write across two connections against an INSERT OR
+    REPLACE. `one_at_a_time("mining")` is an asyncio.Lock keyed per event loop,
+    so it serialises passes inside ONE process and nothing between two -- a
+    `trial.sh` running beside a serving API can lose a widening. The lost
+    update is a parameter value, not a workflow, and the next doing of the job
+    re-derives it; a real fix is a transaction around the read and the save,
+    worth doing when anything actually mines concurrently.
     """
     stored = next((w for w in known_workflows(store, tenant) if w.id == known_id), None)
     if stored is None:

@@ -279,3 +279,28 @@ def test_a_constant_that_happens_to_equal_a_parameters_value_stays_literal() -> 
     plans = plans_for_workflow(TWO_PARAMETERS, gestures)[0][1]
 
     assert plans[1].value is not None and plans[1].value.raw == "Active", "not a parameter"
+
+
+def test_a_dollar_in_a_recorded_value_is_a_dollar_and_not_a_parameter() -> None:
+    """`Template` is `string.Template`, so `$` starts a placeholder. A price,
+    a shell fragment or a template the operator typed literally would report
+    itself as a parameter the plan needs, and `render` then raises KeyError or
+    substitutes something nobody typed. Nothing is a parameter here unless a
+    binding says so."""
+    gestures = {"g": {"kind": "type", "value": "Total $AMOUNT due", "target": EXTJS}}
+
+    plans = plans_for_workflow({"steps": [{"order": 0, "says": "x", "cites": ["g"]}]}, gestures)
+
+    plan = plans[0][1][0]
+    assert plan.value is not None
+    assert plan.placeholders == frozenset(), "it names no parameter"
+    assert plan.value.render({}) == "Total $AMOUNT due", "and renders back to itself"
+
+
+def test_a_dollar_in_a_css_path_is_not_a_parameter_either() -> None:
+    """Same rule, the other string. A locator is never a binding."""
+    target = {"role": "textbox", "name": "Code", "cssPath": "div[data-x='$y'] > input"}
+    plan = plan_for_gesture({"kind": "click", "target": target})
+
+    assert plan is not None
+    assert all(locator.query.placeholders == frozenset() for locator in plan.locators)

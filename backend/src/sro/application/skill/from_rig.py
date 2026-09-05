@@ -76,6 +76,20 @@ def _mapping(value: object) -> Mapping[str, object]:
     return value if isinstance(value, Mapping) else {}
 
 
+def _literal(text: str) -> Template:
+    """A recorded string as a template that means only itself.
+
+    `Template` is `string.Template`, so `$` starts a placeholder: a value of
+    `A$B` reports `{"B"}` as a parameter it needs, and `render` then either
+    raises KeyError or quietly substitutes something the operator never typed.
+    Nothing here is a parameter unless a binding says so, and a `$` in a
+    recorded value or a css path is a `$` the operator saw. Measured over the
+    real corpus: 0 values and 0 css paths contain one, which is the reason this
+    is a guard rather than a bug report.
+    """
+    return Template(raw=text.replace("$", "$$")) if "$" in text else Template(raw=text)
+
+
 def locators_for(target: Mapping[str, object] | None) -> tuple[ControlLocator, ...]:
     """The ladder for one element, strongest strategy first.
 
@@ -104,9 +118,7 @@ def locators_for(target: Mapping[str, object] | None) -> tuple[ControlLocator, .
         if raw:
             rungs.append((strategy, raw))
 
-    return tuple(
-        ControlLocator(strategy=strategy, query=Template(raw=raw)) for strategy, raw in rungs
-    )
+    return tuple(ControlLocator(strategy=strategy, query=_literal(raw)) for strategy, raw in rungs)
 
 
 def fingerprint_for(target: Mapping[str, object] | None) -> ElementFingerprint | None:
@@ -267,14 +279,15 @@ def plan_for_gesture(
     # job that happens to equal some parameter's value turns into a `$name`
     # the runner will substitute. This is one equality test against a field
     # already in the gesture, not a second implementation of the naming rule.
+    template = _literal(value) if value else None
     if value and bindings:
         name = _control(target)
         if name and value in bindings.get(name, ()):
-            value = f"${name}"
+            template = Template(raw=f"${name}")
     return UiPlan(
         action=action,
         target=fingerprint_for(target),
-        value=Template(raw=value) if value else None,
+        value=template,
         locators=locators,
     )
 

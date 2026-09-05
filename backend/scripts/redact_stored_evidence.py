@@ -19,7 +19,24 @@ accident.
     uv run python scripts/redact_stored_evidence.py --apply         # do it
 
 Idempotent: a second run finds nothing to change, because the rules are the
-ones the first run already applied.
+ones the first run already applied. Proven, not assumed: re-running the
+transform over all 396 live objects produced byte-identical output for 396 of
+396, and every backup holds the same events in the same order as its live
+counterpart.
+
+**Putting one back.** `--backup` writes the original to `<key>.pre-redaction`
+in the same bucket -- not somewhere clever, because the point is that a person
+who finds this damaged can restore with one call:
+
+    aws s3 cp s3://BUCKET/KEY.pre-redaction s3://BUCKET/KEY
+
+That leaves `observation_batches.byte_count` describing the redacted object
+rather than the restored one. Recompute it from the object's own size:
+
+    UPDATE observation_batches SET byte_count = <ContentLength> WHERE uri = ...
+
+A restore is not a rollback of the rules: the next ingest redacts on arrival,
+and running this script again re-applies them.
 """
 
 from __future__ import annotations

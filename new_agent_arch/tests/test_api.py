@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import sqlite3
+import time
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -1861,8 +1862,6 @@ def test_a_run_is_started_from_the_form_door_and_can_be_read_back(
     assert started.status_code == 202
     run_id = started.json()["run_id"]
 
-    import time
-
     for _ in range(50):
         body = client.get(f"/v1/runs/{run_id}", headers=_auth()).json()
         if body["outcome"] != "running":
@@ -2296,3 +2295,66 @@ def test_an_offer_with_a_fate_nobody_named_is_refused(client: TestClient, store:
 
     body["fate"], body["workflow_id"] = "accepted", "wfl_nope"
     assert client.post("/v1/offers", json=body, headers=_auth()).status_code == 400
+
+
+def test_a_run_can_start_where_the_operator_left_off(client: TestClient, store: Store) -> None:
+    """The offer's Yes. The operator typed the code themselves; the rig is
+    being asked to finish the job, not to do it again."""
+    from rig.channel import Answer as Reply
+    from rig.channel import FakeChannel
+    from rig.runs import load_run
+
+    _seed_workflow(store)
+    client.app.state.channel = FakeChannel(
+        {
+            "ui.url": [Reply(ok=True, result={"url": "http://127.0.0.1:63319/form"})] * 4,
+            "screenshot": [
+                Reply(ok=True, result={"image_base64": "aVBORw0=", "text_digest": "Save"})
+            ]
+            * 4,
+            "ui.perform": [Reply(ok=True, result={"performed": True, "matched_by": "component"})],
+        }
+    )
+    client.app.state.asker = FakeAsker(
+        Answer(
+            data={"kind": "ui.perform", "action": "click", "value": None, "url": None, "why": ""}
+        ),
+        Answer(data={"held": True, "why": ""}),
+    )
+    body = {
+        "workflow_id": "wfl_1",
+        "values": {"clientCode": "A"},
+        "device_id": "dev_test",
+        "live": False,
+        "from_step": 1,
+    }
+
+    got = client.post("/v1/runs", json=body, headers=_auth())
+
+    assert got.status_code == 202
+    run_id = got.json()["run_id"]
+    for _ in range(50):
+        if client.get(f"/v1/runs/{run_id}", headers=_auth()).json()["outcome"] != "running":
+            break
+        time.sleep(0.05)
+    run = load_run(store, "new", run_id)
+    assert run is not None and run.steps[0].verdict == "done_by_operator"
+    assert run.steps[0].sent is None, "the operator's own step was never sent to the browser"
+
+
+def test_a_from_step_past_the_job_is_refused(client: TestClient, store: Store) -> None:
+    from rig.channel import FakeChannel
+
+    _seed_workflow(store)
+    client.app.state.channel = FakeChannel()
+    body: dict[str, Any] = {
+        "workflow_id": "wfl_1",
+        "values": {"clientCode": "A"},
+        "device_id": "dev_test",
+        "from_step": 2,
+    }
+    assert client.post("/v1/runs", json=body, headers=_auth()).status_code == 400
+    body["from_step"] = -1
+    assert client.post("/v1/runs", json=body, headers=_auth()).status_code == 400
+    body["from_step"] = True
+    assert client.post("/v1/runs", json=body, headers=_auth()).status_code == 400

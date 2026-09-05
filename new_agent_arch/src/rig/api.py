@@ -838,6 +838,22 @@ def build_app(
                 status_code=400, detail=f"this job needs a value for: {', '.join(absent)}"
             )
 
+        # Which step to start on. The extension offers to finish a job the
+        # operator has already begun, and its Yes says how far they got. A
+        # bool is not a step number here: `True` would start a two-step job at
+        # its second step because Python says so, not because anyone asked.
+        from_step = body.get("from_step", 0)
+        if (
+            isinstance(from_step, bool)
+            or not isinstance(from_step, int)
+            or from_step < 0
+            or from_step >= len(workflow.steps)
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail=f"from_step must be a step of this job (0..{len(workflow.steps) - 1})",
+            )
+
         # Claimed here, not by the task. Written inside `run_workflow`, the
         # `running` row appears only once the spawned task gets its first slice,
         # and a second press arriving in that window reads no busy run and puts
@@ -873,6 +889,7 @@ def build_app(
                 allow_focus=bool(body.get("allow_focus", True)),
                 started_by=str(body.get("started_by") or "form"),
                 run_id=run_id,
+                from_step=from_step,
             )
         )
         return {"run_id": run_id}

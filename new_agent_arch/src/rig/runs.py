@@ -14,7 +14,18 @@ the run stopped to ask. refused: a planned command named an origin outside the
 allowlist, or the step budget ran out. aborted: the stop button. failed: the
 browser went away."""
 
-VERDICTS = ("held", "failed", "unclear", "withheld", "refused", "skipped")
+VERDICTS = (
+    "held",
+    "failed",
+    "unclear",
+    "withheld",
+    "refused",
+    "skipped",
+    "awaiting",
+    "done_by_operator",
+)
+"""awaiting: shown to a person and waiting on their word. done_by_operator: the
+operator performed it themselves before the rig was asked to finish the job."""
 
 
 def new_run_id() -> str:

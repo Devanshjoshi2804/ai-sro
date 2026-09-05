@@ -3,6 +3,7 @@ import copy
 import json
 from collections.abc import Mapping
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -64,6 +65,25 @@ def _looks(n: int) -> dict[str, list[Reply]]:
         "screenshot": [Reply(ok=True, result={"image_base64": "aVBORw0=", "text_digest": "Save"})]
         * n,
     }
+
+
+class _per_schema_asker(FakeAsker):
+    """`FakeAsker`, answered by schema rather than by call order.
+
+    A run that starts mid-job asks a different number of questions than one
+    that starts at the top, and a positional queue has to be rewritten every
+    time that number moves. This one answers `verdict` to a verification and
+    `plan` to everything else -- the same split `scripts/dry_run.py` makes --
+    and still records every call in `.asked`.
+    """
+
+    def __init__(self, plan: Answer, verdict: Answer) -> None:
+        super().__init__()
+        self.plan, self.verdict = plan, verdict
+
+    async def ask(self, **asked: Any) -> Answer:
+        await super().ask(**asked)
+        return self.verdict if "held" in asked["schema"]["properties"] else self.plan
 
 
 def _navigate() -> Answer:
@@ -1146,3 +1166,38 @@ async def test_a_navigate_to_a_url_that_names_no_system_is_refused(tmp_path: Pat
     assert run.outcome == "refused" and run.steps[0].verdict == "refused"
     assert "about:blank" in run.steps[0].reason
     assert not [s for s in channel.sent if s["kind"] == "navigate"], "no origin is not permission"
+
+
+async def test_a_run_started_mid_job_records_the_operators_steps_and_performs_the_rest(
+    tmp_path: Path,
+) -> None:
+    store = _store(tmp_path)
+    wf = _workflow(store)
+    channel = FakeChannel(
+        {
+            **_looks(2),
+            "ui.perform": [Reply(ok=True, result={"performed": True, "matched_by": "component"})],
+        }
+    )
+    asker = _per_schema_asker(_plan("click"), Answer(data={"held": True, "why": "saved"}))
+
+    run = await run_workflow(
+        store,
+        wf,
+        values={"clientCode": "THIRD"},
+        channel=channel,
+        device_id="dev_test",
+        asker=asker,
+        plan_model="flash",
+        rescue_model="pro",
+        live=True,
+        allow_focus=True,
+        started_by="offer",
+        from_step=1,
+    )
+
+    assert [s.verdict for s in run.steps] == ["done_by_operator", "held"]
+    assert run.steps[0].verdict_by == "none" and wf.steps[0].cites[0] in run.steps[0].reason
+    assert run.steps[0].sent is None and run.steps[0].in_tokens == 0, "nothing asked, nothing sent"
+    assert [s["kind"] for s in channel.sent].count("ui.perform") == 1
+    assert run.outcome == "held"

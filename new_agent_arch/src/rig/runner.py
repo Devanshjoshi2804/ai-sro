@@ -226,6 +226,7 @@ async def run_workflow(
     allow_focus: bool,
     started_by: str,
     run_id: str | None = None,
+    from_step: int = 0,
 ) -> Run:
     # A run the caller already claimed. `POST /v1/runs` writes the `running` row
     # itself, before it answers, so a second press for the same browser is
@@ -260,7 +261,11 @@ async def run_workflow(
     save_run(store, run)
     by_id = _gestures_for(store, workflow)
     allowed = allowlist(workflow, by_id)
-    budget = len(workflow.steps) + K_STEP_SLACK
+    ordered = sorted(workflow.steps, key=lambda s: s.order)
+    # The steps the operator already did cost nothing and are not attempted, so
+    # they buy no slack either: the budget is what is left to perform.
+    skipped_by_operator = [s for s in ordered if s.order < from_step]
+    budget = len(ordered) - len(skipped_by_operator) + K_STEP_SLACK
     attempts = 0
     starts_on = None
     first = primary_gesture(workflow.steps[0], by_id) if workflow.steps else None
@@ -272,7 +277,24 @@ async def run_workflow(
     # than a fabricated one whose order can collide on (run_id, ord).
     in_flight: RunStep | None = None
     try:
-        for step in sorted(workflow.steps, key=lambda s: s.order):
+        for step in ordered:
+            if step.order < from_step:
+                # The operator did this one before the offer was made. Recorded
+                # so the run reads whole, cited so a reviewer can see what it
+                # was, and never sent: the job is being finished, not redone.
+                run.steps.append(
+                    RunStep(
+                        order=step.order,
+                        says=step.says,
+                        verdict="done_by_operator",
+                        verdict_by="none",
+                        reason="performed by the operator before the offer; cites "
+                        + ", ".join(step.cites),
+                    )
+                )
+                _total(run)
+                save_run(store, run)
+                continue
             if Aborts.is_aborted(run.id):
                 await channel.send(
                     device_id, kind="abort", run_id=run.id, payload={"run_id": run.id}

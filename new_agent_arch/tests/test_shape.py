@@ -1,8 +1,12 @@
 import copy
+import json
+from pathlib import Path
 
 from rig.correlate import correlate
+from rig.records import Gesture
 from rig.shape import containment, jaccard, shape_key, target_identity
 from rig.wire import Batch, Target
+from rig.wire import Gesture as WireGesture
 from tests.fixtures import BATCH
 
 
@@ -92,3 +96,28 @@ def test_containment_of_disjoint_sets_is_zero() -> None:
 def test_containment_of_empty_sets_does_not_divide_by_zero() -> None:
     assert containment(set(), set()) == 0.0
     assert containment({("a", "x", "click")}, set()) == 0.0
+
+
+FIXTURE = Path(__file__).resolve().parents[2] / "new-chrome-extension/fixtures/shape-identity.json"
+
+
+def test_the_python_identity_agrees_with_the_shared_fixture() -> None:
+    """The rule lives twice -- here and in the extension's generated twin --
+    so it is held to one fixture rather than to two readings of one sentence."""
+    for case in json.loads(FIXTURE.read_text()):
+        wire = WireGesture.model_validate(
+            {"kind": case["kind"], "target": case["target"], "at": 0.0, "value": None}
+        )
+        gesture = Gesture(
+            id="g",
+            tenant="t",
+            stream_id="s",
+            batch_id="b",
+            at=0.0,
+            url=None,
+            system=None,
+            tab_id=None,
+            frame_url=None,
+            gesture=wire,
+        )
+        assert target_identity(gesture) == case["identity"], case["name"]

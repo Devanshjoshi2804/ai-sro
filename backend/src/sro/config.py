@@ -122,24 +122,39 @@ class Settings(BaseSettings):
     Also `our_own_hosts` below, which is a different kind of wrong: too NARROW
     there and the evidence plane records this system recording."""
 
+    console_url: str = "http://localhost:3000"
+    """Where this deployment's own console is served.
+
+    Read for one purpose: `our_own_hosts`, so the operator's own console is
+    never recorded as warehouse work. `cors_origins` cannot stand in for it --
+    that list is browser origins allowed to CALL this API, and a console served
+    same-origin or proxied through its own server is not in it. This deployment
+    is exactly that shape: `cors_origins` holds only the extension, and the
+    console at :3000 was being captured with nothing to name it.
+    """
+
     def our_own_hosts(self) -> frozenset[str]:
         """This deployment's own API and console, as host:port.
 
         Never observable, and no operator grant widens them -- `admit` refuses
         them ahead of the tenant's policy. The operator had the console open in
-        a tab while demonstrating and the extension captured it asking the API
-        for its own recordings: twelve requests in the real store, one of them a
-        POST that a mined workflow reported as the write its job performs.
+        a tab while demonstrating, and the extension captured both halves: the
+        console page itself (7 gestures in the real store) and the console
+        asking the API for its own recordings (12 requests, one of them a POST
+        that a mined workflow then reported as the write its job performs).
 
         Host AND port, because an API on 8000 beside a console on 3000 is the
         ordinary shape and a hostname alone would refuse `localhost` entirely --
         which on a developer's machine is also where the warehouse test server
-        lives. `cors_origins` is the console's own origin by definition: it is
-        the list of browser origins allowed to call this API.
+        and the extension's own fixtures are served from.
+
+        `cors_origins` is included as well, because an origin trusted to call
+        this API is part of this system by definition. It is not a substitute
+        for `console_url`: a same-origin or proxied console never appears in it.
         """
         return frozenset(
             netloc
-            for url in (self.api_url, *self.cors_origins)
+            for url in (self.api_url, self.console_url, *self.cors_origins)
             if (netloc := urlsplit(url if "//" in url else f"//{url}").netloc.lower())
         )
 

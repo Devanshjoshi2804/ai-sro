@@ -132,3 +132,24 @@ def test_a_deployment_that_names_no_hosts_of_its_own_refuses_nothing_extra() -> 
     """The parameter defaults to empty, so every existing caller behaves as it
     did. A rule this quiet must not change what it was not given."""
     assert admit([_at("http://localhost:8000/v1/x")], ON).accepted_count == 1
+
+
+def test_the_console_page_is_named_by_a_setting_and_not_by_the_cors_list() -> None:
+    """`cors_origins` is browser origins allowed to CALL the API, and a console
+    served same-origin or proxied through its own server never appears in it.
+    This deployment is exactly that shape -- `cors_origins` holds only the
+    extension -- so the console's own page had nothing naming it and was
+    captured: 7 gestures in the real store, beside the 12 requests its API
+    calls contributed."""
+    from sro.config import Settings
+
+    ours = Settings(
+        api_url="http://localhost:8000",
+        console_url="http://localhost:3000",
+        cors_origins=("chrome-extension://abc",),
+    ).our_own_hosts()
+
+    assert ours == {"localhost:8000", "localhost:3000", "abc"}
+
+    admission = admit([_at("http://localhost:3000/skills")], ON, ours=ours)
+    assert admission.accepted == ()

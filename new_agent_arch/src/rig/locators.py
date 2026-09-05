@@ -50,12 +50,29 @@ def locators_for(gesture: Gesture) -> list[dict[str, Any]]:
 
 
 def origin_of(gesture: Gesture) -> str | None:
-    """Scheme and host of the first call that names a system, else of the page."""
-    for request in gesture.requests:
-        system = system_of(request.url)
-        if system:
-            return system
-    return gesture.system or system_of(gesture.url)
+    """Scheme and host of the page the gesture happened on -- else of the first
+    call that completed and names a system, else of any call that names one.
+
+    The page first, and this inverts A13's written order on purpose. Every
+    consumer of `origin` -- `ui.url`, `screenshot`, the tab `ui.perform` acts
+    in -- is about the page the operator was on; `http.send` carries its own
+    url and the extension picks a tab from that, so the request host never
+    decided the tab. Request-first also had a real failure: a call that never
+    completed can be the earliest on a gesture, and a run steered at a dead
+    host spends its retries there.
+    """
+    page = gesture.system or system_of(gesture.url)
+    if page:
+        return page
+    named = [system_of(r.url) for r in gesture.requests]
+    completed = [
+        s
+        for r, s in zip(gesture.requests, named, strict=True)
+        if s and r.status is not None and not r.failure_reason
+    ]
+    if completed:
+        return completed[0]
+    return next((s for s in named if s), None)
 
 
 def primary_gesture(step: Step, by_id: Mapping[str, Gesture]) -> Gesture | None:

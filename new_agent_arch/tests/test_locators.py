@@ -71,13 +71,29 @@ def test_a_scroll_has_no_ladder_and_a_step_citing_only_scrolls_has_no_primary() 
     )
 
 
-def test_origin_prefers_the_call_and_falls_back_to_the_page() -> None:
+def test_origin_is_the_page_and_a_call_only_when_the_page_has_none() -> None:
     gestures = _gestures()
     with_calls = next(g for g in gestures if g.requests)
     without = next(g for g in gestures if not g.requests)
     with_calls.requests[0].url = "https://wms.example/data/x"
-    assert origin_of(with_calls) == "https://wms.example"
+
+    # The page wins even though a call names somewhere else entirely.
+    assert origin_of(with_calls) == "http://127.0.0.1:63319"
     assert origin_of(without) == "http://127.0.0.1:63319"
+
+    with_calls.url, with_calls.system = None, None
+    assert origin_of(with_calls) == "https://wms.example"
+
+
+def test_origin_skips_a_call_that_never_completed() -> None:
+    gesture = copy.deepcopy(next(g for g in _gestures() if g.requests))
+    gesture.url, gesture.system = None, None
+    dead, live = gesture.requests[0], gesture.requests[1]
+    dead.url, dead.status, dead.failure_reason = "http://127.0.0.1:1/x", None, "Failed to fetch"
+    live.url, live.status, live.failure_reason = "https://wms.example/y", 200, None
+    gesture.requests = [dead, live]
+
+    assert origin_of(gesture) == "https://wms.example"
 
 
 def test_the_allowlist_is_every_system_the_evidence_names_and_nothing_else() -> None:
@@ -93,9 +109,12 @@ def test_the_allowlist_is_every_system_the_evidence_names_and_nothing_else() -> 
         steps=[Step(order=0, says="s", system=None, cites=[g.id for g in gestures])],
     )
 
-    # 127.0.0.1:1 is the fixture's deliberately failed fetch: a call that never
-    # landed still names an origin this session reached for, and the allowlist
-    # is what the evidence names, not what it got an answer from.
+    # 127.0.0.1:1 is the fixture's deliberately failed fetch. The allowlist is
+    # unfiltered on purpose: a call that never landed still names an origin this
+    # session reached for, and the allowlist is what the evidence names rather
+    # than what it got an answer from. `origin_of` makes the opposite call for
+    # the opposite reason -- it steers a browser, so it takes the page first and
+    # a failed call last, and never points a run at a host that is already dead.
     assert allowlist(wf, by_id) == {
         "http://127.0.0.1:63319",
         "http://127.0.0.1:1",

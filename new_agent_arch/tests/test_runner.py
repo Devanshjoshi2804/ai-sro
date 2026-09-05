@@ -10,6 +10,7 @@ import pytest
 from rig.api import save_batch
 from rig.channel import Answer as Reply
 from rig.channel import DeviceUnreachable, FakeChannel
+from rig.effects import record_effect
 from rig.models import Answer, FakeAsker
 from rig.planner import PLAN_SCHEMA
 from rig.runner import K_STEP_SLACK, Aborts, Approvals, run_workflow
@@ -673,7 +674,12 @@ async def test_the_record_keeps_what_the_browser_answered_not_what_it_answered_w
     )
 
     assert run.steps[0].verdict == "held" and run.steps[0].verdict_by == "status"
-    assert run.steps[0].result == {"ok": True, "status": 200, "matched_by": None}
+    assert run.steps[0].result == {
+        "ok": True,
+        "status": 200,
+        "matched_by": None,
+        "wrote": True,
+    }, "the three facts and the write marker; not the body, not the cookie"
 
 
 async def test_a_failed_reply_keeps_the_error_kind_as_its_own_field(tmp_path: Path) -> None:
@@ -1536,3 +1542,80 @@ async def test_a_click_the_capture_heard_nothing_from_also_waits(tmp_path: Path)
     run = await task
     assert run.outcome == "held"
     assert len([s for s in channel.sent if s["kind"] == "ui.perform"]) == 1
+
+
+def _replay() -> Answer:
+    """The planner's one way to send a write as a call: replay the recorded
+    one. The url is never the model's -- `plan_step` takes it off the
+    evidence -- so `url: None` here is the honest shape of that answer."""
+    return Answer(
+        data={"kind": "http.send", "action": None, "value": None, "url": None, "why": "w"}
+    )
+
+
+async def test_a_held_write_verified_by_state_is_recorded_as_an_effect(tmp_path: Path) -> None:
+    store = _store(tmp_path)
+    wf = _one_step(store, _ids(store)[-1])
+    channel = FakeChannel(
+        {
+            **_looks(4),
+            # 200 is what the capture's POST returned, and `expected_statuses`
+            # is what "held by status" is measured against.
+            "http.send": [Reply(ok=True, result={"status": 200, "body": "{}", "headers": {}})],
+        }
+    )
+    asker = _per_schema_asker(plan=_replay(), verdict=Answer(data={"held": True, "why": "ok"}))
+
+    run = await run_workflow(
+        store,
+        wf,
+        values={"clientCode": "THIRD"},
+        channel=channel,
+        device_id="dev_test",
+        asker=asker,
+        plan_model="flash",
+        rescue_model="pro",
+        live=True,
+        allow_focus=True,
+        started_by="offer",
+        earned=lambda _wid: True,
+    )
+
+    assert run.outcome == "held"
+    assert run.steps[-1].result is not None and run.steps[-1].result.get("wrote") is True
+    rows = store.query(
+        "SELECT run_id, ord, verified_by FROM workflow_effects WHERE workflow_id = ?", (wf.id,)
+    )
+    assert [tuple(r) for r in rows] == [(run.id, 0, "status")]
+
+
+async def test_a_failed_write_forgets_the_effects_the_workflow_had_earned(tmp_path: Path) -> None:
+    store = _store(tmp_path)
+    wf = _one_step(store, _ids(store)[-1])
+    record_effect(store, workflow_id=wf.id, run_id="run_old", order=0, verified_by="status", at="t")
+    channel = FakeChannel(
+        {
+            # Two rungs: a write the server refused is the one write that is
+            # safe to plan again, so Pro gets its rescue and fails too.
+            **_looks(8),
+            "http.send": [Reply(ok=True, result={"status": 500, "body": "", "headers": {}})] * 2,
+        }
+    )
+    asker = _per_schema_asker(plan=_replay(), verdict=Answer(data={"held": True, "why": "ok"}))
+
+    await run_workflow(
+        store,
+        wf,
+        values={"clientCode": "THIRD"},
+        channel=channel,
+        device_id="dev_test",
+        asker=asker,
+        plan_model="flash",
+        rescue_model="pro",
+        live=True,
+        allow_focus=True,
+        started_by="offer",
+        earned=lambda _wid: True,
+    )
+
+    assert store.query("SELECT 1 FROM workflow_effects WHERE workflow_id = ?", (wf.id,)) == []

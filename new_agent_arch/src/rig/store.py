@@ -171,6 +171,20 @@ CREATE TABLE IF NOT EXISTS workflow_stale (
     PRIMARY KEY (workflow_id, ord)
 );
 
+-- One write a live run made and the verifier then saw hold by STATE -- a status
+-- the server answered, or a read that showed the record. Never by a picture: a
+-- model reading a screenshot is not evidence anything was written. Three runs
+-- whose every write is in here is what buys a job the right to write unasked,
+-- and one failed write empties it for that workflow.
+CREATE TABLE IF NOT EXISTS workflow_effects (
+    workflow_id TEXT NOT NULL,
+    run_id      TEXT NOT NULL,
+    ord         INTEGER NOT NULL,
+    verified_by TEXT NOT NULL,
+    at          TEXT NOT NULL,
+    PRIMARY KEY (workflow_id, run_id, ord)
+);
+
 -- Every offer the extension made from a recognised prefix, and what became of
 -- it. The labelled record of whether recognition was right: the share of
 -- `diverged` is what decides whether the prefix length ever moves.

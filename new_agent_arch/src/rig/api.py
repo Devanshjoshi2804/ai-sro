@@ -778,6 +778,7 @@ def build_app(
     async def start_run(body: dict[str, Any]) -> dict[str, Any]:
         """The press. A person opened a door and chose live or dry; the rig
         has no way to start a run on its own."""
+        from rig.effects import earned
         from rig.runner import run_workflow
         from rig.runs import Run, new_run_id, save_run
         from rig.workflows import known_workflows
@@ -892,6 +893,7 @@ def build_app(
                 started_by=str(body.get("started_by") or "form"),
                 run_id=run_id,
                 from_step=from_step,
+                earned=lambda workflow_id: earned(store, workflow_id),
             )
         )
         return {"run_id": run_id}

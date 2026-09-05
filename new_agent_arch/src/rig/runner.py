@@ -20,6 +20,7 @@ from typing import Any, ClassVar
 from rig.channel import Answer as Reply
 from rig.channel import Channel, DeviceUnreachable
 from rig.correlate import system_of
+from rig.effects import forget_effects, record_effect
 from rig.locators import allowlist, origin_of, primary_gesture, recorded_call, writes
 from rig.models import Answer, Asker
 from rig.planner import Look, Planned, plan_step
@@ -199,7 +200,7 @@ async def _look(
     return Look(url=url, screenshot=image, digest=digest)
 
 
-def _result(reply: Reply) -> dict[str, Any]:
+def _result(reply: Reply, *, wrote: bool = False) -> dict[str, Any]:
     """What the extension answered -- not what it answered WITH.
 
     An `http.send` reply carries the response body and headers, and `verify`
@@ -216,6 +217,11 @@ def _result(reply: Reply) -> dict[str, Any]:
         "status": status if isinstance(status, int) else None,
         "matched_by": matched if isinstance(matched, str) else None,
     }
+    if wrote:
+        # The one fact `earned` needs and cannot recompute: SQL cannot ask
+        # `writes()`, and the evidence a later reader would have to ask it
+        # about may have been re-mined by then.
+        shown["wrote"] = True
     if not reply.ok:
         shown["error_kind"] = reply.error_kind
     return shown
@@ -521,7 +527,7 @@ async def run_workflow(
                 reply = await channel.send(
                     device_id, kind=planned.kind, run_id=run.id, payload=planned.payload
                 )
-                record.result = _result(reply)
+                record.result = _result(reply, wrote=may_write)
                 record.matched_by = record.result["matched_by"] if reply.ok else None
                 after = await _look(channel, device_id, run.id, origin, allow_focus)
                 record.after_url = after.url
@@ -547,6 +553,20 @@ async def run_workflow(
                     if planned.kind == "ui.perform" and record.matched_by in K_WEAK_LOCATORS:
                         record.stale = True
                         mark_stale(store, workflow.id, step.order, record.matched_by)
+                    # A write this run made that the verifier saw hold by
+                    # state. `record_effect` drops anything decided by screen,
+                    # so the gate here is only "did this step write" -- the
+                    # same `may_write` the tap and the rescue gate use, so a
+                    # step marked `wrote` is a step that can earn.
+                    if live and may_write:
+                        record_effect(
+                            store,
+                            workflow_id=workflow.id,
+                            run_id=run.id,
+                            order=step.order,
+                            verified_by=verdict.by,
+                            at=_now(),
+                        )
                     break
                 # A write that went out and was accepted, and then could not be
                 # shown to have held, is not a step to try again: the second
@@ -569,6 +589,14 @@ async def run_workflow(
             if record.verdict == "skipped" and verdict is not None:
                 record.verdict, record.verdict_by = verdict.state, verdict.by
                 record.reason = verdict.reason
+
+            # A write that went out and did not hold un-earns the whole job:
+            # the next runs ask for a tap again. Read off the record rather
+            # than off `may_write`, which is scoped to a rung that may never
+            # have produced a command -- and which is the same marker, so a
+            # step that could not earn cannot un-earn either.
+            if live and record.verdict == "failed" and (record.result or {}).get("wrote"):
+                forget_effects(store, workflow.id)
 
             in_flight = None
             _total(run)

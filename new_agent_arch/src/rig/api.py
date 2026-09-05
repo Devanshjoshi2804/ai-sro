@@ -793,6 +793,10 @@ def build_app(
             )
         # One browser, one hand. Two runs driving the same window interleave
         # their clicks into a form neither of them can then read back.
+        # ponytail: a read-then-write, not a cross-worker lock -- sound because
+        # the rig runs one uvicorn worker, which the in-process channel and
+        # `Aborts` already require. A second worker needs a UNIQUE partial index
+        # on (tenant, device_id) where outcome = 'running'.
         busy = store.query(
             "SELECT id FROM runs WHERE tenant = ? AND device_id = ? AND outcome = 'running'"
             " ORDER BY started_at LIMIT 1",

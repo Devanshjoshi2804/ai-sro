@@ -12,7 +12,7 @@ from rig.channel import DeviceUnreachable, FakeChannel
 from rig.models import Answer, FakeAsker
 from rig.planner import PLAN_SCHEMA
 from rig.runner import K_STEP_SLACK, Aborts, run_workflow
-from rig.runs import load_run
+from rig.runs import Run, load_run, save_run
 from rig.store import Store
 from rig.wire import Batch
 from rig.workflows import Step, Workflow, save_workflow
@@ -1052,3 +1052,62 @@ async def test_a_run_cancelled_mid_step_is_not_left_saying_running(tmp_path: Pat
     assert saved is not None and saved.outcome == "failed"
     assert saved.steps[-1].reason == "interrupted before finishing"
     assert saved.steps[-1].order == 0, "the step it was working on, not a fabricated one"
+
+
+def _claimed(store: Store, **fields: str) -> Run:
+    """The row `POST /v1/runs` writes before it answers."""
+    run = Run(
+        id="run_claimed",
+        tenant="acme",
+        workflow_id="wfl_1",
+        device_id="dev_test",
+        values={},
+        started_by="form",
+        live=False,
+        allow_focus=True,
+        started_at="2026-01-01T00:00:00+00:00",
+    )
+    for name, value in fields.items():
+        setattr(run, name, value)
+    save_run(store, run)
+    return run
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [("device_id", "dev_other"), ("workflow_id", "wfl_other")],
+)
+async def test_a_claimed_run_that_disagrees_with_its_arguments_is_refused(
+    tmp_path: Path, field: str, value: str
+) -> None:
+    """The saved row is the authority for what a run is doing, so the two ways
+    into this function must agree. Driving the row's browser instead of the
+    caller's would put a hand on a window nobody asked about; driving the row's
+    workflow would perform a different job under this one's id. Neither is a
+    thing to guess between, and neither marks the row failed -- it belongs to
+    whoever saved it."""
+    store = _store(tmp_path)
+    wf = _workflow(store)
+    _claimed(store, **{field: value})
+    channel = FakeChannel(_looks(4))
+
+    with pytest.raises(ValueError, match="run_claimed"):
+        await run_workflow(
+            store,
+            wf,
+            values={},
+            channel=channel,
+            device_id="dev_test",
+            asker=FakeAsker(),
+            plan_model="flash",
+            rescue_model="pro",
+            live=False,
+            allow_focus=True,
+            started_by="form",
+            run_id="run_claimed",
+        )
+
+    assert channel.sent == [], "refused before anything reached a browser"
+    still = load_run(store, "acme", "run_claimed")
+    assert still is not None and still.outcome == "running" and still.finished_at is None
+    assert getattr(still, field) == value, "the row is left exactly as its owner saved it"

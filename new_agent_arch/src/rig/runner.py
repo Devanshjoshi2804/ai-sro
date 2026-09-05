@@ -234,6 +234,17 @@ async def run_workflow(
     # for -- read back here rather than rebuilt from the arguments, so there is
     # one answer to "what is this run doing" and not two that can drift.
     saved = load_run(store, workflow.tenant, run_id) if run_id else None
+    # The two ways in have to agree. Reading the row's `device_id` back when it
+    # disagrees with the argument would put a hand on a browser nobody asked
+    # about, and its `workflow_id` would perform a different job under this
+    # run's id -- both silent, and neither a thing to guess between. Refused
+    # before anything is sent and before the row is touched: a run whose
+    # arguments do not match it is not this caller's run to mark failed.
+    if saved is not None and (saved.device_id != device_id or saved.workflow_id != workflow.id):
+        raise ValueError(
+            f"{saved.id} was saved for {saved.workflow_id} on {saved.device_id},"
+            f" not {workflow.id} on {device_id}"
+        )
     run = saved or Run(
         id=run_id or new_run_id(),
         tenant=workflow.tenant,

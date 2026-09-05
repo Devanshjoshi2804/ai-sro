@@ -266,7 +266,11 @@
   function runView(run) {
     return `<div class="outcome">${esc(run.outcome)} ·
       <span class="spent${run.unpriced ? " unpriced" : ""}">${esc(money(run))}</span>
-      ${run.outcome === "running" ? `<button class="stop">stop</button>` : ""}</div>
+      ${
+        run.outcome === "running"
+          ? `<button class="stop">stop</button>`
+          : `<button class="close">close</button>`
+      }</div>
       ${(run.steps ?? []).map(ranStep).join("")}${withheldWrites(run)}`;
   }
 
@@ -288,18 +292,12 @@
     return said;
   }
 
-  // The runs this page is still polling. `drawJobs` reads it: a redraw
-  // replaces the div `watch` writes into, leaving the poll addressing a node
-  // that is no longer in the document.
-  const watching = new Set();
-
   const K_GIVE_UP_AFTER = 5;
 
   // Poll while it runs, and only while it runs: the other five OUTCOMES are
   // terminal, so a poll after one of them asks a question that can never come
   // back different.
   async function watch(runId, device, into, failures = 0) {
-    watching.add(runId);
     let run;
     try {
       run = await get(`/v1/runs/${encodeURIComponent(runId)}`);
@@ -316,8 +314,7 @@
       say.textContent = done
         ? `${error.message} — gave up watching after ${K_GIVE_UP_AFTER} tries`
         : error.message;
-      if (done) watching.delete(runId);
-      else setTimeout(() => watch(runId, device, into, failures + 1), 1000);
+      if (!done) setTimeout(() => watch(runId, device, into, failures + 1), 1000);
       return;
     }
     into.innerHTML = runView(run);
@@ -332,9 +329,13 @@
             ?.insertAdjacentHTML("beforeend", `<span class="error">${esc(error.message)}</span>`),
       );
     });
+    // Terminal outcomes leave the view on the page until the operator closes
+    // it: what a dry run would have sent is the whole point of a dry run, and
+    // it is worth nothing if the next redraw eats it.
+    into.querySelector(".close")?.addEventListener("click", () => {
+      into.innerHTML = "";
+    });
     if (run.outcome === "running") setTimeout(() => watch(runId, device, into), 1000);
-    // Terminal. The view stays; the lock on the job list does not.
-    else watching.delete(runId);
   }
 
   // Prefilled with the last value the recording actually carried, and
@@ -399,17 +400,36 @@
 
   let showing = "gestures";
 
+  // The three-second redraw replaces every card, and with it every runner box
+  // -- a half-typed form, the div a poll is writing into, the finished view a
+  // dry run left behind. Move the live nodes into the fresh cards rather than
+  // re-render them: re-rendering is exactly what loses the typed values and
+  // detaches the node the poll chain still holds a reference to.
+  //
+  // Holding the redraw off instead was the first attempt and it deadlocked --
+  // the redraw being skipped is the one that would have cleared the condition.
+  function carryOver(from, into) {
+    for (const box of from.querySelectorAll(".runner")) {
+      // An empty box is a card nobody opened; the fresh one is identical.
+      if (!box.innerHTML) continue;
+      // A workflow the fresh list no longer names has no card to move into,
+      // so its box is dropped with the rest of the old markup. A poll still
+      // running against it then writes to a detached node until the run ends,
+      // which is what "the job it was started from is gone" leaves to draw.
+      into.querySelector(`#${CSS.escape(box.id)}`)?.replaceWith(box);
+    }
+  }
+
   async function drawJobs() {
-    // The three-second redraw replaces every card, which takes an open runner
-    // with it. Two reasons to hold it off, both of which end on their own --
-    // "a form is open" does not, because the redraw that would remove the form
-    // is the one being held off, and the list stays frozen until a reload.
-    if (watching.size || document.querySelector(".runner :focus")) return;
     const { workflows } = await get("/v1/workflows");
-    document.getElementById("jobs").innerHTML = workflows.length
+    const jobs = document.getElementById("jobs");
+    const fresh = document.createElement("div");
+    fresh.innerHTML = workflows.length
       ? workflows.map(job).join("")
       : `<div class="none">nothing mined yet — POST /v1/mine</div>`;
-    for (const b of document.querySelectorAll("button.run")) {
+    carryOver(jobs, fresh);
+    jobs.replaceChildren(...fresh.childNodes);
+    for (const b of jobs.querySelectorAll("button.run")) {
       b.addEventListener("click", () =>
         openRunner(workflows.find((w) => w.id === b.dataset.id)));
     }

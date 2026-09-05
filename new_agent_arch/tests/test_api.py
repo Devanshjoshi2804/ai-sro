@@ -2174,6 +2174,8 @@ def test_the_page_escapes_a_run_and_says_when_a_step_could_not_be_priced() -> No
     assert "click" in held, "a withheld write with no recorded call draws an empty box"
     assert 'class="stop"' in running, "a running run cannot be stopped"
     assert 'class="stop"' not in held, "a finished run still offers a stop button"
+    assert 'class="close"' in held, "a finished run view cannot be dismissed"
+    assert 'class="close"' not in running, "a run still going is offered a close instead of a stop"
     assert "unpriced" in unpriced and "$0.0000" not in unpriced
     assert "$0.0000" in free, "an honestly-free step and an unpriced one read the same"
     # The attribute context. Between tags, a lone `"` is harmless and a page
@@ -2181,3 +2183,40 @@ def test_the_page_escapes_a_run_and_says_when_a_step_could_not_be_priced() -> No
     # attribute and everything after it is markup the browser runs.
     assert '" onmouseover' not in field, f"the value attribute closes early: {field}"
     assert "&quot; onmouseover=alert(1) x=&quot;" in field, field
+
+
+def test_the_redraw_carries_an_open_runner_into_the_fresh_card() -> None:
+    """The job list is redrawn every three seconds. Holding that off while a
+    runner was open deadlocked -- the skipped redraw was the one that would
+    have removed the form -- so the cards are always rebuilt and the live boxes
+    are moved across instead. Moved, not re-rendered: the same node, because
+    what has to survive is a half-typed value and the div a poll still holds a
+    reference to, neither of which is in the markup.
+    """
+    rendered = _run_page(
+        """
+        globalThis.CSS = { escape: (s) => s };
+        const box = (id, innerHTML) => ({ id, innerHTML });
+        const root = (boxes) => ({
+          boxes,
+          querySelectorAll: () => boxes,
+          querySelector(selector) {
+            const seat = boxes.find((b) => b.id === selector.slice(1));
+            if (seat) seat.replaceWith = (live) => { boxes[boxes.indexOf(seat)] = live; };
+            return seat ?? null;
+          },
+        });
+        const open = box("runner-a", "<form>typed</form>");
+        const orphan = box("runner-gone", "<form>its job vanished</form>");
+        const into = root([box("runner-a", ""), box("runner-b", "")]);
+        carryOver(root([open, orphan, box("runner-b", "")]), into);
+        console.log(JSON.stringify({
+          boxes: into.boxes.map((b) => [b.id, b.innerHTML]),
+          same: into.boxes[0] === open,
+        }));
+        """
+    )
+    got = json.loads(rendered)
+
+    assert got["same"], "the box was re-rendered, so the typed values and the poll's div are gone"
+    assert got["boxes"] == [["runner-a", "<form>typed</form>"], ["runner-b", ""]], got

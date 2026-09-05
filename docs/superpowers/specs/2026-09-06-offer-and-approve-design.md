@@ -73,7 +73,7 @@ and how it ended; the rig stores it beside the run
 ### The rig serves shapes
 
 `GET /v1/shapes` (bearer), per tenant. One entry per workflow with an empty
-`unproven` list and, where any run exists for the tenant, at least one run
+`unproven` list that has either never been run or has at least one run
 recorded `held`:
 
 ```

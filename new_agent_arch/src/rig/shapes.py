@@ -16,12 +16,14 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from typing import Any
 
-from rig.locators import allowlist
+from rig.correlate import system_of
+from rig.locators import allowlist, primary_gesture
+from rig.mine import _ordered_cites
 from rig.records import Gesture
 from rig.runs import runs_for
 from rig.shape import shape_key
 from rig.store import Store
-from rig.workflows import Workflow, known_workflows
+from rig.workflows import Step, Workflow, known_workflows
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,10 +40,13 @@ class Shape:
         return asdict(self)
 
 
-def _cited(store: Store, workflow: Workflow) -> list[Gesture]:
+def _cited(store: Store, workflow: Workflow) -> list[tuple[Gesture, Step]]:
+    """The cited gestures in step order, each still paired with the step that
+    cited it. The pairing is what `_typed_at` needs and what a flat list of
+    gestures throws away."""
     from rig.api import _row_to_gesture  # api imports this module for the route
 
-    wanted = [c for step in sorted(workflow.steps, key=lambda s: s.order) for c in step.cites]
+    wanted = _ordered_cites(workflow)
     if not wanted:
         return []
     marks = ",".join("?" * len(wanted))
@@ -50,13 +55,27 @@ def _cited(store: Store, workflow: Workflow) -> list[Gesture]:
         (workflow.tenant, *wanted),
     )
     by_id = {row["id"]: _row_to_gesture(row) for row in rows}
-    return [by_id[c] for c in wanted if c in by_id]
+    return [
+        (by_id[cited], step)
+        for step in sorted(workflow.steps, key=lambda s: s.order)
+        for cited in step.cites
+        if cited in by_id
+    ]
 
 
-def _typed_at(gestures: list[Gesture], parameter: dict[str, Any]) -> int | None:
+def _typed_at(cited: list[tuple[Gesture, Step]], parameter: dict[str, Any]) -> int | None:
+    """Where in the shape this parameter was typed, by the step that declares it.
+
+    Scanning every cited gesture for the first value match binds the wrong
+    control on any search-then-create flow: the code is typed into the search
+    box before it is typed into the field the workflow is actually filling, so
+    the extension would fill the search box and stop. Only the step whose
+    `parameters` names this one is asked.
+    """
+    name = str(parameter["name"])
     seen = {str(v) for v in parameter.get("seen_values", [])}
-    for index, gesture in enumerate(gestures):
-        if gesture.gesture.value is not None and gesture.gesture.value in seen:
+    for index, (gesture, step) in enumerate(cited):
+        if name in step.parameters and gesture.gesture.value in seen:
             return index
     return None
 
@@ -64,33 +83,43 @@ def _typed_at(gestures: list[Gesture], parameter: dict[str, Any]) -> int | None:
 def shapes_for(store: Store, tenant: str) -> list[Shape]:
     """Every proven workflow, as the extension needs it.
 
-    A tenant with runs on record is asked a harder question -- has this one
-    ever held -- because an offer to do a job the runner has never finished is
-    an offer to fail in front of somebody. A tenant with no runs yet has to be
-    offered something, or nothing is ever run.
+    A workflow that has been run is asked a harder question -- has it ever
+    held -- because an offer to do a job the runner has only ever failed is an
+    offer to fail in front of somebody. The gate is per workflow and not per
+    tenant: one workflow's first failure must not silence every sibling that
+    has simply never been run.
     """
-    any_runs = bool(store.query("SELECT 1 FROM runs WHERE tenant = ? LIMIT 1", (tenant,)))
     served: list[Shape] = []
     for workflow in known_workflows(store, tenant):
         if workflow.unproven:
             continue
-        held = sum(1 for r in runs_for(store, tenant, workflow.id) if r.outcome == "held")
-        if any_runs and held == 0:
+        runs = runs_for(store, tenant, workflow.id)
+        held = sum(1 for r in runs if r.outcome == "held")
+        if runs and held == 0:
             continue
-        gestures = _cited(store, workflow)
-        if not gestures:
+        cited = _cited(store, workflow)
+        if not cited:
             continue
-        first = gestures[0]
+        gestures = [gesture for gesture, _ in cited]
         by_id = {g.id: g for g in gestures}
+        first_step = min(workflow.steps, key=lambda s: s.order)
+        first = primary_gesture(first_step, by_id) or gestures[0]
+        starts_on = first.page_url or first.url
+        hosts = sorted(allowlist(workflow, by_id))
+        # `starts_on` is the tab's origin; `hosts` is what the evidence names,
+        # which is the frame's. When they disagree the extension would be sent
+        # to open an origin no cited gesture ever proved -- so it is not sent.
+        if system_of(starts_on) not in hosts:
+            continue
         served.append(
             Shape(
                 id=workflow.id,
                 title=workflow.title,
-                starts_on=first.page_url or first.url,
-                hosts=sorted(allowlist(workflow, by_id)),
+                starts_on=starts_on,
+                hosts=hosts,
                 shape=[list(triple) for triple in shape_key(gestures)],
                 parameters=[
-                    {"name": str(p["name"]), "at": _typed_at(gestures, p)}
+                    {"name": str(p["name"]), "at": _typed_at(cited, p)}
                     for p in workflow.parameters
                     if isinstance(p, dict) and p.get("name")
                 ],

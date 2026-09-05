@@ -74,16 +74,13 @@ def test_an_unproven_workflow_is_not_served(tmp_path: Path) -> None:
     assert shapes_for(store, "acme") == []
 
 
-def test_once_any_run_exists_only_workflows_that_have_held_are_served(tmp_path: Path) -> None:
-    store = _store(tmp_path)
-    _workflow(store, "wfl_1")
-    _workflow(store, "wfl_2")
+def _run(store: Store, run_id: str, workflow_id: str, outcome: str) -> None:
     save_run(
         store,
         Run(
-            id="run_1",
+            id=run_id,
             tenant="acme",
-            workflow_id="wfl_1",
+            workflow_id=workflow_id,
             device_id="dev_1",
             values={},
             started_by="form",
@@ -91,14 +88,29 @@ def test_once_any_run_exists_only_workflows_that_have_held_are_served(tmp_path: 
             allow_focus=True,
             started_at="2026-09-06T10:00:00+00:00",
             finished_at="2026-09-06T10:01:00+00:00",
-            outcome="held",
+            outcome=outcome,
         ),
     )
 
+
+def test_the_held_gate_is_per_workflow_and_never_silences_one_that_never_ran(
+    tmp_path: Path,
+) -> None:
+    """One workflow's failure must not withdraw every sibling in the tenant."""
+    store = _store(tmp_path)
+    _workflow(store, "wfl_1")
+    _workflow(store, "wfl_2")
+    _workflow(store, "wfl_3")
+    _run(store, "run_1", "wfl_1", "held")
+    _run(store, "run_2", "wfl_2", "failed")
+
     served = shapes_for(store, "acme")
 
-    assert [s.id for s in served] == ["wfl_1"]
+    assert [s.id for s in served] == ["wfl_1", "wfl_3"], (
+        "wfl_2 has been run and never held; wfl_3 has never been run at all"
+    )
     assert served[0].held_runs == 1
+    assert served[1].held_runs == 0
 
 
 def test_a_parameter_no_cited_gesture_typed_has_no_index(tmp_path: Path) -> None:
@@ -110,3 +122,51 @@ def test_a_parameter_no_cited_gesture_typed_has_no_index(tmp_path: Path) -> None
     [shape] = shapes_for(store, "acme")
 
     assert {"name": "description", "at": None} in shape.parameters
+
+
+def test_a_workflow_that_starts_somewhere_its_own_evidence_never_names_is_not_served(
+    tmp_path: Path,
+) -> None:
+    """The tab was on one origin while the frame that recorded the gesture was
+    on another. Serving that sends the extension to an unproven host."""
+    store = _store(tmp_path)
+    workflow = _workflow(store)
+    with store.connect() as connection:
+        connection.execute(
+            "UPDATE gestures SET page_url = ? WHERE id = ?",
+            ("https://other.example/x", workflow.steps[0].cites[0]),
+        )
+
+    assert shapes_for(store, "acme") == []
+
+
+def test_a_parameter_is_placed_by_the_step_that_declares_it_not_the_first_match(
+    tmp_path: Path,
+) -> None:
+    """Search-then-create types the same code twice. The first typing is the
+    search box, which is not the control the workflow is filling."""
+    store = _store(tmp_path)
+    workflow = _workflow(store)
+    searched = workflow.steps[0].cites[0]
+    workflow.steps = [
+        Step(order=0, says="search for it first", system=None, cites=[searched]),
+        Step(
+            order=1,
+            says="type the code",
+            system=None,
+            cites=[searched],
+            parameters=["clientCode"],
+        ),
+        *[
+            Step(order=s.order + 1, says=s.says, system=s.system, cites=s.cites)
+            for s in workflow.steps[1:]
+        ],
+    ]
+    save_workflow(store, workflow)
+
+    [shape] = shapes_for(store, "acme")
+
+    assert len(shape.shape) == 3
+    assert shape.parameters == [{"name": "clientCode", "at": 1}], (
+        "index 0 is the search box the first value match would have bound"
+    )

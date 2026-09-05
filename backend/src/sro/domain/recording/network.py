@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
 from types import MappingProxyType
 
+from sro.domain.recording.background import is_background_traffic
 from sro.domain.shared.errors import InvariantViolation
 
 
@@ -175,3 +176,50 @@ class CapturedRequest:
             if key.lower() == target:
                 return value
         return None
+
+
+def primary_of(requests: Sequence[CapturedRequest]) -> CapturedRequest | None:
+    """The call a gesture is about, out of the analytics and prefetch noise.
+
+    Preference order: a successful mutation whose initiator is a script (the
+    click handler), then any successful mutation, then any success, then the
+    first call at all. Script-initiated is the strongest signal available -- it
+    is the one the human's click actually caused. A source with no initiator
+    information degrades to the second rung rather than losing the ranking.
+
+    Background traffic is excluded outright rather than ranked last. A
+    keep-alive fires on a timer, so it lands on whichever step happens to be
+    open; letting it stand as a step's primary call makes two runs of one task
+    look like they diverged, and induction refuses the pair. The evidence keeps
+    it -- this is about which call the step is *about*.
+
+    A function rather than only a property on ActionFrame, because a second
+    source of captured requests now needs the identical rule and two copies of
+    it would be two rules the day one of them is edited.
+    """
+    caused = tuple(request for request in requests if not is_background_traffic(request.url))
+    if not caused:
+        return None
+
+    def rank(request: CapturedRequest) -> int:
+        initiator = request.initiator
+        script = initiator is not None and initiator.kind is InitiatorKind.SCRIPT
+        if request.succeeded and request.is_mutation and script:
+            return 0
+        if request.succeeded and request.is_mutation:
+            return 1
+        if request.succeeded:
+            return 2
+        return 3
+
+    def order(request: CapturedRequest) -> tuple[int, str, float]:
+        # Path before time on purpose. One gesture on a grid screen fires
+        # several reads at once, and which of them starts first is a race: the
+        # same demonstration twice picked `inventoryItems` in one run and
+        # `inventoryLocations` in the other, and the diff read that as two
+        # different steps. Ranking by path makes the choice a property of what
+        # the step did rather than of how the network went that day.
+        return (rank(request), request.url.split("?", 1)[0], request.started_at.timestamp())
+
+    best: CapturedRequest = min(caused, key=order)
+    return best

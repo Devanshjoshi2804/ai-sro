@@ -39,7 +39,8 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from datetime import datetime
 
-from sro.application.skill.from_rig import plans_for_workflow
+from sro.application.skill.from_rig import bindings_for, plan_for_gesture, plans_for_workflow
+from sro.application.skill.network_from_rig import network_plan_for_gesture
 from sro.domain.shared.identifiers import PrincipalId, RecordingId
 from sro.domain.skill.parameter import Evidence, Parameter, ParameterKind
 from sro.domain.skill.skill import Provenance, SkillStep, SkillVersion
@@ -98,6 +99,9 @@ def version_from_rig(
     induced_by: str,
     induced_at: datetime,
     version: int = 1,
+    requests: Mapping[str, Sequence[Mapping[str, object]]] | None = None,
+    target_system: str = "",
+    facility: str = "",
 ) -> SkillVersion | None:
     """One mined workflow as a reviewable version, or None where it is not one.
 
@@ -115,11 +119,36 @@ def version_from_rig(
     if not recordings:
         return None
 
+    bindings = bindings_for(workflow)
     steps: list[SkillStep] = []
-    for step, plans in plans_for_workflow(workflow, gestures):
+    for step in _ordered(workflow):
         says = _text(step.get("says")) or "perform the step"
-        for plan in plans:
-            steps.append(SkillStep(index=len(steps), intent=says, ui_plan=plan))
+        cites = step.get("cites")
+        for cited in cites if isinstance(cites, list) else ():
+            gesture = gestures.get(_text(cited) or "")
+            if gesture is None:
+                continue
+            # Both recipes for the same gesture, which is what ADR 005 means by
+            # dual: the network plan is how a run performs it without a
+            # browser, the UI plan is how it performs it when the call no
+            # longer works. Iterated here rather than through
+            # `plans_for_workflow` because a network plan belongs to a specific
+            # gesture and that function returns plans without saying which.
+            ui = plan_for_gesture(gesture, bindings)
+            network = (
+                network_plan_for_gesture(
+                    gesture,
+                    requests.get(_text(cited) or "", ()),
+                    target_system=target_system,
+                    facility=facility,
+                    bindings=bindings,
+                )
+                if requests is not None and target_system and facility
+                else None
+            )
+            if ui is None and network is None:
+                continue
+            steps.append(SkillStep(index=len(steps), intent=says, ui_plan=ui, network_plan=network))
     if not steps:
         return None
 
@@ -144,6 +173,16 @@ def version_from_rig(
     )
 
 
+def _ordered(workflow: Mapping[str, object]) -> list[Mapping[str, object]]:
+    """The workflow's steps in the order it gives them.
+
+    `plans_for_workflow` already sorts by `order` with the guard that stops a
+    quoted number crashing the sort; this reuses that rather than repeating
+    the rule, and throws away the plans it builds along the way.
+    """
+    return [step for step, _ in plans_for_workflow(workflow, {})]
+
+
 def _as_list(value: object) -> Sequence[object]:
     return value if isinstance(value, list) else ()
 
@@ -152,7 +191,7 @@ def _starts_on(
     workflow: Mapping[str, object], gestures: Mapping[str, Mapping[str, object]]
 ) -> str | None:
     """The url of the first gesture any step cites, in workflow order."""
-    for step, _ in plans_for_workflow(workflow, gestures):
+    for step in _ordered(workflow):
         cites = step.get("cites")
         for cited in cites if isinstance(cites, list) else ():
             gesture = gestures.get(_text(cited) or "")

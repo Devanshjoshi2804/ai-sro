@@ -56,10 +56,24 @@ def _version(
     )
 
 
+def _built_with_requests() -> SkillVersion:
+    """A version built with the network recipe available, which needs a caller
+    that knows the system and the facility -- see the module docstring on why
+    this module will not guess either."""
+    return _built(requests=REQUESTS, target_system="wms.example", facility="SG")
+
+
 def _built(**kwargs: object) -> SkillVersion:
     """The same, where the test is about what a version SAYS rather than about
     whether one is built at all."""
-    version = _version(**kwargs)  # type: ignore[arg-type]
+    version = version_from_rig(
+        WORKFLOW,
+        GESTURES,
+        recordings=("str_1",),
+        induced_by="rig",
+        induced_at=NOW,
+        **kwargs,  # type: ignore[arg-type]
+    )
     assert version is not None
     return version
 
@@ -147,7 +161,8 @@ def test_the_starting_screen_is_claimed_only_for_a_single_recording() -> None:
     different screens are saying the screen is not part of the task, and this
     cannot tell which case it is holding."""
     assert _built().starts_on == "https://wms.example/activities"
-    assert _built(recordings=["str_1", "str_2"]).starts_on is None
+    two = _version(recordings=["str_1", "str_2"])
+    assert two is not None and two.starts_on is None
 
 
 def test_a_duplicated_recording_id_is_still_one_recording() -> None:
@@ -166,3 +181,63 @@ def test_a_workflow_missing_its_prose_is_still_a_version(missing: str) -> None:
     version = _version(workflow={k: v for k, v in WORKFLOW.items() if k != missing})
 
     assert version is not None and len(version.steps) == 2
+
+
+REQUESTS = {
+    "a": [
+        {
+            "request_id": "req_1",
+            "method": "POST",
+            "url": "https://wms.example/data/WM/wm/activities",
+            "resource_type": "xhr",
+            "started_at": "2026-09-05T10:00:00.000Z",
+            "request_headers": {"CSRF-ENCRYPT-TOKEN": "«redacted»"},
+            "request_body": {"text": '{"activityCode":"TEST1"}'},
+            "status": 201,
+        }
+    ]
+}
+
+
+def test_a_step_carries_both_recipes_for_the_same_gesture() -> None:
+    """ADR 005's dual recipe: the network plan is how a run performs the step
+    without a browser, the UI plan is how it performs it when the call no
+    longer works. One gesture, so they describe the same act."""
+    version = _built_with_requests()
+
+    typed = version.steps[0]
+    assert typed.ui_plan is not None and typed.network_plan is not None
+    assert typed.network_plan.method == "POST"
+    assert typed.network_plan.expected_status == 201
+
+
+def test_the_parameter_reaches_the_body_as_well_as_the_field() -> None:
+    """It was derived from what the operator typed on the screen. That it also
+    names a key of the call the screen made is what makes it a skill rather
+    than two unrelated readings of one act."""
+    version = _built_with_requests()
+
+    assert version.steps[0].placeholders == {"activityCode"}
+
+
+def test_without_a_facility_no_call_is_planned_rather_than_one_misfiled() -> None:
+    """A credential reference is a vault key built from the system and the
+    facility. Guessing either would point a run at somebody else's credential,
+    so the whole network recipe waits for a caller that knows."""
+    version = _built(requests=REQUESTS, target_system="wms.example", facility="")
+
+    assert all(step.network_plan is None for step in version.steps)
+    assert version.needs_a_person, "and the gesture ceiling stays where it was"
+
+
+def test_the_gesture_ceiling_is_the_same_one_every_demonstration_has() -> None:
+    """Not a rig defect. `needs_a_person` reads "no network plan and no tool
+    plan", and a gesture that caused no call -- typing into a field, where only
+    the save posts -- can never have one. Measured on the real corpus: 30 of
+    165 steps carry a call. The ceiling lifts through `map_step_to_tool`, the
+    same way it does for a skill induced from a recording."""
+    version = _built_with_requests()
+
+    assert version.steps[0].network_plan is not None, "the write has a call"
+    assert version.steps[1].network_plan is None, "the click that caused none has not"
+    assert version.needs_a_person

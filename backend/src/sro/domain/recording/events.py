@@ -7,9 +7,8 @@ from datetime import datetime
 from enum import StrEnum
 
 from sro.domain.recording.axgraph import AxGraph
-from sro.domain.recording.background import is_background_traffic
 from sro.domain.recording.element import ElementFingerprint
-from sro.domain.recording.network import CapturedRequest, InitiatorKind
+from sro.domain.recording.network import CapturedRequest, primary_of
 from sro.domain.recording.state import ConsoleLevel, ConsoleMessage, PageEvent
 from sro.domain.shared.errors import InvariantViolation
 
@@ -105,44 +104,8 @@ class ActionFrame:
 
     @property
     def primary_request(self) -> CapturedRequest | None:
-        """The call this frame is about, out of the analytics and prefetch noise.
-
-        Preference order: a successful mutation whose initiator is a script (the
-        click handler), then any successful mutation, then any success, then the
-        first call at all. Script-initiated is the strongest signal available --
-        it is the one the human's click actually caused.
-
-        Background traffic is excluded outright rather than ranked last. A
-        keep-alive fires on a timer, so it lands on whichever step happens to be
-        open; letting it stand as a step's primary call makes two runs of one
-        task look like they diverged, and induction refuses the pair. The
-        evidence keeps it -- this is about which call the step is *about*.
-        """
-        caused = tuple(r for r in self.requests if not is_background_traffic(r.url))
-        if not caused:
-            return None
-
-        def rank(request: CapturedRequest) -> int:
-            initiator = request.initiator
-            script = initiator is not None and initiator.kind is InitiatorKind.SCRIPT
-            if request.succeeded and request.is_mutation and script:
-                return 0
-            if request.succeeded and request.is_mutation:
-                return 1
-            if request.succeeded:
-                return 2
-            return 3
-
-        def order(request: CapturedRequest) -> tuple[int, str, float]:
-            # Path before time on purpose. One gesture on a grid screen fires
-            # several reads at once, and which of them starts first is a race:
-            # the same demonstration twice picked `inventoryItems` in one run
-            # and `inventoryLocations` in the other, and the diff read that as
-            # two different steps. Ranking by path makes the choice a property
-            # of what the step did rather than of how the network went that day.
-            return (rank(request), request.url.split("?", 1)[0], request.started_at.timestamp())
-
-        return min(caused, key=order)
+        """The call this frame is about. See `network.primary_of` for the rule."""
+        return primary_of(self.requests)
 
     @property
     def errors(self) -> tuple[str, ...]:

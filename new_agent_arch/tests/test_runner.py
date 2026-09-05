@@ -1,6 +1,9 @@
 import copy
+import json
 from collections.abc import Mapping
 from pathlib import Path
+
+import pytest
 
 from rig.api import save_batch
 from rig.channel import Answer as Reply
@@ -93,6 +96,17 @@ def _repeated(store: Store, steps: int) -> Workflow:
     )
     save_workflow(store, wf)
     return wf
+
+
+def _silent_click(store: Store) -> str:
+    """A click the recorder saw and heard no traffic from -- what a Save looks
+    like when its call went out somewhere the recorder was not attached."""
+    rows = store.query("SELECT id, gesture_json FROM gestures WHERE requests = '[]' ORDER BY at")
+    return next(r["id"] for r in rows if json.loads(r["gesture_json"])["kind"] == "click")
+
+
+def _only_run(store: Store) -> str:
+    return str(store.query("SELECT id FROM runs")[0]["id"])
 
 
 def _one_step(store: Store, cite: str, says: str = "save") -> Workflow:
@@ -813,3 +827,175 @@ async def test_a_read_that_failed_is_still_rescued(tmp_path: Path) -> None:
 
     assert run.outcome == "held" and run.steps[0].planned_by == "pro"
     assert [a["model"] for a in asker.asked] == ["flash", "flash", "pro", "flash"]
+
+
+class _Breaks(FakeChannel):
+    """A channel that raises something nobody planned for."""
+
+    async def send(
+        self,
+        device_id: str,
+        *,
+        kind: str,
+        payload: Mapping[str, object],
+        run_id: str | None = None,
+        deadline_s: float | None = None,
+    ) -> Reply:
+        if kind == "ui.perform":
+            raise RuntimeError("boom")
+        return await super().send(
+            device_id, kind=kind, payload=payload, run_id=run_id, deadline_s=deadline_s
+        )
+
+
+async def test_a_run_that_dies_of_something_unexpected_is_not_left_saying_running(
+    tmp_path: Path,
+) -> None:
+    """The exception is nobody's to swallow; the record is nobody's to lose."""
+    store = _store(tmp_path)
+    wf = _workflow(store)
+    channel = _Breaks(_looks(4))
+    asker = FakeAsker(_plan("type", "x"))
+
+    with pytest.raises(RuntimeError):
+        await run_workflow(
+            store,
+            wf,
+            values={"clientCode": "x"},
+            channel=channel,
+            device_id="dev_test",
+            asker=asker,
+            plan_model="flash",
+            rescue_model="pro",
+            live=True,
+            allow_focus=True,
+            started_by="form",
+        )
+
+    saved = load_run(store, "acme", _only_run(store))
+    assert saved is not None and saved.outcome == "failed"
+    assert "RuntimeError" in saved.steps[-1].reason and "boom" in saved.steps[-1].reason
+
+
+async def test_a_click_the_capture_heard_nothing_from_is_not_clicked_twice(
+    tmp_path: Path,
+) -> None:
+    """`writes()` is False for a Save whose call the recorder never saw, and a
+    rescue of that click submits the order a second time."""
+    store = _store(tmp_path)
+    wf = _one_step(store, _silent_click(store), says="press Save")
+    channel = FakeChannel(
+        {
+            **_looks(4),
+            "ui.perform": [Reply(ok=True, result={"performed": True, "matched_by": "component"})],
+        }
+    )
+    asker = FakeAsker(_plan("click"), Answer(data={"held": False, "why": "no confirmation"}))
+
+    run = await run_workflow(
+        store,
+        wf,
+        values={"clientCode": "x"},
+        channel=channel,
+        device_id="dev_test",
+        asker=asker,
+        plan_model="flash",
+        rescue_model="pro",
+        live=True,
+        allow_focus=True,
+        started_by="form",
+    )
+
+    assert run.outcome == "stopped"
+    assert len([s for s in channel.sent if s["kind"] == "ui.perform"]) == 1, "clicked once"
+    assert [a["model"] for a in asker.asked] == ["flash", "flash"], "Pro was never asked"
+    assert "state unknown" in run.steps[0].reason
+
+
+async def test_a_click_that_fired_a_read_still_gets_its_rescue(tmp_path: Path) -> None:
+    """A menu or a tab click that the recorder DID see traffic from changed
+    nothing, and the write rule must not cost it its second attempt."""
+    store = _store(tmp_path)
+    raw = copy.deepcopy(BATCH)
+    raw["batch_id"] = "bat_reads"
+    raw["events"] = [
+        e for e in raw["events"] if e["kind"] != "request" or e["request"]["method"] == "GET"
+    ]
+    save_batch(store, Batch.model_validate(raw), "acme")
+    clicked = store.query("SELECT id FROM gestures WHERE batch_id = ? ORDER BY at", ("bat_reads",))[
+        -1
+    ]["id"]
+
+    wf = _one_step(store, clicked, says="open the tab")
+    channel = FakeChannel(
+        {
+            **_looks(8),
+            "ui.perform": [Reply(ok=True, result={"performed": True, "matched_by": "component"})]
+            * 2,
+        }
+    )
+    asker = FakeAsker(
+        _plan("click"),
+        Answer(data={"held": False, "why": "the panel did not open"}),
+        _plan("click"),
+        Answer(data={"held": True, "why": "the panel is open"}),
+    )
+
+    run = await run_workflow(
+        store,
+        wf,
+        values={"clientCode": "x"},
+        channel=channel,
+        device_id="dev_test",
+        asker=asker,
+        plan_model="flash",
+        rescue_model="pro",
+        live=True,
+        allow_focus=True,
+        started_by="form",
+    )
+
+    assert run.outcome == "held" and run.steps[0].planned_by == "pro"
+    assert len([s for s in channel.sent if s["kind"] == "ui.perform"]) == 2
+
+
+async def test_a_rung_that_reached_no_command_leaves_the_previous_rungs_plan_standing(
+    tmp_path: Path,
+) -> None:
+    """Flash failed AT a command and Pro failed BEFORE one. The record's
+    verdict is Flash's, so its `planned_by` and `sent` must be too."""
+    store = _store(tmp_path)
+    wf = _one_step(store, _ids(store)[0], says="type the code")
+    channel = FakeChannel(
+        {
+            **_looks(6),
+            "ui.perform": [Reply(ok=False, error_kind="control_not_found", error_detail="gone")],
+        }
+    )
+    asker = FakeAsker(_plan("type", "x"), Answer(data={"kind": "nope", "why": "lost"}))
+
+    run = await run_workflow(
+        store,
+        wf,
+        values={"clientCode": "x"},
+        channel=channel,
+        device_id="dev_test",
+        asker=asker,
+        plan_model="flash",
+        rescue_model="pro",
+        live=True,
+        allow_focus=True,
+        started_by="form",
+    )
+
+    step = run.steps[0]
+    assert step.verdict == "failed" and "control_not_found" in step.reason
+    assert step.planned_by == "flash", "Pro never got as far as a command"
+    assert step.sent is not None and step.sent["kind"] == "ui.perform"
+    assert step.result == {
+        "ok": False,
+        "status": None,
+        "matched_by": None,
+        "error_kind": "control_not_found",
+    }
+    assert [a["model"] for a in asker.asked] == ["flash", "pro"], "Pro was still asked"

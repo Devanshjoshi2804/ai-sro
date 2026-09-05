@@ -166,6 +166,35 @@ def _result(reply: Reply) -> dict[str, Any]:
     return shown
 
 
+def _saw_nothing(step: Step, by_id: Mapping[str, Gesture]) -> bool:
+    """Whether the capture recorded this step's gesture and none of the traffic
+    it caused. A call that never completed is not traffic the recorder saw --
+    the same completion guard `origin_of` and `expected_statuses` already
+    wear."""
+    for cited in step.cites:
+        gesture = by_id.get(cited)
+        if gesture is None:
+            continue
+        for request in gesture.requests:
+            if request.status is not None and not request.failure_reason:
+                return False
+    return True
+
+
+def _fell_over(run: Run, in_flight: RunStep | None, reason: str) -> None:
+    """The run died. Whatever it was doing when it died is the step that
+    failed, so the record says which one and why rather than stopping at
+    `running` and leaving a reader to guess."""
+    record = in_flight
+    if record is None:
+        record = RunStep(
+            order=max((s.order for s in run.steps), default=-1) + 1, says="", verdict="failed"
+        )
+        run.steps.append(record)
+    record.verdict, record.verdict_by, record.reason = "failed", "none", reason
+    run.outcome = "failed"
+
+
 def _withheld(step: Step, planned: Planned, by_id: Mapping[str, Gesture]) -> dict[str, Any]:
     """The write a dry run did not send, in full: what a person reads before
     pressing through to live."""
@@ -253,6 +282,12 @@ async def run_workflow(
                 # ever navigates still runs out.
                 planned: Planned | None = None
                 navigated = False
+                # What the record says was planned and sent, before this rung
+                # touches it. A rung that ends without producing a command has
+                # to give it back: the verdict on the record is still the
+                # previous rung's, and a `planned_by` that disagrees with the
+                # verdict beside it is a lie about who failed.
+                previously = (record.planned_by, record.sent, record.result)
                 while planned is None:
                     if attempts >= budget:
                         record.verdict = "refused"
@@ -307,11 +342,17 @@ async def run_workflow(
                             break
                         navigated = True
 
+                if planned is None and run.outcome == "running":
+                    record.planned_by, record.sent, record.result = previously
                 if run.outcome != "running":
                     break
                 if planned is None:
                     continue
 
+                # Still `writes()`, deliberately: withholding every click the
+                # recorder heard nothing from would leave a dry run performing
+                # almost none of the job, while not RESCUING one costs a
+                # rescue. The asymmetry is the cheap side of each.
                 if not live and mutates:
                     run.withheld.append(_withheld(step, planned, by_id))
                     record.verdict, record.verdict_by = "withheld", "dry"
@@ -354,8 +395,22 @@ async def run_workflow(
                 # attempt would create the order twice. Only a write the server
                 # itself refused -- or one the browser never sent -- is safe to
                 # rescue. A read is always safe.
+                #
+                # `writes()` is not the whole of it. It is False when the cited
+                # evidence records no mutating call AT ALL, which is what a
+                # click on Save looks like when the recorder never saw the
+                # traffic -- a beacon, a worker, a frame nothing was attached
+                # to. A click or a press on evidence that came back silent is
+                # the same unknown state as an accepted write, so it does not
+                # rescue either. A click that fired a completed read -- a menu,
+                # a tab -- still does.
+                unknown = mutates or (
+                    planned.kind == "ui.perform"
+                    and planned.payload.get("action") in ("click", "press")
+                    and _saw_nothing(step, by_id)
+                )
                 if (
-                    mutates
+                    unknown
                     and reply.ok
                     and not (verdict.state == "failed" and verdict.by == "status")
                 ):
@@ -385,14 +440,13 @@ async def run_workflow(
         else:
             run.outcome = "held"
     except DeviceUnreachable as gone:
-        if in_flight is None:
-            in_flight = RunStep(
-                order=max((s.order for s in run.steps), default=-1) + 1, says="", verdict="failed"
-            )
-            run.steps.append(in_flight)
-        in_flight.verdict, in_flight.verdict_by = "failed", "none"
-        in_flight.reason = str(gone)
-        run.outcome = "failed"
+        _fell_over(run, in_flight, str(gone))
+    except Exception as broke:
+        # Not handled, and not silently a run that says `running` forever
+        # either. The record is finished and saved by the `finally` below, then
+        # this goes on up.
+        _fell_over(run, in_flight, f"{type(broke).__name__}: {broke}")
+        raise
     finally:
         # In the finally, so an exception this function does not handle still
         # leaves a saved record rather than a row that says `running` forever.

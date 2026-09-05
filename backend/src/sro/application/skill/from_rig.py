@@ -39,6 +39,7 @@ and the route, for anything else.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping, Sequence
 
 from sro.domain.recording.element import ComponentIdentity, ElementFingerprint
@@ -199,50 +200,112 @@ def _order(step: Mapping[str, object]) -> tuple[int, float]:
     return (1, 0.0)
 
 
+_NOT_A_NAME = re.compile(r"[^A-Za-z0-9_]")
+
+
+def parameter_name(raw: str) -> str:
+    """A control's name as something that can actually be a parameter.
+
+    The rig names a parameter after the control it was typed into, by the
+    ladder in `rig.parameters._by_control`: an ExtJS itemId, else the field's
+    own LABEL, else the accessible name. The last two are free-form UI text
+    written for a person, and two separate rules downstream refuse it:
+    `Parameter.__post_init__` requires `str.isidentifier()`, and
+    `string.Template.idpattern` is `(?a:[_a-z][_a-z0-9]*)` -- ASCII only, so a
+    name that IS a Python identifier can still be read short. `café` passes
+    `isidentifier()`, `$café` parses as `caf`, and the version is then refused
+    for referencing a parameter it never declared.
+
+    Neither of those is hypothetical. `Username or email` is a control name in
+    the real corpus today, in the login flow -- the most repeated job in any
+    capture and the first thing a second demonstration will diff. It only has
+    not crashed yet because no workflow has reached two occurrences.
+
+    So: every character outside `[A-Za-z0-9_]` becomes an underscore, the edges
+    are trimmed, and a leading digit is prefixed. Deterministic, because both
+    sides of the binding have to agree on it -- this is the one rule, and
+    `_control` below reads names through it too.
+    """
+    cleaned = _NOT_A_NAME.sub("_", raw).strip("_")
+    if not cleaned:
+        return "parameter"
+    return f"p_{cleaned}" if cleaned[0].isdigit() else cleaned
+
+
 def _control(target: Mapping[str, object] | None) -> str | None:
     """The control a gesture acted on, under the name the rig parameterises by.
 
     `rig.parameters._by_control` keys a doing by exactly this ladder -- ExtJS
     itemId, then the field's own label, then the accessible name -- so a
-    parameter's `name` is one of these strings. Reproduced here to COMPARE
-    against, never to mint a name from: a mismatch leaves the value literal,
-    which is the safe direction.
+    parameter's `name` is one of these strings, read through `parameter_name`
+    because a UI label is not a valid one. Reproduced here to COMPARE against,
+    never to mint a name from: a mismatch leaves the value literal, which is
+    the safe direction.
     """
     if not target:
         return None
     component = _mapping(target.get("component"))
-    return (
+    raw = (
         _text(component.get("itemId"))
         or _text(component.get("fieldLabel"))
         or _text(target.get("name"))
     )
+    return parameter_name(raw) if raw else None
+
+
+def declared_parameters(
+    workflow: Mapping[str, object],
+) -> dict[str, tuple[str, tuple[str, ...]]]:
+    """Every parameter the workflow declares: safe name to (label, values).
+
+    One reader, because two agreeing loops is how this codebase came to have
+    three word-splitters that disagreed about `SAMLResponse`. `bindings_for`
+    decides what a gesture's value becomes and `parameters_from_rig` decides
+    what the version declares; if those two disagree about a name by one
+    character, the version references a parameter it does not declare and the
+    domain refuses the whole build.
+
+    A safe name two controls both land on is dropped, not merged. Keeping one
+    of a colliding pair binds the other control's values to a name that is not
+    its own -- the bind-by-coincidence defect this module was already rewritten
+    once to close.
+    """
+    parameters = workflow.get("parameters")
+    found: dict[str, tuple[str, tuple[str, ...]] | None] = {}
+    for entry in parameters if isinstance(parameters, list) else ():
+        if not isinstance(entry, Mapping):
+            continue
+        raw = _text(entry.get("name"))
+        if not raw:
+            continue
+        name = parameter_name(raw)
+        if name in found:
+            found[name] = None
+            continue
+        seen = entry.get("seen_values")
+        values = tuple(
+            text for value in (seen if isinstance(seen, list) else ()) if (text := _text(value))
+        )
+        found[name] = (raw, values)
+    return {name: entry for name, entry in found.items() if entry is not None}
 
 
 def bindings_for(workflow: Mapping[str, object]) -> Mapping[str, frozenset[str]]:
     """Each parameter, against the values that job has been seen to take.
 
     Keyed by the parameter -- which is to say by the CONTROL, because the rig
-    names a parameter after the control it was typed into: an ExtJS itemId, or
-    the field's own label. An earlier version keyed this by the value instead,
-    to avoid re-deriving that name on this side, and the saving was not worth
-    what it cost: two parameters each given `Active` on some doing collapsed to
-    one entry, and every gesture carrying that value got whichever name sorted
-    first. A value is evidence both sides hold, but a value is not an identity
-    -- the control is.
+    names a parameter after the control it was typed into. An earlier version
+    keyed this by the value instead, to avoid re-deriving that name on this
+    side, and the saving was not worth what it cost: two parameters each given
+    `Active` on some doing collapsed to one entry, and every gesture carrying
+    that value got whichever name sorted first. A value is evidence both sides
+    hold, but a value is not an identity -- the control is.
     """
-    bound: dict[str, frozenset[str]] = {}
-    parameters = workflow.get("parameters")
-    for parameter in parameters if isinstance(parameters, list) else ():
-        if not isinstance(parameter, Mapping):
-            continue
-        name = _text(parameter.get("name"))
-        seen = parameter.get("seen_values")
-        if not name or not isinstance(seen, list):
-            continue
-        values = frozenset(text for value in seen if (text := _text(value)))
-        if values:
-            bound[name] = bound.get(name, frozenset()) | values
-    return bound
+    return {
+        name: frozenset(values)
+        for name, (_, values) in declared_parameters(workflow).items()
+        if values
+    }
 
 
 def plan_for_gesture(

@@ -14,6 +14,7 @@ from sro.application.skill.version_from_rig import parameters_from_rig, version_
 from sro.domain.skill.parameter import Evidence, ParameterKind
 from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.skill import SkillVersion
+from sro.domain.skill.template import Template
 
 EXTJS = {
     "role": "textbox",
@@ -222,12 +223,55 @@ def test_the_parameter_reaches_the_body_as_well_as_the_field() -> None:
 
 def test_without_a_facility_no_call_is_planned_rather_than_one_misfiled() -> None:
     """A credential reference is a vault key built from the system and the
-    facility. Guessing either would point a run at somebody else's credential,
-    so the whole network recipe waits for a caller that knows."""
-    version = _built(requests=REQUESTS, target_system="wms.example", facility="")
+    facility. The system is now read from the call's own host; the facility is
+    not in the evidence at all, so the network recipe waits for a caller that
+    knows it rather than filing under a guess."""
+    version = _built(requests=REQUESTS, facility="")
 
     assert all(step.network_plan is None for step in version.steps)
     assert version.needs_a_person, "and the gesture ceiling stays where it was"
+
+
+def test_a_cross_system_job_is_not_the_case_that_loses_its_calls() -> None:
+    """It is the case this project exists to capture.
+
+    The network recipe used to be gated on a caller-supplied `target_system` as
+    well as a facility, and a caller looking at a job whose calls went to two
+    hosts has no honest single value to pass -- so it passed none and got no
+    plans. Measured on the real corpus when that was live: 13 network plans
+    where the same evidence yields 30. Each call now files its credential under
+    its own host, and the facility alone opens the recipe.
+    """
+    two_hosts = {
+        "a": REQUESTS["a"],
+        "b": [
+            {
+                **REQUESTS["a"][0],
+                "request_id": "req_2",
+                "url": "https://other.example/api/x",
+                "request_headers": {"authorization": "«redacted»"},
+            }
+        ],
+    }
+    workflow = {
+        **WORKFLOW,
+        "steps": [{"order": 0, "says": "two systems, one job", "cites": ["a", "b"]}],
+    }
+    version = version_from_rig(
+        workflow,
+        GESTURES,
+        recordings=["str_1"],
+        induced_by="rig",
+        induced_at=NOW,
+        requests=two_hosts,
+        facility="SG",
+    )
+
+    assert version is not None
+    calls = [step.network_plan for step in version.steps if step.network_plan]
+    assert len(calls) == 2, "both, not neither"
+    refs = [h.credential_ref for plan in calls for h in plan.headers if h.credential_ref]
+    assert refs == ["other.example/SG/authorization"], "filed under its own host"
 
 
 def test_the_gesture_ceiling_is_the_same_one_every_demonstration_has() -> None:
@@ -241,3 +285,90 @@ def test_the_gesture_ceiling_is_the_same_one_every_demonstration_has() -> None:
     assert version.steps[0].network_plan is not None, "the write has a call"
     assert version.steps[1].network_plan is None, "the click that caused none has not"
     assert version.needs_a_person
+
+
+LABELLED = {
+    **WORKFLOW,
+    "parameters": [{"name": "Username or email", "seen_values": ["ana", "bo"]}],
+}
+
+
+def test_a_control_named_for_a_person_is_still_a_usable_parameter() -> None:
+    """The one already sitting in the real store.
+
+    The rig names a parameter after its control, and where there is no ExtJS
+    itemId that is the field's LABEL -- free-form text written for a human.
+    `Parameter` requires `str.isidentifier()`, so `Username or email` did not
+    make a bad parameter, it RAISED and took the whole build with it. That
+    control is in the login flow: the most repeated job in any capture and the
+    first thing a second demonstration will diff.
+    """
+    found = parameters_from_rig(LABELLED)
+
+    assert [p.name for p in found] == ["Username_or_email"]
+    assert found[0].description.endswith("Username or email"), "the label a reviewer reads"
+    assert found[0].evidence is Evidence.PROVEN
+
+
+def test_a_name_python_accepts_but_a_template_reads_short_is_made_safe() -> None:
+    """The quieter half. `café`.isidentifier() is True, and `Template.idpattern`
+    is `(?a:[_a-z][_a-z0-9]*)` -- ASCII only -- so `$café` parses as `caf` and
+    the version is refused for referencing a parameter it never declared."""
+    odd = {**WORKFLOW, "parameters": [{"name": "café", "seen_values": ["x", "y"]}]}
+
+    name = parameters_from_rig(odd)[0].name
+
+    assert Template(raw=f"${name}").placeholders == {name}
+
+
+def test_two_controls_that_land_on_one_name_are_both_dropped() -> None:
+    """Keeping one would not merely lose the other -- it would bind the other
+    control's values to a name that is not its own, which is the
+    bind-by-coincidence defect this module was rewritten once to close. A
+    dropped parameter costs a literal value; a wrong one costs a wrong write."""
+    clashing = {
+        **WORKFLOW,
+        "parameters": [
+            {"name": "work area", "seen_values": ["a", "b"]},
+            {"name": "work-area", "seen_values": ["c", "d"]},
+        ],
+    }
+
+    assert parameters_from_rig(clashing) == ()
+
+
+def test_what_a_version_declares_and_what_its_steps_reference_cannot_drift() -> None:
+    """One reader for both. If `bindings_for` and `parameters_from_rig`
+    disagreed about a name by one character, the version would reference a
+    parameter it does not declare and the domain refuses the whole build."""
+    labelled = {
+        **WORKFLOW,
+        "parameters": [{"name": "Activity Code", "seen_values": ["TEST1", "TEST2"]}],
+    }
+    gestures = {
+        "a": {
+            "kind": "type",
+            "value": "TEST1",
+            "url": "https://wms.example/x",
+            "target": {"role": "textbox", "name": "Activity Code", "cssPath": "i"},
+        }
+    }
+    workflow = {**labelled, "steps": [{"order": 0, "says": "type it", "cites": ["a"]}]}
+
+    version = version_from_rig(
+        workflow, gestures, recordings=["str_1"], induced_by="rig", induced_at=NOW
+    )
+
+    assert version is not None, "it builds at all, which is the assertion"
+    assert version.steps[0].placeholders == {"Activity_Code"}
+    assert {p.name for p in version.parameters} == {"Activity_Code"}
+
+
+def test_a_blank_recording_id_is_no_recording_rather_than_a_crash() -> None:
+    """`stream_id` comes out of a column, so a blank is a database's answer and
+    not a caller's mistake. `RecordingId` refuses one and raises."""
+    assert _version(recordings=["", "   "]) is None
+
+    kept = _version(recordings=["", "str_1"])
+    assert kept is not None
+    assert [str(r) for r in kept.provenance.recording_ids] == ["str_1"]

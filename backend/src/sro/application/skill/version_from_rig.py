@@ -39,7 +39,12 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from datetime import datetime
 
-from sro.application.skill.from_rig import bindings_for, plan_for_gesture, plans_for_workflow
+from sro.application.skill.from_rig import (
+    bindings_for,
+    declared_parameters,
+    plan_for_gesture,
+    plans_for_workflow,
+)
 from sro.application.skill.network_from_rig import network_plan_for_gesture
 from sro.domain.shared.identifiers import PrincipalId, RecordingId
 from sro.domain.skill.parameter import Evidence, Parameter, ParameterKind
@@ -63,32 +68,25 @@ def parameters_from_rig(workflow: Mapping[str, object]) -> tuple[Parameter, ...]
     than trusted. It should not exist -- nothing in the rig produces one -- and
     if the store ever holds one, the honest reading is that whatever made it did
     not do the diff this evidence level claims.
+
+    Names and collisions come from `declared_parameters`, the same reader
+    `bindings_for` uses, so what a version DECLARES and what its steps
+    REFERENCE cannot drift apart.
     """
-    parameters = workflow.get("parameters")
-    found: list[Parameter] = []
-    for entry in parameters if isinstance(parameters, list) else ():
-        if not isinstance(entry, Mapping):
-            continue
-        name = _text(entry.get("name"))
-        if not name:
-            continue
-        raw = entry.get("seen_values")
-        values = tuple(
-            text for value in (raw if isinstance(raw, list) else ()) if (text := _text(value))
+    return tuple(
+        Parameter(
+            name=name,
+            kind=ParameterKind.INPUT,
+            # The control's own label, kept because sanitising the name throws
+            # away how the operator would recognise the field: `Username or
+            # email` becomes `Username_or_email`, and a reviewer should still
+            # see what they typed into.
+            description=f"what the operator typed into {label}",
+            observed_values=values,
+            evidence=Evidence.PROVEN if len(set(values)) > 1 else Evidence.PROPOSED,
         )
-        found.append(
-            Parameter(
-                name=name,
-                kind=ParameterKind.INPUT,
-                # Named after the control it was typed into, which is what the
-                # rig names it: `activityCode` says what it is, `TEST1` says
-                # what it was once.
-                description=f"what the operator typed into {name}",
-                observed_values=values,
-                evidence=Evidence.PROVEN if len(set(values)) > 1 else Evidence.PROPOSED,
-            )
-        )
-    return tuple(found)
+        for name, (label, values) in declared_parameters(workflow).items()
+    )
 
 
 def version_from_rig(
@@ -100,8 +98,8 @@ def version_from_rig(
     induced_at: datetime,
     version: int = 1,
     requests: Mapping[str, Sequence[Mapping[str, object]]] | None = None,
-    target_system: str = "",
     facility: str = "",
+    target_system: str = "",
 ) -> SkillVersion | None:
     """One mined workflow as a reviewable version, or None where it is not one.
 
@@ -116,7 +114,13 @@ def version_from_rig(
     really were one described step, and renaming them apart would invent a
     distinction the evidence does not make.
     """
-    if not recordings:
+    # Blank ids are dropped before the emptiness check, not after. `if not
+    # recordings` passed a list of empty strings straight through to
+    # `RecordingId`, which refuses one and raises -- and `stream_id` comes out
+    # of a column, so a blank is a database's answer rather than a caller's
+    # mistake. A version with no readable provenance is refused, not raised at.
+    named = tuple(dict.fromkeys(one for r in recordings if (one := str(r).strip())))
+    if not named:
         return None
 
     bindings = bindings_for(workflow)
@@ -143,7 +147,11 @@ def version_from_rig(
                     facility=facility,
                     bindings=bindings,
                 )
-                if requests is not None and target_system and facility
+                # Gated on the FACILITY alone. `target_system` is now derived
+                # per call from the host it went to, so requiring it here left
+                # a caller that correctly declined to name one system for a
+                # cross-system job with no network recipe at all.
+                if requests is not None and facility
                 else None
             )
             if ui is None and network is None:
@@ -157,7 +165,7 @@ def version_from_rig(
         steps=tuple(steps),
         parameters=parameters_from_rig(workflow),
         provenance=Provenance(
-            recording_ids=tuple(dict.fromkeys(RecordingId(r) for r in recordings)),
+            recording_ids=tuple(RecordingId(r) for r in named),
             induced_at=induced_at,
             induced_by=PrincipalId(induced_by),
             note=_text(workflow.get("narrative")) or "",
@@ -168,7 +176,7 @@ def version_from_rig(
         # are saying the screen is not part of the task, and this cannot tell
         # which case it is holding, so it speaks only for the single-recording
         # one.
-        starts_on=_starts_on(workflow, gestures) if len(set(recordings)) == 1 else None,
+        starts_on=_starts_on(workflow, gestures) if len(named) == 1 else None,
         systems=tuple(text for s in _as_list(workflow.get("systems")) if (text := _text(s))),
     )
 

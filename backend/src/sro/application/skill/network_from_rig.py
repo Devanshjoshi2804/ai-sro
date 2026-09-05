@@ -40,6 +40,7 @@ from __future__ import annotations
 import json
 from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
+from urllib.parse import urlsplit
 
 from sro.application.induction.headers import build_header_plans
 from sro.domain.recording.network import Body, CapturedRequest, RedirectHop, primary_of
@@ -104,24 +105,52 @@ def _epoch(value: object) -> datetime | None:
 
 
 def _headers(value: object) -> dict[str, str]:
+    """Every observed header, empty values included.
+
+    `build_header_plans` promises "one HeaderPlan per observed header. Nothing
+    is dropped", and a header sent with an empty value was still sent -- some
+    APIs distinguish absent from blank. Only a nameless one is dropped, because
+    `HeaderPlan` refuses it.
+    """
     return {
-        name: text
+        name: raw
         for name, raw in _mapping(value).items()
-        if isinstance(name, str) and name.strip() and (text := _text(raw)) is not None
+        if isinstance(name, str) and name.strip() and isinstance(raw, str)
     }
 
 
+# What the rig writes in place of a body it could not parse well enough to
+# redact. Declared here rather than imported, because `new_agent_arch` is a
+# separate package this one may not reach into -- the same deliberate twinning
+# as the OAuth companion list.
+UNINSPECTABLE = "«whole body: could not be parsed to redact»"
+
+REDACTED = "«redacted»"
+
+
 def _body(value: object) -> Body | None:
-    """A stored body, which the rig keeps as a dict beside its own metadata."""
+    """A stored body, which the rig keeps as a dict beside its own metadata.
+
+    A body the rig replaced wholesale with `UNINSPECTABLE` is not a body: it is
+    a sentence saying the redactor gave up. Sending it as a payload would post
+    that sentence to the warehouse. It comes back as a blob-less, text-less
+    Body so the caller can see something was captured and that none of it is
+    replayable, rather than as None, which reads as "this call had no body".
+    """
     found = _mapping(value)
     if not found:
         return None
     text = _text(found.get("text"))
-    if text is None:
+    blob = _text(found.get("blob_uri"))
+    if text == UNINSPECTABLE:
+        text = None
+        blob = None
+    if text is None and blob is None:
         return None
     return Body(
         text=text,
-        size_bytes=_int(found.get("size_bytes")) or len(text),
+        blob_uri=blob,
+        size_bytes=_int(found.get("size_bytes")) or (len(text) if text else 0),
         mime_type=_text(found.get("mime_type")),
         encoding=_text(found.get("encoding")),
     )
@@ -170,7 +199,7 @@ def network_plan_for_gesture(
     gesture: Mapping[str, object],
     requests: Sequence[object],
     *,
-    target_system: str,
+    target_system: str = "",
     facility: str,
     bindings: Mapping[str, frozenset[str]] | None = None,
 ) -> NetworkPlan | None:
@@ -210,16 +239,58 @@ def network_plan_for_gesture(
         return None
 
     body = primary.request_body
+    unreplayable = _unreplayable(primary)
     return NetworkPlan(
-        method=primary.method.upper(),
+        method=primary.method.strip().upper(),
         url=Template(raw=_bind(primary.url, bindings)),
-        headers=build_header_plans(primary, target_system=target_system, facility=facility),
+        headers=build_header_plans(
+            primary,
+            # The host this call actually went to, not the workflow's. A
+            # credential reference is a vault key scoped per system, and the
+            # jobs this project exists to capture cross systems -- so one
+            # target_system for a whole workflow files half its calls under the
+            # wrong login. `target_system` remains as the caller's override for
+            # a host it wants named differently.
+            target_system=target_system or urlsplit(primary.url).hostname or "",
+            facility=facility,
+        ),
+        # A body the rig kept out of line is not an absent body. `_body` returns
+        # None when there is no inline text, and passing that through made a
+        # large POST into an empty POST that still called itself replayable;
+        # `body_blob_uri` is the field that exists for this. All 39 real request
+        # bodies carry the key, so the shape is live even where the value is not.
         body=Template(raw=_bind(body.text, bindings)) if body and body.text else None,
-        expected_status=primary.status,
-        content_type=primary.request_headers.get("Content-Type")
-        or primary.request_headers.get("content-type"),
-        replayable=primary.resource_type.lower() not in _UNREPLAYABLE_RESOURCE_TYPES,
+        body_blob_uri=body.blob_uri if body and not body.text else None,
+        # Only a status the call actually succeeded with. `primary_of`'s last
+        # rung is "the first call at all", so a gesture whose every call FAILED
+        # still yields a plan -- and recording its 4xx as the expected status
+        # makes a run correct when the warehouse rejects the write and failed
+        # when it lands. There is one in the real store: a PUT to
+        # /data/WM/wm/addresses that came back 422. No expectation is a plan
+        # that proves nothing; a wrong one is a plan that proves the opposite.
+        expected_status=primary.status if primary.succeeded else None,
+        content_type=primary.header("content-type"),
+        replayable=unreplayable is None,
+        unreplayable_reason=unreplayable,
     )
+
+
+def _unreplayable(primary: CapturedRequest) -> str | None:
+    """Why this call cannot be replayed, or None when it can.
+
+    `NetworkPlan` refuses `replayable=False` with no reason -- "an unexplained
+    dead end is indistinguishable from a capture bug" -- so the previous
+    version's bare `replayable=` flag could never once fire without raising and
+    taking the whole workflow build with it. A guard that crashes instead of
+    guarding is worse than no guard, because it looks like one.
+    """
+    if primary.resource_type.strip().lower() in _UNREPLAYABLE_RESOURCE_TYPES:
+        return f"the demonstration performed this over {primary.resource_type}"
+    if primary.failure_reason:
+        return f"the call did not complete: {primary.failure_reason}"
+    if primary.blocked_reason:
+        return f"the browser blocked the call: {primary.blocked_reason}"
+    return None
 
 
 def _bind(raw: str, bindings: Mapping[str, frozenset[str]] | None) -> str:

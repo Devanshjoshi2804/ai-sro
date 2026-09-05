@@ -61,3 +61,12 @@ tests_dir = ["tests/"]
 # opens by path has to come too. The corpus fixture is the one file the tests
 # read that is not Python.
 also_copy = ["tests"]
+# A changed non-Python file cannot be diffed for behaviour, so the default
+# ("warn") keeps every cached verdict and carries on. That is worse than it
+# sounds: `src/rig/web/index.html` changed, the stale copy under `mutants/` no
+# longer matched the test that reads a line out of it, and the sweep died
+# during stats collection with `failed to collect stats. runner returned 1`
+# over a suite that is green. A false alarm shaped exactly like a broken suite
+# costs whoever meets it an hour. "rerun" throws the cache away instead, which
+# is the honest answer when the thing under test may have moved.
+on_dependency_change = "rerun"

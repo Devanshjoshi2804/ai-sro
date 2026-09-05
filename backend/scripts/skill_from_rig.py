@@ -43,12 +43,33 @@ from sro.domain.shared.identifiers import PrincipalId, TenantId
 from sro.domain.shared.objective import Direction, ObjectiveKey
 
 
+class Unreachable(Exception):
+    """The rig did not answer, or answered something this cannot use.
+
+    Its own class so a caller can say WHICH request failed. A bare HTTPError
+    escaping as a traceback is the wrong report for the commonest case by far:
+    a rig started before the evidence route existed answers `/v1/workflows`
+    with a 200 and `/v1/workflows/{id}/evidence` with a 404, and the operator
+    needs to be told to restart it, not shown a stack.
+    """
+
+
 def _get(base: str, path: str, token: str) -> dict[str, Any]:
     request = urllib.request.Request(  # noqa: S310 - an operator-supplied base url
         f"{base.rstrip('/')}{path}", headers={"Authorization": f"Bearer {token}"}
     )
-    with urllib.request.urlopen(request, timeout=60) as answer:  # noqa: S310
-        loaded = json.load(answer)
+    try:
+        with urllib.request.urlopen(request, timeout=60) as answer:  # noqa: S310
+            loaded = json.load(answer)
+    except urllib.error.HTTPError as refused:
+        hint = (
+            " -- a rig started before this route existed answers 404 here; restart it"
+            if refused.code == 404
+            else ""
+        )
+        raise Unreachable(f"{path}: HTTP {refused.code} {refused.reason}{hint}") from refused
+    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as problem:
+        raise Unreachable(f"{path}: {problem}") from problem
     return loaded if isinstance(loaded, dict) else {}
 
 
@@ -80,7 +101,11 @@ async def _adopt(args: argparse.Namespace, workflows: list[dict[str, Any]]) -> i
         return 1
 
     workflow = workflows[0]
-    evidence = _get(args.rig, f"/v1/workflows/{workflow['id']}/evidence", args.token)
+    try:
+        evidence = _get(args.rig, f"/v1/workflows/{workflow['id']}/evidence", args.token)
+    except Unreachable as problem:
+        print(f"the rig at {args.rig}: {problem}")
+        return 1
     container = build_container()
     try:
         adopted = await container.adopt_rig_workflow().execute(
@@ -147,8 +172,8 @@ async def main() -> int:
 
     try:
         listing = _get(args.rig, "/v1/workflows", args.token)
-    except (urllib.error.URLError, TimeoutError) as problem:
-        print(f"the rig at {args.rig} did not answer: {problem}")
+    except Unreachable as problem:
+        print(f"the rig at {args.rig}: {problem}")
         return 1
 
     workflows = [w for w in listing.get("workflows", []) if isinstance(w, dict)]
@@ -166,7 +191,11 @@ async def main() -> int:
     )
     built = 0
     for workflow in workflows:
-        evidence = _get(args.rig, f"/v1/workflows/{workflow['id']}/evidence", args.token)
+        try:
+            evidence = _get(args.rig, f"/v1/workflows/{workflow['id']}/evidence", args.token)
+        except Unreachable as problem:
+            print(f"the rig at {args.rig}: {problem}")
+            return 1
         missing = evidence.get("missing") or []
         version = version_from_rig(
             workflow,

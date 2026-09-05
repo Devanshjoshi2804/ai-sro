@@ -191,7 +191,8 @@ operator's genuine work, replayed out of the backend's own blob store by
 
 ### What it found
 
-Eight workflows, all of them warehouse work:
+Eight workflows -- seven of them warehouse work, and the eighth the operator
+getting ready, which is the caution below rather than a find:
 
 ```
 Create Carrier Cross Reference for Test Drive LLC   10 steps, 26 citations
@@ -201,7 +202,7 @@ Create Work Area NEWTESTS                            8 steps, 22 citations
 Create Work Area TWOTEST                             8 steps, 18 citations
 Create Work Activity TEST1                           7 steps, 16 citations
 Create a Warehouse Equipment Type                    7 steps, 13 citations
-Login and Start Recording                            5 steps, 14 citations  CROSS-SYSTEM
+Login and Start Recording                            5 steps, 14 citations  NOT THE WORK
 ```
 
 The production pipeline, on the same operator, held 30 candidates of which 29
@@ -212,12 +213,34 @@ frames on localhost`. One was on the WMS host.
 window cited, and citations spread evenly across 170 hours rather than
 clustering at the head. On the 81-gesture corpus skew was +0.37 every time.
 
-**The cross-system one is real and it is also a caution.** `Login and Start
-Recording` spans Google and the WMS, which is the architecture's central claim
-demonstrated on captured evidence rather than a constructed second host -- and
-it is the login flow, which is not a job anyone wants automated. It exists in
-the corpus because the tenant's own identity providers were not in the default
-exclusion list. They are now.
+**The cross-system one is real, it is a caution, and the caution is worse than
+first written.** `Login and Start Recording` was described here as spanning
+Google and the WMS. Counting the systems of the gestures it actually cites:
+
+```
+workspace.google.com               2
+blueyonderalphaus.b2clogin.com     1
+keycloak-…-wms-keycloak-prod       4
+localhost:3000                     7      <- this system's own console
+bf56-kms-wms-web-np2.jdadelivers   0
+```
+
+It cites **no WMS gesture at all**, and half its evidence is the SRO console,
+which the operator had open in a tab while demonstrating. So the one
+multi-system workflow the miner found on captured evidence is the login flow
+plus the apparatus watching itself -- not a warehouse job crossing into
+another system, which is the claim this architecture exists to support. The
+identity providers were not in the default exclusion list; they are now, and
+`admit` refuses this deployment's own hosts outright.
+
+That leaves the corpus at **seven warehouse jobs**, not eight. The eighth was
+the operator getting ready.
+
+The cross-system mechanism itself is unaffected -- it was measured on
+constructed two-system evidence and scored 1.00/1.00/1.00 there. What this
+costs is the claim that it has been shown on CAPTURED two-system traffic. It
+has not, and the fifteen-minute two-host capture is still what would settle
+it.
 
 ### Identity, on the second pass
 

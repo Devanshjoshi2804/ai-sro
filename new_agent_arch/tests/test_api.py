@@ -2132,10 +2132,13 @@ def test_the_page_escapes_a_run_and_says_when_a_step_could_not_be_priced() -> No
     billed on a model missing from PRICES drawn as "$0.0000" is a price the
     page made up.
     """
-    hostile = "<img src=x onerror=go()>"
+    hostile = "<img src=x onerror=\"go('x')\">"
     rendered = _run_page(
         """
-        const hostile = "<img src=x onerror=go()>";
+        // Both quote characters: esc() escaping them is what keeps a value
+        // out of the attribute it is written into, and nothing else on the
+        // page would notice if it stopped.
+        const hostile = `<img src=x onerror="go('x')">`;
         // Not `step`: the page already has a function by that name.
         const one = { order: 1, says: hostile, verdict: "held", verdict_by: "model",
                       reason: hostile, matched_by: hostile, stale: false,
@@ -2153,18 +2156,28 @@ def test_the_page_escapes_a_run_and_says_when_a_step_could_not_be_priced() -> No
           runView({ ...run, outcome: "running" }),
           ranStep({ ...one, cost_usd: 0, unpriced: true }),
           ranStep({ ...one, cost_usd: 0, unpriced: false }),
+          // A prefill read off a warehouse page, landing inside value="...".
+          paramField({ name: "clientCode", seen_values: [`" onmouseover=alert(1) x="`] }),
         ]));
         """
     )
-    held, running, unpriced, free = json.loads(rendered)
+    held, running, unpriced, free, field = json.loads(rendered)
 
     assert hostile not in held, "a run's text reaches the DOM unescaped"
     # says, reason and matched_by on each of two steps, plus the withheld
-    # payload: seven fields, every one of them through esc().
-    assert held.count("&lt;img src=x onerror=go()&gt;") == 7, held
+    # payload: seven fields, every one of them through esc(). The seventh has
+    # been through JSON.stringify first, so it carries backslashes the other
+    # six do not -- match the opening of the tag rather than the whole of it.
+    assert held.count("&lt;img src=x onerror=") == 7, held
+    assert held.count("&quot;go(&#39;x&#39;)&quot;&gt;") == 6, held
     assert "what a live run would have sent" in held
     assert "click" in held, "a withheld write with no recorded call draws an empty box"
     assert 'class="stop"' in running, "a running run cannot be stopped"
     assert 'class="stop"' not in held, "a finished run still offers a stop button"
     assert "unpriced" in unpriced and "$0.0000" not in unpriced
     assert "$0.0000" in free, "an honestly-free step and an unpriced one read the same"
+    # The attribute context. Between tags, a lone `"` is harmless and a page
+    # that stopped escaping it looks fine; inside value="..." it closes the
+    # attribute and everything after it is markup the browser runs.
+    assert '" onmouseover' not in field, f"the value attribute closes early: {field}"
+    assert "&quot; onmouseover=alert(1) x=&quot;" in field, field

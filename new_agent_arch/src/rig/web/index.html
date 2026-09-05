@@ -288,44 +288,74 @@
     return said;
   }
 
+  // The runs this page is still polling. `drawJobs` reads it: a redraw
+  // replaces the div `watch` writes into, leaving the poll addressing a node
+  // that is no longer in the document.
+  const watching = new Set();
+
+  const K_GIVE_UP_AFTER = 5;
+
   // Poll while it runs, and only while it runs: the other five OUTCOMES are
   // terminal, so a poll after one of them asks a question that can never come
   // back different.
-  async function watch(runId, device, into) {
+  async function watch(runId, device, into, failures = 0) {
+    watching.add(runId);
     let run;
     try {
       run = await get(`/v1/runs/${encodeURIComponent(runId)}`);
     } catch (error) {
-      into.innerHTML = `<div class="error">${esc(error.message)}</div>`;
+      // A poll that failed is not a run that stopped -- the run is in the
+      // operator's browser, and this is the page that watches it. Say so and
+      // ask again; give up only after five in a row, and say that too rather
+      // than sitting on a view that has quietly stopped being current.
+      // textContent, not esc(): the message carries a route's `detail`, and
+      // the DOM does the escaping itself when it is never parsed as markup.
+      const done = failures + 1 >= K_GIVE_UP_AFTER;
+      const say = into.querySelector(".error") ?? into.appendChild(document.createElement("div"));
+      say.className = "error";
+      say.textContent = done
+        ? `${error.message} — gave up watching after ${K_GIVE_UP_AFTER} tries`
+        : error.message;
+      if (done) watching.delete(runId);
+      else setTimeout(() => watch(runId, device, into, failures + 1), 1000);
       return;
     }
     into.innerHTML = runView(run);
     into.querySelector(".stop")?.addEventListener("click", (event) => {
       event.target.disabled = true;
       post(`/v1/runs/${encodeURIComponent(runId)}/abort`, { device_id: device }).catch(
-        (error) => {
-          into.querySelector(".outcome").innerHTML += `<span class="error">${
-            esc(error.message)
-          }</span>`;
-        },
+        // The next poll replaces `.outcome` a second later, so it is gone as
+        // often as it is there.
+        (error) =>
+          into
+            .querySelector(".outcome")
+            ?.insertAdjacentHTML("beforeend", `<span class="error">${esc(error.message)}</span>`),
       );
     });
     if (run.outcome === "running") setTimeout(() => watch(runId, device, into), 1000);
+    // Terminal. The view stays; the lock on the job list does not.
+    else watching.delete(runId);
+  }
+
+  // Prefilled with the last value the recording actually carried, and
+  // `required`: POST /v1/runs refuses a declared parameter left blank rather
+  // than performing the job with somebody else's client code, and the field
+  // saying so beats a round trip to hear it.
+  //
+  // The prefill is a value read off a warehouse page, and it lands inside an
+  // attribute rather than between tags: `" onmouseover=...` closes `value="`
+  // and everything after it is markup. esc() covers both contexts because it
+  // escapes the quotes too -- which is exactly the property a test has to
+  // hold it to, since dropping `"` from esc() breaks nothing anywhere else.
+  function paramField(p) {
+    const seen = (p.seen_values ?? []).slice(-1)[0] ?? "";
+    return `<label>${esc(p.name)}
+      <input name="${esc(p.name)}" value="${esc(seen)}" required></label>`;
   }
 
   async function openRunner(w) {
     const { devices } = await get("/v1/devices");
-    // Prefilled with the last value the recording actually carried, and
-    // `required`: POST /v1/runs refuses a declared parameter left blank rather
-    // than performing the job with somebody else's client code, and the field
-    // saying so beats a round trip to hear it.
-    const fields = (w.parameters ?? [])
-      .map((p) => {
-        const seen = (p.seen_values ?? []).slice(-1)[0] ?? "";
-        return `<label>${esc(p.name)}
-          <input name="${esc(p.name)}" value="${esc(seen)}" required></label>`;
-      })
-      .join("");
+    const fields = (w.parameters ?? []).map(paramField).join("");
     const picker = devices.length
       ? `<select name="device">${devices.map((d) => `<option>${esc(d)}</option>`).join("")}</select>`
       : `<span class="none">no browser is connected to the rig</span>`;
@@ -340,9 +370,17 @@
       event.preventDefault();
       const form = new FormData(event.target);
       const values = {};
-      for (const p of w.parameters ?? []) values[p.name] = form.get(p.name) ?? "";
+      // Trimmed: a client code with a copied-in trailing space is typed into
+      // somebody's form as a client code with a trailing space.
+      for (const p of w.parameters ?? []) values[p.name] = (form.get(p.name) ?? "").trim();
       const note = box.querySelector(".note");
-      note.innerHTML = "";
+      // `required` stops an empty field and not a field of three spaces, and
+      // the route counts " " as a value given. Same refusal, same words.
+      const blank = Object.keys(values).filter((name) => !values[name]);
+      note.innerHTML = blank.length
+        ? `<div class="error">this job needs a value for: ${esc(blank.join(", "))}</div>`
+        : "";
+      if (blank.length) return;
       try {
         const { run_id } = await post("/v1/runs", {
           workflow_id: w.id,
@@ -362,10 +400,11 @@
   let showing = "gestures";
 
   async function drawJobs() {
-    // The three-second redraw would take an open runner with it: half-typed
-    // values, and the run being watched under them. The cards say nothing new
-    // while somebody is using one.
-    if (document.querySelector(".runner form")) return;
+    // The three-second redraw replaces every card, which takes an open runner
+    // with it. Two reasons to hold it off, both of which end on their own --
+    // "a form is open" does not, because the redraw that would remove the form
+    // is the one being held off, and the list stays frozen until a reload.
+    if (watching.size || document.querySelector(".runner :focus")) return;
     const { workflows } = await get("/v1/workflows");
     document.getElementById("jobs").innerHTML = workflows.length
       ? workflows.map(job).join("")

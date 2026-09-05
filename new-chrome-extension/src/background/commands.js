@@ -513,8 +513,12 @@ async function httpSend(payload) {
 /**
  * Perform one command. Never throws: an exception here is a command with no
  * answer, and the backend can only read that as a device that went away.
+ *
+ * `source` is which channel the command arrived on -- "backend" or "rig". It
+ * is recorded on the run because a run's finish has to be asked of the process
+ * that started it, and a rig run asked of the backend is a 404.
  */
-export async function perform(command) {
+export async function perform(command, source = "backend") {
   if (command.run_id && aborted.has(command.run_id)) {
     return failure("aborted", "this run was aborted");
   }
@@ -523,7 +527,7 @@ export async function perform(command) {
     const now = Date.now();
     const isNewRun = latest?.runId !== command.run_id;
     latest = isNewRun
-      ? { runId: command.run_id, kind: command.kind, since: now, at: now, ...told(command) }
+      ? { runId: command.run_id, kind: command.kind, source, since: now, at: now, ...told(command) }
       : { ...latest, kind: command.kind, at: now, ...told(command) };
     // The page says so itself while it is being driven. The panel already
     // does, and the panel is not where somebody is looking: they are watching
@@ -536,11 +540,13 @@ export async function perform(command) {
     // poll -- which only ever fires for an operator already staring at the
     // screen. `service-worker.js`'s `checkFinishing()` reads this instead,
     // off both the panel poll and the heartbeat alarm that fires whether the
-    // panel is open or not. Only `runId` and `at`: everything else `latest`
-    // carries -- `tabId`, the step count the band shows -- is for driving
-    // this run within this worker's own lifetime and is worthless to a
-    // worker that has since been evicted and restarted.
-    void state.setActiveRun({ runId: command.run_id, at: now });
+    // panel is open or not. Only `runId`, `at` and `source`: everything else
+    // `latest` carries -- `tabId`, the step count the band shows -- is for
+    // driving this run within this worker's own lifetime and is worthless to a
+    // worker that has since been evicted and restarted. `source` survives
+    // because the finish has to be asked of the process that started the run,
+    // and a restarted worker no longer has the channel to ask.
+    void state.setActiveRun({ runId: command.run_id, at: now, source });
     // A new run starting supersedes whatever the last one made. Left standing,
     // "Undo that" for the run before this one would sit under a card saying
     // this one is performing right now -- confusing even though neither fact

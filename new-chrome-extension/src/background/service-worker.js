@@ -8,6 +8,7 @@ import * as channel from "./channel.js";
 import { abort, isDriving, performing, RUN_QUIET_MS } from "./commands.js";
 import { isMirrorable } from "./mirror.js";
 import * as queue from "./queue.js";
+import * as rigChannel from "./rig-channel.js";
 import { redactUrl } from "../content/sensitivity.module.js";
 import {
   allowsHost,
@@ -70,6 +71,7 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   // socket goes with it, so without this a quiet browser is an unreachable one
   // until the operator happens to click something.
   void channel.settle();
+  void rigChannel.settle();
 });
 
 // Page lifecycle, straight from the platform -- no content script needed for
@@ -621,6 +623,7 @@ async function handle(message, sender) {
       // exact thing the sign-out path below clears the queue to prevent.
       await unregister();
       channel.close();
+      rigChannel.close();
       await queue.clear();
       await state.newQueueEpoch();
       // A batch minted for the last operator names their epoch and their
@@ -650,6 +653,7 @@ async function handle(message, sender) {
       // Before the credential goes: a socket authenticated as the operator
       // who is leaving must not still be open for the next one.
       channel.close();
+      rigChannel.close();
       // Before the credential goes, so nothing captured under it can be
       // uploaded under the next one. What this browser recorded for one
       // operator must not arrive in another operator's tenant because they
@@ -692,6 +696,9 @@ async function handle(message, sender) {
         // Clearing the URL turns the mirror off, and its secret goes with it.
         await state.setRigToken("");
       }
+      // Dialled now rather than at the next alarm: an operator who has just
+      // pasted a rig URL is watching this page for it to come up.
+      void rigChannel.settle();
       return status();
     case "flush":
       // Upload now rather than on the next tick, and all of it: the options
@@ -1286,6 +1293,7 @@ async function settle() {
   // not at the next tab close. Nothing re-attaches until a gesture asks.
   if (!policy?.capture_snapshots) await releaseAll();
   await channel.settle();
+  void rigChannel.settle();
   await badge();
   return status();
 }

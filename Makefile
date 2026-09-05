@@ -168,6 +168,7 @@ test-extension: ## The extension's own self-checks, in plain node
 	node new-chrome-extension/src/background/trees.test.mjs
 	node new-chrome-extension/src/background/mirror.test.mjs
 	node new-chrome-extension/src/background/rig-settings.test.mjs
+	node new-chrome-extension/src/background/channel.test.mjs
 	node new-chrome-extension/src/content/network.test.mjs
 	node new-chrome-extension/src/content/sensitivity.test.mjs
 	node new-chrome-extension/src/content/watch.test.mjs

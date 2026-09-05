@@ -23,7 +23,7 @@ from rig.locators import locators_for, recorded_call
 from rig.models import Answer, Asker, Effort
 from rig.records import Gesture
 from rig.trim import is_secret, trim
-from rig.wire import REDACTED, Body
+from rig.wire import REDACTED, Body, headers_without_markers
 from rig.workflows import Step
 
 KINDS = frozenset({"ui.perform", "http.send", "navigate"})
@@ -107,10 +107,6 @@ def _value_for(
     if said:
         return said
     return gesture.gesture.value
-
-
-def _headers_without_markers(headers: Mapping[str, str]) -> dict[str, str]:
-    return {name: value for name, value in headers.items() if REDACTED not in value}
 
 
 def _unreplayable(body: Body | None) -> bool:
@@ -208,7 +204,7 @@ async def plan_step(
                 {
                     "method": call.method.upper(),
                     "url": call.url,
-                    "headers": _headers_without_markers(call.request_headers),
+                    "headers": headers_without_markers(call.request_headers),
                     "body": body,
                 },
                 why,

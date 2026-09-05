@@ -6,6 +6,7 @@ Proved against new-chrome-extension/fixtures/, which a real browser produced.
 
 import json
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Annotated, Any, Literal
@@ -246,6 +247,15 @@ SECRET_HEADER_HINTS = (
     "xsrf",
 )
 REDACTED = "«redacted»"
+
+
+def headers_without_markers(headers: Mapping[str, str]) -> dict[str, str]:
+    """The headers that can still be sent: a value the boundary struck out is
+    not a credential the browser can use, it is the marker's own text. Lives
+    here beside REDACTED because both senders -- the planner replaying a call
+    and the verifier probing a confirming read -- need the same rule, and a
+    second copy is a second thing to forget."""
+    return {name: value for name, value in headers.items() if REDACTED not in value}
 
 
 def is_secret_header(name: str) -> bool:

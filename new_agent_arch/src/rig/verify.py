@@ -9,7 +9,7 @@ weakest of the three and the easiest to be wrong about.
 """
 
 import json
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
 from typing import Any
 
@@ -19,7 +19,7 @@ from rig.locators import recorded_call
 from rig.models import Answer, Asker
 from rig.planner import Look
 from rig.records import Gesture
-from rig.wire import REDACTED, Request
+from rig.wire import Request, headers_without_markers
 from rig.workflows import Step
 
 VERDICT_SCHEMA: dict[str, Any] = {
@@ -66,8 +66,17 @@ def expected_statuses(step: Step, by_id: Mapping[str, Gesture]) -> set[int]:
 
 
 def confirming_read(step: Step, by_id: Mapping[str, Gesture]) -> Request | None:
-    """A GET a cited gesture made after its write: the read the page performs
-    to show the result, which is the hidden state a run can ask for again."""
+    """A GET a cited gesture made after its write, and that came back: the read
+    the page performs to show the result, which is the hidden state a run can
+    ask for again.
+
+    Same completion guard as `expected_statuses`, for the reason `origin_of`
+    already learned -- the real capture has a GET to a dead host arriving one
+    millisecond after the write, and a probe aimed there proves nothing.
+
+    ponytail: "first completed GET after the write" still admits a stream, a
+    beacon or a health poll; pick by response shape if that starts costing.
+    """
     call = recorded_call(step, by_id)
     if call is None or call.method.upper() in ("GET", "HEAD", "OPTIONS"):
         return None
@@ -76,13 +85,45 @@ def confirming_read(step: Step, by_id: Mapping[str, Gesture]) -> Request | None:
         if gesture is None:
             continue
         for request in gesture.requests:
-            if request.method.upper() == "GET" and request.started_at > call.started_at:
+            if request.method.upper() != "GET" or request.started_at <= call.started_at:
+                continue
+            if request.status is not None and not request.failure_reason:
                 return request
     return None
 
 
+def _status_of(answer: Reply) -> int | None:
+    status = answer.result.get("status")
+    return status if isinstance(status, int) else None
+
+
+def _leaves(node: Any) -> Iterator[str]:
+    if isinstance(node, dict):
+        for child in node.values():
+            yield from _leaves(child)
+    elif isinstance(node, list):
+        for child in node:
+            yield from _leaves(child)
+    elif node is not None:
+        yield str(node)
+
+
 def _mentions(body: str, values: Mapping[str, str]) -> bool:
-    return any(value and value in body for value in values.values())
+    """Whether the read came back carrying a value this run supplied.
+
+    Leaf equality, not substring: the capture's own order list answers
+    `{"orders": [{"id": "ORD-1"}]}`, and a run value of "1" is inside that
+    string without being in it. A length floor cannot save the substring test
+    either -- this tenant's real work-area codes are two characters. Substring
+    is kept only for a body that is not JSON, where there are no leaves to
+    compare.
+    """
+    try:
+        parsed = json.loads(body)
+    except ValueError:
+        return any(value and value in body for value in values.values())
+    leaves = set(_leaves(parsed))
+    return any(value and value in leaves for value in values.values())
 
 
 async def verify(
@@ -97,6 +138,10 @@ async def verify(
     channel: Channel,
     device_id: str,
     run_id: str,
+    # Unused, and kept: the extension picks the probe's tab from the url
+    # itself (tabOnOrigin), so an origin in the payload would be ignored. The
+    # parameter is here because the runner calls every step's verifier the
+    # same way.
     origin: str | None,
     asker: Asker,
     model: str,
@@ -107,16 +152,21 @@ async def verify(
 
     # 1. Artifact: what the command itself returned.
     if sent_kind == "http.send":
-        status = answer.result.get("status")
-        if isinstance(status, int):
+        status = _status_of(answer)
+        if status is not None:
+            # Refusal first: a demonstration that recorded a 409 would
+            # otherwise teach the verifier that a 409 is what success looks
+            # like. What the operator got is evidence, not a licence.
+            if status >= 400:
+                return Verdict("failed", "status", f"the call returned {status}")
             wanted = expected_statuses(step, by_id)
             if status in wanted or (not wanted and 200 <= status < 300):
                 return Verdict("held", "status", f"the call returned {status}")
-            if status >= 400:
-                return Verdict("failed", "status", f"the call returned {status}")
 
     # 2. Hidden state: a read the cited evidence shows this page performs.
     probe = confirming_read(step, by_id)
+    # No values means no proposition the read could confirm: a body matches
+    # nothing, and "nothing was found" is not evidence the step failed.
     if probe is not None and values:
         got = await channel.send(
             device_id,
@@ -125,18 +175,19 @@ async def verify(
             payload={
                 "method": "GET",
                 "url": probe.url,
-                # Never a header whose stored value is the redaction marker:
-                # the same rule the planner applies to a replayed call.
-                "headers": {k: v for k, v in probe.request_headers.items() if REDACTED not in v},
+                "headers": headers_without_markers(probe.request_headers),
                 "body": None,
             },
         )
-        body = str(got.result.get("body") or "") if got.ok else ""
-        if got.ok and _mentions(body, values):
-            return Verdict(
-                "held", "read", f"a read of {probe.url} shows the value this run supplied"
-            )
-        if got.ok:
+        # The read has to have come back 2xx before its body means anything. A
+        # 404 or a 503 answers ok=True with a body that matches nothing, and
+        # deciding off `ok` alone marked a correct write failed.
+        read_status = got.result.get("status") if got.ok else None
+        if isinstance(read_status, int) and 200 <= read_status < 300:
+            if _mentions(str(got.result.get("body") or ""), values):
+                return Verdict(
+                    "held", "read", f"a read of {probe.url} shows the value this run supplied"
+                )
             return Verdict(
                 "failed", "read", f"a read of {probe.url} does not show the value this run supplied"
             )
@@ -152,7 +203,10 @@ async def verify(
         {
             "step": {"says": step.says},
             "sent": sent_kind,
-            "browser_answered": answer.result,
+            # Not `answer.result` whole: for an http.send that is the response
+            # body and headers, and nothing here trims them. The model is
+            # judging a picture; it does not need the payload to do it.
+            "browser_answered": {"ok": answer.ok, "status": _status_of(answer)},
             "screen_before": look_before.digest,
             "screen_after": look_after.digest,
             "values": dict(values),

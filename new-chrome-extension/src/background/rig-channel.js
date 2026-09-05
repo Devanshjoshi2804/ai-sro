@@ -34,3 +34,7 @@ const rig = createChannel({
 export const status = rig.status;
 export const settle = rig.settle;
 export const close = rig.close;
+// The rig holds a command against `busy` the same way the backend does
+// (`new_agent_arch/src/rig/channel.py`), and a rig-dispatched command lands in
+// the middle of somebody typing exactly as a backend-dispatched one does.
+export const operatorIsWorking = rig.operatorIsWorking;

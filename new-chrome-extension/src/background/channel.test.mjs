@@ -142,6 +142,49 @@ test("every command carries the channel it came in on as its source", async () =
   assert.deepEqual(sources, ["rig", "backend"]);
 });
 
+test("a re-pointed rig is dialled at its new url, and the old socket is dropped", async () => {
+  // `settle()` alone would not do it: an open socket makes it a no-op, so
+  // without the `close()` service-worker.js's "rig" case does first, a browser
+  // pointed at a second rig would go on taking commands from the first.
+  rig.close();
+  await rig.settle();
+  await settle();
+  const before = opened.at(-1);
+  assert.equal(before.url, "ws://rig:8100/v1/agents/dev_1/commands");
+
+  stored.set("sro.rigUrl", "http://rig-two:8100");
+  rig.close();
+  await rig.settle();
+  await settle();
+
+  const after = opened.at(-1);
+  assert.notEqual(after, before, "nothing was re-dialled");
+  assert.equal(after.url, "ws://rig-two:8100/v1/agents/dev_1/commands");
+  assert.equal(before.readyState, 3, "the socket authenticated at the old rig is still open");
+  stored.set("sro.rigUrl", "http://rig:8100");
+});
+
+test("busy goes down the channel the gesture is told to, and no other", async () => {
+  rig.close();
+  channel.close();
+  await channel.settle();
+  await rig.settle();
+  await settle();
+  const backendSocket = opened.at(-2);
+  const rigSocket = opened.at(-1);
+  assert.ok(backendSocket.url.startsWith("ws://backend:8000"));
+  assert.ok(rigSocket.url.startsWith("ws://rig:8100"));
+
+  const busy = (socket) => socket.sent.filter((m) => m.kind === "busy");
+  channel.operatorIsWorking();
+  assert.equal(busy(backendSocket).length, 1, "the backend was not told");
+  assert.equal(busy(rigSocket).length, 0, "the backend's gesture went down the rig's socket");
+
+  rig.operatorIsWorking();
+  assert.equal(busy(rigSocket).length, 1, "the rig was not told");
+  assert.equal(busy(backendSocket).length, 1, "the rig's gesture went down the backend's socket");
+});
+
 test("no rig url means no rig socket, and no error", async () => {
   stored.set("sro.rigUrl", "");
   rig.close();

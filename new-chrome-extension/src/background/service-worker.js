@@ -525,7 +525,10 @@ async function handle(message, sender) {
       // Somebody is working in here. Said out loud on the channel so a command
       // queues instead of landing mid-keystroke -- only for gestures, because
       // a page's background traffic is not a person at a keyboard.
-      if (message.kind === "gesture") channel.operatorIsWorking();
+      if (message.kind === "gesture") {
+        channel.operatorIsWorking();
+        rigChannel.operatorIsWorking();
+      }
       // They did the task themselves while it was being offered. One of the
       // three ways a nudge ends, and the one that needs saying least: they did
       // the thing, and a panel congratulating them on it is a panel nobody
@@ -696,6 +699,15 @@ async function handle(message, sender) {
         // Clearing the URL turns the mirror off, and its secret goes with it.
         await state.setRigToken("");
       }
+      // Closed first, then dialled. `settle()` leaves an open socket alone --
+      // correctly, since re-dialling a channel that is already up is how a
+      // browser hammers a rig -- but the socket that is up was authenticated
+      // against the URL and token that were just replaced. Without the close,
+      // pointing this browser at a second rig would leave it taking commands
+      // from the first until that socket happened to drop, and a rotated token
+      // would never be offered. Sign-in is the same shape for the backend, and
+      // closes for the same reason.
+      rigChannel.close();
       // Dialled now rather than at the next alarm: an operator who has just
       // pasted a rig URL is watching this page for it to come up.
       void rigChannel.settle();

@@ -6,20 +6,28 @@ be reached without the rig's database file, which is the whole point of
 `GET /v1/workflows/{id}/evidence` existing: nothing here imports `rig`, and
 nothing here opens a SQLite store.
 
-It stops at the version and does not create a `Skill`. A `Skill` needs an
-`ObjectiveKey` -- objective type, target system, entity type, facility,
-direction -- and the rig produces none of those. Deriving "an inbound receipt
-against BLR1" from `Create Work Area NEWTESTS` would be a guess wearing the
-clothes of a finding. Naming what a job is FOR is a person's, and this prints
-what a person would be naming it about.
+Without `--adopt` it stops at the version and prints what a person would be
+naming. A `Skill` needs an `ObjectiveKey` -- objective type, target system,
+entity type, facility, direction -- and the rig produces none of those.
+Deriving "an inbound receipt against BLR1" from `Create Work Area NEWTESTS`
+would be a guess wearing the clothes of a finding. Naming what a job is FOR is
+a person's, so it is typed rather than inferred, one workflow at a time.
 
+    # what is there, and what a person would be naming
     uv run python scripts/skill_from_rig.py --rig http://127.0.0.1:8099 \
         --token "$RIG_INGEST_TOKEN" --facility SG
+
+    # adopt one, under a name somebody chose
+    uv run python scripts/skill_from_rig.py --rig ... --token ... \
+        --workflow wfl_abc --adopt \
+        --objective create_work_area --entity work_area \
+        --system blue_yonder --facility SG --direction inbound
 """
 
 from __future__ import annotations
 
 import argparse
+import asyncio
 import json
 import sys
 import urllib.error
@@ -27,7 +35,12 @@ import urllib.request
 from datetime import UTC, datetime
 from typing import Any
 
+from sro.application.context import RequestContext
 from sro.application.skill.version_from_rig import version_from_rig
+from sro.container import build_container
+from sro.domain.shared.errors import DomainError
+from sro.domain.shared.identifiers import PrincipalId, TenantId
+from sro.domain.shared.objective import Direction, ObjectiveKey
 
 
 def _get(base: str, path: str, token: str) -> dict[str, Any]:
@@ -39,7 +52,75 @@ def _get(base: str, path: str, token: str) -> dict[str, Any]:
     return loaded if isinstance(loaded, dict) else {}
 
 
-def main() -> int:
+async def _adopt(args: argparse.Namespace, workflows: list[dict[str, Any]]) -> int:
+    """Store one mined workflow as a skill, under a name a person typed.
+
+    One workflow, never all of them. Adoption is the moment somebody says what
+    a job is FOR, and a flag that did eight at once would be a person naming
+    nothing eight times.
+    """
+    missing = [
+        flag
+        for flag, value in (
+            ("--workflow", args.workflow),
+            ("--objective", args.objective),
+            ("--entity", args.entity),
+            ("--system", args.system),
+            ("--facility", args.facility),
+            ("--direction", args.direction),
+            ("--principal", args.principal),
+        )
+        if not value
+    ]
+    if missing:
+        print("adopting needs a person to name the job: " + ", ".join(missing))
+        return 1
+    if len(workflows) != 1:
+        print(f"--workflow names {len(workflows)} workflows; adoption takes exactly one")
+        return 1
+
+    workflow = workflows[0]
+    evidence = _get(args.rig, f"/v1/workflows/{workflow['id']}/evidence", args.token)
+    container = build_container()
+    try:
+        adopted = await container.adopt_rig_workflow().execute(
+            RequestContext(
+                tenant_id=TenantId(args.tenant), principal_id=PrincipalId(args.principal)
+            ),
+            workflow=workflow,
+            gestures=evidence.get("gestures") or {},
+            recordings=evidence.get("recordings") or [],
+            requests=evidence.get("requests") or {},
+            objective=ObjectiveKey(
+                objective_type=args.objective,
+                target_system=args.system,
+                entity_type=args.entity,
+                facility=args.facility,
+                direction=Direction(args.direction),
+            ),
+        )
+    except DomainError as refused:
+        print(f"refused: {refused}")
+        return 1
+
+    version = adopted.version
+    calls = [step.network_plan for step in version.steps if step.network_plan]
+    fresh = "  (new)" if adopted.created_the_skill else ""
+    print(f"skill {adopted.skill_id} v{version.version}{fresh}")
+    print(
+        f"  {len(version.steps)} steps, {len(calls)} of them a call,"
+        f" {len(version.parameters)} parameter(s)"
+    )
+    print(
+        f"  stage {version.stage.value} -- nobody has reviewed it,"
+        " and the runner refuses it until they do"
+    )
+    if version.needs_a_person:
+        print("  needs a person: some step is a gesture with no call behind it")
+    return 0
+
+
+async def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--rig", default="http://127.0.0.1:8099")
     parser.add_argument("--token", required=True)
@@ -50,6 +131,18 @@ def main() -> int:
         "the network recipe is skipped rather than filed under a guess",
     )
     parser.add_argument("--workflow", default="", help="one workflow; default is every one")
+    parser.add_argument(
+        "--adopt",
+        action="store_true",
+        help="store it as a skill. Needs --workflow and the objective fields "
+        "below: naming what a job is FOR is a person's, not a default",
+    )
+    parser.add_argument("--objective", default="", help="objective_type, e.g. create_work_area")
+    parser.add_argument("--entity", default="", help="entity_type, e.g. work_area")
+    parser.add_argument("--system", default="", help="target_system, e.g. blue_yonder")
+    parser.add_argument("--direction", default="", choices=["", "inbound", "outbound"])
+    parser.add_argument("--principal", default="", help="who is adopting it")
+    parser.add_argument("--tenant", default="acme")
     args = parser.parse_args()
 
     try:
@@ -64,6 +157,9 @@ def main() -> int:
     if not workflows:
         print("no workflows")
         return 1
+
+    if args.adopt:
+        return await _adopt(args, workflows)
 
     print(
         f"{'workflow':40s} {'steps':>5s} {'calls':>5s} {'writes':>6s} {'params':>6s} {'holes':>5s}"
@@ -110,4 +206,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(asyncio.run(main()))

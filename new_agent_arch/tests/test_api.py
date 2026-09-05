@@ -1937,13 +1937,170 @@ def test_the_stop_button_flips_the_flag_and_tells_the_browser(client: TestClient
     from rig.channel import FakeChannel
     from rig.runner import Aborts
 
-    client.app.state.channel = FakeChannel({"abort": [Reply(ok=True, result={"aborted": True})]})
+    fake = FakeChannel({"abort": [Reply(ok=True, result={"aborted": True})]})
+    client.app.state.channel = fake
     assert client.post(
         "/v1/runs/run_x/abort", json={"device_id": "dev_test"}, headers=_auth()
     ).json() == {"aborted": True}
     assert Aborts.is_aborted("run_x")
+    assert [s for s in fake.sent if s["kind"] == "abort"] == [
+        {
+            "device_id": "dev_test",
+            "kind": "abort",
+            "payload": {"run_id": "run_x"},
+            "run_id": "run_x",
+        }
+    ], "the browser is told which run to drop, once"
     Aborts.forget("run_x")
 
 
 def test_devices_lists_what_is_connected(client: TestClient) -> None:
     assert client.get("/v1/devices", headers=_auth()).json() == {"devices": []}
+
+
+def _idle_workflow(store: Store, parameters: list[dict[str, Any]] | None = None) -> None:
+    """A workflow whose one step cites nothing, so a run of it plans nothing,
+    sends nothing, and stops -- the door is what these tests are about."""
+    from rig.workflows import Step, Workflow, save_workflow
+
+    save_workflow(
+        store,
+        Workflow(
+            id="wfl_1",
+            tenant="new",
+            title="t",
+            narrative="n",
+            steps=[Step(order=0, says="s", system=None, cites=[])],
+            parameters=parameters or [],
+        ),
+    )
+
+
+def _start(client: TestClient, **body: Any) -> Any:
+    return client.post(
+        "/v1/runs",
+        json={"workflow_id": "wfl_1", "device_id": "dev_test", "started_by": "form", **body},
+        headers=_auth(),
+    )
+
+
+def test_a_declared_parameter_left_blank_is_refused_before_anything_is_started(
+    client: TestClient, store: Store
+) -> None:
+    """The planner falls back to the value the recording happened to contain
+    when a parameter has none. That fallback exists for a step nobody
+    parameterised; for a declared parameter left blank it would quietly perform
+    the job with somebody else's client code."""
+    from rig.channel import FakeChannel
+
+    _idle_workflow(store, [{"name": "clientCode", "seen_values": ["A"]}])
+    client.app.state.channel = FakeChannel({})
+
+    refused = _start(client, values={})
+
+    assert refused.status_code == 400
+    assert "clientCode" in refused.json()["detail"]
+    assert store.query("SELECT count(*) AS n FROM runs")[0]["n"] == 0
+
+
+def test_a_value_that_is_not_a_string_is_refused_and_never_echoed(
+    client: TestClient, store: Store
+) -> None:
+    from rig.channel import FakeChannel
+
+    _idle_workflow(store, [{"name": "clientCode", "seen_values": ["A"]}])
+    client.app.state.channel = FakeChannel({})
+
+    refused = _start(client, values={"clientCode": {"nested": "hunter2"}})
+
+    assert refused.status_code == 400
+    assert "hunter2" not in refused.text, "a refusal names the parameter, never the value"
+    assert _start(client, values=["clientCode"]).status_code == 400
+    assert store.query("SELECT count(*) AS n FROM runs")[0]["n"] == 0
+
+
+def test_the_device_is_claimed_before_the_press_answers(
+    client: TestClient, store: Store, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The `running` row is written by the handler, not by the task it spawns.
+
+    Written by the task, the second press lands in the window between
+    `create_task` and that task's first slice, reads no busy run, and puts a
+    second hand on the same browser. The spawn is stubbed out entirely so the
+    window is the whole test: nothing but the handler can have written the row
+    the second press must see.
+    """
+    from rig import api
+    from rig.channel import FakeChannel
+
+    _idle_workflow(store)
+    client.app.state.channel = FakeChannel({})
+    monkeypatch.setattr(api, "_spawn_run", lambda work: work.close())
+
+    first, second = _start(client, values={}), _start(client, values={})
+
+    assert (first.status_code, second.status_code) == (202, 409)
+    assert first.json()["run_id"] in second.json()["detail"]
+    assert store.query("SELECT count(*) AS n FROM runs")[0]["n"] == 1
+
+
+def test_a_first_execution_is_dry_unless_the_caller_says_otherwise(
+    client: TestClient, store: Store
+) -> None:
+    from rig.channel import FakeChannel
+    from rig.runs import load_run
+
+    _idle_workflow(store)
+    client.app.state.channel = FakeChannel({})
+
+    started = _start(client, values={})
+
+    run = load_run(store, "new", started.json()["run_id"])
+    assert run is not None and run.live is False, "live is a thing a person asks for"
+
+
+def test_the_stop_button_works_on_a_browser_that_has_already_gone(client: TestClient) -> None:
+    """The flag is the authority; telling the browser is best effort. A run
+    whose browser died is exactly the run somebody presses stop on."""
+    from collections.abc import Mapping
+
+    from rig.channel import Answer as Reply
+    from rig.channel import DeviceUnreachable, FakeChannel
+    from rig.runner import Aborts
+
+    class _Gone(FakeChannel):
+        async def send(
+            self,
+            device_id: str,
+            *,
+            kind: str,
+            payload: Mapping[str, object],
+            run_id: str | None = None,
+            deadline_s: float | None = None,
+        ) -> Reply:
+            raise DeviceUnreachable("dev_test is not connected")
+
+    client.app.state.channel = _Gone({})
+    stopped = client.post("/v1/runs/run_y/abort", json={"device_id": "dev_test"}, headers=_auth())
+
+    assert stopped.status_code == 200 and stopped.json() == {"aborted": True}
+    assert Aborts.is_aborted("run_y")
+    Aborts.forget("run_y")
+
+
+@pytest.mark.parametrize(
+    ("method", "path"),
+    [
+        ("get", "/v1/devices"),
+        ("post", "/v1/runs"),
+        ("get", "/v1/runs/run_x"),
+        ("post", "/v1/runs/run_x/abort"),
+        ("post", "/v1/chat"),
+    ],
+)
+def test_no_door_of_the_runner_opens_without_the_token(
+    client: TestClient, method: str, path: str
+) -> None:
+    """Every one of these either drives the operator's own browser or reads
+    what it did."""
+    assert client.request(method, path, json={}).status_code == 401

@@ -23,7 +23,7 @@ from rig.locators import allowlist, origin_of, primary_gesture, recorded_call, w
 from rig.models import Answer, Asker
 from rig.planner import Look, Planned, plan_step
 from rig.records import Gesture
-from rig.runs import Run, RunStep, new_run_id, save_run
+from rig.runs import Run, RunStep, load_run, new_run_id, save_run
 from rig.store import Store
 from rig.verify import Verdict, verify
 from rig.workflows import Step, Workflow
@@ -227,7 +227,14 @@ async def run_workflow(
     started_by: str,
     run_id: str | None = None,
 ) -> Run:
-    run = Run(
+    # A run the caller already claimed. `POST /v1/runs` writes the `running` row
+    # itself, before it answers, so a second press for the same browser is
+    # refused rather than landing in the window between `create_task` and this
+    # task's first slice. That row is then the authority for what was asked
+    # for -- read back here rather than rebuilt from the arguments, so there is
+    # one answer to "what is this run doing" and not two that can drift.
+    saved = load_run(store, workflow.tenant, run_id) if run_id else None
+    run = saved or Run(
         id=run_id or new_run_id(),
         tenant=workflow.tenant,
         workflow_id=workflow.id,
@@ -238,6 +245,7 @@ async def run_workflow(
         allow_focus=allow_focus,
         started_at=_now(),
     )
+    values, live, allow_focus, device_id = run.values, run.live, run.allow_focus, run.device_id
     save_run(store, run)
     by_id = _gestures_for(store, workflow)
     allowed = allowlist(workflow, by_id)

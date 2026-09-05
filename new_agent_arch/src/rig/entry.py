@@ -78,7 +78,11 @@ async def understand(
         for k, v in (raw.items() if isinstance(raw, dict) else ())
         if k in declared and isinstance(v, str)
     }
-    missing = [
-        m for m in (answer.data.get("missing") or []) if isinstance(m, str) and m in declared
-    ]
+    # Read and ignored. `missing` stays in the schema because a model asked to
+    # name what is absent picks values more carefully than one that is not --
+    # but a parameter it leaves out of `missing` is a parameter the form never
+    # asks for, and the run then performs with whatever the recording happened
+    # to contain. What is missing is not an opinion: it is `declared` minus what
+    # arrived.
+    missing = sorted(n for n in declared if isinstance(n, str) and n not in values)
     return Understood(chosen.id, values, missing, answer)

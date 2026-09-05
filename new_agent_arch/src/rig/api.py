@@ -24,7 +24,7 @@ from fastapi import (
 from fastapi.responses import HTMLResponse
 from pydantic import ValidationError
 
-from rig.channel import DeviceChannel
+from rig.channel import DeviceChannel, DeviceUnreachable
 from rig.config import settings
 from rig.correlate import correlate
 from rig.intents import read_gesture
@@ -40,6 +40,11 @@ from rig.wire import Gesture as WireGesture
 # silence -- see service-worker.js:422, the same system making the opposite
 # choice.
 log = logging.getLogger("rig")
+
+K_ABORT_DEADLINE_S = 2.0
+"""How long the stop button waits on the browser. The flag is what stops the
+run; this command only saves the extension a step it is mid-way through, and a
+person pressing stop is owed an answer sooner than a command deadline."""
 
 
 def _now() -> str:
@@ -774,7 +779,7 @@ def build_app(
         """The press. A person opened a door and chose live or dry; the rig
         has no way to start a run on its own."""
         from rig.runner import run_workflow
-        from rig.runs import new_run_id
+        from rig.runs import Run, new_run_id, save_run
         from rig.workflows import known_workflows
 
         # The browser first, then the workflow: "your browser is not connected"
@@ -804,15 +809,57 @@ def build_app(
             raise HTTPException(status_code=404, detail="no such workflow")
         # The caller's body is the only source of values. Nothing the chat door
         # understood is carried across on its own -- the press is what says
-        # which values this run is performed with.
-        given = body.get("values")
-        values: dict[Any, Any] = given if isinstance(given, dict) else {}
+        # which values this run is performed with. Coerced values, not checked
+        # ones, would turn `{"clientCode": {...}}` into the string "{...}" and
+        # type it into somebody's form.
+        given = body.get("values", {})
+        if not isinstance(given, dict) or not all(
+            isinstance(k, str) and isinstance(v, str) for k, v in given.items()
+        ):
+            raise HTTPException(status_code=400, detail="values must be an object of strings")
+        values: dict[str, str] = given
+        # Every parameter the workflow declares must arrive with a value. The
+        # planner falls back to the value the recording happened to contain when
+        # a step has none -- right for a step nobody parameterised, and for a
+        # declared parameter left blank it would quietly perform the job with
+        # somebody else's client code. Named, never echoed: a refusal that
+        # quotes the values is a refusal in the access log.
+        absent = sorted(
+            str(p["name"])
+            for p in workflow.parameters
+            if isinstance(p, dict) and p.get("name") and str(p["name"]) not in values
+        )
+        if absent:
+            raise HTTPException(
+                status_code=400, detail=f"this job needs a value for: {', '.join(absent)}"
+            )
+
+        # Claimed here, not by the task. Written inside `run_workflow`, the
+        # `running` row appears only once the spawned task gets its first slice,
+        # and a second press arriving in that window reads no busy run and puts
+        # a second hand on the same browser.
         run_id = new_run_id()
+        save_run(
+            store,
+            Run(
+                id=run_id,
+                tenant=workflow.tenant,
+                workflow_id=workflow.id,
+                device_id=device_id,
+                values=values,
+                started_by=str(body.get("started_by") or "form"),
+                # Dry unless a person said otherwise. A missing `live` is not a
+                # caller who forgot; it is the default this system promises.
+                live=bool(body.get("live")),
+                allow_focus=bool(body.get("allow_focus", True)),
+                started_at=_now(),
+            ),
+        )
         _spawn_run(
             run_workflow(
                 store,
                 workflow,
-                values={str(k): str(v) for k, v in values.items()},
+                values=values,
                 channel=app.state.channel,
                 device_id=device_id,
                 asker=app.state.asker,
@@ -845,9 +892,22 @@ def build_app(
         Aborts.abort(run_id)
         device_id = str(body.get("device_id") or "")
         if device_id in app.state.channel.online():
-            await app.state.channel.send(
-                device_id, kind="abort", run_id=run_id, payload={"run_id": run_id}
-            )
+            try:
+                # Best effort, and short. The browser a stop button is pressed
+                # on is often the browser that has stopped answering, and a stop
+                # that hangs for the full command deadline -- or raises out of
+                # the route -- is a stop button that looks broken to the person
+                # holding it. The flag above already stopped the run; this only
+                # saves the extension a step it is mid-way through.
+                await app.state.channel.send(
+                    device_id,
+                    kind="abort",
+                    run_id=run_id,
+                    payload={"run_id": run_id},
+                    deadline_s=K_ABORT_DEADLINE_S,
+                )
+            except DeviceUnreachable:
+                pass
         return {"aborted": True}
 
     @app.post("/v1/chat", dependencies=[Depends(authorised)])

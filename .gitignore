@@ -61,6 +61,13 @@ backend/Untitled
 new_agent_arch/mutants/
 backend/mutants/
 
+# The Playwright MCP browser's console capture. Written by the tool, not by
+# this repository, and it grows without bound: the one found here was 6.7 MB of
+# the rig's own status page retrying against a server that was not running,
+# 73,170 times. Nothing in it but localhost, but an untracked multi-megabyte log
+# of a browser session is exactly what a careless `git add -A` sweeps up.
+.playwright-mcp/
+
 # The rig's own capture stores and the artifacts beside them. These hold live
 # customer WMS payloads -- the same evidence the redaction work all session was
 # protecting -- and they were untracked but NOT ignored, which is one

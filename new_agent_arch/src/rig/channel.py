@@ -143,7 +143,12 @@ class DeviceChannel:
     ) -> Answer:
         if device_id not in self._sockets:
             raise DeviceUnreachable(f"{device_id} has no channel open")
-        deadline = deadline_s or self._deadline
+        # Not `deadline_s or self._deadline`: that could not express a short
+        # deadline near zero, and let a negative one reach the wire as a
+        # negative `deadline_ms`.
+        deadline = self._deadline if deadline_s is None else deadline_s
+        if deadline <= 0:
+            return Answer(ok=False, error_kind="timeout", error_detail="a non-positive deadline")
         await self._wait_out_the_operator(device_id, deadline)
         # Read AFTER the wait: a laptop lid in the middle of it has the
         # extension re-dial, and `attach` replaces the entry.

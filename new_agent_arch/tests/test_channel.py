@@ -166,3 +166,31 @@ async def test_the_fake_channel_answers_by_kind_and_remembers_what_was_sent() ->
     assert fake.sent[0]["kind"] == "ui.url"
     unscripted = await fake.send("dev_test", kind="screenshot", payload={})
     assert not unscripted.ok and unscripted.error_kind == "not_actionable"
+
+
+async def test_an_explicit_deadline_is_honoured_and_a_non_positive_one_never_ships() -> None:
+    """`deadline_s or self._deadline` could not say 0, and shipped a negative."""
+    channel = DeviceChannel(deadline_s=1.0)
+    socket = _Socket()
+    channel.attach("dev_1", socket)
+
+    task = asyncio.create_task(channel.send("dev_1", kind="ui.url", payload={}))
+    await asyncio.sleep(0)
+    assert socket.sent[0]["deadline_ms"] == 1000, "None means the channel's own deadline"
+    channel.deliver(
+        json.dumps({"command_id": socket.sent[0]["command_id"], "ok": True, "result": {}}), "dev_1"
+    )
+    await task
+
+    short = asyncio.create_task(channel.send("dev_1", kind="ui.url", payload={}, deadline_s=0.05))
+    await asyncio.sleep(0)
+    assert socket.sent[1]["deadline_ms"] == 50
+    channel.deliver(
+        json.dumps({"command_id": socket.sent[1]["command_id"], "ok": True, "result": {}}), "dev_1"
+    )
+    await short
+
+    answer = await channel.send("dev_1", kind="ui.url", payload={}, deadline_s=0)
+
+    assert not answer.ok and answer.error_kind == "timeout"
+    assert len(socket.sent) == 2, "nothing went on the wire for a deadline it could not meet"

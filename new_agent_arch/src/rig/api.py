@@ -994,8 +994,14 @@ async def _read_soon(store: Store, asker: Asker, tenant: str) -> None:
 
 def _default_app() -> FastAPI:
     config = settings()
+    from rig.runs import fail_orphans
+
     store = Store(config.db_path)
     store.migrate()
+    # A run still `running` at startup is one the last process died driving.
+    orphaned = fail_orphans(store, "the rig restarted before this run finished")
+    if orphaned:
+        log.warning("%d run(s) were still running when the rig started; marked failed", orphaned)
     asker = GeminiAsker(config.gemini_api_key)
     return build_app(store=store, asker=asker, token=config.ingest_token, tenant=config.tenant)
 

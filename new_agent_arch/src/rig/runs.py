@@ -3,6 +3,7 @@
 import json
 import secrets
 from dataclasses import asdict, dataclass, field
+from datetime import UTC, datetime
 from typing import Any
 
 from rig.store import Store
@@ -172,6 +173,35 @@ def _run(store: Store, row: Any) -> Run:
         cost_usd=row["cost_usd"],
         unpriced=bool(row["unpriced"]),
     )
+
+
+def fail_orphans(store: Store, reason: str) -> int:
+    """Every run still `running` is marked failed, and how many there were.
+
+    Called once at startup. One uvicorn worker owns every run, so a row that
+    says `running` when the process starts is a run nobody is driving: the
+    process that was driving it died mid-step. Left alone it would 409 its
+    device forever and keep the extension asking after it on every heartbeat.
+    The reason lands on the last step where the page shows it, or on a new
+    step when the run never reached one.
+    """
+    now = datetime.now(tz=UTC).isoformat()
+    orphans = [
+        _run(store, row)
+        for row in store.query("SELECT * FROM runs WHERE outcome = 'running' ORDER BY started_at")
+    ]
+    for run in orphans:
+        if run.steps:
+            last = run.steps[-1]
+            last.verdict, last.verdict_by, last.reason = "failed", "none", reason
+        else:
+            run.steps.append(
+                RunStep(order=0, says="", verdict="failed", verdict_by="none", reason=reason)
+            )
+        run.outcome = "failed"
+        run.finished_at = now
+        save_run(store, run)
+    return len(orphans)
 
 
 def load_run(store: Store, tenant: str, run_id: str) -> Run | None:

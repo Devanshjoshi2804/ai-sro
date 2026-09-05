@@ -336,9 +336,19 @@ async def run_workflow(
                         verdict = Verdict("failed", "none", proposal.why)
                         break
                     off = _target_origin(proposal)
-                    if off is not None and off not in allowed:
+                    # For the two kinds whose target the model chooses, a url
+                    # that names no origin at all -- about:blank, file:, a bare
+                    # path -- is a refusal, not permission. `ui.perform` keeps
+                    # its origin from the evidence and None there means the
+                    # recorder saw no url, which the extension resolves itself.
+                    leaves = proposal.kind in ("http.send", "navigate")
+                    if (off is None and leaves) or (off is not None and off not in allowed):
                         record.verdict = "refused"
-                        record.reason = f"{off} is not a system this job's evidence names"
+                        record.reason = (
+                            f"{off} is not a system this job's evidence names"
+                            if off is not None
+                            else f"{proposal.payload.get('url')!r} names no system at all"
+                        )
                         run.outcome = "refused"
                         break
                     if proposal.kind != "navigate":

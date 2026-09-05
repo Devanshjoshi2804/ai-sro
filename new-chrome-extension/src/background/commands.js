@@ -247,7 +247,11 @@ async function uiPerform(payload, runId) {
 async function tabForRun(payload, runId) {
   if (runId && latest?.runId === runId && latest.tabId !== undefined) {
     const known = await chrome.tabs.get(latest.tabId).catch(() => null);
-    if (known) return known;
+    // The pinned tab serves the run only while it is on the origin this step
+    // names. A job that crosses from one system to another names the second
+    // origin on its later steps, and performing those in the first system's
+    // tab is the cross-application hand-off failure the origin exists to stop.
+    if (known && (!payload.origin || originOf(known.url) === payload.origin)) return known;
   }
 
   let tab = await drivenTab(payload.origin);
@@ -259,6 +263,14 @@ async function tabForRun(payload, runId) {
 
   if (tab && runId && latest?.runId === runId) latest = { ...latest, tabId: tab.id };
   return tab;
+}
+
+function originOf(url) {
+  try {
+    return new URL(url).origin;
+  } catch {
+    return null;
+  }
 }
 
 /** Two URLs that are the same screen.

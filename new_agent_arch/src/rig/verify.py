@@ -19,7 +19,7 @@ from rig.locators import recorded_call
 from rig.models import Answer, Asker
 from rig.planner import Look
 from rig.records import Gesture
-from rig.wire import Request, headers_without_markers
+from rig.wire import REDACTED, Request, headers_without_markers
 from rig.workflows import Step
 
 VERDICT_SCHEMA: dict[str, Any] = {
@@ -167,7 +167,9 @@ async def verify(
     probe = confirming_read(step, by_id)
     # No values means no proposition the read could confirm: a body matches
     # nothing, and "nothing was found" is not evidence the step failed.
-    if probe is not None and values:
+    # A probe whose url carries a struck-out credential would ask with the
+    # marker's text in the query string; that answers nothing about the state.
+    if probe is not None and values and REDACTED not in probe.url:
         got = await channel.send(
             device_id,
             kind="http.send",

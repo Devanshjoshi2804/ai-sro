@@ -257,3 +257,17 @@ def test_expected_statuses_and_the_confirming_read_come_from_the_evidence() -> N
     }
     read = confirming_read(_step(saver), by_id)
     assert read is not None and read.method == "GET"
+
+
+async def test_a_confirming_read_whose_url_carries_a_marker_is_never_sent() -> None:
+    saver = _saver()
+    read = confirming_read(_step(saver), {saver.id: saver})
+    assert read is not None
+    struck = read.model_copy(update={"url": f"{read.url}?token={REDACTED}"})
+    saver.requests[saver.requests.index(read)] = struck
+    channel = _read('{"code": "THIRD"}')
+
+    verdict = await _verified(saver, channel=channel, values={"clientCode": "THIRD"})
+
+    assert channel.sent == [], "a probe carrying the marker asks nothing about the state"
+    assert verdict.by != "read"

@@ -1,7 +1,7 @@
 from rig.correlate import correlate
 from rig.models import Answer, FakeAsker
 from rig.planner import PLAN_SCHEMA, Look, plan_step
-from rig.wire import Batch
+from rig.wire import REDACTED, Batch
 from rig.workflows import Step
 from tests.fixtures import BATCH
 
@@ -226,3 +226,36 @@ def test_the_schema_puts_why_last_and_kind_first() -> None:
     """Decide before explaining: identifying the command before composing the
     reason measurably beats composing first."""
     assert list(PLAN_SCHEMA["properties"]) == ["kind", "action", "value", "url", "why"]
+
+
+async def test_an_http_plan_whose_url_carries_a_struck_out_credential_is_downgraded() -> None:
+    saver = next(g for g in _gestures() if g.requests)
+    post = next(r for r in saver.requests if r.method == "POST")
+    struck = post.model_copy(update={"url": f"{post.url}?session={REDACTED}"})
+    saver.requests[saver.requests.index(post)] = struck
+    asker = FakeAsker(
+        Answer(
+            data={
+                "kind": "http.send",
+                "action": None,
+                "value": None,
+                "url": None,
+                "why": "replaying the save",
+            }
+        )
+    )
+
+    planned = await plan_step(
+        step=Step(order=0, says="save", system=None, cites=[saver.id]),
+        cited=[saver],
+        values={},
+        look=Look(None, None, ""),
+        origin=None,
+        starts_on=None,
+        allow_focus=False,
+        asker=asker,
+        model="m",
+    )
+
+    assert planned.kind == "ui.perform", "the marker would have gone out as the session id"
+    assert "not replayable" in planned.why

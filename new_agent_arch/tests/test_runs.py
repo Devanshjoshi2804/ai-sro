@@ -1,6 +1,16 @@
 from pathlib import Path
 
-from rig.runs import OUTCOMES, VERDICTS, Run, RunStep, load_run, new_run_id, runs_for, save_run
+from rig.runs import (
+    OUTCOMES,
+    VERDICTS,
+    Run,
+    RunStep,
+    fail_orphans,
+    load_run,
+    new_run_id,
+    runs_for,
+    save_run,
+)
 from rig.store import Store
 
 
@@ -109,3 +119,22 @@ def test_saving_again_replaces_the_steps_rather_than_appending(tmp_path: Path) -
 
 def test_the_vocabularies_are_closed() -> None:
     assert "running" in OUTCOMES and "withheld" in VERDICTS
+
+
+def test_a_run_still_running_when_the_rig_starts_is_failed_and_says_why(tmp_path: Path) -> None:
+    store = _store(tmp_path)
+    orphan = _run(steps=[RunStep(order=0, says="s", verdict="held")])
+    bare = _run()
+    done = _run(outcome="held", finished_at="2026-09-05T10:01:00+00:00")
+    for run in (orphan, bare, done):
+        save_run(store, run)
+
+    assert fail_orphans(store, "the rig restarted") == 2
+
+    failed = load_run(store, "acme", orphan.id)
+    assert failed is not None and failed.outcome == "failed" and failed.finished_at
+    assert failed.steps[-1].verdict == "failed" and failed.steps[-1].reason == "the rig restarted"
+    stepless = load_run(store, "acme", bare.id)
+    assert stepless is not None and stepless.steps[0].reason == "the rig restarted"
+    untouched = load_run(store, "acme", done.id)
+    assert untouched is not None and untouched.outcome == "held"

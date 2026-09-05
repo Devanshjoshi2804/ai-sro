@@ -1111,3 +1111,38 @@ async def test_a_claimed_run_that_disagrees_with_its_arguments_is_refused(
     still = load_run(store, "acme", "run_claimed")
     assert still is not None and still.outcome == "running" and still.finished_at is None
     assert getattr(still, field) == value, "the row is left exactly as its owner saved it"
+
+
+async def test_a_navigate_to_a_url_that_names_no_system_is_refused(tmp_path: Path) -> None:
+    store = _store(tmp_path)
+    wf = _workflow(store)
+    channel = FakeChannel(_looks(2))
+    asker = FakeAsker(
+        Answer(
+            data={
+                "kind": "navigate",
+                "action": None,
+                "value": None,
+                "url": "about:blank",
+                "why": "",
+            }
+        )
+    )
+
+    run = await run_workflow(
+        store,
+        wf,
+        values={},
+        channel=channel,
+        device_id="dev_test",
+        asker=asker,
+        plan_model="flash",
+        rescue_model="pro",
+        live=True,
+        allow_focus=True,
+        started_by="form",
+    )
+
+    assert run.outcome == "refused" and run.steps[0].verdict == "refused"
+    assert "about:blank" in run.steps[0].reason
+    assert not [s for s in channel.sent if s["kind"] == "navigate"], "no origin is not permission"

@@ -23,7 +23,7 @@ from rig.locators import locators_for, recorded_call
 from rig.models import Answer, Asker, Effort
 from rig.records import Gesture
 from rig.trim import is_secret, trim
-from rig.wire import REDACTED, Body, headers_without_markers
+from rig.wire import REDACTED, Request, headers_without_markers
 from rig.workflows import Step
 
 KINDS = frozenset({"ui.perform", "http.send", "navigate"})
@@ -109,7 +109,7 @@ def _value_for(
     return gesture.gesture.value
 
 
-def _unreplayable(body: Body | None) -> bool:
+def _unreplayable(call: Request) -> bool:
     """Whether replaying this call would send something other than what the
     operator sent.
 
@@ -121,7 +121,15 @@ def _unreplayable(body: Body | None) -> bool:
     offloaded or declined) or it was kept with a credential struck out of it.
 
     No body at all is not unreplayable. There is nothing to get wrong.
+
+    The url gets the same rule as the body. `redact_url` strikes a credential
+    out of a query string at parse, and the one such call in the real store is
+    an analytics beacon carrying a cookie as a parameter: replayed, it would
+    send the marker's own text where the cookie was.
     """
+    if REDACTED in call.url:
+        return True
+    body = call.request_body
     if body is None:
         return False
     if body.text is None:
@@ -192,11 +200,11 @@ async def plan_step(
             return Planned(
                 "none", {}, "http.send planned for a step whose evidence carries no call", answer
             )
-        if _unreplayable(call.request_body):
+        if _unreplayable(call):
             # Falls through to the ui.perform below rather than returning
             # "none": a step the operator performed by clicking Save is still
             # performable by clicking Save, and planning nothing burns it.
-            why = f"recorded body is not replayable; {why}"
+            why = f"recorded call is not replayable; {why}"
         else:
             body = call.request_body.text if call.request_body and call.request_body.text else None
             return Planned(

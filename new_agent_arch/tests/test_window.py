@@ -3,12 +3,14 @@ import json
 
 from rig.correlate import correlate
 from rig.records import Intent, ValueSeen
+from rig.umbrella import PROMPT_OVERHEAD_TOKENS
 from rig.window import (
     K_MAX_GESTURE_TOKENS,
     K_MAX_ITEMS,
     K_MIN_GESTURES,
     arrange,
     as_evidence,
+    evidence_tokens,
     pack,
     strength,
     tokens,
@@ -245,3 +247,125 @@ def test_packing_twice_does_not_compound_the_pool_bonus() -> None:
     pack(_gestures(), {}, pooled, [], "", budget=150_000)
 
     assert pooled[0].strength == 1.0
+
+
+def _wrote():
+    """The fixture's one gesture with calls behind it, and they include POSTs."""
+    return next(g for g in _gestures() if any(r.method != "GET" for r in g.requests))
+
+
+def _many(count: int = 60):
+    """Enough gestures for the budget to matter.
+
+    `K_MIN_GESTURES` is 25 and the fixture holds 7, so every window test before
+    this one packed everything and never reached the budget branch at all --
+    which is why it had seventeen surviving mutants. Cloning the fixture with
+    fresh ids is the smallest way to get above the floor.
+    """
+    made = []
+    for n in range(count):
+        for gesture in _gestures():
+            clone = copy.deepcopy(gesture)
+            clone.id = f"{gesture.id}_{n}"
+            clone.at = gesture.at + n
+            made.append(clone)
+            if len(made) == count:
+                return made
+    return made
+
+
+def test_what_earns_a_place_in_the_window() -> None:
+    """`strength` decides which 6% of a day the model ever sees, and nothing
+    pinned its shape. Each clause is asserted as an ORDERING rather than as a
+    number: what has to hold is that a gesture which wrote outranks one that
+    only read, not that the bonus is 1.0 -- the numbers are tuneable and the
+    ranking is the contract.
+    """
+    plain = copy.deepcopy(_wrote())
+    plain.requests = []
+    plain.gesture.kind = "click"
+    base = strength(plain, None, set())
+
+    wrote = copy.deepcopy(_wrote())
+    wrote.gesture.kind = "click"
+    assert strength(wrote, None, set()) > base, (
+        "a gesture that changed something outranks one that looked"
+    )
+
+    read_only = copy.deepcopy(wrote)
+    for request in read_only.requests:
+        request.method = "GET"
+    assert strength(read_only, None, set()) == base, "and a read earns nothing extra"
+
+    typed = copy.deepcopy(plain)
+    for kind in ("type", "select", "upload"):
+        typed.gesture.kind = kind
+        assert strength(typed, None, set()) > base, f"{kind} put something into the world"
+
+    sure = Intent(gesture_id=plain.id, tenant="acme", confidence="high")
+    unsure = Intent(gesture_id=plain.id, tenant="acme", confidence="low")
+    assert strength(plain, sure, set()) > strength(plain, unsure, set()), "a confident reading"
+
+    assert strength(plain, None, {plain.id}) > base, "and evidence that crosses two systems"
+
+
+def test_the_known_workflows_summary_costs_budget_rather_than_making_it() -> None:
+    """The summary goes in the same prompt as the evidence, so its tokens come
+    OUT of the room the evidence has. A sign flip here reads as free space and
+    packs a window that will not fit -- the exact shape of the failure that
+    made a cap not cap."""
+    gestures = _many()
+    known = [{"id": f"wfl_{n}", "title": "a job " * 40, "shape_key": ["a"] * 40} for n in range(40)]
+
+    alone = pack(gestures, {}, [], [], "", budget=12_000)
+    beside = pack(gestures, {}, [], known, "", budget=12_000)
+
+    assert len(beside.items) < len(alone.items), "the summary took room from the evidence"
+    assert beside.left_out, "and what it displaced is named"
+
+
+def test_a_window_reports_what_it_actually_spent() -> None:
+    """`spent` is what a caller checks a budget against, so it has to be the
+    sum of what was packed rather than a number of its own."""
+    window = pack(_many(), {}, [], [], "", budget=20_000)
+
+    assert window.spent == sum(item.tokens for item in window.items)
+    assert window.spent > 0
+
+
+def test_the_floor_wins_over_the_budget_and_says_what_it_left_out() -> None:
+    """K_MIN_GESTURES is the promise that a window is never empty. Below it the
+    budget test is not even asked, so a budget of nothing still yields a
+    readable window -- and everything the budget refused is named rather than
+    disappearing."""
+    gestures = _many()
+
+    starved = pack(gestures, {}, [], [], "", budget=0)
+
+    assert len(starved.items) == K_MIN_GESTURES
+    assert len(starved.items) + len(starved.left_out) == len(gestures), "nothing vanished"
+
+
+def test_an_item_that_exactly_fills_the_room_is_packed() -> None:
+    """The boundary, which no budget picked at random ever lands on.
+
+    `spent + item.tokens > room` and `>= room` differ on exactly one input: the
+    item that fits with nothing to spare. Rejecting it wastes a gesture per
+    window for no reason, and a window is the only thing the model ever sees.
+    So the budget is computed backwards from the evidence rather than chosen.
+    """
+    gestures = _many()
+    ranked = sorted(
+        ((strength(g, None, set()), g.at, evidence_tokens(as_evidence(g, None))) for g in gestures),
+        key=lambda item: (-item[0], item[1]),
+    )
+    wanted = K_MIN_GESTURES + 5
+    room = sum(item[2] for item in ranked[:wanted])
+    # What `pack` subtracts before it starts: the prompt's fixed cost, and the
+    # known-workflow summary, which here is an empty list.
+    budget = room + PROMPT_OVERHEAD_TOKENS + tokens(json.dumps([], indent=1, ensure_ascii=False))
+
+    window = pack(gestures, {}, [], [], "", budget=budget)
+
+    assert window.spent == room, "it fits with nothing to spare"
+    assert len(window.items) == wanted, "and the one that exactly fits is in"

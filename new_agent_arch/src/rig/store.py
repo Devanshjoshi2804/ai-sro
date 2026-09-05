@@ -159,6 +159,51 @@ CREATE TABLE IF NOT EXISTS workflow_steps (
     parameters  TEXT NOT NULL DEFAULT '[]',
     PRIMARY KEY (workflow_id, ord)
 );
+
+CREATE TABLE IF NOT EXISTS runs (
+    id          TEXT PRIMARY KEY,
+    tenant      TEXT NOT NULL,
+    workflow_id TEXT NOT NULL,
+    device_id   TEXT NOT NULL,
+    values_json TEXT NOT NULL DEFAULT '{}',
+    started_by  TEXT NOT NULL DEFAULT '',
+    live        INTEGER NOT NULL DEFAULT 0,
+    allow_focus INTEGER NOT NULL DEFAULT 0,
+    started_at  TEXT NOT NULL,
+    finished_at TEXT,
+    outcome     TEXT NOT NULL DEFAULT 'running',
+    -- The writes a dry run produced and did not send, in full. This is what a
+    -- person reads before pressing through to live.
+    withheld    TEXT NOT NULL DEFAULT '[]',
+    in_tokens   INTEGER NOT NULL DEFAULT 0,
+    out_tokens  INTEGER NOT NULL DEFAULT 0,
+    thought_tokens INTEGER NOT NULL DEFAULT 0,
+    cost_usd    REAL NOT NULL DEFAULT 0.0,
+    unpriced    INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS runs_tenant ON runs (tenant, workflow_id, started_at);
+
+CREATE TABLE IF NOT EXISTS run_steps (
+    run_id      TEXT NOT NULL,
+    ord         INTEGER NOT NULL,
+    says        TEXT NOT NULL DEFAULT '',
+    planned_by  TEXT,
+    sent        TEXT,             -- the command envelope's kind and payload, JSON
+    result      TEXT,             -- what the extension answered, JSON
+    verdict     TEXT NOT NULL,
+    verdict_by  TEXT NOT NULL DEFAULT '',
+    reason      TEXT NOT NULL DEFAULT '',
+    matched_by  TEXT,
+    stale       INTEGER NOT NULL DEFAULT 0,
+    before_url  TEXT,
+    after_url   TEXT,
+    in_tokens   INTEGER NOT NULL DEFAULT 0,
+    out_tokens  INTEGER NOT NULL DEFAULT 0,
+    thought_tokens INTEGER NOT NULL DEFAULT 0,
+    cost_usd    REAL NOT NULL DEFAULT 0.0,
+    unpriced    INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (run_id, ord)
+);
 """
 
 

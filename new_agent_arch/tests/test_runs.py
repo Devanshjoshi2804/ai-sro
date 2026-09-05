@@ -1,0 +1,111 @@
+from pathlib import Path
+
+from rig.runs import OUTCOMES, VERDICTS, Run, RunStep, load_run, new_run_id, runs_for, save_run
+from rig.store import Store
+
+
+def _store(tmp_path: Path) -> Store:
+    store = Store(tmp_path / "rig.db")
+    store.migrate()
+    return store
+
+
+def _run(**over) -> Run:
+    base = {
+        "id": new_run_id(),
+        "tenant": "acme",
+        "workflow_id": "wfl_1",
+        "device_id": "dev_1",
+        "values": {"workArea": "THIRD"},
+        "started_by": "form",
+        "live": False,
+        "allow_focus": True,
+        "started_at": "2026-09-05T10:00:00+00:00",
+        "finished_at": None,
+        "outcome": "running",
+        "steps": [],
+        "withheld": [],
+    }
+    return Run(**{**base, **over})
+
+
+def test_a_run_id_has_the_shape_the_other_ids_have() -> None:
+    assert new_run_id().startswith("run_") and len(new_run_id()) == 36
+
+
+def test_a_run_round_trips_with_every_step_and_every_withheld_write(tmp_path: Path) -> None:
+    store = _store(tmp_path)
+    run = _run(
+        steps=[
+            RunStep(
+                order=0,
+                says="type the code",
+                planned_by="gemini-3.8-flash",
+                sent={"kind": "ui.perform", "payload": {"action": "type", "value": "THIRD"}},
+                result={"performed": True, "matched_by": "component", "candidates": 1},
+                verdict="held",
+                verdict_by="screen",
+                reason="the field shows THIRD",
+                matched_by="component",
+                stale=False,
+                before_url="https://wms/x",
+                after_url="https://wms/x",
+                in_tokens=300,
+                out_tokens=40,
+                thought_tokens=10,
+                cost_usd=0.0004,
+                unpriced=False,
+            ),
+            RunStep(
+                order=1,
+                says="save",
+                planned_by="gemini-3.8-flash",
+                sent={"kind": "ui.perform", "payload": {"action": "click"}},
+                result={"withheld": True},
+                verdict="withheld",
+                verdict_by="dry",
+                reason="a dry run does not send writes",
+                matched_by=None,
+                stale=False,
+                before_url=None,
+                after_url=None,
+            ),
+        ],
+        withheld=[
+            {
+                "step": 1,
+                "method": "POST",
+                "url": "https://wms/data/WM/wm/workAreas",
+                "body": '{"workArea":"THIRD"}',
+            }
+        ],
+        outcome="held",
+        finished_at="2026-09-05T10:01:00+00:00",
+        in_tokens=300,
+        out_tokens=40,
+        thought_tokens=10,
+        cost_usd=0.0004,
+    )
+
+    save_run(store, run)
+    back = load_run(store, "acme", run.id)
+
+    assert back == run
+    assert runs_for(store, "acme", "wfl_1") == [run]
+    assert load_run(store, "acme", "run_nobody") is None
+
+
+def test_saving_again_replaces_the_steps_rather_than_appending(tmp_path: Path) -> None:
+    """A run is saved after every step so the page can poll it; the second
+    save must not double the first step."""
+    store = _store(tmp_path)
+    run = _run(steps=[RunStep(order=0, says="a", verdict="held", verdict_by="status", reason="")])
+    save_run(store, run)
+    run.steps.append(RunStep(order=1, says="b", verdict="held", verdict_by="status", reason=""))
+    save_run(store, run)
+
+    assert [s.order for s in load_run(store, "acme", run.id).steps] == [0, 1]
+
+
+def test_the_vocabularies_are_closed() -> None:
+    assert "running" in OUTCOMES and "withheld" in VERDICTS

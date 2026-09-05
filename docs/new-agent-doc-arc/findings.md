@@ -720,14 +720,14 @@ missing a row.
 
 | # | claim | result |
 |---|---|---|
-| 1 | suite green, three gates clean | 314 passed; `ruff check`, `ruff format --check`, `mypy src` clean |
+| 1 | suite green, three gates clean | 381 passed; `ruff check`, `ruff format --check`, `mypy src` clean |
 | 2 | a workflow spans two systems, every step citing gestures that exist | **not shown on captured evidence — it has one system.** 6/6 on constructed two-system evidence, every citation valid |
 | 3 | re-mining adds no workflow | yes, on real output: second pass kept 0 |
 | 4 | two occurrences of one job resolve `same_job` | 33 of 57 proposals folded onto an existing workflow, mostly by shape |
 | 5 | nothing stranded | 0 on every pass |
 | 6 | an invented citation is rejected and named | yes, plus four other tampers each under its own reason |
-| 7 | an over-long window reports its skew | **not exercised** — `left_out` 0 everywhere, window at 16% of budget |
-| 8 | cost is known, beside plan 1's $1.36 | ≈ $0.37 Flash / $0.43 Pro per operator-day, after `a0ddd04` |
+| 7 | an over-long window reports its skew | exercised now, by constraining the budget: `scripts/rotate.py` drives `left_out` to 318–362 and the pool covers 387/387 in ten passes. At the full budget the corpus still fits in one window, so this remains unexercised on unconstrained real evidence |
+| 8 | cost is known, beside plan 1's $1.36 | $2.9419 for this whole corpus — $0.9459 to read 387 gestures and $1.9960 for three mining passes. Scaled to a 2,000-gesture day: $4.88 of reading plus a mining bill of the same order. See the cost section; the earlier per-day figures here predated both the thinking-token accounting and any measurement of mining |
 
 ## Reproducing this
 

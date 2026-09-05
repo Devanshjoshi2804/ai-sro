@@ -429,6 +429,20 @@ all -- those are the scrolls, which have no target by design.
 and six of the eight workflows carry exactly one write apiece -- one POST per
 `create`, which is what those jobs are.
 
+Five of those six, rather. The sixth is `Login and Start Recording`, whose
+"write" is a POST to `localhost:8000/v1/recordings` -- the SRO console, which
+the operator had open in a tab, asking this system's own API to start
+recording. Twelve such requests are in the store. The apparatus was captured as
+though it were the work, and a mined workflow reported the act of recording as
+the write its job performs.
+
+`admit` now refuses this deployment's own API and console ahead of the tenant's
+policy, and no operator grant widens them -- which is the difference between
+that rule and `exclude_hosts`, since a grant is exactly what widens the latter,
+and pressing "observe this page" while looking at the console would switch the
+apparatus back on. Configuration could have excluded it and did not, because a
+default nobody sets is a default nobody has.
+
 **`version_from_rig`** assembles a `SkillVersion`. All eight build, 165 steps,
 every one at `RECORDED`, because nothing about a mined workflow has been
 reviewed by anybody.

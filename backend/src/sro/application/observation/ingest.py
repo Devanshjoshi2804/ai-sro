@@ -20,6 +20,7 @@ from sro.application.observation.register import refuse_unless_itself
 from sro.application.ports.blob import BlobStore
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock
+from sro.config import get_settings
 from sro.domain.observation.batch import CaptureMode, ObservationBatch, RejectedEvent
 from sro.domain.shared.errors import DomainError
 from sro.domain.shared.identifiers import BatchId, DeviceId, RecordingId
@@ -129,7 +130,9 @@ class IngestObservation:
             # What this operator said may be watched after all, on top of
             # what the tenant agreed to by default. Read from the device
             # already loaded above, and expired grants simply are not in it.
-            admission = admit(events, policy, device.granted_hosts(now))
+            admission = admit(
+                events, policy, device.granted_hosts(now), get_settings().our_own_hosts()
+            )
             if not admission.accepted:
                 return Ingested(
                     batch_id=batch_id,

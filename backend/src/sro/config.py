@@ -5,6 +5,7 @@ from __future__ import annotations
 import subprocess
 from functools import lru_cache
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -113,10 +114,34 @@ class Settings(BaseSettings):
     api_url: str = "http://localhost:8000"
     """Where this deployment's own API answers.
 
-    Used by the worker, and only for one thing: a scheduled run bound to an
-    operator's browser has to be asked for by the process holding that browser's
-    channel, which is the API rather than the worker. Wrong here means scheduled
-    device runs fail with a message naming this setting; nothing else notices."""
+    Used by the worker, so a scheduled run bound to an operator's browser is
+    asked for by the process holding that browser's channel -- the API rather
+    than the worker. Wrong there means scheduled device runs fail with a message
+    naming this setting.
+
+    Also `our_own_hosts` below, which is a different kind of wrong: too NARROW
+    there and the evidence plane records this system recording."""
+
+    def our_own_hosts(self) -> frozenset[str]:
+        """This deployment's own API and console, as host:port.
+
+        Never observable, and no operator grant widens them -- `admit` refuses
+        them ahead of the tenant's policy. The operator had the console open in
+        a tab while demonstrating and the extension captured it asking the API
+        for its own recordings: twelve requests in the real store, one of them a
+        POST that a mined workflow reported as the write its job performs.
+
+        Host AND port, because an API on 8000 beside a console on 3000 is the
+        ordinary shape and a hostname alone would refuse `localhost` entirely --
+        which on a developer's machine is also where the warehouse test server
+        lives. `cors_origins` is the console's own origin by definition: it is
+        the list of browser origins allowed to call this API.
+        """
+        return frozenset(
+            netloc
+            for url in (self.api_url, *self.cors_origins)
+            if (netloc := urlsplit(url if "//" in url else f"//{url}").netloc.lower())
+        )
 
     temporal_address: str = "localhost:7233"
     temporal_namespace: str = "default"

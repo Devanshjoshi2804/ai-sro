@@ -83,6 +83,13 @@ async def main() -> int:
             )
         excluded = tuple((found.policy or {}).get("exclude_hosts", ())) if found else ()
         print(f"excluding {len(excluded)} host(s) the tenant no longer watches")
+    # Plus this deployment's own API and console, which `admit` now refuses at
+    # ingest -- but these batches were stored before it did. Without this, a
+    # re-run faithfully re-imports the console asking the API for its own
+    # recordings, which is how twelve such requests reached the rig and one of
+    # them became the write a mined workflow reports as its job.
+    ours = settings.our_own_hosts()
+    print(f"excluding {len(ours)} host(s) that are this system recording itself")
 
     def watched(event: dict) -> bool:
         # `.get(k, {})` returns the JSON null, not the default, when the key
@@ -95,6 +102,8 @@ async def main() -> int:
         url = _at("gesture") or _at("request") or event.get("url") or ""
         if not isinstance(url, str):
             url = ""
+        if (urlsplit(url).netloc or "").lower() in ours:
+            return False
         host = urlsplit(url).hostname or ""
         if not host:
             # No host is not the same as a host nobody excluded: a page event

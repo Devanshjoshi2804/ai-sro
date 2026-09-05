@@ -29,6 +29,16 @@ class Settings(BaseSettings):
     reads what today declined. Zero disables reading entirely; a negative value
     means no cap, which is what a deliberate one-off measurement wants."""
 
+    plan_model: str = "gemini-3.8-flash"
+    """Plans one command per step. Small models match frontier ones at this
+    class of inference; a clean step never touches the expensive one."""
+
+    rescue_model: str = "gemini-3.1-pro-preview"
+    """Retries a step once, with both screenshots and the failure. Only a step
+    that surprised the planner costs what surprises cost."""
+
+    command_deadline_s: float = 20.0
+
 
 @lru_cache
 def settings() -> Settings:

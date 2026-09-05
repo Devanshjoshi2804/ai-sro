@@ -11,10 +11,20 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated, Any
 
-from fastapi import Depends, FastAPI, Form, Header, HTTPException, UploadFile
+from fastapi import (
+    Depends,
+    FastAPI,
+    Form,
+    Header,
+    HTTPException,
+    UploadFile,
+    WebSocket,
+    WebSocketDisconnect,
+)
 from fastapi.responses import HTMLResponse
 from pydantic import ValidationError
 
+from rig.channel import DeviceChannel
 from rig.config import settings
 from rig.correlate import correlate
 from rig.intents import read_gesture
@@ -332,6 +342,7 @@ def build_app(
     app.state.asker = asker
     app.state.token = token
     app.state.tenant = tenant
+    app.state.channel = DeviceChannel(deadline_s=settings().command_deadline_s)
 
     def authorised(authorization: Annotated[str | None, Header()] = None) -> None:
         if authorization != f"Bearer {token}":
@@ -340,6 +351,40 @@ def build_app(
     @app.get("/v1/health")
     def health() -> dict[str, str]:
         return {"status": "ok"}
+
+    @app.websocket("/v1/agents/{device_id}/commands")
+    async def commands(websocket: WebSocket, device_id: str) -> None:
+        """The extension dials this the way it dials the backend's.
+
+        The credential rides in the subprotocol, not the query string: a
+        browser cannot set a header on a WebSocket, and a token in the URL is
+        a token in every access log. The rig has one token and no device
+        secret -- this is a development second reader, and the boundary is
+        that whoever holds the ingest token may drive a browser that has
+        chosen to dial here. Refused sockets close with 1008 exactly like a
+        wrong token would, so the handshake enumerates nothing.
+        """
+        protocols = [
+            part.strip() for part in websocket.headers.get("sec-websocket-protocol", "").split(",")
+        ]
+        offered = protocols[1] if len(protocols) > 1 and protocols[0] == "bearer" else ""
+        if offered != token:
+            await websocket.close(code=1008)
+            return
+        await websocket.accept(subprotocol="bearer")
+        channel: DeviceChannel = app.state.channel
+        channel.attach(device_id, websocket)
+        log.info("device %s connected to the rig", device_id)
+        try:
+            while True:
+                # Named by the route, not by the message: a browser that told
+                # the registry which device it was could say it was another.
+                channel.deliver(await websocket.receive_text(), device_id)
+        except WebSocketDisconnect:
+            pass
+        finally:
+            channel.detach(device_id, websocket)
+            log.info("device %s disconnected from the rig", device_id)
 
     @app.post("/v1/observations", status_code=202, dependencies=[Depends(authorised)])
     async def observations(raw: dict[str, Any]) -> dict[str, Any]:

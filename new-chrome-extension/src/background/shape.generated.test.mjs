@@ -15,3 +15,8 @@ test("a triple carries the system the caller names", () => {
     ["https://h", cases[0].identity, cases[0].kind],
   );
 });
+
+test("a triple with no system named carries an empty one, never null", () => {
+  const [system] = tripleOf({ system: null, target: cases[0].target, kind: cases[0].kind });
+  assert.equal(system, "");
+});

@@ -329,13 +329,31 @@ in the deployment. They should be deleted or moved out of the tenant prefix.
 
 ```
 387 gestures read      $0.9459        $0.00244 each
-thinking tokens        169,246 of 211,317 billed output   (80%)
-three mining passes    ~$0.02
+thinking tokens        168,771 of 211,317 billed output   (80%)
+three mining passes    $1.9960        $0.0066 + $1.0649 + $0.9245
+                       ------
+total on this corpus   $2.9419
 ```
 
-Plan 1 estimated $1.36 for a 2,000-gesture day. The real figure is about $4.90,
-and the difference is almost entirely thinking tokens, which every cost figure
-before commit `a0ddd04` excluded.
+**Two figures here were wrong and are corrected.** The thinking total was
+published as 169,246, and the difference of 475 is exactly the thought tokens of
+the first mining pass — a mining pass counted inside the reading total. And the
+three mining passes were published as **"~$0.02"**, against a real $1.9960. The
+first of the three did cost $0.0066: it proposed nothing, on 416 input tokens.
+Reading one pass and writing down the number for all three understated mining by
+a hundredfold.
+
+That correction matters more than its size, because mining is not a rounding
+error on top of reading — it is roughly two thirds of what this corpus cost.
+
+Plan 1 estimated $1.36 for a 2,000-gesture day. Readings alone scale to $4.88 at
+$0.00244 each. Mining is the part that was missing: a full-window pass over this
+corpus cost **$0.99 on average**, and one pass does not see a day — the rotation
+measurement needed ten passes at a constrained budget to put 387 gestures in
+front of the model even once. How many a 2,000-gesture day needs is not measured
+and is not guessed here; what is measured is that each one costs about a dollar,
+so the day's true figure is the $4.88 of reading plus a mining bill of the same
+order, not the $0.02 the earlier line implied.
 
 `unusable` fired zero times across 387 real calls -- the billed-but-unusable
 reading Task 8 added a third state for is rare rather than routine.

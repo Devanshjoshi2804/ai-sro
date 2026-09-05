@@ -28,6 +28,7 @@ test("two gestures offer the job whose prefix they are, with the values typed so
   tail = tailWith(tail, typed("wm.workAreas.desc", "north dock"));
   const offer = match(tail, shapes, { origin: H });
   assert.equal(offer.workflowId, "wfl_wa");
+  assert.equal(offer.title, "Create Work Area");
   assert.equal(offer.k, 2);
   assert.deepEqual(offer.values, { workArea: "NEWTESTS", description: "north dock" });
   assert.deepEqual(offer.missing, []);
@@ -73,13 +74,32 @@ test("a parameter typed later than the prefix is missing, and one never typed is
   assert.deepEqual(valuesFrom(tail, later, 2).missing, ["code", "never"]);
 });
 
-test("going another way ends the offer", () => {
+test("a job already finished is not offered back", () => {
+  let tail = tailWith([], typed("wm.workAreas.code", "A"));
+  tail = tailWith(tail, typed("wm.workAreas.desc", "b"));
+  assert.equal(match(tail, shapes, { origin: H }).k, 2);
+  tail = tailWith(tail, { triple: [H, "button|Save", "click"], value: null, secret: false, at: 3 });
+  assert.equal(match(tail, shapes, { origin: H }), null);
+});
+
+test("the job held more often wins a tie on the same prefix", () => {
+  const rare = { ...operation, id: "wfl_rare", held_runs: 0, shape: [...workArea.shape.slice(0, 2), [H, "button|Cancel", "click"]] };
+  const often = { ...workArea, id: "wfl_often", held_runs: 2 };
+  let tail = tailWith([], typed("wm.workAreas.code", "A"));
+  tail = tailWith(tail, typed("wm.workAreas.desc", "b"));
+  assert.equal(match(tail, [rare, often], { origin: H }).workflowId, "wfl_often");
+  assert.equal(match(tail, [often, rare], { origin: H }).workflowId, "wfl_often");
+});
+
+test("going another way ends the offer, but carrying it further does not", () => {
   let tail = tailWith([], typed("wm.workAreas.code", "A"));
   tail = tailWith(tail, typed("wm.workAreas.desc", "b"));
   const offer = match(tail, shapes, { origin: H });
   assert.equal(diverged(tail, offer, shapes), false);
+  const save = { triple: [H, "button|Save", "click"], value: null, secret: false, at: 3 };
+  assert.equal(diverged(tailWith(tail, save), offer, shapes), false, "advancing the job is not diverging from it");
   tail = tailWith(tail, typed("somewhere.else", "x"));
   assert.equal(diverged(tail, offer, shapes), true);
-  tail = tailWith(tail, { triple: [H, "button|Save", "click"], value: null, secret: false, at: 3 });
+  tail = tailWith(tail, save);
   assert.equal(diverged(tail, offer, shapes), true, "a prefix broken once does not mend");
 });

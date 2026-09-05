@@ -106,8 +106,9 @@ five minutes and the same `knownHere` map the backend candidates use.
   most held runs. `values` is `{name: typed text}` for every parameter with
   `at < k`, read off the matching tail gesture; a gesture whose control is
   flagged secret contributes nothing and the parameter is missing.
-- `diverged(tail, offer) -> bool` -- the tail no longer ends with the offer's
-  prefix: the person went another way.
+- `diverged(tail, offer) -> bool` -- the tail is no longer on the job's path:
+  it ends with no prefix of the shape of length ≥ k. Advancing the job is not
+  divergence.
 
 Wired in the service worker on every gesture: `considerOffer(tabId)`. One offer
 per tab. A new match replaces an open offer only with a longer `k`. The nudge's

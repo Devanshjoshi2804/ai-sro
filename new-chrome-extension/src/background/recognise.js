@@ -3,6 +3,11 @@
 // gestures on the tab. Arithmetic on the shape the rig serves -- no model, no
 // waiting for the once-a-minute flush -- so an offer can land on the second
 // gesture, not a minute after it.
+//
+// Only a strict prefix is offered: a tail that already ends with the whole
+// shape is a job the operator has finished, and there is nothing left to
+// offer. So a two-step job is never offered by prefix -- arriving on its page
+// covers that one.
 
 export const K_TAIL = 12;
 export const K_OFFER_AFTER = 2;
@@ -39,7 +44,7 @@ export function match(tail, shapes, { origin }) {
   let best = null;
   for (const shape of shapes) {
     if (!shape.shape?.length || shape.shape[0][0] !== origin) continue;
-    for (let k = Math.min(shape.shape.length, tail.length); k >= K_OFFER_AFTER; k--) {
+    for (let k = Math.min(shape.shape.length - 1, tail.length); k >= K_OFFER_AFTER; k--) {
       if (!endsWith(tail, shape.shape.slice(0, k))) continue;
       if (!best || k > best.k || (k === best.k && (shape.held_runs || 0) > best.heldRuns)) {
         best = { workflowId: shape.id, title: shape.title, k, heldRuns: shape.held_runs || 0, shape };
@@ -59,9 +64,16 @@ export function match(tail, shapes, { origin }) {
   };
 }
 
-/** Whether the tail has stopped being this offer's prefix. */
+/**
+ * Whether the tail has left the job's path. Carrying the job further is not
+ * divergence: any prefix of the shape at least as long as the offer's still
+ * counts as on the path, up to and including the whole of it.
+ */
 export function diverged(tail, offer, shapes) {
   const shape = shapes.find((s) => s.id === offer.workflowId);
   if (!shape) return true;
-  return !endsWith(tail, shape.shape.slice(0, offer.k));
+  for (let j = offer.k; j <= shape.shape.length; j++) {
+    if (endsWith(tail, shape.shape.slice(0, j))) return false;
+  }
+  return true;
 }

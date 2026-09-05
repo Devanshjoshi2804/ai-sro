@@ -10,7 +10,8 @@ FRONTEND := cd frontend &&
 .DEFAULT_GOAL := help
 .PHONY: help up down ps logs reset install migrate revision api worker status web vault-key \
         lint lint-backend lint-frontend format test test-unit test-integration \
-        test-contract test-browser types check ingest-kb seed-skills gen-recorder
+        test-contract test-browser types check ingest-kb seed-skills gen-recorder \
+        mutants-backend
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -146,6 +147,11 @@ fixtures: ## Recapture the extension's golden payloads from a real session
 
 test-frontend: ## The console's own tests
 	$(FRONTEND) npm test
+
+mutants-backend: ## Mutation score for the skill application package, against its floor
+	$(BACKEND) uv run mutmut run || true
+	$(BACKEND) uv run mutmut export-cicd-stats
+	$(BACKEND) uv run python scripts/mutation_floor.py
 
 test-extension: ## The extension's own self-checks, in plain node
 	node new-chrome-extension/src/background/queue.test.mjs

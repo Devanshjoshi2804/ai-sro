@@ -324,3 +324,131 @@ def test_the_content_type_is_found_whatever_its_casing() -> None:
     )
 
     assert plan is not None and plan.content_type == "application/json"
+
+
+FULL_REQUEST = {
+    "request_id": "req_abc",
+    "method": "POST",
+    "url": "https://wms.example/data/WM/wm/workAreas",
+    "resource_type": "fetch",
+    "started_at": "2026-08-26T10:40:05.000Z",
+    "request_headers": {"Accept": "application/json"},
+    "request_body": {
+        "text": '{"workArea":"NEWTESTS"}',
+        "blob_uri": None,
+        "size_bytes": 23,
+        "mime_type": "application/json",
+        "encoding": "utf8",
+    },
+    "status": 201,
+    "status_text": "Created",
+    "response_headers": {"Content-Type": "application/json"},
+    "response_body": {"text": '{"ok":true}', "size_bytes": 11, "mime_type": "application/json"},
+    "redirect_chain": [{"url": "https://wms.example/old", "status": 302, "location": "/new"}],
+    "duration_ms": 86,
+    "from_cache": True,
+    "failure_reason": "net::ERR_ABORTED",
+    "blocked_reason": "csp",
+}
+
+
+def test_every_field_the_rig_stored_reaches_the_captured_request() -> None:
+    """Field by field, because each is one dictionary key away from vanishing.
+
+    Everything here is read out of untrusted JSON by name, and a Python dict is
+    case-sensitive -- `stored.get("STATUS_TEXT")` returns None and the field is
+    simply gone, with no error and a perfectly valid request built around the
+    hole. A mutation sweep found fifteen such fields with nothing asserting any
+    of them.
+    """
+    found = request_from_rig(FULL_REQUEST, at=AT)
+
+    assert found is not None
+    assert found.request_id == "req_abc"
+    assert found.method == "POST"
+    assert found.url == "https://wms.example/data/WM/wm/workAreas"
+    assert found.resource_type == "fetch"
+    assert found.started_at == datetime(2026, 8, 26, 10, 40, 5, tzinfo=UTC)
+    assert found.request_headers == {"Accept": "application/json"}
+    assert found.status == 201
+    assert found.status_text == "Created"
+    assert found.response_headers == {"Content-Type": "application/json"}
+    assert found.duration_ms == 86
+    assert found.from_cache is True
+    assert found.failure_reason == "net::ERR_ABORTED"
+    assert found.blocked_reason == "csp"
+
+
+def test_a_body_keeps_the_metadata_the_rig_recorded_beside_it() -> None:
+    """`Body` carries what the payload WAS as well as what it said. A dropped
+    mime type or size is what a reviewer reads to decide whether a plan is
+    replaying the thing that was captured."""
+    found = request_from_rig(FULL_REQUEST, at=AT)
+
+    assert found is not None and found.request_body is not None
+    body = found.request_body
+    assert body.text == '{"workArea":"NEWTESTS"}'
+    assert body.size_bytes == 23
+    assert body.mime_type == "application/json"
+    assert body.encoding == "utf8"
+    assert found.response_body is not None and found.response_body.text == '{"ok":true}'
+
+
+def test_a_body_with_no_size_recorded_is_measured_rather_than_left_at_zero() -> None:
+    """The fallback exists because a size of 0 beside a real payload reads as an
+    empty body to anything downstream."""
+    found = request_from_rig({**FULL_REQUEST, "request_body": {"text": "abcdefghij"}}, at=AT)
+
+    assert found is not None and found.request_body is not None
+    assert found.request_body.size_bytes == 10
+
+
+def test_the_redirect_chain_survives_with_every_hop_intact() -> None:
+    """A redirect hop is where a credential ends up when a login bounces, and
+    `redact.py` walks these. A chain that quietly emptied would take the thing
+    a reviewer most wants to look at with it."""
+    found = request_from_rig(FULL_REQUEST, at=AT)
+
+    assert found is not None
+    assert len(found.redirect_chain) == 1
+    hop = found.redirect_chain[0]
+    assert (hop.url, hop.status, hop.location) == ("https://wms.example/old", 302, "/new")
+
+
+def test_a_hop_that_is_not_a_mapping_is_skipped_and_the_rest_are_kept() -> None:
+    """`and` rather than `or` in that guard: a string in the chain would be
+    asked for `.get` and raise."""
+    found = request_from_rig(
+        {**FULL_REQUEST, "redirect_chain": ["nonsense", {"url": "https://a/", "status": 301}]},
+        at=AT,
+    )
+
+    assert found is not None
+    assert [hop.url for hop in found.redirect_chain] == ["https://a/"]
+
+
+def test_a_header_with_a_name_but_no_string_value_is_not_a_header() -> None:
+    """`and` rather than `or`: a name alone is not a header, and `HeaderPlan`
+    would be asked to carry a value that is not one."""
+    found = request_from_rig(
+        {**FULL_REQUEST, "request_headers": {"A": "keep", "B": None, "": "no name", "C": 7}},
+        at=AT,
+    )
+
+    assert found is not None
+    assert dict(found.request_headers) == {"A": "keep"}
+
+
+def test_a_gesture_with_no_clock_still_yields_a_plan_from_its_calls() -> None:
+    """The gesture's own time is only ever a FALLBACK for a request that stored
+    none, so a gesture with no readable clock costs nothing as long as its
+    requests have theirs. Refusing on a missing `at` threw away every call it
+    caused over a field none of them needed."""
+    plan = network_plan_for_gesture(
+        {"kind": "click", "url": "https://wms.example/x"},
+        [FULL_REQUEST],
+        target_system="wms.example",
+        facility="SG",
+    )
+
+    assert plan is not None and plan.method == "POST"

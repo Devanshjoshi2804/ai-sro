@@ -8,6 +8,8 @@ so no locator; 13 fall to text, css path or role-and-name.
 """
 
 from sro.application.skill.from_rig import (
+    _component,
+    fingerprint_for,
     locators_for,
     plan_for_gesture,
     plans_for_step,
@@ -304,3 +306,95 @@ def test_a_dollar_in_a_css_path_is_not_a_parameter_either() -> None:
 
     assert plan is not None
     assert all(locator.query.placeholders == frozenset() for locator in plan.locators)
+
+
+FULL_TARGET = {
+    "role": "textbox",
+    "name": "Activity Code",
+    "text": "the visible label",
+    "testId": "activity-code",
+    "cssPath": "form > div#x > input",
+    "xpath": "//form/div/input",
+    "tag": "input",
+    "component": {
+        "framework": "extjs",
+        "query": "container textfield#activityCode",
+        "xtype": "textfield",
+        "itemId": "activityCode",
+        "name": "activityCodeField",
+        "fieldLabel": "Activity Code",
+        "text": "component text",
+    },
+}
+
+
+def test_every_signal_the_recorder_saw_reaches_the_fingerprint() -> None:
+    """A field-by-field assertion, because each of these is one dictionary key
+    away from silently vanishing.
+
+    `ElementFingerprint` is what a driver finds the control by when the locators
+    fail, and every field here is read out of untrusted JSON by name. A typo or
+    a case slip in any one of them loses that signal with no error -- the
+    fingerprint is still built, still valid, and quietly weaker. Nothing
+    asserted any of them until a mutation sweep pointed it out.
+    """
+    found = fingerprint_for(FULL_TARGET)
+
+    assert found is not None
+    assert found.role == "textbox"
+    assert found.accessible_name == "Activity Code"
+    assert found.text == "the visible label"
+    assert found.test_id == "activity-code"
+    assert found.css_path == "form > div#x > input"
+    assert found.xpath == "//form/div/input"
+    assert found.tag == "input"
+
+
+def test_every_handle_the_framework_gave_reaches_the_component() -> None:
+    """The same, one level down. `ComponentIdentity` is the strongest rung on
+    the locator ladder -- the application's own way of finding the control --
+    and it is assembled from seven keys none of which were checked."""
+    found = fingerprint_for(FULL_TARGET)
+
+    assert found is not None and found.component is not None
+    component = found.component
+    assert component.framework == "extjs"
+    assert component.query == "container textfield#activityCode"
+    assert component.xtype == "textfield"
+    assert component.item_id == "activityCode"
+    assert component.name == "activityCodeField"
+    assert component.field_label == "Activity Code"
+    assert component.text == "component text"
+
+
+def test_a_component_needs_both_a_framework_and_a_query_not_either() -> None:
+    """`ComponentIdentity` refuses one without a query, and a framework with no
+    query identifies nothing. `or` and `and` in that guard read alike and mean
+    opposite things -- one refuses, the other raises."""
+    assert _component({"framework": "extjs", "query": "#x"}) is not None
+    assert _component({"framework": "extjs"}) is None, "a framework naming nothing"
+    assert _component({"query": "#x"}) is None, "a query belonging to no framework"
+    assert _component({}) is None
+
+
+def test_an_item_id_alone_supplies_both_the_query_and_the_framework() -> None:
+    """A recorder that reached the framework enough to report an itemId but not
+    a query still yields a usable component: `#itemId` is a query in ExtJS's own
+    language, and an xtype is enough to say which framework said so."""
+    found = _component({"itemId": "activityCode", "xtype": "textfield"})
+
+    assert found is not None
+    assert found.query == "#activityCode"
+    assert found.framework == "extjs"
+
+
+def test_the_whole_ladder_is_built_from_the_keys_the_recorder_uses() -> None:
+    """Each rung comes from its own key, and a rung that lost its key would
+    silently drop to the next one -- a weaker locator, no error."""
+    rungs = {locator.strategy: locator.query.raw for locator in locators_for(FULL_TARGET)}
+
+    assert rungs[LocatorStrategy.COMPONENT] == "container textfield#activityCode"
+    assert rungs[LocatorStrategy.TEST_ID] == "activity-code"
+    assert rungs[LocatorStrategy.ROLE_AND_NAME] == "textbox|Activity Code"
+    assert rungs[LocatorStrategy.TEXT] == "the visible label"
+    assert rungs[LocatorStrategy.CSS_PATH] == "form > div#x > input"

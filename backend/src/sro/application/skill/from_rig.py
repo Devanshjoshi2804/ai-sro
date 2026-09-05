@@ -26,12 +26,15 @@ locator, which quietly excluded every action that had none; against all 165 it
 is 118, not 89%.
 
 Nothing here reaches for the rig. It consumes the shape stored in the rig's
-`gestures.gesture_json` column -- the extension's own wire protocol. **No HTTP
-route serves that shape today**: `/v1/gestures` reduces a target to its name
-for a human reading a listing, so a caller wiring this to that route gets a
-plan with no locators and no error. Serving it belongs with the first consumer
-that needs it across the process boundary; until then the two systems share a
-shape rather than a dependency, and the source of that shape is the column.
+`gestures.gesture_json` column -- the extension's own wire protocol -- and
+`GET /v1/workflows/{id}/evidence` now serves exactly that, along with the
+captured requests and the capture streams a `Provenance` needs. Not
+`/v1/gestures`, which reduces a target to its NAME for a person reading a
+listing: a caller wired to that one gets a plan with no locators and no error.
+
+So the two systems share a shape rather than a dependency, and there are two
+ways to hold that shape -- the column, for something with the rig's database,
+and the route, for anything else.
 """
 
 from __future__ import annotations

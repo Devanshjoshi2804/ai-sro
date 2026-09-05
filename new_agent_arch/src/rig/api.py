@@ -648,6 +648,78 @@ def build_app(
             ]
         }
 
+    @app.get("/v1/workflows/{workflow_id}/evidence", dependencies=[Depends(authorised)])
+    def workflow_evidence(workflow_id: str) -> dict[str, Any]:
+        """Everything a workflow cites, in the shape a runner's bridge consumes.
+
+        `/v1/workflows` serves the prose and the citations; `/v1/gestures`
+        reduces a target to its NAME, for a person reading a listing. Between
+        them, nothing served the target itself -- so the backend's
+        `application.skill.from_rig`, whose whole purpose is turning a mined
+        step into something replayable, had no route to read and had to be
+        pointed at the `gestures.gesture_json` column. A bridge that can only
+        be used by something with the rig's SQLite file is not a bridge.
+
+        Cited gestures only, not the stream and not the store. A workflow is a
+        claim about specific evidence, and this is that evidence: the largest
+        real workflow cites 35 of 387 gestures.
+
+        `requests` is served beside the gestures rather than folded into them,
+        because that is how the two are stored and how the bridge takes them --
+        one map keyed by gesture id each. `recordings` is the distinct capture
+        streams those gestures arrived on, which is the one input the caller
+        would otherwise have to reach into a column for; the backend needs it
+        for `Provenance`, and getting it wrong there mis-states whether a
+        skill's values were ever diffed.
+
+        Complete rather than trimmed, and the cost is known: measured over the
+        real store, response bodies are 94% of the 7.2 MB of captured requests,
+        and the bridge reads none of them today -- it takes a status and a
+        request body. Serving them anyway, because the next consumer is
+        assertions: a write that proves nothing about its result is a live
+        concern in the skill domain (`unchecked_writes`), post-conditions are
+        built from responses, and a route called `evidence` that quietly ships
+        6% of the evidence is the shape of defect this project keeps finding.
+        The largest single workflow comes to 1.6 MB and all eight to 3.4 MB,
+        which is nothing for one internal fetch per job.
+        """
+        from rig.workflows import known_workflows
+
+        found = next((w for w in known_workflows(store, tenant) if w.id == workflow_id), None)
+        if found is None:
+            raise HTTPException(status_code=404, detail="no such workflow")
+
+        cited = list(dict.fromkeys(gid for step in found.steps for gid in step.cites))
+        gestures: dict[str, Any] = {}
+        requests: dict[str, Any] = {}
+        streams: list[str] = []
+        if cited:
+            marks = ",".join("?" * len(cited))
+            rows = store.query(
+                "SELECT id, stream_id, gesture_json, requests FROM gestures"
+                f" WHERE tenant = ? AND id IN ({marks}) ORDER BY at",
+                (tenant, *cited),
+            )
+            for row in rows:
+                gestures[row["id"]] = json.loads(row["gesture_json"])
+                requests[row["id"]] = json.loads(row["requests"])
+                if row["stream_id"] not in streams:
+                    streams.append(row["stream_id"])
+
+        # A citation naming evidence this store no longer holds is reported
+        # rather than dropped. `validate` refuses a proposal citing a gesture
+        # that does not exist, so reaching this with one means the store moved
+        # after the workflow was kept -- and a caller building a runnable job
+        # out of it is entitled to know its evidence is incomplete before it
+        # builds a version that silently misses a step.
+        return {
+            "workflow_id": workflow_id,
+            "gestures": gestures,
+            "requests": requests,
+            "recordings": streams,
+            "missing": [gid for gid in cited if gid not in gestures],
+        }
+
     @app.get("/", response_class=HTMLResponse)
     def page() -> str:
         return (Path(__file__).parent / "web" / "index.html").read_text()

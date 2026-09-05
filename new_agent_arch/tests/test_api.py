@@ -1720,3 +1720,49 @@ def test_a_day_of_unpriced_readings_stops_the_asking_too(
 
     assert written == 0, "a reading nobody could price is not a reading known to be free"
     assert "unpriced" in caplog.text, "and the log says which of the two caps fired"
+
+
+def test_a_workflows_evidence_is_served_in_the_shape_a_runner_takes(
+    client: TestClient, store: Store
+) -> None:
+    """`/v1/workflows` serves the citations and `/v1/gestures` reduces a target
+    to its NAME, for a person reading a listing. Between them nothing served
+    the target itself, so the backend's bridge -- whose whole purpose is turning
+    a mined step into something replayable -- had no route to read and had to
+    be pointed at a SQLite column. A bridge only usable by something holding
+    the rig's database file is not a bridge."""
+    save_batch(store, Batch.model_validate(BATCH), "new")
+    ids = [row["id"] for row in store.query("SELECT id FROM gestures ORDER BY at")]
+    store.execute(
+        "INSERT INTO workflows (id, tenant, title, narrative, systems, shape_key, pass_id,"
+        " parameters, unproven, created_at)"
+        """ VALUES ('wfl_1', 'new', 't', 'n', '[]', '["k"]', 'pas_1', '[]', '[]', ?)""",
+        (datetime.now(tz=UTC).isoformat(),),
+    )
+    store.execute(
+        "INSERT INTO workflow_steps (workflow_id, ord, says, system, cites, parameters)"
+        " VALUES ('wfl_1', 0, 'do it', NULL, ?, '[]')",
+        (json.dumps([*ids, "ges_that_is_gone"]),),
+    )
+
+    found = client.get("/v1/workflows/wfl_1/evidence", headers=_auth())
+    assert found.status_code == 200, found.text[:300]
+    body = found.json()
+
+    assert set(body["gestures"]) == set(ids)
+    assert set(body["requests"]) == set(ids)
+    assert body["missing"] == ["ges_that_is_gone"], "a citation with no evidence is reported"
+    assert body["recordings"], "the capture streams, which Provenance needs"
+    first = body["gestures"][ids[0]]
+    assert isinstance(first.get("target"), dict) or first.get("kind") == "scroll", (
+        "the target itself, not the name /v1/gestures reduces it to"
+    )
+
+
+def test_evidence_for_a_workflow_nobody_has_is_a_404(client: TestClient) -> None:
+    assert client.get("/v1/workflows/nope/evidence", headers=_auth()).status_code == 404
+
+
+def test_evidence_is_not_served_without_the_token(client: TestClient) -> None:
+    """Every gesture a workflow cites, which is the operator's own screen."""
+    assert client.get("/v1/workflows/wfl_1/evidence").status_code == 401

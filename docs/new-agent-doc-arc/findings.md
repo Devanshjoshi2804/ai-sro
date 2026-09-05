@@ -433,6 +433,25 @@ and six of the eight workflows carry exactly one write apiece -- one POST per
 every one at `RECORDED`, because nothing about a mined workflow has been
 reviewed by anybody.
 
+**`GET /v1/workflows/{id}/evidence`** is what makes those three reachable from
+outside the rig's own process. `/v1/workflows` served the citations and
+`/v1/gestures` reduces a target to its NAME for a person reading a listing, so
+nothing served the target itself and the bridge had to be pointed at a SQLite
+column. Cited gestures only: the largest real workflow cites 35 of 387. It
+carries the requests beside the gestures and the distinct capture streams,
+which is the one input a caller would otherwise reach into a column for and the
+one that mis-states whether a skill's values were ever diffed if it is wrong.
+A citation whose evidence the store no longer holds is reported in `missing`
+rather than dropped.
+
+Complete rather than trimmed, at a known cost: response bodies are 94% of the
+7.2 MB of captured requests and the bridge reads none of them yet. They are
+served anyway, because assertions are the next consumer -- post-conditions are
+built from responses, `unchecked_writes` is a live concern in the skill domain,
+and a route called `evidence` that ships 6% of the evidence is the shape of
+defect this project keeps finding. The largest workflow is 1.6 MB, all eight
+3.4 MB.
+
 ### The thesis, in one body
 
 ```

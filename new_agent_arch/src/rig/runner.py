@@ -590,14 +590,6 @@ async def run_workflow(
                 record.verdict, record.verdict_by = verdict.state, verdict.by
                 record.reason = verdict.reason
 
-            # A write that went out and did not hold un-earns the whole job:
-            # the next runs ask for a tap again. Read off the record rather
-            # than off `may_write`, which is scoped to a rung that may never
-            # have produced a command -- and which is the same marker, so a
-            # step that could not earn cannot un-earn either.
-            if live and record.verdict == "failed" and (record.result or {}).get("wrote"):
-                forget_effects(store, workflow.id)
-
             in_flight = None
             _total(run)
             save_run(store, run)
@@ -631,6 +623,19 @@ async def run_workflow(
         # one still in flight on a process that no longer exists.
         if run.outcome == "running":
             _fell_over(run, in_flight, "interrupted before finishing")
+        # A write that went out and did not hold un-earns the whole job: the
+        # next runs ask for a tap again. Here rather than in the step body,
+        # because the step body is not reached when a browser goes away
+        # mid-write -- and that run wrote, was never shown to have held, and
+        # would have kept its autonomy. `unclear` counts with `failed`: a live
+        # write nobody could show held is exactly the state the tap exists for.
+        # Read off each step's own `wrote` marker, which is the same predicate
+        # that earned the row, so a step that could not earn cannot un-earn.
+        if live and any(
+            step_done.verdict in ("failed", "unclear") and (step_done.result or {}).get("wrote")
+            for step_done in run.steps
+        ):
+            forget_effects(store, workflow.id)
         run.finished_at = _now()
         _total(run)
         save_run(store, run)

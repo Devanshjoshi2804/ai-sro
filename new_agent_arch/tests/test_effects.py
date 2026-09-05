@@ -11,7 +11,7 @@ def _store(tmp_path: Path) -> Store:
     return store
 
 
-def _held_run(store: Store, run_id: str, writes: list[int]) -> None:
+def _held_run(store: Store, run_id: str, writes: list[int], live: bool = True) -> None:
     save_run(
         store,
         Run(
@@ -21,7 +21,7 @@ def _held_run(store: Store, run_id: str, writes: list[int]) -> None:
             device_id="d",
             values={},
             started_by="offer",
-            live=True,
+            live=live,
             allow_focus=True,
             started_at="2026-09-06T10:00:00+00:00",
             finished_at="2026-09-06T10:01:00+00:00",
@@ -81,4 +81,50 @@ def test_a_failed_write_starts_the_earning_again(tmp_path: Path) -> None:
         )
     assert earned(store, "wfl_1")
     assert forget_effects(store, "wfl_1") == K_EARNED_RUNS
+    assert earned(store, "wfl_1") is False
+
+
+def test_the_number_of_runs_autonomy_costs_is_the_one_a_person_agreed_to() -> None:
+    """Three, and moving it is a decision somebody makes on purpose."""
+    assert K_EARNED_RUNS == 3
+
+
+def test_a_dry_run_never_earns_anything(tmp_path: Path) -> None:
+    store = _store(tmp_path)
+    for i in range(K_EARNED_RUNS):
+        _held_run(store, f"run_{i}", writes=[1], live=False)
+        record_effect(
+            store, workflow_id="wfl_1", run_id=f"run_{i}", order=1, verified_by="status", at="t"
+        )
+    assert earned(store, "wfl_1") is False
+
+
+def test_a_held_run_that_wrote_nothing_proves_nothing_about_writing(tmp_path: Path) -> None:
+    store = _store(tmp_path)
+    for i in range(K_EARNED_RUNS):
+        save_run(
+            store,
+            Run(
+                id=f"run_{i}",
+                tenant="acme",
+                workflow_id="wfl_1",
+                device_id="d",
+                values={},
+                started_by="offer",
+                live=True,
+                allow_focus=True,
+                started_at="2026-09-06T10:00:00+00:00",
+                finished_at="2026-09-06T10:01:00+00:00",
+                outcome="held",
+                steps=[
+                    RunStep(
+                        order=1,
+                        says="read the page",
+                        verdict="held",
+                        verdict_by="read",
+                        result={"ok": True, "status": 200, "matched_by": None},
+                    )
+                ],
+            ),
+        )
     assert earned(store, "wfl_1") is False

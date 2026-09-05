@@ -70,4 +70,6 @@ def earned(store: Store, workflow_id: str) -> bool:
         }
         if wrote and wrote <= verified:
             counted += 1
-    return counted >= K_EARNED_RUNS
+            if counted >= K_EARNED_RUNS:
+                return True
+    return False

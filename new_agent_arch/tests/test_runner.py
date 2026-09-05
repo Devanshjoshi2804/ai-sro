@@ -1619,3 +1619,118 @@ async def test_a_failed_write_forgets_the_effects_the_workflow_had_earned(tmp_pa
     )
 
     assert store.query("SELECT 1 FROM workflow_effects WHERE workflow_id = ?", (wf.id,)) == []
+
+
+class _GoesAwayAfterTheWrite(FakeChannel):
+    """A browser that answers the write and is gone before anyone can look."""
+
+    async def send(
+        self,
+        device_id: str,
+        *,
+        kind: str,
+        payload: Mapping[str, object],
+        run_id: str | None = None,
+        deadline_s: float | None = None,
+    ) -> Reply:
+        if any(s["kind"] == "http.send" for s in self.sent):
+            raise DeviceUnreachable(f"{device_id} stopped listening")
+        return await super().send(
+            device_id, kind=kind, payload=payload, run_id=run_id, deadline_s=deadline_s
+        )
+
+
+async def test_a_browser_that_goes_away_after_the_write_forgets_the_effects(
+    tmp_path: Path,
+) -> None:
+    """The step body never runs again after the browser goes: the write went
+    out, nobody could show it held, and the job kept its autonomy."""
+    store = _store(tmp_path)
+    wf = _one_step(store, _ids(store)[-1])
+    record_effect(store, workflow_id=wf.id, run_id="run_old", order=0, verified_by="status", at="t")
+    channel = _GoesAwayAfterTheWrite(
+        {**_looks(2), "http.send": [Reply(ok=True, result={"status": 200, "body": "{}"})]}
+    )
+    asker = _per_schema_asker(plan=_replay(), verdict=Answer(data={"held": True, "why": "ok"}))
+
+    run = await run_workflow(
+        store,
+        wf,
+        values={},
+        channel=channel,
+        device_id="dev_test",
+        asker=asker,
+        plan_model="flash",
+        rescue_model="pro",
+        live=True,
+        allow_focus=True,
+        started_by="offer",
+        earned=lambda _wid: True,
+    )
+
+    assert run.outcome == "failed" and run.steps[0].result is not None
+    assert run.steps[0].result.get("wrote") is True, "the write went out"
+    assert store.query("SELECT 1 FROM workflow_effects WHERE workflow_id = ?", (wf.id,)) == []
+
+
+async def test_a_write_that_ends_unclear_forgets_the_effects(tmp_path: Path) -> None:
+    """No status the evidence knows, no read to make, no screen to look at:
+    the write went out and nothing can say whether it held."""
+    store = _store(tmp_path)
+    wf = _one_step(store, _ids(store)[-1])
+    record_effect(store, workflow_id=wf.id, run_id="run_old", order=0, verified_by="status", at="t")
+    channel = FakeChannel(
+        {
+            "ui.url": [Reply(ok=True, result={"url": "http://127.0.0.1:63319/form"})] * 2,
+            "screenshot": [Reply(ok=False, error_kind="focus_not_permitted")] * 2,
+            # 300: not a refusal, and not a status the capture's POST returned.
+            "http.send": [Reply(ok=True, result={"status": 300, "body": "{}"})],
+        }
+    )
+    asker = _per_schema_asker(plan=_replay(), verdict=Answer(data={"held": True, "why": "ok"}))
+
+    run = await run_workflow(
+        store,
+        wf,
+        # No values, so there is no proposition a confirming read could check.
+        values={},
+        channel=channel,
+        device_id="dev_test",
+        asker=asker,
+        plan_model="flash",
+        rescue_model="pro",
+        live=True,
+        allow_focus=True,
+        started_by="offer",
+        earned=lambda _wid: True,
+    )
+
+    assert [s.verdict for s in run.steps] == ["unclear"]
+    assert store.query("SELECT 1 FROM workflow_effects WHERE workflow_id = ?", (wf.id,)) == []
+
+
+async def test_a_dry_run_records_no_effect_even_for_a_click_it_does_send(tmp_path: Path) -> None:
+    """`writes()` is False for a Save whose call the recorder never saw, so a
+    dry run performs it -- and a dry run's evidence earns nothing."""
+    store = _store(tmp_path)
+    wf = _one_step(store, _silent_click(store), says="press Save")
+    channel = FakeChannel({**_looks(2), "ui.perform": [Reply(ok=True, result={"performed": True})]})
+    asker = _per_schema_asker(plan=_plan("click"), verdict=Answer(data={"held": True, "why": "ok"}))
+
+    run = await run_workflow(
+        store,
+        wf,
+        values={"clientCode": "THIRD"},
+        channel=channel,
+        device_id="dev_test",
+        asker=asker,
+        plan_model="flash",
+        rescue_model="pro",
+        live=False,
+        allow_focus=True,
+        started_by="form",
+    )
+
+    assert run.outcome == "held", "the click was sent, not withheld"
+    assert len([s for s in channel.sent if s["kind"] == "ui.perform"]) == 1
+    assert store.query("SELECT 1 FROM workflow_effects WHERE workflow_id = ?", (wf.id,)) == []

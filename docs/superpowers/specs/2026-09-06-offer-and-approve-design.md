@@ -186,7 +186,7 @@ earned(store, workflow_id) =
     count of distinct live runs where every write step has a row here  ≥  K_EARNED_RUNS = 3
 ```
 
-A live run in which any write step ends `failed` deletes every row for that
+A live run in which any write step ends `failed` or `unclear` deletes every row for that
 workflow: it starts earning again. Earned workflows do not pause; the panel
 still shows every step and Stop still works.
 

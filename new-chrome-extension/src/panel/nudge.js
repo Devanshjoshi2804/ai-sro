@@ -118,13 +118,20 @@ export function onCall(nudges, { url, method }, now) {
   );
 }
 
-/** Time, and leaving. Both end an open nudge; neither touches one that ended. */
+/** Time, and leaving. Both end an open nudge; neither touches one that ended.
+ *
+ * A `null` url means "wherever they are, this is only about the clock". The
+ * beat sweeps that way: it is not looking at any one tab, and `""` is not an
+ * answer to where the operator is -- read as a page it says everybody has
+ * walked away, which ended every open nudge on the next beat and reported the
+ * lot as expired while they were still standing on the page.
+ */
 export function sweep(nudges, { url, now }) {
-  const here = page(url);
+  const here = url === null || url === undefined ? null : page(url);
   return nudges.map((nudge) => {
     if (nudge.state !== "open") return nudge;
     const old = now - Date.parse(nudge.at) >= LIFETIME_MS;
-    const left = here !== nudge.startsOn;
+    const left = here !== null && here !== nudge.startsOn;
     return old || left ? { ...nudge, state: "expired", endedAt: now } : nudge;
   });
 }

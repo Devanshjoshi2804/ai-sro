@@ -172,6 +172,7 @@ test-extension: ## The extension's own self-checks, in plain node
 	node new-chrome-extension/src/background/shape.generated.test.mjs
 	node new-chrome-extension/src/background/recognise.test.mjs
 	node new-chrome-extension/src/background/offering.test.mjs
+	node new-chrome-extension/src/background/offering-worker.test.mjs
 	node new-chrome-extension/src/content/network.test.mjs
 	node new-chrome-extension/src/content/sensitivity.test.mjs
 	node new-chrome-extension/src/content/watch.test.mjs

@@ -228,9 +228,12 @@ export const api = {
    * doing, which is why every fate is reported and not just the ones that
    * became runs. */
   reportOffer: async (body) => {
-    const base = await state.rigUrl();
-    if (!isMirrorable(base)) return;
+    // Every read inside the guard, the settings read included: this is called
+    // with `void` from paths that must not fail, and a rejected storage read
+    // outside the `try` is an unhandled rejection rather than a lost record.
     try {
+      const base = await state.rigUrl();
+      if (!isMirrorable(base)) return;
       await fetch(`${base}/v1/offers`, { method: "POST", headers: await rigHeaders(), body: JSON.stringify(body) });
     } catch {
       // The record is a nicety; the offer already happened.

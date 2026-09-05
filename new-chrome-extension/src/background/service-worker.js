@@ -199,7 +199,9 @@ async function sweepNudges() {
   const held = await state.nudges();
   if (!held.length) return;
   const open = held.filter((nudge) => nudge.state === "open");
-  const swept = sweep(held, { url: "", now: Date.now() });
+  // `null`, not `""`: the beat is not looking at any one tab, and an empty url
+  // read as a page says every operator has walked away from every offer.
+  const swept = sweep(held, { url: null, now: Date.now() });
   await state.setNudges(swept);
   reportEndings(held, swept);
   for (const nudge of open) {
@@ -269,6 +271,11 @@ async function considerOffer(tabId, gesture) {
     if (performing()) return;
     const origin = originOf(gesture.url);
     if (!origin) return;
+    // Asked before the tail is written: a browser with no rig has nothing to
+    // match against, and a storage write per keystroke to feed nothing is a
+    // cost paid by every operator who never configured one.
+    const shapes = await shapesFor();
+    if (!shapes.length) return;
     const tails = await state.tails();
     const tail = tailWith(tails[tabId] || [], {
       triple: tripleOf({ system: origin, target: gesture.target, kind: gesture.kind }),
@@ -280,24 +287,37 @@ async function considerOffer(tabId, gesture) {
       at: gesture.at,
     });
     await state.setTails({ ...tails, [tabId]: tail });
-    const shapes = await shapesFor();
-    if (!shapes.length) return;
-    const held = await state.nudges();
-    const open = held.find((n) => n.state === "open" && n.tabId === tabId) || null;
     const now = Date.now();
-    const { replace, end } = decideOffer({ tail, shapes, open, origin, now });
-    if (end && open) await endOffer(open, end, held);
-    if (replace) {
+    // Everything that reads the nudges and writes them back goes through the
+    // one lock. Two gestures fifty milliseconds apart both read a list with no
+    // offer in it and both wrote one, and the second write took the first
+    // offer's record with it -- so the operator saw two pills and the rig was
+    // told about one offer that no longer existed.
+    await serially(async () => {
+      const held = await state.nudges();
+      const open = held.find((n) => n.state === "open" && n.tabId === tabId) || null;
+      const { replace, end } = decideOffer({ tail, shapes, open, origin, now });
+      if (end && open) return endOffer(open, end, held);
+      if (!replace) return;
       const muted = await state.muted();
       if (muted[replace.startsOn] && muted[replace.startsOn] > now) return;
-      const made = { ...replace, tabId };
-      const rest = (await state.nudges()).filter((n) => n.id !== open?.id);
-      // The offer it replaces was still open, and an offer that is taken off
-      // the screen without being answered was dismissed by what happened next.
-      if (open && open.source === "rig" && open.state === "open") void report(open, "dismissed");
+      // A longer prefix is the same offer knowing more, not a second one. The
+      // id and the moment it was made stay put -- so nothing ended, nothing is
+      // reported, and the ledger has one offer that got further rather than a
+      // dismissal every time the operator typed the next field.
+      const made =
+        open && open.source === "rig" && open.state === "open"
+          ? { ...open, ...replace, id: open.id, at: open.at, tabId }
+          : { ...replace, tabId };
+      // The one it supersedes goes: two open at once is the queue this design
+      // exists to not be. On an upgrade that is the same record, and `made`
+      // puts it straight back with what it has just learned.
+      const rest = held.filter((n) => n.id !== open?.id);
       await state.setNudges([made, ...rest].slice(0, MAX_NUDGES));
-      await showNudge(tabId, `${made.title} — want me to finish it?`);
-    }
+      // The title alone: `paintNudge` wraps whatever it is given in "do ...?",
+      // so a sentence renders as a question about a question.
+      await showNudge(tabId, made.title);
+    });
   } catch {
     // A tab that closed, a rig that is down. Nothing offered is the quiet
     // answer, and this runs on every keystroke: it may never cost a gesture.
@@ -307,11 +327,13 @@ async function considerOffer(tabId, gesture) {
 /** A tab that closed took its tail with it. Chrome hands the id out again, and
  * a tail left under it would make the next tab's first gesture look like the
  * middle of a job somebody did in a window that is gone. */
-async function forgetTail(tabId) {
-  const tails = await state.tails();
-  if (!(tabId in tails)) return;
-  delete tails[tabId];
-  await state.setTails(tails);
+function forgetTail(tabId) {
+  return serially(async () => {
+    const tails = await state.tails();
+    if (!(tabId in tails)) return;
+    delete tails[tabId];
+    await state.setTails(tails);
+  });
 }
 
 async function endOffer(nudge, fate, held) {
@@ -328,10 +350,16 @@ async function endOffer(nudge, fate, held) {
  */
 async function report(nudge, fate, runId = null) {
   if (nudge.source !== "rig" || !nudge.workflowId) return;
-  void api.reportOffer({
-    workflow_id: nudge.workflowId, k: nudge.k || 0, fate, run_id: runId,
-    device_id: await state.deviceId(), at: new Date().toISOString(),
-  });
+  try {
+    void api.reportOffer({
+      workflow_id: nudge.workflowId, k: nudge.k || 0, fate, run_id: runId,
+      device_id: await state.deviceId(), at: new Date().toISOString(),
+    });
+  } catch {
+    // Called with `void` from every ending. A rejection here is an unhandled
+    // one, and what would be lost is a record of something that already
+    // happened.
+  }
 }
 
 /** Every offer that has just stopped being open, reported by how it stopped. */
@@ -986,7 +1014,10 @@ async function handle(message, sender) {
       if (was) void hideNudge(was.tabId);
       if (was && message.answer === "not-here") {
         await state.setMuted(mute(await state.muted(), was.startsOn, Date.now()));
-        void report(was, "dismissed");
+        // Only if the answer is what ended it. A nudge already swept or
+        // dropped has reported its fate, and an offer with two fates is one
+        // the rig cannot count.
+        if (was.state === "open") void report(was, "dismissed");
       }
       return { ok: true, nudge: was || null };
     }
@@ -1010,10 +1041,42 @@ async function handle(message, sender) {
         return { ok: false, error: error.problem?.detail || error.message };
       }
       await state.setActiveRun({ runId: started.run_id, at: Date.now(), source: "rig" });
-      await state.setNudges(held.map((n) => (n.id === nudge.id ? { ...n, state: "accepted" } : n)));
+      // Read again, after the POST. The list captured before it is a minute
+      // old by warehouse standards: a sweep or another gesture may have
+      // written it since, and marking this offer accepted by writing that copy
+      // back would undo whatever they did. The lock covers the read and the
+      // write; the POST is deliberately outside it, because a network call
+      // holding the lock stalls the gesture path behind it.
+      await serially(async () => {
+        const now = await state.nudges();
+        await state.setNudges(
+          now.map((n) => (n.id === nudge.id ? { ...n, state: "accepted", endedAt: Date.now() } : n)),
+        );
+      });
       void hideNudge(nudge.tabId);
       void report(nudge, "accepted", started.run_id);
       return { ok: true, run_id: started.run_id };
+    }
+    case "drop-nudge": {
+      // "No thanks", from the panel. An offer taken off the screen unanswered
+      // is one that was refused, and saying so is the whole point of reporting
+      // fates: a job that is always dismissed is a job not worth offering.
+      return serially(async () => {
+        const held = await state.nudges();
+        const nudge = held.find((n) => n.id === message.nudgeId);
+        // Only while it is still open. Answering and dropping are two paths to
+        // the same place, and the first one out of `open` is the one that ends
+        // it -- so an offer reports its fate once however many arrive.
+        if (!nudge || nudge.state !== "open") return { ok: true };
+        await state.setNudges(
+          held.map((n) =>
+            n.id === nudge.id ? { ...n, state: "dismissed", endedAt: Date.now() } : n,
+          ),
+        );
+        void hideNudge(nudge.tabId);
+        void report(nudge, "dismissed");
+        return { ok: true };
+      });
     }
     case "open-panel":
       // From the pill in the page. Opening it is all it does: the offer is in
@@ -1135,6 +1198,10 @@ async function handle(message, sender) {
       // rotated; without clearing it the next flush would retry rows that no
       // longer exist under an id from before the purge.
       await state.setPendingBatch(null);
+      // The tails too. They are the same gestures, held per tab to recognise a
+      // job from: an operator who asks for the last hour to be forgotten has
+      // not asked for the last hour of it to go on being matched against.
+      await state.setTails({});
       const gone = await api.forget(since);
       await state.setLastError("");
       return gone;

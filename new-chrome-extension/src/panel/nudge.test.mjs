@@ -111,6 +111,16 @@ test("walking away ends it too", () => {
   assert.equal(gone[0].state, "expired", "it outlived the page it was about");
 });
 
+test("the beat sweeps for time alone, not for a page it cannot see", () => {
+  // `sweepNudges` runs off the heartbeat and knows no url. Passed `""` that
+  // read as "they have walked away from everywhere", so every open offer ended
+  // within a beat and the fate table said `expired` for an operator still
+  // standing on the page.
+  const one = fire(TAUGHT, T0, { tabId: 1, visit: "1:100" });
+  assert.equal(sweep([one], { url: null, now: T0 + LIFETIME_MS - 1 })[0].state, "open");
+  assert.equal(sweep([one], { url: null, now: T0 + LIFETIME_MS })[0].state, "expired");
+});
+
 test("a nudge that already ended is left alone", () => {
   // Its `endedAt` is when it ended, not when a sweep noticed. The ledger draws
   // one line from it either way, but a record that moves is one nobody trusts.

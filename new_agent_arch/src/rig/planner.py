@@ -22,8 +22,8 @@ from typing import Any
 from rig.locators import locators_for, recorded_call
 from rig.models import Answer, Asker, Effort
 from rig.records import Gesture
-from rig.trim import trim
-from rig.wire import REDACTED
+from rig.trim import is_secret, trim
+from rig.wire import REDACTED, Body
 from rig.workflows import Step
 
 KINDS = frozenset({"ui.perform", "http.send", "navigate"})
@@ -85,7 +85,15 @@ def _value_for(
     step: Step, gesture: Gesture, values: Mapping[str, str], said: str | None
 ) -> str | None:
     """The run's value for this control, else what the model said, else what
-    was recorded. The run's values win: they are what the person asked for."""
+    was recorded. The run's values win: they are what the person asked for.
+
+    A credential is never filled in from anywhere. `wire.Gesture` already nulls
+    the value at parse time when either secret flag is set, so this is the same
+    second belt `trim.is_secret` wears -- and for the same reason: that
+    validator does not re-run if a nested Target is mutated afterwards.
+    """
+    if is_secret(gesture):
+        return None
     target = gesture.gesture.target
     component = target.component if target else None
     for name in (
@@ -103,6 +111,26 @@ def _value_for(
 
 def _headers_without_markers(headers: Mapping[str, str]) -> dict[str, str]:
     return {name: value for name, value in headers.items() if REDACTED not in value}
+
+
+def _unreplayable(body: Body | None) -> bool:
+    """Whether replaying this call would send something other than what the
+    operator sent.
+
+    A dropped header is survivable -- the page can mint a fresh CSRF token, and
+    that is the whole argument for preferring `ui.perform`. A dropped body is
+    not: the call would arrive with the marker in it, or with nothing where the
+    payload was, and the store would write half a record. Two ways the text is
+    gone: it was never kept (`blob_uri`, `redacted_fields` -- the body was
+    offloaded or declined) or it was kept with a credential struck out of it.
+
+    No body at all is not unreplayable. There is nothing to get wrong.
+    """
+    if body is None:
+        return False
+    if body.text is None:
+        return bool(body.blob_uri or body.redacted_fields)
+    return REDACTED in body.text
 
 
 async def plan_step(
@@ -168,23 +196,35 @@ async def plan_step(
             return Planned(
                 "none", {}, "http.send planned for a step whose evidence carries no call", answer
             )
-        body = call.request_body.text if call.request_body and call.request_body.text else None
-        return Planned(
-            "http.send",
-            {
-                "method": call.method.upper(),
-                "url": call.url,
-                "headers": _headers_without_markers(call.request_headers),
-                "body": body,
-            },
-            why,
-            answer,
-        )
+        if _unreplayable(call.request_body):
+            # Falls through to the ui.perform below rather than returning
+            # "none": a step the operator performed by clicking Save is still
+            # performable by clicking Save, and planning nothing burns it.
+            why = f"recorded body is not replayable; {why}"
+        else:
+            body = call.request_body.text if call.request_body and call.request_body.text else None
+            return Planned(
+                "http.send",
+                {
+                    "method": call.method.upper(),
+                    "url": call.url,
+                    "headers": _headers_without_markers(call.request_headers),
+                    "body": body,
+                },
+                why,
+                answer,
+            )
 
+    # Both the plan the model asked for and the one it gets when its http.send
+    # cannot be replayed. One path, so the downgrade cannot drift from the plan
+    # it is downgrading to.
     action = data.get("action") if data.get("action") in ACTIONS else primary.gesture.kind
+    said = data.get("value")
     payload: dict[str, Any] = {
         "action": action,
-        "value": _value_for(step, primary, values, data.get("value"))
+        # str(), because nothing validates the model's answer against the
+        # schema: a `"value": 123` otherwise reaches the extension as an int.
+        "value": _value_for(step, primary, values, None if said is None else str(said))
         if action in ("type", "select", "upload", "press")
         else None,
         "locators": locators_for(primary),

@@ -22,7 +22,10 @@ async def test_a_ui_plan_carries_the_evidence_locators_not_the_models() -> None:
             data={
                 "kind": "ui.perform",
                 "action": "type",
-                "value": "THIRD",
+                # Not "THIRD": if the model's own word and the run's value are
+                # the same string, the test cannot tell which one the payload
+                # carried, and deleting the lookup in `_value_for` stays green.
+                "value": "WRONG",
                 "url": None,
                 "why": "the step types the code",
             },
@@ -112,6 +115,43 @@ async def test_an_http_plan_replays_the_recorded_call_with_redacted_headers_drop
         "a marker is never sent as a header"
     )
     assert planned.payload["headers"]["Content-Type"] == "application/json"
+
+
+async def test_an_http_plan_whose_body_the_store_never_kept_is_downgraded_to_the_interface() -> (
+    None
+):
+    saver = next(g for g in _gestures() if g.requests)
+    post = next(r for r in saver.requests if r.method == "POST")
+    post.request_body = post.request_body.model_copy(
+        update={"text": None, "blob_uri": "s3://bodies/ges_9de89"}
+    )
+    asker = FakeAsker(
+        Answer(
+            data={
+                "kind": "http.send",
+                "action": None,
+                "value": None,
+                "url": None,
+                "why": "replaying the save",
+            }
+        )
+    )
+
+    planned = await plan_step(
+        step=Step(order=0, says="save", system=None, cites=[saver.id]),
+        cited=[saver],
+        values={},
+        look=Look(None, None, ""),
+        origin=None,
+        starts_on=None,
+        allow_focus=False,
+        asker=asker,
+        model="m",
+    )
+
+    assert planned.kind == "ui.perform"
+    assert planned.payload["locators"], "the downgrade is a real plan, not an empty one"
+    assert "not replayable" in planned.why
 
 
 async def test_a_model_that_could_not_answer_plans_nothing_and_says_why() -> None:

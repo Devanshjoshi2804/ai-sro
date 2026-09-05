@@ -26,10 +26,19 @@ import sys
 
 # Measured on 2026-09-04, over a suite of 333 tests: 2,488 mutants, 1,803
 # killed, 661 survived, 13 with no test covering them at all and 11 that timed
-# out. 73.2%. The survivors cluster in `rig.api` (135) and `rig.window` (128)
+# out. 73.2%. The survivors clustered in `rig.api` (135) and `rig.window` (128)
 # and were deliberately left where they are -- recording the baseline is the
 # work; killing 661 mutants is its own.
-FLOOR = 73.0
+#
+# Re-measured 2026-09-05 over 381 tests: 2,815 mutants, 2,079 killed, 709
+# survived. **74.6%** -- the code added since is better covered than the
+# average of what was already here, since survivors rose by 48 while kills rose
+# by 276. They still cluster in `rig.api` (149) and `rig.window` (124).
+#
+# Raised to 74.4 rather than 74.6: this is a ratchet against the suite getting
+# weaker, not a target to sit exactly on, and a hair of room stops an unrelated
+# refactor tripping it over rounding.
+FLOOR = 74.4
 
 STATS = pathlib.Path(__file__).resolve().parent.parent / "mutants" / "mutmut-cicd-stats.json"
 

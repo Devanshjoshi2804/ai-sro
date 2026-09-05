@@ -164,3 +164,128 @@ def test_a_control_typed_twice_keeps_the_latest_and_not_the_last_cited() -> None
     found = parameters_across([(workflow, by_id, {}), _doing("SECOND", "b")])
 
     assert found == (), "both doings end on SECOND, so nothing varies"
+
+
+def _extra(doing, gesture_id: str, at: float | None = None, **change):
+    """A second gesture in one doing, copied from its typed one.
+
+    `at` matters more than it looks: `_by_control` walks in time order, so a
+    test about what happens AFTER a skipped gesture has to put the skipped one
+    earlier. Copies otherwise share the original's clock and fall back to
+    sorting by id, which is alphabetical and not what the test is about.
+    """
+    workflow, by_id, _ = doing
+    made = copy.deepcopy(next(g for g in by_id.values() if g.gesture.kind == "type"))
+    made.id = gesture_id
+    if at is not None:
+        made.at = made.gesture.at = at
+    for field, value in change.items():
+        setattr(made.gesture, field, value)
+    by_id[gesture_id] = made
+    workflow.steps[0].cites.append(gesture_id)
+    return made
+
+
+def test_a_control_only_the_SECOND_doing_reached_is_not_a_parameter_either() -> None:
+    """The mirror of the test above, and the one that was missing.
+
+    `shared` is seeded from `doings[0]` and intersected with the rest, so a
+    control only the first doing reached was already covered. A control only the
+    LAST doing reached was not: seeding from the wrong end leaves it in `shared`
+    and the diff then reads a doing that never touched it.
+    """
+    first, second = _doing("TEST1", "a"), _doing("TEST2", "b")
+    made = _extra(second, "ges_only_second", value="ONCE")
+    if made.gesture.target and made.gesture.target.component:
+        made.gesture.target.component.itemId = "seenOnlyInTheSecond"
+
+    found = parameters_across([first, second])
+
+    assert "seenOnlyInTheSecond" not in [p.name for p in found]
+
+
+def test_a_select_and_an_upload_are_typing_too() -> None:
+    """`_by_control` names three kinds and the fixture only ever exercised one.
+    A dropdown the operator chose differently is as much a parameter as a box
+    they typed in differently -- that is what the other two kinds are for."""
+    for kind in ("select", "upload"):
+        first, second = _doing("TEST1", "a"), _doing("TEST1", "b")
+        for doing, value in ((first, "ONE"), (second, "TWO")):
+            made = _extra(doing, f"ges_{kind}", kind=kind, value=value, secret=False)
+            if made.gesture.target and made.gesture.target.component:
+                made.gesture.target.component.itemId = f"the{kind.title()}"
+
+        found = {p.name: p.seen for p in parameters_across([first, second])}
+
+        assert found.get(f"the{kind.title()}") == ("ONE", "TWO"), kind
+
+
+def test_a_gesture_that_contributes_nothing_does_not_end_the_walk() -> None:
+    """`continue`, not `break`. A click cited between two typed gestures, or a
+    credential refused by `typed_values`, would otherwise take every control
+    after it with it -- and the citations are in the model's order, so which
+    gestures come after a skipped one is not something to depend on."""
+    first, second = _doing("TEST1", "a"), _doing("TEST2", "b")
+    for doing, value in ((first, "ONE"), (second, "TWO")):
+        # One of each kind of skip: a click, which is not a typing kind at all,
+        # and a credential, which IS one and whose value `typed_values` refuses.
+        # They leave by different doors and both doors were `break` once.
+        _extra(doing, "ges_click", at=1.0, kind="click", value=None)
+        _extra(doing, "ges_secret", at=2.0, value="hunter2", secret=True)
+        made = _extra(doing, "ges_after", at=3.0, value=value)
+        if made.gesture.target and made.gesture.target.component:
+            made.gesture.target.component.itemId = "typedAfterTheClick"
+
+    found = {p.name: p.seen for p in parameters_across([first, second])}
+
+    assert found.get("typedAfterTheClick") == ("ONE", "TWO"), "the walk went on"
+    assert not any("secret" in name.lower() for name in found), "and the credential is not in it"
+
+
+def test_the_control_name_falls_through_to_the_label_and_then_the_field() -> None:
+    """An ExtJS itemId where there is one, the field's own label otherwise, the
+    accessible name after that. Each rung is what names a parameter when the
+    framework gave less than the recorder hoped for."""
+    for missing, expected in (("itemId", "The Label"), ("both", "Accessible Name")):
+        first, second = _doing("TEST1", "a"), _doing("TEST2", "b")
+        for doing, value in ((first, "ONE"), (second, "TWO")):
+            made = _extra(doing, "ges_ladder", value=value)
+            target = made.gesture.target
+            assert target is not None and target.component is not None
+            target.component.itemId = None
+            target.component.fieldLabel = "The Label" if missing == "itemId" else None
+            target.name = "Accessible Name"
+
+        found = [p.name for p in parameters_across([first, second])]
+
+        assert expected in found, missing
+
+
+def test_a_value_only_the_reading_saw_still_names_a_parameter() -> None:
+    """A select whose value the recorder missed. `typed_values` reads the
+    gesture and the intent, and where only the intent has one, that is the
+    value -- so the intent has to be looked up by the gesture being examined."""
+    first, second = _doing("TEST1", "a"), _doing("TEST1", "b")
+    intents: list[dict[str, Intent]] = []
+    for doing, value in ((first, "FROM-A"), (second, "FROM-B")):
+        made = _extra(doing, "ges_readonly", kind="select", value=None, secret=False)
+        if made.gesture.target and made.gesture.target.component:
+            made.gesture.target.component.itemId = "readOnlyCombo"
+        intents.append(
+            {
+                "ges_readonly": Intent(
+                    gesture_id="ges_readonly",
+                    tenant="acme",
+                    values_seen=[ValueSeen(field="readOnlyCombo", value=value)],
+                )
+            }
+        )
+
+    found = {
+        p.name: p.seen
+        for p in parameters_across(
+            [(first[0], first[1], intents[0]), (second[0], second[1], intents[1])]
+        )
+    }
+
+    assert found.get("readOnlyCombo") == ("FROM-A", "FROM-B")

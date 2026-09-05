@@ -126,6 +126,11 @@ function sentOf(sent, kind) {
 function panel(status, here = null, replies = {}) {
   const sent = [];
   const ids = {};
+  // Every tab the panel opened. The panel's other way of acting on the world:
+  // `sent` is what it told the worker, this is what it put in front of the
+  // operator -- and which URL that is, is the whole of what a "details" link
+  // gets right or wrong.
+  const opened = [];
   const sandbox = {
     document: {
       getElementById: (id) => (ids[id] ??= node("div")),
@@ -165,6 +170,7 @@ function panel(status, here = null, replies = {}) {
       tabs: {
         query: async () => (here ? [here] : []),
         reload: async () => {},
+        create: async ({ url }) => opened.push(url),
       },
     },
   };
@@ -199,6 +205,7 @@ function panel(status, here = null, replies = {}) {
   // and a test of that list has to trigger and await this itself.
   return {
     sent,
+    opened,
     cards,
     ids,
     renderCandidates: sandbox.here,
@@ -1247,6 +1254,39 @@ test("with no way to reverse it, it says so rather than offering a dead button",
   const said = cards.map(words).join(" ");
   assert.ok(!/Undo that/i.test(said), "an undo was offered with nothing behind it");
   assert.ok(/I'll fix it/i.test(said), "no way to say it was wrong at all");
+});
+
+test("a run in flight links to whichever process is driving it", async () => {
+  // The backend's console has never heard of a rig run and the rig has no
+  // per-run URL of its own, so "details" for one is the rig's own page, bare.
+  // Everything else about the card -- the band, the step count, Stop -- is the
+  // same for both, which is the point.
+  const driving = { runId: "run_a1b2", kind: "ui", since: Date.now(), step: 2 };
+  const rig = panel(
+    {
+      deviceId: "dev-1",
+      capturing: true,
+      rigUrl: "http://127.0.0.1:8099",
+      performing: { ...driving, source: "rig" },
+    },
+    { id: 7, host: "wms.example", url: "https://wms.example/portal" },
+  );
+  const rigLink = rig.cards.flatMap(buttons).find((b) => /Details/.test(b.textContent));
+  assert.equal(rigLink.textContent, "Details on the rig", "a rig run pointed at the console");
+  rigLink.listeners[0]();
+  assert.deepEqual(rig.opened, ["http://127.0.0.1:8099"], "a rig run's details went elsewhere");
+  assert.deepEqual(sentOf(rig.sent, "panel-console"), [], "the console token was asked for anyway");
+
+  // No `source` at all -- an older worker's status, or the backend's own run.
+  const backend = panel(
+    { deviceId: "dev-1", capturing: true, consoleUrl: "https://console.test", performing: driving },
+    { id: 7, host: "wms.example", url: "https://wms.example/portal" },
+  );
+  const link = backend.cards.flatMap(buttons).find((b) => /Details/.test(b.textContent));
+  assert.equal(link.textContent, "Details in console", "a backend run was sent to the rig");
+  link.listeners[0]();
+  assert.equal(sentOf(backend.sent, "panel-console").length, 1, "the console was not opened");
+  assert.deepEqual(backend.opened, [], "a backend run opened the rig instead");
 });
 
 test("a run the rig drove shows its own steps and offers nothing the rig cannot do", async () => {

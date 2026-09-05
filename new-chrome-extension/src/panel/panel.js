@@ -556,7 +556,18 @@ function performing(status) {
           await refresh();
         },
       },
-      { label: "Details in console", act: () => openConsole(`/runs/${run.runId}`) },
+      // Where the run actually is. The rig has never heard of the backend's
+      // console and the backend's console has never heard of a rig run, so a
+      // `/runs/{id}` there is a 404 dressed as a link. The rig serves one page
+      // and has no per-run URL, so it is opened bare.
+      run.source === "rig"
+        ? {
+            label: "Details on the rig",
+            act: () => {
+              if (status.rigUrl) void chrome.tabs.create({ url: status.rigUrl });
+            },
+          }
+        : { label: "Details in console", act: () => openConsole(`/runs/${run.runId}`) },
     ],
   });
 }

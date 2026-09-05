@@ -1,7 +1,7 @@
 // Every call to the backend. See docs/14-extension-protocol.md.
 
 import { state } from "./state.js";
-import { mirrorSafely, mirrorTo } from "./mirror.js";
+import { isMirrorable, mirrorSafely, mirrorTo } from "./mirror.js";
 
 export class ApiError extends Error {
   constructor(status, problem) {
@@ -159,6 +159,7 @@ export const api = {
    */
   rigRun: async (runId) => {
     const [base, token] = await Promise.all([state.rigUrl(), state.rigToken()]);
+    if (!isMirrorable(base)) throw new ApiError(0, { detail: "no rig is configured" });
     const response = await fetch(`${base}/v1/runs/${encodeURIComponent(runId)}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -183,6 +184,7 @@ export const api = {
    * has already stopped taking part by the time this is called. */
   rigAbort: async (runId, deviceId) => {
     const [base, token] = await Promise.all([state.rigUrl(), state.rigToken()]);
+    if (!isMirrorable(base)) throw new ApiError(0, { detail: "no rig is configured" });
     const response = await fetch(`${base}/v1/runs/${encodeURIComponent(runId)}/abort`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },

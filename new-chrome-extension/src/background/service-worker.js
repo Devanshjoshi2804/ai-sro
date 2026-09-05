@@ -1372,6 +1372,8 @@ async function status() {
   // alarm below, which is what notices a run finishing while the panel is
   // closed, and is the trigger that actually matters for most runs.
   void checkFinishing();
+  const live = performing();
+  const active = live ? await state.activeRun() : null;
   return {
     capturing: allowed.on,
     because: allowed.because,
@@ -1381,7 +1383,16 @@ async function status() {
     // that is recording everything, and the operator finds out at the end.
     queued: await queue.count(),
     teaching: await state.teaching(),
-    performing: performing(),
+    // Which process is driving it, put beside what `commands.js` reports.
+    // `latest` there holds the source but `performing()` does not carry it,
+    // and this is the same mirrored record the `abort-run` case and
+    // `finishing.js` read -- so the panel's "details" link and its Stop agree
+    // on who is driving without a second answer to the question. Missing means
+    // backend, as everywhere else.
+    performing: live && {
+      ...live,
+      source: (active?.runId === live.runId && active.source) || "backend",
+    },
     // What the last run this browser finished made, and how to take it back --
     // held long past this run itself, unlike `performing` above, because an
     // operator coming back to look is what this is measured against rather

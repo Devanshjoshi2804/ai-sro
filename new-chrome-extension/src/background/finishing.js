@@ -27,6 +27,8 @@ import { state } from "./state.js";
  * `finished()`).
  */
 export async function noteFinished(active) {
+  // ponytail: `state.activeRun()` is one slot for one run -- see the note above
+  // `checkFinishing()` in `service-worker.js` for the ceiling that shares.
   const source = active.source === "rig" ? "rig" : "backend";
   try {
     const run = source === "rig" ? await api.rigRun(active.runId) : await api.run(active.runId);
@@ -56,16 +58,27 @@ export async function noteFinished(active) {
       wrongBecause: run.wrong_because || null,
       at: Date.now(),
     });
-  } catch {
+  } catch (error) {
     // A backend -- or a rig -- this browser cannot reach right now is not a
     // reason to show a stale or invented card. `state.activeRun()` is left as
     // it was, so the next trigger tries again.
+    //
+    // Except a rig that answered: there is no such run. The rig keeps runs in
+    // its own store and a restart takes them with it, so that answer will not
+    // change however long this browser goes on asking -- once every poll and
+    // every heartbeat for the hour it takes to age out. Nothing to show for it,
+    // so nothing is shown; asking is what stops.
+    if (source === "rig" && error?.status === 404) await forget(active.runId);
     return;
   }
-  // Resolved -- stop asking about this run. Cleared only once there is a
-  // confirmed, terminal answer to show for it, never on a failure to reach the
-  // backend: guarded by id so a slow answer for a run this browser has since
-  // moved past does not erase what the *next* run left behind instead.
+  await forget(active.runId);
+}
+
+/** Stop asking about this run. Cleared only once there is a confirmed answer
+ * for it -- or none there will ever be -- never on a failure to reach the
+ * process driving it: guarded by id so a slow answer for a run this browser
+ * has since moved past does not erase what the *next* run left behind. */
+async function forget(runId) {
   const now = await state.activeRun();
-  if (now?.runId === active.runId) await state.setActiveRun(null);
+  if (now?.runId === runId) await state.setActiveRun(null);
 }

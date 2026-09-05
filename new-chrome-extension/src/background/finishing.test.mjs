@@ -145,6 +145,53 @@ function keyedOnThePress() {
   );
 }
 
+/** The rig's record, in the panel's vocabulary.
+ *
+ * Two vocabularies meet in `api.rigRun` and nowhere else: the rig's `outcome`
+ * is the panel's `status`, and its `{order, says, verdict}` is the card's
+ * `{index, outcome, says, reason}`. Every other test here stubs that call, so
+ * this is the one that would notice if the mapping read the wrong field --
+ * `order` as `index` is the whole of what puts a step's glyph on the right row.
+ *
+ * Driven through the real `fetch` stub above rather than a fake `api`, because
+ * the thing under test *is* what the answer is turned into.
+ */
+async function theRigsRunInThePanelsWords() {
+  // No rig configured is the ordinary case -- the rig is optional -- and a
+  // relative path would be fetched against the extension's own origin, which
+  // is not a rig. Refused before the fetch, the same rule `mirror.js` applies.
+  await assert.rejects(() => api.rigRun("run_a1b2"), /no rig is configured/);
+  await state.setRigUrl("http://127.0.0.1:8099");
+
+  answer = async () => ({
+    ok: true,
+    status: 200,
+    json: async () => ({
+      id: "run_a1b2",
+      outcome: "held",
+      steps: [{ order: 0, says: "open the supplier form", verdict: "held", reason: "it did" }],
+      withheld: [{ origin: "https://wms.test" }],
+    }),
+  });
+  const mapped = await api.rigRun("run_a1b2");
+  assert.strictEqual(mapped.source, "rig");
+  assert.strictEqual(mapped.status, "held", "the rig's outcome is the panel's status");
+  assert.deepStrictEqual(mapped.steps, [
+    { index: 0, outcome: "held", says: "open the supplier form", reason: "it did" },
+  ]);
+  assert.strictEqual(mapped.withheld.length, 1);
+
+  // The one status both vocabularies share, and it has to survive the mapping:
+  // a run still running is what `noteFinished` refuses to write a card for.
+  answer = async () => ({ ok: true, status: 200, json: async () => ({ id: "r", outcome: "running" }) });
+  assert.strictEqual((await api.rigRun("r")).status, "running");
+
+  // And a rig that has never heard of the run says so with a status on it --
+  // `noteFinished` reads that 404 to stop asking.
+  answer = async () => ({ ok: false, status: 404, json: async () => ({}) });
+  await assert.rejects(() => api.rigRun("nope"), (error) => error.status === 404);
+}
+
 /** Which failures of `POST /runs/{id}/stop` are worth telling an operator
  * about, and which are the ordinary race.
  *
@@ -260,6 +307,22 @@ async function whoIsAskedHowItEnded() {
       "a record with no source was not read as a backend run",
     );
     assert.deepStrictEqual(asked, [["backend", "run-old"]], "a backend run went to the rig");
+
+    // A rig that answered "no such run" will go on answering it -- its store
+    // went with its last restart -- so this browser stops asking rather than
+    // polling for the hour it takes to age out.
+    api.rigRun = async () => {
+      const gone = new Error("the rig has no run run-gone");
+      gone.status = 404;
+      throw gone;
+    };
+    await state.setActiveRun({ runId: "run-gone", at: Date.now(), source: "rig" });
+    await noteFinished(await state.activeRun());
+    assert.strictEqual(
+      await state.activeRun(),
+      null,
+      "a run the rig says does not exist was still being asked about",
+    );
   } finally {
     api.run = realRun;
     api.rigRun = realRigRun;
@@ -271,4 +334,5 @@ await whoIsAskedHowItEnded();
 ageBound();
 keyedOnThePress();
 await stoppingIsNotAnAlarm();
+await theRigsRunInThePanelsWords();
 console.log("finishing.test.mjs: ok");

@@ -653,6 +653,7 @@ git commit -m "feat(rig): the rig's end of the command channel"
 **Interfaces:**
 - Consumes: `commands.perform(command)`, `state.rigUrl()`, `state.rigToken()`, `state.deviceId()`.
 - Produces: `channel.js` keeps every export it has today (`status`, `settle`, `close`, `operatorIsWorking`) for the backend socket, and additionally exports `createChannel({ describe, dial })`. `rig-channel.js` exports `status`, `settle`, `close`.
+- **Every command carries its source.** `createChannel` calls `commands.perform(command, describe)`, and `perform(command, source = "backend")` records `source` on `latest` and on `state.setActiveRun({ runId, at, source })`. Task 11 reads it: a run's finish is asked of the process that started it, and a rig run asked of the backend answers 404 and shows "performing" until the quiet timer wipes it.
 
 The socket the rig gets is the backend's socket, verbatim: same keepalive, same
 exactly-once answering, same redial. The only differences are where it dials
@@ -783,6 +784,8 @@ where they read their configuration from.
  * socket verbatim, not a second implementation of it.
  */
 export function createChannel({ describe, dial }) {
+  // `describe` doubles as the run's source: the panel asks the process that
+  // started a run how it ended, and only the channel knows which one did.
   let socket = null;
   let keepalive = null;
   let retryIn = FIRST_RETRY_MS;
@@ -814,8 +817,9 @@ export function createChannel({ describe, dial }) {
   }
 
   /* retryLater, announce, startKeepalive, stopKeepalive, send, operatorIsWorking,
-     handle: unchanged bodies, closing over the variables above. Every
-     `state.setLastError(...)` string gains `${describe}`. */
+     handle: unchanged bodies, closing over the variables above, with two edits:
+     every `state.setLastError(...)` string gains `${describe}`, and `handle`'s
+     `commands.perform(command)` becomes `commands.perform(command, describe)`. */
 
   return { status, settle, close, operatorIsWorking };
 }
@@ -879,6 +883,17 @@ export const status = rig.status;
 export const settle = rig.settle;
 export const close = rig.close;
 ```
+
+- [ ] **Step 4b: `commands.perform` records the source**
+
+In `commands.js`, `export async function perform(command, source = "backend")`.
+Where `latest` is built for a new run, add `source` to the object; where
+`state.setActiveRun({ runId: command.run_id, at: now })` is written, it becomes
+`state.setActiveRun({ runId: command.run_id, at: now, source })`. Nothing else
+in `perform` changes. Add one test to `channel.test.mjs`: stub
+`commands.perform` to record its second argument, deliver a command with
+`run_id: "run_r1"` on the rig socket, and assert the recorded source is `"rig"`;
+deliver one on the backend socket and assert `"backend"`.
 
 - [ ] **Step 5: Wire it into `service-worker.js`**
 
@@ -1494,6 +1509,7 @@ async def test_the_values_the_run_was_given_are_what_the_model_sees_not_the_reco
                     allow_focus=False, asker=asker, model="m")
     assert "THIRD" in asker.asked[0]["evidence"]
     assert "allow_focus" not in asker.asked[0]["evidence"], "nothing about focus reaches the model"
+    assert "http://127.0.0.1:63319/" in asker.asked[0]["evidence"], "the step's real page, for a deep job"
 
 
 async def test_an_http_plan_replays_the_recorded_call_with_redacted_headers_dropped() -> None:
@@ -1606,7 +1622,9 @@ Plan exactly ONE command:
   for type/select/upload, the value from this run's values. Prefer this.
 - http.send: only when the evidence carries a call and there is no usable
   control to drive. The call itself is taken from the evidence.
-- navigate: only when the browser is on the wrong page for this step. Give the url.
+- navigate: only when the browser is on the wrong page for this step -- compare
+  `browser.url` with `step_page`, the screen this step was demonstrated on.
+  Give the url. After a navigate the same step is planned again.
 
 Never invent a control, a url or a value that is not in the evidence or the
 run's values. If the step cannot be done from what you are shown, say so in
@@ -1671,6 +1689,10 @@ async def plan_step(
             "evidence": [trim(g) for g in cited],
             "values": dict(values),
             "browser": {"url": look.url, "screen_text": look.digest},
+            # The real page, not `trim()`'s starred path shape: a step deep in a
+            # job was demonstrated on a specific screen, and the planner can only
+            # say "navigate there first" if it is told where there is.
+            "step_page": primary.page_url or primary.url,
             "previous_attempt_failed": failure,
         },
         indent=2,
@@ -2133,6 +2155,29 @@ async def test_a_failed_step_is_retried_once_with_pro_then_the_run_stops_and_ask
     assert len(run.steps) == 1, "it stopped rather than carrying on to save"
 
 
+async def test_a_navigate_gets_to_the_page_and_does_not_spend_the_rescue(tmp_path: Path) -> None:
+    """A deep job was demonstrated across several screens. Moving to the next
+    one is not doing the step: after the navigate the same step is planned
+    again on the same rung, so a step that needed a page change and then went
+    wrong still has its one Pro rescue."""
+    store = _store(tmp_path)
+    wf = _workflow(store)
+    channel = FakeChannel({**_looks(6), "navigate": [Reply(ok=True, result={"navigated": True})],
+                           "ui.perform": [Reply(ok=True, result={"performed": True, "matched_by": "component", "candidates": 1})]})
+    asker = FakeAsker(
+        Answer(data={"kind": "navigate", "action": None, "value": None, "url": "http://127.0.0.1:63319/form", "why": "wrong page"}),
+        _plan("type", "x"),
+        Answer(data={"held": True, "why": ""}),
+        _plan("click"),
+    )
+
+    run = await run_workflow(store, wf, values={"clientCode": "x"}, channel=channel, device_id="dev_test", asker=asker,
+                             plan_model="flash", rescue_model="pro", live=False, allow_focus=True, started_by="form")
+
+    assert [s["kind"] for s in channel.sent if s["kind"] in ("navigate", "ui.perform")] == ["navigate", "ui.perform"]
+    assert run.steps[0].verdict == "held" and run.steps[0].planned_by == "flash", "the rescue was never needed"
+
+
 async def test_a_weak_locator_match_succeeds_and_flags_the_step_stale(tmp_path: Path) -> None:
     store = _store(tmp_path)
     wf = _workflow(store)
@@ -2406,6 +2451,40 @@ async def run_workflow(
                     record.verdict, record.reason = "refused", f"{target_origin} is not a system this job's evidence names"
                     run.outcome = "refused"
                     break
+
+                if planned.kind == "navigate":
+                    # Getting to the right page is not doing the step. Send it,
+                    # then plan this step again on the same rung: a deep job
+                    # was demonstrated across several screens, and moving to
+                    # the next one must not spend the one rescue the step has.
+                    # It does spend budget, so a planner that only ever
+                    # navigates still runs out.
+                    moved = await channel.send(device_id, kind="navigate", run_id=run.id, payload=planned.payload)
+                    if not moved.ok:
+                        verdict = Verdict("failed", "none", f"could not navigate: {moved.detail}")
+                        continue
+                    if attempts >= budget:
+                        record.verdict, record.reason = "refused", f"the step budget of {budget} attempts is spent"
+                        run.outcome = "refused"
+                        break
+                    attempts += 1
+                    before = await _look(channel, device_id, run.id, origin, allow_focus)
+                    planned = await plan_step(
+                        step=step, cited=cited, values=values, look=before, origin=origin,
+                        starts_on=starts_on, allow_focus=allow_focus, asker=asker, model=model,
+                        failure=None,
+                    )
+                    record.before_url = before.url
+                    _bill(record, planned.answer)
+                    record.sent = {"kind": planned.kind, "payload": planned.payload}
+                    if planned.kind in ("none", "navigate"):
+                        verdict = Verdict("failed", "none", planned.why or "still on the wrong page after navigating")
+                        continue
+                    target_origin = system_of(str(planned.payload.get("url"))) if planned.kind == "http.send" else planned.payload.get("origin")
+                    if target_origin and target_origin not in allowed:
+                        record.verdict, record.reason = "refused", f"{target_origin} is not a system this job's evidence names"
+                        run.outcome = "refused"
+                        break
 
                 if not live and writes(step, by_id):
                     run.withheld.append(_withheld(step, planned, by_id))
@@ -2830,6 +2909,119 @@ git commit -m "feat(rig): the page runs a job and watches it, dry by default"
 
 ---
 
+### Task 11: The extension's panel shows a rig run
+
+**Files:**
+- Modify: `new-chrome-extension/src/background/service-worker.js` — `noteFinished` asks the rig for a rig run
+- Modify: `new-chrome-extension/src/background/api.js` — `api.rigRun(runId)`, `api.rigAbort(runId, deviceId)`
+- Modify: `new-chrome-extension/src/panel/panel.js` — a rig run's card: steps from the run's own record, **Stop** to the rig, no "It's wrong"
+- Test: `new-chrome-extension/src/background/finishing.test.mjs` (extend), `new-chrome-extension/src/panel/run-card.test.mjs` (extend)
+
+**Interfaces:**
+- Consumes: `activeRun.source` (Task 2), `GET /v1/runs/{id}` and `POST /v1/runs/{id}/abort` on the rig (Task 8), `state.rigUrl()`, `state.rigToken()`, `state.deviceId()`.
+- Produces: `api.rigRun(runId) -> { id, source: "rig", status, steps: [{ index, outcome, says, reason }], withheld }` — the rig's `outcome` mapped onto the panel's `status` vocabulary (`running` stays `running`; everything else is finished), each rig step mapped to `{ index: order, outcome: verdict, says, reason }`.
+
+Every UX state the extension already has stays exactly as it is for a rig run
+-- the driving band on the page, the "performing" card, `busy` when the
+operator types, `allow_focus` refusing to steal the screen. What changes is
+only who is asked how it ended and where Stop goes. The rig has no reversal
+and no "It's wrong": those affordances are not shown for a run whose
+`source` is `rig`, rather than shown and broken.
+
+- [ ] **Step 1: Write the failing tests**
+
+In `finishing.test.mjs`, beside the existing backend case: an `activeRun` with
+`source: "rig"` and a stubbed `api.rigRun` answering `{ id, status: "held", steps: [...] }`
+results in `state.finishedRun()` carrying `source: "rig"` and `status: "held"`,
+and the backend's `api.run` is **not** called. In `run-card.test.mjs`: a run
+with `source: "rig"` and no `skill` renders one row per `run.steps` entry from
+the run's own `says`, shows **Stop** while `status === "running"`, and renders
+no "It's wrong" / undo control when finished.
+
+- [ ] **Step 2: Run them to verify they fail**
+
+Run: `node new-chrome-extension/src/background/finishing.test.mjs && node new-chrome-extension/src/panel/run-card.test.mjs`
+
+- [ ] **Step 3: `api.rigRun` and `api.rigAbort`**
+
+In `api.js`, beside `run`:
+
+```javascript
+  /** A run the rig is performing. The rig's `outcome` is the panel's `status`;
+   * its steps are `{order, says, verdict}` and the card wants `{index, outcome}`. */
+  async rigRun(runId) {
+    const [base, token] = await Promise.all([state.rigUrl(), state.rigToken()]);
+    const r = await fetch(`${base}/v1/runs/${encodeURIComponent(runId)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!r.ok) throw new ApiError(r.status, `the rig has no run ${runId}`);
+    const run = await r.json();
+    return {
+      id: run.id,
+      source: "rig",
+      status: run.outcome,
+      steps: (run.steps || []).map((s) => ({ index: s.order, outcome: s.verdict, says: s.says, reason: s.reason })),
+      withheld: run.withheld || [],
+    };
+  },
+  async rigAbort(runId, deviceId) {
+    const [base, token] = await Promise.all([state.rigUrl(), state.rigToken()]);
+    await fetch(`${base}/v1/runs/${encodeURIComponent(runId)}/abort`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ device_id: deviceId }),
+    });
+  },
+```
+
+- [ ] **Step 4: `noteFinished` asks the right process**
+
+```javascript
+async function noteFinished(active) {
+  try {
+    const run = active.source === "rig" ? await api.rigRun(active.runId) : await api.run(active.runId);
+    if (run.status === "running") return;
+    await state.setFinishedRun({
+      id: run.id,
+      source: active.source || "backend",
+      status: run.status,
+      steps: run.steps || [],
+      withheld: run.withheld || [],
+      derived: run.derived || {},
+      reversal: run.reversal || null,
+      failure: run.failure || null,
+      wrongBecause: run.wrong_because || null,
+      at: Date.now(),
+    });
+  } catch {
+    /* unchanged */
+  }
+}
+```
+
+and `checkFinishing` passes `active` rather than `active.runId`.
+
+- [ ] **Step 5: The card**
+
+In `panel.js`, where a finished or active run is rendered: when `run.source === "rig"`,
+build the step rows from `run.steps` (`says` as the intent text, `outcome` for
+the glyph) rather than from `skill.latest.steps`; wire **Stop** to
+`api.rigAbort(run.id, await state.deviceId())`; and do not render the
+"It's wrong" / undo controls. When finished with `withheld.length`, render a
+short line under the card: *"dry run -- N write(s) shown on the rig, not sent"*.
+Reuse `runCard`'s structure; do not fork it -- add a `source` branch where the
+step list and the buttons are chosen.
+
+- [ ] **Step 6: Run everything, commit**
+
+```bash
+make test-extension
+git add new-chrome-extension/src/background/service-worker.js new-chrome-extension/src/background/api.js new-chrome-extension/src/panel/panel.js new-chrome-extension/src/background/finishing.test.mjs new-chrome-extension/src/panel/run-card.test.mjs
+git commit -m "feat(extension): the panel shows a rig run, and asks the rig how it ended"
+```
+
+---
+
 ### Task 10: The runner meets a real browser
 
 **Files:**
@@ -2883,6 +3075,8 @@ git commit -m "docs: a run performs -- the chain proven against a fake browser, 
 ## Self-review
 
 **Spec coverage.** *The runner* — locators from evidence (T4), origin per step (T4), Flash plans one command (T5), extension performs (T1/T2), verify against state (T6), Pro retries once then stop and ask (T7), `matched_by` as health signal / stale (T7), `allow_focus` from the door (T8). *Entering a run* — chat offers (T8), form fallback prefilled (T9). *What this must refuse* — origin allowlist (T7), dry first execution (T7), step budget (T7), no fabricated citations (already enforced at mining; the runner reads only stored workflows), no grounding (inherited), no File API screenshots (inline via `Part.from_bytes`, T5/T6), nothing unattended (no scheduler; T8's door is the only start). *Verification 6 and 7* — T10. **Gap named, not hidden:** "Still failed: stop and ask" — the run stops and records; nothing yet notifies a person beyond the page showing `stopped`. That is the page, which is a door a person has open.
+
+**Added after the owner's note that everything will be done by the rig** — so every browser state a real job passes through is the runner's, not an edge case: the planner is told the page each step was demonstrated on (T5) and a `navigate` is a pre-step that does not spend the rescue (T7), which is what a deep, many-screen job needs; and the extension's panel treats a rig run as a first-class run, asked of the rig and stoppable at the rig (T11). Task 10 runs after Task 11.
 
 **Placeholder scan.** None. Every code step is complete.
 

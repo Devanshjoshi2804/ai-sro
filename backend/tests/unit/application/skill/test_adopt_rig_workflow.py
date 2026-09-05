@@ -178,3 +178,53 @@ async def test_a_workflow_with_no_recording_behind_it_is_refused() -> None:
         await _adopt(uow).execute(
             CTX, workflow=WORKFLOW, gestures=GESTURES, recordings=[], objective=f.objective()
         )
+
+
+async def test_a_null_recording_is_not_a_recording_named_none() -> None:
+    """`str(r)` turned a JSON null into the literal id "None" -- exactly the
+    minting this module says it refuses, and it would have gone into the
+    database as the recording a version descends from."""
+    uow = FakeUnitOfWork()
+
+    with pytest.raises(DomainError):
+        await _adopt(uow).execute(
+            CTX,
+            workflow=WORKFLOW,
+            gestures=GESTURES,
+            recordings=[None, 3],  # type: ignore[list-item]
+            objective=f.objective(),
+        )
+
+
+async def test_a_citation_naming_something_that_is_not_a_gesture_is_skipped() -> None:
+    """Everything here came off `json.loads` out of a column. A citation
+    resolving to a string gave AttributeError from `.get`, which is a traceback
+    in a module whose whole contract is that it refuses."""
+    uow = FakeUnitOfWork()
+
+    adopted = await _adopt(uow).execute(
+        CTX,
+        workflow=WORKFLOW,
+        gestures={"a": GESTURES["a"], "b": "not a gesture"},  # type: ignore[dict-item]
+        recordings=["str_1"],
+        objective=f.objective(),
+    )
+
+    assert len(adopted.version.steps) == 1, "the one real gesture, and no crash"
+
+
+async def test_a_title_that_is_not_a_string_does_not_become_a_skill_name() -> None:
+    """`str()` of whatever was there put a rendered dict in the library as a
+    skill name. A title is a string or it is nothing."""
+    uow = FakeUnitOfWork()
+
+    adopted = await _adopt(uow).execute(
+        CTX,
+        workflow={**WORKFLOW, "title": {"a": 1}},
+        gestures=GESTURES,
+        recordings=["str_1"],
+        objective=f.objective(),
+    )
+
+    stored = await uow.skills.get(f.TENANT, adopted.skill_id)
+    assert stored.name == f.objective().slug()

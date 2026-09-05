@@ -131,7 +131,7 @@ class IngestObservation:
             # what the tenant agreed to by default. Read from the device
             # already loaded above, and expired grants simply are not in it.
             admission = admit(
-                events, policy, device.granted_hosts(now), get_settings().our_own_hosts()
+                events, policy, device.granted_hosts(now), get_settings().our_own_origins()
             )
             if not admission.accepted:
                 return Ingested(

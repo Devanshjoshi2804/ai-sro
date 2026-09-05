@@ -16,6 +16,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from urllib.parse import urlsplit
 
+from sro.config import _DEFAULT_PORTS
 from sro.domain.observation.batch import RejectedEvent
 from sro.domain.observation.policy import ObservationPolicy
 
@@ -44,18 +45,21 @@ def admit(
     events: Sequence[Event],
     policy: ObservationPolicy,
     granted: frozenset[str] = frozenset(),
-    ours: frozenset[str] = frozenset(),
+    ours: frozenset[tuple[str, str]] = frozenset(),
 ) -> Admission:
     """What may be kept out of one upload, and why the rest was not.
 
-    ``ours`` is this deployment's own hosts -- its API and its console. They are
-    refused ahead of everything else and no grant widens them, which is the
+    ``ours`` is this deployment itself -- its API and its console -- as
+    ``(host:port, path prefix)`` pairs from ``Settings.our_own_origins``. They
+    are refused ahead of everything else and no grant widens them, which is the
     difference between this and ``exclude_hosts``.
 
     That distinction is not theoretical. The operator had the console open in a
-    tab while demonstrating, so the extension captured the console asking the
-    API for its own recordings: twelve requests in the real store, one of them a
-    POST that a mined workflow then reported as the write its job performs.
+    tab while demonstrating, so the extension captured both halves: the console
+    page itself (7 gestures in the real store) and the console talking to the
+    API -- twelve requests, of which one is the POST to
+    `/v1/recordings/<id>/finish` that a mined workflow then reported as the
+    write its job performs.
     Configuration could have excluded it and did not, because a default nobody
     sets is a default nobody has -- and worse, ``exclude_hosts`` is exactly what
     an operator's grant is allowed to widen, so pressing "observe this page" on
@@ -74,7 +78,10 @@ def admit(
 
 
 def _why_not(
-    event: Event, policy: ObservationPolicy, granted: frozenset[str], ours: frozenset[str]
+    event: Event,
+    policy: ObservationPolicy,
+    granted: frozenset[str],
+    ours: frozenset[tuple[str, str]],
 ) -> str | None:
     kind = event.get("kind")
     if kind not in KINDS:
@@ -118,22 +125,54 @@ def _why_not(
 
 
 def _url_refusal(
-    url: object, policy: ObservationPolicy, granted: frozenset[str], ours: frozenset[str]
+    url: object,
+    policy: ObservationPolicy,
+    granted: frozenset[str],
+    ours: frozenset[tuple[str, str]],
 ) -> str | None:
     if not isinstance(url, str) or not url.strip():
         return "an event with no URL cannot be checked against the policy"
-    host = urlsplit(url).netloc.lower()
-    # Host and port both, unlike every other rule here: a deployment whose API
-    # and console are the same machine on different ports is the ordinary
-    # development shape, and matching on hostname alone would refuse the
-    # console page as well as the API it calls.
-    if host and host in ours:
+    if _is_ours(url, ours):
         return "this is the recording apparatus, not the work it records"
     if not policy.allows(url, granted):
         # Never the URL itself: this refusal is logged and read, and the point
         # of an exclusion is that the excluded page leaves no trace here.
         return "this page is outside what the tenant agreed to observe"
     return None
+
+
+def _is_ours(url: str, ours: frozenset[tuple[str, str]]) -> bool:
+    """Whether this url is this system talking to itself.
+
+    Host and port, unlike every other rule here: a deployment whose API and
+    console are one machine on two ports is the ordinary shape, and matching
+    the hostname alone would refuse the warehouse test server beside them.
+    Built from ``hostname`` rather than ``netloc`` because netloc carries
+    userinfo and keeps a trailing dot, and both slipped past a netloc compare.
+
+    The path prefix is the other half: a deployment path-routing this system
+    and the WMS on one hostname is ordinary too, and refusing the whole host
+    would make every warehouse page on it unrecordable with no grant able to
+    restore it.
+    """
+    parsed = urlsplit(url)
+    host = (parsed.hostname or "").rstrip(".")
+    if not host:
+        return False
+    if ":" in host:
+        host = f"[{host}]"
+    try:
+        port = str(parsed.port) if parsed.port else ""
+    except ValueError:
+        return False
+    if port and port == _DEFAULT_PORTS.get(parsed.scheme.lower()):
+        port = ""
+    mine = f"{host}:{port}" if port else host
+    path = parsed.path or "/"
+    return any(
+        mine == theirs and (prefix == "/" or path == prefix or path.startswith(f"{prefix}/"))
+        for theirs, prefix in ours
+    )
 
 
 def _mapping(value: object) -> Event | None:

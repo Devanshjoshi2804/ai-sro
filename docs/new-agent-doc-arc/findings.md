@@ -230,8 +230,12 @@ which the operator had open in a tab while demonstrating. So the one
 multi-system workflow the miner found on captured evidence is the login flow
 plus the apparatus watching itself -- not a warehouse job crossing into
 another system, which is the claim this architecture exists to support. The
-identity providers were not in the default exclusion list; they are now, and
-`admit` refuses this deployment's own hosts outright.
+identity providers were not in the default exclusion list, and they still are
+not: what changed is **this tenant's stored policy** (version 10), which now
+names `b2clogin.com`, the keycloak host and `workspace.google.com`.
+`DEFAULT_EXCLUSIONS` in `domain/observation/policy.py` is unchanged, so the
+next tenant starts where this one did. `admit` does refuse this deployment's
+own API and console outright, and that part is in the code.
 
 That leaves the corpus at **seven warehouse jobs**, not eight. The eighth was
 the operator getting ready.

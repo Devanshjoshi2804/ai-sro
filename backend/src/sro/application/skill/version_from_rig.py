@@ -114,12 +114,16 @@ def version_from_rig(
     really were one described step, and renaming them apart would invent a
     distinction the evidence does not make.
     """
-    # Blank ids are dropped before the emptiness check, not after. `if not
-    # recordings` passed a list of empty strings straight through to
-    # `RecordingId`, which refuses one and raises -- and `stream_id` comes out
-    # of a column, so a blank is a database's answer rather than a caller's
-    # mistake. A version with no readable provenance is refused, not raised at.
-    named = tuple(dict.fromkeys(one for r in recordings if (one := str(r).strip())))
+    # Blank and non-string ids are dropped before the emptiness check, not
+    # after. `if not recordings` passed a list of empty strings straight
+    # through to `RecordingId`, which refuses one and raises -- and `stream_id`
+    # comes out of a column, so a blank is a database's answer rather than a
+    # caller's mistake. `str(r)` was worse than raising: a JSON null became the
+    # literal id "None", which is exactly the minting this module says it
+    # refuses to do. A version with no readable provenance is refused.
+    named = tuple(
+        dict.fromkeys(one for r in recordings if isinstance(r, str) and (one := r.strip()))
+    )
     if not named:
         return None
 
@@ -130,7 +134,11 @@ def version_from_rig(
         cites = step.get("cites")
         for cited in cites if isinstance(cites, list) else ():
             gesture = gestures.get(_text(cited) or "")
-            if gesture is None:
+            # A Mapping, not merely present. Everything here came off
+            # `json.loads` out of a column, and a citation naming a string or a
+            # null gave `AttributeError` from `.get` -- a traceback where the
+            # module's whole contract is that it refuses.
+            if not isinstance(gesture, Mapping):
                 continue
             # Both recipes for the same gesture, which is what ADR 005 means by
             # dual: the network plan is how a run performs it without a

@@ -77,7 +77,7 @@ def test_the_index_of_a_refusal_is_the_index_the_extension_sent() -> None:
     assert admission.rejected[0].index == 1
 
 
-OURS = frozenset({"localhost:8000", "localhost:3000"})
+OURS = frozenset({("localhost:8000", "/"), ("localhost:3000", "/")})
 
 
 def _at(url: str) -> dict[str, object]:
@@ -147,9 +147,83 @@ def test_the_console_page_is_named_by_a_setting_and_not_by_the_cors_list() -> No
         api_url="http://localhost:8000",
         console_url="http://localhost:3000",
         cors_origins=("chrome-extension://abc",),
-    ).our_own_hosts()
+    ).our_own_origins()
 
-    assert ours == {"localhost:8000", "localhost:3000", "abc"}
+    assert ("localhost:3000", "/") in ours
+    assert ("abc", "/") in ours, "an origin trusted to call this API is part of this system"
 
     admission = admit([_at("http://localhost:3000/skills")], ON, ours=ours)
     assert admission.accepted == ()
+
+
+def test_the_three_names_of_this_machine_are_one_machine() -> None:
+    """`attach_hosts` says so ten lines above `our_own_origins` in the same
+    class. A rule whose whole justification is "a default nobody sets is a
+    default nobody has" cannot then depend on the operator having typed
+    `localhost` rather than `127.0.0.1` -- Chrome records whichever they typed,
+    and the tenant's `exclude_hosts` names only the one."""
+    from sro.config import Settings
+
+    ours = Settings(api_url="http://localhost:8000", console_url="").our_own_origins()
+
+    for url in (
+        "http://localhost:8000/v1/recordings/rec_1",
+        "http://127.0.0.1:8000/v1/recordings/rec_1",
+        "http://[::1]:8000/v1/recordings/rec_1",
+    ):
+        assert admit([_at(url)], ON, ours=ours).accepted == (), url
+
+
+def test_a_port_written_out_in_full_is_the_same_origin_without_it() -> None:
+    """`https://sro.acme.com:443` is what an operator writes, and every real
+    call goes to `https://sro.acme.com/...`. Left unnormalised, the rule
+    matched neither."""
+    from sro.config import Settings
+
+    ours = Settings(api_url="https://sro.acme.com:443", console_url="").our_own_origins()
+
+    assert admit([_at("https://sro.acme.com/v1/x")], ON, ours=ours).accepted == ()
+    assert admit([_at("https://sro.acme.com:443/v1/x")], ON, ours=ours).accepted == ()
+
+
+def test_userinfo_and_a_trailing_dot_do_not_walk_past_the_rule() -> None:
+    """`netloc` carries userinfo, keeps a trailing dot and preserves case.
+    `hostname` does none of the three, which is why the comparison is built
+    from its parts rather than taken whole.
+
+    A dot after the PORT rather than the host -- `localhost:8000.` -- is a
+    different thing: the port is unreadable, so this cannot tell which origin
+    it is and leaves it to the tenant's policy rather than guessing wide."""
+    for url in (
+        "http://user:pass@localhost:8000/v1/recordings/rec_1",
+        "http://localhost.:8000/v1/recordings/rec_1",
+        "http://LOCALHOST:8000/v1/recordings/rec_1",
+    ):
+        assert admit([_at(url)], ON, ours=OURS).accepted == (), url
+
+
+def test_a_shared_host_loses_only_the_path_this_system_answers_on() -> None:
+    """A corporate deployment path-routing this system and the WMS on one
+    hostname is an ordinary shape. Refusing the whole host would make every
+    warehouse page on it permanently unrecordable -- no grant able to restore
+    it, and the refusal names no host, so nobody would learn why."""
+    from sro.config import Settings
+
+    ours = Settings(api_url="https://apps.acme.com/sro", console_url="").our_own_origins()
+
+    assert admit([_at("https://apps.acme.com/sro/v1/x")], ON, ours=ours).accepted == ()
+    assert admit([_at("https://apps.acme.com/wms/orders")], ON, ours=ours).accepted_count == 1
+    assert admit([_at("https://apps.acme.com/srosomething")], ON, ours=ours).accepted_count == 1
+
+
+def test_a_url_with_an_unreadable_port_is_left_to_the_tenants_policy() -> None:
+    """Dropping just the port would WIDEN the rule: a mistyped `localhost:8000.`
+    would become bare `localhost` and refuse every page on it, the warehouse
+    test server included."""
+    from sro.config import Settings
+
+    ours = Settings(
+        api_url="http://localhost:8000.", console_url="", cors_origins=()
+    ).our_own_origins()
+
+    assert ours == frozenset(), "nothing, rather than a portless `localhost`"

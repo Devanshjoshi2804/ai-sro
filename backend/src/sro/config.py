@@ -34,6 +34,39 @@ def _git_head() -> str:
     return done.stdout.strip() or "unknown"
 
 
+_DEFAULT_PORTS = {"http": "80", "https": "443", "ws": "80", "wss": "443"}
+_LOOPBACK = ("127.0.0.1", "localhost", "[::1]")
+"""The same machine under three names. `Settings.attach_hosts` says so too, and
+`our_own_origins` reads the same set rather than a second copy of it."""
+
+
+def _origins_of(url: str) -> set[tuple[str, str]]:
+    """One configured url as the (host:port, path prefix) pairs it stands for."""
+    parsed = urlsplit(url if "//" in url else f"//{url}")
+    host = (parsed.hostname or "").lower()
+    if not host:
+        return set()
+    # `hostname` lowercases and strips userinfo but also strips the brackets an
+    # IPv6 literal needs, so they go back on before it is compared to a netloc
+    # anybody wrote by hand.
+    if ":" in host:
+        host = f"[{host}]"
+    host = host.rstrip(".")
+    try:
+        port = str(parsed.port) if parsed.port else ""
+    except ValueError:
+        # A port nobody can read makes the whole url unusable. Dropping just
+        # the port would widen the rule instead of narrowing it: a mistyped
+        # `localhost:8000.` would become bare `localhost` and refuse every
+        # page on it, including the warehouse test server.
+        return set()
+    if port and port == _DEFAULT_PORTS.get(parsed.scheme.lower()):
+        port = ""
+    prefix = parsed.path.rstrip("/") or "/"
+    hosts = _LOOPBACK if host in _LOOPBACK else (host,)
+    return {(f"{one}:{port}" if port else one, prefix) for one in hosts}
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env", env_prefix="SRO_", env_nested_delimiter="__", extra="ignore"
@@ -133,32 +166,57 @@ class Settings(BaseSettings):
     console at :3000 was being captured with nothing to name it.
     """
 
-    def our_own_hosts(self) -> frozenset[str]:
-        """This deployment's own API and console, as host:port.
+    def our_own_origins(self) -> frozenset[tuple[str, str]]:
+        """This deployment itself, as (host:port, path prefix) pairs.
 
         Never observable, and no operator grant widens them -- `admit` refuses
         them ahead of the tenant's policy. The operator had the console open in
         a tab while demonstrating, and the extension captured both halves: the
         console page itself (7 gestures in the real store) and the console
-        asking the API for its own recordings (12 requests, one of them a POST
+        asking the API to finish a recording (12 requests, one of them a POST
         that a mined workflow then reported as the write its job performs).
 
-        Host AND port, because an API on 8000 beside a console on 3000 is the
-        ordinary shape and a hostname alone would refuse `localhost` entirely --
-        which on a developer's machine is also where the warehouse test server
-        and the extension's own fixtures are served from.
+        Four things this has to get right, and the first version got one:
 
-        `cors_origins` is included as well, because an origin trusted to call
-        this API is part of this system by definition. It is not a substitute
-        for `console_url`: a same-origin or proxied console never appears in it.
+        **Loopback aliases.** `127.0.0.1`, `localhost` and `[::1]` are the same
+        machine, which `attach_hosts` above already says in as many words. A
+        rule whose whole justification is "a default nobody sets is a default
+        nobody has" cannot then depend on the operator having typed one of the
+        three -- and Chrome records whichever they typed. So a loopback host
+        contributes all three.
+
+        **Default ports.** `https://sro.acme.com:443` and
+        `https://sro.acme.com` are one origin, and an operator writing the
+        former left every call to the latter unrefused.
+
+        **Host and port, not netloc.** `urlsplit().netloc` carries userinfo and
+        preserves a trailing dot, so `http://user:pass@localhost:8000/` and
+        `http://localhost:8000./` both slipped past a netloc comparison. Port
+        still matters -- an API on 8000 beside a console on 3000 is the
+        ordinary shape, and matching the hostname alone would refuse
+        `localhost` outright, taking the warehouse test server on :63319 with
+        it.
+
+        **The path.** A corporate deployment fronting this system and the WMS
+        on one hostname with path routing is an ordinary shape, and refusing
+        the whole host would make every warehouse page on it permanently
+        unrecordable -- no grant able to restore it, and the refusal reason
+        deliberately names no host, so nobody would know why. The prefix is
+        carried so `https://apps.acme.com/sro` refuses `/sro/...` and nothing
+        else. `/` is the usual answer and matches the whole origin.
+
+        `cors_origins` is included as well: an origin trusted to call this API
+        is part of this system by definition. It is not a substitute for
+        `console_url` -- a console served same-origin or proxied through its
+        own server never appears in it, which is exactly this deployment.
         """
-        return frozenset(
-            netloc
-            for url in (self.api_url, self.console_url, *self.cors_origins)
-            if (netloc := urlsplit(url if "//" in url else f"//{url}").netloc.lower())
-        )
+        found: set[tuple[str, str]] = set()
+        for url in (self.api_url, self.console_url, *self.cors_origins):
+            found |= _origins_of(url)
+        return frozenset(found)
 
     temporal_address: str = "localhost:7233"
+
     temporal_namespace: str = "default"
 
     otlp_endpoint: str | None = "http://localhost:4318"

@@ -115,7 +115,7 @@ class AdoptRigWorkflow:
                     id=self._ids.new_skill_id(),
                     tenant_id=ctx.tenant_id,
                     objective_key=objective,
-                    name=name or str(workflow.get("title") or "").strip() or objective.slug(),
+                    name=name or _title(workflow) or objective.slug(),
                     created_at=now,
                 )
                 await uow.skills.add(skill)
@@ -123,6 +123,17 @@ class AdoptRigWorkflow:
             await uow.skills.save(skill)
             await uow.commit()
         return Adopted(skill_id=skill.id, version=version, created_the_skill=created)
+
+
+def _title(workflow: Mapping[str, object]) -> str:
+    """The workflow's own title, where it has a usable one.
+
+    `str()` of whatever was there put `{'a': 1}` in a library as a skill name.
+    A title is a string or it is nothing, and the objective's slug is a better
+    fallback than a rendered dict.
+    """
+    title = workflow.get("title")
+    return title.strip() if isinstance(title, str) else ""
 
 
 def _adopted_by(

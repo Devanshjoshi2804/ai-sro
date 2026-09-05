@@ -365,6 +365,33 @@ citation-forcing the model does not appear to fabricate, which is the
 21%-to-7.5% finding holding on real data -- but the rejection paths remain
 proven only by deliberate tampering.
 
+**The one thing it structurally cannot catch, measured.** `validate` checks that
+every step cites evidence, that the evidence exists in the window, that a step
+naming a system cites a gesture on it, and that the workflow claims no system
+its citations never touched. What it cannot check is whether the step's PROSE
+matches the evidence it points at: "type the code" citing only clicks is
+internally valid and still fiction.
+
+Measured over all 66 steps of the eight real workflows, comparing the verbs in
+each step against the kinds of the gestures it cites: **zero mismatches.** The
+model's prose agrees with what the gestures actually were.
+
+The obvious way to close the gap should not be built, and the same measurement
+says why. A verb check flagged two of the 66 immediately, and both were the
+check being wrong:
+
+```
+'Navigate to the Warehouse Equipment Type tab.'   cites ['click']
+'Save the new equipment type record.'             cites ['click', 'click']
+```
+
+`Type` is the verb the model uses AND a noun in this warehouse's vocabulary.
+Whole-word matching does not help, because the noun IS the word. This is the
+third time this project has met the same trap -- `pin` inside `shippingPhone`,
+`test` inside `Test Drive LLC` -- and the first two each cost real evidence
+before anybody measured. A check with a 3% false-rejection rate on a corpus
+where the true rate is zero would discard real workflows to catch nothing.
+
 387 gestures still fit one window, so `left_out` was 0 and the pool rotation
 work is still untested on real evidence. That needs a day past the ~555-gesture
 ceiling.

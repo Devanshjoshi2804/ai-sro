@@ -295,6 +295,27 @@ test("dropping an offer ends it and says so once", async () => {
   assert.equal(offersSent().length, 1, "one offer reported two fates");
 });
 
+test("an offer that was dropped cannot then be started", async () => {
+  // The other half of the panel disabling its card on the first press. A stale
+  // panel, a second window, or a card the ledger never redrew would otherwise
+  // send "no" and then "yes" for one offer -- a live run in somebody's
+  // warehouse, off an offer already reported dismissed.
+  ready();
+  await gesture("a", "NEW");
+  await gesture("b", "north");
+  await until(() => openOnes().length === 1, "no offer to drop");
+  const offer = openOnes()[0];
+
+  await send({ kind: "drop-nudge", nudgeId: offer.id });
+  const answer = await send({ kind: "start-rig-run", nudgeId: offer.id, values: { description: "dock" } });
+
+  assert.deepEqual(answer, { ok: false, error: "this offer has already ended" });
+  assert.equal(calls.filter((call) => call.path === "/v1/runs").length, 0, "a dropped offer started a run");
+  assert.equal(nudges().find((n) => n.id === offer.id).state, "dismissed");
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  assert.deepEqual(offersSent().map((each) => each.fate), ["dismissed"], "one offer reported two fates");
+});
+
 // Not tested here: that a browser with no rig writes no tail. `shapesFor`
 // caches for five minutes in module scope, so once any test in this process
 // has seen a shape every later one does too, and a test that ran first would

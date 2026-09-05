@@ -1028,6 +1028,12 @@ async function handle(message, sender) {
       const held = await state.nudges();
       const nudge = held.find((n) => n.id === message.nudgeId);
       if (!nudge || nudge.source !== "rig") return { ok: false, error: "no such offer" };
+      // Only while it is still asking. An offer that was dropped, swept or
+      // already taken has reported its fate, and starting a live run off it
+      // would report a second one -- so this refuses, and reports nothing. The
+      // panel disables the card on the first press; this is the guard that
+      // holds when the panel is an older copy or a second window.
+      if (nudge.state !== "open") return { ok: false, error: "this offer has already ended" };
       // What the operator typed into the panel wins over what the prefix read
       // off the page: they are looking at both, and the panel is the later word.
       const values = { ...(nudge.values || {}), ...(message.values || {}) };

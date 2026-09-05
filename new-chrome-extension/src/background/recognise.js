@@ -33,7 +33,12 @@ export function valuesFrom(tail, shape, k) {
   const from = tail.length - k;
   for (const p of shape.parameters || []) {
     const entry = p.at !== null && p.at < k ? tail[from + p.at] : null;
-    if (entry && !entry.secret && entry.value != null) values[p.name] = entry.value;
+    // Blank is not a value. A field cleared, or one the gesture read as an
+    // empty string, is a parameter nobody has answered yet -- counting it as
+    // answered draws no box for it on the offer and lets the run start with
+    // nothing in it.
+    const said = entry && !entry.secret && entry.value != null ? String(entry.value).trim() : "";
+    if (said) values[p.name] = entry.value;
     else missing.push(p.name);
   }
   return { values, missing };

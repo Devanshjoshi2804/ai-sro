@@ -241,23 +241,43 @@ function offeringToFinish(nudge, onPress) {
   no.type = "button";
   no.className = "quiet";
   no.textContent = "No thanks";
+
   // Blank is blank after trimming: a field of spaces is not an answer to a
   // question the run is going to ask the system on the other side.
   const ready = () => [...fields.values()].every((field) => String(field.value || "").trim());
-  yes.disabled = !ready();
-  for (const field of fields.values()) {
-    field.addEventListener("input", () => {
-      yes.disabled = !ready();
-    });
-  }
+  // One press ends the card. The ledger does not redraw when an offer is
+  // answered, so without this the buttons of a refused offer are still live
+  // under the operator's cursor -- and "No thanks" then "Yes" is a run started
+  // on an offer already reported dismissed, which is two fates for one offer.
+  // The worker refuses that as well; this is the half that keeps the panel from
+  // ever asking.
+  let ended = false;
+  const settle = () => {
+    yes.disabled = ended || !ready();
+    no.disabled = ended;
+  };
+  settle();
+  for (const field of fields.values()) field.addEventListener("input", settle);
   yes.addEventListener("click", () => {
+    if (ended) return;
     const values = Object.fromEntries(
       [...fields].map(([name, field]) => [name, String(field.value || "").trim()]),
     );
+    ended = true;
+    settle();
     onPress?.("start-rig-run", nudge, item, yes, { values });
   });
-  no.addEventListener("click", () => onPress?.("drop-nudge", nudge, item, no));
-  item.append(yes, no);
+  no.addEventListener("click", () => {
+    if (ended) return;
+    ended = true;
+    settle();
+    onPress?.("drop-nudge", nudge, item, no);
+  });
+
+  const row = document.createElement("div");
+  row.className = "row";
+  row.append(yes, no);
+  item.append(row);
   return item;
 }
 

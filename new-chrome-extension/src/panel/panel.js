@@ -1099,24 +1099,35 @@ async function answered(answer, message, where, button, values) {
  * the operator typed the rest, and both are in front of them when they press.
  * The run is started in the worker, which holds the credential; this is the
  * press that authorises it.
+ *
+ * Either way it ends by drawing the thread again from scratch. The card
+ * disables itself on the press, so leaving it there after a refusal would leave
+ * a dead offer under the cursor -- and the offer is still open in the worker
+ * when a start is refused, so what belongs on screen is the card as it now is,
+ * not the spent one.
  */
 async function answeredOffer(answer, nudge, button, values) {
   button.disabled = true;
-  if (answer === "drop-nudge") {
-    await ask({ kind: "drop-nudge", nudgeId: nudge.id });
-    said("dismissed \u2014 nothing ran");
-    return refresh();
-  }
   try {
-    const got = await ask({ kind: "start-rig-run", nudgeId: nudge.id, values: values?.values || {} });
-    said(got.ok ? "started \u2014 watching it below" : got.error || "nothing started");
-    if (!got.ok) button.disabled = false;
+    if (answer === "drop-nudge") {
+      await ask({ kind: "drop-nudge", nudgeId: nudge.id });
+      said("dismissed \u2014 nothing ran");
+    } else {
+      const got = await ask({
+        kind: "start-rig-run",
+        nudgeId: nudge.id,
+        values: values?.values || {},
+      });
+      said(got.ok ? "started \u2014 watching it below" : got.error || "nothing started");
+    }
   } catch (error) {
     said(error.message);
-    button.disabled = false;
   }
   await refresh();
+  drawn = null;
+  await conversation();
 }
+
 
 /** A matched mail, answered from the ledger.
  *

@@ -413,13 +413,19 @@ test("an offer the operator already answered stops asking again", () => {
  *
  * The fake document matches on tags, so the assertions below read fields off
  * the nodes rather than through a selector engine that is not there. */
-function renderNudge(nudge) {
+function renderNudge(nudge, onPress) {
   const local = { offers: [], nudges: [{ at: WHEN, ...nudge }] };
-  return messages(ledger({ id: "thr-1", messages: [] }, local))[0];
+  return messages(ledger({ id: "thr-1", messages: [] }, local, { onPress }))[0];
 }
 const what = (item) => of(item, "p").find((p) => p.className === "what").textContent;
 const named = (item, placeholder) => of(item, "input").find((f) => f.placeholder === placeholder);
 const labelled = (item, label) => of(item, "button").find((b) => label.test(b.textContent));
+/** What a browser does on a click, the way this fake supports -- and what a
+ * real one does not do to a disabled button. */
+const press = (button) => {
+  if (button.disabled) return;
+  for (const fn of button.listeners.click || []) fn();
+};
 /** What a browser does on a keystroke, the way this fake supports. */
 const typing = (field, value) => {
   field.value = value;
@@ -454,16 +460,53 @@ test("a rig offer hands the press the values that were typed into it", () => {
   const pressed = [];
   const nudge = { id: "n_4", source: "rig", state: "open", title: "Create Work Area", k: 1,
     values: { workArea: "NEWTESTS" }, missing: ["description"], parameters: ["workArea", "description"], tabId: 1 };
-  const item = messages(
-    ledger({ id: "thr-1", messages: [] }, { offers: [], nudges: [{ at: WHEN, ...nudge }] }, {
-      onPress: (...args) => pressed.push(args),
-    }),
-  )[0];
+  const item = renderNudge(nudge, (...args) => pressed.push(args));
   typing(named(item, "description"), "  north dock  ");
-  for (const fn of labelled(item, /Yes, finish it/).listeners.click) fn();
-  for (const fn of labelled(item, /No thanks/).listeners.click) fn();
-  assert.deepEqual(pressed.map((each) => each[0]), ["start-rig-run", "drop-nudge"]);
+  press(labelled(item, /Yes, finish it/));
+  // `start-rig-run` and not `nudge-answer`: the worker reports one fate per
+  // path, and an offer that took both would be counted twice.
+  assert.deepEqual(pressed.map((each) => each[0]), ["start-rig-run"]);
   assert.deepEqual(pressed[0][4], { values: { description: "north dock" } });
+});
+
+test("one press ends the card, so a refused offer cannot then be started", () => {
+  // The ledger does not redraw when an offer is answered. Without this, "No
+  // thanks" leaves Yes live under the cursor, and pressing it starts a live run
+  // on an offer the worker has already reported dismissed -- two fates for one
+  // offer. The worker refuses that as well; this is the half that keeps the
+  // panel from ever asking.
+  const pressed = [];
+  const item = renderNudge(
+    { id: "n_5", source: "rig", state: "open", title: "Create Work Area", k: 2,
+      values: { workArea: "NEWTESTS" }, missing: ["description"], parameters: ["workArea", "description"], tabId: 1 },
+    (...args) => pressed.push(args),
+  );
+  const yes = labelled(item, /Yes, finish it/);
+  typing(named(item, "description"), "north dock");
+  assert.equal(yes.disabled, false);
+
+  press(labelled(item, /No thanks/));
+  assert.equal(yes.disabled, true, "No thanks left Yes live");
+  assert.equal(labelled(item, /No thanks/).disabled, true, "No thanks could be pressed twice");
+
+  // Nor by typing into the box again: the input handler must not undo it.
+  typing(named(item, "description"), "somewhere else");
+  assert.equal(yes.disabled, true, "typing brought a spent offer back to life");
+  press(yes);
+  assert.deepEqual(pressed.map((each) => each[0]), ["drop-nudge"], "a spent card pressed twice");
+});
+
+test("a title or a value that looks like markup is shown as the string it is", () => {
+  const before = asMarkup.length;
+  const item = renderNudge({
+    id: "n_6", source: "rig", state: "open", k: 2, tabId: 1,
+    title: "<img src=x onerror=alert(1)>",
+    values: { workArea: "<script>alert(2)</script>" },
+    missing: ["description"], parameters: ["workArea", "description"],
+  });
+  assert.equal(asMarkup.length, before, "the rig card put a string through innerHTML");
+  assert.match(what(item), /<img src=x onerror=alert\(1\)>/);
+  assert.match(what(item), /<script>alert\(2\)<\/script>/);
 });
 
 test("a backend nudge is drawn exactly as before", () => {

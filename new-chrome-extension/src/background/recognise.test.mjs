@@ -67,6 +67,17 @@ test("a secret control contributes no value and the parameter is missing", () =>
   assert.deepEqual(missing, ["workArea"]);
 });
 
+test("a value that is blank is a parameter nobody has answered", () => {
+  // A field cleared, or one the gesture read as an empty string. Counted as a
+  // value it draws no box on the offer and nothing blocks Yes, so the run
+  // starts with a blank where the job needs a word.
+  let tail = tailWith([], typed("wm.workAreas.code", ""));
+  tail = tailWith(tail, typed("wm.workAreas.desc", "   "));
+  const { values, missing } = valuesFrom(tail, workArea, 2);
+  assert.deepEqual(values, {});
+  assert.deepEqual(missing, ["workArea", "description"]);
+});
+
 test("a parameter typed later than the prefix is missing, and one never typed is too", () => {
   const later = { ...workArea, parameters: [{ name: "workArea", at: 0 }, { name: "code", at: 2 }, { name: "never", at: null }] };
   let tail = tailWith([], typed("wm.workAreas.code", "A"));

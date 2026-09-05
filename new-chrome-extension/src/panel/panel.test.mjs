@@ -215,6 +215,11 @@ function panel(status, here = null, replies = {}) {
     render: sandbox.render,
     plainly: sandbox.plainly,
     previewOf: sandbox.previewOf,
+    // The nudge and offer press path, as the ledger calls it. Reached here
+    // rather than through a rendered card because the thread is drawn from a
+    // separate fetch: what is under test is which message a press sends, and
+    // that is this function whatever drew the button.
+    answered: sandbox.answered,
     // The conversation. `say` is what the composer calls, and `focus` is what
     // a real browser does on its own when somebody types into the box and
     // presses Enter -- the cursor is still in there when the answer lands.
@@ -1700,6 +1705,35 @@ test("a task the conversation already carries is not drawn as a row as well", as
   assert.ok(/work area/i.test(said), "a task still building up stopped being shown");
 });
 
+
+test("yes on a rig offer sends the run with the values typed on the card", async () => {
+  // The offer card is the panel's only path to starting a rig run, and this is
+  // the message it must send: `start-rig-run`, never `nudge-answer`. The worker
+  // reports one fate per path, so an offer that sent both would be counted
+  // twice.
+  const { sent, answered } = panel({ deviceId: "dev-1" });
+  const nudge = { id: "n_1", source: "rig", state: "open", title: "Create Work Area", k: 2 };
+  const button = node("button");
+
+  await answered("start-rig-run", nudge, node("li"), button, { values: { description: "x" } });
+
+  assert.deepEqual(sentOf(sent, "start-rig-run"), [
+    { kind: "start-rig-run", nudgeId: "n_1", values: { description: "x" } },
+  ]);
+  assert.deepEqual(sentOf(sent, "nudge-answer"), [], "the offer answered down two paths at once");
+  assert.equal(button.disabled, true, "the pressed button stayed live");
+});
+
+test("no thanks on a rig offer drops it and starts nothing", async () => {
+  const { sent, answered } = panel({ deviceId: "dev-1" });
+  const nudge = { id: "n_2", source: "rig", state: "open", title: "Create Work Area", k: 2 };
+
+  await answered("drop-nudge", nudge, node("li"), node("button"));
+
+  assert.deepEqual(sentOf(sent, "drop-nudge"), [{ kind: "drop-nudge", nudgeId: "n_2" }]);
+  assert.deepEqual(sentOf(sent, "start-rig-run"), [], "saying no started a run");
+  assert.deepEqual(sentOf(sent, "nudge-answer"), []);
+});
 
 for (const [name, fn] of tests) {
   try {

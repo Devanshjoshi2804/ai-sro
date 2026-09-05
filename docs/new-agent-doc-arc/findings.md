@@ -776,29 +776,34 @@ cd new_agent_arch && uv run python scripts/dry_run.py
 
 8 workflows / 48 steps / 10 withheld / held:6 stopped:2. Both stops are the
 runner refusing to walk past a step nobody watched succeed: *Search and Filter
-Work Areas* step 2 and *Create Work Area Operation NEWTEST4* step 1 are
-`skipped` — "no cited gesture can be acted on" — and a run does not continue
-past one. Cost is not `$0.0000`: **no model was asked**, so these records carry
+Work Areas* stopped at step 2 of 11 and *Create Work Area Operation NEWTEST4* at
+step 1 of 10, both `skipped` — "no cited gesture can be acted on" — and a run
+does not continue past one. Nine steps of each were never reached. Cost is not `$0.0000`: **no model was asked**, so these records carry
 no tokens at all, which is the absence of a bill rather than a cheap run.
 
 The ten withheld writes are printed in full by the script — planned kind, the
 locator list the payload carries, and the recorded `method`, `url` and `body`.
-Six are real WMS mutations (`POST …/wm/workAreas` with `{"workArea":"NEWTESTS"…}`
-and `{"workArea":"TWOTEST"…}`, `…/wm/equipmentTypes`, `…/wm/carrierCrossReferences`,
-`…/wm/activityCodes`), the rest are the incidental POSTs the pages make
-(`sessionKeepAlive`, a performance-entry batch, an analytics beacon, the
-recorder's own `finish` call). Exactly one `«redacted»` marker survives into
+Five are real WMS mutations — `POST …/wm/workAreas` twice
+(`{"workArea":"NEWTESTS"…}` and `{"workArea":"TWOTEST"…}`), `…/wm/equipmentTypes`,
+`…/wm/carrierCrossReferences`, `…/wm/activityCodes` — and five are the incidental
+POSTs the pages make: two `sessionKeepAlive` calls, a performance-entry batch, an
+analytics beacon, and the recorder's own `finish` call. Exactly one `«redacted»` marker survives into
 them — a Google analytics cookie inside a query string — and it is printed as it
 stands rather than re-redacted; a withheld record carries no headers at all, and
 what a plan does send goes through `wire.headers_without_markers` first.
 
 **What that proves:** the chain from the door to the record. `POST /v1/runs`
 claims the run and answers 202; the runner reads the row back, builds the
-allowlist and the locators from the cited evidence, asks a planner, refuses or
-sends over the channel, verifies, bills, and saves after every step;
+allowlist and the locators from the cited evidence, asks a planner, sends over
+the channel, verifies, bills, and saves after every step;
 `GET /v1/runs/{id}` reads the whole thing back, withheld writes included. The
-dry-first rule holds on real mined evidence: every step whose evidence carries a
-mutation was withheld and shown.
+dry-first rule holds over the steps these runs reached: every one of those whose
+evidence carries a mutation was withheld and shown. It says nothing about the
+steps a stopped run never got to — of the nine *Search and Filter Work Areas*
+never reached, one carries a recorded `sessionKeepAlive` POST that was therefore
+neither withheld nor shown; *Create Work Area Operation NEWTEST4*'s nine carry
+none. The origin allowlist is built and checked on every plan, but no step of
+these eight was refused, so that path is proven by the suite rather than here.
 
 **What it does not prove**, and nothing below should be read as if it did:
 
@@ -828,7 +833,9 @@ mutation was withheld and shown.
    **Rig token** the value of `RIG_INGEST_TOKEN` from `new_agent_arch/.env`.
    Save. The extension dials `ws://localhost:8100/v1/agents/<device>/commands`
    on its own; nothing on the rig can reach into a browser that has not dialled.
-3. **Confirm the rig sees the browser.**
+3. **Confirm the rig sees the browser.** Put the token in the shell first —
+   `set -a; . new_agent_arch/.env; set +a` — or paste its value into the header
+   by hand; then
    `curl -s -H "Authorization: Bearer $RIG_INGEST_TOKEN" http://localhost:8100/v1/devices`
    must list one device id. That id is what the run form's picker offers; an
    empty list means the socket is not up, and no run can be started (`409`).
@@ -857,6 +864,14 @@ mutation was withheld and shown.
    supplier of the value — here the work area — actually exists in the WMS
    afterwards. A second press against the same browser is refused with `409`
    while the first run is still going: one browser, one hand.
+   Then the ask, which is the part with a known gap. A step the verifier will
+   not pass is planned once more by Pro — one rescue, and a `navigate` does not
+   spend it — and if it still does not hold the run's outcome is `stopped` and
+   the record says which step and why. **Nothing notifies anybody.** The page
+   showing `stopped` is the whole of "stop and ask", so whoever presses run is
+   the person who has to still be looking. Record which rung the failing step
+   reached (`planned_by`), what the rescue cost, and how long the run sat
+   `stopped` before it was noticed.
 8. **The boundary.** A step whose plan names an origin the job's own evidence
    does not is `refused` before anything is sent, and the record says
    `<origin> is not a system this job's evidence names`. Note what the allowlists
@@ -864,12 +879,16 @@ mutation was withheld and shown.
    Work Area NEWTESTS* and *Create Work Area TWOTEST* are the **same origin**
    (`https://bf56-kms-wms-web-np2.jdadelivers.com`), so pointing one job at the
    other's write is not a cross-origin refusal and will not produce a `refused`
-   step. Six of the eight workflows allow that one host and nothing else; only
-   *Login and Start Recording* spans several (`workspace.google.com`,
-   `b2clogin.com`, the Keycloak host, `localhost:3000`, `localhost:8000`,
-   `analytics.google.com`). A live `refused` therefore cannot be provoked from
-   the form — the planner chooses the origin, and on this evidence it has one to
-   choose from. What can be recorded is the negative: **no** step of a live run
+   step. **Five** of the eight workflows allow that one host and nothing else;
+   **three** allow more. *Login and Start Recording* names six
+   (`workspace.google.com`, `b2clogin.com`, the Keycloak host, `localhost:3000`,
+   `localhost:8000`, `analytics.google.com`), and *Create Work Area NEWTESTS* and
+   *Search and Filter Work Areas* each allow a second host their evidence names,
+   `https://zmpa6jmjcthsg-hgatahc3adfqe7cq.z01.azurefd.net`. So the job the
+   recipe above starts has two permitted origins, not one — and both are its own,
+   so a plan naming either is allowed and neither is a refusal. A live `refused`
+   cannot be provoked from the form at all: the planner chooses the origin, and
+   every origin it can read out of this evidence is on the list. What can be recorded is the negative: **no** step of a live run
    ever sent to an origin outside the job's list. The positive is held by
    `tests/test_runner.py::test_an_origin_outside_the_evidence_is_refused_before_it_is_sent`,
    and would be measurable live only against evidence that spans two hosts —

@@ -22,6 +22,7 @@ import sqlite3
 import sys
 import tempfile
 from collections.abc import Mapping
+from contextlib import closing
 from pathlib import Path
 from typing import Any
 
@@ -31,7 +32,10 @@ from rig.api import build_app
 from rig.channel import Answer as Reply
 from rig.channel import FakeChannel
 from rig.config import settings
+from rig.locators import allowlist, primary_gesture, writes
 from rig.models import Answer, Effort
+from rig.records import Gesture
+from rig.runner import _gestures_for
 from rig.store import Store
 from rig.wire import REDACTED
 from rig.workflows import Workflow, known_workflows
@@ -53,10 +57,16 @@ PNG = base64.b64decode(
 class Browser(FakeChannel):
     """A browser that is always where the step expects it and always succeeds.
 
+    `page` is the screen the job under way was demonstrated on -- what the
+    runner calls `starts_on` -- set before each run so `ui.url` answers a real
+    address rather than a bare origin.
+
     `FakeChannel`'s script is a finite queue; a whole run needs an answer for
     every command it happens to send, so this answers by kind instead. Super is
     still called for its record of every envelope sent.
     """
+
+    page = "about:blank"
 
     async def send(
         self,
@@ -70,9 +80,8 @@ class Browser(FakeChannel):
         await super().send(
             device_id, kind=kind, payload=payload, run_id=run_id, deadline_s=deadline_s
         )
-        origin = payload.get("origin")
         if kind == "ui.url":
-            return Reply(ok=True, result={"url": f"{origin}/" if origin else "about:blank"})
+            return Reply(ok=True, result={"url": self.page})
         if kind == "screenshot":
             return Reply(
                 ok=True,
@@ -113,6 +122,35 @@ class Model:
         return Answer(
             data={"kind": "ui.perform", "action": None, "value": None, "url": None, "why": "dry"}
         )
+
+
+# What a withheld write actually is. Checked in order: a performance batch
+# lives under the same `/wm/` path as the mutations and is not one.
+INCIDENTAL = (
+    ("sessionKeepAlive", "a session keep-alive"),
+    ("webPerformanceEntries", "a performance-entry batch"),
+    ("analytics.google.com", "an analytics beacon"),
+    ("/v1/recordings/", "the recorder's own finish call"),
+)
+
+
+def what_it_is(url: str) -> str:
+    for mark, says in INCIDENTAL:
+        if mark in url:
+            return says
+    return "a WMS mutation" if "/wm/" in url else "an uncategorised call"
+
+
+def unreached(
+    workflow: Workflow, run: Mapping[str, Any], by_id: Mapping[str, Gesture]
+) -> tuple[int, int]:
+    """Steps the run never got to, and how many of those carry a recorded
+    mutation. A run that stops early withholds only what it reached; the rest
+    are writes nobody has been shown, which is the difference between "this job
+    has no writes" and "this run did not get that far"."""
+    done = {step["order"] for step in run["steps"]}
+    rest = [step for step in workflow.steps if step.order not in done]
+    return len(rest), sum(1 for step in rest if writes(step, by_id))
 
 
 def values_for(workflow: Workflow) -> dict[str, str]:
@@ -170,8 +208,8 @@ async def main() -> int:
     with tempfile.TemporaryDirectory() as scratch:
         copy = Path(scratch) / "rig.db"
         with (
-            sqlite3.connect(f"file:{LIVE_DB}?mode=ro", uri=True) as live,
-            sqlite3.connect(copy) as backup,
+            closing(sqlite3.connect(f"file:{LIVE_DB}?mode=ro", uri=True)) as live,
+            closing(sqlite3.connect(copy)) as backup,
         ):
             live.backup(backup)
         store = Store(copy)
@@ -182,6 +220,10 @@ async def main() -> int:
         app.state.channel = Browser()
         workflows = known_workflows(store, TENANT)
 
+        # The same map the runner builds, for the questions a run's record
+        # cannot answer on its own: what a step it never reached would have
+        # sent, and which origins the job's evidence names.
+        cited = {w.id: _gestures_for(store, w) for w in workflows}
         runs: list[tuple[Workflow, dict[str, Any]]] = []
         transport = httpx.ASGITransport(app=app)
         async with httpx.AsyncClient(
@@ -192,6 +234,10 @@ async def main() -> int:
             devices = (await client.get("/v1/devices")).json()["devices"]
             print(f"the rig sees these browsers: {devices}\n")
             for workflow in workflows:
+                first = primary_gesture(workflow.steps[0], cited[workflow.id])
+                app.state.channel.page = (
+                    (first.page_url or first.url or "about:blank") if first else "about:blank"
+                )
                 runs.append((workflow, await one_run(client, workflow)))
 
         print(f"{'workflow':44} {'steps':>5} {'withheld':>8} {'outcome':>8} {'cost':>10}  verdicts")
@@ -214,9 +260,12 @@ async def main() -> int:
                 (s for s in run["steps"] if s["verdict"] not in ("held", "withheld")), None
             )
             if stopper is not None:
+                left, mutating = unreached(workflow, run, cited[workflow.id])
                 print(
                     f"  {workflow.title[:44]}: stopped at step {stopper['order']}"
-                    f" ({stopper['verdict']}) -- {stopper['reason']}"
+                    f" of {len(workflow.steps)} ({stopper['verdict']}) -- {stopper['reason']};"
+                    f" {left} later step(s) never reached,"
+                    f" {mutating} of them carry a recorded mutation"
                 )
         print(
             f"{len(runs)} workflows / {steps} steps / {withheld} withheld /"
@@ -235,17 +284,50 @@ async def main() -> int:
         # body below is printed as it stands and counted.
         print("\n\nWHAT WAS WITHHELD -- what a person reads before pressing through to live")
         markers = 0
+        kinds: dict[str, int] = {}
         for workflow, run in runs:
             print(f"\n=== {workflow.title}  ({workflow.id})")
             if not run["withheld"]:
-                print("    nothing: no step of this job carries a recorded mutation")
+                left, mutating = unreached(workflow, run, cited[workflow.id])
+                reached = len(workflow.steps) - left
+                print(
+                    f"    nothing withheld: of the {reached} step(s) this run reached,"
+                    f" none carries a recorded mutation"
+                    + (
+                        f"; a recorded mutation sits in {mutating} of the {left} it never reached"
+                        if mutating
+                        else ""
+                    )
+                )
             for held_back in run["withheld"]:
+                what = what_it_is(str(held_back.get("url") or ""))
+                kinds[what] = kinds.get(what, 0) + 1
                 shown = json.dumps(held_back, indent=4, ensure_ascii=False)
                 markers += shown.count(REDACTED)
+                print(f"-- {what}")
                 print(shown)
-        print(f"\nredaction markers in the withheld writes: {markers}")
+        print(
+            f"\n{withheld} withheld writes: "
+            + ", ".join(f"{n} x {what}" for what, n in sorted(kinds.items()))
+        )
+        print(f"redaction markers in the withheld writes: {markers}")
 
-    with sqlite3.connect(f"file:{LIVE_DB}?mode=ro", uri=True) as live:
+        # Which origins a run may reach at all: the job's own cited evidence and
+        # nothing else. What a `refused` step would be measured against.
+        print("\n\nALLOWLISTS -- the origins each job's own evidence names")
+        alone = 0
+        for workflow in workflows:
+            origins = sorted(allowlist(workflow, cited[workflow.id]))
+            alone += len(origins) == 1
+            print(f"\n{workflow.title}: {len(origins)} origin(s)")
+            for origin in origins:
+                print(f"    {origin}")
+        print(
+            f"\n{alone} of {len(workflows)} workflows allow one origin and nothing else;"
+            f" {len(workflows) - alone} allow more than one."
+        )
+
+    with closing(sqlite3.connect(f"file:{LIVE_DB}?mode=ro", uri=True)) as live:
         left = live.execute("SELECT count(*) FROM runs").fetchone()[0]
     print(f"runs in the live {LIVE_DB.name} after this script: {left}")
     return 0 if left == 0 else 1

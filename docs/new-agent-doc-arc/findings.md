@@ -277,6 +277,20 @@ things the run itself could not see:
   marker with base64 still glued to it, which is the shape of that failure and
   cannot be produced by the rule it verifies.
 
+Verified after the second run, by scanning every object in the bucket rather
+than trusting the run's own summary -- the first cleanup's summary was the
+thing that lied:
+
+```
+                     objects   JWT  code=eyJ  severed  AIza  bearer
+live (3 tenants)       1,886     0         0        0     0       0
+<key>.pre-redaction      396    14        14        0   109       0
+```
+
+The live figure covers all 1,886 objects, not only the 396 tracked in
+`observation_batches`: roughly 1,490 of them were never touched by the cleanup
+at all, and are clean on their own.
+
 **Still open, and the operator's call:** the 396 `<key>.pre-redaction` backups
 sit in the same bucket under the same tenant prefix, and they hold 14 JWTs, 14
 OAuth codes and 109 Google API keys between them. The rewrite is proven

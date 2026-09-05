@@ -31,14 +31,33 @@ import sys
 # work; killing 661 mutants is its own.
 #
 # Re-measured 2026-09-05 over 381 tests: 2,815 mutants, 2,079 killed, 709
-# survived. **74.6%** -- the code added since is better covered than the
-# average of what was already here, since survivors rose by 48 while kills rose
-# by 276. They still cluster in `rig.api` (149) and `rig.window` (124).
+# survived. 74.6% -- the code added since was better covered than the average
+# of what was already here, survivors rising by 48 while kills rose by 276.
 #
-# Raised to 74.4 rather than 74.6: this is a ratchet against the suite getting
+# Then three rounds of reading the survivors and writing tests for what they
+# named, over 395 tests: **76.4%**, 2,132 killed, 658 survived.
+#
+#     parameters   76.7% -> 98.3%   (14 survivors -> 1)
+#     umbrella     71.7% -> 78.5%   (60 -> 46)
+#     window       57.4% -> 64.9%   (124 -> 102)
+#
+# Each round found something a test could not have caught by being more
+# thorough: `pack`'s budget branch was unreachable because K_MIN_GESTURES is 25
+# and the fixture holds 7; `strength`, which decides what the model ever sees,
+# had no tests at all; and `bounded_crossings` emptied its whole block when the
+# best-evidenced crossing did not fit, which was a defect rather than a gap.
+#
+# What was deliberately NOT chased: mutants that cannot be killed. SQL keywords
+# and `sqlite3.Row` keys are case-insensitive, so most of `workflows`' 56 are
+# equivalent; every `raw.get(key, [])` in `umbrella._as_workflow` sits behind an
+# `isinstance` guard, so its default is unreachable; and 83 of `as_evidence`'s
+# are JSON key names, where pinning them would assert the shape of a prompt
+# rather than a behaviour. Chasing those moves the number and catches nothing.
+#
+# Raised to 76.2 rather than 76.4: this is a ratchet against the suite getting
 # weaker, not a target to sit exactly on, and a hair of room stops an unrelated
 # refactor tripping it over rounding.
-FLOOR = 74.4
+FLOOR = 76.2
 
 STATS = pathlib.Path(__file__).resolve().parent.parent / "mutants" / "mutmut-cicd-stats.json"
 

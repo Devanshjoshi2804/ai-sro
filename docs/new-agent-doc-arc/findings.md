@@ -414,6 +414,84 @@ has already recorded two heuristics rejected for less.
 What would settle it is more pairs, which is the same fifteen-minute capture
 everything else here waits on: do one job twice, with different values.
 
+## A mined workflow, as something this system can run
+
+The rig proposes workflows; the backend runs skills. Three modules now join
+them, and what they refuse to do is the interesting half.
+
+**`from_rig`** turns a mined step into `UiPlan`s. Over the eight workflows:
+all 66 steps produce at least one action, 62 resolve to at least one locator,
+57 reach a component query. Of the 165 actions, 118 have a component query as
+their strongest rung, 7 text, 6 css path, 1 role-and-name, and 33 have none at
+all -- those are the scrolls, which have no target by design.
+
+**`network_from_rig`** builds the other recipe. 30 of 165 steps carry a call,
+and six of the eight workflows carry exactly one write apiece -- one POST per
+`create`, which is what those jobs are.
+
+**`version_from_rig`** assembles a `SkillVersion`. All eight build, 165 steps,
+every one at `RECORDED`, because nothing about a mined workflow has been
+reviewed by anybody.
+
+### The thesis, in one body
+
+```
+POST /data/WM/wm/workAreas?siteId=SG
+{"workArea": "$workArea", "workAreaDescription": "$workAreaDescription",
+ "warehouseId": "SG", "deltaPriority": null, ...}
+```
+
+`workArea` and `workAreaDescription` were derived from two doings of a UI
+gesture -- what the operator typed differently on the screen. They are two keys
+of the call the screen made. `warehouseId` did not vary and stays a constant.
+
+Bound by KEY, never by scanning the text: a work area named `SG` would
+otherwise have rewritten the site id sitting beside it in the same body.
+
+### What it refuses to invent
+
+- **An `ObjectiveKey`.** A `Skill` needs objective type, target system, entity
+  type, facility and direction. The rig knows a title, the systems a job
+  touched and a shape key. Deriving "an inbound receipt against BLR1" from
+  `Create Work Area NEWTESTS` would be a guess wearing the clothes of a
+  finding. The version is built; naming what the job is FOR stays a person's.
+- **A `RecordingId`.** `Provenance` requires one and the rig has no
+  `Recording`. Its nearest equivalent is the capture stream, so the caller
+  passes it and this refuses without it. Minting one would lie to
+  `from_one_demonstration`, which decides whether a write skill's values were
+  ever diffed.
+- **A credential.** Measured over all 291 stored requests: the only
+  `authorization` header anywhere is on twelve `localhost` calls -- the rig
+  talking to its own ingest. Every business call authenticates by cookie and
+  the rig captures no cookies, so no plan carries a credential reference. A
+  replay depends on the executor's own session. Inventing a SESSION header to
+  hang a vault key on would make an unauthenticated plan look authenticated.
+  The 544 CSRF headers ARE handled: minted live, never replayed.
+
+### Which way it errs
+
+Two doings of one job inside a single capture stream report as ONE recording,
+so a version whose parameters were genuinely proven can still read as
+`from_one_demonstration`. That is the strict answer: `values_are_fixed`
+follows it and promotion asks more. Understating the evidence costs a
+reviewer's time; overstating it promotes something on a diff that never
+happened.
+
+### The ceiling that remains
+
+Every version still reports `needs_a_person`, and it is not a rig defect.
+`needs_a_person` reads "no network plan and no tool plan", and typing into a
+field causes no call -- only the save posts. That is true of any demonstration,
+however captured. It lifts the same way it does for a skill induced from a
+recording: `map_step_to_tool`.
+
+### Unexercised, still
+
+The eight stored workflows have no parameters, because identity calls the
+NEWTESTS/TWOTEST pair two jobs. So the binding path -- screen value to body key
+-- is proven by test and by hand against the real POST, and has never fired on
+the live store. The fifteen-minute two-host capture is what would close it.
+
 ## What evidence would settle it
 
 One operator, one session, two hosts, with a value carried between them by

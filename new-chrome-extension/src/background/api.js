@@ -59,6 +59,16 @@ async function mirror(path, options) {
   await mirrorSafely(state.rigUrl, state.rigToken, path, options);
 }
 
+/** What the rig is dialled with: one bearer, no device registry, none of the
+ * backend's headers. Built here rather than at each call site so the token has
+ * one place it is read and none it is logged. */
+async function rigHeaders() {
+  return {
+    Authorization: `Bearer ${await state.rigToken()}`,
+    "Content-Type": "application/json",
+  };
+}
+
 export const api = {
   register: (label, extensionVersion) =>
     call("/v1/agents/register", {
@@ -158,10 +168,10 @@ export const api = {
    * in the card, so the card has one shape to draw whoever drove the run.
    */
   rigRun: async (runId) => {
-    const [base, token] = await Promise.all([state.rigUrl(), state.rigToken()]);
+    const base = await state.rigUrl();
     if (!isMirrorable(base)) throw new ApiError(0, { detail: "no rig is configured" });
     const response = await fetch(`${base}/v1/runs/${encodeURIComponent(runId)}`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: await rigHeaders(),
     });
     if (!response.ok) throw new ApiError(response.status, { detail: `the rig has no run ${runId}` });
     const run = await response.json();
@@ -183,15 +193,65 @@ export const api = {
    * loop checks between steps and, best effort, tells this browser -- which
    * has already stopped taking part by the time this is called. */
   rigAbort: async (runId, deviceId) => {
-    const [base, token] = await Promise.all([state.rigUrl(), state.rigToken()]);
+    const base = await state.rigUrl();
     if (!isMirrorable(base)) throw new ApiError(0, { detail: "no rig is configured" });
     const response = await fetch(`${base}/v1/runs/${encodeURIComponent(runId)}/abort`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      headers: await rigHeaders(),
       body: JSON.stringify({ device_id: deviceId }),
     });
     if (!response.ok) throw new ApiError(response.status, { detail: `the rig would not stop ${runId}` });
     return null;
+  },
+
+  /** Every job the rig has proved, with the shape each one has. Read on a
+   * five-minute cache by the worker: a shape changes when a job is mined, not
+   * when somebody types.
+   *
+   * `[]` on every failure, and never a throw: this is read on the gesture path,
+   * where a rig that is down must cost the operator nothing at all. */
+  shapes: async () => {
+    const base = await state.rigUrl();
+    if (!isMirrorable(base)) return [];
+    try {
+      const r = await fetch(`${base}/v1/shapes`, { headers: await rigHeaders() });
+      if (!r.ok) return [];
+      return (await r.json()).shapes || [];
+    } catch {
+      return [];
+    }
+  },
+
+  /** How an offer ended -- taken, dismissed, done by hand, walked away from.
+   *
+   * The one measurement that says whether recognising a job early was worth
+   * doing, which is why every fate is reported and not just the ones that
+   * became runs. */
+  reportOffer: async (body) => {
+    const base = await state.rigUrl();
+    if (!isMirrorable(base)) return;
+    try {
+      await fetch(`${base}/v1/offers`, { method: "POST", headers: await rigHeaders(), body: JSON.stringify(body) });
+    } catch {
+      // The record is a nicety; the offer already happened.
+    }
+  },
+
+  /** They said yes. The rig starts the job from the step they have reached. */
+  rigStart: async (body) => {
+    const base = await state.rigUrl();
+    if (!isMirrorable(base)) throw new ApiError(0, { detail: "no rig is configured" });
+    const r = await fetch(`${base}/v1/runs`, { method: "POST", headers: await rigHeaders(), body: JSON.stringify(body) });
+    if (!r.ok) throw new ApiError(r.status, await r.json().catch(() => ({ detail: r.statusText })));
+    return r.json();
+  },
+
+  rigApprove: async (runId) => {
+    const base = await state.rigUrl();
+    if (!isMirrorable(base)) throw new ApiError(0, { detail: "no rig is configured" });
+    const r = await fetch(`${base}/v1/runs/${encodeURIComponent(runId)}/approve`, { method: "POST", headers: await rigHeaders(), body: "{}" });
+    if (!r.ok) throw new ApiError(r.status, await r.json().catch(() => ({ detail: r.statusText })));
+    return r.json();
   },
 
   /** One skill, for the name and the shape of the version being run. */

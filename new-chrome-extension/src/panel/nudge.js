@@ -35,7 +35,7 @@ export const LIFETIME_MS = 90_000;
  * Without the query, because that is where a warehouse system puts session ids
  * and timestamps: a page addressed with one is never the same page twice.
  */
-function page(url) {
+export function page(url) {
   try {
     const parsed = new URL(url);
     return `${parsed.host}${parsed.pathname}`.replace(/\/$/, "");
@@ -67,7 +67,10 @@ export function shouldFire({ url, visit, candidates, nudges, muted, performing, 
   return (
     candidates.find(
       (candidate) =>
-        candidate.starts_on === here && (candidate.skill_id || candidate.times_seen >= 3),
+        candidate.starts_on === here &&
+        // Proven enough to offer: taught by somebody, done often enough to be
+        // a habit, or -- for a job the rig serves -- already run and held.
+        (candidate.source === "rig" || candidate.skill_id || candidate.times_seen >= 3),
     ) || null
   );
 }
@@ -83,6 +86,16 @@ export function fire(candidate, now, { tabId = null, visit = "" } = {}) {
     tabId,
     visit,
     state: "open",
+    // Who recognised this, and -- when it was the rig, from the shape of what
+    // the operator has just done -- everything it would take to finish the job
+    // from where they have got to. An arrival nudge has reached no step and
+    // knows nothing typed, which is what `k: 0` and an empty `values` say.
+    source: candidate.source || "backend",
+    workflowId: candidate.workflow_id || null,
+    k: candidate.k || 0,
+    values: candidate.values || {},
+    missing: candidate.missing || [],
+    parameters: candidate.parameters || [],
   };
 }
 

@@ -118,6 +118,56 @@ test("a nudge that already ended is left alone", () => {
   assert.deepEqual(sweep([done], { url: PAGE, now: T0 + LIFETIME_MS * 4 })[0], done);
 });
 
+test("a rig offer carries what it would take to finish the job", () => {
+  // The prefix match already knows which job, how far in, and what was typed.
+  // A nudge that dropped any of it would be an offer nobody could act on.
+  const offered = fire(
+    {
+      id: "wfl_wa",
+      title: "Create Work Area",
+      starts_on: "wms.example/wa",
+      source: "rig",
+      workflow_id: "wfl_wa",
+      k: 2,
+      values: { workArea: "NEW" },
+      missing: ["description"],
+      parameters: ["workArea", "description"],
+    },
+    T0,
+    { tabId: 1, visit: "1:100" },
+  );
+  assert.equal(offered.source, "rig");
+  assert.equal(offered.workflowId, "wfl_wa");
+  assert.equal(offered.k, 2);
+  assert.deepEqual(offered.values, { workArea: "NEW" });
+  assert.deepEqual(offered.missing, ["description"]);
+  assert.deepEqual(offered.parameters, ["workArea", "description"]);
+
+  // And the arrival nudge, which is the same object made from a candidate: no
+  // prefix behind it, so nothing typed and no step reached.
+  const arrived = fire(TAUGHT, T0, { tabId: 1, visit: "1:100" });
+  assert.equal(arrived.source, "backend");
+  assert.equal(arrived.k, 0);
+  assert.deepEqual(arrived.values, {});
+  assert.equal(arrived.workflowId, null);
+});
+
+test("a job the rig has proved is offerable without a count behind it", () => {
+  // The rig serves a shape only for a workflow whose runs were held. There is
+  // no `times_seen` to reach and no skill to have been taught -- the proof is
+  // that it ran.
+  const proved = {
+    id: "wfl_wa",
+    title: "Create Work Area",
+    starts_on: TAUGHT.starts_on,
+    source: "rig",
+    workflow_id: "wfl_wa",
+    times_seen: 0,
+    skill_id: null,
+  };
+  assert.equal(shouldFire(asking({ candidates: [proved] })), proved);
+});
+
 test("not for this page holds until the end of the day", () => {
   const muted = mute({}, TAUGHT.starts_on, T0);
   assert.equal(shouldFire(asking({ muted })), null);

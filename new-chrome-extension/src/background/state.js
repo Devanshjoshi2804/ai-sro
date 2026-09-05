@@ -19,6 +19,7 @@ const KEYS = {
   offers: "sro.offers",
   nudges: "sro.nudges",
   muted: "sro.muted",
+  tails: "sro.tails",
   watched: "sro.watched",
   paused: "sro.paused",
   serverPaused: "sro.serverPaused",
@@ -107,6 +108,14 @@ export const state = {
 
   muted: () => read(KEYS.muted, {}),
   setMuted: (muted) => write(KEYS.muted, muted),
+
+  /** The last few gestures on each watched tab, by tab id.
+   *
+   * Here rather than in a module variable because MV3 evicts the worker between
+   * events: a tail held in memory would be empty again by the second keystroke,
+   * which is the exact moment a job becomes recognisable. */
+  tails: () => read(KEYS.tails, {}),
+  setTails: (tails) => write(KEYS.tails, tails),
 
   watched: () => read(KEYS.watched, []),
   setWatched: (tabs) => write(KEYS.watched, tabs),

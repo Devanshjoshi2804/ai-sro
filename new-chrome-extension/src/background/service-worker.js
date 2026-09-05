@@ -19,7 +19,10 @@ import {
   injectIntoWatched,
   unregister,
 } from "./scripts.js";
-import { LIFETIME_MS, fire, mute, onCall, shouldFire, sweep } from "../panel/nudge.js";
+import { LIFETIME_MS, fire, mute, onCall, page as pageOf, shouldFire, sweep } from "../panel/nudge.js";
+import { decideOffer } from "./offering.js";
+import { tailWith } from "./recognise.js";
+import { tripleOf } from "./shape.generated.js";
 import { hideNudge, showNudge } from "./showing.js";
 import { capture } from "./shots.js";
 import { noteFinished } from "./finishing.js";
@@ -108,15 +111,42 @@ const knownHere = new Map();
 async function candidatesFor(host) {
   const held = knownHere.get(host);
   if (held && Date.now() - held.at < CANDIDATES_FRESH_MS) return held.list;
+  const proven = rigArrivals(await shapesFor(), host);
   try {
-    const list = await api.candidates(host);
+    const list = [...(await api.candidates(host)), ...proven];
     knownHere.set(host, { at: Date.now(), list });
     return list;
   } catch {
-    // Offline, or no credential. Nothing is offered, which is the right
-    // direction: a nudge is a nicety and its absence costs nobody anything.
-    return [];
+    // Offline, or no credential. The rig is a different server and may well be
+    // up, so what it has proved still stands. Not cached: the backend should be
+    // asked again on the next navigation, not in five minutes.
+    return proven;
   }
+}
+
+/** The rig's jobs that start on this host, as arrival candidates.
+ *
+ * `k: 0` and nothing typed, because arriving somewhere is not doing anything:
+ * every parameter is still missing, which is exactly what makes this the weaker
+ * of the two offers and the one a prefix match replaces.
+ */
+function rigArrivals(shapes, host) {
+  return shapes
+    .filter((shape) => shape.starts_on && shape.starts_on.split("/")[0].split(":")[0] === host)
+    .map((shape) => {
+      const names = (shape.parameters || []).map((p) => p.name);
+      return {
+        id: shape.id,
+        title: shape.title,
+        starts_on: shape.starts_on,
+        source: "rig",
+        workflow_id: shape.id,
+        k: 0,
+        values: {},
+        missing: names,
+        parameters: names,
+      };
+    });
 }
 
 /** Whether to say "you have done this here before", and saying it.
@@ -133,7 +163,9 @@ async function considerNudge(tabId, url, visit) {
     const now = Date.now();
     // Anything the operator has walked away from ends here, before anything new
     // is offered: leaving the page is one of the three ways a nudge ends.
-    const swept = sweep(await state.nudges(), { url, now });
+    const before = await state.nudges();
+    const swept = sweep(before, { url, now });
+    reportEndings(before, swept);
     const candidate = shouldFire({
       url,
       visit,
@@ -169,6 +201,7 @@ async function sweepNudges() {
   const open = held.filter((nudge) => nudge.state === "open");
   const swept = sweep(held, { url: "", now: Date.now() });
   await state.setNudges(swept);
+  reportEndings(held, swept);
   for (const nudge of open) {
     if (swept.find((each) => each.id === nudge.id)?.state !== "open") {
       void hideNudge(nudge.tabId);
@@ -186,10 +219,128 @@ async function didItThemselves(message) {
   const after = onCall(held, { url: message.url, method: message.method }, Date.now());
   if (after === held) return;
   await state.setNudges(after);
+  reportEndings(held, after);
   for (const nudge of held) {
     if (nudge.state === "open" && after.find((each) => each.id === nudge.id)?.state !== "open") {
       void hideNudge(nudge.tabId);
     }
+  }
+}
+
+// -- offering to finish the job they have just started ------------------------
+//
+// The nudge above asks from the address alone: "you have done this here
+// before". This asks from the work itself. Two gestures into a job the rig has
+// proved, the shape says which job it is and what has already been typed into
+// it, so what lands is "finish this" -- with the values the operator has
+// already given -- rather than "start something like it".
+//
+// On the gesture path, which is the hot one, so everything here is arithmetic
+// over a five-minute cache and nothing on it may throw.
+
+let shapesHeld = { at: 0, list: [] };
+async function shapesFor() {
+  if (Date.now() - shapesHeld.at < CANDIDATES_FRESH_MS) return shapesHeld.list;
+  const list = (await api.shapes()).map((shape) => ({
+    ...shape,
+    // The rig records `starts_on` as the tab's whole URL. Everything that
+    // compares one -- `shouldFire`, `mute`, the muted map -- speaks the nudge's
+    // host-and-path, and a page addressed with a session id is never the same
+    // page twice. Normalised once, here, so no consumer has to remember to.
+    starts_on: pageOf(shape.starts_on || ""),
+  }));
+  shapesHeld = { at: Date.now(), list };
+  return list;
+}
+
+function originOf(url) {
+  try {
+    return new URL(url).origin;
+  } catch {
+    return null;
+  }
+}
+
+async function considerOffer(tabId, gesture) {
+  try {
+    if (tabId === null || !(await isWatched(tabId))) return;
+    // The browser is already being driven. Offering to drive it again is the
+    // panel talking over itself -- and the gestures would be the run's own.
+    if (performing()) return;
+    const origin = originOf(gesture.url);
+    if (!origin) return;
+    const tails = await state.tails();
+    const tail = tailWith(tails[tabId] || [], {
+      triple: tripleOf({ system: origin, target: gesture.target, kind: gesture.kind }),
+      // A credential field contributes the fact that it was typed and nothing
+      // else: the shape still matches, and the offer simply has one more
+      // parameter it has to ask for.
+      value: gesture.secret ? null : (gesture.value ?? null),
+      secret: Boolean(gesture.secret || gesture.target?.secret),
+      at: gesture.at,
+    });
+    await state.setTails({ ...tails, [tabId]: tail });
+    const shapes = await shapesFor();
+    if (!shapes.length) return;
+    const held = await state.nudges();
+    const open = held.find((n) => n.state === "open" && n.tabId === tabId) || null;
+    const now = Date.now();
+    const { replace, end } = decideOffer({ tail, shapes, open, origin, now });
+    if (end && open) await endOffer(open, end, held);
+    if (replace) {
+      const muted = await state.muted();
+      if (muted[replace.startsOn] && muted[replace.startsOn] > now) return;
+      const made = { ...replace, tabId };
+      const rest = (await state.nudges()).filter((n) => n.id !== open?.id);
+      // The offer it replaces was still open, and an offer that is taken off
+      // the screen without being answered was dismissed by what happened next.
+      if (open && open.source === "rig" && open.state === "open") void report(open, "dismissed");
+      await state.setNudges([made, ...rest].slice(0, MAX_NUDGES));
+      await showNudge(tabId, `${made.title} — want me to finish it?`);
+    }
+  } catch {
+    // A tab that closed, a rig that is down. Nothing offered is the quiet
+    // answer, and this runs on every keystroke: it may never cost a gesture.
+  }
+}
+
+/** A tab that closed took its tail with it. Chrome hands the id out again, and
+ * a tail left under it would make the next tab's first gesture look like the
+ * middle of a job somebody did in a window that is gone. */
+async function forgetTail(tabId) {
+  const tails = await state.tails();
+  if (!(tabId in tails)) return;
+  delete tails[tabId];
+  await state.setTails(tails);
+}
+
+async function endOffer(nudge, fate, held) {
+  await state.setNudges(held.map((n) => (n.id === nudge.id ? { ...n, state: fate } : n)));
+  void hideNudge(nudge.tabId);
+  void report(nudge, fate);
+}
+
+/** How an offer ended, told to the rig.
+ *
+ * Every fate, not just the ones that became runs: whether recognising a job
+ * early was worth doing is a question only the dismissals and the walk-aways
+ * can answer.
+ */
+async function report(nudge, fate, runId = null) {
+  if (nudge.source !== "rig" || !nudge.workflowId) return;
+  void api.reportOffer({
+    workflow_id: nudge.workflowId, k: nudge.k || 0, fate, run_id: runId,
+    device_id: await state.deviceId(), at: new Date().toISOString(),
+  });
+}
+
+/** Every offer that has just stopped being open, reported by how it stopped. */
+function reportEndings(before, after) {
+  for (const was of before) {
+    if (was.state !== "open" || was.source !== "rig") continue;
+    const now = after.find((each) => each.id === was.id);
+    if (!now || now.state === "open") continue;
+    void report(was, now.state === "by-hand" ? "did_it" : "expired");
   }
 }
 
@@ -371,6 +522,7 @@ function unwatch(tabId) {
 
 chrome.tabs.onRemoved.addListener((tabId) => {
   halfDeaf.delete(tabId);
+  void forgetTail(tabId);
   void releaseTree(tabId);
   void unwatch(tabId);
 });
@@ -529,6 +681,10 @@ async function handle(message, sender) {
       if (message.kind === "gesture") {
         channel.operatorIsWorking();
         rigChannel.operatorIsWorking();
+        // And the same gesture, read the other way: is this the start of a job
+        // the rig has already proved? Never awaited -- recognising a job may
+        // not hold up recording one.
+        void considerOffer(sender?.tab?.id ?? null, message.gesture);
       }
       // They did the task themselves while it was being offered. One of the
       // three ways a nudge ends, and the one that needs saying least: they did
@@ -830,8 +986,34 @@ async function handle(message, sender) {
       if (was) void hideNudge(was.tabId);
       if (was && message.answer === "not-here") {
         await state.setMuted(mute(await state.muted(), was.startsOn, Date.now()));
+        void report(was, "dismissed");
       }
       return { ok: true, nudge: was || null };
+    }
+    case "start-rig-run": {
+      // Yes, on an offer the rig made. The press is in the panel, where
+      // somebody can read what it says; the run is started here, because the
+      // rig's credential lives in this worker and nowhere a page can reach.
+      const held = await state.nudges();
+      const nudge = held.find((n) => n.id === message.nudgeId);
+      if (!nudge || nudge.source !== "rig") return { ok: false, error: "no such offer" };
+      // What the operator typed into the panel wins over what the prefix read
+      // off the page: they are looking at both, and the panel is the later word.
+      const values = { ...(nudge.values || {}), ...(message.values || {}) };
+      let started;
+      try {
+        started = await api.rigStart({
+          workflow_id: nudge.workflowId, values, device_id: await state.deviceId(),
+          live: true, allow_focus: true, started_by: "offer", from_step: nudge.k || 0,
+        });
+      } catch (error) {
+        return { ok: false, error: error.problem?.detail || error.message };
+      }
+      await state.setActiveRun({ runId: started.run_id, at: Date.now(), source: "rig" });
+      await state.setNudges(held.map((n) => (n.id === nudge.id ? { ...n, state: "accepted" } : n)));
+      void hideNudge(nudge.tabId);
+      void report(nudge, "accepted", started.run_id);
+      return { ok: true, run_id: started.run_id };
     }
     case "open-panel":
       // From the pill in the page. Opening it is all it does: the offer is in

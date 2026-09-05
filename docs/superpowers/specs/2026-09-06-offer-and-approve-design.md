@@ -156,8 +156,8 @@ unchanged. A `from_step` beyond the last step is a 400.
 
 ### Approval
 
-One new step verdict, `awaiting`, and one new run outcome is not needed: an
-awaiting run is `running`.
+Two new step verdicts, `awaiting` and `done_by_operator`, join `VERDICTS`. No
+new run outcome: an awaiting run is `running`.
 
 Before the runner sends a step that `writes()`, on a live run, when the
 workflow is not earned: it records the step `awaiting` with `sent` set to the

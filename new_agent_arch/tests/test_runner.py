@@ -1,3 +1,4 @@
+import asyncio
 import copy
 import json
 from collections.abc import Mapping
@@ -999,3 +1000,55 @@ async def test_a_rung_that_reached_no_command_leaves_the_previous_rungs_plan_sta
         "error_kind": "control_not_found",
     }
     assert [a["model"] for a in asker.asked] == ["flash", "pro"], "Pro was still asked"
+
+
+async def test_a_run_cancelled_mid_step_is_not_left_saying_running(tmp_path: Path) -> None:
+    """Shutdown cancels the task. `CancelledError` is a BaseException, so
+    neither `except` clause runs -- only the `finally`, which must still finish
+    the record rather than leave a row that says `running` for good."""
+    store = _store(tmp_path)
+    wf = _workflow(store)
+
+    class _Hangs(FakeChannel):
+        def __init__(self) -> None:
+            super().__init__({})
+            self.reached = asyncio.Event()
+
+        async def send(
+            self,
+            device_id: str,
+            *,
+            kind: str,
+            payload: Mapping[str, object],
+            run_id: str | None = None,
+            deadline_s: float | None = None,
+        ) -> Reply:
+            self.reached.set()
+            await asyncio.Event().wait()
+            raise AssertionError("never reached")
+
+    channel = _Hangs()
+    task = asyncio.create_task(
+        run_workflow(
+            store,
+            wf,
+            values={"clientCode": "x"},
+            channel=channel,
+            device_id="dev_test",
+            asker=FakeAsker(),
+            plan_model="flash",
+            rescue_model="pro",
+            live=False,
+            allow_focus=True,
+            started_by="form",
+        )
+    )
+    await channel.reached.wait()
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    saved = load_run(store, "acme", _only_run(store))
+    assert saved is not None and saved.outcome == "failed"
+    assert saved.steps[-1].reason == "interrupted before finishing"
+    assert saved.steps[-1].order == 0, "the step it was working on, not a fabricated one"

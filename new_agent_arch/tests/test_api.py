@@ -1766,3 +1766,184 @@ def test_evidence_for_a_workflow_nobody_has_is_a_404(client: TestClient) -> None
 def test_evidence_is_not_served_without_the_token(client: TestClient) -> None:
     """Every gesture a workflow cites, which is the operator's own screen."""
     assert client.get("/v1/workflows/wfl_1/evidence").status_code == 401
+
+
+def test_a_run_is_started_from_the_form_door_and_can_be_read_back(
+    client: TestClient, store: Store
+) -> None:
+    from rig.channel import Answer as Reply
+    from rig.channel import FakeChannel
+    from rig.workflows import Step, Workflow, save_workflow
+
+    save_batch(store, Batch.model_validate(BATCH), "new")
+    ids = [r["id"] for r in store.query("SELECT id FROM gestures ORDER BY at")]
+    save_workflow(
+        store,
+        Workflow(
+            id="wfl_1",
+            tenant="new",
+            title="t",
+            narrative="n",
+            steps=[Step(order=0, says="type", system=None, cites=[ids[0]])],
+        ),
+    )
+    fake = FakeChannel(
+        {
+            "ui.url": [Reply(ok=True, result={"url": "u"})] * 4,
+            "screenshot": [
+                Reply(ok=True, result={"image_base64": "aVBORw0=", "text_digest": "Save"})
+            ]
+            * 4,
+            "ui.perform": [
+                Reply(
+                    ok=True, result={"performed": True, "matched_by": "component", "candidates": 1}
+                )
+            ],
+        }
+    )
+    client.app.state.channel = fake
+    client.app.state.asker = FakeAsker(
+        Answer(data={"kind": "ui.perform", "action": "type", "value": "x", "url": None, "why": ""}),
+        Answer(data={"held": True, "why": ""}),
+    )
+
+    started = client.post(
+        "/v1/runs",
+        json={
+            "workflow_id": "wfl_1",
+            "values": {},
+            "live": False,
+            "device_id": "dev_test",
+            "allow_focus": True,
+            "started_by": "form",
+        },
+        headers=_auth(),
+    )
+    assert started.status_code == 202
+    run_id = started.json()["run_id"]
+
+    import time
+
+    for _ in range(50):
+        body = client.get(f"/v1/runs/{run_id}", headers=_auth()).json()
+        if body["outcome"] != "running":
+            break
+        time.sleep(0.05)
+    assert body["outcome"] == "held"
+    assert body["steps"][0]["verdict"] == "held" and body["steps"][0]["verdict_by"] == "screen"
+
+
+def test_a_run_against_a_device_that_is_not_connected_is_refused_at_the_door(
+    client: TestClient,
+) -> None:
+    refused = client.post(
+        "/v1/runs",
+        json={
+            "workflow_id": "wfl_1",
+            "values": {},
+            "live": False,
+            "device_id": "dev_nobody",
+            "allow_focus": True,
+            "started_by": "form",
+        },
+        headers=_auth(),
+    )
+    assert refused.status_code == 409
+
+
+def test_a_device_already_running_a_job_will_not_take_a_second(
+    client: TestClient, store: Store
+) -> None:
+    """One browser, one hand. Two runs driving the same window interleave
+    clicks into a form neither of them can then read back."""
+    from rig.channel import FakeChannel
+    from rig.runs import Run, save_run
+    from rig.workflows import Step, Workflow, save_workflow
+
+    save_workflow(
+        store,
+        Workflow(
+            id="wfl_1",
+            tenant="new",
+            title="t",
+            narrative="n",
+            steps=[Step(order=0, says="s", system=None, cites=[])],
+        ),
+    )
+    client.app.state.channel = FakeChannel({})
+    save_run(
+        store,
+        Run(
+            id="run_busy",
+            tenant="new",
+            workflow_id="wfl_1",
+            device_id="dev_test",
+            values={},
+            started_by="form",
+            live=False,
+            allow_focus=True,
+            started_at="2026-01-01T00:00:00+00:00",
+        ),
+    )
+
+    refused = client.post(
+        "/v1/runs",
+        json={
+            "workflow_id": "wfl_1",
+            "values": {},
+            "live": False,
+            "device_id": "dev_test",
+            "allow_focus": True,
+            "started_by": "form",
+        },
+        headers=_auth(),
+    )
+
+    assert refused.status_code == 409
+    assert "run_busy" in refused.json()["detail"]
+    assert store.query("SELECT count(*) AS n FROM runs")[0]["n"] == 1
+
+
+def test_chat_offers_and_never_starts(client: TestClient, store: Store) -> None:
+    from rig.workflows import Step, Workflow, save_workflow
+
+    save_workflow(
+        store,
+        Workflow(
+            id="wfl_1",
+            tenant="new",
+            title="create a client",
+            narrative="n",
+            steps=[Step(order=0, says="s", system=None, cites=["g"])],
+            parameters=[{"name": "clientCode", "seen_values": ["A"]}],
+        ),
+    )
+    client.app.state.asker = FakeAsker(
+        Answer(data={"workflow_id": "wfl_1", "values": {"clientCode": "NEW9"}, "missing": []})
+    )
+
+    offered = client.post(
+        "/v1/chat", json={"utterance": "create client NEW9"}, headers=_auth()
+    ).json()
+
+    assert offered == {"workflow_id": "wfl_1", "values": {"clientCode": "NEW9"}, "missing": []}
+    assert store.query("SELECT count(*) AS n FROM runs")[0]["n"] == 0, (
+        "saying it offers the work; pressing start authorises it"
+    )
+
+
+def test_the_stop_button_flips_the_flag_and_tells_the_browser(client: TestClient) -> None:
+    from rig.channel import Answer as Reply
+    from rig.channel import FakeChannel
+    from rig.runner import Aborts
+
+    client.app.state.channel = FakeChannel({"abort": [Reply(ok=True, result={"aborted": True})]})
+    assert client.post(
+        "/v1/runs/run_x/abort", json={"device_id": "dev_test"}, headers=_auth()
+    ).json() == {"aborted": True}
+    assert Aborts.is_aborted("run_x")
+    Aborts.forget("run_x")
+
+
+def test_devices_lists_what_is_connected(client: TestClient) -> None:
+    assert client.get("/v1/devices", headers=_auth()).json() == {"devices": []}

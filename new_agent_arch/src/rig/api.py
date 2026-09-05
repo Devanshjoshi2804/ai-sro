@@ -4,7 +4,7 @@ import asyncio
 import json
 import logging
 import sqlite3
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Coroutine
 from contextlib import asynccontextmanager
 from dataclasses import asdict
 from datetime import UTC, datetime
@@ -765,6 +765,105 @@ def build_app(
             "missing": [gid for gid in cited if gid not in gestures],
         }
 
+    @app.get("/v1/devices", dependencies=[Depends(authorised)])
+    def devices() -> dict[str, Any]:
+        return {"devices": app.state.channel.online()}
+
+    @app.post("/v1/runs", status_code=202, dependencies=[Depends(authorised)])
+    async def start_run(body: dict[str, Any]) -> dict[str, Any]:
+        """The press. A person opened a door and chose live or dry; the rig
+        has no way to start a run on its own."""
+        from rig.runner import run_workflow
+        from rig.runs import new_run_id
+        from rig.workflows import known_workflows
+
+        # The browser first, then the workflow: "your browser is not connected"
+        # is the answer a person can act on, and it holds whatever they asked
+        # for. A device that is merely busy is refused before the workflow is
+        # looked up for the same reason.
+        device_id = str(body.get("device_id") or "")
+        if device_id not in app.state.channel.online():
+            raise HTTPException(
+                status_code=409, detail=f"{device_id or 'no device'} is not connected to the rig"
+            )
+        # One browser, one hand. Two runs driving the same window interleave
+        # their clicks into a form neither of them can then read back.
+        busy = store.query(
+            "SELECT id FROM runs WHERE tenant = ? AND device_id = ? AND outcome = 'running'"
+            " ORDER BY started_at LIMIT 1",
+            (tenant, device_id),
+        )
+        if busy:
+            raise HTTPException(
+                status_code=409, detail=f"{device_id} is already running {busy[0]['id']}"
+            )
+        workflow = next(
+            (w for w in known_workflows(store, tenant) if w.id == body.get("workflow_id")), None
+        )
+        if workflow is None:
+            raise HTTPException(status_code=404, detail="no such workflow")
+        # The caller's body is the only source of values. Nothing the chat door
+        # understood is carried across on its own -- the press is what says
+        # which values this run is performed with.
+        given = body.get("values")
+        values: dict[Any, Any] = given if isinstance(given, dict) else {}
+        run_id = new_run_id()
+        _spawn_run(
+            run_workflow(
+                store,
+                workflow,
+                values={str(k): str(v) for k, v in values.items()},
+                channel=app.state.channel,
+                device_id=device_id,
+                asker=app.state.asker,
+                plan_model=settings().plan_model,
+                rescue_model=settings().rescue_model,
+                live=bool(body.get("live")),
+                allow_focus=bool(body.get("allow_focus", True)),
+                started_by=str(body.get("started_by") or "form"),
+                run_id=run_id,
+            )
+        )
+        return {"run_id": run_id}
+
+    @app.get("/v1/runs/{run_id}", dependencies=[Depends(authorised)])
+    def read_run(run_id: str) -> dict[str, Any]:
+        from rig.runs import as_json, load_run
+
+        run = load_run(store, tenant, run_id)
+        if run is None:
+            raise HTTPException(status_code=404, detail="no such run")
+        return as_json(run)
+
+    @app.post("/v1/runs/{run_id}/abort", dependencies=[Depends(authorised)])
+    async def abort_run(run_id: str, body: dict[str, Any]) -> dict[str, Any]:
+        from rig.runner import Aborts
+
+        # The flag first, then the browser: the loop checks it between steps,
+        # and a device that has gone away must not stop the run from being
+        # marked aborted.
+        Aborts.abort(run_id)
+        device_id = str(body.get("device_id") or "")
+        if device_id in app.state.channel.online():
+            await app.state.channel.send(
+                device_id, kind="abort", run_id=run_id, payload={"run_id": run_id}
+            )
+        return {"aborted": True}
+
+    @app.post("/v1/chat", dependencies=[Depends(authorised)])
+    async def chat(body: dict[str, Any]) -> dict[str, Any]:
+        """Offers. Never starts."""
+        from rig.entry import understand
+        from rig.workflows import known_workflows
+
+        got = await understand(
+            str(body.get("utterance") or ""),
+            known_workflows(store, tenant),
+            app.state.asker,
+            settings().plan_model,
+        )
+        return {"workflow_id": got.workflow_id, "values": got.values, "missing": got.missing}
+
     @app.get("/", response_class=HTMLResponse)
     def page() -> str:
         return (Path(__file__).parent / "web" / "index.html").read_text()
@@ -777,6 +876,27 @@ def build_app(
 # mid-execution and the reading simply never finishes. The documented fix is to
 # hold it until it is done.
 _reading_tasks: set[asyncio.Task[None]] = set()
+
+# The same weak-reference problem, for runs.
+_run_tasks: set[asyncio.Task[None]] = set()
+
+
+async def _perform(work: Coroutine[Any, Any, object]) -> None:
+    try:
+        await work
+    except Exception:
+        # `run_workflow` re-raises anything but a browser that went away, after
+        # saving the run as failed. The record is already right; what is left is
+        # a task exception nobody retrieves, which asyncio reports at garbage
+        # collection time from no particular place. Logged here instead, beside
+        # the run it belongs to, and never allowed to take the server down.
+        log.exception("a run stopped on an error; its record says failed")
+
+
+def _spawn_run(work: Coroutine[Any, Any, object]) -> None:
+    task = asyncio.create_task(_perform(work))
+    _run_tasks.add(task)
+    task.add_done_callback(_run_tasks.discard)
 
 
 def _spawn_reading(store: Store, asker: Asker, tenant: str) -> asyncio.Task[None]:

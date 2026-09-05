@@ -450,6 +450,14 @@ async def run_workflow(
     finally:
         # In the finally, so an exception this function does not handle still
         # leaves a saved record rather than a row that says `running` forever.
+        #
+        # Still `running` here means neither `except` above ran, and the only
+        # way out of the loop that skips both is a BaseException -- in practice
+        # the CancelledError a shutdown delivers to this task. That is a run
+        # nobody watched finish, so it says so rather than being read later as
+        # one still in flight on a process that no longer exists.
+        if run.outcome == "running":
+            _fell_over(run, in_flight, "interrupted before finishing")
         run.finished_at = _now()
         _total(run)
         save_run(store, run)

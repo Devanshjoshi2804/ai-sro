@@ -731,10 +731,24 @@ missing a row.
 
 ## Reproducing this
 
+Every number above comes from one of these. A measurement whose instrument is
+not committed is an anecdote -- the pool rotation table in this document was
+published without its harness, and when a reviewer rebuilt it from the prose
+they got a different answer with nothing to arbitrate between the two.
+
 ```
-new_agent_arch/scripts/measure.py      the instrument
-new_agent_arch/evidence/constructed/   the seven constructed TMS gestures
+new_agent_arch/scripts/measure.py     the mining instrument: A/B over evidence sets
+new_agent_arch/scripts/rotate.py      the pool rotation table, pack and the pool alone
+new_agent_arch/scripts/compare.py     the rig's workflows against the pipeline's
+new_agent_arch/scripts/trial.sh       the week-long capture trial
+new_agent_arch/evidence/constructed/  the seven constructed TMS gestures
+backend/scripts/mirror_backfill.py    replays stored batches into the rig
+backend/scripts/skill_from_rig.py     the bridge, end to end over HTTP, and --adopt
 ```
 
-The captured acme store is a scratch database rebuilt from captured batches and
-is not in the repository.
+Two things they need. `new_agent_arch/rig.db` is a scratch database rebuilt
+from captured batches and is not in the repository; `mirror_backfill.py` is
+what rebuilds it. And the bridge scripts talk to a running rig, which has to be
+one recent enough to serve `/v1/workflows/{id}/evidence` -- an older one
+answers 200 on the listing and 404 on the evidence, and `skill_from_rig.py`
+says so rather than raising.

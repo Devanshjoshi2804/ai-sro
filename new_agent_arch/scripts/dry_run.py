@@ -245,6 +245,11 @@ async def main() -> int:
         ) as client:
             devices = (await client.get("/v1/devices")).json()["devices"]
             print(f"the rig sees these browsers: {devices}\n")
+            # Asked before a single run is started, so the per-workflow held
+            # gate reads a store with no runs in it: a workflow that has never
+            # run is served, and only an unproven one is withheld. Printed
+            # further down, after the allowlists.
+            served: list[dict[str, Any]] = (await client.get("/v1/shapes")).json()["shapes"]
             for workflow in workflows:
                 first = primary_gesture(workflow.steps[0], cited[workflow.id])
                 app.state.channel.page = (
@@ -342,6 +347,31 @@ async def main() -> int:
             f"\n{alone} of {len(workflows)} workflows allow one origin and nothing else;"
             f" {len(workflows) - alone} allow more than one."
         )
+
+        # What the extension is handed to match a live tail against: control
+        # identities, hosts and parameter *names* with the index each was typed
+        # at. No typed value is in a shape, so no line below can be a secret.
+        print("\n\nSHAPES -- what the extension matches a live tail against")
+        print(f"\nshapes served: {len(served)} of {len(workflows)} workflows")
+        for shape in served:
+            named = ", ".join(f"{p['name']}@{p['at']}" for p in shape["parameters"])
+            print(
+                f"\n{shape['title']}: {len(shape['shape'])} triples;"
+                f" parameters: {named or 'none declared'}"
+            )
+            # `match()` is JavaScript; this is its K_OFFER_AFTER = 2 test in
+            # Python. Two jobs sharing their first two triples cannot be told
+            # apart by the tail the card is offered on.
+            twins = [
+                other["title"]
+                for other in served
+                if other["id"] != shape["id"] and other["shape"][:2] == shape["shape"][:2]
+            ]
+            print(
+                f"    shares its first two steps with: {', '.join(twins)}"
+                if twins
+                else "    distinct at two"
+            )
 
     with closing(sqlite3.connect(f"file:{LIVE_DB}?mode=ro", uri=True)) as live:
         left = live.execute("SELECT count(*) FROM runs").fetchone()[0]

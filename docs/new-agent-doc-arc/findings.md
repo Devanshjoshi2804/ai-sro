@@ -899,6 +899,180 @@ Until this section is rewritten with those numbers in it, **verification 6 and 7
 are not done.** The dry run above proves the chain; only the real one proves the
 claim.
 
+## An offer lands
+
+The rig serves the shape of every job it can prove; the extension keeps the last
+few gestures on the tab, matches them against those shapes, and — on the second
+gesture — offers to finish what the operator has started. Yes starts the run
+from that step, the panel draws it live, and a write on a job that has not
+earned its autonomy waits as `awaiting` until somebody presses **Approve**.
+
+Two halves of that can be measured without a browser and are, below: what the
+rig actually serves, and whether two gestures are enough to tell this corpus's
+jobs apart. The other half — an offer landing on a real gesture stream — needs a
+person, a Chrome with the extension in it, and a WMS session. Its commands are
+at the end of this section, with the fields to fill in.
+
+### What the rig serves (measured)
+
+`scripts/dry_run.py` asks `GET /v1/shapes` on the same in-process app, before it
+starts a single run, so the per-workflow held gate reads a store with no runs in
+it — which is what a rig looks like the first time an extension dials it.
+
+```
+cd new_agent_arch && uv run python scripts/dry_run.py
+```
+
+```
+SHAPES -- what the extension matches a live tail against
+
+shapes served: 8 of 8 workflows
+
+Login and Start Recording: 14 triples; parameters: none declared
+    distinct at two
+
+Create a Warehouse Equipment Type: 13 triples; parameters: none declared
+    shares its first two steps with: Create Work Area TWOTEST, Create Carrier Cross Reference for Test Drive LLC
+
+Create Work Area NEWTESTS: 22 triples; parameters: none declared
+    distinct at two
+
+Create Work Area TWOTEST: 18 triples; parameters: none declared
+    shares its first two steps with: Create a Warehouse Equipment Type, Create Carrier Cross Reference for Test Drive LLC
+
+Search and Filter Work Areas: 35 triples; parameters: none declared
+    distinct at two
+
+Create Work Area Operation NEWTEST4: 21 triples; parameters: none declared
+    distinct at two
+
+Create Carrier Cross Reference for Test Drive LLC: 26 triples; parameters: none declared
+    shares its first two steps with: Create a Warehouse Equipment Type, Create Work Area TWOTEST
+
+Create Work Activity TEST1: 16 triples; parameters: none declared
+    distinct at two
+```
+
+**Shapes served: 8 of 8 workflows.** All eight are proven, none has run, and
+every one starts on an origin its own evidence names — the three gates
+`shapes_for` applies. A shape is (system, control identity, kind) per cited
+gesture, in step order: the same triple `identity.py` resolves on, generated
+into the extension so the two cannot drift. The shapes run from 13 triples
+(*Create a Warehouse Equipment Type*) to 35 (*Search and Filter Work Areas*).
+Nothing in a shape is a typed value — control identities, hosts and parameter
+*names* only — which is why the block above can be printed at all.
+
+**Every one reads `parameters: none declared`.** The same gap *A run performs*
+records: no workflow in this corpus declares a parameter, so the card has no box
+to draw, `valuesFrom` has nothing to lift out of the tail, and the whole
+value-into-control path — prefill, the blank-is-not-a-value rule, the missing
+list, **Yes** disabled until the boxes are filled — is exercised by tests and by
+nothing else. An offer on this corpus is a bare "shall I finish this".
+
+**Three of the eight share their first two triples**: *Create a Warehouse
+Equipment Type*, *Create Work Area TWOTEST* and *Create Carrier Cross Reference
+for Test Drive LLC* — three jobs that begin with the same two gestures on the
+same host. The other five are distinct at two. That is the number that says what
+`K_OFFER_AFTER = 2` is worth on this corpus: `match()` walks `k` down from the
+longest prefix it can and takes the longest, so a tail two gestures long into
+any of those three matches all three at `k = 2`, and the tie is broken by
+`held_runs` — on a rig where none of them has held yet, by served order, which
+means *Create a Warehouse Equipment Type*. **Two of the three earliest offers a
+fresh rig can make on this corpus can name the wrong job.** The third gesture
+separates them; `K_OFFER_AFTER = 3` would too, at the cost of a later offer. The
+constant was not moved on this evidence, because whether an operator would
+rather see a wrong title on gesture two or a right one on gesture three is the
+measurement below, not an argument.
+
+### What the suites prove
+
+- **The matcher.** `recognise.test.mjs`: nothing offered on one gesture; two
+  gestures offer the job whose prefix they are; a shared first step resolves on
+  the second; a shape on another origin is never matched; scrolls do not break a
+  prefix; the tail is bounded at `K_TAIL`; a job already finished is not offered
+  back; the job held more often wins a tie; a secret control and a blank field
+  each leave the parameter missing; going another way ends the offer.
+- **One identity, two languages.** `shape.generated.test.mjs` — the extension's
+  triple is generated from the rig's own identity source and agrees with the
+  shared fixture, so a shape the rig serves means the same thing on both sides.
+- **Starting mid-job.** `test_a_run_started_mid_job_starts_on_the_page_of_the_step_it_starts_at`
+  and `test_a_from_step_past_the_job_is_refused`.
+- **Approval.** `test_a_live_write_waits_for_approval_and_goes_out_when_it_comes`,
+  `test_a_write_nobody_approves_stops_the_run` (`K_APPROVAL_WAIT_S`, then the
+  run stops), `test_approve_releases_a_waiting_write`,
+  `test_approve_with_nothing_waiting_is_refused`.
+- **Earning.** `test_effects.py`: `K_EARNED_RUNS` live runs whose every write
+  verified **by state** earn autonomy; a screen-only verification is not an
+  effect; one unverified write does not count; a failed write starts the earning
+  again; a dry run earns nothing.
+- **The card and the live panel.** `offering.test.mjs` and
+  `offering-worker.test.mjs`: two gestures become one offer; nothing is offered
+  while this browser is performing a run; **Yes** starts the run; a dropped offer
+  cannot then be started; the run is drawn while it runs, including one parked on
+  an approval; **Approve** is refused for a run this browser is not driving.
+
+### What is not proven
+
+- **No offer has ever landed on a real gesture stream.** Every test above feeds
+  the matcher a tail built by hand. Whether the recorder's live gestures produce
+  the triples the shapes were built from — on a page that has been through a
+  reload, a frame, a slow render — is untested outside the fixtures.
+- **The panel has never polled a live rig.** The run card's poll, its rows, its
+  glyphs and its **Approve** button are driven by a fake worker in the suite.
+- **The value of `K_OFFER_AFTER` on this corpus is unmeasured.** The collision
+  count above says two gestures are ambiguous for three of the eight jobs; it
+  does not say whether that matters to the person being offered to.
+- **No parameter has ever been lifted from a tail**, because no workflow in this
+  corpus declares one.
+- **Nothing here proves earning end to end.** `K_EARNED_RUNS` live runs whose
+  writes verified by state have never happened against a real WMS; the counter
+  has only ever been fed by tests.
+
+Say the last one plainly, because it is a design decision and not a defect: **a
+job whose writes can only be verified by screenshot never earns and asks every
+time.** The belt that counts towards autonomy is a confirming read of state. A
+job the rig can only watch succeed on a screen will pause on every live write,
+for as long as it exists, on purpose.
+
+### The measurement, for whoever has the browser (not yet performed)
+
+1. **Start the rig.** From `new_agent_arch/`: `make serve`. Without
+   `RIG_GEMINI_API_KEY` it refuses at startup and names the variable; the
+   planner and the verifier are the model, so a run needs a real key.
+2. **Point the extension at it.** `chrome://extensions` → this extension →
+   *Extension options* → **Rig URL** `http://localhost:8100`, **Rig token** the
+   value of `RIG_INGEST_TOKEN` from `new_agent_arch/.env` → **Save**. The
+   extension dials the rig; nothing on the rig reaches into a browser that has
+   not dialled.
+3. **Confirm the rig sees the browser.** Put the token in the shell first —
+   `set -a; . new_agent_arch/.env; set +a` — then
+   `curl -s -H "Authorization: Bearer $RIG_INGEST_TOKEN" http://localhost:8100/v1/devices`
+   must list one device id. An empty list means the socket is not up and no
+   offer can start anything.
+4. **Sign in to the WMS in that same Chrome** and leave the tab open, watched.
+   The run drives that session; there is no server-side login.
+5. **Start the work area job by hand.** Do the first gestures of *Create Work
+   Area NEWTESTS* yourself, as if the rig were not there. **Expect the card on
+   the second gesture.**
+6. **Press Yes, finish it.** Watch the panel's run card fill in, one row per
+   step, while the run walks the rest of the job from the step you had reached.
+7. **Approve the save.** The first live write parks as `awaiting` and the row
+   offers **Approve**; press it and watch the write go out.
+8. **Do it twice more** — three live runs whose writes verify by state — and
+   then a fourth. **The fourth should not ask.**
+
+Record, for each of the four runs:
+
+- how many gestures went in before the offer appeared;
+- how many seconds from the last gesture to the card;
+- whether the offer named the right job (this is where the three-way collision
+  above will show, or will not);
+- how the run ended — held, stopped, or diverged out from under itself;
+- and for the fourth: whether it asked for approval at all.
+
+Until those four runs are written down here, **the offer is proven in tests and
+in nothing else.**
+
 ## Verification of the whole
 
 | # | claim | result |

@@ -66,6 +66,12 @@ curl -X POST -H "Authorization: Bearer $RIG_INGEST_TOKEN" \
   http://localhost:8100/v1/devices/<device_id>/revoke
 ```
 
+A browser's token writes its own day: a batch naming another device, or an
+artifact for a batch this browser did not send, answers 403. One batch
+carries at most `K_BATCH_EVENTS = 5000` events and one artifact at most
+`K_ARTIFACT_BYTES` (8 MB); past either the request is refused whole with
+413 and the bound named, and nothing is written.
+
 To rotate the tenant's bearer, set a new `RIG_INGEST_TOKEN` and restart the
 rig. Every registered browser keeps working: what it holds is its own token,
 compared against a hash in `device_tokens`, and the tenant's bearer is not

@@ -364,6 +364,18 @@ def _target_name(target: dict[str, Any] | None) -> str | None:
     return target.get("name") or (target.get("component") or {}).get("fieldLabel")
 
 
+K_ARTIFACT_BYTES = 8_000_000
+"""Bytes one artifact upload may carry. A full-page PNG of a warehouse form is
+a few hundred kilobytes; eight megabytes is a retina screen of noise. Past
+this, the bytes are not a picture of anything the rig reads."""
+
+K_BATCH_EVENTS = 5000
+"""Events one `POST /v1/observations` may carry. The extension flushes about
+once a minute; the busiest measured minute was under a hundred gestures, and
+the whole 81-gesture measured day would fit sixty times over. Past this is
+not capture, it is a payload."""
+
+
 def build_app(
     *,
     store: Store,
@@ -456,8 +468,10 @@ def build_app(
             channel.detach(device_id, websocket)
             log.info("device %s disconnected from the rig", device_id)
 
-    @app.post("/v1/observations", status_code=202, dependencies=[Depends(authorised)])
-    async def observations(raw: dict[str, Any]) -> dict[str, Any]:
+    @app.post("/v1/observations", status_code=202)
+    async def observations(
+        raw: dict[str, Any], device: Annotated[str | None, Depends(caller)] = None
+    ) -> dict[str, Any]:
         # Not `batch: Batch`. FastAPI would validate the whole envelope at once,
         # and one unrecognised event -- a gesture kind the extension shipped
         # last week -- would fail the request and lose every good event beside
@@ -479,6 +493,24 @@ def build_app(
             raise HTTPException(
                 status_code=422, detail=problem.errors(include_input=False)
             ) from problem
+        # A browser writes its own day and nobody else's: a batch that names
+        # another device, arriving on this device's token, is evidence planted
+        # under a sibling's name, and the tenant's audit would read it as
+        # theirs. The tenant's bearer may replay any browser's batches
+        # (`mirror_backfill.py` does), so only a device token is held to it.
+        if device is not None and batch.device_id != device:
+            raise HTTPException(
+                status_code=403, detail=f"this token is {device}'s, and the batch is not"
+            )
+        # A bound on one request, not on a day: the flush is once a minute and
+        # a minute is not thousands of gestures. A batch past it is not an
+        # operator's minute, and is refused whole with the count that would
+        # have been taken, so the sender can split it.
+        if len(batch.events) > K_BATCH_EVENTS:
+            raise HTTPException(
+                status_code=413,
+                detail=f"{len(batch.events)} events in one batch; at most {K_BATCH_EVENTS}",
+            )
         accepted, already, snapshots_ignored = save_batch(
             store, batch, tenant, rejected=len(rejected)
         )
@@ -493,13 +525,22 @@ def build_app(
             "snapshots_ignored": snapshots_ignored,
         }
 
-    @app.post("/v1/observations/artifacts", status_code=201, dependencies=[Depends(authorised)])
+    @app.post("/v1/observations/artifacts", status_code=201)
     async def artifact(
         batch_id: Annotated[str, Form()],
         kind: Annotated[str, Form()],
         file: UploadFile,
         frame_index: Annotated[int | None, Form()] = None,
+        device: Annotated[str | None, Depends(caller)] = None,
     ) -> dict[str, Any]:
+        # A browser illustrates its own batches: the batch arrives first
+        # (`api.js` posts it before the artifact), so one this device did not
+        # send is a sibling's, or nobody's. The tenant's bearer is not held to
+        # it, for the same replay reason as the batch route.
+        if device is not None:
+            owner = store.query("SELECT device_id FROM batches WHERE batch_id = ?", (batch_id,))
+            if not owner or owner[0]["device_id"] != device:
+                raise HTTPException(status_code=403, detail=f"{batch_id} is not {device}'s batch")
         root = (settings().db_path.parent / "artifacts").resolve()
         blob = (root / batch_id).resolve()
         if not blob.is_relative_to(root):
@@ -519,8 +560,15 @@ def build_app(
             # directory, because a directory that is inside the root says
             # nothing about a name that climbs back out of it.
             raise HTTPException(status_code=400, detail="kind is not a usable name")
+        data = await file.read(K_ARTIFACT_BYTES + 1)
+        # Read one byte past the bound and refuse before anything is written:
+        # a screenshot is a few hundred kilobytes, and a body past this is a
+        # disk being filled, not a page being illustrated.
+        if len(data) > K_ARTIFACT_BYTES:
+            raise HTTPException(
+                status_code=413, detail=f"an artifact is at most {K_ARTIFACT_BYTES} bytes"
+            )
         blob.mkdir(parents=True, exist_ok=True)
-        data = await file.read()
         target.write_bytes(data)
         return {"uri": str(target), "size_bytes": len(data)}
 

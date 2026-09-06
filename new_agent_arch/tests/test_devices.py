@@ -284,3 +284,56 @@ def test_a_browser_sees_who_is_online_and_not_who_is_registered(tmp_path: Path) 
     assert as_device == {"devices": []}, "no sibling's id, hours or revocation"
     as_tenant = client.get("/v1/devices", headers={"Authorization": f"Bearer {TOKEN}"}).json()
     assert {d["device_id"] for d in as_tenant["registered"]} == {"dev_1", "dev_2"}
+
+
+def test_a_browser_posts_its_own_day_and_not_a_siblings(tmp_path: Path) -> None:
+    from tests.fixtures import BATCH
+
+    store = _store(tmp_path)
+    client = _client(store)
+    mine = {"Authorization": f"Bearer {issue(store, BATCH['device_id'])}"}
+    other = {"Authorization": f"Bearer {issue(store, 'dev_other')}"}
+    planted = client.post("/v1/observations", json=BATCH, headers=other)
+    assert planted.status_code == 403 and "dev_other" in planted.json()["detail"]
+    assert store.query("SELECT count(*) AS n FROM gestures")[0]["n"] == 0
+    assert client.post("/v1/observations", json=BATCH, headers=mine).status_code == 202
+    # The tenant's bearer replays any browser's batches.
+    replay = dict(BATCH, batch_id="bat_replay")
+    assert (
+        client.post(
+            "/v1/observations", json=replay, headers={"Authorization": f"Bearer {TOKEN}"}
+        ).status_code
+        == 202
+    )
+    # And no bearer at all is still nobody.
+    assert client.post("/v1/observations", json=BATCH).status_code == 401
+
+
+def test_a_browser_illustrates_its_own_batches_and_not_a_siblings(tmp_path: Path) -> None:
+    from tests.fixtures import BATCH
+
+    store = _store(tmp_path)
+    client = _client(store)
+    mine = {"Authorization": f"Bearer {issue(store, BATCH['device_id'])}"}
+    other = {"Authorization": f"Bearer {issue(store, 'dev_other')}"}
+    picture = {"file": ("s.png", b"PNG", "image/png")}
+    form = {"batch_id": BATCH["batch_id"], "kind": "screenshot"}
+    # Before the batch has arrived, nobody's browser may illustrate it.
+    early = client.post("/v1/observations/artifacts", headers=mine, data=form, files=picture)
+    assert early.status_code == 403
+    assert client.post("/v1/observations", json=BATCH, headers=mine).status_code == 202
+    planted = client.post("/v1/observations/artifacts", headers=other, data=form, files=picture)
+    assert planted.status_code == 403 and "dev_other" in planted.json()["detail"]
+    own = client.post("/v1/observations/artifacts", headers=mine, data=form, files=picture)
+    assert own.status_code == 201
+    # The tenant's bearer may attach to any batch, and to one it has not sent.
+    tenant = {"Authorization": f"Bearer {TOKEN}"}
+    assert (
+        client.post(
+            "/v1/observations/artifacts",
+            headers=tenant,
+            data={"batch_id": "bat_unknown", "kind": "screenshot"},
+            files=picture,
+        ).status_code
+        == 201
+    )

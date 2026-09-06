@@ -3133,3 +3133,40 @@ def test_the_page_draws_the_browsers_with_a_two_press_revoke() -> None:
     assert line.count('class="revoke"') == 2, "the revoked browser offers no revoke"
     assert 'class="browser on"' in line and 'class="browser off"' in line
     assert 'class="browser revoked"' in line and "revoked 2026-09-06T11:22" in line
+
+
+def test_a_batch_past_the_event_bound_is_refused_whole_and_told_the_count(
+    client: TestClient, store: Store
+) -> None:
+    from rig.api import K_BATCH_EVENTS
+
+    huge = dict(BATCH, batch_id="bat_huge", events=BATCH["events"] * (K_BATCH_EVENTS // 7 + 1))
+    got = client.post("/v1/observations", json=huge, headers=_auth())
+    assert got.status_code == 413
+    assert f"{len(huge['events'])} events" in got.json()["detail"]
+    assert str(K_BATCH_EVENTS) in got.json()["detail"]
+    assert store.query("SELECT count(*) AS n FROM gestures")[0]["n"] == 0, "refused whole"
+    exact = dict(BATCH, batch_id="bat_exact", events=BATCH["events"][:1] * K_BATCH_EVENTS)
+    assert client.post("/v1/observations", json=exact, headers=_auth()).status_code == 202
+
+
+def test_an_artifact_past_the_byte_bound_is_refused_before_it_is_written(
+    client: TestClient, tmp_path: Path
+) -> None:
+    from rig.api import K_ARTIFACT_BYTES
+
+    big = client.post(
+        "/v1/observations/artifacts",
+        headers=_auth(),
+        data={"batch_id": "bat_big", "kind": "screenshot"},
+        files={"file": ("s.png", b"P" * (K_ARTIFACT_BYTES + 1), "image/png")},
+    )
+    assert big.status_code == 413 and str(K_ARTIFACT_BYTES) in big.json()["detail"]
+    assert not list(tmp_path.rglob("bat_big")), "nothing was written"
+    fits = client.post(
+        "/v1/observations/artifacts",
+        headers=_auth(),
+        data={"batch_id": "bat_fits", "kind": "screenshot"},
+        files={"file": ("s.png", b"P" * K_ARTIFACT_BYTES, "image/png")},
+    )
+    assert fits.status_code == 201 and fits.json()["size_bytes"] == K_ARTIFACT_BYTES

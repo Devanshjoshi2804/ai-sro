@@ -1072,6 +1072,20 @@ thing the recipe below asks for.
 - **Nothing here proves earning end to end.** `K_EARNED_RUNS` live runs whose
   writes verified by state have never happened against a real WMS; the counter
   has only ever been fed by tests.
+- **Nothing here says one job follows another.** Asked of the corpus on
+  2026-09-06 -- each proven job's cited gestures placed on its stream by
+  first and last timestamp, consecutive jobs paired -- the eight jobs sit on
+  one stream, once each, with gaps of an hour to two and a half days between
+  them; the one pair under a minute apart (*Create Work Area NEWTESTS* →
+  *TWOTEST*) is an artefact of NEWTESTS's citations spanning a re-recording a
+  day later. A chain -- offering the next job when this one lands -- has no
+  evidence to be mined from until a job has been done twice in a day. The
+  measurement is the eight-line query above, not a feature.
+- **The sight rung has never looked at a real screen.** Every picture it has
+  answered on is the fixture's eight bytes; whether Pro returns a usable
+  centre for a moved control on a real WMS page, and how often, is unmeasured.
+  The run record will say: `matched_by: sight` on the step, and the job's
+  stale mark.
 
 Say the last one plainly, because it is a design decision and not a defect: **a
 job whose writes can only be verified by screenshot never earns and asks every

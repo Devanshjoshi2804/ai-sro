@@ -2364,6 +2364,12 @@ def test_approve_with_nothing_waiting_is_refused(client: TestClient) -> None:
     assert client.post("/v1/runs/run_x/approve", json={}, headers=_auth()).status_code == 409
 
 
+def test_approve_needs_no_body(client: TestClient) -> None:
+    # A bare POST is a tap; 422 would be the route arguing about a body it
+    # never reads.
+    assert client.post("/v1/runs/run_x/approve", headers=_auth()).status_code == 409
+
+
 def test_approve_releases_a_waiting_write(client: TestClient) -> None:
     from rig.runner import Approvals
 

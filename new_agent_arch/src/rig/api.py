@@ -941,8 +941,10 @@ def build_app(
         return {"aborted": True}
 
     @app.post("/v1/runs/{run_id}/approve", dependencies=[Depends(authorised)])
-    async def approve_run(run_id: str, body: dict[str, Any]) -> dict[str, Any]:
-        """A person saw the write the panel showed and said go."""
+    async def approve_run(run_id: str) -> dict[str, Any]:
+        """A person saw the write the panel showed and said go. No body: the
+        run id is the whole of what a tap says, and a route that 422s a bare
+        POST is a Stop-shaped button that sometimes does nothing."""
         from rig.runner import Approvals
 
         if not Approvals.approve(run_id):

@@ -263,7 +263,15 @@ async function didItThemselves(message) {
 let shapesHeld = { at: 0, list: [] };
 async function shapesFor() {
   if (Date.now() - shapesHeld.at < CANDIDATES_FRESH_MS) return shapesHeld.list;
-  const list = (await api.shapes()).map((shape) => ({
+  // A rig that answers something other than a list of shapes -- a proxy's
+  // error page, an older rig -- is a rig with nothing to offer, not a throw
+  // that would silence the arrival nudge too (`candidatesFor` awaits this
+  // outside its own try).
+  const answered = await api.shapes();
+  const usable = Array.isArray(answered)
+    ? answered.filter((shape) => shape && Array.isArray(shape.shape) && shape.id)
+    : [];
+  const list = usable.map((shape) => ({
     ...shape,
     // The rig records `starts_on` as the tab's whole URL. Everything that
     // compares one -- `shouldFire`, `mute`, the muted map -- speaks the nudge's

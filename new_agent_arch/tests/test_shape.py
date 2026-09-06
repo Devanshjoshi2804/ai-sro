@@ -2,6 +2,8 @@ import copy
 import json
 from pathlib import Path
 
+import pytest
+
 from rig.correlate import correlate
 from rig.records import Gesture
 from rig.shape import containment, jaccard, shape_key, target_identity
@@ -104,6 +106,12 @@ FIXTURE = Path(__file__).resolve().parents[2] / "new-chrome-extension/fixtures/s
 def test_the_python_identity_agrees_with_the_shared_fixture() -> None:
     """The rule lives twice -- here and in the extension's generated twin --
     so it is held to one fixture rather than to two readings of one sentence."""
+    if not FIXTURE.is_file():
+        # mutmut copies this package into `mutants/` and runs there; the
+        # fixture sits beside the extension, two directories up, and is not
+        # in the copy. The JS half of this contract runs in `make
+        # test-extension` either way.
+        pytest.skip("the shared identity fixture is not in this checkout")
     for case in json.loads(FIXTURE.read_text()):
         wire = WireGesture.model_validate(
             {"kind": case["kind"], "target": case["target"], "at": 0.0, "value": None}

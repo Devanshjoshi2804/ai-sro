@@ -59,8 +59,8 @@ source_paths = ["src/rig/"]
 tests_dir = ["tests/"]
 # mutmut copies the tree into `mutants/` and runs there, so anything the suite
 # opens by path has to come too. The corpus fixture is the one file the tests
-# read that is not Python.
-also_copy = ["tests"]
+# read that is not Python -- and the page, which one test reads a line out of.
+also_copy = ["tests", "src/rig/web"]
 # A changed non-Python file cannot be diffed for behaviour, so the default
 # ("warn") keeps every cached verdict and carries on. That is worse than it
 # sounds: `src/rig/web/index.html` changed, the stale copy under `mutants/` no

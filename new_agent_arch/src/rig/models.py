@@ -112,6 +112,23 @@ class Asker(Protocol):
     ) -> Answer: ...
 
 
+K_MAX_OUTPUT_TOKENS = 65536
+"""What one answer may run to. A mining pass writes every workflow it found,
+each step citing gestures by id; a day's worth is thousands of tokens and the
+default ceiling cut one off. Thinking tokens are budgeted separately."""
+
+
+def truncated(response: Any) -> bool:
+    """Whether the model stopped because it hit the output ceiling. The SDK
+    says so on the candidate's `finish_reason`; compared by name so a fake and
+    the enum both read. A cut-off answer is not "not json": it is a page the
+    model was not allowed to finish, and the row should say which."""
+    candidates = getattr(response, "candidates", None) or []
+    reason = getattr(candidates[0], "finish_reason", None) if candidates else None
+    name = getattr(reason, "name", None) or (str(reason) if reason is not None else "")
+    return "MAX_TOKENS" in name.upper()
+
+
 def build_config(*, schema: dict[str, Any], effort: Effort | None = None) -> Any:
     """The config every call uses. No tools, ever — see the module docstring."""
     from google.genai import types
@@ -119,6 +136,11 @@ def build_config(*, schema: dict[str, Any], effort: Effort | None = None) -> Any
     return types.GenerateContentConfig(
         response_mime_type="application/json",
         response_schema=schema,
+        # The most the model may write back. Left to the default, a mining
+        # pass over a whole day came back cut mid-string at 17,313 characters
+        # and was filed as "not json": $1.16 for nothing, and nothing said
+        # why. The models this rig names all write up to this.
+        max_output_tokens=K_MAX_OUTPUT_TOKENS,
         # Self-consistency was measured at a 0.4% gain for 20x the cost, so
         # K_SAMPLES is 1 and this is the knob instead. None leaves the model's
         # own default alone, which is what the per-gesture reading wants.
@@ -210,13 +232,19 @@ class GeminiAsker:
         try:
             data = json.loads(response.text)
         except ValueError as problem:
+            why = (
+                f"truncated: the answer hit the {K_MAX_OUTPUT_TOKENS} output-token ceiling"
+                f" after {raw_out or 0} tokens"
+                if truncated(response)
+                else f"not json: {problem}"
+            )
             return Answer(
                 in_tokens=in_tokens,
                 out_tokens=out_tokens,
                 thought_tokens=thought_tokens,
                 cost_usd=cost,
                 unpriced=unpriced,
-                error=f"not json: {problem}",
+                error=why,
             )
 
         return Answer(

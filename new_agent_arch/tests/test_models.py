@@ -72,6 +72,45 @@ def test_the_request_config_never_enables_search_grounding() -> None:
     assert config.response_mime_type == "application/json"
 
 
+def test_the_request_config_lets_the_model_finish_a_whole_day() -> None:
+    """A mining pass over 387 gestures came back cut mid-string under the
+    default ceiling: $1.16 for nothing."""
+    from rig.models import K_MAX_OUTPUT_TOKENS, build_config
+
+    assert K_MAX_OUTPUT_TOKENS >= 65536
+    assert build_config(schema={"type": "object"}).max_output_tokens == K_MAX_OUTPUT_TOKENS
+
+
+async def test_gemini_asker_names_a_cut_off_answer_rather_than_calling_it_not_json() -> None:
+    from rig.models import K_MAX_OUTPUT_TOKENS
+
+    usage = SimpleNamespace(prompt_token_count=10, candidates_token_count=65536)
+    cut = SimpleNamespace(
+        text='{"workflows": [{"title": "Create Work Ar',
+        usage_metadata=usage,
+        candidates=[SimpleNamespace(finish_reason=SimpleNamespace(name="MAX_TOKENS"))],
+    )
+    client, _ = _fake_client(lambda: cut)
+    answer = await GeminiAsker(api_key="unused", client=client).ask(
+        model="gemini-3.1-pro-preview", instructions="i", evidence="e", schema={"type": "object"}
+    )
+    assert answer.data is None
+    assert answer.error and answer.error.startswith("truncated:"), answer.error
+    assert str(K_MAX_OUTPUT_TOKENS) in answer.error and "65536 tokens" in answer.error
+    assert answer.cost_usd > 0 and answer.unpriced is False, "it was billed, and the bill stands"
+    # The same broken text with an ordinary finish is still "not json".
+    stopped = SimpleNamespace(
+        text='{"workflows": [{"title": "Create Work Ar',
+        usage_metadata=usage,
+        candidates=[SimpleNamespace(finish_reason="STOP")],
+    )
+    client, _ = _fake_client(lambda: stopped)
+    answer = await GeminiAsker(api_key="unused", client=client).ask(
+        model="gemini-3.1-pro-preview", instructions="i", evidence="e", schema={"type": "object"}
+    )
+    assert answer.error and answer.error.startswith("not json:")
+
+
 class _FakeModels:
     """Stands in for `client.aio.models`: records the config it was sent."""
 

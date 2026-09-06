@@ -347,7 +347,9 @@ export function targetIdentity(target, kind) {
   if (target.testId) return `test|${target.testId}`;
   // Only a short one-line text names a control; a paragraph names a page.
   // The same rule, and the same forty, as rig/shape.py's K_TEXT_IDENTITY_MAX.
-  if (text && text.length <= 40 && !text.includes("\\n")) return `text|${text}`;
+  // `[...text].length`: code points, as Python's `len` counts -- a label that
+  // ends in an emoji is one character on both sides, not two here.
+  if (text && [...text].length <= 40 && !text.includes("\\n")) return `text|${text}`;
   return `anon|${kind}`;
 }
 

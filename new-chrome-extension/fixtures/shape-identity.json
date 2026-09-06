@@ -180,5 +180,17 @@
       "text": "Save\nyour changes"
     },
     "identity": "anon|click"
+  },
+  {
+    "name": "forty code points ending in an emoji still name a control on both sides",
+    "kind": "click",
+    "target": {
+      "component": null,
+      "role": null,
+      "name": null,
+      "testId": null,
+      "text": "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy😀"
+    },
+    "identity": "text|yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy😀"
   }
 ]

@@ -1958,7 +1958,13 @@ def test_chat_offers_and_never_starts(client: TestClient, store: Store) -> None:
         ),
     )
     client.app.state.asker = FakeAsker(
-        Answer(data={"workflow_id": "wfl_1", "values": {"clientCode": "NEW9"}, "missing": []})
+        Answer(
+            data={
+                "workflow_id": "wfl_1",
+                "values": [{"name": "clientCode", "value": "NEW9"}],
+                "missing": [],
+            }
+        )
     )
 
     offered = client.post(

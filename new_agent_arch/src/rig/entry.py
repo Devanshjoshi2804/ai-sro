@@ -16,7 +16,18 @@ UNDERSTAND_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
         "workflow_id": {"type": "string", "nullable": True},
-        "values": {"type": "object", "additionalProperties": {"type": "string"}},
+        # A list of pairs, not a map: the Gemini Developer API refuses
+        # `additionalProperties`, and a map of parameter name to value is
+        # exactly that. Found the first time this door met the real API.
+        "values": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {"name": {"type": "string"}, "value": {"type": "string"}},
+                "required": ["name", "value"],
+                "propertyOrdering": ["name", "value"],
+            },
+        },
         "missing": {"type": "array", "items": {"type": "string"}},
     },
     "required": ["workflow_id", "values", "missing"],
@@ -26,7 +37,15 @@ UNDERSTAND_SCHEMA: dict[str, Any] = {
 INSTRUCTIONS = """An operator has said what they want done. You are given the jobs this system
 can do, each with the parameters it takes and the values it has seen. Answer
 which job they mean (its id, or null if none fits), the values they gave for
-its parameters, and which parameters are still missing. Never invent a value."""
+its parameters, and which parameters are still missing. Never invent a value.
+
+A job is a kind of work, not the one time it was done. Its title and narrative
+were read from a demonstration and carry that demonstration's values: "Create
+Work Area NEWTESTS" is the job of creating a work area, done once with the name
+NEWTESTS. An operator asking for the same work with other values -- a work area
+called NEWTEST9 -- means that job. Match on what the job does. Answer null only
+when no job here does that kind of work at all. When two jobs do the same work,
+name the one whose demonstration is closest to what was said."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -73,11 +92,12 @@ async def understand(
     # workflow itself names.
     declared = {p.get("name") for p in chosen.parameters if isinstance(p, dict)}
     raw = answer.data.get("values")
-    values = {
-        k: v
-        for k, v in (raw.items() if isinstance(raw, dict) else ())
-        if k in declared and isinstance(v, str)
-    }
+    pairs = (
+        (p.get("name"), p.get("value"))
+        for p in (raw if isinstance(raw, list) else ())
+        if isinstance(p, dict)
+    )
+    values = {k: v for k, v in pairs if isinstance(k, str) and k in declared and isinstance(v, str)}
     # Read and ignored. `missing` stays in the schema because a model asked to
     # name what is absent picks values more carefully than one that is not --
     # but a parameter it leaves out of `missing` is a parameter the form never

@@ -925,12 +925,17 @@ Run
       order · says
       planned_by   flash | pro
       command      the exact envelope sent
-      result       performed · matched_by · candidates | status and body | error
-      before/after screenshot references and their text digests
-      verdict      held | failed | unclear, and the model's sentence
+      result       ok · status · matched_by · error kind -- never a body
+      before/after urls and text digests (the pictures are shown, not kept)
+      verdict      held | failed | unclear | awaiting | withheld, and by which belt
+      approved_at  when a person let this write out, if one had to
   } ]
   outcome · and, for a dry run, the write it produced and withheld
 ```
+
+Beside the run: every offer the browser made and how it ended, and a row per
+approval. `GET /v1/audit?since=` reads all of it back for a day -- runs,
+steps, approvals, fates -- with no value and no payload in it.
 
 ---
 

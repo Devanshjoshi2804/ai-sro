@@ -772,7 +772,23 @@ simply lost. With one they are read again, next to different neighbours.
 
 ## 3 · The runner
 
-### Two doors, one room
+### Three doors, one room
+
+**The offer.** The operator starts a job by hand. The extension keeps the last
+twelve gestures on the tab as `(system, control identity, kind)` triples -- the
+same triple a proven workflow's shape is made of -- and matches them against
+the shapes the rig serves, with no model and without waiting for the once-a-
+minute flush. On the second gesture that is the unique start of one job, the
+panel offers: *"Create Work Area -- NEWTESTS, so far. Want me to finish it?"*,
+the values already typed carried, the missing ones asked on the card. Yes
+starts a live run at that step; the operator's own steps are recorded as theirs.
+Every offer ends one of five ways -- accepted, dismissed, done by hand, expired,
+diverged -- and the rig keeps the count on the job's card. Replayed against the
+corpus's own gestures (`make offer-replay`), every one of the eight jobs is
+offered as itself, five on the second gesture and the three that share a start
+on the third. The design is `docs/superpowers/specs/2026-09-06-offer-and-approve-design.md`;
+the measurement, and what it does not measure, is *An offer lands* in
+`findings.md`.
 
 **Chat.** *"create supplier TestYonder9 for NEWTEST23 and set it live in SAP."*
 Flash reads the utterance against the workflows we hold and answers
@@ -869,6 +885,18 @@ matches on the last fallback is a step about to break. When `component` and
 `role_and_name` both miss and `css_path` catches it, the run **succeeds and the
 workflow is flagged stale** — the same instinct as a vision rung that finds a
 button somewhere new, one rung lower down.
+
+### Approval, and what a job earns
+
+A live write does not go out on the model's word. Before a step that may
+write -- a recorded mutation, or a click the capture heard nothing from -- the
+run records the step `awaiting`, saves, and waits up to five minutes for a tap
+in the panel, where the planned command is shown in words beside **Approve**
+and **Stop**. Once three live runs of a job have had every write verified by
+state -- a status the server answered or a read that showed the record, never
+a picture -- the job has earned it and writes unasked; a write that ends
+`failed` or `unclear` takes that back. A job whose writes can only be verified
+by screenshot never earns and asks every time, by design.
 
 ### The bounds
 

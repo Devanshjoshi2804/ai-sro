@@ -656,7 +656,9 @@
 
   async function drawAudit() {
     const field = document.getElementById("since");
-    if (!field.value) field.value = startOfToday();
+    // A value the field cannot parse -- cleared by hand, or a browser without
+    // the picker -- falls back to today rather than throwing on every tick.
+    if (!field.value || Number.isNaN(Date.parse(field.value))) field.value = startOfToday();
     const since = new Date(field.value).toISOString();
     const audit = await get(`/v1/audit?since=${encodeURIComponent(since)}&limit=200`);
     const box = document.getElementById("audit");
@@ -768,7 +770,15 @@
     drawNeeds().catch(() => {});
     drawBrowsers().catch(() => {});
     if (showing === "workflows") return drawJobs();
-    if (showing === "audit") return drawAudit();
+    // Titles for the audit come from the jobs view; fetched here too so a
+    // reader who lands on the audit first sees names and not ids.
+    if (showing === "audit") {
+      if (!Object.keys(titles).length) {
+        const { workflows } = await get("/v1/workflows");
+        titles = Object.fromEntries(workflows.map((w) => [w.id, w.title]));
+      }
+      return drawAudit();
+    }
 
     const picker = document.getElementById("stream");
     const { streams } = await get("/v1/streams");

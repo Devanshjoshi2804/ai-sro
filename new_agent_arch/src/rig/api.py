@@ -686,10 +686,23 @@ def build_app(
             stale = store.query(
                 "SELECT COUNT(*) AS n FROM workflow_stale WHERE workflow_id = ?", (workflow_id,)
             )[0]["n"]
+            # What became of the offers the extension made for this job: the
+            # five fates, counted. The share of `diverged` is the number the
+            # spec says decides whether the offer waits for a third gesture;
+            # it is read here so nobody has to ask the table for it.
+            fates = {
+                str(row["fate"]): int(row["n"])
+                for row in store.query(
+                    "SELECT fate, COUNT(*) AS n FROM offers WHERE tenant = ? AND workflow_id = ?"
+                    " GROUP BY fate",
+                    (tenant, workflow_id),
+                )
+            }
             return {
                 "total": int(counts["total"] or 0),
                 "held": int(counts["held"] or 0),
                 "stale": int(stale or 0),
+                "offers": fates,
                 "last": None
                 if not last
                 else {

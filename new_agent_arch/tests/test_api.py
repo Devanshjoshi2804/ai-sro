@@ -2438,7 +2438,14 @@ def test_a_workflow_carries_what_became_of_it(client: TestClient, store: Store) 
 
     _seed_workflow(store)
     before = client.get("/v1/workflows", headers=_auth()).json()["workflows"][0]["runs"]
-    assert before == {"total": 0, "held": 0, "stale": 0, "last": None, "earned": False}
+    assert before == {
+        "total": 0,
+        "held": 0,
+        "stale": 0,
+        "offers": {},
+        "last": None,
+        "earned": False,
+    }
     save_run(
         store,
         Run(
@@ -2512,3 +2519,40 @@ def test_the_page_warns_about_a_page_moving_under_the_job() -> None:
     assert "1 step matched weakly" in lines[0]
     assert "matched weakly" not in lines[1]
     assert "3 steps matched weakly" in lines[2]
+
+
+def test_a_workflow_carries_what_became_of_its_offers(client: TestClient, store: Store) -> None:
+    from rig.offers import record_offer
+
+    _seed_workflow(store)
+    for fate in ("accepted", "diverged", "diverged", "dismissed"):
+        record_offer(
+            store,
+            tenant="new",
+            workflow_id="wfl_1",
+            k=2,
+            fate=fate,
+            run_id=None,
+            device_id="dev_test",
+            at="2026-09-06T10:00:00+00:00",
+        )
+    got = client.get("/v1/workflows", headers=_auth()).json()["workflows"][0]["runs"]
+    assert got["offers"] == {"accepted": 1, "diverged": 2, "dismissed": 1}
+
+
+def test_the_page_says_what_became_of_the_offers() -> None:
+    out = _run_page(
+        """
+        console.log(became({ total: 0, held: 0, stale: 0, earned: false, last: null,
+          offers: { diverged: 2, did_it: 1 } }));
+        console.log(became({ total: 1, held: 1, stale: 0, earned: false,
+          last: { outcome: "held", live: true, started_by: "offer" },
+          offers: { accepted: 1, dismissed: 0 } }));
+        console.log(became({ total: 1, held: 1, stale: 0, earned: false,
+          last: { outcome: "held", live: true, started_by: "offer" }, offers: {} }));
+        """
+    )
+    lines = out.strip().splitlines()
+    assert lines[0] == "never run · offered 3 times"
+    assert "offers: 1 accepted" in lines[1] and "dismissed" not in lines[1]
+    assert "offers" not in lines[2]

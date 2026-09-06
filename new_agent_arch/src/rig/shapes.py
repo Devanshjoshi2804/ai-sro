@@ -20,7 +20,6 @@ from rig.correlate import system_of
 from rig.locators import allowlist, primary_gesture
 from rig.mine import _ordered_cites
 from rig.records import Gesture
-from rig.runs import runs_for
 from rig.shape import shape_key, target_identity
 from rig.store import Store
 from rig.workflows import Step, Workflow, known_workflows
@@ -93,9 +92,15 @@ def shapes_for(store: Store, tenant: str) -> list[Shape]:
     for workflow in known_workflows(store, tenant):
         if workflow.unproven:
             continue
-        runs = runs_for(store, tenant, workflow.id)
-        held = sum(1 for r in runs if r.outcome == "held")
-        if runs and held == 0:
+        # Two counts off the runs index, not every run loaded with its steps:
+        # this is asked by every browser on every gesture cache miss.
+        tally = store.query(
+            "SELECT COUNT(*) AS total, SUM(outcome = 'held') AS held FROM runs"
+            " WHERE tenant = ? AND workflow_id = ?",
+            (tenant, workflow.id),
+        )[0]
+        ran, held = int(tally["total"] or 0), int(tally["held"] or 0)
+        if ran and held == 0:
             continue
         cited = _cited(store, workflow)
         if not cited:

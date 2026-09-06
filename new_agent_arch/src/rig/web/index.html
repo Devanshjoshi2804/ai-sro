@@ -220,7 +220,10 @@
   // many times, how many held, how the last one ended and who started it; and
   // "writes unasked" once three live runs have verified every write by state.
   function became(runs) {
-    if (!runs || !runs.total) return "never run";
+    if (!runs || !runs.total) {
+      const seen = Object.values(runs?.offers ?? {}).reduce((a, b) => a + b, 0);
+      return seen ? `never run · offered ${seen} time${seen === 1 ? "" : "s"}` : "never run";
+    }
     const last = runs.last
       ? ` · last ${runs.last.outcome}${runs.last.live ? "" : " (dry)"} by ${runs.last.started_by}`
       : "";
@@ -230,7 +233,14 @@
     const stale = runs.stale
       ? ` · ${runs.stale} step${runs.stale === 1 ? "" : "s"} matched weakly`
       : "";
-    return `${runs.total} run${runs.total === 1 ? "" : "s"} · ${runs.held} held${last}${earned}${stale}`;
+    // The offers the browser made for this job, by what became of them; only
+    // the fates that happened, and nothing when none has.
+    const fates = Object.entries(runs.offers ?? {})
+      .filter(([, n]) => n > 0)
+      .map(([fate, n]) => `${n} ${fate.replace("_", " ")}`)
+      .join(", ");
+    const offered = fates ? ` · offers: ${fates}` : "";
+    return `${runs.total} run${runs.total === 1 ? "" : "s"} · ${runs.held} held${last}${earned}${stale}${offered}`;
   }
 
   function job(w) {

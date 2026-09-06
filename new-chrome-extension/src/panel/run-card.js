@@ -185,13 +185,17 @@ function stepRow({ step, outcome, live, inFlight, run, notes, onPress, onChange 
   intent.textContent = step.intent || "";
   row.append(glyph, intent);
 
-  // What the rig charged this step to, in the two senses. `matched_by` is the
-  // taught step the model said this one is; the money is what the call that
-  // planned it cost. `unpriced` is said in the word rather than drawn as
-  // $0.0000 -- a call that never returned is not a free one, and a ledger that
-  // rounds it to nothing is a ledger nobody can add up.
+  // What the rig charged this step to, in the two senses. `matched_by` is how
+  // the control was found -- a locator rung, or `sight` when none matched and
+  // the model pointed at the screen, said in words because the operator
+  // watching is the one who should know a workaround just happened; `stale`
+  // is the rig saying the page has moved under the step. The money is what
+  // the call that planned it cost. `unpriced` is said in the word rather than
+  // drawn as $0.0000 -- a call that never returned is not a free one, and a
+  // ledger that rounds it to nothing is a ledger nobody can add up.
   const meta = [
-    step.matched_by || null,
+    step.matched_by === "sight" ? "found by sight" : step.matched_by || null,
+    step.stale ? "page moved" : null,
     step.unpriced ? "unpriced" : step.cost_usd > 0 ? `$${step.cost_usd.toFixed(4)}` : null,
   ].filter(Boolean);
   if (meta.length) {

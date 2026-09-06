@@ -293,6 +293,25 @@ test("a rig row says what it was matched to and what it cost, and never prices a
   assert.deepEqual(asMarkup, [], "the rig's own accounting reached the page as markup");
 });
 
+test("a step found by sight, or on a page that moved, says so on its row", () => {
+  const run = {
+    id: "run_1",
+    source: "rig",
+    status: "held",
+    steps: [
+      { index: 0, outcome: "held", says: "type the code", matched_by: "sight", stale: true, cost_usd: 0.02 },
+      { index: 1, outcome: "held", says: "save", matched_by: "css_path", stale: true, cost_usd: 0.01 },
+      { index: 2, outcome: "held", says: "close", matched_by: "role_and_name", stale: false, cost_usd: 0.01 },
+    ],
+  };
+  const rows = runCard({ run }, {}).kids.filter((kid) => kid.className === "step");
+  assert.match(words(rows[0]), /found by sight/, "a workaround the operator should see");
+  assert.match(words(rows[0]), /page moved/);
+  assert.doesNotMatch(words(rows[0]), /\bsight\b(?! )/, "the bare strategy name is not the word");
+  assert.match(words(rows[1]), /css_path · page moved/);
+  assert.doesNotMatch(words(rows[2]), /page moved|sight/);
+});
+
 test("only the step the rig is waiting on is offered an approval", () => {
   // Two ways to draw an Approve where nothing is waiting. A step already held
   // is over; an `awaiting` row on a run that has since ended is a record, and

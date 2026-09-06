@@ -190,12 +190,16 @@ export const api = {
         // approval the run is waiting for. `null` where there is none, so the
         // card has one shape whichever verdict the step carries.
         sent: step.sent || null,
-        // Which taught step the model matched this one to, and what the call
-        // that planned it cost. Both are the rig's own accounting and neither
-        // is invented here: `unpriced` is a call whose cost could not be
-        // established -- not a free one -- and the row says so rather than
-        // drawing a zero.
+        // How the control was found -- the locator rung that caught it, or
+        // `sight` when no recorded identity did and the model pointed at the
+        // screen -- and what the call that planned it cost. Both are the
+        // rig's own accounting and neither is invented here: `unpriced` is a
+        // call whose cost could not be established -- not a free one -- and
+        // the row says so rather than drawing a zero. `stale` is the rig
+        // saying the page has moved under this step: found, but not where
+        // the job was taught it would be.
         matched_by: step.matched_by || null,
+        stale: Boolean(step.stale),
         cost_usd: typeof step.cost_usd === "number" ? step.cost_usd : null,
         unpriced: Boolean(step.unpriced),
       })),

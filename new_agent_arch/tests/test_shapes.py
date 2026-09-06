@@ -358,3 +358,66 @@ def test_a_workflow_whose_evidence_is_partly_gone_keeps_its_key(tmp_path: Path) 
     assert rekey_workflows(store, "acme") == 0
     row = store.query("SELECT shape_key FROM workflows WHERE id = 'wfl_1'")[0]
     assert json.loads(row["shape_key"]) == stale, "not rekeyed over the survivors"
+
+
+def test_a_workflow_that_cannot_be_rekeyed_does_not_stop_the_others(tmp_path: Path) -> None:
+    from rig.mine import rekey_workflows
+
+    store = _store(tmp_path)
+    broken = _workflow(store, "wfl_1")
+    broken.steps[0].cites.append("ges_gone_with_its_batch")
+    broken.shape_key = [["https://old", "text|gone", "click"]]
+    save_workflow(store, broken)
+    stale = _workflow(store, "wfl_2")
+    stale.shape_key = [["https://old", "text|stale", "click"]]
+    save_workflow(store, stale)
+    empty = Workflow(id="wfl_3", tenant="acme", title="cites nothing", narrative="n")
+    save_workflow(store, empty)
+
+    # The one with evidence missing is skipped, the one with no cites is
+    # skipped, and the stale one after them is still rekeyed: skipping is
+    # per workflow, not the end of the pass.
+    assert rekey_workflows(store, "acme") == 1
+    key = json.loads(
+        store.query("SELECT shape_key FROM workflows WHERE id = 'wfl_2'")[0]["shape_key"]
+    )
+    assert [t[2] for t in key] == ["type", "click"]
+
+
+def test_a_job_whose_first_step_is_only_a_scroll_starts_on_that_scrolls_page(
+    tmp_path: Path,
+) -> None:
+    store = _store(tmp_path)
+    ids = [r["id"] for r in store.query("SELECT id FROM gestures ORDER BY at")]
+    # The fixture batch has no scroll, so its first gesture becomes one: a
+    # scroll has no target, and `primary_gesture` skips it.
+    scroll = ids[0]
+    row = store.query("SELECT gesture_json FROM gestures WHERE id = ?", (scroll,))[0]
+    as_scroll = {**json.loads(row["gesture_json"]), "kind": "scroll", "target": None, "value": "0"}
+    store.execute(
+        "UPDATE gestures SET gesture_json = ? WHERE id = ?", (json.dumps(as_scroll), scroll)
+    )
+    # Two steps, each with a different page: the scroll's page and the
+    # save's. The served `starts_on` is where the job starts -- the first
+    # step's page -- not the second step's.
+    store.execute(
+        "UPDATE gestures SET page_url = ? WHERE id = ?", ("http://127.0.0.1:63319/list", scroll)
+    )
+    store.execute(
+        "UPDATE gestures SET page_url = ? WHERE id = ?", ("http://127.0.0.1:63319/form", ids[-1])
+    )
+    wf = Workflow(
+        id="wfl_s",
+        tenant="acme",
+        title="scroll then save",
+        narrative="n",
+        systems=["http://127.0.0.1:63319"],
+        steps=[
+            Step(order=0, says="look", system=None, cites=[scroll]),
+            Step(order=1, says="save", system=None, cites=[ids[-1]]),
+        ],
+    )
+    save_workflow(store, wf)
+
+    served = next(s for s in shapes_for(store, "acme") if s.id == "wfl_s")
+    assert served.starts_on == "http://127.0.0.1:63319/list"

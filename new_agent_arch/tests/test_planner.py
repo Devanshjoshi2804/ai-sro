@@ -4,7 +4,14 @@ import json
 from rig.correlate import correlate
 from rig.locators import locators_for
 from rig.models import Answer, FakeAsker
-from rig.planner import PLAN_SCHEMA, Look, plan_step
+from rig.planner import (
+    PLAN_SCHEMA,
+    SIGHT_INSTRUCTIONS,
+    SIGHT_SCHEMA,
+    Look,
+    plan_by_sight,
+    plan_step,
+)
 from rig.wire import REDACTED, Batch
 from rig.workflows import Step
 from tests.fixtures import BATCH
@@ -512,3 +519,126 @@ async def test_a_replayed_call_still_carries_the_answer_that_planned_it() -> Non
     )
     assert planned.kind == "http.send"
     assert planned.answer is not None and planned.answer.cost_usd == 0.002, "the runner bills it"
+
+
+def _seen(width: int = 800, height: int = 600, picture: bytes | None = b"png") -> Look:
+    return Look(
+        url="http://127.0.0.1:63319/form",
+        screenshot=picture,
+        digest="Client Code Save",
+        width=width,
+        height=height,
+    )
+
+
+async def _by_sight(answer: Answer, look: Look | None = None, values=None, gesture=None):
+    gesture = gesture or _typed()
+    asker = FakeAsker(answer)
+    planned = await plan_by_sight(
+        step=Step(
+            order=0,
+            says="type the code",
+            system=None,
+            cites=[gesture.id],
+            parameters=["clientCode"],
+        ),
+        cited=[gesture],
+        values={"clientCode": "THIRD"} if values is None else values,
+        look=look or _seen(),
+        origin="http://127.0.0.1:63319",
+        asker=asker,
+        model="pro",
+        failure="control_not_found: gone",
+    )
+    return planned, asker
+
+
+def _sight(**data) -> Answer:
+    return Answer(
+        data={
+            "found": True,
+            "x": 40,
+            "y": 30,
+            "action": "type",
+            "value": "WRONG",
+            "why": "there",
+            **data,
+        }
+    )
+
+
+async def test_the_sight_rung_is_asked_with_the_screen_its_size_and_the_demonstrated_control() -> (
+    None
+):
+    planned, asker = await _by_sight(_sight())
+
+    [asked] = asker.asked
+    assert asked["model"] == "pro"
+    assert asked["schema"] is SIGHT_SCHEMA
+    assert asked["instructions"] == SIGHT_INSTRUCTIONS
+    assert asked["image"] == b"png", "the picture it is asked to look at"
+    evidence = json.loads(asked["evidence"])
+    assert set(evidence) == {
+        "step",
+        "demonstrated_on",
+        "values",
+        "browser",
+        "viewport",
+        "previous_attempt_failed",
+    }
+    assert evidence["viewport"] == {"width": 800, "height": 600}
+    assert evidence["step"] == {"order": 0, "says": "type the code", "parameters": ["clientCode"]}
+    assert evidence["browser"] == {
+        "url": "http://127.0.0.1:63319/form",
+        "screen_text": "Client Code Save",
+    }
+    assert evidence["values"] == {"clientCode": "THIRD"}
+    assert evidence["previous_attempt_failed"] == "control_not_found: gone"
+    assert isinstance(evidence["demonstrated_on"], dict) and evidence["demonstrated_on"]
+    # The run's value, not the model's word, and the point as given.
+    assert planned.kind == "ui.perform_at" and planned.why == "there"
+    assert planned.payload == {
+        "origin": "http://127.0.0.1:63319",
+        "x": 40,
+        "y": 30,
+        "action": "type",
+        "value": "THIRD",
+    }
+    assert planned.answer.data is not None
+
+
+async def test_the_corner_of_the_screen_is_on_it_and_its_far_edge_is_not() -> None:
+    on, _ = await _by_sight(_sight(x=0, y=0, action="click"))
+    assert on.kind == "ui.perform_at" and on.payload["x"] == 0 and on.payload["y"] == 0
+    for x, y in ((800, 0), (0, 600), (-1, 5), (5, -1)):
+        off, _ = await _by_sight(_sight(x=x, y=y, action="click"))
+        assert off.kind == "none" and f"({x}, {y}) is not on the screen" in off.why, (x, y)
+    text, _ = await _by_sight(_sight(x="40", y=30, action="click"))
+    assert text.kind == "none", "a point that is not two integers is not a point"
+
+
+async def test_no_picture_no_size_or_no_answer_is_no_plan() -> None:
+    blind, asker = await _by_sight(_sight(), look=_seen(picture=None))
+    assert blind.kind == "none" and blind.why == "no screen to look at" and not asker.asked
+    sizeless, asker = await _by_sight(_sight(), look=_seen(width=0))
+    assert sizeless.kind == "none" and sizeless.why == "no screen to look at" and not asker.asked
+    refused, _ = await _by_sight(Answer(error="503 UNAVAILABLE", unpriced=True))
+    assert refused.kind == "none" and refused.why == "503 UNAVAILABLE"
+    assert refused.answer.unpriced is True, "the refused call is still the bill"
+    unseen, _ = await _by_sight(_sight(found=False, why="the form is not open"))
+    assert unseen.kind == "none" and unseen.why == "the form is not open"
+    silent, _ = await _by_sight(_sight(found=False, why=""))
+    assert silent.why == "the control is not on this screen"
+
+
+async def test_nothing_to_type_is_no_plan_and_a_press_carries_no_value() -> None:
+    # A credential is never filled in from anywhere: the one control with no
+    # value from the run, the model or the recording.
+    secret = next(g for g in _gestures() if g.gesture.kind == "type" and g.gesture.secret)
+    nothing, _ = await _by_sight(_sight(value="hunter2"), values={}, gesture=secret)
+    assert nothing.kind == "none" and nothing.why == "nothing to type: no value for this control"
+    press, _ = await _by_sight(_sight(action="press", value="Enter"))
+    assert press.kind == "ui.perform_at" and "value" not in press.payload
+    # With no run value the model's word is taken, as text, as `plan_step` does.
+    said, _ = await _by_sight(_sight(action="type", value=7), values={})
+    assert said.kind == "ui.perform_at" and said.payload["value"] == "7"

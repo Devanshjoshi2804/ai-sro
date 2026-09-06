@@ -2325,3 +2325,28 @@ async def test_an_action_a_point_cannot_take_is_a_step_that_stops(tmp_path: Path
     )
     assert run.outcome == "stopped" and "'select' is not an action" in run.steps[0].reason
     assert not [s for s in channel.sent if s["kind"] == "ui.perform_at"]
+
+
+async def test_an_evidence_rung_with_no_plan_is_not_blamed_on_sight(tmp_path: Path) -> None:
+    """The reason append is the sight rung's alone: an evidence rung whose
+    planner had no answer keeps its own reason, unadorned."""
+    store = _store(tmp_path)
+    wf = _workflow(store)
+    channel = FakeChannel(_looks(6))
+    asker = FakeAsker(Answer(error="503 UNAVAILABLE"), Answer(error="503 UNAVAILABLE"))
+    run = await run_workflow(
+        store,
+        wf,
+        values={"clientCode": "x"},
+        channel=channel,
+        device_id="dev_test",
+        asker=asker,
+        plan_model="flash",
+        rescue_model="pro",
+        live=True,
+        earned=_earned,
+        allow_focus=True,
+        started_by="form",
+    )
+    assert run.steps[0].verdict == "failed" and run.steps[0].reason == "503 UNAVAILABLE"
+    assert "by sight" not in run.steps[0].reason

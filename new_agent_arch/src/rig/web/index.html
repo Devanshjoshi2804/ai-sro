@@ -215,6 +215,18 @@
     </div>`;
   }
 
+  // What has become of a job, in one line. "never run" until it has; then how
+  // many times, how many held, how the last one ended and who started it; and
+  // "writes unasked" once three live runs have verified every write by state.
+  function became(runs) {
+    if (!runs || !runs.total) return "never run";
+    const last = runs.last
+      ? ` · last ${runs.last.outcome}${runs.last.live ? "" : " (dry)"} by ${runs.last.started_by}`
+      : "";
+    const earned = runs.earned ? " · writes unasked" : "";
+    return `${runs.total} run${runs.total === 1 ? "" : "s"} · ${runs.held} held${last}${earned}`;
+  }
+
   function job(w) {
     // The pass, not a price. One call proposes every job in a pass, so a
     // per-job dollar figure was the whole pass's bill drawn once per card.
@@ -223,6 +235,7 @@
       <div class="what">${esc(w.title)}</div>
       <div class="why">${esc(w.narrative)}</div>
       <div class="systems">${(w.systems ?? []).map(esc).join("  ")}</div>
+      <div class="history">${esc(became(w.runs))}</div>
       ${(w.steps ?? []).map(step).join("")}
       <button class="run" data-id="${esc(w.id)}">run</button>
       <div class="runner" id="runner-${esc(w.id)}"></div>

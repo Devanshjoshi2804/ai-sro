@@ -42,7 +42,7 @@ def forget_effects(store: Store, workflow_id: str) -> int:
         )
 
 
-def earned(store: Store, workflow_id: str) -> bool:
+def earned(store: Store, workflow_id: str, *, tenant: str | None = None) -> bool:
     """Three live runs that held, each with every write step verified by state.
 
     A write step is a `run_steps` row whose stored result says `wrote`; the
@@ -50,9 +50,16 @@ def earned(store: Store, workflow_id: str) -> bool:
     with no write in it proves nothing about writing and is not counted.
     """
     counted = 0
+    # The tenant first when the caller has it, so the query walks the
+    # (tenant, workflow_id, started_at) index rather than the table.
+    where, params = (
+        ("tenant = ? AND workflow_id = ?", (tenant, workflow_id))
+        if tenant is not None
+        else ("workflow_id = ?", (workflow_id,))
+    )
     for run in store.query(
-        "SELECT id FROM runs WHERE workflow_id = ? AND live = 1 AND outcome = 'held'",
-        (workflow_id,),
+        f"SELECT id FROM runs WHERE {where} AND live = 1 AND outcome = 'held'",
+        params,
     ):
         wrote = {
             row["ord"]

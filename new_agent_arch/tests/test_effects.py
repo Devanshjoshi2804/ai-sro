@@ -128,3 +128,14 @@ def test_a_held_run_that_wrote_nothing_proves_nothing_about_writing(tmp_path: Pa
             ),
         )
     assert earned(store, "wfl_1") is False
+
+
+def test_another_tenants_run_does_not_earn_this_ones_autonomy(tmp_path: Path) -> None:
+    store = _store(tmp_path)
+    for i in range(K_EARNED_RUNS):
+        _held_run(store, f"run_{i}", writes=[1])
+        record_effect(
+            store, workflow_id="wfl_1", run_id=f"run_{i}", order=1, verified_by="status", at="t"
+        )
+    assert earned(store, "wfl_1", tenant="acme") is True
+    assert earned(store, "wfl_1", tenant="someone-else") is False

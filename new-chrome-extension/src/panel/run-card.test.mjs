@@ -332,3 +332,12 @@ if (failed) {
   process.exit(1);
 }
 console.log(`run-card.test.mjs: ok (${tests.length})`);
+
+test("drawn under a card that already stops the run, the card-level Stop is not repeated", () => {
+  const run = { id: "run_1", source: "rig", status: "running", steps: [{ index: 0, outcome: "held", says: "s" }] };
+  const withStop = runCard({ run }, {});
+  const without = runCard({ run }, { stop: false });
+  const labels = (card) => [...card.querySelectorAll("button")].map((b) => b.textContent);
+  assert.ok(labels(withStop).includes("Stop"));
+  assert.ok(!labels(without).includes("Stop"));
+});

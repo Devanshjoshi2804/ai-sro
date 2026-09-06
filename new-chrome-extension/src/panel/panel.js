@@ -582,6 +582,8 @@ function performing(status) {
       runCard(
         { run: run.run },
         {
+          // The performing card above already carries "Stop this run".
+          stop: false,
           onPress: async (answer, drawn, row, button) => {
             button.disabled = true;
             if (answer === "approve") {

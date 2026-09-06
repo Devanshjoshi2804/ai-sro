@@ -77,7 +77,7 @@ export function glyphFor(outcome) {
  * `notes` are what they have said to this run, each carrying the step index it
  * arrived during.
  */
-export function runCard({ run, skill, message, notes = [] }, { onPress, onChange } = {}) {
+export function runCard({ run, skill, message, notes = [] }, { onPress, onChange, stop = true } = {}) {
   const card = document.createElement("div");
   card.className = "run";
   card.dataset.status = run.status;
@@ -134,7 +134,9 @@ export function runCard({ run, skill, message, notes = [] }, { onPress, onChange
     card.append(line);
   }
 
-  if (live) {
+  // `stop: false` when the card is drawn under one that already carries "Stop
+  // this run" -- the performing card -- so a live run shows one Stop, not two.
+  if (live && stop) {
     const row = document.createElement("div");
     row.className = "row";
     // The rig has no pause: its loop checks one flag between steps, and a

@@ -2392,3 +2392,94 @@ def test_a_value_that_is_only_whitespace_is_no_value(client: TestClient, store: 
     body = {"workflow_id": "wfl_1", "values": {"clientCode": "   "}, "device_id": "dev_test"}
     got = client.post("/v1/runs", json=body, headers=_auth())
     assert got.status_code == 400 and "clientCode" in got.json()["detail"]
+
+
+def test_the_runs_list_is_newest_first_and_filters_by_job(client: TestClient, store: Store) -> None:
+    from rig.runs import Run, save_run
+
+    _seed_workflow(store)
+    for i, (wid, outcome) in enumerate(
+        [("wfl_1", "held"), ("wfl_other", "failed"), ("wfl_1", "stopped")]
+    ):
+        save_run(
+            store,
+            Run(
+                id=f"run_{i}",
+                tenant="new",
+                workflow_id=wid,
+                device_id="dev_test",
+                values={},
+                started_by="offer",
+                live=True,
+                allow_focus=True,
+                started_at=f"2026-09-06T10:0{i}:00+00:00",
+                finished_at=None,
+                outcome=outcome,
+            ),
+        )
+    got = client.get("/v1/runs", headers=_auth()).json()["runs"]
+    assert [r["id"] for r in got] == ["run_2", "run_1", "run_0"], "newest first"
+    assert set(got[0]) >= {
+        "id",
+        "workflow_id",
+        "outcome",
+        "started_by",
+        "live",
+        "started_at",
+        "cost_usd",
+    }
+    assert "steps" not in got[0], "a line each, not the whole record"
+    mine = client.get("/v1/runs?workflow_id=wfl_1&limit=1", headers=_auth()).json()["runs"]
+    assert [r["id"] for r in mine] == ["run_2"]
+
+
+def test_a_workflow_carries_what_became_of_it(client: TestClient, store: Store) -> None:
+    from rig.runs import Run, save_run
+
+    _seed_workflow(store)
+    before = client.get("/v1/workflows", headers=_auth()).json()["workflows"][0]["runs"]
+    assert before == {"total": 0, "held": 0, "last": None, "earned": False}
+    save_run(
+        store,
+        Run(
+            id="run_a",
+            tenant="new",
+            workflow_id="wfl_1",
+            device_id="dev_test",
+            values={},
+            started_by="offer",
+            live=False,
+            allow_focus=True,
+            started_at="2026-09-06T10:00:00+00:00",
+            finished_at="2026-09-06T10:01:00+00:00",
+            outcome="held",
+        ),
+    )
+    after = client.get("/v1/workflows", headers=_auth()).json()["workflows"][0]["runs"]
+    assert after["total"] == 1 and after["held"] == 1 and after["earned"] is False
+    assert after["last"] == {
+        "id": "run_a",
+        "outcome": "held",
+        "live": False,
+        "started_by": "offer",
+        "started_at": "2026-09-06T10:00:00+00:00",
+    }
+
+
+def test_the_page_says_what_became_of_a_job_and_escapes_it() -> None:
+    attack = "<img src=x onerror=go()>"
+    out = _run_page(
+        f"""
+        console.log(became(null));
+        console.log(became({{ total: 3, held: 3, earned: true,
+          last: {{ outcome: "held", live: true, started_by: {json.dumps(attack)} }} }}));
+        console.log(job({{ id: "wfl_x", title: "t", narrative: "n", systems: [], steps: [],
+          runs: {{ total: 1, held: 0, earned: false,
+            last: {{ outcome: "stopped", live: false, started_by: {json.dumps(attack)} }} }} }}));
+        """
+    )
+    assert "never run" in out
+    assert "3 runs · 3 held · last held by" in out and "writes unasked" in out
+    assert "1 run · 0 held · last stopped (dry) by" in out
+    assert attack not in out.split("\n")[2], "the starter's name is escaped in the card"
+    assert "&lt;img src=x onerror=go()&gt;" in out

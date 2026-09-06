@@ -662,12 +662,36 @@ def build_app(
 
     @app.get("/v1/workflows", dependencies=[Depends(authorised)])
     def workflows() -> dict[str, Any]:
+        from rig.effects import earned
+        from rig.runs import runs_for
         from rig.workflows import known_workflows
+
+        def history(workflow_id: str) -> dict[str, Any]:
+            # What has become of this job: how often it ran, how often it held,
+            # the last run, and whether its writes go unasked now. The page
+            # draws this under the card; nothing else reads it.
+            runs = runs_for(store, tenant, workflow_id)
+            last = runs[-1] if runs else None
+            return {
+                "total": len(runs),
+                "held": sum(1 for r in runs if r.outcome == "held"),
+                "last": None
+                if last is None
+                else {
+                    "id": last.id,
+                    "outcome": last.outcome,
+                    "live": last.live,
+                    "started_by": last.started_by,
+                    "started_at": last.started_at,
+                },
+                "earned": earned(store, workflow_id, tenant=tenant),
+            }
 
         return {
             "workflows": [
                 {
                     "id": w.id,
+                    "runs": history(w.id),
                     "title": w.title,
                     "narrative": w.narrative,
                     "systems": w.systems,
@@ -896,10 +920,41 @@ def build_app(
                 started_by=str(body.get("started_by") or "form"),
                 run_id=run_id,
                 from_step=from_step,
-                earned=lambda workflow_id: earned(store, workflow_id),
+                earned=lambda workflow_id: earned(store, workflow_id, tenant=tenant),
             )
         )
         return {"run_id": run_id}
+
+    @app.get("/v1/runs", dependencies=[Depends(authorised)])
+    async def runs(workflow_id: str = "", limit: int = 20) -> dict[str, Any]:
+        """The most recent runs, newest first, as one line each. The full
+        record is one `GET /v1/runs/{id}` away; this is the list to pick from."""
+        limit = max(1, min(int(limit), 200))
+        where = "tenant = ?" + (" AND workflow_id = ?" if workflow_id else "")
+        params: tuple[Any, ...] = (tenant, workflow_id) if workflow_id else (tenant,)
+        rows = store.query(
+            f"SELECT id, workflow_id, device_id, started_by, live, started_at, finished_at,"
+            f" outcome, cost_usd, unpriced FROM runs WHERE {where}"
+            " ORDER BY started_at DESC LIMIT ?",
+            (*params, limit),
+        )
+        return {
+            "runs": [
+                {
+                    "id": r["id"],
+                    "workflow_id": r["workflow_id"],
+                    "device_id": r["device_id"],
+                    "started_by": r["started_by"],
+                    "live": bool(r["live"]),
+                    "started_at": r["started_at"],
+                    "finished_at": r["finished_at"],
+                    "outcome": r["outcome"],
+                    "cost_usd": r["cost_usd"],
+                    "unpriced": bool(r["unpriced"]),
+                }
+                for r in rows
+            ]
+        }
 
     @app.get("/v1/runs/{run_id}", dependencies=[Depends(authorised)])
     def read_run(run_id: str) -> dict[str, Any]:

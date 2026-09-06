@@ -96,10 +96,6 @@ class Approvals:
         return True
 
     @classmethod
-    def awaiting(cls, run_id: str) -> bool:
-        return run_id in cls._waiting
-
-    @classmethod
     def awaiting_any(cls) -> bool:
         return bool(cls._waiting)
 

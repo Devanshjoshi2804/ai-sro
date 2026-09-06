@@ -426,7 +426,12 @@ def rekey_workflows(store: Store, tenant: str) -> int:
             (tenant, *wanted),
         )
         by_id = {row["id"]: _row_to_gesture(row) for row in rows}
-        fresh = [list(entry) for entry in shape_key([by_id[c] for c in wanted if c in by_id])]
+        # Only over the whole evidence. A key recomputed over the survivors of
+        # a pruned batch would be shorter than the job -- and an empty one
+        # matches nothing, which is the duplicate this exists to prevent.
+        if any(c not in by_id for c in wanted):
+            continue
+        fresh = [list(entry) for entry in shape_key([by_id[c] for c in wanted])]
         if fresh == workflow.shape_key:
             continue
         store.execute(

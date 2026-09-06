@@ -343,3 +343,18 @@ def test_a_stored_key_from_an_older_rule_is_recomputed_once(tmp_path: Path) -> N
     # save -- the key the cited gestures make now, not the one written before.
     assert key != stale and len(key) == 2 and [t[2] for t in key] == ["type", "click"]
     assert rekey_workflows(store, "acme") == 0, "a key that agrees is left alone"
+
+
+def test_a_workflow_whose_evidence_is_partly_gone_keeps_its_key(tmp_path: Path) -> None:
+    from rig.mine import rekey_workflows
+
+    store = _store(tmp_path)
+    wf = _workflow(store)
+    wf.steps[0].cites.append("ges_gone_with_its_batch")
+    stale = [["https://old", "text|whatever it was", "click"]]
+    wf.shape_key = stale
+    save_workflow(store, wf)
+
+    assert rekey_workflows(store, "acme") == 0
+    row = store.query("SELECT shape_key FROM workflows WHERE id = 'wfl_1'")[0]
+    assert json.loads(row["shape_key"]) == stale, "not rekeyed over the survivors"

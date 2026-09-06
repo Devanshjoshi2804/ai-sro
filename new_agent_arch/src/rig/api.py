@@ -1243,14 +1243,19 @@ def build_app(
         return {"workflow_id": got.workflow_id, "values": got.values, "missing": got.missing}
 
     @app.get("/v1/shapes", dependencies=[Depends(authorised)])
-    async def shapes(device_id: str | None = None) -> dict[str, Any]:
+    async def shapes(
+        device_id: str | None = None,
+        device: Annotated[str | None, Depends(caller)] = None,
+    ) -> dict[str, Any]:
         """What the extension matches a live tail against. Arithmetic on the
         way out and arithmetic on the way in: no model is on this path.
         `device_id` names the asking browser, so a job it refused three times
-        running comes back marked `quiet_until` for it and for nobody else."""
+        running comes back marked `quiet_until` for it and for nobody else. A
+        browser holding a token of its own is named by the token, whatever
+        the query says: a rest is not something one browser reads off another."""
         from rig.shapes import shapes_for
 
-        return {"shapes": [s.as_json() for s in shapes_for(store, tenant, device_id)]}
+        return {"shapes": [s.as_json() for s in shapes_for(store, tenant, device or device_id)]}
 
     @app.post("/v1/offers", status_code=201, dependencies=[Depends(authorised)])
     async def offered(body: dict[str, Any]) -> dict[str, Any]:

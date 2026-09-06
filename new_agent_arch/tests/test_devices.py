@@ -220,3 +220,56 @@ def test_revoking_a_browser_takes_it_offline_at_once(tmp_path: Path) -> None:
         got = client.post("/v1/devices/dev_1/revoke", headers={"Authorization": f"Bearer {TOKEN}"})
         assert got.json()["revoked"] is True
         assert app.state.channel.online() == [], "revoked reads as offline, not as connected"
+
+
+def test_a_browser_with_a_token_of_its_own_reads_its_own_rest_whatever_it_asks_for(
+    tmp_path: Path,
+) -> None:
+    from datetime import UTC, datetime
+
+    from rig.api import save_batch
+    from rig.offers import record_offer
+    from rig.wire import Batch
+    from rig.workflows import Step, Workflow, save_workflow
+    from tests.fixtures import BATCH
+
+    store = _store(tmp_path)
+    save_batch(store, Batch.model_validate(BATCH), "acme")
+    ids = [r["id"] for r in store.query("SELECT id FROM gestures ORDER BY at")]
+    save_workflow(
+        store,
+        Workflow(
+            id="wfl_1",
+            tenant="acme",
+            title="t",
+            narrative="n",
+            systems=["http://127.0.0.1:63319"],
+            steps=[
+                Step(order=0, says="a", system=None, cites=[ids[0]]),
+                Step(order=1, says="b", system=None, cites=[ids[-1]]),
+            ],
+            parameters=[],
+        ),
+    )
+    for _ in range(3):
+        record_offer(
+            store,
+            tenant="acme",
+            workflow_id="wfl_1",
+            k=2,
+            fate="dismissed",
+            run_id=None,
+            device_id="dev_real",
+            at=datetime.now(UTC).isoformat(),
+        )
+    client = _client(store)
+    real = {"Authorization": f"Bearer {issue(store, 'dev_real')}"}
+    other = {"Authorization": f"Bearer {issue(store, 'dev_other')}"}
+    [as_real] = client.get("/v1/shapes?device_id=dev_other", headers=real).json()["shapes"]
+    [as_other] = client.get("/v1/shapes?device_id=dev_real", headers=other).json()["shapes"]
+    [tenant_says] = client.get(
+        "/v1/shapes?device_id=dev_real", headers={"Authorization": f"Bearer {TOKEN}"}
+    ).json()["shapes"]
+    assert as_real["quiet_until"], "the token names the browser, not the query"
+    assert as_other["quiet_until"] is None, "another browser cannot borrow the rest"
+    assert tenant_says["quiet_until"], "the tenant's bearer may ask on any browser's behalf"

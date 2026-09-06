@@ -907,11 +907,12 @@ gesture — offers to finish what the operator has started. Yes starts the run
 from that step, the panel draws it live, and a write on a job that has not
 earned its autonomy waits as `awaiting` until somebody presses **Approve**.
 
-Two halves of that can be measured without a browser and are, below: what the
-rig actually serves, and whether two gestures are enough to tell this corpus's
-jobs apart. The other half — an offer landing on a real gesture stream — needs a
-person, a Chrome with the extension in it, and a WMS session. Its commands are
-at the end of this section, with the fields to fill in.
+What can be measured without a browser is measured below: what the rig actually
+serves, and whether two gestures are enough to tell this corpus's jobs apart.
+What cannot is the offer itself — a card landing on a real gesture stream — which
+needs a person, a Chrome with the extension in it, and a WMS session. Its
+commands are at the end of this section, with the fields to fill in and the
+query that settles the constant.
 
 ### What the rig serves (measured)
 
@@ -928,37 +929,39 @@ SHAPES -- what the extension matches a live tail against
 
 shapes served: 8 of 8 workflows
 
-Login and Start Recording: 14 triples; parameters: none declared
+Login and Start Recording: 14 triples, 13 without scrolls; parameters: none declared
     distinct at two
 
-Create a Warehouse Equipment Type: 13 triples; parameters: none declared
+Create a Warehouse Equipment Type: 13 triples, 12 without scrolls; parameters: none declared
     shares its first two steps with: Create Work Area TWOTEST, Create Carrier Cross Reference for Test Drive LLC
 
-Create Work Area NEWTESTS: 22 triples; parameters: none declared
+Create Work Area NEWTESTS: 22 triples, 20 without scrolls; parameters: none declared
     distinct at two
 
-Create Work Area TWOTEST: 18 triples; parameters: none declared
+Create Work Area TWOTEST: 18 triples, 14 without scrolls; parameters: none declared
     shares its first two steps with: Create a Warehouse Equipment Type, Create Carrier Cross Reference for Test Drive LLC
 
-Search and Filter Work Areas: 35 triples; parameters: none declared
+Search and Filter Work Areas: 35 triples, 20 without scrolls; parameters: none declared
     distinct at two
 
-Create Work Area Operation NEWTEST4: 21 triples; parameters: none declared
+Create Work Area Operation NEWTEST4: 21 triples, 16 without scrolls; parameters: none declared
     distinct at two
 
-Create Carrier Cross Reference for Test Drive LLC: 26 triples; parameters: none declared
+Create Carrier Cross Reference for Test Drive LLC: 26 triples, 22 without scrolls; parameters: none declared
     shares its first two steps with: Create a Warehouse Equipment Type, Create Work Area TWOTEST
 
-Create Work Activity TEST1: 16 triples; parameters: none declared
+Create Work Activity TEST1: 16 triples, 15 without scrolls; parameters: none declared
     distinct at two
 ```
 
-**Shapes served: 8 of 8 workflows.** All eight are proven, none has run, and
-every one starts on an origin its own evidence names — the three gates
-`shapes_for` applies. A shape is (system, control identity, kind) per cited
+**Shapes served: 8 of 8 workflows.** Four gates stand between a workflow and
+being served, and all eight pass every one: not unproven; not a workflow that
+has run and never held; citing gestures that still exist; and starting on a host
+its own allowlist holds. A shape is (system, control identity, kind) per cited
 gesture, in step order: the same triple `identity.py` resolves on, generated
 into the extension so the two cannot drift. The shapes run from 13 triples
-(*Create a Warehouse Equipment Type*) to 35 (*Search and Filter Work Areas*).
+(12 without scrolls — *Create a Warehouse Equipment Type*) to 35 (20 without
+scrolls — *Search and Filter Work Areas*).
 Nothing in a shape is a typed value — control identities, hosts and parameter
 *names* only — which is why the block above can be printed at all.
 
@@ -972,17 +975,25 @@ nothing else. An offer on this corpus is a bare "shall I finish this".
 **Three of the eight share their first two triples**: *Create a Warehouse
 Equipment Type*, *Create Work Area TWOTEST* and *Create Carrier Cross Reference
 for Test Drive LLC* — three jobs that begin with the same two gestures on the
-same host. The other five are distinct at two. That is the number that says what
+same host. The other five are distinct at two. That comparison is made on the
+shapes with their scroll triples removed, because `recognise.js`'s `tailWith`
+drops a scroll before the tail is ever written: a served shape whose prefix
+holds one cannot be matched against a live tail at all, and *Create Work Area
+Operation NEWTEST4*'s first triple as served is a scroll, so today it can never
+be offered at any `k`. The rig will serve scroll-free shapes in the fix wave
+that follows this plan, so the filtered numbers printed above are the ones that
+will hold. Filtering does not dissolve the collision: the same three jobs share
+their first two walkable triples. That is the number that says what
 `K_OFFER_AFTER = 2` is worth on this corpus: `match()` walks `k` down from the
 longest prefix it can and takes the longest, so a tail two gestures long into
 any of those three matches all three at `k = 2`, and the tie is broken by
 `held_runs` — on a rig where none of them has held yet, by served order, which
 means *Create a Warehouse Equipment Type*. **Two of the three earliest offers a
-fresh rig can make on this corpus can name the wrong job.** The third gesture
-separates them; `K_OFFER_AFTER = 3` would too, at the cost of a later offer. The
-constant was not moved on this evidence, because whether an operator would
-rather see a wrong title on gesture two or a right one on gesture three is the
-measurement below, not an argument.
+fresh rig can make on this corpus can name the wrong job.** The constant was not
+moved on this evidence. Whether an operator would rather see a wrong title early
+or a right one later is not settled by a collision count; it is settled by what
+becomes of the offers, which is the `offers` table's own column and the last
+thing the recipe below asks for.
 
 ### What the suites prove
 
@@ -1005,11 +1016,19 @@ measurement below, not an argument.
   verified **by state** earn autonomy; a screen-only verification is not an
   effect; one unverified write does not count; a failed write starts the earning
   again; a dry run earns nothing.
-- **The card and the live panel.** `offering.test.mjs` and
-  `offering-worker.test.mjs`: two gestures become one offer; nothing is offered
-  while this browser is performing a run; **Yes** starts the run; a dropped offer
-  cannot then be started; the run is drawn while it runs, including one parked on
-  an approval; **Approve** is refused for a run this browser is not driving.
+- **The card.** `src/panel/ledger.test.mjs`: a rig offer asks for what is
+  missing and cannot start until it has it (**Yes** disabled while a parameter is
+  blank); an arrival nudge offers to do the job from the start; the press is
+  handed the values that were typed in; one press ends the card, so a refused
+  offer cannot then be started; a title or a value that looks like markup is
+  shown as the string it is.
+- **The offer's life and the live panel.** `offering.test.mjs` and
+  `offering-worker.test.mjs`: two gestures become one offer; an open offer is
+  replaced only by a longer prefix; a tail that goes elsewhere ends it as
+  diverged; nothing is offered while this browser is performing a run; **Yes**
+  starts the run; a dropped offer cannot then be started; the run is drawn while
+  it runs, including one parked on an approval; **Approve** is refused for a run
+  this browser is not driving.
 
 ### What is not proven
 
@@ -1038,40 +1057,78 @@ for as long as it exists, on purpose.
 
 1. **Start the rig.** From `new_agent_arch/`: `make serve`. Without
    `RIG_GEMINI_API_KEY` it refuses at startup and names the variable; the
-   planner and the verifier are the model, so a run needs a real key.
-2. **Point the extension at it.** `chrome://extensions` → this extension →
-   *Extension options* → **Rig URL** `http://localhost:8100`, **Rig token** the
-   value of `RIG_INGEST_TOKEN` from `new_agent_arch/.env` → **Save**. The
-   extension dials the rig; nothing on the rig reaches into a browser that has
-   not dialled.
-3. **Confirm the rig sees the browser.** Put the token in the shell first —
-   `set -a; . new_agent_arch/.env; set +a` — then
+   planner and the verifier are the model, so a run needs a real key. Stay in
+   `new_agent_arch/` for the shell commands below.
+2. **Connect the extension to the backend first.** `chrome://extensions` → this
+   extension → *Extension options* → **Connection**: **Backend**
+   `http://localhost:8000`, **Credential** the token
+   `make token tenant=acme principal=you` issued → **Connect**. This is not
+   optional decoration for the rig: registering with the backend is the only
+   thing that sets this browser's device id, and the rig socket dials
+   `/v1/agents/<device>/commands` with that id. With no device id the rig
+   channel is not dialled at all, silently.
+3. **Then point it at the rig.** Same options page, the **Rig** section:
+   **Rig URL** `http://localhost:8100`, **Rig token** the value of
+   `RIG_INGEST_TOKEN` from `.env` → **Save**. The extension dials the rig;
+   nothing on the rig reaches into a browser that has not dialled.
+4. **Confirm the rig sees the browser.** Put the token in the shell first —
+   `set -a; . .env; set +a` — then
    `curl -s -H "Authorization: Bearer $RIG_INGEST_TOKEN" http://localhost:8100/v1/devices`
-   must list one device id. An empty list means the socket is not up and no
-   offer can start anything.
-4. **Sign in to the WMS in that same Chrome** and leave the tab open, watched.
-   The run drives that session; there is no server-side login.
-5. **Start the work area job by hand.** Do the first gestures of *Create Work
+   must list one device id. An empty list means the rig socket is not up, and
+   the two ordinary reasons are the two above: the browser never registered with
+   the backend, so it has no device id to dial with, or the rig fields are empty.
+   Until that list has an entry, no offer can start anything.
+5. **Sign in to the WMS in that same Chrome, and watch the tab.** Open the side
+   panel beside the WMS tab and press **Watch this tab** (if the site was
+   excluded the same button reads `Watch <host> anyway`). Nothing is offered on
+   a tab that is not watched — `considerOffer` returns before it looks at
+   anything else — so an unwatched tab produces silence, not a wrong offer. The
+   run drives this session; there is no server-side login.
+6. **Start the work area job by hand.** Do the first gestures of *Create Work
    Area NEWTESTS* yourself, as if the rig were not there. **Expect the card on
    the second gesture.**
-6. **Press Yes, finish it.** Watch the panel's run card fill in, one row per
+7. **Press Yes, finish it.** Watch the panel's run card fill in, one row per
    step, while the run walks the rest of the job from the step you had reached.
-7. **Approve the save.** The first live write parks as `awaiting` and the row
+8. **Approve the save.** The first live write parks as `awaiting` and the row
    offers **Approve**; press it and watch the write go out.
-8. **Do it twice more** — three live runs whose writes verify by state — and
+9. **Do it twice more** — three live runs whose writes verify by state — and
    then a fourth. **The fourth should not ask.**
+10. **Then do the same over *Create Work Area TWOTEST*.** *NEWTESTS* is
+    `distinct at two` and cannot show the collision at all: whatever it does,
+    the offer on it is the only candidate. *TWOTEST* is one of the three that
+    share their first two walkable triples, so it is the run where a wrong
+    title can actually appear — and on a rig where none of the three has held
+    yet the tie goes by served order to *Create a Warehouse Equipment Type*.
+    Whether the card says that or says *TWOTEST* is the whole measurement.
 
-Record, for each of the four runs:
+Record, for each of the runs:
 
 - how many gestures went in before the offer appeared;
 - how many seconds from the last gesture to the card;
-- whether the offer named the right job (this is where the three-way collision
-  above will show, or will not);
+- whether the offer named the right job — on the *TWOTEST* passes this is where
+  the three-way collision above shows, or does not;
 - how the run ended — held, stopped, or diverged out from under itself;
 - and for the fourth: whether it asked for approval at all.
 
-Until those four runs are written down here, **the offer is proven in tests and
-in nothing else.**
+Then, after a day of ordinary work with the extension connected:
+
+```
+sqlite3 rig.db "select fate, count(*) from offers group by fate"
+```
+
+Every offer the extension made is in that table under one of five fates
+(`rig/offers.py`): **accepted** — Yes was pressed and a run started;
+**dismissed** — No thanks; **did_it** — the operator made the job's write
+themselves while the card was still asking; **expired** — the card's lifetime
+passed unanswered; **diverged** — the tail stopped matching the prefix, so the
+offer was for a job they were not doing. **The share of `diverged` is the number
+that decides whether `K_OFFER_AFTER` moves.** A collision count says two
+gestures *can* be ambiguous; the `diverged` share says how often being offered
+after two actually guessed wrong in front of somebody. That is verification 7,
+and nothing short of a day of real gestures produces it.
+
+Until those runs and that table are written down here, **the offer is proven in
+tests and in nothing else.**
 
 ## Verification of the whole
 

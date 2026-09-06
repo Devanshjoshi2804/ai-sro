@@ -353,10 +353,20 @@ async def main() -> int:
         # at. No typed value is in a shape, so no line below can be a secret.
         print("\n\nSHAPES -- what the extension matches a live tail against")
         print(f"\nshapes served: {len(served)} of {len(workflows)} workflows")
+        # `recognise.js`'s `tailWith` drops a scroll before the tail is
+        # written, so a served shape whose prefix holds one can never be
+        # matched against a live tail. The comparison below is therefore made
+        # on the shape with its scrolls removed -- which is what the rig will
+        # serve once `shapes.py` drops them too.
+        scrollless = {
+            shape["id"]: [t for t in shape["shape"] if t[1] != "anon|scroll"] for shape in served
+        }
         for shape in served:
             named = ", ".join(f"{p['name']}@{p['at']}" for p in shape["parameters"])
+            walkable = scrollless[shape["id"]]
             print(
-                f"\n{shape['title']}: {len(shape['shape'])} triples;"
+                f"\n{shape['title']}: {len(shape['shape'])} triples,"
+                f" {len(walkable)} without scrolls;"
                 f" parameters: {named or 'none declared'}"
             )
             # `match()` is JavaScript; this is its K_OFFER_AFTER = 2 test in
@@ -365,7 +375,7 @@ async def main() -> int:
             twins = [
                 other["title"]
                 for other in served
-                if other["id"] != shape["id"] and other["shape"][:2] == shape["shape"][:2]
+                if other["id"] != shape["id"] and scrollless[other["id"]][:2] == walkable[:2]
             ]
             print(
                 f"    shares its first two steps with: {', '.join(twins)}"

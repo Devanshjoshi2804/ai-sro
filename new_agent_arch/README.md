@@ -64,6 +64,16 @@ curl -X POST -H "Authorization: Bearer $RIG_INGEST_TOKEN" \
   http://localhost:8100/v1/devices/<device_id>/revoke
 ```
 
+To rotate the tenant's bearer, set a new `RIG_INGEST_TOKEN` and restart the
+rig. Every registered browser keeps working: what it holds is its own token,
+compared against a hash in `device_tokens`, and the tenant's bearer is not
+part of that. Only a browser that never registered -- one pointed at a rig
+older than the registry, or one saved before it had a device id and not yet
+signed in -- holds the tenant's bearer and needs the new one typed. The old
+bearer stops opening every door the moment the rig comes back up; there is
+no grace period, by design: two valid tenant bearers is one more than an
+audit can name.
+
 ## Test it
 
 ```bash

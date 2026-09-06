@@ -83,7 +83,7 @@ import sys
 #
 # 79.4 rather than 79.45: the floor is the measured score rounded DOWN, so the
 # very run that set it cannot fail against it on the printed rounding.
-FLOOR = 79.6
+FLOOR = 79.7
 
 STATS = pathlib.Path(__file__).resolve().parent.parent / "mutants" / "mutmut-cicd-stats.json"
 

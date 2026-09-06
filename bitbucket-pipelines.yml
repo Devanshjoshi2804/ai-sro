@@ -65,6 +65,19 @@ definitions:
           - npm test
           - npm run build
 
+    - step: &extension-quality
+        name: Extension — node suites, no-undef
+        image: node:22
+        caches: [node]
+        script:
+          # The extension has no build and no package.json of its own; its
+          # eslint comes from the frontend's node_modules and its tests are
+          # plain `node file.test.mjs`, which is what `make test-extension`
+          # enumerates. `make` is in the image; nothing else is installed.
+          - cd frontend && npm ci && cd ..
+          - make lint-extension
+          - make test-extension
+
     - step: &rig-quality
         name: Rig — lint, types, tests
         caches: [uv]
@@ -135,6 +148,9 @@ pipelines:
               <<: *contract-is-current
               condition: { changesets: { includePaths: ["backend/**", "frontend/openapi.json"] } }
           - step:
+              <<: *extension-quality
+              condition: { changesets: { includePaths: ["new-chrome-extension/**", "Makefile"] } }
+          - step:
               <<: *rig-quality
               condition: { changesets: { includePaths: ["new_agent_arch/**"] } }
           - step:
@@ -150,6 +166,7 @@ pipelines:
           - step: *backend-quality
           - step: *backend-tests
           - step: *frontend-quality
+          - step: *extension-quality
           - step: *contract-is-current
           - step: *rig-quality
           - step: *rig-mutation

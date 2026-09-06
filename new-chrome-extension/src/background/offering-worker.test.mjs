@@ -481,7 +481,11 @@ test("the run the rig is driving is drawn while it runs, and Approve reaches the
   const approve = calls.find((call) => call.path === "/v1/runs/run-9/approve");
   assert.ok(approve, "Approve never reached the rig");
   assert.equal(approve.method, "POST");
-  assert.equal(approve.body, "{}", "the rig's approve route refuses a request with no JSON body");
+  assert.deepEqual(
+    JSON.parse(approve.body),
+    { device_id: "dev-1" },
+    "the tap names the browser it came from, and the route wants a JSON body",
+  );
   assert.deepEqual(answer, { ok: true });
 });
 

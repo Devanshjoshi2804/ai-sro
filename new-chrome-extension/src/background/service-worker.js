@@ -1230,7 +1230,7 @@ async function handle(message, sender) {
         return { ok: false, error: "that run is not the one this browser is driving" };
       }
       try {
-        return await api.rigApprove(message.runId);
+        return await api.rigApprove(message.runId, await state.deviceId());
       } catch (error) {
         return { ok: false, error: error.problem?.detail || error.message };
       }

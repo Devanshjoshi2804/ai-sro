@@ -994,11 +994,14 @@ def build_app(
         shown = as_json(run)
         # When a person let each write out, beside the step they let out.
         approved = {
-            int(a["ord"]): a["at"]
-            for a in store.query("SELECT ord, at FROM approvals WHERE run_id = ?", (run_id,))
+            int(a["ord"]): (a["at"], a["device_id"])
+            for a in store.query(
+                "SELECT ord, at, device_id FROM approvals WHERE run_id = ?", (run_id,)
+            )
         }
         for step in shown["steps"]:
-            step["approved_at"] = approved.get(int(step["order"]))
+            at, by = approved.get(int(step["order"]), (None, None))
+            step["approved_at"], step["approved_by"] = at, by
         return shown
 
     @app.post("/v1/runs/{run_id}/abort", dependencies=[Depends(authorised)])
@@ -1035,10 +1038,11 @@ def build_app(
         return {"aborted": True}
 
     @app.post("/v1/runs/{run_id}/approve", dependencies=[Depends(authorised)])
-    async def approve_run(run_id: str) -> dict[str, Any]:
-        """A person saw the write the panel showed and said go. No body: the
-        run id is the whole of what a tap says, and a route that 422s a bare
-        POST is a Stop-shaped button that sometimes does nothing."""
+    async def approve_run(run_id: str, body: dict[str, Any] | None = None) -> dict[str, Any]:
+        """A person saw the write the panel showed and said go. The body is
+        optional -- a bare POST is a tap, and a route that 422s one is a
+        Stop-shaped button that sometimes does nothing -- and when the panel
+        sends it, it names the browser the tap came from."""
         from rig.runner import Approvals
 
         if not Approvals.approve(run_id):
@@ -1052,12 +1056,13 @@ def build_app(
             (run_id,),
         )
         ord_ = int(waiting[0]["ord"]) if waiting else None
+        by = str((body or {}).get("device_id") or "") or None
         if ord_ is not None:
             # OR IGNORE: a write rescued to the second rung parks at the same
             # step and takes a second tap; the first authorisation stands.
             store.execute(
-                "INSERT OR IGNORE INTO approvals (run_id, ord, at) VALUES (?, ?, ?)",
-                (run_id, ord_, _now()),
+                "INSERT OR IGNORE INTO approvals (run_id, ord, at, device_id) VALUES (?, ?, ?, ?)",
+                (run_id, ord_, _now(), by),
             )
         return {"approved": True, "ord": ord_}
 
@@ -1091,8 +1096,10 @@ def build_app(
         out = []
         for r in runs:
             approved = {
-                int(a["ord"]): a["at"]
-                for a in store.query("SELECT ord, at FROM approvals WHERE run_id = ?", (r["id"],))
+                int(a["ord"]): (a["at"], a["device_id"])
+                for a in store.query(
+                    "SELECT ord, at, device_id FROM approvals WHERE run_id = ?", (r["id"],)
+                )
             }
             steps = []
             for st in store.query(
@@ -1113,7 +1120,8 @@ def build_app(
                         "sent": sent.get("kind") if isinstance(sent, dict) else None,
                         "matched_by": st["matched_by"],
                         "stale": bool(st["stale"]),
-                        "approved_at": approved.get(int(st["ord"])),
+                        "approved_at": approved.get(int(st["ord"]), (None, None))[0],
+                        "approved_by": approved.get(int(st["ord"]), (None, None))[1],
                     }
                 )
             out.append(

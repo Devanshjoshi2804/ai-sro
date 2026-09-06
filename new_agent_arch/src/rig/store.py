@@ -187,9 +187,10 @@ CREATE TABLE IF NOT EXISTS workflow_effects (
 -- A row per approval a person gave: which step of which run, and when. The
 -- first tap wins; a second on the same step is not a second authorisation.
 CREATE TABLE IF NOT EXISTS approvals (
-    run_id TEXT NOT NULL,
-    ord    INTEGER NOT NULL,
-    at     TEXT NOT NULL,
+    run_id    TEXT NOT NULL,
+    ord       INTEGER NOT NULL,
+    at        TEXT NOT NULL,
+    device_id TEXT,               -- the browser whose panel the tap came from
     PRIMARY KEY (run_id, ord)
 );
 
@@ -263,6 +264,7 @@ CREATE TABLE IF NOT EXISTS run_steps (
 # The two that earned this list: gestures.page_url and intents.thought_tokens.
 ADDED_COLUMNS: tuple[tuple[str, str, str], ...] = (
     ("gestures", "page_url", "TEXT"),
+    ("approvals", "device_id", "TEXT"),
     ("batches", "started_at", "TEXT NOT NULL DEFAULT ''"),
     ("batches", "ended_at", "TEXT NOT NULL DEFAULT ''"),
     ("batches", "recording_id", "TEXT"),

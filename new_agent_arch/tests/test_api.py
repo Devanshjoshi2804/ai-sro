@@ -2621,14 +2621,17 @@ def test_an_approval_is_written_down_against_the_step_it_released(
     try:
         task = loop.create_task(Approvals.wait_for("run_aw", timeout=5))
         loop.run_until_complete(asyncio.sleep(0))
-        got = client.post("/v1/runs/run_aw/approve", headers=_auth())
+        got = client.post(
+            "/v1/runs/run_aw/approve", json={"device_id": "dev_test"}, headers=_auth()
+        )
         released = loop.run_until_complete(task)
     finally:
         loop.close()
     assert got.status_code == 200 and got.json() == {"approved": True, "ord": 1}
     assert released is True
-    rows = store.query("SELECT run_id, ord, at FROM approvals")
-    assert [(r["run_id"], r["ord"]) for r in rows] == [("run_aw", 1)] and rows[0]["at"]
+    rows = store.query("SELECT run_id, ord, at, device_id FROM approvals")
+    assert [(r["run_id"], r["ord"], r["device_id"]) for r in rows] == [("run_aw", 1, "dev_test")]
+    assert rows[0]["at"]
 
 
 def test_the_audit_route_lists_what_happened_since_a_time(client: TestClient, store: Store) -> None:
@@ -2693,6 +2696,7 @@ def test_the_audit_route_lists_what_happened_since_a_time(client: TestClient, st
     assert [r["id"] for r in got["runs"]] == ["run_1"], "yesterday's run is before `since`"
     [step] = got["runs"][0]["steps"]
     assert step["sent"] == "ui.perform" and step["approved_at"] == "2026-09-06T10:00:30+00:00"
+    assert step["approved_by"] is None, "an approval written without a device names none"
     assert step["matched_by"] == "component" and step["verdict"] == "held"
     assert "reason" in step, "why a step did not hold is the audit's most useful fact"
     assert "payload" not in step and "values" not in got["runs"][0], "no values, no payloads"
@@ -2724,11 +2728,12 @@ def test_a_run_says_when_each_write_was_approved(client: TestClient, store: Stor
         ),
     )
     store.execute(
-        "INSERT INTO approvals (run_id, ord, at) VALUES (?, ?, ?)",
-        ("run_ap", 1, "2026-09-06T10:00:30+00:00"),
+        "INSERT INTO approvals (run_id, ord, at, device_id) VALUES (?, ?, ?, ?)",
+        ("run_ap", 1, "2026-09-06T10:00:30+00:00", "dev_test"),
     )
     steps = client.get("/v1/runs/run_ap", headers=_auth()).json()["steps"]
     assert [s["approved_at"] for s in steps] == [None, "2026-09-06T10:00:30+00:00"]
+    assert [s["approved_by"] for s in steps] == [None, "dev_test"]
 
 
 def test_the_page_shows_when_a_write_was_approved_and_escapes_it() -> None:

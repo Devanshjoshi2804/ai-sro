@@ -263,10 +263,16 @@ export const api = {
     return r.json();
   },
 
-  rigApprove: async (runId) => {
+  rigApprove: async (runId, deviceId) => {
     const base = await state.rigUrl();
     if (!isMirrorable(base)) throw new ApiError(0, { detail: "no rig is configured" });
-    const r = await fetch(`${base}/v1/runs/${encodeURIComponent(runId)}/approve`, { method: "POST", headers: await rigHeaders(), body: "{}" });
+    // Who tapped: the browser this panel belongs to. The rig writes it beside
+    // the approval, which is what an audit asks first.
+    const r = await fetch(`${base}/v1/runs/${encodeURIComponent(runId)}/approve`, {
+      method: "POST",
+      headers: await rigHeaders(),
+      body: JSON.stringify({ device_id: deviceId }),
+    });
     if (!r.ok) throw new ApiError(r.status, await r.json().catch(() => ({ detail: r.statusText })));
     return r.json();
   },

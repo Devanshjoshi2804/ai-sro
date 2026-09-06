@@ -55,6 +55,16 @@ test("a mirror that is refused does not throw, and says what the rig said", asyn
     fetcher: async () => ({ ok: false, status: 502, json: async () => { throw new Error("html"); } }),
   });
   assert.deepEqual(bodiless, { sent: true, ok: false, status: 502, detail: "" });
+  const wordless = await mirrorTo("http://localhost:8100", "t", "/v1/observations", {
+    body: {},
+    fetcher: async () => ({ ok: false, status: 422, json: async () => ({ detail: [{ loc: 1 }] }) }),
+  });
+  assert.equal(wordless.detail, "", "a detail that is not a sentence is not quoted");
+  const verbose = await mirrorTo("http://localhost:8100", "t", "/v1/observations", {
+    body: {},
+    fetcher: async () => ({ ok: false, status: 413, json: async () => ({ detail: "x".repeat(5000) }) }),
+  });
+  assert.equal(verbose.detail.length, 200, "and only so much of it");
   const took = await mirrorTo("http://localhost:8100", "t", "/v1/observations", {
     body: {},
     fetcher: async () => ({ ok: true, status: 202 }),

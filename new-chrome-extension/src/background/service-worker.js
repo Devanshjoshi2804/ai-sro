@@ -939,8 +939,10 @@ async function handle(message, sender) {
         await state.setRigToken(message.rigToken);
         await mintRigToken();
       } else if (!message.rigUrl) {
-        // Clearing the URL turns the mirror off, and its secret goes with it.
+        // Clearing the URL turns the mirror off, and its secret goes with it
+        // -- and its last refusal, which was about a rig there no longer is.
         await state.setRigToken("");
+        await state.setRigRefusal("");
       }
       // Closed first, then dialled. `settle()` leaves an open socket alone --
       // correctly, since re-dialling a channel that is already up is how a

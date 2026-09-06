@@ -98,15 +98,18 @@ test("a changed URL with a blank token leaves the saved token intact", async () 
   assert.equal(held.get("sro.rigToken"), "tok-1", "a blank token field wiped the saved token");
 });
 
-test("a blank URL clears both the URL and the token", async () => {
+test("a blank URL clears the URL, the token, and the last refusal", async () => {
   held.clear();
   held.set("sro.rigUrl", "http://localhost:8100");
   held.set("sro.rigToken", "tok-1");
+  held.set("sro.rigRefusal", "/v1/observations 403: not yours");
 
-  await sendRig({ rigUrl: "", rigToken: "" });
+  const answer = await sendRig({ rigUrl: "", rigToken: "" });
 
   assert.equal(held.get("sro.rigUrl"), "");
   assert.equal(held.get("sro.rigToken"), "");
+  assert.equal(held.get("sro.rigRefusal"), "", "a refusal from a rig there no longer is");
+  assert.equal(answer.rigRefusal, "");
 });
 
 test("a rig URL that is not http(s) is refused, and says so where it was typed", async () => {

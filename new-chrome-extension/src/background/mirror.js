@@ -74,10 +74,13 @@ export async function mirrorTo(
     // browser's, 413 for one past its bound, 401 for a token it no longer
     // holds. Silent here as ever, but not lost -- the caller writes it where
     // the options page reads.
+    // Only a string `detail`, and only so much of it: it lands in
+    // chrome.storage and on the options page, and a rig is not trusted to
+    // size it.
     let detail = "";
     try {
       const said = await response.json();
-      detail = typeof said?.detail === "string" ? said.detail : JSON.stringify(said?.detail ?? "");
+      if (typeof said?.detail === "string") detail = said.detail.slice(0, 200);
     } catch {
       // A refusal with no body is still a refusal with a status.
     }

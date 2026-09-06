@@ -207,6 +207,7 @@ def as_call(request: WireRequest) -> Call:
         request_body=as_body(request.request_body),
         status=request.status,
         response_body=as_body(request.response_body),
+        failure_reason=request.failure_reason,
     )
 
 

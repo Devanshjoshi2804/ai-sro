@@ -75,6 +75,7 @@ class Call:
     request_body: Body | None = None
     status: int | None = None
     response_body: Body | None = None
+    failure_reason: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

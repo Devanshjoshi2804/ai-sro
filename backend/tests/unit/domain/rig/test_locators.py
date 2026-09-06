@@ -2,6 +2,7 @@ import copy
 from dataclasses import replace
 
 from sro.domain.execution.evidence import (
+    Locator,
     allowlist,
     locators_for,
     origin_of,
@@ -37,16 +38,27 @@ def test_the_ladder_is_the_protocols_and_in_its_order() -> None:
 
     ladder = locators_for(save)
 
-    assert [rung["strategy"] for rung in ladder] == [
+    assert [rung.strategy for rung in ladder] == [
         "component",
         "role_and_name",
         "text",
         "test_id",
         "css_path",
     ]
-    assert ladder[0]["query"] == "button#saveButton"
-    assert ladder[1]["query"] == "button|Save"
-    assert all(isinstance(v, str) for rung in ladder for v in rung.values())
+    assert ladder[0].query == "button#saveButton"
+    assert ladder[1].query == "button|Save"
+    assert [rung.as_payload() for rung in ladder] == [
+        {
+            "strategy": "component",
+            "query": "button#saveButton",
+            "within": None,
+            "visible_only": True,
+        },
+        {"strategy": "role_and_name", "query": "button|Save", "within": None, "visible_only": True},
+        {"strategy": "text", "query": "Save", "within": None, "visible_only": True},
+        {"strategy": "test_id", "query": "save-btn", "within": None, "visible_only": True},
+        {"strategy": "css_path", "query": "div > button", "within": None, "visible_only": True},
+    ]
 
 
 def test_an_item_id_alone_is_still_a_component_query() -> None:
@@ -55,7 +67,7 @@ def test_an_item_id_alone_is_still_a_component_query() -> None:
     assert t is not None and t.component is not None
     component = replace(t.component, query=None)
     g.action = replace(g.action, target=replace(t, component=component))
-    assert locators_for(g)[0] == {"strategy": "component", "query": "#clientCode"}
+    assert locators_for(g)[0] == Locator("component", "#clientCode")
 
 
 def test_a_scroll_has_no_ladder_and_a_step_citing_only_scrolls_has_no_primary() -> None:
@@ -87,6 +99,24 @@ def test_origin_skips_a_call_that_never_completed() -> None:
     dead = replace(gesture.requests[0], url="http://127.0.0.1:1/x", status=None)
     live = replace(gesture.requests[1], url="https://wms.example/y", status=200)
     gesture.requests = [dead, live]
+
+    assert origin_of(gesture) == "https://wms.example"
+
+
+def test_a_status_that_lies_about_completing_does_not_decide_the_origin() -> None:
+    """A call can carry a 200 and still not have completed -- aborted after
+    the browser already had a status line. `failure_reason` is what status
+    alone cannot say."""
+    gesture = copy.deepcopy(next(g for g in _gestures() if g.requests))
+    gesture.url, gesture.system = None, None
+    aborted = replace(
+        gesture.requests[0],
+        url="http://127.0.0.1:1/x",
+        status=200,
+        failure_reason="net::ERR_ABORTED",
+    )
+    live = replace(gesture.requests[1], url="https://wms.example/y", status=200)
+    gesture.requests = [aborted, live]
 
     assert origin_of(gesture) == "https://wms.example"
 
@@ -190,8 +220,8 @@ def test_a_rung_needs_both_halves_of_what_it_matches_on_and_carries_its_own_quer
 
     ladder = locators_for(g)
 
-    assert [rung["strategy"] for rung in ladder] == ["text", "test_id", "css_path"]
-    assert [rung["query"] for rung in ladder] == ["Client code", "code-field", "form > input"]
+    assert [rung.strategy for rung in ladder] == ["text", "test_id", "css_path"]
+    assert [rung.query for rung in ladder] == ["Client code", "code-field", "form > input"]
 
 
 def test_the_page_wins_over_a_call_and_a_gesture_with_no_page_falls_to_its_calls() -> None:

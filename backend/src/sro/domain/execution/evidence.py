@@ -13,6 +13,7 @@ stops it.
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import dataclass
 
 from sro.domain.observation.gesture import Call, Gesture
 from sro.domain.shared.hosts import system_of
@@ -21,18 +22,39 @@ from sro.domain.skill.workflow import Step, Workflow
 _UNTARGETED = frozenset({"scroll"})
 
 
-def _locator(strategy: str, query: str) -> dict[str, str]:
-    return {"strategy": strategy, "query": query}
+@dataclass(frozen=True, slots=True)
+class Locator:
+    """One rung of the ladder. `within` and `visible_only` are read by the
+    extension (`new-chrome-extension/src/background/in-page.js`) to scope and
+    filter the match at the wire -- dropping them would let a hidden control
+    through."""
+
+    strategy: str
+    query: str
+    within: str | None = None
+    visible_only: bool = True
+
+    def as_payload(self) -> dict[str, object]:
+        return {
+            "strategy": self.strategy,
+            "query": self.query,
+            "within": self.within,
+            "visible_only": self.visible_only,
+        }
 
 
-def locators_for(gesture: Gesture) -> list[dict[str, str]]:
+def _locator(strategy: str, query: str) -> Locator:
+    return Locator(strategy, query)
+
+
+def locators_for(gesture: Gesture) -> list[Locator]:
     """The ladder, strongest first: the framework's own handle, then role and
     name, then visible text, then the test id, then the css path the protocol
     calls a last resort. A gesture with no target -- a scroll -- has no ladder."""
     target = gesture.action.target
     if target is None:
         return []
-    ladder: list[dict[str, str]] = []
+    ladder: list[Locator] = []
     component = target.component
     if component is not None:
         query = component.query or (f"#{component.item_id}" if component.item_id else None)
@@ -66,7 +88,9 @@ def origin_of(gesture: Gesture) -> str | None:
         return page
     named = [system_of(r.url) for r in gesture.requests]
     completed = [
-        s for r, s in zip(gesture.requests, named, strict=True) if s and r.status is not None
+        s
+        for r, s in zip(gesture.requests, named, strict=True)
+        if s and r.status is not None and not r.failure_reason
     ]
     if completed:
         return completed[0]

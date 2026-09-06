@@ -349,9 +349,32 @@ def build_app(
     app.state.tenant = tenant
     app.state.channel = DeviceChannel(deadline_s=settings().command_deadline_s)
 
-    def authorised(authorization: Annotated[str | None, Header()] = None) -> None:
-        if authorization != f"Bearer {token}":
+    def _bearer(authorization: str | None) -> str:
+        return authorization[7:] if authorization and authorization.startswith("Bearer ") else ""
+
+    def caller(authorization: Annotated[str | None, Header()] = None) -> str | None:
+        """Who is calling: the tenant (None) or a registered device (its id).
+        Anything else is refused here, so no route has to ask twice."""
+        from rig.devices import holder
+
+        offered = _bearer(authorization)
+        if offered == token:
+            return None
+        device = holder(store, offered) if offered else None
+        if device is None:
             raise HTTPException(status_code=401, detail="the rig did not accept that token")
+        return device
+
+    def authorised(authorization: Annotated[str | None, Header()] = None) -> None:
+        caller(authorization)
+
+    def tenant_only(authorization: Annotated[str | None, Header()] = None) -> None:
+        """The tenant's own bearer, not a device's: registering and revoking
+        browsers is not something a browser does to itself or to another."""
+        if caller(authorization) is not None:
+            raise HTTPException(
+                status_code=403, detail="that is the tenant's to do, not a device's"
+            )
 
     @app.get("/v1/health")
     def health() -> dict[str, str]:
@@ -373,7 +396,11 @@ def build_app(
             part.strip() for part in websocket.headers.get("sec-websocket-protocol", "").split(",")
         ]
         offered = protocols[1] if len(protocols) > 1 and protocols[0] == "bearer" else ""
-        if offered != token:
+        # The tenant's bearer opens any device's socket; a device's token opens
+        # its own and no other.
+        from rig.devices import holder
+
+        if offered != token and (not offered or holder(store, offered) != device_id):
             await websocket.close(code=1008)
             return
         await websocket.accept(subprotocol="bearer")
@@ -822,6 +849,24 @@ def build_app(
             "missing": [gid for gid in cited if gid not in gestures],
         }
 
+    @app.post("/v1/devices/register", status_code=201, dependencies=[Depends(tenant_only)])
+    async def register_device(body: dict[str, Any]) -> dict[str, Any]:
+        """A token for one browser, minted against the tenant's bearer. The
+        extension calls this once when the options page is saved and keeps
+        the answer instead of the tenant's secret."""
+        from rig.devices import issue
+
+        device_id = str(body.get("device_id") or "")
+        if not device_id:
+            raise HTTPException(status_code=400, detail="device_id is required")
+        return {"device_id": device_id, "token": issue(store, device_id)}
+
+    @app.post("/v1/devices/{device_id}/revoke", dependencies=[Depends(tenant_only)])
+    async def revoke_device(device_id: str) -> dict[str, Any]:
+        from rig.devices import revoke
+
+        return {"device_id": device_id, "revoked": revoke(store, device_id)}
+
     @app.get("/v1/devices", dependencies=[Depends(authorised)])
     def devices() -> dict[str, Any]:
         return {"devices": app.state.channel.online()}
@@ -1038,7 +1083,11 @@ def build_app(
         return {"aborted": True}
 
     @app.post("/v1/runs/{run_id}/approve", dependencies=[Depends(authorised)])
-    async def approve_run(run_id: str, body: dict[str, Any] | None = None) -> dict[str, Any]:
+    async def approve_run(
+        run_id: str,
+        body: dict[str, Any] | None = None,
+        device: Annotated[str | None, Depends(caller)] = None,
+    ) -> dict[str, Any]:
         """A person saw the write the panel showed and said go. The body is
         optional -- a bare POST is a tap, and a route that 422s one is a
         Stop-shaped button that sometimes does nothing -- and when the panel
@@ -1056,7 +1105,9 @@ def build_app(
             (run_id,),
         )
         ord_ = int(waiting[0]["ord"]) if waiting else None
-        by = str((body or {}).get("device_id") or "") or None
+        # The token's own device outranks the body's claim: a registered
+        # browser cannot say it was another one.
+        by = device or (str((body or {}).get("device_id") or "") or None)
         if ord_ is not None:
             # OR IGNORE: a write rescued to the second rung parks at the same
             # step and takes a second tap; the first authorisation stands.

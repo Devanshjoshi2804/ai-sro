@@ -184,6 +184,15 @@ CREATE TABLE IF NOT EXISTS workflow_effects (
     at          TEXT NOT NULL,
     PRIMARY KEY (workflow_id, run_id, ord)
 );
+-- One token per browser, held as a hash. The tenant's bearer registers a
+-- device and revokes one; the device's own token does everything else, and
+-- names the browser it came from.
+CREATE TABLE IF NOT EXISTS device_tokens (
+    device_id  TEXT PRIMARY KEY,
+    token_hash TEXT NOT NULL,
+    issued_at  TEXT NOT NULL,
+    revoked_at TEXT
+);
 -- A row per approval a person gave: which step of which run, and when. The
 -- first tap wins; a second on the same step is not a second authorisation.
 CREATE TABLE IF NOT EXISTS approvals (

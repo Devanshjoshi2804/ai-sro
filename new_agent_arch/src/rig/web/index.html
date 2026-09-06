@@ -225,7 +225,12 @@
       ? ` · last ${runs.last.outcome}${runs.last.live ? "" : " (dry)"} by ${runs.last.started_by}`
       : "";
     const earned = runs.earned ? " · writes unasked" : "";
-    return `${runs.total} run${runs.total === 1 ? "" : "s"} · ${runs.held} held${last}${earned}`;
+    // A step the last run found only by a weak locator is a page moving
+    // under the job; said before the job breaks, not after.
+    const stale = runs.stale
+      ? ` · ${runs.stale} step${runs.stale === 1 ? "" : "s"} matched weakly`
+      : "";
+    return `${runs.total} run${runs.total === 1 ? "" : "s"} · ${runs.held} held${last}${earned}${stale}`;
   }
 
   function job(w) {

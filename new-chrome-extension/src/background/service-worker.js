@@ -589,6 +589,15 @@ function unwatch(tabId) {
     // and was left with the banner up would have every reason to disbelieve
     // the panel about anything else it says.
     if (next.length !== watched.length) await releaseTree(tabId);
+    // And stop remembering what was typed there. A tail kept across "stop
+    // watching" and "watch" again could complete a prefix from yesterday's
+    // job with values nobody is looking at. Inline rather than `forgetTail`,
+    // which takes the same lock this block already holds.
+    const tails = await state.tails();
+    if (tabId in tails) {
+      const { [tabId]: _gone, ...kept } = tails;
+      await state.setTails(kept);
+    }
     if (leaving?.host && (await isExcluded(leaving.host))) await ungrant(leaving.host);
     return next;
   });

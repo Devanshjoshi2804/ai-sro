@@ -680,9 +680,16 @@ def build_app(
                 " WHERE tenant = ? AND workflow_id = ? ORDER BY started_at DESC LIMIT 1",
                 (tenant, workflow_id),
             )
+            # Steps a run last matched through a weak locator. Written by the
+            # runner's `mark_stale`; this is its one reader -- a card that says
+            # a job's page is moving under it before the job breaks.
+            stale = store.query(
+                "SELECT COUNT(*) AS n FROM workflow_stale WHERE workflow_id = ?", (workflow_id,)
+            )[0]["n"]
             return {
                 "total": int(counts["total"] or 0),
                 "held": int(counts["held"] or 0),
+                "stale": int(stale or 0),
                 "last": None
                 if not last
                 else {

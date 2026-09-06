@@ -2438,7 +2438,7 @@ def test_a_workflow_carries_what_became_of_it(client: TestClient, store: Store) 
 
     _seed_workflow(store)
     before = client.get("/v1/workflows", headers=_auth()).json()["workflows"][0]["runs"]
-    assert before == {"total": 0, "held": 0, "last": None, "earned": False}
+    assert before == {"total": 0, "held": 0, "stale": 0, "last": None, "earned": False}
     save_run(
         store,
         Run(
@@ -2483,3 +2483,29 @@ def test_the_page_says_what_became_of_a_job_and_escapes_it() -> None:
     assert "1 run · 0 held · last stopped (dry) by" in out
     assert attack not in out.split("\n")[2], "the starter's name is escaped in the card"
     assert "&lt;img src=x onerror=go()&gt;" in out
+
+
+def test_a_workflow_says_how_many_of_its_steps_matched_weakly(
+    client: TestClient, store: Store
+) -> None:
+    from rig.runner import mark_stale
+
+    _seed_workflow(store)
+    mark_stale(store, "wfl_1", 1, "css_path")
+    mark_stale(store, "wfl_1", 1, None)  # the same step twice is one step
+    got = client.get("/v1/workflows", headers=_auth()).json()["workflows"][0]["runs"]
+    assert got["stale"] == 1
+
+
+def test_the_page_warns_about_a_page_moving_under_the_job() -> None:
+    out = _run_page(
+        """
+        console.log(became({ total: 2, held: 2, stale: 1, earned: false,
+          last: { outcome: "held", live: true, started_by: "offer" } }));
+        console.log(became({ total: 2, held: 2, stale: 0, earned: false,
+          last: { outcome: "held", live: true, started_by: "offer" } }));
+        """
+    )
+    lines = out.strip().split("\n")
+    assert "1 step matched weakly" in lines[0]
+    assert "matched weakly" not in lines[1]

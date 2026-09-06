@@ -95,6 +95,10 @@ ignore = [
 # pydantic matches against, so renaming it to snake_case would stop real
 # payloads from parsing.
 "src/sro/application/capture/rig_wire.py" = ["N815"]
+# The containment/jaccard docstrings write the set-theory symbols they name --
+# ∩ and ∪ -- rather than spelling them out; the arithmetic they document reads
+# the same way on paper. Kept verbatim from the rig.
+"src/sro/domain/observation/identity.py" = ["RUF002"]
 "migrations/*" = ["ANN", "E501", "INP001"]
 # A command-line tool talks on stdout. That is its interface, not a stray debug
 # statement, and the token it prints must not be logged anywhere else.

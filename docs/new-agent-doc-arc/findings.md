@@ -929,28 +929,28 @@ SHAPES -- what the extension matches a live tail against
 
 shapes served: 8 of 8 workflows
 
-Login and Start Recording: 14 triples, 13 without scrolls; parameters: none declared
+Login and Start Recording: 13 triples; parameters: none declared
     distinct at two
 
-Create a Warehouse Equipment Type: 13 triples, 12 without scrolls; parameters: none declared
+Create a Warehouse Equipment Type: 12 triples; parameters: none declared
     shares its first two steps with: Create Work Area TWOTEST, Create Carrier Cross Reference for Test Drive LLC
 
-Create Work Area NEWTESTS: 22 triples, 20 without scrolls; parameters: none declared
+Create Work Area NEWTESTS: 20 triples; parameters: none declared
     distinct at two
 
-Create Work Area TWOTEST: 18 triples, 14 without scrolls; parameters: none declared
+Create Work Area TWOTEST: 14 triples; parameters: none declared
     shares its first two steps with: Create a Warehouse Equipment Type, Create Carrier Cross Reference for Test Drive LLC
 
-Search and Filter Work Areas: 35 triples, 20 without scrolls; parameters: none declared
+Search and Filter Work Areas: 20 triples; parameters: none declared
     distinct at two
 
-Create Work Area Operation NEWTEST4: 21 triples, 16 without scrolls; parameters: none declared
+Create Work Area Operation NEWTEST4: 16 triples; parameters: none declared
     distinct at two
 
-Create Carrier Cross Reference for Test Drive LLC: 26 triples, 22 without scrolls; parameters: none declared
+Create Carrier Cross Reference for Test Drive LLC: 22 triples; parameters: none declared
     shares its first two steps with: Create a Warehouse Equipment Type, Create Work Area TWOTEST
 
-Create Work Activity TEST1: 16 triples, 15 without scrolls; parameters: none declared
+Create Work Activity TEST1: 15 triples; parameters: none declared
     distinct at two
 ```
 
@@ -959,9 +959,12 @@ being served, and all eight pass every one: not unproven; not a workflow that
 has run and never held; citing gestures that still exist; and starting on a host
 its own allowlist holds. A shape is (system, control identity, kind) per cited
 gesture, in step order: the same triple `identity.py` resolves on, generated
-into the extension so the two cannot drift. The shapes run from 13 triples
-(12 without scrolls — *Create a Warehouse Equipment Type*) to 35 (20 without
-scrolls — *Search and Filter Work Areas*).
+into the extension so the two cannot drift. One count per shape, because
+`shapes.py` drops the scrolls before it serves one — for the reason
+`recognise.js`'s `tailWith` drops them before it writes the tail: a triple that
+can never appear in a tail is a triple no shape can be matched on. The shapes as
+served run from 12 triples (*Create a Warehouse Equipment Type*) to 22 (*Create
+Carrier Cross Reference for Test Drive LLC*).
 Nothing in a shape is a typed value — control identities, hosts and parameter
 *names* only — which is why the block above can be printed at all.
 
@@ -975,22 +978,19 @@ nothing else. An offer on this corpus is a bare "shall I finish this".
 **Three of the eight share their first two triples**: *Create a Warehouse
 Equipment Type*, *Create Work Area TWOTEST* and *Create Carrier Cross Reference
 for Test Drive LLC* — three jobs that begin with the same two gestures on the
-same host. The other five are distinct at two. That comparison is made on the
-shapes with their scroll triples removed, because `recognise.js`'s `tailWith`
-drops a scroll before the tail is ever written: a served shape whose prefix
-holds one cannot be matched against a live tail at all, and *Create Work Area
-Operation NEWTEST4*'s first triple as served is a scroll, so today it can never
-be offered at any `k`. The rig will serve scroll-free shapes in the fix wave
-that follows this plan, so the filtered numbers printed above are the ones that
-will hold. Filtering does not dissolve the collision: the same three jobs share
-their first two walkable triples. That is the number that says what
-`K_OFFER_AFTER = 2` is worth on this corpus: `match()` walks `k` down from the
-longest prefix it can and takes the longest, so a tail two gestures long into
-any of those three matches all three at `k = 2`, and the tie is broken by
-`held_runs` — on a rig where none of them has held yet, by served order, which
-means *Create a Warehouse Equipment Type*. **Two of the three earliest offers a
-fresh rig can make on this corpus can name the wrong job.** The constant was not
-moved on this evidence. Whether an operator would rather see a wrong title early
+same host. The other five are distinct at two. The rig serves scroll-free
+shapes, so that comparison is made on the very triples the extension walks;
+*Create Work Area Operation NEWTEST4*, whose first triple used to be a scroll
+and which therefore could not be offered at any `k` at all, is now distinct at
+two like the rest. Dropping the scrolls does not dissolve the collision: the
+same three jobs share their first two walkable triples. That is the number that
+says what `K_OFFER_AFTER = 2` is worth on this corpus. `match()` offers only on a
+prefix that is unique — two shapes matching at the same `k` end the tail with
+the same `k` triples, so the tail holds nothing that says which job it is —
+which means a tail two gestures long into any of those three names none of
+them. **Those three of the eight are first offered at `k = 3`, not `k = 2`,
+and no offer a fresh rig makes on this corpus names the wrong job.** The
+constant was not moved on this evidence. Whether an operator would rather see a wrong title early
 or a right one later is not settled by a collision count; it is settled by what
 becomes of the offers, which is the `offers` table's own column and the last
 thing the recipe below asks for.
@@ -1001,7 +1001,8 @@ thing the recipe below asks for.
   gestures offer the job whose prefix they are; a shared first step resolves on
   the second; a shape on another origin is never matched; scrolls do not break a
   prefix; the tail is bounded at `K_TAIL`; a job already finished is not offered
-  back; the job held more often wins a tie; a secret control and a blank field
+  back; a prefix two jobs share offers neither and the gesture that separates
+  them is the gesture that offers; a secret control and a blank field
   each leave the parameter missing; going another way ends the offer.
 - **One identity, two languages.** `shape.generated.test.mjs` — the extension's
   triple is generated from the rig's own identity source and agrees with the

@@ -170,3 +170,72 @@ def test_a_parameter_is_placed_by_the_step_that_declares_it_not_the_first_match(
     assert shape.parameters == [{"name": "clientCode", "at": 1}], (
         "index 0 is the search box the first value match would have bound"
     )
+
+
+def _scroll(store: Store) -> str:
+    """A scroll in the store, put there the way the recorder would have.
+
+    The committed batch holds none -- the browser test that produced it never
+    scrolled -- and the rule below is entirely about scrolls, so one goes
+    through `save_batch` rather than into the table by hand.
+    """
+    typed = next(e for e in BATCH["events"] if e["kind"] == "gesture")
+    scrolled = {
+        **typed,
+        "gesture": {
+            "kind": "scroll",
+            "value": "300",
+            "at": typed["gesture"]["at"] - 1,
+            "url": typed["gesture"]["url"],
+        },
+    }
+    save_batch(
+        store,
+        Batch.model_validate({**BATCH, "batch_id": "bat_scrolled", "events": [scrolled]}),
+        "acme",
+    )
+    return next(
+        r["id"]
+        for r in store.query("SELECT id, gesture_json FROM gestures")
+        if json.loads(r["gesture_json"])["kind"] == "scroll"
+    )
+
+
+def _scrolled_first(store: Store) -> Workflow:
+    """The same workflow, with a scroll cited ahead of the gesture that types
+    the parameter -- which is what a real recording looks like the moment the
+    field is below the fold."""
+    workflow = _workflow(store)
+    workflow.steps[0].cites = [_scroll(store), *workflow.steps[0].cites]
+    save_workflow(store, workflow)
+    return workflow
+
+
+def test_a_scroll_is_not_part_of_the_shape_that_is_served(tmp_path: Path) -> None:
+    """`recognise.js` drops a scroll before the tail is ever written, so a
+    served shape carrying one could not be matched at any k -- and a job whose
+    first triple is a scroll could never be offered at all."""
+    store = _store(tmp_path)
+    workflow = _scrolled_first(store)
+
+    [shape] = shapes_for(store, "acme")
+
+    cited = [gesture for step in workflow.steps for gesture in step.cites]
+    assert not any(triple[1] == "anon|scroll" for triple in shape.shape)
+    assert len(shape.shape) == len(cited) - 1, "three cited gestures, one of them the scroll"
+
+
+def test_a_parameter_typed_after_a_scroll_is_indexed_into_the_shape_as_served(
+    tmp_path: Path,
+) -> None:
+    """`at` is walked against the shape the extension is handed, which has no
+    scroll in it. Counted against the unfiltered evidence it would point one
+    control to the right and fill the wrong box."""
+    store = _store(tmp_path)
+    _scrolled_first(store)
+
+    [shape] = shapes_for(store, "acme")
+
+    assert shape.parameters == [{"name": "clientCode", "at": 0}], (
+        "index 1 is where the scroll put it in the unfiltered list"
+    )

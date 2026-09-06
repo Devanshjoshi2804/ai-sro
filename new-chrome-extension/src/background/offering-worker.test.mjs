@@ -192,6 +192,30 @@ function ready() {
 
 // -- the tests ----------------------------------------------------------------
 
+// FIRST ON PURPOSE. `shapesFor` holds a non-empty answer for five minutes in
+// module scope, so the moment any test in this process has seen a shape every
+// later one is served from that cache -- and this is the one test that needs
+// the rig asked twice.
+test("an empty answer from the rig is not cached, so the first shape it proves is offered on", async () => {
+  ready();
+  shapesServed = [];
+
+  await gesture("a", "NEW");
+  const askedWhileEmpty = calls.filter((call) => call.path === "/v1/shapes").length;
+  assert.ok(askedWhileEmpty >= 1, "the rig was never asked for its shapes");
+
+  // The rig proves its first job. Held for five minutes, the empty list would
+  // still be what this browser matched against.
+  shapesServed = [SHAPE];
+  await gesture("a", "NEW");
+  await gesture("b", "north");
+  await until(() => openOnes().length === 1, "a rig that had answered [] once was never asked again");
+  assert.ok(
+    calls.filter((call) => call.path === "/v1/shapes").length > askedWhileEmpty,
+    "the empty answer was cached",
+  );
+});
+
 test("two gestures into a proven job become one offer, and a third upgrades it", async () => {
   ready();
 
@@ -261,6 +285,94 @@ test("yes starts the run, and marks the offer accepted on the list as it is then
   assert.equal(offersSent()[0].fate, "accepted");
   assert.equal(offersSent()[0].run_id, "run-9");
   assert.equal(offersSent()[0].k, 2);
+
+  // Exactly one. The offer leaves `open` before the POST rather than after it,
+  // so a sweep or a gesture landing while the run was starting found a record
+  // already claimed and had no fate of its own to report.
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  assert.equal(offersSent().length, 1, "one offer reported two fates");
+});
+
+test("an offer taken has left open before the run is asked for, so nothing else can end it", async () => {
+  // The window this closes: the POST takes as long as the rig takes, and while
+  // it was in flight the offer was still `open`. A drop landing meanwhile ended
+  // it and reported a dismissal; the accept that followed reported a second
+  // fate for the same offer -- with a live run in a warehouse behind it.
+  ready();
+  await gesture("a", "NEW");
+  await gesture("b", "north");
+  await until(() => openOnes().length === 1, "no offer to accept");
+  const offer = openOnes()[0];
+
+  let whileStarting = null;
+  globalThis.fetch = async (url, options = {}) => {
+    if (String(url).slice(RIG.length) === "/v1/runs") {
+      whileStarting = nudges().find((n) => n.id === offer.id).state;
+      await send({ kind: "drop-nudge", nudgeId: offer.id });
+    }
+    return rigServer(url, options);
+  };
+
+  const answer = await send({ kind: "start-rig-run", nudgeId: offer.id, values: {} });
+
+  assert.deepEqual(answer, { ok: true, run_id: "run-9" });
+  assert.equal(whileStarting, "accepted", "the offer was still open while its run was being started");
+  assert.equal(nudges().find((n) => n.id === offer.id).state, "accepted");
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  assert.deepEqual(offersSent().map((each) => each.fate), ["accepted"], "one offer reported two fates");
+});
+
+test("a start whose POST fails leaves the offer open and reports nothing", async () => {
+  // The other side of claiming it early. The offer is marked accepted before
+  // the run is asked for; if the rig refuses, nothing happened, and an offer
+  // stuck on `accepted` is one the operator can neither take nor refuse.
+  ready();
+  await gesture("a", "NEW");
+  await gesture("b", "north");
+  await until(() => openOnes().length === 1, "no offer to accept");
+  const offer = openOnes()[0];
+
+  globalThis.fetch = async (url, options = {}) => {
+    const path = String(url).slice(RIG.length);
+    calls.push({ path, method: options.method || "GET", body: options.body });
+    if (path === "/v1/runs") return json({ detail: "the rig is down" }, 503);
+    return rigServer(url, options);
+  };
+
+  const answer = await send({ kind: "start-rig-run", nudgeId: offer.id, values: {} });
+
+  assert.equal(answer.ok, false);
+  assert.equal(nudges().find((n) => n.id === offer.id).state, "open", "a refused start ended the offer");
+  assert.equal(held.get("sro.activeRun"), undefined, "a run that never started is being drawn");
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  assert.deepEqual(offersSent(), [], "a start that failed reported a fate");
+
+  // And it is still the operator's to answer.
+  assert.deepEqual(await send({ kind: "drop-nudge", nudgeId: offer.id }), { ok: true });
+  assert.equal(nudges().find((n) => n.id === offer.id).state, "dismissed");
+});
+
+test("a backend nudge a prefix match supersedes ends as expired, not as nothing", async () => {
+  // Two open at once is the queue this design exists to not be, so the arrival
+  // nudge goes when the rig recognises the job for real. Dropping the record
+  // altogether loses an offer that was made and shown, which is the one thing
+  // the day is drawn from.
+  ready();
+  const arrival = {
+    id: "n_arrival", at: new Date().toISOString(), title: "Create Work Area",
+    startsOn: PAGE, tabId: TAB, state: "open", source: "backend",
+    workflowId: null, k: 0, values: {}, missing: [], parameters: [],
+  };
+  held.set("sro.nudges", [arrival]);
+
+  await gesture("a", "NEW");
+  await gesture("b", "north");
+  await until(() => openOnes()[0]?.source === "rig", "the prefix match never landed");
+
+  assert.equal(openOnes().length, 1, "two offers are open at once");
+  const was = nudges().find((n) => n.id === "n_arrival");
+  assert.ok(was, "the arrival nudge was thrown away rather than ended");
+  assert.equal(was.state, "expired");
 });
 
 test("marking accepted does not write back a list read before the run started", async () => {

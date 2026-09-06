@@ -8,6 +8,11 @@
 // shape is a job the operator has finished, and there is nothing left to
 // offer. So a two-step job is never offered by prefix -- arriving on its page
 // covers that one.
+//
+// And only a UNIQUE prefix. Two proven jobs that begin with the same gestures
+// are, for as long as the tail is that short, the same evidence -- naming one
+// of them is a guess dressed as recognition. Nothing is offered until the tail
+// separates them, which the next gesture usually does.
 
 export const K_TAIL = 12;
 export const K_OFFER_AFTER = 2;
@@ -44,20 +49,27 @@ export function valuesFrom(tail, shape, k) {
   return { values, missing };
 }
 
-/** The best job this tail is a prefix of, or null. */
+/** The one job this tail is a prefix of, or null. */
 export function match(tail, shapes, { origin }) {
   let best = null;
+  let shared = false;
   for (const shape of shapes) {
     if (!shape.shape?.length || shape.shape[0][0] !== origin) continue;
     for (let k = Math.min(shape.shape.length - 1, tail.length); k >= K_OFFER_AFTER; k--) {
       if (!endsWith(tail, shape.shape.slice(0, k))) continue;
-      if (!best || k > best.k || (k === best.k && (shape.held_runs || 0) > best.heldRuns)) {
-        best = { workflowId: shape.id, title: shape.title, k, heldRuns: shape.held_runs || 0, shape };
-      }
+      if (!best || k > best.k) {
+        best = { workflowId: shape.id, title: shape.title, k, shape };
+        shared = false;
+      } else if (k === best.k) shared = true;
       break;
     }
   }
-  if (!best) return null;
+  // Two shapes matching at the same k both end the tail with their own first k
+  // triples, so those triples are the same triples: the prefix is shared and
+  // the tail holds nothing that says which job it is. Offer neither. A longer
+  // match is not a tie -- a shape that got further has been separated from the
+  // rest by the very gestures that took it there.
+  if (!best || shared) return null;
   const { values, missing } = valuesFrom(tail, best.shape, best.k);
   return {
     workflowId: best.workflowId,

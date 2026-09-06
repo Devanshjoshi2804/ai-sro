@@ -353,29 +353,25 @@ async def main() -> int:
         # at. No typed value is in a shape, so no line below can be a secret.
         print("\n\nSHAPES -- what the extension matches a live tail against")
         print(f"\nshapes served: {len(served)} of {len(workflows)} workflows")
-        # `recognise.js`'s `tailWith` drops a scroll before the tail is
-        # written, so a served shape whose prefix holds one can never be
-        # matched against a live tail. The comparison below is therefore made
-        # on the shape with its scrolls removed -- which is what the rig will
-        # serve once `shapes.py` drops them too.
-        scrollless = {
-            shape["id"]: [t for t in shape["shape"] if t[1] != "anon|scroll"] for shape in served
-        }
+        # One count, not two: `shapes.py` drops the scrolls before it serves a
+        # shape, for the reason `recognise.js`'s `tailWith` drops them before it
+        # writes the tail -- a triple that can never appear in a tail is a
+        # triple no shape can be matched on.
         for shape in served:
             named = ", ".join(f"{p['name']}@{p['at']}" for p in shape["parameters"])
-            walkable = scrollless[shape["id"]]
             print(
-                f"\n{shape['title']}: {len(shape['shape'])} triples,"
-                f" {len(walkable)} without scrolls;"
+                f"\n{shape['title']}: {len(shape['shape'])} triples;"
                 f" parameters: {named or 'none declared'}"
             )
             # `match()` is JavaScript; this is its K_OFFER_AFTER = 2 test in
             # Python. Two jobs sharing their first two triples cannot be told
-            # apart by the tail the card is offered on.
+            # apart by the tail the card is offered on -- and since the
+            # unique-prefix rule, neither of them is offered at all until the
+            # tail gets longer.
             twins = [
                 other["title"]
                 for other in served
-                if other["id"] != shape["id"] and scrollless[other["id"]][:2] == walkable[:2]
+                if other["id"] != shape["id"] and other["shape"][:2] == shape["shape"][:2]
             ]
             print(
                 f"    shares its first two steps with: {', '.join(twins)}"

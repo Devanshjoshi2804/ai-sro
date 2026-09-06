@@ -46,7 +46,10 @@ test("a shape on another origin is never matched", () => {
   assert.equal(match(tail, shapes, { origin: "https://elsewhere" }), null);
 });
 
-test("scrolls are not part of a shape and do not break a prefix", () => {
+test("the tail drops scrolls, so one in the middle does not break a prefix", () => {
+  // Both sides drop them: `shapes.py` filters `anon|scroll` out of a shape
+  // before it is served, so the rig's shapes hold none either and the two
+  // agree on what a job's gestures are.
   let tail = tailWith([], typed("wm.workAreas.code", "A"));
   tail = tailWith(tail, { triple: [H, "anon|scroll", "scroll"], value: "300", secret: false, at: 2 });
   tail = tailWith(tail, typed("wm.workAreas.desc", "b"));
@@ -93,13 +96,36 @@ test("a job already finished is not offered back", () => {
   assert.equal(match(tail, shapes, { origin: H }), null);
 });
 
-test("the job held more often wins a tie on the same prefix", () => {
-  const rare = { ...operation, id: "wfl_rare", held_runs: 0, shape: [...workArea.shape.slice(0, 2), [H, "button|Cancel", "click"]] };
-  const often = { ...workArea, id: "wfl_often", held_runs: 2 };
+// Gone: "the job held more often wins a tie on the same prefix". A tie on `k`
+// cannot be constructed any more, and never could be. Two shapes matching at
+// the same k both end the tail with their own first k triples, so those k
+// triples are the same triples -- the tie the `held_runs` order was breaking
+// was always a shared prefix, which is now no offer at all. The two tests
+// below are what replaced it.
+
+test("a prefix two jobs share offers neither", () => {
+  const cancel = { ...workArea, id: "wfl_cancel", title: "Cancel Work Area", held_runs: 9,
+    shape: [...workArea.shape.slice(0, 2), [H, "button|Cancel", "click"]] };
+  const archive = { ...workArea, id: "wfl_archive", title: "Archive Work Area", held_runs: 0,
+    shape: [...workArea.shape.slice(0, 2), [H, "button|Archive", "click"]] };
   let tail = tailWith([], typed("wm.workAreas.code", "A"));
   tail = tailWith(tail, typed("wm.workAreas.desc", "b"));
-  assert.equal(match(tail, [rare, often], { origin: H }).workflowId, "wfl_often");
-  assert.equal(match(tail, [often, rare], { origin: H }).workflowId, "wfl_often");
+  assert.equal(match(tail, [workArea, cancel, archive], { origin: H }), null);
+  assert.equal(match(tail, [archive, cancel, workArea], { origin: H }), null, "served order decided it");
+});
+
+test("the gesture that separates them is the gesture that offers", () => {
+  const cancel = { ...workArea, id: "wfl_cancel", title: "Cancel Work Area",
+    shape: [...workArea.shape.slice(0, 2), [H, "button|Cancel", "click"], [H, "button|Yes", "click"]] };
+  const archive = { ...workArea, id: "wfl_archive", title: "Archive Work Area",
+    shape: [...workArea.shape.slice(0, 2), [H, "button|Archive", "click"], [H, "button|Yes", "click"]] };
+  const three = [workArea, cancel, archive];
+  let tail = tailWith([], typed("wm.workAreas.code", "A"));
+  tail = tailWith(tail, typed("wm.workAreas.desc", "b"));
+  tail = tailWith(tail, { triple: [H, "button|Cancel", "click"], value: null, secret: false, at: 3 });
+  const offer = match(tail, three, { origin: H });
+  assert.equal(offer.workflowId, "wfl_cancel");
+  assert.equal(offer.k, 3);
 });
 
 test("going another way ends the offer, but carrying it further does not", () => {

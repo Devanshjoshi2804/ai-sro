@@ -1,10 +1,10 @@
 """What the extension matches a live tail against.
 
 One entry per proven workflow: its shape -- (system, control identity, kind)
-per cited gesture in step order, the same key `identity.py` resolves on -- and
-where in that shape each declared parameter was typed. Computed from the cited
-gestures rather than read from `workflow.shape_key`, so the parameter indices
-are indices into the very list the extension will walk.
+per cited gesture in step order, scrolls left out, the same key `identity.py`
+resolves on -- and where in that shape each declared parameter was typed.
+Computed from the cited gestures rather than read from `workflow.shape_key`, so
+the parameter indices are indices into the very list the extension will walk.
 
 Nothing here carries a typed value. A shape is control identities, hosts and
 parameter *names*; the values that went into those controls stay in the
@@ -21,7 +21,7 @@ from rig.locators import allowlist, primary_gesture
 from rig.mine import _ordered_cites
 from rig.records import Gesture
 from rig.runs import runs_for
-from rig.shape import shape_key
+from rig.shape import shape_key, target_identity
 from rig.store import Store
 from rig.workflows import Step, Workflow, known_workflows
 
@@ -111,15 +111,24 @@ def shapes_for(store: Store, tenant: str) -> list[Shape]:
         # to open an origin no cited gesture ever proved -- so it is not sent.
         if system_of(starts_on) not in hosts:
             continue
+        # A scroll is not something the extension can match on: `recognise.js`
+        # drops one before it is ever written into the tail, so a served shape
+        # carrying one could not be matched at any k -- a job whose first triple
+        # is a scroll could never be offered at all. Dropped here, before both
+        # the shape and the parameter indices are computed, so `at` indexes the
+        # very list the extension walks. `starts_on` and `hosts` are read off
+        # the whole of the evidence above: where the job begins is a fact about
+        # the recording, not about what can be matched.
+        walkable = [pair for pair in cited if target_identity(pair[0]) != "anon|scroll"]
         served.append(
             Shape(
                 id=workflow.id,
                 title=workflow.title,
                 starts_on=starts_on,
                 hosts=hosts,
-                shape=[list(triple) for triple in shape_key(gestures)],
+                shape=[list(triple) for triple in shape_key([g for g, _ in walkable])],
                 parameters=[
-                    {"name": str(p["name"]), "at": _typed_at(cited, p)}
+                    {"name": str(p["name"]), "at": _typed_at(walkable, p)}
                     for p in workflow.parameters
                     if isinstance(p, dict) and p.get("name")
                 ],

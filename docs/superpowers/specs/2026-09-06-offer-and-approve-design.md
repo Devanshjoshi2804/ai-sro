@@ -102,10 +102,12 @@ five minutes and the same `knownHere` map the backend candidates use.
   most what is being typed now.
 - `match(tail, shapes) -> {workflow, k, values} | null` -- for each shape whose
   first triple's system is the tab's origin: the longest `k ≥ K_OFFER_AFTER = 2`
-  such that the tail ends with `shape[0..k)` in order. Ties: longest `k`, then
-  most held runs. `values` is `{name: typed text}` for every parameter with
+  such that the tail ends with `shape[0..k)` in order. Ties: longest `k`.
+  `values` is `{name: typed text}` for every parameter with
   `at < k`, read off the matching tail gesture; a gesture whose control is
   flagged secret contributes nothing and the parameter is missing.
+  An ambiguous prefix — two served shapes identical over the first `k` — offers
+  nothing; the next gesture separates them.
 - `diverged(tail, offer) -> bool` -- the tail is no longer on the job's path:
   it ends with no prefix of the shape of length ≥ k. Advancing the job is not
   divergence.

@@ -165,28 +165,39 @@ async function considerNudge(tabId, url, visit) {
     if (!(await isWatched(tabId))) return;
     const host = hostOf(url || "");
     if (!host) return;
-    const now = Date.now();
-    // Anything the operator has walked away from ends here, before anything new
-    // is offered: leaving the page is one of the three ways a nudge ends.
-    const before = await state.nudges();
-    const swept = sweep(before, { url, now });
-    reportEndings(before, swept);
-    const candidate = shouldFire({
-      url,
-      visit,
-      candidates: await candidatesFor(host),
-      nudges: swept,
-      muted: await state.muted(),
-      performing: await performing(),
-      now,
+    // Asked before the lock is taken, because it can be a call to the backend
+    // and the gesture path queues behind the same lock. Everything after this
+    // is arithmetic over storage.
+    const candidates = await candidatesFor(host);
+    const muted = await state.muted();
+    const busy = performing();
+    // Read, decide and write as one. Two navigations landing together each read
+    // a list without the other's nudge in it and each wrote it back, and the
+    // second write took the first nudge with it.
+    const candidate = await serially(async () => {
+      const now = Date.now();
+      // Anything the operator has walked away from ends here, before anything
+      // new is offered: leaving the page is one of the three ways a nudge ends.
+      const before = await state.nudges();
+      const swept = sweep(before, { url, now });
+      reportEndings(before, swept);
+      const fired = shouldFire({
+        url,
+        visit,
+        candidates,
+        nudges: swept,
+        muted,
+        performing: busy,
+        now,
+      });
+      if (!fired) {
+        await state.setNudges(swept.slice(0, MAX_NUDGES));
+        return null;
+      }
+      await state.setNudges([fire(fired, now, { tabId, visit }), ...swept].slice(0, MAX_NUDGES));
+      return fired;
     });
-    if (!candidate) {
-      await state.setNudges(swept.slice(0, MAX_NUDGES));
-      return;
-    }
-    const made = fire(candidate, now, { tabId, visit });
-    await state.setNudges([made, ...swept].slice(0, MAX_NUDGES));
-    await showNudge(tabId, candidate.title);
+    if (candidate) await showNudge(tabId, candidate.title);
   } catch {
     // A tab that closed mid-navigation, or a browser with no credential yet.
     // Nothing offered is the safe answer and the quiet one.
@@ -201,19 +212,21 @@ async function considerNudge(tabId, url, visit) {
  * same reason.
  */
 async function sweepNudges() {
-  const held = await state.nudges();
-  if (!held.length) return;
-  const open = held.filter((nudge) => nudge.state === "open");
-  // `null`, not `""`: the beat is not looking at any one tab, and an empty url
-  // read as a page says every operator has walked away from every offer.
-  const swept = sweep(held, { url: null, now: Date.now() });
-  await state.setNudges(swept);
-  reportEndings(held, swept);
-  for (const nudge of open) {
-    if (swept.find((each) => each.id === nudge.id)?.state !== "open") {
-      void hideNudge(nudge.tabId);
+  return serially(async () => {
+    const held = await state.nudges();
+    if (!held.length) return;
+    const open = held.filter((nudge) => nudge.state === "open");
+    // `null`, not `""`: the beat is not looking at any one tab, and an empty url
+    // read as a page says every operator has walked away from every offer.
+    const swept = sweep(held, { url: null, now: Date.now() });
+    await state.setNudges(swept);
+    reportEndings(held, swept);
+    for (const nudge of open) {
+      if (swept.find((each) => each.id === nudge.id)?.state !== "open") {
+        void hideNudge(nudge.tabId);
+      }
     }
-  }
+  });
 }
 
 /** How many prompts are worth keeping to draw the day. */
@@ -221,17 +234,19 @@ const MAX_NUDGES = 20;
 
 /** A write the operator's own browser made, against what was being offered. */
 async function didItThemselves(message) {
-  const held = await state.nudges();
-  if (!held.some((nudge) => nudge.state === "open")) return;
-  const after = onCall(held, { url: message.url, method: message.method }, Date.now());
-  if (after === held) return;
-  await state.setNudges(after);
-  reportEndings(held, after);
-  for (const nudge of held) {
-    if (nudge.state === "open" && after.find((each) => each.id === nudge.id)?.state !== "open") {
-      void hideNudge(nudge.tabId);
+  return serially(async () => {
+    const held = await state.nudges();
+    if (!held.some((nudge) => nudge.state === "open")) return;
+    const after = onCall(held, { url: message.url, method: message.method }, Date.now());
+    if (after === held) return;
+    await state.setNudges(after);
+    reportEndings(held, after);
+    for (const nudge of held) {
+      if (nudge.state === "open" && after.find((each) => each.id === nudge.id)?.state !== "open") {
+        void hideNudge(nudge.tabId);
+      }
     }
-  }
+  });
 }
 
 // -- offering to finish the job they have just started ------------------------
@@ -256,7 +271,11 @@ async function shapesFor() {
     // page twice. Normalised once, here, so no consumer has to remember to.
     starts_on: pageOf(shape.starts_on || ""),
   }));
-  shapesHeld = { at: Date.now(), list };
+  // Only a non-empty answer is stamped, for the reason `candidatesFor` does not
+  // cache a failed one: an empty list is a rig with nothing proved yet, and
+  // holding it for five minutes means the first job it proves is invisible for
+  // five more. `at: 0` is older than any window, so the next gesture asks again.
+  shapesHeld = { at: list.length ? Date.now() : 0, list };
   return list;
 }
 
@@ -318,10 +337,19 @@ async function considerOffer(tabId, gesture) {
         open && open.source === "rig" && open.state === "open"
           ? { ...open, ...replace, id: open.id, at: open.at, tabId }
           : { ...replace, tabId };
-      // The one it supersedes goes: two open at once is the queue this design
-      // exists to not be. On an upgrade that is the same record, and `made`
-      // puts it straight back with what it has just learned.
-      const rest = held.filter((n) => n.id !== open?.id);
+      // The one it supersedes stops being open: two open at once is the queue
+      // this design exists to not be. On an upgrade that is the same record,
+      // and `made` puts it straight back with what it has just learned. A
+      // backend nudge is a different record, and it is not thrown away either
+      // -- it ends as `expired`, so the day it drew still holds every offer
+      // that was ever made rather than quietly losing the ones a prefix match
+      // happened to land on top of.
+      const rest = held.flatMap((n) => {
+        if (n.id !== open?.id) return [n];
+        if (n.id === made.id) return [];
+        void hideNudge(n.tabId);
+        return [{ ...n, state: "expired", endedAt: now }];
+      });
       await state.setNudges([made, ...rest].slice(0, MAX_NUDGES));
       // The title alone: `paintNudge` wraps whatever it is given in "do ...?",
       // so a sentence renders as a question about a question.
@@ -389,7 +417,8 @@ function reportEndings(before, after) {
 // invent about which origins are "ours". A watched tab is watched entirely --
 // every frame, every call it makes, wherever it navigates.
 
-/** Every change to the watched list, one at a time.
+/** Every change to a list this worker keeps in storage, one at a time -- the
+ * watched tabs, the nudges, the tails.
  *
  * Read-modify-write over `chrome.storage` has no transaction: a tab closing
  * while another is being watched read the old list and wrote it back, and the
@@ -1046,6 +1075,19 @@ async function handle(message, sender) {
       // What the operator typed into the panel wins over what the prefix read
       // off the page: they are looking at both, and the panel is the later word.
       const values = { ...(nudge.values || {}), ...(message.values || {}) };
+      // Claimed before the POST, not after. Between the two sits a network call
+      // that can take a second, and anything else reading the list meanwhile --
+      // the quarter-hour sweep, a gesture on this tab -- would find the offer
+      // still `open`, end it, and report a fate for an offer that is at that
+      // moment becoming a run. Moving it out of `open` inside the lock that
+      // authorised it makes the transition atomic: whoever looks next sees a
+      // record that is no longer theirs to end.
+      await serially(async () => {
+        const now = await state.nudges();
+        await state.setNudges(
+          now.map((n) => (n.id === nudge.id ? { ...n, state: "accepted", endedAt: Date.now() } : n)),
+        );
+      });
       let started;
       try {
         started = await api.rigStart({
@@ -1053,6 +1095,15 @@ async function handle(message, sender) {
           live: true, allow_focus: true, started_by: "offer", from_step: nudge.k || 0,
         });
       } catch (error) {
+        // No run was started, so nothing was accepted. The offer goes back to
+        // being the operator's to answer, and no fate is reported -- a failed
+        // press is not an ending.
+        await serially(async () => {
+          const now = await state.nudges();
+          await state.setNudges(
+            now.map((n) => (n.id === nudge.id ? { ...n, state: "open", endedAt: null } : n)),
+          );
+        });
         return { ok: false, error: error.problem?.detail || error.message };
       }
       await state.setActiveRun({ runId: started.run_id, at: Date.now(), source: "rig" });
@@ -1062,18 +1113,6 @@ async function handle(message, sender) {
       // soon as the run exists, and the first picture of it is a moment behind
       // that either way.
       void pollRigRun();
-      // Read again, after the POST. The list captured before it is a minute
-      // old by warehouse standards: a sweep or another gesture may have
-      // written it since, and marking this offer accepted by writing that copy
-      // back would undo whatever they did. The lock covers the read and the
-      // write; the POST is deliberately outside it, because a network call
-      // holding the lock stalls the gesture path behind it.
-      await serially(async () => {
-        const now = await state.nudges();
-        await state.setNudges(
-          now.map((n) => (n.id === nudge.id ? { ...n, state: "accepted", endedAt: Date.now() } : n)),
-        );
-      });
       void hideNudge(nudge.tabId);
       void report(nudge, "accepted", started.run_id);
       return { ok: true, run_id: started.run_id };

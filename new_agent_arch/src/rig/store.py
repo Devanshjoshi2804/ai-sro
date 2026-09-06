@@ -176,6 +176,12 @@ CREATE TABLE IF NOT EXISTS workflow_stale (
 -- model reading a screenshot is not evidence anything was written. Three runs
 -- whose every write is in here is what buys a job the right to write unasked,
 -- and one failed write empties it for that workflow.
+CREATE TABLE IF NOT EXISTS approvals (
+    run_id TEXT NOT NULL,
+    ord    INTEGER NOT NULL,
+    at     TEXT NOT NULL,
+    PRIMARY KEY (run_id, ord)
+);
 CREATE TABLE IF NOT EXISTS workflow_effects (
     workflow_id TEXT NOT NULL,
     run_id      TEXT NOT NULL,

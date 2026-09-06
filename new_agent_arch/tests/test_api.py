@@ -2379,7 +2379,7 @@ def test_approve_releases_a_waiting_write(client: TestClient) -> None:
         task = loop.create_task(Approvals.wait_for("run_w", timeout=2))
         loop.run_until_complete(asyncio.sleep(0))
         got = client.post("/v1/runs/run_w/approve", json={}, headers=_auth())
-        assert got.status_code == 200 and got.json() == {"approved": True}
+        assert got.status_code == 200 and got.json() == {"approved": True, "ord": None}
         assert loop.run_until_complete(task) is True
     finally:
         loop.close()
@@ -2587,3 +2587,113 @@ def test_the_page_reads_a_run_out_of_the_address_and_nothing_else() -> None:
         """
     )
     assert out.strip().splitlines() == ["run_abc123", "null", "null", "null", "null"]
+
+
+def test_an_approval_is_written_down_against_the_step_it_released(
+    client: TestClient, store: Store
+) -> None:
+    import asyncio
+
+    from rig.runner import Approvals
+    from rig.runs import Run, RunStep, save_run
+
+    save_run(
+        store,
+        Run(
+            id="run_aw",
+            tenant="new",
+            workflow_id="wfl_1",
+            device_id="dev_test",
+            values={},
+            started_by="offer",
+            live=True,
+            allow_focus=True,
+            started_at="2026-09-06T10:00:00+00:00",
+            finished_at=None,
+            outcome="running",
+            steps=[
+                RunStep(order=0, says="type", verdict="held", verdict_by="status"),
+                RunStep(order=1, says="save", verdict="awaiting", verdict_by="none"),
+            ],
+        ),
+    )
+    loop = asyncio.new_event_loop()
+    try:
+        task = loop.create_task(Approvals.wait_for("run_aw", timeout=5))
+        loop.run_until_complete(asyncio.sleep(0))
+        got = client.post("/v1/runs/run_aw/approve", headers=_auth())
+        released = loop.run_until_complete(task)
+    finally:
+        loop.close()
+    assert got.status_code == 200 and got.json() == {"approved": True, "ord": 1}
+    assert released is True
+    rows = store.query("SELECT run_id, ord, at FROM approvals")
+    assert [(r["run_id"], r["ord"]) for r in rows] == [("run_aw", 1)] and rows[0]["at"]
+
+
+def test_the_audit_route_lists_what_happened_since_a_time(client: TestClient, store: Store) -> None:
+    from rig.offers import record_offer
+    from rig.runs import Run, RunStep, save_run
+
+    _seed_workflow(store)
+    for i, started in enumerate(["2026-09-05T09:00:00+00:00", "2026-09-06T10:00:00+00:00"]):
+        save_run(
+            store,
+            Run(
+                id=f"run_{i}",
+                tenant="new",
+                workflow_id="wfl_1",
+                device_id="dev_test",
+                values={},
+                started_by="offer",
+                live=True,
+                allow_focus=True,
+                started_at=started,
+                finished_at=None,
+                outcome="held",
+                steps=[
+                    RunStep(
+                        order=1,
+                        says="save",
+                        verdict="held",
+                        verdict_by="status",
+                        sent={"kind": "ui.perform", "payload": {"action": "click"}},
+                        matched_by="component",
+                    )
+                ],
+            ),
+        )
+    store.execute(
+        "INSERT INTO approvals (run_id, ord, at) VALUES (?, ?, ?)",
+        ("run_1", 1, "2026-09-06T10:00:30+00:00"),
+    )
+    record_offer(
+        store,
+        tenant="new",
+        workflow_id="wfl_1",
+        k=2,
+        fate="accepted",
+        run_id="run_1",
+        device_id="dev_test",
+        at="2026-09-06T09:59:00+00:00",
+    )
+    record_offer(
+        store,
+        tenant="new",
+        workflow_id="wfl_1",
+        k=2,
+        fate="expired",
+        run_id=None,
+        device_id="dev_test",
+        at="2026-09-05T08:00:00+00:00",
+    )
+
+    got = client.get("/v1/audit?since=2026-09-06T00:00:00%2B00:00", headers=_auth()).json()
+
+    assert [r["id"] for r in got["runs"]] == ["run_1"], "yesterday's run is before `since`"
+    [step] = got["runs"][0]["steps"]
+    assert step["sent"] == "ui.perform" and step["approved_at"] == "2026-09-06T10:00:30+00:00"
+    assert step["matched_by"] == "component" and step["verdict"] == "held"
+    assert "payload" not in step and "values" not in got["runs"][0], "no values, no payloads"
+    assert [o["fate"] for o in got["offers"]] == ["accepted"]
+    assert client.get("/v1/audit", headers=_auth()).status_code == 200, "no since means everything"

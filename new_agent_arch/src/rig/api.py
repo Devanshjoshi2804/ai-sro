@@ -1035,7 +1035,94 @@ def build_app(
 
         if not Approvals.approve(run_id):
             raise HTTPException(status_code=409, detail="nothing is awaiting approval on this run")
-        return {"approved": True}
+        # Written down: which step, and when. The run record says a write went
+        # out; this says a person let it. One bearer per rig, so "who" is the
+        # tenant's operator until there is a registry to name one.
+        waiting = store.query(
+            "SELECT ord FROM run_steps WHERE run_id = ? AND verdict = 'awaiting'"
+            " ORDER BY ord DESC LIMIT 1",
+            (run_id,),
+        )
+        ord_ = int(waiting[0]["ord"]) if waiting else None
+        if ord_ is not None:
+            store.execute(
+                "INSERT OR REPLACE INTO approvals (run_id, ord, at) VALUES (?, ?, ?)",
+                (run_id, ord_, _now()),
+            )
+        return {"approved": True, "ord": ord_}
+
+    @app.get("/v1/audit", dependencies=[Depends(authorised)])
+    async def audit(since: str = "", limit: int = 200) -> dict[str, Any]:
+        """Everything a person would want to see after the fact, since a time:
+        the runs, each step's verdict and what was sent, when a person
+        approved a write, and every offer's fate. One tenant, bound
+        parameters, newest first, one page."""
+        import json as _json
+
+        limit = max(1, min(int(limit), 1000))
+        runs = store.query(
+            "SELECT id, workflow_id, device_id, started_by, live, started_at, finished_at,"
+            " outcome, cost_usd, unpriced FROM runs"
+            " WHERE tenant = ? AND started_at >= ? ORDER BY started_at DESC LIMIT ?",
+            (tenant, since, limit),
+        )
+        out = []
+        for r in runs:
+            approved = {
+                int(a["ord"]): a["at"]
+                for a in store.query("SELECT ord, at FROM approvals WHERE run_id = ?", (r["id"],))
+            }
+            steps = []
+            for st in store.query(
+                "SELECT ord, says, verdict, verdict_by, sent, matched_by, stale FROM run_steps"
+                " WHERE run_id = ? ORDER BY ord",
+                (r["id"],),
+            ):
+                sent = _json.loads(st["sent"]) if st["sent"] else None
+                steps.append(
+                    {
+                        "ord": st["ord"],
+                        "says": st["says"],
+                        "verdict": st["verdict"],
+                        "verdict_by": st["verdict_by"],
+                        "sent": sent.get("kind") if isinstance(sent, dict) else None,
+                        "matched_by": st["matched_by"],
+                        "stale": bool(st["stale"]),
+                        "approved_at": approved.get(int(st["ord"])),
+                    }
+                )
+            out.append(
+                {
+                    "id": r["id"],
+                    "workflow_id": r["workflow_id"],
+                    "device_id": r["device_id"],
+                    "started_by": r["started_by"],
+                    "live": bool(r["live"]),
+                    "started_at": r["started_at"],
+                    "finished_at": r["finished_at"],
+                    "outcome": r["outcome"],
+                    "cost_usd": r["cost_usd"],
+                    "unpriced": bool(r["unpriced"]),
+                    "steps": steps,
+                }
+            )
+        offers = [
+            {
+                "id": o["id"],
+                "workflow_id": o["workflow_id"],
+                "device_id": o["device_id"],
+                "k": o["k"],
+                "fate": o["fate"],
+                "run_id": o["run_id"],
+                "at": o["at"],
+            }
+            for o in store.query(
+                "SELECT id, workflow_id, device_id, k, fate, run_id, at FROM offers"
+                " WHERE tenant = ? AND at >= ? ORDER BY at DESC LIMIT ?",
+                (tenant, since, limit),
+            )
+        ]
+        return {"since": since, "runs": out, "offers": offers}
 
     @app.post("/v1/chat", dependencies=[Depends(authorised)])
     async def chat(body: dict[str, Any]) -> dict[str, Any]:

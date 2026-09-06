@@ -3005,10 +3005,10 @@ def test_the_day_is_summed_over_every_kind_of_call(
     assert over_cap(store, "new") is None
     _spent(store, "chats", 0.0, unpriced=1)
     why = over_cap(store, "new")
-    assert why and "1 unpriced call(s)" in why
+    assert why and ", 1 unpriced call(s)" in why, why
     _spent(store, "runs", 0.0, unpriced=1)
     why = over_cap(store, "new")
-    assert why and "2 unpriced call(s)" in why
+    assert why and ", 2 unpriced call(s)" in why, why  # not "-2": the count adds
     # A negative cap is no cap.
     _capped(monkeypatch, -1)
     assert over_cap(store, "new") is None
@@ -3183,3 +3183,41 @@ def test_an_artifact_past_the_byte_bound_is_refused_before_it_is_written(
     assert (tmp_path / "artifacts" / "bat_fits" / "screenshot-x.png").stat().st_size == (
         K_ARTIFACT_BYTES
     )
+
+
+def test_the_header_bills_runs_and_the_chat_door_too() -> None:
+    rendered = _run_page(
+        """
+        const clean = { gestures: 9, gestures_read: 7, cost_usd: 0.0259,
+                        per_gesture_usd: 0.0037, unpriced: 0, unusable: 0 };
+        console.log(JSON.stringify([
+          spendLine(clean),
+          spendLine({ ...clean, runs: 3, runs_usd: 0.42, runs_unpriced: 0, chats: 1, chat_usd: 0.0042, chat_unpriced: 0 }),
+          spendLine({ ...clean, runs: 1, runs_usd: 0, runs_unpriced: 1, chats: 2, chat_usd: 0.01, chat_unpriced: 1 }),
+        ]));
+        """
+    )
+    older, billed, blind = json.loads(rendered)
+    assert "run" not in older and "chat" not in older, "an older rig's spend draws neither"
+    assert "$0.4200</b> over 3 runs" in billed and "$0.0042</b> over 1 chat" in billed
+    assert 'class="nothing"' not in billed
+    assert "over 1 run" in blind and "over 2 chats" in blind
+    assert blind.count('class="nothing"') == 2, "an unpriced run and an unpriced chat both say so"
+
+
+def test_the_audit_carries_the_chat_door(client: TestClient, store: Store) -> None:
+    _seed_workflow(store)
+    client.app.state.asker = FakeAsker(  # type: ignore[attr-defined]
+        Answer(data={"workflow_id": "wfl_1", "values": {}, "missing": []}, cost_usd=0.0042)
+    )
+    assert (
+        client.post("/v1/chat", json={"utterance": "create a client"}, headers=_auth()).status_code
+        == 200
+    )
+    got = client.get("/v1/audit?since=2026-01-01T00:00:00Z", headers=_auth()).json()
+    [chat] = got["chats"]
+    assert (
+        chat["workflow_id"] == "wfl_1" and chat["cost_usd"] == 0.0042 and chat["unpriced"] is False
+    )
+    assert chat["id"].startswith("cht_") and chat["at"] and chat["error"] is None
+    assert "utterance" not in chat and "said" not in chat, "the sentence was never kept"

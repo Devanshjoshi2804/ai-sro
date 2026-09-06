@@ -1407,7 +1407,30 @@ def build_app(
                 (since, since, limit),
             )
         ]
-        return {"since": since, "runs": out, "offers": offers, "devices": devices}
+        # The chat door, used: when, by which sentence's job, at what cost.
+        # The sentence itself was never kept.
+        chats = [
+            {
+                "id": c["id"],
+                "workflow_id": c["workflow_id"],
+                "cost_usd": c["cost_usd"],
+                "unpriced": bool(c["unpriced"]),
+                "error": c["error"],
+                "at": c["at"],
+            }
+            for c in store.query(
+                "SELECT id, workflow_id, cost_usd, unpriced, error, at FROM chats"
+                " WHERE tenant = ? AND at >= ? ORDER BY at DESC LIMIT ?",
+                (tenant, since, limit),
+            )
+        ]
+        return {
+            "since": since,
+            "runs": out,
+            "offers": offers,
+            "devices": devices,
+            "chats": chats,
+        }
 
     @app.post("/v1/chat", dependencies=[Depends(tenant_only)])
     async def chat(body: dict[str, Any]) -> dict[str, Any]:

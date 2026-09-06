@@ -214,6 +214,16 @@
            s.mining_unpriced ? ` · <b class="nothing">${esc(s.mining_unpriced)}</b> unpriced` : ""
          }` : ""
        }${
+         // Runs and the chat door, the two other places model money goes.
+         // An older rig's spend has neither field and draws neither.
+         s.runs ? ` · <b>$${Number(s.runs_usd ?? 0).toFixed(4)}</b> over ${esc(s.runs)} run${s.runs === 1 ? "" : "s"}${
+           s.runs_unpriced ? ` · <b class="nothing">${esc(s.runs_unpriced)}</b> unpriced` : ""
+         }` : ""
+       }${
+         s.chats ? ` · <b>$${Number(s.chat_usd ?? 0).toFixed(4)}</b> over ${esc(s.chats)} chat${s.chats === 1 ? "" : "s"}${
+           s.chat_unpriced ? ` · <b class="nothing">${esc(s.chat_unpriced)}</b> unpriced` : ""
+         }` : ""
+       }${
          // The day against its cap, when there is one: the one number that
          // says why a pass, a chat or a run was just refused. Red at the cap,
          // and red on an unpriced call, which stops the day just as hard.

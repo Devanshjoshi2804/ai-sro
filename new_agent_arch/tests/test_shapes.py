@@ -316,13 +316,22 @@ def test_a_job_whose_first_step_is_only_a_scroll_still_says_where_it_begins(
     step cites is a scroll, and the job still begins somewhere."""
     store = _store(tmp_path)
     workflow = _workflow(store)
-    workflow.steps[0].cites = [_scroll(store)]
+    scroll = _scroll(store)
+    workflow.steps[0].cites = [scroll]
     workflow.steps[0].parameters = []
     save_workflow(store, workflow)
+    # Two pages, so the answer is the first step's and not the second's.
+    store.execute(
+        "UPDATE gestures SET page_url = ? WHERE id = ?", ("http://127.0.0.1:63319/list", scroll)
+    )
+    store.execute(
+        "UPDATE gestures SET page_url = ? WHERE id = ?",
+        ("http://127.0.0.1:63319/form", workflow.steps[1].cites[0]),
+    )
 
     [shape] = shapes_for(store, "acme")
 
-    assert shape.starts_on and shape.starts_on.startswith("http://127.0.0.1:63319")
+    assert shape.starts_on == "http://127.0.0.1:63319/list"
 
 
 def test_a_stored_key_from_an_older_rule_is_recomputed_once(tmp_path: Path) -> None:
@@ -368,56 +377,17 @@ def test_a_workflow_that_cannot_be_rekeyed_does_not_stop_the_others(tmp_path: Pa
     broken.steps[0].cites.append("ges_gone_with_its_batch")
     broken.shape_key = [["https://old", "text|gone", "click"]]
     save_workflow(store, broken)
+    empty = Workflow(id="wfl_3", tenant="acme", title="cites nothing", narrative="n")
+    save_workflow(store, empty)
     stale = _workflow(store, "wfl_2")
     stale.shape_key = [["https://old", "text|stale", "click"]]
     save_workflow(store, stale)
-    empty = Workflow(id="wfl_3", tenant="acme", title="cites nothing", narrative="n")
-    save_workflow(store, empty)
 
-    # The one with evidence missing is skipped, the one with no cites is
-    # skipped, and the stale one after them is still rekeyed: skipping is
-    # per workflow, not the end of the pass.
+    # Visited in the order saved: the one with evidence missing is skipped,
+    # the one with no cites is skipped, and the stale one after both is
+    # still rekeyed -- skipping is per workflow, not the end of the pass.
     assert rekey_workflows(store, "acme") == 1
     key = json.loads(
         store.query("SELECT shape_key FROM workflows WHERE id = 'wfl_2'")[0]["shape_key"]
     )
     assert [t[2] for t in key] == ["type", "click"]
-
-
-def test_a_job_whose_first_step_is_only_a_scroll_starts_on_that_scrolls_page(
-    tmp_path: Path,
-) -> None:
-    store = _store(tmp_path)
-    ids = [r["id"] for r in store.query("SELECT id FROM gestures ORDER BY at")]
-    # The fixture batch has no scroll, so its first gesture becomes one: a
-    # scroll has no target, and `primary_gesture` skips it.
-    scroll = ids[0]
-    row = store.query("SELECT gesture_json FROM gestures WHERE id = ?", (scroll,))[0]
-    as_scroll = {**json.loads(row["gesture_json"]), "kind": "scroll", "target": None, "value": "0"}
-    store.execute(
-        "UPDATE gestures SET gesture_json = ? WHERE id = ?", (json.dumps(as_scroll), scroll)
-    )
-    # Two steps, each with a different page: the scroll's page and the
-    # save's. The served `starts_on` is where the job starts -- the first
-    # step's page -- not the second step's.
-    store.execute(
-        "UPDATE gestures SET page_url = ? WHERE id = ?", ("http://127.0.0.1:63319/list", scroll)
-    )
-    store.execute(
-        "UPDATE gestures SET page_url = ? WHERE id = ?", ("http://127.0.0.1:63319/form", ids[-1])
-    )
-    wf = Workflow(
-        id="wfl_s",
-        tenant="acme",
-        title="scroll then save",
-        narrative="n",
-        systems=["http://127.0.0.1:63319"],
-        steps=[
-            Step(order=0, says="look", system=None, cites=[scroll]),
-            Step(order=1, says="save", system=None, cites=[ids[-1]]),
-        ],
-    )
-    save_workflow(store, wf)
-
-    served = next(s for s in shapes_for(store, "acme") if s.id == "wfl_s")
-    assert served.starts_on == "http://127.0.0.1:63319/list"

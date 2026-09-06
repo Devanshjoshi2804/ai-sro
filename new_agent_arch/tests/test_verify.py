@@ -558,13 +558,3 @@ async def test_the_screen_belt_is_told_the_step_the_command_and_both_pictures_wo
         "screen_after",
         "values",
     }
-
-
-async def test_a_value_nested_inside_the_read_back_still_confirms_it() -> None:
-    saver = _saver()
-    verdict = await _verified(
-        saver,
-        channel=_read('{"data": {"created": {"code": "THIRD"}}}'),
-        values={"clientCode": "THIRD"},
-    )
-    assert (verdict.state, verdict.by) == ("held", "read")

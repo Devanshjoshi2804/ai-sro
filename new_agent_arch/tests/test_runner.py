@@ -2043,17 +2043,20 @@ async def test_the_pro_rescue_sees_the_page_the_flash_attempt_left_behind(tmp_pa
     assert isinstance(plans[1]["images"][0], bytes), "a real picture, not a placeholder"
 
 
-async def test_a_finished_run_is_forgotten_by_the_abort_and_approval_registers(
+async def test_a_run_stopped_by_the_flag_is_forgotten_by_the_registers_when_it_ends(
     tmp_path: Path,
 ) -> None:
     store = _store(tmp_path)
     wf = _workflow(store)
-    channel = FakeChannel(
-        {**_looks(4), "ui.perform": [Reply(ok=True, result={"performed": True})] * 2}
-    )
+    channel = FakeChannel(_looks(2))
     asker = _per_schema_asker(
         plan=_plan("type", "THIRD"), verdict=Answer(data={"held": True, "why": "ok"})
     )
+    # Flagged before it starts: the loop sees the flag at its first step and
+    # ends aborted. What matters here is what the run leaves behind in the
+    # in-process registers -- nothing, or the next run under that id would
+    # inherit a stop it never asked for.
+    Aborts.abort("run_forget_me")
     run = await run_workflow(
         store,
         wf,
@@ -2069,13 +2072,8 @@ async def test_a_finished_run_is_forgotten_by_the_abort_and_approval_registers(
         earned=_earned,
         run_id="run_forget_me",
     )
-    assert run.outcome == "held"
-    # Whatever was registered for this run is gone: a later run under the
-    # same id (never, but the registers are keyed by id) would start clean.
-    Aborts.abort("run_forget_me")
-    assert Aborts.is_aborted("run_forget_me")
-    Aborts.forget("run_forget_me")
-    assert not Aborts.is_aborted("run_forget_me")
+    assert run.outcome == "aborted"
+    assert not Aborts.is_aborted("run_forget_me"), "the finally forgets the flag"
     assert "run_forget_me" not in Approvals.waiting()
 
 

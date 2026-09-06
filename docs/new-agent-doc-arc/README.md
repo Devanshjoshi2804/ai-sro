@@ -887,8 +887,16 @@ paying Pro prices to click a field named *Client Code* buys nothing.
 rather than a receipt. The protocol says it plainly: a step that only ever
 matches on the last fallback is a step about to break. When `component` and
 `role_and_name` both miss and `css_path` catches it, the run **succeeds and the
-workflow is flagged stale** — the same instinct as a vision rung that finds a
-button somewhere new, one rung lower down.
+workflow is flagged stale** — the same instinct as the sight rung, one rung
+lower down: when both evidence rungs miss the control by every recorded
+identity (`control_not_found`), Pro is asked once more, with the screen and
+its viewport size, to answer the control's centre in CSS pixels, and the
+extension acts there (`ui.perform_at`). A point off the screen, a control
+the model does not see, or no picture at all (a screenshot the browser
+refused) ends the step with the reason on the record. A step found this way
+is `matched_by: sight`, stale, and subject to the same approval, budget and
+dry-run withholding as one found by evidence; the same thing a person does
+when a button moved, and recorded as the workaround it is.
 
 ### Approval, and what a job earns
 

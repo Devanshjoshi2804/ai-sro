@@ -71,6 +71,10 @@ class Look:
     url: str | None
     screenshot: bytes | None
     digest: str
+    # The CSS viewport the picture shows, which is the space `ui.perform_at`
+    # acts in. Zero when the browser gave no picture.
+    width: int = 0
+    height: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -255,3 +259,95 @@ async def plan_step(
     if starts_on:
         payload["starts_on"] = starts_on
     return Planned("ui.perform", payload, why, answer)
+
+
+SIGHT_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "found": {"type": "boolean"},
+        "x": {"type": "integer"},
+        "y": {"type": "integer"},
+        "action": {"type": "string", "enum": ["click", "type", "press", "select"]},
+        "value": {"type": "string", "nullable": True},
+        "why": {"type": "string"},
+    },
+    "required": ["found", "x", "y", "action", "why"],
+    "propertyOrdering": ["found", "x", "y", "action", "value", "why"],
+}
+
+SIGHT_INSTRUCTIONS = """You are performing one step of a job an operator demonstrated in a warehouse
+system, in their own browser. Every way of finding the control by its recorded
+identity has failed: the page has changed under the job. You are shown the
+screen as it is now, the step's sentence, what the control looked like when it
+was demonstrated, and the values this run was given.
+
+Find the control for THIS step on the screen. Answer its centre in CSS pixels
+of the viewport whose size you are given -- the picture is that viewport --
+and the action to take there. For type, give the value from this run's values.
+If the control is not on this screen, answer found: false and say why. Never
+guess a point: a click on the wrong control in a warehouse system is worse
+than a step that stops and asks."""
+
+
+async def plan_by_sight(
+    *,
+    step: Step,
+    cited: list[Gesture],
+    values: Mapping[str, str],
+    look: Look,
+    origin: str | None,
+    asker: Asker,
+    model: str,
+    failure: str | None,
+) -> Planned:
+    """The rung below the locator ladder: find the control by looking.
+
+    Asked once, after both evidence rungs missed with `control_not_found`, and
+    only with a picture to look at. The answer is a point, sent as
+    `ui.perform_at`; the runner records the step matched by sight and marks the
+    job stale, the same instinct as `css_path` catching what `component` and
+    `role_and_name` missed -- one rung lower down."""
+    primary = next((g for g in cited if g.gesture.kind != "scroll"), cited[0] if cited else None)
+    if look.screenshot is None or not look.width or not look.height:
+        return Planned("none", {}, "no screen to look at", Answer())
+    if primary is None:
+        return Planned("none", {}, "no evidence to act on", Answer())
+    evidence = json.dumps(
+        {
+            "step": {"order": step.order, "says": step.says, "parameters": step.parameters},
+            "demonstrated_on": trim(primary),
+            "values": dict(values),
+            "browser": {"url": look.url, "screen_text": look.digest},
+            "viewport": {"width": look.width, "height": look.height},
+            "previous_attempt_failed": failure,
+        },
+        indent=2,
+        ensure_ascii=False,
+    )
+    answer = await asker.ask(
+        model=model,
+        instructions=SIGHT_INSTRUCTIONS,
+        evidence=evidence,
+        schema=SIGHT_SCHEMA,
+        image=look.screenshot,
+    )
+    data = answer.data
+    if data is None:
+        return Planned("none", {}, answer.error or "no answer", answer)
+    why = str(data.get("why") or "")
+    if not data.get("found"):
+        return Planned("none", {}, why or "the control is not on this screen", answer)
+    x, y = data.get("x"), data.get("y")
+    # Inside the picture, or nowhere: a point off the viewport is a guess.
+    if not (
+        isinstance(x, int) and isinstance(y, int) and 0 <= x < look.width and 0 <= y < look.height
+    ):
+        return Planned("none", {}, f"the point ({x}, {y}) is not on the screen", answer)
+    action = str(data.get("action") or "click")
+    payload: dict[str, Any] = {"origin": origin, "x": x, "y": y, "action": action}
+    if action in ("type", "select"):
+        value = _value_for(step, primary, values, data.get("value"))
+        if value is None:
+            return Planned("none", {}, "nothing to type: no value for this control", answer)
+        payload["value"] = value
+    return Planned("ui.perform_at", payload, why, answer)

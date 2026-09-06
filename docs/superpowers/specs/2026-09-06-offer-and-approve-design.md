@@ -266,6 +266,9 @@ panel. Details still opens the rig page.
   rests a job per browser for a day (see *An offer ends*); nothing removes a
   proven job from the list without a person.
 - Computer-use fallback when the locator ladder and the rescue both fail.
+  *Amended 2026-09-06:* one sight rung exists now (`planner.plan_by_sight`,
+  `ui.perform_at`), for `control_not_found` only; a full computer-use loop
+  (look, act, look again, without evidence) is still out.
 - A per-principal role for who may approve. Since 2026-09-06 a browser holds
   a token of its own and may approve only the run it is driving; who the
   operator is behind that browser is still not asked.

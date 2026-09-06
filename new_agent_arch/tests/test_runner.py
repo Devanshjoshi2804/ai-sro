@@ -2109,3 +2109,183 @@ async def test_a_run_started_past_its_last_step_performs_nothing_and_holds(tmp_p
     )
     assert [s.verdict for s in run.steps] == ["done_by_operator", "done_by_operator"]
     assert run.outcome == "held" and channel.sent == [] and asker.asked == []
+
+
+def _sight(x: int = 40, y: int = 30, action: str = "type", value: str | None = "x") -> Answer:
+    return Answer(
+        data={"found": True, "x": x, "y": y, "action": action, "value": value, "why": "there"},
+        cost_usd=0.002,
+    )
+
+
+def _looks_with_size(n: int) -> dict[str, list[Reply]]:
+    looks = _looks(n)
+    for reply in looks["screenshot"]:
+        reply.result.update({"width": 800, "height": 600})
+    return looks
+
+
+class _by_rung_asker(FakeAsker):
+    """Answers the evidence planner, the sight planner and the verifier each
+    from their own queue, by schema, and records every call."""
+
+    def __init__(self, plans: list[Answer], sights: list[Answer], verdict: Answer) -> None:
+        super().__init__()
+        self.plans, self.sights, self.verdict = list(plans), list(sights), verdict
+
+    async def ask(self, **asked: Any) -> Answer:
+        await super().ask(**asked)
+        props = asked["schema"]["properties"]
+        if "held" in props:
+            return self.verdict
+        if "found" in props:
+            return self.sights.pop(0)
+        return self.plans.pop(0)
+
+
+async def _run_by_sight(
+    tmp_path: Path,
+    *,
+    sights: list[Answer],
+    perform_at: list[Reply],
+    performs: list[Reply] | None = None,
+    live: bool = True,
+    looks: dict[str, list[Reply]] | None = None,
+) -> tuple[Run, FakeChannel, _by_rung_asker]:
+    store = _store(tmp_path)
+    wf = _workflow(store)
+    channel = FakeChannel(
+        {
+            **(looks or _looks_with_size(12)),
+            # Two misses on the first step; the save then matches by evidence.
+            "ui.perform": performs
+            or [
+                Reply(ok=False, error_kind="control_not_found", error_detail="gone"),
+                Reply(ok=False, error_kind="control_not_found", error_detail="gone"),
+                Reply(ok=True, result={"performed": True, "matched_by": "role_and_name"}),
+            ],
+            "ui.perform_at": perform_at,
+        }
+    )
+    asker = _by_rung_asker(
+        [_plan("type", "x")] * 4, sights, Answer(data={"held": True, "why": "typed"})
+    )
+    run = await run_workflow(
+        store,
+        wf,
+        values={"clientCode": "x"},
+        channel=channel,
+        device_id="dev_test",
+        asker=asker,
+        plan_model="flash",
+        rescue_model="pro",
+        live=live,
+        earned=_earned,
+        allow_focus=True,
+        started_by="form",
+    )
+    return run, channel, asker
+
+
+async def test_a_control_neither_rung_could_find_is_found_by_sight_and_the_job_marked_stale(
+    tmp_path: Path,
+) -> None:
+    run, channel, asker = await _run_by_sight(
+        tmp_path,
+        sights=[_sight()],
+        perform_at=[Reply(ok=True, result={"performed": True})],
+    )
+    first = run.steps[0]
+    assert first.verdict == "held", first.reason
+    assert first.matched_by == "sight" and first.stale is True
+    assert first.result == {"ok": True, "status": None, "matched_by": "sight"}
+    assert [a["model"] for a in asker.asked if "found" in a["schema"]["properties"]] == ["pro"]
+    [sent] = [s for s in channel.sent if s["kind"] == "ui.perform_at"]
+    assert sent["payload"] == {
+        "origin": "http://127.0.0.1:63319",
+        "x": 40,
+        "y": 30,
+        "action": "type",
+        "value": "x",
+    }
+    assert first.planned_by == "pro"
+    assert run.outcome == "held", "the run carried on to the save and held"
+
+
+async def test_the_sight_rung_is_for_a_control_that_was_not_found_and_nothing_else(
+    tmp_path: Path,
+) -> None:
+    """A plan the browser refused for another reason -- the page did not
+    answer, the tab is gone -- is not a page that moved, and a picture answers
+    nothing about it."""
+    run, channel, asker = await _run_by_sight(
+        tmp_path,
+        sights=[_sight()],
+        perform_at=[Reply(ok=True, result={"performed": True})],
+        performs=[Reply(ok=False, error_kind="not_actionable", error_detail="no answer")] * 2,
+    )
+    assert run.outcome == "stopped" and run.steps[0].verdict == "failed"
+    assert not [s for s in channel.sent if s["kind"] == "ui.perform_at"]
+    assert not [a for a in asker.asked if "found" in a["schema"]["properties"]]
+
+
+async def test_a_point_off_the_screen_or_a_control_not_seen_is_a_step_that_stops(
+    tmp_path: Path,
+) -> None:
+    for sight in (
+        _sight(x=900, y=30),
+        Answer(data={"found": False, "x": 0, "y": 0, "action": "click", "why": "not here"}),
+    ):
+        run, channel, _ = await _run_by_sight(
+            tmp_path, sights=[sight], perform_at=[Reply(ok=True, result={"performed": True})]
+        )
+        assert run.outcome == "stopped" and run.steps[0].verdict == "failed", sight.data
+        assert not [s for s in channel.sent if s["kind"] == "ui.perform_at"], "nothing was sent"
+        assert "then by sight: " in run.steps[0].reason
+        assert "not on the screen" in run.steps[0].reason or "not here" in run.steps[0].reason
+        assert run.steps[0].result == {
+            "ok": False,
+            "status": None,
+            "matched_by": None,
+            "error_kind": "control_not_found",
+        }, "the record keeps the last command that went out"
+
+
+async def test_without_a_picture_there_is_no_sight_rung(tmp_path: Path) -> None:
+    """A screenshot the browser refused -- `focus_not_permitted` -- is no
+    picture, and a rung that looks has nothing to look at."""
+    run, channel, asker = await _run_by_sight(
+        tmp_path,
+        sights=[_sight()],
+        perform_at=[Reply(ok=True, result={"performed": True})],
+        looks={
+            "ui.url": [Reply(ok=True, result={"url": "http://127.0.0.1:63319/form"})] * 12,
+            "screenshot": [Reply(ok=False, error_kind="focus_not_permitted", error_detail="no")]
+            * 12,
+        },
+    )
+    assert run.outcome == "stopped" and "no screen to look at" in run.steps[0].reason
+    assert not [a for a in asker.asked if "found" in a["schema"]["properties"]], (
+        "the model was not asked to look at nothing"
+    )
+    assert not [s for s in channel.sent if s["kind"] == "ui.perform_at"]
+
+
+async def test_a_dry_run_reads_by_sight_too_and_its_writes_never_reach_the_rung(
+    tmp_path: Path,
+) -> None:
+    """A dry run performs reads, so a read neither evidence rung could find is
+    found by sight the same way. Its writes are withheld before any rung
+    could miss them: the save below is withheld by evidence, and the sight
+    rung is never asked about it."""
+    run, channel, asker = await _run_by_sight(
+        tmp_path,
+        sights=[_sight()],
+        perform_at=[Reply(ok=True, result={"performed": True})],
+        live=False,
+    )
+    assert [s.verdict for s in run.steps] == ["held", "withheld"], [s.reason for s in run.steps]
+    assert run.steps[0].matched_by == "sight" and run.steps[0].stale is True
+    assert len([s for s in channel.sent if s["kind"] == "ui.perform_at"]) == 1
+    assert len([a for a in asker.asked if "found" in a["schema"]["properties"]]) == 1
+    assert run.withheld[0]["planned"]["kind"] == "ui.perform", "withheld by evidence, unasked"

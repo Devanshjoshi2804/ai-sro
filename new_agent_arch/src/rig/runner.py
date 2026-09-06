@@ -23,7 +23,7 @@ from rig.correlate import system_of
 from rig.effects import forget_effects, record_effect
 from rig.locators import allowlist, origin_of, primary_gesture, recorded_call, writes
 from rig.models import Answer, Asker
-from rig.planner import Look, Planned, plan_step
+from rig.planner import Look, Planned, plan_by_sight, plan_step
 from rig.records import Gesture
 from rig.runs import Run, RunStep, load_run, new_run_id, save_run
 from rig.store import Store
@@ -202,7 +202,14 @@ async def _look(
             except ValueError:
                 image = None
         digest = str(shot.result.get("text_digest") or "")
-    return Look(url=url, screenshot=image, digest=digest)
+    width, height = shot.result.get("width"), shot.result.get("height")
+    return Look(
+        url=url,
+        screenshot=image,
+        digest=digest,
+        width=width if isinstance(width, int) else 0,
+        height=height if isinstance(height, int) else 0,
+    )
 
 
 def _result(reply: Reply, *, wrote: bool = False) -> dict[str, Any]:
@@ -382,12 +389,26 @@ async def run_workflow(
             if primary is None:
                 record.reason = "no cited gesture can be acted on"
 
-            # Flash, then Pro once. A step with nothing actionable cited gets
-            # neither: it is recorded skipped and the run carries on.
-            rungs = (plan_model, rescue_model) if primary is not None else ()
+            # Flash, then Pro once, then -- only when both missed the control
+            # by every recorded identity -- Pro once more, by sight. A step
+            # with nothing actionable cited gets none of them: it is recorded
+            # skipped and the run carries on.
+            rungs = (
+                (("evidence", plan_model), ("evidence", rescue_model), ("sight", rescue_model))
+                if primary is not None
+                else ()
+            )
             verdict: Verdict | None = None
             after_failed: Look | None = None
-            for model in rungs:
+            for how, model in rungs:
+                # The sight rung is for a page that moved, not for a plan that
+                # was wrong: a control the browser could not find is the one
+                # failure a picture can answer. Anything else stops here.
+                if (
+                    how == "sight"
+                    and (record.result or {}).get("error_kind") != "control_not_found"
+                ):
+                    break
                 # One rung of the ladder: plan, and plan again once if getting
                 # to the right page was all the model asked for. Getting there
                 # is not doing the step, so a navigate must not spend the one
@@ -409,19 +430,31 @@ async def run_workflow(
                         break
                     attempts += 1
                     before = await _look(channel, device_id, run.id, origin, allow_focus)
-                    proposal = await plan_step(
-                        step=step,
-                        cited=cited,
-                        values=values,
-                        look=before,
-                        origin=origin,
-                        starts_on=starts_on,
-                        allow_focus=allow_focus,
-                        asker=asker,
-                        model=model,
-                        failure=verdict.reason if verdict else None,
-                        failed_look=after_failed,
-                    )
+                    if how == "sight":
+                        proposal = await plan_by_sight(
+                            step=step,
+                            cited=cited,
+                            values=values,
+                            look=before,
+                            origin=origin,
+                            asker=asker,
+                            model=model,
+                            failure=verdict.reason if verdict else None,
+                        )
+                    else:
+                        proposal = await plan_step(
+                            step=step,
+                            cited=cited,
+                            values=values,
+                            look=before,
+                            origin=origin,
+                            starts_on=starts_on,
+                            allow_focus=allow_focus,
+                            asker=asker,
+                            model=model,
+                            failure=verdict.reason if verdict else None,
+                            failed_look=after_failed,
+                        )
                     record.planned_by = model
                     record.before_url = before.url
                     _bill(record, proposal.answer)
@@ -468,6 +501,13 @@ async def run_workflow(
 
                 if planned is None and run.outcome == "running":
                     record.planned_by, record.sent, record.result = previously
+                    # The sight rung's answer, when it had none: the record
+                    # keeps the last command that went out, and says beside
+                    # it what the picture said -- "not on this screen" is
+                    # the fact a person acts on, and it was about to be lost.
+                    if how == "sight" and verdict is not None:
+                        record.reason = f"{record.reason}; then by sight: {verdict.reason}"
+                        verdict = Verdict(verdict.state, verdict.by, record.reason)
                 if run.outcome != "running":
                     break
                 if planned is None:
@@ -495,7 +535,7 @@ async def run_workflow(
                 # One predicate, both gates below: a step nobody may retry
                 # afterwards is a step nobody may send unasked either.
                 may_write = mutates or (
-                    planned.kind == "ui.perform"
+                    planned.kind in ("ui.perform", "ui.perform_at")
                     and planned.payload.get("action") in ("click", "press")
                     and _saw_nothing(step, by_id)
                 )
@@ -535,6 +575,10 @@ async def run_workflow(
                     device_id, kind=planned.kind, run_id=run.id, payload=planned.payload
                 )
                 record.result = _result(reply, wrote=may_write)
+                # A point has no locator: the record says the control was
+                # found by sight, in both places a reader looks.
+                if reply.ok and planned.kind == "ui.perform_at":
+                    record.result["matched_by"] = "sight"
                 record.matched_by = record.result["matched_by"] if reply.ok else None
                 after = await _look(channel, device_id, run.id, origin, allow_focus)
                 record.after_url = after.url
@@ -561,7 +605,11 @@ async def run_workflow(
                 record.verdict, record.verdict_by = verdict.state, verdict.by
                 record.reason = verdict.reason
                 if verdict.state == "held":
-                    if planned.kind == "ui.perform" and record.matched_by in K_WEAK_LOCATORS:
+                    # Found by sight, or by the last locator: the page moved
+                    # under the job, and the job is flagged before it breaks.
+                    if planned.kind == "ui.perform_at" or (
+                        planned.kind == "ui.perform" and record.matched_by in K_WEAK_LOCATORS
+                    ):
                         record.stale = True
                         mark_stale(store, workflow.id, step.order, record.matched_by)
                     elif planned.kind == "ui.perform":

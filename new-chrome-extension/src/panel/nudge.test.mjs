@@ -190,6 +190,14 @@ test("not for this page holds until the end of the day", () => {
 });
 
 let failed = 0;
+test("a navigation in another tab does not end an offer open in this one", () => {
+  const one = fire({ id: "c_1", title: "T", starts_on: PAGE }, T0, { tabId: 7 });
+  const other = sweep([one], { url: "https://wms.example/ui/orders", now: T0 + 1000, tabId: 9 });
+  assert.equal(other[0].state, "open", "tab 9 left a page; tab 7's offer stands");
+  const same = sweep([one], { url: "https://wms.example/ui/orders", now: T0 + 1000, tabId: 7 });
+  assert.equal(same[0].state, "expired");
+});
+
 for (const [name, fn] of tests) {
   try {
     await fn();
@@ -203,11 +211,3 @@ if (failed) {
   process.exit(1);
 }
 console.log(`nudge.test.mjs: ok (${tests.length})`);
-
-test("a navigation in another tab does not end an offer open in this one", () => {
-  const one = fire({ id: "c_1", title: "T", starts_on: PAGE }, T0, { tabId: 7 });
-  const other = sweep([one], { url: "https://wms.example/ui/orders", now: T0 + 1000, tabId: 9 });
-  assert.equal(other[0].state, "open", "tab 9 left a page; tab 7's offer stands");
-  const same = sweep([one], { url: "https://wms.example/ui/orders", now: T0 + 1000, tabId: 7 });
-  assert.equal(same[0].state, "expired");
-});

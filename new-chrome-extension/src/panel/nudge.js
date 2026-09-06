@@ -135,7 +135,7 @@ export function sweep(nudges, { url, now, tabId }) {
     // nothing about the offer open in tab A, so when the caller names the tab
     // only that tab's nudges can have left; a caller without one (the older
     // shape) keeps the whole-list reading.
-    const thisTab = tabId === undefined || nudge.tabId === undefined || nudge.tabId === tabId;
+    const thisTab = tabId === undefined || nudge.tabId == null || nudge.tabId === tabId;
     const left = here !== null && thisTab && here !== nudge.startsOn;
     return old || left ? { ...nudge, state: "expired", endedAt: now } : nudge;
   });

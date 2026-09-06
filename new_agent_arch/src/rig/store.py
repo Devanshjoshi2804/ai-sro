@@ -273,13 +273,13 @@ CREATE TABLE IF NOT EXISTS run_steps (
 # The two that earned this list: gestures.page_url and intents.thought_tokens.
 ADDED_COLUMNS: tuple[tuple[str, str, str], ...] = (
     ("gestures", "page_url", "TEXT"),
-    ("approvals", "device_id", "TEXT"),
     ("batches", "started_at", "TEXT NOT NULL DEFAULT ''"),
     ("batches", "ended_at", "TEXT NOT NULL DEFAULT ''"),
     ("batches", "recording_id", "TEXT"),
     ("intents", "thought_tokens", "INTEGER NOT NULL DEFAULT 0"),
     ("passes", "thought_tokens", "INTEGER NOT NULL DEFAULT 0"),
     ("pool", "waited", "INTEGER NOT NULL DEFAULT 0"),
+    ("approvals", "device_id", "TEXT"),
 )
 
 

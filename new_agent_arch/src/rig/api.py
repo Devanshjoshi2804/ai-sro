@@ -1096,9 +1096,8 @@ def build_app(
 
         if not Approvals.approve(run_id):
             raise HTTPException(status_code=409, detail="nothing is awaiting approval on this run")
-        # Written down: which step, and when. The run record says a write went
-        # out; this says a person let it. One bearer per rig, so "who" is the
-        # tenant's operator until there is a registry to name one.
+        # Written down: which step, when, and from which browser. The run
+        # record says a write went out; this says a person let it.
         waiting = store.query(
             "SELECT ord FROM run_steps WHERE run_id = ? AND verdict = 'awaiting'"
             " ORDER BY ord DESC LIMIT 1",

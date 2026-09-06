@@ -115,3 +115,56 @@ test("a rig URL that is not http(s) is refused, and says so where it was typed",
   assert.match(answer.error ?? "", /http/, "the options page was told nothing");
   assert.equal(held.get("sro.rigUrl"), "http://localhost:8100", "the bad URL was saved anyway");
 });
+
+test("a rig that mints a device token is given the tenant's, and the browser keeps its own", async () => {
+  held.clear();
+  held.set("sro.deviceId", "dev-9");
+  const asked = [];
+  const fetchWas = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    asked.push({ url, init });
+    return { ok: true, status: 201, json: async () => ({ device_id: "dev-9", token: "dev_minted" }) };
+  };
+  try {
+    const answer = await sendRig({ rigUrl: "http://localhost:8100", rigToken: "tenant-secret" });
+    assert.equal(answer.registered, true);
+  } finally {
+    globalThis.fetch = fetchWas;
+  }
+  assert.equal(asked.length, 1);
+  assert.equal(asked[0].url, "http://localhost:8100/v1/devices/register");
+  assert.equal(asked[0].init.headers.Authorization, "Bearer tenant-secret");
+  assert.deepEqual(JSON.parse(asked[0].init.body), { device_id: "dev-9" });
+  assert.equal(held.get("sro.rigToken"), "dev_minted", "the tenant's secret is not kept");
+});
+
+test("an older rig that cannot register leaves the typed token in place", async () => {
+  held.clear();
+  held.set("sro.deviceId", "dev-9");
+  const fetchWas = globalThis.fetch;
+  globalThis.fetch = async () => ({ ok: false, status: 404, json: async () => ({ detail: "Not Found" }) });
+  try {
+    const answer = await sendRig({ rigUrl: "http://localhost:8100", rigToken: "tenant-secret" });
+    assert.equal(answer.registered, false);
+  } finally {
+    globalThis.fetch = fetchWas;
+  }
+  assert.equal(held.get("sro.rigToken"), "tenant-secret");
+});
+
+test("a browser with no device id yet keeps the typed token and asks nothing", async () => {
+  held.clear();
+  let asked = 0;
+  const fetchWas = globalThis.fetch;
+  globalThis.fetch = async () => {
+    asked += 1;
+    return { ok: true, status: 201, json: async () => ({ token: "dev_x" }) };
+  };
+  try {
+    await sendRig({ rigUrl: "http://localhost:8100", rigToken: "tenant-secret" });
+  } finally {
+    globalThis.fetch = fetchWas;
+  }
+  assert.equal(asked, 0);
+  assert.equal(held.get("sro.rigToken"), "tenant-secret");
+});

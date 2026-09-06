@@ -263,6 +263,20 @@ export const api = {
     return r.json();
   },
 
+  /** A token of this browser's own, minted by the rig against the tenant's
+   * bearer the operator typed. Called once, when the options page is saved;
+   * the answer is what the browser keeps, and the tenant's secret is not. */
+  rigRegister: async (base, tenantToken, deviceId) => {
+    if (!isMirrorable(base)) throw new ApiError(0, { detail: "no rig is configured" });
+    const r = await fetch(`${base}/v1/devices/register`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${tenantToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ device_id: deviceId }),
+    });
+    if (!r.ok) throw new ApiError(r.status, await r.json().catch(() => ({ detail: r.statusText })));
+    return r.json();
+  },
+
   rigApprove: async (runId, deviceId) => {
     const base = await state.rigUrl();
     if (!isMirrorable(base)) throw new ApiError(0, { detail: "no rig is configured" });

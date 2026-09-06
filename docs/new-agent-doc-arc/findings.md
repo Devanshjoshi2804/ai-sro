@@ -1111,7 +1111,10 @@ Record, for each of the runs:
 - how the run ended — held, stopped, or diverged out from under itself;
 - and for the fourth: whether it asked for approval at all.
 
-Then, after a day of ordinary work with the extension connected:
+Then, after a day of ordinary work with the extension connected, read each
+job's card on the rig page: its history line ends `offers: 2 accepted, 1
+diverged` -- the five fates, counted, only the ones that happened. The same
+numbers for the whole tenant, if a query is nearer to hand:
 
 ```
 sqlite3 rig.db "select fate, count(*) from offers group by fate"

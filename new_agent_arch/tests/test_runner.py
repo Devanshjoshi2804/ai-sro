@@ -2041,3 +2041,73 @@ async def test_the_pro_rescue_sees_the_page_the_flash_attempt_left_behind(tmp_pa
     assert plans[0]["images"] == (), "the first attempt has no failed attempt to show"
     assert len(plans[1]["images"]) == 1, "the rescue is shown the page the first attempt left"
     assert isinstance(plans[1]["images"][0], bytes), "a real picture, not a placeholder"
+
+
+async def test_a_finished_run_is_forgotten_by_the_abort_and_approval_registers(
+    tmp_path: Path,
+) -> None:
+    store = _store(tmp_path)
+    wf = _workflow(store)
+    channel = FakeChannel(
+        {**_looks(4), "ui.perform": [Reply(ok=True, result={"performed": True})] * 2}
+    )
+    asker = _per_schema_asker(
+        plan=_plan("type", "THIRD"), verdict=Answer(data={"held": True, "why": "ok"})
+    )
+    run = await run_workflow(
+        store,
+        wf,
+        values={"clientCode": "THIRD"},
+        channel=channel,
+        device_id="dev_test",
+        asker=asker,
+        plan_model="flash",
+        rescue_model="pro",
+        live=True,
+        allow_focus=True,
+        started_by="form",
+        earned=_earned,
+        run_id="run_forget_me",
+    )
+    assert run.outcome == "held"
+    # Whatever was registered for this run is gone: a later run under the
+    # same id (never, but the registers are keyed by id) would start clean.
+    Aborts.abort("run_forget_me")
+    assert Aborts.is_aborted("run_forget_me")
+    Aborts.forget("run_forget_me")
+    assert not Aborts.is_aborted("run_forget_me")
+    assert "run_forget_me" not in Approvals.waiting()
+
+
+async def test_an_approved_wait_leaves_nothing_waiting() -> None:
+    task = asyncio.create_task(Approvals.wait_for("run_w2", timeout=2))
+    await asyncio.sleep(0)
+    assert "run_w2" in Approvals.waiting()
+    assert Approvals.approve("run_w2") is True
+    assert await task is True
+    assert "run_w2" not in Approvals.waiting(), "the register is popped on the way out"
+
+
+async def test_a_run_started_past_its_last_step_performs_nothing_and_holds(tmp_path: Path) -> None:
+    store = _store(tmp_path)
+    wf = _workflow(store)
+    channel = FakeChannel(_looks(2))
+    asker = _per_schema_asker(
+        plan=_plan("type", "x"), verdict=Answer(data={"held": True, "why": "ok"})
+    )
+    run = await run_workflow(
+        store,
+        wf,
+        values={"clientCode": "THIRD"},
+        channel=channel,
+        device_id="dev_test",
+        asker=asker,
+        plan_model="flash",
+        rescue_model="pro",
+        live=False,
+        allow_focus=True,
+        started_by="form",
+        from_step=len(wf.steps),
+    )
+    assert [s.verdict for s in run.steps] == ["done_by_operator", "done_by_operator"]
+    assert run.outcome == "held" and channel.sent == [] and asker.asked == []

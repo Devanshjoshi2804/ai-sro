@@ -489,3 +489,26 @@ async def test_the_failed_attempts_picture_is_named_by_its_position() -> None:
     asked = asker.asked[0]
     assert asked["image"] is None and asked["images"] == (b"left-png",)
     assert json.loads(asked["evidence"])["previous_attempt_left"]["screenshot"] == "the only image"
+
+
+async def test_a_replayed_call_still_carries_the_answer_that_planned_it() -> None:
+    saver = next(g for g in _gestures() if g.requests)
+    asker = FakeAsker(
+        Answer(
+            data={"kind": "http.send", "action": None, "value": None, "url": None, "why": "w"},
+            cost_usd=0.002,
+        )
+    )
+    planned = await plan_step(
+        step=Step(order=0, says="save", system=None, cites=[saver.id]),
+        cited=[saver],
+        values={},
+        look=Look(None, None, ""),
+        origin=None,
+        starts_on=None,
+        allow_focus=False,
+        asker=asker,
+        model="m",
+    )
+    assert planned.kind == "http.send"
+    assert planned.answer is not None and planned.answer.cost_usd == 0.002, "the runner bills it"

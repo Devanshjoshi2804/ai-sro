@@ -521,3 +521,50 @@ async def test_the_screen_verdict_is_the_models_own_word_and_its_own_reason() ->
 
     silent = await _screened({"held": True})
     assert silent.reason == "", "no explanation is an empty one, not the word None"
+
+
+async def test_the_screen_belt_is_told_the_step_the_command_and_both_pictures_words() -> None:
+    saver = _saver()
+    asker = FakeAsker(Answer(data={"held": True, "why": "the row is there"}))
+    verdict = await verify(
+        step=_step(saver),
+        sent_kind="ui.perform",
+        answer=Reply(ok=True, result={"performed": True}),
+        cited=[saver],
+        values={"clientCode": "THIRD"},
+        look_before=Look("http://127.0.0.1:63319/form", b"before", "an empty form"),
+        look_after=Look("http://127.0.0.1:63319/list", b"after", "THIRD in the list"),
+        channel=FakeChannel(),
+        device_id="dev_test",
+        run_id="run_1",
+        origin="http://127.0.0.1:63319",
+        asker=asker,
+        model="m",
+    )
+    assert verdict.state == "held" and verdict.by == "screen"
+    shown = json.loads(asker.asked[0]["evidence"])
+    # The names the instructions use, and the things they name: not one of
+    # them may drift, because the model reads the words.
+    assert shown["step"] == {"says": "save"}
+    assert shown["sent"] == "ui.perform"
+    assert shown["screen_before"] == "an empty form"
+    assert shown["screen_after"] == "THIRD in the list"
+    assert shown["values"] == {"clientCode": "THIRD"}
+    assert set(shown) >= {
+        "step",
+        "sent",
+        "browser_answered",
+        "screen_before",
+        "screen_after",
+        "values",
+    }
+
+
+async def test_a_value_nested_inside_the_read_back_still_confirms_it() -> None:
+    saver = _saver()
+    verdict = await _verified(
+        saver,
+        channel=_read('{"data": {"created": {"code": "THIRD"}}}'),
+        values={"clientCode": "THIRD"},
+    )
+    assert (verdict.state, verdict.by) == ("held", "read")

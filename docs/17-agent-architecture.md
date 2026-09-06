@@ -1,5 +1,11 @@
 # Agent architecture
 
+> **Superseded on 2026-09-07.** The mining half of this document (segment,
+> cluster, the signature, the miner) is replaced by
+> `docs/new-agent-doc-arc/README.md` and is being ported per
+> `docs/superpowers/specs/2026-09-07-the-rig-into-the-backend-design.md`.
+> The code as it stood is on the branch `backup/rule-based-mining`.
+
 How a task somebody did three times becomes a skill, and which agent owns each
 step. Worked through one case: **create a supplier**, whose calls are a `PUT` to
 an address and a `POST` to a supplier.

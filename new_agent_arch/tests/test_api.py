@@ -2999,9 +2999,16 @@ def test_the_day_is_summed_over_every_kind_of_call(
         (datetime.now(tz=UTC).isoformat(),),
     )
     assert over_cap(store, "new") is None
+    # A run that billed its steps and lost one to a 503 is unpriced and not
+    # blind; a run that billed nothing on a model nobody could price is.
+    _spent(store, "runs", 0.07, unpriced=1)
+    assert over_cap(store, "new") is None
     _spent(store, "chats", 0.0, unpriced=1)
     why = over_cap(store, "new")
     assert why and "1 unpriced call(s)" in why
+    _spent(store, "runs", 0.0, unpriced=1)
+    why = over_cap(store, "new")
+    assert why and "2 unpriced call(s)" in why
     # A negative cap is no cap.
     _capped(monkeypatch, -1)
     assert over_cap(store, "new") is None

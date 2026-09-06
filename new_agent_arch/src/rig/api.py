@@ -243,13 +243,17 @@ MAX_READING_PASSES = 100
 SPENT_IN = (
     ("intents", "created_at", "unpriced = 1 AND error IS NULL"),
     ("passes", "started_at", "unpriced = 1 AND error IS NULL"),
-    ("runs", "started_at", "unpriced = 1"),
+    ("runs", "started_at", "unpriced = 1 AND cost_usd = 0"),
     ("chats", "at", "unpriced = 1 AND error IS NULL"),
 )
 """Every table a model call bills to, the column that says when, and what a
 blind row is there. A cap that summed one of them was a cap on a quarter of
 the bill. A call that errored is unpriced because nothing was billed, not
-because the price is unknown: a 503 at breakfast must not lock the day."""
+because the price is unknown: a 503 at breakfast must not lock the day. A
+run carries no error column, so its blind row is one that billed nothing at
+all: every step on a model PRICES never heard of, which is the shape of the
+accident this exists for; a run that billed its other steps and lost one to
+a 503 is not that."""
 
 
 def spent_today(store: Store, tenant: str) -> tuple[float, int]:

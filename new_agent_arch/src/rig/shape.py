@@ -36,9 +36,19 @@ def target_identity(gesture: Gesture) -> str:
         return f"name|{target.name}"
     if target.testId:
         return f"test|{target.testId}"
-    if target.text:
+    if target.text and _names_a_control(target.text):
         return f"text|{target.text}"
     return f"anon|{gesture.gesture.kind}"
+
+
+K_TEXT_IDENTITY_MAX = 40
+"""The longest innerText that can stand as a control's identity. A button says
+"Save"; a paragraph of page copy says nothing about which control was touched,
+changes with the page, and would be served to every browser as a shape."""
+
+
+def _names_a_control(text: str) -> bool:
+    return "\n" not in text and len(text) <= K_TEXT_IDENTITY_MAX
 
 
 def shape_key(gestures: list[Gesture]) -> ShapeKey:

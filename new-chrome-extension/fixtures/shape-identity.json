@@ -1,38 +1,184 @@
 [
-  {"name": "an ExtJS control with an itemId",
-   "kind": "type", "target": {"component": {"itemId": "wm.workAreas.code", "query": "textfield[name=code]"}, "role": null, "name": "Code", "testId": null, "text": null},
-   "identity": "wm.workAreas.code"},
-  {"name": "an ExtJS control with only a query",
-   "kind": "click", "target": {"component": {"itemId": null, "query": "button[text=Save]"}, "role": "button", "name": "Save", "testId": null, "text": "Save"},
-   "identity": "button[text=Save]"},
-  {"name": "a plain control with role and name",
-   "kind": "click", "target": {"component": null, "role": "button", "name": "Save", "testId": null, "text": "Save"},
-   "identity": "button|Save"},
-  {"name": "a name without a role",
-   "kind": "type", "target": {"component": null, "role": null, "name": "Client code", "testId": null, "text": null},
-   "identity": "name|Client code"},
-  {"name": "a test id when nothing else names it",
-   "kind": "click", "target": {"component": null, "role": null, "name": null, "testId": "save-btn", "text": null},
-   "identity": "test|save-btn"},
-  {"name": "text as the last resort",
-   "kind": "click", "target": {"component": null, "role": null, "name": null, "testId": null, "text": "Continue"},
-   "identity": "text|Continue"},
-  {"name": "a secret field still has an identity, never a value",
-   "kind": "type", "target": {"component": null, "role": "textbox", "name": "Password", "testId": null, "text": null, "secret": true},
-   "identity": "textbox|Password"},
-  {"name": "a scroll has no target",
-   "kind": "scroll", "target": null,
-   "identity": "anon|scroll"},
-  {"name": "a name with a role and a testId and text still keys by role and name",
-   "kind": "click", "target": {"component": null, "role": null, "name": "Client code", "testId": "code-field", "text": "Client code"},
-   "identity": "name|Client code"},
-  {"name": "a testId outranks text",
-   "kind": "click", "target": {"component": null, "role": null, "name": null, "testId": "save-btn", "text": "Save"},
-   "identity": "test|save-btn"},
-  {"name": "a credential rendered into a label is redacted before it becomes an identity",
-   "kind": "click", "target": {"component": null, "role": "button", "name": "Bearer abcdefghijklmnopqrstuvwxyz012345", "testId": null, "text": null},
-   "identity": "button|«redacted»"},
-  {"name": "a target with nothing to name it, only a locator",
-   "kind": "click", "target": {"component": null, "role": null, "name": null, "testId": null, "text": null, "cssPath": "div.x-panel > span"},
-   "identity": "anon|click"}
+  {
+    "name": "an ExtJS control with an itemId",
+    "kind": "type",
+    "target": {
+      "component": {
+        "itemId": "wm.workAreas.code",
+        "query": "textfield[name=code]"
+      },
+      "role": null,
+      "name": "Code",
+      "testId": null,
+      "text": null
+    },
+    "identity": "wm.workAreas.code"
+  },
+  {
+    "name": "an ExtJS control with only a query",
+    "kind": "click",
+    "target": {
+      "component": {
+        "itemId": null,
+        "query": "button[text=Save]"
+      },
+      "role": "button",
+      "name": "Save",
+      "testId": null,
+      "text": "Save"
+    },
+    "identity": "button[text=Save]"
+  },
+  {
+    "name": "a plain control with role and name",
+    "kind": "click",
+    "target": {
+      "component": null,
+      "role": "button",
+      "name": "Save",
+      "testId": null,
+      "text": "Save"
+    },
+    "identity": "button|Save"
+  },
+  {
+    "name": "a name without a role",
+    "kind": "type",
+    "target": {
+      "component": null,
+      "role": null,
+      "name": "Client code",
+      "testId": null,
+      "text": null
+    },
+    "identity": "name|Client code"
+  },
+  {
+    "name": "a test id when nothing else names it",
+    "kind": "click",
+    "target": {
+      "component": null,
+      "role": null,
+      "name": null,
+      "testId": "save-btn",
+      "text": null
+    },
+    "identity": "test|save-btn"
+  },
+  {
+    "name": "text as the last resort",
+    "kind": "click",
+    "target": {
+      "component": null,
+      "role": null,
+      "name": null,
+      "testId": null,
+      "text": "Continue"
+    },
+    "identity": "text|Continue"
+  },
+  {
+    "name": "a secret field still has an identity, never a value",
+    "kind": "type",
+    "target": {
+      "component": null,
+      "role": "textbox",
+      "name": "Password",
+      "testId": null,
+      "text": null,
+      "secret": true
+    },
+    "identity": "textbox|Password"
+  },
+  {
+    "name": "a scroll has no target",
+    "kind": "scroll",
+    "target": null,
+    "identity": "anon|scroll"
+  },
+  {
+    "name": "a name with a role and a testId and text still keys by role and name",
+    "kind": "click",
+    "target": {
+      "component": null,
+      "role": null,
+      "name": "Client code",
+      "testId": "code-field",
+      "text": "Client code"
+    },
+    "identity": "name|Client code"
+  },
+  {
+    "name": "a testId outranks text",
+    "kind": "click",
+    "target": {
+      "component": null,
+      "role": null,
+      "name": null,
+      "testId": "save-btn",
+      "text": "Save"
+    },
+    "identity": "test|save-btn"
+  },
+  {
+    "name": "a credential rendered into a label is redacted before it becomes an identity",
+    "kind": "click",
+    "target": {
+      "component": null,
+      "role": "button",
+      "name": "Bearer abcdefghijklmnopqrstuvwxyz012345",
+      "testId": null,
+      "text": null
+    },
+    "identity": "button|«redacted»"
+  },
+  {
+    "name": "a target with nothing to name it, only a locator",
+    "kind": "click",
+    "target": {
+      "component": null,
+      "role": null,
+      "name": null,
+      "testId": null,
+      "text": null,
+      "cssPath": "div.x-panel > span"
+    },
+    "identity": "anon|click"
+  },
+  {
+    "name": "a forty-character text still names a control",
+    "kind": "click",
+    "target": {
+      "component": null,
+      "role": null,
+      "name": null,
+      "testId": null,
+      "text": "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
+    },
+    "identity": "text|yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
+  },
+  {
+    "name": "a text longer than forty characters is page copy, not a control",
+    "kind": "click",
+    "target": {
+      "component": null,
+      "role": null,
+      "name": null,
+      "testId": null,
+      "text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    "identity": "anon|click"
+  },
+  {
+    "name": "a text with a line break is page copy, not a control",
+    "kind": "click",
+    "target": {
+      "component": null,
+      "role": null,
+      "name": null,
+      "testId": null,
+      "text": "Save\nyour changes"
+    },
+    "identity": "anon|click"
+  }
 ]

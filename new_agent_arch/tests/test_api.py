@@ -2831,3 +2831,90 @@ def test_a_second_tap_on_the_same_step_does_not_rewrite_the_first(
     assert store.query("SELECT at FROM approvals WHERE run_id = 'run_tw'")[0]["at"].endswith(
         "10:00:00+00:00"
     )
+
+
+def test_the_runs_list_says_which_are_parked_on_a_write(client: TestClient, store: Store) -> None:
+    from rig.runner import Approvals
+    from rig.runs import Run, RunStep, save_run
+
+    _seed_workflow(store)
+
+    def run(run_id: str, outcome: str, verdict: str) -> None:
+        save_run(
+            store,
+            Run(
+                id=run_id,
+                tenant="new",
+                workflow_id="wfl_1",
+                device_id="dev_test",
+                values={},
+                started_by="offer",
+                live=True,
+                allow_focus=True,
+                started_at=f"2026-09-06T10:0{len(run_id) % 10}:00+00:00",
+                finished_at=None if outcome == "running" else "2026-09-06T11:00:00+00:00",
+                outcome=outcome,
+                steps=[
+                    RunStep(order=0, says="type the code", verdict="held", verdict_by="state"),
+                    RunStep(
+                        order=1,
+                        says="save",
+                        verdict=verdict,
+                        verdict_by="none",
+                        sent={"kind": "ui.perform", "payload": {"action": "click"}},
+                    ),
+                ],
+            ),
+        )
+
+    run("run_parked", "running", "awaiting")
+    run("run_timed_out", "failed", "awaiting")  # its wait ran out; nobody is waiting
+    run("run_going", "running", "held")
+    Approvals.register("run_parked")
+    try:
+        parked = client.get("/v1/runs?awaiting=true", headers=_auth()).json()["runs"]
+        assert [r["id"] for r in parked] == ["run_parked"]
+        assert parked[0]["awaiting"] == {
+            "order": 1,
+            "says": "save",
+            "sent": {"kind": "ui.perform", "payload": {"action": "click"}},
+        }
+        every = client.get("/v1/runs", headers=_auth()).json()["runs"]
+        assert {r["id"]: r["awaiting"] is not None for r in every} == {
+            "run_parked": True,
+            "run_timed_out": False,
+            "run_going": False,
+        }
+    finally:
+        Approvals.forget("run_parked")
+    assert client.get("/v1/runs?awaiting=true", headers=_auth()).json()["runs"] == []
+
+
+def test_the_page_puts_what_needs_a_person_at_the_top_with_the_write_in_full() -> None:
+    hostile = "<img src=x onerror=go()>"
+    out = _run_page(
+        f"""
+        const parkedRun = {{ id: "run_1", workflow_id: "wfl_1", device_id: {json.dumps(hostile)},
+          awaiting: {{ order: 2, says: {json.dumps(hostile)},
+            sent: {{ kind: "ui.perform", payload: {{ text: {json.dumps(hostile)} }} }} }} }};
+        console.log(JSON.stringify([
+          needsLine([parkedRun, {{ id: "run_2", workflow_id: "wfl_1", device_id: "d", awaiting: null }}],
+                    {{ wfl_1: {json.dumps(hostile)} }}),
+          needsLine([parkedRun], {{}}),
+          runView({{ outcome: "running", steps: [{{ order: 1, says: "s", verdict: "awaiting" }}] }}),
+          runView({{ outcome: "running", steps: [{{ order: 1, says: "s", verdict: "held" }}] }}),
+          runView({{ outcome: "failed", steps: [{{ order: 1, says: "s", verdict: "awaiting" }}] }}),
+        ]));
+        """
+    )
+    strip, untitled, parked, going, over = json.loads(out)
+    assert strip.count('class="need"') == 1, "a run not awaiting is not on the strip"
+    assert hostile not in strip
+    # title, says, the device twice (attribute and label), and the payload's
+    # text: five through esc().
+    assert strip.count("&lt;img src=x onerror=go()&gt;") == 5, strip
+    assert 'href="#run-run_1"' in strip and 'class="approve"' in strip and 'class="stop"' in strip
+    assert "<b>wfl_1</b>" in untitled, "a job the page has not drawn is named by its id"
+    assert 'class="approve"' in parked
+    assert 'class="approve"' not in going, "nothing to approve on a run that is not parked"
+    assert 'class="approve"' not in over, "a wait that ran out is not still approvable"

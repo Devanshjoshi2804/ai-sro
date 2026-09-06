@@ -85,6 +85,10 @@
   .ran.withheld { color: var(--accent); }
   .spent { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 12px; }
   .spent.unpriced { color: var(--accent); }
+  #needs:empty { display: none; }
+  #needs { margin: 0 16px 8px; padding: 8px 12px; border: 1px solid var(--accent); border-radius: 6px; }
+  #needs .need { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; padding: 4px 0; }
+  #needs pre { margin: 0; font-size: 12px; white-space: pre-wrap; flex-basis: 100%; }
 </style>
 
 <header>
@@ -93,6 +97,7 @@
   <button id="view">workflows &rarr;</button>
   <div class="spend" id="spend"></div>
 </header>
+<section id="needs"></section>
 <main id="rows"></main>
 <main id="jobs" hidden></main>
 
@@ -301,15 +306,46 @@
       .join("");
   }
 
+  // Whether the run is parked on a write a person has not let out. Only a
+  // running run can be: a finished one with an `awaiting` step is one whose
+  // wait ran out, and that step's verdict is what the record shows.
+  function parked(run) {
+    return run.outcome === "running" && (run.steps ?? []).some((s) => s.verdict === "awaiting");
+  }
+
   function runView(run) {
     return `<div class="outcome">${esc(run.outcome)} ·
       <span class="spent${run.unpriced ? " unpriced" : ""}">${esc(money(run))}</span>
+      ${parked(run) ? `<button class="approve">approve</button>` : ""}
       ${
         run.outcome === "running"
           ? `<button class="stop">stop</button>`
           : `<button class="close">close</button>`
       }</div>
       ${(run.steps ?? []).map(ranStep).join("")}${withheldWrites(run)}`;
+  }
+
+  // The runs parked on a write, one line each, from every browser: what needs
+  // a person right now. `titles` maps workflow id to title; a job this page
+  // has not drawn yet is named by its id. Every field is model or page text
+  // (`says` is the plan's, `sent` is the command the extension would carry),
+  // so every field goes through esc().
+  function needsLine(runs, titles) {
+    return runs
+      .filter((r) => r.awaiting)
+      .map(
+        (r) => `<div class="need" data-run="${esc(r.id)}" data-device="${esc(r.device_id)}">
+      <b>${esc(titles[r.workflow_id] ?? r.workflow_id)}</b>
+      <span>step ${esc(r.awaiting.order)} · ${esc(r.awaiting.says)}</span>
+      <span class="kind">${esc(r.device_id)}</span>
+      <a href="#run-${esc(r.id)}">details</a>
+      <button class="approve">approve</button>
+      <button class="stop">stop</button>
+      <span class="error"></span>
+      <pre>${esc(JSON.stringify(r.awaiting.sent ?? {}, null, 2))}</pre>
+    </div>`,
+      )
+      .join("");
   }
 
   // `get`'s sibling: the same bearer, and the same refusal to swallow a
@@ -356,6 +392,14 @@
       return;
     }
     into.innerHTML = runView(run);
+    into.querySelector(".approve")?.addEventListener("click", (event) => {
+      event.target.disabled = true;
+      post(`/v1/runs/${encodeURIComponent(runId)}/approve`, {}).catch((error) =>
+        into
+          .querySelector(".outcome")
+          ?.insertAdjacentHTML("beforeend", `<span class="error">${esc(error.message)}</span>`),
+      );
+    });
     into.querySelector(".stop")?.addEventListener("click", (event) => {
       event.target.disabled = true;
       post(`/v1/runs/${encodeURIComponent(runId)}/abort`, { device_id: device }).catch(
@@ -511,6 +555,7 @@
 
   async function drawJobs() {
     const { workflows } = await get("/v1/workflows");
+    titles = Object.fromEntries(workflows.map((w) => [w.id, w.title]));
     const jobs = document.getElementById("jobs");
     const fresh = document.createElement("div");
     fresh.innerHTML = workflows.length
@@ -528,8 +573,39 @@
     }
   }
 
+  // Titles for the strip, remembered from the last draw of the jobs: the
+  // strip is drawn on both views, and the gestures view never loads them.
+  let titles = {};
+
+  async function drawNeeds() {
+    const { runs } = await get("/v1/runs?awaiting=true&limit=50");
+    const needs = document.getElementById("needs");
+    const fresh = needsLine(runs, titles);
+    // Redrawn only on change: a tap in flight must not have its button and
+    // its error line replaced under it every three seconds.
+    if (needs.dataset.drawn === fresh) return;
+    needs.dataset.drawn = fresh;
+    needs.innerHTML = fresh;
+    for (const need of needs.querySelectorAll(".need")) {
+      const runId = need.dataset.run;
+      const say = (error) => {
+        need.querySelector(".error").textContent = error.message;
+      };
+      need.querySelector(".approve").addEventListener("click", (event) => {
+        event.target.disabled = true;
+        post(`/v1/runs/${encodeURIComponent(runId)}/approve`, {}).catch(say);
+      });
+      need.querySelector(".stop").addEventListener("click", (event) => {
+        event.target.disabled = true;
+        post(`/v1/runs/${encodeURIComponent(runId)}/abort`, { device_id: need.dataset.device }).catch(say);
+      });
+    }
+  }
+
   async function draw() {
     document.getElementById("spend").innerHTML = spendLine(await get("/v1/spend"));
+    // Its own catch: the strip failing to load must not take the page with it.
+    drawNeeds().catch(() => {});
     if (showing === "workflows") return drawJobs();
 
     const picker = document.getElementById("stream");

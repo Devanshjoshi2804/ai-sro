@@ -1011,18 +1011,51 @@ def build_app(
         return {"run_id": run_id}
 
     @app.get("/v1/runs", dependencies=[Depends(authorised)])
-    async def runs(workflow_id: str = "", limit: int = 20) -> dict[str, Any]:
+    async def runs(
+        workflow_id: str = "", limit: int = 20, awaiting: bool = False
+    ) -> dict[str, Any]:
         """The most recent runs, newest first, as one line each. The full
-        record is one `GET /v1/runs/{id}` away; this is the list to pick from."""
+        record is one `GET /v1/runs/{id}` away; this is the list to pick from.
+
+        `awaiting=true` narrows it to the runs parked on a write a person has
+        not yet let out, each carrying that step: the list a supervisor reads
+        to see what needs them right now, from any browser, not the one the
+        run is in."""
+        from rig.runner import Approvals
+
         limit = max(1, min(int(limit), 200))
+        parked = Approvals.waiting()
         where = "tenant = ?" + (" AND workflow_id = ?" if workflow_id else "")
         params: tuple[Any, ...] = (tenant, workflow_id) if workflow_id else (tenant,)
+        if awaiting:
+            if not parked:
+                return {"runs": []}
+            marks = ",".join("?" * len(parked))
+            where += f" AND id IN ({marks})"
+            params = (*params, *sorted(parked))
         rows = store.query(
             f"SELECT id, workflow_id, device_id, started_by, live, started_at, finished_at,"
             f" outcome, cost_usd, unpriced FROM runs WHERE {where}"
             " ORDER BY started_at DESC LIMIT ?",
             (*params, limit),
         )
+
+        def step_awaiting(run_id: str) -> dict[str, Any] | None:
+            if run_id not in parked:
+                return None
+            held = store.query(
+                "SELECT ord, says, sent FROM run_steps WHERE run_id = ? AND verdict = 'awaiting'"
+                " ORDER BY ord DESC LIMIT 1",
+                (run_id,),
+            )
+            if not held:
+                return None
+            return {
+                "order": int(held[0]["ord"]),
+                "says": held[0]["says"],
+                "sent": json.loads(held[0]["sent"]) if held[0]["sent"] else None,
+            }
+
         return {
             "runs": [
                 {
@@ -1036,6 +1069,7 @@ def build_app(
                     "outcome": r["outcome"],
                     "cost_usd": r["cost_usd"],
                     "unpriced": bool(r["unpriced"]),
+                    "awaiting": step_awaiting(r["id"]),
                 }
                 for r in rows
             ]

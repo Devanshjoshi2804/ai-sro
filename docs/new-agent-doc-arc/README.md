@@ -896,7 +896,11 @@ A live write does not go out on the model's word. Before a step that may
 write -- a recorded mutation, or a click the capture heard nothing from -- the
 run records the step `awaiting`, saves, and waits up to five minutes for a tap
 in the panel, where the planned command is shown in words beside **Approve**
-and **Stop**. Once three live runs of a job have had every write verified by
+and **Stop**. The same tap is on the rig page, at the top, for every run
+parked on a write across every browser (`GET /v1/runs?awaiting=true`): a
+supervisor lets a write out without being in the browser that is driving it,
+and the approval records no device, which is what "the tenant's own bearer"
+looks like in the audit. Once three live runs of a job have had every write verified by
 state -- a status the server answered or a read that showed the record, never
 a picture -- the job has earned it and writes unasked; a write that ends
 `failed` or `unclear` takes that back. A job whose writes can only be verified
@@ -933,6 +937,7 @@ Run
       before/after urls and text digests (the pictures are shown, not kept)
       verdict      held | failed | unclear | awaiting | withheld, and by which belt
       approved_at  when a person let this write out, if one had to
+      approved_by  the browser the tap came from; null when it was the tenant's bearer
   } ]
   outcome · and, for a dry run, the write it produced and withheld
 ```

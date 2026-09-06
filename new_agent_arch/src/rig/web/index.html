@@ -1,6 +1,7 @@
 <!doctype html>
 <meta charset="utf-8">
 <title>rig — evidence in, intents out</title>
+<link rel="icon" href="data:,">
 <style>
   :root {
     --ground: #08090b; --raised: #0d0f13; --line: rgba(255,255,255,.09);
@@ -639,8 +640,13 @@
       }</div>`;
     const section = (title, items, one) =>
       `<h3>${title}</h3>${items.length ? items.map(one).join("") : `<div class="none">none</div>`}`;
+    // The heading in the reader's own zone, as the picker beside it is;
+    // the rows stay in the rig's UTC, which is what the record says.
+    const sinceLocal = Number.isNaN(Date.parse(a.since ?? ""))
+      ? when(a.since)
+      : new Date(a.since).toLocaleString();
     return (
-      section(`runs since ${when(a.since)}`, a.runs ?? [], run) +
+      section(`runs since ${esc(sinceLocal)}`, a.runs ?? [], run) +
       section("offers", a.offers ?? [], offer) +
       section("chat", a.chats ?? [], chat) +
       section("browsers", a.devices ?? [], device)

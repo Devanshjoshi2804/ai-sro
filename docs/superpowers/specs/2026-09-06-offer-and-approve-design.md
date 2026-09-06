@@ -124,8 +124,18 @@ The three endings the nudge has -- left the page, did the write themselves
 `NUDGE_TTL_MS` elapsed -- plus `diverged`, plus `accepted`. Every ending is
 reported: `POST /v1/offers {workflow_id, k, fate, run_id?, at}` with `fate ∈
 {accepted, dismissed, did_it, expired, diverged}`. The rig stores them in
-`offers`. They are the labelled record of whether recognition was right, and
-they are what moves `K_OFFER_AFTER` later; nothing reads them in this plan.
+`offers`. They are the labelled record of whether recognition was right.
+
+*Amended 2026-09-06, after the plan landed.* The rig reads them when it serves
+a shape (`rig/offers.py`, `counsel`): the newest ten offers of a job, arrival
+nudges (`k = 0`) excluded. Half or more `diverged`, and the shape carries
+`offer_after = max(diverged k) + 1`, capped at the last gesture but one;
+`recognise.js` honours it over `K_OFFER_AFTER`. Three refusals running
+(`dismissed`, `did_it`) from one browser, and the shape carries `quiet_until`
+a day from the last, for that browser only (`/v1/shapes?device_id=`, or the
+device token's own name); the shape stays served and the extension declines
+it, in `match` and in the arrival nudge. A browser's `at` is clamped to the
+rig's clock on the way in.
 
 ### The offer card
 
@@ -243,16 +253,19 @@ panel. Details still opens the rig page.
    model; the one measurement of "would the offer name the right job" the
    store can give before a person runs the recipe.
 8. **The fates.** After a day, `offers` holds a row per offer with a fate. The
-   share of `diverged` is the number that decides whether `K_OFFER_AFTER`
-   becomes 3.
+   share of `diverged` is the number that decides whether the job's
+   `offer_after` moves past 2 -- now per job, by `counsel`, rather than a
+   constant changed by hand.
 
 ## Out of scope
 
 - Fuzzy or model-assisted matching of control identity. A changed page stops
   matching; the run's stale-locator signal is what notices a changed page.
 - Offering chains of jobs, or a job the tenant has never demonstrated.
-- The rig acting on `offers` (moving the threshold, retiring a shape). Stored
-  now, read later.
+- Retiring a shape for good on its offers. The rig moves the threshold and
+  rests a job per browser for a day (see *An offer ends*); nothing removes a
+  proven job from the list without a person.
 - Computer-use fallback when the locator ladder and the rescue both fail.
-- A per-principal role for who may approve. One bearer, one tenant, as the rig
-  is today.
+- A per-principal role for who may approve. Since 2026-09-06 a browser holds
+  a token of its own and may approve only the run it is driving; who the
+  operator is behind that browser is still not asked.

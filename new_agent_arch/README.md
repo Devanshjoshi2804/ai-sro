@@ -37,6 +37,14 @@ everything. The rest of the settings (env prefix `RIG_`, see
 | `RIG_COMMAND_DEADLINE_S` | `20` | how long a command to the browser may take |
 | `RIG_TENANT` | `new` | tenant recorded on every row |
 
+Constants that are not settings, because changing one is changing what the
+evidence means, live beside the code that reads them: `K_EARNED_RUNS = 3`
+(`effects.py`, live runs verified by state before a job writes unasked),
+`K_OFFER_AFTER = 2`, `K_WINDOW = 10`, `K_ENOUGH = 3`, `K_QUIET_HOURS = 24`
+(`offers.py`, how a job's offers move when it is offered and rest it), and
+`K_TEXT_IDENTITY_MAX = 40` (`shape.py`, the longest text a control may be
+known by).
+
 ## One token per browser
 
 The tenant's bearer is typed once, into the extension's options page. On

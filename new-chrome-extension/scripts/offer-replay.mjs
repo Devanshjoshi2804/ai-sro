@@ -9,7 +9,7 @@
 //
 // Run: node scripts/offer-replay.mjs path/to/replay.json
 import { readFileSync } from "node:fs";
-import { K_OFFER_AFTER, match, tailWith } from "../src/background/recognise.js";
+import { K_OFFER_AFTER, match, tailWith, valuesFrom } from "../src/background/recognise.js";
 
 /** Each job's gestures through the matcher, stopping at the first offer --
  * which is the one the operator would have seen. `{ job, offered }` per job,
@@ -23,11 +23,30 @@ export function replay(shapes, jobs) {
       tail = tailWith(tail, entry);
       const found = match(tail, shapes, { origin: entry.triple[0] });
       if (found) {
-        offered = { at: i + 1, k: found.k, workflowId: found.workflowId, title: found.title };
+        offered = {
+          at: i + 1,
+          k: found.k,
+          workflowId: found.workflowId,
+          title: found.title,
+          // What the offer could carry at that moment, and how many the
+          // job declares: values typed after the offer are asked on the card.
+          lifted: Object.keys(found.values).length,
+          declared: found.parameters.length,
+        };
         break;
       }
     }
-    rows.push({ job, offered });
+    // And by the end of the doing: every declared parameter whose control the
+    // shape can place and whose value the tail carried. This is the number a
+    // run started from the last gesture would have in hand.
+    const shape = shapes.find((s) => s.id === job.id);
+    const whole = job.gestures.reduce((t, entry) => tailWith(t, entry), []);
+    const byEnd = shape ? valuesFrom(whole, shape, shape.shape.length) : { values: {}, missing: [] };
+    rows.push({
+      job,
+      offered,
+      byEnd: { lifted: Object.keys(byEnd.values).length, declared: (shape?.parameters || []).length },
+    });
   }
   return rows;
 }
@@ -47,20 +66,23 @@ function main(path) {
   const { shapes, jobs } = JSON.parse(readFileSync(path, "utf8"));
   const rows = replay(shapes, jobs);
   const width = Math.max(...rows.map((r) => r.job.title.length), 8);
-  console.log(`${"job".padEnd(width)}  gestures  offered at  k  named`);
-  console.log("-".repeat(width + 40));
-  for (const { job, offered } of rows) {
+  console.log(`${"job".padEnd(width)}  gestures  offered at  k  named    values at offer / by end`);
+  console.log("-".repeat(width + 66));
+  for (const { job, offered, byEnd } of rows) {
     const count = String(job.gestures.length).padStart(8);
     if (!offered) {
       console.log(`${job.title.padEnd(width)}  ${count}  never`);
       continue;
     }
     const named = offered.workflowId === job.id ? "itself" : `WRONG: ${offered.title}`;
+    const values = byEnd.declared
+      ? `${offered.lifted}/${offered.declared} then ${byEnd.lifted}/${byEnd.declared}`
+      : "none declared";
     console.log(
-      `${job.title.padEnd(width)}  ${count}  ${String(offered.at).padStart(10)}  ${offered.k}  ${named}`,
+      `${job.title.padEnd(width)}  ${count}  ${String(offered.at).padStart(10)}  ${offered.k}  ${named.padEnd(8)} ${values}`,
     );
   }
-  console.log("-".repeat(width + 40));
+  console.log("-".repeat(width + 66));
   const { right, wrong, never } = tally(rows);
   console.log(
     `${jobs.length} jobs replayed against ${shapes.length} served shapes at K_OFFER_AFTER = ${K_OFFER_AFTER}: ${right} offered as themselves, ${wrong} offered as another job, ${never} never offered`,

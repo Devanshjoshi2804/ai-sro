@@ -14,7 +14,12 @@
 // of them is a guess dressed as recognition. Nothing is offered until the tail
 // separates them, which the next gesture usually does.
 
-export const K_TAIL = 12;
+// Long enough to hold a whole job: the corpus's jobs run 13 to 35 gestures,
+// and a run started from a late step carries only the values the tail still
+// holds. Twelve held the end of every job and forgot every value typed at
+// its start -- measured 0 of 11 lifted by the end of the doing. Matching
+// cost is a handful of string compares per shape per gesture either way.
+export const K_TAIL = 40;
 export const K_OFFER_AFTER = 2;
 
 const key = (triple) => triple.join(" ");

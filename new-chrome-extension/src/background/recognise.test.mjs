@@ -58,8 +58,9 @@ test("the tail drops scrolls, so one in the middle does not break a prefix", () 
 
 test("the tail is bounded", () => {
   let tail = [];
-  for (let i = 0; i < 20; i++) tail = tailWith(tail, typed(`c${i}`, "v"));
+  for (let i = 0; i < K_TAIL + 8; i++) tail = tailWith(tail, typed(`c${i}`, "v"));
   assert.equal(tail.length, K_TAIL);
+  assert.ok(K_TAIL >= 35, "long enough to hold the longest job in the corpus");
 });
 
 test("a secret control contributes no value and the parameter is missing", () => {

@@ -226,20 +226,30 @@ def _replay(
 ) -> dict[str, Any]:
     """Each job's demonstrated gestures, as the tail the extension would build
     from them: the same triple the served shape is made of, in the order the
-    operator made them, and nothing typed. Scrolls stay in -- the matcher's
+    operator made them, and a mark where a parameter's value was typed but
+    never the value. Scrolls stay in -- the matcher's
     `tailWith` is what drops them, and this is a test of the matcher."""
     jobs = []
     for w in workflows:
         by_id = cited[w.id]
+        # The values a declared parameter has seen -- already in the served
+        # shape's own record on the rig, so nothing new leaves it. A typed
+        # gesture carrying one is exported as a presence mark, not the text:
+        # the matcher lifts on "a value was typed", and the file stays clean
+        # of customer data as it was.
+        seen = {
+            str(v) for p in w.parameters if isinstance(p, dict) for v in p.get("seen_values", [])
+        }
         entries = []
         for gid in _ordered_cites(w):
             g = by_id.get(gid)
             if g is None:
                 continue
+            typed = g.gesture.value
             entries.append(
                 {
                     "triple": [g.system or "", target_identity(g), g.gesture.kind],
-                    "value": None,
+                    "value": "\u2022" if typed is not None and str(typed) in seen else None,
                     "secret": bool(
                         g.gesture.secret or (g.gesture.target and g.gesture.target.secret)
                     ),

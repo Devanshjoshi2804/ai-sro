@@ -1,0 +1,299 @@
+# The rig into the backend: design
+
+Date: 2026-09-07. Status: decided in conversation, this document is the shape
+of it. Supersedes the mining half of `docs/17-agent-architecture.md`, which
+goes to a backup branch and stays readable there.
+
+## The decision
+
+The backend (`backend/`, 48k lines, four layers under import-linter contracts,
+strict mypy, Postgres, Temporal, its own auth, the console) is the product's
+home. The rig (`new_agent_arch/`, 8.3k lines, one process, SQLite, 673 tests)
+was built as the model-first prototype so the argument against the rule-based
+pipeline could be settled on evidence. It has been: one real day of capture,
+eight jobs mined, parameters learned across doings, the offer replay naming
+every job as itself, a runner with its belts, and an afternoon on a real key
+(`docs/new-agent-doc-arc/findings.md`, *A real key, one afternoon*).
+
+So the rig's behaviour moves into the backend's layers, the rule-based
+mining moves to a branch, and the extension talks to one place again. This is
+a port, not a rewrite: most of the rig is pure arithmetic and prompts, which
+drop into the inner layers as they are. The work is storage and the process
+model.
+
+Two things are not decided by this document and are named at the end: when
+the runner becomes a Temporal workflow, and whether the rig's page becomes
+console pages or stays a served page for a while.
+
+## What goes where
+
+| Rig today | Backend after | Fate |
+|---|---|---|
+| `POST /v1/observations`, artifacts | `application/observation/ingest.py`, `admit.py`, `artifacts.py` (exist) | kept, the rig's belts added: per-device batch ownership, `K_BATCH_EVENTS`, `K_ARTIFACT_BYTES` |
+| `intents.read_gesture`, `read_new_gestures`, the daily cap | `application/intent/` (new use case), `application/ports/model.py` | ported |
+| `pool.py`, `mine.py`, `identity.py`, `parameters.py`, `umbrella.py` | `application/observation/mine.py` rewritten; `domain/observation/identity.py`, `domain/skill/parameters.py` | ported; the old `mine.py`, `segment.py`, `propose.py` and the miner sweep are deleted |
+| `workflows.py`, `shape.py`, `shapes.py` | `domain/skill/workflow.py`, `domain/skill/shape.py`; `application/skill/serve_shapes.py` | ported; `Skill` gains a workflow-born kind, `skill/from_rig.py` and `adopt_rig_workflow.py` retire |
+| `runner.py`, `planner.py`, `verify.py`, `locators.py`, `effects.py` | `application/execution/run_workflow.py` and siblings; `domain/execution/` for verdicts, the earned rule, the weak-locator rule | ported; `execute_skill.py` stays as the fallback path for skills without evidence, behind a flag, until none remain |
+| `channel.py` (device socket), `commands` protocol | `application/ports/agent.py::AgentDrivers` (exists: ui, http, online, held_for) | the rig's `send(kind, payload)` maps onto it; the sight command `ui.perform_at` and `screenshot` join the port |
+| `offers.py`, `counsel` | `domain/skill/offers.py`, `application/skill/counsel.py` | ported |
+| `devices.py`, tenant bearer, `caller`/`tenant_only` | `infrastructure/auth`, the device secrets the backend already issues | folded: a browser's secret is its token; the tenant-only route list is preserved as a dependency on the routers |
+| `entry.py` (chat door) | `application/chat/` (exists) | the rig's `understand` becomes the chat's job reading; the schema fix and instruction travel |
+| `store.py` (SQLite, ~20 tables) | `infrastructure/db/models.py`, `repositories.py`, alembic migrations | rewritten as repositories behind ports |
+| `api.py` routes | `interface/http/v1/routers/`: `observations.py` and `runs.py` extended; `shapes.py`, `offers.py`, `devices.py`, `audit.py`, `spend.py`, `mine.py`, `chat.py` added | ported route by route, same paths and bodies so the extension changes only its base URL |
+| `web/index.html` | console pages under `frontend/src/app/(console)/` | rebuilt, see *The console* |
+| `scripts/dry_run.py`, `offer-replay`, `mutation_floor.py` | `backend/scripts/`, the backend's mutation step | ported; the replay stays the acceptance test for shapes |
+| `config.py` settings | `sro.config` | folded, `RIG_` prefix dropped |
+
+Everything under `backend/src/sro/application/observation/{segment,mine,propose}.py`,
+`application/induction/diff.py`'s signature, the `candidates` router and the
+pairing judge are the rule-based architecture. They go to
+`backup/rule-based-mining`, which is a branch pointer at today's `main`, and
+are deleted from `main` in the last phase.
+
+## The layers, module by module
+
+### Domain (pure; imports nothing of ours, no Any)
+
+- `domain/observation/gesture.py`: `Gesture`, `Intent`, `ValueSeen`, the
+  `Request` the recorder captured. Today `rig/records.py` and `rig/wire.py`.
+  The wire models stay pydantic in the interface layer; the domain holds
+  frozen dataclasses.
+- `domain/observation/identity.py`: `target_identity`, `shape_key`,
+  `K_TEXT_IDENTITY_MAX`, and `resolve` (same occurrence, same job, new job by
+  cited-gesture overlap). Today `rig/shape.py` and `rig/identity.py`.
+- `domain/skill/workflow.py`: `Workflow`, `Step`, `unproven`, the parameter
+  record with `seen_values`. Today `rig/workflows.py`'s dataclasses.
+- `domain/skill/parameters.py`: `control_name`, `parameters_across`. Today
+  `rig/parameters.py`.
+- `domain/skill/shape.py`: the served `Shape`, `_typed_at`, the scroll rule,
+  the cap on `offer_after`. Today the pure half of `rig/shapes.py`.
+- `domain/skill/offers.py`: `FATES`, `REFUSED`, `Counsel`, the counsel rules
+  over a list of offers (the query moves to the repository, the rule stays
+  pure). Today `rig/offers.py`.
+- `domain/execution/verdict.py`: `Verdict`, the verify decision over an
+  artifact, a read and a screen answer; `K_WEAK_LOCATORS`; the earned rule
+  (`K_EARNED_RUNS`, state belts only). Today `rig/verify.py`'s pure parts
+  and `rig/effects.py`.
+- `domain/execution/plan.py`: `PLAN_SCHEMA`, `SIGHT_SCHEMA`, `KINDS`,
+  `SIGHT_ACTIONS`, the instructions, `Planned`, `Look`, `_value_for`,
+  `_unreplayable`. Today `rig/planner.py` minus the model call.
+- `domain/execution/locators.py`: the locator ladder, `allowlist`, `writes`,
+  `recorded_call`, `origin_of`. Today `rig/locators.py`.
+- `domain/shared/money.py`: `PRICES`, `price`, `is_priced`. Today
+  `rig/models.py`'s pricing.
+
+### Application (use cases over ports)
+
+- `ports/model.py`: `Asker` protocol with `ask(model, instructions, evidence,
+  schema, image, images, effort) -> Answer`, and `Answer` with its tokens,
+  cost, `unpriced`, `error`. The backend's `IntentParser` stays for
+  utterances; this is the structured-output port every rig call uses.
+- `ports/agent.py`: `AgentDrivers` gains `screenshot` and `perform_at`, and
+  `online`/`held_for` are what `channel.online()` and the busy check become.
+  `DeviceUnreachable` already exists there.
+- `ports/repositories.py`: new protocols: `GestureRepository` (batches,
+  gestures, requests, page events, intents, the pool), `WorkflowRepository`
+  (workflows, steps, stale marks, effects), `OfferRepository`,
+  `DeviceTokenRepository` (or the existing device secrets), `SpendRepository`
+  (the four billed tables by day), `ChatRepository`, and `RunRepository`
+  extended with `awaiting` and approvals.
+- `intent/read_gesture.py`: one gesture, the tail, one Flash call, the
+  intent row. `read_new_gestures` with `over_cap` in front of it.
+- `intent/spend.py`: `spent_today`, `over_cap`, the `SPENT_IN` table list.
+- `observation/mine.py`: the pass: the pool, the umbrella prompt, the
+  proposals, `resolve` against known workflows, parameters learned across
+  doings, `rekey_workflows` at startup. Today `rig/mine.py` and `rig/pool.py`.
+- `skill/serve_shapes.py`: `shapes_for(tenant, device)` with the held gate and
+  the counsel.
+- `skill/counsel.py`: reads the newest offers and applies the domain rule.
+- `skill/record_offer.py`: `record_offer` with the clock clamp.
+- `execution/run_workflow.py`: the loop: look, plan, refuse, withhold,
+  perform, verify; the three rungs; `may_write`; the approval wait; the
+  budget; `_fell_over`; `fail_orphans` at startup. Today `rig/runner.py`.
+- `execution/approvals.py`: `Approvals` and `Aborts`. In-process events on
+  one worker for now, see *The process model*.
+- `chat/understand.py`: the rig's `understand`, with its list-of-pairs
+  schema and the instruction that a job is a kind of work.
+- `capture/devices.py`: register and revoke a browser, `drop` its socket.
+- `analytics/audit.py`: the audit since a time, across runs, offers, chats
+  and devices.
+
+### Infrastructure
+
+- `infrastructure/gemini/asker.py`: `GeminiAsker` with `build_config`
+  (`max_output_tokens = K_MAX_OUTPUT_TOKENS`, thinking level, no tools),
+  `truncated`, the usage arithmetic. Today `rig/models.py`.
+- `infrastructure/db/`: SQLAlchemy models and repositories for every table
+  in *Storage*; alembic migrations.
+- `infrastructure/agent/`: the websocket channel behind `AgentDrivers`,
+  carrying the rig's command envelope. Today `rig/channel.py::DeviceChannel`
+  and the `agent_channel` router.
+
+### Interface
+
+- Routers under `interface/http/v1/routers/`, same paths as the rig:
+  `observations` (extended), `shapes`, `offers`, `runs` (extended with
+  `awaiting`, `approve`, `abort`), `devices`, `audit`, `spend`, `mine`,
+  `chat`, `workflows` (with evidence). The bodies do not change, so the
+  extension's `api.js` changes only its base.
+- Authorisation as today's rules: the tenant's credential opens every
+  door; a browser's opens ingest, its own socket, shapes for itself, the
+  runs it drives, approve for those, offers; the money routes and every
+  cross-device read are tenant-only. The rig's `caller`/`tenant_only`
+  become dependencies on the backend's auth.
+
+## Storage
+
+Postgres, decided by the port. One alembic migration per group, in the order
+the code needs them:
+
+1. `batches`, `gestures`, `requests`, `page_events`, `intents`, `pool` (the
+   evidence plane). Timestamps become `timestamptz`; the SQLite `rowid`
+   tiebreaks become an `id bigserial`.
+2. `workflows`, `workflow_steps`, `workflow_stale`, `workflow_effects`,
+   `passes`.
+3. `runs`, `run_steps`, `approvals`.
+4. `offers`, `chats`, `device_tokens` (or a column on the device table).
+
+Rules that move with the tables and must be tested again against Postgres:
+the counsel ordering (`at desc, id desc`), the daily sum since midnight UTC
+over four tables with the blind predicate per table, `INSERT OR IGNORE` on
+approvals becoming `ON CONFLICT DO NOTHING`, and the `since` normalisation
+on the audit.
+
+What is dropped: `ADDED_COLUMNS` and the SQLite migration ladder, `rekey`
+as a startup step becomes a one-off migration.
+
+## The process model
+
+The rig runs one uvicorn worker, and three things assume it: `Approvals`
+and `Aborts` are in-process events, the device channel is an in-process
+dict of sockets, and the busy check is a read-then-write. The backend runs
+Temporal for execution and may run more than one API worker.
+
+Phase one keeps the rig's model: one asyncio task per run on the worker that
+holds the device's socket, `Approvals` in that process, and the routers for
+approve and abort forwarded to that worker (one worker in deployment, stated
+in the deployment notes). This is the model that has held a real write.
+
+Phase two makes `run_workflow` a Temporal workflow: each rung an activity,
+the approval wait a signal with the five-minute timeout, abort a signal,
+`fail_orphans` unnecessary because Temporal owns the run's life. The device
+socket stays on the API worker and the activity reaches it through
+`AgentDrivers`. This is the change that lets the API scale out. It is not in
+this port's acceptance; it is the first item after it.
+
+## The extension
+
+- One base URL. `state.rigUrl`, `state.rigToken`, `mirror.js`, the
+  `rig-channel.js` dial and the rig-settings page go. `channel.js` already
+  dials `/v1/agents/{device_id}/commands`; it carries the rig's command
+  envelope now, including `ui.perform_at` and `screenshot`.
+- `recognise.js`, `offering.js`, `nudge.js`, the run card, the approve flow,
+  the five fates: unchanged. They speak to `/v1/shapes`, `/v1/offers`,
+  `/v1/runs`, which the backend now hosts at the same paths.
+- The browser's token is the device secret the backend already mints at
+  sign-in; the rig's separate registration goes.
+- The "rig refused the last copy" line becomes "the backend refused the last
+  upload", same mechanism.
+- `K_TAIL = 40` stays.
+
+## The console
+
+The rig's page has three views and two strips. They become pages under the
+console's app router, reading the same routes:
+
+- Jobs: the cards, `became`, the run form with prefilled parameters, past
+  runs, the run view with approve and stop, evidence.
+- Needs a person: the parked runs, approve and stop, from any browser.
+- Browsers: registered, online, revoked, the two-press revoke.
+- Audit: since a time, runs with approvals, offers, chat, browsers.
+- Spend: the header line, the day against its cap.
+
+Until those pages exist, the rig's `index.html` can be served by the backend
+at `/rig` against the ported routes. That is the interim named in *Open*.
+
+## Deletions, at the end
+
+- `application/observation/segment.py`, `mine.py` (old), `propose.py`, the
+  miner sweep and its Temporal schedule, `induction/diff.py`'s signature and
+  what only it feeds, the `candidates` router, the pairing judge in
+  `infrastructure/gemini`.
+- `application/skill/from_rig.py`, `adopt_rig_workflow.py`,
+  `network_from_rig.py`, `backend/scripts/skill_from_rig.py`,
+  `mirror_backfill.py`.
+- `new_agent_arch/` in full, once *Verification* passes.
+- `docs/17-agent-architecture.md` replaced by a page that points at the new
+  architecture doc and at the backup branch.
+
+## Sequence
+
+Each phase is a plan of its own; each ends green on the backend's full
+pipeline (lint, types, import contracts, unit, contract, integration,
+mutation floor).
+
+0. `git branch backup/rule-based-mining main`. Push it.
+1. Domain. Port the pure modules with their tests, tightened to no-Any.
+   Acceptance: the rig's `test_shape`, `test_identity`, `test_parameters`,
+   `test_offers` (rule half), `test_verify` (pure half), `test_planner`
+   (schema and value tests), `test_locators`, `test_effects` pass unchanged
+   in meaning under `tests/unit`.
+2. Ports and infrastructure. The `Asker` port and `GeminiAsker`; the
+   repositories and migrations; the channel behind `AgentDrivers`.
+   Acceptance: `test_models`, `test_store`-shaped tests against a Postgres
+   testcontainer; the counsel, spend and audit ordering rules re-proven.
+3. Application. The use cases, one file each, wired to the ports.
+   Acceptance: `test_runner`, `test_mine`, `test_shapes`, `test_intents`,
+   `test_entry`, `test_devices` (use-case half) under `tests/unit` with
+   fakes; the runner suite is the largest and the last.
+4. Interface. The routers, the auth dependencies, the composition root.
+   Acceptance: `test_api` becomes contract tests; the extension's
+   `offering-worker.test.mjs` against the backend's paths; the offer replay
+   through `backend/scripts/dry_run.py`; `make offer-replay` names 8 of 8.
+5. Extension. One URL, mirror and rig settings removed, channel carries the
+   envelope. Acceptance: the ten node suites; a browser signed in once
+   registers, uploads, is served shapes, is offered, runs, approves.
+6. Console. The five pages. Acceptance: the page tests move from the node
+   harness to the frontend's suite; the two-press revoke and the audit walk
+   in a real browser as they did on 2026-09-06.
+7. Deletions and the live proof: a day on the real WMS through the backend
+   alone, then `new_agent_arch/` goes.
+
+Phases 1 and 2 can run in parallel; 3 needs both; 4 needs 3; 5 and 6 need
+4 and can run in parallel; 7 needs everything.
+
+## Verification
+
+- The rig's 673 tests travel, module by module, and the count on the
+  backend side must not be smaller when the rig package is deleted.
+- The mutation floor: the backend's step runs over the ported packages with
+  the floor the rig ended at (80.2%), separately from the backend's existing
+  floor, until the two are one suite.
+- The offer replay is the acceptance test for shapes and recognition at
+  every phase after 4: 8 of 8 named as themselves, 10 of 11 values by the
+  end.
+- The findings' live measurements (*An offer lands*, *A real key*) are
+  repeated once through the backend before the rig is deleted, and the
+  numbers written beside the originals.
+
+## Out of scope
+
+- Temporal for the runner (phase two of the process model).
+- Chains, occurrences stored per doing, API-first execution: unchanged by
+  the port and still open as they were.
+- Multi-tenant scale-out of the device channel.
+- Any change to what the runner does, what the miner reads, or what the
+  extension recognises. A port that changes behaviour is two changes.
+
+## Open
+
+- **Runner on Temporal, when.** Recommended: after phase 7, as its own spec,
+  once a real week has run on one worker.
+- **Console pages or the served page.** Recommended: serve `index.html` at
+  `/rig` in phase 4 so nothing is lost while the pages are built in phase 6;
+  delete the served page when the pages exist.
+- **Where the pool lives.** The rig's pool is a table; the backend has
+  blob storage. Recommended: the table, it is small and it is queried.
+- **The old executor as fallback.** Kept behind a flag for skills with no
+  evidence. Recommended: measure how many such skills exist before deciding
+  whether it is worth keeping at all.

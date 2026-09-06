@@ -1049,14 +1049,21 @@ async function handle(message, sender) {
       // candidate row has always taken -- taught if it needs teaching, run if
       // it is already a skill -- and the panel drives that, because the press
       // that authorises a run belongs where somebody can read what it says.
-      const held = await state.nudges();
-      const answered = held.map((nudge) =>
-        nudge.id === message.id
-          ? { ...nudge, state: "answered", answer: message.answer, endedAt: Date.now() }
-          : nudge,
-      );
-      await state.setNudges(answered);
-      const was = held.find((nudge) => nudge.id === message.id);
+      // Read and written under the same lock as every other writer of the
+      // list: this was the one whole-list write left outside it, and a stale
+      // snapshot written back here would undo a claim `start-rig-run` had just
+      // made -- an offer shown open behind a live run, and a second fate.
+      const was = await serially(async () => {
+        const held = await state.nudges();
+        await state.setNudges(
+          held.map((nudge) =>
+            nudge.id === message.id
+              ? { ...nudge, state: "answered", answer: message.answer, endedAt: Date.now() }
+              : nudge,
+          ),
+        );
+        return held.find((nudge) => nudge.id === message.id);
+      });
       if (was) void hideNudge(was.tabId);
       if (was && message.answer === "not-here") {
         await state.setMuted(mute(await state.muted(), was.startsOn, Date.now()));

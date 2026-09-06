@@ -239,3 +239,87 @@ def test_a_parameter_typed_after_a_scroll_is_indexed_into_the_shape_as_served(
     assert shape.parameters == [{"name": "clientCode", "at": 0}], (
         "index 1 is where the scroll put it in the unfiltered list"
     )
+
+
+def _saver_first(store: Store, wid: str) -> Workflow:
+    """A workflow that begins on the click rather than the typing, so the
+    `page_url` edit below does not touch where it starts."""
+    saver = _ids(store)[-1]
+    wf = Workflow(
+        id=wid,
+        tenant="acme",
+        title="save it",
+        narrative="n",
+        systems=["http://127.0.0.1:63319"],
+        steps=[Step(order=0, says="save", system=None, cites=[saver])],
+        parameters=[],
+    )
+    save_workflow(store, wf)
+    return wf
+
+
+def test_a_workflow_that_cannot_be_served_never_withdraws_the_ones_behind_it(
+    tmp_path: Path,
+) -> None:
+    """Three reasons to skip one job, and a fourth job that is fine. Each skip
+    is that job's alone: a tenant's whole offer list must not end at the first
+    workflow that is unproven, unevidenced, or starts somewhere unproven."""
+    store = _store(tmp_path)
+    _workflow(store, "wfl_unproven", unproven=["the save was never confirmed"])
+    save_workflow(
+        store,
+        Workflow(
+            id="wfl_uncited",
+            tenant="acme",
+            title="cites nothing the store holds",
+            narrative="n",
+            steps=[Step(order=0, says="s", system=None, cites=["ges_remined_away"])],
+        ),
+    )
+    _workflow(store, "wfl_elsewhere")
+    _saver_first(store, "wfl_fine")
+    typed = next(
+        r["id"]
+        for r in store.query("SELECT id, gesture_json FROM gestures")
+        if json.loads(r["gesture_json"]).get("value") == "ACME-4471"
+    )
+    with store.connect() as connection:
+        connection.execute(
+            "UPDATE gestures SET page_url = ? WHERE id = ?", ("https://other.example/x", typed)
+        )
+
+    assert [s.id for s in shapes_for(store, "acme")] == ["wfl_fine"]
+
+
+def test_a_parameter_the_workflow_declares_badly_is_dropped_rather_than_served(
+    tmp_path: Path,
+) -> None:
+    """A parameter with no name is not a parameter the extension can fill, and
+    one with no recorded values was simply never typed anywhere."""
+    store = _store(tmp_path)
+    wf = _workflow(store)
+    wf.parameters = [{"seen_values": ["ACME-4471"]}, {"name": "notes"}, *wf.parameters]
+    save_workflow(store, wf)
+
+    [shape] = shapes_for(store, "acme")
+
+    assert shape.parameters == [
+        {"name": "notes", "at": None},
+        {"name": "clientCode", "at": 0},
+    ]
+
+
+def test_a_job_whose_first_step_is_only_a_scroll_still_says_where_it_begins(
+    tmp_path: Path,
+) -> None:
+    """`primary_gesture` has nothing to return when every gesture the first
+    step cites is a scroll, and the job still begins somewhere."""
+    store = _store(tmp_path)
+    workflow = _workflow(store)
+    workflow.steps[0].cites = [_scroll(store)]
+    workflow.steps[0].parameters = []
+    save_workflow(store, workflow)
+
+    [shape] = shapes_for(store, "acme")
+
+    assert shape.starts_on and shape.starts_on.startswith("http://127.0.0.1:63319")

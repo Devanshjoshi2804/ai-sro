@@ -1,4 +1,8 @@
+import copy
+import json
+
 from rig.correlate import correlate
+from rig.locators import locators_for
 from rig.models import Answer, FakeAsker
 from rig.planner import PLAN_SCHEMA, Look, plan_step
 from rig.wire import REDACTED, Batch
@@ -259,3 +263,151 @@ async def test_an_http_plan_whose_url_carries_a_struck_out_credential_is_downgra
 
     assert planned.kind == "ui.perform", "the marker would have gone out as the session id"
     assert "not replayable" in planned.why
+
+
+def _answer(**data) -> Answer:
+    base = {"kind": "ui.perform", "action": None, "value": None, "url": None, "why": "w"}
+    return Answer(data={**base, **data})
+
+
+async def _planned(*, cited, answer, values=None, step=None, **over):
+    asker = over.pop("asker", None) or FakeAsker(answer)
+    call = {
+        "step": step or Step(order=0, says="do it", system=None, cites=[g.id for g in cited]),
+        "cited": cited,
+        "values": values or {},
+        "look": Look(None, None, ""),
+        "origin": None,
+        "starts_on": None,
+        "allow_focus": False,
+        "asker": asker,
+        "model": "m",
+    }
+    return await plan_step(**{**call, **over}), asker
+
+
+async def test_every_way_out_hands_back_the_reading_that_paid_for_it() -> None:
+    """A plan the runner cannot use still cost a call, and the runner bills
+    what it is handed. An answer dropped on any of these paths is a step that
+    reads as free."""
+    gesture = _typed()
+    unusable = Answer(error="boom", unpriced=True, cost_usd=0.0)
+    for answer, kind in (
+        (unusable, "none"),
+        (_answer(kind="rm -rf"), "none"),
+        (_answer(kind="navigate", url=""), "none"),
+        (_answer(kind="navigate", url="http://127.0.0.1:63319/form"), "navigate"),
+        (_answer(action="type", value="x"), "ui.perform"),
+    ):
+        planned, _ = await _planned(cited=[gesture], answer=answer)
+        assert planned.kind == kind, answer
+        assert planned.answer is answer
+        assert isinstance(planned.payload, dict)
+        assert isinstance(planned.why, str) and planned.why
+
+
+async def test_a_navigate_with_nowhere_to_go_is_not_a_navigate() -> None:
+    """An empty url is not a url. Sent on, the extension would be told to open
+    the empty string."""
+    gesture = _typed()
+    for url in (None, "", 7):
+        planned, _ = await _planned(cited=[gesture], answer=_answer(kind="navigate", url=url))
+        assert (planned.kind, planned.payload) == ("none", {}), url
+
+
+async def test_the_why_on_the_plan_is_the_models_own_and_empty_when_it_gave_none() -> None:
+    gesture = _typed()
+    planned, _ = await _planned(
+        cited=[gesture], answer=_answer(action="type", value="x", why="the field wants the code")
+    )
+    assert planned.why == "the field wants the code"
+
+    silent, _ = await _planned(cited=[gesture], answer=_answer(action="type", value="x", why=None))
+    assert silent.why == "", "no explanation is an empty one, not the word None"
+
+
+async def test_a_step_that_only_cites_a_scroll_is_still_planned_from_it() -> None:
+    """`primary` prefers a gesture the extension can act on, and a scroll is
+    not one -- but a step citing nothing else is not a step to give up on."""
+    scroll = copy.deepcopy(_typed())
+    scroll.gesture.kind = "scroll"
+    planned, _ = await _planned(cited=[scroll], answer=_answer(action="click"))
+    assert planned.kind == "ui.perform"
+
+    typed = _typed()
+    ahead, _ = await _planned(cited=[scroll, typed], answer=_answer(action="type", value="x"))
+    assert ahead.payload["locators"] == locators_for(typed), (
+        "the scroll is skipped for the gesture that can be acted on"
+    )
+
+
+async def test_the_action_is_the_models_when_the_protocol_has_it_and_the_gestures_when_not() -> (
+    None
+):
+    gesture = _typed()  # a type gesture, so a fallback is visible
+    chosen, _ = await _planned(cited=[gesture], answer=_answer(action="click"))
+    assert chosen.payload["action"] == "click"
+
+    invented, _ = await _planned(cited=[gesture], answer=_answer(action="jiggle"))
+    assert invented.payload["action"] == "type", "back to what the operator did"
+
+
+async def test_a_value_is_carried_for_every_action_that_takes_one_and_for_no_other() -> None:
+    gesture = _typed()
+    for action in ("type", "select", "upload", "press"):
+        planned, _ = await _planned(cited=[gesture], answer=_answer(action=action, value="SAID"))
+        assert planned.payload["value"] == "SAID", action
+
+    clicked, _ = await _planned(cited=[gesture], answer=_answer(action="click", value="SAID"))
+    assert clicked.payload["value"] is None, "a click types nothing"
+
+
+async def test_with_no_value_from_the_run_or_the_model_the_recorded_one_stands() -> None:
+    gesture = _typed()
+    planned, _ = await _planned(cited=[gesture], answer=_answer(action="type", value=None))
+    assert planned.payload["value"] == gesture.gesture.value
+
+    numbered, _ = await _planned(cited=[gesture], answer=_answer(action="type", value=123))
+    assert numbered.payload["value"] == "123", "nothing validates the model's answer for us"
+
+
+async def test_a_recorded_call_with_no_body_is_replayed_as_it_was() -> None:
+    """Nothing to get wrong is not a reason to refuse to replay. A GETless
+    POST -- a delete, a button that posts nothing -- is still the call."""
+    saver = next(g for g in _gestures() if g.requests)
+    post = next(r for r in saver.requests if r.method == "POST")
+    saver.requests = [post.model_copy(update={"request_body": None})]
+
+    planned, _ = await _planned(cited=[saver], answer=_answer(kind="http.send", why="no target"))
+
+    assert planned.kind == "http.send" and planned.payload["body"] is None
+    assert planned.why == "no target", "nothing was downgraded"
+
+
+async def test_an_http_plan_carries_the_body_the_operator_sent() -> None:
+    saver = next(g for g in _gestures() if g.requests)
+    post = next(r for r in saver.requests if r.method == "POST")
+
+    planned, _ = await _planned(cited=[saver], answer=_answer(kind="http.send"))
+
+    assert planned.payload["body"] == post.request_body.text
+    assert planned.payload["body"], "the fixture's save posts a body"
+
+
+async def test_an_http_plan_for_a_step_whose_evidence_made_no_call_plans_nothing() -> None:
+    gesture = _typed()  # a typed field; the recorder heard no traffic from it
+    planned, _ = await _planned(cited=[gesture], answer=_answer(kind="http.send"))
+    assert (planned.kind, planned.payload) == ("none", {})
+
+
+async def test_the_model_is_told_where_the_step_was_demonstrated_and_under_what_effort() -> None:
+    gesture = copy.deepcopy(_typed())
+    gesture.page_url = "http://127.0.0.1:63319/clients/new"
+    _, asker = await _planned(
+        cited=[gesture], answer=_answer(action="type", value="x"), effort="low"
+    )
+
+    [asked] = asker.asked
+    assert json.loads(asked["evidence"])["step_page"] == "http://127.0.0.1:63319/clients/new"
+    assert asked["effort"] == "low", "a rescue asks harder than a first attempt"
+    assert asked["instructions"], "a model told nothing plans nothing"

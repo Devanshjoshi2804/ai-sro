@@ -83,3 +83,26 @@ async def test_a_value_the_model_invented_a_name_for_leaves_its_parameter_missin
         "m",
     )
     assert got.values == {} and got.missing == ["clientCode"]
+
+
+async def test_the_model_that_named_nothing_still_hands_back_what_it_cost() -> None:
+    """Every gesture gets a reading, and a refusal is one too: the answer is
+    carried on all three ways out, so the caller can bill it."""
+    for data in (None, {"workflow_id": "wfl_nope", "values": {}, "missing": []}):
+        answer = Answer(data=data, cost_usd=0.0003, in_tokens=120)
+        got = await understand("x", WFS, FakeAsker(answer), "m")
+        assert got.workflow_id is None
+        assert got.answer is answer
+
+    named = Answer(data={"workflow_id": "wfl_1", "values": {}, "missing": []}, cost_usd=0.0009)
+    got = await understand("x", WFS, FakeAsker(named), "m")
+    assert got.answer is named
+
+
+async def test_the_reading_is_asked_of_the_model_it_was_given_under_the_declared_schema() -> None:
+    asker = FakeAsker(Answer(data={"workflow_id": "wfl_1", "values": {}, "missing": []}))
+    await understand("x", WFS, asker, "gemini-3.8-flash")
+    [asked] = asker.asked
+    assert asked["model"] == "gemini-3.8-flash"
+    assert asked["schema"] is UNDERSTAND_SCHEMA, "structured output, or the reading is prose"
+    assert asked["instructions"], "a model told nothing answers about nothing"

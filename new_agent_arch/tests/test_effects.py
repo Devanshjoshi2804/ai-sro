@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from rig.effects import K_EARNED_RUNS, earned, forget_effects, record_effect
-from rig.runs import Run, RunStep, save_run
+from rig.runs import Run, RunStep, load_run, save_run
 from rig.store import Store
 
 
@@ -139,3 +139,20 @@ def test_another_tenants_run_does_not_earn_this_ones_autonomy(tmp_path: Path) ->
         )
     assert earned(store, "wfl_1", tenant="acme") is True
     assert earned(store, "wfl_1", tenant="someone-else") is False
+
+
+def test_a_step_that_never_sent_anything_is_not_read_as_a_write(tmp_path: Path) -> None:
+    """A skipped step has no stored result at all. It is not a write the run
+    has to have verified, and it must not stop one that did."""
+    store = _store(tmp_path)
+    for i in range(K_EARNED_RUNS):
+        _held_run(store, f"run_{i}", writes=[1])
+        run = load_run(store, "acme", f"run_{i}")
+        assert run is not None
+        run.steps.append(RunStep(order=2, says="nothing to do", verdict="skipped", result=None))
+        save_run(store, run)
+        record_effect(
+            store, workflow_id="wfl_1", run_id=f"run_{i}", order=1, verified_by="status", at="t"
+        )
+
+    assert earned(store, "wfl_1") is True

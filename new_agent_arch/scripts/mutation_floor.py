@@ -57,7 +57,33 @@ import sys
 # Raised to 76.2 rather than 76.4: this is a ratchet against the suite getting
 # weaker, not a target to sit exactly on, and a hair of room stops an unrelated
 # refactor tripping it over rounding.
-FLOOR = 76.2
+#
+# Then two plans landed -- the runner's loop, the planner, the verifier, runs,
+# entry, effects, shapes, offers -- adding ~2,700 mutants of code whose tests
+# killed fewer of them than the suite's average. 2026-09-06, over 534 tests:
+# **74.1%**, 3,768 killed, 1,318 survived. The score fell without a single test
+# breaking, which is the whole reason this file exists.
+#
+# Re-measured the same day over 592 tests: **79.45%**, 4,041 killed, 1,045
+# survived. 273 more mutants dead, and the reading of the 602 survivors that
+# found them says something about where a suite goes thin: almost every kill
+# was a private helper with no test of its own, exercised only through the
+# integration test of whatever calls it.
+#
+#     runner._look      ~40 mutants, no direct test at all
+#     planner            55 real of 101, mostly the five ways out of plan_step
+#     verify             55 real of 92, one belt at a time
+#     locators           20 real of 26
+#
+# What was deliberately NOT chased, on top of the list above: `runs` is 73
+# equivalent mutants out of 85 (it is almost entirely SQL and `sqlite3.Row`
+# reads, both case-insensitive), `effects` 18 of 19, and ~100 real ones inside
+# `run_workflow`'s own loop, each of which needs a whole scripted run to reach.
+# Those are the next round's, not this one's.
+#
+# 79.4 rather than 79.45: the floor is the measured score rounded DOWN, so the
+# very run that set it cannot fail against it on the printed rounding.
+FLOOR = 79.4
 
 STATS = pathlib.Path(__file__).resolve().parent.parent / "mutants" / "mutmut-cicd-stats.json"
 

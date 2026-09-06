@@ -138,3 +138,55 @@ def test_a_run_still_running_when_the_rig_starts_is_failed_and_says_why(tmp_path
     assert stepless is not None and stepless.steps[0].reason == "the rig restarted"
     untouched = load_run(store, "acme", done.id)
     assert untouched is not None and untouched.outcome == "held"
+
+
+def test_the_flags_a_run_carries_survive_the_round_trip(tmp_path: Path) -> None:
+    """`live`, `stale` and `unpriced` are all stored as integers and all read
+    back as booleans. A run read back as a dry one would be re-offered as
+    though it had never written; a cost read back as priced is a bill nobody
+    knows to distrust."""
+    store = _store(tmp_path)
+    run = _run(
+        live=True,
+        allow_focus=False,
+        unpriced=True,
+        steps=[RunStep(order=0, says="a", verdict="held", stale=True, unpriced=True, cost_usd=0.0)],
+    )
+    save_run(store, run)
+
+    back = load_run(store, "acme", run.id)
+
+    assert back is not None
+    assert (back.live, back.allow_focus, back.unpriced) == (True, False, True)
+    assert (back.steps[0].stale, back.steps[0].unpriced) == (True, True)
+
+
+def test_an_orphan_with_no_step_at_all_gets_one_that_says_who_failed(tmp_path: Path) -> None:
+    """The reason has to land somewhere the page shows it, and a run that died
+    before its first step has nowhere -- so it gets step zero."""
+    store = _store(tmp_path)
+    bare = _run()
+    save_run(store, bare)
+
+    fail_orphans(store, "the rig restarted")
+
+    stepless = load_run(store, "acme", bare.id)
+    assert stepless is not None
+    [only] = stepless.steps
+    assert (only.order, only.says) == (0, "")
+    assert (only.verdict, only.verdict_by) == ("failed", "none")
+    # UTC, spelled out: a naive local timestamp beside the UTC ones every other
+    # writer produces reads as a run that finished hours before it started.
+    assert stepless.finished_at is not None and stepless.finished_at.endswith("+00:00")
+
+
+def test_the_reason_lands_on_the_step_the_orphan_died_in(tmp_path: Path) -> None:
+    store = _store(tmp_path)
+    orphan = _run(steps=[RunStep(order=0, says="s", verdict="held", verdict_by="status")])
+    save_run(store, orphan)
+
+    fail_orphans(store, "the rig restarted")
+
+    failed = load_run(store, "acme", orphan.id)
+    assert failed is not None and len(failed.steps) == 1
+    assert (failed.steps[0].verdict, failed.steps[0].verdict_by) == ("failed", "none")

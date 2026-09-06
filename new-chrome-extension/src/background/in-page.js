@@ -249,6 +249,16 @@ export function performAtInPage(payload) {
   if (!el) {
     return { ok: false, error: { kind: "control_not_found", detail: "nothing at that point" } };
   }
+  // A point inside a frame lands on the <iframe> itself from this document:
+  // the events below would fire on the frame element and reach nothing, and
+  // the answer would still say performed. The control is in a document this
+  // script is not running in, which is a control it did not find.
+  if (el.tagName === "IFRAME" || el.tagName === "FRAME") {
+    return {
+      ok: false,
+      error: { kind: "control_not_found", detail: "that point is inside a frame" },
+    };
+  }
   const where = {
     bubbles: true,
     cancelable: true,

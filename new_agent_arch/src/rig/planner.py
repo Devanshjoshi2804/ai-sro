@@ -267,13 +267,17 @@ SIGHT_SCHEMA: dict[str, Any] = {
         "found": {"type": "boolean"},
         "x": {"type": "integer"},
         "y": {"type": "integer"},
-        "action": {"type": "string", "enum": ["click", "type", "press", "select"]},
+        # No select: `performAtInPage` has no way to choose an option at a
+        # point, and an action the browser cannot take is a step that stops.
+        "action": {"type": "string", "enum": ["click", "type", "press"]},
         "value": {"type": "string", "nullable": True},
         "why": {"type": "string"},
     },
     "required": ["found", "x", "y", "action", "why"],
     "propertyOrdering": ["found", "x", "y", "action", "value", "why"],
 }
+
+SIGHT_ACTIONS = frozenset({"click", "type", "press"})
 
 SIGHT_INSTRUCTIONS = """You are performing one step of a job an operator demonstrated in a warehouse
 system, in their own browser. Every way of finding the control by its recorded
@@ -343,10 +347,15 @@ async def plan_by_sight(
         isinstance(x, int) and isinstance(y, int) and 0 <= x < look.width and 0 <= y < look.height
     ):
         return Planned("none", {}, f"the point ({x}, {y}) is not on the screen", answer)
-    action = str(data.get("action") or "click")
+    # Nothing validates the model's answer against the schema; the enum is
+    # checked here, as `plan_step` checks its own.
+    action = data.get("action")
+    if action not in SIGHT_ACTIONS:
+        return Planned("none", {}, f"{action!r} is not an action a point can take", answer)
     payload: dict[str, Any] = {"origin": origin, "x": x, "y": y, "action": action}
-    if action in ("type", "select"):
-        value = _value_for(step, primary, values, data.get("value"))
+    if action == "type":
+        said = data.get("value")
+        value = _value_for(step, primary, values, str(said) if said is not None else None)
         if value is None:
             return Planned("none", {}, "nothing to type: no value for this control", answer)
         payload["value"] = value

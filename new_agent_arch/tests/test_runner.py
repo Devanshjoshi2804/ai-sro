@@ -2,7 +2,7 @@ import asyncio
 import base64
 import copy
 import json
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any
 
@@ -2151,6 +2151,7 @@ async def _run_by_sight(
     performs: list[Reply] | None = None,
     live: bool = True,
     looks: dict[str, list[Reply]] | None = None,
+    earned: Callable[[str], bool] = _earned,
 ) -> tuple[Run, FakeChannel, _by_rung_asker]:
     store = _store(tmp_path)
     wf = _workflow(store)
@@ -2180,7 +2181,7 @@ async def _run_by_sight(
         plan_model="flash",
         rescue_model="pro",
         live=live,
-        earned=_earned,
+        earned=earned,
         allow_focus=True,
         started_by="form",
     )
@@ -2289,3 +2290,38 @@ async def test_a_dry_run_reads_by_sight_too_and_its_writes_never_reach_the_rung(
     assert len([s for s in channel.sent if s["kind"] == "ui.perform_at"]) == 1
     assert len([a for a in asker.asked if "found" in a["schema"]["properties"]]) == 1
     assert run.withheld[0]["planned"]["kind"] == "ui.perform", "withheld by evidence, unasked"
+
+
+async def test_a_click_by_sight_is_a_write_until_a_person_says_otherwise(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The first step's evidence is a typed field, not a silent click: by
+    evidence, a click there would not be a possible write. By sight it is --
+    the point is on a page that has moved, and what is there now is unknown --
+    so on a job that has not earned it, the click waits for a tap. Nobody
+    taps, and it never goes out."""
+    import rig.runner as runner_module
+
+    monkeypatch.setattr(runner_module, "K_APPROVAL_WAIT_S", 0.05)
+    run, channel, _ = await _run_by_sight(
+        tmp_path,
+        sights=[_sight(action="click", value=None)],
+        perform_at=[Reply(ok=True, result={"performed": True})],
+        earned=lambda _workflow_id: False,
+    )
+    assert run.steps[0].verdict == "failed" and "nobody approved" in run.steps[0].reason
+    assert not [s for s in channel.sent if s["kind"] == "ui.perform_at"], "it waited, then stopped"
+    assert run.steps[0].sent == {
+        "kind": "ui.perform_at",
+        "payload": {"origin": "http://127.0.0.1:63319", "x": 40, "y": 30, "action": "click"},
+    }, "what would have gone out was shown"
+
+
+async def test_an_action_a_point_cannot_take_is_a_step_that_stops(tmp_path: Path) -> None:
+    run, channel, _ = await _run_by_sight(
+        tmp_path,
+        sights=[Answer(data={"found": True, "x": 1, "y": 1, "action": "select", "why": "w"})],
+        perform_at=[Reply(ok=True, result={"performed": True})],
+    )
+    assert run.outcome == "stopped" and "'select' is not an action" in run.steps[0].reason
+    assert not [s for s in channel.sent if s["kind"] == "ui.perform_at"]

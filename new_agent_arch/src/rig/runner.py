@@ -534,10 +534,16 @@ async def run_workflow(
                 #
                 # One predicate, both gates below: a step nobody may retry
                 # afterwards is a step nobody may send unasked either.
+                # A click at a point the model chose is a click on whatever
+                # is there now, on a page that has already moved under the
+                # job: what the demonstrated control's traffic showed says
+                # nothing about it. Every sight click is a possible write.
                 may_write = mutates or (
-                    planned.kind in ("ui.perform", "ui.perform_at")
-                    and planned.payload.get("action") in ("click", "press")
-                    and _saw_nothing(step, by_id)
+                    planned.payload.get("action") in ("click", "press")
+                    and (
+                        planned.kind == "ui.perform_at"
+                        or (planned.kind == "ui.perform" and _saw_nothing(step, by_id))
+                    )
                 )
 
                 # A live write, on a job that has not yet earned the right to

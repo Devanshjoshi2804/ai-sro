@@ -56,7 +56,20 @@ async function call(path, { method = "GET", body, form, signal } = {}) {
  * written at this call site they would be evaluated before `mirrorTo` is
  * entered, where nothing catches them. */
 async function mirror(path, options) {
-  await mirrorSafely(state.rigUrl, state.rigToken, path, options);
+  const became = await mirrorSafely(state.rigUrl, state.rigToken, path, options);
+  // A refusal the rig gave a reason for is written where the options page
+  // reads it, and cleared by the next copy the rig took. A rig that is down
+  // writes nothing: that is silence, not a refusal, and the last refusal
+  // stays until the rig answers again. Never awaited by upload.js's
+  // decision: `mirror` is already outside it.
+  try {
+    if (became.sent && became.ok) await state.setRigRefusal("");
+    else if (became.sent) {
+      await state.setRigRefusal(`${path} ${became.status}${became.detail ? `: ${became.detail}` : ""}`);
+    }
+  } catch {
+    // The same contract as the mirror itself: nothing here fails an upload.
+  }
 }
 
 /** What the rig is dialled with: one bearer, no device registry, none of the

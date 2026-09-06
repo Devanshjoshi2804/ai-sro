@@ -61,6 +61,11 @@ function render(status) {
     : status.rigTokenSet
       ? "saved: the tenant's token, until a rig that registers browsers is saved"
       : "the tenant's rig token; this browser keeps one of its own";
+  // The rig's last refusal, in its own words: a batch that was not this
+  // browser's, one past the bound, a token it no longer holds. Hidden once
+  // the rig takes a copy again. textContent, so the rig's `detail` is text.
+  $("rig-trouble").hidden = !status.rigRefusal;
+  $("rig-trouble").textContent = status.rigRefusal ? `the rig refused the last copy — ${status.rigRefusal}` : "";
   $("purge").disabled = !status.deviceId;
 
 }

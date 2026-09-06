@@ -36,13 +36,21 @@ export function isMirrorable(base) {
   }
 }
 
+/**
+ * What became of one mirror, for the options page and nobody else. `sent`
+ * is whether a request went out at all; `ok` and `status` are the rig's
+ * answer when it gave one; `detail` is its `detail` field when it refused.
+ * Returned rather than thrown, and never read by upload.js: a refusal is
+ * something a person fixes on the options page, not something that may
+ * decide what happens to the backend's rows.
+ */
 export async function mirrorTo(
   base,
   token,
   path,
   { body, form, fetcher = fetch, timeoutMs = MIRROR_TIMEOUT_MS } = {},
 ) {
-  if (!isMirrorable(base)) return;
+  if (!isMirrorable(base)) return { sent: false };
   try {
     const options = { method: "POST", headers: {} };
     if (token) options.headers.Authorization = `Bearer ${token}`;
@@ -60,9 +68,23 @@ export async function mirrorTo(
     if (typeof AbortSignal !== "undefined" && AbortSignal.timeout) {
       options.signal = AbortSignal.timeout(timeoutMs);
     }
-    await fetcher(`${base}${path}`, options);
+    const response = await fetcher(`${base}${path}`, options);
+    if (response?.ok) return { sent: true, ok: true, status: response.status };
+    // The rig said no, and said why: 403 for a batch that is not this
+    // browser's, 413 for one past its bound, 401 for a token it no longer
+    // holds. Silent here as ever, but not lost -- the caller writes it where
+    // the options page reads.
+    let detail = "";
+    try {
+      const said = await response.json();
+      detail = typeof said?.detail === "string" ? said.detail : JSON.stringify(said?.detail ?? "");
+    } catch {
+      // A refusal with no body is still a refusal with a status.
+    }
+    return { sent: true, ok: false, status: response?.status ?? 0, detail };
   } catch {
     // The rig is optional. Its silence is not the extension's problem.
+    return { sent: false };
   }
 }
 
@@ -77,8 +99,9 @@ export async function mirrorTo(
  */
 export async function mirrorSafely(readBase, readToken, path, options) {
   try {
-    await mirrorTo(await readBase(), await readToken(), path, options);
+    return await mirrorTo(await readBase(), await readToken(), path, options);
   } catch {
     // Same contract as mirrorTo: the mirror cannot fail the upload.
+    return { sent: false };
   }
 }

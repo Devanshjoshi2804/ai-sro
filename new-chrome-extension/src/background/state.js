@@ -13,6 +13,7 @@ const KEYS = {
   consoleUrl: "sro.consoleUrl",
   rigUrl: "sro.rigUrl",
   rigToken: "sro.rigToken",
+  rigRefusal: "sro.rigRefusal",
   policy: "sro.policy",
   grants: "sro.grants",
   watches: "sro.watches",
@@ -86,6 +87,9 @@ export const state = {
   setRigUrl: (url) => write(KEYS.rigUrl, (url || "").replace(/\/+$/, "")),
   rigToken: () => read(KEYS.rigToken, ""),
   setRigToken: (value) => write(KEYS.rigToken, value || ""),
+  /** The last reason the rig refused a copy, or "" once it took one again. */
+  rigRefusal: () => read(KEYS.rigRefusal, ""),
+  setRigRefusal: (value) => write(KEYS.rigRefusal, value || ""),
 
   /** The tabs the operator asked to be watched, newest first. Each is
    * `{ tabId, host, since }`.

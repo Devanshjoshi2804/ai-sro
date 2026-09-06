@@ -26,19 +26,40 @@ test("a mirror to a rig that is down does not throw", async () => {
     throw new Error("ECONNREFUSED");
   };
 
-  await mirrorTo("http://localhost:8100", "t", "/v1/observations", {
+  const became = await mirrorTo("http://localhost:8100", "t", "/v1/observations", {
     body: {},
     fetcher,
   });
+  assert.deepEqual(became, { sent: false }, "down is silence, not a refusal");
 });
 
-test("a mirror that is refused does not throw", async () => {
-  const fetcher = async () => ({ ok: false, status: 401 });
+test("a mirror that is refused does not throw, and says what the rig said", async () => {
+  const fetcher = async () => ({
+    ok: false,
+    status: 403,
+    json: async () => ({ detail: "this token is dev_1's, and the batch is not" }),
+  });
 
-  await mirrorTo("http://localhost:8100", "t", "/v1/observations", {
+  const became = await mirrorTo("http://localhost:8100", "t", "/v1/observations", {
     body: {},
     fetcher,
   });
+  assert.deepEqual(became, {
+    sent: true,
+    ok: false,
+    status: 403,
+    detail: "this token is dev_1's, and the batch is not",
+  });
+  const bodiless = await mirrorTo("http://localhost:8100", "t", "/v1/observations", {
+    body: {},
+    fetcher: async () => ({ ok: false, status: 502, json: async () => { throw new Error("html"); } }),
+  });
+  assert.deepEqual(bodiless, { sent: true, ok: false, status: 502, detail: "" });
+  const took = await mirrorTo("http://localhost:8100", "t", "/v1/observations", {
+    body: {},
+    fetcher: async () => ({ ok: true, status: 202 }),
+  });
+  assert.deepEqual(took, { sent: true, ok: true, status: 202 });
 });
 
 test("a rig that accepts the connection and never answers does not hang the caller", async () => {

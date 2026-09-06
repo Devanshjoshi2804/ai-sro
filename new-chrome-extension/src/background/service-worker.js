@@ -1822,6 +1822,9 @@ async function status(sender = null) {
     // or the tenant's typed bearer. Every render of the options page says
     // which, not only the one that follows a save.
     rigRegistered: rigToken.startsWith("dev_"),
+    // The last copy the rig refused, and why, until it takes one again. The
+    // mirror is silent by contract; this is the one place its no is said.
+    rigRefusal: await state.rigRefusal(),
     paused,
     serverPaused,
     lastBeat,

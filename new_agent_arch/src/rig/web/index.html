@@ -474,6 +474,14 @@
     }
   }
 
+  // `#run-<id>` in the address opens that run under its job: the extension's
+  // "Details on the rig" points here, and a link somebody pasted should land
+  // on the run and not on the front page. Pure, so it can be tested.
+  function runHash(hash) {
+    const found = /^#run-([A-Za-z0-9_]+)$/.exec(hash || "");
+    return found ? found[1] : null;
+  }
+
   let showing = "gestures";
 
   // The three-second redraw replaces every card, and with it every runner box
@@ -544,6 +552,39 @@
     document.getElementById("stream").hidden = showing !== "gestures";
     draw();
   });
-  draw();
+  async function openRun(runId) {
+    if (showing !== "workflows") document.getElementById("view").click();
+    await drawJobs();
+    let run;
+    try {
+      run = await get(`/v1/runs/${encodeURIComponent(runId)}`);
+    } catch (error) {
+      document.getElementById("spend").insertAdjacentHTML(
+        "beforeend",
+        `<div class="error">${esc(error.message)}</div>`,
+      );
+      return;
+    }
+    const box = document.getElementById(`runner-${run.workflow_id}`);
+    if (!box) return;
+    box.innerHTML = `<div class="note"></div><div class="live"></div>`;
+    const into = box.querySelector(".live");
+    into.innerHTML = runView(run);
+    into.querySelector(".close")?.addEventListener("click", () => {
+      into.innerHTML = "";
+    });
+    if (run.outcome === "running") watch(run.id, run.device_id, into);
+    box.scrollIntoView?.({ block: "start" });
+  }
+
+  window.addEventListener("hashchange", () => {
+    const wanted = runHash(location.hash);
+    if (wanted) void openRun(wanted);
+  });
+
+  draw().then(() => {
+    const wanted = runHash(location.hash);
+    if (wanted) void openRun(wanted);
+  });
   setInterval(draw, 3000);
 </script>

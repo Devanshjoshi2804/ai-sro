@@ -2574,3 +2574,16 @@ def test_the_page_lists_past_runs_and_escapes_who_started_them() -> None:
     listed = "\n".join(lines[1:])
     assert "held (dry)" in listed and 'data-run="run_1"' in listed
     assert attack not in listed and "&lt;img src=x onerror=go()&gt;" in listed
+
+
+def test_the_page_reads_a_run_out_of_the_address_and_nothing_else() -> None:
+    out = _run_page(
+        """
+        console.log(runHash("#run-run_abc123"));
+        console.log(runHash("#run-"));
+        console.log(runHash("#other"));
+        console.log(runHash("#run-x/../y"));
+        console.log(runHash(""));
+        """
+    )
+    assert out.strip().splitlines() == ["run_abc123", "null", "null", "null", "null"]

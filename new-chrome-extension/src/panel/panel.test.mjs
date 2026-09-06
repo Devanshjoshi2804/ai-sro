@@ -1279,7 +1279,8 @@ test("a run in flight links to whichever process is driving it", async () => {
   const rigLink = rig.cards.flatMap(buttons).find((b) => /Details/.test(b.textContent));
   assert.equal(rigLink.textContent, "Details on the rig", "a rig run pointed at the console");
   rigLink.listeners[0]();
-  assert.deepEqual(rig.opened, ["http://127.0.0.1:8099"], "a rig run's details went elsewhere");
+  assert.equal(rig.opened.length, 1, "a rig run's details went elsewhere");
+  assert.match(rig.opened[0], /^http:\/\/127\.0\.0\.1:8099\/#run-/, "the rig page opens on the run");
   assert.deepEqual(sentOf(rig.sent, "panel-console"), [], "the console token was asked for anyway");
 
   // No `source` at all -- an older worker's status, or the backend's own run.

@@ -564,7 +564,13 @@ function performing(status) {
         ? {
             label: "Details on the rig",
             act: () => {
-              if (status.rigUrl) void chrome.tabs.create({ url: status.rigUrl });
+              // The rig page opens on this run: `#run-<id>` is the one deep
+              // link it honours.
+              if (status.rigUrl) {
+                void chrome.tabs.create({
+                  url: `${status.rigUrl}/#run-${encodeURIComponent(run.runId)}`,
+                });
+              }
             },
           }
         : { label: "Details in console", act: () => openConsole(`/runs/${run.runId}`) },

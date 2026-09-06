@@ -2697,3 +2697,49 @@ def test_the_audit_route_lists_what_happened_since_a_time(client: TestClient, st
     assert "payload" not in step and "values" not in got["runs"][0], "no values, no payloads"
     assert [o["fate"] for o in got["offers"]] == ["accepted"]
     assert client.get("/v1/audit", headers=_auth()).status_code == 200, "no since means everything"
+
+
+def test_a_run_says_when_each_write_was_approved(client: TestClient, store: Store) -> None:
+    from rig.runs import Run, RunStep, save_run
+
+    save_run(
+        store,
+        Run(
+            id="run_ap",
+            tenant="new",
+            workflow_id="wfl_1",
+            device_id="dev_test",
+            values={},
+            started_by="offer",
+            live=True,
+            allow_focus=True,
+            started_at="2026-09-06T10:00:00+00:00",
+            finished_at=None,
+            outcome="held",
+            steps=[
+                RunStep(order=0, says="type", verdict="held", verdict_by="status"),
+                RunStep(order=1, says="save", verdict="held", verdict_by="status"),
+            ],
+        ),
+    )
+    store.execute(
+        "INSERT INTO approvals (run_id, ord, at) VALUES (?, ?, ?)",
+        ("run_ap", 1, "2026-09-06T10:00:30+00:00"),
+    )
+    steps = client.get("/v1/runs/run_ap", headers=_auth()).json()["steps"]
+    assert [s["approved_at"] for s in steps] == [None, "2026-09-06T10:00:30+00:00"]
+
+
+def test_the_page_shows_when_a_write_was_approved_and_escapes_it() -> None:
+    out = _run_page(
+        """
+        console.log(ranStep({ order: 1, says: "save", verdict: "held", verdict_by: "status",
+          approved_at: "2026-09-06T10:00:30+00:00<b>", cost_usd: 0, unpriced: false }));
+        console.log(ranStep({ order: 0, says: "type", verdict: "held", verdict_by: "status",
+          cost_usd: 0, unpriced: false }));
+        """
+    )
+    lines = out.strip().splitlines()
+    first = "\n".join(lines[: lines.index(next(l for l in lines if "type" in l))])
+    assert "approved 2026-09-06T10:00:30+00:00&lt;b&gt;" in first
+    assert "approved" not in "\n".join(lines[len(first.splitlines()) :])

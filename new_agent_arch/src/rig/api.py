@@ -991,7 +991,15 @@ def build_app(
         run = load_run(store, tenant, run_id)
         if run is None:
             raise HTTPException(status_code=404, detail="no such run")
-        return as_json(run)
+        shown = as_json(run)
+        # When a person let each write out, beside the step they let out.
+        approved = {
+            int(a["ord"]): a["at"]
+            for a in store.query("SELECT ord, at FROM approvals WHERE run_id = ?", (run_id,))
+        }
+        for step in shown["steps"]:
+            step["approved_at"] = approved.get(int(step["order"]))
+        return shown
 
     @app.post("/v1/runs/{run_id}/abort", dependencies=[Depends(authorised)])
     async def abort_run(run_id: str, body: dict[str, Any]) -> dict[str, Any]:

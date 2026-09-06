@@ -277,7 +277,9 @@
       <span class="kind">${esc(s.order)}</span> ${esc(s.says)} ·
       <b>${esc(s.verdict)}</b>${s.verdict_by ? " by " + esc(s.verdict_by) : ""}${
         s.matched_by ? " · matched " + esc(s.matched_by) : ""
-      }${s.stale ? " · <i>stale</i>" : ""} ·
+      }${s.stale ? " · <i>stale</i>" : ""}${
+        s.approved_at ? " · approved " + esc(s.approved_at) : ""
+      } ·
       <span class="spent${s.unpriced ? " unpriced" : ""}">${esc(money(s))}</span>
       ${s.reason ? `<div class="why">${esc(s.reason)}</div>` : ""}
     </div>`;

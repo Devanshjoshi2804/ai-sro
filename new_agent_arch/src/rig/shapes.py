@@ -20,6 +20,7 @@ from rig.correlate import system_of
 from rig.locators import allowlist, primary_gesture
 from rig.mine import _ordered_cites
 from rig.offers import K_OFFER_AFTER, counsel
+from rig.parameters import control_name
 from rig.records import Gesture
 from rig.shape import shape_key, target_identity
 from rig.store import Store
@@ -82,6 +83,15 @@ def _typed_at(cited: list[tuple[Gesture, Step]], parameter: dict[str, Any]) -> i
     seen = {str(v) for v in parameter.get("seen_values", [])}
     for index, (gesture, step) in enumerate(cited):
         if name in step.parameters and gesture.gesture.value in seen:
+            return index
+    # A parameter learned across doings (`parameters_across`) is recorded on
+    # the workflow and on no step: it is named after the control it was typed
+    # into, so the control with that name, typing one of its values, is where
+    # it sits. Narrower than a value scan -- the search box is not named
+    # `workArea` -- and without it every learned parameter had no index and
+    # no offer could lift its value from a tail.
+    for index, (gesture, _) in enumerate(cited):
+        if control_name(gesture) == name and gesture.gesture.value in seen:
             return index
     return None
 

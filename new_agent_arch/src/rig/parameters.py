@@ -48,6 +48,20 @@ class Parameter:
     different values is the evidence that this varies at all."""
 
 
+def control_name(gesture: Gesture) -> str | None:
+    """The name a parameter takes from the control it was typed into: an
+    ExtJS itemId where there is one, the field's label, else the target's
+    name. One rule, used by the learning that names a parameter and by the
+    shape that has to find it again."""
+    target = gesture.gesture.target
+    component = target.component if target else None
+    return (
+        (component.itemId if component else None)
+        or (component.fieldLabel if component else None)
+        or (target.name if target else None)
+    )
+
+
 def _by_control(
     workflow: Workflow, gestures: Mapping[str, Gesture], intents: Mapping[str, Intent]
 ) -> dict[str, str]:

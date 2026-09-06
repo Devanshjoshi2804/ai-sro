@@ -457,3 +457,43 @@ def test_a_later_offer_is_capped_at_the_last_gesture_but_one(tmp_path: Path) -> 
     assert len(served["wfl_4"].shape) == 4
     assert served["wfl_4"].offer_after == 3, "capped at the last gesture but one"
     assert served["wfl_1"].offer_after == K_OFFER_AFTER, "and never under the default"
+
+
+def test_a_parameter_learned_across_doings_is_placed_by_the_control_that_typed_it(
+    tmp_path: Path,
+) -> None:
+    """`parameters_across` records a parameter on the workflow and on no step,
+    named after the control's itemId. Measured on the real corpus: four jobs
+    learned eleven parameters in one pass, and every one was served with
+    `at: None`."""
+    store = _store(tmp_path)
+    ids = _ids(store)
+    typed = next(
+        r["id"]
+        for r in store.query("SELECT id, gesture_json FROM gestures ORDER BY at")
+        if json.loads(r["gesture_json"]).get("kind") == "type"
+        and json.loads(r["gesture_json"]).get("value") == "ACME-4471"
+    )
+    target = json.loads(
+        store.query("SELECT gesture_json FROM gestures WHERE id = ?", (typed,))[0]["gesture_json"]
+    )["target"]
+    name = (target.get("component") or {}).get("itemId") or target.get("name")
+    assert name, "the fixture's typed control has a name to learn"
+    save_workflow(
+        store,
+        Workflow(
+            id="wfl_learned",
+            tenant="acme",
+            title="create a client",
+            narrative="n",
+            systems=["http://127.0.0.1:63319"],
+            # No step declares the parameter: it was learned later.
+            steps=[
+                Step(order=0, says="type the code", system=None, cites=[typed]),
+                Step(order=1, says="save", system=None, cites=[ids[-1]]),
+            ],
+            parameters=[{"name": name, "seen_values": ["ACME-4471", "ACME-9000"]}],
+        ),
+    )
+    [shape] = shapes_for(store, "acme")
+    assert shape.parameters == [{"name": name, "at": 0}]

@@ -1063,31 +1063,34 @@ async function handle(message, sender) {
       // Yes, on an offer the rig made. The press is in the panel, where
       // somebody can read what it says; the run is started here, because the
       // rig's credential lives in this worker and nowhere a page can reach.
-      const held = await state.nudges();
-      const nudge = held.find((n) => n.id === message.nudgeId);
-      if (!nudge || nudge.source !== "rig") return { ok: false, error: "no such offer" };
-      // Only while it is still asking. An offer that was dropped, swept or
-      // already taken has reported its fate, and starting a live run off it
-      // would report a second one -- so this refuses, and reports nothing. The
-      // panel disables the card on the first press; this is the guard that
-      // holds when the panel is an older copy or a second window.
-      if (nudge.state !== "open") return { ok: false, error: "this offer has already ended" };
+      // Found, checked and claimed under one lock. The check-then-act has to
+      // be one step: with the lookup outside the lock, an ending that landed
+      // in the gap -- a sweep, a drop from a second panel window -- would have
+      // reported its fate and then been overwritten to `accepted` here, which
+      // is two fates for one offer and a live run behind a refusal. Only while
+      // it is still asking: an offer that was dropped, swept or already taken
+      // has reported its fate, and starting a run off it would report a second
+      // one -- so this refuses, and reports nothing. The panel disables the
+      // card on the first press; this is the guard that holds when the panel
+      // is an older copy or a second window.
+      const claimed = await serially(async () => {
+        const held = await state.nudges();
+        const found = held.find((n) => n.id === message.nudgeId);
+        if (!found || found.source !== "rig") return { error: "no such offer" };
+        if (found.state !== "open") return { error: "this offer has already ended" };
+        // Claimed before the POST, not after. Between the two sits a network
+        // call that can take a second, and anything else reading the list
+        // meanwhile would find the offer still `open` and end it.
+        await state.setNudges(
+          held.map((n) => (n.id === found.id ? { ...n, state: "accepted", endedAt: Date.now() } : n)),
+        );
+        return { nudge: found };
+      });
+      if (claimed.error) return { ok: false, error: claimed.error };
+      const nudge = claimed.nudge;
       // What the operator typed into the panel wins over what the prefix read
       // off the page: they are looking at both, and the panel is the later word.
       const values = { ...(nudge.values || {}), ...(message.values || {}) };
-      // Claimed before the POST, not after. Between the two sits a network call
-      // that can take a second, and anything else reading the list meanwhile --
-      // the quarter-hour sweep, a gesture on this tab -- would find the offer
-      // still `open`, end it, and report a fate for an offer that is at that
-      // moment becoming a run. Moving it out of `open` inside the lock that
-      // authorised it makes the transition atomic: whoever looks next sees a
-      // record that is no longer theirs to end.
-      await serially(async () => {
-        const now = await state.nudges();
-        await state.setNudges(
-          now.map((n) => (n.id === nudge.id ? { ...n, state: "accepted", endedAt: Date.now() } : n)),
-        );
-      });
       let started;
       try {
         started = await api.rigStart({

@@ -393,14 +393,12 @@ def test_a_workflow_that_cannot_be_rekeyed_does_not_stop_the_others(tmp_path: Pa
     assert [t[2] for t in key] == ["type", "click"]
 
 
-def test_a_resting_job_is_not_served_and_a_later_one_says_when(tmp_path: Path) -> None:
-    from rig.offers import K_OFFER_AFTER, record_offer
+def _offers(store: Store, wid: str, fate: str, k: int, times: int, device: str = "dev_1") -> None:
+    from datetime import UTC, datetime, timedelta
 
-    store = _store(tmp_path)
-    _workflow(store)
-    _workflow(store, wid="wfl_2")
+    from rig.offers import record_offer
 
-    def offer(wid: str, fate: str, k: int, hour: int) -> None:
+    for i in range(times):
         record_offer(
             store,
             tenant="acme",
@@ -408,18 +406,54 @@ def test_a_resting_job_is_not_served_and_a_later_one_says_when(tmp_path: Path) -
             k=k,
             fate=fate,
             run_id=None,
-            device_id="dev_1",
-            at=f"2099-01-01T{hour:02d}:00:00+00:00",
+            device_id=device,
+            at=(datetime.now(UTC) - timedelta(minutes=times - i)).isoformat(),
         )
 
-    for hour in (1, 2, 3):
-        offer("wfl_1", "dismissed", 2, hour)
-    for hour in (1, 2, 3):
-        offer("wfl_2", "diverged", 2, hour)
 
-    [shape] = shapes_for(store, "acme")
-    assert shape.id == "wfl_2", "the job refused three times running is resting"
-    # Counsel says 3; the shape has two triples, and an offer must come before
-    # the last gesture, so it is capped at one -- and never under the default.
-    assert shape.offer_after == K_OFFER_AFTER
-    assert shape.as_json()["offer_after"] == K_OFFER_AFTER
+def test_a_resting_job_is_served_marked_for_the_browser_that_refused_it(tmp_path: Path) -> None:
+    store = _store(tmp_path)
+    _workflow(store)
+    _offers(store, "wfl_1", "dismissed", k=2, times=3, device="dev_1")
+
+    [for_refuser] = shapes_for(store, "acme", "dev_1")
+    [for_other] = shapes_for(store, "acme", "dev_2")
+    [for_nobody] = shapes_for(store, "acme")
+
+    assert for_refuser.quiet_until is not None, "still served, marked"
+    assert for_other.quiet_until is None and for_nobody.quiet_until is None
+    assert for_refuser.as_json()["quiet_until"] == for_refuser.quiet_until
+
+
+def _four_steps(store: Store, wid: str = "wfl_4") -> Workflow:
+    ids = _ids(store)
+    wf = Workflow(
+        id=wid,
+        tenant="acme",
+        title="four gestures",
+        narrative="n",
+        systems=["http://127.0.0.1:63319"],
+        steps=[
+            Step(order=i, says=f"step {i}", system=None, cites=[ids[j]])
+            for i, j in enumerate((0, 1, 2, -1))
+        ],
+        parameters=[],
+    )
+    save_workflow(store, wf)
+    return wf
+
+
+def test_a_later_offer_is_capped_at_the_last_gesture_but_one(tmp_path: Path) -> None:
+    from rig.offers import K_OFFER_AFTER
+
+    store = _store(tmp_path)
+    _workflow(store)  # two triples
+    _four_steps(store)  # four
+    # Diverged at k=5 on both: counsel says 6 for each.
+    _offers(store, "wfl_1", "diverged", k=5, times=3)
+    _offers(store, "wfl_4", "diverged", k=5, times=3)
+
+    served = {s.id: s for s in shapes_for(store, "acme")}
+    assert len(served["wfl_4"].shape) == 4
+    assert served["wfl_4"].offer_after == 3, "capped at the last gesture but one"
+    assert served["wfl_1"].offer_after == K_OFFER_AFTER, "and never under the default"

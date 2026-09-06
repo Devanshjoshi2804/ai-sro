@@ -21,7 +21,7 @@ import {
 } from "./scripts.js";
 import { LIFETIME_MS, fire, mute, onCall, page as pageOf, shouldFire, sweep } from "../panel/nudge.js";
 import { decideOffer } from "./offering.js";
-import { tailWith } from "./recognise.js";
+import { resting, tailWith } from "./recognise.js";
 import { tripleOf } from "./shape.generated.js";
 import { hideNudge, showNudge } from "./showing.js";
 import { capture } from "./shots.js";
@@ -138,6 +138,7 @@ async function candidatesFor(host) {
 function rigArrivals(shapes, host) {
   return shapes
     .filter((shape) => shape.starts_on && shape.starts_on.split("/")[0].split(":")[0] === host)
+    .filter((shape) => !resting(shape))
     .map((shape) => {
       const names = (shape.parameters || []).map((p) => p.name);
       return {
@@ -267,7 +268,8 @@ async function shapesFor() {
   // error page, an older rig -- is a rig with nothing to offer, not a throw
   // that would silence the arrival nudge too (`candidatesFor` awaits this
   // outside its own try).
-  const answered = await api.shapes();
+  // Named, so the rig can mark the jobs this browser has been refusing.
+  const answered = await api.shapes(await state.deviceId());
   const usable = Array.isArray(answered)
     ? answered.filter((shape) => shape && Array.isArray(shape.shape) && shape.id)
     : [];

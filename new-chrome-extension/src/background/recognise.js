@@ -59,12 +59,22 @@ export function valuesFrom(tail, shape, k) {
   return { values, missing };
 }
 
+/**
+ * Whether the rig said this browser refused the job three times running and
+ * is not to be asked again yet. The shape is still served -- the list stays
+ * whole, and an open offer on the job can still tell diverging from
+ * finishing -- so the declining happens here, and in the arrival nudge.
+ */
+export function resting(shape, now = Date.now()) {
+  return Boolean(shape.quiet_until) && Date.parse(shape.quiet_until) > now;
+}
+
 /** The one job this tail is a prefix of, or null. */
 export function match(tail, shapes, { origin }) {
   let best = null;
   let shared = false;
   for (const shape of shapes) {
-    if (!shape.shape?.length || shape.shape[0][0] !== origin) continue;
+    if (!shape.shape?.length || shape.shape[0][0] !== origin || resting(shape)) continue;
     // The rig may say a job is offered later than the default: its earlier
     // offers kept diverging at the default.
     const after = shape.offer_after ?? K_OFFER_AFTER;

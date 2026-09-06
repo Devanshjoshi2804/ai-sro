@@ -223,13 +223,9 @@
   // many times, how many held, how the last one ended and who started it; and
   // "writes unasked" once three live runs have verified every write by state.
   function became(runs) {
-    // What the job's own offers have changed: resting after three refusals,
-    // or offered later than the default two gestures. Silent when neither.
-    const counsel = runs?.counsel?.quiet_until
-      ? ` · resting until ${new Date(runs.counsel.quiet_until).toLocaleString()}`
-      : runs?.counsel?.offer_after > 2
-        ? ` · offered after ${runs.counsel.offer_after} gestures`
-        : "";
+    // What the job's own offers have changed: offered later than the rig's
+    // default, when they kept diverging at it. Silent otherwise.
+    const counsel = runs?.counsel?.later ? ` · offered after ${runs.counsel.offer_after} gestures` : "";
     if (!runs || !runs.total) {
       const seen = Object.values(runs?.offers ?? {}).reduce((a, b) => a + b, 0);
       return (seen ? `never run · offered ${seen} time${seen === 1 ? "" : "s"}` : "never run") + counsel;

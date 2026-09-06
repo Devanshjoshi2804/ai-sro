@@ -2444,7 +2444,7 @@ def test_a_workflow_carries_what_became_of_it(client: TestClient, store: Store) 
         "held": 0,
         "stale": 0,
         "offers": {},
-        "counsel": {"offer_after": 2, "quiet_until": None},
+        "counsel": {"offer_after": 2, "later": False, "quiet_until": None},
         "last": None,
         "earned": False,
     }
@@ -2506,23 +2506,48 @@ def test_a_workflow_says_how_many_of_its_steps_matched_weakly(
     assert got["stale"] == 1
 
 
-def test_the_page_says_when_a_job_is_resting_or_offered_later() -> None:
+def test_the_page_says_when_a_job_is_offered_later() -> None:
     out = _run_page(
         """
-        console.log(became({ total: 0, offers: { dismissed: 3 },
-          counsel: { offer_after: 2, quiet_until: "2026-09-07T12:00:00+00:00" } }));
+        console.log(became({ total: 0, offers: { diverged: 3 },
+          counsel: { offer_after: 4, later: true, quiet_until: null } }));
         console.log(became({ total: 2, held: 2, earned: false, offers: { diverged: 3 },
-          counsel: { offer_after: 4, quiet_until: null },
+          counsel: { offer_after: 4, later: true, quiet_until: null },
           last: { outcome: "held", live: true, started_by: "offer" } }));
         console.log(became({ total: 2, held: 2, earned: false,
-          counsel: { offer_after: 2, quiet_until: null },
+          counsel: { offer_after: 2, later: false, quiet_until: null },
           last: { outcome: "held", live: true, started_by: "offer" } }));
         """
     )
     lines = out.strip().split("\n")
-    assert lines[0].startswith("never run · offered 3 times · resting until ")
-    assert "offered after 4 gestures" in lines[1] and "resting" not in lines[1]
-    assert "offered after" not in lines[2] and "resting" not in lines[2]
+    assert lines[0] == "never run · offered 3 times · offered after 4 gestures"
+    assert lines[1].endswith("offers: 3 diverged · offered after 4 gestures")
+    assert "offered after" not in lines[2]
+
+
+def test_the_shapes_route_marks_a_rest_for_the_browser_that_asks(
+    client: TestClient, store: Store
+) -> None:
+    from datetime import UTC, datetime
+
+    from rig.offers import record_offer
+
+    _seed_workflow(store)
+    for _ in range(3):
+        record_offer(
+            store,
+            tenant="new",
+            workflow_id="wfl_1",
+            k=2,
+            fate="dismissed",
+            run_id=None,
+            device_id="dev_test",
+            at=datetime.now(UTC).isoformat(),
+        )
+    [mine] = client.get("/v1/shapes?device_id=dev_test", headers=_auth()).json()["shapes"]
+    [theirs] = client.get("/v1/shapes?device_id=dev_other", headers=_auth()).json()["shapes"]
+    [anyones] = client.get("/v1/shapes", headers=_auth()).json()["shapes"]
+    assert mine["quiet_until"] and theirs["quiet_until"] is None and anyones["quiet_until"] is None
 
 
 def test_the_page_warns_about_a_page_moving_under_the_job() -> None:

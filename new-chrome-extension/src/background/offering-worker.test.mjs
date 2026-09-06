@@ -112,7 +112,7 @@ let shapesServed = [SHAPE];
  * that swaps it for one of its own must not leave every later test dialling
  * that one. */
 const rigServer = async (url, options = {}) => {
-  const path = String(url).slice(RIG.length);
+  const path = String(url).slice(RIG.length).split("?")[0];
   calls.push({ path, method: options.method || "GET", body: options.body });
   if (path === "/v1/shapes") return json({ shapes: shapesServed });
   if (path === "/v1/offers") return json({ offer_id: "off_1" });

@@ -1,7 +1,7 @@
 // recognise.test.mjs
 import assert from "node:assert/strict";
 import test from "node:test";
-import { K_OFFER_AFTER, K_TAIL, K_TAIL_TTL_S, diverged, match, tailWith, valuesFrom } from "./recognise.js";
+import { K_OFFER_AFTER, K_TAIL, K_TAIL_TTL_S, diverged, match, resting, tailWith, valuesFrom } from "./recognise.js";
 
 const H = "https://wms.example";
 const workArea = {
@@ -98,6 +98,20 @@ test("a shape served with offer_after is not offered before it", () => {
   assert.equal(match(three, [later], { origin: H }), null);
   const wider = { ...later, shape: [...later.shape, [H, "button|Next", "click"]] };
   assert.equal(match(three, [wider], { origin: H })?.k, 3);
+});
+
+test("a job the rig says this browser is resting from is not offered, until then", () => {
+  const two = tailWith(tailWith([], typed("wm.workAreas.code", "NEWTESTS")), typed("wm.workAreas.desc", "d"));
+  const tomorrow = new Date(Date.now() + 3600_000).toISOString();
+  const yesterday = new Date(Date.now() - 3600_000).toISOString();
+  assert.equal(resting({ quiet_until: tomorrow }), true);
+  assert.equal(resting({ quiet_until: yesterday }), false);
+  assert.equal(resting({ quiet_until: null }), false);
+  assert.equal(match(two, [{ ...workArea, quiet_until: tomorrow }], { origin: H }), null);
+  assert.equal(match(two, [{ ...workArea, quiet_until: yesterday }], { origin: H })?.k, 2);
+  // Still on the list: an open offer on it can tell diverging from finishing.
+  const offer = { workflowId: "wfl_wa", k: 2 };
+  assert.equal(diverged(two, offer, [{ ...workArea, quiet_until: tomorrow }]), false);
 });
 
 test("a job already finished is not offered back", () => {

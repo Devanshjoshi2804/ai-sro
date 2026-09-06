@@ -36,6 +36,11 @@ class Shape:
     parameters: list[dict[str, Any]]
     held_runs: int = 0
     offer_after: int = K_OFFER_AFTER
+    quiet_until: str | None = None
+    """Set when the asking browser refused this job three times running: the
+    shape is still served -- the list stays whole and cacheable, and an open
+    offer on the job can still tell diverging from finishing -- and
+    `recognise.js` declines to offer it until then."""
 
     def as_json(self) -> dict[str, Any]:
         return asdict(self)
@@ -81,8 +86,9 @@ def _typed_at(cited: list[tuple[Gesture, Step]], parameter: dict[str, Any]) -> i
     return None
 
 
-def shapes_for(store: Store, tenant: str) -> list[Shape]:
-    """Every proven workflow, as the extension needs it.
+def shapes_for(store: Store, tenant: str, device_id: str | None = None) -> list[Shape]:
+    """Every proven workflow, as the extension needs it. `device_id` is the
+    asking browser, for the rest its own refusals earned it.
 
     A workflow that has been run is asked a harder question -- has it ever
     held -- because an offer to do a job the runner has only ever failed is an
@@ -127,12 +133,11 @@ def shapes_for(store: Store, tenant: str) -> list[Shape]:
         # the whole of the evidence above: where the job begins is a fact about
         # the recording, not about what can be matched.
         walkable = [pair for pair in cited if target_identity(pair[0]) != "anon|scroll"]
-        # What this job's own offers say: rested, or offered later. Capped at
-        # the last gesture but one, which is as late as `recognise.js` can
-        # offer: a job that diverges even there keeps diverging, on record.
-        advice = counsel(store, tenant=tenant, workflow_id=workflow.id)
-        if advice.quiet_until:
-            continue
+        # What this job's own offers say: resting on this browser, or offered
+        # later. Capped at the last gesture but one, which is as late as
+        # `recognise.js` can offer: a job that diverges even there keeps
+        # diverging, on record.
+        advice = counsel(store, tenant=tenant, workflow_id=workflow.id, device_id=device_id)
         served.append(
             Shape(
                 id=workflow.id,
@@ -147,6 +152,7 @@ def shapes_for(store: Store, tenant: str) -> list[Shape]:
                 ],
                 held_runs=held,
                 offer_after=max(K_OFFER_AFTER, min(advice.offer_after, len(walkable) - 1)),
+                quiet_until=advice.quiet_until,
             )
         )
     return served

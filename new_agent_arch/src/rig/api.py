@@ -722,7 +722,7 @@ def build_app(
             )[0]["n"]
             # What became of the offers the extension made for this job: the
             # five fates, counted, and what `counsel` makes of them -- the k
-            # the job is now offered at, and until when it is resting.
+            # the job is now offered at. Rests are per browser and not shown.
             from rig.offers import counsel
 
             fates = {
@@ -1243,12 +1243,14 @@ def build_app(
         return {"workflow_id": got.workflow_id, "values": got.values, "missing": got.missing}
 
     @app.get("/v1/shapes", dependencies=[Depends(authorised)])
-    async def shapes() -> dict[str, Any]:
+    async def shapes(device_id: str | None = None) -> dict[str, Any]:
         """What the extension matches a live tail against. Arithmetic on the
-        way out and arithmetic on the way in: no model is on this path."""
+        way out and arithmetic on the way in: no model is on this path.
+        `device_id` names the asking browser, so a job it refused three times
+        running comes back marked `quiet_until` for it and for nobody else."""
         from rig.shapes import shapes_for
 
-        return {"shapes": [s.as_json() for s in shapes_for(store, tenant)]}
+        return {"shapes": [s.as_json() for s in shapes_for(store, tenant, device_id)]}
 
     @app.post("/v1/offers", status_code=201, dependencies=[Depends(authorised)])
     async def offered(body: dict[str, Any]) -> dict[str, Any]:

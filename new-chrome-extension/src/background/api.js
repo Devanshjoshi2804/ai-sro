@@ -224,11 +224,12 @@ export const api = {
    *
    * `[]` on every failure, and never a throw: this is read on the gesture path,
    * where a rig that is down must cost the operator nothing at all. */
-  shapes: async () => {
+  shapes: async (deviceId) => {
     const base = await state.rigUrl();
     if (!isMirrorable(base)) return [];
     try {
-      const r = await fetch(`${base}/v1/shapes`, { headers: await rigHeaders() });
+      const query = deviceId ? `?device_id=${encodeURIComponent(deviceId)}` : "";
+      const r = await fetch(`${base}/v1/shapes${query}`, { headers: await rigHeaders() });
       if (!r.ok) return [];
       return (await r.json()).shapes || [];
     } catch {

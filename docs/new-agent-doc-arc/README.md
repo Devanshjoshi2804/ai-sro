@@ -785,8 +785,9 @@ starts a live run at that step; the operator's own steps are recorded as theirs.
 Every offer ends one of five ways -- accepted, dismissed, done by hand, expired,
 diverged -- and the rig keeps the count on the job's card and reads it back
 when it serves the shape: a job whose last ten offers mostly diverged is
-offered one gesture past where they diverged, and a job refused three times
-running rests for a day (`rig/offers.py`, `counsel`). Replayed against the
+offered one gesture past where they diverged, and a job one browser refused
+three times running rests for a day on that browser and no other
+(`rig/offers.py`, `counsel`). Replayed against the
 corpus's own gestures (`make offer-replay`), every one of the eight jobs is
 offered as itself: five on two walkable gestures, the three that share a start
 on three. The design is `docs/superpowers/specs/2026-09-06-offer-and-approve-design.md`;

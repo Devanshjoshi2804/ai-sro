@@ -19,6 +19,7 @@ from typing import Any
 from rig.correlate import system_of
 from rig.locators import allowlist, primary_gesture
 from rig.mine import _ordered_cites
+from rig.offers import K_OFFER_AFTER, counsel
 from rig.records import Gesture
 from rig.shape import shape_key, target_identity
 from rig.store import Store
@@ -34,6 +35,7 @@ class Shape:
     shape: list[list[str]]
     parameters: list[dict[str, Any]]
     held_runs: int = 0
+    offer_after: int = K_OFFER_AFTER
 
     def as_json(self) -> dict[str, Any]:
         return asdict(self)
@@ -125,6 +127,12 @@ def shapes_for(store: Store, tenant: str) -> list[Shape]:
         # the whole of the evidence above: where the job begins is a fact about
         # the recording, not about what can be matched.
         walkable = [pair for pair in cited if target_identity(pair[0]) != "anon|scroll"]
+        # What this job's own offers say: rested, or offered later. Capped at
+        # the last gesture but one, which is as late as `recognise.js` can
+        # offer: a job that diverges even there keeps diverging, on record.
+        advice = counsel(store, tenant=tenant, workflow_id=workflow.id)
+        if advice.quiet_until:
+            continue
         served.append(
             Shape(
                 id=workflow.id,
@@ -138,6 +146,7 @@ def shapes_for(store: Store, tenant: str) -> list[Shape]:
                     if isinstance(p, dict) and p.get("name")
                 ],
                 held_runs=held,
+                offer_after=max(K_OFFER_AFTER, min(advice.offer_after, len(walkable) - 1)),
             )
         )
     return served

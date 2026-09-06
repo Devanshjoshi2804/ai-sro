@@ -2444,6 +2444,7 @@ def test_a_workflow_carries_what_became_of_it(client: TestClient, store: Store) 
         "held": 0,
         "stale": 0,
         "offers": {},
+        "counsel": {"offer_after": 2, "quiet_until": None},
         "last": None,
         "earned": False,
     }
@@ -2503,6 +2504,25 @@ def test_a_workflow_says_how_many_of_its_steps_matched_weakly(
     mark_stale(store, "wfl_1", 1, None)  # the same step twice is one step
     got = client.get("/v1/workflows", headers=_auth()).json()["workflows"][0]["runs"]
     assert got["stale"] == 1
+
+
+def test_the_page_says_when_a_job_is_resting_or_offered_later() -> None:
+    out = _run_page(
+        """
+        console.log(became({ total: 0, offers: { dismissed: 3 },
+          counsel: { offer_after: 2, quiet_until: "2026-09-07T12:00:00+00:00" } }));
+        console.log(became({ total: 2, held: 2, earned: false, offers: { diverged: 3 },
+          counsel: { offer_after: 4, quiet_until: null },
+          last: { outcome: "held", live: true, started_by: "offer" } }));
+        console.log(became({ total: 2, held: 2, earned: false,
+          counsel: { offer_after: 2, quiet_until: null },
+          last: { outcome: "held", live: true, started_by: "offer" } }));
+        """
+    )
+    lines = out.strip().split("\n")
+    assert lines[0].startswith("never run · offered 3 times · resting until ")
+    assert "offered after 4 gestures" in lines[1] and "resting" not in lines[1]
+    assert "offered after" not in lines[2] and "resting" not in lines[2]
 
 
 def test_the_page_warns_about_a_page_moving_under_the_job() -> None:

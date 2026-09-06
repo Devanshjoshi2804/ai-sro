@@ -391,3 +391,35 @@ def test_a_workflow_that_cannot_be_rekeyed_does_not_stop_the_others(tmp_path: Pa
         store.query("SELECT shape_key FROM workflows WHERE id = 'wfl_2'")[0]["shape_key"]
     )
     assert [t[2] for t in key] == ["type", "click"]
+
+
+def test_a_resting_job_is_not_served_and_a_later_one_says_when(tmp_path: Path) -> None:
+    from rig.offers import K_OFFER_AFTER, record_offer
+
+    store = _store(tmp_path)
+    _workflow(store)
+    _workflow(store, wid="wfl_2")
+
+    def offer(wid: str, fate: str, k: int, hour: int) -> None:
+        record_offer(
+            store,
+            tenant="acme",
+            workflow_id=wid,
+            k=k,
+            fate=fate,
+            run_id=None,
+            device_id="dev_1",
+            at=f"2099-01-01T{hour:02d}:00:00+00:00",
+        )
+
+    for hour in (1, 2, 3):
+        offer("wfl_1", "dismissed", 2, hour)
+    for hour in (1, 2, 3):
+        offer("wfl_2", "diverged", 2, hour)
+
+    [shape] = shapes_for(store, "acme")
+    assert shape.id == "wfl_2", "the job refused three times running is resting"
+    # Counsel says 3; the shape has two triples, and an offer must come before
+    # the last gesture, so it is capped at one -- and never under the default.
+    assert shape.offer_after == K_OFFER_AFTER
+    assert shape.as_json()["offer_after"] == K_OFFER_AFTER

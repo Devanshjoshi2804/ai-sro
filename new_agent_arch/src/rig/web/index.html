@@ -223,9 +223,16 @@
   // many times, how many held, how the last one ended and who started it; and
   // "writes unasked" once three live runs have verified every write by state.
   function became(runs) {
+    // What the job's own offers have changed: resting after three refusals,
+    // or offered later than the default two gestures. Silent when neither.
+    const counsel = runs?.counsel?.quiet_until
+      ? ` · resting until ${new Date(runs.counsel.quiet_until).toLocaleString()}`
+      : runs?.counsel?.offer_after > 2
+        ? ` · offered after ${runs.counsel.offer_after} gestures`
+        : "";
     if (!runs || !runs.total) {
       const seen = Object.values(runs?.offers ?? {}).reduce((a, b) => a + b, 0);
-      return seen ? `never run · offered ${seen} time${seen === 1 ? "" : "s"}` : "never run";
+      return (seen ? `never run · offered ${seen} time${seen === 1 ? "" : "s"}` : "never run") + counsel;
     }
     const last = runs.last
       ? ` · last ${runs.last.outcome}${runs.last.live ? "" : " (dry)"} by ${runs.last.started_by}`
@@ -243,7 +250,7 @@
       .map(([fate, n]) => `${n} ${fate.replace("_", " ")}`)
       .join(", ");
     const offered = fates ? ` · offers: ${fates}` : "";
-    return `${runs.total} run${runs.total === 1 ? "" : "s"} · ${runs.held} held${last}${earned}${stale}${offered}`;
+    return `${runs.total} run${runs.total === 1 ? "" : "s"} · ${runs.held} held${last}${earned}${stale}${offered}${counsel}`;
   }
 
   function job(w) {

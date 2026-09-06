@@ -65,7 +65,10 @@ export function match(tail, shapes, { origin }) {
   let shared = false;
   for (const shape of shapes) {
     if (!shape.shape?.length || shape.shape[0][0] !== origin) continue;
-    for (let k = Math.min(shape.shape.length - 1, tail.length); k >= K_OFFER_AFTER; k--) {
+    // The rig may say a job is offered later than the default: its earlier
+    // offers kept diverging at the default.
+    const after = shape.offer_after ?? K_OFFER_AFTER;
+    for (let k = Math.min(shape.shape.length - 1, tail.length); k >= after; k--) {
       if (!endsWith(tail, shape.shape.slice(0, k))) continue;
       if (!best || k > best.k) {
         best = { workflowId: shape.id, title: shape.title, k, shape };

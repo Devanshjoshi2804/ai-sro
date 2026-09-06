@@ -88,6 +88,18 @@ test("a parameter typed later than the prefix is missing, and one never typed is
   assert.deepEqual(valuesFrom(tail, later, 2).missing, ["code", "never"]);
 });
 
+test("a shape served with offer_after is not offered before it", () => {
+  // Alone, so no shared prefix withholds the offer.
+  const later = { ...workArea, offer_after: 3 };
+  const two = tailWith(tailWith([], typed("wm.workAreas.code", "NEWTESTS")), typed("wm.workAreas.desc", "d"));
+  assert.equal(match(two, [later], { origin: H }), null, "offered at 2 against the rig's 3");
+  const three = tailWith(two, { triple: [H, "button|Save", "click"], at: 1 });
+  // Three gestures is the whole shape; k stops at length - 1, so still nothing.
+  assert.equal(match(three, [later], { origin: H }), null);
+  const wider = { ...later, shape: [...later.shape, [H, "button|Next", "click"]] };
+  assert.equal(match(three, [wider], { origin: H })?.k, 3);
+});
+
 test("a job already finished is not offered back", () => {
   let tail = tailWith([], typed("wm.workAreas.code", "A"));
   tail = tailWith(tail, typed("wm.workAreas.desc", "b"));

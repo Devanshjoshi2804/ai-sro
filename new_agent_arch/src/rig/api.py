@@ -721,9 +721,10 @@ def build_app(
                 "SELECT COUNT(*) AS n FROM workflow_stale WHERE workflow_id = ?", (workflow_id,)
             )[0]["n"]
             # What became of the offers the extension made for this job: the
-            # five fates, counted. The share of `diverged` is the number the
-            # spec says decides whether the offer waits for a third gesture;
-            # it is read here so nobody has to ask the table for it.
+            # five fates, counted, and what `counsel` makes of them -- the k
+            # the job is now offered at, and until when it is resting.
+            from rig.offers import counsel
+
             fates = {
                 str(row["fate"]): int(row["n"])
                 for row in store.query(
@@ -737,6 +738,7 @@ def build_app(
                 "held": int(counts["held"] or 0),
                 "stale": int(stale or 0),
                 "offers": fates,
+                "counsel": counsel(store, tenant=tenant, workflow_id=workflow_id).as_json(),
                 "last": None
                 if not last
                 else {

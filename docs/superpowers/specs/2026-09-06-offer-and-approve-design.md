@@ -237,6 +237,11 @@ panel. Details still opens the rig page.
    Record: how many gestures before the offer, how long from the last gesture
    to the card, whether the offer named the right job, and what the run did.
    Repeat three times; the fourth run should not ask.
+6a. **The corpus against itself.** `make offer-replay` feeds each proven
+   job's own demonstrated gestures through the real matcher and reports at
+   which gesture it is offered and whether as itself. No browser and no
+   model; the one measurement of "would the offer name the right job" the
+   store can give before a person runs the recipe.
 7. **The fates.** After a day, `offers` holds a row per offer with a fate. The
    share of `diverged` is the number that decides whether `K_OFFER_AFTER`
    becomes 3.

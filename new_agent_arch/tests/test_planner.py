@@ -411,3 +411,58 @@ async def test_the_model_is_told_where_the_step_was_demonstrated_and_under_what_
     assert json.loads(asked["evidence"])["step_page"] == "http://127.0.0.1:63319/clients/new"
     assert asked["effort"] == "low", "a rescue asks harder than a first attempt"
     assert asked["instructions"], "a model told nothing plans nothing"
+
+
+async def test_a_rescue_is_shown_the_page_the_failed_attempt_left_behind() -> None:
+    gesture = _typed()
+    asker = FakeAsker(
+        Answer(
+            data={"kind": "ui.perform", "action": "type", "value": "THIRD", "url": None, "why": "w"}
+        )
+    )
+    now = Look("http://127.0.0.1:63319/form", b"now-png", "Client code")
+    left = Look("http://127.0.0.1:63319/form?after", b"left-png", "still empty")
+
+    await plan_step(
+        step=Step(order=0, says="type the code", system=None, cites=[gesture.id]),
+        cited=[gesture],
+        values={"clientCode": "THIRD"},
+        look=now,
+        origin=None,
+        starts_on=None,
+        allow_focus=False,
+        asker=asker,
+        model="pro",
+        failure="the code was not typed",
+        failed_look=left,
+    )
+
+    asked = asker.asked[0]
+    assert asked["image"] == b"now-png", "the page as it is now is the first picture"
+    assert asked["images"] == (b"left-png",), "the page the failed attempt left is the second"
+    evidence = json.loads(asked["evidence"])
+    assert evidence["previous_attempt_failed"] == "the code was not typed"
+    assert evidence["previous_attempt_left"]["screenshot"] == "the second image"
+    assert evidence["previous_attempt_left"]["url"].endswith("?after")
+
+
+async def test_a_first_attempt_carries_no_second_picture() -> None:
+    gesture = _typed()
+    asker = FakeAsker(
+        Answer(
+            data={"kind": "ui.perform", "action": "type", "value": "THIRD", "url": None, "why": "w"}
+        )
+    )
+    await plan_step(
+        step=Step(order=0, says="type the code", system=None, cites=[gesture.id]),
+        cited=[gesture],
+        values={},
+        look=Look(None, None, ""),
+        origin=None,
+        starts_on=None,
+        allow_focus=False,
+        asker=asker,
+        model="flash",
+    )
+    assert asker.asked[0]["images"] == ()
+    assert json.loads(asker.asked[0]["evidence"])["previous_attempt_left"] is None

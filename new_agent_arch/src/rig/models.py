@@ -107,6 +107,7 @@ class Asker(Protocol):
         evidence: str,
         schema: dict[str, Any],
         image: bytes | None = None,
+        images: tuple[bytes, ...] = (),
         effort: Effort | None = None,
     ) -> Answer: ...
 
@@ -147,6 +148,7 @@ class GeminiAsker:
         evidence: str,
         schema: dict[str, Any],
         image: bytes | None = None,
+        images: tuple[bytes, ...] = (),
         effort: Effort | None = None,
     ) -> Answer:
         from google.genai import types
@@ -157,6 +159,10 @@ class GeminiAsker:
         parts: list[Any] = [part for part in (instructions, evidence) if part]
         if image is not None:
             parts.append(types.Part.from_bytes(data=image, mime_type="image/png"))
+        # Further pictures, in the order given: a rescue shows the page as it
+        # is now and then the page the failed attempt left behind.
+        for more in images:
+            parts.append(types.Part.from_bytes(data=more, mime_type="image/png"))
 
         try:
             response = await self._client.aio.models.generate_content(
@@ -242,6 +248,7 @@ class FakeAsker:
         evidence: str,
         schema: dict[str, Any],
         image: bytes | None = None,
+        images: tuple[bytes, ...] = (),
         effort: Effort | None = None,
     ) -> Answer:
         # Yield, because the real thing does. Without a suspension point this
@@ -256,6 +263,7 @@ class FakeAsker:
                 "evidence": evidence,
                 "schema": schema,
                 "image": image,
+                "images": images,
                 "effort": effort,
             }
         )

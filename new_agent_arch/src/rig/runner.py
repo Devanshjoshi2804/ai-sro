@@ -386,6 +386,7 @@ async def run_workflow(
             # neither: it is recorded skipped and the run carries on.
             rungs = (plan_model, rescue_model) if primary is not None else ()
             verdict: Verdict | None = None
+            after_failed: Look | None = None
             for model in rungs:
                 # One rung of the ladder: plan, and plan again once if getting
                 # to the right page was all the model asked for. Getting there
@@ -419,6 +420,7 @@ async def run_workflow(
                         asker=asker,
                         model=model,
                         failure=verdict.reason if verdict else None,
+                        failed_look=after_failed,
                     )
                     record.planned_by = model
                     record.before_url = before.url
@@ -536,6 +538,10 @@ async def run_workflow(
                 record.matched_by = record.result["matched_by"] if reply.ok else None
                 after = await _look(channel, device_id, run.id, origin, allow_focus)
                 record.after_url = after.url
+                # Kept for the rescue: if this attempt does not hold, the Pro
+                # rung is shown the page it left behind beside the page as it
+                # is when it plans.
+                after_failed = after
                 verdict = await verify(
                     step=step,
                     sent_kind=planned.kind,

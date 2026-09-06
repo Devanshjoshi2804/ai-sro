@@ -150,6 +150,7 @@ async def plan_step(
     model: str,
     effort: Effort | None = None,
     failure: str | None = None,
+    failed_look: Look | None = None,
 ) -> Planned:
     primary = next((g for g in cited if g.gesture.kind != "scroll"), cited[0] if cited else None)
     evidence = json.dumps(
@@ -163,6 +164,16 @@ async def plan_step(
             # say "navigate there first" if it is told where there is.
             "step_page": (primary.page_url or primary.url) if primary else None,
             "previous_attempt_failed": failure,
+            # The rescue sees two pictures: the page now (first image) and the
+            # page the failed attempt left behind (second), named here so the
+            # model knows which is which.
+            "previous_attempt_left": None
+            if failed_look is None
+            else {
+                "url": failed_look.url,
+                "screen_text": failed_look.digest,
+                "screenshot": "the second image" if failed_look.screenshot else None,
+            },
         },
         indent=2,
         ensure_ascii=False,
@@ -173,6 +184,7 @@ async def plan_step(
         evidence=evidence,
         schema=PLAN_SCHEMA,
         image=look.screenshot,
+        images=(failed_look.screenshot,) if failed_look and failed_look.screenshot else (),
         effort=effort,
     )
     if answer.data is None or primary is None:

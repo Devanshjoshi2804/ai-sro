@@ -2005,3 +2005,39 @@ def test_a_step_found_the_strong_way_again_clears_its_stale_mark(tmp_path: Path)
     clear_stale(store, "wfl_1", 0)
     rows = store.query("SELECT ord FROM workflow_stale WHERE workflow_id = 'wfl_1' ORDER BY ord")
     assert [r["ord"] for r in rows] == [1], "only the step that matched strongly is cleared"
+
+
+async def test_the_pro_rescue_sees_the_page_the_flash_attempt_left_behind(tmp_path: Path) -> None:
+    store = _store(tmp_path)
+    wf = _workflow(store)
+    channel = FakeChannel(
+        {
+            **_looks(6),
+            "ui.perform": [Reply(ok=True, result={"performed": True})] * 3,
+        }
+    )
+    # Step 0 is a read, so a failed verdict is rescued once by Pro.
+    asker = _per_schema_asker(
+        plan=_plan("type", "THIRD"), verdict=Answer(data={"held": False, "why": "still blank"})
+    )
+
+    await run_workflow(
+        store,
+        wf,
+        values={"clientCode": "THIRD"},
+        channel=channel,
+        device_id="dev_test",
+        asker=asker,
+        plan_model="flash",
+        rescue_model="pro",
+        live=False,
+        allow_focus=True,
+        started_by="form",
+        earned=_earned,
+    )
+
+    plans = [a for a in asker.asked if a["schema"] is PLAN_SCHEMA]
+    assert [p["model"] for p in plans][:2] == ["flash", "pro"]
+    assert plans[0]["images"] == (), "the first attempt has no failed attempt to show"
+    assert len(plans[1]["images"]) == 1, "the rescue is shown the page the first attempt left"
+    assert isinstance(plans[1]["images"][0], bytes), "a real picture, not a placeholder"

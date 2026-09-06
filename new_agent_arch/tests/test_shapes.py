@@ -323,3 +323,23 @@ def test_a_job_whose_first_step_is_only_a_scroll_still_says_where_it_begins(
     [shape] = shapes_for(store, "acme")
 
     assert shape.starts_on and shape.starts_on.startswith("http://127.0.0.1:63319")
+
+
+def test_a_stored_key_from_an_older_rule_is_recomputed_once(tmp_path: Path) -> None:
+    from rig.mine import rekey_workflows
+
+    store = _store(tmp_path)
+    wf = _workflow(store)
+    stale = [
+        ["https://old", "text|a paragraph of page copy that no longer names anything", "click"]
+    ]
+    wf.shape_key = stale
+    save_workflow(store, wf)
+
+    assert rekey_workflows(store, "acme") == 1
+    row = store.query("SELECT shape_key FROM workflows WHERE id = 'wfl_1'")[0]
+    key = json.loads(row["shape_key"])
+    # One triple per cited gesture, in step order: the typed code, then the
+    # save -- the key the cited gestures make now, not the one written before.
+    assert key != stale and len(key) == 2 and [t[2] for t in key] == ["type", "click"]
+    assert rekey_workflows(store, "acme") == 0, "a key that agrees is left alone"

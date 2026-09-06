@@ -1,5 +1,6 @@
 """One pass, end to end: pack, ask, check, resolve, store, age the pool."""
 
+import json
 import logging
 import secrets
 from dataclasses import dataclass, field
@@ -400,3 +401,37 @@ def _save_pass(store: Store, tenant: str, started_at: str, result: MineResult) -
 
 def _ordered_cites(workflow: Workflow) -> list[str]:
     return [c for step in sorted(workflow.steps, key=lambda s: s.order) for c in step.cites]
+
+
+def rekey_workflows(store: Store, tenant: str) -> int:
+    """Every stored workflow's shape key recomputed from its cited gestures,
+    and how many changed.
+
+    The key is what `identity.resolve` compares a new proposal against. When
+    the rule that makes it changes -- the text rung stopped taking page copy
+    -- keys mined before the change no longer match keys mined after, and a
+    job the rig already holds could be proposed again as a new one. Run once
+    at startup; a key that already agrees is left alone.
+    """
+    from rig.api import _row_to_gesture  # api imports this module for its route
+
+    changed = 0
+    for workflow in known_workflows(store, tenant):
+        wanted = _ordered_cites(workflow)
+        if not wanted:
+            continue
+        marks = ",".join("?" * len(wanted))
+        rows = store.query(
+            f"SELECT * FROM gestures WHERE tenant = ? AND id IN ({marks})",
+            (tenant, *wanted),
+        )
+        by_id = {row["id"]: _row_to_gesture(row) for row in rows}
+        fresh = [list(entry) for entry in shape_key([by_id[c] for c in wanted if c in by_id])]
+        if fresh == workflow.shape_key:
+            continue
+        store.execute(
+            "UPDATE workflows SET shape_key = ? WHERE tenant = ? AND id = ?",
+            (json.dumps(fresh, ensure_ascii=False), tenant, workflow.id),
+        )
+        changed += 1
+    return changed

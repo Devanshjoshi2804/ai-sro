@@ -1152,12 +1152,18 @@ async def _read_soon(store: Store, asker: Asker, tenant: str) -> None:
 
 def _default_app() -> FastAPI:
     config = settings()
+    from rig.mine import rekey_workflows
     from rig.runs import fail_orphans
 
     store = Store(config.db_path)
     store.migrate()
     # A run still `running` at startup is one the last process died driving.
     orphaned = fail_orphans(store, "the rig restarted before this run finished")
+    # Keys mined under an older identity rule are brought up to the current
+    # one, so a job the rig holds is not proposed again as a new one.
+    rekeyed = rekey_workflows(store, config.tenant)
+    if rekeyed:
+        log.info("%d workflow shape key(s) recomputed under the current identity rule", rekeyed)
     if orphaned:
         log.warning("%d run(s) were still running when the rig started; marked failed", orphaned)
     asker = GeminiAsker(config.gemini_api_key)

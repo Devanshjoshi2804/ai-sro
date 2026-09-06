@@ -1994,7 +1994,7 @@ def test_the_stop_button_flips_the_flag_and_tells_the_browser(client: TestClient
 
 
 def test_devices_lists_what_is_connected(client: TestClient) -> None:
-    assert client.get("/v1/devices", headers=_auth()).json() == {"devices": []}
+    assert client.get("/v1/devices", headers=_auth()).json()["devices"] == []
 
 
 def _idle_workflow(store: Store, parameters: list[dict[str, Any]] | None = None) -> None:
@@ -3072,3 +3072,64 @@ def test_the_header_shows_the_day_against_its_cap() -> None:
     assert "$5.0100</b> of $5.00 today" in over and 'class="nothing"' in over
     assert 'class="nothing"' in blind, "an unpriced call stops the day and the line says so"
     assert "today" not in uncapped
+
+
+def test_the_devices_route_lists_every_browser_that_holds_a_token(
+    client: TestClient, store: Store
+) -> None:
+    from rig.devices import issue, revoke
+
+    issue(store, "dev_a")
+    issue(store, "dev_b")
+    assert revoke(store, "dev_b") is True
+    got = client.get("/v1/devices", headers=_auth()).json()
+    assert got["devices"] == [], "nothing has a socket open in this test"
+    by_id = {d["device_id"]: d for d in got["registered"]}
+    assert set(by_id) == {"dev_a", "dev_b"}
+    assert by_id["dev_a"]["revoked_at"] is None and by_id["dev_a"]["online"] is False
+    assert by_id["dev_b"]["revoked_at"] and by_id["dev_b"]["online"] is False
+    assert by_id["dev_a"]["issued_at"]
+
+
+def test_the_audit_carries_the_browsers_issued_or_revoked_since(
+    client: TestClient, store: Store
+) -> None:
+    from rig.devices import issue, revoke
+
+    issue(store, "dev_old")
+    store.execute(
+        "UPDATE device_tokens SET issued_at = '2020-01-01T00:00:00+00:00' WHERE device_id = 'dev_old'"
+    )
+    issue(store, "dev_new")
+    issue(store, "dev_gone")
+    store.execute(
+        "UPDATE device_tokens SET issued_at = '2020-01-01T00:00:00+00:00' WHERE device_id = 'dev_gone'"
+    )
+    revoke(store, "dev_gone")
+    got = client.get("/v1/audit?since=2026-01-01T00:00:00Z", headers=_auth()).json()
+    assert {d["device_id"] for d in got["devices"]} == {"dev_new", "dev_gone"}, (
+        "issued since, or revoked since; the old, untouched one is not news"
+    )
+
+
+def test_the_page_draws_the_browsers_with_a_two_press_revoke() -> None:
+    hostile = "<img src=x onerror=go()>"
+    out = _run_page(
+        f"""
+        console.log(JSON.stringify([
+          browsersLine([
+            {{ device_id: {json.dumps(hostile)}, issued_at: "2026-09-06T10:00:00+00:00", revoked_at: null, online: true }},
+            {{ device_id: "dev_off", issued_at: "2026-09-06T10:00:00+00:00", revoked_at: null, online: false }},
+            {{ device_id: "dev_gone", issued_at: "2026-09-06T10:00:00+00:00",
+               revoked_at: "2026-09-06T11:22:33+00:00", online: false }},
+          ]),
+          browsersLine([]),
+        ]));
+        """
+    )
+    line, empty = json.loads(out)
+    assert empty == ""
+    assert hostile not in line and line.count("&lt;img src=x onerror=go()&gt;") == 2
+    assert line.count('class="revoke"') == 2, "the revoked browser offers no revoke"
+    assert 'class="browser on"' in line and 'class="browser off"' in line
+    assert 'class="browser revoked"' in line and "revoked 2026-09-06T11:22" in line

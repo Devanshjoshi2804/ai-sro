@@ -936,7 +936,23 @@ def build_app(
 
     @app.get("/v1/devices", dependencies=[Depends(authorised)])
     def devices() -> dict[str, Any]:
-        return {"devices": app.state.channel.online()}
+        """`devices`: the browsers with a command socket open now. `registered`:
+        every browser that ever held a token of its own, with whether it is
+        online and whether its token has been revoked -- the list the tenant
+        reads before cutting one off, and after."""
+        online = set(app.state.channel.online())
+        registered = [
+            {
+                "device_id": r["device_id"],
+                "issued_at": r["issued_at"],
+                "revoked_at": r["revoked_at"],
+                "online": r["device_id"] in online,
+            }
+            for r in store.query(
+                "SELECT device_id, issued_at, revoked_at FROM device_tokens ORDER BY issued_at DESC"
+            )
+        ]
+        return {"devices": sorted(online), "registered": registered}
 
     @app.post("/v1/runs", status_code=202, dependencies=[Depends(authorised)])
     async def start_run(body: dict[str, Any]) -> dict[str, Any]:
@@ -1319,7 +1335,22 @@ def build_app(
                 (tenant, since, limit),
             )
         ]
-        return {"since": since, "runs": out, "offers": offers}
+        # Browsers whose token was issued or revoked since: who could act,
+        # and from when to when. `revoked_at` is the one fact the runs and
+        # offers above cannot carry.
+        devices = [
+            {
+                "device_id": d["device_id"],
+                "issued_at": d["issued_at"],
+                "revoked_at": d["revoked_at"],
+            }
+            for d in store.query(
+                "SELECT device_id, issued_at, revoked_at FROM device_tokens"
+                " WHERE issued_at >= ? OR revoked_at >= ? ORDER BY issued_at DESC LIMIT ?",
+                (since, since, limit),
+            )
+        ]
+        return {"since": since, "runs": out, "offers": offers, "devices": devices}
 
     @app.post("/v1/chat", dependencies=[Depends(tenant_only)])
     async def chat(body: dict[str, Any]) -> dict[str, Any]:

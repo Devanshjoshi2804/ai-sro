@@ -89,6 +89,13 @@
   #needs { margin: 0 16px 8px; padding: 8px 12px; border: 1px solid var(--accent); border-radius: 6px; }
   #needs .need { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; padding: 4px 0; }
   #needs pre { margin: 0; font-size: 12px; white-space: pre-wrap; flex-basis: 100%; }
+  #browsers:empty { display: none; }
+  #browsers { margin: 0 16px 8px; font-size: 12px; color: var(--muted, #888); }
+  #browsers .browser { display: inline-flex; gap: 6px; align-items: baseline; margin-right: 16px; }
+  #browsers .on::before { content: "●"; color: #3a3; }
+  #browsers .off::before { content: "○"; }
+  #browsers .revoked { text-decoration: line-through; }
+  #browsers button { font-size: 11px; }
 </style>
 
 <header>
@@ -98,6 +105,7 @@
   <div class="spend" id="spend"></div>
 </header>
 <section id="needs"></section>
+<section id="browsers"></section>
 <main id="rows"></main>
 <main id="jobs" hidden></main>
 
@@ -330,6 +338,24 @@
           : `<button class="close">close</button>`
       }</div>
       ${(run.steps ?? []).map(ranStep).join("")}${withheldWrites(run)}`;
+  }
+
+  // Every browser that holds a token of its own: online or not, revoked or
+  // not, and a revoke button on the live ones. Two presses to revoke -- the
+  // first arms it -- because the next tap on a wrong row cuts a warehouse
+  // browser off mid-shift. The id is the browser's own; escaped like the rest.
+  function browsersLine(registered) {
+    if (!registered?.length) return "";
+    return registered
+      .map(
+        (b) => `<span class="browser ${b.revoked_at ? "revoked" : b.online ? "on" : "off"}"
+      data-device="${esc(b.device_id)}"><span>${esc(b.device_id)}</span>${
+          b.revoked_at
+            ? `<i>revoked ${esc(b.revoked_at.slice(0, 16))}</i>`
+            : `<button class="revoke" data-armed="">revoke</button>`
+        }<span class="error"></span></span>`,
+      )
+      .join("");
   }
 
   // The runs parked on a write, one line each, from every browser: what needs
@@ -609,10 +635,34 @@
     }
   }
 
+  async function drawBrowsers() {
+    const { registered } = await get("/v1/devices");
+    const box = document.getElementById("browsers");
+    const fresh = browsersLine(registered);
+    if (box.dataset.drawn === fresh) return;
+    box.dataset.drawn = fresh;
+    box.innerHTML = fresh;
+    for (const button of box.querySelectorAll("button.revoke")) {
+      const row = button.closest(".browser");
+      button.addEventListener("click", () => {
+        if (!button.dataset.armed) {
+          button.dataset.armed = "1";
+          button.textContent = "revoke — sure?";
+          return;
+        }
+        button.disabled = true;
+        post(`/v1/devices/${encodeURIComponent(row.dataset.device)}/revoke`, {}).catch((error) => {
+          row.querySelector(".error").textContent = error.message;
+        });
+      });
+    }
+  }
+
   async function draw() {
     document.getElementById("spend").innerHTML = spendLine(await get("/v1/spend"));
-    // Its own catch: the strip failing to load must not take the page with it.
+    // Their own catches: a strip failing to load must not take the page with it.
     drawNeeds().catch(() => {});
+    drawBrowsers().catch(() => {});
     if (showing === "workflows") return drawJobs();
 
     const picker = document.getElementById("stream");

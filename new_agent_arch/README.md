@@ -57,7 +57,9 @@ tenant's purse (`/v1/mine`, `/v1/chat`) or the other browsers' days
 (`/v1/audit`, `/v1/gestures`, `/v1/streams`, `/v1/spend`, evidence): those
 answer 403 to a device token. The tenant's bearer keeps working for
 everything, so an older extension that never registered loses nothing. To
-cut a browser off, which also drops its socket at once:
+cut a browser off, which also drops its socket at once, press **revoke**
+twice on its row at the top of the rig page (`GET /v1/devices` lists every
+registered browser, online or not, revoked or not), or:
 
 ```bash
 curl -X POST -H "Authorization: Bearer $RIG_INGEST_TOKEN" \

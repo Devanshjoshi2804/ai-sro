@@ -908,7 +908,9 @@ and **Stop**. The same tap is on the rig page, at the top, for every run
 parked on a write across every browser (`GET /v1/runs?awaiting=true`): a
 supervisor lets a write out without being in the browser that is driving it,
 and the approval records no device, which is what "the tenant's own bearer"
-looks like in the audit. Once three live runs of a job have had every write verified by
+looks like in the audit. The audit itself is the page's third view: runs
+with the steps a person let out, offers and their fates, the chat door, and
+browsers registered or revoked, since a time the reader picks. Once three live runs of a job have had every write verified by
 state -- a status the server answered or a read that showed the record, never
 a picture -- the job has earned it and writes unasked; a write that ends
 `failed` or `unclear` takes that back. A job whose writes can only be verified

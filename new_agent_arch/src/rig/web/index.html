@@ -96,18 +96,25 @@
   #browsers .off::before { content: "○"; }
   #browsers .revoked { text-decoration: line-through; }
   #browsers button { font-size: 11px; }
+  #audit h3 { margin: 16px 0 4px; font-size: 13px; color: var(--muted); }
+  #audit .line { font-size: 13px; padding: 2px 0; }
+  #audit .line .kind { margin-right: 8px; }
+  #audit .steps { margin: 0 0 6px 24px; font-size: 12px; color: var(--muted); }
+  #audit .steps .approved { color: var(--accent); }
 </style>
 
 <header>
   <h1>rig</h1>
   <select id="stream"></select>
   <button id="view">workflows &rarr;</button>
+  <input id="since" type="datetime-local" hidden />
   <div class="spend" id="spend"></div>
 </header>
 <section id="needs"></section>
 <section id="browsers"></section>
 <main id="rows"></main>
 <main id="jobs" hidden></main>
+<main id="audit" hidden></main>
 
 <script>
   // Out of the URL once, then out of the URL for good. `?token=...` in the
@@ -576,6 +583,89 @@
 
   let showing = "gestures";
 
+  // Three views, one word each on the button: what the next press shows.
+  // `show` is the one place the state and the three mains agree, so the
+  // hash-opened run and the button cannot leave them disagreeing.
+  const VIEWS = ["gestures", "workflows", "audit"];
+  function show(name) {
+    showing = name;
+    const next = VIEWS[(VIEWS.indexOf(name) + 1) % VIEWS.length];
+    document.getElementById("view").textContent = `${next} →`;
+    document.getElementById("rows").hidden = name !== "gestures";
+    document.getElementById("stream").hidden = name !== "gestures";
+    document.getElementById("jobs").hidden = name !== "workflows";
+    document.getElementById("audit").hidden = name !== "audit";
+    document.getElementById("since").hidden = name !== "audit";
+  }
+
+  // What happened since a time, in the order it happened, newest first per
+  // kind: runs with the steps a person let out, offers and their fates, the
+  // chat door, browsers issued or revoked. Every field is captured or model
+  // text, or a browser's own id, and goes through esc(). `titles` names the
+  // jobs the page has drawn; the rest are named by id.
+  function auditView(a, titles) {
+    const name = (id) => esc(titles[id] ?? id ?? "");
+    const when = (t) => esc(String(t ?? "").slice(0, 19).replace("T", " "));
+    const run = (r) => `<div class="line" data-run="${esc(r.id)}">
+      <span class="kind">${when(r.started_at)}</span>
+      <b>${name(r.workflow_id)}</b> · ${esc(r.outcome)}${r.live ? "" : " (dry)"} ·
+      by ${esc(r.started_by)} on ${esc(r.device_id)} ·
+      <span class="spent${r.unpriced ? " unpriced" : ""}">${esc(money(r))}</span>
+      <a href="#run-${esc(r.id)}">details</a>
+    </div><div class="steps">${(r.steps ?? [])
+      .map(
+        (s) => `${esc(s.order)} ${esc(s.says)} · ${esc(s.verdict)}${
+          s.verdict_by ? " by " + esc(s.verdict_by) : ""
+        }${s.matched_by === "sight" ? " · found by sight" : ""}${s.stale ? " · page moved" : ""}${
+          s.approved_at
+            ? ` · <span class="approved">approved ${when(s.approved_at)}${
+                s.approved_by ? " from " + esc(s.approved_by) : " by the tenant"
+              }</span>`
+            : ""
+        }`,
+      )
+      .join("<br>")}</div>`;
+    const offer = (o) => `<div class="line"><span class="kind">${when(o.at)}</span>
+      <b>${name(o.workflow_id)}</b> · offered at ${esc(o.k)} on ${esc(o.device_id)} · ${esc(
+        String(o.fate).replace("_", " "),
+      )}${o.run_id ? ` · <a href="#run-${esc(o.run_id)}">run</a>` : ""}</div>`;
+    const chat = (c) => `<div class="line"><span class="kind">${when(c.at)}</span>
+      chat · ${c.workflow_id ? `<b>${name(c.workflow_id)}</b>` : "no job named"}${
+        c.error ? ` · <span class="error">${esc(c.error)}</span>` : ""
+      } · <span class="spent${c.unpriced ? " unpriced" : ""}">${esc(money(c))}</span></div>`;
+    const device = (d) => `<div class="line"><span class="kind">${when(d.issued_at)}</span>
+      browser <b>${esc(d.device_id)}</b> registered${
+        d.revoked_at ? ` · <span class="error">revoked ${when(d.revoked_at)}</span>` : ""
+      }</div>`;
+    const section = (title, items, one) =>
+      `<h3>${title}</h3>${items.length ? items.map(one).join("") : `<div class="none">none</div>`}`;
+    return (
+      section(`runs since ${when(a.since)}`, a.runs ?? [], run) +
+      section("offers", a.offers ?? [], offer) +
+      section("chat", a.chats ?? [], chat) +
+      section("browsers", a.devices ?? [], device)
+    );
+  }
+
+  // Midnight today, in the browser's own zone, as the field wants it.
+  function startOfToday() {
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T00:00`;
+  }
+
+  async function drawAudit() {
+    const field = document.getElementById("since");
+    if (!field.value) field.value = startOfToday();
+    const since = new Date(field.value).toISOString();
+    const audit = await get(`/v1/audit?since=${encodeURIComponent(since)}&limit=200`);
+    const box = document.getElementById("audit");
+    const fresh = auditView(audit, titles);
+    if (box.dataset.drawn === fresh) return;
+    box.dataset.drawn = fresh;
+    box.innerHTML = fresh;
+  }
+
   // The three-second redraw replaces every card, and with it every runner box
   // -- a half-typed form, the div a poll is writing into, the finished view a
   // dry run left behind. Move the live nodes into the fresh cards rather than
@@ -678,6 +768,7 @@
     drawNeeds().catch(() => {});
     drawBrowsers().catch(() => {});
     if (showing === "workflows") return drawJobs();
+    if (showing === "audit") return drawAudit();
 
     const picker = document.getElementById("stream");
     const { streams } = await get("/v1/streams");
@@ -696,16 +787,13 @@
   }
 
   document.getElementById("stream").addEventListener("change", draw);
-  document.getElementById("view").addEventListener("click", (event) => {
-    showing = showing === "gestures" ? "workflows" : "gestures";
-    event.target.innerHTML = showing === "gestures" ? "workflows &rarr;" : "&larr; gestures";
-    document.getElementById("rows").hidden = showing !== "gestures";
-    document.getElementById("jobs").hidden = showing !== "workflows";
-    document.getElementById("stream").hidden = showing !== "gestures";
+  document.getElementById("view").addEventListener("click", () => {
+    show(VIEWS[(VIEWS.indexOf(showing) + 1) % VIEWS.length]);
     draw();
   });
+  document.getElementById("since").addEventListener("change", draw);
   async function openRun(runId) {
-    if (showing !== "workflows") document.getElementById("view").click();
+    if (showing !== "workflows") show("workflows");
     await drawJobs();
     let run;
     try {

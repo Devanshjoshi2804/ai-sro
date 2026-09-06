@@ -3221,3 +3221,42 @@ def test_the_audit_carries_the_chat_door(client: TestClient, store: Store) -> No
     )
     assert chat["id"].startswith("cht_") and chat["at"] and chat["error"] is None
     assert "utterance" not in chat and "said" not in chat, "the sentence was never kept"
+
+
+def test_the_page_draws_the_audit_and_escapes_every_word_of_it() -> None:
+    hostile = "<img src=x onerror=go()>"
+    out = _run_page(
+        f"""
+        const h = {json.dumps(hostile)};
+        console.log(JSON.stringify([
+          auditView({{
+            since: "2026-09-06T00:00:00+00:00",
+            runs: [{{ id: "run_1", workflow_id: "wfl_1", device_id: h, started_by: h, live: true,
+                      started_at: "2026-09-06T10:00:00+00:00", outcome: "held", cost_usd: 0.05, unpriced: false,
+                      steps: [
+                        {{ order: 0, says: h, verdict: "held", verdict_by: "state", matched_by: "sight", stale: true,
+                           approved_at: "2026-09-06T10:00:30+00:00", approved_by: h }},
+                        {{ order: 1, says: "save", verdict: "held", verdict_by: "read", approved_at: "2026-09-06T10:01:00+00:00",
+                           approved_by: null }},
+                      ] }}],
+            offers: [{{ at: "2026-09-06T09:00:00+00:00", workflow_id: "wfl_9", device_id: "dev_1", k: 2, fate: "did_it", run_id: null }}],
+            chats: [{{ at: "2026-09-06T08:00:00+00:00", workflow_id: null, cost_usd: 0, unpriced: true, error: h }}],
+            devices: [{{ device_id: h, issued_at: "2026-09-06T07:00:00+00:00", revoked_at: "2026-09-06T12:00:00+00:00" }}],
+          }}, {{ wfl_1: h }}),
+          auditView({{ since: "2026-09-06T00:00:00+00:00", runs: [], offers: [], chats: [], devices: [] }}, {{}}),
+        ]));
+        """
+    )
+    full, empty = json.loads(out)
+    assert hostile not in full
+    # title, device, starter, step says, approver, chat error, browser id:
+    # seven through esc().
+    assert full.count("&lt;img src=x onerror=go()&gt;") == 7, full
+    assert "found by sight" in full and "page moved" in full
+    assert "approved 2026-09-06 10:00:30 from" in full
+    assert "approved 2026-09-06 10:01:00 by the tenant" in full
+    assert "<b>wfl_9</b>" in full, "a job the page has not drawn is named by its id"
+    assert "did it" in full and "no job named" in full and "unpriced" in full
+    assert "revoked 2026-09-06 12:00:00" in full
+    assert 'href="#run-run_1"' in full
+    assert empty.count('class="none"') == 4

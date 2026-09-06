@@ -30,12 +30,26 @@ everything. The rest of the settings (env prefix `RIG_`, see
 |---|---|---|
 | `RIG_GEMINI_API_KEY` | *(none — required)* | the model that reads gestures |
 | `RIG_DB_PATH` | `rig.db` | SQLite file |
-| `RIG_INGEST_TOKEN` | `dev-only-not-a-secret` | bearer token the extension posts with |
+| `RIG_INGEST_TOKEN` | `dev-only-not-a-secret` | the tenant's bearer: registers browsers, revokes them, opens every door |
 | `RIG_INTENT_MODEL` | `gemini-3.8-flash` | model used for readings |
 | `RIG_PLAN_MODEL` | `gemini-3.8-flash` | plans one command per step of a run |
 | `RIG_RESCUE_MODEL` | `gemini-3.1-pro-preview` | the one rescue when a step does not hold |
 | `RIG_COMMAND_DEADLINE_S` | `20` | how long a command to the browser may take |
 | `RIG_TENANT` | `new` | tenant recorded on every row |
+
+## One token per browser
+
+The tenant's bearer is typed once, into the extension's options page. On
+save the extension calls `POST /v1/devices/register` with it and keeps the
+answer: a token of that browser's own, held on the rig as a hash, which opens
+its own command socket and no other and names the browser on every call it
+makes. The tenant's bearer keeps working for everything, so an older
+extension that never registered loses nothing. To cut a browser off:
+
+```bash
+curl -X POST -H "Authorization: Bearer $RIG_INGEST_TOKEN" \
+  http://localhost:8100/v1/devices/<device_id>/revoke
+```
 
 ## Test it
 

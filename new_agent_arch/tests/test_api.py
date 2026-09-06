@@ -2694,6 +2694,7 @@ def test_the_audit_route_lists_what_happened_since_a_time(client: TestClient, st
     [step] = got["runs"][0]["steps"]
     assert step["sent"] == "ui.perform" and step["approved_at"] == "2026-09-06T10:00:30+00:00"
     assert step["matched_by"] == "component" and step["verdict"] == "held"
+    assert "reason" in step, "why a step did not hold is the audit's most useful fact"
     assert "payload" not in step and "values" not in got["runs"][0], "no values, no payloads"
     assert [o["fate"] for o in got["offers"]] == ["accepted"]
     assert client.get("/v1/audit", headers=_auth()).status_code == 200, "no since means everything"
@@ -2743,3 +2744,40 @@ def test_the_page_shows_when_a_write_was_approved_and_escapes_it() -> None:
     first = "\n".join(lines[: lines.index(next(l for l in lines if "type" in l))])
     assert "approved 2026-09-06T10:00:30+00:00&lt;b&gt;" in first
     assert "approved" not in "\n".join(lines[len(first.splitlines()) :])
+
+
+def test_an_offer_written_with_the_browsers_clock_is_stored_the_servers_way(
+    client: TestClient, store: Store
+) -> None:
+    _seed_workflow(store)
+    body = {
+        "workflow_id": "wfl_1",
+        "k": 2,
+        "fate": "expired",
+        "device_id": "dev_1",
+        "at": "2026-09-06T10:00:00.000Z",
+    }
+    assert client.post("/v1/offers", json=body, headers=_auth()).status_code == 201
+    assert store.query("SELECT at FROM offers")[0]["at"] == "2026-09-06T10:00:00+00:00"
+    since = client.get("/v1/audit?since=2026-09-06T00:00:00Z", headers=_auth()).json()
+    assert [o["fate"] for o in since["offers"]] == ["expired"], "a Z since finds a Z offer"
+
+
+def test_the_audit_route_refuses_a_time_it_cannot_read(client: TestClient) -> None:
+    assert client.get("/v1/audit?since=yesterday", headers=_auth()).status_code == 400
+
+
+def test_a_second_tap_on_the_same_step_does_not_rewrite_the_first(
+    client: TestClient, store: Store
+) -> None:
+    store.execute(
+        "INSERT INTO approvals (run_id, ord, at) VALUES (?, ?, ?)",
+        ("run_tw", 1, "2026-09-06T10:00:00+00:00"),
+    )
+    store.execute(
+        "INSERT OR IGNORE INTO approvals (run_id, ord, at) VALUES (?, ?, ?)",
+        ("run_tw", 1, "2026-09-06T10:05:00+00:00"),
+    )
+    assert store.query("SELECT at FROM approvals WHERE run_id = 'run_tw'")[0]["at"].endswith(
+        "10:00:00+00:00"
+    )

@@ -8,6 +8,7 @@ and the share of `diverged` is what decides whether `K_OFFER_AFTER` moves.
 from __future__ import annotations
 
 import secrets
+from datetime import UTC, datetime
 
 from rig.store import Store
 
@@ -30,6 +31,10 @@ def record_offer(
 ) -> str:
     if fate not in FATES:
         raise ValueError(f"{fate!r} is not a fate an offer can have")
+    # The browser's clock, in whatever form it wrote it (`toISOString` says
+    # `Z`); stored the way every server row is, so `since` compares.
+    when = datetime.fromisoformat(at)
+    at = (when if when.tzinfo else when.replace(tzinfo=UTC)).astimezone(UTC).isoformat()
     offer_id = "off_" + secrets.token_hex(8)
     with store.connect() as connection:
         connection.execute(

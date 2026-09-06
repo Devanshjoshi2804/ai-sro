@@ -1053,8 +1053,10 @@ def build_app(
         )
         ord_ = int(waiting[0]["ord"]) if waiting else None
         if ord_ is not None:
+            # OR IGNORE: a write rescued to the second rung parks at the same
+            # step and takes a second tap; the first authorisation stands.
             store.execute(
-                "INSERT OR REPLACE INTO approvals (run_id, ord, at) VALUES (?, ?, ?)",
+                "INSERT OR IGNORE INTO approvals (run_id, ord, at) VALUES (?, ?, ?)",
                 (run_id, ord_, _now()),
             )
         return {"approved": True, "ord": ord_}
@@ -1068,6 +1070,18 @@ def build_app(
         import json as _json
 
         limit = max(1, min(int(limit), 1000))
+        if since:
+            # A time it cannot read is a 400, not an empty day: on an audit
+            # route "nothing happened" is the wrong way to fail.
+            try:
+                when = datetime.fromisoformat(since)
+                since = (
+                    (when if when.tzinfo else when.replace(tzinfo=UTC)).astimezone(UTC).isoformat()
+                )
+            except ValueError as bad:
+                raise HTTPException(
+                    status_code=400, detail="since must be an ISO-8601 time"
+                ) from bad
         runs = store.query(
             "SELECT id, workflow_id, device_id, started_by, live, started_at, finished_at,"
             " outcome, cost_usd, unpriced FROM runs"
@@ -1082,8 +1096,8 @@ def build_app(
             }
             steps = []
             for st in store.query(
-                "SELECT ord, says, verdict, verdict_by, sent, matched_by, stale FROM run_steps"
-                " WHERE run_id = ? ORDER BY ord",
+                "SELECT ord, says, verdict, verdict_by, reason, sent, matched_by, stale"
+                " FROM run_steps WHERE run_id = ? ORDER BY ord",
                 (r["id"],),
             ):
                 sent = _json.loads(st["sent"]) if st["sent"] else None
@@ -1093,6 +1107,9 @@ def build_app(
                         "says": st["says"],
                         "verdict": st["verdict"],
                         "verdict_by": st["verdict_by"],
+                        # Why, in the verifier's words: the most audit-worthy
+                        # thing on the row when a step did not hold.
+                        "reason": st["reason"],
                         "sent": sent.get("kind") if isinstance(sent, dict) else None,
                         "matched_by": st["matched_by"],
                         "stale": bool(st["stale"]),

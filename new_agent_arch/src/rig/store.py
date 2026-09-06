@@ -176,12 +176,6 @@ CREATE TABLE IF NOT EXISTS workflow_stale (
 -- model reading a screenshot is not evidence anything was written. Three runs
 -- whose every write is in here is what buys a job the right to write unasked,
 -- and one failed write empties it for that workflow.
-CREATE TABLE IF NOT EXISTS approvals (
-    run_id TEXT NOT NULL,
-    ord    INTEGER NOT NULL,
-    at     TEXT NOT NULL,
-    PRIMARY KEY (run_id, ord)
-);
 CREATE TABLE IF NOT EXISTS workflow_effects (
     workflow_id TEXT NOT NULL,
     run_id      TEXT NOT NULL,
@@ -189,6 +183,14 @@ CREATE TABLE IF NOT EXISTS workflow_effects (
     verified_by TEXT NOT NULL,
     at          TEXT NOT NULL,
     PRIMARY KEY (workflow_id, run_id, ord)
+);
+-- A row per approval a person gave: which step of which run, and when. The
+-- first tap wins; a second on the same step is not a second authorisation.
+CREATE TABLE IF NOT EXISTS approvals (
+    run_id TEXT NOT NULL,
+    ord    INTEGER NOT NULL,
+    at     TEXT NOT NULL,
+    PRIMARY KEY (run_id, ord)
 );
 
 -- Every offer the extension made from a recognised prefix, and what became of

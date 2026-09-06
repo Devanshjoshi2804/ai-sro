@@ -482,6 +482,17 @@ def build_app(
         # malformed envelope with a 422 of its own, so this does. A bad event is
         # tolerated; a bad batch is still refused, and refused with the status
         # the caller can act on.
+        # A bound on one request, not on a day: the flush is once a minute and
+        # a minute is not thousands of gestures. Counted on the raw list,
+        # before a single event is parsed, so a payload past it costs the rig
+        # a length and not a validation of every event in it; refused whole
+        # with the count that would have been taken, so the sender can split.
+        sent = raw.get("events") if isinstance(raw, dict) else None
+        if isinstance(sent, list) and len(sent) > K_BATCH_EVENTS:
+            raise HTTPException(
+                status_code=413,
+                detail=f"{len(sent)} events in one batch; at most {K_BATCH_EVENTS}",
+            )
         try:
             batch, rejected = parse_batch(raw)
         except ValidationError as problem:
@@ -501,15 +512,6 @@ def build_app(
         if device is not None and batch.device_id != device:
             raise HTTPException(
                 status_code=403, detail=f"this token is {device}'s, and the batch is not"
-            )
-        # A bound on one request, not on a day: the flush is once a minute and
-        # a minute is not thousands of gestures. A batch past it is not an
-        # operator's minute, and is refused whole with the count that would
-        # have been taken, so the sender can split it.
-        if len(batch.events) > K_BATCH_EVENTS:
-            raise HTTPException(
-                status_code=413,
-                detail=f"{len(batch.events)} events in one batch; at most {K_BATCH_EVENTS}",
             )
         accepted, already, snapshots_ignored = save_batch(
             store, batch, tenant, rejected=len(rejected)
@@ -536,7 +538,10 @@ def build_app(
         # A browser illustrates its own batches: the batch arrives first
         # (`api.js` posts it before the artifact), so one this device did not
         # send is a sibling's, or nobody's. The tenant's bearer is not held to
-        # it, for the same replay reason as the batch route.
+        # it, for the same replay reason as the batch route. A mirror whose
+        # batch never landed loses the screenshot too, by this check: a
+        # picture of evidence the rig does not hold illustrates nothing, and
+        # the backfill replays the batch and its pictures together.
         if device is not None:
             owner = store.query("SELECT device_id FROM batches WHERE batch_id = ?", (batch_id,))
             if not owner or owner[0]["device_id"] != device:

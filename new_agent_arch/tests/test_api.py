@@ -3140,21 +3140,31 @@ def test_a_batch_past_the_event_bound_is_refused_whole_and_told_the_count(
 ) -> None:
     from rig.api import K_BATCH_EVENTS
 
-    huge = dict(BATCH, batch_id="bat_huge", events=BATCH["events"] * (K_BATCH_EVENTS // 7 + 1))
-    got = client.post("/v1/observations", json=huge, headers=_auth())
+    one = BATCH["events"][:1]
+    over = dict(BATCH, batch_id="bat_over", events=one * (K_BATCH_EVENTS + 1))
+    got = client.post("/v1/observations", json=over, headers=_auth())
     assert got.status_code == 413
-    assert f"{len(huge['events'])} events" in got.json()["detail"]
+    assert f"{K_BATCH_EVENTS + 1} events" in got.json()["detail"]
     assert str(K_BATCH_EVENTS) in got.json()["detail"]
-    assert store.query("SELECT count(*) AS n FROM gestures")[0]["n"] == 0, "refused whole"
-    exact = dict(BATCH, batch_id="bat_exact", events=BATCH["events"][:1] * K_BATCH_EVENTS)
+    assert store.query("SELECT count(*) AS n FROM batches")[0]["n"] == 0, "refused whole"
+    exact = dict(BATCH, batch_id="bat_exact", events=one * K_BATCH_EVENTS)
     assert client.post("/v1/observations", json=exact, headers=_auth()).status_code == 202
 
 
 def test_an_artifact_past_the_byte_bound_is_refused_before_it_is_written(
-    client: TestClient, tmp_path: Path
+    client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     from rig.api import K_ARTIFACT_BYTES
+    from rig.config import Settings, settings
 
+    # Artifacts land beside the settings' database, not the fixture's: pointed
+    # at this test's own directory so the assertion below looks where the
+    # route writes, and nothing lands in the working tree.
+    monkeypatch.setattr(
+        "rig.api.settings",
+        lambda: Settings(gemini_api_key="x", tenant="new", db_path=tmp_path / "rig.db"),
+    )
+    settings.cache_clear()
     big = client.post(
         "/v1/observations/artifacts",
         headers=_auth(),
@@ -3162,7 +3172,7 @@ def test_an_artifact_past_the_byte_bound_is_refused_before_it_is_written(
         files={"file": ("s.png", b"P" * (K_ARTIFACT_BYTES + 1), "image/png")},
     )
     assert big.status_code == 413 and str(K_ARTIFACT_BYTES) in big.json()["detail"]
-    assert not list(tmp_path.rglob("bat_big")), "nothing was written"
+    assert not (tmp_path / "artifacts" / "bat_big").exists(), "nothing was written"
     fits = client.post(
         "/v1/observations/artifacts",
         headers=_auth(),
@@ -3170,3 +3180,6 @@ def test_an_artifact_past_the_byte_bound_is_refused_before_it_is_written(
         files={"file": ("s.png", b"P" * K_ARTIFACT_BYTES, "image/png")},
     )
     assert fits.status_code == 201 and fits.json()["size_bytes"] == K_ARTIFACT_BYTES
+    assert (tmp_path / "artifacts" / "bat_fits" / "screenshot-x.png").stat().st_size == (
+        K_ARTIFACT_BYTES
+    )

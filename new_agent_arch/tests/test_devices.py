@@ -309,9 +309,17 @@ def test_a_browser_posts_its_own_day_and_not_a_siblings(tmp_path: Path) -> None:
     assert client.post("/v1/observations", json=BATCH).status_code == 401
 
 
-def test_a_browser_illustrates_its_own_batches_and_not_a_siblings(tmp_path: Path) -> None:
+def test_a_browser_illustrates_its_own_batches_and_not_a_siblings(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from rig.config import Settings, settings
     from tests.fixtures import BATCH
 
+    monkeypatch.setattr(
+        "rig.api.settings",
+        lambda: Settings(gemini_api_key="x", tenant="acme", db_path=tmp_path / "rig.db"),
+    )
+    settings.cache_clear()
     store = _store(tmp_path)
     client = _client(store)
     mine = {"Authorization": f"Bearer {issue(store, BATCH['device_id'])}"}

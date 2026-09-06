@@ -3,6 +3,7 @@
 import asyncio
 import json
 import logging
+import secrets
 import sqlite3
 from collections.abc import AsyncIterator, Coroutine
 from contextlib import asynccontextmanager
@@ -358,7 +359,9 @@ def build_app(
         from rig.devices import holder
 
         offered = _bearer(authorization)
-        if offered == token:
+        # `token and ...`: an empty tenant token must not make a request with
+        # no header at all the tenant. Constant-time, because it is free.
+        if token and offered and secrets.compare_digest(offered, token):
             return None
         device = holder(store, offered) if offered else None
         if device is None:
@@ -369,8 +372,12 @@ def build_app(
         caller(authorization)
 
     def tenant_only(authorization: Annotated[str | None, Header()] = None) -> None:
-        """The tenant's own bearer, not a device's: registering and revoking
-        browsers is not something a browser does to itself or to another."""
+        """The tenant's own bearer, not a device's. Registering and revoking
+        browsers, spending model money (`/v1/mine`, `/v1/chat`) and reading
+        every device's evidence (`/v1/gestures`, `/v1/audit`, ...) are the
+        tenant's: a browser's token opens its own doors -- ingest, its socket,
+        the runner's -- and not the tenant's purse or the other browsers'
+        days."""
         if caller(authorization) is not None:
             raise HTTPException(
                 status_code=403, detail="that is the tenant's to do, not a device's"
@@ -486,7 +493,7 @@ def build_app(
         target.write_bytes(data)
         return {"uri": str(target), "size_bytes": len(data)}
 
-    @app.get("/v1/streams", dependencies=[Depends(authorised)])
+    @app.get("/v1/streams", dependencies=[Depends(tenant_only)])
     def streams() -> dict[str, Any]:
         rows = store.query(
             "SELECT stream_id, count(*) AS gestures, min(at) AS first, max(at) AS last"
@@ -495,7 +502,7 @@ def build_app(
         )
         return {"streams": [dict(row) for row in rows]}
 
-    @app.get("/v1/gestures", dependencies=[Depends(authorised)])
+    @app.get("/v1/gestures", dependencies=[Depends(tenant_only)])
     def gestures(stream: str | None = None, limit: int = 200) -> dict[str, Any]:
         limit = max(1, min(limit, 1000))  # the page polls; an unbounded limit is a footgun
         sql = (
@@ -562,7 +569,7 @@ def build_app(
             )
         return {"gestures": out}
 
-    @app.get("/v1/spend", dependencies=[Depends(authorised)])
+    @app.get("/v1/spend", dependencies=[Depends(tenant_only)])
     def spend() -> dict[str, Any]:
         row = store.query(
             "SELECT count(*) AS n, coalesce(sum(in_tokens), 0) AS i,"
@@ -616,7 +623,7 @@ def build_app(
             "per_gesture_usd": round(row["c"] / row["n"], 8) if row["n"] else 0.0,
         }
 
-    @app.post("/v1/mine", dependencies=[Depends(authorised)])
+    @app.post("/v1/mine", dependencies=[Depends(tenant_only)])
     async def run_a_pass() -> dict[str, Any]:
         from rig.mine import mine
 
@@ -777,7 +784,7 @@ def build_app(
             ]
         }
 
-    @app.get("/v1/workflows/{workflow_id}/evidence", dependencies=[Depends(authorised)])
+    @app.get("/v1/workflows/{workflow_id}/evidence", dependencies=[Depends(tenant_only)])
     def workflow_evidence(workflow_id: str) -> dict[str, Any]:
         """Everything a workflow cites, in the shape a runner's bridge consumes.
 
@@ -865,7 +872,10 @@ def build_app(
     async def revoke_device(device_id: str) -> dict[str, Any]:
         from rig.devices import revoke
 
-        return {"device_id": device_id, "revoked": revoke(store, device_id)}
+        revoked = revoke(store, device_id)
+        # Offline now, not when its socket happens to drop.
+        app.state.channel.drop(device_id)
+        return {"device_id": device_id, "revoked": revoked}
 
     @app.get("/v1/devices", dependencies=[Depends(authorised)])
     def devices() -> dict[str, Any]:
@@ -1094,6 +1104,15 @@ def build_app(
         sends it, it names the browser the tap came from."""
         from rig.runner import Approvals
 
+        # A browser approves the writes of the run it is driving and no other:
+        # one compromised browser must not be able to satisfy every other
+        # browser's human-in-the-loop gate. Checked before the event is set.
+        if device is not None:
+            driving = store.query("SELECT device_id FROM runs WHERE id = ?", (run_id,))
+            if not driving or driving[0]["device_id"] != device:
+                raise HTTPException(
+                    status_code=403, detail="that run is not the one this browser is driving"
+                )
         if not Approvals.approve(run_id):
             raise HTTPException(status_code=409, detail="nothing is awaiting approval on this run")
         # Written down: which step, when, and from which browser. The run
@@ -1116,7 +1135,7 @@ def build_app(
             )
         return {"approved": True, "ord": ord_}
 
-    @app.get("/v1/audit", dependencies=[Depends(authorised)])
+    @app.get("/v1/audit", dependencies=[Depends(tenant_only)])
     async def audit(since: str = "", limit: int = 200) -> dict[str, Any]:
         """Everything a person would want to see after the fact, since a time:
         the runs, each step's verdict and what was sent, when a person
@@ -1207,7 +1226,7 @@ def build_app(
         ]
         return {"since": since, "runs": out, "offers": offers}
 
-    @app.post("/v1/chat", dependencies=[Depends(authorised)])
+    @app.post("/v1/chat", dependencies=[Depends(tenant_only)])
     async def chat(body: dict[str, Any]) -> dict[str, Any]:
         """Offers. Never starts."""
         from rig.entry import understand

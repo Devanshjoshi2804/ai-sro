@@ -42,9 +42,13 @@ everything. The rest of the settings (env prefix `RIG_`, see
 The tenant's bearer is typed once, into the extension's options page. On
 save the extension calls `POST /v1/devices/register` with it and keeps the
 answer: a token of that browser's own, held on the rig as a hash, which opens
-its own command socket and no other and names the browser on every call it
-makes. The tenant's bearer keeps working for everything, so an older
-extension that never registered loses nothing. To cut a browser off:
+its own command socket and no other, approves only the run that browser is
+driving, and names the browser on every call it makes. It does not open the
+tenant's purse (`/v1/mine`, `/v1/chat`) or the other browsers' days
+(`/v1/audit`, `/v1/gestures`, `/v1/streams`, `/v1/spend`, evidence): those
+answer 403 to a device token. The tenant's bearer keeps working for
+everything, so an older extension that never registered loses nothing. To
+cut a browser off, which also drops its socket at once:
 
 ```bash
 curl -X POST -H "Authorization: Bearer $RIG_INGEST_TOKEN" \

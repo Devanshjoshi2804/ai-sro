@@ -74,6 +74,8 @@ class Channel(Protocol):
 
     def online(self) -> list[str]: ...
 
+    def drop(self, device_id: str) -> bool: ...
+
 
 class DeviceChannel:
     """Which browsers are connected here, and what they owe an answer to."""
@@ -90,6 +92,13 @@ class DeviceChannel:
         """A second connection for the same device replaces the first: a
         browser that reconnected after a network drop is the same browser."""
         self._sockets[device_id] = socket
+
+    def drop(self, device_id: str) -> bool:
+        """Whatever socket this device holds is forgotten: it is offline from
+        here on, whether or not the browser has noticed. The tenant revoking a
+        browser's token is the one caller, and a revoked browser that still
+        reads as connected would be an audit line nobody could trust."""
+        return self._sockets.pop(device_id, None) is not None
 
     def detach(self, device_id: str, socket: Socket) -> None:
         """Only if it is still the socket we hold. A slow close arriving after
@@ -218,6 +227,9 @@ class FakeChannel:
 
     def online(self) -> list[str]:
         return ["dev_test"]
+
+    def drop(self, device_id: str) -> bool:
+        return False
 
     async def send(
         self,

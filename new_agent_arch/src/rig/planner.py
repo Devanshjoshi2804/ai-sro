@@ -172,7 +172,11 @@ async def plan_step(
             else {
                 "url": failed_look.url,
                 "screen_text": failed_look.digest,
-                "screenshot": "the second image" if failed_look.screenshot else None,
+                # Named by position: second when the page as it is now was
+                # photographed too, the only image when it was not.
+                "screenshot": None
+                if not failed_look.screenshot
+                else ("the second image" if look.screenshot else "the only image"),
             },
         },
         indent=2,

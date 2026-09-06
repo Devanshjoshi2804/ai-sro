@@ -466,3 +466,26 @@ async def test_a_first_attempt_carries_no_second_picture() -> None:
     )
     assert asker.asked[0]["images"] == ()
     assert json.loads(asker.asked[0]["evidence"])["previous_attempt_left"] is None
+
+
+async def test_the_failed_attempts_picture_is_named_by_its_position() -> None:
+    gesture = _typed()
+    asker = FakeAsker(
+        Answer(data={"kind": "ui.perform", "action": "type", "value": "T", "url": None, "why": "w"})
+    )
+    await plan_step(
+        step=Step(order=0, says="type", system=None, cites=[gesture.id]),
+        cited=[gesture],
+        values={},
+        look=Look("http://127.0.0.1:63319/form", None, "no picture this time"),
+        origin=None,
+        starts_on=None,
+        allow_focus=False,
+        asker=asker,
+        model="pro",
+        failure="f",
+        failed_look=Look("http://127.0.0.1:63319/form", b"left-png", "left"),
+    )
+    asked = asker.asked[0]
+    assert asked["image"] is None and asked["images"] == (b"left-png",)
+    assert json.loads(asked["evidence"])["previous_attempt_left"]["screenshot"] == "the only image"

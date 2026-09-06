@@ -785,8 +785,8 @@ starts a live run at that step; the operator's own steps are recorded as theirs.
 Every offer ends one of five ways -- accepted, dismissed, done by hand, expired,
 diverged -- and the rig keeps the count on the job's card. Replayed against the
 corpus's own gestures (`make offer-replay`), every one of the eight jobs is
-offered as itself, five on the second gesture and the three that share a start
-on the third. The design is `docs/superpowers/specs/2026-09-06-offer-and-approve-design.md`;
+offered as itself: five on two walkable gestures, the three that share a start
+on three. The design is `docs/superpowers/specs/2026-09-06-offer-and-approve-design.md`;
 the measurement, and what it does not measure, is *An offer lands* in
 `findings.md`.
 

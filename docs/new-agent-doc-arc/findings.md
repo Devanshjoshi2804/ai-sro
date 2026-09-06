@@ -1075,20 +1075,23 @@ thing the recipe below asks for.
   against its own evidence every job is offered as itself; whether a person
   minds waiting for a third gesture on three of the eight is what the offers'
   fates will say, not the replay.
-- **No parameter has ever been lifted from a tail**, because no workflow in this
-  corpus declares one.
+- **No parameter has ever been lifted from a live tail.** Four of the eight
+  jobs declare eleven between them now (see *A real key, one afternoon*
+  below); replayed, ten of the eleven are lifted by the end of a doing and one
+  at the moment of the offer. A live tail is still untested.
 - **Nothing here proves earning end to end.** `K_EARNED_RUNS` live runs whose
   writes verified by state have never happened against a real WMS; the counter
   has only ever been fed by tests.
-- **Nothing here says one job follows another.** Asked of the corpus on
-  2026-09-06 -- each proven job's cited gestures placed on its stream by
-  first and last timestamp, consecutive jobs paired -- the eight jobs sit on
-  one stream, once each, with gaps of an hour to two and a half days between
-  them; the one pair under a minute apart (*Create Work Area NEWTESTS* →
-  *TWOTEST*) is an artefact of NEWTESTS's citations spanning a re-recording a
-  day later. A chain -- offering the next job when this one lands -- has no
-  evidence to be mined from until a job has been done twice in a day. The
-  measurement is the eight-line query above, not a feature.
+- **Nothing here says one job follows another, and the query that said so
+  was wrong about why.** Asked of the corpus on 2026-09-06 by placing each
+  job's *cited* gestures on its stream, the eight jobs appeared once each,
+  hours to days apart. The same afternoon a real mining pass proposed
+  thirteen doings from the same 387 gestures and learned seven values of
+  `operationCode` and four of `activityCode`: the corpus holds repeated
+  doings, and the citations name one of them. A chain needs the doings
+  stored as occurrences, which the resolver does not do (it learns the
+  parameters and discards the proposal); the evidence exists, the record of
+  it does not.
 - **The sight rung has never looked at a real screen.** Every picture it has
   answered on is the fixture's eight bytes; whether Pro returns a usable
   centre for a moved control on a real WMS page, and how often, is unmeasured.
@@ -1100,6 +1103,33 @@ job whose writes can only be verified by screenshot never earns and asks every
 time.** The belt that counts towards autonomy is a confirming read of state. A
 job the rig can only watch succeed on a screen will pause on every live write,
 for as long as it exists, on purpose.
+
+### A real key, one afternoon (measured, 2026-09-06)
+
+A rig on a copy of the corpus database, a real Gemini key, and the page in a
+real browser. Every number below is on record in that copy
+(`new_agent_arch/rig.learned-2026-09-06.db`, untracked); the repository's
+`rig.db` is as it was.
+
+| what | result | cost |
+|---|---|---|
+| chat door, first sentence | 400: `additionalProperties` refused by the Developer API; the door had never met it | $0.00, unpriced |
+| chat door, after the schema fix, 3 sentences | every job null: titles carry one demonstration's values | $0.01 |
+| chat door, after the instruction says a job is a kind of work, 5 sentences | 5 of 5 name the right job, incl. null for a flight to Paris | $0.01 |
+| mining pass, default output ceiling | cut mid-string at 17,313 chars, filed "not json" | $1.16 |
+| mining pass, 65,536-token ceiling | 13 proposed, 0 kept: all resolved into the 8 known; 11 parameters learned on 4 jobs | $1.14 |
+| served shapes after the pass | every learned parameter `at: None` -- placed by no step | -- |
+| after placing by control name | 10 of 11 indexed | -- |
+| offer replay, tail of 12 | 8 of 8 named; values lifted by end 0 of 11 | -- |
+| offer replay, tail of 40 | 8 of 8 named; 1 of 11 at the offer, 10 of 11 by the end | -- |
+| the page: jobs, run form | 8 cards; TWOTEST's form draws 5 fields prefilled from the last doing | -- |
+
+What it changed: the chat door's schema and instructions; a 65,536
+output-token ceiling on every call and a cut-off answer named as such;
+learned parameters placed in the shape by the control that typed them; a
+tail of 40; the replay counting values. What it did not reach: a live tail,
+a run (no browser was connected to that rig), an offer landing, the sight
+rung on a real screen.
 
 ### The measurement, for whoever has the browser (not yet performed)
 

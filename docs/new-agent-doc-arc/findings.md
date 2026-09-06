@@ -1063,6 +1063,14 @@ thing the recipe below asks for.
   reload, a frame, a slow render — is untested outside the fixtures.
 - **The panel has never polled a live rig.** The run card's poll, its rows, its
   glyphs and its **Approve** button are driven by a fake worker in the suite.
+  The rig's own page has, once (2026-09-06, Playwright against a rig on a
+  scratch database with one batch and two registered browsers): the three
+  views cycle, the spend line and the browsers strip draw, the two-press
+  revoke lands and the strip redraws the browser as revoked on the next
+  tick, the audit view lists both browsers. Two warts found and fixed: the
+  since heading in UTC beside a local picker, and a favicon 404 on every
+  load. Nothing that needs a model -- a parked run, an offer, a job card --
+  was on that page, because the rig had a fake key.
 - **The value of `K_OFFER_AFTER` against a live stream is unmeasured.** Replayed
   against its own evidence every job is offered as itself; whether a person
   minds waiting for a third gesture on three of the eight is what the offers'

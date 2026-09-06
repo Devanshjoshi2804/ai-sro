@@ -36,6 +36,7 @@ everything. The rest of the settings (env prefix `RIG_`, see
 | `RIG_RESCUE_MODEL` | `gemini-3.1-pro-preview` | the one rescue when a step does not hold |
 | `RIG_COMMAND_DEADLINE_S` | `20` | how long a command to the browser may take |
 | `RIG_TENANT` | `new` | tenant recorded on every row |
+| `RIG_DAILY_USD_CAP` | `5.0` | what one day's model calls may cost, summed over readings, passes, runs and chat; over it the three doors answer 429, and one unpriced billed call stops the day too; `-1` is no cap |
 
 Constants that are not settings, because changing one is changing what the
 evidence means, live beside the code that reads them: `K_EARNED_RUNS = 3`

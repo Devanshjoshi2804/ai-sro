@@ -205,6 +205,13 @@
            // mining_unpriced 1 while $1.12 was billed.
            s.mining_unpriced ? ` · <b class="nothing">${esc(s.mining_unpriced)}</b> unpriced` : ""
          }` : ""
+       }${
+         // The day against its cap, when there is one: the one number that
+         // says why a pass, a chat or a run was just refused. Red at the cap,
+         // and red on an unpriced call, which stops the day just as hard.
+         s.cap_usd == null || s.cap_usd < 0 ? "" : ` · <b class="${
+           s.today_unpriced || Number(s.today_usd ?? 0) >= s.cap_usd ? "nothing" : ""
+         }">$${Number(s.today_usd ?? 0).toFixed(4)}</b> of $${Number(s.cap_usd).toFixed(2)} today`
        }`;
   }
 

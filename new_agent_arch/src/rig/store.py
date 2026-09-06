@@ -96,6 +96,24 @@ CREATE TABLE IF NOT EXISTS orphan_pages (
 -- found it rather than carrying a copy of its bill. Copying it meant three
 -- workflows out of one $0.04 call summed to $0.12 -- an overstatement that
 -- grew with how well the pass did.
+-- One row per sentence the chat door read, with what the reading cost. The
+-- sentence itself is not kept: it is an operator's words about a warehouse,
+-- and the bill is what this table is for. Without it the door spent model
+-- money nothing summed and no cap could see.
+CREATE TABLE IF NOT EXISTS chats (
+    id          TEXT PRIMARY KEY,
+    tenant      TEXT NOT NULL,
+    workflow_id TEXT,
+    in_tokens   INTEGER NOT NULL DEFAULT 0,
+    out_tokens  INTEGER NOT NULL DEFAULT 0,
+    thought_tokens INTEGER NOT NULL DEFAULT 0,
+    cost_usd    REAL NOT NULL DEFAULT 0.0,
+    unpriced    INTEGER NOT NULL DEFAULT 0,
+    error       TEXT,
+    at          TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS chats_by_day ON chats (tenant, at);
+
 CREATE TABLE IF NOT EXISTS passes (
     id         TEXT PRIMARY KEY,
     tenant     TEXT NOT NULL,

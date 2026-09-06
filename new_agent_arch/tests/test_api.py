@@ -2921,3 +2921,147 @@ def test_the_page_puts_what_needs_a_person_at_the_top_with_the_write_in_full() -
     assert 'class="approve"' in parked
     assert 'class="approve"' not in going, "nothing to approve on a run that is not parked"
     assert 'class="approve"' not in over, "a wait that ran out is not still approvable"
+
+
+def _capped(monkeypatch: pytest.MonkeyPatch, cap: float) -> None:
+    from rig.config import Settings, settings
+
+    monkeypatch.setattr(
+        "rig.api.settings", lambda: Settings(gemini_api_key="x", tenant="new", daily_usd_cap=cap)
+    )
+    settings.cache_clear()
+
+
+def _spent(store: Store, table: str, usd: float, unpriced: int = 0) -> None:
+    """A row in one of the four billed tables, dated now."""
+    now = datetime.now(tz=UTC).isoformat()
+    if table == "intents":
+        store.execute(
+            "INSERT INTO intents (gesture_id, tenant, cost_usd, unpriced, created_at)"
+            " VALUES ('ges_x', 'new', ?, ?, ?)",
+            (usd, unpriced, now),
+        )
+    elif table == "passes":
+        store.execute(
+            "INSERT INTO passes (id, tenant, started_at, cost_usd, unpriced) VALUES (?, 'new', ?, ?, ?)",
+            ("pas_" + str(usd), now, usd, unpriced),
+        )
+    elif table == "runs":
+        from rig.runs import Run, save_run
+
+        save_run(
+            store,
+            Run(
+                id="run_" + str(usd),
+                tenant="new",
+                workflow_id="wfl_1",
+                device_id="d",
+                values={},
+                started_by="form",
+                live=False,
+                allow_focus=True,
+                started_at=now,
+                finished_at=now,
+                outcome="held",
+                cost_usd=usd,
+                unpriced=bool(unpriced),
+            ),
+        )
+    elif table == "chats":
+        store.execute(
+            "INSERT INTO chats (id, tenant, cost_usd, unpriced, at) VALUES (?, 'new', ?, ?, ?)",
+            ("cht_" + str(usd), usd, unpriced, now),
+        )
+
+
+def test_the_day_is_summed_over_every_kind_of_call(
+    store: Store, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from rig.api import over_cap, spent_today
+
+    _capped(monkeypatch, 1.0)
+    _seed_workflow(store)
+    for table in ("intents", "passes", "runs", "chats"):
+        _spent(store, table, 0.2)
+    assert spent_today(store, "new") == (pytest.approx(0.8), 0)
+    assert over_cap(store, "new") is None, "under the cap"
+    _spent(store, "passes", 0.3)
+    why = over_cap(store, "new")
+    assert why and "$1.1000 of $1.00" in why, why
+    # Yesterday's money is yesterday's.
+    store.execute("UPDATE passes SET started_at = '2000-01-01T00:00:00+00:00'")
+    assert over_cap(store, "new") is None
+    # A call that errored is unpriced because nothing was billed; it does not
+    # stop the day. One that was billed at a price nobody knows does.
+    store.execute(
+        "INSERT INTO chats (id, tenant, cost_usd, unpriced, error, at)"
+        " VALUES ('cht_503', 'new', 0.0, 1, '503 UNAVAILABLE', ?)",
+        (datetime.now(tz=UTC).isoformat(),),
+    )
+    assert over_cap(store, "new") is None
+    _spent(store, "chats", 0.0, unpriced=1)
+    why = over_cap(store, "new")
+    assert why and "1 unpriced call(s)" in why
+    # A negative cap is no cap.
+    _capped(monkeypatch, -1)
+    assert over_cap(store, "new") is None
+
+
+def test_the_three_doors_that_spend_refuse_over_the_cap(
+    client: TestClient, store: Store, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _capped(monkeypatch, 0.5)
+    _seed_workflow(store)
+    _spent(store, "runs", 0.5)
+    for path, body in (
+        ("/v1/mine", {}),
+        ("/v1/chat", {"utterance": "create a client"}),
+        ("/v1/runs", {"workflow_id": "wfl_1", "device_id": "dev_test", "live": False}),
+    ):
+        got = client.post(path, json=body, headers=_auth())
+        assert got.status_code == 429, f"{path}: {got.status_code} {got.text}"
+        assert "daily cap reached" in got.json()["detail"]
+    assert store.query("SELECT count(*) AS n FROM chats")[0]["n"] == 0, "refused before it asked"
+
+
+def test_the_chat_door_writes_its_bill_down(client: TestClient, store: Store) -> None:
+    """The one door that spent model money nothing summed."""
+    _seed_workflow(store)
+    client.app.state.asker = FakeAsker(  # type: ignore[attr-defined]
+        Answer(
+            data={"workflow_id": "wfl_1", "values": {}, "missing": []},
+            in_tokens=10,
+            out_tokens=5,
+            thought_tokens=2,
+            cost_usd=0.0042,
+        )
+    )
+    got = client.post("/v1/chat", json={"utterance": "create a client"}, headers=_auth())
+    assert got.status_code == 200 and got.json()["workflow_id"] == "wfl_1"
+    [row] = store.query("SELECT workflow_id, in_tokens, cost_usd, unpriced FROM chats")
+    assert tuple(row) == ("wfl_1", 10, 0.0042, 0)
+    spend = client.get("/v1/spend", headers=_auth()).json()
+    assert spend["chats"] == 1 and spend["chat_usd"] == 0.0042
+    assert spend["today_usd"] >= 0.0042 and "cap_usd" in spend
+
+
+def test_the_header_shows_the_day_against_its_cap() -> None:
+    rendered = _run_page(
+        """
+        const clean = { gestures: 9, gestures_read: 7, cost_usd: 0.0259,
+                        per_gesture_usd: 0.0037, unpriced: 0, unusable: 0 };
+        console.log(JSON.stringify([
+          spendLine(clean),
+          spendLine({ ...clean, today_usd: 1.25, today_unpriced: 0, cap_usd: 5 }),
+          spendLine({ ...clean, today_usd: 5.01, today_unpriced: 0, cap_usd: 5 }),
+          spendLine({ ...clean, today_usd: 0.1, today_unpriced: 1, cap_usd: 5 }),
+          spendLine({ ...clean, today_usd: 9, today_unpriced: 0, cap_usd: -1 }),
+        ]));
+        """
+    )
+    older, under, over, blind, uncapped = json.loads(rendered)
+    assert "today" not in older, "an older rig's spend has no cap to draw"
+    assert "$1.2500</b> of $5.00 today" in under and 'class="nothing"' not in under
+    assert "$5.0100</b> of $5.00 today" in over and 'class="nothing"' in over
+    assert 'class="nothing"' in blind, "an unpriced call stops the day and the line says so"
+    assert "today" not in uncapped

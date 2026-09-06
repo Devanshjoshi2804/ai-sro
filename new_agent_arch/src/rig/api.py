@@ -240,6 +240,57 @@ def tail_for(store: Store, stream_id: str, before: float) -> list[Intent]:
 MAX_READING_PASSES = 100
 
 
+SPENT_IN = (
+    ("intents", "created_at", "unpriced = 1 AND error IS NULL"),
+    ("passes", "started_at", "unpriced = 1 AND error IS NULL"),
+    ("runs", "started_at", "unpriced = 1"),
+    ("chats", "at", "unpriced = 1 AND error IS NULL"),
+)
+"""Every table a model call bills to, the column that says when, and what a
+blind row is there. A cap that summed one of them was a cap on a quarter of
+the bill. A call that errored is unpriced because nothing was billed, not
+because the price is unknown: a 503 at breakfast must not lock the day."""
+
+
+def spent_today(store: Store, tenant: str) -> tuple[float, int]:
+    """(dollars, unpriced calls) since midnight UTC, over every kind of call.
+
+    The unpriced count is read beside the sum, and stops the day just as hard.
+    A cap that trusts SUM(cost_usd) alone is blind to the one failure PRICES
+    cannot fix: a model name the table never knew about records $0.0000 with
+    unpriced=1, so an unattended week on a new preview name spends without
+    limit while the guard reads zero. This deployment already lived that once
+    -- the run that proved the architecture billed $1.12 and every row said
+    free."""
+    since = datetime.now(tz=UTC).date().isoformat()
+    usd, blind = 0.0, 0
+    for table, when, blind_is in SPENT_IN:
+        row = store.query(
+            f"SELECT COALESCE(SUM(cost_usd), 0.0) AS usd,"
+            f" COALESCE(SUM({blind_is}), 0) AS blind"
+            f" FROM {table} WHERE tenant = ? AND {when} >= ?",
+            (tenant, since),
+        )[0]
+        usd, blind = usd + float(row["usd"]), blind + int(row["blind"])
+    return usd, blind
+
+
+def over_cap(store: Store, tenant: str) -> str | None:
+    """Why the rig will not make another model call today, or None. The
+    sentence is the one the route answers 429 with and the log carries: how
+    much of what, so the person reading it knows whether to raise the cap or
+    to go and find the unpriced call."""
+    cap = settings().daily_usd_cap
+    if cap < 0:
+        return None
+    spent, blind = spent_today(store, tenant)
+    if spent >= cap or blind:
+        return (
+            f"daily cap reached: ${spent:.4f} of ${cap:.2f} spent today, {blind} unpriced call(s)"
+        )
+    return None
+
+
 async def read_new_gestures(store: Store, asker: Asker, model: str, tenant: str) -> int:
     """Every stored gesture of THIS TENANT with no intent gets exactly one reading.
 
@@ -275,37 +326,13 @@ async def _read_unread(store: Store, asker: Asker, model: str, tenant: str) -> i
         (tenant,),
     )
 
-    cap = settings().daily_usd_cap
-    if cap >= 0:
-        since = datetime.now(tz=UTC).date().isoformat()
-        # The unpriced count is read beside the sum, and stops the day just as
-        # hard. A cap that trusts SUM(cost_usd) alone is blind to the one
-        # failure PRICES cannot fix: a model name the table never knew about
-        # records $0.0000 with unpriced=1, so an unattended week on a new
-        # preview name spends without limit while the guard reads zero. This
-        # deployment already lived that once -- the run that proved the
-        # architecture billed $1.12 and every row said free.
-        today = store.query(
-            "SELECT COALESCE(SUM(cost_usd), 0.0) AS usd,"
-            " COALESCE(SUM(unpriced), 0) AS blind FROM intents"
-            " WHERE tenant = ? AND created_at >= ?",
-            (tenant, since),
-        )[0]
-        spent, blind = today["usd"], today["blind"]
-        if spent >= cap or blind:
-            # Reading stops; capture does not. The evidence is still stored, so
-            # raising the cap tomorrow reads what today declined -- which is why
-            # this stops the asking rather than the mirroring.
-            log.warning(
-                "daily cap reached for %s: $%.4f of $%.2f, %d unpriced reading(s),"
-                " %d gesture(s) unread",
-                tenant,
-                spent,
-                cap,
-                blind,
-                len(rows),
-            )
-            return 0
+    why = over_cap(store, tenant)
+    if why:
+        # Reading stops; capture does not. The evidence is still stored, so
+        # raising the cap tomorrow reads what today declined -- which is why
+        # this stops the asking rather than the mirroring.
+        log.warning("%s for %s, %d gesture(s) unread", why, tenant, len(rows))
+        return 0
 
     written = 0
     for row in rows:
@@ -593,9 +620,31 @@ def build_app(
             " coalesce(sum(thought_tokens), 0) AS t FROM passes WHERE tenant = ?",
             (tenant,),
         )[0]
+        chat = store.query(
+            "SELECT count(*) AS n, coalesce(sum(cost_usd), 0.0) AS c,"
+            " coalesce(sum(unpriced), 0) AS u FROM chats WHERE tenant = ?",
+            (tenant,),
+        )[0]
+        running = store.query(
+            "SELECT count(*) AS n, coalesce(sum(cost_usd), 0.0) AS c,"
+            " coalesce(sum(unpriced), 0) AS u FROM runs WHERE tenant = ?",
+            (tenant,),
+        )[0]
+        today_usd, today_blind = spent_today(store, tenant)
         return {
             "passes": mining["n"],
             "mining_usd": round(mining["c"], 6),
+            "chats": chat["n"],
+            "chat_usd": round(chat["c"], 6),
+            "chat_unpriced": chat["u"],
+            "runs": running["n"],
+            "runs_usd": round(running["c"], 6),
+            "runs_unpriced": running["u"],
+            # What the cap sees: everything above since midnight UTC, and the
+            # cap itself, so the line can say how close the day is.
+            "today_usd": round(today_usd, 6),
+            "today_unpriced": today_blind,
+            "cap_usd": settings().daily_usd_cap,
             "mining_unpriced": mining["u"],
             "gestures": gestures_total,
             "gestures_read": row["n"],
@@ -627,6 +676,8 @@ def build_app(
     async def run_a_pass() -> dict[str, Any]:
         from rig.mine import mine
 
+        if why := over_cap(store, tenant):
+            raise HTTPException(status_code=429, detail=why)
         result = await mine(store, tenant=tenant, asker=asker, model=settings().mine_model)
         return {
             # The row in `passes` this reading wrote. Every workflow below
@@ -892,6 +943,10 @@ def build_app(
         from rig.runs import Run, new_run_id, save_run
         from rig.workflows import known_workflows
 
+        # Before the browser is asked anything: a run plans every step on a
+        # model, and a day that has spent its cap starts none.
+        if why := over_cap(store, tenant):
+            raise HTTPException(status_code=429, detail=why)
         # The browser first, then the workflow: "your browser is not connected"
         # is the answer a person can act on, and it holds whatever they asked
         # for. A device that is merely busy is refused before the workflow is
@@ -1268,12 +1323,36 @@ def build_app(
         from rig.entry import understand
         from rig.workflows import known_workflows
 
+        if why := over_cap(store, tenant):
+            raise HTTPException(status_code=429, detail=why)
         got = await understand(
             str(body.get("utterance") or ""),
             known_workflows(store, tenant),
             app.state.asker,
             settings().plan_model,
         )
+        # The bill, written down. The sentence is not: it is an operator's
+        # words about their warehouse, and the row exists for the cap and the
+        # spend line, neither of which needs them.
+        if got.answer is not None:
+            a = got.answer
+            store.execute(
+                "INSERT INTO chats (id, tenant, workflow_id, in_tokens, out_tokens,"
+                " thought_tokens, cost_usd, unpriced, error, at)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    "cht_" + secrets.token_hex(8),
+                    tenant,
+                    got.workflow_id,
+                    a.in_tokens,
+                    a.out_tokens,
+                    a.thought_tokens,
+                    a.cost_usd,
+                    int(a.unpriced),
+                    a.error,
+                    datetime.now(tz=UTC).isoformat(),
+                ),
+            )
         return {"workflow_id": got.workflow_id, "values": got.values, "missing": got.missing}
 
     @app.get("/v1/shapes", dependencies=[Depends(authorised)])

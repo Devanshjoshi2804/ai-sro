@@ -2868,7 +2868,10 @@ def test_the_runs_list_says_which_are_parked_on_a_write(client: TestClient, stor
         )
 
     run("run_parked", "running", "awaiting")
-    run("run_timed_out", "failed", "awaiting")  # its wait ran out; nobody is waiting
+    # Not a state the runner writes -- a wait that runs out rewrites the step
+    # `failed` before the run leaves `running` -- but the one the list must
+    # refuse if it ever appears: nobody is waiting on it.
+    run("run_timed_out", "failed", "awaiting")
     run("run_going", "running", "held")
     Approvals.register("run_parked")
     try:

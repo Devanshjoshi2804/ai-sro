@@ -1,0 +1,322 @@
+"""The served shape, without the queries that gather its evidence.
+
+Every one of these went through `shapes_for(store, ...)` in the rig. Here the
+evidence is handed in: the cited pairs, the held tally and this job's counsel.
+The loop, the held gate, the per-workflow queries and rekeying stay for the
+application layer -- the tests that exercise them are listed at the foot.
+"""
+
+import copy
+
+from sro.domain.observation.gesture import Action, Gesture
+from sro.domain.skill.offers import K_OFFER_AFTER, Counsel
+from sro.domain.skill.shape import Shape, cited_pairs, shape_of
+from sro.domain.skill.workflow import Step, Workflow
+from tests.unit.domain.rig.conftest import gestures as _gestures
+
+QUIET = Counsel(offer_after=K_OFFER_AFTER, quiet_until=None)
+"""No offer has said anything about this job yet."""
+
+HOST = "http://127.0.0.1:63319"
+
+
+def _evidence() -> dict[str, Gesture]:
+    return {g.id: copy.deepcopy(g) for g in _gestures()}
+
+
+def _typed(by_id: dict[str, Gesture]) -> Gesture:
+    return next(
+        g for g in by_id.values() if g.action.kind == "type" and g.action.value == "ACME-4471"
+    )
+
+
+def _saver(by_id: dict[str, Gesture]) -> Gesture:
+    """The click on Save. By its control and not by position: half these tests
+    put a gesture of their own into `by_id` first."""
+    return next(
+        g
+        for g in by_id.values()
+        if g.action.target
+        and g.action.target.component
+        and g.action.target.component.item_id == "saveButton"
+    )
+
+
+def _workflow(by_id: dict[str, Gesture], wid: str = "wfl_1") -> Workflow:
+    return Workflow(
+        id=wid,
+        tenant="acme",
+        title="create a client",
+        narrative="n",
+        systems=[HOST],
+        steps=[
+            Step(
+                order=0,
+                says="type the code",
+                system=None,
+                cites=[_typed(by_id).id],
+                parameters=["clientCode"],
+            ),
+            Step(order=1, says="save", system=None, cites=[_saver(by_id).id]),
+        ],
+        parameters=[{"name": "clientCode", "seen_values": ["ACME-4471"]}],
+    )
+
+
+def _served(
+    workflow: Workflow,
+    by_id: dict[str, Gesture],
+    *,
+    held: int = 0,
+    advice: Counsel = QUIET,
+) -> Shape | None:
+    return shape_of(workflow, cited_pairs(workflow, by_id), held=held, advice=advice)
+
+
+def _scroll(page_url: str = f"{HOST}/") -> Gesture:
+    """A scroll as the recorder would have kept it. The committed batch holds
+    none -- the browser test that produced it never scrolled -- and half the
+    rules below are entirely about scrolls."""
+    at = 1788165604.6
+    return Gesture(
+        id="ges_scroll",
+        tenant="acme",
+        stream_id="dev_browsertest",
+        batch_id="bat_scrolled",
+        at=at,
+        url=f"{HOST}/",
+        system=HOST,
+        tab_id=1766715008,
+        frame_url=f"{HOST}/",
+        action=Action(kind="scroll", at=at, value="300", url=f"{HOST}/", target=None),
+        page_url=page_url,
+    )
+
+
+def _scrolled_first(by_id: dict[str, Gesture]) -> Workflow:
+    """The same workflow, with a scroll cited ahead of the gesture that types
+    the parameter -- which is what a real recording looks like the moment the
+    field is below the fold."""
+    workflow = _workflow(by_id)
+    scroll = _scroll()
+    by_id[scroll.id] = scroll
+    workflow.steps[0].cites = [scroll.id, *workflow.steps[0].cites]
+    return workflow
+
+
+def test_a_proven_workflow_is_served_as_its_shape_with_where_each_parameter_was_typed() -> None:
+    by_id = _evidence()
+
+    shape = _served(_workflow(by_id), by_id, held=0)
+
+    assert shape is not None
+    assert shape.id == "wfl_1" and shape.title == "create a client"
+    assert shape.starts_on and shape.starts_on.startswith(HOST)
+    assert HOST in shape.hosts
+    assert len(shape.shape) == 2 and shape.shape[0][2] == "type" and shape.shape[1][2] == "click"
+    assert shape.parameters == [{"name": "clientCode", "at": 0}], (
+        "the parameter was typed at shape index 0"
+    )
+    assert shape.held_runs == 0
+
+
+def test_a_parameter_no_cited_gesture_typed_has_no_index() -> None:
+    by_id = _evidence()
+    workflow = _workflow(by_id)
+    workflow.parameters.append({"name": "description", "seen_values": ["never typed here"]})
+
+    shape = _served(workflow, by_id)
+
+    assert shape is not None
+    assert {"name": "description", "at": None} in shape.parameters
+
+
+def test_a_workflow_that_starts_somewhere_its_own_evidence_never_names_is_not_served() -> None:
+    """The tab was on one origin while the frame that recorded the gesture was
+    on another. Serving that sends the extension to an unproven host."""
+    by_id = _evidence()
+    workflow = _workflow(by_id)
+    _typed(by_id).page_url = "https://other.example/x"
+
+    assert _served(workflow, by_id) is None
+
+
+def test_a_parameter_is_placed_by_the_step_that_declares_it_not_the_first_match() -> None:
+    """Search-then-create types the same code twice. The first typing is the
+    search box, which is not the control the workflow is filling."""
+    by_id = _evidence()
+    workflow = _workflow(by_id)
+    searched = workflow.steps[0].cites[0]
+    workflow.steps = [
+        Step(order=0, says="search for it first", system=None, cites=[searched]),
+        Step(
+            order=1,
+            says="type the code",
+            system=None,
+            cites=[searched],
+            parameters=["clientCode"],
+        ),
+        *[
+            Step(order=s.order + 1, says=s.says, system=s.system, cites=s.cites)
+            for s in workflow.steps[1:]
+        ],
+    ]
+
+    shape = _served(workflow, by_id)
+
+    assert shape is not None
+    assert len(shape.shape) == 3
+    assert shape.parameters == [{"name": "clientCode", "at": 1}], (
+        "index 0 is the search box the first value match would have bound"
+    )
+
+
+def test_a_scroll_is_not_part_of_the_shape_that_is_served() -> None:
+    """`recognise.js` drops a scroll before the tail is ever written, so a
+    served shape carrying one could not be matched at any k -- and a job whose
+    first triple is a scroll could never be offered at all."""
+    by_id = _evidence()
+    workflow = _scrolled_first(by_id)
+
+    shape = _served(workflow, by_id)
+
+    assert shape is not None
+    cited = [gesture for step in workflow.steps for gesture in step.cites]
+    assert not any(triple[1] == "anon|scroll" for triple in shape.shape)
+    assert len(shape.shape) == len(cited) - 1, "three cited gestures, one of them the scroll"
+
+
+def test_a_parameter_typed_after_a_scroll_is_indexed_into_the_shape_as_served() -> None:
+    """`at` is walked against the shape the extension is handed, which has no
+    scroll in it. Counted against the unfiltered evidence it would point one
+    control to the right and fill the wrong box."""
+    by_id = _evidence()
+
+    shape = _served(_scrolled_first(by_id), by_id)
+
+    assert shape is not None
+    assert shape.parameters == [{"name": "clientCode", "at": 0}], (
+        "index 1 is where the scroll put it in the unfiltered list"
+    )
+
+
+def test_a_parameter_the_workflow_declares_badly_is_dropped_rather_than_served() -> None:
+    """A parameter with no name is not a parameter the extension can fill, and
+    one with no recorded values was simply never typed anywhere."""
+    by_id = _evidence()
+    workflow = _workflow(by_id)
+    workflow.parameters = [
+        {"seen_values": ["ACME-4471"]},
+        {"name": "notes"},
+        *workflow.parameters,
+    ]
+
+    shape = _served(workflow, by_id)
+
+    assert shape is not None
+    assert shape.parameters == [
+        {"name": "notes", "at": None},
+        {"name": "clientCode", "at": 0},
+    ]
+
+
+def test_a_job_whose_first_step_is_only_a_scroll_still_says_where_it_begins() -> None:
+    """`primary_gesture` has nothing to return when every gesture the first
+    step cites is a scroll, and the job still begins somewhere."""
+    by_id = _evidence()
+    workflow = _workflow(by_id)
+    # Two pages, so the answer is the first step's and not the second's.
+    scroll = _scroll(page_url=f"{HOST}/list")
+    by_id[scroll.id] = scroll
+    workflow.steps[0].cites = [scroll.id]
+    workflow.steps[0].parameters = []
+    _saver(by_id).page_url = f"{HOST}/form"
+
+    shape = _served(workflow, by_id)
+
+    assert shape is not None
+    assert shape.starts_on == f"{HOST}/list"
+
+
+def test_a_resting_job_is_served_marked_for_the_browser_that_refused_it() -> None:
+    """Refused three times running on this browser: still served, and marked.
+    The list stays whole and cacheable, and `recognise.js` declines to offer
+    the job until the hour the mark names."""
+    by_id = _evidence()
+    resting = Counsel(offer_after=2, quiet_until="2099-01-01T00:00:00+00:00")
+
+    shape = _served(_workflow(by_id), by_id, advice=resting)
+
+    assert shape is not None
+    assert shape.quiet_until == "2099-01-01T00:00:00+00:00"
+    assert shape.as_json()["quiet_until"] == shape.quiet_until
+
+
+def test_a_later_offer_is_capped_at_the_last_gesture_but_one() -> None:
+    """Diverged at k=5 on both jobs: counsel says 6 for each. The two-gesture
+    job cannot be offered at 6, and the four-gesture one cannot be offered at
+    its last."""
+    by_id = _evidence()
+    later = Counsel(offer_after=6, quiet_until=None)
+    four = list(by_id.values())
+    four_steps = Workflow(
+        id="wfl_4",
+        tenant="acme",
+        title="four gestures",
+        narrative="n",
+        systems=[HOST],
+        steps=[
+            Step(order=i, says=f"step {i}", system=None, cites=[four[j].id])
+            for i, j in enumerate((0, 1, 2, -1))
+        ],
+    )
+
+    two_shape = _served(_workflow(by_id), by_id, advice=later)
+    four_shape = _served(four_steps, by_id, advice=later)
+
+    assert four_shape is not None and two_shape is not None
+    assert len(four_shape.shape) == 4
+    assert four_shape.offer_after == 3, "capped at the last gesture but one"
+    assert two_shape.offer_after == K_OFFER_AFTER, "and never under the default"
+
+
+def test_a_parameter_learned_across_doings_is_placed_by_the_control_that_typed_it() -> None:
+    """`parameters_across` records a parameter on the workflow and on no step,
+    named after the control it was typed into. Measured on the real corpus:
+    four jobs learned eleven parameters in one pass, and every one was served
+    with `at: None`."""
+    by_id = _evidence()
+    typed = _typed(by_id)
+    target = typed.action.target
+    assert target is not None and target.component is not None
+    name = target.component.item_id
+    assert name, "the fixture's typed control has a name to learn"
+    workflow = Workflow(
+        id="wfl_learned",
+        tenant="acme",
+        title="create a client",
+        narrative="n",
+        systems=[HOST],
+        # No step declares the parameter: it was learned later.
+        steps=[
+            Step(order=0, says="type the code", system=None, cites=[typed.id]),
+            Step(order=1, says="save", system=None, cites=[_saver(by_id).id]),
+        ],
+        parameters=[{"name": name, "seen_values": ["ACME-4471", "ACME-9000"]}],
+    )
+
+    shape = _served(workflow, by_id)
+
+    assert shape is not None
+    assert shape.parameters == [{"name": name, "at": 0}]
+
+
+# Left for plan 3, where the loop, its queries and rekeying live:
+#   test_an_unproven_workflow_is_not_served
+#   test_the_held_gate_is_per_workflow_and_never_silences_one_that_never_ran
+#   test_a_workflow_that_cannot_be_served_never_withdraws_the_ones_behind_it
+#   test_a_stored_key_from_an_older_rule_is_recomputed_once
+#   test_a_workflow_whose_evidence_is_partly_gone_keeps_its_key
+#   test_a_workflow_that_cannot_be_rekeyed_does_not_stop_the_others
+#   test_a_resting_job_is_served_marked_for_the_browser_that_refused_it
+#     -- the counsel query behind it; the shape's own half is above.

@@ -936,23 +936,7 @@ async function handle(message, sender) {
       let registered = false;
       if (message.rigToken) {
         await state.setRigToken(message.rigToken);
-        // The typed token is the tenant's. A rig that can mint one for this
-        // browser is asked to, and its answer is what this browser keeps: a
-        // token of its own, revocable by the tenant, that names it on every
-        // call. An older rig, or one that refuses, leaves the typed token in
-        // place and everything works as it did.
-        const deviceId = await state.deviceId();
-        if (message.rigUrl && deviceId) {
-          try {
-            const minted = await api.rigRegister(message.rigUrl, message.rigToken, deviceId);
-            if (minted?.token) {
-              await state.setRigToken(minted.token);
-              registered = true;
-            }
-          } catch {
-            // Kept: the tenant's bearer still opens every door.
-          }
-        }
+        registered = await mintRigToken();
       } else if (!message.rigUrl) {
         // Clearing the URL turns the mirror off, and its secret goes with it.
         await state.setRigToken("");
@@ -1592,6 +1576,33 @@ async function flushQueue() {
   }
 }
 
+/**
+ * The typed rig token is the tenant's. A rig that can mint one for this
+ * browser is asked to, and its answer is what this browser keeps: a token of
+ * its own, revocable by the tenant, that names it on every call. True when it
+ * now holds one. Nothing to ask with (no URL, no token, no device id yet), a
+ * token that is already its own (the rig's `dev_` prefix), an older rig, or
+ * one that refuses: false, and the held token stays -- the tenant's bearer
+ * still opens every door. Asked on save and again at sign-in, since a rig
+ * pasted before the browser had a device id had nothing to register.
+ */
+async function mintRigToken() {
+  const [rigUrl, held, deviceId] = await Promise.all([
+    state.rigUrl(),
+    state.rigToken(),
+    state.deviceId(),
+  ]);
+  if (!rigUrl || !held || !deviceId || held.startsWith("dev_")) return false;
+  try {
+    const minted = await api.rigRegister(rigUrl, held, deviceId);
+    if (!minted?.token) return false;
+    await state.setRigToken(minted.token);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** Register this browser profile, then apply whatever policy came back. */
 async function register(label) {
   // The queue was cleared and the epoch rotated by the `sign-in` case before
@@ -1606,6 +1617,9 @@ async function register(label) {
   await state.setDeviceSecret(registered.device_secret || "");
   await state.setPolicy(registered.policy);
   await state.setLastError("");
+  // Before `settle` dials the rig: the socket should open with this
+  // browser's own token when the rig can mint one.
+  await mintRigToken();
   // Before `settle`, which is what registers the script that evaluates them.
   await refreshWatches();
   await settle();

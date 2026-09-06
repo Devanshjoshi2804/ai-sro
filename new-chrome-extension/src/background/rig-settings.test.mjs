@@ -61,6 +61,13 @@ globalThis.chrome = {
     setTitle: async () => {},
   },
   sidePanel: { open: async () => {}, setPanelBehavior: async () => {} },
+  // Sign-in unregisters and re-registers the content scripts; none here.
+  scripting: {
+    getRegisteredContentScripts: async () => [],
+    unregisterContentScripts: async () => {},
+    registerContentScripts: async () => {},
+  },
+  permissions: { getAll: async () => ({ origins: [] }), contains: async () => false },
 };
 
 await import("./service-worker.js");
@@ -167,4 +174,64 @@ test("a browser with no device id yet keeps the typed token and asks nothing", a
   }
   assert.equal(asked, 0);
   assert.equal(held.get("sro.rigToken"), "tenant-secret");
+});
+
+test("a browser that already holds its own token does not ask for another on save", async () => {
+  held.clear();
+  held.set("sro.deviceId", "dev-9");
+  held.set("sro.rigUrl", "http://localhost:8100");
+  let asked = 0;
+  const fetchWas = globalThis.fetch;
+  globalThis.fetch = async () => {
+    asked += 1;
+    return { ok: true, status: 201, json: async () => ({ token: "dev_again" }) };
+  };
+  try {
+    // A blank token field leaves the held `dev_` token alone; nothing to mint.
+    await sendRig({ rigUrl: "http://localhost:8100", rigToken: "" });
+  } finally {
+    globalThis.fetch = fetchWas;
+  }
+  assert.equal(asked, 0);
+});
+
+test("signing in after the rig was pasted mints the token the save could not", async () => {
+  held.clear();
+  held.set("sro.rigUrl", "http://localhost:8100");
+  held.set("sro.rigToken", "tenant-secret");
+  const asked = [];
+  let answer;
+  let minted;
+  const fetchWas = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    asked.push({ url: String(url), init });
+    if (String(url).endsWith("/v1/devices/register")) {
+      return { ok: true, status: 201, json: async () => ({ device_id: "dev-9", token: "dev_minted" }) };
+    }
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({ device_id: "dev-9", device_secret: "s", policy: null }),
+    };
+  };
+  try {
+    answer = await new Promise((resolve) => {
+      globalThis.__handle(
+        { kind: "sign-in", apiUrl: "http://backend.test", token: "backend-tok", label: "x" },
+        {},
+        resolve,
+      );
+    });
+    minted = held.get("sro.rigToken");
+    // Sign out again: sign-in dialled both sockets, and an open socket or its
+    // retry timer would keep this process alive after the last test. Sign-out
+    // forgets every credential, the rig's too, so the token is read first.
+    await new Promise((resolve) => globalThis.__handle({ kind: "sign-out" }, {}, resolve));
+  } finally {
+    globalThis.fetch = fetchWas;
+  }
+  const rig = asked.find((a) => a.url.endsWith("/v1/devices/register"));
+  assert.ok(rig, `sign-in never asked the rig: ${JSON.stringify({ asked: asked.map((a) => a.url), answer })}`);
+  assert.equal(rig.init.headers.Authorization, "Bearer tenant-secret");
+  assert.equal(minted, "dev_minted");
 });

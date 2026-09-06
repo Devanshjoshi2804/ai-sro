@@ -582,7 +582,9 @@
     if (wanted) void openRun(wanted);
   });
 
-  draw().then(() => {
+  // `finally`, not `then`: a first paint that could not reach the rig must
+  // not also drop the run the address asked for.
+  draw().finally(() => {
     const wanted = runHash(location.hash);
     if (wanted) void openRun(wanted);
   });

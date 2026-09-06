@@ -73,7 +73,7 @@ const browser = {
 
 export default [
   {
-    files: ["src/**/*.js", "src/**/*.mjs"],
+    files: ["src/**/*.js", "src/**/*.mjs", "scripts/**/*.mjs"],
     languageOptions: {
       ecmaVersion: 2024,
       sourceType: "module",
@@ -90,8 +90,8 @@ export default [
     languageOptions: { globals: { ...browser, Ext: "readonly" } },
   },
   {
-    // Test files run in node and reach for its own globals.
-    files: ["src/**/*.test.mjs"],
+    // Test files and the scripts run in node and reach for its own globals.
+    files: ["src/**/*.test.mjs", "scripts/**/*.mjs"],
     languageOptions: {
       globals: { ...browser, process: "readonly", Buffer: "readonly", __dirname: "readonly" },
     },

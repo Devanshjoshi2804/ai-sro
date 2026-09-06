@@ -149,7 +149,9 @@ pipelines:
               condition: { changesets: { includePaths: ["backend/**", "frontend/openapi.json"] } }
           - step:
               <<: *extension-quality
-              condition: { changesets: { includePaths: ["new-chrome-extension/**", "Makefile"] } }
+              # The frontend's package files too: the extension's eslint is
+              # the frontend's, so a bump there is what breaks this step.
+              condition: { changesets: { includePaths: ["new-chrome-extension/**", "Makefile", "frontend/package.json", "frontend/package-lock.json"] } }
           - step:
               <<: *rig-quality
               condition: { changesets: { includePaths: ["new_agent_arch/**"] } }

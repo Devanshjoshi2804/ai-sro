@@ -935,10 +935,9 @@ async function handle(message, sender) {
       // and somebody changing only the URL would otherwise wipe the token
       // without being told -- and mirrorSafely swallows the failure, so they
       // would find out when somebody noticed the rig had gone quiet.
-      let registered = false;
       if (message.rigToken) {
         await state.setRigToken(message.rigToken);
-        registered = await mintRigToken();
+        await mintRigToken();
       } else if (!message.rigUrl) {
         // Clearing the URL turns the mirror off, and its secret goes with it.
         await state.setRigToken("");
@@ -955,9 +954,9 @@ async function handle(message, sender) {
       // Dialled now rather than at the next alarm: an operator who has just
       // pasted a rig URL is watching this page for it to come up.
       void rigChannel.settle();
-      // `registered` beside the status: the options page says which kind of
-      // token this browser now holds.
-      return { ...(await status()), registered };
+      // status() says which kind of token this browser now holds
+      // (`rigRegistered`), so the options page needs nothing more.
+      return status();
     case "flush":
       // Upload now rather than on the next tick, and all of it: the options
       // page offers this so an operator about to close the laptop can watch the
@@ -1819,6 +1818,10 @@ async function status(sender = null) {
     consoleUrl,
     rigUrl,
     rigTokenSet: Boolean(rigToken),
+    // Whether the saved token is this browser's own (the rig's `dev_` prefix)
+    // or the tenant's typed bearer. Every render of the options page says
+    // which, not only the one that follows a save.
+    rigRegistered: rigToken.startsWith("dev_"),
     paused,
     serverPaused,
     lastBeat,

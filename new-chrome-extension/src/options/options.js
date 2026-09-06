@@ -56,9 +56,11 @@ function render(status) {
   $("rig-token").value = "";
   // The token typed here is the tenant's; on save the rig mints one for this
   // browser and that is what stays saved. The tenant's is not kept.
-  $("rig-token").placeholder = status.rigTokenSet
-    ? "saved"
-    : "the tenant's rig token; this browser keeps one of its own";
+  $("rig-token").placeholder = status.rigRegistered
+    ? "registered: this browser holds a token of its own"
+    : status.rigTokenSet
+      ? "saved: the tenant's token, until a rig that registers browsers is saved"
+      : "the tenant's rig token; this browser keeps one of its own";
   $("purge").disabled = !status.deviceId;
 
 }
@@ -110,9 +112,6 @@ $("rig").addEventListener("submit", async (event) => {
       rigToken: $("rig-token").value.trim(),
     });
     render(answer);
-    if (answer.registered) {
-      $("rig-token").placeholder = "registered: this browser holds a token of its own";
-    }
   } catch (error) {
     trouble(error);
   }

@@ -132,9 +132,9 @@ test("a rig that mints a device token is given the tenant's, and the browser kee
     asked.push({ url, init });
     return { ok: true, status: 201, json: async () => ({ device_id: "dev-9", token: "dev_minted" }) };
   };
+  let answer;
   try {
-    const answer = await sendRig({ rigUrl: "http://localhost:8100", rigToken: "tenant-secret" });
-    assert.equal(answer.registered, true);
+    answer = await sendRig({ rigUrl: "http://localhost:8100", rigToken: "tenant-secret" });
   } finally {
     globalThis.fetch = fetchWas;
   }
@@ -143,6 +143,7 @@ test("a rig that mints a device token is given the tenant's, and the browser kee
   assert.equal(asked[0].init.headers.Authorization, "Bearer tenant-secret");
   assert.deepEqual(JSON.parse(asked[0].init.body), { device_id: "dev-9" });
   assert.equal(held.get("sro.rigToken"), "dev_minted", "the tenant's secret is not kept");
+  assert.equal(answer.rigRegistered, true, "status says which token the browser holds");
 });
 
 test("an older rig that cannot register leaves the typed token in place", async () => {
@@ -152,7 +153,8 @@ test("an older rig that cannot register leaves the typed token in place", async 
   globalThis.fetch = async () => ({ ok: false, status: 404, json: async () => ({ detail: "Not Found" }) });
   try {
     const answer = await sendRig({ rigUrl: "http://localhost:8100", rigToken: "tenant-secret" });
-    assert.equal(answer.registered, false);
+    assert.equal(answer.rigRegistered, false);
+    assert.equal(answer.rigTokenSet, true);
   } finally {
     globalThis.fetch = fetchWas;
   }

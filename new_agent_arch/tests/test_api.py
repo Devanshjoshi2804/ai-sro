@@ -2556,3 +2556,20 @@ def test_the_page_says_what_became_of_the_offers() -> None:
     assert lines[0] == "never run · offered 3 times"
     assert "offers: 1 accepted" in lines[1] and "dismissed" not in lines[1]
     assert "offers" not in lines[2]
+
+
+def test_the_page_lists_past_runs_and_escapes_who_started_them() -> None:
+    attack = "<img src=x onerror=go()>"
+    out = _run_page(
+        f"""
+        console.log(pastList([]));
+        console.log(pastList([{{ id: "run_1", started_at: "2026-09-06T10:00:00+00:00",
+          outcome: "held", live: false, started_by: {json.dumps(attack)} }}]));
+        """
+    )
+    lines = out.strip().splitlines()
+    assert "no runs yet" in lines[0]
+    # The list renders across lines; everything after the first line is it.
+    listed = "\n".join(lines[1:])
+    assert "held (dry)" in listed and 'data-run="run_1"' in listed
+    assert attack not in listed and "&lt;img src=x onerror=go()&gt;" in listed

@@ -33,6 +33,9 @@
   .what { color: var(--text); }
   .why { color: var(--muted); font-size: 12px; }
   .history { color: var(--muted); font-size: 12px; }
+  ul.past { list-style: none; padding: 0; margin: 6px 0; font-size: 12px; }
+  ul.past li { display: flex; gap: 10px; align-items: baseline; }
+  ul.past .when { color: var(--muted); font-family: var(--mono, monospace); }
   .unread { color: var(--muted); font-style: italic; }
   /* A reading that happened, cost money and came back with nothing usable.
      It is neither unread nor read, so it must not look like either. */
@@ -254,6 +257,7 @@
       <div class="history">${esc(became(w.runs))}</div>
       ${(w.steps ?? []).map(step).join("")}
       <button class="run" data-id="${esc(w.id)}">run</button>
+      <button class="past quiet" data-id="${esc(w.id)}">past runs</button>
       <div class="runner" id="runner-${esc(w.id)}"></div>
     </div>`;
   }
@@ -427,6 +431,49 @@
     });
   }
 
+  // The job's recent runs, one line each, newest first; "open" draws the run
+  // the way a live one is drawn, and it closes the same way.
+  function pastList(runs) {
+    if (!runs.length) return `<div class="none">no runs yet</div>`;
+    return `<ul class="past">${runs
+      .map(
+        (r) => `<li><span class="when">${esc(r.started_at)}</span>
+          <span class="outcome">${esc(r.outcome)}${r.live ? "" : " (dry)"}</span>
+          <span class="by">by ${esc(r.started_by)}</span>
+          <button class="open" data-run="${esc(r.id)}">open</button></li>`,
+      )
+      .join("")}</ul>`;
+  }
+
+  async function openPast(w) {
+    const box = document.getElementById(`runner-${w.id}`);
+    box.innerHTML = `<div class="note"></div><div class="live"></div>`;
+    const note = box.querySelector(".note");
+    try {
+      const { runs } = await get(`/v1/runs?workflow_id=${encodeURIComponent(w.id)}&limit=10`);
+      note.innerHTML = pastList(runs);
+    } catch (error) {
+      note.innerHTML = `<div class="error">${esc(error.message)}</div>`;
+      return;
+    }
+    for (const b of note.querySelectorAll("button.open")) {
+      b.addEventListener("click", async () => {
+        const into = box.querySelector(".live");
+        try {
+          const run = await get(`/v1/runs/${encodeURIComponent(b.dataset.run)}`);
+          into.innerHTML = runView(run);
+          into.querySelector(".close")?.addEventListener("click", () => {
+            into.innerHTML = "";
+          });
+          // A run still running is watched from here on, like one just started.
+          if (run.outcome === "running") watch(run.id, run.device_id, into);
+        } catch (error) {
+          into.innerHTML = `<div class="error">${esc(error.message)}</div>`;
+        }
+      });
+    }
+  }
+
   let showing = "gestures";
 
   // The three-second redraw replaces every card, and with it every runner box
@@ -461,6 +508,10 @@
     for (const b of jobs.querySelectorAll("button.run")) {
       b.addEventListener("click", () =>
         openRunner(workflows.find((w) => w.id === b.dataset.id)));
+    }
+    for (const b of jobs.querySelectorAll("button.past")) {
+      b.addEventListener("click", () =>
+        openPast(workflows.find((w) => w.id === b.dataset.id)));
     }
   }
 

@@ -663,26 +663,34 @@ def build_app(
     @app.get("/v1/workflows", dependencies=[Depends(authorised)])
     def workflows() -> dict[str, Any]:
         from rig.effects import earned
-        from rig.runs import runs_for
         from rig.workflows import known_workflows
 
         def history(workflow_id: str) -> dict[str, Any]:
             # What has become of this job: how often it ran, how often it held,
             # the last run, and whether its writes go unasked now. The page
-            # draws this under the card; nothing else reads it.
-            runs = runs_for(store, tenant, workflow_id)
-            last = runs[-1] if runs else None
+            # draws this under the card every few seconds, so it is two index
+            # reads, not the runs loaded whole with their steps.
+            counts = store.query(
+                "SELECT COUNT(*) AS total, SUM(outcome = 'held') AS held FROM runs"
+                " WHERE tenant = ? AND workflow_id = ?",
+                (tenant, workflow_id),
+            )[0]
+            last = store.query(
+                "SELECT id, outcome, live, started_by, started_at FROM runs"
+                " WHERE tenant = ? AND workflow_id = ? ORDER BY started_at DESC LIMIT 1",
+                (tenant, workflow_id),
+            )
             return {
-                "total": len(runs),
-                "held": sum(1 for r in runs if r.outcome == "held"),
+                "total": int(counts["total"] or 0),
+                "held": int(counts["held"] or 0),
                 "last": None
-                if last is None
+                if not last
                 else {
-                    "id": last.id,
-                    "outcome": last.outcome,
-                    "live": last.live,
-                    "started_by": last.started_by,
-                    "started_at": last.started_at,
+                    "id": last[0]["id"],
+                    "outcome": last[0]["outcome"],
+                    "live": bool(last[0]["live"]),
+                    "started_by": last[0]["started_by"],
+                    "started_at": last[0]["started_at"],
                 },
                 "earned": earned(store, workflow_id, tenant=tenant),
             }

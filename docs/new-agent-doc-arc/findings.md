@@ -989,8 +989,31 @@ prefix that is unique — two shapes matching at the same `k` end the tail with
 the same `k` triples, so the tail holds nothing that says which job it is —
 which means a tail two gestures long into any of those three names none of
 them. **Those three of the eight are first offered at `k = 3`, not `k = 2`,
-and no offer a fresh rig makes on this corpus names the wrong job.** The
-constant was not moved on this evidence. Whether an operator would rather see a wrong title early
+and no offer a fresh rig makes on this corpus names the wrong job.** That
+sentence is now measured rather than argued. `make offer-replay` has the rig
+write each job's demonstrated gestures beside the shapes it serves, and feeds
+them one at a time through the same `tailWith` and `match` the service worker
+runs -- no browser, no model, the corpus against itself:
+
+```
+job                                                gestures  offered at  k  named
+Login and Start Recording                                14           2  2  itself
+Create a Warehouse Equipment Type                        13           3  3  itself
+Create Work Area NEWTESTS                                22           2  2  itself
+Create Work Area TWOTEST                                 18           4  3  itself
+Search and Filter Work Areas                             35           2  2  itself
+Create Work Area Operation NEWTEST4                      21           3  2  itself
+Create Carrier Cross Reference for Test Drive LLC        26           3  3  itself
+Create Work Activity TEST1                               16           2  2  itself
+8 jobs replayed against 8 served shapes at K_OFFER_AFTER = 2: 8 offered as themselves, 0 offered as another job, 0 never offered
+```
+
+Five jobs are offered on the second gesture, the three that collide on the
+third (TWOTEST on its fourth: its third gesture is a scroll, which the tail
+drops), and NEWTEST4 -- unofferable before the shapes went scroll-free -- on
+its third. What this does not measure is a real gesture stream: the recorder's
+live triples on a page that has been through a reload or a frame are the
+recipe's question, not this table's. The constant was not moved on this evidence. Whether an operator would rather see a wrong title early
 or a right one later is not settled by a collision count; it is settled by what
 becomes of the offers, which is the `offers` table's own column and the last
 thing the recipe below asks for.
@@ -1039,9 +1062,10 @@ thing the recipe below asks for.
   reload, a frame, a slow render — is untested outside the fixtures.
 - **The panel has never polled a live rig.** The run card's poll, its rows, its
   glyphs and its **Approve** button are driven by a fake worker in the suite.
-- **The value of `K_OFFER_AFTER` on this corpus is unmeasured.** The collision
-  count above says two gestures are ambiguous for three of the eight jobs; it
-  does not say whether that matters to the person being offered to.
+- **The value of `K_OFFER_AFTER` against a live stream is unmeasured.** Replayed
+  against its own evidence every job is offered as itself; whether a person
+  minds waiting for a third gesture on three of the eight is what the offers'
+  fates will say, not the replay.
 - **No parameter has ever been lifted from a tail**, because no workflow in this
   corpus declares one.
 - **Nothing here proves earning end to end.** `K_EARNED_RUNS` live runs whose

@@ -34,9 +34,11 @@ from rig.channel import Answer as Reply
 from rig.channel import FakeChannel
 from rig.config import settings
 from rig.locators import allowlist, primary_gesture, recorded_call, writes
+from rig.mine import _ordered_cites
 from rig.models import Answer, Effort
 from rig.records import Gesture
 from rig.runner import _gestures_for
+from rig.shape import target_identity
 from rig.store import Store
 from rig.wire import REDACTED
 from rig.workflows import Workflow, known_workflows
@@ -114,6 +116,7 @@ class Model:
         evidence: str,
         schema: dict[str, Any],
         image: bytes | None = None,
+        images: tuple[bytes, ...] = (),
         effort: Effort | None = None,
     ) -> Answer:
         await asyncio.sleep(0)
@@ -216,6 +219,37 @@ def tally(run: Mapping[str, Any]) -> str:
     return " ".join(f"{verdict}:{n}" for verdict, n in sorted(counts.items())) or "-"
 
 
+def _replay(
+    workflows: list[Workflow],
+    cited: dict[str, dict[str, Gesture]],
+    served: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Each job's demonstrated gestures, as the tail the extension would build
+    from them: the same triple the served shape is made of, in the order the
+    operator made them, and nothing typed. Scrolls stay in -- the matcher's
+    `tailWith` is what drops them, and this is a test of the matcher."""
+    jobs = []
+    for w in workflows:
+        by_id = cited[w.id]
+        entries = []
+        for gid in _ordered_cites(w):
+            g = by_id.get(gid)
+            if g is None:
+                continue
+            entries.append(
+                {
+                    "triple": [g.system or "", target_identity(g), g.gesture.kind],
+                    "value": None,
+                    "secret": bool(
+                        g.gesture.secret or (g.gesture.target and g.gesture.target.secret)
+                    ),
+                    "at": g.at,
+                }
+            )
+        jobs.append({"id": w.id, "title": w.title, "gestures": entries})
+    return {"shapes": served, "jobs": jobs}
+
+
 async def main() -> int:
     with tempfile.TemporaryDirectory() as scratch:
         copy = Path(scratch) / "rig.db"
@@ -250,6 +284,16 @@ async def main() -> int:
             # run is served, and only an unproven one is withheld. Printed
             # further down, after the allowlists.
             served: list[dict[str, Any]] = (await client.get("/v1/shapes")).json()["shapes"]
+            # `--replay PATH`: the served shapes beside each job's own cited
+            # gestures as the extension would see them -- one triple per
+            # gesture, no values -- for `new-chrome-extension/scripts/
+            # offer-replay.mjs` to feed through the real matcher. That is the
+            # one measurement of "would the offer name the right job" this
+            # corpus can give without a browser.
+            if "--replay" in sys.argv:
+                out = Path(sys.argv[sys.argv.index("--replay") + 1])
+                out.write_text(json.dumps(_replay(workflows, cited, served), indent=1))
+                print(f"replay written to {out}\n")
             for workflow in workflows:
                 first = primary_gesture(workflow.steps[0], cited[workflow.id])
                 app.state.channel.page = (

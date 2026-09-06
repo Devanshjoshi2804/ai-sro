@@ -157,6 +157,9 @@ mutants-backend: ## Mutation score for the skill application package, against it
 	$(BACKEND) uv run mutmut export-cicd-stats
 	$(BACKEND) uv run python scripts/mutation_floor.py
 
+offer-replay: ## Would the offer name the right job? The corpus's gestures through the real matcher, no browser
+	cd new_agent_arch && uv run python scripts/dry_run.py --replay /tmp/rig-replay.json > /dev/null && node ../new-chrome-extension/scripts/offer-replay.mjs /tmp/rig-replay.json
+
 test-extension: ## The extension's own self-checks, in plain node
 	node new-chrome-extension/src/background/queue.test.mjs
 	node new-chrome-extension/src/background/queue.upgrade.test.mjs

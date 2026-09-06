@@ -270,6 +270,7 @@ class _QuotingAsker:
         evidence: str,
         schema: dict[str, Any],
         image: bytes | None = None,
+        images: tuple[bytes, ...] = (),
         effort: Effort | None = None,
     ) -> Answer:
         await asyncio.sleep(0)

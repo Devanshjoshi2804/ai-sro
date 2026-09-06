@@ -35,7 +35,7 @@
   .history { color: var(--muted); font-size: 12px; }
   ul.past { list-style: none; padding: 0; margin: 6px 0; font-size: 12px; }
   ul.past li { display: flex; gap: 10px; align-items: baseline; }
-  ul.past .when { color: var(--muted); font-family: var(--mono, monospace); }
+  ul.past .when { color: var(--muted); font-family: "JetBrains Mono", ui-monospace, monospace; }
   .unread { color: var(--muted); font-style: italic; }
   /* A reading that happened, cost money and came back with nothing usable.
      It is neither unread nor read, so it must not look like either. */
@@ -257,7 +257,7 @@
       <div class="history">${esc(became(w.runs))}</div>
       ${(w.steps ?? []).map(step).join("")}
       <button class="run" data-id="${esc(w.id)}">run</button>
-      <button class="past quiet" data-id="${esc(w.id)}">past runs</button>
+      <button class="past" data-id="${esc(w.id)}">past runs</button>
       <div class="runner" id="runner-${esc(w.id)}"></div>
     </div>`;
   }

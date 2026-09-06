@@ -163,6 +163,7 @@ offer-replay: ## Would the offer name the right job? The corpus's gestures throu
 test-extension: ## The extension's own self-checks, in plain node
 	node new-chrome-extension/scripts/offer-replay.test.mjs
 	node new-chrome-extension/src/background/queue.test.mjs
+	node new-chrome-extension/src/background/in-page.test.mjs
 	node new-chrome-extension/src/background/queue.upgrade.test.mjs
 	node new-chrome-extension/src/background/showing.test.mjs
 	node new-chrome-extension/src/background/frames.test.mjs

@@ -1008,10 +1008,11 @@ Create Work Activity TEST1                               16           2  2  itse
 8 jobs replayed against 8 served shapes at K_OFFER_AFTER = 2: 8 offered as themselves, 0 offered as another job, 0 never offered
 ```
 
-Five jobs are offered on the second gesture, the three that collide on the
-third (TWOTEST on its fourth: its third gesture is a scroll, which the tail
-drops), and NEWTEST4 -- unofferable before the shapes went scroll-free -- on
-its third. What this does not measure is a real gesture stream: the recorder's
+Four jobs are offered on their second gesture and NEWTEST4 -- unofferable
+before the shapes went scroll-free, its first gesture being a scroll -- on its
+third; that is five at `k = 2`. The three that collide need a third walkable
+gesture, `k = 3`: two are offered on their third and TWOTEST on its fourth,
+because its third gesture is a scroll the tail drops. What this does not measure is a real gesture stream: the recorder's
 live triples on a page that has been through a reload or a frame are the
 recipe's question, not this table's. The constant was not moved on this evidence. Whether an operator would rather see a wrong title early
 or a right one later is not settled by a collision count; it is settled by what

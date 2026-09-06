@@ -290,7 +290,7 @@ async def main() -> int:
             # offer-replay.mjs` to feed through the real matcher. That is the
             # one measurement of "would the offer name the right job" this
             # corpus can give without a browser.
-            if "--replay" in sys.argv:
+            if "--replay" in sys.argv[:-1]:
                 out = Path(sys.argv[sys.argv.index("--replay") + 1])
                 out.write_text(json.dumps(_replay(workflows, cited, served), indent=1))
                 print(f"replay written to {out}\n")

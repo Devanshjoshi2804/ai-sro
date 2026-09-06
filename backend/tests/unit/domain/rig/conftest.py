@@ -1,7 +1,11 @@
-"""The one measured batch every rig test was built on. Copied from
-`new_agent_arch/tests/fixtures.py` (which loads it from
-`new-chrome-extension/fixtures/batch.json`); the constant is the same bytes.
+"""The one measured batch every rig test was built on, and the gestures it
+correlates to. Copied from `new_agent_arch/tests/fixtures.py`; the constant
+is the same bytes.
 """
+
+from sro.application.capture.rig_wire import Batch
+from sro.application.observation.correlate import correlate
+from sro.domain.observation.gesture import Gesture
 
 BATCH: dict[str, object] = {
     "batch_id": "bat_browsertest_418908ee_1",
@@ -418,3 +422,8 @@ BATCH: dict[str, object] = {
         },
     ],
 }
+
+
+def gestures(tenant: str = "acme") -> list[Gesture]:
+    found, _, _, _ = correlate(Batch.model_validate(BATCH), tenant)
+    return found

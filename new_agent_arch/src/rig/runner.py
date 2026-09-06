@@ -124,6 +124,15 @@ def mark_stale(store: Store, workflow_id: str, step_order: int, matched_by: str 
     )
 
 
+def clear_stale(store: Store, workflow_id: str, step_order: int) -> None:
+    """The step was found the strong way again: the page is not moving under
+    it after all, and a warning that never clears is a warning nobody reads."""
+    store.execute(
+        "DELETE FROM workflow_stale WHERE workflow_id = ? AND ord = ?",
+        (workflow_id, step_order),
+    )
+
+
 def _now() -> str:
     return datetime.now(tz=UTC).isoformat()
 
@@ -549,6 +558,8 @@ async def run_workflow(
                     if planned.kind == "ui.perform" and record.matched_by in K_WEAK_LOCATORS:
                         record.stale = True
                         mark_stale(store, workflow.id, step.order, record.matched_by)
+                    elif planned.kind == "ui.perform":
+                        clear_stale(store, workflow.id, step.order)
                     # A write this run made that the verifier saw hold by
                     # state. `record_effect` drops anything decided by screen,
                     # so the gate here is only "did this step write" -- the

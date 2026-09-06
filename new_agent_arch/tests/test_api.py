@@ -2504,8 +2504,11 @@ def test_the_page_warns_about_a_page_moving_under_the_job() -> None:
           last: { outcome: "held", live: true, started_by: "offer" } }));
         console.log(became({ total: 2, held: 2, stale: 0, earned: false,
           last: { outcome: "held", live: true, started_by: "offer" } }));
+        console.log(became({ total: 2, held: 2, stale: 3, earned: false,
+          last: { outcome: "held", live: true, started_by: "offer" } }));
         """
     )
     lines = out.strip().split("\n")
     assert "1 step matched weakly" in lines[0]
     assert "matched weakly" not in lines[1]
+    assert "3 steps matched weakly" in lines[2]

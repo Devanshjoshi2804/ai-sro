@@ -27,6 +27,8 @@ from rig.runner import (
     _saw_nothing,
     _target_origin,
     _withheld,
+    clear_stale,
+    mark_stale,
     run_workflow,
 )
 from rig.runs import Run, RunStep, load_run, save_run
@@ -1994,3 +1996,12 @@ async def test_a_picture_that_will_not_decode_is_no_picture_either() -> None:
         look = await _look(channel, "dev_1", "run_1", None, False)
         assert look.screenshot is None, raw
         assert look.digest == "d", "the text still reads even when the picture does not"
+
+
+def test_a_step_found_the_strong_way_again_clears_its_stale_mark(tmp_path: Path) -> None:
+    store = _store(tmp_path)
+    mark_stale(store, "wfl_1", 0, "css_path")
+    mark_stale(store, "wfl_1", 1, "css_path")
+    clear_stale(store, "wfl_1", 0)
+    rows = store.query("SELECT ord FROM workflow_stale WHERE workflow_id = 'wfl_1' ORDER BY ord")
+    assert [r["ord"] for r in rows] == [1], "only the step that matched strongly is cleared"

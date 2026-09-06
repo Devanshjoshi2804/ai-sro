@@ -934,13 +934,17 @@ def build_app(
         app.state.channel.drop(device_id)
         return {"device_id": device_id, "revoked": revoked}
 
-    @app.get("/v1/devices", dependencies=[Depends(authorised)])
-    def devices() -> dict[str, Any]:
+    @app.get("/v1/devices")
+    def devices(device: Annotated[str | None, Depends(caller)] = None) -> dict[str, Any]:
         """`devices`: the browsers with a command socket open now. `registered`:
         every browser that ever held a token of its own, with whether it is
         online and whether its token has been revoked -- the list the tenant
-        reads before cutting one off, and after."""
+        reads before cutting one off, and after. The tenant's alone: a
+        browser's token does not enumerate its siblings, their hours or their
+        revocations, so a device token gets the online list and nothing more."""
         online = set(app.state.channel.online())
+        if device is not None:
+            return {"devices": sorted(online)}
         registered = [
             {
                 "device_id": r["device_id"],

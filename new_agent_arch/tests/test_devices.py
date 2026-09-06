@@ -273,3 +273,14 @@ def test_a_browser_with_a_token_of_its_own_reads_its_own_rest_whatever_it_asks_f
     assert as_real["quiet_until"], "the token names the browser, not the query"
     assert as_other["quiet_until"] is None, "another browser cannot borrow the rest"
     assert tenant_says["quiet_until"], "the tenant's bearer may ask on any browser's behalf"
+
+
+def test_a_browser_sees_who_is_online_and_not_who_is_registered(tmp_path: Path) -> None:
+    store = _store(tmp_path)
+    client = _client(store)
+    mine = {"Authorization": f"Bearer {issue(store, 'dev_1')}"}
+    issue(store, "dev_2")
+    as_device = client.get("/v1/devices", headers=mine).json()
+    assert as_device == {"devices": []}, "no sibling's id, hours or revocation"
+    as_tenant = client.get("/v1/devices", headers={"Authorization": f"Bearer {TOKEN}"}).json()
+    assert {d["device_id"] for d in as_tenant["registered"]} == {"dev_1", "dev_2"}

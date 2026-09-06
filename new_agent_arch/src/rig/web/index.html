@@ -639,6 +639,10 @@
     const { registered } = await get("/v1/devices");
     const box = document.getElementById("browsers");
     const fresh = browsersLine(registered);
+    // Redrawn only on change, and a change anywhere in the list disarms a
+    // half-pressed revoke on another row: the next press arms it again
+    // rather than firing, which is the safe way round for a button that
+    // cuts a browser off.
     if (box.dataset.drawn === fresh) return;
     box.dataset.drawn = fresh;
     box.innerHTML = fresh;

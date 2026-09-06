@@ -1,7 +1,7 @@
 // recognise.test.mjs
 import assert from "node:assert/strict";
 import test from "node:test";
-import { K_OFFER_AFTER, K_TAIL, diverged, match, tailWith, valuesFrom } from "./recognise.js";
+import { K_OFFER_AFTER, K_TAIL, K_TAIL_TTL_S, diverged, match, tailWith, valuesFrom } from "./recognise.js";
 
 const H = "https://wms.example";
 const workArea = {
@@ -139,4 +139,11 @@ test("going another way ends the offer, but carrying it further does not", () =>
   assert.equal(diverged(tail, offer, shapes), true);
   tail = tailWith(tail, save);
   assert.equal(diverged(tail, offer, shapes), true, "a prefix broken once does not mend");
+});
+
+test("a gesture older than the tail's lifetime is not the start of today's job", () => {
+  let tail = tailWith([], { triple: [H, "wm.workAreas.code", "type"], value: "OLD", secret: false, at: 1000 });
+  tail = tailWith(tail, { triple: [H, "wm.workAreas.desc", "type"], value: "b", secret: false, at: 1000 + K_TAIL_TTL_S + 1 });
+  assert.equal(tail.length, 1, "yesterday's gesture fell out");
+  assert.equal(match(tail, shapes, { origin: H }), null, "one fresh gesture is not a prefix");
 });

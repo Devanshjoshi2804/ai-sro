@@ -20,9 +20,18 @@ export const K_OFFER_AFTER = 2;
 const key = (triple) => triple.join(" ");
 
 /** The tail with one more gesture. Scrolls are noise in a prefix and are dropped. */
+/** How long a gesture stays in the tail. A prefix typed yesterday is not the
+ * start of today's job, and a tail that outlives its session can complete a
+ * shape with values nobody is looking at. Seconds, like the recorder's `at`. */
+export const K_TAIL_TTL_S = 600;
+
 export function tailWith(tail, entry) {
   if (entry.triple[1] === "anon|scroll") return tail;
-  return [...tail, entry].slice(-K_TAIL);
+  const fresh =
+    typeof entry.at === "number"
+      ? tail.filter((each) => typeof each.at !== "number" || entry.at - each.at <= K_TAIL_TTL_S)
+      : tail;
+  return [...fresh, entry].slice(-K_TAIL);
 }
 
 function endsWith(tail, prefix) {

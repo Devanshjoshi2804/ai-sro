@@ -126,12 +126,17 @@ export function onCall(nudges, { url, method }, now) {
  * walked away, which ended every open nudge on the next beat and reported the
  * lot as expired while they were still standing on the page.
  */
-export function sweep(nudges, { url, now }) {
+export function sweep(nudges, { url, now, tabId }) {
   const here = url === null || url === undefined ? null : page(url);
   return nudges.map((nudge) => {
     if (nudge.state !== "open") return nudge;
     const old = now - Date.parse(nudge.at) >= LIFETIME_MS;
-    const left = here !== null && here !== nudge.startsOn;
+    // Leaving the page is a fact about one tab. A navigation in tab B says
+    // nothing about the offer open in tab A, so when the caller names the tab
+    // only that tab's nudges can have left; a caller without one (the older
+    // shape) keeps the whole-list reading.
+    const thisTab = tabId === undefined || nudge.tabId === undefined || nudge.tabId === tabId;
+    const left = here !== null && thisTab && here !== nudge.startsOn;
     return old || left ? { ...nudge, state: "expired", endedAt: now } : nudge;
   });
 }

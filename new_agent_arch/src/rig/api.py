@@ -822,7 +822,10 @@ def build_app(
             isinstance(k, str) and isinstance(v, str) for k, v in given.items()
         ):
             raise HTTPException(status_code=400, detail="values must be an object of strings")
-        values: dict[str, str] = given
+        # Trimmed, and a value that is blank once trimmed is no value: `required`
+        # on the page passes a space, and a job run with " " as its client code
+        # is a job run with somebody else's.
+        values: dict[str, str] = {k: v.strip() for k, v in given.items() if v.strip()}
         # Every parameter the workflow declares must arrive with a value. The
         # planner falls back to the value the recording happened to contain when
         # a step has none -- right for a step nobody parameterised, and for a

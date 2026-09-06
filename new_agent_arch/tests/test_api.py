@@ -2382,3 +2382,13 @@ def test_approve_releases_a_waiting_write(client: TestClient) -> None:
         assert loop.run_until_complete(task) is True
     finally:
         loop.close()
+
+
+def test_a_value_that_is_only_whitespace_is_no_value(client: TestClient, store: Store) -> None:
+    from rig.channel import FakeChannel
+
+    _seed_workflow(store)
+    client.app.state.channel = FakeChannel()
+    body = {"workflow_id": "wfl_1", "values": {"clientCode": "   "}, "device_id": "dev_test"}
+    got = client.post("/v1/runs", json=body, headers=_auth())
+    assert got.status_code == 400 and "clientCode" in got.json()["detail"]

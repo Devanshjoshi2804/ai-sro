@@ -179,7 +179,7 @@ async function considerNudge(tabId, url, visit) {
       // Anything the operator has walked away from ends here, before anything
       // new is offered: leaving the page is one of the three ways a nudge ends.
       const before = await state.nudges();
-      const swept = sweep(before, { url, now });
+      const swept = sweep(before, { url, now, tabId });
       reportEndings(before, swept);
       const fired = shouldFire({
         url,
@@ -1406,7 +1406,7 @@ async function handle(message, sender) {
       return { ok: true };
     }
     case "status":
-      return status();
+      return status(sender);
     default:
       return { error: `no such message: ${message?.kind}` };
   }
@@ -1681,7 +1681,15 @@ async function badge() {
   });
 }
 
-async function status() {
+async function status(sender = null) {
+  // A content script asking (it has a tab) gets the nudges without the values
+  // typed into them: those are one tab's business text and the page-side pill
+  // needs only titles and states. The panel (no tab) draws the card and gets
+  // them whole.
+  const fromPage = Boolean(sender?.tab);
+  const nudgesShown = (await state.nudges()).map((nudge) =>
+    fromPage && nudge.values ? { ...nudge, values: undefined } : nudge,
+  );
   const [
     allowed,
     deviceId,
@@ -1785,7 +1793,7 @@ async function status() {
     // What was offered on the page in front of them, and what came of it. Held
     // here for the same reason the offers are: this is the browser it happened
     // in, and none of it is worth writing down.
-    nudges: await state.nudges(),
+    nudges: nudgesShown,
     version: VERSION,
   };
 }

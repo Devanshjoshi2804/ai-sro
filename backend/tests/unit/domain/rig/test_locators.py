@@ -96,7 +96,12 @@ def test_origin_is_the_page_and_a_call_only_when_the_page_has_none() -> None:
 def test_origin_skips_a_call_that_never_completed() -> None:
     gesture = copy.deepcopy(next(g for g in _gestures() if g.requests))
     gesture.url, gesture.system = None, None
-    dead = replace(gesture.requests[0], url="http://127.0.0.1:1/x", status=None)
+    dead = replace(
+        gesture.requests[0],
+        url="http://127.0.0.1:1/x",
+        status=None,
+        failure_reason="Failed to fetch",
+    )
     live = replace(gesture.requests[1], url="https://wms.example/y", status=200)
     gesture.requests = [dead, live]
 
@@ -242,5 +247,5 @@ def test_a_call_that_names_no_system_is_not_the_origin_and_none_of_them_is_none(
     ]
     assert origin_of(g) == "https://wms.example"
 
-    g.requests = [_call(url="about:blank", status=None)]
+    g.requests = [_call(url="about:blank", status=None, failure_reason="Failed to fetch")]
     assert origin_of(g) is None

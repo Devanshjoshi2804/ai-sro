@@ -87,7 +87,7 @@ def correlate(batch: Batch, tenant: str) -> tuple[list[Gesture], list[Call], lis
     for request_event in sorted(requests, key=lambda e: _epoch(e.request.started_at)):
         when = _epoch(request_event.request.started_at)
         owner = _owner(gestures, when, request_event.tab_id)
-        call = as_call(request_event.request)
+        call = as_call(request_event.request, request_event.tab_id)
         if owner is None:
             orphan_requests.append(call)
         else:
@@ -197,17 +197,22 @@ def as_body(body: WireBody | None) -> Body | None:
     )
 
 
-def as_call(request: WireRequest) -> Call:
-    """A wire request as the domain sees it: never the tab it arrived on,
-    the id it was minted with, or anything else only the wire event carried."""
+def as_call(request: WireRequest, tab_id: int | None) -> Call:
+    """A wire request as the domain sees it. The tab is not on the request:
+    it is on the enclosing `RequestEvent`, so the caller passes it in — an
+    orphan call's tab is a fact worth keeping."""
     return Call(
         method=request.method,
         url=request.url,
+        request_id=request.request_id,
+        started_at=_epoch(request.started_at),
         request_headers=dict(request.request_headers),
         request_body=as_body(request.request_body),
         status=request.status,
         response_body=as_body(request.response_body),
         failure_reason=request.failure_reason,
+        blocked_reason=request.blocked_reason,
+        tab_id=tab_id,
     )
 
 
@@ -218,4 +223,5 @@ def as_mark(event: WirePageEvent) -> PageMark:
         page_kind=event.page_kind,
         url=event.url,
         detail=event.detail,
+        tab_id=event.tab_id,
     )

@@ -12,12 +12,6 @@ from sro.domain.observation.values import (
 )
 from tests.unit.domain.rig.conftest import gestures as _gestures
 
-# Left for plan 3: test_a_non_str_value_from_the_store_does_not_take_the_crossing_down
-# (rig/tests/test_values.py). It exercises `api._row_to_intent` building a
-# `ValueSeen` from unvalidated stored JSON, where `value` can arrive as a
-# non-str -- a store round trip this domain-only test tree has no store to
-# reach, and `ValueSeen.value` here is typed `str`.
-
 
 def test_a_typed_value_is_found() -> None:
     typed = next(g for g in _gestures() if g.action.kind == "type" and g.action.value)
@@ -257,6 +251,22 @@ def test_one_gesture_saying_a_value_twice_is_cited_once() -> None:
     crossings = shared_values(gestures, intents, {})
 
     assert crossings[typed] == [gestures[0].id, gestures[1].id]
+
+
+def test_a_non_str_value_from_the_store_does_not_take_the_crossing_down() -> None:
+    """api._row_to_intent builds ValueSeen(**seen) from unvalidated stored JSON
+    and ValueSeen is a plain dataclass, so a bare .strip() here raises
+    AttributeError on an int. Unreachable today; the defence keeps it so."""
+    gesture = next(g for g in _gestures() if not g.action.secret)
+    intent = Intent(
+        gesture_id=gesture.id,
+        tenant="acme",
+        # `ValueSeen.value` is typed `str`; the store hands back unvalidated
+        # JSON where it is not, which is the case `str(seen.value)` defends.
+        values_seen=[ValueSeen(field="qty", value=42)],  # type: ignore[arg-type]
+    )
+
+    assert "42" in typed_values(gesture, intent)
 
 
 def test_a_lone_short_word_is_not_a_crossing() -> None:

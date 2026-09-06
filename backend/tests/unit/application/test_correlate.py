@@ -2,9 +2,7 @@
 back domain `Call`/`PageMark` values rather than the wire `Request`/`PageEvent`
 events it read (see `sro.application.observation.correlate.as_call` /
 `as_mark`), so a few assertions read a field off the domain type instead of
-the wire one, and two tests that depended on fields `Call` does not carry
-(`request_id`, `tab_id`) are adapted -- see the task report's "Left for plan
-3" for the one dropped outright.
+the wire one.
 """
 
 import copy
@@ -36,9 +34,8 @@ def _request(started_at: str, request_id: str, tab_id: int | None) -> dict[str, 
     event = copy.deepcopy(REQUEST_POST)
     event["request"]["started_at"] = started_at
     event["request"]["request_id"] = request_id
-    # `Call`, what an attached or orphaned request becomes, carries no
-    # request_id -- so a test telling two calls apart needs a field Call DOES
-    # keep. The url is the one every test below can read `.url` off.
+    # The url carries the sequence too, so a test telling two calls apart can
+    # read either `.request_id` or `.url` off the resulting `Call`.
     event["request"]["url"] = f"{REQUEST_POST['request']['url']}?seq={request_id}"
     event["tab_id"] = tab_id
     return event
@@ -177,10 +174,17 @@ def test_a_request_with_no_tab_is_orphaned_not_guessed_at() -> None:
 
     assert gestures[0].requests == []
     assert len(orphans) == 1
-    # `Call`, what the orphan becomes, carries no tab_id -- only the call
-    # itself survives the conversion. This confirms it is the same call, kept
-    # rather than lost, which is the meaning `Call` can still carry.
+    assert orphans[0].tab_id is None
     assert orphans[0].url == f"{REQUEST_POST['request']['url']}?seq=r1"
+
+
+def test_an_orphaned_request_keeps_the_tab_it_came_from() -> None:
+    at = GESTURE_TYPE["gesture"]["at"]
+    late = _request(_rfc3339(at + ATTRIBUTION_SECONDS + 1), "r1", 4242)
+
+    _, orphans, _, _ = correlate(_batch([GESTURE_TYPE, late]), TENANT)
+
+    assert orphans[0].tab_id == 4242
 
 
 def test_a_snapshot_is_counted_ignored_not_silently_dropped() -> None:

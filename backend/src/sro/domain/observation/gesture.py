@@ -71,11 +71,15 @@ class Call:
 
     method: str
     url: str
+    request_id: str = ""
+    started_at: float | None = None
     request_headers: dict[str, str] = field(default_factory=dict)
     request_body: Body | None = None
     status: int | None = None
     response_body: Body | None = None
     failure_reason: str | None = None
+    blocked_reason: str | None = None
+    tab_id: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -84,6 +88,7 @@ class PageMark:
     page_kind: str
     url: str | None = None
     detail: str | None = None
+    tab_id: int | None = None
 
 
 @dataclass

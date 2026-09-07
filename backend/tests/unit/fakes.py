@@ -1479,7 +1479,12 @@ class FakeWorkflowRunRepository:
             for run in self.rows.values()
             if run.tenant == tenant_id.value and run.workflow_id == workflow_id
         ]
-        return tuple(deepcopy(run) for run in sorted(found, key=lambda run: run.started_at))
+        # (started_at, id), as the store orders it. Two runs of one workflow can
+        # share an instant, and an order that is not total is an order that
+        # changes between reads.
+        return tuple(
+            deepcopy(run) for run in sorted(found, key=lambda run: (run.started_at, run.id))
+        )
 
     async def in_flight(self, tenant_id: TenantId, device_id: DeviceId) -> str | None:
         driving = [
@@ -1558,17 +1563,22 @@ class FakeWorkflowRepository:
         self.effects: dict[tuple[str, str, int], tuple[str, str]] = {}
         self.runs = runs if runs is not None else FakeWorkflowRunRepository()
         self._saved = count()
-        self._order: dict[str, int] = {}
+        self._created: dict[str, int] = {}
 
     async def save(self, workflow: Workflow) -> None:
         self.rows[workflow.id] = deepcopy(workflow)
         # The store rewrites ``created_at`` on a re-save, as INSERT OR REPLACE
         # did, so a re-saved workflow moves to the end of ``known``.
-        self._order[workflow.id] = next(self._saved)
+        self._created[workflow.id] = next(self._saved)
 
     async def known(self, tenant_id: TenantId) -> tuple[Workflow, ...]:
         found = [row for row in self.rows.values() if row.tenant == tenant_id.value]
-        found.sort(key=lambda row: self._order[row.id])
+        # (created_at, id), as the store orders it. The counter stands in for
+        # the clock, and the id is the same tiebreak -- two workflows of one
+        # pass can share an instant in Postgres, and the fake and the store
+        # disagreeing about which comes first is a job resolved into the wrong
+        # one of them, because `resolve` breaks ties with a strict `>`.
+        found.sort(key=lambda row: (self._created[row.id], row.id))
         return tuple(deepcopy(row) for row in found)
 
     async def get(self, tenant_id: TenantId, workflow_id: str) -> Workflow:
@@ -1583,6 +1593,11 @@ class FakeWorkflowRepository:
             row.shape_key = [list(entry) for entry in key]
 
     async def add_pass(self, mining_pass: MiningPass) -> None:
+        # The store's plain INSERT, which refuses a second row under one id:
+        # a pass id is minted per reading, so that would be one model call
+        # billed twice.
+        if any(row.id == mining_pass.id for row in self.passes_made):
+            raise Conflict(f"mining pass {mining_pass.id} is already stored")
         self.passes_made.append(mining_pass)
 
     async def passes(self, tenant_id: TenantId) -> tuple[MiningPass, ...]:

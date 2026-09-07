@@ -151,14 +151,22 @@ class TestWorkflowRuns:
             await uow.commit()
 
         async with session_factory() as session:
-            empty = await session.scalar(
-                select(WorkflowRunStepRow.sent.is_(None)).where(WorkflowRunStepRow.run_id == run.id)
-            )
+            # Both columns asked the same way. `result is None` in Python is
+            # also true of a JSON scalar `null`, so a Python-side assertion
+            # about one and a SQL-side assertion about the other would leave
+            # `result` untested for the very thing this test is about.
+            empty = (
+                await session.execute(
+                    select(
+                        WorkflowRunStepRow.sent.is_(None), WorkflowRunStepRow.result.is_(None)
+                    ).where(WorkflowRunStepRow.run_id == run.id)
+                )
+            ).one()
 
         async with SqlUnitOfWork(session_factory) as uow:
             back = await uow.workflow_runs.get(TENANT, run.id)
 
-        assert empty is True
+        assert tuple(empty) == (True, True)
         assert back is not None
         assert (back.steps[0].sent, back.steps[0].result) == (None, None)
 

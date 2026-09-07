@@ -35,15 +35,17 @@ from typing import Any
 
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sro.application.ports.repositories import WorkflowRepository
 from sro.domain.execution.belts import RunProof, state_verified
 from sro.domain.observation.identity import ShapeKey
 from sro.domain.observation.mining import MiningPass
-from sro.domain.shared.errors import NotFound
+from sro.domain.shared.errors import Conflict, NotFound
 from sro.domain.shared.identifiers import TenantId
 from sro.domain.skill.workflow import Step, Workflow
+from sro.infrastructure.db.codec import when
 from sro.infrastructure.db.models import (
     MiningPassRow,
     WorkflowEffectRow,
@@ -53,11 +55,6 @@ from sro.infrastructure.db.models import (
     WorkflowStaleRow,
     WorkflowStepRow,
 )
-
-# The same ISO-to-timestamp conversion the runs repository does, imported
-# rather than copied: the rule that a naive instant is read as UTC and not as
-# the server's local time is one sentence, and two copies of it drift.
-from sro.infrastructure.db.workflow_runs import _when
 
 
 def _workflow_values(workflow: Workflow) -> dict[str, Any]:
@@ -207,25 +204,33 @@ class SqlWorkflowRepository(WorkflowRepository):
         )
 
     async def add_pass(self, mining_pass: MiningPass) -> None:
-        await self._session.execute(
-            pg_insert(MiningPassRow).values(
-                id=mining_pass.id,
-                tenant_id=mining_pass.tenant,
-                started_at=_when(mining_pass.started_at),
-                in_tokens=mining_pass.in_tokens,
-                out_tokens=mining_pass.out_tokens,
-                thought_tokens=mining_pass.thought_tokens,
-                cost_usd=mining_pass.cost_usd,
-                unpriced=mining_pass.unpriced,
-                proposed=mining_pass.proposed,
-                kept=mining_pass.kept,
-                rejected=mining_pass.rejected,
-                coverage=mining_pass.coverage,
-                skew=mining_pass.skew,
-                lopsided=mining_pass.lopsided,
-                error=mining_pass.error,
+        # A plain insert, as in the rig, and no ON CONFLICT: a pass id is
+        # minted per reading, so a second row under one id would be one model
+        # call billed twice. Reported as a Conflict rather than escaping as an
+        # IntegrityError out of somebody else's commit.
+        try:
+            await self._session.execute(
+                pg_insert(MiningPassRow).values(
+                    id=mining_pass.id,
+                    tenant_id=mining_pass.tenant,
+                    started_at=when(mining_pass.started_at),
+                    in_tokens=mining_pass.in_tokens,
+                    out_tokens=mining_pass.out_tokens,
+                    thought_tokens=mining_pass.thought_tokens,
+                    cost_usd=mining_pass.cost_usd,
+                    unpriced=mining_pass.unpriced,
+                    proposed=mining_pass.proposed,
+                    kept=mining_pass.kept,
+                    rejected=mining_pass.rejected,
+                    coverage=mining_pass.coverage,
+                    skew=mining_pass.skew,
+                    lopsided=mining_pass.lopsided,
+                    error=mining_pass.error,
+                )
             )
-        )
+        except IntegrityError as clash:
+            await self._session.rollback()
+            raise Conflict(f"mining pass {mining_pass.id} is already stored") from clash
 
     async def passes(self, tenant_id: TenantId) -> tuple[MiningPass, ...]:
         query = (
@@ -247,7 +252,7 @@ class SqlWorkflowRepository(WorkflowRepository):
             workflow_id=workflow_id,
             ord=ord_,
             matched_by=matched_by,
-            noticed_at=_when(noticed_at),
+            noticed_at=when(noticed_at),
         )
         await self._session.execute(
             statement.on_conflict_do_update(
@@ -288,7 +293,7 @@ class SqlWorkflowRepository(WorkflowRepository):
             run_id=run_id,
             ord=ord_,
             verified_by=verified_by,
-            at=_when(at),
+            at=when(at),
         )
         # One write of one run of one job is one effect however many times it
         # is verified -- a write rescued to the second rung verifies at the
@@ -343,10 +348,9 @@ class SqlWorkflowRepository(WorkflowRepository):
             # ask ``writes()``, and the evidence a later reader would have to
             # ask it about may have been re-mined by then. Read for truth here
             # rather than as ``->>'wrote' = 'true'`` in the WHERE, so the
-            # predicate is the rig's own and not a narrower one that happens to
-            # agree with today's writer -- and because a step with no result is
-            # a JSONB ``null`` rather than a SQL NULL, which no IS NOT NULL
-            # would have excluded.
+            # predicate stays the rig's own -- truthy on whatever the runner
+            # marks with -- rather than a narrower one that would silently miss
+            # a writer emitting 1 or "yes".
             if result and result.get("wrote"):
                 wrote[run_id].add(ord_)
 

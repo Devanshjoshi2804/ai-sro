@@ -12,6 +12,7 @@ dataclass is persisted the moment it exists.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Any
 
 from pydantic import TypeAdapter
@@ -26,6 +27,21 @@ from sro.domain.recording.events import ActionFrame
 from sro.domain.recording.narration import NarrationSegment
 from sro.domain.skill.skill import SkillVersion
 from sro.domain.trigger.watch import Watch
+
+
+def when(moment: str) -> datetime:
+    """An ISO instant as a real timestamp, in UTC when it said nothing.
+
+    The rig kept every clock as text and the records still carry ISO strings,
+    so every repository storing one in a ``timestamptz`` converts on both
+    edges. Public and here rather than private to one of them: a naive instant
+    must be read as UTC and not as the server's local time -- otherwise a run
+    that finished hours before it started -- and that is one rule, not one per
+    repository.
+    """
+    parsed = datetime.fromisoformat(moment)
+    return parsed if parsed.tzinfo is not None else parsed.replace(tzinfo=UTC)
+
 
 _FRAMES = TypeAdapter(tuple[ActionFrame, ...])
 _ARTIFACTS = TypeAdapter(tuple[MediaArtifact, ...])

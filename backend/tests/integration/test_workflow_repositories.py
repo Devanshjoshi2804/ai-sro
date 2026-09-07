@@ -16,14 +16,16 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from sro.domain.execution.belts import RunProof, earned_from
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun, new_run_id
 from sro.domain.observation.mining import MiningPass
-from sro.domain.shared.errors import NotFound
+from sro.domain.shared.errors import Conflict, NotFound
 from sro.domain.shared.identifiers import TenantId
 from sro.domain.skill.workflow import Step, Workflow, new_workflow_id
+from sro.infrastructure.db.models import WorkflowEffectRow
 from sro.infrastructure.db.repositories import SqlUnitOfWork
 
 FOUND_BY = "pas_abcdef"
@@ -172,6 +174,28 @@ class TestWorkflows:
         assert len(back) == 1
         assert len(back[0].steps) == 2
 
+    async def test_known_is_oldest_first_and_a_re_saved_workflow_is_the_newest(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """The order is load-bearing, not cosmetic: ``resolve`` breaks a tie
+        with a strict ``>``, so the first workflow at the top score wins and
+        this order decides which job a proposal is resolved into.
+
+        Re-saving rewrites ``created_at``, which is what INSERT OR REPLACE did
+        in the rig and is why a merged workflow moves to the end.
+        """
+        first, second = _workflow(), _workflow()
+
+        for workflow in (first, second, first):
+            async with SqlUnitOfWork(session_factory) as uow:
+                await uow.workflows.save(workflow)
+                await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            back = await uow.workflows.known(TENANT)
+
+        assert [row.id for row in back] == [second.id, first.id]
+
     async def test_a_workflow_that_lost_a_step_loses_it_in_the_store_too(
         self, session_factory: async_sessionmaker[AsyncSession]
     ) -> None:
@@ -253,6 +277,31 @@ class TestMiningPasses:
 
         assert back == (refused,)
 
+    async def test_another_tenants_passes_are_not_returned_and_an_id_is_not_reused(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """A pass id is minted per reading, so a second row under one id is one
+        model call billed twice."""
+        mine = MiningPass(
+            id="pas_mine", tenant=TENANT.value, started_at="2026-09-05T09:00:00+00:00"
+        )
+        theirs = MiningPass(
+            id="pas_theirs", tenant=OTHER_TENANT.value, started_at="2026-09-05T09:00:00+00:00"
+        )
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflows.add_pass(mine)
+            await uow.workflows.add_pass(theirs)
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            assert await uow.workflows.passes(TENANT) == (mine,)
+            assert await uow.workflows.passes(OTHER_TENANT) == (theirs,)
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            with pytest.raises(Conflict):
+                await uow.workflows.add_pass(mine)
+
 
 class TestEffects:
     async def test_an_effect_is_recorded_once_per_step_of_a_run(
@@ -280,6 +329,20 @@ class TestEffects:
                 at="2026-09-05T10:02:00+00:00",
             )
             await uow.commit()
+
+        async with session_factory() as session:
+            belts = (
+                await session.execute(
+                    select(WorkflowEffectRow.ord, WorkflowEffectRow.verified_by)
+                    .where(WorkflowEffectRow.workflow_id == workflow.id)
+                    .order_by(WorkflowEffectRow.ord)
+                )
+            ).all()
+
+        # The second verify REPLACED the first rather than being dropped: a
+        # count alone cannot tell ON CONFLICT DO UPDATE from DO NOTHING, and
+        # the belt that last saw the state is the current answer about it.
+        assert [tuple(row) for row in belts] == [(1, "read"), (2, "status")]
 
         async with SqlUnitOfWork(session_factory) as uow:
             assert await uow.workflows.forget_effects(workflow.id) == 2

@@ -679,6 +679,10 @@ class WorkflowRepository(Protocol):
 
         A refused call is the case that matters: it is then the only record
         left of a call that cost money and returned nothing.
+
+        Raises ``Conflict`` when that pass id is already stored. An id is
+        minted per reading, so a second row under one id is one model call
+        billed twice.
         """
         ...
 

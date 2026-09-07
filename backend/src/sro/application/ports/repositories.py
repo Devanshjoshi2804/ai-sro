@@ -7,6 +7,7 @@ instead of returning ``None``.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import datetime
 from typing import Protocol
 
@@ -18,7 +19,9 @@ from sro.domain.knowledge.entry import EntryKind, EvidenceLevel, KnowledgeEntry
 from sro.domain.observation.batch import ObservationBatch
 from sro.domain.observation.candidate import CandidateStatus, TaskCandidate
 from sro.domain.observation.device import AgentDevice
+from sro.domain.observation.gesture import Gesture, GestureBatch, Intent
 from sro.domain.observation.policy import ObservationPolicy
+from sro.domain.observation.pool import PoolEntry
 from sro.domain.recording.recording import Recording
 from sro.domain.shared.identifiers import (
     BatchId,
@@ -457,6 +460,112 @@ class ToolCallRepository(Protocol):
         ...
 
 
+class GestureRepository(Protocol):
+    """The evidence plane: what a browser sent, what was read out of it."""
+
+    async def add_batch(self, batch: GestureBatch) -> None:
+        """Raises ``Conflict`` if that batch id was already written.
+
+        An upload retried after its answer was lost must not be stored twice:
+        the second copy would double every gesture in it and be mined as a
+        second doing of the same job.
+        """
+        ...
+
+    async def add_gestures(self, gestures: tuple[Gesture, ...]) -> None: ...
+
+    async def gestures_for(
+        self, tenant_id: TenantId, *, ids: tuple[str, ...] | None = None
+    ) -> tuple[Gesture, ...]:
+        """Ordered by ``at``. ``ids`` narrows to a citation set."""
+        ...
+
+    async def unread(self, tenant_id: TenantId, *, limit: int) -> tuple[Gesture, ...]:
+        """Gestures with no intent row yet, oldest first."""
+        ...
+
+    async def save_intent(self, intent: Intent) -> None:
+        """Replaces any earlier reading of that gesture."""
+        ...
+
+    async def intents_for(self, tenant_id: TenantId) -> tuple[Intent, ...]: ...
+
+    async def add_orphan_request(
+        self,
+        tenant_id: TenantId,
+        *,
+        batch_id: str,
+        request_id: str,
+        payload: Mapping[str, object],
+    ) -> None:
+        """The same orphan twice is one row."""
+        ...
+
+    async def add_orphan_page(
+        self, tenant_id: TenantId, *, batch_id: str, at: str, payload: Mapping[str, object]
+    ) -> None: ...
+
+    async def batch_owner(self, batch_id: str) -> str | None:
+        """Which device uploaded that batch. ``None`` when nothing did.
+
+        Tenant-blind on purpose, like ``TriggerRepository.find``: the question
+        is asked of a device presenting its own token, before there is a tenant
+        to scope by, so that one browser cannot mirror a screenshot onto
+        another browser's batch.
+        """
+        ...
+
+    async def count(self, tenant_id: TenantId) -> int: ...
+
+    async def streams(self, tenant_id: TenantId) -> tuple[tuple[str, float, int], ...]:
+        """(stream id, the last gesture's ``at``, how many), newest first."""
+        ...
+
+
+class PoolRepository(Protocol):
+    """Evidence a pass did not place, waiting to be shown again.
+
+    A retired entry is not a deleted one: it stops being offered ahead of fresh
+    evidence and goes on being packed on its own merits. So the live entries
+    and the retired ones are two reads, and an entry is retired exactly when it
+    has a ``reason``.
+    """
+
+    async def add_unclaimed(
+        self, tenant_id: TenantId, *, window_ids: tuple[str, ...], claimed: frozenset[str]
+    ) -> int:
+        """Anything the pass did not cite enters at age 0; anything it did leaves.
+
+        ``claimed`` is cleared in full rather than only where it intersects the
+        window: a pooled gesture is packed beside the fresh ones, so a pass can
+        cite evidence that is only in the pool. Returns how many entered, and
+        re-entering does not reset an entry's clock.
+        """
+        ...
+
+    async def age(self, tenant_id: TenantId, *, shown: tuple[str, ...] | None = None) -> int:
+        """One reading older, and only for evidence a reading actually saw.
+
+        ``shown`` is what was in the window; ``None`` means every entry ages,
+        which is what a caller with no window wants, and an empty tuple means a
+        pass that packed nothing -- every entry waited one more. Returns how
+        many retired, by either cap.
+        """
+        ...
+
+    async def waiting(self, tenant_id: TenantId) -> tuple[PoolEntry, ...]:
+        """Live entries, oldest first."""
+        ...
+
+    async def ids(self, tenant_id: TenantId) -> tuple[str, ...]:
+        """Just the ids of the live entries, in the same order."""
+        ...
+
+    async def retired(self, tenant_id: TenantId) -> tuple[PoolEntry, ...]:
+        """What the pool stopped offering, and why."""
+        ...
+
+
 class UnitOfWork(Protocol):
     """Transaction boundary. Leaving the block without ``commit`` rolls back."""
 
@@ -470,6 +579,8 @@ class UnitOfWork(Protocol):
     browser_sessions: BrowserSessionRepository
     devices: DeviceRepository
     observations: ObservationRepository
+    gestures: GestureRepository
+    pool: PoolRepository
     observation_policies: ObservationPolicyRepository
     candidates: CandidateRepository
     triggers: TriggerRepository

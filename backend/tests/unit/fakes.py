@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import re
 from collections.abc import AsyncIterator, Mapping
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from itertools import count
 from types import MappingProxyType
@@ -36,10 +37,12 @@ from sro.application.ports.repositories import (
     ConfirmationRepository,
     ConnectionRepository,
     DeviceRepository,
+    GestureRepository,
     KnowledgeRepository,
     ModelCallRepository,
     ObservationPolicyRepository,
     ObservationRepository,
+    PoolRepository,
     RecordingRepository,
     RunRepository,
     SkillRepository,
@@ -74,7 +77,15 @@ from sro.domain.knowledge.entry import (
 from sro.domain.observation.batch import ObservationBatch
 from sro.domain.observation.candidate import CandidateStatus, TaskCandidate
 from sro.domain.observation.device import AgentDevice
+from sro.domain.observation.gesture import Gesture, GestureBatch, Intent
 from sro.domain.observation.policy import ObservationPolicy
+from sro.domain.observation.pool import (
+    K_POOL_AGE,
+    K_POOL_DAYS,
+    RETIRED_PASSES,
+    RETIRED_STALE,
+    PoolEntry,
+)
 from sro.domain.recording.events import ActionKind
 from sro.domain.recording.recording import Recording, RecordingStatus
 from sro.domain.shared.errors import Conflict, NotFound
@@ -1267,6 +1278,160 @@ class FakeToolCallRepository:
         return True
 
 
+class FakeGestureRepository:
+    """The evidence plane in three dicts.
+
+    The two rules worth faking are the two the store enforces: a batch id is
+    claimed once, and a second reading of one gesture replaces the first.
+    """
+
+    def __init__(self) -> None:
+        self.batches: dict[str, GestureBatch] = {}
+        self.rows: dict[str, Gesture] = {}
+        self.intents: dict[str, Intent] = {}
+        self.orphan_requests: dict[tuple[str, str], Mapping[str, object]] = {}
+        self.orphan_pages: list[tuple[str, str, str, Mapping[str, object]]] = []
+
+    async def add_batch(self, batch: GestureBatch) -> None:
+        if batch.batch_id in self.batches:
+            raise Conflict(f"gesture batch {batch.batch_id} is already stored")
+        self.batches[batch.batch_id] = batch
+
+    async def add_gestures(self, gestures: tuple[Gesture, ...]) -> None:
+        for gesture in gestures:
+            self.rows[gesture.id] = gesture
+
+    async def gestures_for(
+        self, tenant_id: TenantId, *, ids: tuple[str, ...] | None = None
+    ) -> tuple[Gesture, ...]:
+        found = [
+            gesture
+            for gesture in self.rows.values()
+            if gesture.tenant == tenant_id.value and (ids is None or gesture.id in ids)
+        ]
+        return tuple(sorted(found, key=lambda gesture: gesture.at))
+
+    async def unread(self, tenant_id: TenantId, *, limit: int) -> tuple[Gesture, ...]:
+        found = [
+            gesture
+            for gesture in await self.gestures_for(tenant_id)
+            if gesture.id not in self.intents
+        ]
+        return tuple(found[:limit])
+
+    async def save_intent(self, intent: Intent) -> None:
+        self.intents[intent.gesture_id] = intent
+
+    async def intents_for(self, tenant_id: TenantId) -> tuple[Intent, ...]:
+        return tuple(intent for intent in self.intents.values() if intent.tenant == tenant_id.value)
+
+    async def add_orphan_request(
+        self,
+        tenant_id: TenantId,
+        *,
+        batch_id: str,
+        request_id: str,
+        payload: Mapping[str, object],
+    ) -> None:
+        self.orphan_requests.setdefault((batch_id, request_id), payload)
+
+    async def add_orphan_page(
+        self, tenant_id: TenantId, *, batch_id: str, at: str, payload: Mapping[str, object]
+    ) -> None:
+        self.orphan_pages.append((tenant_id.value, batch_id, at, payload))
+
+    async def batch_owner(self, batch_id: str) -> str | None:
+        batch = self.batches.get(batch_id)
+        return None if batch is None else batch.device_id
+
+    async def count(self, tenant_id: TenantId) -> int:
+        return len(await self.gestures_for(tenant_id))
+
+    async def streams(self, tenant_id: TenantId) -> tuple[tuple[str, float, int], ...]:
+        seen: dict[str, tuple[float, int]] = {}
+        for gesture in await self.gestures_for(tenant_id):
+            last, many = seen.get(gesture.stream_id, (gesture.at, 0))
+            seen[gesture.stream_id] = (max(last, gesture.at), many + 1)
+        return tuple(
+            (stream_id, last, many)
+            for stream_id, (last, many) in sorted(
+                seen.items(), key=lambda one: one[1][0], reverse=True
+            )
+        )
+
+
+class FakePoolRepository:
+    """The carryover pool, with the rig's two clocks and both its caps.
+
+    Faithful rather than convenient: an entry ages only when it was shown, an
+    empty window still moves everything's waiting, and retirement is a flag
+    rather than a delete -- a retired entry is still packed on its own merits.
+    """
+
+    def __init__(self) -> None:
+        self.rows: dict[tuple[str, str], PoolEntry] = {}
+        self.retired_ids: set[tuple[str, str]] = set()
+
+    async def add_unclaimed(
+        self, tenant_id: TenantId, *, window_ids: tuple[str, ...], claimed: frozenset[str]
+    ) -> int:
+        for gesture_id in claimed:
+            self.rows.pop((tenant_id.value, gesture_id), None)
+            self.retired_ids.discard((tenant_id.value, gesture_id))
+        added = 0
+        now = datetime.now(tz=UTC).isoformat()
+        for gesture_id in dict.fromkeys(window_ids):
+            key = (tenant_id.value, gesture_id)
+            if gesture_id in claimed or key in self.rows:
+                continue
+            self.rows[key] = PoolEntry(
+                gesture_id=gesture_id, tenant=tenant_id.value, age=0, entered_at=now
+            )
+            added += 1
+        return added
+
+    async def age(self, tenant_id: TenantId, *, shown: tuple[str, ...] | None = None) -> int:
+        stale_before = (datetime.now(tz=UTC) - timedelta(days=K_POOL_DAYS)).isoformat()
+        retired = 0
+        for key, entry in list(self.rows.items()):
+            if key[0] != tenant_id.value or key in self.retired_ids:
+                continue
+            if shown is None:
+                entry = replace(entry, age=entry.age + 1)
+            elif entry.gesture_id in shown:
+                entry = replace(entry, age=entry.age + 1, waited=0)
+            else:
+                # Including when `shown` is empty: a pass that packed nothing
+                # passed everything over.
+                entry = replace(entry, waited=entry.waited + 1)
+            if entry.age > K_POOL_AGE:
+                entry = replace(entry, reason=RETIRED_PASSES)
+            elif entry.entered_at < stale_before:
+                entry = replace(entry, reason=RETIRED_STALE)
+            if entry.reason:
+                self.retired_ids.add(key)
+                retired += 1
+            self.rows[key] = entry
+        return retired
+
+    async def waiting(self, tenant_id: TenantId) -> tuple[PoolEntry, ...]:
+        return self._entries(tenant_id, retired=False)
+
+    async def ids(self, tenant_id: TenantId) -> tuple[str, ...]:
+        return tuple(entry.gesture_id for entry in self._entries(tenant_id, retired=False))
+
+    async def retired(self, tenant_id: TenantId) -> tuple[PoolEntry, ...]:
+        return self._entries(tenant_id, retired=True)
+
+    def _entries(self, tenant_id: TenantId, *, retired: bool) -> tuple[PoolEntry, ...]:
+        found = [
+            entry
+            for key, entry in self.rows.items()
+            if key[0] == tenant_id.value and (key in self.retired_ids) is retired
+        ]
+        return tuple(sorted(found, key=lambda entry: (entry.entered_at, entry.gesture_id)))
+
+
 class FakeUnitOfWork:
     """Counts commits. Does not simulate rollback -- the repositories hold the
     same objects the use case mutated. Transactions are proved in
@@ -1283,6 +1448,8 @@ class FakeUnitOfWork:
     browser_sessions: BrowserSessionRepository
     devices: DeviceRepository
     observations: ObservationRepository
+    gestures: GestureRepository
+    pool: PoolRepository
     observation_policies: ObservationPolicyRepository
     candidates: CandidateRepository
     triggers: TriggerRepository
@@ -1300,6 +1467,8 @@ class FakeUnitOfWork:
         self.browser_sessions = FakeBrowserSessionRepository()
         self.devices = FakeDeviceRepository()
         self.observations = FakeObservationRepository()
+        self.gestures = FakeGestureRepository()
+        self.pool = FakePoolRepository()
         self.observation_policies = FakeObservationPolicyRepository()
         self.candidates = FakeCandidateRepository()
         self.triggers = FakeTriggerRepository()

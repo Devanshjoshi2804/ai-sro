@@ -10,7 +10,7 @@ from datetime import datetime
 from typing import Any
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import Boolean, DateTime, Index, Integer, String, Text, text
+from sqlalchemy import BigInteger, Boolean, DateTime, Float, Index, Integer, String, Text, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -540,3 +540,193 @@ class ConfirmationRow(Base):
         # What the console asks for: this tenant's, oldest first, waiting ones.
         Index("ix_confirmations_tenant_answer", "tenant_id", "answer", "asked_at"),
     )
+
+
+class GestureBatchRow(Base):
+    """One upload from a browser, and what became of it.
+
+    ``batch_id`` is minted by the extension and is the primary key, which is
+    what makes ingest idempotent: an upload retried after its answer was lost
+    is refused rather than stored twice. The second copy would double every
+    gesture in it and be mined as a second doing of the same job.
+    """
+
+    __tablename__ = "gesture_batches"
+
+    batch_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    device_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    mode: Mapped[str] = mapped_column(String(16), nullable=False)
+
+    started_at: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    ended_at: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    """The device's own clock for the window this batch covers, against
+    ``received_at``'s server clock, and kept exactly as it was sent. The
+    protocol requires both and the rig discarded both -- the same silent loss
+    as a dropped screenshot reference, except these two carry something
+    nothing else does."""
+
+    recording_id: Mapped[str | None] = mapped_column(String(64))
+    """Which teaching recording this batch belongs to. ``mode`` says a batch
+    was a demonstration; without this, nothing says WHICH, and the extension
+    refuses to mix two recordings into one batch precisely so that this is
+    answerable."""
+
+    received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    accepted: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    rejected: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+
+class GestureRow(Base):
+    """One thing an operator did, with the calls and page marks around it."""
+
+    __tablename__ = "gestures"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    """Every reader filters on it: the mining pass, the pool, the reading loop
+    and the routes."""
+
+    stream_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    batch_id: Mapped[str] = mapped_column(String(64), nullable=False)
+
+    at: Mapped[float] = mapped_column(Float, nullable=False)
+    """Unix seconds as a float -- recorder.js's own format, and what every
+    ordering in the rig is on. Not a timestamp: converting it would make two
+    formats for one number and a reading loop that sorts differently from the
+    browser that recorded it."""
+
+    url: Mapped[str | None] = mapped_column(Text)
+    system: Mapped[str | None] = mapped_column(Text)  # scheme+host, derived at ingest
+    tab_id: Mapped[int | None] = mapped_column(Integer)
+    frame_url: Mapped[str | None] = mapped_column(Text)
+
+    page_url: Mapped[str | None] = mapped_column(Text)
+    """The TAB's url, which is not the frame's. A gesture inside a portal that
+    hosts its screens in an iframe reports the frame's src in ``url``, and a
+    run told to open that would load the frame's document outside the shell
+    that gives it its session. This is the address an operator would type."""
+
+    gesture: Mapped[Any] = mapped_column(JSONB, nullable=False)
+    requests: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list)
+    page_events: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list)
+
+    __table_args__ = (
+        Index("ix_gestures_tenant_at", "tenant_id", "at"),
+        Index("ix_gestures_stream", "tenant_id", "stream_id", "at"),
+    )
+
+
+class IntentRow(Base):
+    """What one model call read out of one gesture, and what it cost.
+
+    One row per gesture, replaced rather than appended to: a second reading of
+    the same evidence supersedes the first. A row with no usable ``act`` is
+    still a row -- the model was asked, it answered, and it was billed, so the
+    reading is visible rather than both billed and hidden.
+    """
+
+    __tablename__ = "intents"
+
+    gesture_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(String(64), nullable=False)
+
+    act: Mapped[str | None] = mapped_column(Text)
+    object_: Mapped[str | None] = mapped_column("object", Text)
+    system: Mapped[str | None] = mapped_column(Text)
+    page: Mapped[str | None] = mapped_column(Text)
+    values_seen: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list)
+    continues: Mapped[str | None] = mapped_column(Text)
+    confidence: Mapped[str | None] = mapped_column(Text)
+    why: Mapped[str | None] = mapped_column(Text)
+
+    model: Mapped[str | None] = mapped_column(Text)
+    in_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    out_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    thought_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    """Inside ``out_tokens``, not beside it: thinking is billed at the output
+    rate and ``out_tokens`` is what the bill is computed from. Kept as its own
+    column because on Flash it is ~84% of billed output, and a reader with one
+    number cannot tell a long answer from a long silence."""
+
+    cost_usd: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+
+    unpriced: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    """A call that cost nothing and a call whose cost could not be established
+    are the same row without this, and a bill summed over them is understated
+    without saying so."""
+
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    error: Mapped[str | None] = mapped_column(Text)
+    """Why it read nothing, when it read nothing for a reason the API gave. An
+    honest empty answer and a refused call are the same row without this."""
+
+    __table_args__ = (
+        # The spend sum reads it: everything this tenant was billed for over a
+        # window, and a cap that cannot ask that question is not a cap.
+        Index("ix_intents_tenant_created", "tenant_id", "created_at"),
+    )
+
+
+class OrphanRequestRow(Base):
+    """A recorded call no gesture claimed, kept against the batch it came in.
+
+    Keyed on (batch, request) so a replayed batch re-offers its orphans without
+    doubling them: the same call twice is not a second call.
+    """
+
+    __tablename__ = "orphan_requests"
+
+    batch_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    request_id: Mapped[str] = mapped_column(String(200), primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    payload: Mapped[Any] = mapped_column(JSONB, nullable=False)
+
+
+class OrphanPageRow(Base):
+    """A page event no gesture claimed.
+
+    A surrogate id rather than a natural key, deliberately: two distinct page
+    events can share a batch, an instant and a payload, and keying on those
+    would silently drop the second. ``gesture_batches.batch_id`` already makes
+    re-ingesting a batch a no-op, so there is nothing here to deduplicate.
+    """
+
+    __tablename__ = "orphan_pages"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    batch_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    tenant_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    at: Mapped[str] = mapped_column(String(64), nullable=False)
+    payload: Mapped[Any] = mapped_column(JSONB, nullable=False)
+
+
+class PoolRow(Base):
+    """Evidence a mining pass did not place, waiting to be shown again.
+
+    Keyed by tenant rather than by stream. That is the whole mechanism by which
+    one operator's Blue Yonder half meets another operator's SAP half.
+    """
+
+    __tablename__ = "mining_pool"
+
+    tenant_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    gesture_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+
+    age: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    waited: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    """Two clocks, because they measure opposite things and one counter cannot
+    be both. ``age`` counts readings this entry was SHOWN and not cited, and
+    runs out at ``K_POOL_AGE``. ``waited`` counts passes it was PASSED OVER,
+    and drives priority so the day rotates. Using age for both made an entry
+    that had been read six times outrank one never seen at all."""
+
+    retired: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+    reason: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    """Why it retired, empty while it is still live. Evidence that leaves the
+    prompt without a record is the failure this architecture exists to avoid."""
+
+    entered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

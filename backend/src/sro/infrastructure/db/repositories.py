@@ -62,6 +62,7 @@ from sro.domain.skill.skill import Skill
 from sro.domain.trigger.confirmation import Answer, Confirmation
 from sro.domain.trigger.trigger import Trigger
 from sro.infrastructure.db.codec import dump_policy
+from sro.infrastructure.db.evidence import SqlGestureRepository, SqlPoolRepository
 from sro.infrastructure.db.mappers import (
     batch_to_row,
     candidate_to_row,
@@ -924,6 +925,8 @@ class SqlUnitOfWork(UnitOfWork):
         self.browser_sessions = SqlBrowserSessionRepository(self._session)
         self.devices = SqlDeviceRepository(self._session)
         self.observations = SqlObservationRepository(self._session)
+        self.gestures = SqlGestureRepository(self._session)
+        self.pool = SqlPoolRepository(self._session)
         self.observation_policies = SqlObservationPolicyRepository(self._session)
         self.candidates = SqlCandidateRepository(self._session)
         self.triggers = SqlTriggerRepository(self._session)

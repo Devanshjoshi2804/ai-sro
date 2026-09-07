@@ -22,6 +22,7 @@ from rig.bakeoff import (
     burst,
     copy_store,
     forget_readings,
+    forget_workflows,
     percentile,
     save,
     save_readings,
@@ -461,3 +462,34 @@ async def test_the_readings_land_with_the_door_that_made_them(tmp_path: Path) ->
     )
 
     assert len(kept) == 2, "both readings arrived with the read door, not at the end"
+
+
+def test_a_fresh_copy_has_nothing_a_pass_could_recognise(tmp_path: Path) -> None:
+    """Without this the mine door measures the harness, not the model. A store
+    that already holds a day's jobs resolves every new proposal as one it has
+    seen before, so `kept` -- the count of jobs that are NEW -- is zero however
+    well the model read the day. The first real sweep reported exactly that,
+    five times over."""
+    store = _store(tmp_path / "rig.db")
+    _gestures(store, 2)
+    store.execute(
+        "INSERT INTO workflows (id, tenant, title, created_at) VALUES (?, ?, ?, ?)",
+        ("wf_1", TENANT, "create a work area", "2026-09-07T00:00:00+00:00"),
+    )
+    store.execute(
+        "INSERT INTO workflow_steps (workflow_id, ord, says) VALUES (?, ?, ?)",
+        ("wf_1", 0, "do it"),
+    )
+    store.execute(
+        "INSERT INTO pool (gesture_id, tenant, entered_at) VALUES (?, ?, ?)",
+        ("ges_000", TENANT, "2026-09-07T00:00:00+00:00"),
+    )
+
+    forgotten = forget_workflows(store, TENANT)
+
+    assert forgotten == 1
+    assert store.query("SELECT id FROM workflows WHERE tenant = ?", (TENANT,)) == []
+    assert store.query("SELECT ord FROM workflow_steps WHERE workflow_id = ?", ("wf_1",)) == []
+    assert store.query("SELECT gesture_id FROM pool WHERE tenant = ?", (TENANT,)) == []
+    # The evidence itself is untouched: it is what the pass is about to read.
+    assert len(store.query("SELECT id FROM gestures WHERE tenant = ?", (TENANT,))) == 2

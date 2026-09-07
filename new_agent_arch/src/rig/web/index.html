@@ -112,6 +112,8 @@
   #models .bar { display: inline-block; height: 8px; background: var(--accent); }
   #models .blind { color: #d08770; }
   #models .none { color: var(--muted); font-size: 13px; padding: 12px 0; }
+  #models .sub { color: var(--muted); font-size: 11px; }
+  #models td.said { text-align: left; white-space: normal; max-width: 260px; font-size: 11px; }
   #models .note { color: var(--muted); font-size: 12px; margin: 6px 0 14px; }
   #models ul.note { margin: 6px 0 14px 18px; }
   #models .scroll { overflow-x: auto; }
@@ -838,68 +840,118 @@
     if (!readings.length)
       return `<p class="note">No per-gesture readings in this sweep. The read door
         with <code>--gestures 0</code> is what fills this in.</p>`;
+
+    // `act` is the model's own prose -- "clicked the Configuration menu",
+    // "navigated to the configuration section" -- so string equality measures
+    // capitalisation and phrasing, not reading. It is kept as the strictest
+    // column and it is not the one to read: two models can agree completely
+    // and score zero on it.
+    //
+    // The verb is what the reading is FOR: the mining prompt is built out of
+    // these lines, and a pass cannot tell a click from a scroll if the models
+    // cannot. Word overlap is how much of the rest they share.
+    const STOP = new Set(["the", "a", "on", "in", "to", "of", "and", "into", "for", "an"]);
+    const words = (text) =>
+      new Set(
+        String(text ?? "")
+          .toLowerCase()
+          .match(/[a-z0-9]+/g)
+          ?.filter((w) => !STOP.has(w)) ?? [],
+      );
+    const verb = (text) => (String(text ?? "").toLowerCase().match(/[a-z]+/) ?? [""])[0];
+    const overlap = (a, b) => {
+      const [x, y] = [words(a), words(b)];
+      const both = [...x].filter((w) => y.has(w)).length;
+      const all = new Set([...x, ...y]).size;
+      return all ? both / all : 0;
+    };
+
     const models = [...new Set(readings.map((r) => r.model))].sort();
     const by = new Map();
     for (const r of readings) {
       if (!by.has(r.gesture_id)) by.set(r.gesture_id, {});
       by.get(r.gesture_id)[r.model] = r.act ?? null;
     }
-    const same = (a, b) => {
-      let agreed = 0, shared = 0;
+    const pair = (a, b) => {
+      let same = 0, sameVerb = 0, shared = 0, sum = 0;
       for (const acts of by.values()) {
         if (!(a in acts) || !(b in acts)) continue;
         shared += 1;
-        if (acts[a] === acts[b]) agreed += 1;
+        if (acts[a] === acts[b]) same += 1;
+        if (verb(acts[a]) === verb(acts[b])) sameVerb += 1;
+        sum += overlap(acts[a], acts[b]);
       }
-      return shared ? { share: agreed / shared, shared } : null;
+      return shared ? { same: same / shared, verb: sameVerb / shared, overlap: sum / shared } : null;
     };
-    const head = models.map((m) => `<th>${esc(m.split("-").slice(0, 3).join("-"))}</th>`).join("");
+
+    const short = (m) => m.replace("-preview", "").replace("-20251001", "");
+    const head = models.map((m) => `<th>${esc(short(m))}</th>`).join("");
     const body = models
       .map((one) => {
         const cells = models
           .map((two) => {
-            if (one === two) return `<td>&mdash;</td>`;
-            const both = same(one, two);
-            if (!both) return `<td>&mdash;</td>`;
-            const pct = Math.round(both.share * 100);
-            const shade = pct >= 80 ? "best" : pct < 50 ? "blind" : "";
-            return `<td class="${shade}">${pct}%</td>`;
+            if (one === two) return "<td>&mdash;</td>";
+            const both = pair(one, two);
+            if (!both) return "<td>&mdash;</td>";
+            const pct = Math.round(both.verb * 100);
+            const shade = pct >= 80 ? "best" : pct < 60 ? "blind" : "";
+            return `<td class="${shade}">${pct}%<br><span class="sub">${Math.round(
+              both.overlap * 100,
+            )}% words</span></td>`;
           })
           .join("");
         return `<tr><td>${esc(one)}</td>${cells}</tr>`;
       })
       .join("");
 
-    // Where they parted. A gesture every model read the same way says nothing;
-    // these are the ones a person should look at before picking a model.
+    // Where they parted: the verb differs, which is the disagreement a mining
+    // pass would actually inherit.
     const split = [];
     for (const [gesture, acts] of by) {
-      const answers = new Set(Object.values(acts).map((a) => a ?? "(none)"));
-      if (answers.size > 1) split.push([gesture, acts, answers.size]);
+      const verbs = new Set(models.filter((m) => m in acts).map((m) => verb(acts[m])));
+      if (verbs.size > 1) split.push([gesture, acts, verbs.size]);
     }
     split.sort((a, b) => b[2] - a[2]);
     const rows = split
-      .slice(0, 25)
+      .slice(0, 20)
       .map(
         ([gesture, acts]) =>
-          `<tr><td>${esc(gesture.slice(0, 12))}</td>` +
+          `<tr><td>${esc(gesture.slice(4, 14))}</td>` +
           models
-            .map((m) => `<td>${acts[m] == null ? "<span class='blind'>&mdash;</span>" : esc(acts[m])}</td>`)
+            .map(
+              (m) =>
+                `<td class="said">${
+                  acts[m] == null ? "<span class='blind'>&mdash;</span>" : esc(acts[m])
+                }</td>`,
+            )
             .join("") +
-          `</tr>`,
+          "</tr>",
       )
       .join("");
+
+    const exact = models
+      .flatMap((one, i) => models.slice(i + 1).map((two) => pair(one, two)))
+      .filter(Boolean);
+    const worstExact = Math.round(100 * Math.min(...exact.map((p) => p.same)));
+    const bestExact = Math.round(100 * Math.max(...exact.map((p) => p.same)));
 
     return `<h3>agreement &mdash; did they read the same day the same way</h3>
       <div class="scroll"><table><thead><tr><th></th>${head}</tr></thead>
         <tbody>${body}</tbody></table></div>
-      <p class="note">The share of gestures where two models gave the same act. A cheap model
-        that agrees with an expensive one on 90% of a day is a saving; one that agrees on 40%
-        is a different reading of the same evidence, and the price was never the question.</p>
-      <h3>where they parted &mdash; ${split.length} of ${by.size} gestures, worst first</h3>
+      <p class="note">The big number is how often two models chose the same <b>verb</b> for the
+        same gesture &mdash; clicked, typed, scrolled, selected. That is what a mining pass
+        inherits: it cannot tell a click from a scroll if the readings cannot. Underneath is how
+        much of the rest of the sentence they share.
+        Word-for-word agreement across these pairs runs ${worstExact}&ndash;${bestExact}%, and it
+        is not a number to read: <code>act</code> is the model's own prose, so
+        "Clicked on the CONFIGURATION menu" and "clicked on CONFIGURATION" score zero while
+        saying the same thing.</p>
+      <h3>where they parted &mdash; ${split.length} of ${by.size} gestures, most split first</h3>
       <div class="scroll"><table><thead><tr><th>gesture</th>${head}</tr></thead>
-        <tbody>${rows || '<tr><td class="none">they agreed on every gesture</td></tr>'}</tbody>
-        </table></div>`;
+        <tbody>${rows || '<tr><td class="none">they chose the same verb every time</td></tr>'}</tbody>
+        </table></div>
+      <p class="note">These are the gestures a cheaper model would hand the miner differently.
+        Read a few before trusting a price.</p>`;
   }
 
   async function drawModels() {

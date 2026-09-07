@@ -292,6 +292,28 @@ def _readings(
     ]
 
 
+def forget_workflows(store: Store, tenant: str) -> int:
+    """Empty the copy of everything a previous pass found, and say how many.
+
+    Without this the mine door measures nothing. A store that already holds a
+    day's jobs resolves every new proposal as one it has seen before, so `kept`
+    -- the count of jobs that are new -- is zero for every model however well
+    it read the day. The first sweep reported exactly that, five times, and it
+    was the harness talking, not the models.
+
+    The pool goes too: entries retired by an earlier pass would otherwise keep
+    their evidence out of this one's window.
+    """
+    known = store.query("SELECT id FROM workflows WHERE tenant = ?", (tenant,))
+    for row in known:
+        store.execute("DELETE FROM workflow_steps WHERE workflow_id = ?", (row["id"],))
+        store.execute("DELETE FROM workflow_stale WHERE workflow_id = ?", (row["id"],))
+        store.execute("DELETE FROM workflow_effects WHERE workflow_id = ?", (row["id"],))
+    store.execute("DELETE FROM workflows WHERE tenant = ?", (tenant,))
+    store.execute("DELETE FROM pool WHERE tenant = ?", (tenant,))
+    return len(known)
+
+
 def _usable(store: Store, tenant: str, ids: Iterable[str]) -> int:
     """Readings that came back with an act. The mining prompt is built out of
     `act`; a reading without one is a row that was paid for and cannot be
@@ -341,6 +363,7 @@ async def one_model(
     purse: Purse,
     bursts: int = K_BURST,
     twice: bool = True,
+    fresh: bool = False,
     doors: tuple[str, ...] = DOORS,
     sink: Sink | None = None,
 ) -> tuple[list[Row], list[Reading]]:
@@ -425,6 +448,8 @@ async def one_model(
             )
 
     if "mine" in doors:
+        if fresh:
+            forget_workflows(store, tenant)
         if purse.over():
             landed(
                 Row(sweep_id, tenant, model, "mine", now, error="skipped: over the sweep's budget")
@@ -502,6 +527,7 @@ async def sweep(
     gestures: int = K_READ_GESTURES,
     bursts: int = K_BURST,
     twice: bool = True,
+    fresh: bool = False,
     budget_usd: float = 5.0,
     doors: tuple[str, ...] = DOORS,
     sweep_id: str = "",
@@ -527,6 +553,7 @@ async def sweep(
                 purse=purse,
                 bursts=bursts,
                 twice=twice,
+                fresh=fresh,
                 doors=doors,
                 sink=sink,
             )

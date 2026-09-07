@@ -187,6 +187,11 @@ def main() -> None:
         action="store_true",
         help="ask each vendor which models it will actually serve this key, then stop",
     )
+    parser.add_argument(
+        "--fresh",
+        action="store_true",
+        help="empty each copy of what an earlier pass found, so the mine door measures something",
+    )
     parser.add_argument("--dry", action="store_true", help="print the plan, ask nothing")
     args = parser.parse_args()
 
@@ -266,6 +271,7 @@ def main() -> None:
             gestures=args.gestures,
             bursts=args.burst,
             twice=not args.once,
+            fresh=args.fresh,
             budget_usd=args.budget_usd,
             doors=doors,
             sink=keep,

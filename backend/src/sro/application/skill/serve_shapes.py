@@ -66,19 +66,20 @@ async def shapes_for(
         if runs and not held:
             continue
         wanted = ordered_cites(workflow)
+        # Not a null check -- `shape_of` makes one of those below, over the
+        # same emptiness. This is the round trip: `gestures_for` with no ids
+        # is `IN ()` against Postgres, asked once per cite-less workflow by
+        # every browser on every cache miss.
         if not wanted:
             continue
         by_id = {
             gesture.id: gesture
             for gesture in await uow.gestures.gestures_for(tenant_id, ids=tuple(wanted))
         }
-        cited = cited_pairs(workflow, by_id)
-        if not cited:
-            continue
         advice = await counsel(
             uow, tenant_id=tenant_id, workflow_id=workflow.id, device_id=device_id, now=now
         )
-        shape = shape_of(workflow, cited, held=held, advice=advice)
+        shape = shape_of(workflow, cited_pairs(workflow, by_id), held=held, advice=advice)
         if shape is not None:
             served.append(shape)
     return served

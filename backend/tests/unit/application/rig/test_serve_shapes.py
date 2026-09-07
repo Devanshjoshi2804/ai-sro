@@ -49,9 +49,6 @@ Every rule here that reads a clock reads it through `counsel`, which rests a
 job for a day after the browser's last refusal. Dated today, a fixture lets a
 `shapes_for` that ignores its `now` pass by coincidence."""
 
-STALE = [["https://old", "text|a paragraph of page copy that no longer names anything", "click"]]
-"""A shape key written under a rule that has since changed."""
-
 
 def _evidence() -> dict[str, Gesture]:
     return {g.id: deepcopy(g) for g in _gestures()}
@@ -229,6 +226,9 @@ async def test_a_run_that_held_after_one_that_failed_serves_the_job_again() -> N
     [shape] = await shapes_for(uow, tenant_id=TENANT, now=NOW)
 
     assert shape.id == "wfl_1" and shape.held_runs == 1
+    # `shapes_for` is a read, and it is answered inside a request that may be
+    # holding writes nobody has finished. A commit here flushes theirs.
+    assert uow.commits == 0, "serving a shape writes nothing and commits nothing"
 
 
 async def test_the_held_gate_counts_only_this_tenant_s_runs() -> None:
@@ -280,6 +280,29 @@ async def test_a_workflow_that_cannot_be_served_never_withdraws_the_ones_behind_
     await _plant(uow, by_id, unproven, uncited, elsewhere, fine)
 
     assert await _served(uow) == ["wfl_fine"]
+
+
+async def test_a_workflow_with_no_cites_is_never_asked_for_its_evidence() -> None:
+    """`gestures_for` with no ids is `IN ()` -- a round trip to Postgres that
+    nothing can come back from, asked once per cite-less workflow by every
+    browser on every cache miss. The guard that skips it is not a null check:
+    `shape_of` makes one of those anyway, one statement later."""
+    uow = FakeUnitOfWork()
+    by_id = _evidence()
+    nothing = Workflow(id="wfl_0", tenant=TENANT.value, title="cites nothing", narrative="n")
+    await _plant(uow, by_id, nothing)
+    reads = 0
+    asked = uow.gestures.gestures_for
+
+    async def counted(*args: object, **kwargs: object) -> tuple[Gesture, ...]:
+        nonlocal reads
+        reads += 1
+        return await asked(*args, **kwargs)  # type: ignore[arg-type]
+
+    setattr(uow.gestures, "gestures_for", counted)  # noqa: B010
+
+    assert await shapes_for(uow, tenant_id=TENANT, now=NOW) == []
+    assert reads == 0
 
 
 # --------------------------------------------------------------------------

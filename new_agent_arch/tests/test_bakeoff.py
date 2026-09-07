@@ -391,3 +391,73 @@ def test_a_sweeps_readings_survive_to_be_read_back(tmp_path: Path) -> None:
     rows = store.query("SELECT * FROM bakeoff_readings ORDER BY model", ())
     assert [row["act"] for row in rows] == ["picked", "counted"]
     assert rows[0]["cost_usd"] == 0.002
+
+
+async def test_a_door_that_is_done_is_saved_before_the_next_one_is_asked(
+    tmp_path: Path,
+) -> None:
+    """Forty minutes of paid calls used to be written at the very end, so
+    anything that went wrong in the last second threw all of it away -- which
+    is how the first real sweep died, on a column the table did not have yet.
+    A door that is finished is a fact, and it goes to the store before the next
+    call is made."""
+    source = tmp_path / "source.db"
+    _gestures(_store(source), 2)
+    seen: list[tuple[str, str]] = []
+
+    rows, _ = await sweep(
+        source=source,
+        out=tmp_path / "out",
+        models=("one",),
+        asker_for=lambda _: FakeAsker(*[Answer(data={"act": "picked"}) for _ in range(4)]),
+        tenant=TENANT,
+        gestures=0,
+        doors=("read", "burst"),
+        sink=lambda some, _found: seen.extend((r.model, r.door) for r in some),
+    )
+
+    assert seen == [("one", "read"), ("one", "burst")], "each door, in the order it finished"
+    assert len(rows) == 2, "and the sweep still hands back everything at the end"
+
+
+async def test_a_model_that_fell_over_is_reported_and_not_silently_missing(
+    tmp_path: Path,
+) -> None:
+    """A sweep with a model missing reads as a sweep nobody meant to run it in.
+    Its rows are the record that it was asked and could not answer."""
+    source = tmp_path / "source.db"
+    _gestures(_store(source), 1)
+    seen: list[Row] = []
+
+    await sweep(
+        source=source,
+        out=tmp_path / "out",
+        models=("angry",),
+        asker_for=lambda _: Angry(),
+        tenant=TENANT,
+        gestures=0,
+        doors=("read", "mine"),
+        sink=lambda some, _found: seen.extend(some),
+    )
+
+    assert [row.door for row in seen] == ["read", "mine"]
+    assert all(row.error and "no route to the vendor" in row.error for row in seen)
+
+
+async def test_the_readings_land_with_the_door_that_made_them(tmp_path: Path) -> None:
+    source = tmp_path / "source.db"
+    _gestures(_store(source), 2)
+    kept: list[Reading] = []
+
+    await sweep(
+        source=source,
+        out=tmp_path / "out",
+        models=("one",),
+        asker_for=lambda _: FakeAsker(*[Answer(data={"act": "picked"}) for _ in range(2)]),
+        tenant=TENANT,
+        gestures=0,
+        doors=("read",),
+        sink=lambda _some, found: kept.extend(found),
+    )
+
+    assert len(kept) == 2, "both readings arrived with the read door, not at the end"

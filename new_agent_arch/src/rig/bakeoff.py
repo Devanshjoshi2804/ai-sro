@@ -44,6 +44,16 @@ from rig.workflows import cited_ids, known_workflows
 
 DOORS = ("read", "mine", "burst")
 
+Sink = Callable[[list["Row"], list["Reading"]], None]
+"""Where a door's findings go the moment it has them.
+
+A sweep is forty minutes of paid calls and it used to write all of it at the
+very end, so anything that went wrong in the last second threw away every
+model's work -- which is exactly how the first real sweep died, on a column
+the table did not have yet. A door that is finished is a fact, and a fact
+belongs in the store before the next call is made.
+"""
+
 K_BURST = 8
 """How many calls the burst door fires at once. Eight because that is the shape
 the rig actually makes: a run plans one step at a time, but a reading loop over
@@ -332,9 +342,20 @@ async def one_model(
     bursts: int = K_BURST,
     twice: bool = True,
     doors: tuple[str, ...] = DOORS,
+    sink: Sink | None = None,
 ) -> tuple[list[Row], list[Reading]]:
-    """Every door, one model, on its own copy of the evidence."""
+    """Every door, one model, on its own copy of the evidence.
+
+    Each door's row goes to `sink` as soon as that door is done, so a sweep
+    that falls over later still has what the earlier doors paid for.
+    """
     from rig.api import read_new_gestures
+
+    def landed(row: Row, found: list[Reading] | None = None) -> None:
+        rows.append(row)
+        readings.extend(found or [])
+        if sink is not None:
+            sink([row], found or [])
 
     now = datetime.now(tz=UTC).isoformat()
     store = copy_store(source, out / f"{model.replace('.', '-')}.db")
@@ -346,7 +367,7 @@ async def one_model(
         wanted = _oldest(store, tenant, gestures)
         forget_readings(store, tenant, gestures)
         if purse.over():
-            rows.append(
+            landed(
                 Row(sweep_id, tenant, model, "read", now, error="skipped: over the sweep's budget")
             )
         else:
@@ -362,8 +383,7 @@ async def one_model(
                     break
             calls = timed.since(mark)
             purse.spent += sum(a.cost_usd for _, a in calls)
-            readings.extend(_readings(store, sweep_id, tenant, model, wanted))
-            rows.append(
+            landed(
                 Row(
                     sweep_id,
                     tenant,
@@ -374,19 +394,20 @@ async def one_model(
                     gestures=read,
                     usable=_usable(store, tenant, wanted),
                     **_bill(calls),
-                )
+                ),
+                _readings(store, sweep_id, tenant, model, wanted),
             )
 
     if "burst" in doors:
         if purse.over():
-            rows.append(
+            landed(
                 Row(sweep_id, tenant, model, "burst", now, error="skipped: over the sweep's budget")
             )
         else:
             calls, elapsed = await burst(asker, model, calls=bursts)
             purse.spent += sum(a.cost_usd for _, a in calls)
             waited = sum(ms for ms, _ in calls) / 1000.0
-            rows.append(
+            landed(
                 Row(
                     sweep_id,
                     tenant,
@@ -405,7 +426,7 @@ async def one_model(
 
     if "mine" in doors:
         if purse.over():
-            rows.append(
+            landed(
                 Row(sweep_id, tenant, model, "mine", now, error="skipped: over the sweep's budget")
             )
             return rows, readings
@@ -439,7 +460,7 @@ async def one_model(
             # pass would leave the second one's money off every total.
             calls = timed.since(mark)
 
-        rows.append(
+        landed(
             Row(
                 sweep_id,
                 tenant,
@@ -484,6 +505,7 @@ async def sweep(
     budget_usd: float = 5.0,
     doors: tuple[str, ...] = DOORS,
     sweep_id: str = "",
+    sink: Sink | None = None,
 ) -> tuple[list[Row], list[Reading]]:
     """Every model at once, each on its own copy. One model failing outright
     does not take the sweep with it: its rows carry the error instead."""
@@ -506,9 +528,10 @@ async def sweep(
                 bursts=bursts,
                 twice=twice,
                 doors=doors,
+                sink=sink,
             )
         except Exception as problem:  # noqa: BLE001 -- one model's failure is one model's row
-            return [
+            broken = [
                 Row(
                     sweep_id,
                     tenant,
@@ -518,7 +541,13 @@ async def sweep(
                     error=f"{type(problem).__name__}: {problem}",
                 )
                 for door in doors
-            ], []
+            ]
+            # A model that fell over reports too: its rows are the record that
+            # it was asked and could not answer, and a sweep missing a model
+            # entirely reads as a sweep nobody meant to run it in.
+            if sink is not None:
+                sink(broken, [])
+            return broken, []
 
     gathered = await asyncio.gather(*(guarded(model) for model in models))
     return (

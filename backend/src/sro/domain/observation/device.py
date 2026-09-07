@@ -59,6 +59,24 @@ class AgentDevice:
     next heartbeat, which is idempotent on the label and hands it one.
     """
 
+    revoked_at: str | None = None
+    """When this browser's authority was taken away, ISO, or ``None``.
+
+    Separate from ``secret`` rather than clearing it: an administrator revoking
+    a browser is answering "this one stops acting", and a device whose secret
+    was blanked cannot be told from one registered before secrets existed. It
+    is also the record of *when*, which an audit of what a browser was allowed
+    to do needs and a missing secret cannot give.
+
+    Withdrawal is final for this registration. The browser's own re-register is
+    what brings it back, under a fresh secret, which is the point: whoever
+    revoked it did so about the installation in front of them.
+    """
+
+    @property
+    def revoked(self) -> bool:
+        return self.revoked_at is not None
+
     def __post_init__(self) -> None:
         if not self.label.strip():
             raise InvariantViolation("a device with no label cannot be told from another")

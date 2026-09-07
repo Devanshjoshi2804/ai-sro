@@ -14,6 +14,7 @@ decide what a job's history means.
 
 from __future__ import annotations
 
+import secrets
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -44,6 +45,14 @@ FATES = ("accepted", "dismissed", "did_it", "expired", "diverged")
 """accepted: Yes was pressed and a run started. dismissed: No thanks. did_it:
 the operator made the workflow's write themselves while it asked. expired: the
 nudge's lifetime passed. diverged: the tail stopped matching the prefix."""
+
+
+def new_offer_id() -> str:
+    """The shape every other id in the backend has, and enough randomness that
+    two offers made in the same second cannot collide. The rig minted this
+    inside its ``record_offer``; here the offer is a record before it is a row,
+    so whoever builds it mints the id."""
+    return "off_" + secrets.token_hex(16)
 
 
 def fate_of(name: str) -> str:

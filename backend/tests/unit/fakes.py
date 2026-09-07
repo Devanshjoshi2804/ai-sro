@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import re
-from collections.abc import AsyncIterator, Mapping
+from collections.abc import AsyncIterator, Callable, Mapping
 from copy import deepcopy
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
@@ -35,6 +35,7 @@ from sro.application.ports.model import Asker
 from sro.application.ports.repositories import (
     BrowserSessionRepository,
     CandidateRepository,
+    ChatRepository,
     ConfirmationRepository,
     ConnectionRepository,
     DeviceRepository,
@@ -43,6 +44,7 @@ from sro.application.ports.repositories import (
     ModelCallRepository,
     ObservationPolicyRepository,
     ObservationRepository,
+    OfferRepository,
     PoolRepository,
     RecordingRepository,
     RunRepository,
@@ -67,6 +69,7 @@ from sro.application.ports.vision import (
     VisionDriver,
     VisionUnavailable,
 )
+from sro.domain.chat.reading import ChatReading
 from sro.domain.chat.thread import MessageId, Thread, ThreadId
 from sro.domain.connection.connection import Connection, ConnectionId, ConnectionStatus
 from sro.domain.execution.belts import RunProof, state_verified
@@ -114,6 +117,7 @@ from sro.domain.shared.objective import ObjectiveKey
 from sro.domain.shared.prices import Answer as ModelAnswer
 from sro.domain.shared.prices import Effort
 from sro.domain.skill.locator import LocatorStrategy
+from sro.domain.skill.offers import Offer, OfferRow
 from sro.domain.skill.skill import Skill
 from sro.domain.skill.workflow import Workflow
 from sro.domain.trigger.confirmation import Answer, Confirmation
@@ -942,6 +946,14 @@ class FakeDeviceRepository:
         mine = [device for device in self.rows.values() if device.tenant_id == tenant_id]
         return tuple(sorted(mine, key=lambda device: device.last_seen_at, reverse=True))
 
+    async def revoke(self, tenant_id: TenantId, device_id: DeviceId, *, at: str) -> bool:
+        device = await self.get(tenant_id, device_id)
+        if device.revoked:
+            # The first revocation stands, as the store's condition makes it.
+            return False
+        device.revoked_at = at
+        return True
+
 
 class FakeObservationRepository:
     """The conflict on a second add is the behaviour under test: an upload the
@@ -1627,6 +1639,77 @@ class FakeWorkflowRepository:
         )
 
 
+class FakeOfferRepository:
+    """What was offered, in a list, in the order it arrived.
+
+    Faithful rather than convenient, because plan 3's counsel is built on it.
+    The list order IS the store's ``seq``: the window is a stable sort on ``at``
+    over the reverse of it, which is what ``ORDER BY at DESC, seq DESC`` does,
+    and ``k > 0`` is filtered here rather than by the caller because that is
+    where the query does it.
+    """
+
+    def __init__(self) -> None:
+        self.rows: list[Offer] = []
+
+    async def record(self, offer: Offer) -> None:
+        self.rows.append(offer)
+
+    async def newest(
+        self, tenant_id: TenantId, workflow_id: str, *, limit: int
+    ) -> tuple[OfferRow, ...]:
+        return self._window(
+            lambda offer: offer.tenant == tenant_id.value and offer.workflow_id == workflow_id,
+            limit,
+        )
+
+    async def newest_for_device(
+        self, tenant_id: TenantId, workflow_id: str, device_id: DeviceId, *, limit: int
+    ) -> tuple[OfferRow, ...]:
+        return self._window(
+            lambda offer: (
+                offer.tenant == tenant_id.value
+                and offer.workflow_id == workflow_id
+                and offer.device_id == device_id.value
+            ),
+            limit,
+        )
+
+    async def fates(self, tenant_id: TenantId, workflow_id: str) -> Mapping[str, int]:
+        counted: dict[str, int] = {}
+        for offer in self.rows:
+            if offer.tenant == tenant_id.value and offer.workflow_id == workflow_id:
+                counted[offer.fate] = counted.get(offer.fate, 0) + 1
+        return counted
+
+    def _window(self, mine: Callable[[Offer], bool], limit: int) -> tuple[OfferRow, ...]:
+        # Reversed first, then sorted on `at` alone: Python's sort is stable, so
+        # offers that tie on `at` keep the reversed arrival order, which is the
+        # `seq DESC` half of the tiebreak.
+        found = [offer for offer in reversed(self.rows) if mine(offer) and offer.k > 0]
+        found.sort(key=lambda offer: offer.at, reverse=True)
+        return tuple(OfferRow(k=offer.k, fate=offer.fate, at=offer.at) for offer in found[:limit])
+
+
+class FakeChatRepository:
+    """What the chat door cost. Never what it read -- there is nowhere to put
+    it here either, which is the point."""
+
+    def __init__(self) -> None:
+        self.rows: list[ChatReading] = []
+
+    async def record(self, reading: ChatReading) -> None:
+        self.rows.append(reading)
+
+    async def since(self, tenant_id: TenantId, *, since: str) -> tuple[ChatReading, ...]:
+        found = [
+            reading
+            for reading in self.rows
+            if reading.tenant == tenant_id.value and reading.at >= since
+        ]
+        return tuple(sorted(found, key=lambda reading: reading.at, reverse=True))
+
+
 class FakeUnitOfWork:
     """Counts commits. Does not simulate rollback -- the repositories hold the
     same objects the use case mutated. Transactions are proved in
@@ -1646,6 +1729,8 @@ class FakeUnitOfWork:
     gestures: GestureRepository
     workflow_runs: WorkflowRunRepository
     workflows: WorkflowRepository
+    offers: OfferRepository
+    chats: ChatRepository
     pool: PoolRepository
     observation_policies: ObservationPolicyRepository
     candidates: CandidateRepository
@@ -1669,6 +1754,8 @@ class FakeUnitOfWork:
         # One database in the store, so the workflow repository reads the
         # same runs: ``proofs`` walks them.
         self.workflows = FakeWorkflowRepository(self.workflow_runs)
+        self.offers = FakeOfferRepository()
+        self.chats = FakeChatRepository()
         self.pool = FakePoolRepository()
         self.observation_policies = FakeObservationPolicyRepository()
         self.candidates = FakeCandidateRepository()

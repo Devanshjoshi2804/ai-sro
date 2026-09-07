@@ -11,6 +11,7 @@ from collections.abc import Mapping
 from datetime import datetime
 from typing import Protocol
 
+from sro.domain.chat.reading import ChatReading
 from sro.domain.chat.thread import Thread, ThreadId
 from sro.domain.connection.connection import Connection, ConnectionId
 from sro.domain.execution.belts import RunProof
@@ -40,6 +41,7 @@ from sro.domain.shared.identifiers import (
     TriggerId,
 )
 from sro.domain.shared.objective import ObjectiveKey
+from sro.domain.skill.offers import Offer, OfferRow
 from sro.domain.skill.skill import Skill
 from sro.domain.skill.workflow import Workflow
 from sro.domain.trigger.confirmation import Confirmation
@@ -309,6 +311,18 @@ class DeviceRepository(Protocol):
 
     async def list_for_tenant(self, tenant_id: TenantId) -> tuple[AgentDevice, ...]:
         """Most recently seen first."""
+        ...
+
+    async def revoke(self, tenant_id: TenantId, device_id: DeviceId, *, at: str) -> bool:
+        """Whether there was a live browser to revoke.
+
+        The secret is left alone rather than blanked: a device with no secret
+        cannot be told from one registered before secrets existed, and this has
+        to say *when* the authority ended as well as that it did. ``False`` for
+        a browser already revoked, so a second press does not move that instant;
+        ``NotFound`` for one this tenant does not have, which is a different
+        answer and a different status code.
+        """
         ...
 
 
@@ -720,6 +734,60 @@ class WorkflowRepository(Protocol):
         ...
 
 
+class OfferRepository(Protocol):
+    """What the extension offered, and what became of it.
+
+    Three reads and one write, because the two windows are one query with one
+    predicate between them and the tally is a different question entirely.
+    """
+
+    async def record(self, offer: Offer) -> None:
+        """One offer, one row. The id is minted where the offer is made."""
+        ...
+
+    async def newest(
+        self, tenant_id: TenantId, workflow_id: str, *, limit: int
+    ) -> tuple[OfferRow, ...]:
+        """Newest first, ``at`` then arrival -- the window ``counsel_over``
+        reads. Nudges (``k = 0``) are excluded: an arrival is not evidence
+        either way. Every browser's offers count, because recognition is a
+        property of the job rather than of who was asked."""
+        ...
+
+    async def newest_for_device(
+        self, tenant_id: TenantId, workflow_id: str, device_id: DeviceId, *, limit: int
+    ) -> tuple[OfferRow, ...]:
+        """The same window, one browser's. Resting is per browser: one
+        operator's no is not the next operator's."""
+        ...
+
+    async def fates(self, tenant_id: TenantId, workflow_id: str) -> Mapping[str, int]:
+        """How many of this job's offers ended each way, nudges included.
+
+        The panel's tally rather than the counsel's window, so neither the
+        ``k > 0`` filter nor the limit applies: an arrival nudge is still an
+        offer that was made.
+        """
+        ...
+
+
+class ChatRepository(Protocol):
+    """What the chat door read, and what the reading cost.
+
+    Never the sentence. There is no column for it and no method that would
+    write one: the row exists for the cap and the spend line, and neither needs
+    an operator's words about their own warehouse.
+    """
+
+    async def record(self, reading: ChatReading) -> None: ...
+
+    async def since(self, tenant_id: TenantId, *, since: str) -> tuple[ChatReading, ...]:
+        """Every reading at or after this ISO instant, newest first. The day's
+        spend is the sum over it, which is why the index leads with the
+        tenant."""
+        ...
+
+
 class UnitOfWork(Protocol):
     """Transaction boundary. Leaving the block without ``commit`` rolls back."""
 
@@ -736,6 +804,8 @@ class UnitOfWork(Protocol):
     gestures: GestureRepository
     workflow_runs: WorkflowRunRepository
     workflows: WorkflowRepository
+    offers: OfferRepository
+    chats: ChatRepository
     pool: PoolRepository
     observation_policies: ObservationPolicyRepository
     candidates: CandidateRepository

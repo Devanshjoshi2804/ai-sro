@@ -20,6 +20,7 @@ from sqlalchemy import (
     Boolean,
     DateTime,
     Float,
+    Identity,
     Index,
     Integer,
     String,
@@ -339,6 +340,11 @@ class AgentDeviceRow(Base):
     """What this browser proves it is itself with. Nullable only for a device
     registered before it existed; that one is refused until its extension
     re-registers, which is idempotent on the label."""
+
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    """When this browser's authority was taken away. Nullable and never
+    cleared: a column rather than a deleted row because a revoked device is
+    still the answer to "whose browsers were being observed, and until when"."""
 
     grants: Mapped[list[dict[str, Any]]] = mapped_column(
         JSONB, nullable=False, default=list, server_default="[]"
@@ -1009,3 +1015,68 @@ class MiningPassRow(Base):
     An honest zero and a refused call are the same row without this."""
 
     __table_args__ = (Index("ix_mining_passes_tenant_started", "tenant_id", "started_at"),)
+
+
+class OfferRow(Base):
+    """One offer the extension made from a recognised prefix, and its fate.
+
+    The labelled record of whether recognition was right: the share of
+    ``diverged`` in a job's newest offers is what moves its threshold, and a run
+    of refusals from one browser is what rests it there.
+
+    ``seq`` is the rig's ``rowid`` tiebreak made explicit. The extension sends
+    the browser's own clock, several offers can carry the same second, and the
+    newest three of them decide whether a job is rested -- so "newest" has to
+    mean arrival order once ``at`` ties, and Postgres promises no order at all
+    without a column to say so.
+    """
+
+    __tablename__ = "offers"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    seq: Mapped[int] = mapped_column(BigInteger, Identity(), nullable=False)
+    tenant_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    workflow_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    device_id: Mapped[str] = mapped_column(String(64), nullable=False)
+
+    k: Mapped[int] = mapped_column(Integer, nullable=False)
+    """How many gestures of the tail matched when it was offered. Zero is an
+    arrival nudge -- "you have been here before", nothing typed -- which is
+    neither kind of evidence and is filtered out of the counsel window."""
+
+    fate: Mapped[str] = mapped_column(String(16), nullable=False)
+    run_id: Mapped[str | None] = mapped_column(String(64))
+    at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (Index("ix_offers_tenant_workflow", "tenant_id", "workflow_id", "at"),)
+
+
+class ChatRow(Base):
+    """One sentence the chat door read, and what the reading cost.
+
+    The sentence is not here and there is no column for it: it is an operator's
+    words about their warehouse, and the row exists for the cap and the spend
+    line, neither of which needs them.
+    """
+
+    __tablename__ = "chats"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    workflow_id: Mapped[str | None] = mapped_column(String(64))
+    """The job the sentence turned out to be about, when it was about one."""
+
+    in_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    out_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    thought_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    """Inside out_tokens, not beside them."""
+
+    cost_usd: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    unpriced: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    """A reading that cost nothing and a reading nobody could price are the
+    same row without this, and the day's bill is understated silently."""
+
+    error: Mapped[str | None] = mapped_column(Text)
+    at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (Index("ix_chats_tenant_at", "tenant_id", "at"),)

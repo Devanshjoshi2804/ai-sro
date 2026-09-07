@@ -495,6 +495,10 @@ def update_device_row(row: AgentDeviceRow, device: AgentDevice) -> None:
     row.queued_bytes = device.queued_bytes
     row.uploads = device.uploads
     row.secret = device.secret
+    # Deliberately not written back from the record: revocation is a column the
+    # repository sets under its own condition, and a device loaded before it was
+    # revoked and saved after would otherwise undo the revocation with a
+    # heartbeat. `revoked_at` leaves the store on read and never returns.
     row.grants = dump_grants(device.grants)
 
 
@@ -513,6 +517,7 @@ def row_to_device(row: AgentDeviceRow) -> AgentDevice:
         queued_bytes=row.queued_bytes,
         uploads=row.uploads,
         secret=row.secret,
+        revoked_at=None if row.revoked_at is None else row.revoked_at.isoformat(),
         grants=load_grants(row.grants),
     )
 

@@ -245,6 +245,15 @@ def main() -> None:
         print("\n--dry: nothing was asked and nothing was spent")
         return
 
+    def keep(some: list[Row], found: list[Reading]) -> None:
+        """Each door's findings, the moment it is done. A sweep is a long run
+        of paid calls, and anything that fails at the end of one must not throw
+        away what the earlier doors already bought."""
+        save(store, some)
+        save_readings(store, found)
+        for row in some:
+            print(f"  saved {row.model} {row.door}: ${row.cost_usd:.4f}", flush=True)
+
     rows: list[Row]
     readings: list[Reading]
     rows, readings = asyncio.run(
@@ -259,10 +268,9 @@ def main() -> None:
             twice=not args.once,
             budget_usd=args.budget_usd,
             doors=doors,
+            sink=keep,
         )
     )
-    save(store, rows)
-    save_readings(store, readings)
 
     print(f"\n{'model':<28} {'door':<5} {'calls':>5} {'p50ms':>8} {'cost':>9}  outcome")
     for row in sorted(rows, key=lambda r: (r.door, r.cost_usd)):

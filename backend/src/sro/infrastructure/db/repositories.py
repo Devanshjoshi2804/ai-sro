@@ -8,7 +8,7 @@ that does not exist -- the difference is not something a caller may learn.
 from __future__ import annotations
 
 import re
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import delete, or_, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -119,6 +119,7 @@ from sro.infrastructure.db.models import (
     ToolCallRow,
     TriggerRow,
 )
+from sro.infrastructure.db.offers import SqlChatRepository, SqlOfferRepository
 from sro.infrastructure.db.workflow_runs import SqlWorkflowRunRepository
 from sro.infrastructure.db.workflows import SqlWorkflowRepository
 
@@ -632,6 +633,25 @@ class SqlDeviceRepository(DeviceRepository):
         rows = (await self._session.execute(query)).scalars().all()
         return tuple(row_to_device(row) for row in rows)
 
+    async def revoke(self, tenant_id: TenantId, device_id: DeviceId, *, at: str) -> bool:
+        # Read then set, rather than a conditional UPDATE: the row is the one
+        # `get` in this session already holds, so nothing here can leave a
+        # caller reading a browser it has just revoked as still live. `_row`
+        # raises `NotFound` for a device this tenant does not have, which is a
+        # different answer from "there was nothing live to revoke".
+        row = await self._row(tenant_id, device_id)
+        if row.revoked_at is not None:
+            # The first revocation stands. A second press must not move the
+            # instant the authority ended -- that instant is what an audit of
+            # what this browser was allowed to do is read against.
+            return False
+        when = datetime.fromisoformat(at)
+        # UTC when it said nothing: this is the server's own clock, and a naive
+        # local instant beside the aware ones reads as a revocation hours before
+        # the browser registered.
+        row.revoked_at = when if when.tzinfo is not None else when.replace(tzinfo=UTC)
+        return True
+
     async def _row(self, tenant_id: TenantId, device_id: DeviceId) -> AgentDeviceRow:
         query = select(AgentDeviceRow).where(
             AgentDeviceRow.id == device_id.value,
@@ -930,6 +950,8 @@ class SqlUnitOfWork(UnitOfWork):
         self.gestures = SqlGestureRepository(self._session)
         self.workflow_runs = SqlWorkflowRunRepository(self._session)
         self.workflows = SqlWorkflowRepository(self._session)
+        self.offers = SqlOfferRepository(self._session)
+        self.chats = SqlChatRepository(self._session)
         self.pool = SqlPoolRepository(self._session)
         self.observation_policies = SqlObservationPolicyRepository(self._session)
         self.candidates = SqlCandidateRepository(self._session)

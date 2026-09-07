@@ -562,7 +562,7 @@ rows fetched and mapped **per heartbeat per browser**. Recommended shape:
 workflow_id`, which also collapses the N+1 rather than shrinking it.
 
 **2. `read_utterance` checks no cap.** That is the rig's own split — the route
-answers the 429, not the use case — so **plan 3b's `/v1/chat` must call
+answers the 429, not the use case — so **plan 4's `/v1/chat` must call
 `over_cap` before it**. Nothing at the application layer can fail if a route
 forgets, so this belongs in that task's brief as an explicit requirement rather
 than as a note.
@@ -611,3 +611,17 @@ existence as coverage of the thing its name claims.
 **8. `MineObservations` in `application/observation/mine.py` is still live** and
 wired in `container.py`. The rig's pass landed beside it as `mining_pass.py`.
 The spec deletes the old miner at phase 7; until then, both exist.
+
+## Unowned, and named here so neither half assumes the other took it
+
+The spec's phase-3 acceptance names `test_devices` (the use-case half, 13 rig
+tests) and its Application list names `capture/devices.py` and
+`analytics/audit.py`. This plan's scope note gave plan 3b "the planner, the
+verifier, the runner loop, approvals, effects" — so **neither half claimed
+devices or audit**, and the final review caught the gap. Whichever plan takes
+them must say so in its own scope note; if 3b declines, plan 4 owns them.
+
+`sro.config` also still has no `daily_usd_cap`. `read_new_gestures` and `mine`
+both take `cap_usd` as a parameter because there is nowhere to read one from,
+and the spec folds the rig's `config.py` into `sro.config` with the `RIG_`
+prefix dropped. Every route that calls a paid loop needs that value to exist.

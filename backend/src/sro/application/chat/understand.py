@@ -1,0 +1,149 @@
+"""The chat door. Saying it offers the work; pressing start authorises it.
+
+The model reads the utterance against the workflows this tenant holds and
+answers which one, with which values, and what is still missing. Nothing
+performs from here: the answer is an offer the form renders, and starting a run
+is the press.
+
+Ported from `new_agent_arch/src/rig/entry.py`, plus the half of the rig's
+`/v1/chat` route that writes the bill down. The words and the response schema
+are `sro.domain.chat.reading`; this is the half that asks.
+
+The day's cap is the route's, not this module's: the rig answered 429 before it
+reached `understand`, and a cap checked after the call is a cap that has
+already paid for the call it stops.
+"""
+
+from __future__ import annotations
+
+import json
+from dataclasses import dataclass, field
+from datetime import datetime
+
+from sro.application.ports.model import Asker
+from sro.application.ports.repositories import UnitOfWork
+from sro.domain.chat.reading import INSTRUCTIONS, UNDERSTAND_SCHEMA, ChatReading, new_chat_id
+from sro.domain.shared.identifiers import TenantId
+from sro.domain.shared.prices import Answer
+from sro.domain.skill.workflow import Workflow
+
+
+@dataclass(frozen=True, slots=True)
+class Understood:
+    """What one sentence came to, and what reading it cost.
+
+    `answer` has no default and is never None: every way out of `understand`
+    -- named a job, named one nobody holds, or came back with nothing at all --
+    went through the model and has to be billed for. A reading the caller
+    cannot bill is a model call nobody can defend at the end of the month.
+    """
+
+    workflow_id: str | None
+    answer: Answer
+    values: dict[str, str] = field(default_factory=dict)
+    missing: list[str] = field(default_factory=list)
+
+
+async def understand(
+    utterance: str, workflows: list[Workflow], asker: Asker, model: str
+) -> Understood:
+    """Which of these jobs the operator meant, with what values, missing what."""
+    held = [
+        {
+            "id": w.id,
+            "title": w.title,
+            "narrative": w.narrative,
+            "parameters": [
+                {"name": p.get("name"), "seen": p.get("seen_values", [])}
+                for p in w.parameters
+                if isinstance(p, dict)
+            ],
+        }
+        for w in workflows
+    ]
+    answer = await asker.ask(
+        model=model,
+        instructions=INSTRUCTIONS,
+        evidence=json.dumps(
+            {"said": utterance, "jobs": held},
+            indent=2,
+            # The redaction marker is «redacted», and the default ensure_ascii
+            # writes it into the prompt as \u00abredacted\u00bb -- a form
+            # nothing else in this system uses. Every json.dumps on a path to a
+            # prompt or to the store says so.
+            ensure_ascii=False,
+        ),
+        schema=UNDERSTAND_SCHEMA,
+    )
+    if answer.data is None:
+        return Understood(None, answer)
+    # A job the rig does not hold is not a job: the model naming one is a
+    # hallucination, not an offer, and the form has nothing to render for it.
+    by_id = {w.id: w for w in workflows}
+    chosen = by_id.get(str(answer.data.get("workflow_id") or ""))
+    if chosen is None:
+        return Understood(None, answer)
+    # Values are what the run is performed with. A key the workflow never
+    # declared is a value nothing asked for, arriving from a sentence a stranger
+    # could have written -- so the offer carries only the parameters this
+    # workflow itself names.
+    declared = {p.get("name") for p in chosen.parameters if isinstance(p, dict)}
+    raw = answer.data.get("values")
+    pairs = (
+        (p.get("name"), p.get("value"))
+        for p in (raw if isinstance(raw, list) else ())
+        if isinstance(p, dict)
+    )
+    values = {k: v for k, v in pairs if isinstance(k, str) and k in declared and isinstance(v, str)}
+    # Read and ignored. `missing` stays in the schema because a model asked to
+    # name what is absent picks values more carefully than one that is not --
+    # but a parameter it leaves out of `missing` is a parameter the form never
+    # asks for, and the run then performs with whatever the recording happened
+    # to contain. What is missing is not an opinion: it is `declared` minus what
+    # arrived, sorted, because `declared` is a set and a form whose fields
+    # reorder between two identical sentences is a form nothing can screenshot.
+    missing = sorted(n for n in declared if isinstance(n, str) and n not in values)
+    return Understood(chosen.id, answer, values, missing)
+
+
+async def read_utterance(
+    uow: UnitOfWork,
+    *,
+    tenant_id: TenantId,
+    utterance: str,
+    asker: Asker,
+    model: str,
+    now: datetime,
+) -> Understood:
+    """One sentence, read against this tenant's jobs, with the bill written down.
+
+    The bill, and not the sentence: there is no column for an operator's words
+    about their own warehouse, and the row exists for the cap and the spend
+    line, neither of which needs them.
+
+    A row is written on every reading, a refusal included -- that is the case
+    that matters, because it is then the only record left of a call that cost
+    money and returned nothing. `now` is the caller's clock rather than one
+    read here, so a test can move it.
+    """
+    got = await understand(utterance, list(await uow.workflows.known(tenant_id)), asker, model)
+    answer = got.answer
+    await uow.chats.record(
+        ChatReading(
+            id=new_chat_id(),
+            tenant=tenant_id.value,
+            at=now.isoformat(),
+            # What the offer came to, which is None when the model named a job
+            # nobody holds. The sentence it read is not here and has nowhere to
+            # go: `ChatReading` has no field for it.
+            workflow_id=got.workflow_id,
+            in_tokens=answer.in_tokens,
+            out_tokens=answer.out_tokens,
+            thought_tokens=answer.thought_tokens,
+            cost_usd=answer.cost_usd,
+            unpriced=answer.unpriced,
+            error=answer.error,
+        )
+    )
+    await uow.commit()
+    return got

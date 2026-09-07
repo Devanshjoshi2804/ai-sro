@@ -26,11 +26,11 @@ read by nothing else.
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import Select, delete, select
+from sqlalchemy import Select, delete, func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -188,6 +188,26 @@ class SqlWorkflowRunRepository(WorkflowRunRepository):
             )
         ).scalars()
         return await self._with_steps(rows.all())
+
+    async def tallies(self, tenant_id: TenantId) -> Mapping[str, tuple[int, int]]:
+        # The rig's two counts off the runs index, batched: it asked
+        # ``COUNT(*), SUM(outcome = 'held')`` per workflow, and this asks the
+        # tenant once. ``count(*) FILTER`` rather than SQLite's ``SUM`` of a
+        # boolean, which has no meaning in Postgres -- and it counts rows, so
+        # a tenant with no held runs gets 0 where the SUM would have given
+        # NULL. No ``ORDER BY``: the answer is a mapping and the caller looks
+        # each workflow up by id.
+        query = (
+            select(
+                WorkflowRunRow.workflow_id,
+                func.count(),
+                func.count().filter(WorkflowRunRow.outcome == "held"),
+            )
+            .where(WorkflowRunRow.tenant_id == tenant_id.value)
+            .group_by(WorkflowRunRow.workflow_id)
+        )
+        rows = (await self._session.execute(query)).all()
+        return {workflow_id: (int(ran), int(held)) for workflow_id, ran, held in rows}
 
     async def since(self, tenant_id: TenantId, *, since: str) -> tuple[WorkflowRun, ...]:
         # Newest first, unlike ``for_workflow``: this is the audit's order, and

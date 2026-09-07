@@ -52,18 +52,24 @@ async def shapes_for(
     here, so a test can move it. Nothing writes, so nothing commits: the
     caller owns the session.
 
-    A stated divergence from the rig: the rig counted a workflow's runs off
-    the runs index rather than loading them, and this port has no count on
-    `WorkflowRunRepository` to do that with. `for_workflow` loads each run
-    with its steps, one read per proven workflow.
+    The tally is one read for the whole tenant, before the loop. It was
+    `for_workflow` per proven workflow, which loads every run ever recorded
+    with all of its steps to arrive at two integers -- flatly linear in total
+    run rows, measured at 0.391s for 10k, and a tenant with a year of use
+    would read ~100k run rows and ~500k step rows here per heartbeat, per
+    browser. This is the read every browser makes on every gesture cache
+    miss, so it degraded exactly as a customer succeeded. The rig used two
+    index counts; `tallies` is those, batched.
     """
+    tallied = await uow.workflow_runs.tallies(tenant_id)
     served: list[Shape] = []
     for workflow in await uow.workflows.known(tenant_id):
         if workflow.unproven:
             continue
-        runs = await uow.workflow_runs.for_workflow(tenant_id, workflow.id)
-        held = sum(1 for run in runs if run.outcome == "held")
-        if runs and not held:
+        # Absent means never run, which is not the same as run and never
+        # held: the first is served and the second is the gate below.
+        ran, held = tallied.get(workflow.id, (0, 0))
+        if ran and not held:
             continue
         wanted = ordered_cites(workflow)
         # Not a null check -- `shape_of` makes one of those below, over the

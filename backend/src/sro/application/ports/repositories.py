@@ -634,6 +634,25 @@ class WorkflowRunRepository(Protocol):
         """Oldest first, as the rig listed them."""
         ...
 
+    async def tallies(self, tenant_id: TenantId) -> Mapping[str, tuple[int, int]]:
+        """``(runs, held)`` for every workflow of this tenant that has been
+        run, in one ``GROUP BY``.
+
+        What ``shapes_for`` gates on, and the only reason it is a batch: the
+        gate needs two integers per workflow, and asking ``for_workflow`` per
+        proven workflow loads every run ever recorded with all of its steps to
+        compute them -- measured flatly linear in total run rows, 0.391s at
+        10k, on the read every browser makes on every gesture cache miss. The
+        rig read the same two numbers off the runs index and this is that,
+        batched across the tenant instead of asked per workflow.
+
+        A workflow with no runs is ABSENT, not a zero pair. That is the runs
+        index answering about itself -- it has no row to count and does not
+        know what workflows exist -- and the caller defaults it, which is what
+        keeps a job that has never been run servable.
+        """
+        ...
+
     async def since(self, tenant_id: TenantId, *, since: str) -> tuple[WorkflowRun, ...]:
         """Every run started at or after this ISO instant, newest first, with
         its steps. The spine of the audit: the approvals on each are read

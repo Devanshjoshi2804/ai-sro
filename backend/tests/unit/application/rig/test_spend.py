@@ -9,7 +9,10 @@ actually billed $5.00.
 
 from datetime import UTC, datetime, timedelta, timezone
 
+import pytest
+
 from sro.application.intent.spend import over_cap, spent_today
+from sro.config import Settings
 from sro.domain.chat.reading import ChatReading
 from sro.domain.shared.identifiers import TenantId
 from sro.domain.shared.prices import DaySpend
@@ -168,3 +171,54 @@ async def test_the_day_is_the_utc_day_whatever_zone_the_clock_carries() -> None:
     )
 
     assert (await spent_today(uow, TENANT, now=clock)).cost_usd == 2.0
+
+
+# --------------------------------------------------------------------------
+# the setting the cap is read from
+
+
+class TestTheSettingEveryPaidLoopReadsTheCapFrom:
+    """`Settings.daily_usd_cap` carries the rig's docstring, and every claim
+    in it is a claim about `cap_usd` above -- which the tests above prove
+    about the *argument*.
+
+    Between the two sits pydantic, and it can make the docstring false without
+    touching either: a `ge=0` on the field leaves "a negative value means no
+    cap" unwritable, and a default of zero turns the asking off everywhere,
+    with every test above still green. `read_new_gestures`, `mine` and the
+    runner all take their `cap_usd` from here, so this is where the two halves
+    are tied together.
+    """
+
+    async def test_the_default_is_a_real_cap_and_the_rule_reads_it(self) -> None:
+        """Five dollars, as the rig's was. Not zero -- a default of zero would
+        ship a deployment whose model calls are all refused -- and not
+        negative, which would ship one with no ceiling at all."""
+        cap = Settings(_env_file=None).daily_usd_cap
+        under = await _billed(_chat("cha_1", cost_usd=4.99))
+        at_it = await _billed(_chat("cha_1", cost_usd=5.0))
+
+        assert cap == 5.0
+        assert await over_cap(under, TENANT, now=NOW, cap_usd=cap) is None
+        assert await over_cap(at_it, TENANT, now=NOW, cap_usd=cap) is not None
+
+    async def test_a_negative_value_survives_the_setting_and_means_no_cap(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """What a deliberate one-off measurement sets, written where an
+        operator sets it: the environment, under the SRO_ prefix."""
+        monkeypatch.setenv("SRO_DAILY_USD_CAP", "-1")
+        cap = Settings(_env_file=None).daily_usd_cap
+        uow = await _billed(_chat("cha_1", cost_usd=500.0, unpriced=True))
+
+        assert cap == -1.0
+        assert await over_cap(uow, TENANT, now=NOW, cap_usd=cap) is None
+
+    async def test_zero_survives_the_setting_and_disables_the_asking(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("SRO_DAILY_USD_CAP", "0")
+        cap = Settings(_env_file=None).daily_usd_cap
+
+        assert cap == 0.0
+        assert await over_cap(await _billed(), TENANT, now=NOW, cap_usd=cap) is not None

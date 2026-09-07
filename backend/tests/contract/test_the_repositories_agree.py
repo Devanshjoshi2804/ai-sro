@@ -441,6 +441,35 @@ class TestWorkflowRuns:
             found = await work.workflow_runs.for_workflow(TENANT, "wfl_1")
         assert [one.id for one in found] == ["run_early", "run_a", "run_b", "run_c"]
 
+    async def test_tallies_count_runs_and_holds_per_workflow_for_one_tenant(
+        self, store: UnitOfWork
+    ) -> None:
+        """The two integers ``shapes_for`` gates on, for the whole tenant at
+        once. Both halves count rows rather than summing a boolean, so a
+        workflow that has run and never held is ``(n, 0)`` and not ``(n,
+        None)``; and a workflow with runs in another tenant's warehouse is
+        not this tenant's evidence in either direction.
+        """
+        async with store as work:
+            await work.workflow_runs.save(_run("run_held", outcome="held"))
+            await work.workflow_runs.save(_run("run_failed", outcome="failed"))
+            await work.workflow_runs.save(_run("run_going", outcome="running"))
+            # Run, never held: the workflow the gate withdraws.
+            await work.workflow_runs.save(_run("run_flop", workflow_id="wfl_2", outcome="failed"))
+            # Known, never run. It has no row in the runs index, so it has no
+            # key here -- the caller is what turns absent into (0, 0), and an
+            # implementation that reached for the workflows table to invent a
+            # zero pair would answer differently.
+            await work.workflows.save(_workflow("wfl_never_run"))
+            # The same workflow id, somebody else's warehouse.
+            await work.workflow_runs.save(_run("run_theirs", tenant=OTHER_TENANT, outcome="held"))
+            await work.commit()
+
+        async with store as work:
+            counted = await work.workflow_runs.tallies(TENANT)
+
+        assert dict(counted) == {"wfl_1": (3, 1), "wfl_2": (1, 0)}
+
     async def test_since_is_newest_first_and_reads_the_instant_back_normalised(
         self, store: UnitOfWork
     ) -> None:
@@ -1136,6 +1165,7 @@ class TestTenantScoping:
             assert await work.workflow_runs.since(TENANT, since=yesterday) == ()
             assert await work.workflow_runs.in_flight(TENANT, DEVICE) is None
             assert await work.workflow_runs.awaiting(TENANT) == ()
+            assert dict(await work.workflow_runs.tallies(TENANT)) == {}
 
             assert await work.offers.newest(TENANT, "wfl_1", limit=10) == ()
             assert await work.offers.newest_for_device(TENANT, "wfl_1", DEVICE, limit=10) == ()

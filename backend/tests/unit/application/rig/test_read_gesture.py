@@ -11,7 +11,13 @@ import asyncio
 from dataclasses import replace
 from datetime import UTC, datetime
 
-from sro.application.observation.read_gesture import read_gesture, read_new_gestures
+import pytest
+
+from sro.application.observation.read_gesture import (
+    READING_LIMIT,
+    read_gesture,
+    read_new_gestures,
+)
 from sro.domain.observation.gesture import Body, Call, Gesture, Intent
 from sro.domain.observation.reading import INSTRUCTIONS, INTENT_SCHEMA, TAIL
 from sro.domain.observation.redaction import is_secret_name
@@ -336,6 +342,12 @@ def _answers(how_many: int) -> list[Answer]:
     return [_answer() for _ in range(how_many)]
 
 
+def _evidence(asker: FakeAsker, nth: int) -> str:
+    sent = asker.asked[nth]["evidence"]
+    assert isinstance(sent, str)
+    return sent
+
+
 async def test_every_unread_gesture_of_this_tenant_gets_one_reading() -> None:
     uow, day = await _stored(TENANT)
     asker = FakeAsker(*_answers(len(day)))
@@ -489,16 +501,93 @@ async def test_each_reading_is_committed_before_the_next_one_is_asked() -> None:
 
 async def test_a_gesture_is_read_against_what_its_streams_last_readings_said() -> None:
     """The tail is what `continues` is decided from, so a reading written
-    earlier in this same loop has to be in the next gesture's context."""
-    uow, _ = await _stored(TENANT)
-    asker = FakeAsker(_answer(act="opened the client form"), *_answers(10))
+    earlier in this same loop has to be in the next gesture's context -- and a
+    reading of the operator's OTHER tab must not be, however recent it is.
+
+    The fixture is one stream, so the scoping is invisible without a second:
+    dropping `other.stream_id == gesture.stream_id` from `_tail_for` left the
+    whole suite green while leaking another tab's readings into every prompt
+    and billing for the tokens.
+    """
+    uow, day = await _stored(TENANT)
+    other_tab = replace(day[0], id="ges_other_tab", stream_id="dev_other", at=day[0].at - 1)
+    await uow.gestures.add_gestures((other_tab,))
+    asker = FakeAsker(
+        _answer(act="counted pallets in the other tab"),
+        _answer(act="opened the client form"),
+        *_answers(len(day)),
+    )
 
     await read_new_gestures(
         uow, tenant_id=TENANT, asker=asker, model=MODEL, now=NOW, cap_usd=NO_CAP
     )
 
-    first = asker.asked[0]["evidence"]
-    second = asker.asked[1]["evidence"]
-    assert isinstance(first, str) and isinstance(second, str)
-    assert "opened the client form" not in first
-    assert "opened the client form" in second
+    read = [_evidence(asker, nth) for nth in range(len(asker.asked))]
+    # The other tab is read first -- it is the oldest -- and belongs in nobody
+    # else's context.
+    assert not any("counted pallets in the other tab" in sent for sent in read)
+    assert "opened the client form" not in read[1]
+    assert "opened the client form" in read[2]
+
+
+async def test_one_pass_reads_no_more_than_its_limit() -> None:
+    """A pass that asks the model thousands of times before returning is a pass
+    nothing can stop, and a drain calls this repeatedly instead. Both halves
+    are load-bearing: the number, and it actually reaching the repository."""
+    uow, day = await _stored(TENANT)
+    assert len(day) > 2
+    asker = FakeAsker(*_answers(len(day)))
+
+    written = await read_new_gestures(
+        uow, tenant_id=TENANT, asker=asker, model=MODEL, now=NOW, cap_usd=NO_CAP, limit=2
+    )
+
+    assert written == 2
+    assert len(asker.asked) == 2
+    assert READING_LIMIT == 200
+
+
+class _Collapses:
+    """An asker that answers a few times and then does not come back at all.
+
+    `Asker` promises no such thing as never raising: a transport gives up, a
+    client raises on a malformed envelope, and today's adapter catching
+    `Exception` itself is that adapter's choice rather than the port's rule.
+    """
+
+    def __init__(self, after: int) -> None:
+        self.after = after
+        self.asked = 0
+
+    async def ask(self, **_: object) -> Answer:
+        await asyncio.sleep(0)
+        self.asked += 1
+        if self.asked > self.after:
+            raise RuntimeError("the transport gave up")
+        return _answer()
+
+
+async def test_a_call_that_raised_is_never_filed_as_a_reading_that_happened() -> None:
+    """Both billed and hidden is the one outcome this design refuses.
+
+    Swallowing the exception and filing `intent_from(None, ...)` writes an
+    `act=None`, `error=None`, `cost_usd=0.0` row for a call that may well have
+    been billed -- and because an intent row exists, the never-retried rule
+    then guarantees it is never asked again. The refusal test cannot catch it:
+    its asker RETURNS an `Answer(error=...)` and never raises, so the two paths
+    never meet.
+
+    Propagating instead loses nothing: every reading before it is already
+    committed, and the gesture it died on stays unread and is read next pass.
+    """
+    uow, day = await _stored(TENANT)
+    assert len(day) > 2
+
+    with pytest.raises(RuntimeError):
+        await read_new_gestures(
+            uow, tenant_id=TENANT, asker=_Collapses(after=2), model=MODEL, now=NOW, cap_usd=NO_CAP
+        )
+
+    assert len(await uow.gestures.intents_for(TENANT)) == 2
+    assert uow.commits == 2
+    assert len(await uow.gestures.unread(TENANT, limit=100)) == len(day) - 2

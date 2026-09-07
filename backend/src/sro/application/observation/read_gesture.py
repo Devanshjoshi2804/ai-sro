@@ -157,10 +157,14 @@ async def _read_unread(
         return 0
 
     # The tail comes out of one read of the tenant's evidence rather than a
-    # query per gesture: `limit` readings against a day of gestures is a scan
-    # the model call dwarfs by four orders of magnitude.
-    # ponytail: linear per gesture. A stream-scoped repository read if a
-    # tenant's day ever stops fitting in memory.
+    # query per gesture, and the scan of it is linear per gesture.
+    # ponytail: this reads the tenant's WHOLE HISTORY, not a day. Neither
+    # `gestures_for` nor `intents_for` takes a time bound, so every pass
+    # deserialises every gesture ever captured -- request and response bodies
+    # included -- and that set only grows. Defensible while a pass is dominated
+    # by up to `limit` model calls, and no longer once it is not. The upgrade is
+    # `GestureRepository.tail_for(stream_id, before)`: the rig had that query in
+    # SQL, and a port is exactly the seam it belongs on.
     ordered = await uow.gestures.gestures_for(tenant_id)
     intents = {intent.gesture_id: intent for intent in await uow.gestures.intents_for(tenant_id)}
 
@@ -187,14 +191,17 @@ async def _read_unread(
 def _tail_for(
     ordered: tuple[Gesture, ...], intents: dict[str, Intent], gesture: Gesture
 ) -> list[Intent]:
-    """The readings of this stream that came before this gesture, oldest last.
+    """The readings of this stream that came before this gesture, oldest first.
 
     Scoped to the stream rather than the tenant: `continues` asks whether this
     gesture carries on the last doing, and one operator's other tab is not it.
+
+    Unbounded on purpose. `read_gesture` takes the last TAIL of whatever it is
+    handed, and one function knowing that number is one place for it to be
+    wrong.
     """
-    found = [
+    return [
         intents[other.id]
         for other in ordered
         if other.stream_id == gesture.stream_id and other.at < gesture.at and other.id in intents
     ]
-    return found[-TAIL:]

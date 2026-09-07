@@ -94,10 +94,9 @@ def intent_from(
 
     An answer that carried no data still becomes an intent: the model was
     asked, it answered, and it was billed, so the row exists and says why it is
-    empty. `data` is passed beside `answer` rather than read off it because the
-    caller has already decided what counts as usable JSON, and `model` beside
-    both because `Answer` carries the bill but not the name it was run up
-    against -- which is the one thing a reader of a $0.00 row needs.
+    empty. `model` is passed beside `answer` because `Answer` carries the bill
+    but not the name it was run up against -- which is the one thing a reader of
+    a $0.00 row needs.
     """
     intent = Intent(
         gesture_id=gesture.id,

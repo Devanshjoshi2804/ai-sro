@@ -6,6 +6,7 @@ rather than a capability, and should be redesigned before it gets an adapter.
 
 from __future__ import annotations
 
+import asyncio
 import re
 from collections.abc import AsyncIterator, Mapping
 from datetime import UTC, datetime, timedelta
@@ -27,6 +28,7 @@ from sro.application.ports.http import (
     TargetUnreachable,
 )
 from sro.application.ports.intent import Extraction, Reading
+from sro.application.ports.model import Asker
 from sro.application.ports.repositories import (
     BrowserSessionRepository,
     CandidateRepository,
@@ -88,6 +90,10 @@ from sro.domain.shared.identifiers import (
     TriggerId,
 )
 from sro.domain.shared.objective import ObjectiveKey
+
+# `Answer` is already the trigger confirmation's; this one is a model's reply.
+from sro.domain.shared.prices import Answer as ModelAnswer
+from sro.domain.shared.prices import Effort
 from sro.domain.skill.locator import LocatorStrategy
 from sro.domain.skill.skill import Skill
 from sro.domain.trigger.confirmation import Answer, Confirmation
@@ -1296,6 +1302,49 @@ class FakeIntentParser:
         return self._reading
 
 
+class FakeAsker:
+    """Queued answers, and a record of every question.
+
+    Not a dataclass: it takes *answers positionally, and @dataclass would
+    replace this __init__ with a generated one.
+    """
+
+    def __init__(self, *answers: ModelAnswer) -> None:
+        self.answers = list(answers)
+        self.asked: list[dict[str, object]] = []
+
+    async def ask(
+        self,
+        *,
+        model: str,
+        instructions: str,
+        evidence: str,
+        schema: dict[str, object],
+        image: bytes | None = None,
+        images: tuple[bytes, ...] = (),
+        effort: Effort | None = None,
+    ) -> ModelAnswer:
+        # Yield, because the real thing does. Without a suspension point this
+        # double never lets another task interleave, so any test racing two
+        # callers with asyncio.gather passes whether or not the code under test
+        # actually serialises -- it proves the double, not the code.
+        await asyncio.sleep(0)
+        self.asked.append(
+            {
+                "model": model,
+                "instructions": instructions,
+                "evidence": evidence,
+                "schema": schema,
+                "image": image,
+                "images": images,
+                "effort": effort,
+            }
+        )
+        if not self.answers:
+            return ModelAnswer(error="the fake ran out of answers")
+        return self.answers.pop(0)
+
+
 # Every fake, held against the port it stands in for. One line each, and the
 # reason they are here rather than as base classes: a fake that inherits from a
 # Protocol satisfies it by inheritance and can still drift in signature. These
@@ -1327,6 +1376,7 @@ _triggers: TriggerRepository = FakeTriggerRepository()
 _tool_calls: ToolCallRepository = FakeToolCallRepository()
 _confirmations: ConfirmationRepository = FakeConfirmationRepository()
 _candidates: CandidateRepository = FakeCandidateRepository()
+_asker: Asker = FakeAsker()
 
 
 class FakeToolCaller:

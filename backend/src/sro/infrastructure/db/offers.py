@@ -28,7 +28,6 @@ anything else.
 from __future__ import annotations
 
 from collections.abc import Mapping
-from datetime import UTC, datetime
 
 from sqlalchemy import ColumnElement, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -41,19 +40,8 @@ from sro.domain.skill.offers import Offer
 # The domain's three-column window row, aliased apart from the table of the
 # same name. ``counsel_over`` reads k, fate and at and has no use for the rest.
 from sro.domain.skill.offers import OfferRow as OfferWindow
+from sro.infrastructure.db.codec import when
 from sro.infrastructure.db.models import ChatRow, OfferRow
-
-
-def _when(moment: str) -> datetime:
-    """An ISO instant as a real timestamp, in UTC when it said nothing.
-
-    The extension writes ``toISOString``, which always says ``Z``; a naive
-    string that slipped through is read as UTC rather than as the server's local
-    zone, because a naive local instant beside the UTC ones lands an offer hours
-    from where it belongs in a window of ten.
-    """
-    parsed = datetime.fromisoformat(moment)
-    return parsed if parsed.tzinfo is not None else parsed.replace(tzinfo=UTC)
 
 
 class SqlOfferRepository(OfferRepository):
@@ -73,7 +61,7 @@ class SqlOfferRepository(OfferRepository):
                 k=offer.k,
                 fate=offer.fate,
                 run_id=offer.run_id,
-                at=_when(offer.at),
+                at=when(offer.at),
             )
         )
 
@@ -115,7 +103,7 @@ class SqlOfferRepository(OfferRepository):
         # does there -- several offers routinely carry one second.
         query = (
             select(OfferRow)
-            .where(OfferRow.tenant_id == tenant_id.value, OfferRow.at >= _when(since))
+            .where(OfferRow.tenant_id == tenant_id.value, OfferRow.at >= when(since))
             .order_by(OfferRow.at.desc(), OfferRow.seq.desc())
         )
         rows = (await self._session.execute(query)).scalars().all()
@@ -167,14 +155,14 @@ class SqlChatRepository(ChatRepository):
                 cost_usd=reading.cost_usd,
                 unpriced=reading.unpriced,
                 error=reading.error,
-                at=_when(reading.at),
+                at=when(reading.at),
             )
         )
 
     async def since(self, tenant_id: TenantId, *, since: str) -> tuple[ChatReading, ...]:
         query = (
             select(ChatRow)
-            .where(ChatRow.tenant_id == tenant_id.value, ChatRow.at >= _when(since))
+            .where(ChatRow.tenant_id == tenant_id.value, ChatRow.at >= when(since))
             # The id breaks the tie, as `seq` does for offers: `at` comes off
             # the record rather than off a server clock, so two readings can
             # carry one instant and there is no arrival column to fall back on.

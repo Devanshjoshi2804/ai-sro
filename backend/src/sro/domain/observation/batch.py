@@ -40,6 +40,10 @@ class ObservationBatch:
     they are read whole, by a miner, over a window. Putting them in a column
     would make the row that says "this arrived" as expensive to read as the
     evidence it points at.
+
+    Not `observation.gesture.GestureBatch`, which is the miner's own tally of an
+    upload whose gestures were stored row by row. Separate tables, and one
+    upload can be described by both.
     """
 
     id: BatchId

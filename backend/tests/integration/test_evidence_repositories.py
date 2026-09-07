@@ -310,9 +310,14 @@ class TestGestures:
 
         async with session_factory() as session:
             row = (await session.execute(select(OrphanRequestRow))).scalar_one()
+            page = (await session.execute(select(OrphanPageRow))).scalar_one()
 
         assert (row.batch_id, row.request_id) == ("bat_1", "req_0")
         assert row.payload["tab_id"] == 7
+        # Both orphan tables are write-only through the protocol, so nothing
+        # else in the suite would notice an unstamped or mis-stamped tenant --
+        # and an orphan is evidence one tenant's audit may read.
+        assert (row.tenant_id, page.tenant_id) == (TENANT.value, TENANT.value)
 
     async def test_the_same_orphan_twice_is_one_row(
         self, session_factory: async_sessionmaker[AsyncSession]
@@ -460,26 +465,42 @@ class TestPool:
     ) -> None:
         """Two caps, because a pool that only counts passes keeps an entry
         forever in a tenant nobody is mining. Whichever comes first, and the
-        row says which."""
+        row says which.
+
+        The starved entry is the one the two clocks exist for: never once
+        shown, so `age` is 0 and only `waited` records that it was there at
+        all. A retired read that reported `waited=0` would hide exactly the
+        loss the pool was built to make visible."""
         async with SqlUnitOfWork(session_factory) as uow:
-            await uow.pool.add_unclaimed(TENANT, window_ids=("ges_1",), claimed=frozenset())
+            await uow.pool.add_unclaimed(
+                TENANT, window_ids=("ges_starved", "ges_seen"), claimed=frozenset()
+            )
+            await uow.pool.add_unclaimed(OTHER_TENANT, window_ids=("ges_old",), claimed=frozenset())
             await uow.commit()
 
         long_ago = datetime.now(tz=UTC) - timedelta(days=K_POOL_DAYS + 1)
         async with session_factory() as session:
-            row = (await session.execute(select(PoolRow))).scalar_one()
-            row.entered_at = long_ago
+            # The other tenant's entry is exactly as old, so only the tenant
+            # predicate can keep this sweep out of that pool.
+            rows = await session.execute(
+                select(PoolRow).where(PoolRow.gesture_id.in_(("ges_starved", "ges_old")))
+            )
+            for row in rows.scalars():
+                row.entered_at = long_ago
             await session.commit()
 
         async with SqlUnitOfWork(session_factory) as uow:
-            assert await uow.pool.age(TENANT) == 1
+            assert await uow.pool.age(TENANT, shown=("ges_seen",)) == 1
             await uow.commit()
 
         async with SqlUnitOfWork(session_factory) as uow:
             entries = await uow.pool.retired(TENANT)
+            assert await uow.pool.ids(TENANT) == ("ges_seen",)
+            assert await uow.pool.ids(OTHER_TENANT) == ("ges_old",), "the sweep is per tenant"
+            assert await uow.pool.retired(OTHER_TENANT) == ()
 
-        assert [(entry.gesture_id, entry.reason, entry.age) for entry in entries] == [
-            ("ges_1", RETIRED_STALE, 1)
+        assert [(entry.gesture_id, entry.reason, entry.age, entry.waited) for entry in entries] == [
+            ("ges_starved", RETIRED_STALE, 0, 1)
         ]
 
     async def test_a_retired_entry_is_not_offered_and_is_still_readable_with_its_reason(
@@ -511,4 +532,4 @@ class TestPool:
             assert await uow.pool.ids(TENANT) == ()
             entry = (await uow.pool.retired(TENANT))[0]
 
-        assert (entry.age, entry.reason) == (K_POOL_AGE + 1, RETIRED_PASSES)
+        assert (entry.age, entry.waited, entry.reason) == (K_POOL_AGE + 1, 0, RETIRED_PASSES)

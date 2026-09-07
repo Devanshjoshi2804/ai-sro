@@ -35,6 +35,12 @@ what the cap is for.
 """
 
 K_POOL_DAYS = 7
+"""How long an unplaced entry may sit before it retires as stale.
+
+The other cap, K_POOL_AGE, counts readings; this one counts days, so evidence
+in a pool nobody is mining still leaves rather than waiting forever for a
+reading that is never taken.
+"""
 
 RETIRED_PASSES = "passes"
 RETIRED_STALE = "stale"
@@ -53,6 +59,12 @@ class PoolEntry:
     `reason` is why it retired, empty while it is still live. Evidence that
     leaves the prompt without a record is the failure this architecture exists
     to avoid.
+
+    There is no `retired` field, and that is the rig's shape kept deliberately:
+    `reason != ""` IS retirement, so the flag and its cause cannot drift apart.
+    The row carries a boolean column as well, because the live and retired
+    reads want an index to sit on, but it is written from the same decision and
+    is never the record's own answer.
     """
 
     gesture_id: str

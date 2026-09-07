@@ -53,6 +53,7 @@ from sro.domain.observation.pool import (
 )
 from sro.domain.shared.errors import Conflict
 from sro.domain.shared.identifiers import TenantId
+from sro.infrastructure.db.codec import dump, when
 from sro.infrastructure.db.models import (
     GestureBatchRow,
     GestureRow,
@@ -68,24 +69,6 @@ _PAGE_MARKS = TypeAdapter(list[PageMark])
 _VALUES_SEEN = TypeAdapter(list[ValueSeen])
 
 
-def _dump[T](adapter: TypeAdapter[T], value: T) -> Any:
-    # Same two arguments as ``codec._dump`` and for the same reason: the
-    # captured headers are read-only mappings, and "expected dict, got
-    # mappingproxy" is exactly what we mean.
-    return adapter.dump_python(value, mode="json", fallback=dict, warnings=False)
-
-
-def _when(moment: str) -> datetime:
-    """A device's ISO instant as a real timestamp, in UTC when it said nothing.
-
-    The rig kept every clock as text, so an offset-less string sorted beside an
-    offset-bearing one and neither was wrong. A ``timestamptz`` column has to
-    be told, and assuming UTC is what the extension already sends.
-    """
-    parsed = datetime.fromisoformat(moment)
-    return parsed if parsed.tzinfo is not None else parsed.replace(tzinfo=UTC)
-
-
 def _gesture_to_row(gesture: Gesture) -> GestureRow:
     return GestureRow(
         id=gesture.id,
@@ -98,9 +81,9 @@ def _gesture_to_row(gesture: Gesture) -> GestureRow:
         tab_id=gesture.tab_id,
         frame_url=gesture.frame_url,
         page_url=gesture.page_url,
-        gesture=_dump(_ACTION, gesture.action),
-        requests=_dump(_CALLS, gesture.requests),
-        page_events=_dump(_PAGE_MARKS, gesture.page_events),
+        gesture=dump(_ACTION, gesture.action),
+        requests=dump(_CALLS, gesture.requests),
+        page_events=dump(_PAGE_MARKS, gesture.page_events),
     )
 
 
@@ -130,7 +113,7 @@ def _intent_values(intent: Intent, *, created_at: datetime) -> dict[str, Any]:
         "object_": intent.object,
         "system": intent.system,
         "page": intent.page,
-        "values_seen": _dump(_VALUES_SEEN, intent.values_seen),
+        "values_seen": dump(_VALUES_SEEN, intent.values_seen),
         "continues": intent.continues,
         "confidence": intent.confidence,
         "why": intent.why,
@@ -181,7 +164,7 @@ class SqlGestureRepository(GestureRepository):
                 started_at=batch.started_at,
                 ended_at=batch.ended_at,
                 recording_id=batch.recording_id,
-                received_at=_when(batch.received_at),
+                received_at=when(batch.received_at),
                 accepted=batch.accepted,
                 rejected=batch.rejected,
             )
@@ -268,7 +251,7 @@ class SqlGestureRepository(GestureRepository):
     async def intents_since(self, tenant_id: TenantId, *, since: str) -> tuple[Intent, ...]:
         query = (
             select(IntentRow)
-            .where(IntentRow.tenant_id == tenant_id.value, IntentRow.created_at >= _when(since))
+            .where(IntentRow.tenant_id == tenant_id.value, IntentRow.created_at >= when(since))
             .order_by(IntentRow.created_at.desc())
             # The reading a caller has just saved is the one it is most likely
             # to be reading back, and ``save_intent`` upserts with a Core
@@ -360,9 +343,13 @@ class SqlPoolRepository(PoolRepository):
             # intersection would leave that citation to age out and retire
             # despite having been placed.
             await self._session.execute(
-                delete(PoolRow).where(
-                    PoolRow.tenant_id == tenant_id.value, PoolRow.gesture_id.in_(claimed)
-                )
+                delete(PoolRow)
+                .where(PoolRow.tenant_id == tenant_id.value, PoolRow.gesture_id.in_(claimed))
+                # ``synchronize_session=False`` for the same reason ``_bump``
+                # gives: no PoolRow is ever loaded as an ORM object here, so
+                # there is no session state to keep in step and asking for one
+                # only buys a SELECT of the rows about to go.
+                .execution_options(synchronize_session=False)
             )
         entering = [
             gesture_id for gesture_id in dict.fromkeys(window_ids) if gesture_id not in claimed

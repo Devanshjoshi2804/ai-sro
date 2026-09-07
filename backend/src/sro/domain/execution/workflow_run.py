@@ -32,6 +32,15 @@ operator performed it themselves before the rig was asked to finish the job."""
 
 
 def new_run_id() -> str:
+    """A workflow run's id -- and NOT an `sro.domain.shared.identifiers.RunId`.
+
+    Same shape as `UuidFactory.new_run_id`: `run_` followed by 32 hex
+    characters. Two id spaces that look alike -- that one names a row in the
+    backend's own `runs`, this one a row in `workflow_runs` -- so a string that
+    round-trips through the wrong repository will be looked up, found missing,
+    and read as a run that does not exist rather than as a type error. The
+    shape is the rig's and stays; the types are what keep them apart.
+    """
     return "run_" + secrets.token_hex(16)
 
 

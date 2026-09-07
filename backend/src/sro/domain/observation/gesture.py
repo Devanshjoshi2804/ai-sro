@@ -118,6 +118,13 @@ class GestureBatch:
     ``started_at`` and ``ended_at`` are the device's own clock for the window
     the batch covers, against ``received_at``'s server clock; ``recording_id``
     names which teaching recording a demonstration batch belongs to.
+
+    Not `observation.batch.ObservationBatch`, which is the same upload as the
+    capture pipeline records it: events in the blob store, typed identifiers,
+    real datetimes. This is the miner's view of the same arrival -- the rig's
+    counted tally, whose events landed in `gestures` -- and the two are
+    separate tables. Both may describe one upload; neither is derived from the
+    other.
     """
 
     batch_id: str

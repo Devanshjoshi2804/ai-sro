@@ -56,7 +56,8 @@ _JOINS = TypeAdapter(tuple[Join, ...])
 _WATCH: TypeAdapter[Watch | None] = TypeAdapter(Watch | None)
 
 
-def _dump[T](adapter: TypeAdapter[T], value: T) -> Any:
+def dump[T](adapter: TypeAdapter[T], value: T) -> Any:
+    """Adapter to JSON. Public, because the per-table codecs need it too."""
     # ``fallback=dict`` covers the read-only mappings the domain uses to keep
     # captured headers immutable; ``warnings=False`` silences the resulting
     # "expected dict, got mappingproxy" notice, which is exactly what we mean.
@@ -64,7 +65,7 @@ def _dump[T](adapter: TypeAdapter[T], value: T) -> Any:
 
 
 def dump_frames(frames: tuple[ActionFrame, ...]) -> Any:
-    return _dump(_FRAMES, frames)
+    return dump(_FRAMES, frames)
 
 
 def load_frames(raw: Any) -> tuple[ActionFrame, ...]:
@@ -72,7 +73,7 @@ def load_frames(raw: Any) -> tuple[ActionFrame, ...]:
 
 
 def dump_artifacts(artifacts: tuple[MediaArtifact, ...]) -> Any:
-    return _dump(_ARTIFACTS, artifacts)
+    return dump(_ARTIFACTS, artifacts)
 
 
 def load_artifacts(raw: Any) -> tuple[MediaArtifact, ...]:
@@ -80,7 +81,7 @@ def load_artifacts(raw: Any) -> tuple[MediaArtifact, ...]:
 
 
 def dump_narration(segments: tuple[NarrationSegment, ...]) -> Any:
-    return _dump(_NARRATION, segments)
+    return dump(_NARRATION, segments)
 
 
 def load_narration(raw: Any) -> tuple[NarrationSegment, ...]:
@@ -88,7 +89,7 @@ def load_narration(raw: Any) -> tuple[NarrationSegment, ...]:
 
 
 def dump_messages(messages: tuple[Message, ...]) -> Any:
-    return _dump(_MESSAGES, messages)
+    return dump(_MESSAGES, messages)
 
 
 def load_messages(raw: Any) -> tuple[Message, ...]:
@@ -96,7 +97,7 @@ def load_messages(raw: Any) -> tuple[Message, ...]:
 
 
 def dump_versions(versions: tuple[SkillVersion, ...]) -> Any:
-    return _dump(_VERSIONS, versions)
+    return dump(_VERSIONS, versions)
 
 
 def load_versions(raw: Any) -> tuple[SkillVersion, ...]:
@@ -104,7 +105,7 @@ def load_versions(raw: Any) -> tuple[SkillVersion, ...]:
 
 
 def dump_rejected(rejected: tuple[RejectedEvent, ...]) -> Any:
-    return _dump(_REJECTED, rejected)
+    return dump(_REJECTED, rejected)
 
 
 def load_rejected(raw: Any) -> tuple[RejectedEvent, ...]:
@@ -112,7 +113,7 @@ def load_rejected(raw: Any) -> tuple[RejectedEvent, ...]:
 
 
 def dump_grants(grants: tuple[HostGrant, ...]) -> Any:
-    return _dump(_GRANTS, grants)
+    return dump(_GRANTS, grants)
 
 
 def load_grants(raw: Any) -> tuple[HostGrant, ...]:
@@ -120,7 +121,7 @@ def load_grants(raw: Any) -> tuple[HostGrant, ...]:
 
 
 def dump_policy(policy: ObservationPolicy) -> Any:
-    return _dump(_POLICY, policy)
+    return dump(_POLICY, policy)
 
 
 def load_policy(raw: Any) -> ObservationPolicy:
@@ -128,7 +129,7 @@ def load_policy(raw: Any) -> ObservationPolicy:
 
 
 def dump_episodes(episodes: tuple[Episode, ...]) -> Any:
-    return _dump(_EPISODES, episodes)
+    return dump(_EPISODES, episodes)
 
 
 def load_episodes(raw: Any) -> tuple[Episode, ...]:
@@ -136,7 +137,7 @@ def load_episodes(raw: Any) -> tuple[Episode, ...]:
 
 
 def dump_joins(joins: tuple[Join, ...]) -> Any:
-    return _dump(_JOINS, joins)
+    return dump(_JOINS, joins)
 
 
 def load_joins(raw: Any) -> tuple[Join, ...]:
@@ -144,7 +145,7 @@ def load_joins(raw: Any) -> tuple[Join, ...]:
 
 
 def dump_watch(watch: Watch | None) -> Any:
-    return _dump(_WATCH, watch)
+    return dump(_WATCH, watch)
 
 
 def load_watch(raw: Any) -> Watch | None:

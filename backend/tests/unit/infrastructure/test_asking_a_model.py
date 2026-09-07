@@ -15,10 +15,17 @@ from typing import Any
 
 import pytest
 
+from sro.application.ports.model import Asker
 from sro.application.shared.locks import one_at_a_time
 from sro.domain.shared.prices import Answer, price
 from sro.infrastructure.gemini.asker import GeminiAsker
 from tests.unit.fakes import FakeAsker
+
+# The one assertion here that mypy makes and pytest cannot: the real asker
+# still satisfies the port every use case and every fake is written against.
+# `client` sidesteps the google.genai import, so this costs nothing at import
+# time and fails the type gate the moment the two signatures part.
+_PORT: Asker = GeminiAsker(api_key="", client=object())
 
 
 async def test_a_fake_asker_records_what_it_was_asked() -> None:

@@ -687,8 +687,14 @@ column the next person drops.
 - `test_an_entry_older_than_the_stale_window_retires_as_stale`
 - `test_a_retired_entry_is_not_offered_and_is_still_readable_with_its_reason`
 
-The last seven are the `test_pool.py` rules that are SQL. The remaining 14
-`test_pool.py` tests drive `mine()`'s use of the pool and are plan 3.
+The last seven are the `test_pool.py` rules that are SQL.
+
+*Corrected in Task 9:* this line used to say the remaining 14 `test_pool.py`
+tests drive `mine()`'s use of the pool and are plan 3. They do not --
+`tests/test_pool.py` imports `rig.pool` and `rig.store` and nothing else, so
+all 21 are storage rules. Task 8b's contract suite and Task 4's tenant
+assertions carry the other 14; the ledger below counts 21 of 21 ported here,
+and plan 3 owes none of them.
 
 - [ ] **Step 2: Run them and watch them fail**
 
@@ -1316,7 +1322,7 @@ git commit -m "test(contract): one suite the fake and the store both have to pas
 - Modify: this plan (ledger table), `docs/17-agent-architecture.md` note if
   the design doc's phase-2 line needs correcting.
 
-- [ ] **Step 1: Count**
+- [x] **Step 1: Count**
 
 Count the tests this plan added and the rig tests it ported by name. Fill in
 the table below. Every rig test in `test_models.py`, `test_channel.py`,
@@ -1326,11 +1332,11 @@ plan 3, left to plan 4, or **dropped with a reason** — the SQLite migration
 ladder is gone, so `test_store.py`'s `ADDED_COLUMNS` tests do not travel and
 the alembic migration test replaces them.
 
-- [ ] **Step 2: Deferred minors**
+- [x] **Step 2: Deferred minors**
 
 Land every minor the task reviews deferred to this batch.
 
-- [ ] **Step 3: Gates and commit**
+- [x] **Step 3: Gates and commit**
 
 ```bash
 git commit -m "docs(plan): what plan 2 ported, and what plans 3 and 4 still owe"
@@ -1343,16 +1349,123 @@ git commit -m "docs(plan): what plan 2 ported, and what plans 3 and 4 still owe"
 | Rig test file | Rig / ported here | Left, and to which plan |
 |---|---|---|
 | `test_models.py` | 26 / 22 | 4 ported in plan 1 (pricing) |
-| `test_channel.py` | 11 / | |
-| `test_store.py` | 7 / | |
-| `test_runs.py` | 8 / | |
-| `test_workflows.py` | 5 / | |
-| `test_offers.py` | 10 / | |
-| `test_pool.py` | 21 / | |
-| `test_devices.py` | 13 / | |
-| **Total** | | |
+| `test_channel.py` | 11 / 3 | 8 the backend's own suite already proved |
+| `test_store.py` | 7 / 2 | 5 dropped: the SQLite ladder |
+| `test_runs.py` | 8 / 8 | — |
+| `test_workflows.py` | 5 / 4 | 1 ported in plan 1 (`cited_ids`) |
+| `test_offers.py` | 10 / 1 | 9 ported in plan 1 (`counsel_over`) |
+| `test_pool.py` | 21 / 21 | — |
+| `test_devices.py` | 13 / 2 | 8 plan 4 (routes); 2 dropped (no token table); 1 already proved |
+| **Total** | **101 / 63** | 14 plan 1, 8 plan 4, 7 dropped, 9 already proved |
 
-**Added by this plan:** (fill in)
+63 + 14 + 8 + 7 + 9 = 101.
 
-**Gates at head:** ruff clean; format 2 pre-existing; contracts 4 kept;
-mypy 312 baseline; `tests/unit` and `tests/integration` green.
+### Where each one that did not travel went
+
+**`test_channel.py` — 8 already proved.** `tests/unit/infrastructure/test_the_channel_to_a_browser.py`
+and `tests/unit/interface/test_the_command_channel.py` predate this plan and
+carry: `test_a_command_is_answered_once_by_id`,
+`test_no_answer_by_the_deadline_is_a_timeout_not_a_hang`,
+`test_a_late_answer_is_dropped_not_applied`,
+`test_a_device_with_no_socket_is_unreachable`,
+`test_busy_holds_a_command_but_cannot_veto_it`,
+`test_a_reconnect_replaces_the_socket_and_a_stale_detach_does_not`,
+`test_unsolicited_messages_are_dropped_on_the_floor`,
+`test_the_route_accepts_the_bearer_subprotocol_and_refuses_the_rest`. The
+three that travelled are `test_an_error_keeps_its_kind_and_detail` (as
+`test_a_refusal_reaches_the_run_with_the_kind_the_browser_named` — the one
+conversion the adapter exists to perform),
+`test_the_fake_channel_answers_by_kind_and_remembers_what_was_sent` and
+`test_an_explicit_deadline_is_honoured_and_a_non_positive_one_never_ships`,
+both kept by name.
+
+**`test_store.py` — 5 dropped.** The spec drops the hand-rolled SQLite
+migration ladder, so `test_migrate_creates_every_table`,
+`test_migrate_is_idempotent`, `test_migrating_twice_is_not_an_error` and
+`test_a_store_that_predates_a_column_gets_it` (the `ADDED_COLUMNS` walk) have
+nothing left to test: alembic owns the schema, and
+`tests/integration/test_the_migrations_run.py` applies `0036 -> 0040` to an
+empty database and asserts a single head. `test_a_row_survives_a_reconnect`
+goes with them — it proved a SQLite file handle survived being reopened, and
+every integration test here writes in one `SqlUnitOfWork` and reads in
+another session against a real server. The two that travelled keep their
+names: `test_a_batch_id_is_not_written_twice` and
+`test_a_reading_can_record_that_its_cost_is_not_trustworthy`.
+
+**`test_devices.py` — 2 dropped, 8 to plan 4, 1 already proved.** Dropped by
+the plan's own ruling that there is no `device_tokens` table:
+`test_a_token_is_issued_held_as_a_hash_and_revocable` and
+`test_a_fresh_issue_retires_the_earlier_token` — the browser's credential is
+`agent_devices.secret`, which the backend already mints and tests, and there
+is no second issue for a fresh one to retire. Already proved:
+`test_a_devices_token_opens_its_own_socket_and_no_other`, by
+`tests/unit/interface/test_the_command_channel.py`. To plan 4, all of them
+route-shaped: `test_the_tenant_registers_a_browser_and_the_browser_then_speaks_for_itself`,
+`test_a_browser_approves_only_the_run_it_is_driving`,
+`test_the_tenants_purse_and_the_other_browsers_days_are_not_a_devices`,
+`test_an_empty_tenant_token_admits_nobody`,
+`test_a_browser_with_a_token_of_its_own_reads_its_own_rest_whatever_it_asks_for`,
+`test_a_browser_sees_who_is_online_and_not_who_is_registered`,
+`test_a_browser_posts_its_own_day_and_not_a_siblings`,
+`test_a_browser_illustrates_its_own_batches_and_not_a_siblings`. The two that
+travelled are the storage halves:
+`test_an_approval_by_a_registered_browser_names_that_browser_whatever_the_body_says`
+(as `test_an_approval_names_the_browser_whose_panel_the_tap_came_from`) and
+`test_revoking_a_browser_takes_it_offline_at_once`, which splits into
+`test_revoking_a_browser_stops_it_speaking_for_itself` (the row) and
+`test_a_revoked_browser_is_dropped_and_reads_as_offline` (the socket).
+
+**`test_offers.py` — 9 in plan 1.** `counsel_over` is pure, so its nine rules
+landed in `tests/unit/domain/rig/test_offers.py`. Three of them are proved a
+second time here at the SQL boundary, because ordering and a limit are the
+store's answer and not the domain's: the arrival tiebreak, the newest ten, and
+the nudge that is not evidence. Only
+`test_an_offer_is_recorded_under_an_id_of_its_own` is storage-only.
+
+**`test_pool.py` — 21 of 21.** Seven landed in
+`tests/integration/test_evidence_repositories.py::TestPool`, five in the
+contract suite, the four tenant rules in the two suites' cross-tenant
+assertions, and the last of them in Task 9:
+`test_a_stale_sweep_does_not_reach_another_tenant` and
+`test_a_retired_entry_reports_the_waiting_it_actually_did` are now both
+carried by `test_an_entry_older_than_the_stale_window_retires_as_stale`, each
+mutation-checked.
+
+**Added by this plan:** **137 test bodies**, collected as **174 cases** —
+the contract suite is 37 bodies run twice, once against the fakes and once
+against Postgres, and this count is of bodies, not of parametrised cases.
+By file: contract 37, evidence 17, workflows 16, workflow runs 12, offers 12,
+spend and audit 10, asking a model 22, the channel envelope 5, the fake pool 4,
+the run id and vocabularies 2.
+
+**Of the 137, 56 are ports of one of the 101 above; 81 have no rig test behind
+them.** The 56, by file: asking a model 22, evidence 9, workflow runs 7,
+offers 5, workflows 4, the channel envelope 3, the contract suite 4 (the four
+pool rules that have no integration body of their own), the run id and
+vocabularies 2. A rig test proved twice — once in an integration file and
+again in the contract suite — is counted once, at the body that carries it
+first.
+
+The 81 with nothing behind them: the rest of the contract suite (33 — one set
+of rules run against each implementation, which the rig, having one
+implementation, had no reason to need), the day and the audit reads (10), the
+fake pool held to the store's own four rules (4), and 34 store-level rules the
+rig either proved in one of its other 26 test files or never proved at all —
+tenant scoping on every read, the ordering tiebreaks, `NotFound` versus
+`None`, SQL NULL versus a JSON `null`, and `revoke` under a second press.
+33 + 10 + 4 + 34 = 81, and 56 + 81 = 137.
+
+**Gates at head, measured in Task 9 (86153ef in, and again after it):**
+`tests/unit` 1752 passed; `tests/integration` 108 passed with
+`test_steel_capture.py` ignored, which fails environmentally with
+`BrowserUnavailable`; `tests/contract` 98 passed (96 before Task 9's two new
+cases) with 1 pre-existing failure,
+`test_observation_payloads.py::test_every_captured_payload_parses_into_the_domain[shape-identity]`,
+in a file byte-identical to the branch base and left alone; mypy 312 errors in
+68 files, and `mypy src tests/unit/fakes.py` clean; ruff format 2 files, both
+pre-existing (`infrastructure/mcp/client.py`,
+`tests/unit/application/test_teaching_two_candidates_as_one.py`); import
+contracts 4 kept.
+
+`tests/contract` was missing from the gate definition until Task 8b; the
+number to hold is the one failure, not the total.

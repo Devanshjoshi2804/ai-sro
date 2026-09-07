@@ -8,7 +8,7 @@ that does not exist -- the difference is not something a caller may learn.
 from __future__ import annotations
 
 import re
-from datetime import UTC, datetime
+from datetime import datetime
 
 from sqlalchemy import delete, or_, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -673,11 +673,10 @@ class SqlDeviceRepository(DeviceRepository):
             # instant the authority ended -- that instant is what an audit of
             # what this browser was allowed to do is read against.
             return False
-        when = datetime.fromisoformat(at)
         # UTC when it said nothing: this is the server's own clock, and a naive
         # local instant beside the aware ones reads as a revocation hours before
         # the browser registered.
-        row.revoked_at = when if when.tzinfo is not None else when.replace(tzinfo=UTC)
+        row.revoked_at = when(at)
         return True
 
     async def _row(

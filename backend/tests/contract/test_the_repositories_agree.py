@@ -1029,6 +1029,32 @@ class TestSpend:
             assert (await work.spend.today(TENANT, now=now)).blind == 1
 
 
+class TestSinceWindows:
+    async def test_a_row_stamped_exactly_at_since_is_inside_the_window(
+        self, store: UnitOfWork
+    ) -> None:
+        """``>=``, not ``>``. An audit that walks forward by asking for
+        everything since the last instant it saw drops exactly one row per call
+        if the boundary is exclusive, and drops it silently -- the three reads
+        that take a `since` all have to agree on which side of the edge it
+        falls."""
+        edge = _at(9)
+        async with store as work:
+            await work.offers.record(_offer("off_edge", at=edge))
+            await work.chats.record(_chat("cha_edge", at=edge))
+            await work.workflow_runs.save(_run("run_edge", started_at=edge))
+            await work.commit()
+
+        async with store as work:
+            offers = await work.offers.since(TENANT, since=edge)
+            chats = await work.chats.since(TENANT, since=edge)
+            runs = await work.workflow_runs.since(TENANT, since=edge)
+
+        assert [one.id for one in offers] == ["off_edge"]
+        assert [one.id for one in chats] == ["cha_edge"]
+        assert [one.id for one in runs] == ["run_edge"]
+
+
 class TestTenantScoping:
     async def test_no_read_returns_another_tenants_row(self, store: UnitOfWork) -> None:
         """One planted row per read, and every read asked as ``acme``. A filter

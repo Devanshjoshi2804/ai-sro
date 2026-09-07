@@ -37,19 +37,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sro.application.ports.repositories import WorkflowRunRepository
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
 from sro.domain.shared.identifiers import DeviceId, TenantId
+from sro.infrastructure.db.codec import when
 from sro.infrastructure.db.models import ApprovalRow, WorkflowRunRow, WorkflowRunStepRow
-
-
-def _when(moment: str) -> datetime:
-    """An ISO instant as a real timestamp, in UTC when it said nothing.
-
-    Every writer in the rig produces UTC; a naive one that slipped through is
-    read as UTC rather than as the server's local time, because a naive local
-    instant beside the UTC ones reads as a run that finished hours before it
-    started.
-    """
-    parsed = datetime.fromisoformat(moment)
-    return parsed if parsed.tzinfo is not None else parsed.replace(tzinfo=UTC)
 
 
 def _run_values(run: WorkflowRun) -> dict[str, Any]:
@@ -62,8 +51,8 @@ def _run_values(run: WorkflowRun) -> dict[str, Any]:
         "started_by": run.started_by,
         "live": run.live,
         "allow_focus": run.allow_focus,
-        "started_at": _when(run.started_at),
-        "finished_at": None if run.finished_at is None else _when(run.finished_at),
+        "started_at": when(run.started_at),
+        "finished_at": None if run.finished_at is None else when(run.finished_at),
         "outcome": run.outcome,
         "withheld": list(run.withheld),
         "in_tokens": run.in_tokens,
@@ -206,7 +195,7 @@ class SqlWorkflowRunRepository(WorkflowRunRepository):
         # paging belongs to the route, which is where the rig's was.
         query = self._rows().where(
             WorkflowRunRow.tenant_id == tenant_id.value,
-            WorkflowRunRow.started_at >= _when(since),
+            WorkflowRunRow.started_at >= when(since),
         )
         rows = (
             await self._session.execute(
@@ -272,7 +261,7 @@ class SqlWorkflowRunRepository(WorkflowRunRepository):
         # one that authorised the step is the answer the caller wants.
         tapped = await self._session.execute(
             pg_insert(ApprovalRow)
-            .values(run_id=run_id, ord=ord_, at=_when(at), device_id=device_id)
+            .values(run_id=run_id, ord=ord_, at=when(at), device_id=device_id)
             .on_conflict_do_nothing(index_elements=["run_id", "ord"])
             .returning(ApprovalRow.run_id)
         )

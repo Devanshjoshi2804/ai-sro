@@ -112,6 +112,27 @@ class Gesture:
 
 
 @dataclass(frozen=True, slots=True)
+class GestureBatch:
+    """What one upload said about itself.
+
+    ``started_at`` and ``ended_at`` are the device's own clock for the window
+    the batch covers, against ``received_at``'s server clock; ``recording_id``
+    names which teaching recording a demonstration batch belongs to.
+    """
+
+    batch_id: str
+    device_id: str
+    tenant: str
+    mode: str
+    received_at: str
+    started_at: str = ""
+    ended_at: str = ""
+    recording_id: str | None = None
+    accepted: int = 0
+    rejected: int = 0
+
+
+@dataclass(frozen=True, slots=True)
 class ValueSeen:
     field: str
     value: str

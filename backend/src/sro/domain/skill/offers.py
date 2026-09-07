@@ -55,9 +55,26 @@ def fate_of(name: str) -> str:
 
 @dataclass(frozen=True, slots=True)
 class OfferRow:
+    """The three columns `counsel_over` reads, and no more: a whole `Offer` is
+    a row the rules have no use for."""
+
     k: int
     fate: str
     at: str
+
+
+@dataclass(frozen=True, slots=True)
+class Offer:
+    """One offer the extension made from a recognised prefix, and its fate."""
+
+    id: str
+    tenant: str
+    workflow_id: str
+    device_id: str
+    k: int
+    fate: str
+    at: str
+    run_id: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

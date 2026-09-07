@@ -79,7 +79,7 @@ Created:
 | File | Holds |
 |---|---|
 | `backend/src/sro/domain/execution/workflow_run.py` | `OUTCOMES`, `VERDICTS`, `new_run_id`, `RunStep`, `WorkflowRun` |
-| `backend/src/sro/domain/observation/pool.py` | `PoolEntry`, `K_POOL_AGE`, `K_POOL_DAYS`, `RETIRED_AGE`, `RETIRED_STALE` |
+| `backend/src/sro/domain/observation/pool.py` | `PoolEntry`, `K_POOL_AGE`, `K_POOL_DAYS`, `RETIRED_PASSES`, `RETIRED_STALE` |
 | `backend/src/sro/domain/observation/mining.py` | `MiningPass` (the `passes` row) |
 | `backend/src/sro/domain/chat/reading.py` | `ChatReading` (the `chats` row) |
 | `backend/src/sro/application/ports/model.py` | `Asker` protocol |
@@ -163,14 +163,14 @@ kept. Write all three into the ledger.
 **Interfaces:**
 - Consumes: nothing outside the domain.
 - Produces: `WorkflowRun`, `RunStep`, `OUTCOMES`, `VERDICTS`, `new_run_id`,
-  `PoolEntry`, `K_POOL_AGE`, `K_POOL_DAYS`, `RETIRED_AGE`, `RETIRED_STALE`,
+  `PoolEntry`, `K_POOL_AGE`, `K_POOL_DAYS`, `RETIRED_PASSES`, `RETIRED_STALE`,
   `MiningPass`, `ChatReading`, `GestureBatch`, `Offer` — every repository in
   Tasks 4-8 stores and returns these and nothing else.
 
 Sources, to be copied field for field: `new_agent_arch/src/rig/runs.py`
 (`OUTCOMES`, `VERDICTS`, `new_run_id`, `RunStep`, `Run`),
 `new_agent_arch/src/rig/pool.py` lines 1-52 (`K_POOL_AGE`, `K_POOL_DAYS`,
-`RETIRED_AGE`, `RETIRED_STALE`, `PoolEntry`), the `passes` and `chats` and
+`RETIRED_PASSES`, `RETIRED_STALE`, `PoolEntry`), the `passes` and `chats` and
 `batches` and `offers` tables in `new_agent_arch/src/rig/store.py`.
 
 - [ ] **Step 1: Write the failing tests**

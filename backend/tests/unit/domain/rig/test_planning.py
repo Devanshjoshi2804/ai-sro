@@ -40,7 +40,7 @@ import importlib
 import pkgutil
 from dataclasses import replace
 
-import sro.domain
+import sro
 from sro.domain.execution.planning import (
     PLAN_SCHEMA,
     SIGHT_ACTIONS,
@@ -140,7 +140,14 @@ def test_no_schema_in_the_package_uses_what_the_developer_api_refuses() -> None:
     """`additionalProperties` is refused by the Gemini Developer API with a
     400 -- "only supported in Gemini Enterprise Agent Platform mode". The
     chat door shipped with one and had never met the real API; every schema
-    the domain asks under is walked here so the next one cannot."""
+    in the package is walked here so the next one cannot.
+
+    The walk is over `sro`, not `sro.domain`: scoped to the domain the rule
+    held only while a schema happened to live there, and moving one into the
+    application layer in the refused shape passed the whole suite silently.
+    Widening it also brings the four schemas that reach the real Gemini API
+    -- the interpreter's three and transcription's one -- under the guard,
+    which nothing was watching before."""
 
     def walk(node: object, at: str) -> list[str]:
         found = []
@@ -156,11 +163,14 @@ def test_no_schema_in_the_package_uses_what_the_developer_api_refuses() -> None:
 
     offenders: list[str] = []
     walked = 0
-    for info in pkgutil.walk_packages(sro.domain.__path__, prefix="sro.domain."):
+    for info in pkgutil.walk_packages(sro.__path__, prefix="sro."):
         module = importlib.import_module(info.name)
         for name in dir(module):
             if name.endswith("_SCHEMA") and isinstance(getattr(module, name), dict):
                 walked += 1
                 offenders += walk(getattr(module, name), f"{info.name}.{name}")
     assert offenders == [], offenders
-    assert walked, "the walker found no schema at all, which is how it stops being a test"
+    # Not just truthy: narrowing the walk back to `sro.domain` still finds six
+    # schemas and would pass a bare `assert walked`, which is how the widening
+    # above would be undone without anything saying so.
+    assert walked >= 13, f"the walk reached only {walked} schemas; it was widened to reach 13"

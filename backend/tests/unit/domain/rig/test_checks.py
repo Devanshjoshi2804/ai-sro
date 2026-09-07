@@ -238,6 +238,18 @@ def test_citing_only_the_end_of_a_window_skews_the_other_way() -> None:
     assert coverage([late], window).skew < -0.5
 
 
+def test_the_skew_window_is_three_deciles_wide_at_each_end() -> None:
+    """Every other skew fixture cites decile 0 or decile 9, where `mass[:3]` and
+    `mass[:2]` both give exactly +/-1.0 -- so narrowing the window from three
+    deciles to two broke nothing. The third decile is the only place the two
+    spellings disagree: cited there, a reading skews fully under the rule as
+    written and not at all under the narrower one."""
+    window = _window(100)
+
+    assert coverage([_citing(range(20, 30))], window).skew == 1.0
+    assert coverage([_citing(range(70, 80))], window).skew == -1.0
+
+
 def test_coverage_of_an_empty_window_does_not_divide_by_zero() -> None:
     measured = coverage([], Window())
 

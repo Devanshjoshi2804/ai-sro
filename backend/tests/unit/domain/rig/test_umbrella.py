@@ -1,15 +1,21 @@
 """Ported from `new_agent_arch/tests/test_umbrella.py`, names unchanged.
 
 Only the tests that do not call `propose`. `propose` asks a model and belongs to
-the mining use case, so the fifteen tests that drive `workflow_from` through it
-travel with that task instead; they are named in this task's report.
+the mining use case, so the fifteen tests that reach it travel with that task
+instead; they are named in this task's report. Eight of those fifteen are really
+`workflow_from` tests wearing a `propose` costume and are ported against the
+function directly over there; five genuinely need `propose` -- one of them
+guards `propose`'s own `isinstance(raw, list)` and never reaches `workflow_from`
+at all -- and two are portable only by dropping an assertion.
 """
 
 import copy
+import hashlib
 import json
 
 from sro.domain.observation.window import K_ENDS, K_WINDOW_TOKENS, Packed, Window, pack, tokens
 from sro.domain.skill.umbrella import (
+    _PROBE,
     INSTRUCTIONS,
     K_MAX_CROSSING_TOKENS,
     WORKFLOW_SCHEMA,
@@ -45,13 +51,43 @@ def test_the_schema_puts_the_citations_before_the_sentence() -> None:
     assert keys.index("cites") < keys.index("says")
 
 
+def test_the_prompt_the_model_is_given_is_the_one_the_rig_measured() -> None:
+    """The prompt IS the product, and nothing pinned INSTRUCTIONS beyond its
+    first and last 40 characters -- a reworded middle instruction shipped green.
+    This hash is the rig's own, sha256 of `new_agent_arch/src/rig/umbrella.py`'s
+    INSTRUCTIONS, and it is what the port's parity was proved with in review;
+    proved-once in a review that is now gone is not a guarantee.
+
+    Changing the wording is allowed. Changing it silently is not: update this
+    hash in the same commit and say why the model should read something else."""
+    assert (
+        hashlib.sha256(INSTRUCTIONS.encode()).hexdigest()
+        == "e06f0e4b2d47467cdb5079e86a4341318d4e260e591bac6ddea542f84a50efb5"
+    )
+
+
 def test_the_task_is_stated_at_both_ends_of_the_prompt() -> None:
     """Question-first was strongest at long context, and restating the
     constraints after the evidence costs almost nothing."""
     prompt = build_prompt(_window(), {}, [], "")
 
-    assert prompt.startswith(INSTRUCTIONS[:40])
-    assert prompt.rstrip().endswith(INSTRUCTIONS.strip()[-40:])
+    # The whole of INSTRUCTIONS at both ends, not the first and last 40
+    # characters: the prompt IS the product, and reworded middle instructions
+    # shipped green while only the ends were pinned.
+    assert prompt.startswith(INSTRUCTIONS)
+    assert prompt.rstrip().endswith(INSTRUCTIONS.strip())
+
+
+def test_the_overhead_probe_still_counts_the_crossings_heading_it_pays_for() -> None:
+    """`_PROBE` holds the two ids its crossing names because build_prompt renders
+    only crossings whose gestures are IN the window. Shrink it to one and the
+    block disappears from the probe, PROMPT_OVERHEAD_TOKENS stops counting a
+    heading the real prompt still pays for, and every window silently gains ~19
+    tokens of budget it does not have. Five lines of comment exist to prevent
+    exactly that drift; this is the thing that fails when it happens."""
+    probed = build_prompt(Window(items=_PROBE), {"x": ["y", "z"]}, [{"x": "y"}], "x")
+
+    assert "## Values appearing in more than one system" in probed
 
 
 def test_the_evidence_is_in_the_prompt_in_window_order() -> None:
@@ -182,7 +218,7 @@ def test_every_section_adds_to_the_prompt_rather_than_replacing_it() -> None:
     prompt = build_prompt(_window(), crossings, known, "the knowledge base")
 
     for section in (
-        INSTRUCTIONS[:40],
+        INSTRUCTIONS,
         "## The day",
         "ges_1",
         "## Values appearing in more than one system",
@@ -192,7 +228,7 @@ def test_every_section_adds_to_the_prompt_rather_than_replacing_it() -> None:
         "the knowledge base",
     ):
         assert section in prompt, section
-    assert prompt.rstrip().endswith(INSTRUCTIONS.strip()[-40:]), "and the task is still restated"
+    assert prompt.rstrip().endswith(INSTRUCTIONS.strip()), "and the task is still restated"
 
 
 def test_a_crossing_too_big_to_fit_does_not_take_the_smaller_ones_with_it() -> None:

@@ -458,17 +458,156 @@ Source: `new_agent_arch/src/rig/entry.py`. Two rules with scars on them:
 
 ## Ledger
 
+Counted by exact test-function name, `comm` over sorted lists, rig side read
+from `new_agent_arch/tests/` rather than from this plan's own arithmetic. Two
+earlier plans' counts were wrong where nobody did that comparison.
+
 | Rig test file | Rig / ported here | Left, and to which plan |
 |---|---|---|
-| `test_window.py` | 19 / | |
-| `test_checks.py` | 20 / | |
-| `test_umbrella.py` | 27 / | |
-| `test_intents.py` | 18 / | |
-| `test_mine.py` | 26 / | |
-| `test_shapes.py` | 6 / | |
-| `test_entry.py` | 9 / | |
-| **Total** | **125 /** | |
+| `test_window.py` | 19 / 19 | — |
+| `test_checks.py` | 20 / 20 | — |
+| `test_umbrella.py` | 27 / 27 | — |
+| `test_intents.py` | 18 / 18 | — |
+| `test_mine.py` | 26 / 26 | — |
+| `test_shapes.py` | 6 remaining of 17 / 6 | — |
+| `test_entry.py` | 9 / 8 | 1 — `test_no_schema_in_the_package_uses_what_the_developer_api_refuses`, already ported by **plan 1** into `tests/unit/domain/rig/test_planning.py`. This plan's brief double-counted it. |
+| **Total** | **125 / 124** | **1, and plan 1 had already taken it.** Nothing is left to plan 3b or 4, and nothing was dropped. |
 
-**Added by this plan:** (fill in)
+**Two corrections to the brief's arithmetic**, both found by comparing against
+the rig rather than trusting the count:
 
-**Gates at head:** (fill in all seven)
+1. `test_entry.py` is 9 in the rig but **8** were in this plan's scope. The
+   schema walker travelled with plan 1, exactly as 11 of `test_shapes.py`'s 17
+   did. The in-scope total is 124, not 125.
+2. **`test_offers.py` is a rig file the brief's list omits entirely.** Task 8
+   ported 7 of its tests for `counsel` and `record_offer`:
+   `test_a_job_nobody_has_answered_is_offered_at_the_default`,
+   `test_an_arrival_nudge_is_not_evidence_either_way`,
+   `test_an_offer_is_recorded_under_an_id_of_its_own`,
+   `test_an_offer_the_operator_did_not_refuse_breaks_the_run`,
+   `test_offers_in_the_same_second_are_read_in_the_order_they_arrived`,
+   `test_offers_that_keep_diverging_move_the_job_past_where_they_diverged`,
+   `test_only_the_newest_ten_offers_are_read`. Two of them were **rebuilt rather
+   than copied**, because the rig's own versions are satisfied by the bugs they
+   were named for.
+
+**Where they landed.** No rig test file maps to one backend file; the
+domain/application line cuts through four of them.
+
+| Rig file | Backend destination(s) |
+|---|---|
+| `test_window.py` | 19 → `tests/unit/domain/rig/test_window.py` |
+| `test_checks.py` | 20 → `tests/unit/domain/rig/test_checks.py` |
+| `test_umbrella.py` | 20 → `tests/unit/domain/rig/test_umbrella.py`; 7 → `tests/unit/application/rig/test_mine.py` (the ones that call `propose`, which is the mining use case's) |
+| `test_intents.py` | 16 → `tests/unit/application/rig/test_read_gesture.py`; 2 → `tests/unit/domain/rig/test_reading.py` |
+| `test_mine.py` | 26 → `tests/unit/application/rig/test_mine.py` |
+| `test_shapes.py` (6 in scope) | 3 → `tests/unit/application/rig/test_mine.py` (`rekey_workflows`); 3 → `tests/unit/application/rig/test_serve_shapes.py` |
+| `test_entry.py` (8 in scope) | 8 → `tests/unit/application/rig/test_understand.py` |
+| `test_offers.py` (7) | 7 → `tests/unit/application/rig/test_offers.py` |
+
+One plan-1 name was ported a **second** time on purpose:
+`test_a_resting_job_is_served_marked_for_the_browser_that_refused_it` exists in
+plan 1's `domain/rig/test_shapes.py` against the pure rule and again in
+`application/rig/test_serve_shapes.py` against the use case that reads it.
+
+**Added by this plan:** 187 unit tests (1752 → 1939) and 1 integration test
+(110 → 111).
+
+- **132 are ports** — the 124 in scope, the 7 from `test_offers.py`, and the one
+  deliberate second port above.
+- **55 are new guards** with no rig test behind them, and the integration test is
+  a 56th. They are what mutation testing bought: `K_MAX_SKEW`, the `_PROBE`
+  window, `evidence_tokens`' shape, the gesture-tier boundary, the skew band, a
+  swallowed `raise` on the billed path, an unscoped tail, `READING_LIMIT`, a
+  global mining lock, `shapes_for` committing a read, the lost-duplicate case
+  that kills the cite-order mutation on every hash seed, and the store-failure
+  path that the fake cannot model.
+
+**Method for that split, and its limits:** exact test-function-name match
+against the union of all 699 test names under `new_agent_arch/tests/`. A port
+that had been renamed would count as new — none was, because every one of the
+136 rig names in the seven files is accounted for with no residue. A new guard
+that coincidentally reused a rig name would count as a port — none did; the 7
+matches outside the seven files were checked individually and are all genuine
+`test_offers.py` ports.
+
+**Gates at head** (all seven, re-measured; baseline in brackets):
+
+| Gate | Result |
+|---|---|
+| `mypy src tests` | 312 errors in 68 files [312 in 68] |
+| `mypy src tests/unit/fakes.py` | clean [clean] |
+| `ruff format --check .` | 2 files would be reformatted [2] |
+| `lint-imports` | 4 kept, 0 broken [4 kept] |
+| `pytest tests/unit` | 1939 passed [1936 at task 9; +3 from this task's deferred minors] |
+| `pytest tests/contract` | 102 passed, 1 pre-existing failure [same, untouched by this plan] |
+| `pytest tests/integration` | 111 passed, `test_steel_capture.py` ignored [111] |
+
+---
+
+## What this plan carries forward
+
+Plans 3b and 4 need all of this, and the working ledger it came from is in a
+gitignored directory. It travels here instead.
+
+**1. `shapes_for` must not be wired to a route in plan 4 until a batch tally
+exists.** The held tally calls `for_workflow` per proven workflow, loading every
+run of every one, because `WorkflowRunRepository` has no count method — where
+the rig used two index `COUNT`s. Measured against the fakes it is flatly linear
+in total run rows: 20 workflows × 100 runs = 0.069s, × 500 = 0.391s. It is
+O(all history) on the hottest read in the product, and it gets worse exactly as
+a tenant adopts it. A tenant with a year of use is ~100k run rows and ~500k step
+rows fetched and mapped **per heartbeat per browser**. Recommended shape:
+`tallies(tenant_id) -> Mapping[str, tuple[int, int]]` over a `GROUP BY
+workflow_id`, which also collapses the N+1 rather than shrinking it.
+
+**2. `read_utterance` checks no cap.** That is the rig's own split — the route
+answers the 429, not the use case — so **plan 3b's `/v1/chat` must call
+`over_cap` before it**. Nothing at the application layer can fail if a route
+forgets, so this belongs in that task's brief as an explicit requirement rather
+than as a note.
+
+**3. The reading loop holds the tenant's entire history in memory, not one
+day.** `gestures_for` and `intents_for` have no time bound, so every reading
+pass deserialises every stored gesture and intent for the tenant, request and
+response bodies included, and it grows monotonically. The upgrade path is
+`GestureRepository.tail_for(stream_id, before)` — a port change across four
+files, which is why it is not a fix round's. It is named as the upgrade path in
+the `ponytail:` comment on the tail.
+
+**4. The package-wide schema walker now survives a file move.** It was scoped to
+`sro.domain`, so the rule that no schema uses an `additionalProperties` map —
+the shape the Gemini Developer API refuses with a 400, and which once shipped
+the chat door dead — held only while a schema happened to sit in the domain.
+Moving `UNDERSTAND_SCHEMA` into the application layer *in the refused shape*
+passed the entire suite silently. Task 10 widened the walk to `sro`, which takes
+it from 6 schemas to 13 and brings four that reach the real vendor API under
+guard for the first time: `sro.infrastructure.gemini.interpreter._SCHEMA`,
+`._NAME_SCHEMA`, `._JUDGEMENT_SCHEMA`, and
+`sro.infrastructure.transcription.gemini._SCHEMA`. The widening is itself
+pinned (`walked >= 13`), because narrowing it back still finds six and would
+have passed a bare truthiness check.
+
+**5. `FakeUnitOfWork`'s poisoned-session mode does not discard writes on
+rollback.** It models the session becoming unusable and rollback reviving it,
+but not the loss — `FakeUnitOfWork` does not simulate rollback at all, and
+making it do so for one repository would be a second untested claim. So half of
+the mining pass's failure guarantee (the bill lands, the workflows do not) is
+proved **only** by `tests/integration/test_workflow_repositories.py::
+test_the_bill_is_written_on_a_session_the_save_killed`. Do not read a green unit
+suite as covering that path.
+
+**6. A mutation on set or dict ordering is not killed until it is killed on
+several hash seeds.** Task 7's cite-order mutation survived on 2 of 8
+`PYTHONHASHSEED` values, so "14 killed, 0 survivors" was partly seed luck; Task
+9's sorted-on-missing mutant survived 3 of 8 against a three-parameter fixture.
+And a fixture that *happens* to catch something is not the fix — what kills the
+cite-order mutation on every seed is a lost **duplicate**, not a reversed order.
+
+**7. Four rig tests in this plan were proven satisfied by the bugs they were
+named for**, and were rebuilt rather than inherited. Do not treat a rig test's
+existence as coverage of the thing its name claims.
+
+**8. `MineObservations` in `application/observation/mine.py` is still live** and
+wired in `container.py`. The rig's pass landed beside it as `mining_pass.py`.
+The spec deletes the old miner at phase 7; until then, both exist.

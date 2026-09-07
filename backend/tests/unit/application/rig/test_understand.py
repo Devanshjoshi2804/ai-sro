@@ -296,7 +296,10 @@ async def test_what_the_reading_cost_is_written_down() -> None:
         )
     )
     [row] = _rows(uow)
-    assert row.id.startswith("cht_")
+    # Length too, not only the prefix: new_chat_id's comment claims "the shape
+    # every other id in the backend has", and token_hex(4) passed on the prefix
+    # alone. The other four minters pin it; this was the one that did not.
+    assert row.id.startswith("cht_") and len(row.id) == 36
     assert row.tenant == TENANT.value and row.at == NOW.isoformat()
     assert row.workflow_id == "wfl_1"
     assert (row.in_tokens, row.out_tokens, row.thought_tokens) == (120, 30, 7)

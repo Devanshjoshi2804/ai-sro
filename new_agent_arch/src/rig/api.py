@@ -310,8 +310,15 @@ async def read_new_gestures(store: Store, asker: Asker, model: str, tenant: str)
 
     ponytail: a process-local lock, because the rig is one process. Claim rows
     in the database if it ever becomes more than one.
+
+    Keyed by store and tenant, not by the word "reading". What the lock is for
+    is two readers racing over the same unread rows, and rows live in a store:
+    a single global name also made two DIFFERENT stores take turns, which is
+    nothing but a queue. The bake-off is the caller that showed it -- five
+    models, five copies of one day, and a lock that turned an hour of parallel
+    work into five hours of serial work.
     """
-    async with one_at_a_time("reading"):
+    async with one_at_a_time(f"reading:{store.path}:{tenant}"):
         return await _read_unread(store, asker, model, tenant)
 
 

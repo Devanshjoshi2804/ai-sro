@@ -12,8 +12,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from sqlalchemy import event, select
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun, new_run_id
 from sro.domain.shared.identifiers import DeviceId, TenantId
@@ -236,6 +236,61 @@ class TestWorkflowRuns:
 
         async with SqlUnitOfWork(session_factory) as uow:
             assert await uow.workflow_runs.in_flight(TENANT, DeviceId("dev_1")) is None
+
+    async def test_the_tally_is_one_group_by_and_never_loads_a_run(
+        self,
+        engine: AsyncEngine,
+        session_factory: async_sessionmaker[AsyncSession],
+    ) -> None:
+        """The half of the N+1 fix that only the statements can show.
+
+        ``shapes_for``'s unit guard counts calls to ``tallies``, and the
+        contract compares its answer. A ``tallies`` reimplemented as "select
+        this tenant's run rows and count them in Python" passes both -- one
+        call, no ``for_workflow``, identical mapping -- while restoring the
+        entire cost the port exists to remove: every run row of every
+        workflow, fetched to produce two integers. What makes it a fix rather
+        than a rename is that Postgres does the counting, and that is a fact
+        about the statements, not about the answer.
+
+        Three workflows of four runs, each with a step, so a load would be
+        visible twice over: as a second statement, and as the step table.
+        """
+        async with SqlUnitOfWork(session_factory) as uow:
+            for which in range(3):
+                for _ in range(4):
+                    await uow.workflow_runs.save(
+                        _run(
+                            workflow_id=f"wfl_{which}",
+                            outcome="held" if which else "failed",
+                            steps=[RunStep(order=0, says="save", verdict="held")],
+                        )
+                    )
+            await uow.commit()
+
+        asked: list[str] = []
+
+        def watch(
+            connection: Any,
+            cursor: Any,
+            statement: str,
+            parameters: Any,
+            context: Any,
+            executemany: bool,
+        ) -> None:
+            asked.append(" ".join(statement.split()))
+
+        event.listen(engine.sync_engine, "before_cursor_execute", watch)
+        try:
+            async with SqlUnitOfWork(session_factory) as uow:
+                counted = await uow.workflow_runs.tallies(TENANT)
+        finally:
+            event.remove(engine.sync_engine, "before_cursor_execute", watch)
+
+        assert dict(counted) == {"wfl_0": (4, 0), "wfl_1": (4, 4), "wfl_2": (4, 4)}
+        assert len(asked) == 1, f"one GROUP BY, not a load and a count: {asked}"
+        assert "GROUP BY" in asked[0].upper()
+        assert "workflow_run_steps" not in asked[0], "nothing is loaded, so no step is either"
 
 
 class TestOrphans:

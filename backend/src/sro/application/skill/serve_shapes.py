@@ -54,12 +54,14 @@ async def shapes_for(
 
     The tally is one read for the whole tenant, before the loop. It was
     `for_workflow` per proven workflow, which loads every run ever recorded
-    with all of its steps to arrive at two integers -- flatly linear in total
-    run rows, measured at 0.391s for 10k, and a tenant with a year of use
-    would read ~100k run rows and ~500k step rows here per heartbeat, per
-    browser. This is the read every browser makes on every gesture cache
-    miss, so it degraded exactly as a customer succeeded. The rig used two
-    index counts; `tallies` is those, batched.
+    with all of its steps to arrive at two integers. Counted against real
+    Postgres, three workflows of four runs: this function issued 14
+    statements, 6 of them against the runs tables; it now issues 9 and 1. The
+    6 were linear in total run rows, so a tenant with a year of use would have
+    read ~100k run rows and ~500k step rows here -- and this is the read every
+    browser makes on every gesture cache miss, so it degraded exactly as a
+    customer succeeded. The rig used two index counts; `tallies` is those,
+    batched.
     """
     tallied = await uow.workflow_runs.tallies(tenant_id)
     served: list[Shape] = []

@@ -641,10 +641,12 @@ class WorkflowRunRepository(Protocol):
         What ``shapes_for`` gates on, and the only reason it is a batch: the
         gate needs two integers per workflow, and asking ``for_workflow`` per
         proven workflow loads every run ever recorded with all of its steps to
-        compute them -- measured flatly linear in total run rows, 0.391s at
-        10k, on the read every browser makes on every gesture cache miss. The
-        rig read the same two numbers off the runs index and this is that,
-        batched across the tenant instead of asked per workflow.
+        compute them. Counted against real Postgres, three workflows of four
+        runs: ``shapes_for`` issued 14 statements, 6 against the runs tables;
+        with this it issues 9 and 1. The 6 were linear in total run rows, on
+        the read every browser makes on every gesture cache miss. The rig read
+        the same two numbers off the runs index and this is that, batched
+        across the tenant instead of asked per workflow.
 
         A workflow with no runs is ABSENT, not a zero pair. That is the runs
         index answering about itself -- it has no row to count and does not

@@ -308,8 +308,12 @@ class Settings(BaseSettings):
 
     A cap that stops asking is honest in a way a cap that stops CAPTURE is not:
     the evidence still arrives and is still stored, so raising this tomorrow
-    reads what today declined. Over the cap, `/v1/mine`, `/v1/chat` and
-    `POST /v1/runs` answer 429 and say how much of what. Zero disables the
+    reads what today declined. Over the cap the rig's `/v1/mine`, `/v1/chat`
+    and `POST /v1/runs` answered 429 and said how much of what; phase 4 names
+    the backend's own, and none of the three are here -- there is no
+    `/v1/chat`, a run is `POST /v1/skills/{skill_id}/runs`, and
+    `POST /v1/candidates/mine` DOES exist and is candidate mining, an
+    unrelated thing that the first name greps straight into. Zero disables the
     asking entirely; a negative value means no cap, which is what a deliberate
     one-off measurement wants. A run already going finishes on its own budget."""
 

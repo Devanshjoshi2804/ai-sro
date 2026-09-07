@@ -108,6 +108,31 @@ class SqlOfferRepository(OfferRepository):
         rows = (await self._session.execute(query)).all()
         return {fate: int(many) for fate, many in rows}
 
+    async def since(self, tenant_id: TenantId, *, since: str) -> tuple[Offer, ...]:
+        # The whole offer, and every one of them: the audit asks what this
+        # tenant's browsers were shown, so neither the window's ``k > 0`` nor
+        # its limit applies. The ``seq`` tiebreak does, for the same reason it
+        # does there -- several offers routinely carry one second.
+        query = (
+            select(OfferRow)
+            .where(OfferRow.tenant_id == tenant_id.value, OfferRow.at >= _when(since))
+            .order_by(OfferRow.at.desc(), OfferRow.seq.desc())
+        )
+        rows = (await self._session.execute(query)).scalars().all()
+        return tuple(
+            Offer(
+                id=row.id,
+                tenant=row.tenant_id,
+                workflow_id=row.workflow_id,
+                device_id=row.device_id,
+                k=row.k,
+                fate=row.fate,
+                run_id=row.run_id,
+                at=row.at.isoformat(),
+            )
+            for row in rows
+        )
+
     async def _window(self, *where: ColumnElement[bool], limit: int) -> tuple[OfferWindow, ...]:
         query = (
             select(OfferRow.k, OfferRow.fate, OfferRow.at)

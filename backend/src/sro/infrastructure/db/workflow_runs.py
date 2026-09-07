@@ -191,6 +191,19 @@ class SqlWorkflowRunRepository(WorkflowRunRepository):
         rows = (await self._session.execute(query.order_by(WorkflowRunRow.started_at))).scalars()
         return await self._with_steps(rows.all())
 
+    async def since(self, tenant_id: TenantId, *, since: str) -> tuple[WorkflowRun, ...]:
+        # Newest first, unlike ``for_workflow``: this is the audit's order, and
+        # a person reading what happened reads back from now. No limit --
+        # paging belongs to the route, which is where the rig's was.
+        query = self._rows().where(
+            WorkflowRunRow.tenant_id == tenant_id.value,
+            WorkflowRunRow.started_at >= _when(since),
+        )
+        rows = (
+            await self._session.execute(query.order_by(WorkflowRunRow.started_at.desc()))
+        ).scalars()
+        return await self._with_steps(rows.all())
+
     async def in_flight(self, tenant_id: TenantId, device_id: DeviceId) -> str | None:
         # ponytail: a read the caller acts on, not a lock -- sound while one
         # worker owns every run, as the rig required. A second worker needs a

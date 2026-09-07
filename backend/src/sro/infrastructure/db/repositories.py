@@ -61,7 +61,7 @@ from sro.domain.shared.objective import ObjectiveKey
 from sro.domain.skill.skill import Skill
 from sro.domain.trigger.confirmation import Answer, Confirmation
 from sro.domain.trigger.trigger import Trigger
-from sro.infrastructure.db.codec import dump_policy
+from sro.infrastructure.db.codec import dump_policy, when
 from sro.infrastructure.db.evidence import SqlGestureRepository, SqlPoolRepository
 from sro.infrastructure.db.mappers import (
     batch_to_row,
@@ -120,6 +120,7 @@ from sro.infrastructure.db.models import (
     TriggerRow,
 )
 from sro.infrastructure.db.offers import SqlChatRepository, SqlOfferRepository
+from sro.infrastructure.db.spend import SqlSpendRepository
 from sro.infrastructure.db.workflow_runs import SqlWorkflowRunRepository
 from sro.infrastructure.db.workflows import SqlWorkflowRepository
 
@@ -633,13 +634,40 @@ class SqlDeviceRepository(DeviceRepository):
         rows = (await self._session.execute(query)).scalars().all()
         return tuple(row_to_device(row) for row in rows)
 
+    async def since(self, tenant_id: TenantId, *, since: str) -> tuple[AgentDevice, ...]:
+        # Registered since, or revoked since: the audit is asking who could
+        # act and until when, and a browser registered last month and revoked
+        # this morning is part of this morning's answer.
+        #
+        # Tenant-scoped, where the rig's audit select was not: its device query
+        # had no `tenant = ?` at all, so one tenant's audit listed every
+        # tenant's browsers by id. That is a leak rather than a rule, and it
+        # does not travel.
+        at = when(since)
+        query = (
+            select(AgentDeviceRow)
+            .where(
+                AgentDeviceRow.tenant_id == tenant_id.value,
+                or_(AgentDeviceRow.registered_at >= at, AgentDeviceRow.revoked_at >= at),
+            )
+            .order_by(AgentDeviceRow.registered_at.desc())
+        )
+        rows = (await self._session.execute(query)).scalars().all()
+        return tuple(row_to_device(row) for row in rows)
+
     async def revoke(self, tenant_id: TenantId, device_id: DeviceId, *, at: str) -> bool:
         # Read then set, rather than a conditional UPDATE: the row is the one
         # `get` in this session already holds, so nothing here can leave a
         # caller reading a browser it has just revoked as still live. `_row`
         # raises `NotFound` for a device this tenant does not have, which is a
         # different answer from "there was nothing live to revoke".
-        row = await self._row(tenant_id, device_id)
+        #
+        # Locked, because the read and the set are what the rig did atomically
+        # in one `UPDATE ... WHERE revoked_at IS NULL`: without the lock two
+        # concurrent revocations both read a live browser, both answer True,
+        # and the second overwrites the instant the first recorded -- which is
+        # precisely what this promises cannot happen.
+        row = await self._row(tenant_id, device_id, lock=True)
         if row.revoked_at is not None:
             # The first revocation stands. A second press must not move the
             # instant the authority ended -- that instant is what an audit of
@@ -652,11 +680,17 @@ class SqlDeviceRepository(DeviceRepository):
         row.revoked_at = when if when.tzinfo is not None else when.replace(tzinfo=UTC)
         return True
 
-    async def _row(self, tenant_id: TenantId, device_id: DeviceId) -> AgentDeviceRow:
+    async def _row(
+        self, tenant_id: TenantId, device_id: DeviceId, *, lock: bool = False
+    ) -> AgentDeviceRow:
         query = select(AgentDeviceRow).where(
             AgentDeviceRow.id == device_id.value,
             AgentDeviceRow.tenant_id == tenant_id.value,
         )
+        if lock:
+            # FOR UPDATE, and only where a caller is about to write what it
+            # read. Every other read here is a read.
+            query = query.with_for_update()
         row = (await self._session.execute(query)).scalar_one_or_none()
         if row is None:
             raise NotFound(f"device {device_id} was not found")
@@ -952,6 +986,7 @@ class SqlUnitOfWork(UnitOfWork):
         self.workflows = SqlWorkflowRepository(self._session)
         self.offers = SqlOfferRepository(self._session)
         self.chats = SqlChatRepository(self._session)
+        self.spend = SqlSpendRepository(self._session)
         self.pool = SqlPoolRepository(self._session)
         self.observation_policies = SqlObservationPolicyRepository(self._session)
         self.candidates = SqlCandidateRepository(self._session)

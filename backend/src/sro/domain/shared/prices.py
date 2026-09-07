@@ -55,6 +55,22 @@ Effort = Literal["minimal", "low", "medium", "high"]
 
 
 @dataclass(frozen=True, slots=True)
+class DaySpend:
+    """What one tenant has been billed for since midnight UTC.
+
+    ``blind`` is read beside the sum rather than derived from it, because the
+    two say different things and only one of them can be trusted: a model name
+    the price table never knew about records $0.0000 with ``unpriced`` set, so
+    a day summed on ``cost_usd`` alone reads as free while it spends. A day
+    whose cost cannot be established is not a cheap day, and the rule that
+    judges this pair says so.
+    """
+
+    cost_usd: float
+    blind: int
+
+
+@dataclass(frozen=True, slots=True)
 class Answer:
     data: dict[str, object] | None = None
     in_tokens: int = 0

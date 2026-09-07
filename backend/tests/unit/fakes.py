@@ -49,6 +49,7 @@ from sro.application.ports.repositories import (
     RecordingRepository,
     RunRepository,
     SkillRepository,
+    SpendRepository,
     ThreadRepository,
     ToolCallRepository,
     TriggerRepository,
@@ -115,13 +116,14 @@ from sro.domain.shared.objective import ObjectiveKey
 
 # `Answer` is already the trigger confirmation's; this one is a model's reply.
 from sro.domain.shared.prices import Answer as ModelAnswer
-from sro.domain.shared.prices import Effort
+from sro.domain.shared.prices import DaySpend, Effort
 from sro.domain.skill.locator import LocatorStrategy
 from sro.domain.skill.offers import Offer, OfferRow
 from sro.domain.skill.skill import Skill
 from sro.domain.skill.workflow import Workflow
 from sro.domain.trigger.confirmation import Answer, Confirmation
 from sro.domain.trigger.trigger import Trigger
+from sro.infrastructure.db.codec import when
 
 
 class FakeClock:
@@ -946,6 +948,19 @@ class FakeDeviceRepository:
         mine = [device for device in self.rows.values() if device.tenant_id == tenant_id]
         return tuple(sorted(mine, key=lambda device: device.last_seen_at, reverse=True))
 
+    async def since(self, tenant_id: TenantId, *, since: str) -> tuple[AgentDevice, ...]:
+        at = when(since)
+        found = [
+            device
+            for device in self.rows.values()
+            if device.tenant_id == tenant_id
+            and (
+                device.registered_at >= at
+                or (device.revoked_at is not None and when(device.revoked_at) >= at)
+            )
+        ]
+        return tuple(sorted(found, key=lambda device: device.registered_at, reverse=True))
+
     async def revoke(self, tenant_id: TenantId, device_id: DeviceId, *, at: str) -> bool:
         device = await self.get(tenant_id, device_id)
         if device.revoked:
@@ -1309,6 +1324,12 @@ class FakeGestureRepository:
         self.batches: dict[str, GestureBatch] = {}
         self.rows: dict[str, Gesture] = {}
         self.intents: dict[str, Intent] = {}
+        self.read_at: dict[str, datetime] = {}
+        """When each reading was stored. The store keeps it in
+        ``intents.created_at``, taken from the server's clock inside
+        ``save_intent`` -- the record itself does not carry it, so a fake that
+        answers ``intents_since`` has to keep it here."""
+
         self.orphan_requests: dict[tuple[str, str], Mapping[str, object]] = {}
         self.orphan_pages: list[tuple[str, str, str, Mapping[str, object]]] = []
 
@@ -1341,9 +1362,26 @@ class FakeGestureRepository:
 
     async def save_intent(self, intent: Intent) -> None:
         self.intents[intent.gesture_id] = intent
+        # The server's clock, as ``save_intent`` takes it, and taken again on a
+        # second reading: the row is replaced, not appended to.
+        self.read_at[intent.gesture_id] = datetime.now(tz=UTC)
 
     async def intents_for(self, tenant_id: TenantId) -> tuple[Intent, ...]:
         return tuple(intent for intent in self.intents.values() if intent.tenant == tenant_id.value)
+
+    async def intents_since(self, tenant_id: TenantId, *, since: str) -> tuple[Intent, ...]:
+        # On instants, never on the ISO text: the store compares timestamps,
+        # and a naive string sorts beside an offset-bearing one with neither
+        # being wrong.
+        at = when(since)
+        found = [
+            intent
+            for intent in await self.intents_for(tenant_id)
+            if self.read_at[intent.gesture_id] >= at
+        ]
+        return tuple(
+            sorted(found, key=lambda intent: self.read_at[intent.gesture_id], reverse=True)
+        )
 
     async def add_orphan_request(
         self,
@@ -1484,6 +1522,20 @@ class FakeWorkflowRunRepository:
         # changes between reads.
         return tuple(
             deepcopy(run) for run in sorted(found, key=lambda run: (run.started_at, run.id))
+        )
+
+    async def since(self, tenant_id: TenantId, *, since: str) -> tuple[WorkflowRun, ...]:
+        # Newest first, and on instants: the store compares `timestamptz`, and
+        # `(started_at, id)` reversed is what keeps the order total.
+        at = when(since)
+        found = [
+            run
+            for run in self.rows.values()
+            if run.tenant == tenant_id.value and when(run.started_at) >= at
+        ]
+        return tuple(
+            deepcopy(run)
+            for run in sorted(found, key=lambda run: (when(run.started_at), run.id), reverse=True)
         )
 
     async def in_flight(self, tenant_id: TenantId, device_id: DeviceId) -> str | None:
@@ -1697,6 +1749,18 @@ class FakeOfferRepository:
                 counted[offer.fate] = counted.get(offer.fate, 0) + 1
         return counted
 
+    async def since(self, tenant_id: TenantId, *, since: str) -> tuple[Offer, ...]:
+        # Reversed first, then a stable sort on the instant: offers that tie
+        # keep the reverse of arrival order, which is the store's ``seq DESC``.
+        at = when(since)
+        found = [
+            offer
+            for offer in reversed(self.rows)
+            if offer.tenant == tenant_id.value and when(offer.at) >= at
+        ]
+        found.sort(key=lambda offer: when(offer.at), reverse=True)
+        return tuple(found)
+
     def _window(self, mine: Callable[[Offer], bool], limit: int) -> tuple[OfferRow, ...]:
         # Reversed first, then sorted on `at` alone: Python's sort is stable, so
         # offers that tie on `at` keep the reversed arrival order, which is the
@@ -1717,12 +1781,69 @@ class FakeChatRepository:
         self.rows.append(reading)
 
     async def since(self, tenant_id: TenantId, *, since: str) -> tuple[ChatReading, ...]:
+        # On instants rather than on the ISO text the record carries: the store
+        # compares ``timestamptz``, and text ordering disagrees with it the
+        # moment two rows carry different offsets -- or one carries none.
+        at = when(since)
         found = [
             reading
             for reading in self.rows
-            if reading.tenant == tenant_id.value and reading.at >= since
+            if reading.tenant == tenant_id.value and when(reading.at) >= at
         ]
-        return tuple(sorted(found, key=lambda reading: reading.at, reverse=True))
+        return tuple(sorted(found, key=lambda reading: when(reading.at), reverse=True))
+
+
+class FakeSpendRepository:
+    """The day's bill, summed off the other fakes rather than out of a dict.
+
+    The four tables are four repositories here, so this holds none of its own
+    rows: it reads theirs, with the rig's predicates. A fake that could be
+    handed a total nobody spent would prove nothing about a cap.
+    """
+
+    def __init__(
+        self,
+        gestures: FakeGestureRepository,
+        workflows: FakeWorkflowRepository,
+        workflow_runs: FakeWorkflowRunRepository,
+        chats: FakeChatRepository,
+    ) -> None:
+        self._gestures = gestures
+        self._workflows = workflows
+        self._workflow_runs = workflow_runs
+        self._chats = chats
+
+    async def today(self, tenant_id: TenantId, *, now: datetime) -> DaySpend:
+        aware = now if now.tzinfo is not None else now.replace(tzinfo=UTC)
+        midnight = aware.astimezone(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+        since = midnight.isoformat()
+
+        readings = await self._gestures.intents_since(tenant_id, since=since)
+        passes = [
+            one
+            for one in await self._workflows.passes(tenant_id)
+            if when(one.started_at) >= midnight
+        ]
+        runs = await self._workflow_runs.since(tenant_id, since=since)
+        chats = await self._chats.since(tenant_id, since=since)
+
+        usd = (
+            sum(one.cost_usd for one in readings)
+            + sum(one.cost_usd for one in passes)
+            + sum(one.cost_usd for one in runs)
+            + sum(one.cost_usd for one in chats)
+        )
+        # A call that errored was never billed, so it is unpriced without being
+        # blind; a run carries no error column, so its blind row is the one
+        # that billed nothing at all. The rig's `SPENT_IN`, predicate for
+        # predicate.
+        blind = (
+            sum(1 for one in readings if one.unpriced and one.error is None)
+            + sum(1 for one in passes if one.unpriced and one.error is None)
+            + sum(1 for one in runs if one.unpriced and one.cost_usd == 0.0)
+            + sum(1 for one in chats if one.unpriced and one.error is None)
+        )
+        return DaySpend(cost_usd=usd, blind=blind)
 
 
 class FakeUnitOfWork:
@@ -1746,6 +1867,7 @@ class FakeUnitOfWork:
     workflows: WorkflowRepository
     offers: OfferRepository
     chats: ChatRepository
+    spend: SpendRepository
     pool: PoolRepository
     observation_policies: ObservationPolicyRepository
     candidates: CandidateRepository
@@ -1771,6 +1893,11 @@ class FakeUnitOfWork:
         self.workflows = FakeWorkflowRepository(self.workflow_runs)
         self.offers = FakeOfferRepository()
         self.chats = FakeChatRepository()
+        # One database in the store: the day's bill is summed over the same
+        # four repositories the rest of the unit of work writes to.
+        self.spend = FakeSpendRepository(
+            self.gestures, self.workflows, self.workflow_runs, self.chats
+        )
         self.pool = FakePoolRepository()
         self.observation_policies = FakeObservationPolicyRepository()
         self.candidates = FakeCandidateRepository()

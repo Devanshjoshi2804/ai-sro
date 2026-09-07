@@ -41,6 +41,7 @@ from sro.domain.shared.identifiers import (
     TriggerId,
 )
 from sro.domain.shared.objective import ObjectiveKey
+from sro.domain.shared.prices import DaySpend
 from sro.domain.skill.offers import Offer, OfferRow
 from sro.domain.skill.skill import Skill
 from sro.domain.skill.workflow import Workflow
@@ -325,6 +326,17 @@ class DeviceRepository(Protocol):
         """
         ...
 
+    async def since(self, tenant_id: TenantId, *, since: str) -> tuple[AgentDevice, ...]:
+        """Every browser registered or revoked at or after this ISO instant,
+        newest registration first.
+
+        The audit's only answer to "who could act, and from when to when":
+        ``revoked_at`` is the fact the runs and the offers cannot carry, so a
+        browser registered last month and revoked this morning belongs in this
+        morning's audit as much as one registered in it.
+        """
+        ...
+
 
 class ObservationRepository(Protocol):
     async def add(self, batch: ObservationBatch) -> None:
@@ -509,6 +521,17 @@ class GestureRepository(Protocol):
 
     async def intents_for(self, tenant_id: TenantId) -> tuple[Intent, ...]: ...
 
+    async def intents_since(self, tenant_id: TenantId, *, since: str) -> tuple[Intent, ...]:
+        """Every reading stored at or after this ISO instant, newest first.
+
+        ``intents_since`` rather than a bare ``since``: this port holds two
+        kinds of record and names every read after the one it returns. The
+        clock is the row's ``created_at``, which is when the reading was
+        stored rather than when the gesture happened -- the same column the
+        day's spend is summed over, because it is the reading that was billed.
+        """
+        ...
+
     async def add_orphan_request(
         self,
         tenant_id: TenantId,
@@ -603,6 +626,12 @@ class WorkflowRunRepository(Protocol):
 
     async def for_workflow(self, tenant_id: TenantId, workflow_id: str) -> tuple[WorkflowRun, ...]:
         """Oldest first, as the rig listed them."""
+        ...
+
+    async def since(self, tenant_id: TenantId, *, since: str) -> tuple[WorkflowRun, ...]:
+        """Every run started at or after this ISO instant, newest first, with
+        its steps. The spine of the audit: the approvals on each are read
+        beside it, through ``approvals``."""
         ...
 
     async def in_flight(self, tenant_id: TenantId, device_id: DeviceId) -> str | None:
@@ -774,6 +803,15 @@ class OfferRepository(Protocol):
         """
         ...
 
+    async def since(self, tenant_id: TenantId, *, since: str) -> tuple[Offer, ...]:
+        """Every offer made at or after this ISO instant, newest first, whole.
+
+        The audit's question, not the counsel's: no ``k > 0`` and no limit,
+        because an arrival nudge is still something this tenant's browsers were
+        shown. Ties on ``at`` break on arrival, as everywhere else here.
+        """
+        ...
+
 
 class ChatRepository(Protocol):
     """What the chat door read, and what the reading cost.
@@ -789,6 +827,24 @@ class ChatRepository(Protocol):
         """Every reading at or after this ISO instant, newest first. The day's
         spend is the sum over it, which is why the index leads with the
         tenant."""
+        ...
+
+
+class SpendRepository(Protocol):
+    """What today has cost, across every table that can bill it."""
+
+    async def today(self, tenant_id: TenantId, *, now: datetime) -> DaySpend:
+        """Everything this tenant has been billed for since midnight UTC.
+
+        Four tables, one predicate each: a reading, a mining pass, a run and
+        a chat are the only things that cost money, and a cap that reads
+        three of them is a cap.
+
+        ``now`` is passed rather than read here so the caller's clock is the
+        one the day is measured from; midnight is UTC's either way, and a
+        ``now`` with no zone is read as UTC rather than as the server's local
+        time.
+        """
         ...
 
 
@@ -810,6 +866,7 @@ class UnitOfWork(Protocol):
     workflows: WorkflowRepository
     offers: OfferRepository
     chats: ChatRepository
+    spend: SpendRepository
     pool: PoolRepository
     observation_policies: ObservationPolicyRepository
     candidates: CandidateRepository

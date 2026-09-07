@@ -256,6 +256,20 @@ class SqlGestureRepository(GestureRepository):
         rows = (await self._session.execute(query)).scalars().all()
         return tuple(_row_to_intent(row) for row in rows)
 
+    async def intents_since(self, tenant_id: TenantId, *, since: str) -> tuple[Intent, ...]:
+        query = (
+            select(IntentRow)
+            .where(IntentRow.tenant_id == tenant_id.value, IntentRow.created_at >= _when(since))
+            .order_by(IntentRow.created_at.desc())
+            # The reading a caller has just saved is the one it is most likely
+            # to be reading back, and ``save_intent`` upserts with a Core
+            # statement -- so, as in ``intents_for``, the identity map must not
+            # hand back the reading this session superseded.
+            .execution_options(populate_existing=True)
+        )
+        rows = (await self._session.execute(query)).scalars().all()
+        return tuple(_row_to_intent(row) for row in rows)
+
     async def add_orphan_request(
         self,
         tenant_id: TenantId,

@@ -113,6 +113,8 @@
   #models .blind { color: #d08770; }
   #models .none { color: var(--muted); font-size: 13px; padding: 12px 0; }
   #models .note { color: var(--muted); font-size: 12px; margin: 6px 0 14px; }
+  #models ul.note { margin: 6px 0 14px 18px; }
+  #models .scroll { overflow-x: auto; }
 </style>
 
 <header>
@@ -686,81 +688,147 @@
     if (!rows.length)
       return `<p class="none">No comparison yet. Run <code>make bakeoff</code> in
         <code>new_agent_arch/</code> and this fills in.</p>`;
-    const ms = (n) => (n >= 1000 ? (n / 1000).toFixed(1) + "s" : Math.round(n) + "ms");
+    const ms = (n) => (n == null ? "" : n >= 1000 ? (n / 1000).toFixed(1) + "s" : Math.round(n) + "ms");
     const usd = (n) => "$" + Number(n ?? 0).toFixed(4);
+    const usd6 = (n) => "$" + Number(n ?? 0).toFixed(6);
+    const num = (n, d = 2) => (n == null ? "&mdash;" : Number(n).toFixed(d));
     // The newest sweep only: two sweeps in one table compare a model against
     // itself on different evidence, which is the one comparison this cannot
     // make honestly.
     const newest = rows[0]?.sweep_id;
-    const mine = rows.filter((r) => r.sweep_id === newest && r.door === "mine");
-    const read = rows.filter((r) => r.sweep_id === newest && r.door === "read");
+    const of = (door) => rows.filter((r) => r.sweep_id === newest && r.door === door);
+    const read = of("read"), mine = of("mine"), fired = of("burst");
 
-    // Least is best for cost and latency; most is best for what was found.
-    const best = (list, key, low) => {
-      const live = list.filter((r) => !r.error && r[key] != null);
+    // Derived, never stored: everything below is arithmetic on measured
+    // columns, and a stored ratio is a number that can disagree with the
+    // figures beside it.
+    const perSecond = (r) => (r.seconds > 0 ? r.out_tokens / r.seconds : null);
+    const jitter = (r) => (r.p50_ms > 0 ? r.p95_ms / r.p50_ms : null);
+    const perGesture = (r) => (r.gestures ? r.cost_usd / r.gestures : null);
+    const perKept = (r) => (r.kept ? r.cost_usd / r.kept : null);
+    const thoughtShare = (r) => (r.out_tokens > 0 ? r.thought_tokens / r.out_tokens : null);
+
+    // Least is best for money and waiting; most is best for what was found.
+    const best = (list, get, low) => {
+      const live = list.filter((r) => !r.error).map(get).filter((v) => v != null);
       if (!live.length) return null;
-      return live.reduce((a, b) => ((low ? b[key] < a[key] : b[key] > a[key]) ? b : a))[key];
+      return live.reduce((a, b) => (low ? Math.min(a, b) : Math.max(a, b)));
     };
-    const mark = (row, key, low, text) =>
-      row.error || row[key] == null || row[key] !== best(row.door === "mine" ? mine : read, key, low)
-        ? esc(text)
-        : `<span class="best">${esc(text)}</span>`;
-    const widest = Math.max(1, ...[...mine, ...read].map((r) => r.p95_ms || 0));
-    const bar = (n) => `<span class="bar" style="width:${Math.round((60 * (n || 0)) / widest)}px"></span>`;
-
-    const blind = (row) =>
-      row.unpriced
-        ? ` <span class="blind" title="calls whose bill is a guess">${row.unpriced} blind</span>`
-        : "";
+    const cell = (row, list, get, low, text) => {
+      if (row.error || get(row) == null) return "&mdash;";
+      const top = best(list, get, low);
+      return top != null && get(row) === top
+        ? `<span class="best">${esc(text)}</span>`
+        : esc(text);
+    };
+    const blind = (r) =>
+      r.unpriced ? ` <span class="blind" title="bills that are a guess">${r.unpriced}?</span>` : "";
+    const failed = (r) => (r.error ? `<span class="blind">${esc(r.error)}</span>` : "");
 
     const readRows = read
       .map(
-        (r) => `<tr>
-          <td>${esc(r.model)}</td>
+        (r) => `<tr><td>${esc(r.model)}</td>
           <td>${r.error ? "&mdash;" : r.calls}</td>
-          <td>${r.error ? "&mdash;" : mark(r, "p50_ms", true, ms(r.p50_ms))} ${r.error ? "" : bar(r.p95_ms)}</td>
+          <td>${r.error ? "&mdash;" : cell(r, read, (x) => x.fastest_ms, true, ms(r.fastest_ms))}</td>
+          <td>${r.error ? "&mdash;" : cell(r, read, (x) => x.p50_ms, true, ms(r.p50_ms))}</td>
           <td>${r.error ? "&mdash;" : ms(r.p95_ms)}</td>
+          <td>${r.error ? "&mdash;" : num(jitter(r), 1) + "&times;"}</td>
           <td>${r.error ? "&mdash;" : esc(r.in_tokens + " / " + r.out_tokens)}</td>
-          <td>${r.error ? "&mdash;" : mark(r, "cost_usd", true, usd(r.cost_usd))}${blind(r)}</td>
-          <td>${r.error ? "&mdash;" : mark(r, "usable", false, `${r.usable} of ${r.gestures}`)}</td>
-          <td>${r.error ? `<span class="blind">${esc(r.error)}</span>` : r.refused || ""}</td>
-        </tr>`,
+          <td>${r.error ? "&mdash;" : cell(r, read, perSecond, false, num(perSecond(r), 0))}</td>
+          <td>${r.error ? "&mdash;" : cell(r, read, (x) => x.cost_usd, true, usd(r.cost_usd))}${blind(r)}</td>
+          <td>${r.error ? "&mdash;" : cell(r, read, perGesture, true, usd6(perGesture(r)))}</td>
+          <td>${r.error ? "&mdash;" : cell(r, read, (x) => x.usable, false, `${r.usable} of ${r.gestures}`)}</td>
+          <td>${r.error ? failed(r) : r.refused || ""}</td></tr>`,
+      )
+      .join("");
+
+    const burstRows = fired
+      .map(
+        (r) => `<tr><td>${esc(r.model)}</td>
+          <td>${r.error ? "&mdash;" : r.calls}</td>
+          <td>${r.error ? "&mdash;" : num(r.seconds, 2) + "s"}</td>
+          <td>${r.error ? "&mdash;" : cell(r, fired, (x) => x.speedup, false, num(r.speedup, 1) + "&times;")}</td>
+          <td>${r.error ? "&mdash;" : cell(r, fired, (x) => x.p50_ms, true, ms(r.p50_ms))}</td>
+          <td>${r.error ? "&mdash;" : ms(r.p95_ms)}</td>
+          <td>${r.error ? "&mdash;" : ms(r.slowest_ms)}</td>
+          <td>${r.error ? "&mdash;" : usd(r.cost_usd)}</td>
+          <td>${r.error ? failed(r) : r.refused || ""}</td></tr>`,
       )
       .join("");
 
     const mineRows = mine
       .map(
-        (r) => `<tr>
-          <td>${esc(r.model)}</td>
-          <td>${r.error ? "&mdash;" : mark(r, "seconds", true, r.seconds + "s")}</td>
+        (r) => `<tr><td>${esc(r.model)}</td>
+          <td>${r.error ? "&mdash;" : r.calls}</td>
+          <td>${r.error ? "&mdash;" : cell(r, mine, (x) => x.seconds, true, num(r.seconds, 1) + "s")}</td>
+          <td>${r.error ? "&mdash;" : esc(`${r.window} shown, ${r.left_out} out`)}</td>
           <td>${r.error ? "&mdash;" : esc(r.in_tokens + " / " + r.out_tokens)}</td>
-          <td>${r.error ? "&mdash;" : esc(String(r.thought_tokens))}</td>
-          <td>${r.error ? "&mdash;" : mark(r, "cost_usd", true, usd(r.cost_usd))}${blind(r)}</td>
-          <td>${r.error ? "&mdash;" : esc(`${r.kept} of ${r.proposed}`)}</td>
-          <td>${r.error ? "&mdash;" : mark(r, "cross_system", false, String(r.cross_system))}</td>
-          <td>${r.error ? "&mdash;" : Number(r.coverage ?? 0).toFixed(2)}${r.lopsided ? " lopsided" : ""}</td>
-          <td>${r.error ? `<span class="blind">${esc(r.error)}</span>` : ""}</td>
-        </tr>`,
+          <td>${r.error ? "&mdash;" : esc(String(r.thought_tokens)) + (thoughtShare(r) ? ` (${Math.round(thoughtShare(r) * 100)}%)` : "")}</td>
+          <td>${r.error ? "&mdash;" : cell(r, mine, perSecond, false, num(perSecond(r), 0))}</td>
+          <td>${r.error ? "&mdash;" : cell(r, mine, (x) => x.cost_usd, true, usd(r.cost_usd))}${blind(r)}</td>
+          <td>${r.error ? "&mdash;" : cell(r, mine, perKept, true, perKept(r) == null ? "&mdash;" : usd(perKept(r)))}</td>
+          <td>${r.error ? "&mdash;" : esc(`${r.kept} of ${r.proposed}`) + (r.rejected ? `, ${r.rejected} rejected` : "")}</td>
+          <td>${r.error ? "&mdash;" : cell(r, mine, (x) => x.cross_system, false, String(r.cross_system))}</td>
+          <td>${r.error ? "&mdash;" : cell(r, mine, (x) => x.stability, false, r.stability == null ? "&mdash;" : num(r.stability, 2))}</td>
+          <td>${r.error ? "&mdash;" : esc(`${num(r.coverage)} / ${num(r.gini)} / ${num(r.skew)}`)}${r.lopsided ? " lopsided" : ""}</td>
+          <td>${r.error ? failed(r) : r.truncated ? `<span class="blind">${r.truncated} cut off</span>` : ""}</td></tr>`,
       )
       .join("");
 
-    const spent = [...mine, ...read].reduce((sum, r) => sum + (r.cost_usd || 0), 0);
-    return `<h3>read &mdash; one call per gesture, the shape a day is made of</h3>
-      <table><thead><tr><th>model</th><th>calls</th><th>p50</th><th>p95</th>
-        <th>tokens in / out</th><th>cost</th><th>usable</th><th>refused</th></tr></thead>
-        <tbody>${readRows || '<tr><td colspan="8" class="none">not run</td></tr>'}</tbody></table>
-      <p class="note">Usable is the count that came back with an act a mining pass can use.
-        A reading with no act was still paid for.</p>
-      <h3>mine &mdash; one call over the day, where the money is</h3>
-      <table><thead><tr><th>model</th><th>elapsed</th><th>tokens in / out</th><th>thought</th>
-        <th>cost</th><th>kept</th><th>cross-system</th><th>coverage</th><th></th></tr></thead>
-        <tbody>${mineRows || '<tr><td colspan="9" class="none">not run</td></tr>'}</tbody></table>
-      <p class="note">Cross-system is the number of jobs that stand on evidence from more than
-        one host &mdash; the thing a per-host pipeline structurally cannot see. Thought tokens
-        are billed at the output rate; Claude rows read 0 because the bake-off asks it with
-        forced structured output, which is not offered together with extended thinking.</p>
+    const empty = (n) => `<tr><td colspan="${n}" class="none">not run</td></tr>`;
+    const spent = [...read, ...mine, ...fired].reduce((sum, r) => sum + (r.cost_usd || 0), 0);
+    const name = (list, get, low) => {
+      const live = list.filter((r) => !r.error && get(r) != null);
+      if (!live.length) return "&mdash;";
+      return esc(live.reduce((a, b) => ((low ? get(b) < get(a) : get(b) > get(a)) ? b : a)).model);
+    };
+
+    return `<h3>read &mdash; one small call per gesture, the shape a day is made of</h3>
+      <div class="scroll"><table><thead><tr><th>model</th><th>calls</th><th>fastest</th><th>p50</th>
+        <th>p95</th><th>jitter</th><th>tokens in / out</th><th>out tok/s</th><th>cost</th>
+        <th>per gesture</th><th>usable</th><th>refused</th></tr></thead>
+        <tbody>${readRows || empty(12)}</tbody></table></div>
+      <p class="note">Usable is the count that came back with an act a mining pass can use; a
+        reading without one was still paid for. Jitter is p95 over p50 &mdash; how much worse a
+        bad call is than a typical one.</p>
+
+      <h3>burst &mdash; ${fired[0]?.calls ?? 8} calls at once, which is what a busy morning does</h3>
+      <div class="scroll"><table><thead><tr><th>model</th><th>fired</th><th>wall clock</th>
+        <th>served at once</th><th>p50</th><th>p95</th><th>slowest</th><th>cost</th>
+        <th>refused</th></tr></thead>
+        <tbody>${burstRows || empty(9)}</tbody></table></div>
+      <p class="note">Served at once is the time the calls spent waiting over the time the burst
+        took: 8&times; means the vendor really ran eight together, 1&times; means it served them
+        one after another however they were sent. Refusals here are usually rate limits.</p>
+
+      <h3>mine &mdash; one large call over the whole day, where the money is</h3>
+      <div class="scroll"><table><thead><tr><th>model</th><th>passes</th><th>elapsed</th>
+        <th>window</th><th>tokens in / out</th><th>thought</th><th>out tok/s</th><th>cost</th>
+        <th>per job kept</th><th>kept</th><th>cross-system</th><th>stability</th>
+        <th>coverage / gini / skew</th><th></th></tr></thead>
+        <tbody>${mineRows || empty(14)}</tbody></table></div>
+      <p class="note">The day is read twice, so cost and tokens cover both passes and
+        <b>stability</b> is how much of what the first pass cited the second cited too &mdash; a
+        model that finds a different day each time it reads the same day cannot be scheduled on.
+        <b>Cross-system</b> is jobs standing on evidence from more than one host, the thing a
+        per-host pipeline structurally cannot see. Thought tokens are billed at the output rate;
+        Claude rows read 0 because the bake-off asks it with forced structured output, which is
+        not offered together with extended thinking.</p>
+
+      <h3>what this sweep says</h3>
+      <ul class="note">
+        <li>cheapest day: <b>${name(mine, (r) => r.cost_usd, true)}</b> &middot;
+            cheapest reading: <b>${name(read, (r) => perGesture(r), true)}</b></li>
+        <li>quickest to answer: <b>${name(read, (r) => r.p50_ms, true)}</b> &middot;
+            best under load: <b>${name(fired, (r) => r.speedup, false)}</b></li>
+        <li>found most: <b>${name(mine, (r) => r.kept, false)}</b> &middot;
+            most cross-system: <b>${name(mine, (r) => r.cross_system, false)}</b> &middot;
+            steadiest: <b>${name(mine, (r) => r.stability, false)}</b></li>
+        <li>most usable readings: <b>${name(read, (r) => r.usable, false)}</b></li>
+      </ul>
       <p class="note">Sweep ${esc(String(newest ?? ""))} &middot; ${usd(spent)} spent &middot;
-        green is the best in its column.</p>`;
+        green is the best in its column. A model with a <span class="blind">?</span> had calls
+        whose bill is a guess.</p>`;
   }
 
   async function drawModels() {

@@ -32,7 +32,7 @@ from pathlib import Path
 # own --budget-usd is the ceiling that applies here.
 os.environ.setdefault("RIG_DAILY_USD_CAP", "-1")
 
-from rig.bakeoff import DOORS, K_READ_GESTURES, Row, save, sweep
+from rig.bakeoff import DOORS, K_BURST, K_READ_GESTURES, Row, save, sweep
 from rig.claude import AnthropicAsker
 from rig.models import Asker, GeminiAsker, is_priced
 from rig.store import Store
@@ -83,7 +83,18 @@ def main() -> None:
     parser.add_argument("--models", default=",".join(MODELS))
     parser.add_argument("--doors", default=",".join(DOORS))
     parser.add_argument("--gestures", type=int, default=K_READ_GESTURES)
-    parser.add_argument("--budget-usd", type=float, default=5.0)
+    parser.add_argument("--burst", type=int, default=K_BURST, help="calls fired at once")
+    parser.add_argument(
+        "--budget-usd",
+        type=float,
+        default=5.0,
+        help="ceiling for the whole sweep; negative means no ceiling",
+    )
+    parser.add_argument(
+        "--once",
+        action="store_true",
+        help="read the day once; without it the mine door reads it twice and reports stability",
+    )
     parser.add_argument("--dry", action="store_true", help="print the plan, ask nothing")
     args = parser.parse_args()
 
@@ -119,8 +130,16 @@ def main() -> None:
     read = store.query("SELECT count(*) AS n FROM gestures WHERE tenant = ?", (args.tenant,))
     print(f"evidence: {read[0]['n']} gestures for tenant {args.tenant}")
     print(f"models:   {', '.join(models)}")
-    print(f"doors:    {', '.join(doors)} (read reads {args.gestures} gestures)")
-    print(f"budget:   ${args.budget_usd:.2f} for the sweep")
+    print(
+        f"doors:    {', '.join(doors)} (read reads {args.gestures} gestures,"
+        f" burst fires {args.burst} at once,"
+        f" mine reads the day {'once' if args.once else 'twice, for stability'})"
+    )
+    print(
+        "budget:   no ceiling"
+        if args.budget_usd < 0
+        else f"budget:   ${args.budget_usd:.2f} for the sweep"
+    )
     if args.dry:
         print("\n--dry: nothing was asked and nothing was spent")
         return
@@ -133,6 +152,8 @@ def main() -> None:
             asker_for=asker_for,
             tenant=args.tenant,
             gestures=args.gestures,
+            bursts=args.burst,
+            twice=not args.once,
             budget_usd=args.budget_usd,
             doors=doors,
         )
@@ -141,11 +162,14 @@ def main() -> None:
 
     print(f"\n{'model':<28} {'door':<5} {'calls':>5} {'p50ms':>8} {'cost':>9}  outcome")
     for row in sorted(rows, key=lambda r: (r.door, r.cost_usd)):
-        outcome = row.error or (
-            f"{row.usable}/{row.gestures} usable"
-            if row.door == "read"
-            else f"kept {row.kept} of {row.proposed}, cross-system {row.cross_system}"
-        )
+        if row.error:
+            outcome = row.error
+        elif row.door == "read":
+            outcome = f"{row.usable}/{row.gestures} usable"
+        elif row.door == "burst":
+            outcome = f"{row.speedup}x of {row.calls} at once in {row.seconds}s"
+        else:
+            outcome = f"kept {row.kept} of {row.proposed}, cross-system {row.cross_system}"
         print(
             f"{row.model:<28} {row.door:<5} {row.calls:>5} {row.p50_ms:>8.0f}"
             f" {row.cost_usd:>9.4f}  {outcome}"

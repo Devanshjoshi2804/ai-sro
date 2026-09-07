@@ -252,24 +252,42 @@ CREATE TABLE IF NOT EXISTS bakeoff (
     p50_ms      REAL NOT NULL DEFAULT 0.0,
     p95_ms      REAL NOT NULL DEFAULT 0.0,
     slowest_ms  REAL NOT NULL DEFAULT 0.0,
+    fastest_ms  REAL NOT NULL DEFAULT 0.0,
     in_tokens   INTEGER NOT NULL DEFAULT 0,
     out_tokens  INTEGER NOT NULL DEFAULT 0,
     thought_tokens INTEGER NOT NULL DEFAULT 0,
     cost_usd    REAL NOT NULL DEFAULT 0.0,
     unpriced    INTEGER NOT NULL DEFAULT 0,  -- calls whose bill is a guess
     refused     INTEGER NOT NULL DEFAULT 0,  -- calls that came back an error
+    -- Of the refusals, the ones that ran into the output ceiling: the model
+    -- had more to say and the budget stopped it, which is a different
+    -- decision from a refusal or an answer that was not JSON.
+    truncated   INTEGER NOT NULL DEFAULT 0,
     -- The read door: how many gestures were read, and how many came back with
     -- an act a pass could use. A model that answers cheaply and uselessly is
     -- the failure a cost column alone reports as a win.
     gestures    INTEGER,
     usable      INTEGER,
+    -- The burst door: time the calls spent waiting over the time the burst
+    -- took. 8.0 of 8 means the vendor truly served eight at once; 1.0 means
+    -- it served them one after another however they were sent.
+    speedup     REAL,
     -- The mine door.
+    window      INTEGER,   -- gestures the pass was shown
+    left_out    INTEGER,   -- gestures the budget kept out of it
     proposed    INTEGER,
     kept        INTEGER,
+    rejected    INTEGER,
     cross_system INTEGER,
     coverage    REAL,
     skew        REAL,
+    gini        REAL,
     lopsided    INTEGER,
+    -- Two passes over the same evidence, and how much of what the first
+    -- cited the second cited too. A model that finds a different day every
+    -- time it reads the same day cannot be scheduled on.
+    stability   REAL,
+    second_kept INTEGER,
     error       TEXT
 );
 CREATE INDEX IF NOT EXISTS bakeoff_sweep ON bakeoff (tenant, sweep_id, model, door);

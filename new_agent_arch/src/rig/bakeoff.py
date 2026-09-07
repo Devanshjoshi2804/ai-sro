@@ -42,7 +42,14 @@ from rig.models import Answer, Asker
 from rig.store import Store
 from rig.workflows import cited_ids, known_workflows
 
-DOORS = ("read", "mine")
+DOORS = ("read", "mine", "burst")
+
+K_BURST = 8
+"""How many calls the burst door fires at once. Eight because that is the shape
+the rig actually makes: a run plans one step at a time, but a reading loop over
+a busy morning and a page full of parked runs both put several small calls in
+flight together, and a vendor that serialises them or starts refusing is a
+vendor whose per-call latency was never the whole story."""
 
 K_READ_GESTURES = 20
 """How many gestures the read door reads, by default. Small on purpose: the
@@ -64,20 +71,33 @@ class Row:
     p50_ms: float = 0.0
     p95_ms: float = 0.0
     slowest_ms: float = 0.0
+    fastest_ms: float = 0.0
     in_tokens: int = 0
     out_tokens: int = 0
     thought_tokens: int = 0
     cost_usd: float = 0.0
     unpriced: int = 0
     refused: int = 0
+    truncated: int = 0
     gestures: int | None = None
     usable: int | None = None
+    window: int | None = None
+    left_out: int | None = None
     proposed: int | None = None
     kept: int | None = None
+    rejected: int | None = None
     cross_system: int | None = None
+    speedup: float | None = None
     coverage: float | None = None
     skew: float | None = None
+    gini: float | None = None
     lopsided: bool | None = None
+    stability: float | None = None
+    """Two passes over the same evidence, and how much of what the first one
+    cited the second one cited too (Jaccard). A model that finds a different
+    day every time it reads the same day is not a model anyone can build a
+    schedule on, and no single pass can show it."""
+    second_kept: int | None = None
     error: str | None = None
 
 
@@ -124,13 +144,46 @@ def _bill(calls: list[tuple[float, Answer]]) -> dict[str, Any]:
         "p50_ms": round(percentile(latencies, 0.50), 1),
         "p95_ms": round(percentile(latencies, 0.95), 1),
         "slowest_ms": round(max(latencies), 1) if latencies else 0.0,
+        "fastest_ms": round(min(latencies), 1) if latencies else 0.0,
         "in_tokens": sum(a.in_tokens for _, a in calls),
         "out_tokens": sum(a.out_tokens for _, a in calls),
         "thought_tokens": sum(a.thought_tokens for _, a in calls),
         "cost_usd": round(sum(a.cost_usd for _, a in calls), 6),
         "unpriced": sum(1 for _, a in calls if a.unpriced),
         "refused": sum(1 for _, a in calls if a.error),
+        # A ceiling the answer ran into is not the same failure as a refusal
+        # or a malformed one: it says the model had more to say and the
+        # budget stopped it, which is a different decision to make.
+        "truncated": sum(1 for _, a in calls if a.error and "truncated" in a.error),
     }
+
+
+BURST_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {"word": {"type": "string"}},
+    "required": ["word"],
+}
+
+BURST_EVIDENCE = "Answer with the single word: yes."
+
+
+async def burst(
+    asker: Asker, model: str, *, calls: int
+) -> tuple[list[tuple[float, Answer]], float]:
+    """`calls` of the smallest possible call, all in flight at once.
+
+    The smallest call on purpose: what is being measured is the vendor's
+    behaviour under concurrency, not the model's reasoning, and a large prompt
+    would hide the queueing behind its own generation time.
+    """
+    timed = Timed(asker)
+
+    async def one() -> None:
+        await timed.ask(model=model, instructions="", evidence=BURST_EVIDENCE, schema=BURST_SCHEMA)
+
+    began = time.perf_counter()
+    await asyncio.gather(*(one() for _ in range(calls)))
+    return timed.calls, time.perf_counter() - began
 
 
 def copy_store(source: Path, target: Path) -> Store:
@@ -215,6 +268,8 @@ async def one_model(
     sweep_id: str,
     gestures: int,
     purse: Purse,
+    bursts: int = K_BURST,
+    twice: bool = True,
     doors: tuple[str, ...] = DOORS,
 ) -> list[Row]:
     """Both doors, one model, on its own copy of the evidence."""
@@ -257,6 +312,32 @@ async def one_model(
                 )
             )
 
+    if "burst" in doors:
+        if purse.over():
+            rows.append(
+                Row(sweep_id, tenant, model, "burst", now, error="skipped: over the sweep's budget")
+            )
+        else:
+            calls, elapsed = await burst(asker, model, calls=bursts)
+            purse.spent += sum(a.cost_usd for _, a in calls)
+            waited = sum(ms for ms, _ in calls) / 1000.0
+            rows.append(
+                Row(
+                    sweep_id,
+                    tenant,
+                    model,
+                    "burst",
+                    now,
+                    seconds=round(elapsed, 3),
+                    # Time the calls spent waiting, over the time the burst
+                    # took: 8.0 means eight calls truly ran at once, 1.0 means
+                    # the vendor served them one after another however they
+                    # were sent. The number the vendor's own docs never say.
+                    speedup=round(waited / elapsed, 2) if elapsed > 0 else None,
+                    **_bill(calls),
+                )
+            )
+
     if "mine" in doors:
         if purse.over():
             rows.append(
@@ -272,6 +353,27 @@ async def one_model(
             for row in store.query("SELECT id, system FROM gestures WHERE tenant = ?", (tenant,))
         }
         kept = [w for w in known_workflows(store, tenant) if w.pass_id == result.pass_id]
+        cited = {c for w in kept for c in cited_ids(w)}
+
+        # The same evidence, a second time. Whether a model finds the same day
+        # twice is a property no single pass can report, and it decides whether
+        # anything downstream can be scheduled on it.
+        stability: float | None = None
+        second_kept: int | None = None
+        if twice and not result.error:
+            second_mark = len(timed.calls)
+            again = await mine(store, tenant=tenant, asker=timed, model=model, kb="")
+            second = [w for w in known_workflows(store, tenant) if w.pass_id == again.pass_id]
+            twice_cited = {c for w in second for c in cited_ids(w)}
+            both = cited | twice_cited
+            stability = round(len(cited & twice_cited) / len(both), 4) if both else None
+            second_kept = again.kept
+            purse.spent += sum(a.cost_usd for _, a in timed.since(second_mark))
+            # The row covers the whole door, both passes: `calls` says 2, and a
+            # per-pass figure is that divided by it. Reporting only the first
+            # pass would leave the second one's money off every total.
+            calls = timed.since(mark)
+
         rows.append(
             Row(
                 sweep_id,
@@ -280,8 +382,11 @@ async def one_model(
                 "mine",
                 now,
                 seconds=round(time.perf_counter() - began, 3),
+                window=result.window_size,
+                left_out=result.left_out,
                 proposed=result.proposed,
                 kept=result.kept,
+                rejected=len(result.rejections),
                 # The one number this whole architecture was built to produce:
                 # a job that stands on evidence from more than one system, which
                 # a per-host pipeline structurally cannot see.
@@ -290,7 +395,10 @@ async def one_model(
                 ),
                 coverage=round(result.coverage.coverage, 4),
                 skew=round(result.coverage.skew, 4),
+                gini=round(result.coverage.gini, 4),
                 lopsided=result.lopsided,
+                stability=stability,
+                second_kept=second_kept,
                 error=result.error,
                 **_bill(calls),
             )
@@ -306,6 +414,8 @@ async def sweep(
     asker_for: Callable[[str], Asker],
     tenant: str,
     gestures: int = K_READ_GESTURES,
+    bursts: int = K_BURST,
+    twice: bool = True,
     budget_usd: float = 5.0,
     doors: tuple[str, ...] = DOORS,
     sweep_id: str = "",
@@ -328,6 +438,8 @@ async def sweep(
                 sweep_id=sweep_id,
                 gestures=gestures,
                 purse=purse,
+                bursts=bursts,
+                twice=twice,
                 doors=doors,
             )
         except Exception as problem:  # noqa: BLE001 -- one model's failure is one model's row
@@ -354,11 +466,12 @@ def save(store: Store, rows: list[Row]) -> None:
         for row in rows:
             connection.execute(
                 "INSERT INTO bakeoff (id, sweep_id, tenant, model, door, at, calls, seconds,"
-                " p50_ms, p95_ms, slowest_ms, in_tokens, out_tokens, thought_tokens, cost_usd,"
-                " unpriced, refused, gestures, usable, proposed, kept, cross_system, coverage,"
-                " skew, lopsided, error)"
+                " p50_ms, p95_ms, slowest_ms, fastest_ms, in_tokens, out_tokens, thought_tokens,"
+                " cost_usd, unpriced, refused, truncated, gestures, usable, speedup, window,"
+                " left_out, proposed, kept, rejected, cross_system, coverage, skew, gini,"
+                " lopsided, stability, second_kept, error)"
                 " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,"
-                " ?, ?, ?)",
+                " ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     "bko_" + secrets.token_hex(8),
                     row.sweep_id,
@@ -371,20 +484,29 @@ def save(store: Store, rows: list[Row]) -> None:
                     row.p50_ms,
                     row.p95_ms,
                     row.slowest_ms,
+                    row.fastest_ms,
                     row.in_tokens,
                     row.out_tokens,
                     row.thought_tokens,
                     row.cost_usd,
                     row.unpriced,
                     row.refused,
+                    row.truncated,
                     row.gestures,
                     row.usable,
+                    row.speedup,
+                    row.window,
+                    row.left_out,
                     row.proposed,
                     row.kept,
+                    row.rejected,
                     row.cross_system,
                     row.coverage,
                     row.skew,
+                    row.gini,
                     None if row.lopsided is None else int(row.lopsided),
+                    row.stability,
+                    row.second_kept,
                     row.error,
                 ),
             )

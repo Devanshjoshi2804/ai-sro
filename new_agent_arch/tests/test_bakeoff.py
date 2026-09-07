@@ -17,6 +17,8 @@ from rig.bakeoff import (
     Purse,
     Row,
     Timed,
+    _bill,
+    burst,
     copy_store,
     forget_readings,
     percentile,
@@ -253,3 +255,66 @@ def test_the_harness_asks_through_the_port_and_nothing_else() -> None:
     from the protocol the doors stop compiling, and this says so first."""
     timed: Asker = Timed(FakeAsker())
     assert timed is not None
+
+
+async def test_the_burst_door_says_how_much_the_vendor_really_did_at_once() -> None:
+    """Eight calls of a tenth of a second each. Served together, the burst
+    takes about a tenth of a second and the speedup is near eight; served one
+    after another it takes eight tenths and the speedup is one. That number is
+    the one a vendor's own latency figures never answer."""
+    calls, elapsed = await burst(
+        Slow(0.1, Answer(data={"word": "yes"}, in_tokens=8, out_tokens=1)), "m", calls=8
+    )
+
+    waited = sum(ms for ms, _ in calls) / 1000.0
+    assert len(calls) == 8
+    assert elapsed < 0.5, "eight tenths of a second means they were serialised"
+    assert waited / elapsed > 4.0
+
+
+def test_an_answer_cut_off_by_the_ceiling_is_counted_apart_from_a_refusal() -> None:
+    """A ceiling the answer ran into says the model had more to say and the
+    budget stopped it. Filed with refusals, the one number that would tell you
+    to raise the ceiling is invisible."""
+    billed = _bill(
+        [
+            (10.0, Answer(error="truncated: the answer hit the 65536 output-token ceiling")),
+            (10.0, Answer(error="not json: Expecting value")),
+            (10.0, Answer(data={"act": "picked"})),
+        ]
+    )
+
+    assert billed["refused"] == 2
+    assert billed["truncated"] == 1
+    assert billed["fastest_ms"] == 10.0
+
+
+async def test_a_second_pass_over_the_same_day_is_what_stability_means(
+    tmp_path: Path,
+) -> None:
+    """The mine door reads the day twice and reports how much of what the first
+    pass cited the second cited too. Both passes are on the row -- `calls` says
+    two -- because a total that left the second pass's money off would be a
+    total nobody could reconcile with the invoice."""
+    source = tmp_path / "source.db"
+    store = _store(source)
+    _gestures(store, 3, read_from=3)
+
+    rows = await sweep(
+        source=source,
+        out=tmp_path / "out",
+        models=("one",),
+        asker_for=lambda _: FakeAsker(
+            Answer(data={"workflows": []}, cost_usd=0.01),
+            Answer(data={"workflows": []}, cost_usd=0.01),
+        ),
+        tenant=TENANT,
+        doors=("mine",),
+        twice=True,
+    )
+
+    row = rows[0]
+    assert row.calls == 2, "both passes are on the row"
+    assert row.cost_usd == 0.02, "and so is both passes' money"
+    assert row.second_kept == 0
+    assert row.window is not None and row.left_out is not None

@@ -3,6 +3,11 @@
 Eight of them call `pack`, which subtracts the prompt's fixed cost and therefore
 imports `PROMPT_OVERHEAD_TOKENS` from `sro.domain.skill.umbrella`. That module
 landed with the umbrella prompt, so all nineteen run.
+
+Two more are added here rather than ported, each closing a hole the rig's own
+suite had: `test_evidence_is_measured_the_way_the_prompt_ships_it` and
+`test_a_gesture_that_exactly_fills_the_cap_is_kept_whole`. Both are named in
+their own docstrings for what they pin.
 """
 
 import copy
@@ -13,6 +18,7 @@ from sro.domain.observation.gesture import Gesture, Intent, Kind, ValueSeen
 from sro.domain.observation.window import (
     K_MAX_GESTURE_TOKENS,
     K_MAX_ITEMS,
+    K_MAX_TEXT_CHARS,
     K_MIN_GESTURES,
     Packed,
     arrange,
@@ -38,6 +44,23 @@ def _seq(value: object) -> list[object]:
 def test_tokens_is_a_length_not_a_guess() -> None:
     assert tokens("") == 0
     assert tokens("a" * 400) == 100
+
+
+def test_evidence_is_measured_the_way_the_prompt_ships_it() -> None:
+    """`evidence_tokens` counts an item inside a list, at indent=1, because
+    that is what `umbrella.build_prompt` writes. Measuring it compact passed
+    every other test in this file and under-counted the real acme window by
+    17.6% -- 22,593 counted against 26,566 shipped -- which on a window filled
+    to K_WINDOW_TOKENS means ~177,000 tokens over the 200K boundary where the
+    input price doubles, silently.
+
+    So: strictly more than the compact rendering. That is the whole difference,
+    and it is what fails the moment the measured shape stops matching the
+    shipped one.
+    """
+    evidence = as_evidence(_gestures()[0], None)
+
+    assert evidence_tokens(evidence) > tokens(json.dumps(evidence, ensure_ascii=False))
 
 
 def test_evidence_carries_the_reading_beside_the_gesture() -> None:
@@ -128,6 +151,85 @@ def test_the_cap_holds_by_every_route() -> None:
     )
     size = tokens(json.dumps(as_evidence(base, loud)))
     assert size <= K_MAX_GESTURE_TOKENS, f"intent: {size}"
+
+
+def _on_the_cap(gesture: Gesture, values: int) -> dict[str, object] | None:
+    """This gesture's evidence rendered at exactly K_MAX_GESTURE_TOKENS, or
+    None when this shape cannot be made to land there.
+
+    Grown rather than hand-written, because the fixture's own size is nobody's
+    constant and a hard-coded gesture would stop sitting on the boundary the
+    first time `trim` changed. The caller's knob -- `values`, or the number of
+    calls -- gets the body within 400 characters of the cap; `why` is clipped
+    at K_MAX_TEXT_CHARS, so 401 consecutive lengths are reachable from there
+    and one of them is the character the cap is on.
+    """
+
+    def reading(why: int) -> Intent:
+        return Intent(
+            gesture_id=gesture.id,
+            tenant="acme",
+            act="typed a code",
+            why="w" * why,
+            values_seen=[ValueSeen(field=f"f{n}", value="v" * 100) for n in range(values)],
+        )
+
+    # tokens() is len // 4, so this is the shortest body that reads as the cap.
+    target = K_MAX_GESTURE_TOKENS * 4
+    short = target - len(json.dumps(as_evidence(gesture, reading(0)), ensure_ascii=False))
+    if not 0 <= short <= K_MAX_TEXT_CHARS:
+        return None
+    return as_evidence(gesture, reading(short))
+
+
+def test_a_gesture_that_exactly_fills_the_cap_is_kept_whole() -> None:
+    """The boundary the ladder is written on, which nothing else here stands
+    on: every other cap test is far over it, so `<= K_MAX_GESTURE_TOKENS`
+    survived being `<` untouched. They differ on exactly one input -- the
+    gesture that fits with nothing to spare -- and under `<` that gesture is
+    truncated for being the size it is allowed to be, losing every call's
+    detail and telling the model it was cut.
+    """
+    gesture = copy.deepcopy(_gestures()[0])
+
+    evidence = None
+    for values in range(200):
+        evidence = _on_the_cap(gesture, values)
+        if evidence is not None:
+            break
+
+    assert evidence is not None, "no reading of this fixture lands on the cap"
+    assert tokens(json.dumps(evidence, ensure_ascii=False)) == K_MAX_GESTURE_TOKENS
+    assert "truncated" not in evidence, "a gesture exactly at the cap is under it"
+
+
+def test_a_gesture_that_exactly_fills_the_cap_once_stripped_keeps_every_call() -> None:
+    """The same boundary one tier down, where the cost of getting it wrong is
+    an item rather than a detail: a body that lands on the cap after its calls
+    are stripped is under the cap, so the count-bounding tier is not reached
+    and all of them survive. Under `<` it is, and five of forty-five calls
+    disappear from a gesture the evidence says was only detail-trimmed.
+    """
+    base = next(g for g in _gestures() if g.requests)
+
+    evidence, made = None, 0
+    for made in range(1, 400):
+        gesture = copy.deepcopy(base)
+        gesture.requests = [copy.deepcopy(base.requests[0]) for _ in range(made)]
+        found = _on_the_cap(gesture, 0)
+        # Tier one lands on the cap too, at a smaller count; what is wanted
+        # here is the body that got there by losing its detail and no items.
+        if (
+            found is not None
+            and found.get("truncated")
+            and len(_seq(_map(found["gesture"])["calls"])) == made
+        ):
+            evidence = found
+            break
+
+    assert evidence is not None, "no count of calls lands this fixture on the cap once stripped"
+    assert tokens(json.dumps(evidence, ensure_ascii=False)) == K_MAX_GESTURE_TOKENS
+    assert len(_seq(_map(evidence["gesture"])["calls"])) == made, "nothing was count-bounded"
 
 
 def test_nothing_is_dropped_without_the_evidence_saying_so() -> None:

@@ -13,6 +13,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from sro.domain.skill.offers import (
+    K_ENOUGH,
     K_OFFER_AFTER,
     K_QUIET_HOURS,
     Counsel,
@@ -59,6 +60,13 @@ def test_three_refusals_running_rest_the_job_for_a_day_on_that_browser() -> None
     assert counsel_over(rows, rows[:2], now=_when(13)).quiet_until is None, "two is not enough"
     assert counsel_over(rows, [], now=_when(13)).quiet_until is None, "no browser, no rest"
     assert counsel_over(rows, rows[:3], now=_when(12, day=7)).quiet_until is None, "the day passed"
+    # `newest_for_device` is the caller's `LIMIT K_ENOUGH`, and the rule reads
+    # exactly that many. A fourth refused row means the caller did not cut the
+    # list, and a rule that rested on "at least three" would let an uncut
+    # history rest a job on evidence nobody scoped.
+    four_refused = [*rows, OfferRow(2, "dismissed", _at(9))]
+    assert len(four_refused) > K_ENOUGH
+    assert counsel_over(rows, four_refused, now=_when(13)).quiet_until is None, "four is not three"
 
 
 def test_an_offer_the_operator_did_not_refuse_breaks_the_run() -> None:
@@ -136,23 +144,25 @@ def test_only_the_newest_ten_offers_are_read() -> None:
 
 
 def test_offers_in_the_same_second_are_read_in_the_order_they_arrived() -> None:
-    """All six offers tie on `at`; which three of them are "the newest
-    three" turns on the repository's `ORDER BY at DESC, id DESC` -- arrival
-    order, left for plan 3 (see the rig's original, listed there).
-    `counsel_over` does not break the tie itself: it trusts the list it is
-    given, in the order it is given, so whether the accepted offer landed
-    among the newest three or not decides the answer."""
+    """All six offers tie on `at`; which three of them are "the newest three"
+    turns on the repository's `ORDER BY at DESC, id DESC` -- arrival order,
+    left for plan 3 (see the rig's original, listed there). `counsel_over`
+    does not break the tie itself: handed the same six rows in two orders it
+    answers two different things, because the newest three is whichever three
+    the caller put first."""
     at = _at(10)
-    with_accepted = [
-        OfferRow(2, "accepted", at),
-        OfferRow(2, "dismissed", at),
-        OfferRow(2, "dismissed", at),
-    ]
-    without_accepted = [OfferRow(2, "dismissed", at) for _ in range(3)]
-    assert counsel_over(with_accepted, with_accepted, now=_when(11)).quiet_until is None, (
-        "the accepted offer, wherever the tie put it, breaks the run"
+    tied = [OfferRow(2, "accepted", at), *(OfferRow(2, "dismissed", at) for _ in range(5))]
+
+    assert counsel_over(tied, tied[:K_ENOUGH], now=_when(11)).quiet_until is None, (
+        "the accepted offer sorted into the newest three breaks the run"
     )
-    assert counsel_over(without_accepted, without_accepted, now=_when(11)).quiet_until is not None
+
+    # The same six rows, the tie broken the other way round.
+    reordered = [*tied[1:], tied[0]]
+    assert sorted(reordered, key=lambda row: row.fate) == sorted(tied, key=lambda row: row.fate)
+    assert counsel_over(reordered, reordered[:K_ENOUGH], now=_when(11)).quiet_until is not None, (
+        "sorted out of them, three refusals running rest the job"
+    )
 
 
 def test_a_browser_clock_ahead_of_the_rig_is_pulled_back_to_now() -> None:

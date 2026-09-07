@@ -100,10 +100,18 @@ def counsel_over(
     so every browser's offers count. The threshold only ever moves up here;
     it comes back down as the diverged offers age out of the window.
 
-    Quiet: `newest_for_device` has `K_ENOUGH` offers of this job, all
+    Quiet: `newest_for_device` has exactly `K_ENOUGH` offers of this job, all
     refused, and the last under `K_QUIET_HOURS` ago. Any other fate in
     between -- accepted, expired, diverged -- breaks the run: an offer the
-    operator did not answer is not one they turned down.
+    operator did not answer is not one they turned down. With no browser named
+    there is no rest to report: `newest_for_device` is empty, and a job nobody
+    can be said to have refused is offered.
+
+    Arrival nudges (k = 0) are excluded by the caller's query and are neither
+    kind of evidence -- "you have been here before" with nothing typed is not
+    a recognition that diverged and not an offer anyone turned down. Handed
+    them anyway, this reads them like any other row; keeping them out is the
+    repository's `k > 0`.
     """
     offer_after = K_OFFER_AFTER
     diverged = [row.k for row in window if row.fate == "diverged"]

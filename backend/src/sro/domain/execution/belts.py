@@ -25,12 +25,10 @@ import json
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass
 
-from sro.domain.execution.evidence import recorded_call
+from sro.domain.execution.evidence import READ_METHODS, recorded_call
 from sro.domain.observation.gesture import Call, Gesture
 from sro.domain.shared.prices import Answer
 from sro.domain.skill.workflow import Step
-
-_READ_METHODS = ("GET", "HEAD", "OPTIONS")
 
 K_WEAK_LOCATORS = frozenset({"css_path", None})
 """A step that only ever matches on the last fallback is a step about to break.
@@ -61,7 +59,11 @@ in one sentence. Do not assume success from the absence of an error."""
 
 
 @dataclass(frozen=True, slots=True)
-class Verdict:
+class StepVerdict:
+    """One step's verify, and which belt decided it. Named for the step because
+    `sro.domain.skill.track_record.Verdict` is the other one -- a whole run's
+    standing, counted over many of these."""
+
     state: str  # held | failed | unclear
     by: str  # status | read | screen | none
     reason: str
@@ -81,7 +83,7 @@ def expected_statuses(step: Step, by_id: Mapping[str, Gesture]) -> set[int]:
         if gesture is None:
             continue
         for request in gesture.requests:
-            if request.method.upper() in _READ_METHODS:
+            if request.method.upper() in READ_METHODS:
                 continue
             if request.status is not None and not request.failure_reason:
                 found.add(request.status)
@@ -106,7 +108,7 @@ def confirming_read(step: Step, by_id: Mapping[str, Gesture]) -> Call | None:
     beacon or a health poll; pick by response shape if that starts costing.
     """
     call = recorded_call(step, by_id)
-    if call is None or call.method.upper() in _READ_METHODS or call.started_at is None:
+    if call is None or call.method.upper() in READ_METHODS or call.started_at is None:
         return None
     wrote_at = call.started_at
     for cited in step.cites:

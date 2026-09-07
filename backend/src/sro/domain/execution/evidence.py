@@ -21,6 +21,11 @@ from sro.domain.skill.workflow import Step, Workflow
 
 _UNTARGETED = frozenset({"scroll"})
 
+READ_METHODS = ("GET", "HEAD", "OPTIONS")
+"""The methods that change nothing. One copy, because "does this step write?"
+and "is this the read that confirms the write?" have to be the same question --
+`sro.domain.execution.belts` asks it of the same calls this module does."""
+
 
 @dataclass(frozen=True, slots=True)
 class Locator:
@@ -116,7 +121,7 @@ def recorded_call(step: Step, by_id: Mapping[str, Gesture]) -> Call | None:
         if gesture is None:
             continue
         for request in gesture.requests:
-            if request.method.upper() not in ("GET", "HEAD", "OPTIONS"):
+            if request.method.upper() not in READ_METHODS:
                 return request
             reads.append(request)
     return reads[0] if reads else None
@@ -125,7 +130,7 @@ def recorded_call(step: Step, by_id: Mapping[str, Gesture]) -> Call | None:
 def writes(step: Step, by_id: Mapping[str, Gesture]) -> bool:
     """Whether performing this step changes something. A dry run withholds it."""
     call = recorded_call(step, by_id)
-    return call is not None and call.method.upper() not in ("GET", "HEAD", "OPTIONS")
+    return call is not None and call.method.upper() not in READ_METHODS
 
 
 def allowlist(workflow: Workflow, by_id: Mapping[str, Gesture]) -> set[str]:

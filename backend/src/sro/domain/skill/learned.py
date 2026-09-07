@@ -34,8 +34,12 @@ argument."""
 
 
 @dataclass(frozen=True, slots=True)
-class Parameter:
-    """One thing a job takes as input, and what it has been given so far."""
+class LearnedParameter:
+    """One thing a job takes as input, and what it has been given so far.
+
+    Named for how it was found. `sro.domain.skill.parameter.Parameter` is the
+    backend's own, declared on a skill; this one is the difference between two
+    doings, and the two must not be mistaken for each other."""
 
     name: str
     """The control it was typed into: an ExtJS itemId where there is one, the
@@ -121,7 +125,7 @@ def _by_control(
 
 def parameters_across(
     occurrences: Iterable[tuple[Workflow, Mapping[str, Gesture], Mapping[str, Intent]]],
-) -> tuple[Parameter, ...]:
+) -> tuple[LearnedParameter, ...]:
     """The controls whose value changed between doings.
 
     A control typed identically every time is part of the job, not an input to
@@ -148,5 +152,5 @@ def parameters_across(
     for name in sorted(shared):
         seen = tuple(doing[name] for doing in doings)
         if len(set(seen)) > 1:
-            found.append(Parameter(name=name, seen=seen))
+            found.append(LearnedParameter(name=name, seen=seen))
     return tuple(found)

@@ -113,6 +113,23 @@ def test_the_confirming_read_comes_after_the_write_and_came_back() -> None:
     assert confirming_read(_step(saver), {saver.id: saver}) is None
 
 
+def test_a_write_at_no_time_at_all_has_no_after_for_a_read_to_come_in() -> None:
+    """The other end of the same strictness: `confirming_read` compares the
+    read's instant against the write's, and a write with no `started_at` gives
+    it nothing to compare. A hand-built call is the one that arrives this way --
+    the recorder always timed its own."""
+    saver = _saver()
+    post = next(r for r in saver.requests if r.method == "POST")
+    saver.requests = [
+        replace(post, started_at=None),
+        # Timed, later than anything in the batch, and it came back: the read
+        # that would confirm the write if the write said when it happened.
+        _get(request_id="later", started_at=_LATER),
+    ]
+
+    assert confirming_read(_step(saver), {saver.id: saver}) is None
+
+
 def test_a_step_whose_recorded_call_is_itself_a_read_has_nothing_to_confirm() -> None:
     """`confirming_read` answers "the read this page makes after its write".
     A step that never wrote has no after -- however that read is spelled."""

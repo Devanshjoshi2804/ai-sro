@@ -33,11 +33,27 @@ What is deliberately *not* under contract, because a fake cannot honour it:
   the store side; ``intents_since`` is total on neither, and that is named in
   the report.
 
-Every ordering test below plants rows that **tie on the sort key**. A suite
-that only ever plants distinct instants passes against a total order and a
-non-total one alike, and so says nothing: ``since`` on runs was found ordering
-by ``started_at`` alone on the store side and ``(started_at, id)`` on the fake,
-and three runs sharing an instant came back in different orders.
+**Writing an ordering test here: two rules, and the second is the one that
+bites.**
+
+1. Plant rows that **tie on the sort key**. A suite that only ever plants
+   distinct instants passes against a total order and a non-total one alike,
+   and so says nothing. ``since`` on runs was ordering by ``started_at`` alone
+   on the store side and ``(started_at, id)`` on the fake, and three runs
+   sharing an instant came back in different orders.
+2. Plant them in an order that **disagrees with the answer you assert**.
+   Postgres's tie order at these row counts is whatever the plan happens to
+   yield, and what it yields is usually the plant order or its reverse -- so a
+   test that asserts the order it planted is satisfied by the bug it is meant
+   to catch. This is not fixed by planting more rows: twenty tied rows stayed
+   green. ``chats.since`` planted ``cha_a`` then ``cha_c`` and asserted
+   ``cha_c, cha_a``; it passed with ``ChatRow.id.desc()`` deleted. Swapping the
+   two plants is what made it fail.
+
+Every ordering assertion below was mutation-tested by deleting its tiebreak
+from the ``Sql*`` query and re-running. Seven bite. Five do not, and the reason
+differs per case -- they are named in the task report rather than left for the
+next reader to discover, because an assertion that cannot fail is a comment.
 
 One thing this cannot promise, said out loud rather than implied: both sides
 read an ISO ``since`` through the same rule -- ``codec.when`` in the fake, a
@@ -173,7 +189,7 @@ def _workflow(workflow_id: str, *, tenant: TenantId = TENANT, **over: Any) -> Wo
         "title": "put away a pallet",
         "narrative": "scan, place, confirm",
         "systems": ["https://wms.example"],
-        "shape_key": [["click", "Save"]],
+        "shape_key": [["click", "Save", "wms"]],
     }
     fields.update(over)
     return Workflow(**fields)
@@ -327,6 +343,30 @@ class TestWorkflows:
         async with store as work:
             assert await work.workflows.forget_effects("wfl_1") == 0
 
+    async def test_rekey_replaces_the_shape_resolution_compares_against(
+        self, store: UnitOfWork
+    ) -> None:
+        """Run at startup when the rule that makes a key has changed: keys
+        mined before the change no longer match keys mined after, and a job
+        already held could be proposed again as a new one."""
+        async with store as work:
+            await work.workflows.save(_workflow("wfl_1"))
+            await work.commit()
+
+        async with store as work:
+            await work.workflows.rekey(
+                TENANT, "wfl_1", (("type", "code", "wms"), ("click", "Save", "wms"))
+            )
+            # Another tenant's word for the same id is not a key to rewrite.
+            await work.workflows.rekey(OTHER_TENANT, "wfl_1", (("nothing", "at", "all"),))
+            await work.commit()
+
+        async with store as work:
+            assert (await work.workflows.get(TENANT, "wfl_1")).shape_key == [
+                ["type", "code", "wms"],
+                ["click", "Save", "wms"],
+            ]
+
     async def test_proofs_name_the_written_steps_of_every_live_held_run(
         self, store: UnitOfWork
     ) -> None:
@@ -354,6 +394,17 @@ class TestWorkflows:
                 )
             )
             await work.workflow_runs.save(_run("run_stopped", live=True, outcome="stopped"))
+            # Tied with `run_held` on the instant, and planted after it while
+            # sorting before it: `proofs` orders `(started_at, id)`.
+            await work.workflow_runs.save(
+                _run(
+                    "run_also_held",
+                    live=True,
+                    outcome="held",
+                    started_at=_at(10),
+                    steps=[RunStep(order=0, says="save", verdict="held", result={"wrote": True})],
+                )
+            )
             await work.workflows.record_effect(
                 "wfl_1", run_id="run_held", ord_=1, verified_by="status", at=_at(10)
             )
@@ -362,9 +413,12 @@ class TestWorkflows:
         async with store as work:
             proofs = await work.workflows.proofs(TENANT, "wfl_1")
 
-        assert [one.run_id for one in proofs] == ["run_held"]
-        assert proofs[0].wrote == frozenset({1})
-        assert proofs[0].verified == frozenset({1})
+        assert [one.run_id for one in proofs] == ["run_also_held", "run_held"]
+        assert proofs[1].wrote == frozenset({1})
+        assert proofs[1].verified == frozenset({1})
+        # A written step nobody verified is still a written step.
+        assert proofs[0].wrote == frozenset({0})
+        assert proofs[0].verified == frozenset()
 
 
 class TestWorkflowRuns:
@@ -530,11 +584,15 @@ class TestWorkflowRuns:
 
         async with store as work:
             assert await work.workflow_runs.in_flight(TENANT, DEVICE) is None
-            await work.workflow_runs.save(_run("run_live", outcome="running"))
+            # Two, tied on the instant and planted in the order that is not the
+            # answer: "one browser, one hand" has to name the same run on every
+            # read, or a second poll drives a different one.
+            await work.workflow_runs.save(_run("run_zebra", outcome="running", started_at=_at(10)))
+            await work.workflow_runs.save(_run("run_ant", outcome="running", started_at=_at(10)))
             await work.commit()
 
         async with store as work:
-            assert await work.workflow_runs.in_flight(TENANT, DEVICE) == "run_live"
+            assert await work.workflow_runs.in_flight(TENANT, DEVICE) == "run_ant"
 
     async def test_fail_orphans_sweeps_every_tenant_and_lands_the_reason_on_a_step(
         self, store: UnitOfWork
@@ -576,14 +634,22 @@ class TestOffers:
         the extension sends whole-second instants. The three newest decide
         whether a browser is rested, so the tie has to break on arrival."""
         async with store as work:
-            for name, k in (("off_1", 1), ("off_2", 2), ("off_3", 3)):
-                await work.offers.record(_offer(name, k=k, at=_at(10)))
+            # Five tied, not two: at three the planner handed back the answer
+            # the tiebreak wanted anyway and the assertion was satisfied by the
+            # bug. A tie big enough to sort is a tie the plan cannot flatter.
+            for k in range(1, 6):
+                await work.offers.record(_offer(f"off_{k}", k=k, at=_at(10)))
             await work.offers.record(_offer("off_older", k=9, at=_at(9)))
             await work.commit()
 
         async with store as work:
             window = await work.offers.newest(TENANT, "wfl_1", limit=10)
-        assert [row.k for row in window] == [3, 2, 1, 9]
+            # A limit inside the tie, which is the case the rule is for: the
+            # tiebreak decides the *set* of three the counsel reads, not only
+            # their order, and `K_WINDOW` cuts a real day's offers mid-second.
+            narrow = await work.offers.newest(TENANT, "wfl_1", limit=3)
+        assert [row.k for row in window] == [5, 4, 3, 2, 1, 9]
+        assert [row.k for row in narrow] == [5, 4, 3]
 
     async def test_newest_orders_on_the_instant_and_reads_it_back_normalised(
         self, store: UnitOfWork
@@ -623,19 +689,33 @@ class TestOffers:
 
     async def test_newest_for_device_is_one_browsers_window(self, store: UnitOfWork) -> None:
         async with store as work:
-            await work.offers.record(_offer("off_mine", k=1, at=_at(10)))
+            for k in (1, 3, 5, 7, 9):
+                await work.offers.record(_offer(f"off_mine_{k}", k=k, at=_at(10)))
             await work.offers.record(
                 _offer("off_theirs", k=2, device_id=OTHER_DEVICE.value, at=_at(11))
             )
             await work.commit()
 
         async with store as work:
+            # Two of this browser's, tied on the instant: the same window as
+            # `newest`, so the same arrival tiebreak.
             assert [
                 row.k
                 for row in await work.offers.newest_for_device(TENANT, "wfl_1", DEVICE, limit=10)
-            ] == [1]
+            ] == [9, 7, 5, 3, 1]
+            assert [
+                row.k
+                for row in await work.offers.newest_for_device(TENANT, "wfl_1", DEVICE, limit=3)
+            ] == [9, 7, 5]
             # Recognition is a property of the job, not of who was asked.
-            assert [row.k for row in await work.offers.newest(TENANT, "wfl_1", limit=10)] == [2, 1]
+            assert [row.k for row in await work.offers.newest(TENANT, "wfl_1", limit=10)] == [
+                2,
+                9,
+                7,
+                5,
+                3,
+                1,
+            ]
 
     async def test_since_is_the_whole_offer_newest_first_with_no_window_filters(
         self, store: UnitOfWork
@@ -643,13 +723,15 @@ class TestOffers:
         async with store as work:
             await work.offers.record(_offer("off_nudge", k=0, at=_at(11)))
             await work.offers.record(_offer("off_real", k=2, at=_at(10)))
+            # Tied with `off_real`, and later, so `seq DESC` puts it first.
+            await work.offers.record(_offer("off_also_real", k=2, at=_at(10)))
             await work.offers.record(_offer("off_before", k=2, at=_at(8)))
             await work.commit()
 
         async with store as work:
             audited = await work.offers.since(TENANT, since=_at(9))
-        assert [one.id for one in audited] == ["off_nudge", "off_real"]
-        assert audited[1].at == "2026-09-06T10:00:00+00:00"
+        assert [one.id for one in audited] == ["off_nudge", "off_also_real", "off_real"]
+        assert audited[-1].at == "2026-09-06T10:00:00+00:00"
 
 
 class TestChats:
@@ -658,8 +740,11 @@ class TestChats:
     ) -> None:
         async with store as work:
             await work.chats.record(_chat("cha_early", at=_at(12, offset="+02:00")))
-            await work.chats.record(_chat("cha_a", at=_at(11)))
+            # Planted c-then-a while the answer is c-then-a-by-id: the plant
+            # order has to disagree with the answer, or the heap satisfies the
+            # assertion for free.
             await work.chats.record(_chat("cha_c", at=_at(11)))
+            await work.chats.record(_chat("cha_a", at=_at(11)))
             await work.chats.record(_chat("cha_before", at=_at(8)))
             await work.commit()
 

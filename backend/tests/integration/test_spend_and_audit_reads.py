@@ -44,7 +44,11 @@ NOW = datetime(2026, 9, 7, 1, 0, tzinfo=UTC)
 wrong reading of it only moves the day boundary when the offset carries the
 clock across a date line. At 09:30 no real zone does, and
 ``test_a_now_with_no_zone_is_read_as_utc`` passed against an implementation
-that read the server's local time instead. At 01:00 it does not."""
+that read the server's local time instead. At 01:00 it does not.
+
+It still cannot on a host whose local zone *is* UTC, which is most CI
+containers: there the wrong reading and the right one are the same clock.
+This catches the mistake on a developer machine, and nowhere else."""
 MIDNIGHT = datetime(2026, 9, 7, tzinfo=UTC)
 JUST_TODAY = MIDNIGHT
 JUST_YESTERDAY = MIDNIGHT - timedelta(seconds=1)

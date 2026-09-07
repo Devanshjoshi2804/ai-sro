@@ -207,7 +207,16 @@ class SqlGestureRepository(GestureRepository):
         query = select(GestureRow).where(GestureRow.tenant_id == tenant_id.value)
         if ids is not None:
             query = query.where(GestureRow.id.in_(ids))
-        rows = (await self._session.execute(query.order_by(GestureRow.at))).scalars().all()
+        # The id breaks a tie the rig left open: `at` is the browser's clock in
+        # milliseconds and two gestures of one burst share it, so `at` alone is
+        # not a total order -- and in `unread` below, where the order decides
+        # which 200 are read, that is a different set rather than a different
+        # order.
+        rows = (
+            (await self._session.execute(query.order_by(GestureRow.at, GestureRow.id)))
+            .scalars()
+            .all()
+        )
         return tuple(_row_to_gesture(row) for row in rows)
 
     async def unread(self, tenant_id: TenantId, *, limit: int) -> tuple[Gesture, ...]:
@@ -218,7 +227,7 @@ class SqlGestureRepository(GestureRepository):
             select(GestureRow)
             .outerjoin(IntentRow, IntentRow.gesture_id == GestureRow.id)
             .where(IntentRow.gesture_id.is_(None), GestureRow.tenant_id == tenant_id.value)
-            .order_by(GestureRow.at)
+            .order_by(GestureRow.at, GestureRow.id)
             .limit(limit)
         )
         rows = (await self._session.execute(query)).scalars().all()
@@ -321,7 +330,9 @@ class SqlGestureRepository(GestureRepository):
             select(GestureRow.stream_id, last, func.count())
             .where(GestureRow.tenant_id == tenant_id.value)
             .group_by(GestureRow.stream_id)
-            .order_by(last.desc())
+            # The stream id breaks the tie: two streams whose last gesture
+            # shares an instant would otherwise swap places between reads.
+            .order_by(last.desc(), GestureRow.stream_id)
         )
         rows = (await self._session.execute(query)).all()
         return tuple((stream_id, float(at), int(many)) for stream_id, at, many in rows)

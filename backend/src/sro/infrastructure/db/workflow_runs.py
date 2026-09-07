@@ -188,7 +188,16 @@ class SqlWorkflowRunRepository(WorkflowRunRepository):
             WorkflowRunRow.tenant_id == tenant_id.value,
             WorkflowRunRow.workflow_id == workflow_id,
         )
-        rows = (await self._session.execute(query.order_by(WorkflowRunRow.started_at))).scalars()
+        rows = (
+            await self._session.execute(
+                # The id breaks a tie the rig never had to. Two runs of one
+                # workflow routinely start in the same instant -- one form
+                # submits them -- and `started_at` alone leaves Postgres free to
+                # return them in heap order, which is an order that changes
+                # between reads. `proofs` has always broken the tie this way.
+                query.order_by(WorkflowRunRow.started_at, WorkflowRunRow.id)
+            )
+        ).scalars()
         return await self._with_steps(rows.all())
 
     async def since(self, tenant_id: TenantId, *, since: str) -> tuple[WorkflowRun, ...]:
@@ -200,7 +209,13 @@ class SqlWorkflowRunRepository(WorkflowRunRepository):
             WorkflowRunRow.started_at >= _when(since),
         )
         rows = (
-            await self._session.execute(query.order_by(WorkflowRunRow.started_at.desc()))
+            await self._session.execute(
+                # Reversed, id and all: the audit's order has to be total for
+                # the same reason `for_workflow`'s does, and every sibling read
+                # here breaks its tie the same way -- `offers.since` on
+                # `seq DESC`, `known` on the id.
+                query.order_by(WorkflowRunRow.started_at.desc(), WorkflowRunRow.id.desc())
+            )
         ).scalars()
         return await self._with_steps(rows.all())
 
@@ -216,7 +231,10 @@ class SqlWorkflowRunRepository(WorkflowRunRepository):
                 WorkflowRunRow.device_id == device_id.value,
                 WorkflowRunRow.outcome == "running",
             )
-            .order_by(WorkflowRunRow.started_at)
+            # Total, so that a device somehow driving two runs at one instant
+            # names the same one of them on every read rather than whichever
+            # Postgres happens to hand back first.
+            .order_by(WorkflowRunRow.started_at, WorkflowRunRow.id)
             .limit(1)
         )
         return busy
@@ -238,7 +256,10 @@ class SqlWorkflowRunRepository(WorkflowRunRepository):
             )
             # Oldest wait first: this is the queue a supervisor works down, and
             # the run that has been parked longest is the one holding up a job.
-            .order_by(WorkflowRunRow.started_at, WorkflowRunStepRow.ord)
+            # The run id between the two, because two runs of one tenant can
+            # be started in the same instant and their parked steps would
+            # otherwise interleave differently on every read.
+            .order_by(WorkflowRunRow.started_at, WorkflowRunRow.id, WorkflowRunStepRow.ord)
         )
         rows = (await self._session.execute(query)).all()
         return tuple((run_id, ord_, says) for run_id, ord_, says in rows)
@@ -269,7 +290,11 @@ class SqlWorkflowRunRepository(WorkflowRunRepository):
     async def fail_orphans(self, reason: str) -> int:
         now = datetime.now(tz=UTC).isoformat()
         query = self._rows().where(WorkflowRunRow.outcome == "running")
-        rows = (await self._session.execute(query.order_by(WorkflowRunRow.started_at))).scalars()
+        rows = (
+            await self._session.execute(
+                query.order_by(WorkflowRunRow.started_at, WorkflowRunRow.id)
+            )
+        ).scalars()
         orphans = await self._with_steps(rows.all())
         for run in orphans:
             if run.steps:

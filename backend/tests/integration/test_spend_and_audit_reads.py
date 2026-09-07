@@ -37,7 +37,14 @@ TENANT = TenantId("acme")
 OTHER_TENANT = TenantId("other-corp")
 DEVICE = DeviceId("dev_1")
 
-NOW = datetime(2026, 9, 7, 9, 30, tzinfo=UTC)
+NOW = datetime(2026, 9, 7, 1, 0, tzinfo=UTC)
+"""Within an offset of midnight, deliberately.
+
+``today`` reads a naive ``now`` as UTC before truncating to midnight, so a
+wrong reading of it only moves the day boundary when the offset carries the
+clock across a date line. At 09:30 no real zone does, and
+``test_a_now_with_no_zone_is_read_as_utc`` passed against an implementation
+that read the server's local time instead. At 01:00 it does not."""
 MIDNIGHT = datetime(2026, 9, 7, tzinfo=UTC)
 JUST_TODAY = MIDNIGHT
 JUST_YESTERDAY = MIDNIGHT - timedelta(seconds=1)

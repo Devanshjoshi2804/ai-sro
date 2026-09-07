@@ -126,6 +126,21 @@ from sro.domain.trigger.trigger import Trigger
 from sro.infrastructure.db.codec import when
 
 
+def _stored(moment: str) -> str:
+    """An ISO instant as the store hands it back.
+
+    Every clock the rig kept as text is a ``timestamptz`` here, and the driver
+    returns one in UTC however the writer spelled it: ``12:00+02:00`` is read
+    back as ``10:00+00:00``. A fake that hands back the string it was given
+    disagrees with the store about the value, and -- because ISO text sorts by
+    its digits rather than by its instant -- about the order too.
+
+    Kept by ``tests/contract/test_the_repositories_agree.py``, which is where
+    this was found.
+    """
+    return when(moment).astimezone(UTC).isoformat()
+
+
 class FakeClock:
     def __init__(self, start: datetime | None = None) -> None:
         self._now = start or datetime(2026, 3, 1, 9, 0, tzinfo=UTC)
@@ -1350,7 +1365,9 @@ class FakeGestureRepository:
             for gesture in self.rows.values()
             if gesture.tenant == tenant_id.value and (ids is None or gesture.id in ids)
         ]
-        return tuple(sorted(found, key=lambda gesture: gesture.at))
+        # (at, id), as the store orders it: `at` is the browser's clock and
+        # two gestures of one burst share it.
+        return tuple(sorted(found, key=lambda gesture: (gesture.at, gesture.id)))
 
     async def unread(self, tenant_id: TenantId, *, limit: int) -> tuple[Gesture, ...]:
         found = [
@@ -1412,8 +1429,10 @@ class FakeGestureRepository:
             seen[gesture.stream_id] = (max(last, gesture.at), many + 1)
         return tuple(
             (stream_id, last, many)
+            # Newest first, the stream id breaking the tie -- and ascending
+            # within it, as the store's `ORDER BY last DESC, stream_id` is.
             for stream_id, (last, many) in sorted(
-                seen.items(), key=lambda one: one[1][0], reverse=True
+                sorted(seen.items()), key=lambda one: one[1][0], reverse=True
             )
         )
 
@@ -1449,7 +1468,7 @@ class FakePoolRepository:
         return added
 
     async def age(self, tenant_id: TenantId, *, shown: tuple[str, ...] | None = None) -> int:
-        stale_before = (datetime.now(tz=UTC) - timedelta(days=K_POOL_DAYS)).isoformat()
+        stale_before = datetime.now(tz=UTC) - timedelta(days=K_POOL_DAYS)
         retired = 0
         for key, entry in list(self.rows.items()):
             if key[0] != tenant_id.value or key in self.retired_ids:
@@ -1464,7 +1483,7 @@ class FakePoolRepository:
                 entry = replace(entry, waited=entry.waited + 1)
             if entry.age > K_POOL_AGE:
                 entry = replace(entry, reason=RETIRED_PASSES)
-            elif entry.entered_at < stale_before:
+            elif when(entry.entered_at) < stale_before:
                 entry = replace(entry, reason=RETIRED_STALE)
             if entry.reason:
                 self.retired_ids.add(key)
@@ -1505,7 +1524,13 @@ class FakeWorkflowRunRepository:
         self.approved: dict[tuple[str, int], tuple[str, str | None]] = {}
 
     async def save(self, run: WorkflowRun) -> None:
-        self.rows[run.id] = deepcopy(run)
+        kept = deepcopy(run)
+        # Both clocks as the store hands them back, not as the caller spelled
+        # them: `started_at` is what three reads order on.
+        kept.started_at = _stored(kept.started_at)
+        if kept.finished_at is not None:
+            kept.finished_at = _stored(kept.finished_at)
+        self.rows[run.id] = kept
 
     async def get(self, tenant_id: TenantId, run_id: str) -> WorkflowRun | None:
         run = self.rows.get(run_id)
@@ -1517,11 +1542,11 @@ class FakeWorkflowRunRepository:
             for run in self.rows.values()
             if run.tenant == tenant_id.value and run.workflow_id == workflow_id
         ]
-        # (started_at, id), as the store orders it. Two runs of one workflow can
-        # share an instant, and an order that is not total is an order that
-        # changes between reads.
+        # (started_at, id) on instants, as the store orders it: it compares
+        # `timestamptz`, and two runs of one workflow can share an instant --
+        # an order that is not total is an order that changes between reads.
         return tuple(
-            deepcopy(run) for run in sorted(found, key=lambda run: (run.started_at, run.id))
+            deepcopy(run) for run in sorted(found, key=lambda run: (when(run.started_at), run.id))
         )
 
     async def since(self, tenant_id: TenantId, *, since: str) -> tuple[WorkflowRun, ...]:
@@ -1546,12 +1571,12 @@ class FakeWorkflowRunRepository:
             and run.device_id == device_id.value
             and run.outcome == "running"
         ]
-        driving.sort(key=lambda run: run.started_at)
+        driving.sort(key=lambda run: (when(run.started_at), run.id))
         return driving[0].id if driving else None
 
     async def awaiting(self, tenant_id: TenantId) -> tuple[tuple[str, int, str], ...]:
         parked = [
-            (run.started_at, run.id, step.order, step.says)
+            (when(run.started_at), run.id, step.order, step.says)
             for run in self.rows.values()
             # Only a run still in flight, as the query is: a step left
             # `awaiting` on a finished run is not waiting on anybody.
@@ -1564,7 +1589,9 @@ class FakeWorkflowRunRepository:
     async def approve(self, run_id: str, ord_: int, *, at: str, device_id: str | None) -> bool:
         if (run_id, ord_) in self.approved:
             return False
-        self.approved[(run_id, ord_)] = (at, device_id)
+        # Normalised, as the store's `timestamptz` hands it back: `approvals`
+        # is read by the audit, which compares the string it gets.
+        self.approved[(run_id, ord_)] = (_stored(at), device_id)
         return True
 
     async def approvals(self, run_id: str) -> tuple[tuple[int, str, str | None], ...]:
@@ -1580,7 +1607,7 @@ class FakeWorkflowRunRepository:
         now = datetime.now(tz=UTC).isoformat()
         orphans = sorted(
             (run for run in self.rows.values() if run.outcome == "running"),
-            key=lambda run: run.started_at,
+            key=lambda run: (when(run.started_at), run.id),
         )
         for run in orphans:
             if run.steps:
@@ -1650,11 +1677,11 @@ class FakeWorkflowRepository:
         # billed twice.
         if any(row.id == mining_pass.id for row in self.passes_made):
             raise Conflict(f"mining pass {mining_pass.id} is already stored")
-        self.passes_made.append(mining_pass)
+        self.passes_made.append(replace(mining_pass, started_at=_stored(mining_pass.started_at)))
 
     async def passes(self, tenant_id: TenantId) -> tuple[MiningPass, ...]:
         made = [row for row in self.passes_made if row.tenant == tenant_id.value]
-        return tuple(sorted(made, key=lambda row: (row.started_at, row.id)))
+        return tuple(sorted(made, key=lambda row: (when(row.started_at), row.id)))
 
     async def mark_stale(
         self, workflow_id: str, ord_: int, *, matched_by: str | None, noticed_at: str
@@ -1720,7 +1747,7 @@ class FakeOfferRepository:
         self.rows: list[Offer] = []
 
     async def record(self, offer: Offer) -> None:
-        self.rows.append(offer)
+        self.rows.append(replace(offer, at=_stored(offer.at)))
 
     async def newest(
         self, tenant_id: TenantId, workflow_id: str, *, limit: int
@@ -1762,11 +1789,13 @@ class FakeOfferRepository:
         return tuple(found)
 
     def _window(self, mine: Callable[[Offer], bool], limit: int) -> tuple[OfferRow, ...]:
-        # Reversed first, then sorted on `at` alone: Python's sort is stable, so
-        # offers that tie on `at` keep the reversed arrival order, which is the
-        # `seq DESC` half of the tiebreak.
+        # Reversed first, then sorted on the instant: Python's sort is stable,
+        # so offers that tie keep the reversed arrival order, which is the
+        # `seq DESC` half of the tiebreak. On the instant rather than on the ISO
+        # text, because the store compares `timestamptz` -- `record` has already
+        # normalised what it stored, and this says the rule out loud.
         found = [offer for offer in reversed(self.rows) if mine(offer) and offer.k > 0]
-        found.sort(key=lambda offer: offer.at, reverse=True)
+        found.sort(key=lambda offer: when(offer.at), reverse=True)
         return tuple(OfferRow(k=offer.k, fate=offer.fate, at=offer.at) for offer in found[:limit])
 
 
@@ -1778,7 +1807,7 @@ class FakeChatRepository:
         self.rows: list[ChatReading] = []
 
     async def record(self, reading: ChatReading) -> None:
-        self.rows.append(reading)
+        self.rows.append(replace(reading, at=_stored(reading.at)))
 
     async def since(self, tenant_id: TenantId, *, since: str) -> tuple[ChatReading, ...]:
         # On instants rather than on the ISO text the record carries: the store
@@ -1790,7 +1819,11 @@ class FakeChatRepository:
             for reading in self.rows
             if reading.tenant == tenant_id.value and when(reading.at) >= at
         ]
-        return tuple(sorted(found, key=lambda reading: when(reading.at), reverse=True))
+        # (at, id) reversed, as the store orders it: `at` comes off the record,
+        # so two readings can carry one instant and there is no arrival column.
+        return tuple(
+            sorted(found, key=lambda reading: (when(reading.at), reading.id), reverse=True)
+        )
 
 
 class FakeSpendRepository:

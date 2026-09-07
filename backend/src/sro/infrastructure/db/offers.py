@@ -175,7 +175,10 @@ class SqlChatRepository(ChatRepository):
         query = (
             select(ChatRow)
             .where(ChatRow.tenant_id == tenant_id.value, ChatRow.at >= _when(since))
-            .order_by(ChatRow.at.desc())
+            # The id breaks the tie, as `seq` does for offers: `at` comes off
+            # the record rather than off a server clock, so two readings can
+            # carry one instant and there is no arrival column to fall back on.
+            .order_by(ChatRow.at.desc(), ChatRow.id.desc())
         )
         rows = (await self._session.execute(query)).scalars().all()
         return tuple(

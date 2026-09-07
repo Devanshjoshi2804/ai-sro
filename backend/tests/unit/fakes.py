@@ -19,6 +19,7 @@ from sro.application.induction.induce_skill import InducedSkill, InduceSkill
 from sro.application.ports.agent import AgentDrivers
 from sro.application.ports.blob import BlobStore
 from sro.application.ports.browser import BrowserProvider, BrowserSession, BrowserUnavailable
+from sro.application.ports.channel import Channel, Reply
 from sro.application.ports.dispatch import DispatchFailed, RunDispatcher
 from sro.application.ports.embedding import Embedder
 from sro.application.ports.http import (
@@ -1085,10 +1086,60 @@ class FakeAgentDrivers:
     async def online(self, tenant_id: TenantId) -> tuple[DeviceId, ...]:
         return (DeviceId("dev-1"),) if self.connected else ()
 
+    def drop(self, tenant_id: TenantId, device_id: DeviceId) -> bool:
+        was_connected, self.connected = self.connected, False
+        return was_connected
+
     async def held_for(self, tenant_id: TenantId, device_id: DeviceId) -> float | None:
         """Whatever a test set. `None` unless it says otherwise, because a
         browser that is not typing is the ordinary case."""
         return self.held
+
+
+class FakeChannel:
+    """Scripted replies by command kind, and a record of every envelope sent.
+
+    The seam every mined-workflow test goes through. An unscripted kind answers
+    `not_actionable`, which is what a real extension says to a command it does
+    not have -- so a test that forgot to script a kind fails the way a real run
+    would rather than hanging.
+    """
+
+    def __init__(self, script: Mapping[str, list[Reply]] | None = None) -> None:
+        self.script = {kind: list(replies) for kind, replies in (script or {}).items()}
+        self.sent: list[dict[str, object]] = []
+
+    def online(self, tenant_id: TenantId) -> tuple[DeviceId, ...]:
+        return (DeviceId("dev-1"),)
+
+    def drop(self, tenant_id: TenantId, device_id: DeviceId) -> bool:
+        return False
+
+    async def send(
+        self,
+        tenant_id: TenantId,
+        device_id: DeviceId,
+        *,
+        kind: str,
+        payload: Mapping[str, object],
+        run_id: str | None = None,
+        deadline_s: float | None = None,
+    ) -> Reply:
+        self.sent.append(
+            {
+                "tenant_id": str(tenant_id),
+                "device_id": str(device_id),
+                "kind": kind,
+                "payload": dict(payload),
+                "run_id": run_id,
+            }
+        )
+        queued = self.script.get(kind)
+        if queued:
+            return queued.pop(0)
+        return Reply(
+            ok=False, error_kind="not_actionable", error_detail=f"this extension has no {kind}"
+        )
 
 
 class FakeTriggerRepository:
@@ -1370,6 +1421,7 @@ _devices: DeviceRepository = FakeDeviceRepository()
 _observations: ObservationRepository = FakeObservationRepository()
 _observation_policies: ObservationPolicyRepository = FakeObservationPolicyRepository()
 _agents: AgentDrivers = FakeAgentDrivers()
+_channel: Channel = FakeChannel()
 _scheduler: Scheduler = FakeScheduler()
 _dispatcher: RunDispatcher = FakeRunDispatcher()
 _triggers: TriggerRepository = FakeTriggerRepository()

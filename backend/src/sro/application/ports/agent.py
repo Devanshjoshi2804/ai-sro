@@ -60,6 +60,16 @@ class AgentDrivers(Protocol):
         """Devices of this tenant with a channel open right now."""
         ...
 
+    def drop(self, tenant_id: TenantId, device_id: DeviceId) -> bool:
+        """Forget whatever socket this device holds: it is offline from here
+        on, whether or not the browser has noticed.
+
+        The one caller is a tenant revoking a browser, and a revoked browser
+        that still read as connected would be an audit line nobody could
+        trust.
+        """
+        ...
+
     async def held_for(self, tenant_id: TenantId, device_id: DeviceId) -> float | None:
         """Seconds this browser has asked to be left alone, or `None`.
 

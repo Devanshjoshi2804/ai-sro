@@ -85,6 +85,18 @@ class DeviceSockets:
         the same browser, and the stale socket will never answer anything."""
         self._sockets[_key(tenant_id, device_id)] = socket
 
+    def drop(self, tenant_id: TenantId, device_id: DeviceId) -> bool:
+        """Forget whatever socket this device holds: it is offline from here
+        on, whether or not the browser has noticed.
+
+        The one caller is a tenant revoking a browser, and a revoked browser
+        that still read as connected would be an audit line nobody could
+        trust.
+        """
+        key = _key(tenant_id, device_id)
+        self._busy.pop(key, None)
+        return self._sockets.pop(key, None) is not None
+
     def detach(self, tenant_id: TenantId, device_id: DeviceId, socket: Socket) -> None:
         """Only if it is still the socket we hold. A slow close arriving after
         a reconnect must not unregister the live one."""

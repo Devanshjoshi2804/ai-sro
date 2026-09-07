@@ -66,6 +66,9 @@ class RemoteAgents(AgentDrivers):
     async def online(self, tenant_id: TenantId) -> tuple[DeviceId, ...]:
         return self._sockets.online(tenant_id)
 
+    def drop(self, tenant_id: TenantId, device_id: DeviceId) -> bool:
+        return self._sockets.drop(tenant_id, device_id)
+
     async def held_for(self, tenant_id: TenantId, device_id: DeviceId) -> float | None:
         return self._sockets.held_for(tenant_id, device_id)
 

@@ -71,6 +71,9 @@ class Call:
 
     method: str
     url: str
+    # The rig's wire `request_id` is a required string, so a call that came off
+    # a batch always has one; "" is what a hand-built call has instead of None,
+    # which keeps the type a plain str for everything that reads it.
     request_id: str = ""
     started_at: float | None = None
     request_headers: dict[str, str] = field(default_factory=dict)

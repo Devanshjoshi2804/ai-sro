@@ -120,6 +120,29 @@ def test_a_proven_workflow_is_served_as_its_shape_with_where_each_parameter_was_
     assert shape.held_runs == 0
 
 
+def test_the_steps_are_read_in_their_own_order_and_not_the_order_they_arrived_in() -> None:
+    """`Workflow.steps` is a list a repository filled, and nothing promises it
+    came back sorted. `cited_pairs` sorts by `order`, so a parameter's `at`
+    indexes the walk the extension makes; `shape_of` asks the lowest-order
+    step where the job begins, not whichever step is written first. A list
+    that happens to be in order proves neither."""
+    by_id = _evidence()
+    workflow = _workflow(by_id)
+    # Two pages of one job, so "where it begins" has a wrong answer to give.
+    _typed(by_id).page_url = f"{HOST}/clients/new"
+    _saver(by_id).page_url = f"{HOST}/clients/saved"
+    workflow.steps = list(reversed(workflow.steps))
+    assert [step.order for step in workflow.steps] == [1, 0], "the save is written first"
+
+    pairs = cited_pairs(workflow, by_id)
+    assert [step.order for _, step in pairs] == [0, 1], "sorted by order, not by arrival"
+
+    shape = shape_of(workflow, pairs, held=0, advice=QUIET)
+    assert shape is not None
+    assert shape.starts_on == f"{HOST}/clients/new", "the lowest-order step's own gesture"
+    assert shape.parameters == [{"name": "clientCode", "at": 0}], "indexed into the sorted walk"
+
+
 def test_a_parameter_no_cited_gesture_typed_has_no_index() -> None:
     by_id = _evidence()
     workflow = _workflow(by_id)

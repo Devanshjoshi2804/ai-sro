@@ -430,7 +430,7 @@ git commit -m "feat(domain): the gesture as the rig's arithmetic reads it"
 - Test: `backend/tests/unit/domain/rig/test_workflow.py`
 
 **Interfaces:**
-- Produces: `Step(order, says, system, cites: list[str], parameters: list[str])`, `Workflow(id, tenant, title, narrative, systems, steps, parameters: list[dict[str, object]], unproven: list[str], shape_key, same_as, pass_id, created_at)`, `cited_ids(workflow) -> set[str]`, `new_workflow_id() -> str`.
+- Produces: `Step(order, says, system, cites: list[str], parameters: list[str])`, `Workflow(id, tenant, title, narrative, systems, steps, parameters: list[dict[str, object]], unproven: list[str], shape_key, same_as, pass_id)`, `cited_ids(workflow) -> set[str]`, `new_workflow_id() -> str`.
 
 - [ ] **Step 1: Copy the dataclasses**
 
@@ -717,7 +717,7 @@ git commit -am "feat(domain): the verify belts and the earned rule, pure"
 
 ---
 
-### Task 10: Planning: schemas, instructions and the value rule
+### Task 10: Planning: schemas, instructions and the value rule (and the whole of `trim.py`)
 
 **Files:**
 - Create: `backend/src/sro/domain/execution/planning.py`
@@ -728,6 +728,8 @@ git commit -am "feat(domain): the verify belts and the earned rule, pure"
 From `new_agent_arch/src/rig/planner.py` take `KINDS`, `PLAN_SCHEMA`, `INSTRUCTIONS` (renamed `PLAN_INSTRUCTIONS`), `Look`, `Planned`, `_value_for` (renamed `value_for`), `_unreplayable` (renamed `unreplayable`), `SIGHT_SCHEMA`, `SIGHT_ACTIONS`, `SIGHT_INSTRUCTIONS`. `plan_step` and `plan_by_sight` call the model and stay for plan 3. `Planned.answer: Answer` refers to `sro.domain.shared.prices.Answer` (Task 11); do Task 11 first. `dict[str, Any]` on the schemas becomes `dict[str, object]`; on `Planned.payload` it becomes `dict[str, object]` too.
 
 Also from `new_agent_arch/src/rig/trim.py`: the whole file as `sro/domain/observation/trim.py` with imports repointed (`Body`, `Call`, `Target` from the domain gesture; `REDACTED` needs a home the domain may import: move the constant to `sro.domain.shared.hosts` beside `system_of`, and have `rig_wire.py` import it from there).
+
+What landed (Task 10, commits b32c758..ca224dd): the whole of `trim.py` AND the rig's wire redaction engine with it -- all 29 definitions, the credential vocabulary included -- because `body_keys` applies those rules to every body that reaches a prompt and the domain may not import `sro.application`; `rig_wire.py` re-exports them. Task 12 then split the engine back out into `sro/domain/observation/redaction.py`, so `trim.py` is A2 again and the vocabulary has one address both belts import.
 
 - [ ] **Step 2: Port the tests**
 

@@ -3,8 +3,9 @@
 Ported from `new_agent_arch/tests/test_shapes.py`. Plan 1 took the arithmetic
 -- given the cited pairs, the held tally and a counsel, what shape comes out
 -- into `tests/unit/domain/rig/test_shapes.py`. What is here is everything
-that needed the store: the loop over a tenant's workflows, the held gate, the
-per-workflow reads behind each shape, and the rekeying pass. Six of these
+that needed the store: the loop over a tenant's workflows, the held gate and the per-workflow reads
+behind each shape. The rekeying pass moved with its function to
+`tests/unit/application/rig/test_mine.py`, names unchanged. Six of these
 carry the names the rig gave them, because plan 1 deferred them by name; the
 seventh is the counsel-query half of a test whose shape half is in the domain
 file.
@@ -27,7 +28,7 @@ from copy import deepcopy
 from datetime import UTC, datetime, timedelta
 
 from sro.application.skill.record_offer import record_offer
-from sro.application.skill.serve_shapes import rekey_workflows, shapes_for
+from sro.application.skill.serve_shapes import shapes_for
 from sro.domain.execution.workflow_run import WorkflowRun
 from sro.domain.observation.gesture import Gesture
 from sro.domain.shared.identifiers import DeviceId, TenantId
@@ -332,82 +333,3 @@ async def test_the_offers_that_move_one_job_s_threshold_leave_the_others_alone()
     assert len(served["wfl_4"].shape) == 4
     assert served["wfl_4"].offer_after == 3, "past where it diverged, capped at the last but one"
     assert served["wfl_1"].offer_after == K_OFFER_AFTER, "nobody has diverged on this one"
-
-
-# --------------------------------------------------------------------------
-# rekeying
-
-
-async def test_a_stored_key_from_an_older_rule_is_recomputed_once() -> None:
-    uow = FakeUnitOfWork()
-    by_id = _evidence()
-    workflow = _workflow(by_id)
-    workflow.shape_key = [list(triple) for triple in STALE]
-    await _plant(uow, by_id, workflow)
-
-    assert await rekey_workflows(uow, tenant_id=TENANT) == 1
-    key = (await uow.workflows.get(TENANT, "wfl_1")).shape_key
-    # One triple per cited gesture, in step order: the typed code, then the
-    # save -- the key the cited gestures make now, not the one written before.
-    assert key != STALE and len(key) == 2 and [t[2] for t in key] == ["type", "click"]
-    assert await rekey_workflows(uow, tenant_id=TENANT) == 0, "a key that agrees is left alone"
-
-
-async def test_a_workflow_whose_evidence_is_partly_gone_keeps_its_key() -> None:
-    uow = FakeUnitOfWork()
-    by_id = _evidence()
-    workflow = _workflow(by_id)
-    workflow.steps[0].cites.append("ges_gone_with_its_batch")
-    workflow.shape_key = [list(triple) for triple in STALE]
-    await _plant(uow, by_id, workflow)
-
-    assert await rekey_workflows(uow, tenant_id=TENANT) == 0
-    assert (await uow.workflows.get(TENANT, "wfl_1")).shape_key == STALE, (
-        "not rekeyed over the survivors"
-    )
-
-
-async def test_a_workflow_that_cannot_be_rekeyed_does_not_stop_the_others() -> None:
-    uow = FakeUnitOfWork()
-    by_id = _evidence()
-    broken = _workflow(by_id, "wfl_1")
-    broken.steps[0].cites.append("ges_gone_with_its_batch")
-    broken.shape_key = [["https://old", "text|gone", "click"]]
-    empty = Workflow(id="wfl_3", tenant=TENANT.value, title="cites nothing", narrative="n")
-    stale = _workflow(by_id, "wfl_2")
-    stale.shape_key = [["https://old", "text|stale", "click"]]
-    # Visited in the order saved -- which the ids disagree with, so a pass
-    # that walked them by id would meet the stale one first and never prove
-    # that a skip is per workflow rather than the end of the pass.
-    await _plant(uow, by_id, broken, empty, stale)
-
-    assert await rekey_workflows(uow, tenant_id=TENANT) == 1
-    key = (await uow.workflows.get(TENANT, "wfl_2")).shape_key
-    assert [t[2] for t in key] == ["type", "click"]
-
-
-async def test_rekeying_leaves_another_tenant_s_stale_keys_where_they_are() -> None:
-    uow = FakeUnitOfWork()
-    by_id = _evidence()
-    theirs = _workflow(by_id, "wfl_theirs")
-    theirs.tenant = "other-corp"
-    theirs.shape_key = [list(triple) for triple in STALE]
-    await _plant(uow, by_id, theirs)
-
-    assert await rekey_workflows(uow, tenant_id=TENANT) == 0
-    assert (await uow.workflows.get(TenantId("other-corp"), "wfl_theirs")).shape_key == STALE
-
-
-async def test_a_pass_that_changed_nothing_commits_nothing() -> None:
-    """The rekey is a write and commits; a startup pass over a store that is
-    already current should not be one."""
-    uow = FakeUnitOfWork()
-    by_id = _evidence()
-    workflow = _workflow(by_id)
-    workflow.shape_key = [list(triple) for triple in STALE]
-    await _plant(uow, by_id, workflow)
-
-    assert await rekey_workflows(uow, tenant_id=TENANT) == 1
-    assert uow.commits == 1
-    assert await rekey_workflows(uow, tenant_id=TENANT) == 0
-    assert uow.commits == 1

@@ -245,3 +245,185 @@ def test_the_model_saying_which_job_this_already_is_survives_the_parse() -> None
     assert workflow is not None and workflow.same_as == "wfl_already_known"
     also = workflow_from({**said, "same_as": 7}, tenant="acme")
     assert also is not None and also.same_as is None, "and only a string"
+
+
+def _one(**over: object) -> dict[str, object]:
+    """The well-formed workflow the rig's `_answer` carried, fields replaced.
+
+    The rig drove these eight through `propose` and a `FakeAsker`, which meant
+    every guard below was watched only through a model call it does not need.
+    `workflow_from` is the thing under test, so it is the thing called.
+    """
+    base: dict[str, object] = {
+        "title": "create a supplier",
+        "narrative": "the operator created a supplier",
+        "systems": ["https://wms.example"],
+        "steps": [
+            {
+                "order": 0,
+                "cites": ["ges_1"],
+                "says": "type the code",
+                "system": "https://wms.example",
+                "parameters": ["code"],
+            }
+        ],
+        "parameters": [{"name": "code", "seen_values": ["ACME"]}],
+        "same_as": None,
+        "unproven": ["ges_2"],
+    }
+    return {**base, **over}
+
+
+def test_a_steps_list_that_is_not_a_list_costs_the_workflow() -> None:
+    """A model is at least as likely to return a good workflows list with a bad
+    `steps` in it as a bad list, and every guard below that line had nothing
+    exercising it."""
+    for junk in ("one two three", 7, None, {"a": "dict"}):
+        assert workflow_from(_one(steps=junk), tenant="acme") is None
+
+
+def test_a_step_that_is_not_a_step_is_dropped() -> None:
+    """`steps` is a list, so the workflow stands -- but 1 has no .get()."""
+    for junk in ([1, 2, 3], [None], ["one", "two"], [["order", 0]]):
+        workflow = workflow_from(_one(steps=junk), tenant="acme")
+
+        assert workflow is not None and workflow.steps == []
+
+
+def test_a_junk_field_inside_a_step_falls_back_to_nothing() -> None:
+    """says, system, cites and parameters, one level below where the malformed
+    answer test stops."""
+    workflow = workflow_from(
+        _one(steps=[{"order": 0, "says": 7, "system": 7, "cites": "ges_1", "parameters": "code"}]),
+        tenant="acme",
+    )
+    assert workflow is not None
+    step = workflow.steps[0]
+
+    assert step.says == ""
+    assert step.system is None
+    assert step.cites == []
+    assert step.parameters == []
+
+    workflow = workflow_from(
+        _one(
+            steps=[
+                {
+                    "order": 0,
+                    "says": "s",
+                    "system": "https://wms.example",
+                    "cites": ["ges_1", 7, None],
+                    "parameters": ["code", 7],
+                }
+            ]
+        ),
+        tenant="acme",
+    )
+    assert workflow is not None
+    step = workflow.steps[0]
+
+    assert step.cites == ["ges_1"]
+    assert step.parameters == ["code"]
+
+
+def test_a_junk_field_beside_the_steps_falls_back_to_nothing() -> None:
+    """title, narrative, systems, unproven and same_as."""
+    workflow = workflow_from(
+        _one(title=7, narrative=7, systems="wms", unproven="ges_2", same_as=7), tenant="acme"
+    )
+    assert workflow is not None
+
+    assert workflow.title == ""
+    assert workflow.narrative == ""
+    assert workflow.systems == []
+    assert workflow.unproven == []
+    assert workflow.same_as is None
+
+    also = workflow_from(_one(systems=["a", 7], unproven=["ges_2", None]), tenant="acme")
+    assert also is not None
+
+    assert also.systems == ["a"]
+    assert also.unproven == ["ges_2"]
+
+
+def test_steps_the_model_numbered_itself_keep_their_numbering() -> None:
+    """Renumbering is for a repeated order, not for every answer."""
+    workflow = workflow_from(
+        _one(
+            steps=[
+                {"order": 5, "cites": ["ges_1"], "says": "first"},
+                {"order": 9, "cites": ["ges_2"], "says": "second"},
+            ]
+        ),
+        tenant="acme",
+    )
+    assert workflow is not None
+
+    assert [step.order for step in workflow.steps] == [5, 9]
+
+
+def test_a_step_order_of_true_is_not_a_step_order() -> None:
+    """True is an int in Python, and sorts as 1."""
+    workflow = workflow_from(
+        _one(
+            steps=[
+                {
+                    "order": True,
+                    "cites": ["ges_1"],
+                    "says": "s",
+                    "system": "https://wms.example",
+                    "parameters": [],
+                }
+            ]
+        ),
+        tenant="acme",
+    )
+    assert workflow is not None
+
+    assert workflow.steps[0].order == 0
+    assert workflow.steps[0].order is not True
+
+
+def test_a_parameter_with_no_name_is_not_a_parameter() -> None:
+    """Every other container in `workflow_from` is checked down to a scalar;
+    this one filtered to dict and stopped."""
+    workflow = workflow_from(
+        _one(
+            parameters=[
+                {"name": "code", "seen_values": ["ACME"]},
+                {"seen_values": ["nameless"]},
+                {"name": "", "seen_values": ["empty"]},
+                {"name": 7, "seen_values": ["not a string"]},
+            ]
+        ),
+        tenant="acme",
+    )
+    assert workflow is not None
+
+    assert [p["name"] for p in workflow.parameters] == ["code"]
+
+
+def test_a_step_parameter_is_judged_by_the_same_rule() -> None:
+    """The ninth sibling: `parameters` at step level and `parameters` at
+    workflow level arrive from one model answer, and only one of them was
+    checked for a usable name. The shapes differ because the schema declares
+    them differently -- a step names a parameter, a workflow declares one --
+    but "no usable name is no parameter" is now one rule at both."""
+    workflow = workflow_from(
+        _one(
+            steps=[
+                {
+                    "order": 0,
+                    "cites": ["ges_1"],
+                    "says": "s",
+                    "parameters": ["code", "", "   ", 7, None],
+                }
+            ],
+            parameters=[{"name": "code"}, {"name": "   "}],
+        ),
+        tenant="acme",
+    )
+    assert workflow is not None
+
+    assert workflow.steps[0].parameters == ["code"]
+    assert [p["name"] for p in workflow.parameters] == ["code"]

@@ -221,8 +221,10 @@ async def test_a_browser_behind_the_rig_keeps_its_own_reading() -> None:
 
 
 async def test_a_job_nobody_has_answered_is_offered_at_the_default() -> None:
-    advice = await _counsel(FakeUnitOfWork())
+    uow = FakeUnitOfWork()
+    advice = await _counsel(uow)
     assert advice == Counsel(K_OFFER_AFTER, None)
+    assert uow.commits == 0, "counsel reads; the caller owns the session"
     assert advice.as_json() == {
         "offer_after": K_OFFER_AFTER,
         "later": False,

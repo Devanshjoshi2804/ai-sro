@@ -7,11 +7,11 @@ What is here is the half that needed a store: the loop over a tenant's
 workflows, the gate each one has to pass, and the three reads behind every
 shape that is served.
 
-`rekey_workflows` sits beside it because it is the same walk over the same
-evidence, asking the other question about a shape key. Plan 3a's file map
-lists it under the mining pass; its three tests were deferred to this task by
-name, and one implementation under two names is worse than one in the file
-its tests are in. The miner should import it from here.
+`rekey_workflows` was landed here by Task 7 and has since moved to
+`sro.application.observation.mining_pass`, where the plan's file map and the
+rig both put it. It walks the same evidence, but it WRITES, and this module's
+promise is that nothing in it does -- two session contracts in one file is a
+docstring that is false twelve lines below where it is made.
 """
 
 from __future__ import annotations
@@ -20,16 +20,9 @@ from datetime import datetime
 
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.skill.counsel import counsel
-from sro.domain.observation.identity import shape_key
 from sro.domain.shared.identifiers import DeviceId, TenantId
 from sro.domain.skill.shape import Shape, cited_pairs, shape_of
-from sro.domain.skill.workflow import Workflow
-
-
-def _ordered_cites(workflow: Workflow) -> list[str]:
-    """Every gesture the workflow cites, in step order. `cited_ids` is a set,
-    and a shape key made in set order is not this job's shape."""
-    return [cited for step in sorted(workflow.steps, key=lambda s: s.order) for cited in step.cites]
+from sro.domain.skill.workflow import ordered_cites
 
 
 async def shapes_for(
@@ -72,7 +65,7 @@ async def shapes_for(
         held = sum(1 for run in runs if run.outcome == "held")
         if runs and not held:
             continue
-        wanted = _ordered_cites(workflow)
+        wanted = ordered_cites(workflow)
         if not wanted:
             continue
         by_id = {
@@ -89,38 +82,3 @@ async def shapes_for(
         if shape is not None:
             served.append(shape)
     return served
-
-
-async def rekey_workflows(uow: UnitOfWork, *, tenant_id: TenantId) -> int:
-    """Every stored workflow's shape key recomputed from its cited gestures,
-    and how many changed.
-
-    The key is what `identity.resolve` compares a new proposal against. When
-    the rule that makes it changes -- the text rung stopped taking page copy
-    -- keys mined before the change no longer match keys mined after, and a
-    job the rig already holds could be proposed again as a new one. Run once
-    at startup; a key that already agrees is left alone, and a pass that
-    changes nothing writes nothing.
-    """
-    changed = 0
-    for workflow in await uow.workflows.known(tenant_id):
-        wanted = _ordered_cites(workflow)
-        if not wanted:
-            continue
-        by_id = {
-            gesture.id: gesture
-            for gesture in await uow.gestures.gestures_for(tenant_id, ids=tuple(wanted))
-        }
-        # Only over the whole evidence. A key recomputed over the survivors of
-        # a pruned batch would be shorter than the job -- and an empty one
-        # matches nothing, which is the duplicate this exists to prevent.
-        if any(cited not in by_id for cited in wanted):
-            continue
-        fresh = shape_key([by_id[cited] for cited in wanted])
-        if [list(triple) for triple in fresh] == workflow.shape_key:
-            continue
-        await uow.workflows.rekey(tenant_id, workflow.id, fresh)
-        changed += 1
-    if changed:
-        await uow.commit()
-    return changed

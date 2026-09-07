@@ -47,3 +47,15 @@ class Workflow:
 
 def cited_ids(workflow: Workflow) -> set[str]:
     return {gesture_id for step in workflow.steps for gesture_id in step.cites}
+
+
+def ordered_cites(workflow: Workflow) -> list[str]:
+    """Every gesture the workflow cites, in step order.
+
+    `cited_ids` is a set, and a shape key made in set order is not this job's
+    shape -- the key is a SEQUENCE of (system, control, kind), so the order the
+    steps run in is half of what it says. Here rather than beside either
+    caller: the mining pass writes a shape key and `rekey_workflows` rewrites
+    one, and two spellings of "in step order" is two shapes for one job.
+    """
+    return [cited for step in sorted(workflow.steps, key=lambda s: s.order) for cited in step.cites]

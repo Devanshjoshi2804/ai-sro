@@ -156,7 +156,13 @@ async def _crowded_day(strong: int, weak: int) -> tuple[FakeUnitOfWork, list[str
 CROWDED_KB = "x" * 600_000
 """Bigger than the window has room for, which is how a test gets `pack` to
 leave evidence out without reaching past `mine`'s own arguments to set the
-budget."""
+budget. Under it the budget holds nothing and K_MIN_GESTURES decides how many
+are packed, so strength decides which."""
+
+NEARLY_FULL_KB = "x" * (140_000 * 4)
+"""Most of the budget, and not all of it: what is left is a few thousand
+tokens of room, so what else is subtracted from it is visible in how many
+gestures fit. Under CROWDED_KB the floor decides and nothing else shows."""
 
 
 # --------------------------------------------------------------------------
@@ -346,6 +352,114 @@ async def test_a_pass_that_keeps_nothing_still_says_it_read_the_window() -> None
     assert set(ids).isdisjoint(await _pool_ids(uow)), (
         "evidence a stored workflow already explains must not be re-pooled"
     )
+
+
+async def test_the_key_a_pass_mints_is_a_sequence_and_not_a_set() -> None:
+    """The key `identity.resolve` compares proposals on, minted here.
+
+    `rekey_workflows` recomputes it at startup from the same evidence through
+    the same `ordered_cites`, and a pass that minted it any other way means
+    every workflow mined is silently rewritten on the next boot -- and, until
+    that boot, resolved against a key nothing else agrees with.
+
+    A gesture two steps both stand on is two rungs of the shape, and
+    `cited_ids` -- the set -- collapses it to one. That is what makes this
+    deterministic where an order plant is not: the set survives every hash
+    seed when the assertion is only about order, and none of them when a rung
+    goes missing. The steps are also LISTED backwards, though that half cannot
+    be made to fail HERE and the reason is worth writing down: `workflow_from`
+    has already sorted a proposal's steps by the time the pass sees one, so
+    dropping `ordered_cites`' own sort at this call site is an equivalent
+    mutant. It is not one in `rekey_workflows`, where the steps come off the
+    store -- which is where the sort is pinned.
+    """
+    uow, ids = await _day()
+    typed, saved = ids[0], ids[-1]
+    proposal = _proposal(
+        [],
+        steps=[
+            {"order": 2, "cites": [saved], "says": "check it saved", "system": HOST},
+            {"order": 1, "cites": [saved], "says": "save", "system": HOST},
+            {"order": 0, "cites": [typed], "says": "type the code", "system": HOST},
+        ],
+    )
+
+    result = await _mine(uow, FakeAsker(_found(proposal)))
+
+    assert result.kept == 1
+    key = (await uow.workflows.known(TENANT))[0].shape_key
+    assert [triple[2] for triple in key] == ["type", "click", "click"]
+
+
+async def test_the_jobs_already_proven_are_paid_for_out_of_the_window() -> None:
+    """`summary` goes to `build_prompt`, so it is billed as input, AND to
+    `pack`, so it comes off the budget. `pack`'s subtraction is guarded in the
+    domain; the caller handing it over was not, and a caller that passed `[]`
+    measured the prompt smaller than it ships.
+
+    That is the same failure as the `evidence_tokens` under-count this module
+    was built on: a window filled to a budget that left out the fixed cost of
+    the prompt it is budgeting went over the 200K boundary where Gemini 3.1
+    Pro's input price doubles -- silently, at double the price.
+
+    Same evidence both times, so the only thing that moved is what the tenant
+    already knows.
+    """
+    plain, _, _ = _crowd(strong=0, weak=200)
+    proven = [
+        Workflow(
+            id=f"wfl_{i:03d}",
+            tenant=TENANT.value,
+            # Long enough to matter, because that is the case: a tenant with a
+            # year of mining behind it has a long "jobs already proven" block.
+            title="create a work operation in the western yard " * 5,
+            narrative="",
+            systems=[HOST],
+            shape_key=[[HOST, "clientCode", "type"]],
+        )
+        for i in range(40)
+    ]
+
+    sizes = []
+    for known in ([], proven):
+        uow = FakeUnitOfWork()
+        await uow.gestures.add_gestures(tuple(plain))
+        for workflow in known:
+            await uow.workflows.save(workflow)
+        sizes.append((await _mine(uow, FakeAsker(_found()), kb=NEARLY_FULL_KB)).window_size)
+
+    blind, paid = sizes
+    assert blind > paid, "the known-jobs block has to come out of the same budget"
+
+
+async def test_a_gesture_linked_across_two_systems_earns_its_place() -> None:
+    """`linked` is `strength`'s cross-system bonus, and the pool's docstring
+    calls that "the whole mechanism by which one operator's Blue Yonder half
+    meets another operator's SAP half". `strength` is guarded in the domain;
+    the caller handing it the set was not.
+
+    What hid it: `_packed` applies `linked` to POOLED entries too, so a caller
+    that stopped passing it to `pack` still bonused everything carried over,
+    and every pool test stayed green while fresh evidence quietly lost it.
+    This pass has an empty pool.
+
+    Planted against `at`: the linked pair is the LATEST evidence of the day,
+    so a window ordered on time alone leaves it out. Sizes do not enter into
+    it -- the budget here cannot hold anything, so K_MIN_GESTURES decides who
+    is in and strength decides which.
+    """
+    uow, _, weak_ids = await _crowded_day(strong=0, weak=30)
+    await _link(uow, weak_ids[-2:], "CROSSES-TWO-SYSTEMS", "https://sap.example")
+    asker = FakeAsker(_found())
+
+    result = await _mine(uow, asker, kb=CROWDED_KB)
+    # Before the crossings block, so a linked id is read where it was PACKED
+    # rather than where it was hinted at.
+    day = str(asker.asked[0]["evidence"]).split("## Values appearing in more than one system")[0]
+
+    assert result.window_size == 25
+    assert weak_ids[-1] in day and weak_ids[-2] in day, "a crossing is what pulls evidence in"
+    assert weak_ids[-3] not in day, "and it displaced an unlinked peer to do it"
 
 
 # --------------------------------------------------------------------------

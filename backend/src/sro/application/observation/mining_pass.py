@@ -308,6 +308,16 @@ async def _one_pass(
     started_at = now.isoformat()
     pass_id = new_pass_id()
 
+    # ponytail: this reads the tenant's WHOLE HISTORY, not a day. Neither
+    # `gestures_for` nor `intents_for` takes a time bound, so every pass
+    # deserialises every gesture ever captured -- request and response bodies
+    # included -- and `frequencies_over` and `shared_values` below then walk
+    # all of it. That set only grows. Faithful to the rig, and defensible only
+    # while a pass is dominated by one 150K-token model call; the ceiling is
+    # the day the scan costs more than the call. The upgrade is the same seam
+    # the reading loop names: a time-bounded read on `GestureRepository`, which
+    # the rig had in SQL. The two are one fix, and fixing only the reading loop
+    # fixes half of it.
     gestures = list(await uow.gestures.gestures_for(tenant_id))
     intents = {intent.gesture_id: intent for intent in await uow.gestures.intents_for(tenant_id)}
     by_id = {gesture.id: gesture for gesture in gestures}
@@ -453,11 +463,18 @@ async def _one_pass(
         # gesture -- one that was pooled and still did not fit -- with the age it
         # has earned rather than restarting its clock.
         #
-        # `claimed` is every cited id and is never narrowed to this window's
-        # own: a pooled gesture is packed into the window beside the fresh ones,
-        # so a pass can cite evidence that is only in the pool, and a citation
-        # left in the pool ages out and retires despite having been placed. The
-        # two arguments are siblings and only one of them is about the window.
+        # `claimed` is every cited id and is never narrowed to this pass's own
+        # FRESH evidence: a pooled gesture is packed into the window beside the
+        # fresh ones, so a pass can cite evidence that is only in the pool, and
+        # a citation left in the pool ages out and retires despite having been
+        # placed. The two arguments are siblings and only one of them is about
+        # the window.
+        #
+        # Which narrowing matters, recorded so nobody hunts the other one
+        # twice: narrowing `claimed` to the WINDOW's own ids changes nothing
+        # and cannot be tested, because `validate` has already refused any
+        # workflow citing an id outside `window.items`. Narrowing it to the
+        # fresh ids is the failure above, and is what the test plants.
         await uow.pool.add_unclaimed(
             tenant_id,
             window_ids=tuple(item.gesture_id for item in window.items) + tuple(window.left_out),

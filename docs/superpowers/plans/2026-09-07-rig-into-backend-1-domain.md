@@ -793,17 +793,85 @@ Write both numbers, and the names of every test left for plan 3, into the table 
 git commit -am "docs(plan): the domain is ported; what waits for the application layer"
 ```
 
-## Ledger: tests left for plan 3
+## Ledger: tests left for a later plan
 
-| Rig test file | Left behind (needs a store, a model call, or a query) |
-|---|---|
-| `test_workflows.py` | |
-| `test_shape.py` / `test_identity.py` | |
-| `test_offers.py` | |
-| `test_shapes.py` | |
-| `test_verify.py` | |
-| `test_effects.py` | |
-| `test_planner.py` | |
-| `test_models.py` | |
+Counted 2026-09-07 at the head of this branch.
 
-Ported: ___ of ___.
+```
+$ cd backend && uv run pytest tests/unit/domain/rig \
+    tests/unit/application/test_rig_wire.py \
+    tests/unit/application/test_rig_wire_protocol.py \
+    tests/unit/application/test_correlate.py -q | tail -1
+217 passed in 0.41s
+
+$ cd new_agent_arch && uv run pytest tests/test_shape.py tests/test_identity.py \
+    tests/test_parameters.py tests/test_offers.py tests/test_shapes.py \
+    tests/test_locators.py tests/test_verify.py tests/test_effects.py \
+    tests/test_planner.py tests/test_trim.py tests/test_workflows.py \
+    tests/test_models.py tests/test_values.py tests/test_wire.py \
+    tests/test_correlate.py -q -p no:cacheprovider | tail -1
+282 passed in 3.06s
+```
+
+**Ported: 217 of 282.**
+
+That line does not add up on its own, and the reason is worth writing down.
+**197 of the rig's 282 tests are ported; 85 are left below; 197 + 85 = 282**,
+which is the identity the plan wanted. The backend's 217 is those 197 plus
+**20 tests this plan added** that no rig test is behind:
+
+- `test_planning.py` (8): the three `unreplayable` cases, two `value_for`
+  cases, `test_the_sight_schema_offers_only_the_actions_a_point_can_take`,
+  `test_a_secret_gesture_carries_no_value_from_anywhere`, and the schema walk
+  the plan itself asked for
+  (`test_no_schema_in_the_package_uses_what_the_developer_api_refuses`).
+- `test_belts.py` (3):
+  `test_the_read_shows_a_whole_value_at_any_depth_and_never_a_substring_of_one`,
+  which is `test_verify.py`'s two value-matching tests merged onto `mentions`
+  (both rig originals are still counted as left, since only their pure half
+  crossed); `test_a_status_is_read_off_the_reply_only_when_the_reply_carries_one`;
+  and Task 12's untimed write.
+- `test_rig_wire.py` (3): the batch that parses and correlates, `system_of`,
+  and a second reading of `test_one_unparseable_event_does_not_cost_the_batch`
+  (the port itself is in `test_rig_wire_protocol.py`).
+- `test_gesture.py` (2), `test_workflow.py` (1): the domain types the rig had
+  no separate tests for.
+- One each in `test_locators.py`
+  (`test_a_status_that_lies_about_completing_does_not_decide_the_origin`, from
+  the Task 8 fix round), `test_trim.py`
+  (`test_a_secret_flag_on_either_the_gesture_or_its_target_is_a_credential`)
+  and `test_shapes.py` (Task 12's unsorted step list).
+
+196 of the 197 ports keep the rig's own name. The one exception is
+`test_css_path_and_xpath_are_not_sent_to_the_model`, which the rig spells
+`test_cssPath_and_xpath_are_not_sent_to_the_model`.
+
+| Rig test file | Rig / ported | Left behind (needs a store, a model call, or a query) |
+|---|---|---|
+| `test_shape.py` | 9 / 9 | — |
+| `test_identity.py` | 15 / 15 | — |
+| `test_parameters.py` | 14 / 14 | — |
+| `test_values.py` | 16 / 16 | — |
+| `test_locators.py` | 13 / 13 | — |
+| `test_effects.py` | 9 / 9 | — |
+| `test_wire.py` | 41 / 41 | — |
+| `test_correlate.py` | 16 / 16 | — |
+| `test_trim.py` | 33 / 32 | `test_no_credential_on_a_touched_control_reaches_either_prompt` (walks `parse_batch`, `save_batch`, `Store`, `_row_to_gesture` and `window.as_evidence`) |
+| `test_offers.py` | 10 / 9 | `test_an_offer_is_recorded_under_an_id_of_its_own` (`record_offer` mints `off_` + 16 hex and inserts the row). Three more keep their names here with pure bodies and still owe plan 3 a repository-side test: the `k > 0` filter (`test_an_arrival_nudge_is_not_evidence_either_way`), the `LIMIT K_WINDOW` cut (`test_only_the_newest_ten_offers_are_read`) and the `ORDER BY at DESC, rowid DESC` tiebreak (`test_offers_in_the_same_second_are_read_in_the_order_they_arrived`) |
+| `test_workflows.py` | 5 / 1 | `test_a_workflow_survives_a_round_trip`, `test_a_workflow_names_the_pass_that_found_it`, `test_another_tenants_workflows_are_not_returned`, `test_saving_the_same_workflow_twice_keeps_one` |
+| `test_shapes.py` | 17 / 11 | `test_an_unproven_workflow_is_not_served`, `test_the_held_gate_is_per_workflow_and_never_silences_one_that_never_ran`, `test_a_workflow_that_cannot_be_served_never_withdraws_the_ones_behind_it`, `test_a_stored_key_from_an_older_rule_is_recomputed_once`, `test_a_workflow_whose_evidence_is_partly_gone_keeps_its_key`, `test_a_workflow_that_cannot_be_rekeyed_does_not_stop_the_others`. `test_a_resting_job_is_served_marked_for_the_browser_that_refused_it` is here by name; only the counsel query behind it is left |
+| `test_verify.py` | 30 / 6 | The 24 that drive `async def verify(...)` through a fake channel and asker: `test_a_call_that_returned_the_status_the_evidence_expects_is_held_by_status`, `test_a_call_the_warehouse_rejected_is_failed_by_status`, `test_a_ui_step_is_confirmed_by_the_read_the_evidence_shows_the_page_makes`, `test_a_read_that_did_not_come_back_2xx_decides_nothing`, `test_the_read_matches_a_whole_value_not_a_substring_of_one`\*, `test_the_probe_never_carries_a_header_the_boundary_struck_out`, `test_a_status_that_already_decided_is_not_second_guessed_by_a_read`, `test_a_status_the_operator_also_got_is_still_a_refusal`, `test_the_screenshot_is_last_and_least`, `test_no_screenshot_and_no_state_is_unclear_not_held`, `test_a_command_the_browser_refused_is_failed_before_anything_is_verified`, `test_a_confirming_read_whose_url_carries_a_marker_is_never_sent`, `test_the_call_that_returned_exactly_400_is_a_refusal_not_a_success`, `test_a_2xx_the_evidence_never_saw_does_not_hold_by_status`, `test_with_no_status_in_the_evidence_only_a_2xx_holds`, `test_the_probe_is_a_bodiless_get_sent_to_this_run_and_this_browser`, `test_a_read_that_did_not_show_the_value_says_which_read_it_was`, `test_a_read_that_came_back_300_is_not_a_read_that_came_back`, `test_a_value_nested_inside_the_read_is_still_a_value_the_read_shows`\*, `test_a_read_that_is_not_json_is_matched_on_its_text`, `test_nothing_to_decide_on_is_unclear_and_says_so`, `test_a_model_that_answered_nothing_leaves_the_step_unclear_with_its_error`, `test_the_screen_verdict_is_the_models_own_word_and_its_own_reason`, `test_the_screen_belt_is_told_the_step_the_command_and_both_pictures_words`. \*these two have their pure assertions ported onto `mentions`; only the belt-order path through `verify` is left |
+| `test_planner.py` | 28 / 1 | The 27 `plan_step` / `plan_by_sight` tests: `test_a_ui_plan_carries_the_evidence_locators_not_the_models`, `test_the_values_the_run_was_given_are_what_the_model_sees_not_the_recorded_ones`, `test_an_http_plan_replays_the_recorded_call_with_redacted_headers_dropped`, `test_an_http_plan_whose_body_the_store_never_kept_is_downgraded_to_the_interface`, `test_a_model_that_could_not_answer_plans_nothing_and_says_why`, `test_a_kind_the_protocol_does_not_have_is_planned_as_nothing`, `test_a_retry_carries_the_failure_and_the_second_screenshot`, `test_an_http_plan_whose_url_carries_a_struck_out_credential_is_downgraded`, `test_every_way_out_hands_back_the_reading_that_paid_for_it`, `test_a_navigate_with_nowhere_to_go_is_not_a_navigate`, `test_the_why_on_the_plan_is_the_models_own_and_empty_when_it_gave_none`, `test_a_step_that_only_cites_a_scroll_is_still_planned_from_it`, `test_the_action_is_the_models_when_the_protocol_has_it_and_the_gestures_when_not`, `test_a_value_is_carried_for_every_action_that_takes_one_and_for_no_other`, `test_with_no_value_from_the_run_or_the_model_the_recorded_one_stands`, `test_a_recorded_call_with_no_body_is_replayed_as_it_was`, `test_an_http_plan_carries_the_body_the_operator_sent`, `test_an_http_plan_for_a_step_whose_evidence_made_no_call_plans_nothing`, `test_the_model_is_told_where_the_step_was_demonstrated_and_under_what_effort`, `test_a_rescue_is_shown_the_page_the_failed_attempt_left_behind`, `test_a_first_attempt_carries_no_second_picture`, `test_the_failed_attempts_picture_is_named_by_its_position`, `test_a_replayed_call_still_carries_the_answer_that_planned_it`, `test_the_sight_rung_is_asked_with_the_screen_its_size_and_the_demonstrated_control`, `test_the_corner_of_the_screen_is_on_it_and_its_far_edge_is_not`, `test_no_picture_no_size_or_no_answer_is_no_plan`, `test_nothing_to_type_is_no_plan_and_a_press_carries_no_value` |
+| `test_models.py` | 26 / 4 | Plan **2**, not 3 — these need `GeminiAsker`, `FakeAsker`, `build_config`, `K_MAX_OUTPUT_TOKENS` and `one_at_a_time`, all infrastructure: `test_a_fake_asker_records_what_it_was_asked`, `test_a_fake_asker_runs_out_and_says_so`, `test_the_request_config_never_enables_search_grounding`, `test_the_request_config_lets_the_model_finish_a_whole_day`, `test_gemini_asker_names_a_cut_off_answer_rather_than_calling_it_not_json`, `test_gemini_asker_happy_path_parses_data_and_prices_it`, `test_gemini_asker_reports_a_blocked_response_as_an_error`, `test_gemini_asker_reports_non_json_text_as_an_error`, `test_gemini_asker_flags_unpriced_when_usage_metadata_is_missing`, `test_gemini_asker_flags_unpriced_when_usage_counts_are_none`, `test_gemini_asker_flags_unpriced_for_an_unknown_model`, `test_gemini_asker_survives_the_client_raising`, `test_a_call_that_never_returned_does_not_claim_to_be_free`, `test_gemini_asker_ask_really_routes_through_build_config`, `test_the_config_carries_the_effort_and_still_no_tools`, `test_no_effort_builds_no_thinking_config`, `test_gemini_asker_hands_the_effort_to_the_config`, `test_an_empty_instruction_is_not_sent_as_an_empty_part`, `test_thinking_tokens_are_part_of_the_bill`, `test_a_lock_belongs_to_the_loop_that_asked_for_it`, `test_one_loop_gets_one_lock_per_name`, `test_the_lock_still_excludes` |
+| **Total** | **282 / 197** | **85** |
+
+Also left with them, from the source modules: `save_workflow` and
+`known_workflows` (`rig/workflows.py`); `record_offer`'s insert and
+`counsel`'s two selects (`rig/offers.py`); `shapes_for`'s loop, held gate and
+rekeying (`rig/shapes.py`); `async def verify(...)`, `record_effect`,
+`forget_effects` and the `RunProof` query (`rig/verify.py`, `rig/effects.py`);
+`plan_step`, `plan_by_sight`, `ACTIONS` and the `Asker`/`Effort` plumbing
+(`rig/planner.py`); and `GeminiAsker`, `FakeAsker`, `build_config` and
+`one_at_a_time` (`rig/models.py`, plan 2). The ingest use case also has to
+keep the wire batch it parsed, because `correlate` returns domain values and
+the orphan event's own row is no longer among them.

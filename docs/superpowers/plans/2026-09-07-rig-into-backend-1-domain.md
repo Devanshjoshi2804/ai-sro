@@ -39,6 +39,10 @@
 | `backend/src/sro/domain/execution/belts.py` | `Verdict`, `expected_statuses`, `confirming_read`, `mentions`, `K_WEAK_LOCATORS`, `RunProof`, `earned_from`, `state_verified` | `new_agent_arch/src/rig/verify.py` (pure half), `effects.py` (rule) |
 | `backend/src/sro/domain/execution/planning.py` | `PLAN_SCHEMA`, `SIGHT_SCHEMA`, `SIGHT_ACTIONS`, both instruction strings, `KINDS`, `Planned`, `Look`, `value_for`, `unreplayable` | `new_agent_arch/src/rig/planner.py` (pure half) |
 | `backend/src/sro/domain/shared/prices.py` | `PRICES`, `price`, `is_priced`, `Answer` | `new_agent_arch/src/rig/models.py` (pricing and the answer record) |
+| `backend/src/sro/domain/observation/values.py` | typed values, frequencies, shared values (ruled into Task 5) | `new_agent_arch/src/rig/values.py` |
+| `backend/src/sro/domain/observation/redaction.py` | the credential vocabulary and the redaction engine (landed in Task 10 inside trim, split out in Task 12) | `new_agent_arch/src/rig/wire.py` |
+| `backend/src/sro/domain/shared/hosts.py` (modified) | `system_of`, `REDACTED` beside `domain_matches` | `new_agent_arch/src/rig/correlate.py`, `wire.py` |
+| `backend/tests/unit/application/test_correlate.py`, `test_rig_wire_protocol.py` | the rig's own wire and correlate suites (ruled into Task 1) | `new_agent_arch/tests/test_correlate.py`, `test_wire.py` |
 | `backend/tests/unit/domain/rig/…` | the ported tests | `new_agent_arch/tests/…` |
 | `backend/tests/unit/domain/rig/conftest.py` | `BATCH` fixture and `gestures()` helper | `new_agent_arch/tests/fixtures.py` |
 

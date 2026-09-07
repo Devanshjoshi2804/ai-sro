@@ -15,19 +15,21 @@ from dataclasses import replace
 from pathlib import Path
 
 from sro.domain.observation.gesture import Action, Body, Call, Gesture, Target
-from sro.domain.observation.trim import (
-    BODY_KEYS,
+from sro.domain.observation.redaction import (
     SECRET_HEADER_HINTS,
     SECRET_HEADERS,
     SECRET_SHAPES,
     SECRET_SHAPES_ANY_CASE,
     SECRET_WORDS,
+    _words_of,
+    is_secret_name,
+)
+from sro.domain.observation.trim import (
+    BODY_KEYS,
     VALUE_CHARS,
     _call,
-    _words_of,
     body_keys,
     is_secret,
-    is_secret_name,
     path_shape,
     thin,
     trim,

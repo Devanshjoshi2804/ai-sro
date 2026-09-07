@@ -20,22 +20,23 @@ from pydantic import (
 )
 
 # The credential vocabulary and the rules that act on it, imported rather than
-# held here: `sro.domain.observation.trim.body_keys` applies the same three
-# rules to every body that reaches a prompt, the domain may not import this
-# module, and one rule with two copies is the thing that has already gone wrong
-# once. Re-exported under their own names so this module stays the one address
-# for the wire's redaction.
-from sro.domain.observation.trim import SECRET_HEADER_HINTS as SECRET_HEADER_HINTS
-from sro.domain.observation.trim import SECRET_HEADERS as SECRET_HEADERS
-from sro.domain.observation.trim import SECRET_SHAPES as SECRET_SHAPES
-from sro.domain.observation.trim import SECRET_SHAPES_ANY_CASE as SECRET_SHAPES_ANY_CASE
-from sro.domain.observation.trim import SECRET_WORDS as SECRET_WORDS
-from sro.domain.observation.trim import UNINSPECTABLE as UNINSPECTABLE
-from sro.domain.observation.trim import is_secret_name as is_secret_name
-from sro.domain.observation.trim import redact_body as redact_body
-from sro.domain.observation.trim import redact_shapes as redact_shapes
-from sro.domain.observation.trim import redact_url as redact_url
-from sro.domain.observation.trim import shapes_in as shapes_in
+# held here: they live in `sro.domain.observation.redaction`, because the other
+# belt -- `sro.domain.observation.trim.body_keys`, which applies the same three
+# rules to every body that reaches a prompt -- is in the domain, the domain may
+# not import this module, and one rule with two copies is the thing that has
+# already gone wrong once. Re-exported under their own names so this module
+# stays the one address for the wire's redaction.
+from sro.domain.observation.redaction import SECRET_HEADER_HINTS as SECRET_HEADER_HINTS
+from sro.domain.observation.redaction import SECRET_HEADERS as SECRET_HEADERS
+from sro.domain.observation.redaction import SECRET_SHAPES as SECRET_SHAPES
+from sro.domain.observation.redaction import SECRET_SHAPES_ANY_CASE as SECRET_SHAPES_ANY_CASE
+from sro.domain.observation.redaction import SECRET_WORDS as SECRET_WORDS
+from sro.domain.observation.redaction import UNINSPECTABLE as UNINSPECTABLE
+from sro.domain.observation.redaction import is_secret_name as is_secret_name
+from sro.domain.observation.redaction import redact_body as redact_body
+from sro.domain.observation.redaction import redact_shapes as redact_shapes
+from sro.domain.observation.redaction import redact_url as redact_url
+from sro.domain.observation.redaction import shapes_in as shapes_in
 from sro.domain.shared.hosts import REDACTED as REDACTED
 
 

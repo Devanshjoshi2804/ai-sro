@@ -214,6 +214,13 @@ class SqlWorkflowRunRepository(WorkflowRunRepository):
             .join(WorkflowRunRow, WorkflowRunRow.id == WorkflowRunStepRow.run_id)
             .where(
                 WorkflowRunRow.tenant_id == tenant_id.value,
+                # Only a run still in flight. The rig gated this list on the
+                # runner's in-process `Approvals.waiting()` set, which is plan
+                # 3's half; the storage half is this predicate, and without it
+                # a step left `awaiting` on a run that was aborted or failed
+                # sits in the supervisor's queue forever, asking for a tap that
+                # can no longer let anything out.
+                WorkflowRunRow.outcome == "running",
                 WorkflowRunStepRow.verdict == "awaiting",
             )
             # Oldest wait first: this is the queue a supervisor works down, and

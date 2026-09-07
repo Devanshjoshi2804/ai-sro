@@ -1479,7 +1479,9 @@ class FakeWorkflowRunRepository:
         parked = [
             (run.started_at, run.id, step.order, step.says)
             for run in self.rows.values()
-            if run.tenant == tenant_id.value
+            # Only a run still in flight, as the query is: a step left
+            # `awaiting` on a finished run is not waiting on anybody.
+            if run.tenant == tenant_id.value and run.outcome == "running"
             for step in run.steps
             if step.verdict == "awaiting"
         ]

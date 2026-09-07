@@ -2,6 +2,11 @@
 
 Every table carries ``tenant_id`` and every index leads with it, so a query that
 forgets the tenant is also a query that misses its index.
+
+The exception is a table reached only through its parent. ``workflow_run_steps``
+and ``approvals`` are keyed on a run id and carry no tenant of their own: the
+run carries it, nothing reaches either table without going through the run, and
+a second copy of the tenant on a child row is one more thing that can disagree.
 """
 
 from __future__ import annotations
@@ -821,8 +826,15 @@ class WorkflowRunStepRow(Base):
 
     says: Mapped[str] = mapped_column(Text, nullable=False, default="")
     planned_by: Mapped[str | None] = mapped_column(Text)
-    sent: Mapped[Any] = mapped_column(JSONB)  # the command envelope's kind and payload
-    result: Mapped[Any] = mapped_column(JSONB)  # what the extension answered
+    sent: Mapped[Any | None] = mapped_column(JSONB(none_as_null=True), nullable=True)
+    """The command envelope's kind and payload, NULL for a step that sent
+    nothing. ``none_as_null`` because JSONB otherwise stores ``None`` as the
+    JSON scalar ``null``, which is not SQL NULL: ``sent IS NULL`` would be false
+    and every reader that asks whether a step sent anything would be told yes.
+    The rig wrote SQL NULL, and its readers test for it."""
+
+    result: Mapped[Any | None] = mapped_column(JSONB(none_as_null=True), nullable=True)
+    """What the extension answered, NULL when it never did -- the same reason."""
 
     verdict: Mapped[str] = mapped_column(String(24), nullable=False)
     verdict_by: Mapped[str] = mapped_column(String(24), nullable=False, default="")

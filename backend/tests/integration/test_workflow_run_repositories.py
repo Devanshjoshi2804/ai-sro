@@ -12,10 +12,12 @@ from __future__ import annotations
 
 from typing import Any
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun, new_run_id
 from sro.domain.shared.identifiers import DeviceId, TenantId
+from sro.infrastructure.db.models import WorkflowRunStepRow
 from sro.infrastructure.db.repositories import SqlUnitOfWork
 
 TENANT = TenantId("acme")
@@ -107,7 +109,9 @@ class TestWorkflowRuns:
         self, session_factory: async_sessionmaker[AsyncSession]
     ) -> None:
         """A run is saved after every step so the panel can poll it; the second
-        save must not double the first step."""
+        save must not double the first step -- and a step that leaves the
+        record has to leave the store with it, which a per-step upsert keyed on
+        (run_id, ord) would not do."""
         run = _run(steps=[RunStep(order=0, says="a", verdict="held", verdict_by="status")])
 
         async with SqlUnitOfWork(session_factory) as uow:
@@ -117,10 +121,46 @@ class TestWorkflowRuns:
             await uow.commit()
 
         async with SqlUnitOfWork(session_factory) as uow:
+            grown = await uow.workflow_runs.get(TENANT, run.id)
+
+        assert grown is not None
+        assert [step.order for step in grown.steps] == [0, 1]
+
+        run.steps = run.steps[:1]
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflow_runs.save(run)
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            shrunk = await uow.workflow_runs.get(TENANT, run.id)
+
+        assert shrunk is not None
+        assert [step.order for step in shrunk.steps] == [0]
+
+    async def test_a_step_that_sent_nothing_reads_back_as_sql_null(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """Not the JSON scalar ``null``. JSONB stores ``None`` as that by
+        default, and then ``sent IS NULL`` is false -- so every reader asking
+        whether a step sent anything is told yes, about a step that sent
+        nothing."""
+        run = _run(steps=[RunStep(order=0, says="think", verdict="held")])
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflow_runs.save(run)
+            await uow.commit()
+
+        async with session_factory() as session:
+            empty = await session.scalar(
+                select(WorkflowRunStepRow.sent.is_(None)).where(WorkflowRunStepRow.run_id == run.id)
+            )
+
+        async with SqlUnitOfWork(session_factory) as uow:
             back = await uow.workflow_runs.get(TENANT, run.id)
 
+        assert empty is True
         assert back is not None
-        assert [step.order for step in back.steps] == [0, 1]
+        assert (back.steps[0].sent, back.steps[0].result) == (None, None)
 
     async def test_the_flags_a_run_carries_survive_the_round_trip(
         self, session_factory: async_sessionmaker[AsyncSession]
@@ -343,13 +383,21 @@ class TestApprovals:
             ]
         )
         moving = _run(steps=[RunStep(order=0, says="type the code", verdict="held")])
+        # A run nobody can answer any more: the tap it is asking for could not
+        # let anything out, and without a liveness predicate it would sit in
+        # the supervisor's queue forever.
+        over = _run(
+            outcome="aborted",
+            finished_at="2026-09-05T10:04:00+00:00",
+            steps=[RunStep(order=0, says="a write nobody let out", verdict="awaiting")],
+        )
         elsewhere = _run(
             tenant=OTHER_TENANT.value,
             steps=[RunStep(order=0, says="somebody else's write", verdict="awaiting")],
         )
 
         async with SqlUnitOfWork(session_factory) as uow:
-            for run in (parked, moving, elsewhere):
+            for run in (parked, moving, over, elsewhere):
                 await uow.workflow_runs.save(run)
             await uow.commit()
 

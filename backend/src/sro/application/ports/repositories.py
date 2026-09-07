@@ -13,6 +13,7 @@ from typing import Protocol
 
 from sro.domain.chat.thread import Thread, ThreadId
 from sro.domain.connection.connection import Connection, ConnectionId
+from sro.domain.execution.belts import RunProof
 from sro.domain.execution.model_call import ModelCall
 from sro.domain.execution.run import Run, RunId
 from sro.domain.execution.workflow_run import WorkflowRun
@@ -21,6 +22,8 @@ from sro.domain.observation.batch import ObservationBatch
 from sro.domain.observation.candidate import CandidateStatus, TaskCandidate
 from sro.domain.observation.device import AgentDevice
 from sro.domain.observation.gesture import Gesture, GestureBatch, Intent
+from sro.domain.observation.identity import ShapeKey
+from sro.domain.observation.mining import MiningPass
 from sro.domain.observation.policy import ObservationPolicy
 from sro.domain.observation.pool import PoolEntry
 from sro.domain.recording.recording import Recording
@@ -38,6 +41,7 @@ from sro.domain.shared.identifiers import (
 )
 from sro.domain.shared.objective import ObjectiveKey
 from sro.domain.skill.skill import Skill
+from sro.domain.skill.workflow import Workflow
 from sro.domain.trigger.confirmation import Confirmation
 from sro.domain.trigger.trigger import Trigger
 
@@ -625,6 +629,97 @@ class WorkflowRunRepository(Protocol):
         ...
 
 
+class WorkflowRepository(Protocol):
+    """What a mining pass found, and what running it has since earned.
+
+    Four things behind one port because they are one lifecycle: a pass proposes
+    a workflow, its steps cite the evidence, a run notices a step going weak,
+    and a verified write is registered against the job it was a step of.
+    """
+
+    async def save(self, workflow: Workflow) -> None:
+        """Whole workflow, steps replaced rather than appended.
+
+        Identity resolution re-saves a workflow it merged evidence into, so a
+        step the merge dropped has to leave the store with it.
+        """
+        ...
+
+    async def known(self, tenant_id: TenantId) -> tuple[Workflow, ...]:
+        """Oldest first, which is the order the miner resolves against."""
+        ...
+
+    async def get(self, tenant_id: TenantId, workflow_id: str) -> Workflow: ...
+
+    async def rekey(self, tenant_id: TenantId, workflow_id: str, key: ShapeKey) -> None:
+        """Replace the shape identity resolution compares proposals against.
+
+        Run once at startup, when the rule that makes a key has changed: keys
+        mined before the change no longer match keys mined after, and a job
+        already held could be proposed again as a new one.
+        """
+        ...
+
+    async def add_pass(self, mining_pass: MiningPass) -> None:
+        """One row per reading of a tenant's day, found anything or not.
+
+        A refused call is the case that matters: it is then the only record
+        left of a call that cost money and returned nothing.
+        """
+        ...
+
+    async def passes(self, tenant_id: TenantId) -> tuple[MiningPass, ...]:
+        """Every pass this tenant has been billed for, oldest first."""
+        ...
+
+    async def mark_stale(
+        self, workflow_id: str, ord_: int, *, matched_by: str | None, noticed_at: str
+    ) -> None:
+        """A step only the weakest rung of the locator ladder found.
+
+        One row per step, so a job run every morning reports the same weak step
+        once rather than daily. Not written onto the workflow itself: that is
+        what a mining pass writes and this is what a run learned, and one
+        rewriting the other would race a re-mine.
+        """
+        ...
+
+    async def clear_stale(self, workflow_id: str, ord_: int) -> None:
+        """The step matched properly again. A warning that never clears is a
+        warning nobody reads. Idempotent: clearing a step that was never weak
+        is not an error."""
+        ...
+
+    async def stale_count(self, workflow_id: str) -> int:
+        """How many of this job's steps are about to break."""
+        ...
+
+    async def record_effect(
+        self, workflow_id: str, *, run_id: str, ord_: int, verified_by: str, at: str
+    ) -> None:
+        """Register a write the verifier saw hold by state.
+
+        A verdict that is not a state belt is dropped rather than stored: a
+        model reading a screenshot is not evidence anything was written. One
+        write of one run is one row however many times it is verified.
+        """
+        ...
+
+    async def forget_effects(self, workflow_id: str) -> int:
+        """How many were forgotten. One failed write empties the register."""
+        ...
+
+    async def proofs(self, tenant_id: TenantId, workflow_id: str) -> tuple[RunProof, ...]:
+        """One per live run of this workflow that held, for ``earned_from``.
+
+        The steps that wrote come off each step's own ``wrote`` marker, which
+        the runner set at send time: SQL cannot ask ``writes()``, and the
+        evidence a later reader would have to ask it about may have been
+        re-mined by then.
+        """
+        ...
+
+
 class UnitOfWork(Protocol):
     """Transaction boundary. Leaving the block without ``commit`` rolls back."""
 
@@ -640,6 +735,7 @@ class UnitOfWork(Protocol):
     observations: ObservationRepository
     gestures: GestureRepository
     workflow_runs: WorkflowRunRepository
+    workflows: WorkflowRepository
     pool: PoolRepository
     observation_policies: ObservationPolicyRepository
     candidates: CandidateRepository

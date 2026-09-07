@@ -120,6 +120,7 @@ from sro.infrastructure.db.models import (
     TriggerRow,
 )
 from sro.infrastructure.db.workflow_runs import SqlWorkflowRunRepository
+from sro.infrastructure.db.workflows import SqlWorkflowRepository
 
 
 class SqlRecordingRepository(RecordingRepository):
@@ -928,6 +929,7 @@ class SqlUnitOfWork(UnitOfWork):
         self.observations = SqlObservationRepository(self._session)
         self.gestures = SqlGestureRepository(self._session)
         self.workflow_runs = SqlWorkflowRunRepository(self._session)
+        self.workflows = SqlWorkflowRepository(self._session)
         self.pool = SqlPoolRepository(self._session)
         self.observation_policies = SqlObservationPolicyRepository(self._session)
         self.candidates = SqlCandidateRepository(self._session)

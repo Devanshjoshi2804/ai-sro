@@ -489,8 +489,26 @@ async def _one_pass(
         #
         # The commit is here rather than after the block for the same reason:
         # on the happy path the workflows, the pool and the bill land in one
-        # transaction, and on the raising path the bill still lands.
-        await uow.workflows.add_pass(_billed(pass_id, tenant_id, started_at, result))
+        # transaction.
+        billed = _billed(pass_id, tenant_id, started_at, result)
+        try:
+            await uow.workflows.add_pass(billed)
+        except Exception:
+            # The session is already dead. Postgres refuses every statement on
+            # a transaction that has raised -- InFailedSQLTransactionError --
+            # so this write failed for the same reason the one above it did,
+            # and its DBAPIError would replace the exception that caused it.
+            #
+            # The rollback costs nothing that is not already lost: Postgres
+            # discarded this transaction's workflows the moment the statement
+            # failed. Measured against the suite's own Postgres, before this:
+            # `passes: 0, workflows: 0` and a DBAPIError in place of the real
+            # one. The rig never met this because its `store.execute` opened a
+            # connection per statement, so every save was its own committed
+            # transaction and the bill after a failed one simply landed. One
+            # session is the port's shape, and this is what that shape costs.
+            await uow.rollback()
+            await uow.workflows.add_pass(billed)
         await uow.commit()
     return result
 

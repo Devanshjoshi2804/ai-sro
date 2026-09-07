@@ -1655,13 +1655,34 @@ class FakeWorkflowRepository:
     def __init__(self, runs: FakeWorkflowRunRepository | None = None) -> None:
         self.rows: dict[str, Workflow] = {}
         self.passes_made: list[MiningPass] = []
+        self.poisoned = False
+        """A statement has failed and the session will take no more.
+
+        Postgres refuses every further statement on a transaction that has
+        raised -- ``InFailedSQLTransactionError`` -- until somebody rolls it
+        back, and it discards everything that transaction had written. A fake
+        whose writes go on working after one raised cannot show a caller that
+        the row it writes in a ``finally`` is lost, which is exactly what the
+        mining pass writes there. Set by a test; cleared only by
+        ``FakeUnitOfWork.rollback``, which is the only thing that clears it in
+        the store either.
+
+        On this repository alone, because the pass's two writes -- the workflow
+        and the bill -- both land here. Widen it the day another use case needs
+        a dead session somewhere else.
+        """
         self.stale: dict[tuple[str, int], tuple[str | None, str]] = {}
         self.effects: dict[tuple[str, str, int], tuple[str, str]] = {}
         self.runs = runs if runs is not None else FakeWorkflowRunRepository()
         self._saved = count()
         self._created: dict[str, int] = {}
 
+    def _alive(self) -> None:
+        if self.poisoned:
+            raise RuntimeError("current transaction is aborted, commands ignored")
+
     async def save(self, workflow: Workflow) -> None:
+        self._alive()
         self.rows[workflow.id] = deepcopy(workflow)
         # The store rewrites ``created_at`` on a re-save, as INSERT OR REPLACE
         # did, so a re-saved workflow moves to the end of ``known``.
@@ -1689,6 +1710,7 @@ class FakeWorkflowRepository:
             row.shape_key = [list(entry) for entry in key]
 
     async def add_pass(self, mining_pass: MiningPass) -> None:
+        self._alive()
         # The store's plain INSERT, which refuses a second row under one id:
         # a pass id is minted per reading, so that would be one model call
         # billed twice.
@@ -1939,14 +1961,17 @@ class FakeUnitOfWork:
         self.gestures = FakeGestureRepository()
         self.workflow_runs = FakeWorkflowRunRepository()
         # One database in the store, so the workflow repository reads the
-        # same runs: ``proofs`` walks them.
-        self.workflows = FakeWorkflowRepository(self.workflow_runs)
+        # same runs: ``proofs`` walks them. Held concretely as well, because
+        # ``rollback`` has to clear its poison and the attribute above is
+        # declared as the port -- a port has no such flag.
+        self._workflows = FakeWorkflowRepository(self.workflow_runs)
+        self.workflows = self._workflows
         self.offers = FakeOfferRepository()
         self.chats = FakeChatRepository()
         # One database in the store: the day's bill is summed over the same
         # four repositories the rest of the unit of work writes to.
         self.spend = FakeSpendRepository(
-            self.gestures, self.workflows, self.workflow_runs, self.chats
+            self.gestures, self._workflows, self.workflow_runs, self.chats
         )
         self.pool = FakePoolRepository()
         self.observation_policies = FakeObservationPolicyRepository()
@@ -1977,6 +2002,11 @@ class FakeUnitOfWork:
 
     async def rollback(self) -> None:
         self.rollbacks += 1
+        # A rollback makes a killed session usable again, which is the half
+        # this fake models. It does not throw away what the transaction had
+        # written -- the class does not simulate rollback at all, and the
+        # integration suite is where that half is proved.
+        self._workflows.poisoned = False
 
 
 class FakeIntentParser:

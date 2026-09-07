@@ -258,6 +258,58 @@ async def test_two_passes_at_once_do_not_both_read_the_same_window() -> None:
     assert len(await uow.workflows.known(TENANT)) == 1
 
 
+async def test_two_tenants_mine_at_the_same_time_rather_than_in_turn() -> None:
+    """Keyed by tenant, not by the bare word "mining". A single global name
+    makes two DIFFERENT tenants take turns, which is nothing but a queue --
+    commit 7fc2b99 fixed exactly that for the reading loop, after the bake-off
+    ran five models over five copies of one day and a global lock turned an
+    hour of parallel work into five hours of serial work.
+
+    Deadlocks under one lock and completes under two, with no sleep in it:
+    the first tenant's asker will not answer until the second's has been
+    asked, which can never happen while the second is waiting for the first's
+    lock.
+    """
+    uow, _ = await _day()
+    await uow.gestures.add_gestures(tuple(_gestures("other-corp")))
+    second_asked = asyncio.Event()
+
+    class Gated:
+        """An asker that answers only once its partner has been asked."""
+
+        def __init__(self, *, waits: bool) -> None:
+            self._waits = waits
+
+        async def ask(self, **_: object) -> Answer:
+            if self._waits:
+                await second_asked.wait()
+            else:
+                second_asked.set()
+            return _found()
+
+    await asyncio.wait_for(
+        asyncio.gather(
+            mine(
+                uow,
+                tenant_id=TENANT,
+                asker=Gated(waits=True),
+                model=MODEL,
+                now=NOW,
+                cap_usd=CAP,
+            ),
+            mine(
+                uow,
+                tenant_id=TenantId("other-corp"),
+                asker=Gated(waits=False),
+                model=MODEL,
+                now=NOW,
+                cap_usd=CAP,
+            ),
+        ),
+        timeout=1,
+    )
+
+
 async def test_a_reading_that_cited_one_corner_of_the_window_says_so() -> None:
     """K_MIN_COVERAGE and K_MAX_SKEW were declared for this loop to read.
     Long-context citation bias is invisible without counting, and a pass that
@@ -494,17 +546,31 @@ async def test_a_day_of_refused_calls_does_not_retire_the_pool() -> None:
 
 async def test_the_cost_of_the_pass_is_recorded() -> None:
     uow, _ = await _day()
-    asker = FakeAsker(Answer(data={"workflows": []}, in_tokens=900, out_tokens=100, cost_usd=0.037))
+    asker = FakeAsker(
+        Answer(
+            data={"workflows": []},
+            in_tokens=900,
+            out_tokens=100,
+            thought_tokens=40,
+            cost_usd=0.037,
+        )
+    )
 
     result = await _mine(uow, asker)
 
     assert result.cost_usd == 0.037
     billed = await uow.workflows.passes(TENANT)
     assert [one.cost_usd for one in billed] == [0.037]
+    # The tokens as well, and `thought_tokens` above all: K_EFFORT = "high"
+    # exists to spend those, and a row that reports the dollars without them
+    # cannot say what the pass was thinking with.
+    assert (billed[0].in_tokens, billed[0].out_tokens, billed[0].thought_tokens) == (900, 100, 40)
     # Stamped with the caller's clock and not the server's, so the day a pass
     # is billed to is the day its caller meant -- and so a cap summed from
     # that day's midnight is summing the same day.
     assert billed[0].started_at == NOW.isoformat()
+    # A pass nobody committed is a pass nobody was billed for.
+    assert uow.commits == 1
 
 
 async def test_the_bill_belongs_to_the_pass_and_is_recorded_once() -> None:
@@ -604,6 +670,34 @@ async def test_the_pass_row_is_written_even_when_the_work_after_the_call_fails(
     assert [one.cost_usd for one in billed] == [0.04], "the call was billed and nothing recorded it"
 
 
+async def test_the_bill_is_written_on_a_session_the_save_killed() -> None:
+    """The sibling above plants a Python error, where the session is fine. A
+    REAL store failure kills the transaction: Postgres refuses every further
+    statement on it -- InFailedSQLTransactionError -- so the bill written in
+    the `finally` failed too, its DBAPIError replaced the exception that
+    caused it, and the row that is the only record of a paid-for call was
+    lost. Measured against the suite's own Postgres: `passes: 0`.
+
+    The rig never met this. Its `store.execute` opened a connection per
+    statement, so `save_workflow` and the pass insert were separate committed
+    transactions and the bill after a failed save simply landed. One session
+    is this port's shape, so the rollback-and-retry is what restores the rig's
+    guarantee. The workflow itself is gone either way -- Postgres discarded it
+    when the statement failed -- which is not something this fake models, and
+    is why the integration test beside it exists.
+    """
+    uow, ids = await _day()
+    uow._workflows.poisoned = True
+    asker = FakeAsker(Answer(data={"workflows": [_proposal(ids[:2])]}, cost_usd=0.04))
+
+    with pytest.raises(RuntimeError):
+        await _mine(uow, asker)
+
+    assert uow.rollbacks == 1, "the session had to be revived before it could be written to"
+    assert [one.cost_usd for one in await uow.workflows.passes(TENANT)] == [0.04]
+    assert uow.commits == 1
+
+
 async def test_a_day_over_its_cap_is_not_mined_and_is_not_billed() -> None:
     """The cap stops the ASKING, and it is read before the pass asks anything.
     This is the most expensive call in the system: a cap checked after the
@@ -620,6 +714,7 @@ async def test_a_day_over_its_cap_is_not_mined_and_is_not_billed() -> None:
     assert await uow.workflows.passes(TENANT) == (), "nothing was billed, so nothing is recorded"
     assert await uow.workflows.known(TENANT) == ()
     assert await _pool_ids(uow) == set()
+    assert uow.commits == 0, "a pass that wrote nothing must not commit the caller's session"
 
 
 # --------------------------------------------------------------------------
@@ -1009,6 +1104,27 @@ async def test_a_workflow_whose_evidence_is_partly_gone_keeps_its_key() -> None:
     assert (await uow.workflows.get(TENANT, "wfl_1")).shape_key == STALE, (
         "not rekeyed over the survivors"
     )
+
+
+async def test_a_workflow_that_cites_nothing_keeps_the_key_it_has() -> None:
+    """`if not wanted: continue`, which nothing was watching.
+
+    A workflow with no citations has no evidence to make a key out of, and the
+    key `shape_key([])` returns is empty. Written over a stored one, that is a
+    row whose shape matches nothing -- and `containment` returns 0.0 for an
+    empty set, so `identity.resolve` can never recognise the job again and the
+    next pass proposes it as new. Which is the duplicate this pass exists to
+    prevent.
+    """
+    uow = FakeUnitOfWork()
+    by_id = _evidence()
+    uncited = Workflow(id="wfl_1", tenant=TENANT.value, title="cites nothing", narrative="n")
+    uncited.shape_key = [list(triple) for triple in STALE]
+    await _plant(uow, by_id, uncited)
+
+    assert await rekey_workflows(uow, tenant_id=TENANT) == 0
+    assert (await uow.workflows.get(TENANT, "wfl_1")).shape_key == STALE
+    assert uow.commits == 0
 
 
 async def test_a_workflow_that_cannot_be_rekeyed_does_not_stop_the_others() -> None:

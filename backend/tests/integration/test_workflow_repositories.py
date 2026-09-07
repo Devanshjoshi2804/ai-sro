@@ -13,20 +13,26 @@ rest are the effects and stale rules, which plan 1 ported as pure rules in
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
 from sqlalchemy import select
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from sro.application.observation.mining_pass import mine
 from sro.domain.execution.belts import RunProof, earned_from
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun, new_run_id
 from sro.domain.observation.mining import MiningPass
 from sro.domain.shared.errors import Conflict, NotFound
 from sro.domain.shared.identifiers import TenantId
+from sro.domain.shared.prices import Answer
 from sro.domain.skill.workflow import Step, Workflow, new_workflow_id
 from sro.infrastructure.db.models import WorkflowEffectRow
 from sro.infrastructure.db.repositories import SqlUnitOfWork
+from tests.unit.domain.rig.conftest import gestures as _gestures
+from tests.unit.fakes import FakeAsker
 
 FOUND_BY = "pas_abcdef"
 
@@ -534,3 +540,74 @@ class TestStaleSteps:
 
         async with SqlUnitOfWork(session_factory) as uow:
             assert await uow.workflows.stale_count(workflow.id) == 0
+
+
+class TestTheMiningPass:
+    """The one rule of `mine` that only a real session can prove.
+
+    Everything else about the pass is arithmetic over fakes in
+    `tests/unit/application/rig/test_mine.py`. This is the half no fake can
+    answer: what a store does to a transaction whose statement failed, and
+    whether the bill the pass writes in its `finally` survives it.
+    """
+
+    async def test_the_bill_is_written_on_a_session_the_save_killed(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """A pass whose workflow will not go into the store is still a pass
+        that was billed.
+
+        `same_as` is `varchar(64)` and comes straight off the model answer, so
+        a model that names a job in a hundred characters is an ordinary
+        statement error rather than a contrived one. Postgres then refuses
+        every further statement on the transaction -- so before the
+        rollback-and-retry this probe read `passes: 0, workflows: 0`, with a
+        DBAPIError in place of the error that caused it, and the only record
+        of a paid-for call was gone.
+
+        The rig never met this: its `store.execute` opened a connection per
+        statement, so each save was its own committed transaction. One session
+        is this port's shape.
+        """
+        gestures = _gestures(TENANT.value)
+        proposal = {
+            "title": "create a work operation",
+            "narrative": "n",
+            "systems": [gestures[0].system],
+            "steps": [
+                {
+                    "order": 0,
+                    "cites": [gestures[0].id],
+                    "says": "do it",
+                    "system": gestures[0].system,
+                }
+            ],
+            # Longer than the column, which is what kills the statement.
+            "same_as": "wfl_" + "0" * 100,
+        }
+        asker = FakeAsker(Answer(data={"workflows": [proposal]}, cost_usd=0.04))
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.gestures.add_gestures(tuple(gestures))
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            with pytest.raises(DBAPIError):
+                await mine(
+                    uow,
+                    tenant_id=TENANT,
+                    asker=asker,
+                    model="gemini-3.1-pro",
+                    now=datetime(2025, 2, 11, 23, tzinfo=UTC),
+                    cap_usd=100.0,
+                )
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            billed = await uow.workflows.passes(TENANT)
+            kept = await uow.workflows.known(TENANT)
+
+        assert [one.cost_usd for one in billed] == [0.04], "the call was billed; the row proves it"
+        assert billed[0].proposed == 1
+        # Postgres discarded them when the statement failed. Nothing here can
+        # keep them, and the bill is what must not go with them.
+        assert kept == ()

@@ -188,6 +188,13 @@ def main() -> None:
         help="ask each vendor which models it will actually serve this key, then stop",
     )
     parser.add_argument(
+        "--effort",
+        choices=("minimal", "low", "medium", "high"),
+        help="reasoning effort for the mining pass; the rig ships 'high'."
+        " A model whose thinking is billed inside its output ceiling can think"
+        " itself out of room to answer, and this is the knob that gives it room.",
+    )
+    parser.add_argument(
         "--fresh",
         action="store_true",
         help="empty each copy of what an earlier pass found, so the mine door measures something",
@@ -198,6 +205,16 @@ def main() -> None:
     source = Path(args.db)
     if not source.exists():
         raise SystemExit(f"no store at {source}")
+
+    if args.effort:
+        # An instrument reaching into the module it measures. The mining pass
+        # reads this constant at call time, and the alternative -- threading an
+        # effort through mine() and propose() -- would change the rig to
+        # measure it.
+        import rig.umbrella
+
+        rig.umbrella.K_EFFORT = args.effort  # type: ignore[assignment]
+        print(f"effort:   {args.effort} for the mining pass (the rig ships 'high')")
 
     env = _env_files()
     gemini, anthropic = key_for(GEMINI_KEYS, env), key_for(ANTHROPIC_KEYS, env)

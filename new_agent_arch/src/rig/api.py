@@ -1322,14 +1322,20 @@ def build_app(
         button somebody will lean on.
         """
         limit = max(1, min(int(limit), 1000))
+        # Every column, rather than a list written by hand: the table has grown
+        # three times since this route was written and each time the page drew
+        # `undefined` for the new figures, because a select list drifts and
+        # nothing fails when it does. `id` and `tenant` are dropped -- one is a
+        # row id nobody outside asks for, the other is the caller's own.
         rows = store.query(
-            "SELECT sweep_id, model, door, at, calls, seconds, p50_ms, p95_ms, slowest_ms,"
-            " in_tokens, out_tokens, thought_tokens, cost_usd, unpriced, refused, gestures,"
-            " usable, proposed, kept, cross_system, coverage, skew, lopsided, error"
-            " FROM bakeoff WHERE tenant = ? ORDER BY at DESC, model, door LIMIT ?",
+            "SELECT * FROM bakeoff WHERE tenant = ? ORDER BY at DESC, model, door LIMIT ?",
             (tenant, limit),
         )
-        return {"rows": [dict(row) for row in rows]}
+        return {
+            "rows": [
+                {k: v for k, v in dict(row).items() if k not in ("id", "tenant")} for row in rows
+            ]
+        }
 
     @app.get("/v1/bakeoff/readings", dependencies=[Depends(tenant_only)])
     async def bakeoff_readings(sweep: str = "", limit: int = 5000) -> dict[str, Any]:

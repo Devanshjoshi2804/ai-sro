@@ -871,3 +871,141 @@ class ApprovalRow(Base):
     device_id: Mapped[str | None] = mapped_column(String(64))
     """The browser whose panel the tap came from, when the panel named one. A
     bare POST is a tap, so this is nullable."""
+
+
+class WorkflowRow(Base):
+    """A workflow a mining pass found: what it says, and the shape it is known by.
+
+    No cost of its own. One pass makes exactly one model call and proposes
+    every workflow in it, so a workflow names the pass that found it rather
+    than carrying a copy of the bill -- three workflows out of one $0.04 call
+    summed to $0.12 when they each carried it, an overstatement that grew with
+    how well the pass did.
+    """
+
+    __tablename__ = "workflows"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(String(64), nullable=False)
+
+    pass_id: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    """Empty for a workflow saved outside a pass, which today is only a test."""
+
+    title: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    narrative: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    systems: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list)
+    parameters: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list)
+
+    shape_key: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list)
+    """What identity resolution compares a new proposal against. Rewritten in
+    place by ``rekey`` when the rule that makes a key changes, because keys
+    mined before the change no longer match keys mined after and a job already
+    held could then be proposed again as a new one."""
+
+    same_as: Mapped[str | None] = mapped_column(String(64))
+    """The model's opinion about whether this is one it has proposed before. It
+    is recorded and it decides nothing: a model re-judging its own earlier
+    verdict disagrees with itself at roughly 90%."""
+
+    unproven: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (Index("ix_workflows_tenant_created", "tenant_id", "created_at"),)
+
+
+class WorkflowStepRow(Base):
+    """One step of a workflow, and the gestures that prove it.
+
+    No tenant of its own and no foreign key, as in the rig: a step is reached
+    only through its workflow, which carries the tenant, and the workflow's
+    save deletes and reinserts this whole set every time.
+
+    ``cites`` is the reason the mining prompt selects rather than generates:
+    free-generated workflow JSON hallucinated up to 21% of steps, and forced to
+    select from real evidence that fell below 7.5%. An uncited step is rejected.
+    """
+
+    __tablename__ = "workflow_steps"
+
+    workflow_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    ord: Mapped[int] = mapped_column(Integer, primary_key=True)
+
+    says: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    system: Mapped[str | None] = mapped_column(Text)
+    cites: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list)
+    parameters: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list)
+
+
+class WorkflowStaleRow(Base):
+    """A step whose control was only found by the weakest rung of the locator
+    ladder. The run succeeded; the step is about to break.
+
+    One row per step, so a workflow run daily reports the same weak step once
+    rather than daily. Kept apart from the workflow itself because that is what
+    a mining pass writes and this is what a run learned -- rewriting the
+    workflow from here would race a re-mine and lose one of the two.
+    """
+
+    __tablename__ = "workflow_stale"
+
+    workflow_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    ord: Mapped[int] = mapped_column(Integer, primary_key=True)
+    matched_by: Mapped[str | None] = mapped_column(Text)
+    noticed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class WorkflowEffectRow(Base):
+    """One write a live run made and the verifier then saw hold by STATE -- a
+    status the server answered, or a read that showed the record.
+
+    Never by a picture: a model reading a screenshot is not evidence anything
+    was written. Three runs whose every write is in here is what buys a job the
+    right to write unasked, and one failed write empties it for that workflow.
+    """
+
+    __tablename__ = "workflow_effects"
+
+    workflow_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    run_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    ord: Mapped[int] = mapped_column(Integer, primary_key=True)
+    verified_by: Mapped[str] = mapped_column(String(24), nullable=False)
+    at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class MiningPassRow(Base):
+    """One reading of one tenant's day, and what it cost.
+
+    ``mining_passes`` rather than the rig's ``passes``: the shorter word says
+    nothing about what kind of pass it is in a schema this size.
+
+    Written whether the pass found anything or not -- including when it was
+    refused, which is the only record left of a call that cost money and
+    returned nothing.
+    """
+
+    __tablename__ = "mining_passes"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    in_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    out_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    thought_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    """Inside out_tokens, not beside them."""
+
+    cost_usd: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    unpriced: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+    proposed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    kept: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    rejected: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    coverage: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    skew: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    lopsided: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+    error: Mapped[str | None] = mapped_column(Text)
+    """Why it found nothing, when it found nothing for a reason the API gave.
+    An honest zero and a refused call are the same row without this."""
+
+    __table_args__ = (Index("ix_mining_passes_tenant_started", "tenant_id", "started_at"),)

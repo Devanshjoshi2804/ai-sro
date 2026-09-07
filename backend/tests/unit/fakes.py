@@ -51,6 +51,7 @@ from sro.application.ports.repositories import (
     ToolCallRepository,
     TriggerRepository,
     UnitOfWork,
+    WorkflowRepository,
     WorkflowRunRepository,
 )
 from sro.application.ports.schedule import Scheduler, SchedulerUnavailable
@@ -68,6 +69,7 @@ from sro.application.ports.vision import (
 )
 from sro.domain.chat.thread import MessageId, Thread, ThreadId
 from sro.domain.connection.connection import Connection, ConnectionId, ConnectionStatus
+from sro.domain.execution.belts import RunProof, state_verified
 from sro.domain.execution.model_call import ModelCall
 from sro.domain.execution.run import Medium, Run, RunId
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
@@ -81,6 +83,8 @@ from sro.domain.observation.batch import ObservationBatch
 from sro.domain.observation.candidate import CandidateStatus, TaskCandidate
 from sro.domain.observation.device import AgentDevice
 from sro.domain.observation.gesture import Gesture, GestureBatch, Intent
+from sro.domain.observation.identity import ShapeKey
+from sro.domain.observation.mining import MiningPass
 from sro.domain.observation.policy import ObservationPolicy
 from sro.domain.observation.pool import (
     K_POOL_AGE,
@@ -111,6 +115,7 @@ from sro.domain.shared.prices import Answer as ModelAnswer
 from sro.domain.shared.prices import Effort
 from sro.domain.skill.locator import LocatorStrategy
 from sro.domain.skill.skill import Skill
+from sro.domain.skill.workflow import Workflow
 from sro.domain.trigger.confirmation import Answer, Confirmation
 from sro.domain.trigger.trigger import Trigger
 
@@ -1521,6 +1526,107 @@ class FakeWorkflowRunRepository:
         return len(orphans)
 
 
+class FakeWorkflowRepository:
+    """Workflows, their passes, their weak steps and their earned writes.
+
+    Faithful rather than convenient, because the mining and runner suites will
+    be built on it. Workflows are stored and returned as copies, so "steps are
+    replaced, not appended" is real here. ``known`` is oldest first and a
+    re-save moves a workflow to the end, which is what the store's ``created_at``
+    does. ``record_effect`` keeps the state-belt gate -- a picture is not an
+    effect -- and asks the domain rather than holding a second copy of the belt
+    list. ``proofs`` reads the runs from the run repository, because in the
+    store they are one database.
+    """
+
+    def __init__(self, runs: FakeWorkflowRunRepository | None = None) -> None:
+        self.rows: dict[str, Workflow] = {}
+        self.passes_made: list[MiningPass] = []
+        self.stale: dict[tuple[str, int], tuple[str | None, str]] = {}
+        self.effects: dict[tuple[str, str, int], tuple[str, str]] = {}
+        self.runs = runs if runs is not None else FakeWorkflowRunRepository()
+        self._saved = count()
+        self._order: dict[str, int] = {}
+
+    async def save(self, workflow: Workflow) -> None:
+        self.rows[workflow.id] = deepcopy(workflow)
+        # The store rewrites ``created_at`` on a re-save, as INSERT OR REPLACE
+        # did, so a re-saved workflow moves to the end of ``known``.
+        self._order[workflow.id] = next(self._saved)
+
+    async def known(self, tenant_id: TenantId) -> tuple[Workflow, ...]:
+        found = [row for row in self.rows.values() if row.tenant == tenant_id.value]
+        found.sort(key=lambda row: self._order[row.id])
+        return tuple(deepcopy(row) for row in found)
+
+    async def get(self, tenant_id: TenantId, workflow_id: str) -> Workflow:
+        row = self.rows.get(workflow_id)
+        if row is None or row.tenant != tenant_id.value:
+            raise NotFound(f"workflow {workflow_id} was not found")
+        return deepcopy(row)
+
+    async def rekey(self, tenant_id: TenantId, workflow_id: str, key: ShapeKey) -> None:
+        row = self.rows.get(workflow_id)
+        if row is not None and row.tenant == tenant_id.value:
+            row.shape_key = [list(entry) for entry in key]
+
+    async def add_pass(self, mining_pass: MiningPass) -> None:
+        self.passes_made.append(mining_pass)
+
+    async def passes(self, tenant_id: TenantId) -> tuple[MiningPass, ...]:
+        made = [row for row in self.passes_made if row.tenant == tenant_id.value]
+        return tuple(sorted(made, key=lambda row: (row.started_at, row.id)))
+
+    async def mark_stale(
+        self, workflow_id: str, ord_: int, *, matched_by: str | None, noticed_at: str
+    ) -> None:
+        # One row per step, so a job run every morning reports its weak step
+        # once rather than daily.
+        self.stale[(workflow_id, ord_)] = (matched_by, noticed_at)
+
+    async def clear_stale(self, workflow_id: str, ord_: int) -> None:
+        self.stale.pop((workflow_id, ord_), None)
+
+    async def stale_count(self, workflow_id: str) -> int:
+        return sum(1 for workflow, _ in self.stale if workflow == workflow_id)
+
+    async def record_effect(
+        self, workflow_id: str, *, run_id: str, ord_: int, verified_by: str, at: str
+    ) -> None:
+        # Never by a picture: a model reading a screenshot is not evidence
+        # anything was written.
+        if not state_verified(verified_by):
+            return
+        self.effects[(workflow_id, run_id, ord_)] = (verified_by, at)
+
+    async def forget_effects(self, workflow_id: str) -> int:
+        doomed = [key for key in self.effects if key[0] == workflow_id]
+        for key in doomed:
+            del self.effects[key]
+        return len(doomed)
+
+    async def proofs(self, tenant_id: TenantId, workflow_id: str) -> tuple[RunProof, ...]:
+        held = [
+            run
+            for run in (await self.runs.for_workflow(tenant_id, workflow_id))
+            if run.live and run.outcome == "held"
+        ]
+        return tuple(
+            RunProof(
+                run_id=run.id,
+                wrote=frozenset(
+                    step.order for step in run.steps if (step.result or {}).get("wrote")
+                ),
+                verified=frozenset(
+                    ord_
+                    for (workflow, effect_run, ord_) in self.effects
+                    if workflow == workflow_id and effect_run == run.id
+                ),
+            )
+            for run in held
+        )
+
+
 class FakeUnitOfWork:
     """Counts commits. Does not simulate rollback -- the repositories hold the
     same objects the use case mutated. Transactions are proved in
@@ -1539,6 +1645,7 @@ class FakeUnitOfWork:
     observations: ObservationRepository
     gestures: GestureRepository
     workflow_runs: WorkflowRunRepository
+    workflows: WorkflowRepository
     pool: PoolRepository
     observation_policies: ObservationPolicyRepository
     candidates: CandidateRepository
@@ -1559,6 +1666,9 @@ class FakeUnitOfWork:
         self.observations = FakeObservationRepository()
         self.gestures = FakeGestureRepository()
         self.workflow_runs = FakeWorkflowRunRepository()
+        # One database in the store, so the workflow repository reads the
+        # same runs: ``proofs`` walks them.
+        self.workflows = FakeWorkflowRepository(self.workflow_runs)
         self.pool = FakePoolRepository()
         self.observation_policies = FakeObservationPolicyRepository()
         self.candidates = FakeCandidateRepository()

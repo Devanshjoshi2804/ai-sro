@@ -7,15 +7,23 @@ repositories the rest of the system writes to and summed back out by
 actually billed $5.00.
 """
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta, timezone
 
 from sro.application.intent.spend import over_cap, spent_today
 from sro.domain.chat.reading import ChatReading
 from sro.domain.shared.identifiers import TenantId
+from sro.domain.shared.prices import DaySpend
 from tests.unit.fakes import FakeUnitOfWork
 
 TENANT = TenantId("acme")
-NOW = datetime(2026, 9, 7, 12, 0, tzinfo=UTC)
+NOW = datetime(2025, 3, 4, 12, 0, tzinfo=UTC)
+"""Deliberately not today, and not any day this will plausibly run on.
+
+Dated on the day it was written, every test here passed against a `spent_today`
+that ignored its `now` entirely and asked the repository `datetime.now(tz=UTC)`
+-- the two agreed by the calendar. The one property the parameter exists for
+was pinned for a day and unpinned from the next morning.
+"""
 
 
 async def _billed(*chats: ChatReading) -> FakeUnitOfWork:
@@ -71,11 +79,24 @@ async def test_a_day_over_the_cap_says_how_much_of_what() -> None:
     assert "0 unpriced call(s)" in reason
 
 
+class _RefusesToBeAsked:
+    """A spend repository that fails if anything asks it what today cost."""
+
+    async def today(self, tenant_id: TenantId, *, now: datetime) -> DaySpend:
+        raise AssertionError("a cap that is not a cap must not pay for the query")
+
+
 async def test_a_negative_cap_is_no_cap_at_all() -> None:
     """What a deliberate one-off measurement sets. Nothing stops it -- not the
     dollars, and not an unpriced call either, because the point of the run is
-    to find out what a thing costs."""
+    to find out what a thing costs.
+
+    And it is answered before the repository is touched, which is a claim the
+    module docstring makes and only this repository holds it to: with the
+    guard moved below the `await` every other test here still passed.
+    """
     uow = await _billed(_chat("cha_1", cost_usd=500.0, unpriced=True))
+    uow.spend = _RefusesToBeAsked()
 
     assert await over_cap(uow, TENANT, now=NOW, cap_usd=-1.0) is None
 
@@ -120,3 +141,30 @@ async def test_spent_today_reports_the_pair_the_rule_judges() -> None:
     day = await spent_today(uow, TENANT, now=NOW)
 
     assert (day.cost_usd, day.blind) == (1.25, 1)
+
+
+async def test_the_day_is_the_utc_day_whatever_zone_the_clock_carries() -> None:
+    """Midnight is UTC's, and `now` is only asked what instant it is.
+
+    A clock at 02:00+05:30 is still on the previous UTC day, so the day being
+    summed starts at that day's UTC midnight -- twenty and a half hours before
+    the caller's own midnight. Read in the machine's local zone instead the
+    window slides by its offset, which on a westward host bills yesterday
+    evening to today and hands a fresh day a spent cap. Plan 2's repository is
+    pinned on this by two integration tests; the fake every unit test here runs
+    against was not, and this is the first use case to depend on it.
+    """
+    clock = datetime(2025, 3, 4, 2, 0, tzinfo=timezone(timedelta(hours=5, minutes=30)))
+    assert clock.astimezone(UTC).date() != clock.date(), "the two days must differ"
+
+    uow = FakeUnitOfWork()
+    # Inside the UTC day of `clock`, and outside the calendar day it reads as.
+    await uow.chats.record(
+        ChatReading(id="cha_1", tenant=TENANT.value, at="2025-03-03T10:00:00+00:00", cost_usd=2.0)
+    )
+    # The UTC day before: outside by nine hours, whatever the caller's offset.
+    await uow.chats.record(
+        ChatReading(id="cha_2", tenant=TENANT.value, at="2025-03-02T15:00:00+00:00", cost_usd=4.0)
+    )
+
+    assert (await spent_today(uow, TENANT, now=clock)).cost_usd == 2.0

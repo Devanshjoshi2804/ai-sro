@@ -21,6 +21,7 @@ from sro.domain.observation.window import (
     K_MAX_TEXT_CHARS,
     K_MIN_GESTURES,
     Packed,
+    Window,
     arrange,
     as_evidence,
     evidence_tokens,
@@ -28,6 +29,7 @@ from sro.domain.observation.window import (
     strength,
     tokens,
 )
+from sro.domain.skill.umbrella import build_prompt
 from tests.unit.domain.rig.conftest import gestures as _gestures
 
 
@@ -47,20 +49,34 @@ def test_tokens_is_a_length_not_a_guess() -> None:
 
 
 def test_evidence_is_measured_the_way_the_prompt_ships_it() -> None:
-    """`evidence_tokens` counts an item inside a list, at indent=1, because
-    that is what `umbrella.build_prompt` writes. Measuring it compact passed
-    every other test in this file and under-counted the real acme window by
-    17.6% -- 22,593 counted against 26,566 shipped -- which on a window filled
-    to K_WINDOW_TOKENS means ~177,000 tokens over the 200K boundary where the
-    input price doubles, silently.
+    """`evidence_tokens` counts an item the way `umbrella.build_prompt` writes
+    it -- inside a list, at indent=1, with the text left alone -- and that is
+    an equality with another module rather than a preference.
 
-    So: strictly more than the compact rendering. That is the whole difference,
-    and it is what fails the moment the measured shape stops matching the
-    shipped one.
+    Measuring it compact passed every other test in this file and under-counted
+    the real acme window by 17.6% -- 22,593 counted against 26,566 shipped --
+    which on a window filled to K_WINDOW_TOKENS means ~177,000 tokens over the
+    200K boundary where the input price doubles, silently. So the assertion is
+    against the prompt that actually goes out: the rendering measured has to be
+    the rendering shipped, character for character, and the count has to be
+    that rendering's.
+
+    The value carries non-ASCII on purpose. `ensure_ascii=False` is the half of
+    the shape a directional "bigger than compact" assertion cannot see: the
+    default escapes every one of these characters to six, so a window of German
+    or Japanese field labels is over-counted against a prompt that ships them
+    whole.
     """
-    evidence = as_evidence(_gestures()[0], None)
+    gesture = copy.deepcopy(_gestures()[0])
+    gesture.action = replace(gesture.action, value="ACME-4471 -- Größe · naïve ¥ € ½ Ω")
+    evidence = as_evidence(gesture, None)
+    item = Packed(gesture.id, gesture.at, evidence, 1.0, evidence_tokens(evidence))
 
-    assert evidence_tokens(evidence) > tokens(json.dumps(evidence, ensure_ascii=False))
+    shipped = build_prompt(Window(items=[item]), {}, [], "")
+
+    block = json.dumps([evidence], indent=1, ensure_ascii=False)
+    assert block in shipped, "the shape measured is not the shape the prompt ships"
+    assert evidence_tokens(evidence) == tokens(block)
 
 
 def test_evidence_carries_the_reading_beside_the_gesture() -> None:
@@ -153,7 +169,7 @@ def test_the_cap_holds_by_every_route() -> None:
     assert size <= K_MAX_GESTURE_TOKENS, f"intent: {size}"
 
 
-def _on_the_cap(gesture: Gesture, values: int) -> dict[str, object] | None:
+def _on_the_cap(gesture: Gesture, values: int, value_chars: int = 100) -> dict[str, object] | None:
     """This gesture's evidence rendered at exactly K_MAX_GESTURE_TOKENS, or
     None when this shape cannot be made to land there.
 
@@ -171,7 +187,7 @@ def _on_the_cap(gesture: Gesture, values: int) -> dict[str, object] | None:
             tenant="acme",
             act="typed a code",
             why="w" * why,
-            values_seen=[ValueSeen(field=f"f{n}", value="v" * 100) for n in range(values)],
+            values_seen=[ValueSeen(field=f"f{n}", value="v" * value_chars) for n in range(values)],
         )
 
     # tokens() is len // 4, so this is the shortest body that reads as the cap.
@@ -230,6 +246,39 @@ def test_a_gesture_that_exactly_fills_the_cap_once_stripped_keeps_every_call() -
     assert evidence is not None, "no count of calls lands this fixture on the cap once stripped"
     assert tokens(json.dumps(evidence, ensure_ascii=False)) == K_MAX_GESTURE_TOKENS
     assert len(_seq(_map(evidence["gesture"])["calls"])) == made, "nothing was count-bounded"
+
+
+def test_a_gesture_that_exactly_fills_the_cap_once_counted_back_is_not_collapsed() -> None:
+    """The same boundary at the last tier, where getting it wrong costs the
+    whole gesture: a body that lands on the cap after its counts were cut is
+    under the cap, so the skeleton backstop is not reached and forty calls and
+    forty values survive. Under `<` that same input collapses to `kind` and
+    `url` -- 2,000 tokens down to about fifty, every call gone -- and a gesture
+    that made four hundred calls arrives saying nothing about calls at all.
+
+    Reached the same way as the tiers above, only with the knobs this tier
+    leaves free: everything countable is already bounded at K_MAX_ITEMS here,
+    so the coarse adjustment is how long each surviving value is, and `why` is
+    still the fine one.
+    """
+    base = next(g for g in _gestures() if g.requests)
+    gesture = copy.deepcopy(base)
+    gesture.requests = [copy.deepcopy(base.requests[0]) for _ in range(400)]
+
+    evidence = None
+    for value_chars in range(K_MAX_TEXT_CHARS + 1):
+        found = _on_the_cap(gesture, K_MAX_ITEMS + 10, value_chars)
+        # The skeleton keeps no calls at all, and the tier above keeps all four
+        # hundred; forty is this tier and only this tier.
+        if found is not None and len(_seq(_map(found["gesture"]).get("calls", []))) == K_MAX_ITEMS:
+            evidence = found
+            break
+
+    assert evidence is not None, "no value length lands this fixture on the cap once counted back"
+    assert tokens(json.dumps(evidence, ensure_ascii=False)) == K_MAX_GESTURE_TOKENS
+    assert len(_seq(_map(evidence["gesture"])["calls"])) == K_MAX_ITEMS
+    assert len(_seq(_map(evidence["intent"])["values_seen"])) == K_MAX_ITEMS
+    assert _map(evidence["gesture"])["target"], "the skeleton keeps no target"
 
 
 def test_nothing_is_dropped_without_the_evidence_saying_so() -> None:

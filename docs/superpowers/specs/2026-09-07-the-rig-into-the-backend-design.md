@@ -297,3 +297,39 @@ Phases 1 and 2 can run in parallel; 3 needs both; 4 needs 3; 5 and 6 need
 - **The old executor as fallback.** Kept behind a flag for skills with no
   evidence. Recommended: measure how many such skills exist before deciding
   whether it is worth keeping at all.
+- **What starts a mined job when the job starts in a mailbox.** The operator's
+  own case: a mail arrives, they read it, and what it says decides what they
+  then do in the WMS. The two halves live in different subsystems today and
+  neither knows the other exists.
+
+  The mail half is already designed and partly built, and it is not capture:
+  `mail.google.com`, Outlook and Yahoo are in `DEFAULT_EXCLUSIONS`, so the
+  recorder never sees a mailbox, and `TriggerKind.WATCH` is a rule the
+  browser holds and evaluates locally. `Term` carries the comparison the
+  operator wrote by pointing at an example; `ValueAt` carries only where the
+  order number sits, read at match time and passed as a parameter, never
+  stored. `Trigger.from_message` is the parameter that comes from whatever
+  fired it. `watch.js` exists in the extension with its tests.
+
+  The WMS half is a mined workflow with its shape, its parameters and its
+  runner -- everything this port is moving.
+
+  So the work is a join, not a new mechanism: a watch fires, and what it
+  starts is a mined workflow rather than a recorded skill, with the mail's
+  `ValueAt` values landing in the run's `values`. That join has no design and
+  no owner, and it is the first thing after phase 4 that a real operator
+  would notice the absence of.
+
+  Beyond it sits `TriggerKind.INBOUND`, named in the domain and deliberately
+  not built: a mail or chat arriving server-side, which is what a Gmail
+  connector would be. It buys the two things a watch cannot -- firing when no
+  browser is open, and seeing signals that are not page gestures at all (a
+  mail labelled, archived, moved) -- at the cost that mail reaches a
+  connector, which is exactly what ADR 008 and the `Term`/`ValueAt` split
+  were built to prevent. That is a trade for the tenant to make, not a
+  default to pick.
+
+  Recommended: specify the watch-to-mined-workflow join as its own spec once
+  phase 4 lands and the routes exist to hang it on; leave INBOUND named and
+  unbuilt until a customer asks for the unattended case, and decide the mail
+  data question then, once, rather than under time pressure.

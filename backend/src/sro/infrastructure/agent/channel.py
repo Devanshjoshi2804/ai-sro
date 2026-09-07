@@ -10,12 +10,12 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-from sro.application.ports.channel import Reply
+from sro.application.ports.channel import Channel, Reply
 from sro.domain.shared.identifiers import DeviceId, TenantId
 from sro.infrastructure.agent.sockets import DeviceSockets
 
 
-class SocketChannel:
+class SocketChannel(Channel):
     """The ``Channel`` port over the sockets the API worker already holds."""
 
     def __init__(self, sockets: DeviceSockets) -> None:

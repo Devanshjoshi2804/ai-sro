@@ -10,7 +10,18 @@ from datetime import datetime
 from typing import Any
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import BigInteger, Boolean, DateTime, Float, Index, Integer, String, Text, text
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    DateTime,
+    Float,
+    Index,
+    Integer,
+    String,
+    Text,
+    quoted_name,
+    text,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -730,3 +741,121 @@ class PoolRow(Base):
     prompt without a record is the failure this architecture exists to avoid."""
 
     entered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class WorkflowRunRow(Base):
+    """One run of a mined workflow: what it was performed with, and how it ended.
+
+    ``workflow_runs`` rather than ``runs`` because ``runs`` is taken -- by the
+    backend's own ``RunRow``, which is a different concept and predates this.
+
+    Written whole after every step so the panel can poll it, and its steps are
+    replaced rather than appended for the same reason.
+    """
+
+    __tablename__ = "workflow_runs"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    workflow_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    device_id: Mapped[str] = mapped_column(String(64), nullable=False)
+
+    values_: Mapped[Any] = mapped_column(
+        # Quoted by hand: SQLAlchemy does not hold `values` to be reserved and
+        # would emit it bare, which Postgres happens to accept in a column
+        # definition and does not in every position a query can put it.
+        quoted_name("values", True),
+        JSONB,
+        nullable=False,
+        default=dict,
+    )
+    """What this run is performed with. The press is the only source of them:
+    nothing a chat door understood is carried across on its own."""
+
+    started_by: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    live: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    allow_focus: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    """A real timestamp, where the rig kept text. The record still carries ISO
+    strings, so this converts on the way in and out -- but a run whose clock is
+    a string sorts a naive instant beside an offset-bearing one and neither is
+    wrong, and ``started_at`` is what both indexes below order on."""
+
+    outcome: Mapped[str] = mapped_column(String(16), nullable=False, default="running")
+
+    withheld: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list)
+    """The writes a dry run produced and did not send, in full. This is what a
+    person reads before pressing through to live."""
+
+    in_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    out_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    thought_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    cost_usd: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    unpriced: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    """A run that cost nothing and a run whose cost could not be established
+    are the same row without this."""
+
+    __table_args__ = (
+        Index("ix_workflow_runs_tenant_workflow", "tenant_id", "workflow_id", "started_at"),
+        # The busy check: whether this browser already has a run in flight.
+        # One browser, one hand -- two runs driving the same window interleave
+        # their clicks into a form neither of them can then read back.
+        Index("ix_workflow_runs_tenant_device", "tenant_id", "device_id", "outcome"),
+    )
+
+
+class WorkflowRunStepRow(Base):
+    """One step of a run: what was planned, what was sent, and what it earned.
+
+    No tenant of its own and no foreign key, as in the rig: a step is reached
+    only through its run, which carries the tenant, and the run's save deletes
+    and reinserts this whole set every time.
+    """
+
+    __tablename__ = "workflow_run_steps"
+
+    run_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    ord: Mapped[int] = mapped_column(Integer, primary_key=True)
+
+    says: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    planned_by: Mapped[str | None] = mapped_column(Text)
+    sent: Mapped[Any] = mapped_column(JSONB)  # the command envelope's kind and payload
+    result: Mapped[Any] = mapped_column(JSONB)  # what the extension answered
+
+    verdict: Mapped[str] = mapped_column(String(24), nullable=False)
+    verdict_by: Mapped[str] = mapped_column(String(24), nullable=False, default="")
+    reason: Mapped[str] = mapped_column(Text, nullable=False, default="")
+
+    matched_by: Mapped[str | None] = mapped_column(Text)
+    stale: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    before_url: Mapped[str | None] = mapped_column(Text)
+    after_url: Mapped[str | None] = mapped_column(Text)
+
+    in_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    out_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    thought_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    cost_usd: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    unpriced: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+
+class ApprovalRow(Base):
+    """An approval a person gave: which step of which run, when, and from where.
+
+    The first tap wins; a second on the same step is not a second
+    authorisation. That is the whole reason for the composite key -- a write
+    rescued to the second rung parks at the same step and takes a second tap.
+
+    Not deleted and rewritten with the run: the run record says a write went
+    out, and this says a person let it.
+    """
+
+    __tablename__ = "approvals"
+
+    run_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    ord: Mapped[int] = mapped_column(Integer, primary_key=True)
+    at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    device_id: Mapped[str | None] = mapped_column(String(64))
+    """The browser whose panel the tap came from, when the panel named one. A
+    bare POST is a tap, so this is nullable."""

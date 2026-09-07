@@ -15,6 +15,7 @@ from sro.domain.chat.thread import Thread, ThreadId
 from sro.domain.connection.connection import Connection, ConnectionId
 from sro.domain.execution.model_call import ModelCall
 from sro.domain.execution.run import Run, RunId
+from sro.domain.execution.workflow_run import WorkflowRun
 from sro.domain.knowledge.entry import EntryKind, EvidenceLevel, KnowledgeEntry
 from sro.domain.observation.batch import ObservationBatch
 from sro.domain.observation.candidate import CandidateStatus, TaskCandidate
@@ -566,6 +567,64 @@ class PoolRepository(Protocol):
         ...
 
 
+class WorkflowRunRepository(Protocol):
+    """What a run of a mined workflow left behind, and the approvals on it.
+
+    The one port here whose reads are not all tenant-scoped. Approvals and the
+    orphan sweep are deliberately tenant-blind, and each says why.
+    """
+
+    async def save(self, run: WorkflowRun) -> None:
+        """Whole run, every time: called after every step so the panel can
+        poll, with steps replaced rather than appended."""
+        ...
+
+    async def get(self, tenant_id: TenantId, run_id: str) -> WorkflowRun | None:
+        """``None``, not ``NotFound``: every caller answers 404 itself."""
+        ...
+
+    async def for_workflow(self, tenant_id: TenantId, workflow_id: str) -> tuple[WorkflowRun, ...]:
+        """Oldest first, as the rig listed them."""
+        ...
+
+    async def in_flight(self, tenant_id: TenantId, device_id: DeviceId) -> str | None:
+        """The run this browser is already driving, if any.
+
+        One browser, one hand: two runs driving the same window interleave
+        their clicks into a form neither of them can then read back.
+        """
+        ...
+
+    async def awaiting(self, tenant_id: TenantId) -> tuple[tuple[str, int, str], ...]:
+        """(run id, step ord, what the step says) for every step waiting on a
+        person, across browsers: anyone may answer a parked run."""
+        ...
+
+    async def approve(self, run_id: str, ord_: int, *, at: str, device_id: str | None) -> bool:
+        """Whether this tap was the one that authorised the step.
+
+        The first tap wins: a write rescued to the second rung parks at the
+        same step and takes a second tap, and the first authorisation stands.
+        Tenant-blind because the run id is the only thing the panel has, and
+        the route has already checked the browser is driving this run.
+        """
+        ...
+
+    async def approvals(self, run_id: str) -> tuple[tuple[int, str, str | None], ...]:
+        """(step ord, when, which browser) for each write a person let out."""
+        ...
+
+    async def fail_orphans(self, reason: str) -> int:
+        """Every run still ``running`` is marked failed, and how many there were.
+
+        Called once at startup, across tenants -- nobody is making the request.
+        One worker owns every run, so a row that says ``running`` when the
+        process starts is a run nobody is driving. The reason lands on the
+        last step, or on a new step when the run never reached one.
+        """
+        ...
+
+
 class UnitOfWork(Protocol):
     """Transaction boundary. Leaving the block without ``commit`` rolls back."""
 
@@ -580,6 +639,7 @@ class UnitOfWork(Protocol):
     devices: DeviceRepository
     observations: ObservationRepository
     gestures: GestureRepository
+    workflow_runs: WorkflowRunRepository
     pool: PoolRepository
     observation_policies: ObservationPolicyRepository
     candidates: CandidateRepository

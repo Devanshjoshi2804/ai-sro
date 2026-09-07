@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import re
 from collections.abc import AsyncIterator, Mapping
+from copy import deepcopy
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from itertools import count
@@ -50,6 +51,7 @@ from sro.application.ports.repositories import (
     ToolCallRepository,
     TriggerRepository,
     UnitOfWork,
+    WorkflowRunRepository,
 )
 from sro.application.ports.schedule import Scheduler, SchedulerUnavailable
 from sro.application.ports.sign_in import SignInDriver, SignInFailed, SignInResult
@@ -68,6 +70,7 @@ from sro.domain.chat.thread import MessageId, Thread, ThreadId
 from sro.domain.connection.connection import Connection, ConnectionId, ConnectionStatus
 from sro.domain.execution.model_call import ModelCall
 from sro.domain.execution.run import Medium, Run, RunId
+from sro.domain.execution.workflow_run import RunStep, WorkflowRun
 from sro.domain.knowledge.entry import (
     EntryKind,
     EvidenceLevel,
@@ -1432,6 +1435,90 @@ class FakePoolRepository:
         return tuple(sorted(found, key=lambda entry: (entry.entered_at, entry.gesture_id)))
 
 
+class FakeWorkflowRunRepository:
+    """Runs, their steps, and the approvals on them, in two dicts.
+
+    Faithful rather than convenient. A run is stored and returned as a copy, so
+    the "steps are replaced, not appended" rule is real here and a caller that
+    mutates what it loaded does not silently rewrite the store. Approvals take
+    the first tap only, and the orphan sweep crosses tenants -- the two rules
+    a caller can actually get wrong.
+    """
+
+    def __init__(self) -> None:
+        self.rows: dict[str, WorkflowRun] = {}
+        self.approved: dict[tuple[str, int], tuple[str, str | None]] = {}
+
+    async def save(self, run: WorkflowRun) -> None:
+        self.rows[run.id] = deepcopy(run)
+
+    async def get(self, tenant_id: TenantId, run_id: str) -> WorkflowRun | None:
+        run = self.rows.get(run_id)
+        return None if run is None or run.tenant != tenant_id.value else deepcopy(run)
+
+    async def for_workflow(self, tenant_id: TenantId, workflow_id: str) -> tuple[WorkflowRun, ...]:
+        found = [
+            run
+            for run in self.rows.values()
+            if run.tenant == tenant_id.value and run.workflow_id == workflow_id
+        ]
+        return tuple(deepcopy(run) for run in sorted(found, key=lambda run: run.started_at))
+
+    async def in_flight(self, tenant_id: TenantId, device_id: DeviceId) -> str | None:
+        driving = [
+            run
+            for run in self.rows.values()
+            if run.tenant == tenant_id.value
+            and run.device_id == device_id.value
+            and run.outcome == "running"
+        ]
+        driving.sort(key=lambda run: run.started_at)
+        return driving[0].id if driving else None
+
+    async def awaiting(self, tenant_id: TenantId) -> tuple[tuple[str, int, str], ...]:
+        parked = [
+            (run.started_at, run.id, step.order, step.says)
+            for run in self.rows.values()
+            if run.tenant == tenant_id.value
+            for step in run.steps
+            if step.verdict == "awaiting"
+        ]
+        return tuple((run_id, order, says) for _, run_id, order, says in sorted(parked))
+
+    async def approve(self, run_id: str, ord_: int, *, at: str, device_id: str | None) -> bool:
+        if (run_id, ord_) in self.approved:
+            return False
+        self.approved[(run_id, ord_)] = (at, device_id)
+        return True
+
+    async def approvals(self, run_id: str) -> tuple[tuple[int, str, str | None], ...]:
+        return tuple(
+            (order, at, device_id)
+            for (approved_run, order), (at, device_id) in sorted(self.approved.items())
+            if approved_run == run_id
+        )
+
+    async def fail_orphans(self, reason: str) -> int:
+        # Every tenant, as at startup: nobody is making the request, and a run
+        # left running in one tenant goes on 409-ing its browser.
+        now = datetime.now(tz=UTC).isoformat()
+        orphans = sorted(
+            (run for run in self.rows.values() if run.outcome == "running"),
+            key=lambda run: run.started_at,
+        )
+        for run in orphans:
+            if run.steps:
+                last = run.steps[-1]
+                last.verdict, last.verdict_by, last.reason = "failed", "none", reason
+            else:
+                run.steps.append(
+                    RunStep(order=0, says="", verdict="failed", verdict_by="none", reason=reason)
+                )
+            run.outcome = "failed"
+            run.finished_at = now
+        return len(orphans)
+
+
 class FakeUnitOfWork:
     """Counts commits. Does not simulate rollback -- the repositories hold the
     same objects the use case mutated. Transactions are proved in
@@ -1449,6 +1536,7 @@ class FakeUnitOfWork:
     devices: DeviceRepository
     observations: ObservationRepository
     gestures: GestureRepository
+    workflow_runs: WorkflowRunRepository
     pool: PoolRepository
     observation_policies: ObservationPolicyRepository
     candidates: CandidateRepository
@@ -1468,6 +1556,7 @@ class FakeUnitOfWork:
         self.devices = FakeDeviceRepository()
         self.observations = FakeObservationRepository()
         self.gestures = FakeGestureRepository()
+        self.workflow_runs = FakeWorkflowRunRepository()
         self.pool = FakePoolRepository()
         self.observation_policies = FakeObservationPolicyRepository()
         self.candidates = FakeCandidateRepository()

@@ -1246,6 +1246,70 @@ git commit -m "feat(store): the day, and the four tables that can bill it"
 
 ---
 
+## Task 8b: One suite, two implementations
+
+**Files:**
+- Create: `backend/tests/contract/test_the_repositories_agree.py`
+- Modify: `backend/tests/unit/fakes.py` (only where a fake is found to disagree)
+
+**Interfaces:**
+- Consumes: every repository protocol this plan added, and both
+  implementations of each — the `Sql*` classes and the `Fake*` ones.
+- Produces: nothing new. It is a net, not a feature.
+
+Plan 3 writes its mining and runner suites — the largest in the port — against
+the fakes. A fake that does not keep its store's rules is a suite that passes
+against a lie, and the failure surfaces in plan 4 as a mystery. Two have
+already been found by eye: `FakeWorkflowRepository.known` orders by a save
+counter where the store orders `(created_at, id)`, and `FakeWorkflowRunRepository`
+inherits a `started_at`-only sort where the store tiebreaks on id. Finding
+those by eye does not scale to six repositories.
+
+One suite, parameterised over the two implementations, asserting only the
+rules that must agree. Everything the fake cannot honour (a real transaction,
+a real constraint) is out of scope and is named here rather than skipped
+silently.
+
+- [ ] **Step 1: The parameterisation**
+
+Each repository gets a fixture yielding `(name, repository)` for both the fake
+and the SQL one, the SQL one against `session_factory` from
+`tests/integration/conftest.py`. A test body written once runs twice, and the
+failure names which implementation broke.
+
+- [ ] **Step 2: The rules, one test each**
+
+Written against the protocol, never against either implementation's internals:
+
+- `known()` is oldest first, and a re-saved workflow moves to the end (both
+  the order and the `created_at` rewrite, which is load-bearing: `resolve`
+  breaks ties with a strict `>`, so the first workflow at the top score wins).
+- `for_workflow()` and `proofs()` order by `started_at` with the same tiebreak.
+- `newest()` and `newest_for_device()` are `at` descending with arrival as the
+  tiebreak, and exclude `k = 0`.
+- Every read is tenant-scoped: a second tenant's row is planted and must not
+  come back.
+- `save` replaces a run's steps rather than appending, and a step that leaves
+  the record leaves the store.
+- `approve` is first-tap-wins, and the second tap returns `False`.
+- `awaiting` names only steps of runs that are still running.
+- A step that sent nothing reads back as nothing, from either side.
+- `add_unclaimed` does not reset the age of an entry already in the pool.
+
+- [ ] **Step 3: Make the fakes agree**
+
+Where a test fails against a fake, the fake changes — not the test, and not
+the store. The store is what production runs.
+
+- [ ] **Step 4: Run both, and commit**
+
+```bash
+uv run pytest tests/contract -q
+git commit -m "test(contract): one suite the fake and the store both have to pass"
+```
+
+---
+
 ## Task 9: The count, and what is left
 
 **Files:**

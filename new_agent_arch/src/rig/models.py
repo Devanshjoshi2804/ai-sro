@@ -49,6 +49,12 @@ PRICES: dict[str, tuple[float, float]] = {
     "gemini-3.1-pro-preview": (2.00, 12.00),
     "gemini-3-flash-preview": (0.50, 3.00),
     "gemini-3.8-flash-preview": (0.75, 3.75),
+    # Anthropic, for the bake-off. The rig asks Gemini in production; these
+    # rows exist so a comparison run is priced by the same arithmetic as
+    # everything else rather than by a spreadsheet nobody committed.
+    "claude-haiku-4-5-20251001": (1.00, 5.00),
+    "claude-haiku-4.5": (1.00, 5.00),
+    "claude-sonnet-5": (2.00, 10.00),
 }
 
 LONG_PROMPT_TOKENS = 200_000

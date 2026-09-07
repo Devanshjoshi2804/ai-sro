@@ -11,6 +11,10 @@ class Settings(BaseSettings):
 
     db_path: Path = Path("rig.db")
     gemini_api_key: str = ""
+    anthropic_api_key: str = ""
+    """Only the bake-off asks Anthropic. Empty is the ordinary state: the
+    rig runs on Gemini, and a key here buys a comparison, not a dependency."""
+
     ingest_token: str = "dev-only-not-a-secret"
     intent_model: str = "gemini-3.8-flash"
     mine_model: str = "gemini-3.1-pro-preview"

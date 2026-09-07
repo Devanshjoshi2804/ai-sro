@@ -19,6 +19,10 @@ dev = [
     "httpx>=0.27",
     "ruff>=0.7",
     "mypy>=1.13",
+    # The bake-off asks Anthropic beside Gemini. A dev dependency, not a
+    # runtime one: the rig serves, mines and runs with no Anthropic key and
+    # no SDK installed, and only `make bakeoff` needs either.
+    "anthropic>=0.40",
     # Pinned exactly: a mutation score is only comparable to the baseline it is
     # measured against, and a new version that generates different mutants
     # moves the number for reasons that have nothing to do with the tests.

@@ -236,6 +236,44 @@ CREATE TABLE IF NOT EXISTS offers (
 );
 CREATE INDEX IF NOT EXISTS offers_by_workflow ON offers (tenant, workflow_id, at);
 
+-- One door of one model in one bake-off sweep: what it cost, how long it took,
+-- and how well it did. Written by `rig.bakeoff` against the store the API
+-- serves, while the work itself happens in per-model copies -- so a sweep can
+-- be read on the page without a sweep ever writing evidence.
+CREATE TABLE IF NOT EXISTS bakeoff (
+    id          TEXT PRIMARY KEY,
+    sweep_id    TEXT NOT NULL,
+    tenant      TEXT NOT NULL,
+    model       TEXT NOT NULL,
+    door        TEXT NOT NULL,   -- read | mine
+    at          TEXT NOT NULL,
+    calls       INTEGER NOT NULL DEFAULT 0,
+    seconds     REAL NOT NULL DEFAULT 0.0,   -- wall clock for the whole door
+    p50_ms      REAL NOT NULL DEFAULT 0.0,
+    p95_ms      REAL NOT NULL DEFAULT 0.0,
+    slowest_ms  REAL NOT NULL DEFAULT 0.0,
+    in_tokens   INTEGER NOT NULL DEFAULT 0,
+    out_tokens  INTEGER NOT NULL DEFAULT 0,
+    thought_tokens INTEGER NOT NULL DEFAULT 0,
+    cost_usd    REAL NOT NULL DEFAULT 0.0,
+    unpriced    INTEGER NOT NULL DEFAULT 0,  -- calls whose bill is a guess
+    refused     INTEGER NOT NULL DEFAULT 0,  -- calls that came back an error
+    -- The read door: how many gestures were read, and how many came back with
+    -- an act a pass could use. A model that answers cheaply and uselessly is
+    -- the failure a cost column alone reports as a win.
+    gestures    INTEGER,
+    usable      INTEGER,
+    -- The mine door.
+    proposed    INTEGER,
+    kept        INTEGER,
+    cross_system INTEGER,
+    coverage    REAL,
+    skew        REAL,
+    lopsided    INTEGER,
+    error       TEXT
+);
+CREATE INDEX IF NOT EXISTS bakeoff_sweep ON bakeoff (tenant, sweep_id, model, door);
+
 CREATE TABLE IF NOT EXISTS runs (
     id          TEXT PRIMARY KEY,
     tenant      TEXT NOT NULL,

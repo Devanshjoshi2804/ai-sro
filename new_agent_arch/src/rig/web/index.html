@@ -102,6 +102,17 @@
   #audit .line .kind { margin-right: 8px; }
   #audit .steps { margin: 0 0 6px 24px; font-size: 12px; color: var(--muted); }
   #audit .steps .approved { color: var(--accent); }
+  #models h3 { margin: 16px 0 6px; font-size: 13px; color: var(--muted); }
+  #models table { border-collapse: collapse; font-size: 12px; width: 100%; }
+  #models th, #models td { padding: 4px 8px; text-align: right; white-space: nowrap; }
+  #models th:first-child, #models td:first-child { text-align: left; }
+  #models thead th { color: var(--muted); font-weight: 500; border-bottom: 1px solid #333; }
+  #models tbody tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+  #models .best { color: var(--accent); }
+  #models .bar { display: inline-block; height: 8px; background: var(--accent); }
+  #models .blind { color: #d08770; }
+  #models .none { color: var(--muted); font-size: 13px; padding: 12px 0; }
+  #models .note { color: var(--muted); font-size: 12px; margin: 6px 0 14px; }
 </style>
 
 <header>
@@ -116,6 +127,7 @@
 <main id="rows"></main>
 <main id="jobs" hidden></main>
 <main id="audit" hidden></main>
+<main id="models" hidden></main>
 
 <script>
   // Out of the URL once, then out of the URL for good. `?token=...` in the
@@ -584,10 +596,10 @@
 
   let showing = "gestures";
 
-  // Three views, one word each on the button: what the next press shows.
+  // Four views, one word each on the button: what the next press shows.
   // `show` is the one place the state and the three mains agree, so the
   // hash-opened run and the button cannot leave them disagreeing.
-  const VIEWS = ["gestures", "workflows", "audit"];
+  const VIEWS = ["gestures", "workflows", "audit", "models"];
   function show(name) {
     showing = name;
     const next = VIEWS[(VIEWS.indexOf(name) + 1) % VIEWS.length];
@@ -597,6 +609,7 @@
     document.getElementById("jobs").hidden = name !== "workflows";
     document.getElementById("audit").hidden = name !== "audit";
     document.getElementById("since").hidden = name !== "audit";
+    document.getElementById("models").hidden = name !== "models";
   }
 
   // What happened since a time, in the order it happened, newest first per
@@ -658,6 +671,105 @@
     const now = new Date();
     const pad = (n) => String(n).padStart(2, "0");
     return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T00:00`;
+  }
+
+
+  // What each model cost, how long it took, and how good what came back was.
+  // Written by `make bakeoff`, which is a terminal command because a sweep
+  // spends real money at several vendors; this page only reads what it left.
+  //
+  // Every model is asked the same evidence through the same two doors: `read`
+  // is one small call per gesture, `mine` is one large call over a day. They
+  // are drawn apart because they are not the same question -- a model that is
+  // cheapest per reading can be the one that finds nothing in a day.
+  function modelsView(rows) {
+    if (!rows.length)
+      return `<p class="none">No comparison yet. Run <code>make bakeoff</code> in
+        <code>new_agent_arch/</code> and this fills in.</p>`;
+    const ms = (n) => (n >= 1000 ? (n / 1000).toFixed(1) + "s" : Math.round(n) + "ms");
+    const usd = (n) => "$" + Number(n ?? 0).toFixed(4);
+    // The newest sweep only: two sweeps in one table compare a model against
+    // itself on different evidence, which is the one comparison this cannot
+    // make honestly.
+    const newest = rows[0]?.sweep_id;
+    const mine = rows.filter((r) => r.sweep_id === newest && r.door === "mine");
+    const read = rows.filter((r) => r.sweep_id === newest && r.door === "read");
+
+    // Least is best for cost and latency; most is best for what was found.
+    const best = (list, key, low) => {
+      const live = list.filter((r) => !r.error && r[key] != null);
+      if (!live.length) return null;
+      return live.reduce((a, b) => ((low ? b[key] < a[key] : b[key] > a[key]) ? b : a))[key];
+    };
+    const mark = (row, key, low, text) =>
+      row.error || row[key] == null || row[key] !== best(row.door === "mine" ? mine : read, key, low)
+        ? esc(text)
+        : `<span class="best">${esc(text)}</span>`;
+    const widest = Math.max(1, ...[...mine, ...read].map((r) => r.p95_ms || 0));
+    const bar = (n) => `<span class="bar" style="width:${Math.round((60 * (n || 0)) / widest)}px"></span>`;
+
+    const blind = (row) =>
+      row.unpriced
+        ? ` <span class="blind" title="calls whose bill is a guess">${row.unpriced} blind</span>`
+        : "";
+
+    const readRows = read
+      .map(
+        (r) => `<tr>
+          <td>${esc(r.model)}</td>
+          <td>${r.error ? "&mdash;" : r.calls}</td>
+          <td>${r.error ? "&mdash;" : mark(r, "p50_ms", true, ms(r.p50_ms))} ${r.error ? "" : bar(r.p95_ms)}</td>
+          <td>${r.error ? "&mdash;" : ms(r.p95_ms)}</td>
+          <td>${r.error ? "&mdash;" : esc(r.in_tokens + " / " + r.out_tokens)}</td>
+          <td>${r.error ? "&mdash;" : mark(r, "cost_usd", true, usd(r.cost_usd))}${blind(r)}</td>
+          <td>${r.error ? "&mdash;" : mark(r, "usable", false, `${r.usable} of ${r.gestures}`)}</td>
+          <td>${r.error ? `<span class="blind">${esc(r.error)}</span>` : r.refused || ""}</td>
+        </tr>`,
+      )
+      .join("");
+
+    const mineRows = mine
+      .map(
+        (r) => `<tr>
+          <td>${esc(r.model)}</td>
+          <td>${r.error ? "&mdash;" : mark(r, "seconds", true, r.seconds + "s")}</td>
+          <td>${r.error ? "&mdash;" : esc(r.in_tokens + " / " + r.out_tokens)}</td>
+          <td>${r.error ? "&mdash;" : esc(String(r.thought_tokens))}</td>
+          <td>${r.error ? "&mdash;" : mark(r, "cost_usd", true, usd(r.cost_usd))}${blind(r)}</td>
+          <td>${r.error ? "&mdash;" : esc(`${r.kept} of ${r.proposed}`)}</td>
+          <td>${r.error ? "&mdash;" : mark(r, "cross_system", false, String(r.cross_system))}</td>
+          <td>${r.error ? "&mdash;" : Number(r.coverage ?? 0).toFixed(2)}${r.lopsided ? " lopsided" : ""}</td>
+          <td>${r.error ? `<span class="blind">${esc(r.error)}</span>` : ""}</td>
+        </tr>`,
+      )
+      .join("");
+
+    const spent = [...mine, ...read].reduce((sum, r) => sum + (r.cost_usd || 0), 0);
+    return `<h3>read &mdash; one call per gesture, the shape a day is made of</h3>
+      <table><thead><tr><th>model</th><th>calls</th><th>p50</th><th>p95</th>
+        <th>tokens in / out</th><th>cost</th><th>usable</th><th>refused</th></tr></thead>
+        <tbody>${readRows || '<tr><td colspan="8" class="none">not run</td></tr>'}</tbody></table>
+      <p class="note">Usable is the count that came back with an act a mining pass can use.
+        A reading with no act was still paid for.</p>
+      <h3>mine &mdash; one call over the day, where the money is</h3>
+      <table><thead><tr><th>model</th><th>elapsed</th><th>tokens in / out</th><th>thought</th>
+        <th>cost</th><th>kept</th><th>cross-system</th><th>coverage</th><th></th></tr></thead>
+        <tbody>${mineRows || '<tr><td colspan="9" class="none">not run</td></tr>'}</tbody></table>
+      <p class="note">Cross-system is the number of jobs that stand on evidence from more than
+        one host &mdash; the thing a per-host pipeline structurally cannot see. Thought tokens
+        are billed at the output rate; Claude rows read 0 because the bake-off asks it with
+        forced structured output, which is not offered together with extended thinking.</p>
+      <p class="note">Sweep ${esc(String(newest ?? ""))} &middot; ${usd(spent)} spent &middot;
+        green is the best in its column.</p>`;
+  }
+
+  async function drawModels() {
+    const { rows } = await get("/v1/bakeoff?limit=200");
+    const box = document.getElementById("models");
+    const fresh = modelsView(rows);
+    if (box.dataset.drawn === fresh) return;
+    box.dataset.drawn = fresh;
+    box.innerHTML = fresh;
   }
 
   async function drawAudit() {
@@ -776,6 +888,7 @@
     drawNeeds().catch(() => {});
     drawBrowsers().catch(() => {});
     if (showing === "workflows") return drawJobs();
+    if (showing === "models") return drawModels();
     // Titles for the audit come from the jobs view; fetched here too so a
     // reader who lands on the audit first sees names and not ids.
     if (showing === "audit") {

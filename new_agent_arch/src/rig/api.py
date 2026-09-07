@@ -1303,6 +1303,27 @@ def build_app(
             )
         return {"approved": True, "ord": ord_}
 
+    @app.get("/v1/bakeoff", dependencies=[Depends(tenant_only)])
+    async def bakeoff(limit: int = 200) -> dict[str, Any]:
+        """Every model comparison this store has been told about, newest sweep
+        first, one row per model per door.
+
+        Read-only, and there is no route that starts one. A sweep asks several
+        vendors for a day's evidence twice over and the bill is real money, so
+        it is started deliberately from a terminal -- `make bakeoff` -- and this
+        route only shows what came back. A button that could spend that is a
+        button somebody will lean on.
+        """
+        limit = max(1, min(int(limit), 1000))
+        rows = store.query(
+            "SELECT sweep_id, model, door, at, calls, seconds, p50_ms, p95_ms, slowest_ms,"
+            " in_tokens, out_tokens, thought_tokens, cost_usd, unpriced, refused, gestures,"
+            " usable, proposed, kept, cross_system, coverage, skew, lopsided, error"
+            " FROM bakeoff WHERE tenant = ? ORDER BY at DESC, model, door LIMIT ?",
+            (tenant, limit),
+        )
+        return {"rows": [dict(row) for row in rows]}
+
     @app.get("/v1/audit", dependencies=[Depends(tenant_only)])
     async def audit(since: str = "", limit: int = 200) -> dict[str, Any]:
         """Everything a person would want to see after the fact, since a time:

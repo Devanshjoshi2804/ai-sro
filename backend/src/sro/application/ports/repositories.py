@@ -611,8 +611,14 @@ class PoolRepository(Protocol):
 class WorkflowRunRepository(Protocol):
     """What a run of a mined workflow left behind, and the approvals on it.
 
-    The one port here whose reads are not all tenant-scoped. Approvals and the
-    orphan sweep are deliberately tenant-blind, and each says why.
+    Not every read here takes a tenant. ``approve`` and ``fail_orphans`` are
+    deliberately tenant-blind and say why below; ``approvals`` does not, and
+    nor do the five workflow-scoped methods on ``WorkflowRepository``
+    (``mark_stale``, ``clear_stale``, ``stale_count``, ``record_effect``,
+    ``forget_effects``). Those six are safe only because a run or workflow id
+    is unguessable and the route has already checked who is asking -- plan 3
+    scopes them by workflow ownership, which is where the reason will be
+    written down.
     """
 
     async def save(self, run: WorkflowRun) -> None:
@@ -644,7 +650,13 @@ class WorkflowRunRepository(Protocol):
 
     async def awaiting(self, tenant_id: TenantId) -> tuple[tuple[str, int, str], ...]:
         """(run id, step ord, what the step says) for every step waiting on a
-        person, across browsers: anyone may answer a parked run."""
+        person, across browsers: anyone may answer a parked run.
+
+        A stated divergence from the rig, not an accident: the rig reported the
+        deepest parked step of each run and this returns every one of them,
+        ``ord`` ascending. Plan 3 owns the choice between deepest and
+        shallowest; it is written down here so it is decided once.
+        """
         ...
 
     async def approve(self, run_id: str, ord_: int, *, at: str, device_id: str | None) -> bool:

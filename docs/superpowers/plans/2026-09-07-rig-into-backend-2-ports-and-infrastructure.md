@@ -1422,44 +1422,61 @@ store's answer and not the domain's: the arrival tiebreak, the newest ten, and
 the nudge that is not evidence. Only
 `test_an_offer_is_recorded_under_an_id_of_its_own` is storage-only.
 
-**`test_pool.py` — 21 of 21.** Seven landed in
-`tests/integration/test_evidence_repositories.py::TestPool`, five in the
-contract suite, the four tenant rules in the two suites' cross-tenant
-assertions, and the last of them in Task 9:
-`test_a_stale_sweep_does_not_reach_another_tenant` and
-`test_a_retired_entry_reports_the_waiting_it_actually_did` are now both
-carried by `test_an_entry_older_than_the_stale_window_retires_as_stale`, each
-mutation-checked.
+**`test_pool.py` — 21 of 21, after the final review.** Nine bodies in
+`tests/integration/test_evidence_repositories.py::TestPool` carry all 21:
+most as bodies of their own or folded into a neighbour, and five of the file's
+six tenant rules as cross-tenant assertions inside the body that exercises
+them (`test_a_stale_sweep_does_not_reach_another_tenant` and
+`test_a_retired_entry_reports_the_waiting_it_actually_did` are both carried by
+`test_an_entry_older_than_the_stale_window_retires_as_stale`, each
+mutation-checked in Task 9).
 
-**Added by this plan:** **137 test bodies**, collected as **174 cases** —
-the contract suite is 37 bodies run twice, once against the fakes and once
+Two of the 21 did not travel with the rest and were ported when the
+whole-branch review found them. `test_ageing_one_tenant_does_not_age_another`
+was missing outright: its sibling
+`test_ageing_one_tenant_does_not_retire_another` *was* carried, which is what
+hid it, and splitting the shared `live` predicate so only the retirement caps
+keep the tenant filter left every suite green.
+`test_a_caller_with_no_window_ages_everything` was there in name only — every
+`shown=None` body planted a single entry, so "everything" was never asserted;
+it now plants three. Both are mutation-checked, and the tenant rule is
+mirrored in the contract suite so the fake is held to it too.
+
+The six contract bodies in `CON::TestPool` are not among the 21: each restates
+a rule `INT::TestPool` already carries, run a second time against the fake.
+That is the point of the contract suite and not a gap, but it means no pool
+rule is proved *only* there.
+
+**Added by this plan:** **141 test bodies**, collected as **180 cases** —
+the contract suite is 39 bodies run twice, once against the fakes and once
 against Postgres, and this count is of bodies, not of parametrised cases.
-By file: contract 37, evidence 17, workflows 16, workflow runs 12, offers 12,
+By file: contract 39, evidence 19, workflows 16, workflow runs 12, offers 12,
 spend and audit 10, asking a model 22, the channel envelope 5, the fake pool 4,
 the run id and vocabularies 2.
 
-**Of the 137, 56 are ports of one of the 101 above; 81 have no rig test behind
-them.** The 56, by file: asking a model 22, evidence 9, workflow runs 7,
-offers 5, workflows 4, the channel envelope 3, the contract suite 4 (the four
-pool rules that have no integration body of their own), the run id and
-vocabularies 2. A rig test proved twice — once in an integration file and
-again in the contract suite — is counted once, at the body that carries it
-first.
+**Of the 141, 54 are ports of one of the 101 above; 87 have no rig test behind
+them.** The 54, by file: asking a model 22, evidence 11, workflow runs 7,
+offers 5, workflows 4, the channel envelope 3, the run id and vocabularies 2.
+A rig test proved twice — once in an integration file and again in the
+contract suite — is counted once, at the body that carries it first, and no
+contract body carries a rig rule first: every one of them restates a rule an
+integration body already holds.
 
-The 81 with nothing behind them: the rest of the contract suite (33 — one set
-of rules run against each implementation, which the rig, having one
+The 87 with nothing behind them: the whole contract suite (39 — one set of
+rules run against each implementation, which the rig, having one
 implementation, had no reason to need), the day and the audit reads (10), the
 fake pool held to the store's own four rules (4), and 34 store-level rules the
 rig either proved in one of its other 26 test files or never proved at all —
 tenant scoping on every read, the ordering tiebreaks, `NotFound` versus
 `None`, SQL NULL versus a JSON `null`, and `revoke` under a second press.
-33 + 10 + 4 + 34 = 81, and 56 + 81 = 137.
+39 + 10 + 4 + 34 = 87, and 54 + 87 = 141.
 
-**Gates at head, measured in Task 9 (86153ef in, and again after it):**
-`tests/unit` 1752 passed; `tests/integration` 108 passed with
-`test_steel_capture.py` ignored, which fails environmentally with
-`BrowserUnavailable`; `tests/contract` 98 passed (96 before Task 9's two new
-cases) with 1 pre-existing failure,
+**Gates at head, after the final review's fixes (measured in Task 9 at
+86153ef, and again after the fixes):** `tests/unit` 1752 passed;
+`tests/integration` 110 passed with `test_steel_capture.py` ignored, which
+fails environmentally with `BrowserUnavailable`; `tests/contract` 102 passed
+(98 before the final review's two new bodies, 96 before Task 9's) with
+1 pre-existing failure,
 `test_observation_payloads.py::test_every_captured_payload_parses_into_the_domain[shape-identity]`,
 in a file byte-identical to the branch base and left alone; mypy 312 errors in
 68 files, and `mypy src tests/unit/fakes.py` clean; ruff format 2 files, both

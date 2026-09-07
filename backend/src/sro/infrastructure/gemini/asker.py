@@ -17,7 +17,16 @@ from sro.domain.shared.prices import Answer, Effort, is_priced, price
 K_MAX_OUTPUT_TOKENS = 65536
 """What one answer may run to. A mining pass writes every workflow it found,
 each step citing gestures by id; a day's worth is thousands of tokens and the
-default ceiling cut one off. Thinking tokens are budgeted separately."""
+default ceiling cut one off.
+
+Thinking is counted inside this on Gemini, not beside it, and that is a trap
+worth knowing: Gemini 3.8 Flash at effort `high` spent 62,913 of the 65,536
+thinking about one day of evidence and had 2,609 left to write its answer in --
+truncated, three runs out of three, $0.38 each for nothing. A budget cannot fix
+it (the API takes a level or a budget, never both, and this model ignores the
+budget); the level is the knob, and a model that thinks too much for its own
+ceiling needs a lower one. Anthropic bills thinking outside its ceiling and is
+unaffected."""
 
 
 def truncated(response: Any) -> bool:

@@ -43,6 +43,17 @@ from sro.domain.skill.offers import OfferRow as OfferWindow
 from sro.infrastructure.db.codec import when
 from sro.infrastructure.db.models import ChatRow, OfferRow
 
+_NEWEST_FIRST = (OfferRow.at.desc(), OfferRow.seq.desc())
+"""One clause, read by both selects rather than written out twice.
+
+The window and the audit ask the same question -- newest first, arrival
+breaking the tie -- and only ``since`` can be made to prove it: for the
+window's own answer a pure arrival tiebreak *is* reverse-insertion order, so no
+plant can tell a missing ``seq`` apart from the row order Postgres happened to
+hand back. Written out twice, deleting the window's copy left both the contract
+and the integration suites green. Shared, the test that does bite guards both.
+"""
+
 
 class SqlOfferRepository(OfferRepository):
     def __init__(self, session: AsyncSession) -> None:
@@ -104,7 +115,7 @@ class SqlOfferRepository(OfferRepository):
         query = (
             select(OfferRow)
             .where(OfferRow.tenant_id == tenant_id.value, OfferRow.at >= when(since))
-            .order_by(OfferRow.at.desc(), OfferRow.seq.desc())
+            .order_by(*_NEWEST_FIRST)
         )
         rows = (await self._session.execute(query)).scalars().all()
         return tuple(
@@ -125,7 +136,7 @@ class SqlOfferRepository(OfferRepository):
         query = (
             select(OfferRow.k, OfferRow.fate, OfferRow.at)
             .where(*where, OfferRow.k > 0)
-            .order_by(OfferRow.at.desc(), OfferRow.seq.desc())
+            .order_by(*_NEWEST_FIRST)
             .limit(limit)
         )
         rows = (await self._session.execute(query)).all()

@@ -183,6 +183,17 @@ class SqlGestureRepository(GestureRepository):
 
     async def add_gestures(self, gestures: tuple[Gesture, ...]) -> None:
         self._session.add_all([_gesture_to_row(gesture) for gesture in gestures])
+        try:
+            # Flushed and translated here for ``add_batch``'s reason and one
+            # more: a gesture id already stored is a retried upload the batch
+            # claim did not catch, and doubling a tenant's evidence is exactly
+            # what that claim exists to stop. The caller has to hear it as a
+            # ``Conflict`` rather than as whatever the driver raises at commit
+            # -- and that is the only shape a fake can be held to.
+            await self._session.flush()
+        except IntegrityError as clash:
+            await self._session.rollback()
+            raise Conflict("one of these gestures is already stored") from clash
 
     async def gestures_for(
         self, tenant_id: TenantId, *, ids: tuple[str, ...] | None = None
@@ -252,7 +263,12 @@ class SqlGestureRepository(GestureRepository):
         query = (
             select(IntentRow)
             .where(IntentRow.tenant_id == tenant_id.value, IntentRow.created_at >= when(since))
-            .order_by(IntentRow.created_at.desc())
+            # The gesture id breaks the tie: ``created_at`` is the server
+            # clock inside ``save_intent`` and a batch of readings saved in one
+            # call routinely shares it, so the clock alone is not a total order
+            # -- and an order that is not total is one that changes between
+            # reads of the same rows.
+            .order_by(IntentRow.created_at.desc(), IntentRow.gesture_id.desc())
             # The reading a caller has just saved is the one it is most likely
             # to be reading back, and ``save_intent`` upserts with a Core
             # statement -- so, as in ``intents_for``, the identity map must not

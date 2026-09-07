@@ -414,6 +414,63 @@ class TestPool:
         assert (by_id["ges_shown"].age, by_id["ges_shown"].waited) == (2, 0)
         assert (by_id["ges_waiting"].age, by_id["ges_waiting"].waited) == (0, 2)
 
+    async def test_ageing_one_tenant_does_not_age_another(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """Retiring on a tenant filter while counting passes without one is the
+        sibling mistake: the eviction looks scoped and the clock is not.
+
+        Split the shared predicate so only the caps keep the tenant filter and
+        every suite here stays green: one tenant's pass advances every other
+        tenant's `age` and `waited`, and because the sweep *is* scoped the
+        damage is silent until those tenants are next mined -- at which point
+        their unplaced evidence retires at `age > K_POOL_AGE` and is out of the
+        window for good. All three shapes of call, because each bumps on a
+        predicate of its own."""
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.pool.add_unclaimed(TENANT, window_ids=("ges_1",), claimed=frozenset())
+            await uow.pool.add_unclaimed(OTHER_TENANT, window_ids=("ges_2",), claimed=frozenset())
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.pool.age(TENANT)
+            await uow.pool.age(TENANT, shown=())
+            await uow.pool.age(TENANT, shown=("ges_1",))
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            theirs = await uow.pool.waiting(OTHER_TENANT)
+
+        assert [(one.gesture_id, one.age, one.waited) for one in theirs] == [("ges_2", 0, 0)], (
+            "neither clock is another tenant's to move"
+        )
+
+    async def test_a_caller_with_no_window_ages_everything(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """``None`` is not an empty window: a caller that names no window is not
+        claiming nothing was read, so every live entry ages. Three planted, not
+        one -- with a single entry "everything" and "the first one" are the same
+        assertion."""
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.pool.add_unclaimed(
+                TENANT, window_ids=("ges_a", "ges_b", "ges_c"), claimed=frozenset()
+            )
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.pool.age(TENANT)
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            waiting = await uow.pool.waiting(TENANT)
+
+        assert [(one.gesture_id, one.age, one.waited) for one in waiting] == [
+            ("ges_a", 1, 0),
+            ("ges_b", 1, 0),
+            ("ges_c", 1, 0),
+        ]
+
     async def test_an_empty_window_still_moves_what_everything_waited(
         self, session_factory: async_sessionmaker[AsyncSession]
     ) -> None:

@@ -1354,8 +1354,18 @@ class FakeGestureRepository:
         self.batches[batch.batch_id] = batch
 
     async def add_gestures(self, gestures: tuple[Gesture, ...]) -> None:
+        # A repeat is a ``Conflict``, as the store's unique id makes it. Writing
+        # into the dict swallowed the second copy instead, so the fake said a
+        # retried upload doubles nothing and the store said it is an error --
+        # and ``add_batch`` raises one method over precisely to stop that
+        # double. Checked before anything is written, because the store rolls
+        # back and leaves none of them stored.
+        fresh: dict[str, Gesture] = {}
         for gesture in gestures:
-            self.rows[gesture.id] = gesture
+            if gesture.id in self.rows or gesture.id in fresh:
+                raise Conflict("one of these gestures is already stored")
+            fresh[gesture.id] = gesture
+        self.rows.update(fresh)
 
     async def gestures_for(
         self, tenant_id: TenantId, *, ids: tuple[str, ...] | None = None
@@ -1397,7 +1407,14 @@ class FakeGestureRepository:
             if self.read_at[intent.gesture_id] >= at
         ]
         return tuple(
-            sorted(found, key=lambda intent: self.read_at[intent.gesture_id], reverse=True)
+            # (created_at, gesture_id) reversed, as the store orders it: a
+            # batch of readings saved in one call shares the server clock, and
+            # a stable sort on the clock alone is only accidentally total.
+            sorted(
+                found,
+                key=lambda intent: (self.read_at[intent.gesture_id], intent.gesture_id),
+                reverse=True,
+            )
         )
 
     async def add_orphan_request(

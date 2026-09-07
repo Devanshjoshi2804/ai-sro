@@ -25,7 +25,7 @@ What is deliberately *not* under contract, because a fake cannot honour it:
 * Transactions. ``commit`` is a counter in the fake and a real one in the
   store, so nothing here proves a rollback. ``tests/integration`` does.
 * Database constraints, ``FOR UPDATE``, and anything the schema enforces
-  rather than the repository. The two ``Conflict`` rules below are the
+  rather than the repository. The three ``Conflict`` rules below are the
   exception, because both implementations raise them by hand.
 * An order whose sort key is a server clock. ``known`` and ``intents_since``
   order on a ``datetime.now()`` taken inside the write, so a tie cannot be
@@ -767,6 +767,20 @@ class TestGestures:
                 await work.gestures.add_batch(_batch())
                 await work.commit()
 
+    async def test_a_gesture_id_is_stored_once(self, store: UnitOfWork) -> None:
+        """``add_batch`` raises one method over precisely so a retried upload
+        cannot double its gestures, and the id is unique in the store. A fake
+        that writes into a dict swallowed the second copy instead -- so every
+        suite built on it would prove a doubling the store refuses."""
+        async with store as work:
+            await work.gestures.add_gestures((_gesture("ges_1"),))
+            await work.commit()
+
+        with pytest.raises(Conflict):
+            async with store as work:
+                await work.gestures.add_gestures((_gesture("ges_1"),))
+                await work.commit()
+
     async def test_gestures_and_unread_are_oldest_first_and_a_reading_is_never_reoffered(
         self, store: UnitOfWork
     ) -> None:
@@ -980,6 +994,25 @@ class TestPool:
             assert await work.pool.waiting(TENANT) == ()
             gone = await work.pool.retired(TENANT)
         assert [(one.gesture_id, one.reason) for one in gone] == [("ges_1", RETIRED_PASSES)]
+
+    async def test_ageing_one_tenant_does_not_age_another(self, store: UnitOfWork) -> None:
+        """Retiring on a tenant filter while counting passes without one is the
+        sibling mistake: the eviction looks scoped and the clock is not. The
+        retirement caps are asked per tenant, so a clock that is not would stay
+        silent until the other tenant is next mined -- and then retire its
+        whole pool at once. All three shapes of call, because each bumps on a
+        predicate of its own."""
+        async with store as work:
+            await work.pool.add_unclaimed(TENANT, window_ids=("ges_1",), claimed=frozenset())
+            await work.pool.add_unclaimed(OTHER_TENANT, window_ids=("ges_2",), claimed=frozenset())
+            await work.pool.age(TENANT)
+            await work.pool.age(TENANT, shown=())
+            await work.pool.age(TENANT, shown=("ges_1",))
+            await work.commit()
+
+        async with store as work:
+            theirs = await work.pool.waiting(OTHER_TENANT)
+        assert [(one.gesture_id, one.age, one.waited) for one in theirs] == [("ges_2", 0, 0)]
 
 
 class TestSpend:

@@ -316,14 +316,7 @@ def pack(
     # cost of the prompt it is budgeting is not a prompt budget, and
     # INSTRUCTIONS twice plus the response schema plus the crossings block came
     # to ~2,600 tokens nothing subtracted.
-    #
-    # The `type: ignore` is temporary and self-removing: umbrella is Task 3 of
-    # this plan and Task 1 commits first, so the module is not on disk yet.
-    # mypy's strict mode reports an unused ignore, so the day it lands this
-    # comment fails the gate and has to go.
-    from sro.domain.skill.umbrella import (  # type: ignore[import-not-found]
-        PROMPT_OVERHEAD_TOKENS,
-    )
+    from sro.domain.skill.umbrella import PROMPT_OVERHEAD_TOKENS
 
     room = (
         budget

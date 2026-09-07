@@ -1,19 +1,13 @@
 """Ported from `new_agent_arch/tests/test_window.py`, all 19, names unchanged.
 
 Eight of them call `pack`, which subtracts the prompt's fixed cost and therefore
-imports `PROMPT_OVERHEAD_TOKENS` from the umbrella module. That module is Task 3
-of this plan and the plan runs Task 1 first, so those eight are skipped until it
-lands -- see the skip reason. They were run green against a local umbrella before
-this commit; deleting `_NO_UMBRELLA` and its marks is the whole of what Task 3
-owes this file.
+imports `PROMPT_OVERHEAD_TOKENS` from `sro.domain.skill.umbrella`. That module
+landed with the umbrella prompt, so all nineteen run.
 """
 
 import copy
-import importlib.util
 import json
 from dataclasses import replace
-
-import pytest
 
 from sro.domain.observation.gesture import Gesture, Intent, Kind, ValueSeen
 from sro.domain.observation.window import (
@@ -29,11 +23,6 @@ from sro.domain.observation.window import (
     tokens,
 )
 from tests.unit.domain.rig.conftest import gestures as _gestures
-
-_NO_UMBRELLA = pytest.mark.skipif(
-    importlib.util.find_spec("sro.domain.skill.umbrella") is None,
-    reason="pack() subtracts PROMPT_OVERHEAD_TOKENS, which Task 3's umbrella defines",
-)
 
 
 def _map(value: object) -> dict[str, object]:
@@ -215,7 +204,6 @@ def test_the_middle_of_the_window_keeps_its_order() -> None:
     )
 
 
-@_NO_UMBRELLA
 def test_everything_that_fits_is_packed_in_time_order() -> None:
     gestures = _gestures()
     # Reversed, so a pack that returned its input order rather than time order
@@ -229,7 +217,6 @@ def test_everything_that_fits_is_packed_in_time_order() -> None:
     assert window.left_out == []
 
 
-@_NO_UMBRELLA
 def test_a_budget_too_small_keeps_the_floor_and_reports_the_rest() -> None:
     """A quiet morning is still read, and what did not fit is named rather
     than silently missing."""
@@ -241,7 +228,6 @@ def test_a_budget_too_small_keeps_the_floor_and_reports_the_rest() -> None:
     assert len(window.left_out) == len(gestures) - len(window.items)
 
 
-@_NO_UMBRELLA
 def test_the_pool_is_favoured_over_equally_strong_new_evidence() -> None:
     """Equal strength, and the pool item is the latest thing in the window, so
     the tie-break on `at` sends it to the back. Only K_POOL_BONUS keeps it.
@@ -279,7 +265,6 @@ def test_the_pool_is_favoured_over_equally_strong_new_evidence() -> None:
     assert "ges_pool" in {item.gesture_id for item in window.items}
 
 
-@_NO_UMBRELLA
 def test_packing_twice_does_not_compound_the_pool_bonus() -> None:
     pooled = [Packed("ges_pool", 0.0, {"id": "ges_pool"}, 1.0, 10)]
 
@@ -349,7 +334,6 @@ def test_what_earns_a_place_in_the_window() -> None:
     assert strength(plain, None, {plain.id}) > base, "and evidence that crosses two systems"
 
 
-@_NO_UMBRELLA
 def test_the_known_workflows_summary_costs_budget_rather_than_making_it() -> None:
     """The summary goes in the same prompt as the evidence, so its tokens come
     OUT of the room the evidence has. A sign flip here reads as free space and
@@ -367,7 +351,6 @@ def test_the_known_workflows_summary_costs_budget_rather_than_making_it() -> Non
     assert beside.left_out, "and what it displaced is named"
 
 
-@_NO_UMBRELLA
 def test_a_window_reports_what_it_actually_spent() -> None:
     """`spent` is what a caller checks a budget against, so it has to be the
     sum of what was packed rather than a number of its own."""
@@ -377,7 +360,6 @@ def test_a_window_reports_what_it_actually_spent() -> None:
     assert window.spent > 0
 
 
-@_NO_UMBRELLA
 def test_the_floor_wins_over_the_budget_and_says_what_it_left_out() -> None:
     """K_MIN_GESTURES is the promise that a window is never empty. Below it the
     budget test is not even asked, so a budget of nothing still yields a
@@ -391,7 +373,6 @@ def test_the_floor_wins_over_the_budget_and_says_what_it_left_out() -> None:
     assert len(starved.items) + len(starved.left_out) == len(gestures), "nothing vanished"
 
 
-@_NO_UMBRELLA
 def test_an_item_that_exactly_fills_the_room_is_packed() -> None:
     """The boundary, which no budget picked at random ever lands on.
 
@@ -400,10 +381,7 @@ def test_an_item_that_exactly_fills_the_room_is_packed() -> None:
     window for no reason, and a window is the only thing the model ever sees.
     So the budget is computed backwards from the evidence rather than chosen.
     """
-    # Task 3's module; see the header. The ignore goes when it lands.
-    from sro.domain.skill.umbrella import (  # type: ignore[import-not-found]
-        PROMPT_OVERHEAD_TOKENS,
-    )
+    from sro.domain.skill.umbrella import PROMPT_OVERHEAD_TOKENS
 
     gestures = _many()
     ranked = sorted(

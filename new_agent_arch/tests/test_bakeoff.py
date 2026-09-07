@@ -15,6 +15,7 @@ from typing import Any
 
 from rig.bakeoff import (
     Purse,
+    Reading,
     Row,
     Timed,
     _bill,
@@ -23,6 +24,7 @@ from rig.bakeoff import (
     forget_readings,
     percentile,
     save,
+    save_readings,
     sweep,
 )
 from rig.models import Answer, Asker, FakeAsker
@@ -108,7 +110,7 @@ async def test_each_model_reads_the_same_evidence_on_its_own_copy(tmp_path: Path
     _store(source)
     _gestures(_store(source), 4)
 
-    rows = await sweep(
+    rows, _ = await sweep(
         source=source,
         out=tmp_path / "out",
         models=("one", "two"),
@@ -128,7 +130,7 @@ async def test_a_reading_with_no_act_is_paid_for_and_not_usable(tmp_path: Path) 
     source = tmp_path / "source.db"
     _gestures(_store(source), 3)
 
-    rows = await sweep(
+    rows, _ = await sweep(
         source=source,
         out=tmp_path / "out",
         models=("one",),
@@ -155,7 +157,7 @@ async def test_a_vendor_that_cannot_be_reached_is_one_row_not_a_dead_sweep(
     source = tmp_path / "source.db"
     _gestures(_store(source), 2)
 
-    rows = await sweep(
+    rows, _ = await sweep(
         source=source,
         out=tmp_path / "out",
         models=("angry", "fine"),
@@ -183,7 +185,7 @@ async def test_a_door_that_would_start_over_the_budget_says_so(tmp_path: Path) -
     _gestures(_store(source), 2)
     costly = Answer(data={"act": "picked"}, in_tokens=1_000_000, out_tokens=1_000_000, cost_usd=6.0)
 
-    rows = await sweep(
+    rows, _ = await sweep(
         source=source,
         out=tmp_path / "out",
         models=("spendy",),
@@ -300,7 +302,7 @@ async def test_a_second_pass_over_the_same_day_is_what_stability_means(
     store = _store(source)
     _gestures(store, 3, read_from=3)
 
-    rows = await sweep(
+    rows, _ = await sweep(
         source=source,
         out=tmp_path / "out",
         models=("one",),
@@ -318,3 +320,74 @@ async def test_a_second_pass_over_the_same_day_is_what_stability_means(
     assert row.cost_usd == 0.02, "and so is both passes' money"
     assert row.second_kept == 0
     assert row.window is not None and row.left_out is not None
+
+
+async def test_every_model_reads_every_gesture_when_the_day_is_the_window(
+    tmp_path: Path,
+) -> None:
+    """Zero means the whole day. The reading loop takes 200 at a time -- its own
+    query's limit, not a budget -- so a door that called it once would have
+    compared the models on the morning and called it a day."""
+    source = tmp_path / "source.db"
+    _gestures(_store(source), 250)
+
+    rows, readings = await sweep(
+        source=source,
+        out=tmp_path / "out",
+        models=("one",),
+        asker_for=lambda _: FakeAsker(
+            *[Answer(data={"act": "picked"}, in_tokens=10, out_tokens=2) for _ in range(250)]
+        ),
+        tenant=TENANT,
+        gestures=0,
+        doors=("read",),
+    )
+
+    assert rows[0].gestures == 250, "all of them, across more than one pass"
+    assert len(readings) == 250
+
+
+async def test_what_each_model_made_of_each_gesture_is_kept_to_be_compared(
+    tmp_path: Path,
+) -> None:
+    """The aggregate rows say what a model cost. Only these say whether two
+    models read the same day the same way."""
+    source = tmp_path / "source.db"
+    _gestures(_store(source), 2)
+
+    _, readings = await sweep(
+        source=source,
+        out=tmp_path / "out",
+        models=("one", "two"),
+        asker_for=lambda model: FakeAsker(
+            *[
+                Answer(data={"act": "picked" if model == "one" else "counted"}, cost_usd=0.001)
+                for _ in range(2)
+            ]
+        ),
+        tenant=TENANT,
+        gestures=0,
+        doors=("read",),
+    )
+
+    assert len(readings) == 4, "two models, two gestures"
+    acts = {(r.model, r.gesture_id): r.act for r in readings}
+    assert acts[("one", "ges_000")] == "picked"
+    assert acts[("two", "ges_000")] == "counted", "and they disagreed, which is the point"
+    assert all(r.cost_usd == 0.001 for r in readings), "each reading carries its own bill"
+
+
+def test_a_sweeps_readings_survive_to_be_read_back(tmp_path: Path) -> None:
+    store = _store(tmp_path / "rig.db")
+
+    save_readings(
+        store,
+        [
+            Reading("swp_1", TENANT, "one", "ges_1", act="picked", cost_usd=0.002),
+            Reading("swp_1", TENANT, "two", "ges_1", act="counted", error=None),
+        ],
+    )
+
+    rows = store.query("SELECT * FROM bakeoff_readings ORDER BY model", ())
+    assert [row["act"] for row in rows] == ["picked", "counted"]
+    assert rows[0]["cost_usd"] == 0.002

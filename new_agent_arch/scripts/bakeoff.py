@@ -32,9 +32,9 @@ from pathlib import Path
 # own --budget-usd is the ceiling that applies here.
 os.environ.setdefault("RIG_DAILY_USD_CAP", "-1")
 
-from rig.bakeoff import DOORS, K_BURST, K_READ_GESTURES, Row, save, sweep
+from rig.bakeoff import DOORS, K_BURST, K_READ_GESTURES, Reading, Row, save, save_readings, sweep
 from rig.claude import AnthropicAsker
-from rig.models import Asker, GeminiAsker, is_priced
+from rig.models import PRICES, Asker, GeminiAsker, is_priced
 from rig.store import Store
 
 MODELS = (
@@ -75,6 +75,88 @@ def key_for(names: tuple[str, ...], env: dict[str, str]) -> str:
     return ""
 
 
+def reachable(gemini: str, anthropic: str, wanted: tuple[str, ...]) -> bool:
+    """Ask each vendor what it will serve this key, and say whether every model
+    named is on that list.
+
+    Listing is free and it is the only honest way to find out. A model name the
+    API does not have comes back as a 404 on the first real call, halfway
+    through a sweep, having already billed for whatever ran before it -- and
+    `config.mine_model` was exactly that for weeks: "gemini-3.1-pro", which
+    models.list() does not offer.
+    """
+    offered: dict[str, set[str]] = {"gemini": set(), "anthropic": set()}
+    problems: list[str] = []
+
+    if gemini:
+        try:
+            from google import genai
+
+            # Held in a local, not built inline: the SDK closes the underlying
+            # http client when the Client is collected, and a temporary is
+            # collected between `models.list()` returning its pager and the
+            # loop iterating it -- which reads as "the client has been closed"
+            # and looks exactly like a network failure.
+            client = genai.Client(api_key=gemini)
+            for entry in client.models.list():
+                name = str(getattr(entry, "name", "") or "")
+                offered["gemini"].add(name.removeprefix("models/"))
+            print(f"gemini:    key valid, {len(offered['gemini'])} models offered")
+        except Exception as problem:  # noqa: BLE001 -- the point is to report it
+            problems.append(f"gemini: {type(problem).__name__}: {problem}")
+            print(f"gemini:    UNREACHABLE -- {type(problem).__name__}: {problem}")
+
+    if anthropic:
+        try:
+            import anthropic as sdk
+
+            vendor = sdk.Anthropic(api_key=anthropic)
+            listing = vendor.models.list(limit=100)
+            for entry in listing.data:
+                offered["anthropic"].add(str(getattr(entry, "id", "")))
+            print(f"anthropic: key valid, {len(offered['anthropic'])} models offered")
+        except Exception as problem:  # noqa: BLE001 -- the point is to report it
+            problems.append(f"anthropic: {type(problem).__name__}: {problem}")
+            print(f"anthropic: UNREACHABLE -- {type(problem).__name__}: {problem}")
+
+    print()
+    every = True
+    for model in wanted:
+        vendor = "anthropic" if model.startswith("claude") else "gemini"
+        if not offered[vendor]:
+            print(f"  ?  {model:<30} {vendor} could not be asked")
+            every = False
+            continue
+        if model in offered[vendor]:
+            print(
+                f"  ok {model:<30} served, and priced at {PRICES[model]} per Mtok"
+                if model in PRICES
+                else f"  ok {model:<30} served, but NOT in PRICES"
+            )
+        else:
+            near = sorted(n for n in offered[vendor] if n.split("-")[0] in model)[:4]
+            print(f"  NO {model:<30} not offered. nearest: {', '.join(near) or '(none)'}")
+            every = False
+    return every
+
+
+def _agreement(readings: list[Reading]) -> dict[str, tuple[int, int]]:
+    """For every pair of models, how often they gave the same act to the same
+    gesture. The one number that says whether a cheaper model is reading the
+    same day or a different one."""
+    by_model: dict[str, dict[str, str | None]] = {}
+    for reading in readings:
+        by_model.setdefault(reading.model, {})[reading.gesture_id] = reading.act
+    names = sorted(by_model)
+    out: dict[str, tuple[int, int]] = {}
+    for i, one in enumerate(names):
+        for two in names[i + 1 :]:
+            shared = set(by_model[one]) & set(by_model[two])
+            same = sum(1 for g in shared if by_model[one][g] == by_model[two][g])
+            out[f"{one} vs {two}"] = (same, len(shared))
+    return out
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--db", default="rig.db", help="the store to compare on; never written")
@@ -82,7 +164,12 @@ def main() -> None:
     parser.add_argument("--tenant", default="new")
     parser.add_argument("--models", default=",".join(MODELS))
     parser.add_argument("--doors", default=",".join(DOORS))
-    parser.add_argument("--gestures", type=int, default=K_READ_GESTURES)
+    parser.add_argument(
+        "--gestures",
+        type=int,
+        default=K_READ_GESTURES,
+        help="gestures the read door reads; 0 is the whole day, which is the point",
+    )
     parser.add_argument("--burst", type=int, default=K_BURST, help="calls fired at once")
     parser.add_argument(
         "--budget-usd",
@@ -94,6 +181,11 @@ def main() -> None:
         "--once",
         action="store_true",
         help="read the day once; without it the mine door reads it twice and reports stability",
+    )
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="ask each vendor which models it will actually serve this key, then stop",
     )
     parser.add_argument("--dry", action="store_true", help="print the plan, ask nothing")
     args = parser.parse_args()
@@ -126,6 +218,15 @@ def main() -> None:
     def asker_for(model: str) -> Asker:
         return AnthropicAsker(anthropic) if model.startswith("claude") else GeminiAsker(gemini)
 
+    if args.check:
+        every = reachable(gemini, anthropic, wanted)
+        print(
+            "\nevery model named is reachable and priced"
+            if every
+            else "\nsome model is not reachable; fix the name or the key before spending"
+        )
+        raise SystemExit(0 if every else 1)
+
     store = Store(source)
     read = store.query("SELECT count(*) AS n FROM gestures WHERE tenant = ?", (args.tenant,))
     print(f"evidence: {read[0]['n']} gestures for tenant {args.tenant}")
@@ -144,7 +245,9 @@ def main() -> None:
         print("\n--dry: nothing was asked and nothing was spent")
         return
 
-    rows: list[Row] = asyncio.run(
+    rows: list[Row]
+    readings: list[Reading]
+    rows, readings = asyncio.run(
         sweep(
             source=source,
             out=Path(args.out),
@@ -159,6 +262,7 @@ def main() -> None:
         )
     )
     save(store, rows)
+    save_readings(store, readings)
 
     print(f"\n{'model':<28} {'door':<5} {'calls':>5} {'p50ms':>8} {'cost':>9}  outcome")
     for row in sorted(rows, key=lambda r: (r.door, r.cost_usd)):
@@ -174,7 +278,15 @@ def main() -> None:
             f"{row.model:<28} {row.door:<5} {row.calls:>5} {row.p50_ms:>8.0f}"
             f" {row.cost_usd:>9.4f}  {outcome}"
         )
-    print(f"\nsweep total ${sum(r.cost_usd for r in rows):.4f}; the page draws it under `models`")
+    agree = _agreement(readings)
+    if agree:
+        print("\nagreement on the same gesture, model against model:")
+        for pair, (same, seen) in sorted(agree.items()):
+            print(f"  {pair:<58} {same}/{seen} = {same / seen:.0%}" if seen else f"  {pair} none")
+    print(
+        f"\nsweep total ${sum(r.cost_usd for r in rows):.4f};"
+        f" {len(readings)} readings kept; the page draws it under `models`"
+    )
 
 
 if __name__ == "__main__":

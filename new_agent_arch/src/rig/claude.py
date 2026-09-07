@@ -18,6 +18,15 @@ other is free to narrate would measure the harness rather than the models. So
 `effort` is accepted, recorded, and not sent -- and `thought_tokens` is 0 for
 every Claude row, which the page says out loud rather than letting a zero read
 as "thought about nothing".
+
+Streamed, and then read whole. The SDK refuses a non-streaming request whose
+`max_tokens` allows a generation that could exceed ten minutes, which this
+ceiling does. The alternative was to lower the ceiling, and that would hand
+Claude a smaller answer budget than Gemini gets -- on the mining door, where
+the answer is every workflow found in a day, that is not a smaller budget but
+a different question. So the call streams and `get_final_message` assembles
+it; nothing here consumes the stream incrementally, because nothing upstream
+of the port can use half an answer.
 """
 
 import json
@@ -116,7 +125,7 @@ class AnthropicAsker:
         effort: Effort | None = None,
     ) -> Answer:
         try:
-            message = await self._client.messages.create(
+            async with self._client.messages.stream(
                 model=model,
                 max_tokens=K_MAX_OUTPUT_TOKENS,
                 # The instruction is the system prompt, which is where it
@@ -132,7 +141,8 @@ class AnthropicAsker:
                 ],
                 tool_choice={"type": "tool", "name": TOOL},
                 messages=[{"role": "user", "content": _blocks(evidence, image, images)}],
-            )
+            ) as streamed:
+                message = await streamed.get_final_message()
         except Exception as problem:  # noqa: BLE001 -- a rig keeps going; the row records why
             # The call may or may not have been billed before it failed, and we
             # cannot tell -- so the cost figure (0.0 here) is not to be trusted.

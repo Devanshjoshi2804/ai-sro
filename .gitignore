@@ -80,3 +80,8 @@ rig.db-shm
 rig.db.bak*
 artifacts/
 new_agent_arch/artifacts/
+# Per-model copies of the store a bake-off works on: 23MB each, regenerated
+# by every sweep, and the sweep's own findings live in the store the API
+# serves rather than here.
+new_agent_arch/bakeoff-out/
+new_agent_arch/measure-out/

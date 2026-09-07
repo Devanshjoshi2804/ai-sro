@@ -292,6 +292,28 @@ CREATE TABLE IF NOT EXISTS bakeoff (
 );
 CREATE INDEX IF NOT EXISTS bakeoff_sweep ON bakeoff (tenant, sweep_id, model, door);
 
+-- What one model made of one gesture, in a sweep where every model read every
+-- gesture. The rows above say what a model cost and how fast it was; this is
+-- the only thing that can say whether two models read the same day the same
+-- way, which is the question a price list cannot answer and the reason a
+-- cheaper model is not automatically the cheaper choice.
+CREATE TABLE IF NOT EXISTS bakeoff_readings (
+    sweep_id   TEXT NOT NULL,
+    tenant     TEXT NOT NULL,
+    model      TEXT NOT NULL,
+    gesture_id TEXT NOT NULL,
+    act        TEXT,
+    object     TEXT,
+    page       TEXT,
+    confidence TEXT,
+    in_tokens  INTEGER NOT NULL DEFAULT 0,
+    out_tokens INTEGER NOT NULL DEFAULT 0,
+    thought_tokens INTEGER NOT NULL DEFAULT 0,
+    cost_usd   REAL NOT NULL DEFAULT 0.0,
+    error      TEXT,
+    PRIMARY KEY (sweep_id, model, gesture_id)
+);
+
 CREATE TABLE IF NOT EXISTS runs (
     id          TEXT PRIMARY KEY,
     tenant      TEXT NOT NULL,
@@ -354,6 +376,18 @@ ADDED_COLUMNS: tuple[tuple[str, str, str], ...] = (
     ("passes", "thought_tokens", "INTEGER NOT NULL DEFAULT 0"),
     ("pool", "waited", "INTEGER NOT NULL DEFAULT 0"),
     ("approvals", "device_id", "TEXT"),
+    # The bake-off table grew as the comparison did: a burst door, then the
+    # numbers a single pass cannot report. A store that ran the first sweep
+    # would otherwise fail at the INSERT, having already paid for the calls.
+    ("bakeoff", "speedup", "REAL"),
+    ("bakeoff", "fastest_ms", "REAL NOT NULL DEFAULT 0.0"),
+    ("bakeoff", "truncated", "INTEGER NOT NULL DEFAULT 0"),
+    ("bakeoff", "window", "INTEGER"),
+    ("bakeoff", "left_out", "INTEGER"),
+    ("bakeoff", "rejected", "INTEGER"),
+    ("bakeoff", "gini", "REAL"),
+    ("bakeoff", "stability", "REAL"),
+    ("bakeoff", "second_kept", "INTEGER"),
 )
 
 

@@ -51,10 +51,11 @@ a busy morning and a page full of parked runs both put several small calls in
 flight together, and a vendor that serialises them or starts refusing is a
 vendor whose per-call latency was never the whole story."""
 
-K_READ_GESTURES = 20
-"""How many gestures the read door reads, by default. Small on purpose: the
-per-call numbers converge quickly and the whole day is what the mine door is
-for. Capped at 200 because the reading loop's own query is."""
+K_READ_GESTURES = 0
+"""How many gestures the read door reads. Zero means the whole day, which is
+the comparison worth having: every model reads every gesture, so what they made
+of the same evidence can be put side by side. A number reads that many of the
+oldest, for a cheaper look at the same shape."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -98,6 +99,25 @@ class Row:
     day every time it reads the same day is not a model anyone can build a
     schedule on, and no single pass can show it."""
     second_kept: int | None = None
+    error: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class Reading:
+    """What one model made of one gesture. The row a disagreement is found in."""
+
+    sweep_id: str
+    tenant: str
+    model: str
+    gesture_id: str
+    act: str | None = None
+    object: str | None = None
+    page: str | None = None
+    confidence: str | None = None
+    in_tokens: int = 0
+    out_tokens: int = 0
+    thought_tokens: int = 0
+    cost_usd: float = 0.0
     error: str | None = None
 
 
@@ -201,6 +221,17 @@ def copy_store(source: Path, target: Path) -> Store:
     return store
 
 
+def _oldest(store: Store, tenant: str, gestures: int) -> list[str]:
+    """The oldest `gestures` gesture ids, or all of them when it is zero."""
+    sql = "SELECT id FROM gestures WHERE tenant = ? ORDER BY at"
+    rows = (
+        store.query(sql, (tenant,))
+        if gestures <= 0
+        else store.query(sql + " LIMIT ?", (tenant, gestures))
+    )
+    return [str(row["id"]) for row in rows]
+
+
 def forget_readings(store: Store, tenant: str, gestures: int) -> int:
     """Drop the readings of the oldest `gestures` gestures, and say how many.
 
@@ -209,16 +240,46 @@ def forget_readings(store: Store, tenant: str, gestures: int) -> int:
     a day of intents to work from and re-reading all of them would be the read
     door's bill several times over.
     """
-    ids = [
-        str(row["id"])
-        for row in store.query(
-            "SELECT id FROM gestures WHERE tenant = ? ORDER BY at LIMIT ?",
-            (tenant, max(0, min(gestures, 200))),
-        )
-    ]
+    ids = _oldest(store, tenant, gestures)
     for gesture_id in ids:
         store.execute("DELETE FROM intents WHERE gesture_id = ?", (gesture_id,))
     return len(ids)
+
+
+def _readings(
+    store: Store, sweep_id: str, tenant: str, model: str, ids: list[str]
+) -> list[Reading]:
+    """Every reading this model just made, as rows a comparison can be run over.
+
+    Read back out of the copy's own `intents` table rather than held in memory
+    from the loop: what is compared has to be what was stored, and the reading
+    loop's own rules about a malformed answer -- an `act` of the wrong type is
+    nulled, an error is kept -- are applied on the way in.
+    """
+    wanted = set(ids)
+    return [
+        Reading(
+            sweep_id=sweep_id,
+            tenant=tenant,
+            model=model,
+            gesture_id=str(row["gesture_id"]),
+            act=row["act"],
+            object=row["object"],
+            page=row["page"],
+            confidence=row["confidence"],
+            in_tokens=row["in_tokens"],
+            out_tokens=row["out_tokens"],
+            thought_tokens=row["thought_tokens"],
+            cost_usd=row["cost_usd"],
+            error=row["error"],
+        )
+        for row in store.query(
+            "SELECT gesture_id, act, object, page, confidence, in_tokens, out_tokens,"
+            " thought_tokens, cost_usd, error FROM intents WHERE tenant = ?",
+            (tenant,),
+        )
+        if str(row["gesture_id"]) in wanted
+    ]
 
 
 def _usable(store: Store, tenant: str, ids: Iterable[str]) -> int:
@@ -271,23 +332,18 @@ async def one_model(
     bursts: int = K_BURST,
     twice: bool = True,
     doors: tuple[str, ...] = DOORS,
-) -> list[Row]:
-    """Both doors, one model, on its own copy of the evidence."""
+) -> tuple[list[Row], list[Reading]]:
+    """Every door, one model, on its own copy of the evidence."""
     from rig.api import read_new_gestures
 
     now = datetime.now(tz=UTC).isoformat()
     store = copy_store(source, out / f"{model.replace('.', '-')}.db")
     timed = Timed(asker)
     rows: list[Row] = []
+    readings: list[Reading] = []
 
     if "read" in doors:
-        wanted = [
-            str(row["id"])
-            for row in store.query(
-                "SELECT id FROM gestures WHERE tenant = ? ORDER BY at LIMIT ?",
-                (tenant, max(0, min(gestures, 200))),
-            )
-        ]
+        wanted = _oldest(store, tenant, gestures)
         forget_readings(store, tenant, gestures)
         if purse.over():
             rows.append(
@@ -295,9 +351,18 @@ async def one_model(
             )
         else:
             mark, began = len(timed.calls), time.perf_counter()
-            read = await read_new_gestures(store, timed, model, tenant)
+            # The reading loop takes 200 at a time, which is its own query's
+            # limit and not a budget. A day is bigger than that, and a door
+            # that stopped at 200 would compare the models on the morning.
+            read = 0
+            while True:
+                this_pass = await read_new_gestures(store, timed, model, tenant)
+                read += this_pass
+                if this_pass == 0 or (gestures > 0 and read >= gestures):
+                    break
             calls = timed.since(mark)
             purse.spent += sum(a.cost_usd for _, a in calls)
+            readings.extend(_readings(store, sweep_id, tenant, model, wanted))
             rows.append(
                 Row(
                     sweep_id,
@@ -343,7 +408,7 @@ async def one_model(
             rows.append(
                 Row(sweep_id, tenant, model, "mine", now, error="skipped: over the sweep's budget")
             )
-            return rows
+            return rows, readings
         mark, began = len(timed.calls), time.perf_counter()
         result = await mine(store, tenant=tenant, asker=timed, model=model, kb="")
         calls = timed.since(mark)
@@ -403,7 +468,7 @@ async def one_model(
                 **_bill(calls),
             )
         )
-    return rows
+    return rows, readings
 
 
 async def sweep(
@@ -419,7 +484,7 @@ async def sweep(
     budget_usd: float = 5.0,
     doors: tuple[str, ...] = DOORS,
     sweep_id: str = "",
-) -> list[Row]:
+) -> tuple[list[Row], list[Reading]]:
     """Every model at once, each on its own copy. One model failing outright
     does not take the sweep with it: its rows carry the error instead."""
     sweep_id = sweep_id or "swp_" + secrets.token_hex(8)
@@ -427,7 +492,7 @@ async def sweep(
     purse = Purse(budget_usd)
     now = datetime.now(tz=UTC).isoformat()
 
-    async def guarded(model: str) -> list[Row]:
+    async def guarded(model: str) -> tuple[list[Row], list[Reading]]:
         try:
             return await one_model(
                 source=source,
@@ -453,10 +518,40 @@ async def sweep(
                     error=f"{type(problem).__name__}: {problem}",
                 )
                 for door in doors
-            ]
+            ], []
 
     gathered = await asyncio.gather(*(guarded(model) for model in models))
-    return [row for rows in gathered for row in rows]
+    return (
+        [row for rows, _ in gathered for row in rows],
+        [reading for _, readings in gathered for reading in readings],
+    )
+
+
+def save_readings(store: Store, readings: list[Reading]) -> None:
+    """Every model's reading of every gesture, so the page can show where two
+    models saw the same gesture differently."""
+    with store.connect() as connection:
+        for reading in readings:
+            connection.execute(
+                "INSERT OR REPLACE INTO bakeoff_readings (sweep_id, tenant, model, gesture_id,"
+                " act, object, page, confidence, in_tokens, out_tokens, thought_tokens,"
+                " cost_usd, error) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    reading.sweep_id,
+                    reading.tenant,
+                    reading.model,
+                    reading.gesture_id,
+                    reading.act,
+                    reading.object,
+                    reading.page,
+                    reading.confidence,
+                    reading.in_tokens,
+                    reading.out_tokens,
+                    reading.thought_tokens,
+                    reading.cost_usd,
+                    reading.error,
+                ),
+            )
 
 
 def save(store: Store, rows: list[Row]) -> None:

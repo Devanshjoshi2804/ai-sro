@@ -1324,6 +1324,32 @@ def build_app(
         )
         return {"rows": [dict(row) for row in rows]}
 
+    @app.get("/v1/bakeoff/readings", dependencies=[Depends(tenant_only)])
+    async def bakeoff_readings(sweep: str = "", limit: int = 5000) -> dict[str, Any]:
+        """What each model made of each gesture, for one sweep.
+
+        The rows on /v1/bakeoff say what a model cost and how fast it was. These
+        are the only ones that can say whether two models read the same day the
+        same way, which is what decides whether a cheaper model is cheaper or
+        just different. Newest sweep when none is named.
+        """
+        limit = max(1, min(int(limit), 20000))
+        if not sweep:
+            newest = store.query(
+                "SELECT sweep_id FROM bakeoff WHERE tenant = ? ORDER BY at DESC LIMIT 1",
+                (tenant,),
+            )
+            if not newest:
+                return {"sweep_id": "", "readings": []}
+            sweep = str(newest[0]["sweep_id"])
+        rows = store.query(
+            "SELECT model, gesture_id, act, object, page, confidence, cost_usd, error"
+            " FROM bakeoff_readings WHERE tenant = ? AND sweep_id = ?"
+            " ORDER BY gesture_id, model LIMIT ?",
+            (tenant, sweep, limit),
+        )
+        return {"sweep_id": sweep, "readings": [dict(row) for row in rows]}
+
     @app.get("/v1/audit", dependencies=[Depends(tenant_only)])
     async def audit(since: str = "", limit: int = 200) -> dict[str, Any]:
         """Everything a person would want to see after the fact, since a time:

@@ -831,10 +831,84 @@
         whose bill is a guess.</p>`;
   }
 
+  // Which models read the same gesture the same way. Built here rather than
+  // stored: it is a comparison of rows, and it changes with which models are
+  // in the sweep.
+  function agreementView(readings) {
+    if (!readings.length)
+      return `<p class="note">No per-gesture readings in this sweep. The read door
+        with <code>--gestures 0</code> is what fills this in.</p>`;
+    const models = [...new Set(readings.map((r) => r.model))].sort();
+    const by = new Map();
+    for (const r of readings) {
+      if (!by.has(r.gesture_id)) by.set(r.gesture_id, {});
+      by.get(r.gesture_id)[r.model] = r.act ?? null;
+    }
+    const same = (a, b) => {
+      let agreed = 0, shared = 0;
+      for (const acts of by.values()) {
+        if (!(a in acts) || !(b in acts)) continue;
+        shared += 1;
+        if (acts[a] === acts[b]) agreed += 1;
+      }
+      return shared ? { share: agreed / shared, shared } : null;
+    };
+    const head = models.map((m) => `<th>${esc(m.split("-").slice(0, 3).join("-"))}</th>`).join("");
+    const body = models
+      .map((one) => {
+        const cells = models
+          .map((two) => {
+            if (one === two) return `<td>&mdash;</td>`;
+            const both = same(one, two);
+            if (!both) return `<td>&mdash;</td>`;
+            const pct = Math.round(both.share * 100);
+            const shade = pct >= 80 ? "best" : pct < 50 ? "blind" : "";
+            return `<td class="${shade}">${pct}%</td>`;
+          })
+          .join("");
+        return `<tr><td>${esc(one)}</td>${cells}</tr>`;
+      })
+      .join("");
+
+    // Where they parted. A gesture every model read the same way says nothing;
+    // these are the ones a person should look at before picking a model.
+    const split = [];
+    for (const [gesture, acts] of by) {
+      const answers = new Set(Object.values(acts).map((a) => a ?? "(none)"));
+      if (answers.size > 1) split.push([gesture, acts, answers.size]);
+    }
+    split.sort((a, b) => b[2] - a[2]);
+    const rows = split
+      .slice(0, 25)
+      .map(
+        ([gesture, acts]) =>
+          `<tr><td>${esc(gesture.slice(0, 12))}</td>` +
+          models
+            .map((m) => `<td>${acts[m] == null ? "<span class='blind'>&mdash;</span>" : esc(acts[m])}</td>`)
+            .join("") +
+          `</tr>`,
+      )
+      .join("");
+
+    return `<h3>agreement &mdash; did they read the same day the same way</h3>
+      <div class="scroll"><table><thead><tr><th></th>${head}</tr></thead>
+        <tbody>${body}</tbody></table></div>
+      <p class="note">The share of gestures where two models gave the same act. A cheap model
+        that agrees with an expensive one on 90% of a day is a saving; one that agrees on 40%
+        is a different reading of the same evidence, and the price was never the question.</p>
+      <h3>where they parted &mdash; ${split.length} of ${by.size} gestures, worst first</h3>
+      <div class="scroll"><table><thead><tr><th>gesture</th>${head}</tr></thead>
+        <tbody>${rows || '<tr><td class="none">they agreed on every gesture</td></tr>'}</tbody>
+        </table></div>`;
+  }
+
   async function drawModels() {
-    const { rows } = await get("/v1/bakeoff?limit=200");
+    const [{ rows }, { readings }] = await Promise.all([
+      get("/v1/bakeoff?limit=200"),
+      get("/v1/bakeoff/readings?limit=20000").catch(() => ({ readings: [] })),
+    ]);
     const box = document.getElementById("models");
-    const fresh = modelsView(rows);
+    const fresh = modelsView(rows) + agreementView(readings);
     if (box.dataset.drawn === fresh) return;
     box.dataset.drawn = fresh;
     box.innerHTML = fresh;

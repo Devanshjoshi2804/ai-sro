@@ -344,6 +344,21 @@ class TestObservation:
             await uow.commit()
 
         async with SqlUnitOfWork(session_factory) as uow:
+            # A device object read BEFORE the revocation, saved after it. This
+            # is the heartbeat's own shape -- `RecordHeartbeat` loads, touches
+            # `last_seen_at` and saves -- and `update_device_row` deliberately
+            # never writes `revoked_at` back, so the revocation survives it.
+            # Without that, an administrator's press is undone by whichever
+            # browser beats them to the next save, which is every minute.
+            stale = _device()
+            assert stale.revoked_at is None
+            await uow.devices.save(stale)
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            assert (await uow.devices.get(device.tenant_id, device.id)).revoked_at is not None
+
+        async with SqlUnitOfWork(session_factory) as uow:
             # Another tenant pressing at this id moves nothing and is told
             # nothing, as the revoke is.
             with pytest.raises(NotFound):

@@ -367,3 +367,36 @@ async def test_the_restore_names_the_browser_that_was_asked_for() -> None:
 
     assert (await uow.devices.get(f.TENANT, DESKTOP)).revoked_at is None
     assert (await uow.devices.get(f.TENANT, LAPTOP)).revoked_at == ended
+
+
+async def test_re_registering_a_revoked_browser_does_not_let_it_back_in() -> None:
+    """The premise every docstring about `RestoreDevice` rests on.
+
+    The rig's `issue` un-revoked as a side effect of minting a fresh token, so
+    a browser came back by asking for a new one. Registration here is
+    idempotent on (tenant, principal, label) and hands back the SAME secret, so
+    the same gesture must leave the revocation exactly where it was -- otherwise
+    `RestoreDevice` is answering a question nobody has, and worse, an
+    administrator's revocation is undone by whoever reinstalls the extension.
+
+    Both halves matter. If the secret changed, the browser would need a
+    reinstall and this port would owe a "restore under a fresh secret"; if
+    `revoked_at` cleared, the rig's side effect would be back and invisible.
+    """
+    uow = FakeUnitOfWork()
+    register = RegisterDevice(uow, FakeClock(), FakeIdFactory())
+    first = await register.execute(ACME, label="laptop", extension_version="0.1.0")
+    await RevokeDevice(uow, _Drivers(), FakeClock()).execute(ACME, device_id=first.device_id)
+    ended = (await uow.devices.get(f.TENANT, first.device_id)).revoked_at
+    assert ended is not None
+
+    again = await register.execute(ACME, label="laptop", extension_version="0.2.0")
+
+    assert again.device_id == first.device_id, "and it is the same browser, not a second row"
+    assert again.secret == first.secret, "a fresh secret here would mean a reinstall"
+    assert (await uow.devices.get(f.TENANT, first.device_id)).revoked_at == ended
+    # And it is still refused, which is the fact an administrator is relying on.
+    with pytest.raises(NotFound):
+        await RecordHeartbeat(uow, FakeClock()).execute(
+            ACME, device_id=first.device_id, secret=again.secret
+        )

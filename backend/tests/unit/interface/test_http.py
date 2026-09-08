@@ -99,6 +99,9 @@ class _FakeContainer(Container):
         self.credentials = SignedTokens(TEST_SECRET)
         self.ui = FakeUiDriver()
         self.vision = None
+        # No model for the rig's own passes. `None` is what a deployment with
+        # no key gets, and what the miner and the runner must refuse to run on.
+        self.asker = None
         self.tokens = None
         self.intent_parser = FakeIntentParser()
         self.pursuits = Pursuits()

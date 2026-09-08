@@ -233,3 +233,36 @@ async def test_record_offer_clamps_the_browsers_clock_against_the_containers(
     # is the window `counsel` reads to decide a job has earned a rest.
     window = await uow.offers.newest(TenantId("rival"), "wf_1", limit=5)
     assert [row.at for row in window] == [FROZEN.isoformat()]
+
+
+def test_a_deployment_with_a_key_gets_a_model_for_the_rigs_own_passes() -> None:
+    """The miner and the runner ask a model, and until this existed nothing
+    built one: the port and `GeminiAsker` were ported by plan 2 and the
+    composition root was never told about either, so `mining_pass.mine` and
+    `run_workflow` could not be constructed at all -- an `AttributeError` on
+    `container.asker` before a single call was made. Found by running the real
+    thing, not by this suite.
+    """
+    from sro.config import Settings
+    from sro.container import _build_asker
+    from sro.infrastructure.gemini.asker import GeminiAsker
+
+    with_key = Settings(gemini_api_key="k", interpretation_enabled=True, _env_file=None)
+    assert isinstance(_build_asker(with_key), GeminiAsker)
+
+
+def test_no_key_and_no_consent_each_mean_no_model() -> None:
+    """The same two switches its neighbours keep, and `None` rather than a
+    no-op: a miner with nothing to ask must refuse rather than quietly find
+    nothing, which reads exactly like a day with no work in it."""
+    from sro.config import Settings
+    from sro.container import _build_asker
+
+    assert (
+        _build_asker(Settings(gemini_api_key="", interpretation_enabled=True, _env_file=None))
+        is None
+    )
+    assert (
+        _build_asker(Settings(gemini_api_key="k", interpretation_enabled=False, _env_file=None))
+        is None
+    )

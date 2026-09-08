@@ -99,6 +99,7 @@ from sro.application.ports.durable import DurableExecution
 from sro.application.ports.embedding import Embedder
 from sro.application.ports.http import HttpCaller
 from sro.application.ports.intent import IntentParser
+from sro.application.ports.model import Asker
 from sro.application.ports.interpretation import WorkflowInterpreter
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.schedule import Scheduler
@@ -148,6 +149,7 @@ from sro.infrastructure.blob.minio_store import MinioBlobStore
 from sro.infrastructure.db.repositories import SqlUnitOfWork
 from sro.infrastructure.db.schema_version import SchemaVersion, announce, schema_version
 from sro.infrastructure.db.session import create_engine, create_session_factory
+from sro.infrastructure.gemini.asker import GeminiAsker
 from sro.infrastructure.gemini.computer_use import GeminiVisionDriver
 from sro.infrastructure.gemini.intent import GeminiIntentParser
 from sro.infrastructure.gemini.interpreter import GeminiInterpreter
@@ -192,6 +194,19 @@ class Container:
     embedder: Embedder
     vision: VisionDriver | None
     interpreter: WorkflowInterpreter
+    asker: Asker | None
+    """The model the rig's own passes ask, or ``None`` where none is configured.
+
+    Separate from ``interpreter`` and ``intent_parser``, which each answer one
+    narrow question with their own model name. This is the general one: the
+    miner and the runner hand it a schema and an instruction and read structured
+    JSON back, and both need to bill what they spent, which is why the port
+    carries ``Answer`` rather than a string.
+
+    ``None`` rather than a no-op double, deliberately. A miner with nothing to
+    ask must not run and quietly find nothing -- that reads exactly like a day
+    with no work in it. Its caller checks and refuses.
+    """
     intent_parser: IntentParser
     vault: CredentialVault
     http: HttpCaller
@@ -814,6 +829,18 @@ def _build_interpreter(settings: Settings) -> WorkflowInterpreter:
     return NoInterpreter()
 
 
+def _build_asker(settings: Settings) -> Asker | None:
+    """The same two switches as its neighbours: a key is not consent to send.
+
+    ``interpretation_enabled`` is the switch, because what this sends is what
+    that switch is about -- a tenant's captured gestures and the bodies of
+    their calls, read by a hosted model.
+    """
+    if settings.interpretation_enabled and settings.gemini_api_key:
+        return GeminiAsker(settings.gemini_api_key)
+    return None
+
+
 def _build_vision(settings: Settings) -> VisionDriver | None:
     """Two switches again, and the more consequential pair: this one sends a
     picture of a customer's live warehouse system."""
@@ -889,6 +916,7 @@ def build_container(settings: Settings | None = None) -> Container:
         embedder=_build_embedder(settings),
         vision=_build_vision(settings),
         interpreter=_build_interpreter(settings),
+        asker=_build_asker(settings),
         intent_parser=_build_intent_parser(settings),
         vault=(built_vault := _build_vault(settings)),
         http=HttpxCaller(),

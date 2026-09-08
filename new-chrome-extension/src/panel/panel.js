@@ -1072,7 +1072,16 @@ async function whereWeAre() {
 
 function openConsole(path = "/console") {
   ask({ kind: "panel-console" }).then(({ consoleUrl }) => {
-    if (consoleUrl) void chrome.tabs.create({ url: `${consoleUrl}${path}` });
+    if (consoleUrl) {
+      void chrome.tabs.create({ url: `${consoleUrl}${path}` });
+      return;
+    }
+    // `consoleUrl` is empty until somebody sets it, and this used to be a
+    // silent no-op: the operator pressed "Open the console here", nothing
+    // happened, nothing said why, and the only way to find out was to read
+    // this function. Say it and open the page that fixes it.
+    said("no console address is set — put one in Settings");
+    chrome.runtime.openOptionsPage();
   });
 }
 

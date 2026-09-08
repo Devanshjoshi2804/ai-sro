@@ -942,6 +942,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/offers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record Offer
+         * @description One offer this browser showed, and what the operator did with it.
+         */
+        post: operations["record_offer_v1_offers_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/recordings": {
         parameters: {
             query?: never;
@@ -3106,6 +3126,11 @@ export interface components {
             /** Retention Days */
             retention_days: number;
         };
+        /** OfferRecordedResponse */
+        OfferRecordedResponse: {
+            /** Offer Id */
+            offer_id: string;
+        };
         /**
          * OpenBrowserModel
          * @description A browser this deployment is driving right now.
@@ -3275,6 +3300,39 @@ export interface components {
              * @default
              */
             skill_id: string;
+        };
+        /**
+         * RecordOfferRequest
+         * @description What a browser showed, and what became of it.
+         *
+         *     No `device_id`. The rig read one out of this body; here the browser is the
+         *     one that proved itself with `X-Device-Secret`, for `/v1/shapes`' reason
+         *     next door -- a job's rest is per browser, so a body that could name
+         *     another browser could spend that browser's rest, or earn it.
+         *
+         *     `k` is `StrictInt`, which is the whole of why this is not a plain `int`:
+         *     `True` IS an `int` in Python and pydantic coerces it, so `{"k": true}`
+         *     would be stored as a tail that matched one gesture -- because the language
+         *     says so, and not because any browser matched anything. The rig hit exactly
+         *     this on `from_step`. `ge=0` for the rest of it: k is how many gestures
+         *     matched, and no tail matches a negative number of them.
+         *
+         *     `at` is the browser's own reading of when it showed the offer, parsed here
+         *     rather than in the application layer so that a clock nobody can read is a
+         *     422 naming the field rather than a 500 out of `datetime.fromisoformat`.
+         *     Optional: absent, the row carries the server's instant.
+         */
+        RecordOfferRequest: {
+            /** Workflow Id */
+            workflow_id: string;
+            /** Fate */
+            fate: string;
+            /** K */
+            k: number;
+            /** Run Id */
+            run_id?: string | null;
+            /** At */
+            at?: string | null;
         };
         /** RecordingDetail */
         RecordingDetail: {
@@ -9027,6 +9085,135 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ObservationArtifactResponse"];
+                };
+            };
+            /** @description No credential, or one this deployment rejects. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description No such thing, or not yours. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The system's state says no, not the request. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The request cannot be processed as asked. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description Something this depends on is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+        };
+    };
+    record_offer_v1_offers_post: {
+        parameters: {
+            query?: {
+                device_id?: string | null;
+            };
+            header?: {
+                authorization?: string | null;
+                "X-Device-Secret"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecordOfferRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OfferRecordedResponse"];
                 };
             };
             /** @description No credential, or one this deployment rejects. */

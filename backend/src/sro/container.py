@@ -126,7 +126,7 @@ from sro.application.skill.promote_skill import PromoteSkill
 from sro.application.skill.read_doings import ReadDoings
 from sro.application.skill.read_skills import GetSkill, ListSkills
 from sro.application.skill.read_workflows import ReadEvidence, ReadWorkflows
-from sro.application.skill.record_offer import record_offer
+from sro.application.skill.record_offer import RecordOffer
 from sro.application.skill.repair_drift import RepairDrift
 from sro.application.skill.serve_shapes import ServeShapes
 from sro.application.trigger.answer_confirmation import (
@@ -139,9 +139,7 @@ from sro.application.trigger.fire_trigger import FireTrigger
 from sro.application.trigger.read_triggers import DeleteTrigger, ReadTriggers, SetTriggerEnabled
 from sro.application.trigger.receive_inbound import ReceiveInbound
 from sro.config import Settings, get_settings
-from sro.domain.shared.identifiers import DeviceId, TenantId
 from sro.domain.shared.prices import DaySpend
-from sro.domain.skill.offers import Offer
 from sro.infrastructure.agent.drivers import RemoteAgents
 from sro.infrastructure.agent.sockets import DeviceSockets
 from sro.infrastructure.auth.keycloak import KeycloakTokens
@@ -324,31 +322,13 @@ class Container:
         """
         return await spent_today(self.unit_of_work(), ctx.tenant_id, now=self.clock.now())
 
-    async def record_offer(
-        self,
-        *,
-        tenant_id: TenantId,
-        workflow_id: str,
-        device_id: DeviceId,
-        k: int,
-        fate: str,
-        run_id: str | None,
-        at: str,
-    ) -> Offer:
-        """A function rather than a class use case, so the ``now`` a route must
-        not read is supplied here: ``record_offer`` clamps the browser's
-        reading against ours, and ours is this clock's."""
-        return await record_offer(
-            self.unit_of_work(),
-            tenant_id=tenant_id,
-            workflow_id=workflow_id,
-            device_id=device_id,
-            k=k,
-            fate=fate,
-            run_id=run_id,
-            at=at,
-            now=self.clock.now(),
-        )
+    def record_offer(self) -> RecordOffer:
+        """A factory like ``serve_shapes`` above and not a method like
+        ``read_spend``: ``RecordOffer`` holds route-supplied nothing, but it
+        does hold the clock ``clamped`` needs, and the tenant it writes under
+        comes off the caller's context rather than off an argument a route
+        would have to unpack."""
+        return RecordOffer(self.unit_of_work(), self.clock)
 
     def adopt_rig_workflow(self) -> AdoptRigWorkflow:
         return AdoptRigWorkflow(self.unit_of_work(), self.clock, self.ids)

@@ -24,9 +24,11 @@ import pytest
 from sro.application.analytics.audit import ReadAudit
 from sro.application.capture.devices import ReadRoster, RestoreDevice, RevokeDevice
 from sro.application.context import RequestContext
+from sro.application.skill.record_offer import RecordOffer
 from sro.application.skill.serve_shapes import ServeShapes
 from sro.container import Container
 from sro.domain.shared.identifiers import DeviceId, PrincipalId, TenantId
+from sro.domain.skill.workflow import Workflow
 from sro.infrastructure.agent.drivers import RemoteAgents
 from tests.unit.fakes import FakeClock, FakeUnitOfWork
 from tests.unit.interface.test_http import _FakeContainer
@@ -180,44 +182,43 @@ async def test_serve_shapes_reaches_the_real_function_and_commits_nothing(
     assert uow.commits == 0
 
 
-async def test_record_offer_is_given_every_argument_and_the_containers_clock(
-    container: Container, uow: FakeUnitOfWork, monkeypatch: pytest.MonkeyPatch
+def test_the_container_builds_record_offer_from_its_own_parts(
+    container: Container, uow: FakeUnitOfWork
 ) -> None:
-    sentinel = object()
-    seen: dict[str, Any] = {}
-    monkeypatch.setattr("sro.container.record_offer", _spy(seen, sentinel))
+    """The write door of phase 4a, and a factory rather than the container
+    method it replaces: that one took a bare `tenant_id`, so the route would
+    have unpacked the caller itself at the one seam where passing the wrong
+    tenant is the failure.
 
-    got = await container.record_offer(
-        tenant_id=TenantId("acme"),
-        workflow_id="wf_1",
-        device_id=DeviceId("dev_7"),
-        k=3,
-        fate="dismissed",
-        run_id="run_9",
-        at="2027-01-01T00:00:00+00:00",
-    )
+    `vars` and not two `is` checks, for `serve_shapes`' reason above: a
+    renamed parameter walks past a spelling check, and a `RecordOffer` built
+    over a unit of work nobody else writes to records offers into a session
+    that is never read.
+    """
+    recording = container.record_offer()
 
-    assert got is sentinel
-    # Eight arguments, all keyword and several of them strings, so a
-    # cross-wiring here type-checks and stores somebody else's offer.
-    assert seen["uow"] is uow
-    assert seen["tenant_id"] == TenantId("acme")
-    assert seen["workflow_id"] == "wf_1"
-    assert seen["device_id"] == DeviceId("dev_7")
-    assert seen["k"] == 3
-    assert seen["fate"] == "dismissed"
-    assert seen["run_id"] == "run_9"
-    assert seen["at"] == "2027-01-01T00:00:00+00:00"
-    assert seen["now"] == FROZEN
+    assert isinstance(recording, RecordOffer)
+    # `_clock` by identity: `clamped` holds the browser's reading against this
+    # one, and a use case that read a clock of its own is one no test can move.
+    assert vars(recording) == {"_uow": uow, "_clock": container.clock}
 
 
 async def test_record_offer_clamps_the_browsers_clock_against_the_containers(
     container: Container, uow: FakeUnitOfWork
 ) -> None:
     """No spy, and the rule the clock buys: a browser ten months fast would
-    otherwise own the rest window until 2027. The row carries ours."""
-    stored = await container.record_offer(
-        tenant_id=TenantId("acme"),
+    otherwise own the rest window until 2027. The row carries ours.
+
+    Asked as `rival`, and the job is `rival`'s: the tenant the row is written
+    under comes off the context, and a use case reading a literal `acme`
+    refuses this as an unknown workflow instead.
+    """
+    await uow.workflows.save(
+        Workflow(id="wf_1", tenant="rival", title="a job of theirs", narrative="")
+    )
+
+    stored = await container.record_offer().execute(
+        RIVAL,
         workflow_id="wf_1",
         device_id=DeviceId("dev_7"),
         k=3,
@@ -227,7 +228,8 @@ async def test_record_offer_clamps_the_browsers_clock_against_the_containers(
     )
 
     assert stored.at == FROZEN.isoformat()
+    assert stored.tenant == "rival"
     # And it is the row the store kept, not only the object handed back: this
     # is the window `counsel` reads to decide a job has earned a rest.
-    window = await uow.offers.newest(TenantId("acme"), "wf_1", limit=5)
+    window = await uow.offers.newest(TenantId("rival"), "wf_1", limit=5)
     assert [row.at for row in window] == [FROZEN.isoformat()]

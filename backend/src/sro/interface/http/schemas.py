@@ -11,7 +11,7 @@ from dataclasses import asdict
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StrictInt
 
 from sro.application.analytics.audit import Audit, AuditedRun
 from sro.application.analytics.summary import Summary
@@ -1639,6 +1639,45 @@ class ShapesResponse(BaseModel):
     matching input, `as_json` is `asdict` over it, and a second declaration of
     the same fields here is the copy that goes stale the first time the domain
     gains one.
+    """
+
+
+class RecordOfferRequest(BaseModel):
+    """What a browser showed, and what became of it.
+
+    No `device_id`. The rig read one out of this body; here the browser is the
+    one that proved itself with `X-Device-Secret`, for `/v1/shapes`' reason
+    next door -- a job's rest is per browser, so a body that could name
+    another browser could spend that browser's rest, or earn it.
+
+    `k` is `StrictInt`, which is the whole of why this is not a plain `int`:
+    `True` IS an `int` in Python and pydantic coerces it, so `{"k": true}`
+    would be stored as a tail that matched one gesture -- because the language
+    says so, and not because any browser matched anything. The rig hit exactly
+    this on `from_step`. `ge=0` for the rest of it: k is how many gestures
+    matched, and no tail matches a negative number of them.
+
+    `at` is the browser's own reading of when it showed the offer, parsed here
+    rather than in the application layer so that a clock nobody can read is a
+    422 naming the field rather than a 500 out of `datetime.fromisoformat`.
+    Optional: absent, the row carries the server's instant.
+    """
+
+    workflow_id: str
+    fate: str
+    k: StrictInt = Field(ge=0)
+    run_id: str | None = None
+    at: datetime | None = None
+
+
+class OfferRecordedResponse(BaseModel):
+    offer_id: str
+    """The rig answered `{"offer_id": ...}` and the extension reads that key.
+
+    The id and not the row: everything else in it is either what the caller
+    just sent or the clamp on their own clock, and `/v1/audit` serves the
+    stored offer whole to the one caller -- the tenant -- who reads offers
+    back.
     """
 
 

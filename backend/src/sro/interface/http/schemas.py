@@ -14,6 +14,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from sro.application.analytics.summary import Summary
+from sro.application.capture.devices import DeviceLine
 from sro.application.execution.pursuits import PursuitProgress
 from sro.application.execution.reversal import Reversal
 from sro.application.intent.match import Candidate
@@ -1544,10 +1545,18 @@ class DeviceModel(BaseModel):
     queued_events: int
     queued_bytes: int
     uploads: int
+    online: bool
+    """A command channel open right now, and never true of a revoked browser.
+
+    The question this list is actually read to answer. It is not on
+    `AgentDevice` because it is not a fact about a row -- it is a fact about a
+    wire, which only `AgentDrivers` knows.
+    """
 
     @classmethod
-    def of(cls, device: AgentDevice) -> DeviceModel:
+    def of(cls, device: AgentDevice, *, online: bool) -> DeviceModel:
         return cls(
+            online=online,
             id=device.id.value,
             principal_id=device.principal_id.value,
             label=device.label,
@@ -1559,6 +1568,58 @@ class DeviceModel(BaseModel):
             queued_bytes=device.queued_bytes,
             uploads=device.uploads,
         )
+
+
+class DeviceLineModel(BaseModel):
+    """One browser on the roster: who registered it, when its authority ended
+    if it did, and whether it is connected right now.
+
+    `revoked_at` is why a revoked browser stays on this list rather than
+    disappearing from it. This is the list read before cutting one off and
+    after, and a revocation that erased its own subject would leave an
+    administrator unable to confirm the thing they just did.
+
+    A string, not a `datetime`, because that is what `AgentDevice.revoked_at`
+    is -- the instant is written by whoever revoked and read back verbatim, and
+    re-parsing it here would invent a timezone the row did not record.
+    """
+
+    device_id: str
+    principal_id: str
+    label: str
+    registered_at: datetime
+    last_seen_at: datetime
+    revoked_at: str | None
+    online: bool
+
+    @classmethod
+    def of(cls, line: DeviceLine) -> DeviceLineModel:
+        return cls(
+            device_id=line.device.id.value,
+            principal_id=line.device.principal_id.value,
+            label=line.device.label,
+            registered_at=line.device.registered_at,
+            last_seen_at=line.device.last_seen_at,
+            revoked_at=line.device.revoked_at,
+            online=line.online,
+        )
+
+
+class RosterResponse(BaseModel):
+    devices: list[DeviceLineModel]
+
+    @classmethod
+    def of(cls, roster: tuple[DeviceLine, ...]) -> RosterResponse:
+        return cls(devices=[DeviceLineModel.of(line) for line in roster])
+
+
+class RevocationResponse(BaseModel):
+    """`moved` rather than `revoked`: this one answer serves both presses, and
+    what it says is whether *this* press changed the row -- not what state the
+    browser is now in, which the roster answers."""
+
+    device_id: str
+    moved: bool
 
 
 class ObservationBatchRequest(BaseModel):

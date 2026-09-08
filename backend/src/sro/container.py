@@ -76,7 +76,6 @@ from sro.application.observation.propose import AnswerJoin, ProposeAboutCandidat
 from sro.application.observation.register import (
     GrantHost,
     ReadDevice,
-    ReadDevices,
     RecordHeartbeat,
     RegisterDevice,
     RevokeHost,
@@ -460,9 +459,6 @@ class Container:
 
     def read_device(self) -> ReadDevice:
         return ReadDevice(self.unit_of_work())
-
-    def read_devices(self) -> ReadDevices:
-        return ReadDevices(self.unit_of_work())
 
     def read_observation_policy(self) -> ReadObservationPolicy:
         return ReadObservationPolicy(self.unit_of_work())

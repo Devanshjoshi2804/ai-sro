@@ -294,8 +294,15 @@ async def _watch_of(
 @router.get("")
 async def list_devices(container: ContainerDep, ctx: ContextDep) -> list[DeviceModel]:
     """Whose browsers are being observed. The screen behind the consent story."""
-    devices = await container.read_devices().execute(ctx)
-    return [DeviceModel.of(device) for device in devices]
+    # `ReadRoster` rather than the `ReadDevices` that used to be here: a strict
+    # superset over the identical repository call, and two use cases over one
+    # `list_for_tenant` in two packages is how they drift apart. `online` is
+    # the thing it adds, and it is the question this list is actually read to
+    # answer.
+    return [
+        DeviceModel.of(line.device, online=line.online)
+        for line in await container.read_roster().execute(ctx)
+    ]
 
 
 @router.get("/policy")

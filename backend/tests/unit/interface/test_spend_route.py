@@ -19,6 +19,7 @@ this is where they differ.
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
+from datetime import UTC, datetime, timedelta
 
 import httpx
 import pytest
@@ -118,6 +119,18 @@ async def _spend(client: httpx.AsyncClient) -> httpx.Response:
     return await client.get("/v1/spend")
 
 
+def test_these_plants_are_nowhere_near_the_wall_clock() -> None:
+    """The sentence this file's first paragraph is written on, made to fail.
+
+    Every assertion below tells the container's clock from a real one only
+    because `f.T0` is months from today. Move the plants to now -- which is the
+    natural thing to do to a test about *today's* spend -- and a route reading
+    `datetime.now(UTC)` passes the lot, which is how a clock mutation survives
+    a suite that looks thorough.
+    """
+    assert abs(datetime.now(UTC) - f.T0) > timedelta(days=2)
+
+
 # --- what the day says ----------------------------------------------------
 
 
@@ -192,7 +205,7 @@ async def test_the_cap_reported_is_the_one_this_deployment_configured(
     it: the fixture's cap and the shipped default must differ, so the test
     fails the day somebody makes them the same rather than quietly stopping
     guarding anything."""
-    assert CAP != Settings().daily_usd_cap
+    assert Settings().daily_usd_cap != CAP
 
 
 # --- which day, and whose ---------------------------------------------------

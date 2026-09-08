@@ -295,6 +295,28 @@ class Settings(BaseSettings):
     exactly as it does today -- deliberately, for deployments that may not send
     a customer's screen or a customer's words to a hosted model."""
 
+    daily_usd_cap: float = 5.0
+    """What one day of model calls may cost before the rig stops asking:
+    readings, mining passes, runs and the chat door, summed.
+
+    read_on_ingest bills per gesture as capture arrives, so an unattended run
+    spends whatever the operator's day produces. On the measured evidence that
+    is about $0.37 per 81-gesture day, but the whole point of watching every tab
+    is that a day is thousands, and nothing here knew what the ceiling was. A
+    pass or a run is a bigger call than a reading, and the cap that saw only
+    readings let a day of those through untouched.
+
+    A cap that stops asking is honest in a way a cap that stops CAPTURE is not:
+    the evidence still arrives and is still stored, so raising this tomorrow
+    reads what today declined. Over the cap the rig's `/v1/mine`, `/v1/chat`
+    and `POST /v1/runs` answered 429 and said how much of what; phase 4 names
+    the backend's own, and none of the three are here -- there is no
+    `/v1/chat`, a run is `POST /v1/skills/{skill_id}/runs`, and
+    `POST /v1/candidates/mine` DOES exist and is candidate mining, an
+    unrelated thing that the first name greps straight into. Zero disables the
+    asking entirely; a negative value means no cap, which is what a deliberate
+    one-off measurement wants. A run already going finishes on its own budget."""
+
     gemini_transcription_model: str = "gemini-3.7-flash"
     gemini_embedding_model: str = "gemini-embedding-001"
 

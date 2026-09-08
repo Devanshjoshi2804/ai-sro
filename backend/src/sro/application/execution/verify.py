@@ -2,16 +2,51 @@
 
 Every failure is a sentence, because a run's value is what it tells the person
 reading it afterwards. "assertion 2 failed" tells them nothing.
+
+Two verifiers live here, for two kinds of step. `check` and its siblings are the
+authored skill's post-conditions: assertions somebody wrote down, checked
+against one response. `verify` is A14's, for a mined workflow, where nobody
+wrote anything down and the only post-condition is "did the thing happen" --
+ported from `new_agent_arch/src/rig/verify.py`. The pure half of that one, the
+belts that need no wire and no model, is `sro.domain.execution.belts`; this is
+the half that sends a probe and asks a model to look at a picture.
+
+The belt order is the product. A state-grounded verifier scored 86.9% against
+78.8% for one reading screenshots, with human agreement at 94%, and most
+completions leave their proof off-screen -- artifact verification was 192 of 321
+tasks. So: the response the command itself returned first, a confirming read the
+cited evidence shows the page performs second, and the screenshot last and
+least. A green toast is the weakest of the three and the easiest to be wrong
+about, and `state_verified` -- which is what a job's earned autonomy counts --
+never counts it.
 """
 
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 
+from sro.application.capture.rig_wire import headers_without_markers
 from sro.application.induction import jsonutil
 from sro.application.induction.jsonutil import JsonValue
+from sro.application.ports.channel import Channel, Reply
 from sro.application.ports.http import HttpResponse
+from sro.application.ports.model import Asker
+from sro.domain.execution.belts import (
+    SCREEN_INSTRUCTIONS,
+    SCREEN_SCHEMA,
+    StepVerdict,
+    confirming_read,
+    expected_statuses,
+    mentions,
+    status_of,
+)
+from sro.domain.execution.planning import Look
+from sro.domain.observation.gesture import Gesture
+from sro.domain.shared.hosts import REDACTED
+from sro.domain.shared.identifiers import DeviceId, TenantId
 from sro.domain.skill.assertion import Assertion, AssertionKind
+from sro.domain.skill.workflow import Step
 
 
 def check(
@@ -149,3 +184,116 @@ def _has(document: JsonValue, pointer: str) -> bool:
     except (KeyError, IndexError, TypeError, ValueError):
         return False
     return True
+
+
+async def verify(
+    *,
+    step: Step,
+    sent_kind: str,
+    answer: Reply,
+    cited: list[Gesture],
+    values: Mapping[str, str],
+    look_before: Look,
+    look_after: Look,
+    channel: Channel,
+    tenant_id: TenantId,
+    device_id: DeviceId,
+    run_id: str,
+    # Unused, and kept: the extension picks the probe's tab from the url itself
+    # (tabOnOrigin), so an origin in the payload would be ignored. The parameter
+    # is here because the runner calls every step's verifier the same way --
+    # `test_the_probe_names_no_origin_because_the_url_already_does` fails if a
+    # probe ever starts carrying one.
+    origin: str | None,
+    asker: Asker,
+    model: str,
+) -> StepVerdict:
+    """Did this step actually happen: state first, and a picture only last."""
+    if not answer.ok:
+        return StepVerdict("failed", "none", answer.detail)
+    by_id = {gesture.id: gesture for gesture in cited}
+
+    # 1. Artifact: what the command itself returned.
+    if sent_kind == "http.send":
+        status = status_of(answer.result)
+        if status is not None:
+            # Refusal first: a demonstration that recorded a 409 would otherwise
+            # teach the verifier that a 409 is what success looks like. What the
+            # operator got is evidence, not a licence.
+            if status >= 400:
+                return StepVerdict("failed", "status", f"the call returned {status}")
+            wanted = expected_statuses(step, by_id)
+            if status in wanted or (not wanted and 200 <= status < 300):
+                return StepVerdict("held", "status", f"the call returned {status}")
+
+    # 2. Hidden state: a read the cited evidence shows this page performs.
+    probe = confirming_read(step, by_id)
+    # No values means no proposition the read could confirm: a body matches
+    # nothing, and "nothing was found" is not evidence the step failed.
+    # A probe whose url carries a struck-out credential would ask with the
+    # marker's text in the query string; that answers nothing about the state.
+    if probe is not None and values and REDACTED not in probe.url:
+        got = await channel.send(
+            tenant_id,
+            device_id,
+            kind="http.send",
+            run_id=run_id,
+            payload={
+                "method": "GET",
+                "url": probe.url,
+                "headers": headers_without_markers(probe.request_headers),
+                "body": None,
+            },
+        )
+        # The read has to have come back 2xx before its body means anything. A
+        # 404 or a 503 answers ok=True with a body that matches nothing, and
+        # deciding off `ok` alone marked a correct write failed.
+        read_status = status_of(got.result) if got.ok else None
+        if read_status is not None and 200 <= read_status < 300:
+            if mentions(str(got.result.get("body") or ""), values):
+                return StepVerdict(
+                    "held", "read", f"a read of {probe.url} shows the value this run supplied"
+                )
+            return StepVerdict(
+                "failed", "read", f"a read of {probe.url} does not show the value this run supplied"
+            )
+
+    # 3. Visible state: last, and least.
+    if look_after.screenshot is None:
+        return StepVerdict(
+            "unclear",
+            "none",
+            "nothing returned a status, nothing to read, and no screen to look at",
+        )
+    evidence = json.dumps(
+        {
+            "step": {"says": step.says},
+            "sent": sent_kind,
+            # Not `answer.result` whole: for an http.send that is the response
+            # body and headers, and nothing here trims them. The model is
+            # judging a picture; it does not need the payload to do it.
+            "browser_answered": {"ok": answer.ok, "status": status_of(answer.result)},
+            "screen_before": look_before.digest,
+            "screen_after": look_after.digest,
+            "values": dict(values),
+        },
+        indent=2,
+        # The redaction marker is «redacted»; the default ensure_ascii would
+        # write it into the prompt in a form nothing else in this system uses.
+        ensure_ascii=False,
+    )
+    judged = await asker.ask(
+        model=model,
+        instructions=SCREEN_INSTRUCTIONS,
+        evidence=evidence,
+        schema=SCREEN_SCHEMA,
+        image=look_after.screenshot,
+    )
+    if judged.data is None:
+        return StepVerdict(
+            "unclear", "screen", judged.error or "the model returned nothing", judged
+        )
+    held = bool(judged.data.get("held"))
+    return StepVerdict(
+        "held" if held else "failed", "screen", str(judged.data.get("why") or ""), judged
+    )

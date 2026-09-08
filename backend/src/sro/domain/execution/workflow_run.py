@@ -46,6 +46,14 @@ def new_run_id() -> str:
 
 @dataclass
 class RunStep:
+    """One step of a run, as the panel and the register read it afterwards.
+
+    `sent` is what was planned, not proof that it went out: a step parked on a
+    person carries the command a tap would release, and `verdict == "awaiting"`
+    is what tells the two apart. A reader treating `sent` as "this reached the
+    warehouse" would report an unapproved write as a performed one.
+    """
+
     order: int
     says: str
     verdict: str

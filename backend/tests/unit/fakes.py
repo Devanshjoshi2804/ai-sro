@@ -1566,6 +1566,17 @@ class FakeWorkflowRunRepository:
             deepcopy(run) for run in sorted(found, key=lambda run: (when(run.started_at), run.id))
         )
 
+    async def tallies(self, tenant_id: TenantId) -> Mapping[str, tuple[int, int]]:
+        # A workflow with no runs contributes no key, as the store's GROUP BY
+        # gives it no row: the caller defaults it to (0, 0).
+        counted: dict[str, tuple[int, int]] = {}
+        for run in self.rows.values():
+            if run.tenant != tenant_id.value:
+                continue
+            ran, held = counted.get(run.workflow_id, (0, 0))
+            counted[run.workflow_id] = (ran + 1, held + (run.outcome == "held"))
+        return counted
+
     async def since(self, tenant_id: TenantId, *, since: str) -> tuple[WorkflowRun, ...]:
         # Newest first, and on instants: the store compares `timestamptz`, and
         # `(started_at, id)` reversed is what keeps the order total.

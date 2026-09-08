@@ -24,8 +24,11 @@ have already shipped on this branch:
   satisfied by the plant.
 """
 
+from collections.abc import Mapping
 from copy import deepcopy
 from datetime import UTC, datetime, timedelta
+
+import pytest
 
 from sro.application.skill.record_offer import record_offer
 from sro.application.skill.serve_shapes import shapes_for
@@ -282,7 +285,57 @@ async def test_a_workflow_that_cannot_be_served_never_withdraws_the_ones_behind_
     assert await _served(uow) == ["wfl_fine"]
 
 
-async def test_a_workflow_with_no_cites_is_never_asked_for_its_evidence() -> None:
+async def test_the_tenant_s_runs_are_tallied_once_and_never_once_per_workflow(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The N+1 this read used to be, pinned as a call count rather than as an
+    answer -- the per-workflow shape gave the same three shapes, so an
+    assertion on what is served cannot tell the two apart.
+
+    `for_workflow` loads every run of a workflow with all of its steps, and
+    was asked once per proven workflow to arrive at two integers: flatly
+    linear in total run rows, measured at 0.391s for 10k against these fakes,
+    on the read every browser makes on every gesture cache miss.
+    """
+    uow = FakeUnitOfWork()
+    by_id = _evidence()
+    # Planted against their own ids, as the sibling above: three proven
+    # workflows is what makes "once" tell a batch from a loop.
+    await _plant(
+        uow,
+        by_id,
+        _workflow(by_id, "wfl_3"),
+        _workflow(by_id, "wfl_1"),
+        _workflow(by_id, "wfl_2"),
+    )
+    await _run(uow, "run_1", "wfl_1", "held")
+    await _run(uow, "run_2", "wfl_2", "held")
+    tallies, loads = 0, 0
+    counting, loading = uow.workflow_runs.tallies, uow.workflow_runs.for_workflow
+
+    async def counted(tenant_id: TenantId) -> Mapping[str, tuple[int, int]]:
+        nonlocal tallies
+        tallies += 1
+        return await counting(tenant_id)
+
+    async def loaded(tenant_id: TenantId, workflow_id: str) -> tuple[WorkflowRun, ...]:
+        nonlocal loads
+        loads += 1
+        return await loading(tenant_id, workflow_id)
+
+    monkeypatch.setattr(uow.workflow_runs, "tallies", counted)
+    monkeypatch.setattr(uow.workflow_runs, "for_workflow", loaded)
+
+    served = await shapes_for(uow, tenant_id=TENANT, now=NOW)
+
+    assert sorted(shape.id for shape in served) == ["wfl_1", "wfl_2", "wfl_3"]
+    assert tallies == 1, "one tally for the tenant, not one per workflow"
+    assert loads == 0, "no run is loaded with its steps to be counted"
+
+
+async def test_a_workflow_with_no_cites_is_never_asked_for_its_evidence(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """`gestures_for` with no ids is `IN ()` -- a round trip to Postgres that
     nothing can come back from, asked once per cite-less workflow by every
     browser on every cache miss. The guard that skips it is not a null check:
@@ -299,7 +352,7 @@ async def test_a_workflow_with_no_cites_is_never_asked_for_its_evidence() -> Non
         reads += 1
         return await asked(*args, **kwargs)  # type: ignore[arg-type]
 
-    setattr(uow.gestures, "gestures_for", counted)  # noqa: B010
+    monkeypatch.setattr(uow.gestures, "gestures_for", counted)
 
     assert await shapes_for(uow, tenant_id=TENANT, now=NOW) == []
     assert reads == 0

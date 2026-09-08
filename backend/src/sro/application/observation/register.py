@@ -49,11 +49,20 @@ def refuse_unless_itself(device: AgentDevice, secret: str, asked_for: DeviceId) 
 
     Word for word the message `DeviceRepository.get` raises for a device that
     does not exist, and deliberately: another operator's device, another
-    tenant's, one whose secret is wrong and one that was never registered are
-    one answer, so a browser holding an id it should not have learns nothing
-    from the difference. The same rule `ReceiveInbound` follows.
+    tenant's, one whose secret is wrong, one that was revoked and one that was
+    never registered are one answer, so a browser holding an id it should not
+    have learns nothing from the difference. The same rule `ReceiveInbound`
+    follows.
+
+    A revoked browser is refused before its secret is even compared. Revoking
+    leaves the secret alone -- it has to, because a device with no secret cannot
+    be told from one registered before secrets existed -- so a gate that asked
+    only "is this the browser that registered" would answer yes forever, and
+    the extension would resume on its next heartbeat. This is the one place
+    that turns `revoked_at` into a refusal, for all seven device-scoped callers
+    at once. The rig's `holder` did it in its `WHERE revoked_at IS NULL`.
     """
-    if not device.proves_itself(secret):
+    if device.revoked or not device.proves_itself(secret):
         raise NotFound(f"device {asked_for} was not found")
 
 

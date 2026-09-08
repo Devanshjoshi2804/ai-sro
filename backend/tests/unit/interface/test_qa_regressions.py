@@ -290,7 +290,7 @@ class TestStoppingARunYouAreWatching:
             theirs = await rival.post(f"/v1/runs/{run.id.value}/stop")
 
         assert theirs.status_code == 404
-        assert not container.stops.asked(run.id)
+        assert not container.stops.asked(run.id.value)
 
     async def test_a_stop_is_accepted_and_the_run_is_asked_rather_than_ended(
         self, client: httpx.AsyncClient, container: _FakeContainer, uow: FakeUnitOfWork
@@ -304,7 +304,7 @@ class TestStoppingARunYouAreWatching:
         accepted = await client.post(f"/v1/runs/{run.id.value}/stop")
 
         assert accepted.status_code == 202
-        assert container.stops.asked(run.id)
+        assert container.stops.asked(run.id.value)
         # Still running, because nothing has reached a step boundary yet.
         assert accepted.json()["status"] == "running"
 

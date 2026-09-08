@@ -72,7 +72,7 @@ class StopRun:
             raise CannotStop(f"that run already {run.status.value}")
         if run.device_id is None:
             raise CannotStop("that run is not being performed in a browser this process is driving")
-        self._stops.ask(run.id)
+        self._stops.ask(run.id.value)
         # ponytail: in-process only. A device run and its socket live in one
         # worker, so stopping must land there too -- sticky-route by device_id
         # if this is ever run with more than one.

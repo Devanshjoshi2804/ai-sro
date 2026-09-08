@@ -30,9 +30,12 @@ session. That is a fact about the capture rather than a decision here, and
 inventing a SESSION header to hang a vault key on would be worse than the gap:
 it would make an unauthenticated plan look authenticated.
 
-The 544 CSRF headers ARE handled, and they are the ones that matter for a
-write: stale by construction, minted live, and the plan records that the call
-requires one.
+The CSRF header IS handled, and it is the one that matters for a write: Blue
+Yonder's `CSRF-ENCRYPT-TOKEN`, classified by `sro.domain.recording.sensitivity`
+-- stale by construction, minted live, and the plan records that the call
+requires one. A count of those headers used to stand here in place of the name;
+it was taken over a capture store that is gone, nothing in this repository
+reproduces it, and the handling does not rest on it.
 """
 
 from __future__ import annotations

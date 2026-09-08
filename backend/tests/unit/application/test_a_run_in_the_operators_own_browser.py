@@ -211,7 +211,7 @@ async def test_a_stopped_run_says_a_person_stopped_it_rather_than_that_it_failed
     # Asked before the first step, so nothing is sent at all -- which is the
     # only moment a stop can be honoured without a warehouse having been
     # touched.
-    stops.ask(started.id)
+    stops.ask(started.id.value)
     finished = await executor.resume(CTX, started)
 
     assert finished.status is RunStatus.FAILED
@@ -244,7 +244,7 @@ async def test_a_run_nobody_stopped_is_not_treated_as_stopped() -> None:
         authorized_by=str(f.OPERATOR),
     )
     first = await executor.begin(CTX, request)
-    stops.ask(first.id)
+    stops.ask(first.id.value)
     await executor.resume(CTX, first)
 
-    assert not stops.asked(first.id), "the stop outlived the run it was for"
+    assert not stops.asked(first.id.value), "the stop outlived the run it was for"

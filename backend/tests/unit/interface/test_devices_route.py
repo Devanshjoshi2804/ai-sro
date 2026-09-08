@@ -219,3 +219,52 @@ async def test_the_older_agents_listing_learned_the_same_online_answer(
 
     assert device["id"] == LAPTOP.value
     assert device["online"] is False
+
+
+class _Attached:
+    """A browser holding a command channel. Nothing is ever sent down it; what
+    the roster reads is that the registry has one at all."""
+
+    async def send_text(self, text: str) -> None:  # pragma: no cover - never called
+        raise AssertionError("the roster must not talk to a browser")
+
+
+async def test_the_roster_reports_a_browser_that_actually_holds_a_channel(
+    client: httpx.AsyncClient, container: _FakeContainer, registered: AgentDevice
+) -> None:
+    """Every other roster assertion in this suite reads `online is False`,
+    because nothing had ever attached a socket -- so hardcoding the field to
+    `False` passed the whole suite. `online` is the question this list is read
+    to answer, and this is the only test that watches it say yes.
+
+    Attached to the container's own `agent_sockets`, which is what
+    `container.agents()` builds its drivers over: a test that overrode the
+    drivers instead would prove the model and not the wiring.
+    """
+    container.agent_sockets.attach(f.TENANT, LAPTOP, _Attached())
+
+    (line,) = (await client.get("/v1/devices")).json()["devices"]
+
+    assert line["online"] is True
+    # And `GET /v1/agents`, which runs through the same `ReadRoster`.
+    assert (await client.get("/v1/agents")).json()[0]["online"] is True
+
+
+async def test_a_revoked_browser_reads_offline_even_holding_a_channel(
+    client: httpx.AsyncClient, container: _FakeContainer, registered: AgentDevice
+) -> None:
+    """The row is the authority; the socket is a fact about a wire.
+
+    `RevokeDevice` drops the channel, so normally there is nothing to report --
+    this attaches one back afterwards, which is what a browser that reconnected
+    after its revocation does. Reading it as connected on the list an
+    administrator answers "who can act" from is the whole of what that drop was
+    for.
+    """
+    await client.post(f"/v1/devices/{LAPTOP.value}/revoke")
+    container.agent_sockets.attach(f.TENANT, LAPTOP, _Attached())
+
+    (line,) = (await client.get("/v1/devices")).json()["devices"]
+
+    assert line["revoked_at"] is not None
+    assert line["online"] is False

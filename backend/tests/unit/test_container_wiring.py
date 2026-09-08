@@ -128,11 +128,18 @@ def test_the_container_builds_serve_shapes_from_its_own_parts(
     served = container.serve_shapes()
 
     assert isinstance(served, ServeShapes)
-    assert served._uow is uow
-    # Not merely "a clock", and the reason this is a factory rather than a
-    # `ServeShapes()` a route could build: a use case holding a clock of its
-    # own rests every job by the wall calendar, and no test can move that.
-    assert served._clock is container.clock
+    # The whole of what it was built from, not merely that the two it needs are
+    # right. `restore_device` three factories above guards the same thing with
+    # `not hasattr(..., "_drivers")`; this is that assertion in the form a
+    # renamed parameter cannot walk past. `ServeShapes` is the every-page poll,
+    # and a container that handed it `self.agents()` would put a socket
+    # registry behind the one read a browser makes on every gesture cache miss.
+    #
+    # `_clock` by identity and not merely "a clock", which is also why this is a
+    # factory rather than a `ServeShapes()` a route could build: a use case
+    # holding a clock of its own rests every job by the wall calendar, and no
+    # test can move that.
+    assert vars(served) == {"_uow": uow, "_clock": container.clock}
 
 
 async def test_serve_shapes_is_asked_with_the_asking_browser_and_the_containers_clock(
@@ -154,13 +161,23 @@ async def test_serve_shapes_is_asked_with_the_asking_browser_and_the_containers_
     assert seen["now"] == FROZEN
 
 
-async def test_serve_shapes_reaches_the_real_function(container: Container) -> None:
+async def test_serve_shapes_reaches_the_real_function_and_commits_nothing(
+    container: Container, uow: FakeUnitOfWork
+) -> None:
     """No spy: the import is real and a tenant with nothing proven gets [].
 
     Also the shape of a request no browser proved itself for -- `device_id` is
     allowed to be `None` and the tenant is answered anyway.
+
+    And the promise `shapes_for` makes in its own docstring and nothing has
+    ever held it to: "nothing writes, so nothing commits -- the caller owns the
+    session". This is the read every browser makes on every gesture cache miss,
+    answered inside a request that may be holding writes nobody has finished, so
+    a commit here flushes somebody else's half-done work.
     """
     assert await container.serve_shapes().execute(RIVAL, device_id=None) == []
+
+    assert uow.commits == 0
 
 
 async def test_record_offer_is_given_every_argument_and_the_containers_clock(

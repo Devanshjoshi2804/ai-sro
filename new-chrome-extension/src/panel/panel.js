@@ -902,8 +902,11 @@ function troubles(status) {
       card({
         title: "This browser cannot be reached",
         says:
-          `The command channel is ${status.channel}. A run started from the console or a `
-          + "schedule cannot act here until it opens; nothing already captured is lost.",
+          (status.channelWhy
+            ? `Not dialling: ${status.channelWhy}. `
+            : `The command channel is ${status.channel}. `)
+          + "A run started from the console or a schedule cannot act here until it "
+          + "opens; nothing already captured is lost.",
         tone: "attention",
         // It redials on the minute alarm by itself. This is for the operator
         // watching the card right now, who otherwise has nothing to press and

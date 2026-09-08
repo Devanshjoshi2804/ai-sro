@@ -194,3 +194,34 @@ test("no rig url means no rig socket, and no error", async () => {
   assert.equal(opened.length, before, "nothing dialled");
   assert.equal(rig.status(), "closed");
 });
+
+test("a channel that will not dial says which of the four reasons it is", async () => {
+  // All four states closed this socket identically -- "the command channel is
+  // closed" -- so a browser an administrator had switched off looked exactly
+  // like one whose secret had gone, both in the panel and in a bug report.
+  await channel.settle();
+  await settle();
+  assert.equal(channel.why(), "", "a channel with a target to dial blamed something");
+
+  const secret = stored.get("sro.deviceSecret");
+  stored.delete("sro.deviceSecret");
+  channel.close();
+  await channel.settle();
+  await settle();
+  assert.match(channel.why(), /device secret/, "a missing secret was not named");
+
+  stored.delete("sro.token");
+  channel.close();
+  await channel.settle();
+  await settle();
+  // Reported in the order somebody would fix them: no credential outranks
+  // everything downstream of holding one.
+  assert.match(channel.why(), /no credential/, "the missing credential was not named first");
+
+  stored.set("sro.token", "backend-token");
+  stored.set("sro.deviceSecret", secret);
+  channel.close();
+  await channel.settle();
+  await settle();
+  assert.equal(channel.why(), "", "the reason outlived what caused it");
+});

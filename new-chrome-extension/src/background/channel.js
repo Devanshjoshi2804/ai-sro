@@ -260,6 +260,16 @@ export function createChannel({ describe, dial, perform = commands.perform }) {
 // and dialling once a second at a door that will not open is how a device
 // that has fallen behind becomes a device that is hammering the backend. The
 // heartbeat is what re-registers and gets one; the next tick dials.
+/** Why the backend channel is not dialling, in the words the panel shows.
+ *
+ * Four different states close this socket and they used to render identically
+ * -- "the command channel is closed" -- so an operator looking at the card
+ * could not tell a browser an administrator had switched off from one whose
+ * secret had gone, and neither could anybody reading a bug report. Written
+ * from inside `dial` rather than computed beside it, because a second copy of
+ * this condition is how the reason would come to disagree with the socket. */
+let backendWhy = "";
+
 const backend = createChannel({
   describe: "backend",
   async dial() {
@@ -270,7 +280,17 @@ const backend = createChannel({
       state.serverPaused(),
       state.apiUrl(),
     ]);
-    if (!token || !deviceId || !secret || serverPaused) return null;
+    // In the order somebody would fix them.
+    backendWhy = !token
+      ? "this browser has no credential"
+      : !deviceId
+        ? "this browser is not registered yet"
+        : !secret
+          ? "this browser has no device secret — the next heartbeat fetches one"
+          : serverPaused
+            ? "an administrator switched this browser off"
+            : "";
+    if (backendWhy) return null;
     return {
       url: `${apiUrl.replace(/^http/, "ws")}/v1/agents/${encodeURIComponent(deviceId)}/commands`,
       protocols: ["bearer", token, secret],
@@ -279,6 +299,9 @@ const backend = createChannel({
 });
 
 export const status = backend.status;
+/** Empty while the socket has a target to dial, whether or not it is open --
+ * so a channel that is merely connecting says nothing here. */
+export const why = () => backendWhy;
 export const settle = backend.settle;
 export const close = backend.close;
 export const operatorIsWorking = backend.operatorIsWorking;

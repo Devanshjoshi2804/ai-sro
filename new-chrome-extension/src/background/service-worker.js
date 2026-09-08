@@ -1806,6 +1806,8 @@ async function status(sender = null) {
     capturing: allowed.on,
     because: allowed.because,
     channel: channel.status(),
+    // Why it is not dialling, when it is not. See `channel.why`.
+    channelWhy: channel.why(),
     // What has been seen but not yet sent. The panel shows it while teaching,
     // because a demonstration that is recording nothing looks exactly like one
     // that is recording everything, and the operator finds out at the end.

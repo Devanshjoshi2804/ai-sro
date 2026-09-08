@@ -193,12 +193,17 @@ async def test_the_roster_is_most_recently_seen_first(
 ) -> None:
     """Inherited from `list_for_tenant` rather than chosen, and the order the
     question wants: an administrator asking who can act cares which browser was
-    here this morning, not which was installed first."""
-    await uow.devices.add(f.device(id=DESKTOP, label="desktop", last_seen_at=f.at(30)))
+    here this morning, not which was installed first.
+
+    The desktop is added second and seen later, so the answer is the REVERSE of
+    the order the store was written in. A router that passed the rows through
+    in whatever order it got them would otherwise agree with this by accident.
+    """
+    await uow.devices.add(f.device(id=DESKTOP, label="desktop", last_seen_at=f.at(120)))
 
     body = (await client.get("/v1/devices")).json()
 
-    assert [line["device_id"] for line in body["devices"]] == [LAPTOP.value, DESKTOP.value]
+    assert [line["device_id"] for line in body["devices"]] == [DESKTOP.value, LAPTOP.value]
 
 
 async def test_the_older_agents_listing_learned_the_same_online_answer(

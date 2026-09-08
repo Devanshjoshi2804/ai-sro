@@ -984,6 +984,15 @@ class FakeDeviceRepository:
         device.revoked_at = at
         return True
 
+    async def restore(self, tenant_id: TenantId, device_id: DeviceId) -> bool:
+        device = await self.get(tenant_id, device_id)
+        if not device.revoked:
+            # Never revoked, so this press moved nothing -- and the secret is
+            # left exactly as the store leaves it.
+            return False
+        device.revoked_at = None
+        return True
+
 
 class FakeObservationRepository:
     """The conflict on a second add is the behaviour under test: an upload the

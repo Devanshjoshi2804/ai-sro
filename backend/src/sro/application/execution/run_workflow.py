@@ -32,7 +32,8 @@ import base64
 from collections.abc import Mapping
 from datetime import UTC, datetime
 
-from sro.application.execution.effects import forget_effects, record_effect
+from sro.application.execution.approvals import K_APPROVAL_WAIT_S, Approvals
+from sro.application.execution.effects import earned, forget_effects, record_effect
 from sro.application.execution.plan_step import plan_by_sight, plan_step
 from sro.application.execution.stops import Stops
 from sro.application.execution.verify import verify
@@ -270,6 +271,7 @@ async def run_workflow(
     allow_focus: bool,
     started_by: str,
     stops: Stops,
+    approvals: Approvals,
     run_id: str | None = None,
 ) -> WorkflowRun:
     # A run the caller already claimed. `POST /v1/runs` writes the `running` row
@@ -514,6 +516,36 @@ async def run_workflow(
                     )
                 )
 
+                # A live write, on a job that has not yet earned the right to
+                # write unasked: shown in the panel with what would go out, and
+                # held until somebody taps. `live` is checked here rather than
+                # inherited from the block above, whose narrower `mutates` lets
+                # a dry run walk past it: a dry run withholds, never waits.
+                if live and may_write and not await earned(uow.workflows, tenant_id, workflow.id):
+                    record.verdict, record.verdict_by = "awaiting", "none"
+                    record.reason = "waiting for a person to approve the write"
+                    record.sent = {"kind": planned.kind, "payload": planned.payload}
+                    # Registered before the save, not by the wait below: the
+                    # save is what puts this step in front of a person, and a
+                    # tap that lands before the wait starts must find an event
+                    # to set rather than a 409.
+                    approvals.register(run.id)
+                    await _save(uow, run)
+                    if not await approvals.wait_for(run.id, K_APPROVAL_WAIT_S):
+                        waited = f"{K_APPROVAL_WAIT_S / 60:.0f} minutes"
+                        record.verdict, record.verdict_by = "failed", "none"
+                        record.reason = f"nobody approved the write within {waited}"
+                        verdict = StepVerdict("failed", "none", record.reason)
+                        break
+                    # A released wait is not a yes. The stop button releases it
+                    # as well as setting the flag, so a person who pressed Stop
+                    # rather than Approve gets an aborted run and not a write.
+                    if stops.asked(stopped):
+                        record.verdict, record.verdict_by = "failed", "none"
+                        record.reason = "stopped while waiting for approval"
+                        run.outcome = "aborted"
+                        break
+
                 # `before` and `planned` are set by the same pass of the while
                 # above: a command to send is a command something was looked at
                 # before planning.
@@ -639,4 +671,5 @@ async def run_workflow(
         run.finished_at = _now()
         await _save(uow, run)
         stops.forget(stopped)
+        approvals.forget(run.id)
     return run

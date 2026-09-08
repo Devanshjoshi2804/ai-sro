@@ -30,6 +30,8 @@ from dataclasses import replace
 
 import pytest
 
+from sro.application.execution import run_workflow as runner_module
+from sro.application.execution.approvals import Approvals
 from sro.application.execution.run_workflow import (
     K_STEP_SLACK,
     _bill,
@@ -46,7 +48,7 @@ from sro.application.execution.run_workflow import (
 from sro.application.execution.stops import Stops
 from sro.application.ports.agent import DeviceUnreachable
 from sro.application.ports.channel import Reply
-from sro.domain.execution.belts import SCREEN_SCHEMA
+from sro.domain.execution.belts import K_EARNED_RUNS, SCREEN_SCHEMA
 from sro.domain.execution.planning import PLAN_SCHEMA, Look, Planned
 from sro.domain.execution.run import RunId
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
@@ -651,6 +653,29 @@ class _PerSchemaAsker(FakeAsker):
         return self.verdict if "held" in schema["properties"] else self.plan
 
 
+async def _earn(uow: FakeUnitOfWork, workflow: Workflow) -> None:
+    """This job has earned the right to write without asking a person first.
+
+    `K_EARNED_RUNS` live runs that held, each with every write of theirs in the
+    register of verified effects -- which is what `earned_from` counts. Seeded
+    rather than performed: the arithmetic has its own tests, and what this
+    suite is about is which of a run's steps stop and ask.
+    """
+    for nth in range(K_EARNED_RUNS):
+        proof = _bare_run(
+            id=f"run_earned_{nth}",
+            workflow_id=workflow.id,
+            live=True,
+            outcome="held",
+            finished_at=STARTED,
+            steps=[_step_record(verdict="held", verdict_by="status", result={"wrote": True})],
+        )
+        await uow.workflow_runs.save(proof)
+        await uow.workflows.record_effect(
+            workflow.id, run_id=proof.id, ord_=0, verified_by="status", at=STARTED
+        )
+
+
 async def _ran(
     uow: FakeUnitOfWork,
     workflow: Workflow,
@@ -664,26 +689,41 @@ async def _ran(
     tenant_id: TenantId = TENANT,
     device_id: DeviceId = DEVICE,
     stops: Stops | None = None,
+    approvals: Approvals | None = None,
     run_id: str | None = None,
     plan_model: str = "flash",
     rescue_model: str = "pro",
+    earned: bool = False,
 ) -> WorkflowRun:
-    """One run, with the arguments no test varies spelled once."""
-    return await run_workflow(
-        uow,
-        workflow,
-        tenant_id=tenant_id,
-        values={"clientCode": "x"} if values is None else values,
-        channel=channel,
-        device_id=device_id,
-        asker=asker,
-        plan_model=plan_model,
-        rescue_model=rescue_model,
-        live=live,
-        allow_focus=allow_focus,
-        started_by=started_by,
-        stops=stops or Stops(),
-        run_id=run_id,
+    """One run, with the arguments no test varies spelled once.
+
+    `earned` says the job has already proved it can write, which is the only
+    way a live write goes out without a person tapping approve. Five seconds
+    rather than no deadline, because a run that parks waits `K_APPROVAL_WAIT_S`
+    -- five minutes -- and a test that meant to earn and forgot should fail
+    here rather than hang the suite.
+    """
+    if earned:
+        await _earn(uow, workflow)
+    return await asyncio.wait_for(
+        run_workflow(
+            uow,
+            workflow,
+            tenant_id=tenant_id,
+            values={"clientCode": "x"} if values is None else values,
+            channel=channel,
+            device_id=device_id,
+            asker=asker,
+            plan_model=plan_model,
+            rescue_model=rescue_model,
+            live=live,
+            allow_focus=allow_focus,
+            started_by=started_by,
+            stops=stops or Stops(),
+            approvals=approvals or Approvals(),
+            run_id=run_id,
+        ),
+        timeout=5,
     )
 
 
@@ -698,7 +738,9 @@ async def test_a_live_run_sends_the_write() -> None:
         Answer(data={"held": True, "why": ""}),
     )
 
-    run = await _ran(uow, workflow, channel=channel, asker=asker, values={"clientCode": "THIRD"})
+    run = await _ran(
+        uow, workflow, channel=channel, asker=asker, values={"clientCode": "THIRD"}, earned=True
+    )
 
     assert [s.verdict for s in run.steps] == ["held", "held"] and not run.withheld
     performed = [s for s in channel.sent if s["kind"] == "ui.perform"]
@@ -717,6 +759,8 @@ async def test_the_run_is_saved_after_every_step_and_not_only_at_the_end() -> No
     asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True}))
     seen: list[int] = []
 
+    # Earned before the watch goes on, so the saves counted are this run's.
+    await _earn(uow, workflow)
     saved = uow.workflow_runs.save
 
     async def _watch(run: WorkflowRun) -> None:
@@ -847,7 +891,7 @@ async def test_a_weak_locator_match_succeeds_and_flags_the_step_stale() -> None:
     )
     asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True}))
 
-    run = await _ran(uow, workflow, channel=channel, asker=asker, run_id="run_claimed")
+    run = await _ran(uow, workflow, channel=channel, asker=asker, run_id="run_claimed", earned=True)
 
     assert [s.stale for s in run.steps] == [False, True]
     assert run.steps[1].verdict == "held" and run.steps[1].matched_by == "css_path"
@@ -876,7 +920,7 @@ async def test_a_step_found_the_strong_way_again_clears_its_stale_mark() -> None
     )
     asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True}))
 
-    run = await _ran(uow, workflow, channel=channel, asker=asker)
+    run = await _ran(uow, workflow, channel=channel, asker=asker, earned=True)
 
     assert [s.stale for s in run.steps] == [True, False]
     assert set(_stale(uow)) == {("wfl_1", 0)}, "only the step that matched strongly is cleared"
@@ -1073,7 +1117,9 @@ async def test_the_record_keeps_what_the_browser_answered_not_what_it_answered_w
         }
     )
 
-    run = await _ran(uow, workflow, channel=channel, asker=FakeAsker(_replay()), values={})
+    run = await _ran(
+        uow, workflow, channel=channel, asker=FakeAsker(_replay()), values={}, earned=True
+    )
 
     assert run.steps[0].verdict == "held" and run.steps[0].verdict_by == "status"
     assert run.steps[0].result == {
@@ -1367,11 +1413,14 @@ async def test_a_held_write_verified_by_state_is_recorded_as_an_effect() -> None
         asker=asker,
         values={"clientCode": "THIRD"},
         run_id="run_claimed",
+        earned=True,
     )
 
     assert run.outcome == "held"
     assert run.steps[-1].result is not None and run.steps[-1].result.get("wrote") is True
-    assert list(_effects(uow)) == [(workflow.id, run.id, 0)], "against the job, under this run"
+    assert [key for key in _effects(uow) if key[1] == run.id] == [(workflow.id, run.id, 0)], (
+        "against the job, under this run -- the rest of the register is what earned it"
+    )
     verified_by, at = _effects(uow)[(workflow.id, run.id, 0)]
     assert verified_by == "status", "and by the belt that saw the state, not by a picture"
     assert at.endswith("+00:00"), "in UTC"
@@ -1401,6 +1450,7 @@ async def test_a_failed_write_forgets_the_effects_the_workflow_had_earned() -> N
         asker=asker,
         values={"clientCode": "THIRD"},
         started_by="offer",
+        earned=True,
     )
 
     assert run.steps[0].verdict == "failed" and run.steps[0].verdict_by == "status"
@@ -1425,7 +1475,9 @@ async def test_a_browser_that_goes_away_after_the_write_forgets_the_effects() ->
     )
     asker = _PerSchemaAsker(plan=_replay(), verdict=Answer(data={"held": True, "why": "ok"}))
 
-    run = await _ran(uow, workflow, channel=channel, asker=asker, values={}, started_by="offer")
+    run = await _ran(
+        uow, workflow, channel=channel, asker=asker, values={}, started_by="offer", earned=True
+    )
 
     assert run.outcome == "failed" and run.steps[0].result is not None
     assert run.steps[0].result.get("wrote") is True, "the write went out"
@@ -1452,7 +1504,9 @@ async def test_a_write_that_ends_unclear_forgets_the_effects() -> None:
     asker = _PerSchemaAsker(plan=_replay(), verdict=Answer(data={"held": True, "why": "ok"}))
 
     # No values, so there is no proposition a confirming read could check.
-    run = await _ran(uow, workflow, channel=channel, asker=asker, values={}, started_by="offer")
+    run = await _ran(
+        uow, workflow, channel=channel, asker=asker, values={}, started_by="offer", earned=True
+    )
 
     assert [s.verdict for s in run.steps] == ["unclear"]
     assert _effects(uow) == {}
@@ -1625,7 +1679,12 @@ async def test_the_confirming_read_goes_out_to_the_callers_own_browser_under_thi
     asker = FakeAsker(_plan("click"))
 
     run = await _ran(
-        uow, workflow, channel=channel, asker=asker, values={"clientCode": "ACME-4471"}
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        values={"clientCode": "ACME-4471"},
+        earned=True,
     )
 
     assert (run.steps[0].verdict, run.steps[0].verdict_by) == ("held", "read")
@@ -1658,7 +1717,12 @@ async def test_every_command_a_run_sends_names_the_caller_the_browser_and_the_ru
     asker = FakeAsker(_navigate(), _plan("click"))
 
     run = await _ran(
-        uow, workflow, channel=channel, asker=asker, values={"clientCode": "ACME-4471"}
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        values={"clientCode": "ACME-4471"},
+        earned=True,
     )
 
     assert {s["kind"] for s in channel.sent} >= {"ui.url", "screenshot", "navigate", "ui.perform"}
@@ -1688,7 +1752,7 @@ async def test_the_steps_are_performed_in_the_order_the_workflow_gave_them() -> 
     channel = FakeChannel({**_looks(4), "ui.perform": [_performed(), _performed()]})
     asker = _PerSchemaAsker(plan=_plan("click"), verdict=Answer(data={"held": True}))
 
-    run = await _ran(uow, workflow, channel=channel, asker=asker, values={})
+    run = await _ran(uow, workflow, channel=channel, asker=asker, values={}, earned=True)
 
     assert [(s.order, s.says) for s in run.steps] == [(0, "first"), (1, "second")]
 
@@ -1738,7 +1802,7 @@ async def test_a_stale_step_is_recorded_once_per_step_not_once_per_run() -> None
         channel = FakeChannel(
             {**_looks(4), "ui.perform": [_performed("component"), _performed("css_path")]}
         )
-        run = await _ran(uow, workflow, channel=channel, asker=asker)
+        run = await _ran(uow, workflow, channel=channel, asker=asker, earned=True)
         assert run.steps[1].stale is True
 
     assert list(_stale(uow)) == [("wfl_1", 1)], "one row, not one per run"
@@ -1946,6 +2010,7 @@ async def _run_by_sight(
     performs: list[Reply] | None = None,
     live: bool = True,
     looks: dict[str, list[Reply]] | None = None,
+    earned: bool = True,
 ) -> tuple[WorkflowRun, FakeChannel, _ByRungAsker]:
     uow = await _fixture()
     workflow = await _workflow(uow)
@@ -1965,7 +2030,7 @@ async def _run_by_sight(
     asker = _ByRungAsker(
         [_plan("type", "x")] * 4, sights, Answer(data={"held": True, "why": "typed"})
     )
-    run = await _ran(uow, workflow, channel=channel, asker=asker, live=live)
+    run = await _ran(uow, workflow, channel=channel, asker=asker, live=live, earned=earned)
     return run, channel, asker
 
 
@@ -2139,7 +2204,7 @@ async def test_a_write_that_went_out_is_not_performed_a_second_time() -> None:
     channel = FakeChannel({**_looks(4), "ui.perform": [_performed()]})
     asker = FakeAsker(_plan("click"), Answer(data={"held": False, "why": "no confirmation"}))
 
-    run = await _ran(uow, workflow, channel=channel, asker=asker)
+    run = await _ran(uow, workflow, channel=channel, asker=asker, earned=True)
 
     assert run.outcome == "stopped"
     assert len([s for s in channel.sent if s["kind"] == "ui.perform"]) == 1, "sent once"
@@ -2155,7 +2220,7 @@ async def test_a_click_the_capture_heard_nothing_from_is_not_clicked_twice() -> 
     channel = FakeChannel({**_looks(4), "ui.perform": [_performed()]})
     asker = FakeAsker(_plan("click"), Answer(data={"held": False, "why": "no confirmation"}))
 
-    run = await _ran(uow, workflow, channel=channel, asker=asker)
+    run = await _ran(uow, workflow, channel=channel, asker=asker, earned=True)
 
     assert run.outcome == "stopped"
     assert len([s for s in channel.sent if s["kind"] == "ui.perform"]) == 1, "clicked once"
@@ -2289,3 +2354,246 @@ async def test_a_dry_run_reads_by_sight_too_and_its_writes_never_reach_the_rung(
     assert isinstance(shown, dict) and shown["kind"] == "ui.perform", (
         "withheld by evidence, unasked"
     )
+
+
+# --------------------------------------------------------------------------
+# The write that stops and asks a person
+# --------------------------------------------------------------------------
+
+
+async def _parked(approvals: Approvals) -> str:
+    """The run that has stopped in front of a person, once it has.
+
+    A deadline rather than a bare loop: a wait for something that never
+    happens is a test that hangs, and the rig's own version of this polled
+    two hundred times and then raised by hand.
+    """
+    async with asyncio.timeout(5):
+        # Polled rather than awaited: the event this register holds belongs to
+        # the run waiting on it and is popped on the way out, so there is
+        # nothing here for a watcher to await. ASYNC110's advice needs an event
+        # that does not exist.
+        while not approvals.waiting():  # noqa: ASYNC110
+            await asyncio.sleep(0.01)
+    return next(iter(approvals.waiting()))
+
+
+async def test_a_live_write_waits_for_approval_and_goes_out_when_it_comes() -> None:
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel({**_looks(4), "ui.perform": [_performed(), _performed()]})
+    asker = _PerSchemaAsker(
+        plan=_plan("type", "THIRD"), verdict=Answer(data={"held": True, "why": "ok"})
+    )
+    approvals = Approvals()
+
+    task = asyncio.create_task(
+        _ran(
+            uow,
+            workflow,
+            channel=channel,
+            asker=asker,
+            values={"clientCode": "THIRD"},
+            started_by="offer",
+            approvals=approvals,
+        )
+    )
+    run_id = await _parked(approvals)
+
+    saved = await uow.workflow_runs.get(TENANT, run_id)
+    assert saved is not None and saved.steps[-1].verdict == "awaiting"
+    assert saved.steps[-1].sent is not None, "the panel shows what would go out"
+    assert saved.steps[-1].verdict_by == "none" and "approve" in saved.steps[-1].reason
+    assert [s["kind"] for s in channel.sent].count("ui.perform") == 1, (
+        "the read step went; the write waits"
+    )
+
+    assert approvals.approve(run_id) is True
+    run = await task
+    assert run.outcome == "held"
+    assert [s["kind"] for s in channel.sent].count("ui.perform") == 2
+
+
+async def test_a_write_nobody_approves_stops_the_run(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(runner_module, "K_APPROVAL_WAIT_S", 0.05)
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel({**_looks(4), "ui.perform": [Reply(ok=True, result={"performed": True})]})
+    asker = _PerSchemaAsker(
+        plan=_plan("type", "THIRD"), verdict=Answer(data={"held": True, "why": "ok"})
+    )
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        values={"clientCode": "THIRD"},
+        started_by="offer",
+    )
+
+    assert run.outcome == "stopped"
+    assert "nobody approved" in run.steps[-1].reason
+    assert [s["kind"] for s in channel.sent].count("ui.perform") == 1
+
+
+async def test_a_stop_pressed_during_the_wait_aborts_the_run() -> None:
+    """A released wait is not a yes. The stop button releases it as well as
+    setting the flag, and the loop asks which of the two it was before it lets
+    the write out."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel({**_looks(4), "ui.perform": [Reply(ok=True, result={"performed": True})]})
+    asker = _PerSchemaAsker(
+        plan=_plan("type", "THIRD"), verdict=Answer(data={"held": True, "why": "ok"})
+    )
+    approvals, stops = Approvals(), Stops()
+
+    task = asyncio.create_task(
+        _ran(
+            uow,
+            workflow,
+            channel=channel,
+            asker=asker,
+            values={"clientCode": "THIRD"},
+            started_by="offer",
+            approvals=approvals,
+            stops=stops,
+        )
+    )
+    run_id = await _parked(approvals)
+
+    stops.ask(RunId(run_id))
+    approvals.approve(run_id)
+    run = await task
+
+    assert run.outcome == "aborted"
+    assert run.steps[-1].verdict == "failed" and "stopped while waiting" in run.steps[-1].reason
+    assert [s["kind"] for s in channel.sent].count("ui.perform") == 1, "the write never went out"
+
+
+async def test_a_dry_run_never_pauses() -> None:
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel({**_looks(4), "ui.perform": [Reply(ok=True, result={"performed": True})]})
+    asker = _PerSchemaAsker(
+        plan=_plan("type", "THIRD"), verdict=Answer(data={"held": True, "why": "ok"})
+    )
+    approvals = Approvals()
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        values={"clientCode": "THIRD"},
+        live=False,
+        approvals=approvals,
+    )
+
+    assert [s.verdict for s in run.steps] == ["held", "withheld"]
+    assert not approvals.waiting(), "a dry run withholds; it never waits"
+
+
+async def test_an_earned_workflow_writes_without_asking() -> None:
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel({**_looks(4), "ui.perform": [_performed(), _performed()]})
+    asker = _PerSchemaAsker(
+        plan=_plan("type", "THIRD"), verdict=Answer(data={"held": True, "why": "ok"})
+    )
+    approvals = Approvals()
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        values={"clientCode": "THIRD"},
+        started_by="offer",
+        approvals=approvals,
+        earned=True,
+    )
+
+    assert run.outcome == "held" and not approvals.waiting()
+    assert [s["kind"] for s in channel.sent].count("ui.perform") == 2
+
+
+async def test_a_job_one_verified_run_short_of_earning_still_asks(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """New, and the seam `earned` is asked at: the rule is `K_EARNED_RUNS`
+    proofs, and a loop that asked the register a question it does not answer
+    -- "has this job ever written", say -- would let the third run of a job
+    write unasked."""
+    monkeypatch.setattr(runner_module, "K_APPROVAL_WAIT_S", 0.05)
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    await _earn(uow, workflow)
+    assert isinstance(uow.workflow_runs, FakeWorkflowRunRepository)
+    del uow.workflow_runs.rows[f"run_earned_{K_EARNED_RUNS - 1}"]
+    channel = FakeChannel({**_looks(4), "ui.perform": [_performed(), _performed()]})
+    asker = _PerSchemaAsker(
+        plan=_plan("type", "THIRD"), verdict=Answer(data={"held": True, "why": "ok"})
+    )
+
+    run = await _ran(uow, workflow, channel=channel, asker=asker, values={"clientCode": "THIRD"})
+
+    assert run.outcome == "stopped" and "nobody approved" in run.steps[-1].reason
+
+
+async def test_a_click_the_capture_heard_nothing_from_also_waits() -> None:
+    """`writes()` is False for a Save whose call the recorder never saw, and
+    the rescue gate already refuses to retry it. A step nobody may retry is a
+    step nobody may send unasked either, so it waits for the tap too."""
+    uow = await _fixture()
+    workflow = await _one_step(uow, _silent_click(uow), says="press Save")
+    channel = FakeChannel({**_looks(2), "ui.perform": [Reply(ok=True, result={"performed": True})]})
+    asker = _PerSchemaAsker(plan=_plan("click"), verdict=Answer(data={"held": True, "why": "ok"}))
+    approvals = Approvals()
+
+    task = asyncio.create_task(
+        _ran(
+            uow,
+            workflow,
+            channel=channel,
+            asker=asker,
+            values={"clientCode": "THIRD"},
+            started_by="offer",
+            approvals=approvals,
+        )
+    )
+    run_id = await _parked(approvals)
+
+    saved = await uow.workflow_runs.get(TENANT, run_id)
+    assert saved is not None and saved.steps[-1].verdict == "awaiting"
+    assert not [s for s in channel.sent if s["kind"] == "ui.perform"], "nothing went out"
+
+    assert approvals.approve(run_id) is True
+    run = await task
+    assert run.outcome == "held"
+    assert len([s for s in channel.sent if s["kind"] == "ui.perform"]) == 1
+
+
+async def test_a_click_by_sight_is_a_write_until_a_person_says_otherwise(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The first step's evidence is a typed field, not a silent click: by
+    evidence, a click there would not be a possible write. By sight it is --
+    the point is on a page that has moved, and what is there now is unknown --
+    so on a job that has not earned it, the click waits for a tap. Nobody
+    taps, and it never goes out."""
+    monkeypatch.setattr(runner_module, "K_APPROVAL_WAIT_S", 0.05)
+
+    run, channel, _ = await _run_by_sight(
+        sights=[_sight(action="click", value=None)],
+        perform_at=[Reply(ok=True, result={"performed": True})],
+        earned=False,
+    )
+
+    assert run.steps[0].verdict == "failed" and "nobody approved" in run.steps[0].reason
+    assert not [s for s in channel.sent if s["kind"] == "ui.perform_at"], "it waited, then stopped"
+    assert run.steps[0].sent == {
+        "kind": "ui.perform_at",
+        "payload": {"origin": "http://127.0.0.1:63319", "x": 40, "y": 30, "action": "click"},
+    }, "what would have gone out was shown"

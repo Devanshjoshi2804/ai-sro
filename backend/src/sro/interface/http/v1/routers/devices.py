@@ -15,11 +15,22 @@ this codebase already gives a browser its own doors elsewhere, and a list that
 means two different things depending on who asked is a shape a generated client
 cannot type.
 
+The wire shape diverges with it, also declared. The rig answered
+`{"devices": [online ids], "registered": [rows]}`; this answers
+`{"devices": [rows carrying `online`]}`, so the key `devices` means the
+opposite of what it means there -- rows, not the connected subset. One list
+rather than two, because the second existed only to serve the reduced answer
+that is now a refusal.
+
 The path segment is `{device}` and not `{device_id}`, which is not cosmetic:
 `tenant_only` reaches `asking_device`, which reads `?device_id=` to learn which
 browser is proving itself. Two different browsers can be named on one of these
 requests -- the subject in the path, the asker in the query -- and FastAPI
 refuses to let one name mean both. The URL an operator types is unchanged.
+
+It is the one path segment in this codebase not spelled `device_id` -- the
+seven `/v1/agents/{device_id}/...` paths keep theirs, because none of them is
+tenant-only and none pulls in `asking_device`.
 
 `NotFound` is not caught. `sro.interface.http.errors` maps it to 404 for every
 route at once, and a router that caught it here would be the one place the

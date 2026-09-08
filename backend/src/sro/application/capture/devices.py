@@ -80,6 +80,15 @@ class RestoreDevice:
     the asymmetry with `RevokeDevice`, which drops one -- cutting off is
     urgent, letting back in is not.
 
+    The cost, named because nothing else names it: this ERASES the instant the
+    revocation recorded. `RevokeDevice` is emphatic that the first press's
+    instant is what an audit of what a browser was allowed to do is read
+    against, and a restore deletes it outright -- so `DeviceRepository.since`
+    afterwards has no record the browser was ever cut off, and a day that
+    contained a revocation and a restore reads as a day that contained neither.
+    The rig did the same and this port keeps it, but a system that has to answer
+    "who could act, and from when to when" will want the pair kept somewhere.
+
     ``NotFound`` for a browser this tenant does not have, as the revoke gives:
     the repository raises it and this does not soften it into a quiet
     ``False``, so a tenant cannot confirm another tenant's device ids by

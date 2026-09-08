@@ -1,14 +1,13 @@
 """The loop that takes a mined job and performs it.
 
-Ported from `new_agent_arch/tests/test_runner.py`. That file is the largest in
-the rig's suite and this port is split in two the way the module is: plan 3b's
-task 6 is the skeleton -- the claimed row read back as the authority for what
-was asked, look -> plan -> perform -> verify -> record per step, the step
-budget, `_fell_over`, and the orphan sweep at startup -- and task 7 is the
-rungs and the gates on top of it: the Pro rescue, the sight rung, the wider
-`may_write`, the writes a dry run withholds, the wait for a person, `from_step`
-and earned autonomy. The rig tests that turn on those are named in this plan's
-ledger against task 7; everything else travels here, name unchanged.
+Ported from `new_agent_arch/tests/test_runner.py`, the largest file in the rig's
+suite. It arrived in two halves, the way the module did: task 6 brought the
+skeleton -- the claimed row read back as the authority for what was asked, look
+-> plan -> perform -> verify -> record per step, the step budget, `_fell_over`,
+and the orphan sweep at startup -- and task 7 brought the rungs and the gates on
+top of it: the rescue, the rung that looks, the wider `may_write`, the writes a
+dry run withholds, the wait for a person, `from_step` and earned autonomy. Both
+halves are here; nothing of the rig's runner suite is still to come.
 
 Two things the rig recorded only in prose are pinned here as tests, because the
 tasks that found them could not pin them at their own layer:
@@ -807,14 +806,10 @@ async def test_a_navigate_gets_to_the_page_and_does_not_spend_the_rescue() -> No
     """A deep job was demonstrated across several screens. Moving to the next
     one is not doing the step: after the navigate the same step is planned
     again on the same rung, so a step that needed a page change and then went
-    wrong still has its one Pro rescue (task 7's half).
-
-    One step rather than the rig's two, so the count below is the whole run:
-    the writes a dry run withholds are task 7's, and until they land the second
-    step of the shared workflow would send a command of its own.
+    wrong still has its one rescue.
     """
     uow = await _fixture()
-    workflow = await _one_step(uow, _ids(uow)[0], says="type the code")
+    workflow = await _workflow(uow)
     channel = FakeChannel(
         {
             **_looks(6),
@@ -822,7 +817,13 @@ async def test_a_navigate_gets_to_the_page_and_does_not_spend_the_rescue() -> No
             "ui.perform": [_performed()],
         }
     )
-    asker = FakeAsker(_navigate(), _plan("type", "x"), Answer(data={"held": True, "why": ""}))
+    asker = FakeAsker(
+        _navigate(),
+        _plan("type", "x"),
+        Answer(data={"held": True, "why": ""}),
+        # The save below is withheld, so nothing after this one goes out.
+        _plan("click"),
+    )
 
     run = await _ran(uow, workflow, channel=channel, asker=asker, live=False)
 
@@ -832,7 +833,9 @@ async def test_a_navigate_gets_to_the_page_and_does_not_spend_the_rescue() -> No
     ]
     moved = next(s for s in channel.sent if s["kind"] == "navigate")
     assert _payload(moved)["url"] == "http://127.0.0.1:63319/form", "the url the model gave"
-    assert run.steps[0].verdict == "held" and run.steps[0].planned_by == "flash"
+    assert run.steps[0].verdict == "held" and run.steps[0].planned_by == "flash", (
+        "the rescue was never needed"
+    )
 
 
 async def test_a_navigate_that_would_not_go_is_the_step_that_failed() -> None:
@@ -2377,7 +2380,12 @@ async def _parked(approvals: Approvals) -> str:
         # that does not exist.
         while not approvals.waiting():  # noqa: ASYNC110
             await asyncio.sleep(0.01)
-    return next(iter(approvals.waiting()))
+    # One, and named, rather than whichever the frozenset yields first: a run
+    # that parked a second key under some other id is a bug, and reading it
+    # through `next(iter(...))` would report it as a different failure on every
+    # `PYTHONHASHSEED`.
+    (parked,) = approvals.waiting()
+    return parked
 
 
 async def test_a_live_write_waits_for_approval_and_goes_out_when_it_comes() -> None:
@@ -2745,3 +2753,158 @@ async def test_a_run_started_past_its_last_step_performs_nothing_and_holds() -> 
 
     assert [s.verdict for s in run.steps] == ["done_by_operator", "done_by_operator"]
     assert run.outcome == "held" and channel.sent == [] and asker.asked == []
+
+
+# --------------------------------------------------------------------------
+# The seams the rungs and the gates are asked at
+#
+# Every test below is new, and every one came from mutating an argument at the
+# call site rather than the rule it feeds. The suite above is green under all
+# of them: a loop that shows the rung that looks a blank step, tells it
+# nothing about what just missed, plans on the run's own values and then fills
+# the control from somewhere else, or registers a wait nobody can tap, passes
+# the eighty-eight tests before this comment.
+# --------------------------------------------------------------------------
+
+
+def _sight_prompt(asker: FakeAsker) -> dict[str, object]:
+    [asked] = _by_sight(asker)
+    evidence = asked["evidence"]
+    assert isinstance(evidence, str)
+    parsed = json.loads(evidence)
+    assert isinstance(parsed, dict)
+    return parsed
+
+
+def _silent_press(uow: FakeUnitOfWork) -> str:
+    """A press the recorder saw and heard no traffic from. Enter on a form is
+    a submit, and a submit whose call went out where the recorder was not
+    attached is exactly as unknown as a silent click."""
+    return next(g.id for g in _evidence(uow) if g.action.kind == "press" and not g.requests)
+
+
+async def test_the_rung_that_looks_is_told_the_step_the_values_and_what_missed() -> None:
+    """Three arguments, none of which the rung's own answer reveals: which
+    step it is planning, the values the person asked this run for, and what
+    the two evidence rungs failed with. The value is the sharp one -- the
+    model reads a value off the screen and the run's own value wins over it,
+    so a rung planned on `{}` fills the control with what the picture said."""
+    run, channel, asker = await _run_by_sight(
+        sights=[_sight(value="WHAT-THE-SCREEN-SHOWED")],
+        perform_at=[Reply(ok=True, result={"performed": True})],
+    )
+
+    shown = _sight_prompt(asker)
+    assert shown["step"] == {"order": 0, "says": "type the code", "parameters": ["clientCode"]}
+    assert shown["values"] == {"clientCode": "x"}, "the values this run was asked for"
+    failed = shown["previous_attempt_failed"]
+    assert isinstance(failed, str) and "control_not_found" in failed, (
+        "and what the rungs above it missed with"
+    )
+    [sent] = [s for s in channel.sent if s["kind"] == "ui.perform_at"]
+    assert _payload(sent)["value"] == "x", "the run's value, not the one the model read"
+    assert run.steps[0].verdict == "held"
+
+
+async def test_a_press_the_capture_heard_nothing_from_is_a_write_too(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A click is not the only way to submit a form. The press rule is the
+    click rule, and dropping it from the predicate lets Enter on an order form
+    go out unasked."""
+    monkeypatch.setattr(runner_module, "K_APPROVAL_WAIT_S", 0.05)
+    uow = await _fixture()
+    workflow = await _one_step(uow, _silent_press(uow), says="press Enter to submit")
+    channel = FakeChannel({**_looks(2), "ui.perform": [_performed()]})
+    asker = _PerSchemaAsker(plan=_plan("press", "Enter"), verdict=Answer(data={"held": True}))
+
+    run = await _ran(uow, workflow, channel=channel, asker=asker, started_by="offer")
+
+    assert "nobody approved" in run.steps[0].reason
+    assert not [s for s in channel.sent if s["kind"] == "ui.perform"], "it never went out"
+
+
+async def test_a_tap_that_lands_before_the_wait_starts_is_not_lost(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The save is what puts the step in front of a person, and the wait
+    starts after it. A tap in that window has to find an event to set, which
+    is why the register is asked before the save and not by the wait."""
+    monkeypatch.setattr(runner_module, "K_APPROVAL_WAIT_S", 0.05)
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel({**_looks(4), "ui.perform": [_performed(), _performed()]})
+    asker = _PerSchemaAsker(plan=_plan("type", "THIRD"), verdict=Answer(data={"held": True}))
+    approvals = Approvals()
+    taps: list[bool] = []
+
+    saved = uow.workflow_runs.save
+
+    async def _tap_on_save(run: WorkflowRun) -> None:
+        await saved(run)
+        if run.steps and run.steps[-1].verdict == "awaiting":
+            taps.append(approvals.approve(run.id))
+
+    uow.workflow_runs.save = _tap_on_save  # type: ignore[method-assign]
+    run = await _ran(
+        uow, workflow, channel=channel, asker=asker, started_by="offer", approvals=approvals
+    )
+
+    assert taps == [True], "the tap found something waiting"
+    assert run.outcome == "held"
+    assert [s["kind"] for s in channel.sent].count("ui.perform") == 2, "and the write went out"
+
+
+async def test_a_run_that_dies_while_it_parks_leaves_nothing_waiting() -> None:
+    """The register is what the panel's `awaiting` list reads. A run that
+    registered and then died before it could wait would sit in that list
+    forever, offering a person a tap on a run nobody is driving."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel({**_looks(4), "ui.perform": [_performed(), _performed()]})
+    asker = _PerSchemaAsker(plan=_plan("type", "THIRD"), verdict=Answer(data={"held": True}))
+    approvals = Approvals()
+
+    saved = uow.workflow_runs.save
+    died = False
+
+    async def _die_on_the_parking_save(run: WorkflowRun) -> None:
+        nonlocal died
+        if not died and run.steps and run.steps[-1].verdict == "awaiting":
+            died = True
+            raise RuntimeError("the session went away")
+        await saved(run)
+
+    uow.workflow_runs.save = _die_on_the_parking_save  # type: ignore[method-assign]
+    with pytest.raises(RuntimeError):
+        await _ran(
+            uow, workflow, channel=channel, asker=asker, started_by="offer", approvals=approvals
+        )
+
+    assert died, "it died where it parks and nowhere else"
+    assert approvals.waiting() == frozenset(), "the wait went with the run"
+
+
+async def test_the_operators_steps_are_saved_as_the_run_walks_past_them() -> None:
+    """The panel polls the row, and a run finishing a job the operator started
+    shows their steps before it performs the rest -- not all at once at the
+    end."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel({**_looks(2), "ui.perform": [_performed()]})
+    asker = _PerSchemaAsker(plan=_plan("click"), verdict=Answer(data={"held": True}))
+    seen: list[int] = []
+
+    await _earn(uow, workflow)
+    saved = uow.workflow_runs.save
+
+    async def _watch(run: WorkflowRun) -> None:
+        seen.append(len([s for s in run.steps if s.verdict != "skipped"]))
+        await saved(run)
+
+    uow.workflow_runs.save = _watch  # type: ignore[method-assign]
+    run = await _ran(uow, workflow, channel=channel, asker=asker, started_by="offer", from_step=1)
+
+    assert run.outcome == "held"
+    # Claimed with nothing done, the operator's step, the performed one, the finish.
+    assert seen == [0, 1, 2, 2]

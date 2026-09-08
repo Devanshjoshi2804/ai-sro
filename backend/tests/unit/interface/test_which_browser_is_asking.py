@@ -102,6 +102,25 @@ async def test_a_blank_device_named_is_no_device_named(
     assert container.watched.asked == []
 
 
+async def test_a_padded_id_is_not_quietly_rewritten_into_the_browser_it_resembles(
+    container: _WatchingContainer, registered: AgentDevice
+) -> None:
+    """Blanking a whitespace-only id is not licence to trim every other one.
+
+    `device_id.strip()` reads like the same rule and is not: it rewrites what
+    the caller named on its way to `DeviceId`, at the one seam whose whole job
+    is which browser was named. ` dev-1` and its real secret would then
+    authenticate as `dev-1`. Refused instead, in the same words as a browser
+    that does not exist -- and the store is asked for the id as it was given,
+    which is the assertion that fails if the trim comes back.
+    """
+    with pytest.raises(HTTPException) as refused:
+        await asking_device(container, CTX, HERS, f" {LAPTOP.value}")
+
+    assert refused.value.status_code == 404
+    assert container.watched.asked == [(f.TENANT.value, f" {LAPTOP.value}", HERS)]
+
+
 async def test_a_browser_that_proves_itself_is_named(
     container: _WatchingContainer, registered: AgentDevice
 ) -> None:

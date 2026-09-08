@@ -49,12 +49,18 @@ async def asking_device(
     repository -- cannot be told from a lookup that did by the shape of what
     comes back. Both land on the same problem document either way.
     """
-    # Normalised once, so blank and whitespace are "no browser named" rather
-    # than two other answers: `?device_id=` reached `DeviceId("")` and
-    # `?device_id=%20` reached `DeviceId(" ")`, and an id the domain refuses to
-    # build is a 422 telling a caller their query string was interesting. It is
-    # the same nothing, and this route answers nothing with the one 404 above.
-    device_id = (device_id or "").strip()
+    # Blanked, never rewritten. `?device_id=` reached `DeviceId("")` and
+    # `?device_id=%20` reached `DeviceId(" ")`; an id the domain refuses to
+    # build is a 422 telling a caller their query string was interesting, out
+    # of the one function whose promise is that nothing here is told apart. So
+    # an id that is nothing but space becomes "no browser named".
+    #
+    # And nothing else. `device_id.strip()` would read the same and quietly
+    # rewrite every PADDED id on its way to `DeviceId`, at the one seam whose
+    # whole job is which browser was named: ` dev-1` would authenticate as
+    # `dev-1`. There is no caller that needs that and no test that wanted it.
+    if not (device_id or "").strip():
+        device_id = ""
     if not device_id and not x_device_secret:
         return None
     if not device_id or not x_device_secret:

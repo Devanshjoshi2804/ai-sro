@@ -41,6 +41,7 @@ from httpx import ASGITransport
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
 from sro.domain.observation.gesture import Action, Body, Call, Component, Gesture, Target
 from sro.domain.shared.identifiers import DeviceId
+from sro.domain.skill.shape import Shape
 from sro.domain.skill.workflow import Step, Workflow
 from sro.interface.http.app import create_app
 from sro.interface.http.deps import get_container
@@ -193,19 +194,19 @@ def _workflow(
         narrative="open the client screen, type the code, save",
         systems=["wms.test", "billing.test"],
         steps=[
-            Step(order=2, says="save", system="wms.test", cites=cited[2:3], parameters=[]),
+            Step(order=2, says="save", system="wms.test", cites=cited[4:6], parameters=[]),
             Step(
                 order=0,
                 says="open the client screen",
                 system="wms.test",
-                cites=cited[0:1],
+                cites=cited[0:2],
                 parameters=[],
             ),
             Step(
                 order=1,
                 says="type the code",
                 system="billing.test",
-                cites=cited[1:2],
+                cites=cited[2:4],
                 parameters=["clientCode"],
             ),
         ],
@@ -217,10 +218,12 @@ def _workflow(
     )
 
 
-def _run(run_id: str, *, workflow_id: str, held: bool, wrote: bool = False) -> WorkflowRun:
+def _run(
+    run_id: str, *, workflow_id: str, held: bool, wrote: bool = False, tenant: str = "acme"
+) -> WorkflowRun:
     return WorkflowRun(
         id=run_id,
-        tenant="acme",
+        tenant=tenant,
         workflow_id=workflow_id,
         device_id=LAPTOP.value,
         values={},
@@ -242,24 +245,43 @@ def _run(run_id: str, *, workflow_id: str, held: bool, wrote: bool = False) -> W
     )
 
 
+CITED = ["ges_3", "ges_1", "ges_6", "ges_5", "ges_7", "ges_2"]
+"""The citations of `JOB`, in step order -- which is deliberately not the order
+their gestures happened in, not the order they are stored in, and not sorted.
+
+Five streams over six gestures, because a wanted order of three is one a
+`set` reproduces by luck once every six hash seeds. That is not a thought
+experiment: `tuple(set(...))` in place of `tuple(dict.fromkeys(...))` passed
+this file under `PYTHONHASHSEED=42` and `12345` when the plant had three
+streams in it. Five brings the coincidence to one seed in a hundred and
+twenty, and the seeds are varied besides.
+
+`ges_7` repeats `ges_1`'s stream, so "distinct" is a claim under test rather
+than a property the plant could not have contradicted.
+"""
+
+
 @pytest.fixture
 async def mined(uow: FakeUnitOfWork) -> list[Gesture]:
     """Three jobs and the evidence one of them cites.
 
-    Saved zebra, alpha, mid -- see `JOB`. The four gestures arrive on three
-    streams and out of clock order, so the streams `recordings` answers with
-    (`str_m`, `str_a`, `str_z`) are neither sorted, nor that reversed, nor the
-    order they were planted in.
+    Saved zebra, alpha, mid -- see `JOB`. The gestures are added in one order,
+    cited in a second and clocked in a third, so the streams `recordings`
+    answers with are the clock's and could not be any of the others by
+    accident.
     """
     cited = [
         _gesture("ges_2", stream="str_a", at=20.0, calls=[_call("req_2")]),
+        _gesture("ges_7", stream="str_m", at=35.0, calls=[_call("req_7")]),
         _gesture("ges_1", stream="str_m", at=10.0, calls=[_call("req_1a"), _call("req_1b")]),
+        _gesture("ges_6", stream="str_t", at=25.0, calls=[_call("req_6")]),
         _gesture("ges_3", stream="str_z", at=30.0, calls=[]),
+        _gesture("ges_5", stream="str_c", at=15.0, calls=[_call("req_5")]),
     ]
     uncited = _gesture("ges_4", stream="str_never", at=40.0, calls=[_call("req_4")])
     await uow.gestures.add_gestures((*cited, uncited))
 
-    await uow.workflows.save(_workflow(JOB, cites=["ges_1", "ges_2", "ges_3"]))
+    await uow.workflows.save(_workflow(JOB, cites=CITED))
     await uow.workflows.save(_workflow(SIBLING))
     await uow.workflows.save(_workflow(THIRD))
     return cited
@@ -332,7 +354,7 @@ async def test_the_tenant_may_read_a_jobs_evidence(
     answered = await _evidence(client)
 
     assert answered.status_code == 200
-    assert sorted(answered.json()["gestures"]) == ["ges_1", "ges_2", "ges_3"]
+    assert sorted(answered.json()["gestures"]) == sorted(CITED)
 
 
 # --- what a job's card says -------------------------------------------------
@@ -364,21 +386,21 @@ async def test_a_mined_job_reaches_the_wire_whole(
                 "order": 0,
                 "says": "open the client screen",
                 "system": "wms.test",
-                "cites": ["ges_1"],
+                "cites": ["ges_3", "ges_1"],
                 "parameters": [],
             },
             {
                 "order": 1,
                 "says": "type the code",
                 "system": "billing.test",
-                "cites": ["ges_2"],
+                "cites": ["ges_6", "ges_5"],
                 "parameters": ["clientCode"],
             },
             {
                 "order": 2,
                 "says": "save",
                 "system": "wms.test",
-                "cites": ["ges_3"],
+                "cites": ["ges_7", "ges_2"],
                 "parameters": [],
             },
         ],
@@ -507,6 +529,31 @@ async def test_a_job_that_has_earned_its_writes_says_so_and_its_neighbour_does_n
     assert by_id[SIBLING]["held"] == 3
 
 
+async def test_the_fields_this_listing_leaves_out_have_doors_of_their_own(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork, mined: list[Gesture]
+) -> None:
+    """The sentence the narrowing rests on, made to fail.
+
+    `read_workflows` gives a reason for answering four things about a job
+    where the rig answered seven: the last run is `/v1/audit`'s and the k a
+    job is offered at is `/v1/shapes`', so a second door onto either is a
+    second place it is computed. That reason stops being true the day either
+    of them stops carrying it, and a docstring cannot notice.
+
+    The audit is asked over the wire. The k is asserted on the `Shape` the
+    shapes route serves rather than by building a proven one here --
+    `test_shapes_route.py` owns that route, and what this file needs to know
+    is that the field it declined to duplicate still exists.
+    """
+    await uow.workflow_runs.save(_run("run_1", workflow_id=JOB, held=True))
+
+    audited = await client.get("/v1/audit", params={"since": f.at(-7200).isoformat()})
+
+    assert audited.status_code == 200
+    assert [(run["id"], run["workflow_id"]) for run in audited.json()["runs"]] == [("run_1", JOB)]
+    assert {"offer_after", "quiet_until", "held_runs"} <= set(Shape.__dataclass_fields__)
+
+
 # --- the evidence itself ----------------------------------------------------
 
 
@@ -580,7 +627,7 @@ async def test_the_calls_a_gesture_made_come_back_keyed_by_it(
     """
     body = (await _evidence(client)).json()
 
-    assert sorted(body["requests"]) == ["ges_1", "ges_2", "ges_3"]
+    assert sorted(body["requests"]) == sorted(CITED)
     assert [call["request_id"] for call in body["requests"]["ges_1"]] == ["req_1a", "req_1b"]
     assert body["requests"]["ges_3"] == []
     first = body["requests"]["ges_1"][0]
@@ -612,18 +659,23 @@ async def test_the_streams_are_distinct_and_oldest_first(
 ) -> None:
     """`Provenance` reads these as the streams a job's evidence arrived on.
 
-    Three gestures on three streams, planted out of clock order, and the
-    answer is their own clock's order: `str_m` (t=10), `str_a` (t=20),
-    `str_z` (t=30). That is neither sorted, nor sorted backwards, nor the
-    order they were added in -- so getting it from any of those three fails
-    here rather than agreeing.
+    Six gestures on five streams, planted out of clock order, and the answer
+    is their own clock's: `str_m` (10), `str_c` (15), `str_a` (20), `str_t`
+    (25), `str_z` (30), with `ges_7` at 35 back on `str_m` and folded away.
+    That list is not sorted, not sorted backwards, not the order they were
+    added in and not the order the steps cite them in -- and it is five long
+    rather than three, because a `set` of three reproduces the right order by
+    luck under one hash seed in six. See `CITED`.
     """
     recordings = (await _evidence(client)).json()["recordings"]
 
-    assert recordings == ["str_m", "str_a", "str_z"]
+    assert recordings == ["str_m", "str_c", "str_a", "str_t", "str_z"]
     assert recordings != sorted(recordings)
     assert recordings != sorted(recordings, reverse=True)
-    assert recordings != ["str_a", "str_m", "str_z"]
+    # Not the order they were stored in, and not the order the steps cite them
+    # in either -- three orders, one of which is right.
+    assert recordings != ["str_a", "str_m", "str_t", "str_z", "str_c"]
+    assert recordings != ["str_z", "str_m", "str_t", "str_c", "str_a"]
 
 
 async def test_a_job_that_cites_nothing_is_an_answer_and_not_a_failure(
@@ -636,6 +688,67 @@ async def test_a_job_that_cites_nothing_is_an_answer_and_not_a_failure(
 
     assert answered.status_code == 200
     assert answered.json() == {"gestures": {}, "requests": {}, "recordings": []}
+
+
+RIVAL_JOB = "wfl_rivals_own"
+
+
+@pytest.fixture
+async def theirs(uow: FakeUnitOfWork, mined: list[Gesture]) -> None:
+    """A second tenant with a whole job of its own: runs, register, weak step,
+    and the gesture its one step cites.
+
+    Every read behind this route takes a tenant, and four of them are not the
+    one the 404 comes out of -- the tally, the register, the citation lookup.
+    A literal in any of those passes every test that only ever asks as `acme`,
+    because `acme` is what a literal would say. This is the tenant whose
+    answer a literal gets wrong: it has three held runs where `acme` has none,
+    an earned register where `acme` has none, and evidence of its own.
+    """
+    await uow.gestures.add_gestures(
+        (_gesture("ges_rival", stream="str_rival", at=50.0, tenant="rival", calls=[_call("r_1")]),)
+    )
+    await uow.workflows.save(_workflow(RIVAL_JOB, tenant="rival", cites=["ges_rival"]))
+    await uow.workflows.mark_stale(
+        RIVAL_JOB, 0, matched_by="text", noticed_at=f.at(-60).isoformat()
+    )
+    for index in range(3):
+        run_id = f"rival_run_{index}"
+        await uow.workflow_runs.save(
+            _run(run_id, workflow_id=RIVAL_JOB, held=True, wrote=True, tenant="rival")
+        )
+        await uow.workflows.record_effect(
+            RIVAL_JOB, run_id=run_id, ord_=0, verified_by="status", at=f.at(-1800).isoformat()
+        )
+
+
+async def test_every_read_behind_the_listing_asks_for_the_caller_and_not_a_name(
+    rival: httpx.AsyncClient, theirs: None
+) -> None:
+    """The tally and the register are read for whoever asked.
+
+    `acme` has three workflows here and no run at all, so a read that named a
+    tenant rather than taking `ctx`'s answers `rival` (0, 0, False) for a job
+    with three held runs and a full register. The 404 read is not the only one
+    with a tenant in it, and it is the only one the tests above could see.
+    """
+    listed = (await _listed(rival)).json()["workflows"]
+
+    assert [row["id"] for row in listed] == [RIVAL_JOB]
+    assert listed[0]["runs"] == {"total": 3, "held": 3, "stale": 1, "earned": True}
+
+
+async def test_the_citation_lookup_asks_for_the_caller_too(
+    rival: httpx.AsyncClient, theirs: None
+) -> None:
+    """`gestures_for` takes a tenant, and it is not the one that found the
+    workflow. Named rather than taken from `ctx`, it answers `rival` an empty
+    map for a job that cites a gesture -- which is indistinguishable, on the
+    wire, from a job that cites nothing."""
+    body = (await _evidence(rival, RIVAL_JOB)).json()
+
+    assert sorted(body["gestures"]) == ["ges_rival"]
+    assert body["recordings"] == ["str_rival"]
 
 
 # --- whose, and which -------------------------------------------------------

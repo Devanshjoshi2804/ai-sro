@@ -138,9 +138,13 @@ class ReadEvidence:
             # Tenant-scoped, and this is the whole of the 404: a workflow of
             # somebody else's is not found rather than read.
             workflow = await uow.workflows.get(ctx.tenant_id, workflow_id)
-            # `ordered_cites` and not `cited_ids`, deduped rather than set:
-            # one spelling of "in step order" in this codebase, and an answer
-            # that does not reshuffle between two calls.
+            # `ordered_cites` and not `cited_ids`, which is the same set: the
+            # mining pass and `rekey_workflows` already read citations in step
+            # order through this function, and a second spelling of it here is
+            # a second answer to what a job's evidence is. Nothing downstream
+            # can tell the two apart -- `ids` is a filter and the gestures come
+            # back on their own clock -- so this is reuse and not a guarantee.
+            # `recordings` below is where the order is load-bearing.
             cited = tuple(dict.fromkeys(ordered_cites(workflow)))
             # Not a null check. `gestures_for` with no ids is `IN ()` against
             # Postgres, and a workflow that cites nothing is a real row.

@@ -85,10 +85,17 @@ def test_the_container_builds_the_phase_three_use_cases(
     # The caller seam. `uow` and `drivers` are adjacent positional parameters
     # of two of these, so a swap builds cleanly and only fails in production.
     assert roster._uow is uow
-    assert isinstance(roster._drivers, RemoteAgents)
     assert revoke._uow is uow
-    assert isinstance(revoke._drivers, RemoteAgents)
     assert audit._uow is uow
+    # The type is not the seam; the socket registry is. A container that built
+    # `RemoteAgents(DeviceSockets())` -- a driver over a fresh, empty registry
+    # nobody else ever writes to -- is a `RemoteAgents` and passes an isinstance
+    # check, and it breaks exactly the two things these use cases exist to
+    # promise: every browser on the roster reads `online=False`, and a revoked
+    # browser KEEPS ITS COMMAND CHANNEL because `drop` is a silent no-op. Both
+    # survived the whole 2193-test suite until this line.
+    assert roster._drivers._sockets is container.agent_sockets
+    assert revoke._drivers._sockets is container.agent_sockets
     # Not merely "a clock": the container's own, or a revocation is stamped
     # with an instant no test can move.
     assert revoke._clock is container.clock

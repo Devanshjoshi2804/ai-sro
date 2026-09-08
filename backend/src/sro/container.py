@@ -139,6 +139,7 @@ from sro.infrastructure.auth.keycloak import KeycloakTokens
 from sro.infrastructure.auth.signed_tokens import SignedTokens
 from sro.infrastructure.blob.minio_store import MinioBlobStore
 from sro.infrastructure.db.repositories import SqlUnitOfWork
+from sro.infrastructure.db.schema_version import SchemaVersion, announce, schema_version
 from sro.infrastructure.db.session import create_engine, create_session_factory
 from sro.infrastructure.gemini.computer_use import GeminiVisionDriver
 from sro.infrastructure.gemini.intent import GeminiIntentParser
@@ -170,6 +171,10 @@ class Container:
     Use cases are cheap objects built per call: they hold a unit of work, which
     must not be shared between concurrent requests.
     """
+
+    _schema_announced: bool = field(default=False, init=False, repr=False)
+    """Whether the schema line has been written this process. See
+    `_announce_once`: the fact is worth saying, and worth saying once."""
 
     settings: Settings
     clock: Clock
@@ -220,14 +225,50 @@ class Container:
     def unit_of_work(self) -> UnitOfWork:
         return SqlUnitOfWork(self.session_factory)
 
-    async def database_reachable(self) -> bool:
-        """Readiness probe. Lives here so the interface layer stays free of SQL."""
+    async def readiness(self) -> dict[str, bool]:
+        """Both halves of "can this process serve", on ONE connection.
+
+        Reachable and current are different questions: a database that answers
+        `SELECT 1` while four migrations behind is reachable and useless, and
+        until this existed the only symptom was a 500 from whichever call
+        touched a missing column first.
+
+        One session for both, deliberately. Asked on a probe endpoint, which
+        under load is called far more often than anything else here -- two
+        sessions per call is how a readiness check becomes the thing that
+        exhausts the pool it exists to report on.
+
+        Lives here so the interface layer stays free of SQL, and returns plain
+        booleans so it stays free of the infrastructure's types as well.
+        """
         try:
             async with self.session_factory() as session:
                 await session.execute(text("SELECT 1"))
+                version = await schema_version(session)
         except SQLAlchemyError:
-            return False
-        return True
+            return {"database": False, "schema": False}
+        self._announce_once(version)
+        return {"database": True, "schema": version.current}
+
+    def _announce_once(self, version: SchemaVersion) -> None:
+        """Write the schema line to the log the first time anybody probes.
+
+        Not from the lifespan, where it belongs on the face of it: a check
+        there opens a connection before the process serves anything, and every
+        app instance would hold one from boot. The contract suite builds many
+        apps and exhausted Postgres on the first run of exactly that -- which
+        is a fair warning about what it would do to a deployment that starts
+        several workers against a small connection limit.
+
+        A probe is where the fact is wanted anyway, it already has the session
+        open, and nothing that matters is lost: a deployment probes readiness
+        within seconds of starting, and a developer sees the line the first
+        time they or their tooling ask.
+        """
+        if self._schema_announced:
+            return
+        self._schema_announced = True
+        announce(version)
 
     def read_summary(self) -> ReadSummary:
         return ReadSummary(self.unit_of_work())

@@ -2582,6 +2582,14 @@ async def test_a_write_nobody_approves_stops_the_run(monkeypatch: pytest.MonkeyP
     assert run.outcome == "stopped"
     assert "nobody approved" in run.steps[-1].reason
     assert [s["kind"] for s in channel.sent].count("ui.perform") == 1
+    # The step is done, not merely un-sent: a rung that carried on would climb
+    # to the rescue, look again, spend a Pro plan on the write the person
+    # declined and park a second time -- ten more minutes and a bigger bill for
+    # an answer that has already been given. One plan means one rung and one
+    # wait.
+    assert [a["model"] for a in asker.asked if a["schema"] is PLAN_SCHEMA] == ["flash", "flash"], (
+        "one plan for the read and one for the write: Pro was never asked"
+    )
 
 
 async def test_a_stop_pressed_during_the_wait_aborts_the_run() -> None:
@@ -2720,6 +2728,71 @@ async def test_a_click_the_capture_heard_nothing_from_also_waits() -> None:
     run = await task
     assert run.outcome == "held"
     assert len([s for s in channel.sent if s["kind"] == "ui.perform"]) == 1
+
+
+async def test_the_silent_click_gate_is_asked_about_the_step_being_performed() -> None:
+    """New, and the argument `_saw_nothing` is threaded with. `may_write`
+    widens `writes()` for a click on evidence the recorder heard nothing from,
+    and the step it asks about has to be the step in hand.
+
+    Every other workflow in this suite is one step, or N identical steps, or
+    two whose write is already a write by evidence -- so which step the
+    predicate was handed never changed its answer, and a loop asking about
+    `ordered[0]` or `ordered[-1]` passed all of them. Here the silent click is
+    in the MIDDLE and both its neighbours are clicks the recorder did hear a
+    completed read from: the middle one waits for a person, and neither
+    neighbour does. A middle step asked about the wrong one is a live write
+    sent unasked, and then retried.
+    """
+    uow = await _fixture()
+    await uow.gestures.add_gestures((_saw_traffic(uow),))
+    heard, silent = "ges_read_click", _silent_click(uow)
+    workflow = Workflow(
+        id="wfl_middle",
+        tenant=ELSEWHERE,
+        title="open the tab, save, look again",
+        narrative="n",
+        systems=["http://127.0.0.1:63319"],
+        steps=[
+            Step(order=0, says="open the tab", system=None, cites=[heard]),
+            Step(order=1, says="press Save", system=None, cites=[silent]),
+            Step(order=2, says="open the tab again", system=None, cites=[heard]),
+        ],
+    )
+    await uow.workflows.save(workflow)
+    channel = FakeChannel({**_looks(8), "ui.perform": [_performed()] * 3})
+    asker = _PerSchemaAsker(plan=_plan("click"), verdict=Answer(data={"held": True, "why": "ok"}))
+    approvals = Approvals()
+
+    # No values, so no step has a proposition a confirming read could check and
+    # every verdict comes off the screen: what is being measured here is which
+    # step the write gate was asked about, not which belt answered.
+    task = asyncio.create_task(
+        _ran(
+            uow,
+            workflow,
+            channel=channel,
+            asker=asker,
+            values={},
+            started_by="offer",
+            approvals=approvals,
+        )
+    )
+    run_id = await _parked(approvals)
+
+    parked = await uow.workflow_runs.get(TENANT, run_id)
+    assert parked is not None, "the parked step is saved before the wait begins"
+    assert (parked.steps[-1].order, parked.steps[-1].verdict) == (1, "awaiting")
+    assert [s["kind"] for s in channel.sent].count("ui.perform") == 1, "step zero went unasked"
+
+    assert approvals.approve(run_id) is True
+    run = await task
+
+    assert run.outcome == "held" and [s.verdict for s in run.steps] == ["held"] * 3
+    assert [bool((s.result or {}).get("wrote")) for s in run.steps] == [False, True, False], (
+        "the click the recorder heard nothing from, and only that one"
+    )
+    assert [s["kind"] for s in channel.sent].count("ui.perform") == 3, "step two never waited"
 
 
 async def test_a_click_by_sight_is_a_write_until_a_person_says_otherwise(
@@ -2925,7 +2998,11 @@ async def test_the_rung_that_looks_is_told_the_step_the_values_and_what_missed()
     step it is planning, the values the person asked this run for, and what
     the two evidence rungs failed with. The value is the sharp one -- the
     model reads a value off the screen and the run's own value wins over it,
-    so a rung planned on `{}` fills the control with what the picture said."""
+    so a rung planned on `{}` fills the control with what the picture said.
+
+    Three separate seams die on this one test -- a blank step, `values={}` and
+    `failure=None` each fail an assertion here and nowhere else -- so narrowing
+    it later reopens three at once."""
     run, channel, asker = await _run_by_sight(
         sights=[_sight(value="WHAT-THE-SCREEN-SHOWED")],
         perform_at=[Reply(ok=True, result={"performed": True})],

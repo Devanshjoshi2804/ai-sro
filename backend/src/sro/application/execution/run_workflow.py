@@ -15,9 +15,18 @@ Below both rungs, and only for a control neither of them could find, one rung
 that looks at the picture.
 
 The first execution of any workflow is dry. Reads and navigations go out; a
-step whose evidence carries a mutation is shown in full and withheld. A person
-presses through to live -- and until the job has earned it by verified effect,
-every live write that goes out stops and waits for a tap first.
+step whose evidence carries a mutation is shown in full and withheld. That
+reading is `writes()`, the narrow one, and the gap is deliberate: a Save click
+the recorder heard no traffic from carries no mutation the evidence knows
+about, so a dry run SENDS it, against a real warehouse, unwithheld and
+unapproved. It is the only live write that escapes this gate, and it escapes
+because withholding every click nothing was heard from would leave a dry run
+performing almost none of the job. `may_write` below is the wider reading, and
+it guards the two places where being wrong costs more than that: the tap, and
+the rescue.
+
+A person presses through to live -- and until the job has earned it by verified
+effect, every live write that goes out stops and waits for a tap first.
 
 The stop button is `Stops`, shared with the backend's own runs -- there is one
 register of "somebody pressed stop" and no second one to build. It is checked

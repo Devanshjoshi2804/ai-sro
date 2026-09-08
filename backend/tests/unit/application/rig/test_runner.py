@@ -753,6 +753,12 @@ async def test_a_live_run_sends_the_write() -> None:
     performed = [s for s in channel.sent if s["kind"] == "ui.perform"]
     assert len(performed) == 2 and _payload(performed[0])["value"] == "THIRD"
     assert run.outcome == "held"
+    assert [_payload(p).get("allow_focus") for p in performed] == [True, True], (
+        "the run's answer on focus reaches the command. The only other"
+        " assertion on this field is the negative one in"
+        " `test_the_claimed_row_says_what_the_run_is_doing_and_the_arguments_do_not`,"
+        " which a caller passing a hardcoded False satisfies just as well"
+    )
 
 
 async def test_the_run_is_saved_after_every_step_and_not_only_at_the_end() -> None:
@@ -1017,6 +1023,17 @@ async def test_the_step_budget_is_the_workflows_steps_plus_slack() -> None:
 
 
 async def test_every_model_call_on_a_run_is_billed_to_its_step() -> None:
+    """And all five of the run's numbers are the sum of the steps underneath.
+
+    `_save`'s own claim: "a run saved without its steps summed is a row whose
+    bill disagrees with the steps underneath it, and the panel reads the row."
+    Cost was the only one of the five under a test, so zeroing any of the three
+    token roll-ups -- or falsifying `unpriced` -- passed the whole suite.
+
+    `unpriced` is not cosmetic. The daily-cap query reads that column off this
+    row, so a roll-up that quietly stops working under-reports unpriced spend
+    rather than showing nothing at all.
+    """
     uow = await _fixture()
     workflow = await _workflow(uow)
     channel = FakeChannel({**_looks(4), "ui.perform": [_performed()]})
@@ -1026,17 +1043,42 @@ async def test_every_model_call_on_a_run_is_billed_to_its_step() -> None:
             cost_usd=0.002,
             in_tokens=100,
             out_tokens=10,
+            thought_tokens=7,
         ),
         Answer(data={"held": True, "why": ""}, cost_usd=0.001, in_tokens=50, out_tokens=5),
-        _plan("click"),
+        # The second step's plan came back with no price on it -- a reading the
+        # vendor reported no usage for. The step carries the mark, and a run
+        # whose steps carry one is an unpriced run.
+        Answer(
+            data={"kind": "ui.perform", "action": "click", "value": None, "url": None, "why": ""},
+            in_tokens=9,
+            out_tokens=3,
+            thought_tokens=1,
+            unpriced=True,
+        ),
     )
 
     run = await _ran(uow, workflow, channel=channel, asker=asker, live=False)
 
     assert run.steps[0].cost_usd == pytest.approx(0.003) and run.steps[0].in_tokens == 150
+    assert [s.unpriced for s in run.steps] == [False, True], "one of the two was unpriced"
+    totals = (run.in_tokens, run.out_tokens, run.thought_tokens, run.unpriced)
+    assert totals == (
+        sum(s.in_tokens for s in run.steps),
+        sum(s.out_tokens for s in run.steps),
+        sum(s.thought_tokens for s in run.steps),
+        any(s.unpriced for s in run.steps),
+    )
+    assert totals == (159, 18, 8, True), "and the sums are the numbers the readings carried"
     assert run.cost_usd == pytest.approx(sum(s.cost_usd for s in run.steps))
     stored = await uow.workflow_runs.get(TENANT, run.id)
     assert stored is not None and stored.cost_usd == pytest.approx(run.cost_usd), "and it is saved"
+    assert (
+        stored.in_tokens,
+        stored.out_tokens,
+        stored.thought_tokens,
+        stored.unpriced,
+    ) == totals, "the row the panel and the daily cap read carries all five"
 
 
 async def test_a_browser_that_went_away_fails_the_run_and_says_so() -> None:

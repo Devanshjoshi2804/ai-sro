@@ -36,6 +36,7 @@ from sro.domain.observation.device import AgentDevice
 from sro.domain.observation.policy import ObservationPolicy
 from sro.domain.recording.recording import Recording
 from sro.domain.shared.objective import Direction, ObjectiveKey
+from sro.domain.shared.prices import DaySpend
 from sro.domain.skill.assertion import AssertionKind
 from sro.domain.skill.locator import ControlLocator, LocatorStrategy
 from sro.domain.skill.offers import Offer
@@ -1822,6 +1823,41 @@ class AuditResponse(BaseModel):
             devices=[AuditDeviceModel.of(device) for device in audit.devices],
             chats=[AuditChatModel.of(chat) for chat in audit.chats],
         )
+
+
+class SpendResponse(BaseModel):
+    """What the day has cost, whether that figure can be trusted, and the cap.
+
+    Three numbers rather than one. `cost_usd` alone cannot tell an
+    honestly-cheap morning from one whose bills were never priced, and a
+    number with no cap beside it cannot answer "am I about to be cut off",
+    which is the question this door is opened for.
+    """
+
+    cost_usd: float
+    """Since midnight UTC, over all four tables a model call bills to,
+    rounded where the rig rounded it."""
+
+    unpriced: int
+    """How many of today's calls could not be priced -- a count, as the rig
+    answered it and as `DaySpend.blind` carries it, not a flag.
+
+    Reported beside the total and never folded into it: a model name the price
+    table never knew about records $0.0000 with `unpriced` set, so a day
+    summed on `cost_usd` alone reads as free while it spends. The count and
+    not a boolean because the 429 the cap raises quotes it, and a console that
+    could only say "something" cannot say what to go and look for.
+    """
+
+    cap_usd: float
+    """What this deployment configured, not what the code shipped with."""
+
+    @classmethod
+    def of(cls, day: DaySpend, *, cap_usd: float) -> SpendResponse:
+        # Six places, as every dollar figure the rig answered with: a sum of
+        # floats reaches a console as $0.30000000000000004, and a twentieth of
+        # a cent is nothing a cap in dollars can notice.
+        return cls(cost_usd=round(day.cost_usd, 6), unpriced=day.blind, cap_usd=cap_usd)
 
 
 class ObservationBatchRequest(BaseModel):

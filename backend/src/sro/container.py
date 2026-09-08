@@ -34,6 +34,7 @@ from sro.application.connection.session_headers import StoreSessionHeaders
 from sro.application.connection.session_life import SessionLife
 from sro.application.connection.sign_in import EnsureSignedIn, SignIn, StoreCredentials
 from sro.application.connection.watch_browser import WatchBrowsers
+from sro.application.context import RequestContext
 from sro.application.execution.batch import RunBatch
 from sro.application.execution.call_run_wrong import CallRunWrong
 from sro.application.execution.choices import ListChoices
@@ -59,6 +60,7 @@ from sro.application.intent.narrow import NarrowARead
 from sro.application.intent.next_steps import SuggestNext
 from sro.application.intent.plan_task import PlanTask
 from sro.application.intent.resolve import ResolveIntent
+from sro.application.intent.spend import spent_today
 from sro.application.knowledge.backfill import BackfillEmbeddings
 from sro.application.knowledge.learn_from_run import LearnFromRun
 from sro.application.knowledge.open_questions import AskAbout
@@ -137,6 +139,7 @@ from sro.application.trigger.read_triggers import DeleteTrigger, ReadTriggers, S
 from sro.application.trigger.receive_inbound import ReceiveInbound
 from sro.config import Settings, get_settings
 from sro.domain.shared.identifiers import DeviceId, TenantId
+from sro.domain.shared.prices import DaySpend
 from sro.domain.skill.offers import Offer
 from sro.infrastructure.agent.drivers import RemoteAgents
 from sro.infrastructure.agent.sockets import DeviceSockets
@@ -295,6 +298,21 @@ class Container:
 
     def serve_shapes(self) -> ServeShapes:
         return ServeShapes(self.unit_of_work(), self.clock)
+
+    async def read_spend(self, ctx: RequestContext) -> DaySpend:
+        """What this tenant has been billed since midnight, on this clock.
+
+        A method rather than a factory like the two above, for the reason
+        ``record_offer`` below is one: ``spent_today`` is a function, so there
+        is no use-case object to hand a clock to, and ``now`` is supplied here
+        because which day is being asked about is a decision no route may
+        make. A route that read a clock would answer for the server's day.
+
+        Takes the whole context and not a bare ``tenant_id``, so the one seam
+        where passing the wrong tenant is the failure stays out of the
+        interface layer -- the same reason ``ServeShapes.execute`` takes it.
+        """
+        return await spent_today(self.unit_of_work(), ctx.tenant_id, now=self.clock.now())
 
     async def record_offer(
         self,

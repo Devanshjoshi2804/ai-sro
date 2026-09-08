@@ -1328,6 +1328,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/spend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Spend
+         * @description This tenant's bill since midnight UTC, with what could not be priced.
+         */
+        get: operations["spend_v1_spend_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/intent/resolve": {
         parameters: {
             query?: never;
@@ -3592,6 +3612,23 @@ export interface components {
             systems: string[];
             /** Starts On */
             starts_on: string | null;
+        };
+        /**
+         * SpendResponse
+         * @description What the day has cost, whether that figure can be trusted, and the cap.
+         *
+         *     Three numbers rather than one. `cost_usd` alone cannot tell an
+         *     honestly-cheap morning from one whose bills were never priced, and a
+         *     number with no cap beside it cannot answer "am I about to be cut off",
+         *     which is the question this door is opened for.
+         */
+        SpendResponse: {
+            /** Cost Usd */
+            cost_usd: number;
+            /** Unpriced */
+            unpriced: number;
+            /** Cap Usd */
+            cap_usd: number;
         };
         /** StartRecordingRequest */
         StartRecordingRequest: {
@@ -11254,6 +11291,131 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ShapesResponse"];
+                };
+            };
+            /** @description No credential, or one this deployment rejects. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description No such thing, or not yours. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The system's state says no, not the request. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The request cannot be processed as asked. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description Something this depends on is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+        };
+    };
+    spend_v1_spend_get: {
+        parameters: {
+            query?: {
+                device_id?: string | null;
+            };
+            header?: {
+                "X-Device-Secret"?: string;
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpendResponse"];
                 };
             };
             /** @description No credential, or one this deployment rejects. */

@@ -30,6 +30,7 @@ from sro.interface.http.v1.routers import (
     runs,
     shapes,
     skills,
+    spend,
     stream,
     threads,
     triggers,
@@ -97,6 +98,7 @@ def create_app() -> FastAPI:
     app.include_router(recordings.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(skills.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(shapes.router, prefix="/v1", responses=PROBLEMS)
+    app.include_router(spend.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(intent.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(stream.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(knowledge.router, prefix="/v1", responses=PROBLEMS)

@@ -85,6 +85,23 @@ async def test_no_secret_and_no_device_is_the_tenant_asking(
     assert container.watched.asked == [], "a request with no device asked the repository anyway"
 
 
+async def test_a_blank_device_named_is_no_device_named(
+    container: _WatchingContainer, registered: AgentDevice
+) -> None:
+    """`?device_id=` and `?device_id=%20` are the tenant, not two other answers.
+
+    A query string carries "" where an absent parameter carries `None`, so a
+    check written `device_id is None` reads the first as a browser and refuses
+    the tenant with a 404. Whitespace went further: it is truthy, so it reached
+    `DeviceId(" ")`, which the domain will not build -- a 422 about the shape
+    of a query string, from the one route whose whole promise is that absent,
+    wrong and somebody else's are one answer.
+    """
+    assert await asking_device(container, CTX, "", "") is None
+    assert await asking_device(container, CTX, "", " ") is None
+    assert container.watched.asked == []
+
+
 async def test_a_browser_that_proves_itself_is_named(
     container: _WatchingContainer, registered: AgentDevice
 ) -> None:
@@ -150,6 +167,10 @@ async def test_another_tenant_holding_the_right_secret_is_still_refused(
         await asking_device(container, theirs, HERS, LAPTOP.value)
 
     assert refused.value.status_code == 404
+    # Word for word the answer a browser that does not exist gets. A refusal
+    # that said "wrong tenant" here would confirm which device ids exist to
+    # anybody holding any tenant's credential and one leaked secret.
+    assert str(refused.value.detail) == f"device {LAPTOP.value} was not found"
 
 
 async def test_absent_wrong_and_somebody_else_s_are_one_answer(
@@ -160,20 +181,31 @@ async def test_absent_wrong_and_somebody_else_s_are_one_answer(
     A refusal that told these apart would let anyone holding a tenant
     credential enumerate which browsers exist by reading the difference.
     """
+    somebody_else = RequestContext(tenant_id=TenantId("rival"), principal_id=f.OPERATOR)
     refusals = []
-    for secret, named in (
-        (HERS, "dev-nobody-registered"),  # never registered
-        ("not-hers", LAPTOP.value),  # registered, wrong secret
-        ("", LAPTOP.value),  # registered, no secret offered at all
+    for ctx, secret, named in (
+        (CTX, HERS, "dev-nobody-registered"),  # never registered
+        (CTX, "not-hers", LAPTOP.value),  # registered, wrong secret
+        (CTX, "", LAPTOP.value),  # registered, no secret offered at all
+        (somebody_else, HERS, LAPTOP.value),  # registered to another tenant
     ):
         with pytest.raises(HTTPException) as refused:
-            await asking_device(container, CTX, secret, named)
+            await asking_device(container, ctx, secret, named)
         refusals.append((refused.value.status_code, str(refused.value.detail)))
 
     assert refusals[0] == (404, "device dev-nobody-registered was not found")
-    # Word for word, including the one that never reached a repository: the
-    # difference between "wrong secret" and "no secret" is not on the wire.
-    assert refusals[1] == refusals[2] == (404, f"device {LAPTOP.value} was not found")
+    # Word for word, including the one that never reached a repository and the
+    # one that belongs to somebody else: the difference between "wrong secret",
+    # "no secret" and "not yours" is not on the wire.
+    assert (
+        refusals[1]
+        == refusals[2]
+        == refusals[3]
+        == (
+            404,
+            f"device {LAPTOP.value} was not found",
+        )
+    )
 
 
 # --- And what the answer is used for -------------------------------------

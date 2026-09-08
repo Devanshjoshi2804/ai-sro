@@ -20,18 +20,25 @@ rather than part of it.
 
 The other half of the rig's pair, `Aborts`, is already here as `Stops` next
 door in `stops.py`: a person stopping a run is a separate register from a
-person authorising one step, and one stop register is enough. The abort route
-sets that flag and then releases the wait here, so a parked run wakes at once
-instead of sitting for the full five minutes; because the release says only
-that the wait ended, the loop must ask `Stops` on the way out before it treats
-a release as a person's yes.
+person authorising one step, and one stop register is enough.
+
+That seam is not built yet, and this module's safety argument depends on it.
+In the rig, the abort route sets the flag and then releases the wait, so a
+parked run wakes at once instead of sitting out the full five minutes -- and
+because a release says only that the wait ended, the loop asks `Aborts` on the
+way out before it treats one as a person's yes. Here, neither half exists for
+a workflow run: the only route that sets `Stops` is `StopRun`, which resolves
+a skill run through `uow.runs`, so a run parked on this register cannot be
+reached by it. Task 6 owns the loop's half -- ask `Stops` after `wait_for`
+returns, before the write goes out -- and a workflow-run stop route that sets
+the flag and then calls `approve` is still to be written. Until both land, a
+stopped run parked here waits out its five minutes and then fails for want of
+an answer, which is safe and slow rather than a write nobody approved.
 """
 
 from __future__ import annotations
 
 import asyncio
-
-from sro.domain.execution.run import RunId
 
 K_APPROVAL_WAIT_S = 300.0
 """How long a live write waits for a tap before the run stops and asks. Five
@@ -39,20 +46,30 @@ minutes is a person reading the panel, not a person who has gone home."""
 
 
 class Approvals:
-    """Which runs are parked on a person, and the event each one waits on."""
+    """Which runs are parked on a person, and the event each one waits on.
+
+    Keyed by `WorkflowRun.id`, which is a plain `str` -- the same id the run
+    repository's `approve` and `awaiting` are keyed on, and not the skill run's
+    `RunId`.
+    """
 
     def __init__(self) -> None:
+        # An instance, where the rig used a `ClassVar`. Nothing in production
+        # can tell the difference -- one container per process, one register --
+        # but class-level state is shared by every `Approvals` a test process
+        # ever builds, and a register of who may write is the last place to
+        # want one test's leftovers visible to the next.
         self._waiting: dict[str, asyncio.Event] = {}
 
-    def register(self, run_id: RunId) -> None:
+    def register(self, run_id: str) -> None:
         """This run is about to park. Called before the step is saved, so a tap
         that lands before the wait starts finds an event to set rather than a
         409 from a route that can see no one waiting."""
-        self._waiting.setdefault(run_id.value, asyncio.Event())
+        self._waiting.setdefault(run_id, asyncio.Event())
 
     async def wait_for(
         self,
-        run_id: RunId,
+        run_id: str,
         # The wait IS the timeout here, so ASYNC109's advice to let the caller
         # wrap it does not apply: a second deadline on the same person is not
         # the five minutes this module writes down.
@@ -64,7 +81,7 @@ class Approvals:
         `Stops` before it lets the write out.
         """
         self.register(run_id)
-        event = self._waiting[run_id.value]
+        event = self._waiting[run_id]
         try:
             await asyncio.wait_for(event.wait(), timeout=timeout)
             return True
@@ -74,16 +91,16 @@ class Approvals:
             # Popped on the way out, so a tap arriving after the run gave up
             # finds nothing waiting and is told so, rather than authorising a
             # write nobody is holding open any more.
-            self._waiting.pop(run_id.value, None)
+            self._waiting.pop(run_id, None)
 
-    def approve(self, run_id: RunId) -> bool:
+    def approve(self, run_id: str) -> bool:
         """Whether anything was waiting on this run to be released.
 
         Not whether this tap was the one that authorised the step -- that is
         the run repository's `approve`, which is keyed by step and where the
         first tap wins.
         """
-        event = self._waiting.get(run_id.value)
+        event = self._waiting.get(run_id)
         if event is None:
             return False
         event.set()
@@ -93,7 +110,7 @@ class Approvals:
         """The runs parked right now, for the panel's `awaiting` list."""
         return frozenset(self._waiting)
 
-    def forget(self, run_id: RunId) -> None:
+    def forget(self, run_id: str) -> None:
         """Once the run has ended. Drops the wait without releasing it: a run
         being cleaned up is not a run somebody approved."""
-        self._waiting.pop(run_id.value, None)
+        self._waiting.pop(run_id, None)

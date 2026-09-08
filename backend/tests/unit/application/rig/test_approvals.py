@@ -19,8 +19,16 @@ from sro.application.execution.stops import Stops
 from sro.domain.execution.run import RunId
 from tests.unit.fakes import FakeWorkflowRunRepository
 
-RUN = RunId("run_parked")
-OTHER = RunId("run_elsewhere")
+# Plain strings, because a workflow run's id is one: the register is keyed the
+# same way as `WorkflowRunRepository.approve`, and `RunId` belongs to the skill
+# run next door. `Stops` is the exception below -- it is the skill run's.
+RUN = "run_parked"
+OTHER = "run_elsewhere"
+# `Stops` is keyed on the skill run's `RunId`, this register on the workflow
+# run's plain id. That the two are not even the same aggregate is the shape of
+# the missing seam: no route today can stop a run parked here. The two tests
+# below pair them as the loop will once one exists.
+STOPPED, STOPPED_ELSEWHERE = RunId(RUN), RunId(OTHER)
 DEVICE = "dev_1"
 OTHER_DEVICE = "dev_9"
 AT = "2026-09-05T10:02:00+00:00"
@@ -37,7 +45,7 @@ GAVE_UP_S = 0.05
 
 async def _parked(
     approvals: Approvals,
-    run_id: RunId,
+    run_id: str,
     timeout: float,  # noqa: ASYNC109 -- the wait under test carries its own
 ) -> asyncio.Task[bool]:
     """A run parked on a person, whose wait is really under way when this
@@ -46,16 +54,16 @@ async def _parked(
     started = asyncio.Event()
 
     async def park() -> bool:
-        # Registered before the await, as the loop does before it saves the
-        # step; setting `started` here is what tells the test the task is
-        # about to block rather than merely created.
-        approvals.register(run_id)
+        # `started` is set before the wait and nothing here registers: the
+        # register must be populated by `wait_for` itself, or this helper would
+        # be asserting its own work and a `wait_for` that queued behind a lock
+        # would still look parked.
         started.set()
         return await approvals.wait_for(run_id, timeout=timeout)
 
     task = asyncio.create_task(park())
     await asyncio.wait_for(started.wait(), JOIN_S)
-    assert run_id.value in approvals.waiting()
+    assert run_id in approvals.waiting(), "the wait did not start"
     return task
 
 
@@ -144,7 +152,7 @@ async def test_a_tap_on_one_run_does_not_release_another() -> None:
 
     assert approvals.approve(OTHER) is True
     assert await asyncio.wait_for(theirs, JOIN_S) is True
-    assert approvals.waiting() == frozenset({RUN.value})
+    assert approvals.waiting() == frozenset({RUN})
 
     approvals.approve(RUN)
     assert await asyncio.wait_for(parked, JOIN_S) is True
@@ -159,7 +167,7 @@ async def test_two_runs_park_at_the_same_time_rather_than_in_turn() -> None:
     theirs = await _parked(approvals, OTHER, timeout=K_APPROVAL_WAIT_S)
     both = asyncio.gather(mine, theirs)
 
-    assert approvals.waiting() == frozenset({RUN.value, OTHER.value}), "the second run queued"
+    assert approvals.waiting() == frozenset({RUN, OTHER}), "the second run queued"
     approvals.approve(RUN)
     approvals.approve(OTHER)
 
@@ -180,34 +188,40 @@ async def test_forgetting_a_run_drops_the_wait_without_releasing_it() -> None:
     assert await asyncio.wait_for(parked, JOIN_S) is False
     # The one run named, not every run this process is holding: a run ending
     # must not drop the wait of the run parked in the next browser.
-    assert approvals.waiting() == frozenset({OTHER.value})
+    assert approvals.waiting() == frozenset({OTHER})
     assert approvals.approve(OTHER) is True
     assert await asyncio.wait_for(theirs, JOIN_S) is True
 
 
 async def test_a_stop_releases_the_wait_but_is_not_an_authorisation() -> None:
-    """What the abort route does: the flag first, then the release, so a run
-    parked on a write wakes now instead of in five minutes. The release says
-    only that the wait ended -- the loop asks `Stops` before it sends -- so a
-    stop register that forgot the run would turn a stop into an approval."""
+    """What an abort route WILL do, once one exists for these runs: the flag
+    first, then the release, so a run parked on a write wakes now instead of in
+    five minutes. Nobody does it yet -- `StopRun` reaches skill runs only, and
+    the loop's half is Task 6's -- so this test performs both calls itself and
+    proves only the property the pair must have: a released wait alone cannot
+    tell a stop from a yes, and the answer is in the other register.
+
+    Which means it cannot fail if the routes never appear. It is the shape the
+    seam has to take, written down where the loop's author will read it."""
     approvals, stops = Approvals(), Stops()
     parked = await _parked(approvals, RUN, timeout=K_APPROVAL_WAIT_S)
 
-    stops.ask(RUN)
+    stops.ask(STOPPED)
     approvals.approve(RUN)
 
     assert await asyncio.wait_for(parked, JOIN_S) is True
-    assert stops.asked(RUN), "a released wait alone cannot tell a stop from a yes"
+    assert stops.asked(STOPPED), "a released wait alone cannot tell a stop from a yes"
 
 
 async def test_stopping_one_run_says_nothing_about_the_other() -> None:
-    """The two registers are keyed the same way and neither is global."""
+    """Neither register is global. Same caveat as above: the calls here are
+    the ones a stop route would make, not ones any route makes today."""
     approvals, stops = Approvals(), Stops()
-    stops.ask(OTHER)
+    stops.ask(STOPPED_ELSEWHERE)
     parked = await _parked(approvals, RUN, timeout=GAVE_UP_S)
 
     assert await asyncio.wait_for(parked, JOIN_S) is False, "a stop elsewhere released this wait"
-    assert not stops.asked(RUN)
+    assert not stops.asked(STOPPED)
 
 
 @pytest.mark.parametrize("ord_", [0, 3])
@@ -219,12 +233,12 @@ async def test_the_storage_half_agrees_that_the_first_tap_wins(ord_: int) -> Non
     parked = await _parked(approvals, RUN, timeout=K_APPROVAL_WAIT_S)
 
     assert approvals.approve(RUN) is True
-    assert await runs.approve(RUN.value, ord_, at=AT, device_id=DEVICE) is True
+    assert await runs.approve(RUN, ord_, at=AT, device_id=DEVICE) is True
     await asyncio.wait_for(parked, JOIN_S)
 
     assert approvals.approve(RUN) is False
-    assert await runs.approve(RUN.value, ord_, at=LATER, device_id=OTHER_DEVICE) is False
-    assert await runs.approvals(RUN.value) == ((ord_, AT, DEVICE),)
+    assert await runs.approve(RUN, ord_, at=LATER, device_id=OTHER_DEVICE) is False
+    assert await runs.approvals(RUN) == ((ord_, AT, DEVICE),)
 
 
 async def test_an_approval_for_one_step_does_not_authorise_the_next() -> None:
@@ -237,9 +251,9 @@ async def test_an_approval_for_one_step_does_not_authorise_the_next() -> None:
     third = await _parked(approvals, RUN, timeout=K_APPROVAL_WAIT_S)
     approvals.approve(RUN)
     assert await asyncio.wait_for(third, JOIN_S) is True
-    assert await runs.approve(RUN.value, 3, at=AT, device_id=DEVICE) is True
+    assert await runs.approve(RUN, 3, at=AT, device_id=DEVICE) is True
 
     fourth = await _parked(approvals, RUN, timeout=GAVE_UP_S)
     assert await asyncio.wait_for(fourth, JOIN_S) is False, "step 3's tap released step 4's wait"
-    assert await runs.approve(RUN.value, 4, at=LATER, device_id=DEVICE) is True
-    assert await runs.approvals(RUN.value) == ((3, AT, DEVICE), (4, LATER, DEVICE))
+    assert await runs.approve(RUN, 4, at=LATER, device_id=DEVICE) is True
+    assert await runs.approvals(RUN) == ((3, AT, DEVICE), (4, LATER, DEVICE))

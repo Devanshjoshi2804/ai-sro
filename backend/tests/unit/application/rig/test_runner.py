@@ -1639,6 +1639,59 @@ async def test_a_write_that_ends_unclear_forgets_the_effects() -> None:
     assert _effects(uow) == {}
 
 
+async def test_a_step_that_ended_unclear_stops_the_run_where_it_stands() -> None:
+    """New, and the other half of the gate above.
+
+    "Nothing runs unattended past one" is the rule the loop states, and only
+    `held` and `withheld` are steps somebody watched. `unclear` is precisely a
+    live write that went out and which nothing could show held -- the worst of
+    the three to walk past, because the next step is about to act on a state
+    nobody knows.
+
+    The test above produces an `unclear` on a ONE-step job, so it never reaches
+    the gate and never asserts the outcome: adding `"unclear"` to the tuple the
+    gate reads passed every unit test in the suite. This job has a second step,
+    and that step must never be sent.
+    """
+    uow = await _fixture()
+    saver = _ids(uow)[-1]
+    workflow = Workflow(
+        id="wfl_twice",
+        tenant=ELSEWHERE,
+        title="save, then save again",
+        narrative="n",
+        systems=["http://127.0.0.1:63319"],
+        steps=[
+            Step(order=0, says="save", system=None, cites=[saver]),
+            Step(order=1, says="save the next one", system=None, cites=[saver]),
+        ],
+    )
+    await uow.workflows.save(workflow)
+    channel = FakeChannel(
+        {
+            "ui.url": [Reply(ok=True, result={"url": "http://127.0.0.1:63319/form"})] * 4,
+            "screenshot": [Reply(ok=False, error_kind="focus_not_permitted")] * 4,
+            # One reply only, and 300: not a refusal, not a status the
+            # capture's POST returned, and nothing behind it for a second step
+            # to consume.
+            "http.send": [Reply(ok=True, result={"status": 300, "body": "{}"})],
+        }
+    )
+    asker = _PerSchemaAsker(plan=_replay(), verdict=Answer(data={"held": True, "why": "ok"}))
+
+    # No values, so there is no proposition a confirming read could check, and
+    # earned so a live write does not park waiting for a person instead.
+    run = await _ran(
+        uow, workflow, channel=channel, asker=asker, values={}, started_by="offer", earned=True
+    )
+
+    assert [s.verdict for s in run.steps] == ["unclear"], "step one was never begun"
+    assert run.outcome == "stopped"
+    assert [s["kind"] for s in channel.sent].count("http.send") == 1, (
+        "and its command never went out"
+    )
+
+
 async def test_a_step_that_only_read_neither_earns_nor_un_earns() -> None:
     """New. `wrote` is the marker the register counts on, and a step whose
     evidence records no mutation never gets one -- so a read that failed leaves
@@ -1769,6 +1822,55 @@ async def test_the_planned_command_carries_the_origin_and_the_page_the_run_start
     assert performed["starts_on"] == "http://127.0.0.1:63319/"
 
 
+K_OTHER_SYSTEM = "http://127.0.0.1:63320"
+"""A second warehouse system, for the job above's own claim -- "a job spanning
+two systems types into the window it was demonstrated in". Every gesture in the
+measured batch was recorded on one host, so until a step's evidence is moved to
+another one, which step the origin came off cannot be told apart."""
+
+
+async def test_each_steps_command_carries_the_origin_of_that_step_and_not_the_firsts() -> None:
+    """New, and the sibling of the silent-click gate's own step test.
+
+    `primary_gesture` supplies the origin, which becomes the command's `origin`
+    payload, the origin every look is taken on, and the value checked against
+    the evidence's allowlist -- and whether the step gets a model call at all.
+    The test above makes the claim on a one-step job, where `ordered[0]` and
+    the step in hand are the same step, so a loop asking about the wrong one
+    passed it. Here the two steps were demonstrated on different systems: step
+    one aimed at step zero's window would drive the wrong warehouse.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    assert isinstance(uow.gestures, FakeGestureRepository)
+    saver = workflow.steps[1].cites[0]
+    uow.gestures.rows[saver] = replace(
+        uow.gestures.rows[saver],
+        url=f"{K_OTHER_SYSTEM}/client/new",
+        system=K_OTHER_SYSTEM,
+        page_url=f"{K_OTHER_SYSTEM}/client/new",
+    )
+    channel = FakeChannel({**_looks(4), "ui.perform": [_performed(), _performed()]})
+    asker = _PerSchemaAsker(plan=_plan("click"), verdict=Answer(data={"held": True, "why": "ok"}))
+
+    # No values, so every verdict comes off the screen and no confirming read
+    # goes out: what is measured here is which step the origin came off.
+    run = await _ran(
+        uow, workflow, channel=channel, asker=asker, values={}, started_by="offer", earned=True
+    )
+
+    assert [s.verdict for s in run.steps] == ["held", "held"], "both steps ran"
+    performed = [_payload(s) for s in channel.sent if s["kind"] == "ui.perform"]
+    assert [p["origin"] for p in performed] == ["http://127.0.0.1:63319", K_OTHER_SYSTEM]
+    # Four sends per step: a url and a picture before the command, and both
+    # again after it.
+    looked = [_payload(s) for s in channel.sent if s["kind"] in ("ui.url", "screenshot")]
+    assert [p.get("origin") for p in looked[:4]] == ["http://127.0.0.1:63319"] * 4
+    assert [p.get("origin") for p in looked[4:]] == [K_OTHER_SYSTEM] * 4, (
+        "and the looks the second step took were taken on the second step's system"
+    )
+
+
 async def test_the_look_is_taken_on_the_system_the_step_was_demonstrated_on() -> None:
     """Both halves of the look carry the step's origin: the extension picks the
     tab from it, and a look with no origin is a look at whichever window the
@@ -1825,6 +1927,103 @@ async def test_the_confirming_read_goes_out_to_the_callers_own_browser_under_thi
         "the read the cited evidence shows this page performs"
     )
     assert not asker.asked[1:], "no picture was needed: the state itself answered"
+
+
+def _wrote(uow: FakeUnitOfWork, gesture_id: str, path: str, status: int) -> Gesture:
+    """The Save click, given a write of its own and the read the page makes
+    after it. Two of these are two steps whose evidence agrees about nothing:
+    not the status the store answered with, and not the url that shows it."""
+    click = next(g for g in _evidence(uow) if g.id == _ids(uow)[-1])
+    return replace(
+        click,
+        id=gesture_id,
+        requests=[
+            Call(
+                method="POST",
+                url=f"http://127.0.0.1:63319/api/{path}",
+                status=status,
+                started_at=1788165604.9,
+            ),
+            Call(
+                method="GET",
+                url=f"http://127.0.0.1:63319/api/{path}/1",
+                status=200,
+                started_at=1788165605.0,
+            ),
+        ],
+    )
+
+
+async def test_the_verifier_is_asked_about_the_step_being_performed() -> None:
+    """New, and the sibling of the silent-click gate's own step test.
+
+    `verify` reads two things off the step it is handed: the statuses the
+    demonstration showed this write coming back with, and the read the page
+    performs afterwards. Asked about another step, it checks a write against
+    evidence that was never about it and probes a url that proves nothing --
+    and every workflow in this suite that reaches the verifier is one step, or
+    N identical steps, so which step it was handed never changed the answer.
+
+    Here the two steps disagree on both. Step one's write comes back 302: step
+    ONE's evidence never showed that status, so the artifact belt does not
+    answer and the run falls through to a read of step ONE's url. Step zero's
+    evidence did show it -- so a verifier asked about step zero calls the same
+    reply held on the spot, off a status another step demonstrated, and sends
+    no read at all.
+    """
+    uow = await _fixture()
+    await uow.gestures.add_gestures(
+        (_wrote(uow, "ges_alpha", "alpha", 302), _wrote(uow, "ges_beta", "beta", 303))
+    )
+    workflow = Workflow(
+        id="wfl_two_writes",
+        tenant=ELSEWHERE,
+        title="write, then write again",
+        narrative="n",
+        systems=["http://127.0.0.1:63319"],
+        steps=[
+            Step(order=0, says="file the order", system=None, cites=["ges_alpha"]),
+            Step(order=1, says="file the shipment", system=None, cites=["ges_beta"]),
+        ],
+    )
+    await uow.workflows.save(workflow)
+    channel = FakeChannel(
+        {
+            **_looks(4),
+            "http.send": [
+                # Step zero's write: a status step zero's own evidence showed.
+                Reply(ok=True, result={"status": 302, "body": "{}"}),
+                # Step one's write: the same status, which step ONE's evidence
+                # never showed. Not 2xx either, so nothing falls back to it.
+                Reply(ok=True, result={"status": 302, "body": "{}"}),
+                # And so a read goes out, and answers.
+                Reply(ok=True, result={"status": 200, "body": '{"clientCode": "ACME-4471"}'}),
+            ],
+        }
+    )
+    asker = _PerSchemaAsker(plan=_replay(), verdict=Answer(data={"held": True, "why": "ok"}))
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        values={"clientCode": "ACME-4471"},
+        started_by="offer",
+        earned=True,
+    )
+
+    assert [s.verdict for s in run.steps] == ["held", "held"] and run.outcome == "held"
+    assert [s.verdict_by for s in run.steps] == ["status", "read"], (
+        "step one's 302 is not a status step one demonstrated, so the artifact"
+        " belt passes it on rather than reading step zero's evidence"
+    )
+    sent = [_payload(s) for s in channel.sent if s["kind"] == "http.send"]
+    assert [s["url"] for s in sent] == [
+        "http://127.0.0.1:63319/api/alpha",
+        "http://127.0.0.1:63319/api/beta",
+        "http://127.0.0.1:63319/api/beta/1",
+    ], "and the read that confirmed step one is the one step one's page performs"
 
 
 async def test_every_command_a_run_sends_names_the_caller_the_browser_and_the_run() -> None:

@@ -325,6 +325,44 @@ class TestObservation:
                 await uow.devices.add(_device(device_id="dev-2"))
                 await uow.commit()
 
+    async def test_a_revoked_browser_is_let_back_in_with_the_secret_it_had(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """The un-revoke, against real SQL rather than the fake's dict.
+
+        The fake sets an attribute on an object it is already holding, so it
+        cannot tell a `revoked_at = NULL` that reached the column from one that
+        did not -- and it cannot see that the secret column was left alone,
+        which is the whole reason a restored browser needs no reinstall.
+        """
+        device = _device()
+        ended = f.at(600).isoformat()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.devices.add(device)
+            assert await uow.devices.revoke(device.tenant_id, device.id, at=ended) is True
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            # Another tenant pressing at this id moves nothing and is told
+            # nothing, as the revoke is.
+            with pytest.raises(NotFound):
+                await uow.devices.restore(OTHER_TENANT, device.id)
+            assert await uow.devices.restore(device.tenant_id, device.id) is True
+            # Read back inside the same session: the row this returns is the
+            # one just written, which is what the lock and the read-then-set
+            # are for.
+            assert (await uow.devices.get(device.tenant_id, device.id)).revoked_at is None
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            stored = await uow.devices.get(device.tenant_id, device.id)
+            assert stored.revoked_at is None
+            assert stored.secret == device.secret
+            # Idempotent: a second press moved nothing, so nothing about the
+            # row says this browser was ever revoked twice.
+            assert await uow.devices.restore(device.tenant_id, device.id) is False
+
     async def test_a_batch_id_the_extension_reused_is_refused_rather_than_doubled(
         self, session_factory: async_sessionmaker[AsyncSession]
     ) -> None:

@@ -49,12 +49,18 @@ async def asking_device(
     repository -- cannot be told from a lookup that did by the shape of what
     comes back. Both land on the same problem document either way.
     """
+    # Normalised once, so blank and whitespace are "no browser named" rather
+    # than two other answers: `?device_id=` reached `DeviceId("")` and
+    # `?device_id=%20` reached `DeviceId(" ")`, and an id the domain refuses to
+    # build is a 422 telling a caller their query string was interesting. It is
+    # the same nothing, and this route answers nothing with the one 404 above.
+    device_id = (device_id or "").strip()
     if not device_id and not x_device_secret:
         return None
     if not device_id or not x_device_secret:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"device {device_id or ''} was not found",
+            detail=f"device {device_id} was not found",
         )
     named = DeviceId(device_id)
     try:

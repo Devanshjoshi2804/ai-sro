@@ -1622,6 +1622,20 @@ class RevocationResponse(BaseModel):
     moved: bool
 
 
+class ShapesResponse(BaseModel):
+    shapes: list[dict[str, object]]
+    """The rig answered `{"shapes": [...]}` and the extension reads that key.
+
+    An object rather than a bare list so a later field -- a server clock, a
+    next-poll hint -- does not have to break the extension to be added.
+
+    `dict[str, object]` and not a model per field: a `Shape` is the extension's
+    matching input, `as_json` is `asdict` over it, and a second declaration of
+    the same fields here is the copy that goes stale the first time the domain
+    gains one.
+    """
+
+
 class ObservationBatchRequest(BaseModel):
     batch_id: str = Field(max_length=64)
     """Minted by the extension so a retried upload is recognised as the one it

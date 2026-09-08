@@ -19,27 +19,6 @@ import { today } from "./today.js";
 
 const $ = (id) => document.getElementById(id);
 
-/** Recording a demo, not running a deployment.
- *
- * Two things are staged while this is on: the panel always shows one offer to
- * do the task, instead of waiting for the same job to be done enough times to
- * be recognised; and the conversation is hidden, so the camera sees the offer
- * rather than a scroll of earlier asks.
- *
- * Nothing else changes -- the offer's buttons are inert, and it is drawn from
- * this constant rather than from anything the server said, so it can never be
- * mistaken for a real recognition. Set to false to put the panel back.
- */
-const DEMO = true;
-
-/** The offer the demo shows, in the shape `card` already draws. */
-const DEMO_OFFER = {
-  title: "Would you like me to do this task for you?",
-  says:
-    "I have watched you do this here before. I can take it from here, show you "
-    + "each step as it happens, and stop the moment you say so.",
-};
-
 /** Whether the tenant excludes this host by default.
  *
  * The rule is imported rather than restated: `hostMatches` is the one
@@ -219,11 +198,6 @@ function render(status) {
   // demonstration and nothing else -- the offer keeps.
   if (!status.teaching) for (const offer of status.offers || []) cards.push(offering(offer));
 
-  // The staged one, beside the real ones and under the same rule about not
-  // interrupting a demonstration. Last, so a genuine offer is never pushed
-  // below it.
-  if (DEMO && !status.teaching && !demoAnswered) cards.push(demoOffer());
-
   if (status.performing) cards.push(performing(status));
   // Not while teaching, same rule as the offers above: a demonstration in
   // progress is the only thing the panel is about. Placed after the run that
@@ -242,8 +216,7 @@ function render(status) {
   // While a demonstration is being recorded the panel is about that and
   // nothing else, and none of it applies to a browser that is not connected.
   $("here").hidden = Boolean(status.teaching) || !status.deviceId;
-  // DEMO hides the conversation outright -- see the constant at the top.
-  $("thread").hidden = DEMO || Boolean(status.teaching) || !status.deviceId;
+  $("thread").hidden = Boolean(status.teaching) || !status.deviceId;
   lastStatus = status;
   return status;
 }
@@ -807,26 +780,6 @@ async function wasWrong(button, run) {
  * was stored there and nothing is stored by pressing beyond the run's own
  * parameters, which is where a run's values have always lived.
  */
-/** The staged offer. Nothing here talks to the worker: pressing either button
- * only takes the card down, so a demo can be recorded twice without leaving a
- * run, an offer row, or a thread message behind. */
-function demoOffer() {
-  const answer = (words) => async (button) => {
-    button.disabled = true;
-    demoAnswered = true;
-    said(words);
-    await refresh();
-  };
-  return card({
-    title: DEMO_OFFER.title,
-    says: DEMO_OFFER.says,
-    actions: [
-      { label: "Yes, do it", primary: true, act: answer("starting — watch the page") },
-      { label: "Not now", act: answer("dismissed — nothing ran") },
-    ],
-  });
-}
-
 function offering(offer) {
   const named = offer.skill || offer.skillId;
   const read = offer.read || {};
@@ -1051,9 +1004,6 @@ let tabHere = { tabId: null, host: "", url: "" };
  * drawn -- so opening it does not have to wait for the next poll. */
 let expanded = false;
 let lastStatus = null;
-/** Whether the staged offer has been answered in this panel. Not stored: a
- * reopened panel is a fresh take. */
-let demoAnswered = false;
 
 /** Offers in the thread nobody has answered, counted where the thread is drawn
  * so the day's line does not fetch it a second time. */

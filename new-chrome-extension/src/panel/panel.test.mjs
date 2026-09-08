@@ -1736,31 +1736,6 @@ test("no thanks on a rig offer drops it and starts nothing", async () => {
   assert.deepEqual(sentOf(sent, "nudge-answer"), []);
 });
 
-test("the staged offer is drawn while DEMO is on, and it talks to nobody", async () => {
-  // `DEMO` at the top of panel.js is on to record a demo: the panel always
-  // shows one offer to do the task rather than waiting for a job to be
-  // recognised, and the conversation is hidden so the camera sees the offer.
-  //
-  // This test is here so turning it off is not silent. When DEMO goes false
-  // this goes red, and the two assertions below say exactly what to expect
-  // instead: no staged card, and a thread that is hidden only while teaching
-  // or while this browser has no credential.
-  const { cards, ids, sent } = panel({ deviceId: "dev-1", capturing: true });
-
-  const staged = cards.find((c) => words(c).includes("Would you like me to do this task"));
-  assert.ok(staged, "the staged offer was not drawn");
-  assert.strictEqual(ids["thread"].hidden, true, "the conversation was left on screen");
-
-  // Pressing it must not reach the worker: a demo recorded twice would
-  // otherwise leave a run, an offer row, or a thread message behind.
-  const before = sent.length;
-  const yes = [...staged.kids].flatMap((k) => [...(k.kids || [])])
-    .find((el) => (el.textContent || "") === "Yes, do it");
-  assert.ok(yes, "the staged offer had no button to press");
-  await yes.onclick?.({ preventDefault() {} });
-  assert.strictEqual(sent.length, before, "the staged offer sent something to the worker");
-});
-
 for (const [name, fn] of tests) {
   try {
     await fn();

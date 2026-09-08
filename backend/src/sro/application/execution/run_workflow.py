@@ -19,6 +19,11 @@ is asked -- extends this same module and is not here. Until it is, a run with
 `live=False` performs its writes rather than withholding them, so nothing may
 wire this to a route before that half lands. The routes are phase 4 and there is
 no caller today.
+
+The stop button is `Stops`, shared with the backend's own runs -- there is one
+register of "somebody pressed stop" and no second one to build. It is checked
+between steps and never mid-command: a gesture already sent cannot be recalled
+from a warehouse.
 """
 
 from __future__ import annotations
@@ -27,7 +32,6 @@ import base64
 from collections.abc import Mapping
 from datetime import UTC, datetime
 
-from sro.application.execution.approvals import Approvals
 from sro.application.execution.effects import forget_effects, record_effect
 from sro.application.execution.plan_step import plan_step
 from sro.application.execution.stops import Stops
@@ -227,7 +231,6 @@ async def run_workflow(
     allow_focus: bool,
     started_by: str,
     stops: Stops,
-    approvals: Approvals,
     run_id: str | None = None,
 ) -> WorkflowRun:
     # A run the caller already claimed. `POST /v1/runs` writes the `running` row
@@ -276,13 +279,22 @@ async def run_workflow(
     if first is not None:
         starts_on = first.page_url or first.url
 
+    # `Stops` is keyed by a `RunId`, which names the backend's OWN run
+    # aggregate; this is a workflow run's id, a second id space of the same
+    # shape. The register is shared on purpose -- a person stopping a run is one
+    # register, and there is no second stop button to build -- but the identity
+    # the constructor asserts is not one that holds, so it is asserted once,
+    # here, and this line is the only thing to delete the day `Stops` takes the
+    # `str` that `Approvals` now does.
+    stopped = RunId(run.id)
+
     # The step being worked on, so a browser that goes away mid-step fails THAT
     # step -- with the tokens its plan already cost, and its own order -- rather
     # than a fabricated one whose order can collide on (run_id, ord).
     in_flight: RunStep | None = None
     try:
         for step in ordered:
-            if stops.asked(RunId(run.id)):
+            if stops.asked(stopped):
                 await channel.send(
                     tenant_id, device_id, kind="abort", run_id=run.id, payload={"run_id": run.id}
                 )
@@ -482,6 +494,5 @@ async def run_workflow(
         await forget_effects(uow.workflows, run)
         run.finished_at = _now()
         await _save(uow, run)
-        stops.forget(RunId(run.id))
-        approvals.forget(RunId(run.id))
+        stops.forget(stopped)
     return run

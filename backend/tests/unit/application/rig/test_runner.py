@@ -24,24 +24,42 @@ tasks that found them could not pin them at their own layer:
 
 import asyncio
 import base64
+import json
 from collections.abc import Mapping
+from dataclasses import replace
 
 import pytest
 
 from sro.application.execution.run_workflow import (
+    K_STEP_SLACK,
     _bill,
     _fell_over,
     _look,
     _now,
     _result,
     _target_origin,
+    fail_orphans,
+    run_workflow,
 )
+from sro.application.execution.stops import Stops
+from sro.application.ports.agent import DeviceUnreachable
 from sro.application.ports.channel import Reply
-from sro.domain.execution.planning import Look, Planned
+from sro.domain.execution.planning import PLAN_SCHEMA, Look, Planned
+from sro.domain.execution.run import RunId
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
+from sro.domain.observation.gesture import Gesture
 from sro.domain.shared.identifiers import DeviceId, TenantId
 from sro.domain.shared.prices import Answer
-from tests.unit.fakes import FakeChannel
+from sro.domain.skill.workflow import Step, Workflow
+from tests.unit.domain.rig.conftest import gestures as _gestures
+from tests.unit.fakes import (
+    FakeAsker,
+    FakeChannel,
+    FakeGestureRepository,
+    FakeUnitOfWork,
+    FakeWorkflowRepository,
+    FakeWorkflowRunRepository,
+)
 
 TENANT = TenantId("acme")
 """The caller's tenant, which is also the evidence's: `gestures_for` is scoped
@@ -370,7 +388,1319 @@ async def test_a_look_that_hangs_is_a_look_that_can_be_cancelled() -> None:
 
     channel = _Hangs()
     task = asyncio.create_task(_look(channel, TENANT, DEVICE, "run_1", None, False))
-    await channel.reached.wait()
+    async with asyncio.timeout(5):
+        await channel.reached.wait()
     task.cancel()
     with pytest.raises(asyncio.CancelledError):
         await task
+
+
+# --------------------------------------------------------------------------
+# A job walked end to end
+# --------------------------------------------------------------------------
+
+
+ELSEWHERE = "a-different-tenant"
+"""The `tenant` on every workflow this suite builds, and a plant rather than a
+plausible value.
+
+The loop is handed a workflow AND a tenant, and only the tenant says whose
+evidence this job may cite, whose run row this is and whose browser may be
+driven. A fixture where the two agree cannot tell them apart: a loop that read
+`workflow.tenant` wherever it should read the caller's would pass every test
+below. So they disagree, and the evidence is filed under the caller's."""
+
+
+async def _fixture() -> FakeUnitOfWork:
+    """The measured batch, correlated and filed under the caller's tenant.
+
+    `gestures()` mints a fresh id per call, so nothing here may call it twice
+    and expect the same evidence: what was stored is read back off the
+    repository, in the order it went in.
+    """
+    uow = FakeUnitOfWork()
+    await uow.gestures.add_gestures(tuple(_gestures()))
+    return uow
+
+
+def _evidence(uow: FakeUnitOfWork) -> list[Gesture]:
+    assert isinstance(uow.gestures, FakeGestureRepository)
+    return list(uow.gestures.rows.values())
+
+
+def _stale(uow: FakeUnitOfWork) -> dict[tuple[str, int], tuple[str | None, str]]:
+    assert isinstance(uow.workflows, FakeWorkflowRepository)
+    return uow.workflows.stale
+
+
+def _effects(uow: FakeUnitOfWork) -> dict[tuple[str, str, int], tuple[str, str]]:
+    assert isinstance(uow.workflows, FakeWorkflowRepository)
+    return uow.workflows.effects
+
+
+def _ids(uow: FakeUnitOfWork) -> list[str]:
+    return [gesture.id for gesture in _evidence(uow)]
+
+
+def _silent_click(uow: FakeUnitOfWork) -> str:
+    """A click the recorder saw and heard no traffic from -- what a Save looks
+    like when its call went out somewhere the recorder was not attached."""
+    return next(g.id for g in _evidence(uow) if g.action.kind == "click" and not g.requests)
+
+
+async def _workflow(uow: FakeUnitOfWork) -> Workflow:
+    ids = _ids(uow)
+    workflow = Workflow(
+        id="wfl_1",
+        tenant=ELSEWHERE,
+        title="create a client",
+        narrative="n",
+        systems=["http://127.0.0.1:63319"],
+        steps=[
+            Step(
+                order=0,
+                says="type the code",
+                system=None,
+                cites=[ids[0]],
+                parameters=["clientCode"],
+            ),
+            Step(order=1, says="save", system=None, cites=[ids[-1]]),
+        ],
+        parameters=[{"name": "clientCode", "seen_values": ["A", "B"]}],
+    )
+    await uow.workflows.save(workflow)
+    return workflow
+
+
+async def _one_step(uow: FakeUnitOfWork, cite: str, says: str = "save") -> Workflow:
+    workflow = Workflow(
+        id="wfl_one",
+        tenant=ELSEWHERE,
+        title=says,
+        narrative="n",
+        systems=["http://127.0.0.1:63319"],
+        steps=[Step(order=0, says=says, system=None, cites=[cite], parameters=["clientCode"])],
+    )
+    await uow.workflows.save(workflow)
+    return workflow
+
+
+async def _repeated(uow: FakeUnitOfWork, steps: int) -> Workflow:
+    """One workflow of `steps` identical read steps, all citing the same typed
+    gesture. Nothing here writes, so every step is performable in a live run."""
+    typed = _ids(uow)[0]
+    workflow = Workflow(
+        id="wfl_n",
+        tenant=ELSEWHERE,
+        title="type it again",
+        narrative="n",
+        systems=["http://127.0.0.1:63319"],
+        steps=[
+            Step(
+                order=i,
+                says="type the code",
+                system=None,
+                cites=[typed],
+                parameters=["clientCode"],
+            )
+            for i in range(steps)
+        ],
+    )
+    await uow.workflows.save(workflow)
+    return workflow
+
+
+def _looks(n: int) -> dict[str, list[Reply]]:
+    return {
+        "ui.url": [Reply(ok=True, result={"url": "http://127.0.0.1:63319/form"})] * n,
+        "screenshot": [Reply(ok=True, result={"image_base64": "aVBORw0=", "text_digest": "Save"})]
+        * n,
+    }
+
+
+def _plan(action: str, value: str | None = None) -> Answer:
+    return Answer(
+        data={"kind": "ui.perform", "action": action, "value": value, "url": None, "why": "w"},
+        cost_usd=0.001,
+    )
+
+
+def _navigate(url: str = "http://127.0.0.1:63319/form") -> Answer:
+    return Answer(
+        data={"kind": "navigate", "action": None, "value": None, "url": url, "why": "wrong page"}
+    )
+
+
+def _replay() -> Answer:
+    """The planner's one way to send a write as a call: replay the recorded
+    one. The url is never the model's -- `plan_step` takes it off the
+    evidence -- so `url: None` here is the honest shape of that answer."""
+    return Answer(
+        data={"kind": "http.send", "action": None, "value": None, "url": None, "why": "w"}
+    )
+
+
+def _performed(matched_by: str = "component") -> Reply:
+    return Reply(ok=True, result={"performed": True, "matched_by": matched_by, "candidates": 1})
+
+
+class _Gone(FakeChannel):
+    """A browser that is not there at all -- the real channel's answer to a
+    device id with no socket open behind it."""
+
+    async def send(
+        self,
+        tenant_id: TenantId,
+        device_id: DeviceId,
+        *,
+        kind: str,
+        payload: Mapping[str, object],
+        run_id: str | None = None,
+        deadline_s: float | None = None,
+    ) -> Reply:
+        raise DeviceUnreachable(f"{device_id} has no channel open")
+
+
+class _GoesAway(FakeChannel):
+    """A browser that stops listening on the nth `ui.perform`."""
+
+    def __init__(self, script: dict[str, list[Reply]], on_perform: int) -> None:
+        super().__init__(script)
+        self.on_perform = on_perform
+        self.performs = 0
+
+    async def send(
+        self,
+        tenant_id: TenantId,
+        device_id: DeviceId,
+        *,
+        kind: str,
+        payload: Mapping[str, object],
+        run_id: str | None = None,
+        deadline_s: float | None = None,
+    ) -> Reply:
+        if kind == "ui.perform":
+            self.performs += 1
+            if self.performs >= self.on_perform:
+                raise DeviceUnreachable(f"{device_id} stopped listening")
+        return await super().send(
+            tenant_id, device_id, kind=kind, payload=payload, run_id=run_id, deadline_s=deadline_s
+        )
+
+
+class _AbortIsGone(FakeChannel):
+    """A browser that answers everything but the stop command."""
+
+    async def send(
+        self,
+        tenant_id: TenantId,
+        device_id: DeviceId,
+        *,
+        kind: str,
+        payload: Mapping[str, object],
+        run_id: str | None = None,
+        deadline_s: float | None = None,
+    ) -> Reply:
+        if kind == "abort":
+            raise DeviceUnreachable(f"{device_id} stopped listening")
+        return await super().send(
+            tenant_id, device_id, kind=kind, payload=payload, run_id=run_id, deadline_s=deadline_s
+        )
+
+
+class _Breaks(FakeChannel):
+    """A channel that raises something nobody planned for."""
+
+    async def send(
+        self,
+        tenant_id: TenantId,
+        device_id: DeviceId,
+        *,
+        kind: str,
+        payload: Mapping[str, object],
+        run_id: str | None = None,
+        deadline_s: float | None = None,
+    ) -> Reply:
+        if kind == "ui.perform":
+            raise RuntimeError("boom")
+        return await super().send(
+            tenant_id, device_id, kind=kind, payload=payload, run_id=run_id, deadline_s=deadline_s
+        )
+
+
+class _PerSchemaAsker(FakeAsker):
+    """`FakeAsker`, answered by schema rather than by call order.
+
+    A run asks a different number of questions depending on which belt verifies
+    each step, and a positional queue has to be rewritten every time that number
+    moves. This one answers `verdict` to a verification and `plan` to everything
+    else, and still records every call in `.asked`.
+    """
+
+    def __init__(self, plan: Answer, verdict: Answer) -> None:
+        super().__init__()
+        self.plan, self.verdict = plan, verdict
+
+    async def ask(self, **asked: object) -> Answer:
+        await super().ask(**asked)  # type: ignore[arg-type]
+        schema = asked["schema"]
+        assert isinstance(schema, dict)
+        return self.verdict if "held" in schema["properties"] else self.plan
+
+
+async def _ran(
+    uow: FakeUnitOfWork,
+    workflow: Workflow,
+    *,
+    channel: FakeChannel,
+    asker: FakeAsker,
+    values: Mapping[str, str] | None = None,
+    live: bool = True,
+    allow_focus: bool = True,
+    started_by: str = "form",
+    tenant_id: TenantId = TENANT,
+    device_id: DeviceId = DEVICE,
+    stops: Stops | None = None,
+    run_id: str | None = None,
+    plan_model: str = "flash",
+) -> WorkflowRun:
+    """One run, with the arguments no test varies spelled once."""
+    return await run_workflow(
+        uow,
+        workflow,
+        tenant_id=tenant_id,
+        values={"clientCode": "x"} if values is None else values,
+        channel=channel,
+        device_id=device_id,
+        asker=asker,
+        plan_model=plan_model,
+        live=live,
+        allow_focus=allow_focus,
+        started_by=started_by,
+        stops=stops or Stops(),
+        run_id=run_id,
+    )
+
+
+async def test_a_live_run_sends_the_write() -> None:
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel({**_looks(4), "ui.perform": [_performed(), _performed()]})
+    asker = FakeAsker(
+        _plan("type", "THIRD"),
+        Answer(data={"held": True, "why": ""}),
+        _plan("click"),
+        Answer(data={"held": True, "why": ""}),
+    )
+
+    run = await _ran(uow, workflow, channel=channel, asker=asker, values={"clientCode": "THIRD"})
+
+    assert [s.verdict for s in run.steps] == ["held", "held"] and not run.withheld
+    performed = [s for s in channel.sent if s["kind"] == "ui.perform"]
+    assert len(performed) == 2 and _payload(performed[0])["value"] == "THIRD"
+    assert run.outcome == "held"
+
+
+async def test_the_run_is_saved_after_every_step_and_not_only_at_the_end() -> None:
+    """New. The panel polls the row while the run is in flight, and a loop that
+    saved once at the end would show a job that does nothing for a minute and
+    then everything at once. The rig wrote this in its module docstring and
+    nothing held it to it."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel({**_looks(4), "ui.perform": [_performed(), _performed()]})
+    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True}))
+    seen: list[int] = []
+
+    saved = uow.workflow_runs.save
+
+    async def _watch(run: WorkflowRun) -> None:
+        seen.append(len([s for s in run.steps if s.verdict != "skipped"]))
+        await saved(run)
+
+    uow.workflow_runs.save = _watch  # type: ignore[method-assign]
+    run = await _ran(uow, workflow, channel=channel, asker=asker)
+
+    assert run.outcome == "held"
+    # Claimed with nothing done, then once per step, then the finish.
+    assert seen == [0, 1, 2, 2]
+
+
+async def test_an_origin_outside_the_evidence_is_refused_before_it_is_sent() -> None:
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel(_looks(2))
+    asker = FakeAsker(_navigate("https://evil.example/x"))
+
+    run = await _ran(uow, workflow, channel=channel, asker=asker, values={})
+
+    assert run.outcome == "refused" and run.steps[0].verdict == "refused"
+    assert "evil.example" in run.steps[0].reason
+    assert not [s for s in channel.sent if s["kind"] == "navigate"], "nothing left the process"
+
+
+async def test_a_navigate_to_a_url_that_names_no_system_is_refused() -> None:
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel(_looks(2))
+    asker = FakeAsker(_navigate("about:blank"))
+
+    run = await _ran(uow, workflow, channel=channel, asker=asker, values={})
+
+    assert run.outcome == "refused" and run.steps[0].verdict == "refused"
+    assert "about:blank" in run.steps[0].reason
+    assert not [s for s in channel.sent if s["kind"] == "navigate"], "no origin is not permission"
+
+
+async def test_a_navigate_gets_to_the_page_and_does_not_spend_the_rescue() -> None:
+    """A deep job was demonstrated across several screens. Moving to the next
+    one is not doing the step: after the navigate the same step is planned
+    again on the same rung, so a step that needed a page change and then went
+    wrong still has its one Pro rescue (task 7's half).
+
+    One step rather than the rig's two, so the count below is the whole run:
+    the writes a dry run withholds are task 7's, and until they land the second
+    step of the shared workflow would send a command of its own.
+    """
+    uow = await _fixture()
+    workflow = await _one_step(uow, _ids(uow)[0], says="type the code")
+    channel = FakeChannel(
+        {
+            **_looks(6),
+            "navigate": [Reply(ok=True, result={"navigated": True})],
+            "ui.perform": [_performed()],
+        }
+    )
+    asker = FakeAsker(_navigate(), _plan("type", "x"), Answer(data={"held": True, "why": ""}))
+
+    run = await _ran(uow, workflow, channel=channel, asker=asker, live=False)
+
+    assert [s["kind"] for s in channel.sent if s["kind"] in ("navigate", "ui.perform")] == [
+        "navigate",
+        "ui.perform",
+    ]
+    moved = next(s for s in channel.sent if s["kind"] == "navigate")
+    assert _payload(moved)["url"] == "http://127.0.0.1:63319/form", "the url the model gave"
+    assert run.steps[0].verdict == "held" and run.steps[0].planned_by == "flash"
+
+
+async def test_a_navigate_that_would_not_go_is_the_step_that_failed() -> None:
+    """New. The rig had no test for a browser that refuses the move, and the
+    difference matters: the reason names the browser's own words rather than
+    leaving the step reading `skipped` and the run walking past it."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel(
+        {
+            **_looks(2),
+            "navigate": [Reply(ok=False, error_kind="no_tab", error_detail="that window is gone")],
+        }
+    )
+    asker = FakeAsker(_navigate())
+
+    run = await _ran(uow, workflow, channel=channel, asker=asker)
+
+    assert run.outcome == "stopped" and run.steps[0].verdict == "failed"
+    assert "that window is gone" in run.steps[0].reason
+
+
+async def test_a_planner_that_only_ever_navigates_stops_rather_than_going_round() -> None:
+    """New, and the half of the navigate rule the budget test cannot see: a
+    second navigate for one step is a planner going round in circles, not a
+    plan, and the step fails on the spot."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel(
+        {
+            **_looks(4),
+            "navigate": [Reply(ok=True, result={"navigated": True})] * 2,
+        }
+    )
+    asker = FakeAsker(_navigate(), _navigate())
+
+    run = await _ran(uow, workflow, channel=channel, asker=asker)
+
+    assert run.outcome == "stopped" and run.steps[0].verdict == "failed"
+    assert "wrong page" in run.steps[0].reason
+    assert len([s for s in channel.sent if s["kind"] == "navigate"]) == 1, "it went once"
+
+
+async def test_a_weak_locator_match_succeeds_and_flags_the_step_stale() -> None:
+    """The second step is the weak one, so the row is against the step that
+    matched weakly and not against whichever step happened to be first."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    await _claimed(uow, live=True)
+    channel = FakeChannel(
+        {**_looks(4), "ui.perform": [_performed("component"), _performed("css_path")]}
+    )
+    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True}))
+
+    run = await _ran(uow, workflow, channel=channel, asker=asker, run_id="run_claimed")
+
+    assert [s.stale for s in run.steps] == [False, True]
+    assert run.steps[1].verdict == "held" and run.steps[1].matched_by == "css_path"
+    marked = _stale(uow)
+    assert list(marked) == [("wfl_1", 1)], "one row, for the step that matched weakly"
+    matched_by, noticed_at = marked[("wfl_1", 1)]
+    assert matched_by == "css_path", "and it says which rung found it"
+    assert noticed_at.endswith("+00:00"), "in UTC"
+    assert noticed_at > run.started_at, "stamped when it was noticed, not when the run began"
+
+
+async def test_a_step_found_the_strong_way_again_clears_its_stale_mark() -> None:
+    """A warning that never clears is a warning nobody reads: the page is not
+    moving under the job after all.
+
+    The step that recovers is the SECOND one, and the first goes weak in the
+    same run, so a loop that cleared step zero's mark whatever step it was on
+    would leave the register the wrong way round rather than merely tidy.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    await uow.workflows.mark_stale("wfl_1", 0, matched_by="css_path", noticed_at=STARTED)
+    await uow.workflows.mark_stale("wfl_1", 1, matched_by="css_path", noticed_at=STARTED)
+    channel = FakeChannel(
+        {**_looks(4), "ui.perform": [_performed("css_path"), _performed("component")]}
+    )
+    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True}))
+
+    run = await _ran(uow, workflow, channel=channel, asker=asker)
+
+    assert [s.stale for s in run.steps] == [True, False]
+    assert set(_stale(uow)) == {("wfl_1", 0)}, "only the step that matched strongly is cleared"
+
+
+async def test_the_stop_button_is_honoured_between_steps() -> None:
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel(
+        {
+            **_looks(4),
+            "ui.perform": [_performed()],
+            "abort": [Reply(ok=True, result={"aborted": True})],
+        }
+    )
+    asker = FakeAsker(_plan("type", "x"), Answer(data={"held": True, "why": ""}))
+    stops = Stops()
+    stops.ask(RunId("run_stop"))
+
+    run = await _ran(uow, workflow, channel=channel, asker=asker, stops=stops, run_id="run_stop")
+
+    assert run.outcome == "aborted" and run.steps == []
+    assert [s["kind"] for s in channel.sent] == ["abort"], "the browser was told, and nothing else"
+    assert _payload(channel.sent[0]) == {"run_id": "run_stop"}
+
+
+async def test_a_run_stopped_by_the_flag_is_forgotten_by_the_register_when_it_ends() -> None:
+    """Nothing outlives the run in the in-process register, or the next run
+    under that id would inherit a stop it never asked for."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel({**_looks(2), "abort": [Reply(ok=True, result={"aborted": True})]})
+    stops = Stops()
+    stops.ask(RunId("run_forget_me"))
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=FakeAsker(),
+        stops=stops,
+        run_id="run_forget_me",
+    )
+
+    assert run.outcome == "aborted"
+    assert not stops.asked(RunId("run_forget_me")), "the finally forgets the flag"
+
+
+async def test_the_step_budget_is_the_workflows_steps_plus_slack() -> None:
+    """Every attempt counts against it, including the ones that only moved the
+    browser, so a planner that navigates its way around a job runs out before
+    it has spent the day."""
+    uow = await _fixture()
+    workflow = await _repeated(uow, 4)
+    assert K_STEP_SLACK == 3
+    budget = len(workflow.steps) + K_STEP_SLACK
+    channel = FakeChannel(
+        {
+            **_looks(budget * 2),
+            "navigate": [Reply(ok=True, result={"navigated": True})] * len(workflow.steps),
+            "ui.perform": [_performed()] * len(workflow.steps),
+        }
+    )
+    # Every step is asked twice: once for the navigate that gets to the page,
+    # once for the command itself. Three steps at two attempts each spends six
+    # of the seven, and the fourth step's navigate spends the last.
+    asker = FakeAsker(
+        *[
+            answer
+            for _ in range(3)
+            for answer in (_navigate(), _plan("type", "x"), Answer(data={"held": True, "why": ""}))
+        ],
+        _navigate(),
+    )
+
+    run = await _ran(uow, workflow, channel=channel, asker=asker)
+
+    assert run.outcome == "refused"
+    last = run.steps[-1]
+    assert last.order == 3 and last.verdict == "refused", "the budget stopped the last step"
+    assert str(budget) in last.reason and "budget" in last.reason
+    assert len([a for a in asker.asked if a["schema"] is PLAN_SCHEMA]) == budget
+
+
+async def test_every_model_call_on_a_run_is_billed_to_its_step() -> None:
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel({**_looks(4), "ui.perform": [_performed()]})
+    asker = FakeAsker(
+        Answer(
+            data={"kind": "ui.perform", "action": "type", "value": "x", "url": None, "why": ""},
+            cost_usd=0.002,
+            in_tokens=100,
+            out_tokens=10,
+        ),
+        Answer(data={"held": True, "why": ""}, cost_usd=0.001, in_tokens=50, out_tokens=5),
+        _plan("click"),
+    )
+
+    run = await _ran(uow, workflow, channel=channel, asker=asker, live=False)
+
+    assert run.steps[0].cost_usd == pytest.approx(0.003) and run.steps[0].in_tokens == 150
+    assert run.cost_usd == pytest.approx(sum(s.cost_usd for s in run.steps))
+    stored = await uow.workflow_runs.get(TENANT, run.id)
+    assert stored is not None and stored.cost_usd == pytest.approx(run.cost_usd), "and it is saved"
+
+
+async def test_a_browser_that_went_away_fails_the_run_and_says_so() -> None:
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+
+    run = await _ran(uow, workflow, channel=_Gone(), asker=FakeAsker(), values={})
+
+    assert run.outcome == "failed" and "dev_test" in run.steps[0].reason
+
+
+async def test_a_step_the_planner_could_not_plan_stops_the_run() -> None:
+    """A rung that never reached a command left its reason on nothing but a
+    local, and the run walked past the step as if it had been skipped.
+
+    One plan rather than the rig's two: the Pro rescue is task 7's.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel(_looks(2))
+    asker = FakeAsker(Answer(data={"kind": "nope", "why": "no idea"}))
+
+    run = await _ran(uow, workflow, channel=channel, asker=asker)
+
+    assert run.outcome == "stopped"
+    assert len(asker.asked) == 1, "step 1 was never planned"
+    assert not [s for s in channel.sent if s["kind"] == "ui.perform"], "nothing was performed"
+    assert run.steps[0].verdict == "failed" and run.steps[0].reason, "it says why"
+
+
+async def test_a_step_that_reached_no_command_claims_to_have_sent_nothing() -> None:
+    """New. The record's `sent` and `planned_by` are what a reader takes for
+    "this went out", and a plan of kind `none` sent nothing at all -- leaving
+    them set would put a command beside a verdict that nothing performed."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    asker = FakeAsker(Answer(data={"kind": "nope", "why": "no idea"}))
+
+    run = await _ran(uow, workflow, channel=FakeChannel(_looks(2)), asker=asker)
+
+    assert run.steps[0].sent is None and run.steps[0].planned_by is None
+
+
+async def test_a_step_with_nothing_actionable_to_cite_stops_the_run() -> None:
+    """You scroll a page, not a control. A step whose whole evidence is a
+    scroll cannot be performed, and a job that carries on past it is a job
+    doing its later steps on an assumption nobody checked."""
+    uow = await _fixture()
+    original = _evidence(uow)[0]
+    scrolled = replace(
+        original,
+        id="ges_scrolled",
+        action=replace(original.action, kind="scroll", target=None, value=None),
+    )
+    await uow.gestures.add_gestures((scrolled,))
+    workflow = await _workflow(uow)
+    workflow.steps[0].cites = [scrolled.id]
+    channel = FakeChannel(_looks(4))
+    asker = FakeAsker(_plan("click"))
+
+    run = await _ran(uow, workflow, channel=channel, asker=asker, values={})
+
+    assert run.outcome == "stopped"
+    assert len(run.steps) == 1 and run.steps[0].verdict == "skipped"
+    assert run.steps[0].reason == "no cited gesture can be acted on"
+    assert not asker.asked and not channel.sent, "nothing was planned and nothing was sent"
+
+
+async def test_the_record_keeps_what_the_browser_answered_not_what_it_answered_with() -> None:
+    """`verify` keeps a response body out of a prompt; the run record holds it
+    for far longer than a prompt does, so it does not hold it at all."""
+    uow = await _fixture()
+    workflow = await _one_step(uow, _ids(uow)[-1])
+    channel = FakeChannel(
+        {
+            **_looks(2),
+            "http.send": [
+                Reply(
+                    ok=True,
+                    result={
+                        "status": 200,
+                        "body": '{"id": 41, "clientCode": "ACME-4471"}',
+                        "headers": {"set-cookie": "session=secret"},
+                    },
+                )
+            ],
+        }
+    )
+
+    run = await _ran(uow, workflow, channel=channel, asker=FakeAsker(_replay()), values={})
+
+    assert run.steps[0].verdict == "held" and run.steps[0].verdict_by == "status"
+    assert run.steps[0].result == {
+        "ok": True,
+        "status": 200,
+        "matched_by": None,
+        "wrote": True,
+    }, "the three facts and the write marker; not the body, not the cookie"
+
+
+async def test_a_failed_reply_keeps_the_error_kind_as_its_own_field() -> None:
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel(
+        {
+            **_looks(4),
+            "ui.perform": [Reply(ok=False, error_kind="control_not_found", error_detail="gone")],
+        }
+    )
+    asker = FakeAsker(_plan("type", "x"))
+
+    run = await _ran(uow, workflow, channel=channel, asker=asker)
+
+    assert run.steps[0].result == {
+        "ok": False,
+        "status": None,
+        "matched_by": None,
+        "error_kind": "control_not_found",
+    }
+    assert "gone" in run.steps[0].reason, (
+        "the detail is in the reason, not concatenated into a kind"
+    )
+    assert run.steps[0].matched_by is None, "a command that failed matched nothing"
+
+
+def _only_run(uow: FakeUnitOfWork) -> WorkflowRun:
+    assert isinstance(uow.workflow_runs, FakeWorkflowRunRepository)
+    (row,) = uow.workflow_runs.rows.values()
+    return row
+
+
+async def test_a_browser_that_goes_away_mid_step_fails_that_step() -> None:
+    """The step in flight is the one that failed -- with the order the workflow
+    gave it and the tokens its plan already cost -- not a fabricated one whose
+    order collides with a real step's."""
+    uow = await _fixture()
+    typed = _ids(uow)[0]
+    workflow = Workflow(
+        id="wfl_ordered",
+        tenant=ELSEWHERE,
+        title="two",
+        narrative="n",
+        systems=["http://127.0.0.1:63319"],
+        steps=[
+            Step(order=1, says="type the code", system=None, cites=[typed]),
+            Step(order=2, says="type it again", system=None, cites=[typed]),
+        ],
+    )
+    await uow.workflows.save(workflow)
+    channel = _GoesAway({**_looks(4), "ui.perform": [_performed()]}, on_perform=2)
+    asker = FakeAsker(
+        _plan("type", "x"),
+        Answer(data={"held": True, "why": ""}),
+        Answer(
+            data={"kind": "ui.perform", "action": "type", "value": "x", "url": None, "why": ""},
+            in_tokens=11,
+        ),
+    )
+
+    run = await _ran(uow, workflow, channel=channel, asker=asker)
+
+    assert run.outcome == "failed"
+    assert [s.order for s in run.steps] == [1, 2], "the step in flight kept its own order"
+    assert run.steps[1].verdict == "failed" and "dev_test" in run.steps[1].reason
+    assert run.steps[1].in_tokens == 11, "the plan it already paid for is still billed"
+    saved = await uow.workflow_runs.get(TENANT, run.id)
+    assert saved is not None and saved.outcome == "failed", "and it was saved"
+
+
+async def test_a_run_that_dies_of_something_unexpected_is_not_left_saying_running() -> None:
+    """The exception is nobody's to swallow; the record is nobody's to lose."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = _Breaks(_looks(4))
+    asker = FakeAsker(_plan("type", "x"))
+
+    with pytest.raises(RuntimeError):
+        await _ran(uow, workflow, channel=channel, asker=asker)
+
+    saved = _only_run(uow)
+    assert saved.outcome == "failed" and saved.finished_at is not None
+    assert "RuntimeError" in saved.steps[-1].reason and "boom" in saved.steps[-1].reason
+
+
+async def test_a_run_cancelled_mid_step_is_not_left_saying_running() -> None:
+    """Shutdown cancels the task. `CancelledError` is a BaseException, so
+    neither `except` clause runs -- only the `finally`, which must still finish
+    the record rather than leave a row that says `running` for good."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+
+    class _Hangs(FakeChannel):
+        def __init__(self) -> None:
+            super().__init__({})
+            self.reached = asyncio.Event()
+
+        async def send(
+            self,
+            tenant_id: TenantId,
+            device_id: DeviceId,
+            *,
+            kind: str,
+            payload: Mapping[str, object],
+            run_id: str | None = None,
+            deadline_s: float | None = None,
+        ) -> Reply:
+            self.reached.set()
+            await asyncio.Event().wait()
+            raise AssertionError("never reached")
+
+    channel = _Hangs()
+    task = asyncio.create_task(_ran(uow, workflow, channel=channel, asker=FakeAsker(), live=False))
+    # Bounded, so a loop that never looks fails this test rather than hanging
+    # the suite: a mutation that skipped the look was found exactly this way.
+    async with asyncio.timeout(5):
+        await channel.reached.wait()
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    saved = _only_run(uow)
+    assert saved.outcome == "failed"
+    assert saved.steps[-1].reason == "interrupted before finishing"
+    assert saved.steps[-1].order == 0, "the step it was working on, not a fabricated one"
+
+
+# --------------------------------------------------------------------------
+# The claimed row is the authority for what the run is doing
+# --------------------------------------------------------------------------
+
+
+async def _claimed(uow: FakeUnitOfWork, **fields: object) -> WorkflowRun:
+    """The row `POST /v1/runs` writes before it answers."""
+    run = WorkflowRun(
+        id="run_claimed",
+        tenant=TENANT.value,
+        workflow_id="wfl_1",
+        device_id=DEVICE.value,
+        values={},
+        started_by="form",
+        live=False,
+        allow_focus=True,
+        started_at=STARTED,
+    )
+    for name, value in fields.items():
+        setattr(run, name, value)
+    await uow.workflow_runs.save(run)
+    return run
+
+
+@pytest.mark.parametrize(
+    ("field", "value"), [("device_id", "dev_other"), ("workflow_id", "wfl_other")]
+)
+async def test_a_claimed_run_that_disagrees_with_its_arguments_is_refused(
+    field: str, value: str
+) -> None:
+    """The saved row is the authority for what a run is doing, so the two ways
+    into this function must agree. Driving the row's browser instead of the
+    caller's would put a hand on a window nobody asked about; driving the row's
+    workflow would perform a different job under this one's id. Neither is a
+    thing to guess between, and neither marks the row failed -- it belongs to
+    whoever saved it."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    await _claimed(uow, **{field: value})
+    channel = FakeChannel(_looks(4))
+
+    with pytest.raises(ValueError, match="run_claimed"):
+        await _ran(
+            uow,
+            workflow,
+            channel=channel,
+            asker=FakeAsker(),
+            values={},
+            run_id="run_claimed",
+        )
+
+    assert channel.sent == [], "refused before anything reached a browser"
+    still = await uow.workflow_runs.get(TENANT, "run_claimed")
+    assert still is not None and still.outcome == "running" and still.finished_at is None
+    assert getattr(still, field) == value, "the row is left exactly as its owner saved it"
+
+
+async def test_the_claimed_row_says_what_the_run_is_doing_and_the_arguments_do_not() -> None:
+    """New, and the rule the rig wrote down in a comment: the row `POST /v1/runs`
+    saved is read back rather than rebuilt here, so there is one answer to "what
+    is this run doing" and not two that can drift. Every argument the row
+    carries is given the opposite value at the call, and the row's wins."""
+    uow = await _fixture()
+    workflow = await _one_step(uow, _ids(uow)[0], says="type the code")
+    await _claimed(
+        uow,
+        workflow_id="wfl_one",
+        live=True,
+        allow_focus=False,
+        values={"clientCode": "CLAIMED"},
+        started_by="offer",
+    )
+    channel = FakeChannel({**_looks(2), "ui.perform": [_performed()]})
+    asker = _PerSchemaAsker(plan=_plan("type", None), verdict=Answer(data={"held": True}))
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        values={"clientCode": "ARGUMENT"},
+        live=False,
+        allow_focus=True,
+        started_by="form",
+        run_id="run_claimed",
+    )
+
+    assert (run.live, run.allow_focus, run.started_by) == (True, False, "offer")
+    assert run.values == {"clientCode": "CLAIMED"} and run.started_at == STARTED
+    performed = next(s for s in channel.sent if s["kind"] == "ui.perform")
+    assert _payload(performed)["value"] == "CLAIMED", "the row's values are what it types"
+    assert "allow_focus" not in _payload(performed), "and the row's answer on focus"
+    shot = next(s for s in channel.sent if s["kind"] == "screenshot")
+    assert "allow_focus" not in _payload(shot)
+
+
+async def test_a_run_nobody_claimed_gets_an_id_and_a_row_before_its_first_command() -> None:
+    """New. The row exists before anything is sent, which is what makes a
+    second press for the same browser a 409 rather than two hands on one
+    window -- and a run that dies on its first look still leaves a record."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+
+    run = await _ran(uow, workflow, channel=_Gone(), asker=FakeAsker(), values={})
+
+    assert run.id.startswith("run_") and len(run.id) == 36
+    stored = await uow.workflow_runs.get(TENANT, run.id)
+    assert stored is not None and stored.tenant == TENANT.value
+    assert stored.workflow_id == workflow.id and stored.device_id == DEVICE.value
+
+
+# --------------------------------------------------------------------------
+# What a run's writes buy the job, and what one bad write costs it
+# --------------------------------------------------------------------------
+
+
+class _GoesAwayAfterTheWrite(FakeChannel):
+    """A browser that answers the write and is gone before anyone can look."""
+
+    async def send(
+        self,
+        tenant_id: TenantId,
+        device_id: DeviceId,
+        *,
+        kind: str,
+        payload: Mapping[str, object],
+        run_id: str | None = None,
+        deadline_s: float | None = None,
+    ) -> Reply:
+        if any(s["kind"] == "http.send" for s in self.sent):
+            raise DeviceUnreachable(f"{device_id} stopped listening")
+        return await super().send(
+            tenant_id, device_id, kind=kind, payload=payload, run_id=run_id, deadline_s=deadline_s
+        )
+
+
+async def test_a_held_write_verified_by_state_is_recorded_as_an_effect() -> None:
+    uow = await _fixture()
+    workflow = await _one_step(uow, _ids(uow)[-1])
+    await _claimed(uow, workflow_id="wfl_one", live=True, started_by="offer")
+    channel = FakeChannel(
+        {
+            **_looks(4),
+            # 200 is what the capture's POST returned, and `expected_statuses`
+            # is what "held by status" is measured against.
+            "http.send": [Reply(ok=True, result={"status": 200, "body": "{}", "headers": {}})],
+        }
+    )
+    asker = _PerSchemaAsker(plan=_replay(), verdict=Answer(data={"held": True, "why": "ok"}))
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        values={"clientCode": "THIRD"},
+        run_id="run_claimed",
+    )
+
+    assert run.outcome == "held"
+    assert run.steps[-1].result is not None and run.steps[-1].result.get("wrote") is True
+    assert list(_effects(uow)) == [(workflow.id, run.id, 0)], "against the job, under this run"
+    verified_by, at = _effects(uow)[(workflow.id, run.id, 0)]
+    assert verified_by == "status", "and by the belt that saw the state, not by a picture"
+    assert at.endswith("+00:00"), "in UTC"
+    assert at > run.started_at, "stamped when the write held, not when the run began"
+
+
+async def test_a_failed_write_forgets_the_effects_the_workflow_had_earned() -> None:
+    uow = await _fixture()
+    workflow = await _one_step(uow, _ids(uow)[-1])
+    await uow.workflows.record_effect(
+        workflow.id, run_id="run_old", ord_=0, verified_by="status", at=STARTED
+    )
+    channel = FakeChannel(
+        {
+            **_looks(4),
+            "http.send": [Reply(ok=True, result={"status": 500, "body": "", "headers": {}})],
+        }
+    )
+    asker = _PerSchemaAsker(plan=_replay(), verdict=Answer(data={"held": True, "why": "ok"}))
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        values={"clientCode": "THIRD"},
+        started_by="offer",
+    )
+
+    assert run.steps[0].verdict == "failed" and run.steps[0].verdict_by == "status"
+    assert _effects(uow) == {}, "the whole workflow's register, not this run's rows"
+
+
+async def test_a_browser_that_goes_away_after_the_write_forgets_the_effects() -> None:
+    """The step body never runs again after the browser goes: the write went
+    out, nobody could show it held, and the job kept its autonomy.
+
+    This is the one case that tells the `finally` apart from an ordinary
+    refused write -- task 4 could not tell them apart at its own layer, and
+    this is where they part.
+    """
+    uow = await _fixture()
+    workflow = await _one_step(uow, _ids(uow)[-1])
+    await uow.workflows.record_effect(
+        workflow.id, run_id="run_old", ord_=0, verified_by="status", at=STARTED
+    )
+    channel = _GoesAwayAfterTheWrite(
+        {**_looks(2), "http.send": [Reply(ok=True, result={"status": 200, "body": "{}"})]}
+    )
+    asker = _PerSchemaAsker(plan=_replay(), verdict=Answer(data={"held": True, "why": "ok"}))
+
+    run = await _ran(uow, workflow, channel=channel, asker=asker, values={}, started_by="offer")
+
+    assert run.outcome == "failed" and run.steps[0].result is not None
+    assert run.steps[0].result.get("wrote") is True, "the write went out"
+    assert run.steps[0].verdict == "failed", "and nothing ever saw whether it held"
+    assert _effects(uow) == {}
+
+
+async def test_a_write_that_ends_unclear_forgets_the_effects() -> None:
+    """No status the evidence knows, no read to make, no screen to look at:
+    the write went out and nothing can say whether it held."""
+    uow = await _fixture()
+    workflow = await _one_step(uow, _ids(uow)[-1])
+    await uow.workflows.record_effect(
+        workflow.id, run_id="run_old", ord_=0, verified_by="status", at=STARTED
+    )
+    channel = FakeChannel(
+        {
+            "ui.url": [Reply(ok=True, result={"url": "http://127.0.0.1:63319/form"})] * 2,
+            "screenshot": [Reply(ok=False, error_kind="focus_not_permitted")] * 2,
+            # 300: not a refusal, and not a status the capture's POST returned.
+            "http.send": [Reply(ok=True, result={"status": 300, "body": "{}"})],
+        }
+    )
+    asker = _PerSchemaAsker(plan=_replay(), verdict=Answer(data={"held": True, "why": "ok"}))
+
+    # No values, so there is no proposition a confirming read could check.
+    run = await _ran(uow, workflow, channel=channel, asker=asker, values={}, started_by="offer")
+
+    assert [s.verdict for s in run.steps] == ["unclear"]
+    assert _effects(uow) == {}
+
+
+async def test_a_step_that_only_read_neither_earns_nor_un_earns() -> None:
+    """New. `wrote` is the marker the register counts on, and a step whose
+    evidence records no mutation never gets one -- so a read that failed leaves
+    a job's earned autonomy exactly where it found it."""
+    uow = await _fixture()
+    workflow = await _one_step(uow, _ids(uow)[0], says="type the code")
+    await uow.workflows.record_effect(
+        workflow.id, run_id="run_old", ord_=0, verified_by="status", at=STARTED
+    )
+    channel = FakeChannel({**_looks(4), "ui.perform": [_performed()]})
+    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": False}))
+
+    run = await _ran(uow, workflow, channel=channel, asker=asker)
+
+    assert run.steps[0].verdict == "failed" and "wrote" not in (run.steps[0].result or {})
+    assert set(_effects(uow)) == {(workflow.id, "run_old", 0)}, "the register is untouched"
+
+
+# --------------------------------------------------------------------------
+# The sweep the process runs at startup
+# --------------------------------------------------------------------------
+
+
+async def test_a_run_still_running_when_the_process_starts_is_marked_failed() -> None:
+    uow = await _fixture()
+    await _claimed(uow)
+    await _claimed(uow, id="run_other", tenant="someone-else")
+    before = uow.commits
+
+    assert await fail_orphans(uow, "the worker restarted") == 2
+    assert uow.commits == before + 1, "swept and committed, or the sweep did nothing"
+
+    swept = await uow.workflow_runs.get(TENANT, "run_claimed")
+    assert swept is not None and swept.outcome == "failed"
+    assert swept.steps[-1].reason == "the worker restarted"
+
+
+async def test_a_startup_with_nothing_to_sweep_writes_nothing() -> None:
+    uow = await _fixture()
+    await _claimed(uow, outcome="held", finished_at=STARTED)
+    before = uow.commits
+
+    assert await fail_orphans(uow, "the worker restarted") == 0
+    assert uow.commits == before, "an empty sweep is not a transaction"
+
+
+# --------------------------------------------------------------------------
+# What reaches the planner, the verifier and the browser
+#
+# Every test below is new, and every one came from mutating an argument at the
+# call site rather than the rule it feeds. The rig's own suite is green under
+# all of them: a loop that plans from an empty screen, verifies with the two
+# pages the wrong way round, asks a model nobody chose, drops the origin off
+# the look, or sends every command on a tenant of its own passes 51 ported
+# tests without one of them noticing.
+# --------------------------------------------------------------------------
+
+
+def _seen(asker: FakeAsker, which: int) -> dict[str, object]:
+    return asker.asked[which]
+
+
+def _prompt(asker: FakeAsker, which: int) -> dict[str, object]:
+    evidence = _seen(asker, which)["evidence"]
+    assert isinstance(evidence, str)
+    parsed = json.loads(evidence)
+    assert isinstance(parsed, dict)
+    return parsed
+
+
+def _two_screens() -> dict[str, list[Reply]]:
+    """A browser that is somewhere different, and shows something different,
+    after the command than before it."""
+    return {
+        "ui.url": [
+            Reply(ok=True, result={"url": "http://127.0.0.1:63319/before"}),
+            Reply(ok=True, result={"url": "http://127.0.0.1:63319/after"}),
+        ],
+        "screenshot": [
+            Reply(ok=True, result={"image_base64": "aVBORw0=", "text_digest": "BEFORE-SCREEN"}),
+            Reply(ok=True, result={"image_base64": "cGljMg==", "text_digest": "AFTER-SCREEN"}),
+        ],
+    }
+
+
+async def test_a_step_is_planned_from_the_page_the_browser_is_on_and_verified_against_two() -> None:
+    """The look before the command is what the planner is shown; the look after
+    is what the verifier compares it with, and which is which is the whole
+    question a screen belt answers. Both readings are asked of the model the
+    caller named."""
+    uow = await _fixture()
+    workflow = await _one_step(uow, _ids(uow)[0], says="type the code")
+    channel = FakeChannel({**_two_screens(), "ui.perform": [_performed()]})
+    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True, "why": ""}))
+
+    run = await _ran(uow, workflow, channel=channel, asker=asker, plan_model="pro")
+
+    planned, judged = _prompt(asker, 0), _prompt(asker, 1)
+    assert planned["browser"] == {
+        "url": "http://127.0.0.1:63319/before",
+        "screen_text": "BEFORE-SCREEN",
+    }, "the planner is shown where the browser is now"
+    assert _seen(asker, 0)["image"] == base64.b64decode("aVBORw0="), (
+        "and the picture that came with it"
+    )
+    assert (judged["screen_before"], judged["screen_after"]) == ("BEFORE-SCREEN", "AFTER-SCREEN")
+    assert [a["model"] for a in asker.asked] == ["pro", "pro"], "the model the caller named"
+    assert (run.steps[0].before_url, run.steps[0].after_url) == (
+        "http://127.0.0.1:63319/before",
+        "http://127.0.0.1:63319/after",
+    ), "and the record says both"
+
+
+async def test_the_planned_command_carries_the_origin_and_the_page_the_run_starts_on() -> None:
+    """The origin is this step's own, off its own evidence -- a job spanning two
+    systems types into the window it was demonstrated in and not the one that
+    happens to be focused. `starts_on` is where the extension opens a tab when
+    the operator's own is elsewhere."""
+    uow = await _fixture()
+    workflow = await _one_step(uow, _ids(uow)[0], says="type the code")
+    channel = FakeChannel({**_looks(2), "ui.perform": [_performed()]})
+    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True}))
+
+    await _ran(uow, workflow, channel=channel, asker=asker)
+
+    performed = _payload(next(s for s in channel.sent if s["kind"] == "ui.perform"))
+    assert performed["origin"] == "http://127.0.0.1:63319"
+    assert performed["starts_on"] == "http://127.0.0.1:63319/"
+
+
+async def test_the_look_is_taken_on_the_system_the_step_was_demonstrated_on() -> None:
+    """Both halves of the look carry the step's origin: the extension picks the
+    tab from it, and a look with no origin is a look at whichever window the
+    operator happens to have in front of them."""
+    uow = await _fixture()
+    workflow = await _one_step(uow, _ids(uow)[0], says="type the code")
+    channel = FakeChannel({**_looks(2), "ui.perform": [_performed()]})
+    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True}))
+
+    await _ran(uow, workflow, channel=channel, asker=asker)
+
+    looked = [s for s in channel.sent if s["kind"] in ("ui.url", "screenshot")]
+    assert [s["kind"] for s in looked] == ["ui.url", "screenshot", "ui.url", "screenshot"], (
+        "one look before the command and one after it"
+    )
+    assert {_payload(s).get("origin") for s in looked} == {"http://127.0.0.1:63319"}
+
+
+async def test_the_confirming_read_goes_out_to_the_callers_own_browser_under_this_run() -> None:
+    """The second belt sends a read of its own, and it goes out the same way
+    every other command does: this tenant, this browser, this run. It is only
+    sent at all because the step cites evidence that performs one and the run
+    supplied a value it could look for."""
+    uow = await _fixture()
+    workflow = await _one_step(uow, _ids(uow)[-1])
+    channel = FakeChannel(
+        {
+            **_looks(2),
+            "ui.perform": [_performed()],
+            "http.send": [
+                Reply(ok=True, result={"status": 200, "body": '{"clientCode": "ACME-4471"}'})
+            ],
+        }
+    )
+    asker = FakeAsker(_plan("click"))
+
+    run = await _ran(
+        uow, workflow, channel=channel, asker=asker, values={"clientCode": "ACME-4471"}
+    )
+
+    assert (run.steps[0].verdict, run.steps[0].verdict_by) == ("held", "read")
+    probe = next(s for s in channel.sent if s["kind"] == "http.send")
+    assert (probe["tenant_id"], probe["device_id"], probe["run_id"]) == (
+        "acme",
+        "dev_test",
+        run.id,
+    )
+    assert _payload(probe)["url"] == "http://127.0.0.1:63319/api/stream", (
+        "the read the cited evidence shows this page performs"
+    )
+    assert not asker.asked[1:], "no picture was needed: the state itself answered"
+
+
+async def test_every_command_a_run_sends_names_the_caller_the_browser_and_the_run() -> None:
+    """One envelope rule for the whole loop. A leaked device id must not reach a
+    browser that is not the caller's, and a command with no run on it is a
+    command the extension cannot show beside the tab it is driving."""
+    uow = await _fixture()
+    workflow = await _one_step(uow, _ids(uow)[-1])
+    channel = FakeChannel(
+        {
+            **_looks(2),
+            "navigate": [Reply(ok=True, result={"navigated": True})],
+            "ui.perform": [_performed()],
+            "http.send": [Reply(ok=True, result={"status": 200, "body": "{}"})],
+        }
+    )
+    asker = FakeAsker(_navigate(), _plan("click"))
+
+    run = await _ran(
+        uow, workflow, channel=channel, asker=asker, values={"clientCode": "ACME-4471"}
+    )
+
+    assert {s["kind"] for s in channel.sent} >= {"ui.url", "screenshot", "navigate", "ui.perform"}
+    assert {(s["tenant_id"], s["device_id"], s["run_id"]) for s in channel.sent} == {
+        ("acme", "dev_test", run.id)
+    }
+
+
+async def test_the_steps_are_performed_in_the_order_the_workflow_gave_them() -> None:
+    """New. `order` is the job's order and the list is whatever the store handed
+    back; a loop that trusted the list would type the client code into a form it
+    had not opened yet."""
+    uow = await _fixture()
+    ids = _ids(uow)
+    workflow = Workflow(
+        id="wfl_backwards",
+        tenant=ELSEWHERE,
+        title="out of order",
+        narrative="n",
+        systems=["http://127.0.0.1:63319"],
+        steps=[
+            Step(order=1, says="second", system=None, cites=[ids[-1]]),
+            Step(order=0, says="first", system=None, cites=[ids[0]]),
+        ],
+    )
+    await uow.workflows.save(workflow)
+    channel = FakeChannel({**_looks(4), "ui.perform": [_performed(), _performed()]})
+    asker = _PerSchemaAsker(plan=_plan("click"), verdict=Answer(data={"held": True}))
+
+    run = await _ran(uow, workflow, channel=channel, asker=asker, values={})
+
+    assert [(s.order, s.says) for s in run.steps] == [(0, "first"), (1, "second")]
+
+
+class _StopsAfterTheFirstStep(Stops):
+    """A person who presses stop while step zero is being performed."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.seen = 0
+
+    def asked(self, run_id: RunId) -> bool:
+        self.seen += 1
+        return self.seen > 1
+
+
+async def test_a_run_that_died_between_two_steps_leaves_the_finished_one_alone() -> None:
+    """New. The step in flight is cleared once a step is finished, so a run that
+    dies between steps writes a step of its own rather than rewriting the
+    verdict of the one that already held."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = _AbortIsGone({**_looks(2), "ui.perform": [_performed()]})
+    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True}))
+
+    run = await _ran(uow, workflow, channel=channel, asker=asker, stops=_StopsAfterTheFirstStep())
+
+    assert run.outcome == "failed"
+    assert [(s.order, s.verdict) for s in run.steps] == [(0, "held"), (1, "failed")]
+    assert "stopped listening" in run.steps[1].reason

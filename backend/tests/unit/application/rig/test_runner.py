@@ -49,7 +49,6 @@ from sro.application.ports.agent import DeviceUnreachable
 from sro.application.ports.channel import Reply
 from sro.domain.execution.belts import K_EARNED_RUNS, SCREEN_SCHEMA
 from sro.domain.execution.planning import PLAN_SCHEMA, Look, Planned
-from sro.domain.execution.run import RunId
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
 from sro.domain.observation.gesture import Call, Gesture
 from sro.domain.shared.identifiers import DeviceId, TenantId
@@ -950,7 +949,7 @@ async def test_the_stop_button_is_honoured_between_steps() -> None:
     )
     asker = FakeAsker(_plan("type", "x"), Answer(data={"held": True, "why": ""}))
     stops = Stops()
-    stops.ask(RunId("run_stop"))
+    stops.ask("run_stop")
 
     run = await _ran(uow, workflow, channel=channel, asker=asker, stops=stops, run_id="run_stop")
 
@@ -966,7 +965,7 @@ async def test_a_run_stopped_by_the_flag_is_forgotten_by_the_register_when_it_en
     workflow = await _workflow(uow)
     channel = FakeChannel({**_looks(2), "abort": [Reply(ok=True, result={"aborted": True})]})
     stops = Stops()
-    stops.ask(RunId("run_forget_me"))
+    stops.ask("run_forget_me")
 
     run = await _ran(
         uow,
@@ -978,7 +977,7 @@ async def test_a_run_stopped_by_the_flag_is_forgotten_by_the_register_when_it_en
     )
 
     assert run.outcome == "aborted"
-    assert not stops.asked(RunId("run_forget_me")), "the finally forgets the flag"
+    assert not stops.asked("run_forget_me"), "the finally forgets the flag"
 
 
 async def test_the_step_budget_is_the_workflows_steps_plus_slack() -> None:
@@ -1850,7 +1849,7 @@ class _StopsAfterTheFirstStep(Stops):
         super().__init__()
         self.seen = 0
 
-    def asked(self, run_id: RunId) -> bool:
+    def asked(self, run_id: str) -> bool:
         self.seen += 1
         return self.seen > 1
 
@@ -2611,7 +2610,7 @@ async def test_a_stop_pressed_during_the_wait_aborts_the_run() -> None:
     )
     run_id = await _parked(approvals)
 
-    stops.ask(RunId(run_id))
+    stops.ask(run_id)
     approvals.approve(run_id)
     run = await task
 

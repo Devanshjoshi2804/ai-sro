@@ -1513,7 +1513,7 @@ class ExecuteSkill:
             # was in flight would report a write as not having happened when it
             # had. The cost is that stopping takes until the current step's
             # deadline, which the console says rather than hides.
-            if self._stops.asked(run.id):
+            if self._stops.asked(run.id.value):
                 stopped = "a person stopped this run"
                 break
             async with self._uow as uow:
@@ -1526,7 +1526,7 @@ class ExecuteSkill:
             return await self._finish.execute(ctx, run_id=run.id, stopped=stopped)
         finally:
             # A run id is never reused, so nothing else would ever clear this.
-            self._stops.forget(run.id)
+            self._stops.forget(run.id.value)
 
 
 def _origin_of(

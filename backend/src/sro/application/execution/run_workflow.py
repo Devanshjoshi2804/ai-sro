@@ -50,7 +50,6 @@ from sro.domain.execution.evidence import (
     writes,
 )
 from sro.domain.execution.planning import Look, Planned
-from sro.domain.execution.run import RunId
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun, new_run_id
 from sro.domain.observation.gesture import Gesture
 from sro.domain.shared.hosts import system_of
@@ -338,15 +337,6 @@ async def run_workflow(
     if first is not None:
         starts_on = first.page_url or first.url
 
-    # `Stops` is keyed by a `RunId`, which names the backend's OWN run
-    # aggregate; this is a workflow run's id, a second id space of the same
-    # shape. The register is shared on purpose -- a person stopping a run is one
-    # register, and there is no second stop button to build -- but the identity
-    # the constructor asserts is not one that holds, so it is asserted once,
-    # here, and this line is the only thing to delete the day `Stops` takes the
-    # `str` that `Approvals` now does.
-    stopped = RunId(run.id)
-
     # The step being worked on, so a browser that goes away mid-step fails THAT
     # step -- with the tokens its plan already cost, and its own order -- rather
     # than a fabricated one whose order can collide on (run_id, ord).
@@ -369,7 +359,7 @@ async def run_workflow(
                 )
                 await _save(uow, run)
                 continue
-            if stops.asked(stopped):
+            if stops.asked(run.id):
                 await channel.send(
                     tenant_id, device_id, kind="abort", run_id=run.id, payload={"run_id": run.id}
                 )
@@ -574,7 +564,7 @@ async def run_workflow(
                     # A released wait is not a yes. The stop button releases it
                     # as well as setting the flag, so a person who pressed Stop
                     # rather than Approve gets an aborted run and not a write.
-                    if stops.asked(stopped):
+                    if stops.asked(run.id):
                         record.verdict, record.verdict_by = "failed", "none"
                         record.reason = "stopped while waiting for approval"
                         run.outcome = "aborted"
@@ -704,6 +694,6 @@ async def run_workflow(
         await forget_effects(uow.workflows, run)
         run.finished_at = _now()
         await _save(uow, run)
-        stops.forget(stopped)
+        stops.forget(run.id)
         approvals.forget(run.id)
     return run

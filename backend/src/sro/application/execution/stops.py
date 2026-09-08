@@ -18,22 +18,29 @@ worst kind of control: one that says the write did not happen when it did.
 
 from __future__ import annotations
 
-from sro.domain.execution.run import RunId
-
 
 class Stops:
-    """Which runs have been asked to stop, and whether one has been."""
+    """Which runs have been asked to stop, and whether one has been.
+
+    Keyed by a plain `str` rather than by `RunId`. Two aggregates press this
+    one button -- the skill run next door and the workflow run the mined-job
+    loop performs -- and their ids are two spaces of the same shape, `run_` and
+    32 hex off a UUID. `Approvals` beside it is keyed the same way for the same
+    reason: two registers in one package with two conventions is how they drift
+    apart, and asserting an identity that does not hold to get through the door
+    is not a check, only a coercion with a comment on it.
+    """
 
     def __init__(self) -> None:
         self._asked: set[str] = set()
 
-    def ask(self, run_id: RunId) -> None:
-        self._asked.add(run_id.value)
+    def ask(self, run_id: str) -> None:
+        self._asked.add(run_id)
 
-    def asked(self, run_id: RunId) -> bool:
-        return run_id.value in self._asked
+    def asked(self, run_id: str) -> bool:
+        return run_id in self._asked
 
-    def forget(self, run_id: RunId) -> None:
+    def forget(self, run_id: str) -> None:
         """Once the run has ended. Without this the set is a slow leak, and a
         run id is never reused so nothing else would ever clear it."""
-        self._asked.discard(run_id.value)
+        self._asked.discard(run_id)

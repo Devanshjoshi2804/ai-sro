@@ -16,19 +16,15 @@ import pytest
 
 from sro.application.execution.approvals import K_APPROVAL_WAIT_S, Approvals
 from sro.application.execution.stops import Stops
-from sro.domain.execution.run import RunId
 from tests.unit.fakes import FakeWorkflowRunRepository
 
 # Plain strings, because a workflow run's id is one: the register is keyed the
-# same way as `WorkflowRunRepository.approve`, and `RunId` belongs to the skill
-# run next door. `Stops` is the exception below -- it is the skill run's.
+# same way as `WorkflowRunRepository.approve`. `Stops` next door is keyed the
+# same way again, so the two tests below can press one id against both -- what
+# is still missing is not a type but a route: nothing today can stop a run
+# parked here.
 RUN = "run_parked"
 OTHER = "run_elsewhere"
-# `Stops` is keyed on the skill run's `RunId`, this register on the workflow
-# run's plain id. That the two are not even the same aggregate is the shape of
-# the missing seam: no route today can stop a run parked here. The two tests
-# below pair them as the loop will once one exists.
-STOPPED, STOPPED_ELSEWHERE = RunId(RUN), RunId(OTHER)
 DEVICE = "dev_1"
 OTHER_DEVICE = "dev_9"
 AT = "2026-09-05T10:02:00+00:00"
@@ -196,32 +192,32 @@ async def test_forgetting_a_run_drops_the_wait_without_releasing_it() -> None:
 async def test_a_stop_releases_the_wait_but_is_not_an_authorisation() -> None:
     """What an abort route WILL do, once one exists for these runs: the flag
     first, then the release, so a run parked on a write wakes now instead of in
-    five minutes. Nobody does it yet -- `StopRun` reaches skill runs only, and
-    the loop's half is Task 6's -- so this test performs both calls itself and
-    proves only the property the pair must have: a released wait alone cannot
-    tell a stop from a yes, and the answer is in the other register.
+    five minutes. No route does it yet -- `StopRun` reaches skill runs only -- so
+    this test performs both calls itself and proves only the property the pair
+    must have: a released wait alone cannot tell a stop from a yes, and the
+    answer is in the other register.
 
     Which means it cannot fail if the routes never appear. It is the shape the
     seam has to take, written down where the loop's author will read it."""
     approvals, stops = Approvals(), Stops()
     parked = await _parked(approvals, RUN, timeout=K_APPROVAL_WAIT_S)
 
-    stops.ask(STOPPED)
+    stops.ask(RUN)
     approvals.approve(RUN)
 
     assert await asyncio.wait_for(parked, JOIN_S) is True
-    assert stops.asked(STOPPED), "a released wait alone cannot tell a stop from a yes"
+    assert stops.asked(RUN), "a released wait alone cannot tell a stop from a yes"
 
 
 async def test_stopping_one_run_says_nothing_about_the_other() -> None:
     """Neither register is global. Same caveat as above: the calls here are
     the ones a stop route would make, not ones any route makes today."""
     approvals, stops = Approvals(), Stops()
-    stops.ask(STOPPED_ELSEWHERE)
+    stops.ask(OTHER)
     parked = await _parked(approvals, RUN, timeout=GAVE_UP_S)
 
     assert await asyncio.wait_for(parked, JOIN_S) is False, "a stop elsewhere released this wait"
-    assert not stops.asked(STOPPED)
+    assert not stops.asked(RUN)
 
 
 @pytest.mark.parametrize("ord_", [0, 3])

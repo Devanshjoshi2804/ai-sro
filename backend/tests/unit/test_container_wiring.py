@@ -94,6 +94,10 @@ def test_the_container_builds_the_phase_three_use_cases(
     # promise: every browser on the roster reads `online=False`, and a revoked
     # browser KEEPS ITS COMMAND CHANNEL because `drop` is a silent no-op. Both
     # survived the whole 2193-test suite until this line.
+    # The isinstance is the narrowing that lets the next line be typed, not the
+    # assertion: `AgentDrivers` is a Protocol and has no registry on it.
+    assert isinstance(roster._drivers, RemoteAgents)
+    assert isinstance(revoke._drivers, RemoteAgents)
     assert roster._drivers._sockets is container.agent_sockets
     assert revoke._drivers._sockets is container.agent_sockets
     # Not merely "a clock": the container's own, or a revocation is stamped

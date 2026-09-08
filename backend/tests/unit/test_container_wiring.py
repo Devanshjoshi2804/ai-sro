@@ -22,7 +22,7 @@ from typing import Any
 import pytest
 
 from sro.application.analytics.audit import ReadAudit
-from sro.application.capture.devices import ReadRoster, RevokeDevice
+from sro.application.capture.devices import ReadRoster, RestoreDevice, RevokeDevice
 from sro.container import Container
 from sro.domain.shared.identifiers import DeviceId, TenantId
 from sro.infrastructure.agent.drivers import RemoteAgents
@@ -92,6 +92,14 @@ def test_the_container_builds_the_phase_three_use_cases(
     # Not merely "a clock": the container's own, or a revocation is stamped
     # with an instant no test can move.
     assert revoke._clock is container.clock
+
+    # The un-revoke, which is built from the unit of work alone. A container
+    # that handed it `self.agents()` too would be the first step towards a
+    # restore that dialled a laptop nobody is sitting at.
+    restore = container.restore_device()
+    assert isinstance(restore, RestoreDevice)
+    assert restore._uow is uow
+    assert not hasattr(restore, "_drivers")
 
 
 async def test_shapes_is_asked_with_the_asking_browser_and_the_containers_clock(

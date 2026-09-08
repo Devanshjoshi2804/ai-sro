@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from sro.application.analytics.audit import ReadAudit
 from sro.application.analytics.summary import ReadSummary
-from sro.application.capture.devices import ReadRoster, RevokeDevice
+from sro.application.capture.devices import ReadRoster, RestoreDevice, RevokeDevice
 from sro.application.chat.converse import Converse, StartThread
 from sro.application.chat.read_threads import ReadThreads
 from sro.application.connection.browsers import Browsers
@@ -285,6 +285,12 @@ class Container:
 
     def revoke_device(self) -> RevokeDevice:
         return RevokeDevice(self.unit_of_work(), self.agents(), self.clock)
+
+    def restore_device(self) -> RestoreDevice:
+        # No drivers, where `revoke_device` above has them: letting a browser
+        # back in opens no socket, and a use case with no `AgentDrivers` cannot
+        # grow one by accident.
+        return RestoreDevice(self.unit_of_work())
 
     def read_audit(self) -> ReadAudit:
         return ReadAudit(self.unit_of_work())

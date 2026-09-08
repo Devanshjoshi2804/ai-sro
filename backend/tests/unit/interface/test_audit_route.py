@@ -238,6 +238,11 @@ async def test_the_browsers_come_back_newest_first(client: httpx.AsyncClient, da
     body = (await _since(client, DAWN)).json()
 
     assert [device["device_id"] for device in body["devices"]] == [DESKTOP.value, LAPTOP.value]
+    # And no `online`, which is the one field the roster next door carries and
+    # this list must not: a socket held right now is a fact about this second,
+    # not about the window that was asked for, and an audit read a week later
+    # would report it as though it had been true then.
+    assert "online" not in body["devices"][0]
 
 
 async def test_a_tenant_with_a_quiet_morning_gets_four_empty_lists(
@@ -294,6 +299,21 @@ async def test_a_step_nobody_planned_a_command_for_says_so(
     assert step["sent"] is None
 
 
+async def test_a_run_nobody_could_price_says_so_beside_its_zero(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork
+) -> None:
+    """`cost_usd: 0.0` and `unpriced: true` is a run that did not cost nothing
+    -- it is one nobody could put a number on. A model that carried the cost
+    and dropped the flag would put that run on the spend line as free."""
+    run = _run("run_1", at=EARLY.isoformat())
+    run.cost_usd, run.unpriced = 0.0, True
+    await uow.workflow_runs.save(run)
+
+    (row,) = (await _since(client, DAWN)).json()["runs"]
+
+    assert (row["cost_usd"], row["unpriced"]) == (0.0, True)
+
+
 async def test_an_approval_lands_on_the_step_a_person_actually_approved(
     client: httpx.AsyncClient, uow: FakeUnitOfWork
 ) -> None:
@@ -317,6 +337,11 @@ async def test_an_approval_lands_on_the_step_a_person_actually_approved(
 
     assert [step["approved_at"] for step in steps] == [None, LATE.isoformat()]
     assert [step["approved_by"] for step in steps] == [None, LAPTOP.value]
+    # `order`, not the rig's `ord`, which was its column name: the field is
+    # `RunStep.order` here, and it is the key the fold above is done on -- a
+    # wire name that disagreed with the domain is how an approval ends up
+    # against the wrong step.
+    assert [step["order"] for step in steps] == [0, 1]
 
 
 async def test_one_runs_approval_is_not_shown_against_another_runs_step(

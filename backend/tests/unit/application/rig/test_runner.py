@@ -1704,3 +1704,27 @@ async def test_a_run_that_died_between_two_steps_leaves_the_finished_one_alone()
     assert run.outcome == "failed"
     assert [(s.order, s.verdict) for s in run.steps] == [(0, "held"), (1, "failed")]
     assert "stopped listening" in run.steps[1].reason
+
+
+async def test_a_stale_step_is_recorded_once_per_step_not_once_per_run() -> None:
+    """A job run every morning reports its weak step once rather than every
+    morning: one row per step, replaced.
+
+    The rig asserted this against the store directly. It is asserted through
+    the loop here because the loop is what does it twice -- two runs of the same
+    job, the same step weak in both -- and the row a re-mine cannot race is only
+    one row if the caller keys it the way the repository expects.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True}))
+
+    for _ in range(2):
+        channel = FakeChannel(
+            {**_looks(4), "ui.perform": [_performed("component"), _performed("css_path")]}
+        )
+        run = await _ran(uow, workflow, channel=channel, asker=asker)
+        assert run.steps[1].stale is True
+
+    assert list(_stale(uow)) == [("wfl_1", 1)], "one row, not one per run"
+    assert await uow.workflows.stale_count("wfl_1") == 1

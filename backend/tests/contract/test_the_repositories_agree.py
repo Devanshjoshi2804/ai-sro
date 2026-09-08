@@ -810,6 +810,27 @@ class TestGestures:
                 await work.gestures.add_gestures((_gesture("ges_1"),))
                 await work.commit()
 
+    async def test_no_ids_asked_for_is_nothing_and_never_everything(
+        self, store: UnitOfWork
+    ) -> None:
+        """`ids=()` is "these none"; `ids=None` is "all of them".
+
+        Both readers of this guard the call -- `shapes_for` and `ReadEvidence`
+        skip it for a workflow that cites nothing, to keep `IN ()` off
+        Postgres -- and their comments say the guard is an optimisation and
+        not a null check. That sentence is only true if the two arguments are
+        told apart down here. A repository reading empty as absent serves a
+        cite-less workflow the tenant's entire store, and it reads as a very
+        well-evidenced job.
+        """
+        async with store as work:
+            await work.gestures.add_gestures((_gesture("ges_1"), _gesture("ges_2")))
+            await work.commit()
+
+        async with store as work:
+            assert await work.gestures.gestures_for(TENANT, ids=()) == ()
+            assert len(await work.gestures.gestures_for(TENANT, ids=None)) == 2
+
     async def test_gestures_and_unread_are_oldest_first_and_a_reading_is_never_reoffered(
         self, store: UnitOfWork
     ) -> None:

@@ -694,6 +694,7 @@ async def _ran(
     plan_model: str = "flash",
     rescue_model: str = "pro",
     earned: bool = False,
+    from_step: int = 0,
 ) -> WorkflowRun:
     """One run, with the arguments no test varies spelled once.
 
@@ -722,6 +723,7 @@ async def _ran(
             stops=stops or Stops(),
             approvals=approvals or Approvals(),
             run_id=run_id,
+            from_step=from_step,
         ),
         timeout=5,
     )
@@ -2597,3 +2599,149 @@ async def test_a_click_by_sight_is_a_write_until_a_person_says_otherwise(
         "kind": "ui.perform_at",
         "payload": {"origin": "http://127.0.0.1:63319", "x": 40, "y": 30, "action": "click"},
     }, "what would have gone out was shown"
+
+
+# --------------------------------------------------------------------------
+# A job the operator started themselves, and the rig asked to finish
+# --------------------------------------------------------------------------
+
+
+def _demonstrated_on(uow: FakeUnitOfWork, gesture_id: str, page_url: str) -> None:
+    """Move one gesture to a page of its own.
+
+    Every gesture in the measured batch was recorded on
+    `http://127.0.0.1:63319/`, so until one of them is somewhere else,
+    `starts_on` reads the same url whichever step it is taken from -- and
+    which step it is taken from is the whole of what `starts_on` says. Task
+    6's review found this seam unpinned; it is pinned here because `from_step`
+    is what moves it.
+    """
+    assert isinstance(uow.gestures, FakeGestureRepository)
+    uow.gestures.rows[gesture_id] = replace(uow.gestures.rows[gesture_id], page_url=page_url)
+
+
+K_SECOND_SCREEN = "http://127.0.0.1:63319/client/new"
+"""Where the save was demonstrated, once the fixture says the job spans two
+screens. Not the page step zero was recorded on."""
+
+
+async def test_a_run_started_mid_job_records_the_operators_steps_and_performs_the_rest() -> None:
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel({**_looks(2), "ui.perform": [_performed()]})
+    asker = _PerSchemaAsker(
+        plan=_plan("click"), verdict=Answer(data={"held": True, "why": "saved"})
+    )
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        values={"clientCode": "THIRD"},
+        started_by="offer",
+        earned=True,
+        from_step=1,
+    )
+
+    assert [s.verdict for s in run.steps] == ["done_by_operator", "held"]
+    assert run.steps[0].verdict_by == "none" and workflow.steps[0].cites[0] in run.steps[0].reason
+    assert run.steps[0].sent is None and run.steps[0].in_tokens == 0, "nothing asked, nothing sent"
+    assert [s["kind"] for s in channel.sent].count("ui.perform") == 1
+    assert run.outcome == "held"
+
+
+async def test_a_run_started_mid_job_starts_on_the_page_of_the_step_it_starts_at() -> None:
+    """`starts_on` is what the extension opens a tab at when the operator's own
+    tab is elsewhere. Aimed at step 0 for a run that starts at step 1, it would
+    abandon the very progress the offer was made on."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    _demonstrated_on(uow, workflow.steps[1].cites[0], K_SECOND_SCREEN)
+    channel = FakeChannel({**_looks(2), "ui.perform": [_performed()]})
+    asker = _PerSchemaAsker(
+        plan=_plan("click"), verdict=Answer(data={"held": True, "why": "saved"})
+    )
+
+    await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        values={"clientCode": "THIRD"},
+        started_by="offer",
+        earned=True,
+        from_step=1,
+    )
+
+    [performed] = [s for s in channel.sent if s["kind"] == "ui.perform"]
+    assert _payload(performed)["starts_on"] == K_SECOND_SCREEN
+
+
+async def test_a_run_that_starts_at_the_top_starts_on_the_first_steps_page() -> None:
+    """New, and the other half of the same seam: on the same two-screen
+    fixture, a run that starts where the job does opens at step zero's page and
+    not at the second screen's."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    _demonstrated_on(uow, workflow.steps[1].cites[0], K_SECOND_SCREEN)
+    channel = FakeChannel({**_looks(4), "ui.perform": [_performed(), _performed()]})
+    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True, "why": ""}))
+
+    await _ran(uow, workflow, channel=channel, asker=asker, earned=True)
+
+    starts = [_payload(s).get("starts_on") for s in channel.sent if s["kind"] == "ui.perform"]
+    assert starts == ["http://127.0.0.1:63319/"] * 2, "both steps are aimed at where the run began"
+
+
+async def test_the_steps_the_operator_did_buy_no_budget() -> None:
+    """A run that starts at step k attempts fewer steps, so it gets fewer
+    attempts. The slack is for the job that is left."""
+    uow = await _fixture()
+    workflow = await _repeated(uow, 5)
+    budget = len(workflow.steps) - 1 + K_STEP_SLACK
+    channel = FakeChannel(
+        {
+            **_looks(budget * 2),
+            "navigate": [Reply(ok=True, result={"navigated": True})] * len(workflow.steps),
+            "ui.perform": [_performed()] * len(workflow.steps),
+        }
+    )
+    # Three of the four steps left take a navigate and a command each, which is
+    # six of the seven; the fourth's navigate spends the last.
+    asker = FakeAsker(
+        *[
+            answer
+            for _ in range(3)
+            for answer in (_navigate(), _plan("type", "x"), Answer(data={"held": True, "why": ""}))
+        ],
+        _navigate(),
+    )
+
+    run = await _ran(uow, workflow, channel=channel, asker=asker, started_by="offer", from_step=1)
+
+    assert run.outcome == "refused"
+    last = run.steps[-1]
+    assert last.order == 4 and last.verdict == "refused"
+    assert str(budget) in last.reason, "the operator's step is not slack for the rig"
+    assert len([a for a in asker.asked if a["schema"] is PLAN_SCHEMA]) == budget
+
+
+async def test_a_run_started_past_its_last_step_performs_nothing_and_holds() -> None:
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel(_looks(2))
+    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True, "why": ""}))
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        values={"clientCode": "THIRD"},
+        live=False,
+        from_step=len(workflow.steps),
+    )
+
+    assert [s.verdict for s in run.steps] == ["done_by_operator", "done_by_operator"]
+    assert run.outcome == "held" and channel.sent == [] and asker.asked == []

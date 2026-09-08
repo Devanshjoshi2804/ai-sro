@@ -273,6 +273,7 @@ async def run_workflow(
     stops: Stops,
     approvals: Approvals,
     run_id: str | None = None,
+    from_step: int = 0,
 ) -> WorkflowRun:
     # A run the caller already claimed. `POST /v1/runs` writes the `running` row
     # itself, before it answers, so a second press for the same browser is
@@ -311,12 +312,17 @@ async def run_workflow(
     by_id = await _gestures_for(uow, tenant_id, workflow)
     allowed = allowlist(workflow, by_id)
     ordered = sorted(workflow.steps, key=lambda s: s.order)
-    budget = len(ordered) + K_STEP_SLACK
+    # The steps the operator already did cost nothing and are not attempted, so
+    # they buy no slack either: the budget is what is left to perform.
+    already_done = [step for step in ordered if step.order < from_step]
+    budget = len(ordered) - len(already_done) + K_STEP_SLACK
     attempts = 0
     starts_on = None
-    # The page this run begins on. The extension opens a tab there when the
-    # operator's own tab is elsewhere.
-    first = primary_gesture(ordered[0], by_id) if ordered else None
+    # The page this run begins on, which is the page of the step it begins at
+    # -- not the job's first page. The extension opens a tab at `starts_on`
+    # when the operator's own tab is elsewhere, and aiming a run that starts at
+    # step k there would abandon the progress the offer was made on.
+    first = primary_gesture(ordered[from_step], by_id) if from_step < len(ordered) else None
     if first is not None:
         starts_on = first.page_url or first.url
 
@@ -335,6 +341,22 @@ async def run_workflow(
     in_flight: RunStep | None = None
     try:
         for step in ordered:
+            if step.order < from_step:
+                # The operator did this one before the offer was made. Recorded
+                # so the run reads whole, cited so a reviewer can see what it
+                # was, and never sent: the job is being finished, not redone.
+                run.steps.append(
+                    RunStep(
+                        order=step.order,
+                        says=step.says,
+                        verdict="done_by_operator",
+                        verdict_by="none",
+                        reason="performed by the operator before the offer; cites "
+                        + ", ".join(step.cites),
+                    )
+                )
+                await _save(uow, run)
+                continue
             if stops.asked(stopped):
                 await channel.send(
                     tenant_id, device_id, kind="abort", run_id=run.id, payload={"run_id": run.id}

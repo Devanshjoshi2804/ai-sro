@@ -2592,6 +2592,8 @@ export interface components {
             };
             /** Recordings */
             recordings: string[];
+            /** Missing */
+            missing: string[];
         };
         /** FinishRecordingRequest */
         FinishRecordingRequest: {

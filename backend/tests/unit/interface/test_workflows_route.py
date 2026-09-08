@@ -687,7 +687,57 @@ async def test_a_job_that_cites_nothing_is_an_answer_and_not_a_failure(
     answered = await _evidence(client, SIBLING)
 
     assert answered.status_code == 200
-    assert answered.json() == {"gestures": {}, "requests": {}, "recordings": []}
+    assert answered.json() == {
+        "gestures": {},
+        "requests": {},
+        "recordings": [],
+        "missing": [],
+    }
+
+
+MOVED = "wfl_moved"
+"""A job whose store moved under it: three of its six citations name gestures
+nobody holds any more."""
+
+GONE = ["gone_z", "gone_a", "gone_m"]
+"""The three, in the order `MOVED` cites them -- which is neither sorted, nor
+that reversed, nor the order they are interleaved into the plant. `missing` is
+read by a bridge that walks steps in order, so the order is the claim."""
+
+
+async def test_a_citation_the_store_no_longer_holds_is_reported(
+    client: httpx.AsyncClient, mined: list[Gesture], uow: FakeUnitOfWork
+) -> None:
+    """The rig served `missing` and this port dropped it.
+
+    `from_rig.plans_for_step` skips a citation with no gesture, so the bridge
+    builds a plan quietly short a step. A caller is entitled to know that
+    before it runs one, and `gestures` alone cannot tell it: a job citing six
+    and served three looks exactly like a job citing three.
+
+    In cited order, and asserted against both sortings of it: a `set` of the
+    ids the store failed to return is the implementation this kills.
+    """
+    await uow.workflows.save(
+        _workflow(MOVED, cites=["ges_3", GONE[0], "ges_1", GONE[1], "ges_5", GONE[2]])
+    )
+
+    body = (await _evidence(client, MOVED)).json()
+
+    assert body["missing"] == GONE
+    assert body["missing"] != sorted(GONE)
+    assert body["missing"] != sorted(GONE, reverse=True)
+    # The three that are held are still served: `missing` reports the hole, it
+    # does not refuse the evidence around it.
+    assert sorted(body["gestures"]) == ["ges_1", "ges_3", "ges_5"]
+
+
+async def test_a_job_whose_evidence_is_whole_reports_no_hole(
+    client: httpx.AsyncClient, mined: list[Gesture]
+) -> None:
+    """`missing` is empty rather than absent, so a caller may read it without
+    asking whether the field is there. `JOB` cites six and holds six."""
+    assert (await _evidence(client)).json()["missing"] == []
 
 
 RIVAL_JOB = "wfl_rivals_own"

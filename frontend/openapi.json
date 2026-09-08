@@ -27592,13 +27592,21 @@
             },
             "type": "array",
             "title": "Recordings"
+          },
+          "missing": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Missing"
           }
         },
         "type": "object",
         "required": [
           "gestures",
           "requests",
-          "recordings"
+          "recordings",
+          "missing"
         ],
         "title": "EvidenceResponse",
         "description": "Everything a workflow cites, in the shape a runner's bridge consumes.\n\nThree maps and not one. `gestures` is the extension's own wire shape --\nwhat `application.skill.from_rig` reads a replayable plan out of -- and a\ngesture on the wire never carried its calls, so folding them in would give\nthe bridge a shape neither side speaks. `requests` is keyed by gesture id\nbeside it, as the rig served it and as the two are stored.\n\n`dict[str, Any]` per gesture and not a model per field, for\n`ShapesResponse`'s reason: the domain's dataclass is the declaration, and a\nsecond copy of its fields here goes stale the first time it gains one."

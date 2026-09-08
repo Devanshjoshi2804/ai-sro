@@ -2029,6 +2029,16 @@ class EvidenceResponse(BaseModel):
     `Provenance` needs it, and getting it wrong there mis-states whether a
     skill's values were ever diffed."""
 
+    missing: list[str]
+    """Cited gesture ids the store no longer holds, in cited order.
+
+    The rig served this and the port dropped it. `from_rig.plans_for_step`
+    skips a citation with no gesture, so a caller building a runnable job out
+    of this body gets one silently missing a step -- and is entitled to know
+    before it runs it. Normally empty: the proposal that became this workflow
+    was refused if it cited evidence that did not exist, so a non-empty
+    `missing` means the store moved after the job was kept."""
+
     @classmethod
     def of(cls, evidence: CitedEvidence) -> EvidenceResponse:
         served: dict[str, dict[str, Any]] = {}
@@ -2041,7 +2051,12 @@ class EvidenceResponse(BaseModel):
             calls[gesture.id] = whole.pop("requests")
             whole.pop("tenant")
             served[gesture.id] = whole
-        return cls(gestures=served, requests=calls, recordings=list(evidence.recordings))
+        return cls(
+            gestures=served,
+            requests=calls,
+            recordings=list(evidence.recordings),
+            missing=list(evidence.missing),
+        )
 
 
 class ObservationBatchRequest(BaseModel):

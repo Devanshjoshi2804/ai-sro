@@ -84,10 +84,18 @@ class CitedEvidence:
     which is the one input the caller would otherwise have to reach into a
     column for: the backend needs it for `Provenance`, and getting it wrong
     there mis-states whether a skill's values were ever diffed.
+
+    `missing` is the cited ids the store no longer holds, in cited order.
+    The rig reported it and this route dropped it, which made the module
+    docstring's "the evidence is complete rather than trimmed" false on the
+    one field that says so: `from_rig.plans_for_step` skips a citation with no
+    gesture, so the bridge builds a plan missing a step and, without this,
+    nothing tells the caller before it runs one.
     """
 
     gestures: tuple[Gesture, ...]
     recordings: tuple[str, ...]
+    missing: tuple[str, ...]
 
 
 class ReadWorkflows:
@@ -149,10 +157,14 @@ class ReadEvidence:
             # Not a null check. `gestures_for` with no ids is `IN ()` against
             # Postgres, and a workflow that cites nothing is a real row.
             gestures = await uow.gestures.gestures_for(ctx.tenant_id, ids=cited) if cited else ()
+            held = {gesture.id for gesture in gestures}
             return CitedEvidence(
                 gestures=gestures,
                 # In the order the gestures were read -- their own clock --
                 # and not sorted: a `Provenance` reads these as the streams a
                 # job's evidence arrived on, oldest first.
                 recordings=tuple(dict.fromkeys(gesture.stream_id for gesture in gestures)),
+                # In cited order -- step order, which `plans_for_step` walks
+                # -- and not the order the store failed to return them in.
+                missing=tuple(gid for gid in cited if gid not in held),
             )

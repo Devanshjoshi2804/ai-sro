@@ -320,3 +320,60 @@ async def _ingest(
         mode=CaptureMode.PASSIVE,
         events=events if events is not None else [GESTURE],
     )
+
+
+async def test_an_upload_lands_in_the_evidence_plane_and_not_only_the_blob_store() -> None:
+    """The link that was never made.
+
+    `correlate` turns a batch into gestures and `add_gestures` stores them, and
+    until this existed neither had a caller anywhere in `src/`: ingest stopped
+    at `observation_batches`, so a browser could upload all day and the miner
+    would read an empty store. Found by running the real thing -- 397 real
+    batches, 4,661 real events, and 0 gestures.
+    """
+    uow, blobs = FakeUnitOfWork(), FakeBlobStore()
+    ctx = RequestContext(tenant_id=f.TENANT, principal_id=f.OPERATOR)
+    await _switch_observation_on(uow, ctx)
+    device_id = await _register(uow, ctx)
+
+    await _ingest(uow, blobs, device_id, ctx=ctx)
+
+    kept = await uow.gestures.gestures_for(f.TENANT, ids=None)
+    assert len(kept) == 1, "the upload was stored and read out of by nobody"
+    assert kept[0].url == "https://wms.acme.com/orders"
+    assert kept[0].batch_id == "bat_one"
+    assert kept[0].tenant == f.TENANT.value
+
+
+async def test_the_batch_the_miner_reads_counts_the_gestures_and_not_the_events() -> None:
+    """Two tables describing one upload, neither derived from the other.
+
+    `observation_batches` counts events admitted; this one counts what was read
+    out of them. A snapshot is admitted and stored and is not a gesture, so the
+    two numbers are allowed to differ -- and a tally that copied the other's
+    would say a batch of pictures was a batch of work.
+    """
+    uow, blobs = FakeUnitOfWork(), FakeBlobStore()
+    ctx = RequestContext(tenant_id=f.TENANT, principal_id=f.OPERATOR)
+    await _switch_observation_on(uow, ctx)
+    device_id = await _register(uow, ctx)
+
+    ingested = await _ingest(
+        uow,
+        blobs,
+        device_id,
+        ctx=ctx,
+        events=[
+            GESTURE,
+            {
+                "kind": "snapshot",
+                "url": "https://wms.acme.com/orders",
+                "taken_at": "2026-03-01T09:01:00Z",
+                "snapshot": {"role": "main"},
+            },
+        ],
+    )
+
+    assert ingested.accepted == 2, "both events were admitted and stored"
+    (batch,) = uow.gestures.batches.values()
+    assert batch.accepted == 1, "the snapshot was counted as a gesture"

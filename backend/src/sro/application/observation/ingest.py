@@ -16,16 +16,66 @@ from sro.application.context import RequestContext
 from sro.application.observation.admit import Event, admit
 from sro.application.observation.policy import current_policy
 from sro.application.observation.redact import redact_events
+from sro.application.observation.correlate import correlate
 from sro.application.observation.register import refuse_unless_itself
 from sro.application.ports.blob import BlobStore
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock
 from sro.config import get_settings
+from sro.application.capture.rig_wire import Batch as WireBatch
 from sro.domain.observation.batch import CaptureMode, ObservationBatch, RejectedEvent
+from sro.domain.observation.gesture import GestureBatch
 from sro.domain.shared.errors import DomainError
 from sro.domain.shared.identifiers import BatchId, DeviceId, RecordingId
 
 CONTENT_TYPE = "application/x-ndjson"
+
+
+def _as_wire_batch(batch: ObservationBatch, events: Sequence[Event]) -> tuple[WireBatch, int]:
+    """The stored batch in the shape `correlate` reads, and how many events it
+    could not.
+
+    Parsed one at a time and never as a whole envelope, which is the rig's rule
+    at `new_agent_arch/src/rig/api.py:482-487` and it holds harder here: these
+    events have already been admitted, stored and answered for. An event kind
+    the extension shipped last week must not take the batch beside it down --
+    by the time this runs the upload is a fact, and raising would roll back a
+    claim for events that are already in the blob store.
+
+    The count comes back so the tally says a batch had events nothing could
+    read, rather than a batch that quietly had fewer.
+    """
+    readable = []
+    unreadable = 0
+    for event in events:
+        try:
+            readable.append(
+                WireBatch.model_validate(
+                    {
+                        "batch_id": batch.id.value,
+                        "device_id": batch.device_id.value,
+                        "started_at": batch.started_at.isoformat(),
+                        "ended_at": batch.ended_at.isoformat(),
+                        "mode": batch.mode.value,
+                        "recording_id": batch.recording_id.value if batch.recording_id else None,
+                        "events": [event],
+                    }
+                ).events[0]
+            )
+        except ValueError:
+            unreadable += 1
+    return (
+        WireBatch(
+            batch_id=batch.id.value,
+            device_id=batch.device_id.value,
+            started_at=batch.started_at.isoformat(),
+            ended_at=batch.ended_at.isoformat(),
+            mode=batch.mode.value,
+            recording_id=batch.recording_id.value if batch.recording_id else None,
+            events=readable,
+        ),
+        unreadable,
+    )
 
 
 class ObservationRefused(DomainError):
@@ -148,7 +198,8 @@ class IngestObservation:
             # measured, on this tenant's real traffic: a live JWT and the
             # `&code=` carrying it reached the blob store with no marker on
             # them at all.
-            payload = _ndjson(redact_events(admission.accepted))
+            redacted = redact_events(admission.accepted)
+            payload = _ndjson(redacted)
             # ponytail: the daily byte budget is enforced in the extension only.
             # Server-side would mean summing today's batches on every upload;
             # add it here when a device is seen to ignore the policy.
@@ -172,6 +223,38 @@ class IngestObservation:
                 rejected=admission.rejected,
             )
             await uow.observations.add(batch)
+            # The same upload again, as the miner reads it. Two tables, neither
+            # derived from the other: `observations` keeps the events verbatim
+            # in the blob store, and this keeps what was read out of them.
+            #
+            # In this block on purpose, so the batch claim and its gestures
+            # commit together. A claim written without them is an id that can
+            # never be retried -- the events it named are gone, and the row says
+            # they were handled. The rig makes the same argument for the same
+            # reason at `new_agent_arch/src/rig/api.py:63-72`.
+            #
+            # Correlated from the REDACTED events, not the accepted ones: the
+            # redacted payload is what was stored, and a gesture carrying a
+            # value the blob store does not have is a citation pointing at
+            # nothing.
+            wire, unreadable = _as_wire_batch(batch, redacted)
+            gestures, _calls, _marks, snapshots = correlate(wire, ctx.tenant_id.value)
+            await uow.gestures.add_batch(
+                GestureBatch(
+                    batch_id=batch.id.value,
+                    device_id=device_id.value,
+                    tenant=ctx.tenant_id.value,
+                    mode=mode.value,
+                    received_at=now.isoformat(),
+                    started_at=started_at.isoformat(),
+                    ended_at=ended_at.isoformat(),
+                    recording_id=recording_id.value if recording_id else None,
+                    accepted=len(gestures),
+                    rejected=len(admission.rejected) + unreadable,
+                )
+            )
+            if gestures:
+                await uow.gestures.add_gestures(tuple(gestures))
             device.uploaded(now)
             await uow.devices.save(device)
             await uow.commit()

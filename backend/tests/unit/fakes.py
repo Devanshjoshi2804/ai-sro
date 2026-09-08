@@ -2051,7 +2051,23 @@ class FakeUnitOfWork:
     hands out a unit of work nobody has entered, so `_FakeContainer` arms it
     on the way out. Left off for a test calling a bare function like
     `over_cap` or `shapes_for` directly -- those are documented to take a
-    session their caller already opened, and the test IS that caller."""
+    session their caller already opened, and the test IS that caller.
+
+    What this does NOT catch: a repository read *after* the block closes.
+    `_entered` is set on entry and cleared only by `hand_out`, so a use case
+    reading off `self._uow` below its own `async with` stays green here.
+    Against a real `SqlUnitOfWork` that is not an `AttributeError` -- the
+    repositories stay bound -- but a query on a closed session, which is the
+    same 500 by another route.
+
+    Do not close it by resetting `_entered` in `__aexit__`. That is the
+    obvious move and it is a trap: `InduceSkill.execute` runs `AskAbout`'s
+    whole block from inside its own on this shared instance, and the
+    stickiness is what lets it. Adding the reset fails five
+    `test_the_whole_way_through` journey tests on `'skills' before
+    __aenter__`. Closing it properly means handing each use case its own
+    instance over one shared store, which is more change than the gap is
+    worth."""
 
     _entered = False
 

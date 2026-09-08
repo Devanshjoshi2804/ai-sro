@@ -84,13 +84,24 @@ def _saver(by_id: dict[str, Gesture]) -> Gesture:
 
 
 @pytest.fixture
-async def proven(uow: FakeUnitOfWork) -> Workflow:
+def evidence() -> dict[str, Gesture]:
+    """The one measured batch every other rig test is built on.
+
+    A fixture and not a call per test: `correlate` mints a fresh random id for
+    every gesture, so a second call produces evidence the store does not hold
+    and a workflow citing it is served as nothing.
+    """
+    return {g.id: g for g in _gestures(f.TENANT.value)}
+
+
+@pytest.fixture
+async def proven(uow: FakeUnitOfWork, evidence: dict[str, Gesture]) -> Workflow:
     """One workflow the extension can be served, and two browsers to serve it to.
 
-    The same measured batch every other rig test is built on, so what this file
-    asserts about a shape is the shape the arithmetic really produces.
+    Built on the measured batch, so what this file asserts about a shape is the
+    shape the arithmetic really produces.
     """
-    by_id = {g.id: g for g in _gestures(f.TENANT.value)}
+    by_id = evidence
     await uow.gestures.add_gestures(tuple(by_id.values()))
     workflow = Workflow(
         id=JOB,
@@ -171,6 +182,37 @@ async def test_the_list_comes_back_under_the_shapes_key(
     assert body["shapes"][0]["starts_on"] == f"{HOST}/"
     assert HOST in body["shapes"][0]["hosts"]
     assert body["shapes"][0]["parameters"] == [{"name": "clientCode", "at": 0}]
+
+
+async def test_every_proven_job_comes_back_and_in_the_order_it_was_served(
+    client: httpx.AsyncClient,
+    uow: FakeUnitOfWork,
+    evidence: dict[str, Gesture],
+    proven: Workflow,
+) -> None:
+    """The route passes the list through: it does not re-order it and it does
+    not trim it.
+
+    Two jobs, because one agrees with a route that reversed, sliced or dropped
+    the list. `known()` is oldest first, so the answer is insertion order --
+    and the second job is saved with the LOWER id, so a route that sorted (or a
+    store that handed back a tie in id order) is not satisfied by this plant
+    either.
+    """
+    await uow.workflows.save(
+        Workflow(
+            id="wfl_0",
+            tenant=f.TENANT.value,
+            title="save it",
+            narrative="n",
+            systems=[HOST],
+            steps=[Step(order=0, says="save", system=None, cites=[_saver(evidence).id])],
+        )
+    )
+
+    body = (await client.get("/v1/shapes")).json()
+
+    assert [shape["id"] for shape in body["shapes"]] == [JOB, "wfl_0"]
 
 
 async def test_a_tenant_with_nothing_proven_is_answered_with_an_empty_list(

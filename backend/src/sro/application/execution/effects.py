@@ -94,10 +94,10 @@ async def forget_effects(workflows: WorkflowRepository, run: WorkflowRun) -> int
 async def earned(workflows: WorkflowRepository, tenant_id: TenantId, workflow_id: str) -> bool:
     """Whether this job may write without asking a person first.
 
-    Task 1's `tallies` is deliberately not asked here: it is one aggregate over
-    a whole tenant, and `proofs` is already scoped to this workflow's live held
-    runs, so for one workflow the tally is the more expensive of the two. A
-    route that needs this answer for every workflow of a tenant at once is
-    where the tally fits, and there is no such caller yet.
+    Task 1's `tallies` is deliberately not asked here, and not because it is
+    the more expensive read: it cannot answer this question at all. It counts
+    runs and runs that held, and has no notion of a verified effect -- a job
+    with a hundred held runs and nothing in its register has earned nothing.
+    Only `proofs` carries what the rule compares.
     """
     return earned_from(await workflows.proofs(tenant_id, workflow_id))

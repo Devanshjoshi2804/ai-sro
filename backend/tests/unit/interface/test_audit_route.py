@@ -164,6 +164,14 @@ async def test_the_audit_answers_with_the_bound_it_actually_used(
 
     assert answered.status_code == 200
     assert answered.json()["since"] == "2026-03-04T09:10:00+00:00"
+    # The same instant, said with an offset. `_bound` converts it and the rule
+    # has its own test one layer down -- but the ROUTE is what hands the use
+    # case its `datetime`, and a route that stripped the tzinfo on the way in
+    # passes every naive and every `+00:00` assertion in this file. A bound
+    # quietly shifted by five and a half hours does not fail; it returns an
+    # audit that starts elsewhere and looks exactly like one that does not.
+    shifted = await _since(client, "2026-03-04T14:40:00+05:30")
+    assert shifted.json()["since"] == "2026-03-04T09:10:00+00:00"
 
 
 async def test_the_audit_needs_a_bound(client: httpx.AsyncClient, day: None) -> None:
@@ -257,6 +265,142 @@ async def test_a_tenant_with_a_quiet_morning_gets_four_empty_lists(
 
 
 # --- what a row says ------------------------------------------------------
+#
+# One test per list, each asserting a fully-populated planted row round-trips
+# WHOLE. Every field on these four models was otherwise free to come back blank
+# -- `AuditOfferModel.of` could hand out `k=0, fate=""` and the suite stayed
+# green -- because the tests above read one key each and the plants left most
+# of the rest at their defaults, which is what a blanked field looks like.
+
+
+async def test_a_run_row_says_what_happened(client: httpx.AsyncClient, uow: FakeUnitOfWork) -> None:
+    run = _run("run_1", at=EARLY.isoformat())
+    run.started_by, run.live, run.outcome = "chat", True, "stopped"
+    run.cost_usd, run.unpriced = 0.37, False
+    run.steps = [
+        RunStep(
+            order=0,
+            says="save",
+            verdict="failed",
+            verdict_by="model",
+            reason="the page moved under it",
+            sent={"kind": "click"},
+            matched_by="role",
+            stale=True,
+        )
+    ]
+    await uow.workflow_runs.save(run)
+
+    (row,) = (await _since(client, DAWN)).json()["runs"]
+
+    assert row == {
+        "id": "run_1",
+        "workflow_id": "wfl-1",
+        "device_id": LAPTOP.value,
+        "started_by": "chat",
+        "live": True,
+        "started_at": EARLY.isoformat(),
+        "finished_at": EARLY.isoformat(),
+        "outcome": "stopped",
+        "cost_usd": 0.37,
+        "unpriced": False,
+        "steps": [
+            {
+                "order": 0,
+                "says": "save",
+                "verdict": "failed",
+                "verdict_by": "model",
+                # Why, in the verifier's own words: the most audit-worthy
+                # thing on the row when a step did not hold.
+                "reason": "the page moved under it",
+                "sent": "click",
+                "matched_by": "role",
+                "stale": True,
+                "approved_at": None,
+                "approved_by": None,
+            }
+        ],
+    }
+
+
+async def test_an_offer_row_says_what_was_offered_and_what_became_of_it(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork
+) -> None:
+    """The desktop's offer, not the laptop's: every other plant in this file
+    names the laptop, so a model reading the wrong browser onto the row would
+    be indistinguishable from a right one."""
+    await uow.offers.record(
+        Offer(
+            id="off_1",
+            tenant="acme",
+            workflow_id="wfl-2",
+            device_id=DESKTOP.value,
+            k=4,
+            fate="diverged",
+            at=EARLY.isoformat(),
+            run_id="run_1",
+        )
+    )
+
+    (row,) = (await _since(client, DAWN)).json()["offers"]
+
+    assert row == {
+        "id": "off_1",
+        "workflow_id": "wfl-2",
+        "device_id": DESKTOP.value,
+        "k": 4,
+        "fate": "diverged",
+        "run_id": "run_1",
+        "at": EARLY.isoformat(),
+    }
+
+
+async def test_a_chat_row_says_what_the_door_cost(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork
+) -> None:
+    """Two readings, because the two that matter cannot be one row: a reading
+    that named a job and was billed for it, and one that failed and could not
+    be priced. A single row leaves whichever of `unpriced` and `error` it did
+    not carry agreeing with a model that dropped it."""
+    await uow.chats.record(
+        ChatReading(
+            id="cht_1",
+            tenant="acme",
+            at=EARLY.isoformat(),
+            workflow_id="wfl-2",
+            cost_usd=0.11,
+            unpriced=False,
+        )
+    )
+    await uow.chats.record(
+        ChatReading(
+            id="cht_2",
+            tenant="acme",
+            at=LATE.isoformat(),
+            unpriced=True,
+            error="the model would not answer",
+        )
+    )
+
+    billed, unpriced = reversed((await _since(client, DAWN)).json()["chats"])
+
+    assert billed == {
+        "id": "cht_1",
+        "workflow_id": "wfl-2",
+        "cost_usd": 0.11,
+        "unpriced": False,
+        "error": None,
+        "at": EARLY.isoformat(),
+    }
+    assert unpriced == {
+        "id": "cht_2",
+        # No job: the door read a sentence and could not say which job it meant.
+        "workflow_id": None,
+        "cost_usd": 0.0,
+        "unpriced": True,
+        "error": "the model would not answer",
+        "at": LATE.isoformat(),
+    }
 
 
 async def test_a_step_says_what_kind_of_thing_was_sent_and_not_what_was_in_it(
@@ -304,14 +448,26 @@ async def test_a_run_nobody_could_price_says_so_beside_its_zero(
 ) -> None:
     """`cost_usd: 0.0` and `unpriced: true` is a run that did not cost nothing
     -- it is one nobody could put a number on. A model that carried the cost
-    and dropped the flag would put that run on the spend line as free."""
-    run = _run("run_1", at=EARLY.isoformat())
-    run.cost_usd, run.unpriced = 0.0, True
-    await uow.workflow_runs.save(run)
+    and dropped the flag would put that run on the spend line as free.
 
-    (row,) = (await _since(client, DAWN)).json()["runs"]
+    Two runs, and the second is the half this test was missing: with only the
+    unpriced one, `cost_usd` hardcoded to `0.0` in the model agreed with the
+    assertion, because the fixture's cost WAS zero. Only the flag was ever
+    guarded, and the sentence above describes both.
+    """
+    unpriced = _run("run_1", at=EARLY.isoformat())
+    unpriced.cost_usd, unpriced.unpriced = 0.0, True
+    await uow.workflow_runs.save(unpriced)
+    billed = _run("run_2", at=LATE.isoformat())
+    billed.cost_usd, billed.unpriced = 0.37, False
+    await uow.workflow_runs.save(billed)
 
-    assert (row["cost_usd"], row["unpriced"]) == (0.0, True)
+    priced = {
+        row["id"]: (row["cost_usd"], row["unpriced"])
+        for row in (await _since(client, DAWN)).json()["runs"]
+    }
+
+    assert priced == {"run_1": (0.0, True), "run_2": (0.37, False)}
 
 
 async def test_an_approval_lands_on_the_step_a_person_actually_approved(
@@ -375,7 +531,19 @@ async def test_a_browsers_row_says_when_its_authority_began_and_ended(
     # next door, so pydantic writes it `...Z` rather than `...+00:00`. Compared
     # as an instant: what matters is that it is the browser's own registration
     # and not some other clock.
+    #
+    # The laptop is the one that can say so. It registered EARLY and was last
+    # seen LATE, so a model reading `last_seen_at` into this field is wrong
+    # here and right for the desktop, whose two clocks are the same instant.
+    assert datetime.fromisoformat(body["devices"][1]["registered_at"]) == EARLY
     assert datetime.fromisoformat(body["devices"][0]["registered_at"]) == LATE
+    # And nothing else on the row: three fields, and a browser's authority is
+    # the whole of what this list is for.
+    assert body["devices"][0] == {
+        "device_id": DESKTOP.value,
+        "registered_at": "2026-03-01T09:01:40Z",
+        "revoked_at": None,
+    }
 
 
 @pytest.fixture

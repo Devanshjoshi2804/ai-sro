@@ -49,11 +49,12 @@ async def asking_device(
     repository -- cannot be told from a lookup that did by the shape of what
     comes back. Both land on the same problem document either way.
     """
-    # Blanked, never rewritten. `?device_id=` reached `DeviceId("")` and
-    # `?device_id=%20` reached `DeviceId(" ")`; an id the domain refuses to
-    # build is a 422 telling a caller their query string was interesting, out
-    # of the one function whose promise is that nothing here is told apart. So
-    # an id that is nothing but space becomes "no browser named".
+    # Blanked, never rewritten. `?device_id=%20` reached `DeviceId(" ")`; an id
+    # the domain refuses to build is a 422 telling a caller their query string
+    # was interesting, out of the one function whose promise is that nothing
+    # here is told apart. So an id that is nothing but space becomes "no
+    # browser named". (`?device_id=` never got that far on its own: an empty
+    # string is falsy and takes one of the two branches below.)
     #
     # And nothing else. `device_id.strip()` would read the same and quietly
     # rewrite every PADDED id on its way to `DeviceId`, at the one seam whose

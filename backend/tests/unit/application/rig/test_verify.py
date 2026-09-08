@@ -5,18 +5,27 @@ a question to a wire or to a model. The six that ask only the pure belts are in
 `tests/unit/domain/rig/test_belts.py`, which plan 1 brought across with
 `expected_statuses`, `confirming_read` and `mentions`.
 
-Seven guards here are new, and every one was found by mutating an argument at
+Eight guards here are new, and every one was found by mutating an argument at
 the call site rather than the rule it feeds. Nothing in the rig's suite asserted
 that `sent_kind` gates the status belt at all (its own answers never carried a
 status unless the step was an `http.send`, so a verifier that ignored the
-argument stayed green); that the read belt beats the screen belt when there IS a
-picture to look at (every read test passed no screenshot, so reordering the two
-was invisible); that the named model, the verdict schema and the status the
-browser came back with reach the asker; that a step with no values never spends
-a round trip on a probe; that the screen's own words reach the prompt unescaped;
-or that the probe never names an origin -- which is a decision the rig recorded
-in a comment and nothing held it to. The tenant the probe goes out on is guarded
-too, and is not the rig's at all: its channel had no tenant.
+argument stayed green); that the named model, the verdict schema, the
+instructions' own words and the status the browser came back with reach the
+asker; that a step with no values never spends a round trip on a probe; that the
+screen's own words reach the prompt unescaped; or that the probe never names an
+origin -- which is a decision the rig recorded in a comment and nothing held it
+to. The tenant the probe goes out on is guarded too, and is not the rig's at
+all: its channel had no tenant.
+
+Two of the eight are the belt order itself, and both hide the same way: EVERY
+test in which an earlier belt decides handed the verifier
+`Look(None, None, "")`, so an `asker.asked == []` beside such a test is vacuous
+-- the model was never going to be asked, order or no order. Read-over-screen
+and status-over-screen each get a test that puts a real picture on the table
+first. Status-over-screen is the expensive one: `status` is a `state_verified`
+belt and `screen` is not, so promoting a screen verdict over a status verdict
+would let a model reading a picture decide what a job earns the right to write
+unasked.
 """
 
 import json
@@ -25,7 +34,7 @@ from dataclasses import replace
 
 from sro.application.execution.verify import verify
 from sro.application.ports.channel import Reply
-from sro.domain.execution.belts import SCREEN_SCHEMA, StepVerdict
+from sro.domain.execution.belts import SCREEN_INSTRUCTIONS, SCREEN_SCHEMA, StepVerdict
 from sro.domain.execution.planning import Look
 from sro.domain.observation.gesture import Gesture
 from sro.domain.shared.hosts import REDACTED
@@ -35,7 +44,7 @@ from sro.domain.skill.workflow import Step
 from tests.unit.domain.rig.conftest import gestures as _gestures
 from tests.unit.fakes import FakeAsker, FakeChannel
 
-_TENANT = TenantId("acme")
+_TENANT = TenantId("caller")
 _DEVICE = DeviceId("dev_test")
 _STREAM = "http://127.0.0.1:63319/api/stream"
 
@@ -149,6 +158,24 @@ async def test_a_read_that_did_not_come_back_2xx_decides_nothing() -> None:
         _saver(), channel=_read("service unavailable", status=503), values={"workArea": "THIRD"}
     )
     assert verdict.by != "read"
+
+    # The other half of the same rule, which the rig never scripted: a reply
+    # the extension refused still carries whatever `result` it chose to put
+    # there -- `infrastructure/agent/channel.py` passes that dict through
+    # regardless of `ok` -- so a timed-out probe can arrive with a 200 and a
+    # matching body. Not a read that came back.
+    refused = FakeChannel(
+        {
+            "http.send": [
+                Reply(
+                    ok=False,
+                    error_kind="timeout",
+                    result={"status": 200, "body": '{"workArea":"THIRD"}'},
+                )
+            ]
+        }
+    )
+    assert (await _verify(_saver(), channel=refused, values={"workArea": "THIRD"})).by != "read"
 
 
 async def test_the_read_matches_a_whole_value_not_a_substring_of_one() -> None:
@@ -325,8 +352,11 @@ async def test_the_probe_is_a_bodiless_get_sent_to_this_run_and_this_browser() -
     assert sent["device_id"] == "dev_test" and sent["run_id"] == "run_1"
     # The tenant too, which the rig's channel did not have: this one dials a
     # socket per tenant, and a probe on the wrong one asks a browser that is
-    # not the caller's.
-    assert sent["tenant_id"] == "acme"
+    # not the caller's. `_TENANT` is deliberately not "acme" -- the correlated
+    # evidence carries that one, so dialling `cited[0].tenant` instead of the
+    # caller's tenant is a plausible slip that this assertion could not have
+    # told apart while the two strings were the same.
+    assert sent["tenant_id"] == "caller"
     assert _payload(channel)["method"] == "GET" and _payload(channel)["body"] is None
     assert _STREAM in verdict.reason, "the record says what was read"
 
@@ -540,6 +570,13 @@ async def test_the_screen_belt_asks_the_named_model_against_the_verdict_schema()
     assert asker.asked[0]["model"] == "gemini-3.8-flash"
     assert asker.asked[0]["schema"] == SCREEN_SCHEMA
     assert asker.asked[0]["image"] == b"after"
+    # The words themselves, not just that there were some. This is the only
+    # place `SCREEN_INSTRUCTIONS` is ever spoken to a model, and the sentence
+    # named here is what makes the weakest belt conservative: without it the
+    # cheapest reading of a screenshot -- no error visible, so it worked -- is
+    # the one that promotes a step to held.
+    assert asker.asked[0]["instructions"] == SCREEN_INSTRUCTIONS
+    assert "Do not assume success from the absence of an error." in SCREEN_INSTRUCTIONS
 
 
 async def test_a_read_with_no_value_to_look_for_is_never_sent() -> None:
@@ -613,3 +650,34 @@ async def test_the_screen_belt_is_told_the_status_the_browser_came_back_with() -
     evidence = asker.asked[0]["evidence"]
     assert isinstance(evidence, str)
     assert json.loads(evidence)["browser_answered"] == {"ok": True, "status": 200}
+
+
+async def test_a_picture_never_overrides_the_status_the_warehouse_itself_returned() -> None:
+    """The status belt outranks the screen belt whether or not there is a
+    picture -- and no test in the rig's suite or in the first pass of this one
+    could tell. Every step the status belt decided was handed
+    `Look(None, None, "")`, so `asker.asked == []` was true because there was
+    nothing to look at, not because the belt order held.
+
+    It is the inversion this module exists to prevent, and the most expensive
+    one available: `status` is a `state_verified` belt and `screen` is not, so
+    a screen verdict promoted over a status verdict would let a model reading a
+    picture decide what a job earns the right to write unasked.
+    """
+    seen = Look("u", b"after", "Saved")
+    for status, state in ((200, "held"), (422, "failed")):
+        asker = FakeAsker(Answer(data={"held": True, "why": "it looks fine to me"}))
+
+        verdict = await _verify(
+            _saver(),
+            channel=FakeChannel(),
+            values={},
+            sent_kind="http.send",
+            answer=Reply(ok=True, result={"status": status, "body": "{}"}),
+            asker=asker,
+            look_before=Look("u", b"before", "Save"),
+            look_after=seen,
+        )
+
+        assert (verdict.state, verdict.by) == (state, "status"), status
+        assert asker.asked == [], f"a picture was on the table and {status} still decided"

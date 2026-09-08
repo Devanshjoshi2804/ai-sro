@@ -1944,6 +1944,11 @@ export interface paths {
         /**
          * Workflows
          * @description Every workflow this tenant has mined, with what has become of each.
+         *
+         *     `asking` is not read: the menu is the tenant's and does not vary by
+         *     browser. It is here to be refused -- a `?device_id=` this tenant does not
+         *     have, or one named without its secret, is a 404 here exactly as it is at
+         *     `/v1/shapes`. See the module docstring.
          */
         get: operations["workflows_v1_workflows_get"];
         put?: never;
@@ -15355,9 +15360,12 @@ export interface operations {
     };
     workflows_v1_workflows_get: {
         parameters: {
-            query?: never;
+            query?: {
+                device_id?: string | null;
+            };
             header?: {
                 authorization?: string | null;
+                "X-Device-Secret"?: string;
             };
             path?: never;
             cookie?: never;

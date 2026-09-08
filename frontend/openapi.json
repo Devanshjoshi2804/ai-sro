@@ -25581,9 +25581,25 @@
           "workflows"
         ],
         "summary": "Workflows",
-        "description": "Every workflow this tenant has mined, with what has become of each.",
+        "description": "Every workflow this tenant has mined, with what has become of each.\n\n`asking` is not read: the menu is the tenant's and does not vary by\nbrowser. It is here to be refused -- a `?device_id=` this tenant does not\nhave, or one named without its secret, is a 404 here exactly as it is at\n`/v1/shapes`. See the module docstring.",
         "operationId": "workflows_v1_workflows_get",
         "parameters": [
+          {
+            "name": "device_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Device Id"
+            }
+          },
           {
             "name": "authorization",
             "in": "header",
@@ -25598,6 +25614,16 @@
                 }
               ],
               "title": "Authorization"
+            }
+          },
+          {
+            "name": "X-Device-Secret",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "X-Device-Secret"
             }
           }
         ],

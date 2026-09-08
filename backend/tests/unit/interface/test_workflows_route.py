@@ -320,6 +320,39 @@ async def test_a_browser_may_list_the_jobs_it_could_be_offered(
     assert [row["id"] for row in answered.json()["workflows"]] == [JOB, SIBLING, THIRD]
 
 
+async def test_a_browser_the_tenant_does_not_have_may_not_list(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork, mined: list[Gesture]
+) -> None:
+    """Authorised is not unchecked.
+
+    The listing does not vary by browser, so it would answer this caller's
+    menu whether the pair proved anything or not -- which is exactly why the
+    dependency has to be asserted rather than assumed. `/v1/shapes` refuses an
+    unregistered id and a wrong secret; a `?device_id=` validated on one route
+    and ignored on the next door along tells a caller its browser was accepted
+    when nothing looked.
+
+    404 and not 403: absent, wrong, revoked and somebody else's are one answer
+    on every device-scoped path, so a caller cannot probe for which browsers
+    exist.
+    """
+    await uow.devices.add(f.device(id=LAPTOP, secret=HERS))
+
+    unregistered = await client.get(
+        "/v1/workflows",
+        params={"device_id": "dev-nobody-minted"},
+        headers={"X-Device-Secret": "not-a-secret"},
+    )
+    wrong_secret = await client.get(
+        "/v1/workflows",
+        params={"device_id": LAPTOP.value},
+        headers={"X-Device-Secret": "not-the-one-it-was-minted"},
+    )
+
+    assert unregistered.status_code == 404
+    assert wrong_secret.status_code == 404
+
+
 async def test_a_browser_may_not_read_the_evidence_under_a_job(
     client: httpx.AsyncClient, uow: FakeUnitOfWork, mined: list[Gesture]
 ) -> None:

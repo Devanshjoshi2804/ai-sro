@@ -1897,6 +1897,15 @@ class SpendResponse(BaseModel):
         # Six places, as every dollar figure the rig answered with: a sum of
         # floats reaches a console as $0.30000000000000004, and a twentieth of
         # a cent is nothing a cap in dollars can notice.
+        #
+        # And this is the ONLY place anything rounds, deliberately. `over_cap`
+        # judges the raw `DaySpend`, so the figure that decides whether a
+        # tenant is cut off is never the figure a screen was shown. The
+        # asymmetry is intended and is not a bug to fix one layer down: a cap
+        # rounded to whole dollars moves the trip point by a dollar, and any
+        # rounding fine enough to be safe here moves it by less than the
+        # resolution a dollar cap has -- so the rounding belongs on the way
+        # out, where it is a display decision, and nowhere else.
         return cls(cost_usd=round(day.cost_usd, 6), unpriced=day.blind, cap_usd=cap_usd)
 
 

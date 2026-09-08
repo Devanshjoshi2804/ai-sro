@@ -89,12 +89,14 @@ async def record_offer(
 class RecordOffer:
     """What a browser showed, and what became of it, checked before it is kept.
 
-    A class taking a `RequestContext`, like `ServeShapes` and unlike
-    `Container.read_spend`: handed a bare `tenant_id` -- which is what the
-    container method this replaces took -- the route would unpack the caller
-    itself, putting the tenant boundary in the interface layer at the one seam
-    where passing the wrong tenant is the failure. The clock is held for the
-    same reason it is there: `clamped` needs an instant a route must not read.
+    A class taking a `RequestContext`, and the container method it replaces
+    is why. `record_offer` below is a bare function, as `spent_today` is, and
+    a bare function is normally called from the container without a class
+    around it -- but that one took a bare `tenant_id`, so the route would have
+    unpacked the caller itself, putting the tenant boundary in the interface
+    layer at the one seam where passing the wrong tenant is the failure. The
+    clock is held for the reason `ServeShapes` holds one: `clamped` needs an
+    instant no route may read.
 
     The order below is the whole of this class. Both checks are answered
     against the store, and both are answered before `record_offer` mints an

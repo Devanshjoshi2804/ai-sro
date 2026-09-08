@@ -307,27 +307,32 @@ class Container:
     async def read_spend(self, ctx: RequestContext) -> DaySpend:
         """What this tenant has been billed since midnight, on this clock.
 
-        A method rather than a factory like the two above: ``spent_today`` is
-        a function, and both of the arguments it takes -- the tenant and
-        ``now`` -- are things this container already holds. There is nothing
-        route-supplied for a use-case object to hold and nothing for it to
-        decide, which is what ``ServeShapes`` next door exists for and this
-        does not have. ``now`` is supplied here because which day is being
-        asked about is a decision no route may make: one that read a clock
-        would answer for the server's day.
+        A method rather than a factory like the two above, and the reason is
+        the plain one: ``spent_today`` is a bare function, so there is no
+        class to construct and a factory would be a wrapper for its own sake.
+        Not "nothing route-supplied to hold" -- the tenant IS route-supplied,
+        it arrives on the ``ctx`` below, and ``ServeShapes`` holds nothing
+        route-supplied either. ``record_offer`` next door was a bare function
+        too, and became a class anyway, because it took a bare ``tenant_id``.
 
-        Takes the whole context and not a bare ``tenant_id``, so the one seam
-        where passing the wrong tenant is the failure stays out of the
-        interface layer -- the same reason ``ServeShapes.execute`` takes it.
+        That is the line: takes the whole context and never a bare
+        ``tenant_id``, so the one seam where passing the wrong tenant is the
+        failure stays out of the interface layer -- the same reason
+        ``ServeShapes.execute`` takes one, and the reason ``RecordOffer``
+        exists as a class at all. ``now`` is supplied here because which day
+        is being asked about is a decision no route may make: one that read a
+        clock would answer for the server's day.
         """
         return await spent_today(self.unit_of_work(), ctx.tenant_id, now=self.clock.now())
 
     def record_offer(self) -> RecordOffer:
-        """A factory like ``serve_shapes`` above and not a method like
-        ``read_spend``: ``RecordOffer`` holds route-supplied nothing, but it
-        does hold the clock ``clamped`` needs, and the tenant it writes under
-        comes off the caller's context rather than off an argument a route
-        would have to unpack."""
+        """A factory, where ``read_spend`` above is a method, and not because
+        this one has more to hold: ``record_offer`` is a bare function like
+        ``spent_today``, but it takes a bare ``tenant_id``. A route calling it
+        would unpack the caller itself, at the one seam where passing the
+        wrong tenant is the failure. ``RecordOffer`` takes the context
+        instead, and the clock ``clamped`` needs comes from here so that no
+        route reads one."""
         return RecordOffer(self.unit_of_work(), self.clock)
 
     def adopt_rig_workflow(self) -> AdoptRigWorkflow:

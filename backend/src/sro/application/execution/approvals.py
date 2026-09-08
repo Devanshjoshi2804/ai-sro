@@ -22,16 +22,17 @@ The other half of the rig's pair, `Aborts`, is already here as `Stops` next
 door in `stops.py`: a person stopping a run is a separate register from a
 person authorising one step, and one stop register is enough.
 
-That seam is not built yet, and this module's safety argument depends on it.
-In the rig, the abort route sets the flag and then releases the wait, so a
-parked run wakes at once instead of sitting out the full five minutes -- and
-because a release says only that the wait ended, the loop asks `Aborts` on the
-way out before it treats one as a person's yes. Here, neither half exists for
-a workflow run: the only route that sets `Stops` is `StopRun`, which resolves
-a skill run through `uow.runs`, so a run parked on this register cannot be
-reached by it. Task 6 owns the loop's half -- ask `Stops` after `wait_for`
-returns, before the write goes out -- and a workflow-run stop route that sets
-the flag and then calls `approve` is still to be written. Until both land, a
+Half of that seam is built, and this module's safety argument depends on the
+other half. In the rig, the abort route sets the flag and then releases the
+wait, so a parked run wakes at once instead of sitting out the full five
+minutes -- and because a release says only that the wait ended, the loop asks
+`Aborts` on the way out before it treats one as a person's yes. The loop's
+half is here: `run_workflow` asks `Stops` after `wait_for` returns and before
+the write goes out, so a release that was a stop aborts the run rather than
+writing. The route's half is not. The only route that sets `Stops` is
+`StopRun`, which resolves a skill run through `uow.runs`, so a run parked on
+this register cannot be reached by it, and a workflow-run stop route that sets
+the flag and then calls `approve` is still to be written. Until it lands, a
 stopped run parked here waits out its five minutes and then fails for want of
 an answer, which is safe and slow rather than a write nobody approved.
 """

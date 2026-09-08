@@ -13,14 +13,17 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from sro.application.analytics.audit import Audit, AuditedRun
 from sro.application.analytics.summary import Summary
 from sro.application.capture.devices import DeviceLine
 from sro.application.execution.pursuits import PursuitProgress
 from sro.application.execution.reversal import Reversal
 from sro.application.intent.match import Candidate
 from sro.application.intent.resolve import Resolution
+from sro.domain.chat.reading import ChatReading
 from sro.domain.chat.thread import Thread
 from sro.domain.execution.run import Medium, Run, StepOutcome
+from sro.domain.execution.workflow_run import RunStep
 from sro.domain.observation.batch import CaptureMode, RejectedEvent
 from sro.domain.observation.candidate import (
     Episode,
@@ -35,6 +38,7 @@ from sro.domain.recording.recording import Recording
 from sro.domain.shared.objective import Direction, ObjectiveKey
 from sro.domain.skill.assertion import AssertionKind
 from sro.domain.skill.locator import ControlLocator, LocatorStrategy
+from sro.domain.skill.offers import Offer
 from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.skill import Skill, SkillVersion
 from sro.domain.skill.template import Template
@@ -1634,6 +1638,190 @@ class ShapesResponse(BaseModel):
     the same fields here is the copy that goes stale the first time the domain
     gains one.
     """
+
+
+class AuditStepModel(BaseModel):
+    """One step of a run as the audit reads it, with the approval that let it out.
+
+    `sent` is the *kind* of command that was planned and never its payload.
+    Ported from the rig's `sent.get("kind")`, and kept for a reason of its own:
+    the payload is a warehouse's own data -- an order number, a client's name --
+    and this list is read on a console screen by whoever holds a tenant
+    credential. What an audit has to answer is that a click on Save went out at
+    09:11, and the run's own row is where the rest lives.
+
+    `order` and not the rig's `ord`, which was its column name: the field is
+    `RunStep.order` here and a wire name that disagrees with the domain is the
+    kind of thing that gets read back into the wrong one.
+
+    The approval is folded onto its step although `AuditedRun` keeps approvals
+    beside the run. That separation is about the record -- a `RunStep` the
+    runner saves back must not be able to carry somebody's approval in it --
+    and nothing saves a wire model back.
+    """
+
+    order: int
+    says: str
+    verdict: str
+    verdict_by: str
+    reason: str
+    sent: str | None
+    matched_by: str | None
+    stale: bool
+    approved_at: str | None
+    approved_by: str | None
+
+    @classmethod
+    def of(cls, step: RunStep, approval: tuple[str, str | None] | None) -> AuditStepModel:
+        at, by = approval or (None, None)
+        kind = (step.sent or {}).get("kind")
+        return cls(
+            order=step.order,
+            says=step.says,
+            verdict=step.verdict,
+            verdict_by=step.verdict_by,
+            reason=step.reason,
+            sent=None if kind is None else str(kind),
+            matched_by=step.matched_by,
+            stale=step.stale,
+            approved_at=at,
+            approved_by=by,
+        )
+
+
+class AuditedRunModel(BaseModel):
+    """One run, its steps' verdicts, and what each of them cost."""
+
+    id: str
+    workflow_id: str
+    device_id: str
+    started_by: str
+    live: bool
+    started_at: str
+    finished_at: str | None
+    outcome: str
+    cost_usd: float
+    unpriced: bool
+    """True where a call returned without a bill. A run whose cost is 0.0 and
+    whose `unpriced` is true did not cost nothing; nobody could say."""
+
+    steps: list[AuditStepModel]
+
+    @classmethod
+    def of(cls, audited: AuditedRun) -> AuditedRunModel:
+        approved = {order: (at, device_id) for order, at, device_id in audited.approvals}
+        run = audited.run
+        return cls(
+            id=run.id,
+            workflow_id=run.workflow_id,
+            device_id=run.device_id,
+            started_by=run.started_by,
+            live=run.live,
+            started_at=run.started_at,
+            finished_at=run.finished_at,
+            outcome=run.outcome,
+            cost_usd=run.cost_usd,
+            unpriced=run.unpriced,
+            steps=[AuditStepModel.of(step, approved.get(step.order)) for step in run.steps],
+        )
+
+
+class AuditOfferModel(BaseModel):
+    id: str
+    workflow_id: str
+    device_id: str
+    k: int
+    fate: str
+    run_id: str | None
+    at: str
+
+    @classmethod
+    def of(cls, offer: Offer) -> AuditOfferModel:
+        return cls(
+            id=offer.id,
+            workflow_id=offer.workflow_id,
+            device_id=offer.device_id,
+            k=offer.k,
+            fate=offer.fate,
+            run_id=offer.run_id,
+            at=offer.at,
+        )
+
+
+class AuditDeviceModel(BaseModel):
+    """Which browser could act, and from when to when.
+
+    `registered_at` where the rig said `issued_at`: there a device held a token
+    of its own and the row was that token's, here the browser registers once and
+    is handed a secret, so registration IS the moment its authority began.
+
+    No `online`: what `DeviceLineModel` next door reports is a socket held right
+    now, which is a fact about this second and not about the window asked for.
+    """
+
+    device_id: str
+    registered_at: datetime
+    revoked_at: str | None
+
+    @classmethod
+    def of(cls, device: AgentDevice) -> AuditDeviceModel:
+        return cls(
+            device_id=device.id.value,
+            registered_at=device.registered_at,
+            revoked_at=device.revoked_at,
+        )
+
+
+class AuditChatModel(BaseModel):
+    """The chat door, used: when, for which job, at what cost.
+
+    The sentence is not here because it was never kept -- it is an operator's
+    words about their warehouse, and the record exists for the bill.
+    """
+
+    id: str
+    workflow_id: str | None
+    cost_usd: float
+    unpriced: bool
+    error: str | None
+    at: str
+
+    @classmethod
+    def of(cls, reading: ChatReading) -> AuditChatModel:
+        return cls(
+            id=reading.id,
+            workflow_id=reading.workflow_id,
+            cost_usd=reading.cost_usd,
+            unpriced=reading.unpriced,
+            error=reading.error,
+            at=reading.at,
+        )
+
+
+class AuditResponse(BaseModel):
+    since: str
+    """The bound the four reads actually used, normalised to UTC.
+
+    Not the caller's query echoed back. A caller that passed a naive time is
+    told, here, what that was taken to mean; a route that echoed the query
+    would name a window it had not read, and the two look identical to anyone
+    who passed an offset already.
+    """
+
+    runs: list[AuditedRunModel]
+    offers: list[AuditOfferModel]
+    devices: list[AuditDeviceModel]
+    chats: list[AuditChatModel]
+
+    @classmethod
+    def of(cls, audit: Audit) -> AuditResponse:
+        return cls(
+            since=audit.since,
+            runs=[AuditedRunModel.of(run) for run in audit.runs],
+            offers=[AuditOfferModel.of(offer) for offer in audit.offers],
+            devices=[AuditDeviceModel.of(device) for device in audit.devices],
+            chats=[AuditChatModel.of(chat) for chat in audit.chats],
+        )
 
 
 class ObservationBatchRequest(BaseModel):

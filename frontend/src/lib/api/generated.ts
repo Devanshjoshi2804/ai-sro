@@ -414,6 +414,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Audit
+         * @description The runs, the offers, the browsers and the chat readings since a time.
+         *
+         *     The `since` that comes back is the use case's, never this parameter: a
+         *     naive time is read as UTC one layer down, and a caller has to be able to
+         *     tell which instant they were actually given.
+         */
+        get: operations["audit_v1_audit_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/candidates": {
         parameters: {
             query?: never;
@@ -1949,6 +1973,149 @@ export interface components {
             pointer: string | null;
             /** Written By */
             written_by?: string | null;
+        };
+        /**
+         * AuditChatModel
+         * @description The chat door, used: when, for which job, at what cost.
+         *
+         *     The sentence is not here because it was never kept -- it is an operator's
+         *     words about their warehouse, and the record exists for the bill.
+         */
+        AuditChatModel: {
+            /** Id */
+            id: string;
+            /** Workflow Id */
+            workflow_id: string | null;
+            /** Cost Usd */
+            cost_usd: number;
+            /** Unpriced */
+            unpriced: boolean;
+            /** Error */
+            error: string | null;
+            /** At */
+            at: string;
+        };
+        /**
+         * AuditDeviceModel
+         * @description Which browser could act, and from when to when.
+         *
+         *     `registered_at` where the rig said `issued_at`: there a device held a token
+         *     of its own and the row was that token's, here the browser registers once and
+         *     is handed a secret, so registration IS the moment its authority began.
+         *
+         *     No `online`: what `DeviceLineModel` next door reports is a socket held right
+         *     now, which is a fact about this second and not about the window asked for.
+         */
+        AuditDeviceModel: {
+            /** Device Id */
+            device_id: string;
+            /**
+             * Registered At
+             * Format: date-time
+             */
+            registered_at: string;
+            /** Revoked At */
+            revoked_at: string | null;
+        };
+        /** AuditOfferModel */
+        AuditOfferModel: {
+            /** Id */
+            id: string;
+            /** Workflow Id */
+            workflow_id: string;
+            /** Device Id */
+            device_id: string;
+            /** K */
+            k: number;
+            /** Fate */
+            fate: string;
+            /** Run Id */
+            run_id: string | null;
+            /** At */
+            at: string;
+        };
+        /** AuditResponse */
+        AuditResponse: {
+            /** Since */
+            since: string;
+            /** Runs */
+            runs: components["schemas"]["AuditedRunModel"][];
+            /** Offers */
+            offers: components["schemas"]["AuditOfferModel"][];
+            /** Devices */
+            devices: components["schemas"]["AuditDeviceModel"][];
+            /** Chats */
+            chats: components["schemas"]["AuditChatModel"][];
+        };
+        /**
+         * AuditStepModel
+         * @description One step of a run as the audit reads it, with the approval that let it out.
+         *
+         *     `sent` is the *kind* of command that was planned and never its payload.
+         *     Ported from the rig's `sent.get("kind")`, and kept for a reason of its own:
+         *     the payload is a warehouse's own data -- an order number, a client's name --
+         *     and this list is read on a console screen by whoever holds a tenant
+         *     credential. What an audit has to answer is that a click on Save went out at
+         *     09:11, and the run's own row is where the rest lives.
+         *
+         *     `order` and not the rig's `ord`, which was its column name: the field is
+         *     `RunStep.order` here and a wire name that disagrees with the domain is the
+         *     kind of thing that gets read back into the wrong one.
+         *
+         *     The approval is folded onto its step although `AuditedRun` keeps approvals
+         *     beside the run. That separation is about the record -- a `RunStep` the
+         *     runner saves back must not be able to carry somebody's approval in it --
+         *     and nothing saves a wire model back.
+         */
+        AuditStepModel: {
+            /** Order */
+            order: number;
+            /** Says */
+            says: string;
+            /** Verdict */
+            verdict: string;
+            /** Verdict By */
+            verdict_by: string;
+            /** Reason */
+            reason: string;
+            /** Sent */
+            sent: string | null;
+            /** Matched By */
+            matched_by: string | null;
+            /** Stale */
+            stale: boolean;
+            /** Approved At */
+            approved_at: string | null;
+            /** Approved By */
+            approved_by: string | null;
+        };
+        /**
+         * AuditedRunModel
+         * @description One run, its steps' verdicts, and what each of them cost.
+         */
+        AuditedRunModel: {
+            /** Id */
+            id: string;
+            /** Workflow Id */
+            workflow_id: string;
+            /** Device Id */
+            device_id: string;
+            /** Started By */
+            started_by: string;
+            /** Live */
+            live: boolean;
+            /** Started At */
+            started_at: string;
+            /** Finished At */
+            finished_at: string | null;
+            /** Outcome */
+            outcome: string;
+            /** Cost Usd */
+            cost_usd: number;
+            /** Unpriced */
+            unpriced: boolean;
+            /** Steps */
+            steps: components["schemas"]["AuditStepModel"][];
         };
         /** BatchItemModel */
         BatchItemModel: {
@@ -5666,6 +5833,132 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SummaryModel"];
+                };
+            };
+            /** @description No credential, or one this deployment rejects. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description No such thing, or not yours. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The system's state says no, not the request. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The request cannot be processed as asked. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description Something this depends on is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+        };
+    };
+    audit_v1_audit_get: {
+        parameters: {
+            query: {
+                since: string;
+                device_id?: string | null;
+            };
+            header?: {
+                "X-Device-Secret"?: string;
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditResponse"];
                 };
             };
             /** @description No credential, or one this deployment rejects. */

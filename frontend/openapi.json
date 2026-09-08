@@ -4174,6 +4174,317 @@
         }
       }
     },
+    "/v1/audit": {
+      "get": {
+        "tags": [
+          "audit"
+        ],
+        "summary": "Audit",
+        "description": "The runs, the offers, the browsers and the chat readings since a time.\n\nThe `since` that comes back is the use case's, never this parameter: a\nnaive time is read as UTC one layer down, and a caller has to be able to\ntell which instant they were actually given.",
+        "operationId": "audit_v1_audit_get",
+        "parameters": [
+          {
+            "name": "since",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "title": "Since"
+            }
+          },
+          {
+            "name": "device_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Device Id"
+            }
+          },
+          {
+            "name": "X-Device-Secret",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "X-Device-Secret"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No credential, or one this deployment rejects.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "description": "An RFC 9457 problem document, as `errors.py` writes them.\n\nDeclared so the generated client knows the shape. It did not: every failure\nreached the browser as whatever the success model said it should be, and a\n404 was read as a RecordingDetail with every field missing.",
+                  "properties": {
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "instance": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Instance"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail"
+                  ],
+                  "title": "ProblemModel",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such thing, or not yours.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "description": "An RFC 9457 problem document, as `errors.py` writes them.\n\nDeclared so the generated client knows the shape. It did not: every failure\nreached the browser as whatever the success model said it should be, and a\n404 was read as a RecordingDetail with every field missing.",
+                  "properties": {
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "instance": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Instance"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail"
+                  ],
+                  "title": "ProblemModel",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The system's state says no, not the request.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "description": "An RFC 9457 problem document, as `errors.py` writes them.\n\nDeclared so the generated client knows the shape. It did not: every failure\nreached the browser as whatever the success model said it should be, and a\n404 was read as a RecordingDetail with every field missing.",
+                  "properties": {
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "instance": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Instance"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail"
+                  ],
+                  "title": "ProblemModel",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request cannot be processed as asked.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "description": "An RFC 9457 problem document, as `errors.py` writes them.\n\nDeclared so the generated client knows the shape. It did not: every failure\nreached the browser as whatever the success model said it should be, and a\n404 was read as a RecordingDetail with every field missing.",
+                  "properties": {
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "instance": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Instance"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail"
+                  ],
+                  "title": "ProblemModel",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Something this depends on is unavailable.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "description": "An RFC 9457 problem document, as `errors.py` writes them.\n\nDeclared so the generated client knows the shape. It did not: every failure\nreached the browser as whatever the success model said it should be, and a\n404 was read as a RecordingDetail with every field missing.",
+                  "properties": {
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "instance": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Instance"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail"
+                  ],
+                  "title": "ProblemModel",
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/candidates": {
       "get": {
         "tags": [
@@ -24881,6 +25192,347 @@
           "pointer"
         ],
         "title": "AssertionModel"
+      },
+      "AuditChatModel": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "workflow_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workflow Id"
+          },
+          "cost_usd": {
+            "type": "number",
+            "title": "Cost Usd"
+          },
+          "unpriced": {
+            "type": "boolean",
+            "title": "Unpriced"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "at": {
+            "type": "string",
+            "title": "At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "workflow_id",
+          "cost_usd",
+          "unpriced",
+          "error",
+          "at"
+        ],
+        "title": "AuditChatModel",
+        "description": "The chat door, used: when, for which job, at what cost.\n\nThe sentence is not here because it was never kept -- it is an operator's\nwords about their warehouse, and the record exists for the bill."
+      },
+      "AuditDeviceModel": {
+        "properties": {
+          "device_id": {
+            "type": "string",
+            "title": "Device Id"
+          },
+          "registered_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Registered At"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "device_id",
+          "registered_at",
+          "revoked_at"
+        ],
+        "title": "AuditDeviceModel",
+        "description": "Which browser could act, and from when to when.\n\n`registered_at` where the rig said `issued_at`: there a device held a token\nof its own and the row was that token's, here the browser registers once and\nis handed a secret, so registration IS the moment its authority began.\n\nNo `online`: what `DeviceLineModel` next door reports is a socket held right\nnow, which is a fact about this second and not about the window asked for."
+      },
+      "AuditOfferModel": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "workflow_id": {
+            "type": "string",
+            "title": "Workflow Id"
+          },
+          "device_id": {
+            "type": "string",
+            "title": "Device Id"
+          },
+          "k": {
+            "type": "integer",
+            "title": "K"
+          },
+          "fate": {
+            "type": "string",
+            "title": "Fate"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
+          "at": {
+            "type": "string",
+            "title": "At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "workflow_id",
+          "device_id",
+          "k",
+          "fate",
+          "run_id",
+          "at"
+        ],
+        "title": "AuditOfferModel"
+      },
+      "AuditResponse": {
+        "properties": {
+          "since": {
+            "type": "string",
+            "title": "Since"
+          },
+          "runs": {
+            "items": {
+              "$ref": "#/components/schemas/AuditedRunModel"
+            },
+            "type": "array",
+            "title": "Runs"
+          },
+          "offers": {
+            "items": {
+              "$ref": "#/components/schemas/AuditOfferModel"
+            },
+            "type": "array",
+            "title": "Offers"
+          },
+          "devices": {
+            "items": {
+              "$ref": "#/components/schemas/AuditDeviceModel"
+            },
+            "type": "array",
+            "title": "Devices"
+          },
+          "chats": {
+            "items": {
+              "$ref": "#/components/schemas/AuditChatModel"
+            },
+            "type": "array",
+            "title": "Chats"
+          }
+        },
+        "type": "object",
+        "required": [
+          "since",
+          "runs",
+          "offers",
+          "devices",
+          "chats"
+        ],
+        "title": "AuditResponse"
+      },
+      "AuditStepModel": {
+        "properties": {
+          "order": {
+            "type": "integer",
+            "title": "Order"
+          },
+          "says": {
+            "type": "string",
+            "title": "Says"
+          },
+          "verdict": {
+            "type": "string",
+            "title": "Verdict"
+          },
+          "verdict_by": {
+            "type": "string",
+            "title": "Verdict By"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "sent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sent"
+          },
+          "matched_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Matched By"
+          },
+          "stale": {
+            "type": "boolean",
+            "title": "Stale"
+          },
+          "approved_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved At"
+          },
+          "approved_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved By"
+          }
+        },
+        "type": "object",
+        "required": [
+          "order",
+          "says",
+          "verdict",
+          "verdict_by",
+          "reason",
+          "sent",
+          "matched_by",
+          "stale",
+          "approved_at",
+          "approved_by"
+        ],
+        "title": "AuditStepModel",
+        "description": "One step of a run as the audit reads it, with the approval that let it out.\n\n`sent` is the *kind* of command that was planned and never its payload.\nPorted from the rig's `sent.get(\"kind\")`, and kept for a reason of its own:\nthe payload is a warehouse's own data -- an order number, a client's name --\nand this list is read on a console screen by whoever holds a tenant\ncredential. What an audit has to answer is that a click on Save went out at\n09:11, and the run's own row is where the rest lives.\n\n`order` and not the rig's `ord`, which was its column name: the field is\n`RunStep.order` here and a wire name that disagrees with the domain is the\nkind of thing that gets read back into the wrong one.\n\nThe approval is folded onto its step although `AuditedRun` keeps approvals\nbeside the run. That separation is about the record -- a `RunStep` the\nrunner saves back must not be able to carry somebody's approval in it --\nand nothing saves a wire model back."
+      },
+      "AuditedRunModel": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "workflow_id": {
+            "type": "string",
+            "title": "Workflow Id"
+          },
+          "device_id": {
+            "type": "string",
+            "title": "Device Id"
+          },
+          "started_by": {
+            "type": "string",
+            "title": "Started By"
+          },
+          "live": {
+            "type": "boolean",
+            "title": "Live"
+          },
+          "started_at": {
+            "type": "string",
+            "title": "Started At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "outcome": {
+            "type": "string",
+            "title": "Outcome"
+          },
+          "cost_usd": {
+            "type": "number",
+            "title": "Cost Usd"
+          },
+          "unpriced": {
+            "type": "boolean",
+            "title": "Unpriced"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/AuditStepModel"
+            },
+            "type": "array",
+            "title": "Steps"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "workflow_id",
+          "device_id",
+          "started_by",
+          "live",
+          "started_at",
+          "finished_at",
+          "outcome",
+          "cost_usd",
+          "unpriced",
+          "steps"
+        ],
+        "title": "AuditedRunModel",
+        "description": "One run, its steps' verdicts, and what each of them cost."
       },
       "BatchItemModel": {
         "properties": {

@@ -13,12 +13,20 @@ the model: they are built from the cited evidence, and the extension tries them
 in order. What the model decides is only what to do with them, and it is told
 to prefer driving the interface over replaying a call.
 
-That preference was measured, not assumed. 544 of the real store's request
-headers are CSRF tokens, every one redacted at the rig's boundary. An
-`http.send` replaying the recorded call would send the marker as its token and
-be refused; clicking Save lets the page mint its own. So `http.send` is for a
-step whose evidence carries a call and no usable target -- and a header whose
-stored value is the redaction marker is never sent under any plan.
+That preference was measured, not assumed. Blue Yonder signs every write with a
+`CSRF-ENCRYPT-TOKEN` header and the rig strikes it out at its boundary:
+`sro.domain.recording.sensitivity` is the rule that classifies it, and
+`test_an_http_plan_replays_the_recorded_call_with_redacted_headers_dropped` is
+what holds this module to it. An `http.send` replaying the recorded call would
+send the marker as its token and be refused; clicking Save lets the page mint
+its own. So `http.send` is for a step whose evidence carries a call and no
+usable target -- and a header whose stored value is the redaction marker is
+never sent under any plan.
+
+An instance count of those headers used to stand here in place of the name. It
+was taken over a capture store that was a scratchpad and is gone, nothing in
+this repository reproduces it, and the rule does not rest on it -- so it is the
+header and its guard that are cited instead.
 """
 
 from __future__ import annotations

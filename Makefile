@@ -160,6 +160,12 @@ mutants-backend: ## Mutation score for the skill application package, against it
 offer-replay: ## Would the offer name the right job? The corpus's gestures through the real matcher, no browser
 	cd new_agent_arch && uv run python scripts/dry_run.py --replay /tmp/rig-replay.json > /dev/null && node ../new-chrome-extension/scripts/offer-replay.mjs /tmp/rig-replay.json
 
+# Beside the rig's rather than replacing it: the same measurement from the
+# other store, so the two can be read against each other until phase 7 deletes
+# the rig and its target with it.
+offer-replay-backend: ## The same question of the backend's own store, through the same matcher
+	$(BACKEND) uv run python scripts/dry_run.py --replay /tmp/backend-replay.json > /dev/null && node ../new-chrome-extension/scripts/offer-replay.mjs /tmp/backend-replay.json
+
 test-extension: ## The extension's own self-checks, in plain node
 	node new-chrome-extension/scripts/offer-replay.test.mjs
 	node new-chrome-extension/src/background/queue.test.mjs

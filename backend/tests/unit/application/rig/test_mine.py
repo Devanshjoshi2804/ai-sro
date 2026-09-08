@@ -675,7 +675,7 @@ async def test_the_cost_of_the_pass_is_recorded() -> None:
     assert result.cost_usd == 0.037
     billed = await uow.workflows.passes(TENANT)
     assert [one.cost_usd for one in billed] == [0.037]
-    # The tokens as well, and `thought_tokens` above all: K_EFFORT = "high"
+    # The tokens as well, and `thought_tokens` above all: K_EFFORT
     # exists to spend those, and a row that reports the dollars without them
     # cannot say what the pass was thinking with.
     assert (billed[0].in_tokens, billed[0].out_tokens, billed[0].thought_tokens) == (900, 100, 40)
@@ -1061,6 +1061,12 @@ async def test_the_pass_asks_for_the_effort_it_names() -> None:
     await _proposed(asker)
 
     assert asker.asked[0]["effort"] == K_EFFORT
+    # And the value, not only the constant. Comparing a call against the
+    # constant it was made from passes whatever the constant says, so it cannot
+    # fail when the value changes -- and this value cost $2.00 to establish: at
+    # "high" the first real pass over 507 real gestures truncated after 2,610
+    # tokens of answer and kept nothing, where "medium" kept 2 of 3.
+    assert asker.asked[0]["effort"] == "medium"
 
 
 async def test_two_steps_claiming_the_same_order_can_still_be_stored() -> None:

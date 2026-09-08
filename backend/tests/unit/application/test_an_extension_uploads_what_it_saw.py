@@ -23,7 +23,14 @@ from tests.unit.fakes import FakeBlobStore, FakeClock, FakeIdFactory, FakeUnitOf
 ACME = RequestContext(tenant_id=TenantId("acme"), principal_id=f.OPERATOR)
 OTHER = RequestContext(tenant_id=TenantId("acme"), principal_id=PrincipalId("priya"))
 
-GESTURE = {
+SNAPSHOT: dict[str, object] = {
+    "kind": "snapshot",
+    "url": "https://wms.acme.com/orders",
+    "taken_at": "2026-03-01T09:01:00Z",
+    "snapshot": {"role": "main"},
+}
+
+GESTURE: dict[str, object] = {
     "kind": "gesture",
     "gesture": {
         "kind": "click",
@@ -365,15 +372,10 @@ async def test_the_batch_the_miner_reads_counts_the_gestures_and_not_the_events(
         ctx=ctx,
         events=[
             GESTURE,
-            {
-                "kind": "snapshot",
-                "url": "https://wms.acme.com/orders",
-                "taken_at": "2026-03-01T09:01:00Z",
-                "snapshot": {"role": "main"},
-            },
+            SNAPSHOT,
         ],
     )
 
     assert ingested.accepted == 2, "both events were admitted and stored"
-    (batch,) = uow.gestures.batches.values()
-    assert batch.accepted == 1, "the snapshot was counted as a gesture"
+    kept = await uow.gestures.gestures_for(f.TENANT, ids=None)
+    assert len(kept) == 1, "the snapshot was read out as a gesture"

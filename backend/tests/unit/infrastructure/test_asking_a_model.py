@@ -322,7 +322,7 @@ def test_thinking_tokens_are_part_of_the_bill() -> None:
     """Thinking tokens bill at the output rate with no discount, and
     candidates_token_count does not include them -- so reading that field alone
     understated every figure this rig produced, by more the harder the prompt.
-    K_EFFORT = "high" exists to spend them."""
+    K_EFFORT exists to spend them, and is what makes them worth reading."""
 
     class _Usage:
         prompt_token_count = 1_000

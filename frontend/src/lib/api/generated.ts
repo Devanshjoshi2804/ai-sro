@@ -1914,6 +1914,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/workflows": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Workflows
+         * @description Every workflow this tenant has mined, with what has become of each.
+         */
+        get: operations["workflows_v1_workflows_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workflows/{workflow_id}/evidence": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Workflow Evidence
+         * @description Everything one workflow cites, for the bridge that replays it.
+         */
+        get: operations["workflow_evidence_v1_workflows__workflow_id__evidence_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2503,6 +2543,36 @@ export interface components {
          * @enum {string}
          */
         EvidenceLevel: "asserted" | "observed" | "reproduced" | "round_trip";
+        /**
+         * EvidenceResponse
+         * @description Everything a workflow cites, in the shape a runner's bridge consumes.
+         *
+         *     Three maps and not one. `gestures` is the extension's own wire shape --
+         *     what `application.skill.from_rig` reads a replayable plan out of -- and a
+         *     gesture on the wire never carried its calls, so folding them in would give
+         *     the bridge a shape neither side speaks. `requests` is keyed by gesture id
+         *     beside it, as the rig served it and as the two are stored.
+         *
+         *     `dict[str, Any]` per gesture and not a model per field, for
+         *     `ShapesResponse`'s reason: the domain's dataclass is the declaration, and a
+         *     second copy of its fields here goes stale the first time it gains one.
+         */
+        EvidenceResponse: {
+            /** Gestures */
+            gestures: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            };
+            /** Requests */
+            requests: {
+                [key: string]: {
+                    [key: string]: unknown;
+                }[];
+            };
+            /** Recordings */
+            recordings: string[];
+        };
         /** FinishRecordingRequest */
         FinishRecordingRequest: {
             /**
@@ -4151,6 +4221,73 @@ export interface components {
             events: number;
             /** Hours */
             hours: number;
+        };
+        /**
+         * WorkflowHistoryModel
+         * @description What has become of one job: how often it ran, how often it held, whether
+         *     its page is moving under it, and whether its writes go unasked now.
+         *
+         *     Four fields where the rig answered seven. `last`, the offer fates and the
+         *     counsel derived from them are served already -- by `/v1/audit` and
+         *     `/v1/shapes` -- and a second door onto a field is a second place it is
+         *     computed. `sro.application.skill.read_workflows` carries the whole of that
+         *     reasoning.
+         */
+        WorkflowHistoryModel: {
+            /** Total */
+            total: number;
+            /** Held */
+            held: number;
+            /** Stale */
+            stale: number;
+            /** Earned */
+            earned: boolean;
+        };
+        /** WorkflowModel */
+        WorkflowModel: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Narrative */
+            narrative: string;
+            /** Systems */
+            systems: string[];
+            /** Pass Id */
+            pass_id: string;
+            /** Parameters */
+            parameters: {
+                [key: string]: unknown;
+            }[];
+            /** Unproven */
+            unproven: string[];
+            /** Steps */
+            steps: components["schemas"]["WorkflowStepModel"][];
+            runs: components["schemas"]["WorkflowHistoryModel"];
+        };
+        /**
+         * WorkflowStepModel
+         * @description One mined step: what it says, and the evidence that proves it.
+         *
+         *     `order` and not the rig's `ord`, which was its column name -- as
+         *     `AuditStepModel` above does, and for the same reason.
+         */
+        WorkflowStepModel: {
+            /** Order */
+            order: number;
+            /** Says */
+            says: string;
+            /** System */
+            system: string | null;
+            /** Cites */
+            cites: string[];
+            /** Parameters */
+            parameters: string[];
+        };
+        /** WorkflowsResponse */
+        WorkflowsResponse: {
+            /** Workflows */
+            workflows: components["schemas"]["WorkflowModel"][];
         };
     };
     responses: never;
@@ -14923,6 +15060,255 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RunModel"];
+                };
+            };
+            /** @description No credential, or one this deployment rejects. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description No such thing, or not yours. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The system's state says no, not the request. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The request cannot be processed as asked. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description Something this depends on is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+        };
+    };
+    workflows_v1_workflows_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkflowsResponse"];
+                };
+            };
+            /** @description No credential, or one this deployment rejects. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description No such thing, or not yours. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The system's state says no, not the request. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The request cannot be processed as asked. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description Something this depends on is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+        };
+    };
+    workflow_evidence_v1_workflows__workflow_id__evidence_get: {
+        parameters: {
+            query?: {
+                device_id?: string | null;
+            };
+            header?: {
+                "X-Device-Secret"?: string;
+                authorization?: string | null;
+            };
+            path: {
+                workflow_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvidenceResponse"];
                 };
             };
             /** @description No credential, or one this deployment rejects. */

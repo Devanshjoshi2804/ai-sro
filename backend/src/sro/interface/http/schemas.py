@@ -20,6 +20,7 @@ from sro.application.execution.pursuits import PursuitProgress
 from sro.application.execution.reversal import Reversal
 from sro.application.intent.match import Candidate
 from sro.application.intent.resolve import Resolution
+from sro.application.skill.read_workflows import CitedEvidence, KnownWorkflow
 from sro.domain.chat.reading import ChatReading
 from sro.domain.chat.thread import Thread
 from sro.domain.execution.run import Medium, Run, StepOutcome
@@ -1858,6 +1859,141 @@ class SpendResponse(BaseModel):
         # floats reaches a console as $0.30000000000000004, and a twentieth of
         # a cent is nothing a cap in dollars can notice.
         return cls(cost_usd=round(day.cost_usd, 6), unpriced=day.blind, cap_usd=cap_usd)
+
+
+class WorkflowHistoryModel(BaseModel):
+    """What has become of one job: how often it ran, how often it held, whether
+    its page is moving under it, and whether its writes go unasked now.
+
+    Four fields where the rig answered seven. `last`, the offer fates and the
+    counsel derived from them are served already -- by `/v1/audit` and
+    `/v1/shapes` -- and a second door onto a field is a second place it is
+    computed. `sro.application.skill.read_workflows` carries the whole of that
+    reasoning.
+    """
+
+    total: int
+    held: int
+    stale: int
+    """Steps a run last matched through a weak locator. This route is the only
+    reader `mark_stale` has."""
+
+    earned: bool
+    """Whether this job may write without asking a person first. Never derived
+    from `held` beside it: a hundred held runs with nothing in the register
+    have earned nothing."""
+
+
+class WorkflowStepModel(BaseModel):
+    """One mined step: what it says, and the evidence that proves it.
+
+    `order` and not the rig's `ord`, which was its column name -- as
+    `AuditStepModel` above does, and for the same reason.
+    """
+
+    order: int
+    says: str
+    system: str | None
+    cites: list[str]
+    parameters: list[str]
+
+
+class WorkflowModel(BaseModel):
+    id: str
+    title: str
+    narrative: str
+    systems: list[str]
+    pass_id: str
+    """The pass that found it, rather than a per-workflow price. One model call
+    proposes every workflow in a pass, so a copy of its cost on each of them
+    sums to the bill times the number of jobs found."""
+
+    parameters: list[dict[str, Any]]
+    unproven: list[str]
+    """What the pass could not place. It exists nowhere else a reader can
+    reach, and it is the field a route emitting its siblings is likeliest to
+    drop."""
+
+    steps: list[WorkflowStepModel]
+    runs: WorkflowHistoryModel
+
+    @classmethod
+    def of(cls, known: KnownWorkflow) -> WorkflowModel:
+        workflow = known.workflow
+        return cls(
+            id=workflow.id,
+            title=workflow.title,
+            narrative=workflow.narrative,
+            systems=list(workflow.systems),
+            pass_id=workflow.pass_id,
+            parameters=[dict(entry) for entry in workflow.parameters],
+            unproven=list(workflow.unproven),
+            # Sorted here, because `Workflow.steps` is a list nothing promises
+            # is ordered -- `ordered_cites` sorts it for the same reason. A
+            # step list served in storage order is a job served in the wrong
+            # order, and it reads as a plausible one.
+            steps=[
+                WorkflowStepModel(
+                    order=step.order,
+                    says=step.says,
+                    system=step.system,
+                    cites=list(step.cites),
+                    parameters=list(step.parameters),
+                )
+                for step in sorted(workflow.steps, key=lambda step: step.order)
+            ],
+            runs=WorkflowHistoryModel(
+                total=known.total, held=known.held, stale=known.stale, earned=known.earned
+            ),
+        )
+
+
+class WorkflowsResponse(BaseModel):
+    workflows: list[WorkflowModel]
+    """An object rather than a bare list, as `ShapesResponse` is: a later field
+    -- a server clock, a next-page cursor -- should not have to break every
+    reader to be added."""
+
+    @classmethod
+    def of(cls, known: tuple[KnownWorkflow, ...]) -> WorkflowsResponse:
+        return cls(workflows=[WorkflowModel.of(one) for one in known])
+
+
+class EvidenceResponse(BaseModel):
+    """Everything a workflow cites, in the shape a runner's bridge consumes.
+
+    Three maps and not one. `gestures` is the extension's own wire shape --
+    what `application.skill.from_rig` reads a replayable plan out of -- and a
+    gesture on the wire never carried its calls, so folding them in would give
+    the bridge a shape neither side speaks. `requests` is keyed by gesture id
+    beside it, as the rig served it and as the two are stored.
+
+    `dict[str, Any]` per gesture and not a model per field, for
+    `ShapesResponse`'s reason: the domain's dataclass is the declaration, and a
+    second copy of its fields here goes stale the first time it gains one.
+    """
+
+    gestures: dict[str, dict[str, Any]]
+    requests: dict[str, list[dict[str, Any]]]
+    recordings: list[str]
+    """The distinct capture streams those gestures arrived on, oldest first.
+    The one input a caller would otherwise have to reach into a column for:
+    `Provenance` needs it, and getting it wrong there mis-states whether a
+    skill's values were ever diffed."""
+
+    @classmethod
+    def of(cls, evidence: CitedEvidence) -> EvidenceResponse:
+        served: dict[str, dict[str, Any]] = {}
+        calls: dict[str, list[dict[str, Any]]] = {}
+        for gesture in evidence.gestures:
+            whole = asdict(gesture)
+            # Split out, never copied: see the class docstring. `tenant` goes
+            # with them -- the caller proved which tenant it is to get here,
+            # and echoing it back is one more field to keep true.
+            calls[gesture.id] = whole.pop("requests")
+            whole.pop("tenant")
+            served[gesture.id] = whole
+        return cls(gestures=served, requests=calls, recordings=list(evidence.recordings))
 
 
 class ObservationBatchRequest(BaseModel):

@@ -125,6 +125,7 @@ from sro.application.skill.map_step_to_tool import MapStepToTool
 from sro.application.skill.promote_skill import PromoteSkill
 from sro.application.skill.read_doings import ReadDoings
 from sro.application.skill.read_skills import GetSkill, ListSkills
+from sro.application.skill.read_workflows import ReadEvidence, ReadWorkflows
 from sro.application.skill.record_offer import record_offer
 from sro.application.skill.repair_drift import RepairDrift
 from sro.application.skill.serve_shapes import ServeShapes
@@ -298,6 +299,12 @@ class Container:
 
     def serve_shapes(self) -> ServeShapes:
         return ServeShapes(self.unit_of_work(), self.clock)
+
+    def read_workflows(self) -> ReadWorkflows:
+        return ReadWorkflows(self.unit_of_work())
+
+    def read_evidence(self) -> ReadEvidence:
+        return ReadEvidence(self.unit_of_work())
 
     async def read_spend(self, ctx: RequestContext) -> DaySpend:
         """What this tenant has been billed since midnight, on this clock.

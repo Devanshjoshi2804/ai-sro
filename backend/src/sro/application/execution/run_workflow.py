@@ -288,12 +288,24 @@ async def run_workflow(
     # run's id -- both silent, and neither a thing to guess between. Refused
     # before anything is sent and before the row is touched: a run whose
     # arguments do not match it is not this caller's run to mark failed.
+    #
+    # And `outcome`, which the rig does not check and we do -- a deliberate
+    # divergence, not a port regression. If the row is the authority for what
+    # this run is doing, `outcome` is the one field that says whether there is
+    # anything left to do: a row already `held`, `failed` or `aborted` picked
+    # up here plans step zero, pays for the model call, has the send blocked
+    # further down, saves the step `skipped` and then breaks out carrying the
+    # stale outcome plus a step that never happened. The rig gets away with it
+    # because nothing re-presses a finished run; phase 4's route will, and the
+    # cheapest place to say no is the same refusal that already reads the row.
     if saved is not None and (
-        saved.device_id != device_id.value or saved.workflow_id != workflow.id
+        saved.device_id != device_id.value
+        or saved.workflow_id != workflow.id
+        or saved.outcome != "running"
     ):
         raise ValueError(
-            f"{saved.id} was saved for {saved.workflow_id} on {saved.device_id},"
-            f" not {workflow.id} on {device_id.value}"
+            f"{saved.id} was saved {saved.outcome} for {saved.workflow_id} on"
+            f" {saved.device_id}, not running for {workflow.id} on {device_id.value}"
         )
     run = saved or WorkflowRun(
         id=run_id or new_run_id(),

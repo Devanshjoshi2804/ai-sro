@@ -1325,6 +1325,32 @@ async def test_a_claimed_run_that_disagrees_with_its_arguments_is_refused(
     assert getattr(still, field) == value, "the row is left exactly as its owner saved it"
 
 
+@pytest.mark.parametrize("outcome", ["held", "failed", "aborted"])
+async def test_a_claimed_run_that_has_already_finished_is_not_performed_again(
+    outcome: str,
+) -> None:
+    """New, and a deliberate divergence from the rig, which refuses on the row's
+    browser and its job but not on whether the row is still running.
+
+    Picked up anyway, a finished row plans its first step and pays for the model
+    call before the send is blocked, then saves a step that never happened
+    against an outcome from a run that ended some other day. Nothing re-presses
+    a finished run today; phase 4's route will.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    await _claimed(uow, outcome=outcome, finished_at=STARTED)
+    channel = FakeChannel(_looks(4))
+    asker = FakeAsker(_plan("type", "x"))
+
+    with pytest.raises(ValueError, match=f"run_claimed was saved {outcome}"):
+        await _ran(uow, workflow, channel=channel, asker=asker, values={}, run_id="run_claimed")
+
+    assert channel.sent == [] and asker.asked == [], "refused before it cost anything"
+    still = await uow.workflow_runs.get(TENANT, "run_claimed")
+    assert still is not None and still.outcome == outcome and still.steps == []
+
+
 async def test_the_claimed_row_says_what_the_run_is_doing_and_the_arguments_do_not() -> None:
     """New, and the rule the rig wrote down in a comment: the row `POST /v1/runs`
     saved is read back rather than rebuilt here, so there is one answer to "what

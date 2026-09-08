@@ -309,11 +309,14 @@ class Container:
     async def read_spend(self, ctx: RequestContext) -> DaySpend:
         """What this tenant has been billed since midnight, on this clock.
 
-        A method rather than a factory like the two above, for the reason
-        ``record_offer`` below is one: ``spent_today`` is a function, so there
-        is no use-case object to hand a clock to, and ``now`` is supplied here
-        because which day is being asked about is a decision no route may
-        make. A route that read a clock would answer for the server's day.
+        A method rather than a factory like the two above: ``spent_today`` is
+        a function, and both of the arguments it takes -- the tenant and
+        ``now`` -- are things this container already holds. There is nothing
+        route-supplied for a use-case object to hold and nothing for it to
+        decide, which is what ``ServeShapes`` next door exists for and this
+        does not have. ``now`` is supplied here because which day is being
+        asked about is a decision no route may make: one that read a clock
+        would answer for the server's day.
 
         Takes the whole context and not a bare ``tenant_id``, so the one seam
         where passing the wrong tenant is the failure stays out of the

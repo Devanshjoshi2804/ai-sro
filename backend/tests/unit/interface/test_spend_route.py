@@ -39,10 +39,13 @@ LAPTOP = DeviceId("dev-1")
 HERS = "the-secret-the-laptop-was-minted"
 
 CAP = 25.0
-"""Deliberately not `Settings().daily_usd_cap`. A route that answered with the
-production default -- or with any literal -- passes a cap test written against
-the default, and this endpoint exists to say how close today is to the cap
-THIS deployment configured."""
+"""Deliberately not the shipped `daily_usd_cap`, so a route answering the
+production default fails the assertions below rather than agreeing with them.
+
+Not a guarantee, though, which is why `test_the_cap_is_reported_beside_the_spend`
+asks twice: a literal `25.0` in the route would satisfy every assertion written
+against this constant alone. Only the answer moving with the setting rules a
+literal out."""
 
 LAST_NIGHT = f.at(-10 * 3600)
 """2026-02-28T23:00Z: yesterday, and ten hours before the clock this container
@@ -57,7 +60,7 @@ def uow() -> FakeUnitOfWork:
 @pytest.fixture
 def container(uow: FakeUnitOfWork) -> _FakeContainer:
     built = _FakeContainer(uow)
-    built.settings = Settings(daily_usd_cap=CAP)
+    built.settings = Settings(daily_usd_cap=CAP, _env_file=None)
     return built
 
 
@@ -177,35 +180,48 @@ async def test_a_quiet_day_is_zero_and_not_an_absent_field(client: httpx.AsyncCl
 async def test_the_total_is_rounded_where_the_rig_rounded_it(
     client: httpx.AsyncClient, uow: FakeUnitOfWork
 ) -> None:
-    """The rig rounded every dollar figure it answered with to six places, and
-    a sum of floats does not: $0.10 and $0.20 reach a console as
-    $0.30000000000000004. Six places is a twentieth of a cent -- nothing a cap
-    in dollars can notice, and the difference between a bill and a defect
-    report."""
-    await uow.chats.record(_chat("cht_1", at=f.at(-3600).isoformat(), cost_usd=0.1))
-    await uow.chats.record(_chat("cht_2", at=f.at(-1800).isoformat(), cost_usd=0.2))
+    """Six places, and the number says which six.
 
-    assert (await _spend(client)).json()["cost_usd"] == 0.3
+    Two things at once, because a plant that proves only the first leaves the
+    word "where" in this test's name pinning nothing. $0.10 and $0.023456 sum
+    to $0.12345600000000001, so a route that did not round at all fails --
+    and to $0.123456 at six places, $0.123 at three and $0.12 at two, so a
+    route that rounded to cents fails too.
+
+    Cents is the one that matters here. A 1K-in/100-out call on
+    `gemini-3-flash` bills $0.0008: round a morning of real reading to two
+    places and this endpoint answers $0.0 while the day spends, which is the
+    failure `789d069` and `11782b4` are on main for. Six places is a twentieth
+    of a cent -- below anything a cap in dollars can notice, and above every
+    call this system makes.
+    """
+    await uow.chats.record(_chat("cht_1", at=f.at(-3600).isoformat(), cost_usd=0.1))
+    await uow.chats.record(_chat("cht_2", at=f.at(-1800).isoformat(), cost_usd=0.023456))
+
+    assert (await _spend(client)).json()["cost_usd"] == 0.123456
 
 
 # --- the cap --------------------------------------------------------------
 
 
-async def test_the_cap_is_reported_beside_the_spend(client: httpx.AsyncClient, day: None) -> None:
+async def test_the_cap_is_reported_beside_the_spend(
+    container: _FakeContainer, client: httpx.AsyncClient, day: None
+) -> None:
     """Without it the console has a number and no scale, and "am I about to be
-    cut off" is the only question this endpoint is opened to answer."""
+    cut off" is the only question this endpoint is opened to answer.
+
+    Asked twice, against two configured caps, because one cap proves only that
+    the route does not answer the OTHER number: a literal `25.0` -- this
+    fixture's own value -- satisfies a single assertion exactly as well as
+    reading `settings` does, and so does the shipped `5.0` against a fixture
+    that happens to use it. The answer having to MOVE is what no literal can
+    do, and it is the same shape the clock is held to further down.
+    """
     assert (await _spend(client)).json()["cap_usd"] == CAP
 
+    container.settings = Settings(daily_usd_cap=7.5, _env_file=None)
 
-async def test_the_cap_reported_is_the_one_this_deployment_configured(
-    client: httpx.AsyncClient,
-) -> None:
-    """The assertion above is worth nothing if `CAP` is what a route with a
-    literal in it would have answered anyway. This is the sentence that keeps
-    it: the fixture's cap and the shipped default must differ, so the test
-    fails the day somebody makes them the same rather than quietly stopping
-    guarding anything."""
-    assert Settings().daily_usd_cap != CAP
+    assert (await _spend(client)).json()["cap_usd"] == 7.5
 
 
 # --- which day, and whose ---------------------------------------------------

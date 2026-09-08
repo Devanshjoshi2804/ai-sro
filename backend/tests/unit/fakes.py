@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import re
+import sys
 from collections.abc import AsyncIterator, Callable, Mapping
 from copy import deepcopy
 from dataclasses import replace
@@ -1938,6 +1939,36 @@ class FakeSpendRepository:
         return DaySpend(cost_usd=usd, blind=blind)
 
 
+_REPOSITORIES = frozenset(
+    {
+        "recordings",
+        "skills",
+        "connections",
+        "runs",
+        "knowledge",
+        "model_calls",
+        "threads",
+        "browser_sessions",
+        "devices",
+        "observations",
+        "gestures",
+        "workflow_runs",
+        "workflows",
+        "offers",
+        "chats",
+        "spend",
+        "pool",
+        "observation_policies",
+        "candidates",
+        "triggers",
+        "tool_calls",
+        "confirmations",
+    }
+)
+"""Every attribute `strict` refuses before entry -- the ports `SqlUnitOfWork`
+assigns inside its own `__aenter__`, and has not got before it."""
+
+
 class FakeUnitOfWork:
     """Counts commits. Does not simulate rollback -- the repositories hold the
     same objects the use case mutated. Transactions are proved in
@@ -2008,7 +2039,51 @@ class FakeUnitOfWork:
         does -- and losing a write to somebody else's concurrent one is exactly
         the failure a caller has to handle rather than log."""
 
+    strict = False
+    """Refuse a repository until the session opens, as the real one does.
+
+    `SqlUnitOfWork` assigns every repository inside `__aenter__`, so touching
+    one before is an `AttributeError` there and a working read here -- a fake
+    more permissive than the thing it doubles, which is how `ServeShapes` and
+    `read_spend` shipped without an `async with` and passed 2299 tests.
+
+    Off by default and armed by the seam that owns the session: the container
+    hands out a unit of work nobody has entered, so `_FakeContainer` arms it
+    on the way out. Left off for a test calling a bare function like
+    `over_cap` or `shapes_for` directly -- those are documented to take a
+    session their caller already opened, and the test IS that caller."""
+
+    _entered = False
+
+    def __getattribute__(self, name: str) -> object:
+        if (
+            name in _REPOSITORIES
+            and object.__getattribute__(self, "strict")
+            and not object.__getattribute__(self, "_entered")
+            # Asked by `sro`, not by a test. The instance is shared, so the
+            # fixture that plants a workflow before the request reaches this
+            # too -- and a test standing in for the store it is arranging is
+            # not the caller that has to hold a session.
+            and sys._getframe(1).f_globals.get("__name__", "").startswith("sro.")
+        ):
+            raise AttributeError(
+                f"{name!r} before __aenter__: a unit of work has no repositories"
+                " until its session opens. Open `async with self._uow as uow:`"
+                " and read the repository off `uow`."
+            )
+        return object.__getattribute__(self, name)
+
+    def hand_out(self) -> FakeUnitOfWork:
+        """This one, as a container hands it out: strict, and not yet entered.
+
+        The instance is shared so the store survives the request, which the
+        real one has a database for. The unopened-ness is what is restored."""
+        self.strict = True
+        self._entered = False
+        return self
+
     async def __aenter__(self) -> FakeUnitOfWork:
+        self._entered = True
         return self
 
     async def __aexit__(self, *exc: object) -> None:

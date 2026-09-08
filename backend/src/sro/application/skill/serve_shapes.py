@@ -54,12 +54,17 @@ class ServeShapes:
         self._clock = clock
 
     async def execute(self, ctx: RequestContext, *, device_id: DeviceId | None) -> list[Shape]:
-        return await shapes_for(
-            self._uow,
-            tenant_id=ctx.tenant_id,
-            device_id=device_id,
-            now=self._clock.now(),
-        )
+        # `shapes_for` reads repositories, and a `UnitOfWork` has none until
+        # its session opens on entry -- so the block is opened here and not
+        # inside the function, whose other callers already hold one. Nothing
+        # commits: the read-only promise this module makes is untouched.
+        async with self._uow as uow:
+            return await shapes_for(
+                uow,
+                tenant_id=ctx.tenant_id,
+                device_id=device_id,
+                now=self._clock.now(),
+            )
 
 
 async def shapes_for(

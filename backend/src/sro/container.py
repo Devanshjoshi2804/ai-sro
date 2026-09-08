@@ -323,7 +323,11 @@ class Container:
         is being asked about is a decision no route may make: one that read a
         clock would answer for the server's day.
         """
-        return await spent_today(self.unit_of_work(), ctx.tenant_id, now=self.clock.now())
+        # Entered here, not inside ``spent_today``: a unit of work has no
+        # repositories until its session opens, and ``over_cap``'s other
+        # callers pass one that is already open.
+        async with self.unit_of_work() as uow:
+            return await spent_today(uow, ctx.tenant_id, now=self.clock.now())
 
     def record_offer(self) -> RecordOffer:
         """A factory, where ``read_spend`` above is a method, and not because

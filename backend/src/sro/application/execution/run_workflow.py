@@ -1,4 +1,4 @@
-"""The loop. Look, plan, perform, verify, record, stop.
+"""The loop. Look, plan, refuse-or-perform, verify, escalate once, stop.
 
 Ported from `run_workflow` in `new_agent_arch/src/rig/runner.py`. Between steps
 the stop button and the budget are checked; after every step the run is saved,
@@ -9,21 +9,21 @@ Nothing here drives a browser or calls a vendor: `Channel` sends the command the
 demonstration recorded, `Asker` plans it, and the repositories behind
 `UnitOfWork` are where the run is written down.
 
-**What this module does not do yet.** Plan 3b splits the rig's runner in two,
-and this is the first half: one plan per step, on the plan model. The second --
-the Pro rescue after a first failure, the sight rung below it, the wider
-`may_write` that treats a click the recorder heard nothing from as a write, the
-writes a dry run withholds instead of sending, the wait for a person to approve
-a live write, `from_step`, and the earned autonomy that decides whether anybody
-is asked -- extends this same module and is not here. Until it is, a run with
-`live=False` performs its writes rather than withholding them, so nothing may
-wire this to a route before that half lands. The routes are phase 4 and there is
-no caller today.
+The plan model plans; the rescue model rescues. A clean step never touches the
+expensive one, and only the steps that surprise us cost what surprises cost.
+Below both rungs, and only for a control neither of them could find, one rung
+that looks at the picture.
+
+The first execution of any workflow is dry. Reads and navigations go out; a
+step whose evidence carries a mutation is shown in full and withheld. A person
+presses through to live -- and until the job has earned it by verified effect,
+every live write that goes out stops and waits for a tap first.
 
 The stop button is `Stops`, shared with the backend's own runs -- there is one
 register of "somebody pressed stop" and no second one to build. It is checked
 between steps and never mid-command: a gesture already sent cannot be recalled
-from a warehouse.
+from a warehouse. It is checked once more on the way out of an approval wait,
+because a release says only that the wait ended and a stop releases it too.
 """
 
 from __future__ import annotations
@@ -33,7 +33,7 @@ from collections.abc import Mapping
 from datetime import UTC, datetime
 
 from sro.application.execution.effects import forget_effects, record_effect
-from sro.application.execution.plan_step import plan_step
+from sro.application.execution.plan_step import plan_by_sight, plan_step
 from sro.application.execution.stops import Stops
 from sro.application.execution.verify import verify
 from sro.application.ports.agent import DeviceUnreachable
@@ -41,7 +41,13 @@ from sro.application.ports.channel import Channel, Reply
 from sro.application.ports.model import Asker
 from sro.application.ports.repositories import UnitOfWork
 from sro.domain.execution.belts import K_WEAK_LOCATORS, StepVerdict
-from sro.domain.execution.evidence import allowlist, origin_of, primary_gesture, writes
+from sro.domain.execution.evidence import (
+    allowlist,
+    origin_of,
+    primary_gesture,
+    recorded_call,
+    writes,
+)
 from sro.domain.execution.planning import Look, Planned
 from sro.domain.execution.run import RunId
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun, new_run_id
@@ -49,7 +55,7 @@ from sro.domain.observation.gesture import Gesture
 from sro.domain.shared.hosts import system_of
 from sro.domain.shared.identifiers import DeviceId, TenantId
 from sro.domain.shared.prices import Answer
-from sro.domain.skill.workflow import Workflow
+from sro.domain.skill.workflow import Step, Workflow
 
 K_STEP_SLACK = 3
 """Attempts a run may make beyond its step count before it stops. A model
@@ -184,6 +190,21 @@ def _result(reply: Reply, *, wrote: bool = False) -> dict[str, object]:
     return shown
 
 
+def _saw_nothing(step: Step, by_id: Mapping[str, Gesture]) -> bool:
+    """Whether the capture recorded this step's gesture and none of the traffic
+    it caused. A call that never completed is not traffic the recorder saw --
+    the same completion guard `origin_of` and `expected_statuses` already
+    wear."""
+    for cited in step.cites:
+        gesture = by_id.get(cited)
+        if gesture is None:
+            continue
+        for request in gesture.requests:
+            if request.status is not None and not request.failure_reason:
+                return False
+    return True
+
+
 def _fell_over(run: WorkflowRun, in_flight: RunStep | None, reason: str) -> None:
     """The run died. Whatever it was doing when it died is the step that
     failed, so the record says which one and why rather than stopping at
@@ -196,6 +217,23 @@ def _fell_over(run: WorkflowRun, in_flight: RunStep | None, reason: str) -> None
         run.steps.append(record)
     record.verdict, record.verdict_by, record.reason = "failed", "none", reason
     run.outcome = "failed"
+
+
+def _withheld(step: Step, planned: Planned, by_id: Mapping[str, Gesture]) -> dict[str, object]:
+    """The write a dry run did not send, in full: what a person reads before
+    pressing through to live."""
+    call = recorded_call(step, by_id)
+    shown: dict[str, object] = {
+        "step": step.order,
+        "planned": {"kind": planned.kind, "payload": planned.payload},
+    }
+    if call is not None:
+        shown.update(
+            method=call.method.upper(),
+            url=call.url,
+            body=call.request_body.text if call.request_body else None,
+        )
+    return shown
 
 
 async def fail_orphans(uow: UnitOfWork, reason: str) -> int:
@@ -227,6 +265,7 @@ async def run_workflow(
     device_id: DeviceId,
     asker: Asker,
     plan_model: str,
+    rescue_model: str,
     live: bool,
     allow_focus: bool,
     started_by: str,
@@ -313,99 +352,188 @@ async def run_workflow(
                 # than doing its later steps on an assumption nobody checked.
                 record.reason = "no cited gesture can be acted on"
 
-            # What the record says was planned and sent, before this attempt
-            # touches it. An attempt that ends without producing a command has
-            # to give it back: a `planned_by` that disagrees with the verdict
-            # beside it is a lie about who failed.
-            previously = (record.planned_by, record.sent, record.result)
+            # The plan model, then the rescue model once, then -- only when
+            # both missed the control by every recorded identity -- the rescue
+            # model once more, by sight. A step with nothing actionable cited
+            # gets none of them: it is recorded skipped and the run stops below.
+            rungs = (
+                (("evidence", plan_model), ("evidence", rescue_model), ("sight", rescue_model))
+                if primary is not None
+                else ()
+            )
             verdict: StepVerdict | None = None
-            planned: Planned | None = None
-            before: Look | None = None
-            navigated = False
-            # Plan, and plan again once if getting to the right page was all
-            # the model asked for. Getting there is not doing the step, so a
-            # navigate is planned again on the same rung -- it does spend
-            # budget, so a planner that only ever navigates still runs out.
-            while primary is not None and planned is None:
-                if attempts >= budget:
-                    record.verdict = "refused"
-                    record.reason = f"the step budget of {budget} attempts is spent"
-                    run.outcome = "refused"
+            after_failed: Look | None = None
+            for how, model in rungs:
+                # The sight rung is for a page that moved, not for a plan that
+                # was wrong: a control the browser could not find is the one
+                # failure a picture can answer. Anything else stops here.
+                if (
+                    how == "sight"
+                    and (record.result or {}).get("error_kind") != "control_not_found"
+                ):
                     break
-                attempts += 1
-                before = await _look(channel, tenant_id, device_id, run.id, origin, allow_focus)
-                proposal = await plan_step(
-                    step=step,
-                    cited=cited,
-                    values=values,
-                    look=before,
-                    origin=origin,
-                    starts_on=starts_on,
-                    allow_focus=allow_focus,
-                    asker=asker,
-                    model=plan_model,
-                )
-                record.planned_by = plan_model
-                record.before_url = before.url
-                _bill(record, proposal.answer)
-                record.sent = {"kind": proposal.kind, "payload": proposal.payload}
+                # One rung of the ladder: plan, and plan again once if getting
+                # to the right page was all the model asked for. Getting there
+                # is not doing the step, so a navigate must not spend the one
+                # rescue -- it does spend budget, so a planner that only ever
+                # navigates still runs out.
+                planned: Planned | None = None
+                before: Look | None = None
+                navigated = False
+                # What the record says was planned and sent, before this rung
+                # touches it. A rung that ends without producing a command has
+                # to give it back: the verdict on the record is still the
+                # previous rung's, and a `planned_by` that disagrees with the
+                # verdict beside it is a lie about who failed.
+                previously = (record.planned_by, record.sent, record.result)
+                while planned is None:
+                    if attempts >= budget:
+                        record.verdict = "refused"
+                        record.reason = f"the step budget of {budget} attempts is spent"
+                        run.outcome = "refused"
+                        break
+                    attempts += 1
+                    before = await _look(channel, tenant_id, device_id, run.id, origin, allow_focus)
+                    if how == "sight":
+                        proposal = await plan_by_sight(
+                            step=step,
+                            cited=cited,
+                            values=values,
+                            look=before,
+                            origin=origin,
+                            asker=asker,
+                            model=model,
+                            failure=verdict.reason if verdict else None,
+                        )
+                    else:
+                        proposal = await plan_step(
+                            step=step,
+                            cited=cited,
+                            values=values,
+                            look=before,
+                            origin=origin,
+                            starts_on=starts_on,
+                            allow_focus=allow_focus,
+                            asker=asker,
+                            model=model,
+                            failure=verdict.reason if verdict else None,
+                            failed_look=after_failed,
+                        )
+                    record.planned_by = model
+                    record.before_url = before.url
+                    _bill(record, proposal.answer)
+                    record.sent = {"kind": proposal.kind, "payload": proposal.payload}
 
-                if proposal.kind == "none":
-                    verdict = StepVerdict("failed", "none", proposal.why)
-                    break
-                off = _target_origin(proposal)
-                # For the two kinds whose target the model chooses, a url that
-                # names no origin at all -- about:blank, file:, a bare path --
-                # is a refusal, not permission. `ui.perform` keeps its origin
-                # from the evidence and None there means the recorder saw no
-                # url, which the extension resolves itself.
-                leaves = proposal.kind in K_LEAVES
-                if (off is None and leaves) or (off is not None and off not in allowed):
-                    record.verdict = "refused"
-                    record.reason = (
-                        f"{off} is not a system this job's evidence names"
-                        if off is not None
-                        else f"{proposal.payload.get('url')!r} names no system at all"
-                    )
-                    run.outcome = "refused"
-                    break
-                if proposal.kind != "navigate":
-                    planned = proposal
-                elif navigated:
-                    verdict = StepVerdict(
-                        "failed", "none", proposal.why or "still on the wrong page after navigating"
-                    )
-                    break
-                else:
-                    moved = await channel.send(
-                        tenant_id,
-                        device_id,
-                        kind="navigate",
-                        run_id=run.id,
-                        payload=proposal.payload,
-                    )
-                    if not moved.ok:
+                    if proposal.kind == "none":
+                        verdict = StepVerdict("failed", "none", proposal.why)
+                        break
+                    off = _target_origin(proposal)
+                    # For the two kinds whose target the model chooses, a url
+                    # that names no origin at all -- about:blank, file:, a bare
+                    # path -- is a refusal, not permission. `ui.perform` keeps
+                    # its origin from the evidence and None there means the
+                    # recorder saw no url, which the extension resolves itself.
+                    leaves = proposal.kind in K_LEAVES
+                    if (off is None and leaves) or (off is not None and off not in allowed):
+                        record.verdict = "refused"
+                        record.reason = (
+                            f"{off} is not a system this job's evidence names"
+                            if off is not None
+                            else f"{proposal.payload.get('url')!r} names no system at all"
+                        )
+                        run.outcome = "refused"
+                        break
+                    if proposal.kind != "navigate":
+                        planned = proposal
+                    elif navigated:
                         verdict = StepVerdict(
-                            "failed", "none", f"could not navigate: {moved.detail}"
+                            "failed",
+                            "none",
+                            proposal.why or "still on the wrong page after navigating",
                         )
                         break
-                    navigated = True
+                    else:
+                        moved = await channel.send(
+                            tenant_id,
+                            device_id,
+                            kind="navigate",
+                            run_id=run.id,
+                            payload=proposal.payload,
+                        )
+                        if not moved.ok:
+                            verdict = StepVerdict(
+                                "failed", "none", f"could not navigate: {moved.detail}"
+                            )
+                            break
+                        navigated = True
 
-            if planned is None and run.outcome == "running":
-                record.planned_by, record.sent, record.result = previously
+                if planned is None and run.outcome == "running":
+                    record.planned_by, record.sent, record.result = previously
+                    # The sight rung's answer, when it had none: the record
+                    # keeps the last command that went out, and says beside it
+                    # what the picture said -- "not on this screen" is the fact
+                    # a person acts on, and it was about to be lost.
+                    if how == "sight" and verdict is not None:
+                        record.reason = f"{record.reason}; then by sight: {verdict.reason}"
+                        verdict = StepVerdict(verdict.state, verdict.by, record.reason)
+                if run.outcome != "running":
+                    break
+                if planned is None:
+                    continue
 
-            # `before` and `planned` are set by the same pass of the loop
-            # above: a command to send is a command something was looked at
-            # before planning.
-            if run.outcome == "running" and planned is not None and before is not None:
+                # Still `writes()`, deliberately: withholding every click the
+                # recorder heard nothing from would leave a dry run performing
+                # almost none of the job, while not RESCUING one costs a
+                # rescue. The asymmetry is the cheap side of each.
+                if not live and mutates:
+                    run.withheld.append(_withheld(step, planned, by_id))
+                    record.verdict, record.verdict_by = "withheld", "dry"
+                    record.reason = "a dry run does not send writes"
+                    record.result = {"withheld": True}
+                    break
+
+                # `writes()` is not the whole of a write. It is False when the
+                # cited evidence records no mutating call AT ALL, which is what
+                # a click on Save looks like when the recorder never saw the
+                # traffic -- a beacon, a worker, a frame nothing was attached
+                # to. A click or a press on evidence that came back silent is
+                # the same unknown state as an accepted write; a click that
+                # fired a completed read -- a menu, a tab -- is not.
+                #
+                # One predicate, both gates below: a step nobody may retry
+                # afterwards is a step nobody may send unasked either.
+                # A click at a point the model chose is a click on whatever is
+                # there now, on a page that has already moved under the job:
+                # what the demonstrated control's traffic showed says nothing
+                # about it. Every sight click is a possible write.
+                may_write = mutates or (
+                    planned.payload.get("action") in ("click", "press")
+                    and (
+                        planned.kind == "ui.perform_at"
+                        or (planned.kind == "ui.perform" and _saw_nothing(step, by_id))
+                    )
+                )
+
+                # `before` and `planned` are set by the same pass of the while
+                # above: a command to send is a command something was looked at
+                # before planning.
+                assert before is not None  # noqa: S101 -- see the comment above
                 reply = await channel.send(
                     tenant_id, device_id, kind=planned.kind, run_id=run.id, payload=planned.payload
                 )
-                record.result = _result(reply, wrote=mutates)
+                record.result = _result(reply, wrote=may_write)
+                # A point has no locator: the record says the control was found
+                # by sight, in both places a reader looks.
+                if reply.ok and planned.kind == "ui.perform_at":
+                    record.result["matched_by"] = "sight"
                 matched = record.result["matched_by"]
                 record.matched_by = matched if reply.ok and isinstance(matched, str) else None
                 after = await _look(channel, tenant_id, device_id, run.id, origin, allow_focus)
                 record.after_url = after.url
+                # Kept for the rescue: if this attempt does not hold, the next
+                # rung is shown the page it left behind beside the page as it
+                # is when it plans.
+                after_failed = after
                 verdict = await verify(
                     step=step,
                     sent_kind=planned.kind,
@@ -426,9 +554,11 @@ async def run_workflow(
                 record.verdict, record.verdict_by = verdict.state, verdict.by
                 record.reason = verdict.reason
                 if verdict.state == "held":
-                    # Found by the last locator: the page moved under the job,
-                    # and the job is flagged before it breaks.
-                    if planned.kind == "ui.perform" and record.matched_by in K_WEAK_LOCATORS:
+                    # Found by sight, or by the last locator: the page moved
+                    # under the job, and the job is flagged before it breaks.
+                    if planned.kind == "ui.perform_at" or (
+                        planned.kind == "ui.perform" and record.matched_by in K_WEAK_LOCATORS
+                    ):
                         record.stale = True
                         await uow.workflows.mark_stale(
                             workflow.id,
@@ -445,8 +575,22 @@ async def run_workflow(
                     # `record_effect`'s own, read off the record rather than
                     # off these locals so a second caller cannot forget one.
                     await record_effect(uow.workflows, run, record, at=_now())
+                    break
+                # A write that went out and was accepted, and then could not be
+                # shown to have held, is not a step to try again: the second
+                # attempt would create the order twice. Only a write the server
+                # itself refused -- or one the browser never sent -- is safe to
+                # rescue. A read is always safe. `may_write` above is the same
+                # reading of "this may have changed something" the tap uses.
+                if (
+                    may_write
+                    and reply.ok
+                    and not (verdict.state == "failed" and verdict.by == "status")
+                ):
+                    record.reason = f"state unknown after a write; not retried: {record.reason}"
+                    break
 
-            # An attempt that never reached a command -- an unplannable step, a
+            # A rung that never reached a command -- an unplannable step, a
             # navigate that would not go -- left its reason on the local verdict
             # and nothing on the record, which then read `skipped` and let the
             # run walk past it.
@@ -458,11 +602,11 @@ async def run_workflow(
             await _save(uow, run)
             if run.outcome != "running":
                 break
-            # Held. Anything else -- failed, unclear, refused, or a step with
-            # nothing actionable to cite -- is a step nobody watched succeed,
-            # and the rest of the job assumes it did. Nothing runs unattended
-            # past one.
-            if record.verdict != "held":
+            # Held, or deliberately withheld by a dry run. Anything else --
+            # failed, unclear, refused, or a step with nothing actionable to
+            # cite -- is a step nobody watched succeed, and the rest of the job
+            # assumes it did. Nothing runs unattended past one.
+            if record.verdict not in ("held", "withheld"):
                 run.outcome = "stopped"
                 break
         else:

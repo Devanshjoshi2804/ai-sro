@@ -37,17 +37,20 @@ from sro.application.execution.run_workflow import (
     _look,
     _now,
     _result,
+    _saw_nothing,
     _target_origin,
+    _withheld,
     fail_orphans,
     run_workflow,
 )
 from sro.application.execution.stops import Stops
 from sro.application.ports.agent import DeviceUnreachable
 from sro.application.ports.channel import Reply
+from sro.domain.execution.belts import SCREEN_SCHEMA
 from sro.domain.execution.planning import PLAN_SCHEMA, Look, Planned
 from sro.domain.execution.run import RunId
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
-from sro.domain.observation.gesture import Gesture
+from sro.domain.observation.gesture import Call, Gesture
 from sro.domain.shared.identifiers import DeviceId, TenantId
 from sro.domain.shared.prices import Answer
 from sro.domain.skill.workflow import Step, Workflow
@@ -663,6 +666,7 @@ async def _ran(
     stops: Stops | None = None,
     run_id: str | None = None,
     plan_model: str = "flash",
+    rescue_model: str = "pro",
 ) -> WorkflowRun:
     """One run, with the arguments no test varies spelled once."""
     return await run_workflow(
@@ -674,6 +678,7 @@ async def _ran(
         device_id=device_id,
         asker=asker,
         plan_model=plan_model,
+        rescue_model=rescue_model,
         live=live,
         allow_focus=allow_focus,
         started_by=started_by,
@@ -792,11 +797,14 @@ async def test_a_navigate_that_would_not_go_is_the_step_that_failed() -> None:
     workflow = await _workflow(uow)
     channel = FakeChannel(
         {
-            **_looks(2),
-            "navigate": [Reply(ok=False, error_kind="no_tab", error_detail="that window is gone")],
+            # Two rungs: a rung that reached no command at all is not a write,
+            # so the rescue is not spent and the second one moves too.
+            **_looks(4),
+            "navigate": [Reply(ok=False, error_kind="no_tab", error_detail="that window is gone")]
+            * 2,
         }
     )
-    asker = FakeAsker(_navigate())
+    asker = FakeAsker(_navigate(), _navigate())
 
     run = await _ran(uow, workflow, channel=channel, asker=asker)
 
@@ -812,17 +820,20 @@ async def test_a_planner_that_only_ever_navigates_stops_rather_than_going_round(
     workflow = await _workflow(uow)
     channel = FakeChannel(
         {
-            **_looks(4),
-            "navigate": [Reply(ok=True, result={"navigated": True})] * 2,
+            **_looks(8),
+            "navigate": [Reply(ok=True, result={"navigated": True})] * 4,
         }
     )
-    asker = FakeAsker(_navigate(), _navigate())
+    asker = FakeAsker(*[_navigate()] * 4)
 
     run = await _ran(uow, workflow, channel=channel, asker=asker)
 
     assert run.outcome == "stopped" and run.steps[0].verdict == "failed"
     assert "wrong page" in run.steps[0].reason
-    assert len([s for s in channel.sent if s["kind"] == "navigate"]) == 1, "it went once"
+    assert len([s for s in channel.sent if s["kind"] == "navigate"]) == 2, (
+        "once per rung, and never twice within one: the second navigate of a rung"
+        " is the planner going round, and the rung ends there"
+    )
 
 
 async def test_a_weak_locator_match_succeeds_and_flags_the_step_stale() -> None:
@@ -986,17 +997,19 @@ async def test_a_step_the_planner_could_not_plan_stops_the_run() -> None:
     """A rung that never reached a command left its reason on nothing but a
     local, and the run walked past the step as if it had been skipped.
 
-    One plan rather than the rig's two: the Pro rescue is task 7's.
+    Both evidence rungs are asked and neither reaches a command; the sight
+    rung is not, because nothing came back from a browser to say the control
+    was the thing that could not be found.
     """
     uow = await _fixture()
     workflow = await _workflow(uow)
-    channel = FakeChannel(_looks(2))
-    asker = FakeAsker(Answer(data={"kind": "nope", "why": "no idea"}))
+    channel = FakeChannel(_looks(4))
+    asker = FakeAsker(*[Answer(data={"kind": "nope", "why": "no idea"})] * 2)
 
     run = await _ran(uow, workflow, channel=channel, asker=asker)
 
     assert run.outcome == "stopped"
-    assert len(asker.asked) == 1, "step 1 was never planned"
+    assert [a["model"] for a in asker.asked] == ["flash", "pro"], "step 1 was never planned"
     assert not [s for s in channel.sent if s["kind"] == "ui.perform"], "nothing was performed"
     assert run.steps[0].verdict == "failed" and run.steps[0].reason, "it says why"
 
@@ -1373,8 +1386,10 @@ async def test_a_failed_write_forgets_the_effects_the_workflow_had_earned() -> N
     )
     channel = FakeChannel(
         {
-            **_looks(4),
-            "http.send": [Reply(ok=True, result={"status": 500, "body": "", "headers": {}})],
+            # Two rungs: a write the server itself refused is the one write
+            # that is safe to plan again, so the rescue goes out and fails too.
+            **_looks(8),
+            "http.send": [Reply(ok=True, result={"status": 500, "body": "", "headers": {}})] * 2,
         }
     )
     asker = _PerSchemaAsker(plan=_replay(), verdict=Answer(data={"held": True, "why": "ok"}))
@@ -1728,3 +1743,549 @@ async def test_a_stale_step_is_recorded_once_per_step_not_once_per_run() -> None
 
     assert list(_stale(uow)) == [("wfl_1", 1)], "one row, not one per run"
     assert await uow.workflows.stale_count("wfl_1") == 1
+
+
+# --------------------------------------------------------------------------
+# The rungs: the plan model, one rescue, and the rung below both that looks
+#
+# The ordering the rescue and the sight rung stand in is the whole of what
+# this section exists to prove, and it is not observable anywhere else: task 2
+# found that `plan_by_sight`'s own suite cannot see "only after both evidence
+# rungs missed with control_not_found", and task 6 found that a single-rung
+# loop cannot either.
+# --------------------------------------------------------------------------
+
+
+async def test_a_failed_step_is_retried_once_with_pro_then_the_run_stops_and_asks() -> None:
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel(
+        {
+            **_looks(6),
+            "ui.perform": [
+                Reply(ok=False, error_kind="control_not_found", error_detail="gone"),
+                Reply(ok=False, error_kind="control_not_found", error_detail="still gone"),
+            ],
+        }
+    )
+    asker = FakeAsker(_plan("type", "x"), _plan("type", "x"))
+
+    run = await _ran(uow, workflow, channel=channel, asker=asker)
+
+    assert run.outcome == "stopped"
+    assert run.steps[0].verdict == "failed" and run.steps[0].planned_by == "pro", (
+        "the second attempt was Pro's"
+    )
+    assert [a["model"] for a in asker.asked] == ["flash", "pro"]
+    assert len(run.steps) == 1, "it stopped rather than carrying on to save"
+
+
+async def test_a_read_that_failed_is_still_rescued() -> None:
+    """The write rule must not cost every step its rescue."""
+    uow = await _fixture()
+    workflow = await _one_step(uow, _ids(uow)[0], says="type the code")
+    channel = FakeChannel({**_looks(8), "ui.perform": [_performed()] * 2})
+    asker = FakeAsker(
+        _plan("type", "x"),
+        Answer(data={"held": False, "why": "nothing typed"}),
+        _plan("type", "x"),
+        Answer(data={"held": True, "why": "typed"}),
+    )
+
+    run = await _ran(uow, workflow, channel=channel, asker=asker)
+
+    assert run.outcome == "held" and run.steps[0].planned_by == "pro"
+    assert [a["model"] for a in asker.asked] == ["flash", "flash", "pro", "flash"], (
+        "the verifier stays on the model the caller named; only the plan escalates"
+    )
+
+
+async def test_the_pro_rescue_sees_the_page_the_flash_attempt_left_behind() -> None:
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel({**_looks(6), "ui.perform": [_performed()] * 3})
+    # Step 0 is a read, so a failed verdict is rescued once by Pro.
+    asker = _PerSchemaAsker(
+        plan=_plan("type", "THIRD"), verdict=Answer(data={"held": False, "why": "still blank"})
+    )
+
+    await _ran(uow, workflow, channel=channel, asker=asker, values={"clientCode": "THIRD"})
+
+    plans = [a for a in asker.asked if a["schema"] is PLAN_SCHEMA]
+    assert [p["model"] for p in plans][:2] == ["flash", "pro"]
+    assert plans[0]["images"] == (), "the first attempt has no failed attempt to show"
+    images = plans[1]["images"]
+    assert isinstance(images, tuple) and len(images) == 1, (
+        "the rescue is shown the page the first attempt left"
+    )
+    assert isinstance(images[0], bytes), "a real picture, not a placeholder"
+
+
+async def test_a_rescue_is_told_what_the_attempt_before_it_failed_with() -> None:
+    """New, and a caller seam: `failure` is what stops the rescue re-planning
+    the attempt that just missed. The rig threaded it and nothing held it to
+    it -- a loop that passed `failure=None` on every rung passes the four
+    tests above."""
+    uow = await _fixture()
+    workflow = await _one_step(uow, _ids(uow)[0], says="type the code")
+    channel = FakeChannel({**_looks(8), "ui.perform": [_performed()] * 2})
+    asker = FakeAsker(
+        _plan("type", "x"),
+        Answer(data={"held": False, "why": "the field is still blank"}),
+        _plan("type", "x"),
+        Answer(data={"held": True, "why": "typed"}),
+    )
+
+    await _ran(uow, workflow, channel=channel, asker=asker)
+
+    plans = [a for a in asker.asked if a["schema"] is PLAN_SCHEMA]
+    assert _prompt(asker, 0)["previous_attempt_failed"] is None
+    assert plans[1] is _seen(asker, 2)
+    assert _prompt(asker, 2)["previous_attempt_failed"] == "the field is still blank"
+
+
+async def test_a_rung_that_reached_no_command_leaves_the_previous_rungs_plan_standing() -> None:
+    """Flash failed AT a command and Pro failed BEFORE one. The record's
+    verdict is Flash's, so its `planned_by` and `sent` must be too."""
+    uow = await _fixture()
+    workflow = await _one_step(uow, _ids(uow)[0], says="type the code")
+    channel = FakeChannel(
+        {
+            **_looks(6),
+            "ui.perform": [Reply(ok=False, error_kind="control_not_found", error_detail="gone")],
+        }
+    )
+    asker = FakeAsker(_plan("type", "x"), Answer(data={"kind": "nope", "why": "lost"}))
+
+    run = await _ran(uow, workflow, channel=channel, asker=asker)
+
+    step = run.steps[0]
+    assert step.verdict == "failed" and "control_not_found" in step.reason
+    assert step.planned_by == "flash", "Pro never got as far as a command"
+    assert step.sent is not None and step.sent["kind"] == "ui.perform"
+    assert step.result == {
+        "ok": False,
+        "status": None,
+        "matched_by": None,
+        "error_kind": "control_not_found",
+    }
+    assert [a["model"] for a in asker.asked] == ["flash", "pro"], "Pro was still asked"
+
+
+# --------------------------------------------------------------------------
+# The rung below the ladder: a control found by looking
+# --------------------------------------------------------------------------
+
+
+def _sight(x: int = 40, y: int = 30, action: str = "type", value: str | None = "x") -> Answer:
+    return Answer(
+        data={"found": True, "x": x, "y": y, "action": action, "value": value, "why": "there"},
+        cost_usd=0.002,
+    )
+
+
+def _looks_with_size(n: int) -> dict[str, list[Reply]]:
+    """`_looks`, with a viewport. A picture the browser gave no numbers for is
+    a picture nothing can point into, and `plan_by_sight` refuses it -- so the
+    sight rung is only reachable at all through a screenshot with a size."""
+    return {
+        "ui.url": [Reply(ok=True, result={"url": "http://127.0.0.1:63319/form"})] * n,
+        "screenshot": [
+            Reply(
+                ok=True,
+                result={
+                    "image_base64": "aVBORw0=",
+                    "text_digest": "Save",
+                    "width": 800,
+                    "height": 600,
+                },
+            )
+        ]
+        * n,
+    }
+
+
+class _ByRungAsker(FakeAsker):
+    """Answers the evidence planner, the sight planner and the verifier each
+    from their own queue, by schema, and records every call."""
+
+    def __init__(self, plans: list[Answer], sights: list[Answer], verdict: Answer) -> None:
+        super().__init__()
+        self.plans, self.sights, self.verdict = list(plans), list(sights), verdict
+
+    async def ask(self, **asked: object) -> Answer:
+        await super().ask(**asked)  # type: ignore[arg-type]
+        schema = asked["schema"]
+        assert isinstance(schema, dict)
+        properties = schema["properties"]
+        assert isinstance(properties, dict)
+        if "held" in properties:
+            return self.verdict
+        if "found" in properties:
+            return self.sights.pop(0)
+        return self.plans.pop(0)
+
+
+def _by_sight(asker: FakeAsker) -> list[dict[str, object]]:
+    """Every question put to the rung that looks, told apart by its schema."""
+    seen = []
+    for asked in asker.asked:
+        schema = asked["schema"]
+        assert isinstance(schema, dict)
+        properties = schema["properties"]
+        assert isinstance(properties, dict)
+        if "found" in properties:
+            seen.append(asked)
+    return seen
+
+
+async def _run_by_sight(
+    *,
+    sights: list[Answer],
+    perform_at: list[Reply],
+    performs: list[Reply] | None = None,
+    live: bool = True,
+    looks: dict[str, list[Reply]] | None = None,
+) -> tuple[WorkflowRun, FakeChannel, _ByRungAsker]:
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel(
+        {
+            **(looks or _looks_with_size(12)),
+            # Two misses on the first step; the save then matches by evidence.
+            "ui.perform": performs
+            or [
+                Reply(ok=False, error_kind="control_not_found", error_detail="gone"),
+                Reply(ok=False, error_kind="control_not_found", error_detail="gone"),
+                _performed("role_and_name"),
+            ],
+            "ui.perform_at": perform_at,
+        }
+    )
+    asker = _ByRungAsker(
+        [_plan("type", "x")] * 4, sights, Answer(data={"held": True, "why": "typed"})
+    )
+    run = await _ran(uow, workflow, channel=channel, asker=asker, live=live)
+    return run, channel, asker
+
+
+async def test_a_control_neither_rung_could_find_is_found_by_sight_and_the_job_marked_stale() -> (
+    None
+):
+    run, channel, asker = await _run_by_sight(
+        sights=[_sight()], perform_at=[Reply(ok=True, result={"performed": True})]
+    )
+
+    first = run.steps[0]
+    assert first.verdict == "held", first.reason
+    assert first.matched_by == "sight" and first.stale is True
+    assert first.result == {"ok": True, "status": None, "matched_by": "sight"}
+    assert [a["model"] for a in _by_sight(asker)] == ["pro"]
+    [sent] = [s for s in channel.sent if s["kind"] == "ui.perform_at"]
+    assert _payload(sent) == {
+        "origin": "http://127.0.0.1:63319",
+        "x": 40,
+        "y": 30,
+        "action": "type",
+        "value": "x",
+    }
+    assert first.planned_by == "pro"
+    assert run.outcome == "held", "the run carried on to the save and held"
+
+
+async def test_the_sight_rung_is_for_a_control_that_was_not_found_and_nothing_else() -> None:
+    """A plan the browser refused for another reason -- the page did not
+    answer, the tab is gone -- is not a page that moved, and a picture answers
+    nothing about it."""
+    run, channel, asker = await _run_by_sight(
+        sights=[_sight()],
+        perform_at=[Reply(ok=True, result={"performed": True})],
+        performs=[Reply(ok=False, error_kind="not_actionable", error_detail="no answer")] * 2,
+    )
+
+    assert run.outcome == "stopped" and run.steps[0].verdict == "failed"
+    assert not [s for s in channel.sent if s["kind"] == "ui.perform_at"]
+    assert not _by_sight(asker), "the rung was never asked"
+
+
+async def test_the_sight_rung_comes_after_both_evidence_rungs_and_not_instead_of_one() -> None:
+    """New, and the ordering nothing else in this system can see: the rung
+    that looks is asked once, third, and only once the rescue has missed by
+    every recorded identity too. A loop that reached for the picture as soon
+    as the first attempt missed passes every other test in this section."""
+    run, _, asker = await _run_by_sight(
+        sights=[_sight()], perform_at=[Reply(ok=True, result={"performed": True})]
+    )
+
+    kinds = [
+        "sight" if asked in _by_sight(asker) else "evidence"
+        for asked in asker.asked
+        if asked["schema"] is not SCREEN_SCHEMA
+    ]
+    assert kinds[:3] == ["evidence", "evidence", "sight"]
+    assert [a["model"] for a in asker.asked if a["schema"] is PLAN_SCHEMA][:2] == ["flash", "pro"]
+    assert run.steps[0].verdict == "held"
+
+
+async def test_a_point_off_the_screen_or_a_control_not_seen_is_a_step_that_stops() -> None:
+    for sight in (
+        _sight(x=900, y=30),
+        Answer(data={"found": False, "x": 0, "y": 0, "action": "click", "why": "not here"}),
+    ):
+        run, channel, _ = await _run_by_sight(
+            sights=[sight], perform_at=[Reply(ok=True, result={"performed": True})]
+        )
+
+        assert run.outcome == "stopped" and run.steps[0].verdict == "failed", sight.data
+        assert not [s for s in channel.sent if s["kind"] == "ui.perform_at"], "nothing was sent"
+        assert "then by sight: " in run.steps[0].reason
+        assert "not on the screen" in run.steps[0].reason or "not here" in run.steps[0].reason
+        assert run.steps[0].result == {
+            "ok": False,
+            "status": None,
+            "matched_by": None,
+            "error_kind": "control_not_found",
+        }, "the record keeps the last command that went out"
+
+
+async def test_without_a_picture_there_is_no_sight_rung() -> None:
+    """A screenshot the browser refused -- `focus_not_permitted` -- is no
+    picture, and a rung that looks has nothing to look at."""
+    run, channel, asker = await _run_by_sight(
+        sights=[_sight()],
+        perform_at=[Reply(ok=True, result={"performed": True})],
+        looks={
+            "ui.url": [Reply(ok=True, result={"url": "http://127.0.0.1:63319/form"})] * 12,
+            "screenshot": [Reply(ok=False, error_kind="focus_not_permitted", error_detail="no")]
+            * 12,
+        },
+    )
+
+    assert run.outcome == "stopped" and "no screen to look at" in run.steps[0].reason
+    assert not _by_sight(asker), "the model was not asked to look at nothing"
+    assert not [s for s in channel.sent if s["kind"] == "ui.perform_at"]
+
+
+async def test_an_action_a_point_cannot_take_is_a_step_that_stops() -> None:
+    run, channel, _ = await _run_by_sight(
+        sights=[Answer(data={"found": True, "x": 1, "y": 1, "action": "select", "why": "w"})],
+        perform_at=[Reply(ok=True, result={"performed": True})],
+    )
+
+    assert run.outcome == "stopped" and "'select' is not an action" in run.steps[0].reason
+    assert not [s for s in channel.sent if s["kind"] == "ui.perform_at"]
+
+
+async def test_an_evidence_rung_with_no_plan_is_not_blamed_on_sight() -> None:
+    """The reason append is the sight rung's alone: an evidence rung whose
+    planner had no answer keeps its own reason, unadorned."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel(_looks(6))
+    asker = FakeAsker(Answer(error="503 UNAVAILABLE"), Answer(error="503 UNAVAILABLE"))
+
+    run = await _ran(uow, workflow, channel=channel, asker=asker)
+
+    assert run.steps[0].verdict == "failed" and run.steps[0].reason == "503 UNAVAILABLE"
+    assert "by sight" not in run.steps[0].reason
+
+
+# --------------------------------------------------------------------------
+# What a step may have changed, and what follows from it
+# --------------------------------------------------------------------------
+
+
+def _saw_traffic(uow: FakeUnitOfWork) -> Gesture:
+    """The silent click, given one completed read of its own -- a menu or a
+    tab, which changed nothing and is safe to try again."""
+    click = next(g for g in _evidence(uow) if g.id == _silent_click(uow))
+    heard = Call(
+        method="GET",
+        url="http://127.0.0.1:63319/api/clients",
+        status=200,
+        started_at=1788165604.9,
+    )
+    return replace(click, id="ges_read_click", requests=[heard])
+
+
+def test_a_step_whose_evidence_shows_no_completed_traffic_saw_nothing() -> None:
+    by_id = {gesture.id: gesture for gesture in _gestures()}
+    saver = next(g for g in by_id.values() if g.requests)
+    typed = next(g for g in by_id.values() if not g.requests)
+
+    assert not _saw_nothing(Step(order=0, says="s", system=None, cites=[saver.id]), by_id)
+    assert _saw_nothing(Step(order=0, says="s", system=None, cites=[typed.id]), by_id)
+    assert not _saw_nothing(
+        Step(order=0, says="s", system=None, cites=["ges_gone", saver.id]), by_id
+    ), "a cited gesture the repository lost does not hide the evidence behind it"
+
+    dead = replace(
+        saver,
+        requests=[
+            replace(call, status=502, failure_reason="Failed to fetch") for call in saver.requests
+        ],
+    )
+    assert _saw_nothing(Step(order=0, says="s", system=None, cites=[dead.id]), {dead.id: dead}), (
+        "a call that never landed is not traffic the recorder saw"
+    )
+
+
+async def test_a_write_that_went_out_is_not_performed_a_second_time() -> None:
+    """The rescue exists for a step that did not happen. A write the browser
+    sent and the server accepted, which then could not be shown to have held,
+    is not that: retrying it creates the order twice."""
+    uow = await _fixture()
+    workflow = await _one_step(uow, _ids(uow)[-1])
+    channel = FakeChannel({**_looks(4), "ui.perform": [_performed()]})
+    asker = FakeAsker(_plan("click"), Answer(data={"held": False, "why": "no confirmation"}))
+
+    run = await _ran(uow, workflow, channel=channel, asker=asker)
+
+    assert run.outcome == "stopped"
+    assert len([s for s in channel.sent if s["kind"] == "ui.perform"]) == 1, "sent once"
+    assert [a["model"] for a in asker.asked] == ["flash", "flash"], "Pro was never asked"
+    assert run.steps[0].reason.startswith("state unknown after a write; not retried: ")
+
+
+async def test_a_click_the_capture_heard_nothing_from_is_not_clicked_twice() -> None:
+    """`writes()` is False for a Save whose call the recorder never saw, and a
+    rescue of that click submits the order a second time."""
+    uow = await _fixture()
+    workflow = await _one_step(uow, _silent_click(uow), says="press Save")
+    channel = FakeChannel({**_looks(4), "ui.perform": [_performed()]})
+    asker = FakeAsker(_plan("click"), Answer(data={"held": False, "why": "no confirmation"}))
+
+    run = await _ran(uow, workflow, channel=channel, asker=asker)
+
+    assert run.outcome == "stopped"
+    assert len([s for s in channel.sent if s["kind"] == "ui.perform"]) == 1, "clicked once"
+    assert [a["model"] for a in asker.asked] == ["flash", "flash"], "Pro was never asked"
+    assert "state unknown" in run.steps[0].reason
+    assert (run.steps[0].result or {})["wrote"] is True, "and it counts as a write"
+
+
+async def test_a_click_that_fired_a_read_still_gets_its_rescue() -> None:
+    """A menu or a tab click that the recorder DID see traffic from changed
+    nothing, and the write rule must not cost it its second attempt."""
+    uow = await _fixture()
+    await uow.gestures.add_gestures((_saw_traffic(uow),))
+    workflow = await _one_step(uow, "ges_read_click", says="open the tab")
+    channel = FakeChannel({**_looks(8), "ui.perform": [_performed()] * 2})
+    asker = FakeAsker(
+        _plan("click"),
+        Answer(data={"held": False, "why": "the panel did not open"}),
+        _plan("click"),
+        Answer(data={"held": True, "why": "the panel is open"}),
+    )
+
+    run = await _ran(uow, workflow, channel=channel, asker=asker)
+
+    assert run.outcome == "held" and run.steps[0].planned_by == "pro"
+    assert len([s for s in channel.sent if s["kind"] == "ui.perform"]) == 2
+    assert "wrote" not in (run.steps[0].result or {}), "a completed read is not a write"
+
+
+async def test_a_step_the_evidence_calls_a_read_but_the_model_typed_into_is_no_write() -> None:
+    """New, and the seam the predicate is asked at: `may_write` widens
+    `writes()` only for a click or a press. A type on evidence the recorder
+    heard nothing from is not a possible write, and a loop that widened on
+    every action would refuse every rescue this suite has."""
+    uow = await _fixture()
+    workflow = await _one_step(uow, _ids(uow)[0], says="type the code")
+    channel = FakeChannel({**_looks(8), "ui.perform": [_performed()] * 2})
+    asker = FakeAsker(
+        _plan("type", "x"),
+        Answer(data={"held": False, "why": "still blank"}),
+        _plan("type", "x"),
+        Answer(data={"held": True, "why": "typed"}),
+    )
+
+    run = await _ran(uow, workflow, channel=channel, asker=asker)
+
+    assert run.outcome == "held" and run.steps[0].planned_by == "pro", "it was rescued"
+    assert "wrote" not in (run.steps[0].result or {})
+
+
+# --------------------------------------------------------------------------
+# The write a dry run does not send
+# --------------------------------------------------------------------------
+
+
+async def test_a_dry_run_sends_the_reads_and_withholds_the_write_in_full() -> None:
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel({**_looks(4), "ui.perform": [_performed()]})
+    asker = FakeAsker(
+        _plan("type", "THIRD"), Answer(data={"held": True, "why": "typed"}), _plan("click")
+    )
+
+    run = await _ran(
+        uow, workflow, channel=channel, asker=asker, values={"clientCode": "THIRD"}, live=False
+    )
+
+    assert run.outcome == "held"
+    assert [s.verdict for s in run.steps] == ["held", "withheld"]
+    performed = [s for s in channel.sent if s["kind"] == "ui.perform"]
+    assert len(performed) == 1 and _payload(performed[0])["value"] == "THIRD", "the typing went out"
+    assert run.withheld and run.withheld[0]["method"] == "POST", "the write is shown, in full"
+    assert await uow.workflow_runs.get(TENANT, run.id) == run, "saved"
+
+
+def test_what_a_dry_run_withholds_is_the_write_in_full() -> None:
+    """What a person reads before pressing through to live: the command the
+    planner chose, and the call the operator's own demonstration made."""
+    by_id = {gesture.id: gesture for gesture in _gestures()}
+    saver = next(g for g in by_id.values() if g.requests)
+    post = next(r for r in saver.requests if r.method == "POST")
+    step = Step(order=1, says="save", system=None, cites=[saver.id])
+    planned = Planned("ui.perform", {"action": "click"}, "w", Answer())
+
+    assert _withheld(step, planned, by_id) == {
+        "step": 1,
+        "planned": {"kind": "ui.perform", "payload": {"action": "click"}},
+        "method": "POST",
+        "url": post.url,
+        "body": post.request_body.text if post.request_body else None,
+    }
+
+    typed = next(g for g in by_id.values() if not g.requests)
+    quiet = _withheld(Step(order=0, says="type", system=None, cites=[typed.id]), planned, by_id)
+    assert quiet == {"step": 0, "planned": {"kind": "ui.perform", "payload": {"action": "click"}}}
+
+
+async def test_a_dry_run_records_no_effect_even_for_a_click_it_does_send() -> None:
+    """`writes()` is False for a Save whose call the recorder never saw, so a
+    dry run performs it -- and a dry run's evidence earns nothing."""
+    uow = await _fixture()
+    workflow = await _one_step(uow, _silent_click(uow), says="press Save")
+    channel = FakeChannel({**_looks(2), "ui.perform": [_performed()]})
+    asker = _PerSchemaAsker(plan=_plan("click"), verdict=Answer(data={"held": True, "why": "ok"}))
+
+    run = await _ran(
+        uow, workflow, channel=channel, asker=asker, values={"clientCode": "THIRD"}, live=False
+    )
+
+    assert run.outcome == "held", "the click was sent, not withheld"
+    assert len([s for s in channel.sent if s["kind"] == "ui.perform"]) == 1
+    assert _effects(uow) == {}
+
+
+async def test_a_dry_run_reads_by_sight_too_and_its_writes_never_reach_the_rung() -> None:
+    """A dry run performs reads, so a read neither evidence rung could find is
+    found by sight the same way. Its writes are withheld before any rung could
+    miss them: the save below is withheld by evidence, and the sight rung is
+    never asked about it."""
+    run, channel, asker = await _run_by_sight(
+        sights=[_sight()],
+        perform_at=[Reply(ok=True, result={"performed": True})],
+        live=False,
+    )
+
+    assert [s.verdict for s in run.steps] == ["held", "withheld"], [s.reason for s in run.steps]
+    assert run.steps[0].matched_by == "sight" and run.steps[0].stale is True
+    assert len([s for s in channel.sent if s["kind"] == "ui.perform_at"]) == 1
+    assert len(_by_sight(asker)) == 1
+    shown = run.withheld[0]["planned"]
+    assert isinstance(shown, dict) and shown["kind"] == "ui.perform", (
+        "withheld by evidence, unasked"
+    )

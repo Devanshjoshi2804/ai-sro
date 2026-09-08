@@ -30,7 +30,7 @@ from dataclasses import replace
 import pytest
 
 from sro.application.execution import run_workflow as runner_module
-from sro.application.execution.approvals import Approvals
+from sro.application.execution.approvals import K_APPROVAL_WAIT_S, Approvals
 from sro.application.execution.run_workflow import (
     K_STEP_SLACK,
     _bill,
@@ -459,7 +459,14 @@ async def _workflow(uow: FakeUnitOfWork) -> Workflow:
         tenant=ELSEWHERE,
         title="create a client",
         narrative="n",
-        systems=["http://127.0.0.1:63319"],
+        # A system the evidence does not name, and a plant rather than a
+        # plausible value. The allowlist is every system the workflow's own
+        # cited evidence names and deliberately ignores this field -- a fixture
+        # where the two agree cannot tell them apart, and a loop that read
+        # `systems` here would let a plan reach a host nothing was recorded on.
+        # `test_an_origin_outside_the_evidence_is_refused_before_it_is_sent`
+        # navigates to exactly this one.
+        systems=["http://127.0.0.1:63319", "https://evil.example"],
         steps=[
             Step(
                 order=0,
@@ -1353,8 +1360,11 @@ async def test_the_claimed_row_says_what_the_run_is_doing_and_the_arguments_do_n
     performed = next(s for s in channel.sent if s["kind"] == "ui.perform")
     assert _payload(performed)["value"] == "CLAIMED", "the row's values are what it types"
     assert "allow_focus" not in _payload(performed), "and the row's answer on focus"
-    shot = next(s for s in channel.sent if s["kind"] == "screenshot")
-    assert "allow_focus" not in _payload(shot)
+    shots = [_payload(s) for s in channel.sent if s["kind"] == "screenshot"]
+    assert len(shots) == 2 and not [s for s in shots if "allow_focus" in s], (
+        "every look this run took, the one after the command included -- a run"
+        " told not to take the operator's tab must not take it to verify either"
+    )
 
 
 async def test_a_run_nobody_claimed_gets_an_id_and_a_row_before_its_first_command() -> None:
@@ -1430,6 +1440,51 @@ async def test_a_held_write_verified_by_state_is_recorded_as_an_effect() -> None
     assert verified_by == "status", "and by the belt that saw the state, not by a picture"
     assert at.endswith("+00:00"), "in UTC"
     assert at > run.started_at, "stamped when the write held, not when the run began"
+
+
+async def test_the_effect_is_filed_against_the_step_that_wrote_it() -> None:
+    """New. `RunProof` counts one row per write and keys it by the step's own
+    order, so an effect filed against the wrong step mis-counts what a job has
+    earned -- silently, since nothing downstream can tell the orders apart.
+
+    Every other test in this section writes on step zero, where the step in
+    hand and `run.steps[0]` are the same object and a caller reaching for
+    either passes. Here the read is step zero and the write is step one.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    await _claimed(uow, live=True, started_by="offer", values={"clientCode": "THIRD"})
+    channel = FakeChannel(
+        {
+            **_looks(4),
+            "ui.perform": [_performed()],
+            "http.send": [Reply(ok=True, result={"status": 200, "body": "{}", "headers": {}})],
+        }
+    )
+    # A plan per step: the read is typed, and the write is the recorded call
+    # replayed. `_PerSchemaAsker` answers every planning question the same way
+    # and cannot tell the two steps apart.
+    asker = _ByRungAsker(
+        plans=[_plan("type", "THIRD"), _replay()],
+        sights=[],
+        verdict=Answer(data={"held": True, "why": "ok"}),
+    )
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        values={},
+        run_id="run_claimed",
+        earned=True,
+    )
+
+    assert [s.verdict for s in run.steps] == ["held", "held"]
+    assert run.steps[1].result is not None and run.steps[1].result.get("wrote") is True
+    assert [key for key in _effects(uow) if key[1] == run.id] == [(workflow.id, run.id, 1)], (
+        "the step that wrote, not whichever step the run happens to have first"
+    )
 
 
 async def test_a_failed_write_forgets_the_effects_the_workflow_had_earned() -> None:
@@ -1783,11 +1838,17 @@ async def test_a_run_that_died_between_two_steps_leaves_the_finished_one_alone()
     channel = _AbortIsGone({**_looks(2), "ui.perform": [_performed()]})
     asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True}))
 
-    run = await _ran(uow, workflow, channel=channel, asker=asker, stops=_StopsAfterTheFirstStep())
+    stops = _StopsAfterTheFirstStep()
+
+    run = await _ran(uow, workflow, channel=channel, asker=asker, stops=stops)
 
     assert run.outcome == "failed"
     assert [(s.order, s.verdict) for s in run.steps] == [(0, "held"), (1, "failed")]
     assert "stopped listening" in run.steps[1].reason
+    assert stops.seen == 2, (
+        "read once per step and never mid-command: step zero sent four commands"
+        " between the two readings, and a gesture already sent cannot be recalled"
+    )
 
 
 async def test_a_stale_step_is_recorded_once_per_step_not_once_per_run() -> None:
@@ -2422,6 +2483,57 @@ async def test_a_live_write_waits_for_approval_and_goes_out_when_it_comes() -> N
     run = await task
     assert run.outcome == "held"
     assert [s["kind"] for s in channel.sent].count("ui.perform") == 2
+
+
+class _RecordsTheWait(Approvals):
+    """A register nobody ever taps, that remembers how long it was asked to
+    hold the write for."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.waited: list[float] = []
+
+    async def wait_for(
+        self,
+        run_id: str,
+        # The signature it is standing in for, whose own `noqa` says why the
+        # rule does not apply: the wait IS the timeout here.
+        timeout: float = K_APPROVAL_WAIT_S,  # noqa: ASYNC109
+    ) -> bool:
+        self.waited.append(timeout)
+        return False
+
+
+async def test_the_person_the_write_waits_on_is_given_five_minutes() -> None:
+    """New. Every other test of this branch patches `K_APPROVAL_WAIT_S` down to
+    milliseconds so the suite does not sit for five minutes, which left the
+    number itself held by nothing here: it could have been thirty seconds and
+    the whole file would still pass.
+
+    Both halves are read off it -- the deadline the loop hands the register,
+    and the minutes it tells the person afterwards -- and the number is a
+    measurement of somebody reading a panel, not a round one that was liked.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel({**_looks(4), "ui.perform": [_performed()]})
+    asker = _PerSchemaAsker(
+        plan=_plan("type", "THIRD"), verdict=Answer(data={"held": True, "why": "ok"})
+    )
+    approvals = _RecordsTheWait()
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        values={"clientCode": "THIRD"},
+        started_by="offer",
+        approvals=approvals,
+    )
+
+    assert approvals.waited == [300.0], "the loop's own deadline, not the register's default"
+    assert "within 5 minutes" in run.steps[-1].reason
 
 
 async def test_a_write_nobody_approves_stops_the_run(monkeypatch: pytest.MonkeyPatch) -> None:

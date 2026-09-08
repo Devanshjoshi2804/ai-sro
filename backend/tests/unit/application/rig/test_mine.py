@@ -30,7 +30,7 @@ import pytest
 from sro.application.observation.mining_pass import MineResult, mine, propose, rekey_workflows
 from sro.domain.observation.gesture import Gesture, Intent, ValueSeen
 from sro.domain.observation.pool import K_POOL_AGE
-from sro.domain.observation.window import Packed, Window
+from sro.domain.observation.window import K_WINDOW_TOKENS, Packed, Window
 from sro.domain.shared.identifiers import TenantId
 from sro.domain.shared.prices import Answer
 from sro.domain.skill.umbrella import INSTRUCTIONS, K_EFFORT, K_SAMPLES
@@ -159,10 +159,17 @@ leave evidence out without reaching past `mine`'s own arguments to set the
 budget. Under it the budget holds nothing and K_MIN_GESTURES decides how many
 are packed, so strength decides which."""
 
-NEARLY_FULL_KB = "x" * (140_000 * 4)
-"""Most of the budget, and not all of it: what is left is a few thousand
-tokens of room, so what else is subtracted from it is visible in how many
-gestures fit. Under CROWDED_KB the floor decides and nothing else shows."""
+NEARLY_FULL_KB = "x" * ((K_WINDOW_TOKENS - 10_000) * 4)
+"""Most of the budget, and not all of it: what is left is ten thousand tokens
+of room, so what else is subtracted from it is visible in how many gestures
+fit. Under CROWDED_KB the floor decides and nothing else shows.
+
+Derived from `K_WINDOW_TOKENS` rather than written as the 140,000 it used to
+be. When the budget was lowered to keep the prompt under the 200K price
+boundary, a literal sized against the old one left NEGATIVE room -- so the
+floor decided, both halves of the comparison packed exactly
+`K_MIN_GESTURES`, and a test about the budget passed on nothing to do with
+it."""
 
 
 # --------------------------------------------------------------------------

@@ -20,7 +20,30 @@ from dataclasses import dataclass, field, replace
 from sro.domain.observation.gesture import Gesture, Intent
 from sro.domain.observation.trim import is_secret, trim
 
-K_WINDOW_TOKENS = 150_000
+K_WINDOW_TOKENS = 100_000
+"""The prompt budget, in `tokens()`\'s own units, whose whole purpose is to
+stay under the 200,000 boundary where Gemini 3.1 Pro\'s input price doubles.
+
+150,000 did not do that, and the gap is `tokens()` itself. It counts four
+characters to a token, which is right for prose and wrong for what this budget
+actually measures: JSON of ids, URLs, CSS paths and punctuation, with almost no
+long words. Measured on the first real pass over a real store -- 507 gestures
+of Blue Yonder capture, 481,566 characters -- the estimate was 120,438 tokens
+and Gemini counted 204,333. A 1.697x under-count, 2.36 characters to the token
+in truth.
+
+So the budget is set where the ESTIMATE lands the real figure safely inside the
+boundary: 100,000 estimated is about 170,000 real at the measured ratio, leaving
+room for the instructions, the schema, the crossings and the known-workflow
+summary that ride on top of the evidence.
+
+Corrected here rather than in `tokens()` deliberately. Every other cap in this
+module -- `K_MAX_GESTURE_TOKENS`, `K_MAX_CROSSING_TOKENS`, the `kb` subtraction
+-- was tuned against that same estimator, so changing the divisor silently
+re-tunes all of them; four cap tests failed on exactly that when it was tried.
+This constant is the only one whose job is a price boundary, and it is the only
+one that was wrong about it.
+"""
 K_MIN_GESTURES = 25
 K_MAX_GESTURE_TOKENS = 2_000
 K_ENDS = 12

@@ -116,8 +116,10 @@ def test_the_container_builds_the_phase_three_use_cases(
     # restore that dialled a laptop nobody is sitting at.
     restore = container.restore_device()
     assert isinstance(restore, RestoreDevice)
-    assert restore._uow is uow
-    assert not hasattr(restore, "_drivers")
+    # Everything it holds, not "it holds no attribute spelled `_drivers`":
+    # `self._agents = self.agents()` would satisfy a spelling check and dial a
+    # laptop nobody is sitting at on every press.
+    assert vars(restore) == {"_uow": uow}
 
 
 def test_the_container_builds_serve_shapes_from_its_own_parts(

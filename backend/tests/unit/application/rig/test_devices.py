@@ -311,16 +311,19 @@ async def test_a_restore_does_not_open_a_socket_by_itself() -> None:
 
     The browser reconnects on its own next heartbeat, and a backend that
     dialled a laptop nobody is sitting at is a channel nobody asked for. The
-    guarantee is structural -- there is no `AgentDrivers` to dial with -- so
-    that is what is asserted, alongside a drivers double left untouched.
+    guarantee is structural -- there is no `AgentDrivers` to dial with, and no
+    parameter through which one could arrive -- so that is what is asserted.
     """
     uow = await _known(f.device(id=LAPTOP, revoked_at=f.at(600).isoformat()))
-    drivers = _Drivers()
 
     await RestoreDevice(uow).execute(ACME, device_id=LAPTOP)
 
-    assert drivers.asked_for == [] and drivers.connected_devices == ()
-    assert "drivers" not in inspect.signature(RestoreDevice).parameters, "a restore can dial"
+    # The whole parameter list, not "no parameter spelled `drivers`". A double
+    # constructed here and never handed to the use case observes nothing, and
+    # a second parameter named `agents` -- which is what `Container.agents()`
+    # would make the idiomatic name -- would slip past a spelling check while
+    # dialling on every press.
+    assert list(inspect.signature(RestoreDevice).parameters) == ["uow"], "a restore can dial"
 
 
 async def test_a_restored_browser_keeps_the_secret_it_had() -> None:

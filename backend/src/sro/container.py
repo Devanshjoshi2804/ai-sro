@@ -125,7 +125,7 @@ from sro.application.skill.read_doings import ReadDoings
 from sro.application.skill.read_skills import GetSkill, ListSkills
 from sro.application.skill.record_offer import record_offer
 from sro.application.skill.repair_drift import RepairDrift
-from sro.application.skill.serve_shapes import shapes_for
+from sro.application.skill.serve_shapes import ServeShapes
 from sro.application.trigger.answer_confirmation import (
     AnswerConfirmation,
     ExpireConfirmations,
@@ -138,7 +138,6 @@ from sro.application.trigger.receive_inbound import ReceiveInbound
 from sro.config import Settings, get_settings
 from sro.domain.shared.identifiers import DeviceId, TenantId
 from sro.domain.skill.offers import Offer
-from sro.domain.skill.shape import Shape
 from sro.infrastructure.agent.drivers import RemoteAgents
 from sro.infrastructure.agent.sockets import DeviceSockets
 from sro.infrastructure.auth.keycloak import KeycloakTokens
@@ -294,21 +293,8 @@ class Container:
     def read_audit(self) -> ReadAudit:
         return ReadAudit(self.unit_of_work())
 
-    async def shapes(self, tenant_id: TenantId, device_id: DeviceId | None) -> list[Shape]:
-        """The extension's list, with this container's clock.
-
-        A function rather than a class use case, so the ``now`` a route must
-        not read is supplied here -- the one place that already holds a clock a
-        test can move. ``device_id`` is the asking browser and is passed
-        through: it decides whose refusals earned the rest, so dropping it
-        serves one browser the rest another browser earned.
-        """
-        return await shapes_for(
-            self.unit_of_work(),
-            tenant_id=tenant_id,
-            device_id=device_id,
-            now=self.clock.now(),
-        )
+    def serve_shapes(self) -> ServeShapes:
+        return ServeShapes(self.unit_of_work(), self.clock)
 
     async def record_offer(
         self,
@@ -321,7 +307,8 @@ class Container:
         run_id: str | None,
         at: str,
     ) -> Offer:
-        """Same reason as ``shapes``: ``record_offer`` clamps the browser's
+        """A function rather than a class use case, so the ``now`` a route must
+        not read is supplied here: ``record_offer`` clamps the browser's
         reading against ours, and ours is this clock's."""
         return await record_offer(
             self.unit_of_work(),

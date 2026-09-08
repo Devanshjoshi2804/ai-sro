@@ -23,8 +23,10 @@ import pytest
 
 from sro.application.analytics.audit import ReadAudit
 from sro.application.capture.devices import ReadRoster, RestoreDevice, RevokeDevice
+from sro.application.context import RequestContext
+from sro.application.skill.serve_shapes import ServeShapes
 from sro.container import Container
-from sro.domain.shared.identifiers import DeviceId, TenantId
+from sro.domain.shared.identifiers import DeviceId, PrincipalId, TenantId
 from sro.infrastructure.agent.drivers import RemoteAgents
 from tests.unit.fakes import FakeClock, FakeUnitOfWork
 from tests.unit.interface.test_http import _FakeContainer
@@ -35,6 +37,11 @@ into a rule -- a shape's rest window, an offer's clamped instant -- so a
 fixture dated by the calendar is a suite that passes because of the day it ran.
 The gap between this and the wall clock is also what makes the "container read
 `datetime.now`" mutation die."""
+
+RIVAL = RequestContext(tenant_id=TenantId("rival"), principal_id=PrincipalId("clerk"))
+"""Deliberately not `acme`, which every other fixture in the suite uses: a
+use case that read a tenant off a literal instead of off the context would
+agree with `acme` by coincidence."""
 
 
 @pytest.fixture
@@ -113,29 +120,45 @@ def test_the_container_builds_the_phase_three_use_cases(
     assert not hasattr(restore, "_drivers")
 
 
-async def test_shapes_is_asked_with_the_asking_browser_and_the_containers_clock(
+def test_the_container_builds_serve_shapes_from_its_own_parts(
+    container: Container, uow: FakeUnitOfWork
+) -> None:
+    served = container.serve_shapes()
+
+    assert isinstance(served, ServeShapes)
+    assert served._uow is uow
+    # Not merely "a clock", and the reason this is a factory rather than a
+    # `ServeShapes()` a route could build: a use case holding a clock of its
+    # own rests every job by the wall calendar, and no test can move that.
+    assert served._clock is container.clock
+
+
+async def test_serve_shapes_is_asked_with_the_asking_browser_and_the_containers_clock(
     container: Container, uow: FakeUnitOfWork, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     seen: dict[str, Any] = {}
-    monkeypatch.setattr("sro.container.shapes_for", _spy(seen, []))
+    monkeypatch.setattr("sro.application.skill.serve_shapes.shapes_for", _spy(seen, []))
 
-    assert await container.shapes(TenantId("acme"), DeviceId("dev_7")) == []
+    assert await container.serve_shapes().execute(RIVAL, device_id=DeviceId("dev_7")) == []
 
     assert seen["uow"] is uow
-    assert seen["tenant_id"] == TenantId("acme")
+    # Off the context and never a literal: this is the seam where serving the
+    # wrong tenant is one substitution away, so the tenant asserted here is
+    # deliberately not the one every other fixture in the suite uses.
+    assert seen["tenant_id"] == TenantId("rival")
     # The one that matters most: `device_id` decides whose refusals earned the
     # rest, so dropping it serves one browser the rest another browser earned.
     assert seen["device_id"] == DeviceId("dev_7")
     assert seen["now"] == FROZEN
 
 
-async def test_shapes_reaches_the_real_function(container: Container) -> None:
+async def test_serve_shapes_reaches_the_real_function(container: Container) -> None:
     """No spy: the import is real and a tenant with nothing proven gets [].
 
     Also the shape of a request no browser proved itself for -- `device_id` is
     allowed to be `None` and the tenant is answered anyway.
     """
-    assert await container.shapes(TenantId("acme"), None) == []
+    assert await container.serve_shapes().execute(RIVAL, device_id=None) == []
 
 
 async def test_record_offer_is_given_every_argument_and_the_containers_clock(

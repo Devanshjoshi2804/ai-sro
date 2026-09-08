@@ -284,15 +284,160 @@ ledger in a gitignored directory does not travel.
 
 ## Ledger
 
-| Rig test file | Rig / ported here | Left, and to which plan |
+**The count above is one short, and the brief said not to trust it.** Counted
+against the rig's own files: 146 is the number of `def test_` *functions*, but
+`test_runner.py::test_a_claimed_run_that_disagrees_with_its_arguments_is_refused`
+is `@pytest.mark.parametrize`d over two fields, so pytest collects **147 cases**
+from those five files. The decorator travelled with the port, so both cases are
+here; the file is 66 functions and 67 cases in the rig, and the same in the
+backend. Every other file's function count in the brief was right.
+
+| Rig test file | Rig | Ported by this plan | Landed in an earlier plan | Dropped | Left, and to which plan |
+|---|---|---|---|---|---|
+| `test_planner.py` | 28 | 27 | 1 (plan 1) | 0 | 0 |
+| `test_verify.py` | 30 | 24 | 6 (plan 1) | 0 | 0 |
+| `test_runner.py` | 66 fns / 67 cases | 66 / 67 | 0 | 0 | 0 |
+| `test_effects.py` | 9 | 8 | 1 (plan 1) | 0 | 0 |
+| `test_devices.py` | 13 | 2 whole + 1 half | 0 | 1 | 9 whole + 1 half (phase 4) |
+| **Total** | **146 fns / 147 cases** | **127.5 / 128.5** | **8** | **1** | **9.5** |
+
+Verified by name, not by tallying the task reports: every one of the rig's 146
+test names was matched against every `def test_` in `backend/tests/`. Only two
+rig runner names had no exact twin, and both are renames, not gaps (below).
+
+**Where the ones that are not in the same-named backend file went:**
+
+- `test_planner.py::test_the_schema_puts_why_last_and_kind_first` — plan 1, as
+  `tests/unit/domain/rig/test_planning.py`. It asks the schema, not the rung.
+- `test_verify.py` × 6 — plan 1, as `tests/unit/domain/rig/test_belts.py`:
+  `test_expected_statuses_and_the_confirming_read_come_from_the_evidence`,
+  `test_a_read_the_evidence_made_is_never_an_expected_write_status`,
+  `test_a_call_that_never_returned_names_no_status_the_warehouse_gave`,
+  `test_a_cited_gesture_the_store_lost_does_not_hide_the_evidence_behind_it`,
+  `test_the_confirming_read_comes_after_the_write_and_came_back`,
+  `test_a_step_whose_recorded_call_is_itself_a_read_has_nothing_to_confirm`.
+  They ask only the pure belts.
+- `test_effects.py::test_the_number_of_runs_autonomy_costs_is_the_one_a_person_agreed_to`
+  — plan 1, also in `test_belts.py`.
+- `test_runner.py::test_a_run_stopped_by_the_flag_is_forgotten_by_the_registers_when_it_ends`
+  → `…_by_the_register_when_it_ends`, singular. Task 6 threads one register, not
+  two: `Stops` is the rig's `Aborts` already in this codebase.
+- `test_runner.py::test_an_approved_wait_leaves_nothing_waiting` →
+  `tests/unit/application/rig/test_approvals.py::test_the_wait_is_popped_on_the_way_out_so_a_later_tap_finds_nothing`,
+  strengthened: it also asserts the second tap returns `False`. It is a register
+  test, and Task 5 owns the register.
+
+**`test_devices.py`, the only file with anything left.** Its use-case half is
+here; its route half cannot be written before the routes are.
+
+- Ported: `test_revoking_a_browser_takes_it_offline_at_once` (own name);
+  `test_a_token_is_issued_held_as_a_hash_and_revocable` (split three ways —
+  issue and hash were already covered by
+  `tests/unit/application/test_an_extension_uploads_what_it_saw.py`, the revoke
+  half is `test_a_browser_is_revoked_once_and_the_second_press_moves_nothing`,
+  and "a revoked token belongs to nobody" is
+  `test_a_revoked_browser_is_refused_the_moment_it_speaks_again`); the roster
+  half of `test_a_browser_sees_who_is_online_and_not_who_is_registered`, as
+  `test_a_revoked_browser_stays_on_the_roster_carrying_when_it_ended` and
+  `test_the_roster_is_this_tenants_browsers_most_recently_seen_first`.
+- **Dropped, with its reason:** `test_a_fresh_issue_retires_the_earlier_token`.
+  Backend registration is idempotent on `(tenant, principal, label)` and hands
+  back the **same** secret, per `Registered.secret`: a reinstall that could not
+  get its secret back is a device somebody has to delete by hand. Porting the
+  rig's rule would break that deliberately-chosen behaviour.
+- **Left to phase 4, by name (9 whole and 1 half).** Each is a status code on a
+  route that does not exist yet — 401 for a forged bearer, 403 for a device
+  reaching a tenant door, 400 for a register with no body, and the websocket
+  handshake:
+  1. `test_the_tenant_registers_a_browser_and_the_browser_then_speaks_for_itself`
+  2. `test_a_devices_token_opens_its_own_socket_and_no_other`
+  3. `test_an_approval_by_a_registered_browser_names_that_browser_whatever_the_body_says`
+  4. `test_a_browser_approves_only_the_run_it_is_driving`
+  5. `test_the_tenants_purse_and_the_other_browsers_days_are_not_a_devices`
+  6. `test_an_empty_tenant_token_admits_nobody`
+  7. `test_a_browser_with_a_token_of_its_own_reads_its_own_rest_whatever_it_asks_for`
+  8. `test_a_browser_sees_who_is_online_and_not_who_is_registered` — the
+     authorisation half only (a device token gets the online list and nothing more)
+  9. `test_a_browser_posts_its_own_day_and_not_a_siblings`
+  10. `test_a_browser_illustrates_its_own_batches_and_not_a_siblings`
+
+The rig has **no** test file for the audit. Its route's rules are already here
+as `tests/integration/test_spend_and_audit_reads.py`, at the repository level;
+Task 8 added the caller's half as `tests/unit/application/rig/test_audit.py`.
+
+**Added by this plan:** **231 collected test cases** — 228 unit, 2 contract, 1
+integration. That reconciles exactly with this plan's recorded main baseline:
+1942 + 228 = 2170, 102 + 2 = 104, 111 + 1 = 112. Seven new unit files (224
+cases: `test_planner.py` 31, `test_verify.py` 32, `test_runner.py` 104,
+`test_effects.py` 21, `test_approvals.py` 16, `test_audit.py` 10,
+`test_devices.py` 10), plus `test_spend.py` +3 and `test_serve_shapes.py` +1,
+the tally's contract body (`[fake]` and `[sql]`) and its one integration guard
+that the tally is a single `GROUP BY`. The excess over the 128.5 ported cases is
+guards written during the port, most of them to kill a mutation that a ported
+test as written let live.
+
+**Gates at head** (`976301c`, measured for this ledger):
+
+| Gate | Expected | Measured |
 |---|---|---|
-| `test_planner.py` | 28 / | |
-| `test_verify.py` | 30 / | |
-| `test_runner.py` | 66 / | |
-| `test_effects.py` | 9 / | |
-| `test_devices.py` | 13 / | |
-| **Total** | **146 /** | |
+| `uv run pytest tests/unit -q` | 2170 | **2170 passed** |
+| `uv run pytest tests/contract -q` | 104 + 1 pre-existing failure | **104 passed, 1 failed** (`test_observation_payloads.py::…[shape-identity]` — not to be fixed) |
+| `uv run pytest tests/integration -q --ignore=tests/integration/test_steel_capture.py` | 112 | **112 passed** |
+| `uv run mypy src tests \| tail -1` | 312 in 68 | **312 errors in 68 files** |
+| `uv run mypy src tests/unit/fakes.py` | clean | **Success, 345 files** |
+| `uv run ruff format --check .` | 2 | **2 would be reformatted** |
+| `uv run lint-imports \| tail -1` | 4 kept | **4 kept, 0 broken** |
 
-**Added by this plan:** (fill in)
+One correction to the gate's own wording: the two unformatted files are
+`src/sro/infrastructure/mcp/client.py` **and**
+`tests/unit/application/test_teaching_two_candidates_as_one.py`, not two hunks in
+`client.py`. Both are untouched by this branch (`git diff 07a6cd6..HEAD` names
+neither), so both are pre-existing as claimed.
 
-**Gates at head:** (fill in all seven)
+---
+
+## Carried to phase 4
+
+Seven things this plan built, proved and deliberately left half-wired. They are
+here rather than only in a task report because a report in `.superpowers/` is
+gitignored and does not travel.
+
+1. **No route can reach a parked workflow run to stop it.** `Stops` is set only
+   by `StopRun` (`application/execution/read_runs.py`), which resolves a *skill*
+   run through `uow.runs`; nothing sets it for a `WorkflowRun`. The loop's half
+   is built and proved — `run_workflow` asks `Stops` between steps and again
+   after `Approvals.wait_for` returns, so a released wait is not read as a yes —
+   but until a route sets the flag for a workflow run, **that check is dead in
+   production**. Phase 4 owns the route's half.
+2. **`run_workflow` has no production caller at all.** Grepping `src/` finds
+   only its own definition and two docstrings; the sole caller is
+   `tests/unit/application/rig/test_runner.py`. Phase 4 wires it.
+3. **A run re-entered from a claimed row does not remember its `from_step`.**
+   It is a parameter of `run_workflow` and is on no persisted field of
+   `WorkflowRun`, so a resume route built without adding one would redo the
+   steps the operator already did by hand.
+4. **There is no un-revoke.** Now that revocation actually enforces — a revoked
+   browser is refused the moment it speaks again — an administrator who revokes
+   the wrong browser has no path back short of a hand-edited row.
+   `DeviceRepository` has only `revoke`, `save` never writes `revoked_at` back,
+   and `RegisterDevice` returns the *same* secret rather than a fresh one.
+   Whoever designs that lifecycle owns the choice between clearing the row and
+   issuing a second registration.
+5. **Delete `ReadDevices` from `application/observation/register.py`.**
+   `capture/devices.py::ReadRoster` is a strict superset over the identical
+   repository call (`uow.devices.list_for_tenant`), and the wired route at
+   `interface/http/v1/routers/agents.py:294-298` should point at `ReadRoster`
+   with `online` added to `DeviceModel`. Two use cases over one `list_for_tenant`
+   in two packages is how they drift.
+6. **A parked step's `sent` holds a command that was never sent.** Deliberate:
+   what `sent` carries is exactly what the person is being asked to approve, and
+   `verdict == "awaiting"` is the real distinguisher. Anything downstream that
+   reads `sent` as "this went out" — a panel, an audit line, a report — needs to
+   know that and check the verdict.
+7. **A dry run still performs a click whose demonstrated traffic the recorder
+   never saw.** The withholding gate is `if not live and mutates`, on the narrow
+   `writes()`, while the approval gate below it uses the wider `may_write`. This
+   is the rig's documented asymmetry, ported deliberately and asserted on
+   purpose — withholding every silent click would leave a dry run performing
+   almost none of the job — and it is the one live write that escapes the gate by
+   design.

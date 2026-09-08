@@ -20,11 +20,12 @@ import pytest
 
 from sro.application.capture.devices import ReadRoster, RevokeDevice
 from sro.application.context import RequestContext
+from sro.application.observation.register import RecordHeartbeat, RegisterDevice
 from sro.domain.observation.device import AgentDevice
-from sro.domain.shared.errors import NotFound
+from sro.domain.shared.errors import Conflict, NotFound
 from sro.domain.shared.identifiers import DeviceId, TenantId
 from tests import factories as f
-from tests.unit.fakes import FakeAgentDrivers, FakeClock, FakeUnitOfWork
+from tests.unit.fakes import FakeAgentDrivers, FakeClock, FakeIdFactory, FakeUnitOfWork
 
 ACME = RequestContext(tenant_id=f.TENANT, principal_id=f.OPERATOR)
 OTHER = RequestContext(tenant_id=TenantId("other-corp"), principal_id=f.OPERATOR)
@@ -92,6 +93,52 @@ async def test_a_browser_is_revoked_once_and_the_second_press_moves_nothing() ->
     clock.advance(3600)
     assert await revoke.execute(ACME, device_id=LAPTOP) is False
     assert (await uow.devices.get(f.TENANT, LAPTOP)).revoked_at == ended
+    assert uow.commits == 2, "and each press was written, not left in the session"
+
+
+async def test_a_revoked_browser_is_refused_the_moment_it_speaks_again() -> None:
+    """The whole point of the revocation, and the half a row alone does not
+    make true.
+
+    The rig's `holder` filtered `revoked_at IS NULL`, so a revoked token
+    belonged to nobody. Here the gate is `refuse_unless_itself`, and revoking
+    deliberately leaves the secret alone -- a device with no secret cannot be
+    told from one registered before secrets existed -- so a gate that asked
+    only "is this the browser that registered" answers yes forever and the
+    extension resumes on its next heartbeat holding the same credential.
+
+    Asked through the heartbeat because that is the call a cut-off browser
+    makes next; the gate is shared by all seven device-scoped paths, which is
+    why it is fixed there and checked once.
+    """
+    uow = FakeUnitOfWork()
+    registered = await RegisterDevice(uow, FakeClock(), FakeIdFactory()).execute(
+        ACME, label="laptop", extension_version="0.1.0"
+    )
+    beat = RecordHeartbeat(uow, FakeClock())
+    await beat.execute(ACME, device_id=registered.device_id, secret=registered.secret)
+
+    await RevokeDevice(uow, _Drivers(), FakeClock()).execute(ACME, device_id=registered.device_id)
+
+    with pytest.raises(NotFound):
+        await beat.execute(ACME, device_id=registered.device_id, secret=registered.secret)
+
+
+async def test_a_revocation_that_did_not_commit_cuts_nobody_off() -> None:
+    """The drop is after the commit, and this is the difference that makes.
+    A browser cut off for a revocation the store then refused is an operator
+    whose extension stopped for no recorded reason -- and nothing would ever
+    say why, because the row that would have explained it was rolled back.
+    """
+    uow = await _known(f.device(id=LAPTOP))
+    uow.commit_raises = Conflict("dev-1 was written by somebody else")
+    drivers = _Drivers(LAPTOP)
+
+    with pytest.raises(Conflict):
+        await RevokeDevice(uow, drivers, FakeClock()).execute(ACME, device_id=LAPTOP)
+
+    assert drivers.dropped == []
+    assert drivers.connected_devices == (LAPTOP,)
 
 
 async def test_revoking_a_browser_takes_it_offline_at_once() -> None:

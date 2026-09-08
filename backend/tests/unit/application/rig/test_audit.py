@@ -13,7 +13,10 @@ audit right up until somebody trusts it to say what happened this morning.
 
 from __future__ import annotations
 
+import time
 from datetime import datetime, timedelta, timezone
+
+import pytest
 
 from sro.application.analytics.audit import ReadAudit
 from sro.application.context import RequestContext
@@ -233,19 +236,28 @@ async def test_the_same_instant_in_another_offset_reads_the_same_audit() -> None
     assert [audited.run.id for audited in audit.runs] == ["run-acme"]
 
 
-async def test_a_bound_with_no_zone_is_read_as_utc() -> None:
+async def test_a_bound_with_no_zone_is_read_as_utc(monkeypatch: pytest.MonkeyPatch) -> None:
     """Not as the server's local time. A bound quietly shifted by the host's
     offset does not fail -- it returns an audit starting hours from where it
     was asked to, and looks exactly like one that does not.
 
-    Like `test_a_now_with_no_zone_is_read_as_utc` beside it, this cannot fail
-    on a host whose local zone *is* UTC, which is most CI containers: there the
-    wrong reading and the right one are the same clock. It catches the mistake
-    on a developer machine and nowhere else.
+    The zone is forced, because the wrong implementation and the right one are
+    the same clock on a UTC host and that is most CI containers. `_bound` is a
+    pure function of its argument and the process zone, so `TZ` plus `tzset` is
+    the whole of the dependency -- this fails everywhere rather than only on a
+    developer machine in Asia.
     """
     uow = await _afternoon()
-
-    audit = await ReadAudit(uow).execute(ACME, since=BOUND.replace(tzinfo=None))
+    monkeypatch.setenv("TZ", "Asia/Kolkata")
+    time.tzset()
+    try:
+        audit = await ReadAudit(uow).execute(ACME, since=BOUND.replace(tzinfo=None))
+    finally:
+        # Undone here rather than by the fixture: `tzset` has to run again
+        # after `TZ` goes back, and the fixture's own undo lands after this
+        # function has returned.
+        monkeypatch.undo()
+        time.tzset()
 
     assert audit.since == BOUND.isoformat()
     assert [audited.run.id for audited in audit.runs] == ["run-acme"]

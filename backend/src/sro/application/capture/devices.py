@@ -81,6 +81,12 @@ class ReadRoster:
     rather than disappearing: this is the list read before cutting one off and
     after, and a revocation that erased its own subject would leave an
     administrator unable to confirm the thing they just did.
+
+    Ordered most recently *seen* first, where the rig's `registered` was
+    ordered by issue. Inherited rather than chosen: `list_for_tenant` is plan
+    2's and already sorts that way, and it is the better order for this
+    question anyway -- an administrator asking who can act cares which browser
+    was here this morning, not which was installed first.
     """
 
     def __init__(self, uow: UnitOfWork, drivers: AgentDrivers) -> None:

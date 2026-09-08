@@ -18,6 +18,10 @@ serves a page, and the repository reads plan 2 landed take no limit; and its
 device select had no tenant filter at all, so one tenant's audit listed every
 tenant's browsers -- a leak rather than a rule, already fixed in
 ``SqlDeviceRepository.since`` and not travelling here.
+
+Nor does its ``since: str = ""``, which meant "everything ever". ``since`` is a
+``datetime`` and required: an audit of all time is a table scan nobody asked
+for, and a caller that wants one can say when the deployment started.
 """
 
 from __future__ import annotations

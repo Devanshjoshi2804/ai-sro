@@ -20,7 +20,7 @@ from sro.application.context import RequestContext
 from sro.application.observation.register import ReadDevice
 from sro.domain.observation.device import AgentDevice
 from sro.domain.shared.identifiers import DeviceId, TenantId
-from sro.interface.http.asking import asking_device
+from sro.interface.http.asking import asking_device, tenant_only
 from tests import factories as f
 from tests.unit.fakes import FakeUnitOfWork
 from tests.unit.interface.test_http import _FakeContainer
@@ -174,3 +174,51 @@ async def test_absent_wrong_and_somebody_else_s_are_one_answer(
     # Word for word, including the one that never reached a repository: the
     # difference between "wrong secret" and "no secret" is not on the wire.
     assert refusals[1] == refusals[2] == (404, f"device {LAPTOP.value} was not found")
+
+
+# --- And what the answer is used for -------------------------------------
+
+
+async def test_the_tenant_asking_is_let_through(container: _WatchingContainer) -> None:
+    """`asking_device` answered `None`, so this is the tenant's own credential
+    and the door opens. Ported from `new_agent_arch/src/rig/api.py:423`."""
+    # Nothing raised is the assertion: `asking_device` answered `None`, so
+    # there is no browser here and the door opens.
+    await tenant_only(None)
+
+
+async def test_a_browser_that_proved_itself_is_still_refused(
+    container: _WatchingContainer, registered: AgentDevice
+) -> None:
+    """The other direction, and the whole point: proving you are a browser is
+    exactly what gets you turned away here.
+
+    Registering and revoking browsers, spending model money and reading every
+    browser's day are the tenant's -- a browser's secret opens its own doors
+    and not the tenant's purse or the other browsers' evidence. A gate that
+    only refused *unproven* browsers would be no gate at all, because every
+    browser holds a working secret.
+    """
+    asking = await asking_device(container, CTX, HERS, LAPTOP.value)
+
+    with pytest.raises(HTTPException) as refused:
+        await tenant_only(asking)
+
+    assert refused.value.status_code == 403
+    assert refused.value.detail == "that is the tenant's to do, not a browser's"
+
+
+async def test_the_refusal_is_403_and_not_the_404_the_device_paths_give() -> None:
+    """Deliberate, and the one place this file's 404 rule does not apply.
+
+    The device-scoped paths hide absent, wrong and somebody else's behind one
+    404 so a caller cannot enumerate browsers. Nothing is hidden here: the
+    caller holds a tenant credential that was accepted and a device secret that
+    checked out, so they already know the browser exists -- they proved they
+    are it. A 404 would only tell them the route does not exist, which is false.
+    """
+    with pytest.raises(HTTPException) as refused:
+        await tenant_only(LAPTOP)
+
+    assert refused.value.status_code != 404
+    assert refused.value.status_code == 403

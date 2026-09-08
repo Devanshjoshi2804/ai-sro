@@ -65,3 +65,31 @@ async def asking_device(
 
 
 AskingDeviceDep = Annotated[DeviceId | None, Depends(asking_device)]
+
+
+async def tenant_only(asking: AskingDeviceDep) -> None:
+    """The tenant's own credential, not a browser proving itself.
+
+    Ported from `new_agent_arch/src/rig/api.py:423`. Registering and revoking
+    browsers, spending model money and reading every browser's day are the
+    tenant's: a browser's secret opens its own doors -- ingest, its socket, the
+    runner's -- and not the tenant's purse or the other browsers' evidence.
+
+    403 and not 404: the caller is holding a tenant credential that was
+    accepted, so this is not an enumeration channel -- unlike the device-scoped
+    paths above, where absent, wrong and somebody else's have to be one answer.
+    They already know the browser exists; they proved they are it.
+
+    A refusal, not a downgrade to the tenant. Ignoring the secret and serving
+    the request as the tenant would make `X-Device-Secret` a header that
+    changes nothing, and the first route to read `asking` for anything but this
+    would then be reading it from a request that had been let through anyway.
+    """
+    if asking is not None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="that is the tenant's to do, not a browser's",
+        )
+
+
+TenantOnly = Depends(tenant_only)

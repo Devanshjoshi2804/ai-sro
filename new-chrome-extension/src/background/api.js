@@ -4,10 +4,16 @@ import { state } from "./state.js";
 import { isMirrorable, mirrorSafely, mirrorTo } from "./mirror.js";
 
 export class ApiError extends Error {
-  constructor(status, problem) {
-    super(problem?.detail || problem?.title || `HTTP ${status}`);
+  // `where` is the call that failed, as "METHOD /path". A backend that answers
+  // 500 with no body used to surface in the panel as the bare words "HTTP 500",
+  // which says nothing an operator or a log reader can act on -- not which of
+  // the dozen calls this extension makes had failed, so not whether the
+  // recording, the run, or the registration was the thing that broke.
+  constructor(status, problem, where = "") {
+    super(problem?.detail || problem?.title || `HTTP ${status}${where ? ` from ${where}` : ""}`);
     this.status = status;
     this.problem = problem;
+    this.where = where;
   }
 }
 
@@ -45,7 +51,7 @@ async function call(path, { method = "GET", body, form, signal } = {}) {
     throw new ApiError(401, { detail: "that credential was not accepted" });
   }
   if (!response.ok) {
-    throw new ApiError(response.status, await response.json().catch(() => null));
+    throw new ApiError(response.status, await response.json().catch(() => null), `${method} ${path}`);
   }
   return response.status === 204 ? null : response.json();
 }

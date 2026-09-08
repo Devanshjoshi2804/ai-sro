@@ -5,12 +5,13 @@ a question to a model. The ones that do not are in
 `tests/unit/domain/rig/test_planning.py`, which plan 1 brought across with the
 schemas and the two rules that need no model.
 
-Three guards here are new, all of them found by mutating an argument at the
-call site rather than the rule it feeds. Nothing in the rig's suite asserted
-that `starts_on` or a withheld `allow_focus` reached the payload, that the
-cited evidence reached the prompt at all, or that `look` reached it as words as
-well as a picture -- a planner that stopped threading any of the four stayed
-green on all 27.
+Several guards here are new, all of them found by mutating what reaches the
+call rather than the rule it feeds. Nothing in the rig's suite asserted that
+`starts_on` or a withheld `allow_focus` reached the payload, that the cited
+evidence or the step's own sentence reached the prompt at all, that `look`
+reached it as words as well as a picture, or -- on the plan rung alone, where
+the sight rung pins all three -- which words, which schema and which model were
+asked. A planner that stopped threading any of them stayed green on all 27.
 """
 
 import copy
@@ -21,6 +22,7 @@ from dataclasses import replace
 from sro.application.execution.plan_step import ACTIONS, plan_by_sight, plan_step
 from sro.domain.execution.evidence import locators_for
 from sro.domain.execution.planning import (
+    PLAN_INSTRUCTIONS,
     PLAN_SCHEMA,
     SIGHT_INSTRUCTIONS,
     SIGHT_SCHEMA,
@@ -67,6 +69,11 @@ async def test_a_ui_plan_carries_the_evidence_locators_not_the_models() -> None:
                 # carried, and deleting the lookup in `value_for` stays green.
                 "value": "WRONG",
                 "url": None,
+                # Nothing validates a model's answer against the schema, which
+                # is why the action enum is re-checked and the value is cast --
+                # so a model volunteering a ladder of its own is answered here
+                # too, and the answer is the demonstration's.
+                "locators": [{"strategy": "css_path", "query": "#evil"}],
                 "why": "the step types the code",
             },
             cost_usd=0.0003,
@@ -124,9 +131,22 @@ async def test_the_values_the_run_was_given_are_what_the_model_sees_not_the_reco
     # Not in the rig's suite, and nothing else here reads this key: the whole
     # prompt could stop carrying the cited gestures and every ported test
     # stayed green, because the page above reaches it by another door.
-    assert json.loads(evidence)["evidence"] == [trim(gesture)], (
+    seen = json.loads(evidence)
+    assert seen["evidence"] == [trim(gesture)], (
         "the step is planned from the evidence, so the evidence is what is sent"
     )
+    # The sentence the model is asked to perform, and the whole shape of the
+    # prompt: blanking either was green on every other test here.
+    assert seen["step"] == {"order": 0, "says": "type", "parameters": []}
+    assert set(seen) == {
+        "step",
+        "evidence",
+        "values",
+        "browser",
+        "step_page",
+        "previous_attempt_failed",
+        "previous_attempt_left",
+    }
 
 
 async def test_an_http_plan_replays_the_recorded_call_with_redacted_headers_dropped() -> None:
@@ -492,7 +512,13 @@ async def test_the_model_is_told_where_the_step_was_demonstrated_and_under_what_
     assert isinstance(evidence, str)
     assert json.loads(evidence)["step_page"] == "http://127.0.0.1:63319/clients/new"
     assert asked["effort"] == "low", "a rescue asks harder than a first attempt"
-    assert asked["instructions"], "a model told nothing plans nothing"
+    # Which words, which shape and which model, not merely that there were
+    # some: the sight rung pins all three and this one pinned none, so a
+    # planner showing the sight prompt against the plan schema on a model
+    # nobody chose was green on every test in this file.
+    assert asked["instructions"] == PLAN_INSTRUCTIONS, "a model told nothing plans nothing"
+    assert asked["schema"] is PLAN_SCHEMA
+    assert asked["model"] == "m", "the model the caller chose"
 
 
 async def test_a_step_that_waits_for_a_page_carries_it_and_focus_only_when_allowed() -> None:

@@ -1,0 +1,99 @@
+"""Runs parked in front of a person, waiting to be told the write may go out.
+
+A live write is shown before it is sent, and the run stops until somebody taps
+approve. This is the register of those parked runs: one `asyncio.Event` per
+run, set by the tap.
+
+An `asyncio.Event` holding a person's authorisation is a deliberate choice, not
+an oversight. Phase one of this port keeps the rig's process model: one asyncio
+task per run, on the worker that holds that browser's socket, with this
+register in the same process, and the approve and abort routes forwarded to
+that worker. A deployment therefore runs one API worker until phase two -- two
+workers and half the taps land in a process where nothing is waiting. The
+in-process device sockets beside this and the busy check both assume the same
+thing.
+
+Phase two makes the run a Temporal workflow: this wait becomes a signal with
+the same five-minute timeout, and abort becomes a signal too. That is the
+change that lets the API scale out, and it is the first item after this port
+rather than part of it.
+
+The other half of the rig's pair, `Aborts`, is already here as `Stops` next
+door in `stops.py`: a person stopping a run is a separate register from a
+person authorising one step, and one stop register is enough. The abort route
+sets that flag and then releases the wait here, so a parked run wakes at once
+instead of sitting for the full five minutes; because the release says only
+that the wait ended, the loop must ask `Stops` on the way out before it treats
+a release as a person's yes.
+"""
+
+from __future__ import annotations
+
+import asyncio
+
+from sro.domain.execution.run import RunId
+
+K_APPROVAL_WAIT_S = 300.0
+"""How long a live write waits for a tap before the run stops and asks. Five
+minutes is a person reading the panel, not a person who has gone home."""
+
+
+class Approvals:
+    """Which runs are parked on a person, and the event each one waits on."""
+
+    def __init__(self) -> None:
+        self._waiting: dict[str, asyncio.Event] = {}
+
+    def register(self, run_id: RunId) -> None:
+        """This run is about to park. Called before the step is saved, so a tap
+        that lands before the wait starts finds an event to set rather than a
+        409 from a route that can see no one waiting."""
+        self._waiting.setdefault(run_id.value, asyncio.Event())
+
+    async def wait_for(
+        self,
+        run_id: RunId,
+        # The wait IS the timeout here, so ASYNC109's advice to let the caller
+        # wrap it does not apply: a second deadline on the same person is not
+        # the five minutes this module writes down.
+        timeout: float = K_APPROVAL_WAIT_S,  # noqa: ASYNC109
+    ) -> bool:
+        """Whether the wait was released rather than timing out.
+
+        Released, not authorised: an abort releases it too, and the caller asks
+        `Stops` before it lets the write out.
+        """
+        self.register(run_id)
+        event = self._waiting[run_id.value]
+        try:
+            await asyncio.wait_for(event.wait(), timeout=timeout)
+            return True
+        except TimeoutError:
+            return False
+        finally:
+            # Popped on the way out, so a tap arriving after the run gave up
+            # finds nothing waiting and is told so, rather than authorising a
+            # write nobody is holding open any more.
+            self._waiting.pop(run_id.value, None)
+
+    def approve(self, run_id: RunId) -> bool:
+        """Whether anything was waiting on this run to be released.
+
+        Not whether this tap was the one that authorised the step -- that is
+        the run repository's `approve`, which is keyed by step and where the
+        first tap wins.
+        """
+        event = self._waiting.get(run_id.value)
+        if event is None:
+            return False
+        event.set()
+        return True
+
+    def waiting(self) -> frozenset[str]:
+        """The runs parked right now, for the panel's `awaiting` list."""
+        return frozenset(self._waiting)
+
+    def forget(self, run_id: RunId) -> None:
+        """Once the run has ended. Drops the wait without releasing it: a run
+        being cleaned up is not a run somebody approved."""
+        self._waiting.pop(run_id.value, None)

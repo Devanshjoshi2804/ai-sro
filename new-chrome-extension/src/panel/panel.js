@@ -855,16 +855,54 @@ function troubles(status) {
       card({
         title: "This browser cannot be reached",
         says:
-          `The command channel is ${status.channel}. A run started from the console or a `
-          + "schedule cannot act here until it opens; nothing already captured is lost.",
+          (status.channelWhy
+            ? `Not dialling: ${status.channelWhy}. `
+            : `The command channel is ${status.channel}. `)
+          + "A run started from the console or a schedule cannot act here until it "
+          + "opens; nothing already captured is lost.",
         tone: "attention",
+        // It redials on the minute alarm by itself. This is for the operator
+        // watching the card right now, who otherwise has nothing to press and
+        // goes looking for a switch to flip in the options page.
+        actions: [{ label: "Try again", act: reconnect }],
       }),
     );
   }
   if (status.lastError) {
-    cards.push(card({ title: "Last error", says: status.lastError, tone: "attention" }));
+    cards.push(
+      card({
+        title: "Last error",
+        says: status.lastError,
+        tone: "attention",
+        // Dismissable, because this is the LAST error and not a current one:
+        // it survives whatever fixed it, and an operator with no way to clear
+        // it learns to read past the amber.
+        actions: [{ label: "Dismiss", act: dismissError }],
+      }),
+    );
   }
   return cards;
+}
+
+async function reconnect(button) {
+  button.disabled = true;
+  try {
+    await ask({ kind: "reconnect" });
+    said("dialling — this can take a few seconds");
+  } catch (error) {
+    said(error.message);
+  }
+  await refresh();
+}
+
+async function dismissError(button) {
+  button.disabled = true;
+  try {
+    await ask({ kind: "clear-error" });
+  } catch (error) {
+    said(error.message);
+  }
+  await refresh();
 }
 
 async function startTeaching(button) {
@@ -984,7 +1022,16 @@ async function whereWeAre() {
 
 function openConsole(path = "/console") {
   ask({ kind: "panel-console" }).then(({ consoleUrl }) => {
-    if (consoleUrl) void chrome.tabs.create({ url: `${consoleUrl}${path}` });
+    if (consoleUrl) {
+      void chrome.tabs.create({ url: `${consoleUrl}${path}` });
+      return;
+    }
+    // `consoleUrl` is empty until somebody sets it, and this used to be a
+    // silent no-op: the operator pressed "Open the console here", nothing
+    // happened, nothing said why, and the only way to find out was to read
+    // this function. Say it and open the page that fixes it.
+    said("no console address is set — put one in Settings");
+    chrome.runtime.openOptionsPage();
   });
 }
 

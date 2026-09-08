@@ -959,6 +959,23 @@ async function handle(message, sender) {
       // status() says which kind of token this browser now holds
       // (`rigRegistered`), so the options page needs nothing more.
       return status();
+    case "clear-error":
+      // The panel's dismiss. `lastError` is the last one, not a live one, so
+      // it outlives whatever fixed it; without this the amber stays until the
+      // next call happens to succeed and clear it as a side effect.
+      await state.setLastError("");
+      return status();
+    case "reconnect":
+      // The panel's answer to "this browser cannot be reached". The channel
+      // redials itself on the minute alarm anyway, so this buys impatience
+      // rather than correctness -- but a card that states a fault and offers
+      // nothing to do about it sends the operator to the options page to
+      // toggle something at random. Both channels, because an operator does
+      // not know which one the card is about.
+      await state.setLastError("");
+      void channel.settle();
+      void rigChannel.settle();
+      return status();
     case "flush":
       // Upload now rather than on the next tick, and all of it: the options
       // page offers this so an operator about to close the laptop can watch the
@@ -1789,6 +1806,8 @@ async function status(sender = null) {
     capturing: allowed.on,
     because: allowed.because,
     channel: channel.status(),
+    // Why it is not dialling, when it is not. See `channel.why`.
+    channelWhy: channel.why(),
     // What has been seen but not yet sent. The panel shows it while teaching,
     // because a demonstration that is recording nothing looks exactly like one
     // that is recording everything, and the operator finds out at the end.

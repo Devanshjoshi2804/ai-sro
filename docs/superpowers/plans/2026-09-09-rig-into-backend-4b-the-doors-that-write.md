@@ -112,22 +112,33 @@ Measured as a delta against the task's starting commit, from `backend/`:
 uv run pytest tests/unit -q
 uv run pytest tests/contract -q
 uv run pytest tests/integration -q
+uv run pytest tests/browser -q
 uv run mypy src tests/unit/fakes.py
 uv run ruff check .
 uv run ruff format --check .
 uv run lint-imports
-uv run pytest tests/unit -q -p randomly --randomly-seed=<a second seed>
 ```
 
-**Baselines at `f51e0b2`:** unit **2311**, integration **130**, contract
-**108 passed + 1 pre-existing failure** (`test_observation_payloads.py::…[shape-identity]`),
-mypy clean over 354 files, ruff check clean, `ruff format --check` **2
-pre-existing offenders**, lint-imports **4 kept**.
+**Baselines at `b038953`:** unit **2311**, contract **109**, integration
+**130**, mypy clean over 354 files, ruff check clean, `ruff format --check`
+**652 formatted, 0 to reformat**, lint-imports **4 kept, 0 broken**. Every one
+of these is green — this branch starts from a clean board, which it has not been
+for weeks. **Never adjust a baseline to match a prediction; record what you
+observe.**
 
-> A separate branch is clearing the contract failure and the two format
-> offenders. If your baseline shows them already green, that branch landed
-> first — record the number you actually observe and carry on. **Never adjust a
-> baseline to match a prediction.**
+> **There is no random-ordering pytest plugin in this repo.** An earlier draft
+> of this section listed `-p randomly --randomly-seed=…` as the eighth gate.
+> `pytest-randomly` and `pytest-random-order` are both absent — the installed
+> plugins are cov, asyncio, schemathesis, hypothesis and anyio — so that command
+> would have configured nothing and passed by doing nothing. `-p no:randomly`
+> likewise disables a plugin that was never there and **proves nothing about
+> ordering**. Test rule 2 below is still correct and still binding: vary
+> `PYTHONHASHSEED`, which is what actually moves set and dict iteration order.
+>
+> `tests/browser` takes the eighth slot instead, because it is a real gate:
+> `make check` runs it, and it globs the extension's fixtures directory the same
+> way the contract suite does. One fixture defect failed both suites for three
+> days while only one of them was being watched.
 
 ### Git
 

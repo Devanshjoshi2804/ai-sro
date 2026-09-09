@@ -1311,9 +1311,21 @@ than by reading it, and they change what 4b is:
   had no caller anywhere; an upload stopped at `observation_batches`. Fixed
   (`f8b218f`; `application/observation/ingest.py:241-257`). A backfill then
   replayed **266 real batches into 507 gestures, 0 failures**.
-- **The miner works on real evidence.** A real pass over those 507 gestures
-  mined **2 workflows**, and the offer replay named **2 of 2 as themselves**.
-  The chain runs end to end for the first time.
+- **The miner works on real evidence, and the acceptance test does NOT pass.**
+  A real pass over those 507 gestures mined **2 workflows**, and the offer
+  replay named 2 of 2 as themselves. The chain runs end to end for the first
+  time — that is the real result, and it is not the criterion.
+
+  The spec asks for **"8 of 8 named as themselves, 10 of 11 values by the
+  end"**. We have 2 of 8, and **0 of 11 values**: both mined workflows carry
+  `parameters=[]` and the replay printed *"none declared"* for each. "2 of 2"
+  is a shrinking denominator, not a pass, and it was reported that way once
+  before this line was written. Do not let it be reported that way again —
+  **the number to quote is the criterion's, not the flattering one.**
+
+  So the honest state: recognition is proved on real evidence, parameter
+  learning is unproved and currently produces nothing, and the values half of
+  the acceptance test has never been above zero on this backend.
 - **Task 9's "0 of 0" is superseded.** The replay reported nothing because the
   store was empty, and its conclusion — that *no phase moves the corpus into
   Postgres* — was a misreading: nothing could mine a corpus, because ingest

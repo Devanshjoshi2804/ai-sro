@@ -24,6 +24,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from sro.application.context import RequestContext
+from sro.application.execution import workflow_runs as door
 from sro.application.execution.approvals import Approvals
 from sro.application.execution.run_workflow import run_workflow
 from sro.application.execution.stops import Stops
@@ -563,6 +564,54 @@ async def test_perform_drives_the_run_the_row_describes() -> None:
     assert stored.outcome == "stopped", "the run never got past the claim"
     assert [step.verdict for step in stored.steps] == ["done_by_operator"] * 4 + ["skipped"]
     assert stored.live is True and stored.allow_focus is False
+
+
+async def test_perform_plans_on_the_plan_model_and_rescues_on_the_other(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Which model goes in which slot, read at the call rather than off the
+    built object.
+
+    Swapping the two survived 63 tests: every step would then plan on the
+    rescue model -- the expensive one, the one measured at $2.00 for a
+    truncated answer -- forever, on a door that runs against a live warehouse,
+    while `gemini_plan_model`'s own docstring exists because a slow plan is
+    felt by an operator standing at a screen. Nothing about the run's outcome
+    changes, so no assertion on a finished run can see it.
+
+    The whole keyword set is captured, not just the two, because four of these
+    arguments are overwritten from the row inside `run_workflow` and so decide
+    nothing -- this is the only place that says what was actually handed over,
+    which is what a reader of `perform` needs to be able to check.
+    """
+    uow = await _held()
+    starter = _starter(uow)
+    claimed = await _press(starter, from_step=4, live=True, allow_focus=False)
+    seen: dict[str, object] = {}
+
+    async def _recorded(_uow: object, workflow: Workflow, **given: object) -> WorkflowRun:
+        seen.update(given, workflow_id=workflow.id)
+        return claimed
+
+    monkeypatch.setattr(door, "run_workflow", _recorded)
+
+    await starter.perform(_ctx(), claimed)
+
+    assert seen["plan_model"] == PLAN, "every step would plan on the rescue model"
+    assert seen["rescue_model"] == RESCUE
+    assert seen["workflow_id"] == "wfl_1"
+    assert seen["tenant_id"] == TENANT
+    assert seen["run_id"] == claimed.id
+    assert seen["from_step"] == 4
+    assert seen["device_id"] == LAPTOP
+    assert seen["asker"] is _A_MODEL
+    assert seen["stops"] is starter._stops and seen["approvals"] is starter._approvals
+    # The four `run_workflow` overwrites from the row. Asserted anyway, so the
+    # docstring's claim that they are the ROW's values and not the request's is
+    # a fact a test holds rather than a sentence.
+    assert seen["values"] == claimed.values
+    assert seen["live"] is True and seen["allow_focus"] is False
+    assert seen["started_by"] == WHO.value
 
 
 async def test_a_run_that_could_not_be_driven_at_all_does_not_stay_running() -> None:

@@ -63,18 +63,32 @@ class _Attached:
 
 
 class _Spawned(Pursuits):
-    """The container's pursuits, recording what was handed over instead of
-    running it -- and what the store had committed at the moment it was."""
+    """The container's pursuits, recording WHAT was handed over instead of
+    running it -- and what the store had committed at the moment it was.
+
+    Counting hand-overs is not enough and a review proved it: replacing
+    `starter.perform(ctx, claimed)` with `starter._close(ctx, claimed.id, ...)`
+    -- a route that claims a row, marks it failed and drives nothing -- passed
+    32 tests. A coroutine that has not been started yet still carries its
+    bound arguments in `cr_frame.f_locals`, so the call is readable without
+    running it, which is the whole point: running it would drive a socket that
+    answers nothing, after the request it belongs to has gone.
+    """
 
     def __init__(self, uow: FakeUnitOfWork) -> None:
         super().__init__()
         self._uow = uow
         self.handed_over = 0
         self.commits_when_handed_over: list[int] = []
+        self.calls: list[tuple[str, dict[str, Any]]] = []
 
     def spawn(self, coroutine: Coroutine[object, object, None]) -> None:
         self.handed_over += 1
         self.commits_when_handed_over.append(self._uow.commits)
+        frame = coroutine.cr_frame
+        self.calls.append(
+            (coroutine.__qualname__, dict(frame.f_locals) if frame is not None else {})
+        )
         coroutine.close()
 
 
@@ -178,6 +192,27 @@ async def test_a_press_answers_201_with_the_row_it_claimed(
     assert body["outcome"] == "running" and body["finished_at"] is None
     assert body["id"] in uow.workflow_runs.rows
     assert spawned.handed_over == 1
+
+
+async def test_the_work_handed_over_is_this_run_being_driven(
+    client: httpx.AsyncClient, held: Workflow, spawned: _Spawned
+) -> None:
+    """Which coroutine, not how many. A route that spawned `_close` -- claim a
+    row, mark it failed, drive nothing -- or `perform` with a fabricated run, a
+    reset `from_step` or another caller's `ctx` would look exactly like this
+    door working, and the suite counted hand-overs rather than reading them.
+
+    The door would then be the shape this project ships repeatedly: alive on
+    the wire, green in the suite, and nothing running behind it.
+    """
+    made = await client.post("/v1/workflow-runs", json=_body(from_step=4, live=True))
+
+    (what, args) = spawned.calls[-1]
+    assert what == "StartWorkflowRun.perform"
+    handed = args["run"]
+    assert handed.id == made.json()["id"]
+    assert handed.from_step == 4 and handed.live is True
+    assert args["ctx"].tenant_id == TENANT and args["ctx"].principal_id == f.OPERATOR
 
 
 async def test_the_row_is_committed_before_the_work_is_handed_over(
@@ -451,6 +486,29 @@ async def test_a_number_in_values_is_refused_rather_than_typed_as_one(
     landed = await client.post("/v1/workflow-runs", json=_body(values={"zone": 4}))
 
     assert landed.status_code == 422
+
+
+async def test_a_browser_that_proves_itself_may_still_press(
+    client: httpx.AsyncClient, held: Workflow
+) -> None:
+    """The auth decision, pinned rather than argued in a docstring.
+
+    This router deliberately takes the tenant credential and NOT `/v1/chat`'s
+    `TenantOnly`, because the extension sends `X-Device-Secret` on every call
+    it makes (`api.js:40`) and `asking_device` answers a secret with no
+    `?device_id=` beside it with a 404 before it reaches a repository
+    (`asking.py:63-71`). Adding `dependencies=[TenantOnly]` tomorrow would 404
+    every press from the one caller this door exists for -- and every other
+    test in this file would stay green, because none of them sends the header.
+
+    No registered device is needed to make the point: the half-pair refusal
+    happens before any lookup, so a secret of any value is enough.
+    """
+    made = await client.post(
+        "/v1/workflow-runs", json=_body(), headers={"X-Device-Secret": "whatever-this-is"}
+    )
+
+    assert made.status_code == 201, made.text
 
 
 async def test_a_press_with_no_credential_is_refused(

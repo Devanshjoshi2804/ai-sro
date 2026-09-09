@@ -62,10 +62,25 @@ and the tenant's browsers are the tenant's to drive.
 
 `approve` is the one door here that reads a browser, and it reads it with
 `asking_device` rather than as a gate. It is the only one that lets a withheld
-warehouse write out, and a browser answers for the run it is driving and no
-other -- so a tap from a browser must name it in `?device_id=` beside the
-secret, as every other device-aware call the extension makes already does. The
-tenant's credential alone still taps: a supervisor's console has no extension.
+warehouse write out, and a caller that names a browser answers for the run that
+browser is driving and no other. The tenant's credential alone still taps: a
+supervisor's console has no extension, and `?awaiting=true` exists so anybody
+may answer a parked run.
+
+**Phase 5 hand-off, and it is not the 404 an earlier note here claimed.**
+`api.js`'s `rigApprove` (`api.js:333-341`) sends `rigHeaders()`, which is
+documented as "none of the backend's headers" and omits `X-Device-Secret`
+(`api.js:250-257`) -- and it sends no `?device_id=` either. Pointed at this
+door unchanged it therefore resolves `asking = None` and gets a **silent 200
+with a NULL approver and the 403 never evaluated**: a write let out by nobody,
+recorded as let out by nobody, on the door whose entire job is recording who
+let it out. That is worse than a 404, because nothing goes red.
+
+The `?device_id=` in `api.js:254` is not the precedent to copy either: it is
+sent with `rigHeaders()` too, so it is half a pair and `asking_device` answers
+it with a 404. **Phase 5 must send BOTH** -- `?device_id=` in the query and
+`X-Device-Secret` in the headers, which is what `call()` (`api.js:29-44`) plus
+an explicit query parameter already does for `/v1/offers`.
 """
 
 
@@ -219,14 +234,14 @@ async def approve_workflow_step(
 
     **`asking` is why this door alone reads a browser.** `AbortWorkflowRun`
     needs none -- it stops the run whoever asks -- but this one lets a
-    warehouse write out, and a browser answers for the run it is driving and no
-    other: one compromised browser must not satisfy every other browser's
-    human-in-the-loop gate. So the tap must name its browser in `?device_id=`
-    beside the `X-Device-Secret` the extension already sends on every call, as
-    `/v1/shapes` and `/v1/offers` require; half a pair is `asking_device`'s
-    usual 404. The tenant's own credential with neither names no browser, and
-    may answer a parked run as anyone may -- that is a supervisor's console,
-    which has no extension of its own.
+    warehouse write out, and a caller that names a browser answers for the run
+    that browser is driving and no other. So a tap FROM a browser must send
+    `?device_id=` and `X-Device-Secret` together, as `/v1/shapes` and
+    `/v1/offers` require; half a pair is `asking_device`'s usual 404. The
+    tenant's own credential with neither names no browser and may answer a
+    parked run, as anyone may -- that is a supervisor's console, which has no
+    extension of its own. See the module docstring for what that check is and
+    is not, and for what phase 5 has to change to reach it.
 
     200 and not 202: unlike the stop next door, this has already happened by
     the time it answers. The row naming who let the write out is committed, and

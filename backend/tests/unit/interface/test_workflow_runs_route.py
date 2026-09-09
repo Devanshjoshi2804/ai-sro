@@ -1384,6 +1384,10 @@ async def test_the_approval_names_the_run_in_the_path_and_the_deepest_parked_ste
     """
     await _plant(uow, _parked_run("run_watched", 0, 2, 5), _parked_run("run_other", 9, device=DESK))
     waiting = await _waiting_on(container, "run_watched")
+    # Off the run's own `started_at`, which `FakeClock`'s default matches
+    # exactly: a route recording the row's instant instead of the clock's would
+    # otherwise agree with this.
+    container.clock.advance(1800)
 
     landed = await client.post("/v1/workflow-runs/run_watched/approve")
 
@@ -1391,6 +1395,10 @@ async def test_the_approval_names_the_run_in_the_path_and_the_deepest_parked_ste
     assert landed.json()["order"] == 5
     assert await waiting is True
     assert ("run_watched", 5) in uow.workflow_runs.approved
+    # WHEN the write was let out, which is the second thing an audit asks and
+    # the reason the container injects a clock at all. A fixed instant here
+    # passed 69 unit and 18 integration tests.
+    assert uow.workflow_runs.approved[("run_watched", 5)][0] == container.clock.now().isoformat()
     assert ("run_watched", 0) not in uow.workflow_runs.approved
     assert ("run_watched", 2) not in uow.workflow_runs.approved
     assert ("run_other", 9) not in uow.workflow_runs.approved
@@ -1421,6 +1429,12 @@ async def test_a_browser_that_is_not_driving_this_run_cannot_release_its_write(
 
     assert landed.status_code == 403, landed.text
     assert landed.headers["content-type"].startswith("application/problem+json")
+    # The sentence and the `type`, not just the status: a console tells "that is
+    # another browser's run" from "that is another person's run" by the `type`,
+    # and `NotDrivingThisRun` having no `code` of its own would answer
+    # `.../error` -- which is what every unmapped refusal in the system answers.
+    assert landed.json()["type"].endswith("/not_driving_this_run")
+    assert "driving" in landed.json()["detail"]
     assert await _still_waiting(waiting)
     assert uow.workflow_runs.approved == {}
     # The same door, the browser that IS driving it: a refusal proved alone
@@ -1485,11 +1499,16 @@ async def test_the_second_tap_does_not_overwrite_the_first_authorisation(
     """
     await uow.devices.add(f.device(id=LAPTOP, secret=APPROVER))
     await _plant(uow, _parked_run("run_rescued", 2))
+    container.clock.advance(1800)
+    tapped_at = container.clock.now().isoformat()
     first = await client.post(
         "/v1/workflow-runs/run_rescued/approve",
         params={"device_id": LAPTOP.value},
         headers={"X-Device-Secret": APPROVER},
     )
+    # A different instant for the second tap, so "the row was overwritten" and
+    # "the row stood" are two different values here and not one.
+    container.clock.advance(1800)
     waiting = await _waiting_on(container, "run_rescued")
 
     second = await client.post("/v1/workflow-runs/run_rescued/approve")
@@ -1499,7 +1518,8 @@ async def test_the_second_tap_does_not_overwrite_the_first_authorisation(
     assert second.json()["first"] is False
     assert second.json()["order"] == 2
     assert await waiting is True
-    assert uow.workflow_runs.approved[("run_rescued", 2)][1] == LAPTOP.value
+    # Both halves of the row are the first tapper's: the browser and the moment.
+    assert uow.workflow_runs.approved[("run_rescued", 2)] == (tapped_at, LAPTOP.value)
 
 
 async def test_the_browser_written_down_is_the_one_that_proved_itself(
@@ -1631,9 +1651,16 @@ async def test_a_secret_with_no_browser_named_beside_it_is_the_usual_404(
     `abort` reads no browser at all, so the `X-Device-Secret` the extension
     sends on every call (`api.js:40`) is ignored there. This door has to know
     which browser is tapping, so it takes `asking_device` -- and half a pair is
-    a 404 there, exactly as it is at `/v1/shapes` and `/v1/offers`. **The tap
-    must name its browser in `?device_id=` beside the secret**, which is what
-    every other device-aware call the extension makes already does.
+    a 404 there, exactly as it is at `/v1/shapes` and `/v1/offers`. **A tap
+    from a browser must send `?device_id=` AND the secret.**
+
+    Which is not what `rigApprove` sends today, and the failure it would get is
+    not this one. It sends `rigHeaders()` -- "none of the backend's headers",
+    so no secret -- and no `?device_id=` either, so it resolves to no browser
+    at all and gets a silent 200 with a NULL approver and the 403 skipped. The
+    router's module docstring carries that hand-off; this test pins only the
+    half-pair rule, which is the shape `api.js:254` would produce if phase 5
+    copied it.
     """
     await uow.devices.add(f.device(id=LAPTOP, secret=APPROVER))
     await _plant(uow, _parked_run("run_parked", 1))

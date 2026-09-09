@@ -2199,14 +2199,14 @@ export interface paths {
          *
          *     **`asking` is why this door alone reads a browser.** `AbortWorkflowRun`
          *     needs none -- it stops the run whoever asks -- but this one lets a
-         *     warehouse write out, and a browser answers for the run it is driving and no
-         *     other: one compromised browser must not satisfy every other browser's
-         *     human-in-the-loop gate. So the tap must name its browser in `?device_id=`
-         *     beside the `X-Device-Secret` the extension already sends on every call, as
-         *     `/v1/shapes` and `/v1/offers` require; half a pair is `asking_device`'s
-         *     usual 404. The tenant's own credential with neither names no browser, and
-         *     may answer a parked run as anyone may -- that is a supervisor's console,
-         *     which has no extension of its own.
+         *     warehouse write out, and a caller that names a browser answers for the run
+         *     that browser is driving and no other. So a tap FROM a browser must send
+         *     `?device_id=` and `X-Device-Secret` together, as `/v1/shapes` and
+         *     `/v1/offers` require; half a pair is `asking_device`'s usual 404. The
+         *     tenant's own credential with neither names no browser and may answer a
+         *     parked run, as anyone may -- that is a supervisor's console, which has no
+         *     extension of its own. See the module docstring for what that check is and
+         *     is not, and for what phase 5 has to change to reach it.
          *
          *     200 and not 202: unlike the stop next door, this has already happened by
          *     the time it answers. The row naming who let the write out is committed, and

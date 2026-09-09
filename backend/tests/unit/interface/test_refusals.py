@@ -113,6 +113,13 @@ def test_a_run_that_is_not_yours_is_a_403_and_not_a_500() -> None:
     Parametrised over both on purpose: they are separate classes with one name
     in two modules, and fixing the one that was already in the table would have
     left the other exactly as broken.
+
+    And the `type` as well as the status. Neither class carried a `code`, so
+    `_problem` fell back to `error` and the 403 they were finally given was
+    untellable from every other refusal in the system -- which is the failure
+    `_SLUGS` exists to have removed once already. One `code`, shared: two doors,
+    one refusal to the same person, and a console matching on `problem.type`
+    should not have to learn two spellings of it.
     """
     for raised in (_WrongNotYours, _ReviseNotYours):
         response = _app_that_raises(raised("that run is not yours")).get("/boom")
@@ -120,3 +127,4 @@ def test_a_run_that_is_not_yours_is_a_403_and_not_a_500() -> None:
         assert response.status_code == status.HTTP_403_FORBIDDEN, raised.__module__
         assert response.headers["content-type"].startswith("application/problem+json")
         assert response.json()["detail"] == "that run is not yours"
+        assert response.json()["type"].endswith("/not_yours"), raised.__module__

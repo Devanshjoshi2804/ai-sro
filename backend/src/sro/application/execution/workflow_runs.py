@@ -524,13 +524,14 @@ class NotDrivingThisRun(DomainError):
 
     A `DomainError` with its own entry in `errors._STATUS_BY_ERROR`, rather
     than a subclass of `call_run_wrong.NotYours` -- which is the nearest thing
-    to it and says the same sentence about a person. That one is mapped to 403
-    in the table and NOT registered as a handler, and it is not a `DomainError`
-    either, so nothing catches it and it reaches a caller as a 500. Inheriting
-    from it would have inherited that. Reported rather than fixed here: making
-    it fire changes what `POST /v1/runs/{id}/wrong` answers, which is another
-    door's decision. (There are two unrelated classes called `NotYours`, in
-    `call_run_wrong` and `revise_run`; only one is in the table at all.)
+    to it and refuses the same shape of caller. That one is about a PERSON and
+    this is about a BROWSER: "that is another browser's run" and "that is
+    another person's run" are two different sentences to whoever is holding the
+    screen, and its own `code` is what keeps them two on the wire.
+
+    Not a subclass for a second reason, now historical: when this was written
+    neither `NotYours` had a handler registered, so both reached a caller as a
+    500 and inheriting would have inherited it. `0302584` fixed that door.
     """
 
     code = "not_driving_this_run"
@@ -554,11 +555,22 @@ class ApproveWorkflowStep:
     row first and a failed release is a run that stays parked, times out and
     aborts, and an operator who taps again. A lost tap is recoverable.
 
-    The rig's order has a second cost this one does not pay. It reads which
-    step to record AFTER releasing the wait, so it is racing the task it has
-    just woken -- and that task's next act is to rewrite the very `verdict =
-    'awaiting'` the read selects on. Lose the race and `ord_` is `None` and no
-    approval row is written at all, for a write that went out.
+    **The rig's own order was safe where the rig ran, and that is exactly why
+    it must not be copied here.** An earlier revision of this docstring claimed
+    it raced the task it woke; it does not, and the claim was checked and
+    withdrawn. `Approvals.approve` there is a sync `event.set()`
+    (`rig/runner.py:90-94`), `store.query` and `store.execute` are sync sqlite
+    (`rig/store.py:447-453`), and there is no `await` anywhere between the two
+    -- so the woken task cannot be scheduled in between, and the rig's read of
+    which step to record always ran before the task could touch it.
+
+    What the rig had, then, was an insert that could not be preceded by a
+    yield and a store with no commit to fail. This has both: `uow.commit()` is
+    an awaited round trip to Postgres that can raise, and the release is a
+    separate act after it. The asymmetry therefore bites HARDER here than it
+    ever did there -- the failure the rig's shape merely permitted in theory is
+    one this shape can actually produce -- which is the whole reason the order
+    is inverted rather than ported.
 
     **The order is what the 409 costs.** The rig got "nothing is awaiting" from
     `Approvals.approve` returning False, which is not available before the
@@ -584,16 +596,31 @@ class ApproveWorkflowStep:
     A run of another tenant takes the same path as one that never existed, for
     `GetWorkflowRun`'s reason: a 403 confirms the id exists.
 
-    **And a browser answers for the run it is driving and no other**, checked
-    before anything is written and before the event is set: one compromised
-    browser must not be able to satisfy every other browser's human-in-the-loop
-    gate. `asking` is the browser that proved itself with `X-Device-Secret`
-    beside `?device_id=`, so it can never be a claim -- the rig had to rank a
-    token's own device above a `device_id` in the body, and here there is no
-    body to rank it against. `None` is the tenant's own credential, which is a
-    supervisor's console with no extension of its own: it may answer a parked
-    run, as anyone may, and the row then names no browser rather than one
-    nobody proved.
+    **A caller that NAMES a browser answers for the run that browser is
+    driving and no other**, checked before anything is written and before the
+    event is set. `asking` is the browser that proved itself with
+    `X-Device-Secret` beside `?device_id=`, so it can never be a claim -- the
+    rig had to rank a token's own device above a `device_id` in the body, and
+    here there is no body to rank it against.
+
+    **Say what that is, because the rig's sentence for it promises more.** The
+    rig wrote "one compromised browser must not be able to satisfy every other
+    browser's human-in-the-loop gate", and neither the rig nor this delivers
+    it: a caller who names no browser at all skips the check, and here the
+    extension holds the tenant's bearer, so a compromised one can simply omit
+    the pair. What this check IS: a browser that identifies itself is bound to
+    its own run, so a panel cannot answer for a window it is not driving, and
+    an id lifted from one browser's screen buys nothing against another's. What
+    it is NOT: a barrier against a caller holding the tenant's credential --
+    which already starts, stops and reads every run of the tenant.
+
+    Refusing `asking is None` would close that, and it is deliberately not
+    done: `awaiting` and `GET /v1/workflow-runs?awaiting=true` exist so that
+    ANYBODY may answer a parked run, across browsers, and the reader they were
+    built for is a supervisor's console holding the tenant's credential and no
+    extension of its own. A device-only tap would delete the supervisor's
+    queue. The row then names no browser rather than one nobody proved, which
+    is the honest record of a console tap.
 
     The return says which step was authorised and whether THIS tap was the one
     that authorised it. The first tap wins: a write rescued to the second rung
@@ -635,10 +662,15 @@ class ApproveWorkflowStep:
             # is durable before anything can act on the event. The other order
             # would let a write out on a transaction that then rolled back.
             await uow.commit()
-        # Whether anything was waiting is not read: the run may legitimately be
-        # parked again at the same step after a rescue, and it may equally have
-        # given up while the row was being written. Neither is a reason to
-        # refuse a tap whose authorisation is already recorded, and the
-        # question this answers is the repository's, not the register's.
+        # Whether anything was waiting is not read, and the reason is the
+        # timeout and not the rescue. A rescue re-registers before it parks
+        # again (`run_workflow.py:580`), so the second tap finds an event and
+        # this would return True anyway. The honest window is the other one:
+        # `wait_for` pops its event when `K_APPROVAL_WAIT_S` runs out, so a run
+        # can stop waiting between the 409 check above and this line -- by
+        # which point the authorisation is already committed. Refusing there
+        # would answer "nothing was awaiting" about a row that exists. The run
+        # then fails on its own timeout path, which is the right outcome, and
+        # the caller is still told which step was recorded.
         self._approvals.approve(run.id)
         return ord_, first

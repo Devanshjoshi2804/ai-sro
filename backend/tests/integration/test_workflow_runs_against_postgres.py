@@ -643,6 +643,10 @@ async def test_a_tap_records_the_deepest_parked_step_in_the_store_and_releases_i
     """
     await _plant(container, _parked_row("run_parked", 0, 2, 5))
     waiting = await _waiting_on(container, "run_parked")
+    # Off the row's own `started_at`, which the fixture and this clock share:
+    # a route recording the run's instant rather than the tap's would agree
+    # with an assertion made at the default.
+    container.clock.advance(1800)
 
     landed = await client.post("/v1/workflow-runs/run_parked/approve")
 
@@ -652,6 +656,9 @@ async def test_a_tap_records_the_deepest_parked_step_in_the_store_and_releases_i
     async with SqlUnitOfWork(container._session_factory) as uow:
         recorded = await uow.workflow_runs.approvals("run_parked")
     assert [order for order, _, _ in recorded] == [5]
+    # WHEN, through the real `timestamptz` and back out as text. The container
+    # injects the clock for this one column and nothing else read it.
+    assert recorded[0][1] == container.clock.now().isoformat()
 
 
 async def test_the_second_tap_does_not_overwrite_the_first_authorisation(
@@ -668,12 +675,16 @@ async def test_the_second_tap_does_not_overwrite_the_first_authorisation(
     """
     await _register(container, LAPTOP)
     await _plant(container, _parked_row("run_rescued", 2))
+    container.clock.advance(1800)
+    tapped_at = container.clock.now().isoformat()
 
     first = await client.post(
         "/v1/workflow-runs/run_rescued/approve",
         params={"device_id": LAPTOP.value},
         headers={"X-Device-Secret": APPROVER},
     )
+    # A different instant, so "overwritten" and "stood" are two values here.
+    container.clock.advance(1800)
     second = await client.post("/v1/workflow-runs/run_rescued/approve")
 
     assert first.status_code == 200 and first.json() == {"order": 2, "first": True}
@@ -685,6 +696,7 @@ async def test_the_second_tap_does_not_overwrite_the_first_authorisation(
     # tap, which named none at all.
     assert len(recorded) == 1
     assert recorded[0][0] == 2 and recorded[0][2] == LAPTOP.value
+    assert recorded[0][1] == tapped_at
 
 
 async def test_a_browser_driving_another_run_cannot_release_this_ones_write(

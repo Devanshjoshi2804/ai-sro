@@ -2032,6 +2032,44 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/workflow-runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start Workflow Run
+         * @description Start one run of a mined job, and answer with the row it claimed.
+         *
+         *     201 and the whole row, where the rig answered 202 and `{"run_id": ...}`.
+         *     The row exists and is committed by the time this returns -- that is the
+         *     whole point of claiming it here -- so 201 is what happened, and a caller
+         *     that has to poll for what it just created to learn which browser and which
+         *     step it got is a caller that cannot show the operator anything yet.
+         *
+         *     Answered as soon as the row exists rather than when the last step lands,
+         *     exactly as `run_skill`'s device path is: this is a run a person sits and
+         *     watches happen in their own browser, and they could not if the id only
+         *     arrived with the result.
+         *
+         *     `container.pursuits.spawn`, not a bare `create_task`: a task nobody holds
+         *     is a task the loop may collect mid-gesture, which would leave a browser
+         *     open on a half-filled form. `perform` catches everything and closes the row
+         *     itself -- nobody is awaiting this, so a run left `running` would be swept
+         *     only by `fail_orphans` at the next process start, which is a restart away
+         *     and not a moment away.
+         */
+        post: operations["start_workflow_run_v1_workflow_runs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -4022,6 +4060,75 @@ export interface components {
             /** Live View Url */
             live_view_url: string;
         };
+        /**
+         * StartWorkflowRunRequest
+         * @description The press: which job, in which browser, with what, live or dry.
+         *
+         *     Every divergence from the rig's body at `api.py:1021`, and why:
+         *
+         *     * **No `started_by`.** The rig read it out of the body and defaulted it to
+         *       `"form"`. Here it is the authenticated caller: a request that says who
+         *       authorised it is a signature nobody checked, and the audit trail on a
+         *       warehouse write is worth more than that.
+         *     * **No `tenant`.** It never was in the body; the rig had one tenant per
+         *       process. Here it comes off the credential, as it does on every door.
+         *     * **`device_id` stays in the body**, unlike `/v1/offers`, which dropped it
+         *       because a browser proves itself with `X-Device-Secret`. An offer is
+         *       evidence *about* the browser that showed it, so a browser it merely named
+         *       would be a shift nobody worked. A press *names the browser to drive*, and
+         *       the screen somebody presses on is not always the browser the job runs in
+         *       -- a supervisor's console holds the tenant's credential and no extension
+         *       of its own. The tenant's browsers are the tenant's to drive.
+         *
+         *     `live` defaults to false and `allow_focus` to true, both the rig's: a
+         *     missing `live` is not a caller who forgot, it is the default this system
+         *     promises, and a run that may not take focus cannot reach a control the page
+         *     only renders when focused.
+         *
+         *     Two checks are here rather than in `StartWorkflowRun`, and both are facts
+         *     about the wire rather than about the job:
+         *
+         *     * `values` as `dict[str, str]`. Coerced values, not checked ones, would
+         *       turn `{"clientCode": {...}}` into the string `"{...}"` and type it into
+         *       somebody's form. Pydantic refuses a nested object for a `str` already, so
+         *       an `isinstance` loop next door would be a second answer to a question the
+         *       wire type has answered. Trimming and dropping the blanks is *not* here:
+         *       that decides what the run is performed with, and it lives beside the
+         *       refusal that reads the job's declared parameters.
+         *     * `from_step` as `StrictInt`. `True` is an `int` in Python, so
+         *       `{"from_step": true}` would pass every range check and start a two-step
+         *       job at its second step -- the operator's first step recorded
+         *       `done_by_operator` and never sent, on a job nobody started. Outside
+         *       strict mode pydantic coerces `true` to `1` before anything downstream can
+         *       tell them apart, so this is the only layer where the guard can be made.
+         *       The range itself needs the job's step count and is checked where the job
+         *       is read.
+         */
+        StartWorkflowRunRequest: {
+            /** Workflow Id */
+            workflow_id: string;
+            /** Device Id */
+            device_id: string;
+            /** Values */
+            values?: {
+                [key: string]: string;
+            };
+            /**
+             * Live
+             * @default false
+             */
+            live: boolean;
+            /**
+             * Allow Focus
+             * @default true
+             */
+            allow_focus: boolean;
+            /**
+             * From Step
+             * @default 0
+             */
+            from_step: number;
+        };
         /** StepModel */
         StepModel: {
             /** Index */
@@ -4567,6 +4674,126 @@ export interface components {
             /** Steps */
             steps: components["schemas"]["WorkflowStepModel"][];
             runs: components["schemas"]["WorkflowHistoryModel"];
+        };
+        /**
+         * WorkflowRunModel
+         * @description One run of a mined workflow, whole.
+         *
+         *     The backend's own field names, deliberately. The extension's `rigRun()`
+         *     (`api.js:196-210`) maps the rig's `outcome` onto a panel `status` and
+         *     `{order, says, verdict}` onto `{index, outcome}`; phase 5 deletes that
+         *     mapping layer against this. Inventing rig-shaped aliases now would mean two
+         *     vocabularies to keep in step forever.
+         *
+         *     Not `RunModel`, which is `sro.domain.execution.run.Run` -- a skill run, keyed
+         *     on a `RunId`. Two aggregates, two id spaces; see the router's docstring for
+         *     why the path differs too.
+         *
+         *     `from_step` is on the wire because it is a request input the row carries: a
+         *     re-press that moves it finishes a different job under this run's id, and a
+         *     caller that cannot read back what it claimed cannot re-press correctly.
+         *
+         *     `unpriced` beside `cost_usd` because a run whose cost is 0.0 and whose
+         *     `unpriced` is true did not cost nothing; nobody could say.
+         */
+        WorkflowRunModel: {
+            /** Id */
+            id: string;
+            /** Tenant */
+            tenant: string;
+            /** Workflow Id */
+            workflow_id: string;
+            /** Device Id */
+            device_id: string;
+            /** Values */
+            values: {
+                [key: string]: string;
+            };
+            /** Started By */
+            started_by: string;
+            /** Live */
+            live: boolean;
+            /** Allow Focus */
+            allow_focus: boolean;
+            /** Started At */
+            started_at: string;
+            /** Finished At */
+            finished_at: string | null;
+            /** Outcome */
+            outcome: string;
+            /** From Step */
+            from_step: number;
+            /** Steps */
+            steps: components["schemas"]["WorkflowRunStepModel"][];
+            /** Withheld */
+            withheld: {
+                [key: string]: unknown;
+            }[];
+            /** In Tokens */
+            in_tokens: number;
+            /** Out Tokens */
+            out_tokens: number;
+            /** Thought Tokens */
+            thought_tokens: number;
+            /** Cost Usd */
+            cost_usd: number;
+            /** Unpriced */
+            unpriced: boolean;
+        };
+        /**
+         * WorkflowRunStepModel
+         * @description One step of a mined-workflow run, as the panel reads it.
+         *
+         *     `sent` and `result` in full, where `AuditStepModel` next door reduces
+         *     `sent` to its kind. The two are read by different people about different
+         *     things: the audit is every run of the tenant on a console screen, and this
+         *     is the one run an operator is watching in their own browser -- the write a
+         *     dry run withheld is the thing they are being asked to approve, and a kind
+         *     with no payload is not something anybody can say yes to.
+         *
+         *     `sent` is what was planned and not proof that it went out. A step parked on
+         *     a person carries the command a tap would release, and `verdict ==
+         *     "awaiting"` is what tells the two apart.
+         */
+        WorkflowRunStepModel: {
+            /** Order */
+            order: number;
+            /** Says */
+            says: string;
+            /** Verdict */
+            verdict: string;
+            /** Verdict By */
+            verdict_by: string;
+            /** Reason */
+            reason: string;
+            /** Planned By */
+            planned_by: string | null;
+            /** Sent */
+            sent: {
+                [key: string]: unknown;
+            } | null;
+            /** Result */
+            result: {
+                [key: string]: unknown;
+            } | null;
+            /** Matched By */
+            matched_by: string | null;
+            /** Stale */
+            stale: boolean;
+            /** Before Url */
+            before_url: string | null;
+            /** After Url */
+            after_url: string | null;
+            /** In Tokens */
+            in_tokens: number;
+            /** Out Tokens */
+            out_tokens: number;
+            /** Thought Tokens */
+            thought_tokens: number;
+            /** Cost Usd */
+            cost_usd: number;
+            /** Unpriced */
+            unpriced: boolean;
         };
         /**
          * WorkflowStepModel
@@ -15998,6 +16225,132 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EvidenceResponse"];
+                };
+            };
+            /** @description No credential, or one this deployment rejects. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description No such thing, or not yours. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The system's state says no, not the request. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The request cannot be processed as asked. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description Something this depends on is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+        };
+    };
+    start_workflow_run_v1_workflow_runs_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StartWorkflowRunRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkflowRunModel"];
                 };
             };
             /** @description No credential, or one this deployment rejects. */

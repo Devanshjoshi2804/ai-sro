@@ -17,6 +17,7 @@ from sro.application.connection.connect_system import NotAuthenticated
 from sro.application.connection.sign_in import NoCredentials
 from sro.application.execution.call_run_wrong import NotYours
 from sro.application.execution.execute_skill import NotRunnable, Refused
+from sro.application.execution.workflow_runs import RunRefused
 from sro.application.induction.errors import InductionFailed
 from sro.application.observation.ingest import ObservationRefused
 from sro.application.observation.teach import NothingToTeach
@@ -83,6 +84,10 @@ _STATUS_BY_ERROR: dict[type[Exception], int] = {
     # malformed body gets, because the body parsed and its shape was right --
     # what it named was not there.
     OfferRefused: status.HTTP_400_BAD_REQUEST,
+    # The rig's 400 again, for the press: a `from_step` that is not a step of
+    # this job, or a declared parameter with no value, is a bad request about a
+    # body that parsed. Not a `DomainError`, so without this it is a 500.
+    RunRefused: status.HTTP_400_BAD_REQUEST,
     # Budget, not identity and not shape: the same request is accepted
     # tomorrow or under a larger cap. 429 is the one status that means
     # "later, not never".
@@ -208,5 +213,8 @@ def install_error_handlers(app: FastAPI) -> None:
         # at its cap is told the server broke.
         AskerUnavailable,
         OverCap,
+        # Neither is `OfferRefused`, which is a `DomainError` and is reached by
+        # the line above. This one is not, so it needs saying by name.
+        RunRefused,
     ):
         app.add_exception_handler(error_type, _problem)

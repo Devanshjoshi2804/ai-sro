@@ -26797,6 +26797,291 @@
           }
         }
       }
+    },
+    "/v1/workflow-runs": {
+      "post": {
+        "tags": [
+          "workflow-runs"
+        ],
+        "summary": "Start Workflow Run",
+        "description": "Start one run of a mined job, and answer with the row it claimed.\n\n201 and the whole row, where the rig answered 202 and `{\"run_id\": ...}`.\nThe row exists and is committed by the time this returns -- that is the\nwhole point of claiming it here -- so 201 is what happened, and a caller\nthat has to poll for what it just created to learn which browser and which\nstep it got is a caller that cannot show the operator anything yet.\n\nAnswered as soon as the row exists rather than when the last step lands,\nexactly as `run_skill`'s device path is: this is a run a person sits and\nwatches happen in their own browser, and they could not if the id only\narrived with the result.\n\n`container.pursuits.spawn`, not a bare `create_task`: a task nobody holds\nis a task the loop may collect mid-gesture, which would leave a browser\nopen on a half-filled form. `perform` catches everything and closes the row\nitself -- nobody is awaiting this, so a run left `running` would be swept\nonly by `fail_orphans` at the next process start, which is a restart away\nand not a moment away.",
+        "operationId": "start_workflow_run_v1_workflow_runs_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartWorkflowRunRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowRunModel"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No credential, or one this deployment rejects.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "description": "An RFC 9457 problem document, as `errors.py` writes them.\n\nDeclared so the generated client knows the shape. It did not: every failure\nreached the browser as whatever the success model said it should be, and a\n404 was read as a RecordingDetail with every field missing.",
+                  "properties": {
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "instance": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Instance"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail"
+                  ],
+                  "title": "ProblemModel",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such thing, or not yours.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "description": "An RFC 9457 problem document, as `errors.py` writes them.\n\nDeclared so the generated client knows the shape. It did not: every failure\nreached the browser as whatever the success model said it should be, and a\n404 was read as a RecordingDetail with every field missing.",
+                  "properties": {
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "instance": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Instance"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail"
+                  ],
+                  "title": "ProblemModel",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The system's state says no, not the request.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "description": "An RFC 9457 problem document, as `errors.py` writes them.\n\nDeclared so the generated client knows the shape. It did not: every failure\nreached the browser as whatever the success model said it should be, and a\n404 was read as a RecordingDetail with every field missing.",
+                  "properties": {
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "instance": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Instance"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail"
+                  ],
+                  "title": "ProblemModel",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request cannot be processed as asked.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "description": "An RFC 9457 problem document, as `errors.py` writes them.\n\nDeclared so the generated client knows the shape. It did not: every failure\nreached the browser as whatever the success model said it should be, and a\n404 was read as a RecordingDetail with every field missing.",
+                  "properties": {
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "instance": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Instance"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail"
+                  ],
+                  "title": "ProblemModel",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Something this depends on is unavailable.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "description": "An RFC 9457 problem document, as `errors.py` writes them.\n\nDeclared so the generated client knows the shape. It did not: every failure\nreached the browser as whatever the success model said it should be, and a\n404 was read as a RecordingDetail with every field missing.",
+                  "properties": {
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "instance": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Instance"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail"
+                  ],
+                  "title": "ProblemModel",
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -31471,6 +31756,47 @@
         ],
         "title": "StartRecordingResponse"
       },
+      "StartWorkflowRunRequest": {
+        "properties": {
+          "workflow_id": {
+            "type": "string",
+            "title": "Workflow Id"
+          },
+          "device_id": {
+            "type": "string",
+            "title": "Device Id"
+          },
+          "values": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Values"
+          },
+          "live": {
+            "type": "boolean",
+            "title": "Live",
+            "default": false
+          },
+          "allow_focus": {
+            "type": "boolean",
+            "title": "Allow Focus",
+            "default": true
+          },
+          "from_step": {
+            "type": "integer",
+            "title": "From Step",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "workflow_id",
+          "device_id"
+        ],
+        "title": "StartWorkflowRunRequest",
+        "description": "The press: which job, in which browser, with what, live or dry.\n\nEvery divergence from the rig's body at `api.py:1021`, and why:\n\n* **No `started_by`.** The rig read it out of the body and defaulted it to\n  `\"form\"`. Here it is the authenticated caller: a request that says who\n  authorised it is a signature nobody checked, and the audit trail on a\n  warehouse write is worth more than that.\n* **No `tenant`.** It never was in the body; the rig had one tenant per\n  process. Here it comes off the credential, as it does on every door.\n* **`device_id` stays in the body**, unlike `/v1/offers`, which dropped it\n  because a browser proves itself with `X-Device-Secret`. An offer is\n  evidence *about* the browser that showed it, so a browser it merely named\n  would be a shift nobody worked. A press *names the browser to drive*, and\n  the screen somebody presses on is not always the browser the job runs in\n  -- a supervisor's console holds the tenant's credential and no extension\n  of its own. The tenant's browsers are the tenant's to drive.\n\n`live` defaults to false and `allow_focus` to true, both the rig's: a\nmissing `live` is not a caller who forgot, it is the default this system\npromises, and a run that may not take focus cannot reach a control the page\nonly renders when focused.\n\nTwo checks are here rather than in `StartWorkflowRun`, and both are facts\nabout the wire rather than about the job:\n\n* `values` as `dict[str, str]`. Coerced values, not checked ones, would\n  turn `{\"clientCode\": {...}}` into the string `\"{...}\"` and type it into\n  somebody's form. Pydantic refuses a nested object for a `str` already, so\n  an `isinstance` loop next door would be a second answer to a question the\n  wire type has answered. Trimming and dropping the blanks is *not* here:\n  that decides what the run is performed with, and it lives beside the\n  refusal that reads the job's declared parameters.\n* `from_step` as `StrictInt`. `True` is an `int` in Python, so\n  `{\"from_step\": true}` would pass every range check and start a two-step\n  job at its second step -- the operator's first step recorded\n  `done_by_operator` and never sent, on a job nobody started. Outside\n  strict mode pydantic coerces `true` to `1` before anything downstream can\n  tell them apart, so this is the only layer where the guard can be made.\n  The range itself needs the job's step count and is checked where the job\n  is read."
+      },
       "StepModel": {
         "properties": {
           "index": {
@@ -32960,6 +33286,265 @@
           "runs"
         ],
         "title": "WorkflowModel"
+      },
+      "WorkflowRunModel": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "tenant": {
+            "type": "string",
+            "title": "Tenant"
+          },
+          "workflow_id": {
+            "type": "string",
+            "title": "Workflow Id"
+          },
+          "device_id": {
+            "type": "string",
+            "title": "Device Id"
+          },
+          "values": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Values"
+          },
+          "started_by": {
+            "type": "string",
+            "title": "Started By"
+          },
+          "live": {
+            "type": "boolean",
+            "title": "Live"
+          },
+          "allow_focus": {
+            "type": "boolean",
+            "title": "Allow Focus"
+          },
+          "started_at": {
+            "type": "string",
+            "title": "Started At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "outcome": {
+            "type": "string",
+            "title": "Outcome"
+          },
+          "from_step": {
+            "type": "integer",
+            "title": "From Step"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/WorkflowRunStepModel"
+            },
+            "type": "array",
+            "title": "Steps"
+          },
+          "withheld": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Withheld"
+          },
+          "in_tokens": {
+            "type": "integer",
+            "title": "In Tokens"
+          },
+          "out_tokens": {
+            "type": "integer",
+            "title": "Out Tokens"
+          },
+          "thought_tokens": {
+            "type": "integer",
+            "title": "Thought Tokens"
+          },
+          "cost_usd": {
+            "type": "number",
+            "title": "Cost Usd"
+          },
+          "unpriced": {
+            "type": "boolean",
+            "title": "Unpriced"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "tenant",
+          "workflow_id",
+          "device_id",
+          "values",
+          "started_by",
+          "live",
+          "allow_focus",
+          "started_at",
+          "finished_at",
+          "outcome",
+          "from_step",
+          "steps",
+          "withheld",
+          "in_tokens",
+          "out_tokens",
+          "thought_tokens",
+          "cost_usd",
+          "unpriced"
+        ],
+        "title": "WorkflowRunModel",
+        "description": "One run of a mined workflow, whole.\n\nThe backend's own field names, deliberately. The extension's `rigRun()`\n(`api.js:196-210`) maps the rig's `outcome` onto a panel `status` and\n`{order, says, verdict}` onto `{index, outcome}`; phase 5 deletes that\nmapping layer against this. Inventing rig-shaped aliases now would mean two\nvocabularies to keep in step forever.\n\nNot `RunModel`, which is `sro.domain.execution.run.Run` -- a skill run, keyed\non a `RunId`. Two aggregates, two id spaces; see the router's docstring for\nwhy the path differs too.\n\n`from_step` is on the wire because it is a request input the row carries: a\nre-press that moves it finishes a different job under this run's id, and a\ncaller that cannot read back what it claimed cannot re-press correctly.\n\n`unpriced` beside `cost_usd` because a run whose cost is 0.0 and whose\n`unpriced` is true did not cost nothing; nobody could say."
+      },
+      "WorkflowRunStepModel": {
+        "properties": {
+          "order": {
+            "type": "integer",
+            "title": "Order"
+          },
+          "says": {
+            "type": "string",
+            "title": "Says"
+          },
+          "verdict": {
+            "type": "string",
+            "title": "Verdict"
+          },
+          "verdict_by": {
+            "type": "string",
+            "title": "Verdict By"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "planned_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Planned By"
+          },
+          "sent": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sent"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result"
+          },
+          "matched_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Matched By"
+          },
+          "stale": {
+            "type": "boolean",
+            "title": "Stale"
+          },
+          "before_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Before Url"
+          },
+          "after_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "After Url"
+          },
+          "in_tokens": {
+            "type": "integer",
+            "title": "In Tokens"
+          },
+          "out_tokens": {
+            "type": "integer",
+            "title": "Out Tokens"
+          },
+          "thought_tokens": {
+            "type": "integer",
+            "title": "Thought Tokens"
+          },
+          "cost_usd": {
+            "type": "number",
+            "title": "Cost Usd"
+          },
+          "unpriced": {
+            "type": "boolean",
+            "title": "Unpriced"
+          }
+        },
+        "type": "object",
+        "required": [
+          "order",
+          "says",
+          "verdict",
+          "verdict_by",
+          "reason",
+          "planned_by",
+          "sent",
+          "result",
+          "matched_by",
+          "stale",
+          "before_url",
+          "after_url",
+          "in_tokens",
+          "out_tokens",
+          "thought_tokens",
+          "cost_usd",
+          "unpriced"
+        ],
+        "title": "WorkflowRunStepModel",
+        "description": "One step of a mined-workflow run, as the panel reads it.\n\n`sent` and `result` in full, where `AuditStepModel` next door reduces\n`sent` to its kind. The two are read by different people about different\nthings: the audit is every run of the tenant on a console screen, and this\nis the one run an operator is watching in their own browser -- the write a\ndry run withheld is the thing they are being asked to approve, and a kind\nwith no payload is not something anybody can say yes to.\n\n`sent` is what was planned and not proof that it went out. A step parked on\na person carries the command a tap would release, and `verdict ==\n\"awaiting\"` is what tells the two apart."
       },
       "WorkflowStepModel": {
         "properties": {

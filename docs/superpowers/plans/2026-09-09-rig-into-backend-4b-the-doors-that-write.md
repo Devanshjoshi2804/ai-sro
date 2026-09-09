@@ -185,6 +185,31 @@ own task's delta against *your* starting commit, not against this table.
 Backend commands run from `backend/` and are prefixed `uv run`. **There is no
 bare `python` on this machine.**
 
+### Every module path in this plan is a guess until you check it
+
+**This is the plan's dominant defect, measured rather than suspected.** Seven
+module paths written into this plan turned out not to exist:
+
+| The plan said | It actually is |
+|---|---|
+| `application/ports/asking.py` | **`ports/model.py:16`** (`Asker`, and now `AskerUnavailable`, `asker_or_refuse`) |
+| `application/ports/clock.py` | **`ports/system.py:21`** (`Clock`) |
+| `application/ports/unit_of_work.py` | **`ports/repositories.py:901`** (`UnitOfWork`) |
+| `domain/skill/mine_result.py` | **`application/observation/mining_pass.py:76`** (`MineResult`) |
+
+Four were caught before dispatch; `ports/asking.py` was not, and Task 1's
+implementer had to work around it mid-task.
+
+**Before you import anything this plan names, confirm the module exists.** The
+cheapest check is to read how the code you are wrapping imports the same things
+— `mining_pass.py`'s own import block is the authority for Task 2, not this
+document. If a path here is wrong, **say so in your report**; the next task
+inherits it otherwise.
+
+The same applies to type and schema names. `ResolutionModel` and `MinedModel`
+are already taken in `schemas.py`, and **two different classes are named
+`Resolution`** (`intent/resolve.py:52` and `observation/identity.py:109`).
+
 ---
 
 ## The one place this plan departs from the spec
@@ -736,12 +761,11 @@ from datetime import datetime
 
 from sro.application.context import RequestContext
 from sro.application.intent.spend import over_cap
-from sro.application.observation.mining_pass import mine
+from sro.application.observation.mining_pass import MineResult, mine
 from sro.application.ports.model import Asker, asker_or_refuse
-from sro.application.ports.clock import Clock
-from sro.application.ports.unit_of_work import UnitOfWork
+from sro.application.ports.repositories import UnitOfWork
+from sro.application.ports.system import Clock
 from sro.application.shared.refusals import OverCap
-from sro.domain.skill.mine_result import MineResult
 
 
 class MinePass:
@@ -821,38 +845,119 @@ container without a model then fails at construction rather than at use.
 Match the surrounding factories' access to `self.settings` — read `container.py`
 and follow whatever it already does rather than assuming the attribute name.
 
-- [ ] **Step 5: The response model**
+- [ ] **Step 5: The response models**
+
+> **Five corrections to this task, found before dispatch by reading the code
+> rather than trusting the plan. Do not re-derive them; do check them.**
+>
+> 1. **`MineResult` is not in `sro.domain.skill.mine_result`** — that module
+>    does not exist. It is at **`sro/application/observation/mining_pass.py:76`**,
+>    beside `mine` itself.
+> 2. **The rig's route is `tenant_only`**, not `authorised` — `api.py:739`.
+>    Match it.
+> 3. **`MineResult` has far more on it than the draft response model listed.**
+>    The real fields are `pass_id`, `proposed`, `kept`, `learned_parameters`,
+>    `rejections`, `resolutions`, `coverage` (a nested `Coverage`, not a float),
+>    `in_tokens`, `out_tokens`, `thought_tokens`, `cost_usd`, `unpriced`,
+>    `error`, `window_size`, `left_out`, `lost_pool`, `lopsided`. **There is no
+>    `rejected: int`** — the draft invented it; rejections are a list.
+> 4. **`ResolutionModel` is already taken** in `schemas.py:1255` by the intent
+>    resolver, and `MinedModel` at `:2514` by the heuristic candidate miner.
+>    Prefix the new ones `Mine…`.
+> 5. **Two different classes are named `Resolution`** — `intent/resolve.py:52`
+>    and `observation/identity.py:109`. You want **`identity.Resolution`**
+>    (`kind`, `workflow_id`, `score`, `contains`).
+
+The supporting types, read off the files:
+
+```python
+# sro/domain/skill/checks.py:26
+class Rejection:      workflow_title: str; reason: str; detail: str
+# sro/domain/skill/checks.py:33
+class Coverage:       coverage: float; skew: float; gini: float
+# sro/domain/observation/identity.py:109
+class Resolution:     kind: str; workflow_id: str | None; score: float; contains: bool
+```
 
 In `schemas.py`:
 
 ```python
+class MineRejectionModel(BaseModel):
+    workflow_title: str
+    reason: str
+    detail: str
+
+
+class MineResolutionModel(BaseModel):
+    """Where a proposed workflow went when it was not kept.
+
+    `kind` is "new", "same_occurrence" or "same_job". Named `Mine…` because
+    `ResolutionModel` at schemas.py:1255 already belongs to the intent
+    resolver, over a different `Resolution` class entirely.
+    """
+
+    kind: str
+    workflow_id: str | None
+    score: float
+    contains: bool
+
+
+class MineCoverageModel(BaseModel):
+    coverage: float
+    skew: float
+    gini: float
+    lopsided: bool
+    """Which of the two numbers beside it broke its threshold is readable from
+    them; that one did is the verdict. Carried on this object rather than at the
+    top level, matching the rig."""
+
+
 class MinePassResponse(BaseModel):
     """What one reading of a day cost and found.
 
-    ``learned_parameters`` is here because it is the one figure that says
-    whether parameter learning is getting better, and until migration 0041 it
-    was computed by every pass and discarded at the persistence layer. A pass
-    that recognises nothing new and widens two parameters did real work.
+    `rejections` and `resolutions` are both here and neither is optional. The
+    rig's reason, kept: without resolutions, `proposed: 3, kept: 0,
+    rejections: []` is three jobs that vanished with no account of where they
+    went.
+
+    `learned_parameters` is the one figure that says whether parameter learning
+    is getting better, and until migration 0041 every pass computed it and the
+    persistence layer discarded it. A pass that recognises nothing new and
+    widens two parameters did real work.
+
+    `left_out` and `lost_pool` are counted rather than inferred: `left_out` did
+    not fit the token budget and is offered again next pass, `lost_pool` is a
+    pooled id with no gesture row that no pass can ever read. Neither is
+    derivable from `window_size` alone.
     """
 
+    pass_id: str
+    error: str | None
     proposed: int
     kept: int
-    rejected: int
     learned_parameters: int
+    window_size: int
+    left_out: int
+    lost_pool: list[str]
+    rejections: list[MineRejectionModel]
+    resolutions: list[MineResolutionModel]
+    coverage: MineCoverageModel
     in_tokens: int
     out_tokens: int
     thought_tokens: int
     cost_usd: float
     unpriced: bool
-    coverage: float
-    lopsided: bool
-    error: str | None
 ```
 
-Follow the field set of `MiningPass` (`domain/observation/mining.py`) and the
-rig's `/v1/mine` body. Where the two differ, keep the backend's and write the
-divergence into the model's docstring — that is what 4a did for `/v1/devices`
-and `/v1/spend`.
+**Two deliberate divergences from the rig, both to be written into the
+docstring:** the rig names the window field `window` and this keeps
+`window_size`, matching `MineResult`; and the rig rounds `cost_usd` to six
+places in the route while this does not — rounding for display is the reader's
+job, and a bill rounded on the way out cannot be summed against the row.
+
+`thought_tokens` is **part of** `out_tokens`, not beside them
+(`mining_pass.py:98`). Say so in the model, or a reader adds them and reports a
+number no invoice will match.
 
 - [ ] **Step 6: The route**
 
@@ -873,9 +978,10 @@ async def mine_the_day(container: ContainerDep, ctx: ContextDep) -> MinePassResp
     return MinePassResponse.of(result)
 ```
 
-Decide the auth dependency by matching the rig: `api.py:739` — read it and use
-`authorised` or `TenantOnly` to match. Write which you chose and why into the
-module docstring.
+**The auth dependency is `TenantOnly`.** The rig's route is
+`@app.post("/v1/mine", dependencies=[Depends(tenant_only)])` at `api.py:739` —
+verified, not inferred. A device token must not be able to spend a tenant's
+model budget. Say so in the module docstring.
 
 - [ ] **Step 7: Register the router** in `app.py`, alphabetically among the
   existing `include_router` calls, with `prefix="/v1", responses=PROBLEMS`.

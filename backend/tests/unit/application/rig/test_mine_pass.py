@@ -343,3 +343,39 @@ async def test_the_model_asked_is_the_one_this_deployment_configured() -> None:
     await _pass(uow, asker=asker, model="gemini-3.1-flash-preview").execute(_ctx())
 
     assert [one["model"] for one in asker.asked] == ["gemini-3.1-flash-preview"]
+
+
+async def test_the_day_the_cap_judges_is_the_callers_and_never_a_neighbours() -> None:
+    """The cap's tenant, which nothing else in this file crosses with a spend.
+
+    `test_the_day_mined_is_the_callers_and_never_the_stores` plants no spend and
+    every cap test above uses one tenant, so `over_cap(uow, TenantId("acme"),
+    ...)` -- a literal in the one argument that says whose day is being summed
+    -- survives the whole suite. What it costs if it is ever wrong that way is
+    not subtle: a tenant that has spent nothing is refused because a neighbour
+    spent, and a tenant over its own cap keeps mining because the neighbour has
+    not.
+
+    Both directions, because the first alone is also satisfied by a pass with no
+    cap in it at all. The same hole and the same test live beside `ReadChat` in
+    `test_read_chat.py`: one defect wearing two file names.
+    """
+    uow, _ = await _day(RIVAL)
+    await _billed(uow, cost_usd=5.01, at=NOW.replace(hour=10))  # TENANT's day, not RIVAL's
+
+    result = await _pass(uow, asker=FakeAsker(Answer(data={"workflows": []}))).execute(_ctx(RIVAL))
+
+    assert result.pass_id, "another tenant's spending refused this one's pass"
+
+    # And the converse: the same money on RIVAL's own day does refuse it.
+    await uow.chats.record(
+        ChatReading(
+            id="cht_rival",
+            tenant=RIVAL.value,
+            at=NOW.replace(hour=10).isoformat(),
+            cost_usd=5.01,
+        )
+    )
+
+    with pytest.raises(OverCap):
+        await _pass(uow, asker=FakeAsker(Answer(data={"workflows": []}))).execute(_ctx(RIVAL))

@@ -33,7 +33,7 @@ from sro.infrastructure.db.codec import when
 from sro.interface.http.app import create_app
 from sro.interface.http.deps import get_container
 from tests import factories as f
-from tests.unit.fakes import FakeAsker, FakeClock, FakeUnitOfWork
+from tests.unit.fakes import FakeAsker, FakeChatRepository, FakeClock, FakeUnitOfWork
 from tests.unit.interface.test_http import _FakeContainer, token_for
 
 TENANT = TenantId("acme")
@@ -97,6 +97,18 @@ async def held(uow: FakeUnitOfWork) -> Workflow:
     return workflow
 
 
+def _billed_rows(uow: FakeUnitOfWork) -> list[ChatReading]:
+    """The bills this store holds, typed.
+
+    `FakeUnitOfWork.chats` is annotated as the `ChatRepository` port and the
+    port has no `rows`: the narrowing is `test_mine_route.py`'s own `_rows`
+    idiom, and it is an assertion rather than an ignore so that a fake swapped
+    for one without a row list fails here instead of at the read.
+    """
+    assert isinstance(uow.chats, FakeChatRepository)
+    return uow.chats.rows
+
+
 def _answer(workflow_id: str | None, values: list[dict[str, str]], **over: object) -> Answer:
     return Answer(
         data={"workflow_id": workflow_id, "values": values, "missing": []},
@@ -148,7 +160,7 @@ async def test_a_tenant_over_its_cap_is_told_to_come_back_later(
     body = answered.json()
     assert body["type"] == "https://ai-sro.dev/problems/over_cap"
     assert "$5.0100 of $5.00" in body["detail"]
-    assert [row.id for row in uow.chats.rows] == ["cht_1"], "the refusal billed a row of its own"
+    assert [row.id for row in _billed_rows(uow)] == ["cht_1"], "the refusal billed a row of its own"
 
 
 async def test_the_cap_the_door_judges_against_is_the_configured_one(
@@ -184,8 +196,30 @@ async def test_a_sentence_nobody_typed_is_refused_before_the_model_is_asked(
 
     assert (await client.post("/v1/chat", json={"utterance": ""})).status_code == 422
     assert (await client.post("/v1/chat", json={})).status_code == 422
+    # Stripped before it is measured, or `min_length` judges something other
+    # than what would have been sent. Three spaces is a paid call about nothing.
+    assert (await client.post("/v1/chat", json={"utterance": "   \t\n "})).status_code == 422
 
     assert asked.asked == [], "an empty sentence reached the model anyway"
+
+
+async def test_a_sentence_longer_than_anybody_types_is_refused_before_it_is_paid_for(
+    container: _FakeContainer, client: httpx.AsyncClient, held: Workflow
+) -> None:
+    """The utterance is the one part of this prompt a caller controls, and
+    without a ceiling one request's spend is unbounded -- on the door whose
+    whole premise is refusing before it spends.
+
+    501 characters and 500, either side of the bound, so a route that dropped
+    `max_length` fails and one that took a different number fails too.
+    """
+    asked = FakeAsker(_answer("wfl_1", []))
+    container.asker = asked
+
+    assert (await client.post("/v1/chat", json={"utterance": "x" * 501})).status_code == 422
+    assert asked.asked == [], "a body nobody could have typed reached the model"
+
+    assert (await client.post("/v1/chat", json={"utterance": "x" * 500})).status_code == 200
 
 
 # --- what comes back --------------------------------------------------------
@@ -240,7 +274,7 @@ async def test_a_sentence_naming_no_job_is_an_offer_of_nothing_and_still_a_bill(
     assert body["workflow_id"] is None
     assert (body["values"], body["missing"]) == ({}, [])
     assert body["cost_usd"] == 0.0009
-    (row,) = uow.chats.rows
+    (row,) = _billed_rows(uow)
     assert (row.workflow_id, row.cost_usd) == (None, 0.0009)
 
 
@@ -351,7 +385,7 @@ async def test_the_sentence_itself_is_not_stored_and_is_not_echoed_back(
 
     for word in ("ACME-99", "Priya", said):
         assert word not in answered.text, f"{word!r} came back on the wire"
-        assert word not in str(uow.chats.rows), f"{word!r} reached the row"
+        assert word not in str(_billed_rows(uow)), f"{word!r} reached the row"
 
 
 # --- whose sentence, whose jobs, whose clock --------------------------------
@@ -409,7 +443,7 @@ async def test_the_jobs_read_against_are_the_ones_on_the_credential(
 
     assert body["workflow_id"] is None
     assert "wfl_1" not in str(asked.asked[0]["evidence"])
-    assert [row.tenant for row in uow.chats.rows] == ["rival"], "billed to the wrong tenant"
+    assert [row.tenant for row in _billed_rows(uow)] == ["rival"], "billed to the wrong tenant"
 
 
 async def test_the_reading_is_stamped_with_the_containers_clock(
@@ -422,7 +456,7 @@ async def test_the_reading_is_stamped_with_the_containers_clock(
 
     await client.post("/v1/chat", json={"utterance": SAID})
 
-    (row,) = uow.chats.rows
+    (row,) = _billed_rows(uow)
     assert when(row.at) == NOW
 
 

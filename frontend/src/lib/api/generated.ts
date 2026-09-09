@@ -2364,11 +2364,23 @@ export interface components {
          *     clock. A body naming either would be a request to read somebody else's jobs
          *     or to bill a day the cap was not measured against.
          *
-         *     `min_length=1` because the reading is a paid model call and the empty
-         *     string is a paid model call about nothing. The rig took `str(body.get(
-         *     "utterance") or "")` and asked the model that -- a missing field there
-         *     spent money and offered nothing, which is the one refusal that costs
-         *     nothing to make.
+         *     All three constraints are about the same thing: this is the door whose
+         *     entire premise is refusing before it spends, so the one part of the prompt
+         *     a caller controls is bounded at both ends before a model is asked.
+         *
+         *     * `strip_whitespace` FIRST, so `min_length` judges what will actually be
+         *       sent. Without it `"   "` validates, and three spaces is a paid model call
+         *       about nothing.
+         *     * `min_length=1` because the rig took `str(body.get("utterance") or "")`
+         *       and asked the model that: a missing field there spent money on a prompt
+         *       containing nothing. This is the one refusal that costs nothing to make.
+         *     * `max_length=500` because without a ceiling a 200,000-character body is a
+         *       valid request and one caller's spend is unbounded. 500 is not a new
+         *       number -- it is `CalledWrongRequest.because`'s, the only other free-text
+         *       sentence in this file that a person types by hand, and one number for
+         *       "one sentence a human wrote" is worth more here than a bound tuned to
+         *       this door alone. It is roughly eighty words; the sentences this door was
+         *       built for are "create a work area for zone 4".
          */
         ChatRequest: {
             /** Utterance */

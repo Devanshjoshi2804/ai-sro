@@ -35,7 +35,7 @@ from sro.domain.shared.identifiers import PrincipalId, TenantId
 from sro.domain.shared.prices import Answer
 from sro.domain.skill.workflow import Step, Workflow
 from sro.infrastructure.db.codec import when
-from tests.unit.fakes import FakeAsker, FakeClock, FakeUnitOfWork
+from tests.unit.fakes import FakeAsker, FakeChatRepository, FakeClock, FakeUnitOfWork
 
 TENANT = TenantId("acme")
 RIVAL = TenantId("rival")
@@ -106,6 +106,18 @@ def _answer(workflow_id: str | None, values: list[dict[str, str]], **over: objec
     )
 
 
+def _billed_rows(uow: FakeUnitOfWork) -> list[ChatReading]:
+    """The bills this store holds, typed.
+
+    `FakeUnitOfWork.chats` is annotated as the `ChatRepository` port and the
+    port has no `rows`: the narrowing is `test_mine_route.py`'s own `_rows`
+    idiom, and it is an assertion rather than an ignore so that a fake swapped
+    for one without a row list fails here instead of at the read.
+    """
+    assert isinstance(uow.chats, FakeChatRepository)
+    return uow.chats.rows
+
+
 async def _billed(uow: FakeUnitOfWork, *, cost_usd: float, at: datetime) -> None:
     """A day with a model call on it. The chat door is one of the four billable
     tables and the cheapest to write; the cap reads the sum, not the table."""
@@ -133,7 +145,7 @@ async def test_no_asker_refuses_before_anything_is_read() -> None:
     with pytest.raises(AskerUnavailable):
         await _read(uow, asker=None).execute(_ctx(), utterance=SAID)
 
-    assert uow.chats.rows == [], "a refused reading billed a row"
+    assert _billed_rows(uow) == [], "a refused reading billed a row"
     assert uow.commits == 0, "a refused reading opened and committed a transaction"
 
 
@@ -183,7 +195,7 @@ async def test_a_refusal_at_the_door_leaves_no_row_behind() -> None:
     with pytest.raises(OverCap):
         await _read(uow, asker=FakeAsker()).execute(_ctx(), utterance=SAID)
 
-    assert [row.id for row in uow.chats.rows] == ["cht_5.01"], "the refusal billed a row"
+    assert [row.id for row in _billed_rows(uow)] == ["cht_5.01"], "the refusal billed a row"
 
 
 async def test_a_negative_cap_is_no_cap_and_the_sentence_is_read() -> None:
@@ -248,7 +260,7 @@ async def test_the_jobs_it_is_read_against_are_the_ones_this_tenant_holds() -> N
     assert "wfl_1" not in str(asker.asked[0]["evidence"]), (
         "it read the store's jobs, not this tenant's"
     )
-    assert [row.tenant for row in uow.chats.rows] == ["rival"], "billed to the wrong tenant"
+    assert [row.tenant for row in _billed_rows(uow)] == ["rival"], "billed to the wrong tenant"
 
 
 async def test_the_model_asked_is_the_one_this_deployment_configured() -> None:
@@ -271,7 +283,7 @@ async def test_the_bill_is_stamped_with_the_containers_clock() -> None:
 
     await _read(uow, asker=FakeAsker(_answer("wfl_1", []))).execute(_ctx(), utterance=SAID)
 
-    (row,) = uow.chats.rows
+    (row,) = _billed_rows(uow)
     assert when(row.at) == NOW
 
 
@@ -285,14 +297,18 @@ async def test_a_sentence_naming_no_job_still_writes_the_bill() -> None:
     The first two are the ones a door could plausibly skip, and skipping them
     means today's cap is summed without them.
     """
-    for data in ({}, {"workflow_id": "wfl_nope", "values": [], "missing": []}):
+    both: tuple[dict[str, object] | None, ...] = (
+        None,
+        {"workflow_id": "wfl_nope", "values": [], "missing": []},
+    )
+    for data in both:
         uow = await _held()
-        answer = Answer(data=data or None, cost_usd=0.0007, in_tokens=120)
+        answer = Answer(data=data, cost_usd=0.0007, in_tokens=120)
 
         got = await _read(uow, asker=FakeAsker(answer)).execute(_ctx(), utterance=SAID)
 
         assert got.workflow_id is None
-        (row,) = uow.chats.rows
+        (row,) = _billed_rows(uow)
         assert (row.workflow_id, row.cost_usd, row.in_tokens) == (None, 0.0007, 120)
         assert uow.commits == 1, "the bill was written and never committed"
 
@@ -311,7 +327,7 @@ async def test_a_reading_whose_model_call_failed_is_billed_and_not_answered_as_n
     got = await _read(uow, asker=FakeAsker(answer)).execute(_ctx(), utterance=SAID)
 
     assert got.answer.error == "truncated: the answer hit the output-token ceiling"
-    (row,) = uow.chats.rows
+    (row,) = _billed_rows(uow)
     assert row.error == "truncated: the answer hit the output-token ceiling"
     assert row.unpriced is True
 
@@ -330,7 +346,7 @@ async def test_the_sentence_itself_is_not_stored() -> None:
 
     await _read(uow, asker=FakeAsker(_answer("wfl_1", []))).execute(_ctx(), utterance=said)
 
-    (row,) = uow.chats.rows
+    (row,) = _billed_rows(uow)
     assert {one.name for one in fields(ChatReading)} == {
         "id",
         "tenant",
@@ -415,3 +431,39 @@ def test_what_is_missing_comes_back_in_one_order_whatever_the_hash_seed_is(seed:
     assert ran.stdout.strip() == (
         "areaName,clientCode,dockId,lane,ownerCode,siteCode,statusCombo,zone"
     )
+
+
+async def test_the_day_the_cap_judges_is_the_callers_and_never_a_neighbours() -> None:
+    """The cap's tenant, which nothing else in this file crosses with a spend.
+
+    The two-tenant tests above plant no spend and every cap test above uses one
+    tenant, so `over_cap(uow, TenantId("acme"), ...)` -- a literal in the one
+    argument that says whose day is being summed -- survives all of them. What
+    it costs if it is ever wrong that way is not subtle: a tenant that has spent
+    nothing is refused because a neighbour spent, and a tenant over its own cap
+    keeps spending because the neighbour has not.
+
+    Both directions, because the first alone is also satisfied by a door with
+    no cap in it at all.
+    """
+    uow = await _held(RIVAL)
+    await _billed(uow, cost_usd=5.01, at=NOW.replace(hour=10))  # TENANT's day, not RIVAL's
+
+    got = await _read(uow, asker=FakeAsker(_answer("wfl_1", []))).execute(
+        _ctx(RIVAL), utterance=SAID
+    )
+
+    assert got.workflow_id == "wfl_1", "another tenant's spending refused this one's reading"
+
+    # And the converse: the same money on RIVAL's own day does refuse it.
+    await uow.chats.record(
+        ChatReading(
+            id="cht_rival",
+            tenant=RIVAL.value,
+            at=NOW.replace(hour=10).isoformat(),
+            cost_usd=5.01,
+        )
+    )
+
+    with pytest.raises(OverCap):
+        await _read(uow, asker=FakeAsker(_answer("wfl_1", []))).execute(_ctx(RIVAL), utterance=SAID)

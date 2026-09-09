@@ -27684,6 +27684,7 @@
         "properties": {
           "utterance": {
             "type": "string",
+            "maxLength": 500,
             "minLength": 1,
             "title": "Utterance"
           }
@@ -27693,7 +27694,7 @@
           "utterance"
         ],
         "title": "ChatRequest",
-        "description": "What an operator said, and nothing else.\n\nNo tenant and no day: both come off the credential and the container's\nclock. A body naming either would be a request to read somebody else's jobs\nor to bill a day the cap was not measured against.\n\n`min_length=1` because the reading is a paid model call and the empty\nstring is a paid model call about nothing. The rig took `str(body.get(\n\"utterance\") or \"\")` and asked the model that -- a missing field there\nspent money and offered nothing, which is the one refusal that costs\nnothing to make."
+        "description": "What an operator said, and nothing else.\n\nNo tenant and no day: both come off the credential and the container's\nclock. A body naming either would be a request to read somebody else's jobs\nor to bill a day the cap was not measured against.\n\nAll three constraints are about the same thing: this is the door whose\nentire premise is refusing before it spends, so the one part of the prompt\na caller controls is bounded at both ends before a model is asked.\n\n* `strip_whitespace` FIRST, so `min_length` judges what will actually be\n  sent. Without it `\"   \"` validates, and three spaces is a paid model call\n  about nothing.\n* `min_length=1` because the rig took `str(body.get(\"utterance\") or \"\")`\n  and asked the model that: a missing field there spent money on a prompt\n  containing nothing. This is the one refusal that costs nothing to make.\n* `max_length=500` because without a ceiling a 200,000-character body is a\n  valid request and one caller's spend is unbounded. 500 is not a new\n  number -- it is `CalledWrongRequest.because`'s, the only other free-text\n  sentence in this file that a person types by hand, and one number for\n  \"one sentence a human wrote\" is worth more here than a bound tuned to\n  this door alone. It is roughly eighty words; the sentences this door was\n  built for are \"create a work area for zone 4\"."
       },
       "ChatResponse": {
         "properties": {

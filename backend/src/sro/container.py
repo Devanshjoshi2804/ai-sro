@@ -56,6 +56,7 @@ from sro.application.execution.self_heal import SelfHeal
 from sro.application.execution.stops import Stops
 from sro.application.execution.vision_step import PerformWithVision
 from sro.application.execution.workflow_runs import (
+    AbortWorkflowRun,
     GetWorkflowRun,
     ListWorkflowRuns,
     StartWorkflowRun,
@@ -892,6 +893,17 @@ class Container:
     def get_workflow_run(self) -> GetWorkflowRun:
         """One run of a mined job. Not `get_run` above, for the same reason."""
         return GetWorkflowRun(self.unit_of_work())
+
+    def abort_workflow_run(self) -> AbortWorkflowRun:
+        """The stop button on a run of a mined job. Not `stop_run` above, which
+        reaches a skill run through `uow.runs` on a `RunId`.
+
+        Both process-wide registers, and both for the reason `start_workflow_run`
+        gives: the task that honours a stop is waiting on the ones this container
+        handed it, and a use case built with registers of its own would set a
+        flag nothing ever reads and release a wait nobody is holding.
+        """
+        return AbortWorkflowRun(self.unit_of_work(), self.stops, self.approvals)
 
     def call_run_wrong(self) -> CallRunWrong:
         return CallRunWrong(self.unit_of_work(), self.clock)

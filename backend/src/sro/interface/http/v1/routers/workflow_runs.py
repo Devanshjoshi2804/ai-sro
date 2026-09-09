@@ -150,3 +150,34 @@ async def get_workflow_run(
     for both, `GetWorkflowRun` raises `NotFound`, and `errors` maps it once.
     """
     return WorkflowRunModel.of(await container.get_workflow_run().execute(ctx, run_id=run_id))
+
+
+@router.post("/workflow-runs/{run_id}/abort", status_code=status.HTTP_202_ACCEPTED)
+async def abort_workflow_run(
+    run_id: str, container: ContainerDep, ctx: ContextDep
+) -> WorkflowRunModel:
+    """Ask a run of a mined job to stop.
+
+    Ported from `abort_run` in `new_agent_arch/src/rig/api.py:1237`, and it
+    closes phase 4a's carried item 1: nothing outside this process could reach
+    a parked run to stop it.
+
+    202 rather than 200, as `/v1/runs/{id}/stop` next door is: it takes effect
+    at the next step, because a gesture already sent cannot be recalled from a
+    warehouse and a stop that ended the run mid-command would report a write as
+    not having happened when it had. The row answered with therefore still says
+    `running` -- the task driving the browser closes it, and it is the only
+    thing that knows how the step it was in the middle of ended.
+
+    **No body**, where the rig's took one naming the browser. The row already
+    says which browser is driving it, and a `device_id` in the body is a second
+    answer to that question which can disagree with the first. A bare POST is
+    also what a tap is: a route that 422s one is a Stop-shaped button that
+    sometimes does nothing.
+
+    A run of another tenant is a 404 and never a 403, for `get_workflow_run`'s
+    reason. A run that is not `running`, or one naming no browser, is the 409
+    `CannotStop` already carries -- it subclasses `Conflict`, so `errors` maps
+    it through the MRO walk without a table entry of its own.
+    """
+    return WorkflowRunModel.of(await container.abort_workflow_run().execute(ctx, run_id=run_id))

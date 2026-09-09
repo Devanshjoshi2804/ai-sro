@@ -509,3 +509,80 @@ async def test_a_run_of_another_tenant_is_a_404_from_the_real_store(
     assert theirs.status_code == 404
     assert (await client.get("/v1/workflow-runs/run_mine")).status_code == 200
     assert [one["id"] for one in (await client.get("/v1/workflow-runs")).json()] == ["run_mine"]
+
+
+# --- and the stop button, through the same store -----------------------------
+
+
+async def test_a_stop_reaches_the_run_the_store_holds(
+    container: _RealSessionContainer, client: httpx.AsyncClient
+) -> None:
+    """The lookup a stop refuses on is a real one.
+
+    `FakeUnitOfWork` builds its repositories in `__init__` and `SqlUnitOfWork`
+    assigns them inside `__aenter__`, so a use case reading `workflow_runs` off
+    a session nobody opened is a green unit test and an `AttributeError`
+    against a customer's database -- which is how `/v1/shapes` and `/v1/spend`
+    shipped dead in 4a.
+
+    Three answers in one test, because a refusal proved alone passes against a
+    door that refuses everything and against one that was never registered: an
+    id of the right shape that names nothing is a 404, a run of another tenant
+    is the same 404, and the tenant's own running row is stopped.
+
+    The row is read back afterwards and still says `running`: the task driving
+    the browser closes it, and a route that wrote the outcome itself would be
+    racing the step it just interrupted.
+    """
+    await _hold(container)
+    pressed = await client.post("/v1/workflow-runs", json=_body())
+    assert pressed.status_code == 201, pressed.text
+    claimed = pressed.json()["id"]
+    await _plant(
+        container,
+        _row(
+            "run_theirs",
+            at="2025-02-11T23:00:00+00:00",
+            tenant=TenantId("rival"),
+            device=DeviceId("dev-8"),
+            outcome="running",
+        ),
+    )
+
+    missing = await client.post("/v1/workflow-runs/run_nope/abort")
+    theirs = await client.post("/v1/workflow-runs/run_theirs/abort")
+    landed = await client.post(f"/v1/workflow-runs/{claimed}/abort")
+
+    assert missing.status_code == 404 and theirs.status_code == 404
+    assert theirs.json()["detail"] == missing.json()["detail"]
+    assert landed.status_code == 202, landed.text
+    assert container.stops.asked(claimed)
+    assert not container.stops.asked("run_theirs")
+    async with SqlUnitOfWork(container._session_factory) as uow:
+        stored = await uow.workflow_runs.get(TENANT, claimed)
+    assert stored is not None and stored.outcome == "running"
+
+
+async def test_a_finished_run_in_the_store_cannot_be_stopped(
+    container: _RealSessionContainer, client: httpx.AsyncClient
+) -> None:
+    """`outcome` comes off the real column, not off an object the caller handed
+    a fake. Answering "stopping" for a run that already ended is a console
+    reporting something that did not happen."""
+    await _plant(
+        container,
+        _row("run_done", at="2025-02-11T23:00:00+00:00", outcome="aborted"),
+        _row(
+            "run_going",
+            at="2025-02-11T23:00:00+00:00",
+            outcome="running",
+            device=DeviceId("dev-2"),
+        ),
+    )
+
+    landed = await client.post("/v1/workflow-runs/run_done/abort")
+
+    assert landed.status_code == 409
+    assert "aborted" in landed.json()["detail"]
+    assert not container.stops.asked("run_done")
+    assert (await client.post("/v1/workflow-runs/run_going/abort")).status_code == 202

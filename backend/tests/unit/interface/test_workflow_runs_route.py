@@ -26,10 +26,18 @@ ignores `awaiting` and answers with everything looks perfectly fine on a
 fixture where nothing is parked. The ordering is asserted on three rows, not
 two -- a reversed pair agrees with a two-element assertion once in two, and
 phase 4a shipped that defect twice.
+
+**The stop button is under them**, and every refusal it makes is proved beside
+a run stopped successfully in the same test. A 404 alone passes against a route
+that was never registered -- same words, same `type`, same `title`, because
+`_SLUGS[404]` is `NotFound.code` -- and seventeen tests in this repo had exactly
+that defect. The effect asserted is `Stops.ask`, never the status code: a door
+answering 202 having asked nothing is a stop button that does nothing.
 """
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncIterator, Coroutine
 from typing import Any
 
@@ -40,8 +48,10 @@ from httpx import ASGITransport
 from sro.application.execution.pursuits import Pursuits
 from sro.config import Settings
 from sro.domain.chat.reading import ChatReading
+from sro.domain.execution.run import Run, RunId
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
-from sro.domain.shared.identifiers import DeviceId, TenantId
+from sro.domain.shared.identifiers import DeviceId, SkillId, TenantId
+from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.workflow import Step, Workflow
 from sro.interface.http.app import create_app
 from sro.interface.http.deps import get_container
@@ -1060,3 +1070,222 @@ async def test_the_reads_are_refused_with_no_credential(container: _FakeContaine
     async with httpx.AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as http:
         assert (await http.get("/v1/workflow-runs")).status_code == 401
         assert (await http.get("/v1/workflow-runs/run_1")).status_code == 401
+
+
+# --- the stop button --------------------------------------------------------
+#
+# Carried item 1 of phase 4a, closed: the loop has asked `Stops` between every
+# step since it was written, and until this route existed nothing outside the
+# process could set it. `StopRun` next door sets the same register for a SKILL
+# run and resolves through `uow.runs`, so a workflow run's id handed to it is a
+# string looked up in the wrong repository -- which is why this is a sibling and
+# not an extra branch on that one.
+
+
+def _running(run_id: str, *, device: DeviceId = LAPTOP, tenant: TenantId = TENANT) -> WorkflowRun:
+    """A run this process is driving right now, which is the only kind that can
+    be stopped."""
+    return _planted(run_id, outcome="running", device=device, tenant=tenant)
+
+
+async def test_the_stop_asks_for_the_run_in_the_path_and_no_other(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork, container: _FakeContainer
+) -> None:
+    """Two runs the operator could be watching, so a route that asks to stop
+    the first row it found -- or a literal id -- agrees with this once in two.
+
+    The register is the assertion and the status code is not: `Stops.ask` is
+    the entire effect of this door, and a route that answered 202 having asked
+    nothing is a stop button that does nothing to a run driving a warehouse.
+    """
+    await _plant(uow, _running("run_watched"), _running("run_other", device=DESK))
+
+    landed = await client.post("/v1/workflow-runs/run_other/abort")
+
+    assert landed.status_code == 202, landed.text
+    assert container.stops.asked("run_other")
+    assert not container.stops.asked("run_watched")
+
+
+async def test_the_stopped_run_is_answered_whole_and_still_says_running(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork
+) -> None:
+    """Every field at a value that is not its default, and the outcome NOT
+    rewritten here.
+
+    The row is closed by the loop, which is the only thing that knows whether
+    the gesture it was mid-way through landed. A route that wrote `aborted`
+    itself would be racing the task it just interrupted, and the console would
+    read a finished run whose browser is still clicking.
+    """
+    planted = _running("run_1", device=DESK)
+    planted.values = {"clientCode": "THIRD"}
+    planted.withheld = [{"step": 2, "planned": {"kind": "http.send"}}]
+    planted.in_tokens, planted.out_tokens, planted.thought_tokens = 11, 22, 33
+    planted.cost_usd, planted.unpriced, planted.from_step = 0.44, True, 2
+    planted.steps = [_parked(2, "click Save")]
+    await _plant(uow, planted)
+
+    landed = await client.post("/v1/workflow-runs/run_1/abort")
+
+    assert landed.json() == WorkflowRunModel.of(planted).model_dump()
+    assert landed.json()["outcome"] == "running" and landed.json()["finished_at"] is None
+    assert landed.json()["live"] is True and landed.json()["allow_focus"] is False
+    assert landed.json()["device_id"] == DESK.value and landed.json()["from_step"] == 2
+    assert landed.json()["cost_usd"] == 0.44 and landed.json()["unpriced"] is True
+    assert uow.workflow_runs.rows["run_1"].outcome == "running"
+
+
+async def test_a_run_parked_on_a_person_wakes_now_rather_than_in_five_minutes(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork, container: _FakeContainer
+) -> None:
+    """The half of the seam `application/execution/approvals.py` says is
+    missing: the stop sets the flag AND releases the wait.
+
+    Without the release a stopped run sits out `K_APPROVAL_WAIT_S` and then
+    fails for want of an answer -- safe, and five minutes of a person watching
+    a button they already pressed. The release is not a yes: the flag is set
+    first and `run_workflow` asks `Stops` on the way out of the wait, which is
+    what stops this releasing a write nobody approved.
+    """
+    await _plant(uow, _running("run_parked"))
+    container.approvals.register("run_parked")
+    waiting = asyncio.ensure_future(container.approvals.wait_for("run_parked", timeout=5.0))
+    await asyncio.sleep(0)
+
+    landed = await client.post("/v1/workflow-runs/run_parked/abort")
+
+    assert landed.status_code == 202, landed.text
+    assert await waiting is True
+    assert container.stops.asked("run_parked")
+
+
+async def test_aborting_an_already_aborted_run_says_so_rather_than_succeeding(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork, container: _FakeContainer
+) -> None:
+    """An idempotent-looking success here is a console reporting something that
+    did not happen, which `StopRun`'s docstring says is worse on this screen
+    than not offering the button at all.
+
+    The reachable run is stopped in the same test: a refusal proved on its own
+    passes against a door that refuses everything, and against one that was
+    never registered.
+    """
+    await _plant(uow, _planted("run_done", outcome="aborted"), _running("run_going"))
+
+    landed = await client.post("/v1/workflow-runs/run_done/abort")
+
+    assert landed.status_code == 409
+    assert landed.headers["content-type"].startswith("application/problem+json")
+    assert "aborted" in landed.json()["detail"]
+    assert not container.stops.asked("run_done")
+    assert (await client.post("/v1/workflow-runs/run_going/abort")).status_code == 202
+
+
+async def test_a_run_in_no_browser_is_not_one_this_process_can_stop(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork, container: _FakeContainer
+) -> None:
+    """The intention to stop is held in this process and honoured by the task
+    driving that browser. A `running` row naming no browser is not being driven
+    by one, and answering "stopping" for it is the one thing a stop control
+    must never do.
+    """
+    homeless = _running("run_nowhere")
+    homeless.device_id = ""
+    await _plant(uow, homeless, _running("run_going"))
+
+    landed = await client.post("/v1/workflow-runs/run_nowhere/abort")
+
+    assert landed.status_code == 409
+    assert "browser" in landed.json()["detail"]
+    assert not container.stops.asked("run_nowhere")
+    assert (await client.post("/v1/workflow-runs/run_going/abort")).status_code == 202
+
+
+async def test_a_skill_runs_id_is_not_found_here_rather_than_type_confused(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork, container: _FakeContainer
+) -> None:
+    """The two id spaces look alike -- `run_` plus 32 hex on both sides. Pass a
+    real skill run's id and get a 404, not a 500 and not somebody else's run.
+
+    Same tenant, and `running`, so nothing but the repository tells them apart:
+    a door resolving through `uow.runs` would find this row and answer about it.
+    The workflow run is stopped in the same test, because a 404 alone is what an
+    unregistered path answers -- in the same words, with the same `type` and
+    `title`, since `_SLUGS[404]` is `NotFound.code`.
+    """
+    twin = "run_" + "ab" * 16
+    await uow.runs.add(
+        Run(
+            id=RunId(twin),
+            tenant_id=TENANT,
+            skill_id=SkillId("some-skill"),
+            skill_version=1,
+            stage=PromotionStage.ASSISTED,
+            parameters={},
+            requested_by=f.OPERATOR,
+            started_at=f.at(0),
+            authorized_by=f.OPERATOR,
+        )
+    )
+    await _plant(uow, _running("run_going"))
+
+    landed = await client.post(f"/v1/workflow-runs/{twin}/abort")
+
+    assert landed.status_code == 404, landed.text
+    assert not container.stops.asked(twin)
+    assert (await client.post("/v1/workflow-runs/run_going/abort")).status_code == 202
+
+
+async def test_another_tenants_run_cannot_be_stopped_and_is_the_same_404(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork, container: _FakeContainer
+) -> None:
+    """The tenant is a predicate of the lookup, not a filter afterwards. A 403
+    would confirm the id exists, and run ids are unguessable -- so a run of
+    another tenant answers exactly what a run that never existed answers.
+    """
+    await _plant(uow, _running("run_theirs", tenant=RIVAL), _running("run_going"))
+
+    theirs = await client.post("/v1/workflow-runs/run_theirs/abort")
+    missing = await client.post("/v1/workflow-runs/run_nope/abort")
+
+    assert theirs.status_code == 404 and missing.status_code == 404
+    assert theirs.json()["detail"] == missing.json()["detail"]
+    assert not container.stops.asked("run_theirs")
+    assert (await client.post("/v1/workflow-runs/run_going/abort")).status_code == 202
+
+
+async def test_a_browser_that_proves_itself_may_press_stop(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork
+) -> None:
+    """The same auth ruling as the press and the two reads, pinned here too.
+
+    The extension sends `X-Device-Secret` on every call it makes
+    (`api.js:40`), and `asking_device` answers a secret with no `?device_id=`
+    beside it with a 404 before it reaches a repository. `TenantOnly` on this
+    door would 404 the stop button of the one caller it exists for -- and every
+    other test in this section would stay green, because none of them sends the
+    header.
+    """
+    await _plant(uow, _running("run_going"))
+
+    landed = await client.post(
+        "/v1/workflow-runs/run_going/abort", headers={"X-Device-Secret": "whatever-this-is"}
+    )
+
+    assert landed.status_code == 202, landed.text
+
+
+async def test_the_stop_is_refused_with_no_credential(
+    container: _FakeContainer, uow: FakeUnitOfWork
+) -> None:
+    """A door that reaches into a run driving a warehouse, registered without
+    `ContextDep`, would be a public one."""
+    await _plant(uow, _running("run_going"))
+    app = create_app()
+    app.dependency_overrides[get_container] = lambda: container
+    async with httpx.AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as http:
+        landed = await http.post("/v1/workflow-runs/run_going/abort")
+
+    assert landed.status_code == 401
+    assert not container.stops.asked("run_going")

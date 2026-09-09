@@ -2126,6 +2126,48 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/workflow-runs/{run_id}/abort": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Abort Workflow Run
+         * @description Ask a run of a mined job to stop.
+         *
+         *     Ported from `abort_run` in `new_agent_arch/src/rig/api.py:1237`, and it
+         *     closes phase 4a's carried item 1: nothing outside this process could reach
+         *     a parked run to stop it.
+         *
+         *     202 rather than 200, as `/v1/runs/{id}/stop` next door is: it takes effect
+         *     at the next step, because a gesture already sent cannot be recalled from a
+         *     warehouse and a stop that ended the run mid-command would report a write as
+         *     not having happened when it had. The row answered with therefore still says
+         *     `running` -- the task driving the browser closes it, and it is the only
+         *     thing that knows how the step it was in the middle of ended.
+         *
+         *     **No body**, where the rig's took one naming the browser. The row already
+         *     says which browser is driving it, and a `device_id` in the body is a second
+         *     answer to that question which can disagree with the first. A bare POST is
+         *     also what a tap is: a route that 422s one is a Stop-shaped button that
+         *     sometimes does nothing.
+         *
+         *     A run of another tenant is a 404 and never a 403, for `get_workflow_run`'s
+         *     reason. A run that is not `running`, or one naming no browser, is the 409
+         *     `CannotStop` already carries -- it subclasses `Conflict`, so `errors` maps
+         *     it through the MRO walk without a table entry of its own.
+         */
+        post: operations["abort_workflow_run_v1_workflow_runs__run_id__abort_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -16652,6 +16694,130 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkflowRunModel"];
+                };
+            };
+            /** @description No credential, or one this deployment rejects. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description No such thing, or not yours. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The system's state says no, not the request. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The request cannot be processed as asked. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description Something this depends on is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+        };
+    };
+    abort_workflow_run_v1_workflow_runs__run_id__abort_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };

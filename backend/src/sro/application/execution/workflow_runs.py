@@ -56,6 +56,10 @@ are here rather than in a file of their own because the row they answer with
 is the one `StartWorkflowRun` claims, and a reader asking what a run looks
 like on the way out should not have to find a second module to learn what put
 it there.
+
+**And the stop button under them**, `AbortWorkflowRun` (`api.py:1237`), for the
+same reason: the run it interrupts is the one claimed at the top of this file,
+and the register it sets is the one `StartWorkflowRun` hands the task.
 """
 
 from __future__ import annotations
@@ -66,6 +70,7 @@ from datetime import datetime
 
 from sro.application.context import RequestContext
 from sro.application.execution.approvals import Approvals
+from sro.application.execution.read_runs import CannotStop
 from sro.application.execution.run_workflow import run_workflow
 from sro.application.execution.stops import Stops
 from sro.application.intent.spend import over_cap
@@ -83,7 +88,13 @@ from sro.domain.execution.workflow_run import (
 from sro.domain.shared.errors import Conflict, NotFound
 from sro.domain.shared.identifiers import DeviceId
 
-__all__ = ["GetWorkflowRun", "ListWorkflowRuns", "RunRefused", "StartWorkflowRun"]
+__all__ = [
+    "AbortWorkflowRun",
+    "GetWorkflowRun",
+    "ListWorkflowRuns",
+    "RunRefused",
+    "StartWorkflowRun",
+]
 
 logger = logging.getLogger(__name__)
 
@@ -420,3 +431,71 @@ class GetWorkflowRun:
             if run is None:
                 raise NotFound("no such run")
             return run
+
+
+class AbortWorkflowRun:
+    """Ask a run of a mined job, in somebody's own browser, to stop.
+
+    Ported from `abort_run` in `new_agent_arch/src/rig/api.py:1237`, and it
+    closes phase 4a's carried item 1: `run_workflow` has asked `Stops` between
+    every step since it was written, and nothing outside this process could set
+    it.
+
+    **A sibling of `StopRun`, not a branch on it.** That one is the SKILL run's
+    half and resolves through `uow.runs` on a `RunId`; this resolves through
+    `uow.workflow_runs` on a plain `str`. `new_run_id` says why the two id
+    spaces stay apart: "a string that round-trips through the wrong repository
+    will be looked up, found missing, and read as a run that does not exist
+    rather than as a type error". Its two refusals are copied because they are
+    right for both, and its `CannotStop` is imported rather than redeclared so
+    the sentence and the `code` cannot drift into two.
+
+    **The flag first, then the release**, which is the rig's order. A run parked
+    on a person is not between steps and would sit out `K_APPROVAL_WAIT_S`
+    before it noticed the flag; releasing the wait lets the loop see it now. The
+    release is not a yes -- `run_workflow` asks `Stops` on the way out of
+    `wait_for` and aborts rather than writing.
+
+    Written in that order and not testable in it: nothing is awaited between the
+    two lines, so on one event loop the woken task cannot be scheduled between
+    them and the reverse order would behave identically today. It is written the
+    safe way round because the day something is awaited in between is the day it
+    stops being identical, and that day will not come with a test attached.
+
+    **Nothing here writes the row.** The task driving the browser is the only
+    thing that knows whether the gesture it was mid-way through landed, and it
+    closes the run on its way out. A route that marked the row `aborted` would
+    race the task it just interrupted.
+
+    Nothing here talks to the browser either. The loop sends `kind="abort"` the
+    moment it reads the flag, which is the rig's best-effort send made
+    unnecessary rather than dropped.
+    """
+
+    def __init__(self, uow: UnitOfWork, stops: Stops, approvals: Approvals) -> None:
+        self._uow = uow
+        self._stops = stops
+        self._approvals = approvals
+
+    async def execute(self, ctx: RequestContext, *, run_id: str) -> WorkflowRun:
+        async with self._uow as uow:
+            run = await uow.workflow_runs.get(ctx.tenant_id, run_id)
+        # A run of another tenant takes the same path as one that never
+        # existed, for `GetWorkflowRun`'s reason: a 403 confirms the id exists.
+        if run is None:
+            raise NotFound("no such run")
+        if run.outcome != "running":
+            raise CannotStop(f"that run already {run.outcome}")
+        # `WorkflowRun.device_id` is a non-null `str` where the skill run's is
+        # `DeviceId | None`, so the empty string is what "no browser" looks like
+        # here. Kept for `StopRun`'s reason rather than because this system
+        # writes such a row: what a stop control must never do is answer
+        # "stopping" for a run nothing in this process is driving.
+        if not run.device_id:
+            raise CannotStop("that run is not being performed in a browser this process is driving")
+        self._stops.ask(run.id)
+        self._approvals.approve(run.id)
+        # ponytail: in-process only. A run and the socket it drives live in one
+        # worker, so stopping must land there too -- sticky-route by device_id
+        # if this is ever run with more than one.
+        return run

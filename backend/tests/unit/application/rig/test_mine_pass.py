@@ -126,6 +126,28 @@ async def test_no_asker_refuses_before_anything_is_read() -> None:
     assert uow.commits == 0, "a refused pass opened and committed a transaction"
 
 
+class _RefusingUnitOfWork(FakeUnitOfWork):
+    """A unit of work that cannot be opened.
+
+    The only way to hold the code to the comment at the top of `execute`: a
+    503 that first took a connection is a 503 that made the outage slightly
+    worse, and moving `asker_or_refuse` one line down into the `async with`
+    passed every other test in this file and in the integration one.
+    """
+
+    async def __aenter__(self) -> FakeUnitOfWork:
+        raise AssertionError("a session was opened before the model was checked for")
+
+
+async def test_the_missing_model_is_noticed_before_a_connection_is_taken() -> None:
+    """`AskerUnavailable`, not the `AssertionError` above. A deployment with no
+    key answers 503 for every request it gets, and taking a database connection
+    on the way to saying so is how a missing setting becomes a pool
+    exhaustion."""
+    with pytest.raises(AskerUnavailable):
+        await _pass(_RefusingUnitOfWork(), asker=None).execute(_ctx())
+
+
 async def test_over_the_cap_refuses_and_says_which_number_stopped_it() -> None:
     """Both numbers, because a reader has to be able to tell a cap that wants
     raising from a cap that is working."""

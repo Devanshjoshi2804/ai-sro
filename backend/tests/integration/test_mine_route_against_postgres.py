@@ -164,6 +164,10 @@ async def test_a_day_is_mined_and_billed_through_one_real_session(
         two.json()["learned_parameters"],
     ], "the figure reached the row and not only the wire"
     assert [row.cost_usd for row in rows] == [0.01, 0.01]
+    # The receipt names the row it is a receipt for. A `pass_id` joined to
+    # nothing is the one field that would make the whole body useless, and
+    # `pas_`-shaped is not the same as `pas_`-correct.
+    assert sorted(row.id for row in rows) == sorted([one.json()["pass_id"], two.json()["pass_id"]])
 
 
 async def test_the_cap_is_read_off_the_same_session_the_pass_writes_through(
@@ -187,11 +191,18 @@ async def test_the_cap_is_read_off_the_same_session_the_pass_writes_through(
     assert "$0.0000 of $0.00" in answered.json()["detail"]
 
 
-async def test_a_deployment_with_no_model_refuses_before_it_opens_a_session(
+async def test_a_deployment_with_no_model_is_refused_by_the_real_container(
     client: httpx.AsyncClient,
 ) -> None:
     """503 with the two settings to go and set. `_RealSessionContainer` has no
-    asker, which is what a deployment with no key has."""
+    asker, which is what a deployment with no key has.
+
+    This asserts the status and nothing more. That the refusal happens BEFORE a
+    session is opened is a different claim, and it is held by
+    `test_the_missing_model_is_noticed_before_a_connection_is_taken` in the
+    unit file, over a unit of work whose `__aenter__` raises -- which is a
+    thing a real `SqlUnitOfWork` cannot be made to do from here.
+    """
     answered = await client.post("/v1/mine")
 
     assert answered.status_code == 503, answered.text

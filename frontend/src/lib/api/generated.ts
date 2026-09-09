@@ -3012,8 +3012,10 @@ export interface components {
          *     is a pooled id with no gesture row that no pass can ever read. Neither is
          *     derivable from `window_size` alone.
          *
-         *     Two deliberate divergences from the rig. It names the window field
-         *     `window` and this keeps `window_size`, matching `MineResult`; and it
+         *     Three deliberate divergences from the rig. It names the window field
+         *     `window` and this keeps `window_size`, matching `MineResult`; it names a
+         *     rejection's job `title` (`api.py:766`) and this says `workflow_title`, so
+         *     that a rejection read beside a workflow cannot be mistaken for one; and it
          *     rounds `cost_usd` to six places in the route while this does not --
          *     rounding for display is the reader's job, and a bill rounded on the way
          *     out cannot be summed against the row it came from.

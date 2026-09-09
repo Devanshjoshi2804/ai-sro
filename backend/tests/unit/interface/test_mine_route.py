@@ -98,6 +98,20 @@ def _answer(*proposals: dict[str, object], **over: object) -> Answer:
     return Answer(data={"workflows": list(proposals)}, cost_usd=0.01, **over)  # type: ignore[arg-type]
 
 
+def _fat_day(count: int) -> list[Gesture]:
+    """A day bigger than one window, built from the fixture's own rows.
+
+    The gesture carrying calls is the fat one -- `as_evidence` caps each item
+    at `K_MAX_GESTURE_TOKENS`, so bulk comes from repeating its calls rather
+    than from a long string, which `trim` would clip. All identical and all
+    weak in the same way, so `pack` fills to the budget and the remainder is
+    the budget's decision rather than a strength tie nobody planted.
+    """
+    writing = next(g for g in _gestures(TENANT.value) if g.requests)
+    fat = replace(writing, requests=tuple(list(writing.requests) * 10))
+    return [replace(fat, id=f"ges_fat_{i:03d}", at=1000.0 + i) for i in range(count)]
+
+
 def _rows(uow: FakeUnitOfWork) -> dict[str, Gesture]:
     assert isinstance(uow.gestures, FakeGestureRepository)
     return uow.gestures.rows
@@ -287,6 +301,68 @@ async def test_the_model_asked_is_the_one_this_deployment_configured(
     await client.post("/v1/mine")
 
     assert [one["model"] for one in asked.asked] == [MODEL]
+
+
+async def test_a_pass_whose_model_call_failed_is_not_answered_as_a_quiet_day(
+    container: _FakeContainer, client: httpx.AsyncClient, day: list[str]
+) -> None:
+    """`error` and `unpriced` both carry something other than their default.
+
+    Not hypothetical. `mining_passes` on the real store already holds a pass
+    from 2026-09-08 that billed $1.9984 and returned nothing --
+    `error='truncated: the answer hit the 65536 output-token ceiling after 2610
+    tokens'`. Replayed through a route that answered `error: null`, that $2.00
+    failure is indistinguishable from a morning nobody worked, which is the
+    exact thing the field's docstring exists to prevent.
+
+    `unpriced` is the same fact on the billing side: a model name the price
+    table never knew about records $0.0000 with the flag set, and a wire that
+    hardcoded `false` reports an honestly cheap day while the tenant spends.
+    """
+    container.asker = FakeAsker(
+        Answer(
+            data={"workflows": []},
+            error="truncated: the answer hit the 65536 output-token ceiling",
+            unpriced=True,
+        )
+    )
+
+    body = (await client.post("/v1/mine")).json()
+
+    assert body["error"] == "truncated: the answer hit the 65536 output-token ceiling"
+    assert body["unpriced"] is True
+    # And the two zeroes beside them, which are what the failure looks like
+    # from the outside and why `error` has to be the thing that tells them
+    # apart from a quiet day.
+    assert (body["proposed"], body["kept"]) == (0, 0)
+
+
+async def test_evidence_the_pass_could_not_read_is_counted_and_never_inferred(
+    container: _FakeContainer, client: httpx.AsyncClient, uow: FakeUnitOfWork
+) -> None:
+    """`left_out` and `lost_pool` are two different kinds of unread evidence
+    and neither is derivable from `window_size`.
+
+    Ninety-five gestures fat enough that the window budget stops at
+    eighty-five: the ten that did not fit are offered again next pass. One
+    pooled id whose gesture row is gone is a different thing entirely -- no
+    pass can ever read it, and it is named rather than quietly missing from a
+    count that came out smaller than expected.
+
+    Both numbers are DERIVED -- 85 and 10 fall out of `K_WINDOW_TOKENS` minus
+    the prompt overhead, not out of a fixture -- so a wire that answered zero,
+    or that answered `window_size` for either of them, fails here.
+    """
+    fat = _fat_day(95)
+    await uow.gestures.add_gestures(tuple(fat))
+    await uow.pool.add_unclaimed(TENANT, window_ids=("ges_vanished",), claimed=frozenset())
+    container.asker = FakeAsker(_answer())
+
+    body = (await client.post("/v1/mine")).json()
+
+    assert body["window_size"] == 85
+    assert body["left_out"] == 10
+    assert body["lost_pool"] == ["ges_vanished"]
 
 
 # --- whose day, and whose clock ---------------------------------------------

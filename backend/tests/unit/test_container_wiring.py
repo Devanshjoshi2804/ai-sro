@@ -292,12 +292,6 @@ def test_an_asker_is_handed_back_as_that_exact_object() -> None:
     assert asker_or_refuse(asker) is asker
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="`container.mine_pass()` arrives in Task 2 and `container.read_chat()` in "
-    "Task 3. Strict: this passing before those tasks would mean a factory got "
-    "built somewhere it was not planned.",
-)
 async def test_a_container_with_no_model_still_builds_every_factory(
     container: Container,
 ) -> None:
@@ -311,5 +305,5 @@ async def test_a_container_with_no_model_still_builds_every_factory(
     key gets.
     """
     assert container.asker is None
-    assert container.mine_pass() is not None  # type: ignore[attr-defined]
-    assert container.read_chat() is not None  # type: ignore[attr-defined]
+    assert container.mine_pass() is not None
+    assert container.read_chat() is not None

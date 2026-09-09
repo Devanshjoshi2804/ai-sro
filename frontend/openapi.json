@@ -6539,6 +6539,317 @@
         }
       }
     },
+    "/v1/chat": {
+      "post": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "Read Chat",
+        "description": "Which job the operator meant, with what values, missing what.\n\n200 rather than 201: nothing is created. The reading leaves a `chats` row\nbehind because the tenant was billed for it, but the answer is an offer and\nthe operator may walk away from it.",
+        "operationId": "read_chat_v1_chat_post",
+        "parameters": [
+          {
+            "name": "device_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Device Id"
+            }
+          },
+          {
+            "name": "X-Device-Secret",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "X-Device-Secret"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No credential, or one this deployment rejects.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "description": "An RFC 9457 problem document, as `errors.py` writes them.\n\nDeclared so the generated client knows the shape. It did not: every failure\nreached the browser as whatever the success model said it should be, and a\n404 was read as a RecordingDetail with every field missing.",
+                  "properties": {
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "instance": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Instance"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail"
+                  ],
+                  "title": "ProblemModel",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such thing, or not yours.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "description": "An RFC 9457 problem document, as `errors.py` writes them.\n\nDeclared so the generated client knows the shape. It did not: every failure\nreached the browser as whatever the success model said it should be, and a\n404 was read as a RecordingDetail with every field missing.",
+                  "properties": {
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "instance": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Instance"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail"
+                  ],
+                  "title": "ProblemModel",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The system's state says no, not the request.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "description": "An RFC 9457 problem document, as `errors.py` writes them.\n\nDeclared so the generated client knows the shape. It did not: every failure\nreached the browser as whatever the success model said it should be, and a\n404 was read as a RecordingDetail with every field missing.",
+                  "properties": {
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "instance": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Instance"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail"
+                  ],
+                  "title": "ProblemModel",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request cannot be processed as asked.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "description": "An RFC 9457 problem document, as `errors.py` writes them.\n\nDeclared so the generated client knows the shape. It did not: every failure\nreached the browser as whatever the success model said it should be, and a\n404 was read as a RecordingDetail with every field missing.",
+                  "properties": {
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "instance": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Instance"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail"
+                  ],
+                  "title": "ProblemModel",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Something this depends on is unavailable.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "description": "An RFC 9457 problem document, as `errors.py` writes them.\n\nDeclared so the generated client knows the shape. It did not: every failure\nreached the browser as whatever the success model said it should be, and a\n404 was read as a RecordingDetail with every field missing.",
+                  "properties": {
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "instance": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Instance"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail"
+                  ],
+                  "title": "ProblemModel",
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/connections": {
       "get": {
         "tags": [
@@ -27368,6 +27679,95 @@
           "enabled"
         ],
         "title": "ChangeTriggerRequest"
+      },
+      "ChatRequest": {
+        "properties": {
+          "utterance": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Utterance"
+          }
+        },
+        "type": "object",
+        "required": [
+          "utterance"
+        ],
+        "title": "ChatRequest",
+        "description": "What an operator said, and nothing else.\n\nNo tenant and no day: both come off the credential and the container's\nclock. A body naming either would be a request to read somebody else's jobs\nor to bill a day the cap was not measured against.\n\n`min_length=1` because the reading is a paid model call and the empty\nstring is a paid model call about nothing. The rig took `str(body.get(\n\"utterance\") or \"\")` and asked the model that -- a missing field there\nspent money and offered nothing, which is the one refusal that costs\nnothing to make."
+      },
+      "ChatResponse": {
+        "properties": {
+          "workflow_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workflow Id"
+          },
+          "values": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Values"
+          },
+          "missing": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Missing"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "in_tokens": {
+            "type": "integer",
+            "title": "In Tokens"
+          },
+          "out_tokens": {
+            "type": "integer",
+            "title": "Out Tokens"
+          },
+          "thought_tokens": {
+            "type": "integer",
+            "title": "Thought Tokens"
+          },
+          "cost_usd": {
+            "type": "number",
+            "title": "Cost Usd"
+          },
+          "unpriced": {
+            "type": "boolean",
+            "title": "Unpriced"
+          }
+        },
+        "type": "object",
+        "required": [
+          "workflow_id",
+          "values",
+          "missing",
+          "error",
+          "in_tokens",
+          "out_tokens",
+          "thought_tokens",
+          "cost_usd",
+          "unpriced"
+        ],
+        "title": "ChatResponse",
+        "description": "Which job one sentence turned out to be, and what reading it cost.\n\nAn offer, never a start. The form renders `workflow_id` with `values`\nfilled in and `missing` asked for; pressing start is a different door.\n\nThe sentence is not echoed back, and that is deliberate rather than\nincidental: `ChatReading` has no column for an operator's words about their\nown warehouse, and a response model carrying them would put them into every\nproxy log and browser history the answer passes through, which is exactly\nwhat having no column was for.\n\nThe bill is here and it is not in the rig, which answered the three fields\nabove and dropped what it had just spent. A reading that cost money and\nnamed no job is indistinguishable from a sentence about nothing without\n`error` beside it -- and a day summed on `cost_usd` alone reads as free\nwhile it spends, which is what `unpriced` says."
       },
       "ChoiceModel": {
         "properties": {

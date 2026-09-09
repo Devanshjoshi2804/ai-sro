@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field, StrictInt
 from sro.application.analytics.audit import Audit, AuditedRun
 from sro.application.analytics.summary import Summary
 from sro.application.capture.devices import DeviceLine
+from sro.application.chat.understand import Understood
 from sro.application.execution.pursuits import PursuitProgress
 from sro.application.execution.reversal import Reversal
 from sro.application.intent.match import Candidate
@@ -2709,4 +2710,79 @@ class MinePassResponse(BaseModel):
             thought_tokens=result.thought_tokens,
             cost_usd=result.cost_usd,
             unpriced=result.unpriced,
+        )
+
+
+class ChatRequest(BaseModel):
+    """What an operator said, and nothing else.
+
+    No tenant and no day: both come off the credential and the container's
+    clock. A body naming either would be a request to read somebody else's jobs
+    or to bill a day the cap was not measured against.
+
+    `min_length=1` because the reading is a paid model call and the empty
+    string is a paid model call about nothing. The rig took `str(body.get(
+    "utterance") or "")` and asked the model that -- a missing field there
+    spent money and offered nothing, which is the one refusal that costs
+    nothing to make.
+    """
+
+    utterance: str = Field(min_length=1)
+
+
+class ChatResponse(BaseModel):
+    """Which job one sentence turned out to be, and what reading it cost.
+
+    An offer, never a start. The form renders `workflow_id` with `values`
+    filled in and `missing` asked for; pressing start is a different door.
+
+    The sentence is not echoed back, and that is deliberate rather than
+    incidental: `ChatReading` has no column for an operator's words about their
+    own warehouse, and a response model carrying them would put them into every
+    proxy log and browser history the answer passes through, which is exactly
+    what having no column was for.
+
+    The bill is here and it is not in the rig, which answered the three fields
+    above and dropped what it had just spent. A reading that cost money and
+    named no job is indistinguishable from a sentence about nothing without
+    `error` beside it -- and a day summed on `cost_usd` alone reads as free
+    while it spends, which is what `unpriced` says.
+    """
+
+    workflow_id: str | None
+    values: dict[str, str]
+    missing: list[str]
+    """Sorted, out of `understand`: `declared` is a set, and a form whose
+    fields reorder between two identical sentences is a form nothing can
+    screenshot."""
+
+    error: str | None
+    """What the model said went wrong, when something did. A reading that
+    failed and a sentence naming no job are the same body without it."""
+
+    in_tokens: int
+    out_tokens: int
+    thought_tokens: int
+    """Inside `out_tokens`, not beside them. Added to them, a reader reports a
+    number no invoice will match."""
+
+    cost_usd: float
+    """Unrounded, as `MinePassResponse` leaves it: rounding for display is the
+    reader's job, and a bill rounded on the way out cannot be summed against
+    the `chats` row it came from."""
+
+    unpriced: bool
+
+    @classmethod
+    def of(cls, got: Understood) -> ChatResponse:
+        return cls(
+            workflow_id=got.workflow_id,
+            values=dict(got.values),
+            missing=list(got.missing),
+            error=got.answer.error,
+            in_tokens=got.answer.in_tokens,
+            out_tokens=got.answer.out_tokens,
+            thought_tokens=got.answer.thought_tokens,
+            cost_usd=got.answer.cost_usd,
+            unpriced=got.answer.unpriced,
         )

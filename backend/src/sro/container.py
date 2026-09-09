@@ -18,6 +18,7 @@ from sro.application.analytics.audit import ReadAudit
 from sro.application.analytics.summary import ReadSummary
 from sro.application.capture.devices import ReadRoster, RestoreDevice, RevokeDevice
 from sro.application.chat.converse import Converse, StartThread
+from sro.application.chat.read_chat import ReadChat
 from sro.application.chat.read_threads import ReadThreads
 from sro.application.connection.browsers import Browsers
 from sro.application.connection.check_session import CheckSession
@@ -207,10 +208,11 @@ class Container:
     ``None`` rather than a no-op double, deliberately. A miner with nothing to
     ask must not run and quietly find nothing -- that reads exactly like a day
     with no work in it. The caller that checks and refuses now exists: it is
-    `asker_or_refuse` in `application/ports/model.py`. It has no reader yet --
-    it will be read by the three doors 4b opens, `POST /v1/mine` (task 2),
-    `POST /v1/chat` (task 3) and `POST /v1/workflow-runs` (task 5), and this
-    sentence goes present-tense when the last of them lands and not before.
+    `asker_or_refuse` in `application/ports/model.py`. Two of the three doors
+    4b opens read it -- `POST /v1/mine` (task 2) and `POST /v1/chat` (task 3),
+    which is what `grep -rn asker_or_refuse src/` answers with today; the third
+    is `POST /v1/workflow-runs` (task 5), and this sentence goes present-tense
+    when that one lands and not before.
 
     The check is deliberately not on this attribute and not a method here. Each
     of those three takes `Asker | None` and refuses at the top of its own
@@ -386,6 +388,34 @@ class Container:
             self.unit_of_work(),
             asker=self.asker,
             model=self.settings.gemini_mine_model,
+            clock=self.clock,
+            cap_usd=self.settings.daily_usd_cap,
+        )
+
+    def read_chat(self) -> ReadChat:
+        """The chat door's reader, which until now had no caller in `src/`.
+
+        `gemini_plan_model` and NOT `gemini_mine_model` beside it. A chat door
+        and a mining door look like they should share a model and must not: an
+        operator is standing at a screen waiting for this answer, so it is the
+        fast one -- the same trade `gemini_intent_model` records having
+        measured at ~2.3s against ~4.8s for the pro model. This is the rig's
+        own wiring: `api.py:1507` hands `understand` `settings().plan_model`.
+
+        Not `resolve_intent`. That one resolves an utterance over this tenant's
+        *skills* with no model in the loop at all; this one resolves it over
+        the *workflows* a mining pass read, and it spends money doing it.
+
+        `asker` is handed over as `Asker | None` rather than through
+        `asker_or_refuse` here, for `mine_pass`'s reason: a factory that raised
+        would make this method itself unbuildable, and a deployment with no key
+        would fail at construction instead of at the one call that needs a
+        model.
+        """
+        return ReadChat(
+            self.unit_of_work(),
+            asker=self.asker,
+            model=self.settings.gemini_plan_model,
             clock=self.clock,
             cap_usd=self.settings.daily_usd_cap,
         )

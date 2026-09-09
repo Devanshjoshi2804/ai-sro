@@ -604,6 +604,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/chat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Read Chat
+         * @description Which job the operator meant, with what values, missing what.
+         *
+         *     200 rather than 201: nothing is created. The reading leaves a `chats` row
+         *     behind because the tenant was billed for it, but the answer is an offer and
+         *     the operator may walk away from it.
+         */
+        post: operations["read_chat_v1_chat_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/connections": {
         parameters: {
             query?: never;
@@ -2331,6 +2355,65 @@ export interface components {
              * @default
              */
             reason: string;
+        };
+        /**
+         * ChatRequest
+         * @description What an operator said, and nothing else.
+         *
+         *     No tenant and no day: both come off the credential and the container's
+         *     clock. A body naming either would be a request to read somebody else's jobs
+         *     or to bill a day the cap was not measured against.
+         *
+         *     `min_length=1` because the reading is a paid model call and the empty
+         *     string is a paid model call about nothing. The rig took `str(body.get(
+         *     "utterance") or "")` and asked the model that -- a missing field there
+         *     spent money and offered nothing, which is the one refusal that costs
+         *     nothing to make.
+         */
+        ChatRequest: {
+            /** Utterance */
+            utterance: string;
+        };
+        /**
+         * ChatResponse
+         * @description Which job one sentence turned out to be, and what reading it cost.
+         *
+         *     An offer, never a start. The form renders `workflow_id` with `values`
+         *     filled in and `missing` asked for; pressing start is a different door.
+         *
+         *     The sentence is not echoed back, and that is deliberate rather than
+         *     incidental: `ChatReading` has no column for an operator's words about their
+         *     own warehouse, and a response model carrying them would put them into every
+         *     proxy log and browser history the answer passes through, which is exactly
+         *     what having no column was for.
+         *
+         *     The bill is here and it is not in the rig, which answered the three fields
+         *     above and dropped what it had just spent. A reading that cost money and
+         *     named no job is indistinguishable from a sentence about nothing without
+         *     `error` beside it -- and a day summed on `cost_usd` alone reads as free
+         *     while it spends, which is what `unpriced` says.
+         */
+        ChatResponse: {
+            /** Workflow Id */
+            workflow_id: string | null;
+            /** Values */
+            values: {
+                [key: string]: string;
+            };
+            /** Missing */
+            missing: string[];
+            /** Error */
+            error: string | null;
+            /** In Tokens */
+            in_tokens: number;
+            /** Out Tokens */
+            out_tokens: number;
+            /** Thought Tokens */
+            thought_tokens: number;
+            /** Cost Usd */
+            cost_usd: number;
+            /** Unpriced */
+            unpriced: boolean;
         };
         /**
          * ChoiceModel
@@ -7223,6 +7306,135 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TaskCandidateModel"];
+                };
+            };
+            /** @description No credential, or one this deployment rejects. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description No such thing, or not yours. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The system's state says no, not the request. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The request cannot be processed as asked. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description Something this depends on is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+        };
+    };
+    read_chat_v1_chat_post: {
+        parameters: {
+            query?: {
+                device_id?: string | null;
+            };
+            header?: {
+                "X-Device-Secret"?: string;
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatResponse"];
                 };
             };
             /** @description No credential, or one this deployment rejects. */

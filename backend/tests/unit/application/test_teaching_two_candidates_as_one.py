@@ -212,7 +212,7 @@ def _teach(
 ) -> TeachWorkflow:
     return TeachWorkflow(
         uow, blobs, FakeClock(datetime(2026, 4, 1, tzinfo=UTC)), FakeIdFactory(), induce, namer
-    )  # type: ignore[arg-type]
+    )
 
 
 async def test_each_time_the_operator_did_both_halves_becomes_one_demonstration() -> None:

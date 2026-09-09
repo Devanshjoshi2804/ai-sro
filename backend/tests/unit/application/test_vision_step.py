@@ -101,7 +101,7 @@ async def test_a_secret_field_is_stripped_from_what_is_sent() -> None:
     result = await _vision(ui, model).execute(_run(), f.step())
 
     sent = model.asked[0]["screen"]
-    assert "api_key" not in sent.text_digest  # type: ignore[union-attr]
+    assert "api_key" not in sent.text_digest
     assert "api_key" in result.calls[0].redacted_fields
 
 

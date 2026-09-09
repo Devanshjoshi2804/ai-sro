@@ -386,11 +386,11 @@ def _events_at(at: datetime) -> list[dict[str, object]]:
     events = []
     for event in _events():
         if event["kind"] == "gesture":
-            gesture = dict(event["gesture"])  # type: ignore[arg-type]
+            gesture = dict(event["gesture"])
             gesture["at"] = float(gesture["at"]) + shifted.total_seconds()
             events.append({"kind": "gesture", "gesture": gesture})
         else:
-            request = dict(event["request"])  # type: ignore[arg-type]
+            request = dict(event["request"])
             request["started_at"] = (
                 datetime.fromisoformat(str(request["started_at"])) + shifted
             ).isoformat()

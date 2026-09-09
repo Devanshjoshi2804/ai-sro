@@ -85,6 +85,7 @@ from sro.application.observation.mine import MineEverything, MineObservations
 from sro.application.observation.mine_pass import MinePass
 from sro.application.observation.policy import ReadObservationPolicy, SetObservationPolicy
 from sro.application.observation.propose import AnswerJoin, ProposeAboutCandidates
+from sro.application.observation.read_pool import ReadPool
 from sro.application.observation.register import (
     GrantHost,
     ReadDevice,
@@ -348,6 +349,9 @@ class Container:
 
     def read_evidence(self) -> ReadEvidence:
         return ReadEvidence(self.unit_of_work())
+
+    def read_pool(self) -> ReadPool:
+        return ReadPool(self.unit_of_work())
 
     async def read_spend(self, ctx: RequestContext) -> DaySpend:
         """What this tenant has been billed since midnight, on this clock.

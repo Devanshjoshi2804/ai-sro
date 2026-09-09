@@ -1015,6 +1015,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/pool": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Pool
+         * @description This tenant's live entries, oldest first, and what has retired.
+         */
+        get: operations["pool_v1_pool_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/recordings": {
         parameters: {
             query?: never;
@@ -3641,6 +3661,32 @@ export interface components {
              * @default proven
              */
             evidence: string;
+        };
+        /**
+         * PoolEntryModel
+         * @description One gesture waiting for a better reading, and how long it has waited.
+         */
+        PoolEntryModel: {
+            /** Gesture Id */
+            gesture_id: string;
+            /** Age */
+            age: number;
+            /** Waited */
+            waited: number;
+            /** Entered At */
+            entered_at: string;
+            /** Reason */
+            reason: string;
+        };
+        /**
+         * PoolResponse
+         * @description What the next pass will be offered first, and what it will not.
+         */
+        PoolResponse: {
+            /** Waiting */
+            waiting: components["schemas"]["PoolEntryModel"][];
+            /** Retired */
+            retired: components["schemas"]["PoolEntryModel"][];
         };
         /**
          * PromoteRequest
@@ -10151,6 +10197,128 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OfferRecordedResponse"];
+                };
+            };
+            /** @description No credential, or one this deployment rejects. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description No such thing, or not yours. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The system's state says no, not the request. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The request cannot be processed as asked. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description Something this depends on is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+        };
+    };
+    pool_v1_pool_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PoolResponse"];
                 };
             };
             /** @description No credential, or one this deployment rejects. */

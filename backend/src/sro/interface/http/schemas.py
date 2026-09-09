@@ -22,6 +22,7 @@ from sro.application.execution.reversal import Reversal
 from sro.application.intent.match import Candidate
 from sro.application.intent.resolve import Resolution
 from sro.application.observation.mining_pass import MineResult
+from sro.application.observation.read_pool import Pool
 from sro.application.skill.read_workflows import CitedEvidence, KnownWorkflow
 from sro.domain.chat.reading import ChatReading
 from sro.domain.chat.thread import Thread
@@ -38,6 +39,7 @@ from sro.domain.observation.candidate import (
 from sro.domain.observation.device import AgentDevice
 from sro.domain.observation.identity import Resolution as MinedResolution
 from sro.domain.observation.policy import ObservationPolicy
+from sro.domain.observation.pool import PoolEntry
 from sro.domain.recording.recording import Recording
 from sro.domain.shared.objective import Direction, ObjectiveKey
 from sro.domain.shared.prices import DaySpend
@@ -1877,6 +1879,63 @@ class AuditResponse(BaseModel):
             offers=[AuditOfferModel.of(offer) for offer in audit.offers],
             devices=[AuditDeviceModel.of(device) for device in audit.devices],
             chats=[AuditChatModel.of(chat) for chat in audit.chats],
+        )
+
+
+class PoolEntryModel(BaseModel):
+    """One gesture waiting for a better reading, and how long it has waited."""
+
+    gesture_id: str
+
+    age: int
+    """Readings this entry was SHOWN and not cited. Runs out at `K_POOL_AGE`."""
+
+    waited: int
+    """Passes it was PASSED OVER. The other clock, and the one that drives
+    priority so the day rotates -- an entry read six times outranking one never
+    seen at all is what happened when age did both jobs."""
+
+    entered_at: str
+
+    reason: str
+    """Why it retired, empty while it is still live.
+
+    There is no `retired` field, here or on the entry: `reason != ""` IS
+    retirement, so the flag and its cause cannot drift apart. Carried on both
+    lists rather than only on the retired one, so a reader that concatenates
+    them can still tell which is which.
+    """
+
+    @classmethod
+    def of(cls, entry: PoolEntry) -> PoolEntryModel:
+        return cls(
+            gesture_id=entry.gesture_id,
+            age=entry.age,
+            waited=entry.waited,
+            entered_at=entry.entered_at,
+            reason=entry.reason,
+        )
+
+
+class PoolResponse(BaseModel):
+    """What the next pass will be offered first, and what it will not."""
+
+    waiting: list[PoolEntryModel]
+    """Live entries, oldest first."""
+
+    retired: list[PoolEntryModel]
+    """What stopped being privileged, and under which cap.
+
+    A second list rather than a flag on the first, because a retired entry is
+    not a deleted one: it goes on being packed at its own strength, and the two
+    lists are the two reads the repository promises.
+    """
+
+    @classmethod
+    def of(cls, pool: Pool) -> PoolResponse:
+        return cls(
+            waiting=[PoolEntryModel.of(entry) for entry in pool.waiting],
+            retired=[PoolEntryModel.of(entry) for entry in pool.retired],
         )
 
 

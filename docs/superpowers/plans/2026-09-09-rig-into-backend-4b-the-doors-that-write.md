@@ -119,12 +119,29 @@ uv run ruff format --check .
 uv run lint-imports
 ```
 
-**Baselines at `b038953`:** unit **2311**, contract **109**, integration
-**130**, mypy clean over 354 files, ruff check clean, `ruff format --check`
-**652 formatted, 0 to reformat**, lint-imports **4 kept, 0 broken**. Every one
-of these is green — this branch starts from a clean board, which it has not been
-for weeks. **Never adjust a baseline to match a prediction; record what you
-observe.**
+**Baselines at `0d003ef`, the branch point before Task 1:** unit **2311**,
+contract **109**, integration **130**, browser **86** (5m23s), mypy clean over
+**354** files, ruff check clean, `ruff format --check` **652 formatted, 0 to
+reformat**, lint-imports **4 kept, 0 broken**. Every one of these is green —
+this branch starts from a clean board, which it has not been for weeks.
+**Never adjust a baseline to match a prediction; record what you observe.**
+
+**After Task 1 (`0169979`):** unit **2319 + 1 xfailed**, mypy **355** files,
+ruff format **654**. Contract, integration and lint-imports unmoved. Measure your
+own task's delta against *your* starting commit, not against this table.
+
+> **Two corrections Task 1 paid for, which every later task inherits.**
+>
+> **`src/sro/application/ports/asking.py` does not exist and never did.** The
+> `Asker` protocol lives in **`ports/model.py:16`** and nine modules import it
+> from there. `AskerUnavailable` and `asker_or_refuse` are beside it in that
+> file. Every reference in this plan has been corrected; if you find one that
+> was missed, `ports/model.py` is the answer.
+>
+> **`Settings()` reads `backend/.env`, which overrides three `SRO_GEMINI_*_MODEL`
+> values.** Any test asserting a `Settings` default must pass
+> `Settings(_env_file=None)` or it becomes a function of the developer's
+> dotfile. Twelve places in this repo already do this.
 
 > **There is no random-ordering pytest plugin in this repo.** An earlier draft
 > of this section listed `-p randomly --randomly-seed=…` as the eighth gate.
@@ -241,7 +258,7 @@ recording this. Task 11 writes it.
 | File | Change |
 |---|---|
 | `src/sro/config.py` | three model settings, `observation_batch_events`, `observation_artifact_bytes` |
-| `src/sro/application/ports/asking.py` | `AskerUnavailable` |
+| `src/sro/application/ports/model.py` | `AskerUnavailable` |
 | `src/sro/interface/http/errors.py` | register `AskerUnavailable` (503) and `OverCap` (429); add 429 to `_TITLES`/`_SLUGS` |
 | `src/sro/container.py` | six factories, `asker_or_refuse()` |
 | `src/sro/interface/http/app.py` | four `include_router` lines |
@@ -267,7 +284,7 @@ spec.
 
 **Files:**
 - Modify: `src/sro/config.py`
-- Modify: `src/sro/application/ports/asking.py`
+- Modify: `src/sro/application/ports/model.py`
 - Create: `src/sro/application/shared/refusals.py`
 - Modify: `src/sro/interface/http/errors.py`
 - Modify: `src/sro/container.py`
@@ -279,7 +296,7 @@ spec.
   `Settings.gemini_rescue_model` (all `str`); `AskerUnavailable(Exception)`;
   `OverCap(Exception)` with attribute `code = "over_cap"`;
   `asker_or_refuse(asker: Asker | None) -> Asker` — **a module-level function in
-  `application/ports/asking.py`, not a `Container` method.** Tasks 2, 3 and 5 all
+  `application/ports/model.py`, not a `Container` method.** Tasks 2, 3 and 5 all
   consume these.
 
 > **Ruling R1, made by the pre-flight scan.** This was first written as
@@ -308,7 +325,7 @@ import pytest
 from fastapi import FastAPI, status
 from fastapi.testclient import TestClient
 
-from sro.application.ports.asking import AskerUnavailable
+from sro.application.ports.model import AskerUnavailable
 from sro.application.shared.refusals import OverCap
 from sro.interface.http.errors import install_error_handlers
 
@@ -383,7 +400,7 @@ def test_no_asker_refuses_rather_than_handing_back_none() -> None:
     """`container.asker` is `Asker | None` and three callers need an `Asker`.
     Returning None to them means the refusal happens somewhere downstream, in
     the middle of a pass, after the window has been packed."""
-    from sro.application.ports.asking import AskerUnavailable, asker_or_refuse
+    from sro.application.ports.model import AskerUnavailable, asker_or_refuse
 
     with pytest.raises(AskerUnavailable):
         asker_or_refuse(None)
@@ -392,7 +409,7 @@ def test_no_asker_refuses_rather_than_handing_back_none() -> None:
 def test_an_asker_is_handed_back_as_that_exact_object() -> None:
     """Not 'an Asker' -- that one. A guard that built a second one would bill
     against a client the spend tests never see."""
-    from sro.application.ports.asking import asker_or_refuse
+    from sro.application.ports.model import asker_or_refuse
 
     asker = FakeAsker()
 
@@ -459,7 +476,7 @@ In `src/sro/config.py`, beside `gemini_interpreter_model` at `:334`:
 
 - [ ] **Step 4: Add `AskerUnavailable`**
 
-In `src/sro/application/ports/asking.py`, beside the `Asker` protocol:
+In `src/sro/application/ports/model.py`, beside the `Asker` protocol:
 
 ```python
 class AskerUnavailable(Exception):
@@ -540,7 +557,7 @@ in `install_error_handlers`.
 
 - [ ] **Step 7: Add `asker_or_refuse`**
 
-In `src/sro/application/ports/asking.py`, beside `AskerUnavailable`:
+In `src/sro/application/ports/model.py`, beside `AskerUnavailable`:
 
 ```python
 def asker_or_refuse(asker: Asker | None) -> Asker:
@@ -599,7 +616,7 @@ test, not an acceptable result.
 export GIT_INDEX_FILE=$(mktemp -u /tmp/idx.XXXXXX)
 export GIT_AUTHOR_NAME="Devansh Joshi" GIT_AUTHOR_EMAIL="devansh.j@GGN002963.local"
 export GIT_COMMITTER_NAME="Devansh Joshi" GIT_COMMITTER_EMAIL="devansh.j@GGN002963.local"
-git add src/sro/config.py src/sro/application/ports/asking.py \
+git add src/sro/config.py src/sro/application/ports/model.py \
         src/sro/application/shared/refusals.py src/sro/interface/http/errors.py \
         src/sro/container.py tests/unit/interface/test_refusals.py \
         tests/unit/test_container_wiring.py
@@ -645,7 +662,7 @@ from __future__ import annotations
 import pytest
 
 from sro.application.observation.mine_pass import MinePass
-from sro.application.ports.asking import AskerUnavailable
+from sro.application.ports.model import AskerUnavailable
 from sro.application.shared.refusals import OverCap
 
 
@@ -720,7 +737,7 @@ from datetime import datetime
 from sro.application.context import RequestContext
 from sro.application.intent.spend import over_cap
 from sro.application.observation.mining_pass import mine
-from sro.application.ports.asking import Asker, asker_or_refuse
+from sro.application.ports.model import Asker, asker_or_refuse
 from sro.application.ports.clock import Clock
 from sro.application.ports.unit_of_work import UnitOfWork
 from sro.application.shared.refusals import OverCap

@@ -429,10 +429,27 @@ async def test_a_second_press_on_a_busy_browser_answers_409_and_starts_nothing(
 async def test_a_job_this_tenant_does_not_have_answers_404(
     client: httpx.AsyncClient, held: Workflow, spawned: _Spawned
 ) -> None:
+    """The reachable job is pressed in the same test on purpose.
+
+    Proved by deregistering the router: this test PASSED without the route
+    existing at all. An unregistered path answers 404 in the same words, and
+    `handed_over == 0` is equally true of a door that refused and a door that
+    was never there -- so the assertions below said nothing about either.
+
+    The same shape was found in `test_a_run_of_another_tenant_is_a_404`, which
+    now reads a reachable row for the same reason. Any test whose whole claim
+    is a 404 needs a second request that succeeds, or it proves a door is
+    private and absent at once.
+    """
     landed = await client.post("/v1/workflow-runs", json=_body(workflow_id="wfl_nope"))
 
     assert landed.status_code == 404
     assert spawned.handed_over == 0
+
+    pressed = await client.post("/v1/workflow-runs", json=_body(workflow_id=held.id))
+
+    assert pressed.status_code == 201, "the route itself is not reachable"
+    assert spawned.handed_over == 1
 
 
 async def test_a_declared_value_that_is_only_whitespace_answers_400(

@@ -354,6 +354,49 @@ class TestWhatTheAuditReads:
         assert [device.registered_at for device in devices] == [later, earlier]
         assert [intent.cost_usd for intent in intents] == [0.02, 0.01]
 
+    async def test_two_browsers_registered_in_the_same_instant_come_back_in_one_order(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """The tiebreak, against the planner that actually chooses the order.
+
+        ``since`` ordered on ``registered_at`` alone while the audit's other
+        three reads all broke their tie. Postgres is free to return rows that
+        tie in whatever order the plan produced, so the same audit read twice
+        could report two browsers two ways -- and a reader diffing two audits
+        saw a change nobody made.
+
+        Written in ascending id and read back descending, so insertion order
+        disagrees with the expected answer: a read with no tiebreak that
+        happened to hand back what it was given fails here rather than
+        agreeing. Read twice for the same reason -- one read is one plan.
+        """
+        both = NOW - timedelta(hours=1)
+        async with SqlUnitOfWork(session_factory) as uow:
+            for device_id in ("dev_1", "dev_2"):
+                await uow.devices.add(
+                    AgentDevice(
+                        id=DeviceId(device_id),
+                        tenant_id=TENANT,
+                        principal_id=PrincipalId("op_1"),
+                        # Distinct, because (tenant, principal, label) is
+                        # unique: this is one operator with two profiles.
+                        label=f"chrome {device_id}",
+                        extension_version="1.0.0",
+                        registered_at=both,
+                        last_seen_at=both,
+                        secret="s" * 32,
+                    )
+                )
+            await uow.commit()
+
+        since = (NOW - timedelta(days=1)).isoformat()
+        async with SqlUnitOfWork(session_factory) as uow:
+            once = await uow.devices.since(TENANT, since=since)
+            twice = await uow.devices.since(TENANT, since=since)
+
+        assert [device.id.value for device in once] == ["dev_2", "dev_1"]
+        assert [device.id.value for device in twice] == ["dev_2", "dev_1"]
+
     async def test_a_browser_revoked_since_is_read_even_though_it_registered_before(
         self, session_factory: async_sessionmaker[AsyncSession]
     ) -> None:

@@ -975,7 +975,14 @@ class FakeDeviceRepository:
                 or (device.revoked_at is not None and when(device.revoked_at) >= at)
             )
         ]
-        return tuple(sorted(found, key=lambda device: device.registered_at, reverse=True))
+        # `(registered_at, id)` reversed, which is the store's
+        # `ORDER BY registered_at DESC, id DESC`. A fake that sorted on the
+        # instant alone is a stable sort, so it would hand a tie back in
+        # insertion order -- an order the store does not promise and does not
+        # give, and the one thing this fake must not be more forgiving about.
+        return tuple(
+            sorted(found, key=lambda device: (device.registered_at, device.id.value), reverse=True)
+        )
 
     async def revoke(self, tenant_id: TenantId, device_id: DeviceId, *, at: str) -> bool:
         device = await self.get(tenant_id, device_id)

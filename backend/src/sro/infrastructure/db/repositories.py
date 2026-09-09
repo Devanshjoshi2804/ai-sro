@@ -650,7 +650,15 @@ class SqlDeviceRepository(DeviceRepository):
                 AgentDeviceRow.tenant_id == tenant_id.value,
                 or_(AgentDeviceRow.registered_at >= at, AgentDeviceRow.revoked_at >= at),
             )
-            .order_by(AgentDeviceRow.registered_at.desc())
+            # On the id as well, as the audit's other three reads all are:
+            # `workflow_runs.since` and `chats.since` on `id DESC`,
+            # `offers.since` on `seq DESC`. Two browsers registered in the same
+            # instant -- one operator installing on two profiles, a fixture
+            # planting a morning -- have no order at all under
+            # `registered_at` alone, so the same audit read twice could report
+            # them two ways and a reader diffing the two saw a change nobody
+            # made.
+            .order_by(AgentDeviceRow.registered_at.desc(), AgentDeviceRow.id.desc())
         )
         rows = (await self._session.execute(query)).scalars().all()
         return tuple(row_to_device(row) for row in rows)

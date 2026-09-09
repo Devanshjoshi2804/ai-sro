@@ -10334,6 +10334,307 @@
         }
       }
     },
+    "/v1/mine": {
+      "post": {
+        "tags": [
+          "mine"
+        ],
+        "summary": "Mine The Day",
+        "description": "Read this tenant's day and keep what it recognises.\n\nNo body: the tenant comes from the caller and the day comes from the\ncontainer's clock. A body naming either would be a request to mine\nsomebody else's evidence, or to mine a day the spend cap was not measured\nagainst.\n\n200 rather than 202: the pass is synchronous and the caller is billed for\nit, so answering \"accepted\" and hanging up would leave nobody holding the\nreceipt.",
+        "operationId": "mine_the_day_v1_mine_post",
+        "parameters": [
+          {
+            "name": "device_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Device Id"
+            }
+          },
+          {
+            "name": "X-Device-Secret",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "X-Device-Secret"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MinePassResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No credential, or one this deployment rejects.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "description": "An RFC 9457 problem document, as `errors.py` writes them.\n\nDeclared so the generated client knows the shape. It did not: every failure\nreached the browser as whatever the success model said it should be, and a\n404 was read as a RecordingDetail with every field missing.",
+                  "properties": {
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "instance": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Instance"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail"
+                  ],
+                  "title": "ProblemModel",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such thing, or not yours.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "description": "An RFC 9457 problem document, as `errors.py` writes them.\n\nDeclared so the generated client knows the shape. It did not: every failure\nreached the browser as whatever the success model said it should be, and a\n404 was read as a RecordingDetail with every field missing.",
+                  "properties": {
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "instance": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Instance"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail"
+                  ],
+                  "title": "ProblemModel",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The system's state says no, not the request.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "description": "An RFC 9457 problem document, as `errors.py` writes them.\n\nDeclared so the generated client knows the shape. It did not: every failure\nreached the browser as whatever the success model said it should be, and a\n404 was read as a RecordingDetail with every field missing.",
+                  "properties": {
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "instance": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Instance"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail"
+                  ],
+                  "title": "ProblemModel",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request cannot be processed as asked.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "description": "An RFC 9457 problem document, as `errors.py` writes them.\n\nDeclared so the generated client knows the shape. It did not: every failure\nreached the browser as whatever the success model said it should be, and a\n404 was read as a RecordingDetail with every field missing.",
+                  "properties": {
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "instance": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Instance"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail"
+                  ],
+                  "title": "ProblemModel",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Something this depends on is unavailable.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "description": "An RFC 9457 problem document, as `errors.py` writes them.\n\nDeclared so the generated client knows the shape. It did not: every failure\nreached the browser as whatever the success model said it should be, and a\n404 was read as a RecordingDetail with every field missing.",
+                  "properties": {
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "instance": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Instance"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail"
+                  ],
+                  "title": "ProblemModel",
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/observations": {
       "post": {
         "tags": [
@@ -28446,6 +28747,199 @@
           "decision"
         ],
         "title": "MessageModel"
+      },
+      "MineCoverageModel": {
+        "properties": {
+          "coverage": {
+            "type": "number",
+            "title": "Coverage"
+          },
+          "skew": {
+            "type": "number",
+            "title": "Skew"
+          },
+          "gini": {
+            "type": "number",
+            "title": "Gini"
+          },
+          "lopsided": {
+            "type": "boolean",
+            "title": "Lopsided"
+          }
+        },
+        "type": "object",
+        "required": [
+          "coverage",
+          "skew",
+          "gini",
+          "lopsided"
+        ],
+        "title": "MineCoverageModel",
+        "description": "How much of the window the kept proposals actually accounted for."
+      },
+      "MinePassResponse": {
+        "properties": {
+          "pass_id": {
+            "type": "string",
+            "title": "Pass Id"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "proposed": {
+            "type": "integer",
+            "title": "Proposed"
+          },
+          "kept": {
+            "type": "integer",
+            "title": "Kept"
+          },
+          "learned_parameters": {
+            "type": "integer",
+            "title": "Learned Parameters"
+          },
+          "window_size": {
+            "type": "integer",
+            "title": "Window Size"
+          },
+          "left_out": {
+            "type": "integer",
+            "title": "Left Out"
+          },
+          "lost_pool": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Lost Pool"
+          },
+          "rejections": {
+            "items": {
+              "$ref": "#/components/schemas/MineRejectionModel"
+            },
+            "type": "array",
+            "title": "Rejections"
+          },
+          "resolutions": {
+            "items": {
+              "$ref": "#/components/schemas/MineResolutionModel"
+            },
+            "type": "array",
+            "title": "Resolutions"
+          },
+          "coverage": {
+            "$ref": "#/components/schemas/MineCoverageModel"
+          },
+          "in_tokens": {
+            "type": "integer",
+            "title": "In Tokens"
+          },
+          "out_tokens": {
+            "type": "integer",
+            "title": "Out Tokens"
+          },
+          "thought_tokens": {
+            "type": "integer",
+            "title": "Thought Tokens"
+          },
+          "cost_usd": {
+            "type": "number",
+            "title": "Cost Usd"
+          },
+          "unpriced": {
+            "type": "boolean",
+            "title": "Unpriced"
+          }
+        },
+        "type": "object",
+        "required": [
+          "pass_id",
+          "error",
+          "proposed",
+          "kept",
+          "learned_parameters",
+          "window_size",
+          "left_out",
+          "lost_pool",
+          "rejections",
+          "resolutions",
+          "coverage",
+          "in_tokens",
+          "out_tokens",
+          "thought_tokens",
+          "cost_usd",
+          "unpriced"
+        ],
+        "title": "MinePassResponse",
+        "description": "What one reading of a day cost and found.\n\n`rejections` and `resolutions` are both here and neither is optional. The\nrig's reason, kept: without resolutions, `proposed: 3, kept: 0,\nrejections: []` is three jobs that vanished with no account of where they\nwent.\n\n`learned_parameters` is the one figure that says whether parameter\nlearning is getting better, and until migration 0041 every pass computed\nit and the persistence layer discarded it. A pass that recognises nothing\nnew and widens two parameters did real work.\n\n`left_out` and `lost_pool` are counted rather than inferred: `left_out`\ndid not fit the token budget and is offered again next pass, `lost_pool`\nis a pooled id with no gesture row that no pass can ever read. Neither is\nderivable from `window_size` alone.\n\nTwo deliberate divergences from the rig. It names the window field\n`window` and this keeps `window_size`, matching `MineResult`; and it\nrounds `cost_usd` to six places in the route while this does not --\nrounding for display is the reader's job, and a bill rounded on the way\nout cannot be summed against the row it came from."
+      },
+      "MineRejectionModel": {
+        "properties": {
+          "workflow_title": {
+            "type": "string",
+            "title": "Workflow Title"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "required": [
+          "workflow_title",
+          "reason",
+          "detail"
+        ],
+        "title": "MineRejectionModel",
+        "description": "A proposal the checker would not let through, and why.\n\n`Mine...` rather than `RejectionModel` for the same reason as the two\nbelow: the names without the prefix are taken in this file by models over\nentirely different domain classes."
+      },
+      "MineResolutionModel": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "workflow_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workflow Id"
+          },
+          "score": {
+            "type": "number",
+            "title": "Score"
+          },
+          "contains": {
+            "type": "boolean",
+            "title": "Contains"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "workflow_id",
+          "score",
+          "contains"
+        ],
+        "title": "MineResolutionModel",
+        "description": "Where a proposed workflow went when it was not kept.\n\n`kind` is \"new\", \"same_occurrence\" or \"same_job\". Named `Mine...` because\n`ResolutionModel` further up already belongs to the intent resolver, over\na different `Resolution` class entirely -- there are two classes of that\nname and this one is `observation.identity.Resolution`."
       },
       "MinedModel": {
         "properties": {

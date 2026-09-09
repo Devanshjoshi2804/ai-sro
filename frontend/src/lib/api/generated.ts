@@ -888,6 +888,35 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/mine": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mine The Day
+         * @description Read this tenant's day and keep what it recognises.
+         *
+         *     No body: the tenant comes from the caller and the day comes from the
+         *     container's clock. A body naming either would be a request to mine
+         *     somebody else's evidence, or to mine a day the spend cap was not measured
+         *     against.
+         *
+         *     200 rather than 202: the pass is synchronous and the caller is billed for
+         *     it, so answering "accepted" and hanging up would leave nobody holding the
+         *     receipt.
+         */
+        post: operations["mine_the_day_v1_mine_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/observations": {
         parameters: {
             query?: never;
@@ -2949,6 +2978,113 @@ export interface components {
             decision: {
                 [key: string]: unknown;
             };
+        };
+        /**
+         * MineCoverageModel
+         * @description How much of the window the kept proposals actually accounted for.
+         */
+        MineCoverageModel: {
+            /** Coverage */
+            coverage: number;
+            /** Skew */
+            skew: number;
+            /** Gini */
+            gini: number;
+            /** Lopsided */
+            lopsided: boolean;
+        };
+        /**
+         * MinePassResponse
+         * @description What one reading of a day cost and found.
+         *
+         *     `rejections` and `resolutions` are both here and neither is optional. The
+         *     rig's reason, kept: without resolutions, `proposed: 3, kept: 0,
+         *     rejections: []` is three jobs that vanished with no account of where they
+         *     went.
+         *
+         *     `learned_parameters` is the one figure that says whether parameter
+         *     learning is getting better, and until migration 0041 every pass computed
+         *     it and the persistence layer discarded it. A pass that recognises nothing
+         *     new and widens two parameters did real work.
+         *
+         *     `left_out` and `lost_pool` are counted rather than inferred: `left_out`
+         *     did not fit the token budget and is offered again next pass, `lost_pool`
+         *     is a pooled id with no gesture row that no pass can ever read. Neither is
+         *     derivable from `window_size` alone.
+         *
+         *     Two deliberate divergences from the rig. It names the window field
+         *     `window` and this keeps `window_size`, matching `MineResult`; and it
+         *     rounds `cost_usd` to six places in the route while this does not --
+         *     rounding for display is the reader's job, and a bill rounded on the way
+         *     out cannot be summed against the row it came from.
+         */
+        MinePassResponse: {
+            /** Pass Id */
+            pass_id: string;
+            /** Error */
+            error: string | null;
+            /** Proposed */
+            proposed: number;
+            /** Kept */
+            kept: number;
+            /** Learned Parameters */
+            learned_parameters: number;
+            /** Window Size */
+            window_size: number;
+            /** Left Out */
+            left_out: number;
+            /** Lost Pool */
+            lost_pool: string[];
+            /** Rejections */
+            rejections: components["schemas"]["MineRejectionModel"][];
+            /** Resolutions */
+            resolutions: components["schemas"]["MineResolutionModel"][];
+            coverage: components["schemas"]["MineCoverageModel"];
+            /** In Tokens */
+            in_tokens: number;
+            /** Out Tokens */
+            out_tokens: number;
+            /** Thought Tokens */
+            thought_tokens: number;
+            /** Cost Usd */
+            cost_usd: number;
+            /** Unpriced */
+            unpriced: boolean;
+        };
+        /**
+         * MineRejectionModel
+         * @description A proposal the checker would not let through, and why.
+         *
+         *     `Mine...` rather than `RejectionModel` for the same reason as the two
+         *     below: the names without the prefix are taken in this file by models over
+         *     entirely different domain classes.
+         */
+        MineRejectionModel: {
+            /** Workflow Title */
+            workflow_title: string;
+            /** Reason */
+            reason: string;
+            /** Detail */
+            detail: string;
+        };
+        /**
+         * MineResolutionModel
+         * @description Where a proposed workflow went when it was not kept.
+         *
+         *     `kind` is "new", "same_occurrence" or "same_job". Named `Mine...` because
+         *     `ResolutionModel` further up already belongs to the intent resolver, over
+         *     a different `Resolution` class entirely -- there are two classes of that
+         *     name and this one is `observation.identity.Resolution`.
+         */
+        MineResolutionModel: {
+            /** Kind */
+            kind: string;
+            /** Workflow Id */
+            workflow_id: string | null;
+            /** Score */
+            score: number;
+            /** Contains */
+            contains: boolean;
         };
         /** MinedModel */
         MinedModel: {
@@ -8718,6 +8854,131 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RevocationResponse"];
+                };
+            };
+            /** @description No credential, or one this deployment rejects. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description No such thing, or not yours. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The system's state says no, not the request. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The request cannot be processed as asked. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description Something this depends on is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+        };
+    };
+    mine_the_day_v1_mine_post: {
+        parameters: {
+            query?: {
+                device_id?: string | null;
+            };
+            header?: {
+                "X-Device-Secret"?: string;
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MinePassResponse"];
                 };
             };
             /** @description No credential, or one this deployment rejects. */

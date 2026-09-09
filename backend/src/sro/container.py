@@ -73,6 +73,7 @@ from sro.application.observation.forget import ForgetObservations
 from sro.application.observation.ingest import IngestObservation
 from sro.application.observation.learn import LearnWhatRepeats
 from sro.application.observation.mine import MineEverything, MineObservations
+from sro.application.observation.mine_pass import MinePass
 from sro.application.observation.policy import ReadObservationPolicy, SetObservationPolicy
 from sro.application.observation.propose import AnswerJoin, ProposeAboutCandidates
 from sro.application.observation.register import (
@@ -368,6 +369,26 @@ class Container:
 
     def mine_observations(self) -> MineObservations:
         return MineObservations(self.unit_of_work(), self.blobs, self.ids)
+
+    def mine_pass(self) -> MinePass:
+        """The model-first rig's pass, which until now had no caller in `src/`.
+
+        `asker` is handed over as `Asker | None` rather than through
+        `asker_or_refuse` here: a factory that raised would make this method
+        itself unbuildable, and a deployment with no key would fail at
+        construction instead of at the one call that needs a model.
+
+        Not `mine_observations` above. That one clusters a week of observation
+        into task candidates with no model in the loop at all; this one packs
+        one window, makes one call and writes one `mining_passes` row.
+        """
+        return MinePass(
+            self.unit_of_work(),
+            asker=self.asker,
+            model=self.settings.gemini_mine_model,
+            clock=self.clock,
+            cap_usd=self.settings.daily_usd_cap,
+        )
 
     def mine_everything(self) -> MineEverything:
         return MineEverything(

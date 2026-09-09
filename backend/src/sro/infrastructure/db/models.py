@@ -796,6 +796,12 @@ class WorkflowRunRow(Base):
 
     outcome: Mapped[str] = mapped_column(String(16), nullable=False, default="running")
 
+    from_step: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    """How many steps the operator did before the offer was made. Stored so a
+    re-press of this run can be checked against what the first press asked
+    for -- without it the row cannot say whether a second press is the same
+    job or a different one."""
+
     withheld: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list)
     """The writes a dry run produced and did not send, in full. This is what a
     person reads before pressing through to live."""

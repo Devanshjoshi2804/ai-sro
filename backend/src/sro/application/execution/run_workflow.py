@@ -306,14 +306,24 @@ async def run_workflow(
     # stale outcome plus a step that never happened. The rig gets away with it
     # because nothing re-presses a finished run; phase 4's route will, and the
     # cheapest place to say no is the same refusal that already reads the row.
+    #
+    # And `from_step`, the fourth thing the press asked for: how many steps the
+    # operator did themselves before the offer. A re-press that moves it
+    # finishes a different job under this run's id -- steps the operator never
+    # performed recorded `done_by_operator` and skipped, or steps they did
+    # perform redone against a live warehouse. Silent, because the other three
+    # checks all pass; and the only one of the four the row could not answer
+    # until it had a column.
     if saved is not None and (
         saved.device_id != device_id.value
         or saved.workflow_id != workflow.id
         or saved.outcome != "running"
+        or saved.from_step != from_step
     ):
         raise ValueError(
             f"{saved.id} was saved {saved.outcome} for {saved.workflow_id} on"
-            f" {saved.device_id}, not running for {workflow.id} on {device_id.value}"
+            f" {saved.device_id} from step {saved.from_step}, not running for"
+            f" {workflow.id} on {device_id.value} from step {from_step}"
         )
     run = saved or WorkflowRun(
         id=run_id or new_run_id(),
@@ -325,6 +335,10 @@ async def run_workflow(
         live=live,
         allow_focus=allow_focus,
         started_at=_now(),
+        # On the row, not just in this frame: it is what the check above
+        # compares a re-press against, and a row that does not carry it would
+        # refuse every resume as a disagreement with zero.
+        from_step=from_step,
     )
     values, live, allow_focus = run.values, run.live, run.allow_focus
     device_id = DeviceId(run.device_id)

@@ -86,6 +86,15 @@ class WorkflowRun:
     started_at: str
     finished_at: str | None = None
     outcome: str = "running"
+
+    from_step: int = 0
+    """How many steps the operator performed themselves before the offer was
+    made. A request input, not a progress marker: the runner never advances it.
+    Kept on the row because it is the fourth thing a press asks for, and a
+    re-press that carries a different one finishes a different job under this
+    run's id -- steps redone against a live warehouse, or steps nobody did
+    recorded as done."""
+
     steps: list[RunStep] = field(default_factory=list)
     withheld: list[dict[str, object]] = field(default_factory=list)
     """The writes a dry run produced and did not send, in full. This is what a

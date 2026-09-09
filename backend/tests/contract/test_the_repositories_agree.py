@@ -556,6 +556,24 @@ class TestWorkflowRuns:
         assert kept is not None
         assert [step.says for step in kept.steps] == ["scan"]
 
+    async def test_a_run_carries_back_the_step_it_was_saved_at(self, store: UnitOfWork) -> None:
+        """Both repositories, one assertion. The fake keeps a dataclass and the
+        SQL mapper copies column by column, so a field the mapper forgets round
+        trips as its default through every unit test and loses the operator's
+        progress only against real Postgres.
+
+        Non-default on purpose: ``from_step=0`` is what a dropped column
+        returns, so an assertion written against the default cannot fail.
+        """
+        async with store as work:
+            await work.workflow_runs.save(_run("run_resumed", from_step=4))
+            await work.commit()
+
+        async with store as work:
+            read = await work.workflow_runs.get(TENANT, "run_resumed")
+        assert read is not None
+        assert read.from_step == 4
+
     async def test_a_step_that_sent_nothing_reads_back_as_nothing(self, store: UnitOfWork) -> None:
         """``sent IS NULL`` is the question every reader asks about a step. A
         JSON scalar ``null`` would answer it wrong."""

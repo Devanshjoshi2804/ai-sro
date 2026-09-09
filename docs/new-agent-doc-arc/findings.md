@@ -1248,3 +1248,136 @@ what rebuilds it. And the bridge scripts talk to a running rig, which has to be
 one recent enough to serve `/v1/workflows/{id}/evidence` -- an older one
 answers 200 on the listing and 404 on the evidence, and `skill_from_rig.py`
 says so rather than raising.
+
+## The backend runs the whole chain — 2026-09-09, and what is still open
+
+The rig had done all of the above. **The backend had never done any of it.**
+Four passes over the ported miner, against the real Postgres and the real
+Gemini, are the first end-to-end evidence on this side. What follows is the
+measurement and, more usefully, the list of what it did not settle.
+
+Three things were unbuildable or unwired when the day started, each found by
+running the system rather than by a test:
+
+- **`container.asker` did not exist.** `mining_pass.mine` and `run_workflow`
+  both take an `Asker`, the port and `GeminiAsker` were ported by plan 2, and
+  the composition root was never told about either. Neither could be
+  constructed at all — `AttributeError` before a single call. Fixed, `e32e478`.
+- **Ingest never reached the evidence plane.** `correlate` and `add_gestures`
+  had no caller anywhere in `src/`; uploads stopped at `observation_batches`.
+  397 batches and 4,661 events were in the blob store and 0 gestures in the
+  table. Fixed, `f8b218f`; `backend/scripts/backfill_gestures.py` replayed 266
+  `acme` batches into **507 gestures, 0 failures, 0 unreadable events**.
+- **`add_orphan_request` and `add_orphan_page` had no caller either** — the
+  same defect, one layer over, wired in the fix round. A click whose XHR landed
+  in the next batch had been losing its call permanently.
+
+### The four passes
+
+| # | proposed | kept | rejected | learnt | cost | note |
+|---|---|---|---|---|---|---|
+| 1 | 0 | 0 | 0 | 0 | $0.0090 | empty store |
+| 2 | 0 | 0 | 0 | 0 | $1.9984 | **truncated at `K_EFFORT="high"`** |
+| 3 | 3 | 2 | 0 | 0 | $0.9277 | first workflows; `lopsided=True` |
+| 4 | 4 | 2 | 0 | **3** | $0.4406 | coverage 0.90, `lopsided=False` |
+| 5 | 1 | 0 | **1** | 0 | $0.3574 | hallucinated citation; coverage 0.0 |
+
+**`K_EFFORT = "high"` truncated the Pro model on the first real day**: 204,747
+in, 65,522 out, the answer cut after 2,610 tokens, $2.00 and nothing kept. The
+constant's own docstring had recorded that trap for `gemini-3.8-flash` and it
+was never applied to the model actually configured. At `"medium"` the same
+evidence answered in 6,041 output tokens for $0.93 and kept 2 of 3.
+
+**`K_WINDOW_TOKENS` did not guard the boundary it exists for.** `tokens()`
+counts four characters to a token; the measured ratio on this evidence is
+**2.36** — 481,566 characters estimated at 120,438 and counted by Gemini at
+204,333, a 1.697× under-count. A window filled to 150,000 shipped 204,747 and
+crossed the 200,000 line where Pro's input price doubles. At 100,000 the same
+day packs 405 of 507 and ships **164,028 measured**.
+
+**Parameter learning ran for the first time**, on pass 4, and needs two doings:
+
+```
+Create a Work Operation   operationCode     ['NEWTEST4', 'AITESTNE9']
+                          longDescription   ['test4', '9 test']
+Create a Work Area        description       ['testing zone', 'test 7']
+```
+
+### Against the acceptance criterion, quoted as it is written
+
+The spec asks for **"8 of 8 named as themselves, 10 of 11 values by the end."**
+The state is **4 of 8 workflows and 3 of 11 values**. The replay names 2 of 2
+of the jobs it has, which is a shrinking denominator and not a pass — it was
+reported as one once, and that is why this line is here.
+
+## Open, and what would settle each
+
+1. **Does `seen_values` widen on a third doing?** Pass 5 was meant to answer it
+   and could not: its single proposal was rejected, so `resolve()` never ran.
+   Unsettled. *Settled by:* a pass that reaches `same_job` on a job that already
+   has parameters.
+2. **How often does the model invent a citation?** One in eight proposals so
+   far — `ges_a1ac645771bdd705ea5ba4648f3f8247c`, 37 characters where real ids
+   are 36, sharing nothing with any real id. `validate` caught it and the whole
+   workflow was refused, which is the guard working; the rate is what nobody
+   knows. *Settled by:* the rejection count over a run of passes, which
+   `mining_passes.rejected` now carries.
+3. **How wide is pass-to-pass variance?** Pass 4 read coverage 0.90 and
+   `lopsided=False`; pass 5 read 0.0 and `True`. Same evidence, same model,
+   same settings. Three passes cannot tell a lucky one from an unlucky one.
+4. **Would network-first parameter learning be better?** ADR 005 ranks
+   `network calls > accessibility tree > narration > video` and execution obeys
+   it — `network_from_rig.py` reads request bodies twenty times. **Learning does
+   not:** `domain/skill/learned.py` never reads `gesture.requests`, taking
+   parameters only from what was typed into a UI control plus the model's echo.
+   The first measurement says it is not a straight win, which is why it is open
+   rather than done:
+
+   | workflow | UI fields | body fields |
+   |---|---|---|
+   | Create a Warehouse Equipment Type | 4 | 7 |
+   | Create a Work Operation | 3 | **0** |
+   | Create a Carrier Cross Reference | 2 | **58** |
+   | Create a Work Area | 8 | 9 |
+
+   One workflow has no usable body at all — ADR 005's own named exception — and
+   one has 58 fields, most of them constants a variance filter would drop. So
+   the answer is a **union**, not a replacement. *Settled by:* implementing both
+   channels behind the existing across-doings diff and comparing
+   `learned_parameters` before and after, which is now recordable.
+5. **Is a body-derived parameter safe?** Bodies pass `redact_body`, which
+   reports *shapes*; typed values report *field names*. `typed_values` refuses
+   the **whole gesture** when `is_secret()`. A body path must ask the same
+   question or a password field that was never typed returns through the JSON.
+   *Settled by:* a test, not an argument.
+6. **Two miners, no reconciliation.** `MineObservations` reads `observations`
+   and writes `task_candidates` (53 rows); `mining_pass.mine` reads `gestures`
+   and the pool and writes `workflows` (4 rows). Neither reads the other's
+   tables. Phase 7 deletes the first. *Settled by:* the shared-day run now
+   written into the spec's *Verification* as a precondition on *Deletions*.
+7. **Steel's remaining job.** The extension carries the operator's own session,
+   so it needs no stored credential — which Steel does. ADR 009 keeps Steel for
+   unattended work and live view, and that still holds. What is now doubtful is
+   Steel's **capture** half: passive capture comes from the extension, and
+   `test_steel_capture.py` is excluded from every gate. *Settled by:* the same
+   shared-day discipline before anything is removed.
+8. **The extension cannot call two of the doors that were built for it.**
+   `/v1/shapes` and `/v1/offers` go through `rigHeaders()`, documented as
+   sending *"none of the backend's headers"* — and `X-Device-Secret` is one.
+   `shapes()` gets a 404 and returns `[]`; `reportOffer()` gets a 403 **and has
+   no status check at all**, so every offer fate would be lost silently. Phase 5.
+9. **`run_workflow` still has no production caller.** The whole right half of
+   the loop — perform, verify, earn autonomy — is built, reviewed, and reachable
+   by nothing. Phase 4b.
+
+### The instruments
+
+```
+backend/scripts/backfill_gestures.py  replays stored batches into the evidence plane
+backend/scripts/dry_run.py            the offer replay against the backend's own store
+```
+
+Both committed, because a measurement whose instrument is not committed is an
+anecdote — the rule this document already states, broken once today: the
+backfill ran from `/tmp` and every number above rested on a database state
+nothing could recreate until it was committed.

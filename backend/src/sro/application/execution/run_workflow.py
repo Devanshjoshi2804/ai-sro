@@ -39,6 +39,7 @@ from __future__ import annotations
 
 import base64
 from collections.abc import Mapping
+from contextlib import suppress
 from datetime import UTC, datetime
 
 from sro.application.execution.approvals import K_APPROVAL_WAIT_S, Approvals
@@ -591,6 +592,34 @@ async def run_workflow(
                         record.verdict, record.verdict_by = "failed", "none"
                         record.reason = "stopped while waiting for approval"
                         run.outcome = "aborted"
+                        # The browser is told here too, and not only between
+                        # steps. This is the path where somebody is WATCHING:
+                        # they pressed Stop on a panel showing a write, and
+                        # until the extension hears the abort its band goes on
+                        # claiming the run for up to `RUN_QUIET_MS`. The route
+                        # sends nothing itself -- `AbortWorkflowRun` releases
+                        # the wait and the loop is what talks to the browser.
+                        #
+                        # Suppressed where the between-steps send at the top of
+                        # this loop is bare, which is a deliberate difference
+                        # and the rig's own shape (`api.py:1250`). There, a
+                        # send that raises is a browser that went away and the
+                        # run honestly failed. Here the person's intention is
+                        # already recorded and the row already says `aborted`,
+                        # and letting this raise would hand it to `_fell_over`
+                        # -- which rewrites the outcome to `failed` and the
+                        # reason to the socket error, reporting "the browser
+                        # went away" for a run a person deliberately stopped.
+                        # A browser that has gone is also the commonest reason
+                        # to press Stop.
+                        with suppress(DeviceUnreachable):
+                            await channel.send(
+                                tenant_id,
+                                device_id,
+                                kind="abort",
+                                run_id=run.id,
+                                payload={"run_id": run.id},
+                            )
                         break
 
                 # `before` and `planned` are set by the same pass of the while

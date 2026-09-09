@@ -2936,6 +2936,58 @@ async def test_a_stop_pressed_during_the_wait_aborts_the_run() -> None:
     assert run.outcome == "aborted"
     assert run.steps[-1].verdict == "failed" and "stopped while waiting" in run.steps[-1].reason
     assert [s["kind"] for s in channel.sent].count("ui.perform") == 1, "the write never went out"
+    # The browser is told, on this path as well as between steps. Until it
+    # hears the abort its band goes on claiming the run for up to
+    # `RUN_QUIET_MS`, and this is the path where somebody is watching: they
+    # pressed Stop on a panel showing a write and their own screen would go on
+    # saying the run was theirs.
+    assert [s["kind"] for s in channel.sent][-1] == "abort"
+    assert _payload(channel.sent[-1]) == {"run_id": run_id}
+
+
+async def test_a_stop_during_the_wait_still_aborts_when_the_browser_has_gone() -> None:
+    """The send is best effort and the abort is not. A browser that has already
+    gone is the commonest reason to press Stop, and a raise here would reach
+    `_fell_over` -- which rewrites the outcome to `failed` and the reason to the
+    socket error, reporting "the browser went away" for a run a person
+    deliberately stopped.
+
+    Deliberately unlike the between-steps send at the top of the loop, which is
+    bare: there a send that raises IS a run that died, and
+    `test_a_run_that_died_between_two_steps_leaves_the_finished_one_alone` pins
+    it. Here the intention is already recorded before anything is sent.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = _AbortIsGone(
+        {**_looks(4), "ui.perform": [Reply(ok=True, result={"performed": True})]}
+    )
+    asker = _PerSchemaAsker(
+        plan=_plan("type", "THIRD"), verdict=Answer(data={"held": True, "why": "ok"})
+    )
+    approvals, stops = Approvals(), Stops()
+
+    task = asyncio.create_task(
+        _ran(
+            uow,
+            workflow,
+            channel=channel,
+            asker=asker,
+            values={"clientCode": "THIRD"},
+            started_by="offer",
+            approvals=approvals,
+            stops=stops,
+        )
+    )
+    run_id = await _parked(approvals)
+
+    stops.ask(run_id)
+    approvals.approve(run_id)
+    run = await task
+
+    assert run.outcome == "aborted", "a browser that went away did not turn a stop into a failure"
+    assert "stopped while waiting" in run.steps[-1].reason
+    assert [s["kind"] for s in channel.sent].count("ui.perform") == 1, "the write never went out"
 
 
 async def test_a_dry_run_never_pauses() -> None:

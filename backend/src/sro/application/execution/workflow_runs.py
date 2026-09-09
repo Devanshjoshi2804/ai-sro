@@ -70,7 +70,7 @@ from datetime import datetime
 
 from sro.application.context import RequestContext
 from sro.application.execution.approvals import Approvals
-from sro.application.execution.read_runs import CannotStop
+from sro.application.execution.read_runs import NOT_IN_A_BROWSER_HERE, CannotStop
 from sro.application.execution.run_workflow import run_workflow
 from sro.application.execution.stops import Stops
 from sro.application.intent.spend import over_cap
@@ -447,8 +447,9 @@ class AbortWorkflowRun:
     spaces stay apart: "a string that round-trips through the wrong repository
     will be looked up, found missing, and read as a run that does not exist
     rather than as a type error". Its two refusals are copied because they are
-    right for both, and its `CannotStop` is imported rather than redeclared so
-    the sentence and the `code` cannot drift into two.
+    right for both, and both the `CannotStop` class and the sentence of the
+    second one are imported rather than redeclared, so neither the `code` nor
+    the words a console renders can drift into two.
 
     **The flag first, then the release**, which is the rig's order. A run parked
     on a person is not between steps and would sit out `K_APPROVAL_WAIT_S`
@@ -468,8 +469,12 @@ class AbortWorkflowRun:
     race the task it just interrupted.
 
     Nothing here talks to the browser either. The loop sends `kind="abort"` the
-    moment it reads the flag, which is the rig's best-effort send made
-    unnecessary rather than dropped.
+    moment it reads the flag, and it now does so on BOTH of its readings -- the
+    one between steps and the one on the way out of the approval wait, which
+    had none until this route made that path reachable. So the rig's own
+    best-effort send is made unnecessary rather than dropped, and it stays in
+    the loop rather than moving here because the loop is what holds the socket
+    and knows the run is really over.
     """
 
     def __init__(self, uow: UnitOfWork, stops: Stops, approvals: Approvals) -> None:
@@ -492,7 +497,7 @@ class AbortWorkflowRun:
         # writes such a row: what a stop control must never do is answer
         # "stopping" for a run nothing in this process is driving.
         if not run.device_id:
-            raise CannotStop("that run is not being performed in a browser this process is driving")
+            raise CannotStop(NOT_IN_A_BROWSER_HERE)
         self._stops.ask(run.id)
         self._approvals.approve(run.id)
         # ponytail: in-process only. A run and the socket it drives live in one

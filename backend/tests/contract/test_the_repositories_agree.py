@@ -177,6 +177,14 @@ def _run(run_id: str, *, tenant: TenantId = TENANT, **over: Any) -> WorkflowRun:
         "live": False,
         "allow_focus": True,
         "started_at": _at(10),
+        # Finished, where the record's own default is `running`. Since migration
+        # 0043 a browser may hold at most one RUNNING run -- a unique partial
+        # index, because reading "is this browser busy" and then claiming it are
+        # two statements and two presses both read free between them. So a
+        # fixture that plants several runs for one browser is planting a state
+        # the store refuses unless it says which one is in flight, and every
+        # test below that cares says `outcome="running"` itself.
+        "outcome": "held",
     }
     fields.update(over)
     return WorkflowRun(**fields)
@@ -617,6 +625,12 @@ class TestWorkflowRuns:
                     "run_also_running",
                     started_at=_at(10),
                     outcome="running",
+                    # A second browser, because one browser may hold one
+                    # running run since 0043 -- and because that is what this
+                    # read is FOR: the parked steps across browsers, so a
+                    # supervisor can answer a run they are not sitting in
+                    # front of.
+                    device_id=OTHER_DEVICE.value,
                     steps=[RunStep(order=0, says="approve the move", verdict="awaiting")],
                 )
             )
@@ -675,15 +689,42 @@ class TestWorkflowRuns:
 
         async with store as work:
             assert await work.workflow_runs.in_flight(TENANT, DEVICE) is None
-            # Two, tied on the instant and planted in the order that is not the
-            # answer: "one browser, one hand" has to name the same run on every
-            # read, or a second poll drives a different one.
-            await work.workflow_runs.save(_run("run_zebra", outcome="running", started_at=_at(10)))
             await work.workflow_runs.save(_run("run_ant", outcome="running", started_at=_at(10)))
             await work.commit()
 
         async with store as work:
             assert await work.workflow_runs.in_flight(TENANT, DEVICE) == "run_ant"
+            # Per browser, and the other one is unaffected: this read answers
+            # "may I put a hand on THIS window", not "is anything happening".
+            assert await work.workflow_runs.in_flight(TENANT, OTHER_DEVICE) == "run_other_browser"
+
+    async def test_a_browser_cannot_hold_two_running_runs_at_once(self, store: UnitOfWork) -> None:
+        """What `in_flight` used to have to break a tie about.
+
+        This test previously planted TWO running runs for one browser, tied on
+        the instant, and asserted `in_flight` named the same one every time --
+        because an order that is not total is an order that changes between
+        reads. Migration 0043 makes that state unreachable: a unique partial
+        index on `(tenant_id, device_id) WHERE outcome = 'running'`, because
+        reading "is this browser busy" and then claiming it are two statements
+        with awaits between them, and two presses both read free.
+
+        So the tie is gone and what replaces it is the refusal. The `ORDER BY`
+        in both implementations stays -- it costs nothing and it is the answer
+        if the index is ever dropped -- but it is no longer what stops a second
+        hand reaching the same window.
+        """
+        async with store as work:
+            await work.workflow_runs.save(_run("run_first", outcome="running"))
+            await work.commit()
+
+        async with store as work:
+            with pytest.raises(Conflict) as refused:
+                await work.workflow_runs.save(_run("run_second", outcome="running"))
+        assert DEVICE.value in str(refused.value)
+
+        async with store as work:
+            assert await work.workflow_runs.in_flight(TENANT, DEVICE) == "run_first"
 
     async def test_fail_orphans_sweeps_every_tenant_and_lands_the_reason_on_a_step(
         self, store: UnitOfWork
@@ -1220,6 +1261,8 @@ class TestTenantScoping:
                     "run_theirs_parked",
                     tenant=OTHER_TENANT,
                     outcome="running",
+                    # Their second browser: one browser holds one running run.
+                    device_id=OTHER_DEVICE.value,
                     steps=[RunStep(order=0, says="confirm", verdict="awaiting")],
                 )
             )

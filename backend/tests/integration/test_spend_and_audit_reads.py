@@ -91,6 +91,11 @@ def _run(*, tenant: str = TENANT.value, at: datetime, cost: float, **overrides: 
         "allow_focus": False,
         "started_at": at.isoformat(),
         "cost_usd": cost,
+        # Finished, where the record's own default is `running`. Since
+        # migration 0043 a browser holds at most one RUNNING run -- a unique
+        # partial index -- so several runs for one browser have to say which of
+        # them is in flight, and a bill is a run that has stopped costing.
+        "outcome": "held",
     }
     fields.update(overrides)
     return WorkflowRun(**fields)

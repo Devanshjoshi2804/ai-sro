@@ -820,6 +820,20 @@ class WorkflowRunRow(Base):
         # One browser, one hand -- two runs driving the same window interleave
         # their clicks into a form neither of them can then read back.
         Index("ix_workflow_runs_tenant_device", "tenant_id", "device_id", "outcome"),
+        # And the rule the index above can only report on. Reading "is this
+        # browser busy" and then claiming it is two statements with awaits
+        # between them, so two presses on one event loop both read free and
+        # both claim -- demonstrated against real Postgres, two rows and one
+        # browser. Migration 0039 named this index as what a second worker
+        # would need; it turns out one worker needs it too, because async does
+        # not give one request at a time.
+        Index(
+            "uq_workflow_runs_one_running_per_device",
+            "tenant_id",
+            "device_id",
+            unique=True,
+            postgresql_where=text("outcome = 'running'"),
+        ),
     )
 
 

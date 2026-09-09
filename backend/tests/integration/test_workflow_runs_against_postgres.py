@@ -9,6 +9,14 @@ four repositories in one session: the spend the cap is summed from, the runs the
 busy check reads, the workflows the job comes from, and the runs the claim is
 written to.
 
+**And the busy check is not what makes one browser have one hand.** It is a
+read, and between it and the row existing there are two more awaits; two
+presses on one event loop both read free. That is not an argument here, it is
+`test_two_presses_at_once_do_not_both_get_the_browser` below, which fails
+without the UNIQUE partial index migration 0043 builds. No fake can host that
+test: `FakeUnitOfWork` never yields, which is exactly why every sequential
+suite is green.
+
 And `in_flight` is the one refusal a fake gets right by accident. It is an index
 read with three predicates -- tenant, device, and `outcome = 'running'` -- and
 the third is the one that decides whether a browser whose last run FINISHED can
@@ -22,6 +30,7 @@ has gone.
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncIterator, Coroutine
 from datetime import UTC, datetime
 
@@ -30,11 +39,14 @@ import pytest
 from httpx import ASGITransport
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from sro.application.context import RequestContext
 from sro.application.execution.pursuits import Pursuits
 from sro.application.ports.repositories import UnitOfWork
 from sro.config import Settings
 from sro.domain.chat.reading import ChatReading
-from sro.domain.shared.identifiers import DeviceId, TenantId
+from sro.domain.execution.workflow_run import already_running
+from sro.domain.shared.errors import Conflict
+from sro.domain.shared.identifiers import DeviceId, PrincipalId, TenantId
 from sro.domain.skill.workflow import Step, Workflow
 from sro.infrastructure.db.repositories import SqlUnitOfWork
 from sro.interface.http.app import create_app
@@ -238,3 +250,67 @@ async def test_the_cap_is_summed_over_the_real_tables(
     assert container.pursuits.handed_over == 0  # type: ignore[attr-defined]
     async with SqlUnitOfWork(container._session_factory) as uow:
         assert await uow.workflow_runs.for_workflow(TENANT, "wfl_1") == ()
+
+
+async def test_two_presses_at_once_do_not_both_get_the_browser(
+    container: _RealSessionContainer,
+) -> None:
+    """The defect the ordering argument was supposed to buy against, and did not.
+
+    `execute` reads `in_flight`, then awaits the workflow lookup and the save
+    before the row exists. Every await is a scheduling point, so two overlapping
+    presses both read no busy run and both claim. Run before migration 0043 this
+    returns two `WorkflowRun`s and no refusal -- two runs driving one window,
+    interleaving their clicks into a form neither of them can read back.
+
+    Two separate `StartWorkflowRun`s, each with its own `SqlUnitOfWork` and so
+    its own session, because that is what two requests are. Gathered rather than
+    awaited in turn: awaited in turn this passes on the busy check alone and
+    proves nothing.
+
+    Both sentences are asserted identical to the one the busy check gives, on
+    purpose: a caller able to tell "you were late" from "you lost a race" learns
+    which of the two answered, and the rare path is the one nobody has seen
+    rendered.
+    """
+    await _hold(container)
+    ctx = RequestContext(tenant_id=TENANT, principal_id=PrincipalId("operator"))
+
+    async def press() -> object:
+        return await container.start_workflow_run().execute(
+            ctx,
+            workflow_id="wfl_1",
+            device_id=LAPTOP,
+            values={"clientCode": "NEWTESTS"},
+            live=False,
+            allow_focus=True,
+        )
+
+    landed = await asyncio.gather(press(), press(), return_exceptions=True)
+
+    claimed = [one for one in landed if not isinstance(one, BaseException)]
+    refused = [one for one in landed if isinstance(one, Conflict)]
+    assert len(claimed) == 1, f"both presses got the browser: {landed}"
+    assert len(refused) == 1, f"the loser was not refused with a Conflict: {landed}"
+    async with SqlUnitOfWork(container._session_factory) as uow:
+        rows = await uow.workflow_runs.for_workflow(TENANT, "wfl_1")
+    assert len(rows) == 1
+    assert str(refused[0]) == already_running(LAPTOP.value, rows[0].id)
+
+
+async def test_a_browser_freed_by_a_finished_run_is_not_held_by_the_index(
+    container: _RealSessionContainer, client: httpx.AsyncClient
+) -> None:
+    """The index is partial, and this is the half that says so. A UNIQUE index
+    without `WHERE outcome = 'running'` would let a browser run one job ever,
+    and every test above it would still pass -- they all press once."""
+    await _hold(container)
+    for _ in range(3):
+        made = await client.post("/v1/workflow-runs", json=_body())
+        assert made.status_code == 201, made.text
+        async with SqlUnitOfWork(container._session_factory) as uow:
+            run = await uow.workflow_runs.get(TENANT, made.json()["id"])
+            assert run is not None
+            run.outcome, run.finished_at = "held", NOW.isoformat()
+            await uow.workflow_runs.save(run)
+            await uow.commit()

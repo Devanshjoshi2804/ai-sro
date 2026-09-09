@@ -77,7 +77,7 @@ from sro.domain.connection.connection import Connection, ConnectionId, Connectio
 from sro.domain.execution.belts import RunProof, state_verified
 from sro.domain.execution.model_call import ModelCall
 from sro.domain.execution.run import Medium, Run, RunId
-from sro.domain.execution.workflow_run import RunStep, WorkflowRun
+from sro.domain.execution.workflow_run import RunStep, WorkflowRun, already_running
 from sro.domain.knowledge.entry import (
     EntryKind,
     EvidenceLevel,
@@ -1551,6 +1551,27 @@ class FakeWorkflowRunRepository:
         self.approved: dict[tuple[str, int], tuple[str, str | None]] = {}
 
     async def save(self, run: WorkflowRun) -> None:
+        # `uq_workflow_runs_one_running_per_device`, the rule rather than the
+        # mechanism. A fake more permissive than the store is how `ServeShapes`
+        # and `read_spend` shipped dead, and a fake that let a browser hold two
+        # running runs would let a caller be written that the store refuses.
+        # It cannot reproduce the RACE -- nothing here yields, which is exactly
+        # why the concurrent-press test is an integration test -- but it can
+        # refuse the state.
+        if run.outcome == "running":
+            clash = next(
+                (
+                    held
+                    for held in self.rows.values()
+                    if held.id != run.id
+                    and held.tenant == run.tenant
+                    and held.device_id == run.device_id
+                    and held.outcome == "running"
+                ),
+                None,
+            )
+            if clash is not None:
+                raise Conflict(already_running(run.device_id, clash.id))
         kept = deepcopy(run)
         # Both clocks as the store hands them back, not as the caller spelled
         # them: `started_at` is what three reads order on.

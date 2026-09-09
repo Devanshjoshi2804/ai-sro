@@ -32,10 +32,12 @@ from typing import Any
 
 from sqlalchemy import Select, delete, func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sro.application.ports.repositories import WorkflowRunRepository
-from sro.domain.execution.workflow_run import RunStep, WorkflowRun
+from sro.domain.execution.workflow_run import RunStep, WorkflowRun, already_running
+from sro.domain.shared.errors import Conflict
 from sro.domain.shared.identifiers import DeviceId, TenantId
 from sro.infrastructure.db.codec import when
 from sro.infrastructure.db.models import ApprovalRow, WorkflowRunRow, WorkflowRunStepRow
@@ -139,19 +141,38 @@ class SqlWorkflowRunRepository(WorkflowRunRepository):
 
     async def save(self, run: WorkflowRun) -> None:
         statement = pg_insert(WorkflowRunRow).values(**_run_values(run))
-        await self._session.execute(
-            statement.on_conflict_do_update(
-                index_elements=["id"],
-                # Every column but the key takes the new value, which is what
-                # INSERT OR REPLACE did: a run is written whole after every
-                # step, so the later write supersedes the earlier one.
-                set_={
-                    column.name: statement.excluded[column.name]
-                    for column in WorkflowRunRow.__table__.columns
-                    if column.name != "id"
-                },
+        try:
+            await self._session.execute(
+                statement.on_conflict_do_update(
+                    # The id, and only the id. A second running run for a
+                    # browser that already has one violates
+                    # `uq_workflow_runs_one_running_per_device`, which is NOT
+                    # this conflict target, so it raises rather than quietly
+                    # updating somebody else's row -- which is the whole point
+                    # of naming the target instead of swallowing every
+                    # constraint the way SQLite's INSERT OR REPLACE did.
+                    index_elements=["id"],
+                    # Every column but the key takes the new value, which is
+                    # what INSERT OR REPLACE did: a run is written whole after
+                    # every step, so the later write supersedes the earlier one.
+                    set_={
+                        column.name: statement.excluded[column.name]
+                        for column in WorkflowRunRow.__table__.columns
+                        if column.name != "id"
+                    },
+                )
             )
-        )
+        except IntegrityError as clash:
+            # One browser, one hand -- enforced here because the caller's own
+            # `in_flight` read cannot enforce it: between that read and this
+            # there are awaits, and two presses on one event loop both read
+            # free. The session is finished either way, so it is rolled back
+            # before the sentence is composed, which is also what makes the
+            # read below possible: the winner's row is visible once this
+            # transaction is gone.
+            await self._session.rollback()
+            busy = await self.in_flight(TenantId(run.tenant), DeviceId(run.device_id))
+            raise Conflict(already_running(run.device_id, busy)) from clash
         # Deleted and reinserted rather than upserted one by one. A step
         # removed from the record has to leave the store with it, and an
         # upsert would leave it behind -- and this is the rule the second save

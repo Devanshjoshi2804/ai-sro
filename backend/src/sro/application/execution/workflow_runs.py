@@ -19,6 +19,17 @@ warehouse and there is nobody at the screen when nobody pressed anything.
   back.
 * Then the job, then the values, then which step to start on.
 
+**The busy check is the answer, and it is not the guarantee.** Between reading
+`in_flight` and the row existing there are two more awaits, and on one event
+loop a second press can be scheduled in either of them: run against real
+Postgres, two `asyncio.gather`ed presses produced two rows and zero refusals.
+What makes "one browser, one hand" true is the UNIQUE partial index migration
+0043 builds, which `SqlWorkflowRunRepository.save` turns into the same
+`Conflict`, in the same words, out of `already_running`. The read stays because
+it is the friendly answer and it names the run already driving; the index is
+what holds when the read was right at the moment it was made and wrong by the
+time the row was written.
+
 **The row is claimed and committed here, not by the task.** Written inside
 `run_workflow`, the `running` row appears only once the spawned task gets its
 first slice, and a second press arriving in that window reads no busy run and
@@ -56,7 +67,12 @@ from sro.application.ports.model import Asker, asker_or_refuse
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock
 from sro.application.shared.refusals import OverCap
-from sro.domain.execution.workflow_run import RunStep, WorkflowRun, new_run_id
+from sro.domain.execution.workflow_run import (
+    RunStep,
+    WorkflowRun,
+    already_running,
+    new_run_id,
+)
 from sro.domain.shared.errors import Conflict
 from sro.domain.shared.identifiers import DeviceId
 
@@ -144,7 +160,7 @@ class StartWorkflowRun:
                 raise Conflict(f"{device_id.value} is not connected")
             busy = await uow.workflow_runs.in_flight(ctx.tenant_id, device_id)
             if busy is not None:
-                raise Conflict(f"{device_id.value} is already running {busy}")
+                raise Conflict(already_running(device_id.value, busy))
             # After both, so a workflow_id naming nothing does not answer a
             # person whose real problem is a browser that went away.
             workflow = await uow.workflows.get(ctx.tenant_id, workflow_id)
@@ -188,6 +204,11 @@ class StartWorkflowRun:
                 started_at=now.isoformat(),
                 from_step=from_step,
             )
+            # Raises `Conflict` -- the same one the read above gives, in the
+            # same words -- where the unique partial index refuses a second
+            # running run for this browser. Nothing is caught here: it is
+            # already the refusal this door means, and translating it twice is
+            # how the two sentences would drift apart.
             await uow.workflow_runs.save(run)
             # Committed before the caller is answered and before anything is
             # spawned. A `running` row that only exists inside the task's first
@@ -213,6 +234,27 @@ class StartWorkflowRun:
         than off this frame, so there is one answer to "what is this run doing"
         and not two that can drift -- `run_workflow` reads the same row back and
         refuses the pair if they disagree.
+
+        **Four of these arguments are dead on this path, and they are passed
+        anyway.** `run_workflow.py:343` does `values, live, allow_focus =
+        run.values, run.live, run.allow_focus` off the row it read back, and
+        `started_by` is read only on the branch where no row was found -- which
+        `perform` can never take, because it always names one. So none of those
+        four decides anything here, and a reader must not spend a minute
+        believing otherwise: they are not controls, they are what the callee's
+        signature requires, and the row is the authority downstream.
+
+        They are the ROW's values rather than a repeat of the request's, and
+        that is the part worth keeping. It costs nothing, it is what the one
+        path that would read them should read, and if `run_workflow` ever
+        stopped finding the row -- swept, deleted, a different tenant -- the
+        arguments it fell back on would still describe this run instead of
+        whatever a route happened to be holding.
+
+        `plan_model` and `rescue_model` are not in that list. They are read on
+        every step and nothing else supplies them, so swapping them plans every
+        step on the rescue model forever -- which is why they are asserted at
+        this call rather than only on the built object.
         """
         try:
             asker = asker_or_refuse(self._asker)

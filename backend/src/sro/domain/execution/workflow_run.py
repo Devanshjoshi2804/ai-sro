@@ -31,6 +31,28 @@ VERDICTS = (
 operator performed it themselves before the rig was asked to finish the job."""
 
 
+def already_running(device_id: str, run_id: str | None) -> str:
+    """One browser, one hand -- said once, because two places discover it.
+
+    The press reads `in_flight` and refuses, which is the friendly answer and
+    the one that happens almost every time. The unique partial index on
+    `(tenant_id, device_id) WHERE outcome = 'running'` refuses the ones that
+    got past that read: between it and the commit there are two more awaits,
+    and on one event loop a second press can be scheduled in either of them.
+
+    The two must be indistinguishable. A caller able to tell "you were late"
+    from "you lost a race" learns whether this deployment has a lock, and a
+    refusal that reads differently on the rare path is a refusal nobody has
+    ever seen rendered. So the sentence is here rather than spelled twice --
+    the domain owns what the refusal says, and the two discoverers agree by
+    construction rather than by somebody remembering.
+
+    `run_id` is optional for one case only: the index refused the claim and the
+    winner finished before the losing side could read back which run it was.
+    """
+    return f"{device_id} is already running {run_id or 'a run this press cannot see'}"
+
+
 def new_run_id() -> str:
     """A workflow run's id -- and NOT an `sro.domain.shared.identifiers.RunId`.
 

@@ -237,6 +237,18 @@ class IngestObservation:
             # redacted payload is what was stored, and a gesture carrying a
             # value the blob store does not have is a citation pointing at
             # nothing.
+            #
+            # Measured, because the argument is right and the margin is not:
+            # `rig_wire`'s validators redact on their own, so a url, a typed
+            # value, a prose label, a header and a body TEXT come out the same
+            # either way. The one field that does not is `redacted_fields` --
+            # the wire's `redact_body` reports shapes and this one reports
+            # names -- so `admission.accepted` here would store bodies that no
+            # longer say a password was ever in them. Pinned by
+            # `test_the_gesture_stored_says_which_field_the_blob_store_lost`.
+            # Defence in depth, then, rather than the only belt; keep it that
+            # way, and do not let the wire's copy become the argument for
+            # deleting this one.
             wire, unreadable = _as_wire_batch(batch, redacted)
             gestures, _calls, _marks, snapshots = correlate(wire, ctx.tenant_id.value)
             await uow.gestures.add_batch(

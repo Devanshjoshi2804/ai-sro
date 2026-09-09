@@ -35,6 +35,10 @@ JWT = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJvcHMifQ.c2lnbmF0dXJlLWhlcmU"
 """A signed JWT, the shape `SECRET_SHAPES` matches and the audit found in this
 deployment's own store."""
 
+AT = 1772355630.0
+"""2026-03-01T09:00:30Z as the recorder writes it -- Unix seconds, so that a
+request's ISO `started_at` lands inside this gesture's correlation window."""
+
 GESTURE: dict[str, object] = {
     "kind": "gesture",
     "gesture": {
@@ -391,14 +395,23 @@ async def test_the_batch_the_miner_reads_counts_the_gestures_and_not_the_events(
     assert next(iter(uow.gestures.batches.values())).accepted == 1
 
 
-async def test_the_gesture_stored_carries_the_redaction_the_blob_store_got() -> None:
+async def test_the_gesture_stored_says_which_field_the_blob_store_lost() -> None:
     """The decision at `ingest.py`'s `_as_wire_batch(batch, redacted)`.
 
-    Correlating from `admission.accepted` instead passes every other test in
-    this suite: the gesture rows would be byte-identical apart from the one
-    thing that matters. A gesture citing a value the blob store does not hold
-    is a citation pointing at nothing, and the audit measured what gets in --
-    a live JWT and the `&code=` carrying it reached the store unmarked.
+    Correlating from `admission.accepted` instead is very nearly -- but not
+    quite -- invisible, and the reason is worth writing down: `rig_wire`'s
+    models redact on their own validators, so a url, a typed value, a prose
+    label, a header and a body TEXT come out identical down the either path.
+    The belt that is not doubled is `redacted_fields`: the wire's
+    `redact_body` reports only shapes, while the one `redact_events` runs
+    reports the field NAMES too. So a gesture correlated from the raw events
+    carries a body whose password is gone and which does not say a password
+    was ever there -- and `redacted_fields` is exactly the record a reviewer
+    greps to decide the store is clean.
+
+    Named for the whole decision rather than for that one field, because the
+    doubling is an accident of two modules agreeing today and this line is
+    what stops them diverging tomorrow.
     """
     uow, blobs = FakeUnitOfWork(), FakeBlobStore()
     ctx = RequestContext(tenant_id=f.TENANT, principal_id=f.OPERATOR)
@@ -413,19 +426,40 @@ async def test_the_gesture_stored_carries_the_redaction_the_blob_store_got() -> 
         events=[
             {
                 "kind": "gesture",
+                "tab_id": 1,
                 "gesture": {
                     "kind": "type",
-                    "at": 1787654321.9,
-                    "url": f"https://wms.acme.com/orders?code={JWT}",
+                    "at": AT,
+                    "url": f"https://wms.acme.com/login?code={JWT}",
                     "value": JWT,
                     "target": {"tag": "input", "cssPath": "div > input"},
                 },
-            }
+            },
+            {
+                "kind": "request",
+                "tab_id": 1,
+                "request": {
+                    "request_id": "req_0",
+                    "method": "POST",
+                    "started_at": "2026-03-01T09:00:35+00:00",
+                    "url": "https://wms.acme.com/api/session",
+                    "request_body": {
+                        "text": '{"user": "ops", "password": "hunter2"}',
+                        "mime_type": "application/json",
+                    },
+                    "status": 200,
+                },
+            },
         ],
     )
 
     stored = (await uow.gestures.gestures_for(f.TENANT, ids=None))[0]
-    assert stored.url == f"https://wms.acme.com/orders?code={REDACTED}"
+    body = stored.requests[0].request_body
+    assert body is not None
+    assert body.redacted_fields == ("password",), "the store no longer says what it lost"
+    # Guarded twice -- once here and once by the wire model's own validators.
+    # Asserted anyway: the day one belt is loosened, this says which.
+    assert stored.url == f"https://wms.acme.com/login?code={REDACTED}"
     assert stored.action.value == REDACTED
     assert all(JWT.encode() not in blob for blob in blobs.objects.values()), "nor the blob"
 

@@ -290,6 +290,50 @@ class TestWorkflows:
         assert [one.id for one in made] == ["pas_early", "pas_a", "pas_c"]
         assert made[0].started_at == "2026-09-06T10:00:00+00:00"
 
+    async def test_a_pass_carries_back_every_figure_it_was_written_with(
+        self, store: UnitOfWork
+    ) -> None:
+        """Both stores, every counter, round trip.
+
+        `learned_parameters` is the reason this exists. It was computed by every
+        pass since the miner was ported and had no column, so the figure died at
+        the persistence layer -- and no unit test could notice, because the fake
+        keeps the domain object whole and never goes through a mapper at all. A
+        column added to one store and not the other, or a mapper that reads a
+        neighbouring field, is invisible until here.
+        """
+        async with store as work:
+            await work.workflows.add_pass(
+                _pass(
+                    "pas_full",
+                    in_tokens=101,
+                    out_tokens=202,
+                    thought_tokens=303,
+                    cost_usd=0.404,
+                    unpriced=True,
+                    proposed=5,
+                    kept=4,
+                    rejected=3,
+                    learned_parameters=2,
+                    coverage=0.9,
+                    skew=-0.5,
+                    lopsided=True,
+                    error="the model would not answer",
+                )
+            )
+            await work.commit()
+
+        async with store as work:
+            (made,) = await work.workflows.passes(TENANT)
+        # Every value distinct, so a mapper reading the wrong field is caught
+        # rather than agreeing by coincidence.
+        assert (made.in_tokens, made.out_tokens, made.thought_tokens) == (101, 202, 303)
+        assert (made.cost_usd, made.unpriced) == (0.404, True)
+        assert (made.proposed, made.kept, made.rejected) == (5, 4, 3)
+        assert made.learned_parameters == 2
+        assert (made.coverage, made.skew, made.lopsided) == (0.9, -0.5, True)
+        assert made.error == "the model would not answer"
+
     async def test_a_pass_id_is_stored_once(self, store: UnitOfWork) -> None:
         """A pass id is minted per reading, so a second row under one id is one
         model call billed twice."""
@@ -809,6 +853,27 @@ class TestGestures:
             async with store as work:
                 await work.gestures.add_gestures((_gesture("ges_1"),))
                 await work.commit()
+
+    async def test_no_ids_asked_for_is_nothing_and_never_everything(
+        self, store: UnitOfWork
+    ) -> None:
+        """`ids=()` is "these none"; `ids=None` is "all of them".
+
+        Both readers of this guard the call -- `shapes_for` and `ReadEvidence`
+        skip it for a workflow that cites nothing, to keep `IN ()` off
+        Postgres -- and their comments say the guard is an optimisation and
+        not a null check. That sentence is only true if the two arguments are
+        told apart down here. A repository reading empty as absent serves a
+        cite-less workflow the tenant's entire store, and it reads as a very
+        well-evidenced job.
+        """
+        async with store as work:
+            await work.gestures.add_gestures((_gesture("ges_1"), _gesture("ges_2")))
+            await work.commit()
+
+        async with store as work:
+            assert await work.gestures.gestures_for(TENANT, ids=()) == ()
+            assert len(await work.gestures.gestures_for(TENANT, ids=None)) == 2
 
     async def test_gestures_and_unread_are_oldest_first_and_a_reading_is_never_reoffered(
         self, store: UnitOfWork

@@ -11,15 +11,20 @@ from dataclasses import asdict
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StrictInt
 
+from sro.application.analytics.audit import Audit, AuditedRun
 from sro.application.analytics.summary import Summary
+from sro.application.capture.devices import DeviceLine
 from sro.application.execution.pursuits import PursuitProgress
 from sro.application.execution.reversal import Reversal
 from sro.application.intent.match import Candidate
 from sro.application.intent.resolve import Resolution
+from sro.application.skill.read_workflows import CitedEvidence, KnownWorkflow
+from sro.domain.chat.reading import ChatReading
 from sro.domain.chat.thread import Thread
 from sro.domain.execution.run import Medium, Run, StepOutcome
+from sro.domain.execution.workflow_run import RunStep
 from sro.domain.observation.batch import CaptureMode, RejectedEvent
 from sro.domain.observation.candidate import (
     Episode,
@@ -32,8 +37,10 @@ from sro.domain.observation.device import AgentDevice
 from sro.domain.observation.policy import ObservationPolicy
 from sro.domain.recording.recording import Recording
 from sro.domain.shared.objective import Direction, ObjectiveKey
+from sro.domain.shared.prices import DaySpend
 from sro.domain.skill.assertion import AssertionKind
 from sro.domain.skill.locator import ControlLocator, LocatorStrategy
+from sro.domain.skill.offers import Offer
 from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.skill import Skill, SkillVersion
 from sro.domain.skill.template import Template
@@ -1544,10 +1551,18 @@ class DeviceModel(BaseModel):
     queued_events: int
     queued_bytes: int
     uploads: int
+    online: bool
+    """A command channel open right now, and never true of a revoked browser.
+
+    The question this list is actually read to answer. It is not on
+    `AgentDevice` because it is not a fact about a row -- it is a fact about a
+    wire, which only `AgentDrivers` knows.
+    """
 
     @classmethod
-    def of(cls, device: AgentDevice) -> DeviceModel:
+    def of(cls, device: AgentDevice, *, online: bool) -> DeviceModel:
         return cls(
+            online=online,
             id=device.id.value,
             principal_id=device.principal_id.value,
             label=device.label,
@@ -1558,6 +1573,489 @@ class DeviceModel(BaseModel):
             queued_events=device.queued_events,
             queued_bytes=device.queued_bytes,
             uploads=device.uploads,
+        )
+
+
+class DeviceLineModel(BaseModel):
+    """One browser on the roster: who registered it, when its authority ended
+    if it did, and whether it is connected right now.
+
+    `revoked_at` is why a revoked browser stays on this list rather than
+    disappearing from it. This is the list read before cutting one off and
+    after, and a revocation that erased its own subject would leave an
+    administrator unable to confirm the thing they just did.
+
+    A string, not a `datetime`, because that is what `AgentDevice.revoked_at`
+    is -- the instant is written by whoever revoked and read back verbatim, and
+    re-parsing it here would invent a timezone the row did not record.
+    """
+
+    device_id: str
+    principal_id: str
+    label: str
+    registered_at: datetime
+    last_seen_at: datetime
+    revoked_at: str | None
+    online: bool
+
+    @classmethod
+    def of(cls, line: DeviceLine) -> DeviceLineModel:
+        return cls(
+            device_id=line.device.id.value,
+            principal_id=line.device.principal_id.value,
+            label=line.device.label,
+            registered_at=line.device.registered_at,
+            last_seen_at=line.device.last_seen_at,
+            revoked_at=line.device.revoked_at,
+            online=line.online,
+        )
+
+
+class RosterResponse(BaseModel):
+    devices: list[DeviceLineModel]
+
+    @classmethod
+    def of(cls, roster: tuple[DeviceLine, ...]) -> RosterResponse:
+        return cls(devices=[DeviceLineModel.of(line) for line in roster])
+
+
+class RevocationResponse(BaseModel):
+    """`moved` rather than `revoked`: this one answer serves both presses, and
+    what it says is whether *this* press changed the row -- not what state the
+    browser is now in, which the roster answers."""
+
+    device_id: str
+    moved: bool
+
+
+class ShapesResponse(BaseModel):
+    shapes: list[dict[str, object]]
+    """The rig answered `{"shapes": [...]}` and the extension reads that key.
+
+    An object rather than a bare list so a later field -- a server clock, a
+    next-poll hint -- does not have to break the extension to be added.
+
+    `dict[str, object]` and not a model per field: a `Shape` is the extension's
+    matching input, `as_json` is `asdict` over it, and a second declaration of
+    the same fields here is the copy that goes stale the first time the domain
+    gains one.
+    """
+
+
+class RecordOfferRequest(BaseModel):
+    """What a browser showed, and what became of it.
+
+    No `device_id`. The rig read one out of this body; here the browser is the
+    one that proved itself with `X-Device-Secret`, for `/v1/shapes`' reason
+    next door -- a job's rest is per browser, so a body that could name
+    another browser could spend that browser's rest, or earn it.
+
+    `k` is `StrictInt`, which is the whole of why this is not a plain `int`:
+    `True` IS an `int` in Python and pydantic coerces it, so `{"k": true}`
+    would be stored as a tail that matched one gesture -- because the language
+    says so, and not because any browser matched anything. The rig hit exactly
+    this on `from_step`. `ge=0` for the rest of it: k is how many gestures
+    matched, and no tail matches a negative number of them.
+
+    `at` is the browser's own reading of when it showed the offer, parsed here
+    rather than in the application layer so that a clock nobody can read is a
+    422 naming the field rather than a 500 out of `datetime.fromisoformat`.
+    Optional: absent, the row carries the server's instant.
+    """
+
+    workflow_id: str
+    fate: str
+    k: StrictInt = Field(ge=0)
+    run_id: str | None = None
+    at: datetime | None = None
+
+
+class OfferRecordedResponse(BaseModel):
+    offer_id: str
+    """The rig answered `{"offer_id": ...}` and the extension reads that key.
+
+    The id and not the row: everything else in it is either what the caller
+    just sent or the clamp on their own clock, and `/v1/audit` serves the
+    stored offer whole to the one caller -- the tenant -- who reads offers
+    back.
+    """
+
+
+class AuditStepModel(BaseModel):
+    """One step of a run as the audit reads it, with the approval that let it out.
+
+    `sent` is the *kind* of command that was planned and never its payload.
+    Ported from the rig's `sent.get("kind")`, and kept for a reason of its own:
+    the payload is a warehouse's own data -- an order number, a client's name --
+    and this list is read on a console screen by whoever holds a tenant
+    credential. What an audit has to answer is that a click on Save went out at
+    09:11, and the run's own row is where the rest lives.
+
+    `order` and not the rig's `ord`, which was its column name: the field is
+    `RunStep.order` here and a wire name that disagrees with the domain is the
+    kind of thing that gets read back into the wrong one.
+
+    The approval is folded onto its step although `AuditedRun` keeps approvals
+    beside the run. That separation is about the record -- a `RunStep` the
+    runner saves back must not be able to carry somebody's approval in it --
+    and nothing saves a wire model back.
+    """
+
+    order: int
+    says: str
+    verdict: str
+    verdict_by: str
+    reason: str
+    sent: str | None
+    matched_by: str | None
+    stale: bool
+    approved_at: str | None
+    approved_by: str | None
+
+    @classmethod
+    def of(cls, step: RunStep, approval: tuple[str, str | None] | None) -> AuditStepModel:
+        at, by = approval or (None, None)
+        kind = (step.sent or {}).get("kind")
+        return cls(
+            order=step.order,
+            says=step.says,
+            verdict=step.verdict,
+            verdict_by=step.verdict_by,
+            reason=step.reason,
+            sent=None if kind is None else str(kind),
+            matched_by=step.matched_by,
+            stale=step.stale,
+            approved_at=at,
+            approved_by=by,
+        )
+
+
+class AuditedRunModel(BaseModel):
+    """One run, its steps' verdicts, and what each of them cost."""
+
+    id: str
+    workflow_id: str
+    device_id: str
+    started_by: str
+    live: bool
+    started_at: str
+    finished_at: str | None
+    outcome: str
+    cost_usd: float
+    unpriced: bool
+    """True where a call returned without a bill. A run whose cost is 0.0 and
+    whose `unpriced` is true did not cost nothing; nobody could say."""
+
+    steps: list[AuditStepModel]
+
+    @classmethod
+    def of(cls, audited: AuditedRun) -> AuditedRunModel:
+        approved = {order: (at, device_id) for order, at, device_id in audited.approvals}
+        run = audited.run
+        return cls(
+            id=run.id,
+            workflow_id=run.workflow_id,
+            device_id=run.device_id,
+            started_by=run.started_by,
+            live=run.live,
+            started_at=run.started_at,
+            finished_at=run.finished_at,
+            outcome=run.outcome,
+            cost_usd=run.cost_usd,
+            unpriced=run.unpriced,
+            steps=[AuditStepModel.of(step, approved.get(step.order)) for step in run.steps],
+        )
+
+
+class AuditOfferModel(BaseModel):
+    id: str
+    workflow_id: str
+    device_id: str
+    k: int
+    fate: str
+    run_id: str | None
+    at: str
+
+    @classmethod
+    def of(cls, offer: Offer) -> AuditOfferModel:
+        return cls(
+            id=offer.id,
+            workflow_id=offer.workflow_id,
+            device_id=offer.device_id,
+            k=offer.k,
+            fate=offer.fate,
+            run_id=offer.run_id,
+            at=offer.at,
+        )
+
+
+class AuditDeviceModel(BaseModel):
+    """Which browser could act, and from when to when.
+
+    `registered_at` where the rig said `issued_at`: there a device held a token
+    of its own and the row was that token's, here the browser registers once and
+    is handed a secret, so registration IS the moment its authority began.
+
+    No `online`: what `DeviceLineModel` next door reports is a socket held right
+    now, which is a fact about this second and not about the window asked for.
+    """
+
+    device_id: str
+    registered_at: datetime
+    revoked_at: str | None
+
+    @classmethod
+    def of(cls, device: AgentDevice) -> AuditDeviceModel:
+        return cls(
+            device_id=device.id.value,
+            registered_at=device.registered_at,
+            revoked_at=device.revoked_at,
+        )
+
+
+class AuditChatModel(BaseModel):
+    """The chat door, used: when, for which job, at what cost.
+
+    The sentence is not here because it was never kept -- it is an operator's
+    words about their warehouse, and the record exists for the bill.
+    """
+
+    id: str
+    workflow_id: str | None
+    cost_usd: float
+    unpriced: bool
+    error: str | None
+    at: str
+
+    @classmethod
+    def of(cls, reading: ChatReading) -> AuditChatModel:
+        return cls(
+            id=reading.id,
+            workflow_id=reading.workflow_id,
+            cost_usd=reading.cost_usd,
+            unpriced=reading.unpriced,
+            error=reading.error,
+            at=reading.at,
+        )
+
+
+class AuditResponse(BaseModel):
+    since: str
+    """The bound the four reads actually used, normalised to UTC.
+
+    Not the caller's query echoed back. A caller that passed a naive time is
+    told, here, what that was taken to mean; a route that echoed the query
+    would name a window it had not read, and the two look identical to anyone
+    who passed an offset already.
+    """
+
+    runs: list[AuditedRunModel]
+    offers: list[AuditOfferModel]
+    devices: list[AuditDeviceModel]
+    chats: list[AuditChatModel]
+
+    @classmethod
+    def of(cls, audit: Audit) -> AuditResponse:
+        return cls(
+            since=audit.since,
+            runs=[AuditedRunModel.of(run) for run in audit.runs],
+            offers=[AuditOfferModel.of(offer) for offer in audit.offers],
+            devices=[AuditDeviceModel.of(device) for device in audit.devices],
+            chats=[AuditChatModel.of(chat) for chat in audit.chats],
+        )
+
+
+class SpendResponse(BaseModel):
+    """What the day has cost, whether that figure can be trusted, and the cap.
+
+    Three numbers rather than one. `cost_usd` alone cannot tell an
+    honestly-cheap morning from one whose bills were never priced, and a
+    number with no cap beside it cannot answer "am I about to be cut off",
+    which is the question this door is opened for.
+    """
+
+    cost_usd: float
+    """Since midnight UTC, over all four tables a model call bills to,
+    rounded where the rig rounded it."""
+
+    unpriced: int
+    """How many of today's calls could not be priced -- a count, as the rig
+    answered it and as `DaySpend.blind` carries it, not a flag.
+
+    Reported beside the total and never folded into it: a model name the price
+    table never knew about records $0.0000 with `unpriced` set, so a day
+    summed on `cost_usd` alone reads as free while it spends. The count and
+    not a boolean because the 429 the cap raises quotes it, and a console that
+    could only say "something" cannot say what to go and look for.
+    """
+
+    cap_usd: float
+    """What this deployment configured, not what the code shipped with."""
+
+    @classmethod
+    def of(cls, day: DaySpend, *, cap_usd: float) -> SpendResponse:
+        # Six places, as every dollar figure the rig answered with: a sum of
+        # floats reaches a console as $0.30000000000000004, and a twentieth of
+        # a cent is nothing a cap in dollars can notice.
+        #
+        # And this is the ONLY place anything rounds, deliberately. `over_cap`
+        # judges the raw `DaySpend`, so the figure that decides whether a
+        # tenant is cut off is never the figure a screen was shown. The
+        # asymmetry is intended and is not a bug to fix one layer down: a cap
+        # rounded to whole dollars moves the trip point by a dollar, and any
+        # rounding fine enough to be safe here moves it by less than the
+        # resolution a dollar cap has -- so the rounding belongs on the way
+        # out, where it is a display decision, and nowhere else.
+        return cls(cost_usd=round(day.cost_usd, 6), unpriced=day.blind, cap_usd=cap_usd)
+
+
+class WorkflowHistoryModel(BaseModel):
+    """What has become of one job: how often it ran, how often it held, whether
+    its page is moving under it, and whether its writes go unasked now.
+
+    Four fields where the rig answered seven. `last`, the offer fates and the
+    counsel derived from them are served already -- by `/v1/audit` and
+    `/v1/shapes` -- and a second door onto a field is a second place it is
+    computed. `sro.application.skill.read_workflows` carries the whole of that
+    reasoning.
+    """
+
+    total: int
+    held: int
+    stale: int
+    """Steps a run last matched through a weak locator. This route is the only
+    reader `mark_stale` has."""
+
+    earned: bool
+    """Whether this job may write without asking a person first. Never derived
+    from `held` beside it: a hundred held runs with nothing in the register
+    have earned nothing."""
+
+
+class WorkflowStepModel(BaseModel):
+    """One mined step: what it says, and the evidence that proves it.
+
+    `order` and not the rig's `ord`, which was its column name -- as
+    `AuditStepModel` above does, and for the same reason.
+    """
+
+    order: int
+    says: str
+    system: str | None
+    cites: list[str]
+    parameters: list[str]
+
+
+class WorkflowModel(BaseModel):
+    id: str
+    title: str
+    narrative: str
+    systems: list[str]
+    pass_id: str
+    """The pass that found it, rather than a per-workflow price. One model call
+    proposes every workflow in a pass, so a copy of its cost on each of them
+    sums to the bill times the number of jobs found."""
+
+    parameters: list[dict[str, Any]]
+    unproven: list[str]
+    """What the pass could not place. It exists nowhere else a reader can
+    reach, and it is the field a route emitting its siblings is likeliest to
+    drop."""
+
+    steps: list[WorkflowStepModel]
+    runs: WorkflowHistoryModel
+
+    @classmethod
+    def of(cls, known: KnownWorkflow) -> WorkflowModel:
+        workflow = known.workflow
+        return cls(
+            id=workflow.id,
+            title=workflow.title,
+            narrative=workflow.narrative,
+            systems=list(workflow.systems),
+            pass_id=workflow.pass_id,
+            parameters=[dict(entry) for entry in workflow.parameters],
+            unproven=list(workflow.unproven),
+            # Sorted here, because `Workflow.steps` is a list nothing promises
+            # is ordered -- `ordered_cites` sorts it for the same reason. A
+            # step list served in storage order is a job served in the wrong
+            # order, and it reads as a plausible one.
+            steps=[
+                WorkflowStepModel(
+                    order=step.order,
+                    says=step.says,
+                    system=step.system,
+                    cites=list(step.cites),
+                    parameters=list(step.parameters),
+                )
+                for step in sorted(workflow.steps, key=lambda step: step.order)
+            ],
+            runs=WorkflowHistoryModel(
+                total=known.total, held=known.held, stale=known.stale, earned=known.earned
+            ),
+        )
+
+
+class WorkflowsResponse(BaseModel):
+    workflows: list[WorkflowModel]
+    """An object rather than a bare list, as `ShapesResponse` is: a later field
+    -- a server clock, a next-page cursor -- should not have to break every
+    reader to be added."""
+
+    @classmethod
+    def of(cls, known: tuple[KnownWorkflow, ...]) -> WorkflowsResponse:
+        return cls(workflows=[WorkflowModel.of(one) for one in known])
+
+
+class EvidenceResponse(BaseModel):
+    """Everything a workflow cites, in the shape a runner's bridge consumes.
+
+    Three maps and not one. `gestures` is the extension's own wire shape --
+    what `application.skill.from_rig` reads a replayable plan out of -- and a
+    gesture on the wire never carried its calls, so folding them in would give
+    the bridge a shape neither side speaks. `requests` is keyed by gesture id
+    beside it, as the rig served it and as the two are stored.
+
+    `dict[str, Any]` per gesture and not a model per field, for
+    `ShapesResponse`'s reason: the domain's dataclass is the declaration, and a
+    second copy of its fields here goes stale the first time it gains one.
+    """
+
+    gestures: dict[str, dict[str, Any]]
+    requests: dict[str, list[dict[str, Any]]]
+    recordings: list[str]
+    """The distinct capture streams those gestures arrived on, oldest first.
+    The one input a caller would otherwise have to reach into a column for:
+    `Provenance` needs it, and getting it wrong there mis-states whether a
+    skill's values were ever diffed."""
+
+    missing: list[str]
+    """Cited gesture ids the store no longer holds, in cited order.
+
+    The rig served this and the port dropped it. `from_rig.plans_for_step`
+    skips a citation with no gesture, so a caller building a runnable job out
+    of this body gets one silently missing a step -- and is entitled to know
+    before it runs it. Normally empty: the proposal that became this workflow
+    was refused if it cited evidence that did not exist, so a non-empty
+    `missing` means the store moved after the job was kept."""
+
+    @classmethod
+    def of(cls, evidence: CitedEvidence) -> EvidenceResponse:
+        served: dict[str, dict[str, Any]] = {}
+        calls: dict[str, list[dict[str, Any]]] = {}
+        for gesture in evidence.gestures:
+            whole = asdict(gesture)
+            # Split out, never copied: see the class docstring. `tenant` goes
+            # with them -- the caller proved which tenant it is to get here,
+            # and echoing it back is one more field to keep true.
+            calls[gesture.id] = whole.pop("requests")
+            whole.pop("tenant")
+            served[gesture.id] = whole
+        return cls(
+            gestures=served,
+            requests=calls,
+            recordings=list(evidence.recordings),
+            missing=list(evidence.missing),
         )
 
 
@@ -1597,6 +2095,11 @@ class ObservationAcceptedResponse(BaseModel):
     problems: list[RejectedEventModel]
     stored_at: str | None
     already_had_it: bool
+    snapshots_ignored: int = 0
+    """Snapshots stored and read by nothing. The rig's own 202 carries this
+    key (`new_agent_arch/src/rig/api.py:534`) and for the same reason the
+    rejections are here: a browser shipping evidence nothing reads should learn
+    it from the answer."""
 
 
 class ObservationArtifactResponse(BaseModel):

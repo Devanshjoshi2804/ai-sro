@@ -68,13 +68,17 @@ class AgentDevice:
     is also the record of *when*, which an audit of what a browser was allowed
     to do needs and a missing secret cannot give.
 
-    Withdrawal is final, and there is no way back through this application:
-    `save` deliberately never writes this column and `DeviceRepository` has no
-    un-revoke, so re-registering returns the same secret and leaves the
-    revocation standing. A browser cut off stays cut off -- every device-scoped
-    path refuses it at `refuse_unless_itself` -- until somebody clears the row.
-    Deliberate as far as it goes, and unfinished: what a revoked extension does
-    to come back is a lifecycle nobody has designed, and phase 4 owns it.
+    Nothing a browser does moves it. `save` deliberately never writes this
+    column, so a heartbeat that loaded the device before the revocation and
+    saved it after cannot undo one; and registration is idempotent and returns
+    the same secret, so re-registering leaves the revocation standing. A browser
+    cut off stays cut off -- every device-scoped path refuses it at
+    `refuse_unless_itself`.
+
+    The way back is an administrator, not the browser: `DeviceRepository.restore`
+    and `POST /v1/devices/{device}/restore`. It has to be its own repository
+    call precisely because `save` does not write this column -- clearing it
+    through the record would mean letting every heartbeat write it too.
     """
 
     @property

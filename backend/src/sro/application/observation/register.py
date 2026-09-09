@@ -195,17 +195,6 @@ class ReadDevice:
         return device
 
 
-class ReadDevices:
-    """Whose browsers are being observed. The screen behind the consent story."""
-
-    def __init__(self, uow: UnitOfWork) -> None:
-        self._uow = uow
-
-    async def execute(self, ctx: RequestContext) -> tuple[AgentDevice, ...]:
-        async with self._uow as uow:
-            return await uow.devices.list_for_tenant(ctx.tenant_id)
-
-
 class GrantHost:
     """The operator saying this page may be watched after all.
 

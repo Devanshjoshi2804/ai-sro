@@ -26,6 +26,7 @@ from sro.application.ports.sign_in import SignInFailed
 from sro.application.ports.token import TokenRefused
 from sro.application.ports.vault import VaultUnavailable
 from sro.application.recording.start_recording import NoSessionForSystem
+from sro.application.skill.record_offer import OfferRefused
 from sro.application.trigger.create_trigger import TriggerRefused
 from sro.application.trigger.receive_inbound import InboundRefused
 from sro.domain.shared.errors import Conflict, DomainError, InvariantViolation, NotFound
@@ -71,9 +72,15 @@ _STATUS_BY_ERROR: dict[type[Exception], int] = {
     # one person who saw what it produced. That is an identity mismatch, not a
     # missing resource or a conflicting state.
     NotYours: status.HTTP_403_FORBIDDEN,
+    # The rig's own answer, kept: a body field naming a job that is not one is
+    # a bad request and never a missing endpoint. 400 rather than the 422 a
+    # malformed body gets, because the body parsed and its shape was right --
+    # what it named was not there.
+    OfferRefused: status.HTTP_400_BAD_REQUEST,
 }
 
 _TITLES = {
+    status.HTTP_400_BAD_REQUEST: "Bad request",
     status.HTTP_404_NOT_FOUND: "Not found",
     status.HTTP_409_CONFLICT: "Conflict",
     status.HTTP_422_UNPROCESSABLE_CONTENT: "Request cannot be processed",

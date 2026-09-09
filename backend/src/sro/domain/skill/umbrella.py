@@ -20,7 +20,7 @@ from sro.domain.shared.prices import Effort
 from sro.domain.skill.workflow import Step, Workflow, new_workflow_id
 
 K_SAMPLES = 1
-K_EFFORT: Effort = "high"
+K_EFFORT: Effort = "medium"
 """How hard the model is told to think before it answers.
 
 `"high"` is what the rig shipped, and it is not the harmless default it looks
@@ -30,10 +30,20 @@ was truncated with 2,609 left to answer in -- three runs out of three, $0.38
 each, nothing kept. At `medium` the same model mined the same day successfully
 and kept 7 of 17 proposed jobs.
 
+`"medium"`, then, and measured on this backend rather than inherited: the first
+real pass over a real store -- 507 gestures from a day of Blue Yonder capture,
+`gemini-3.1-pro-preview` -- did the same thing at `high`. 204,747 in, 65,522
+out, truncated after 2,610 tokens of answer, $2.00 for nothing kept. The same
+evidence at `medium` answered in 6,041 output tokens with 3,362 of thinking,
+cost $0.93, and kept 2 of 3 proposed jobs, which then replayed 2 of 2 as
+themselves. Twice the result at half the price, and the difference is this
+word.
+
 So this constant is a budget decision as much as a quality one, and it belongs
 to whoever configures a model: a model with a small output ceiling wants
-`"medium"`. The number is written down here because the choice cannot be made
-without it.
+`"medium"`. Both numbers are written down here because the choice cannot be
+made without them -- and because the first was recorded for one model and not
+applied to the one actually configured, which is how the $2.00 was spent.
 """
 
 K_MAX_CROSSING_TOKENS = 2_000

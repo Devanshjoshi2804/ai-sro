@@ -13,6 +13,11 @@ already mints what the rig's ``issue`` minted and answers what its ``holder``
 answered, under the tenant-and-secret rule this codebase had before the rig
 arrived; there is nothing of the rig's ``devices.py`` left for this module but
 the revoke.
+
+What is here and was not in the rig is `RestoreDevice`. The rig un-revoked as a
+side effect of `issue` handing out a fresh token; registration here is
+idempotent and hands back the same secret, so letting a browser back in had to
+become its own act once revocation began to enforce.
 """
 
 from __future__ import annotations
@@ -57,6 +62,47 @@ class RevokeDevice:
         # it. The rig dropped it on every press for the same reason.
         self._drivers.drop(ctx.tenant_id, device_id)
         return revoked
+
+
+class RestoreDevice:
+    """A revoked browser may act again.
+
+    No rig ancestor: there, `issue` un-revoked as a side effect of minting a
+    fresh token. This port chose idempotent registration instead -- a second
+    register hands back the SAME secret -- so nothing here undid a revoke at
+    all, and once plan 3b made `refuse_unless_itself` enforce on all seven
+    device-scoped paths, an administrator who pressed revoke on the wrong row
+    had no way back short of a hand-edited row.
+
+    No socket is opened, and no `AgentDrivers` is taken to open one with: the
+    extension dials on its own next heartbeat, and a backend that dialled a
+    laptop nobody is sitting at would be a channel nobody asked for. That is
+    the asymmetry with `RevokeDevice`, which drops one -- cutting off is
+    urgent, letting back in is not.
+
+    The cost, named because nothing else names it: this ERASES the instant the
+    revocation recorded. `RevokeDevice` is emphatic that the first press's
+    instant is what an audit of what a browser was allowed to do is read
+    against, and a restore deletes it outright -- so `DeviceRepository.since`
+    afterwards has no record the browser was ever cut off, and a day that
+    contained a revocation and a restore reads as a day that contained neither.
+    The rig did the same and this port keeps it, but a system that has to answer
+    "who could act, and from when to when" will want the pair kept somewhere.
+
+    ``NotFound`` for a browser this tenant does not have, as the revoke gives:
+    the repository raises it and this does not soften it into a quiet
+    ``False``, so a tenant cannot confirm another tenant's device ids by
+    pressing at them.
+    """
+
+    def __init__(self, uow: UnitOfWork) -> None:
+        self._uow = uow
+
+    async def execute(self, ctx: RequestContext, *, device_id: DeviceId) -> bool:
+        async with self._uow as uow:
+            restored = await uow.devices.restore(ctx.tenant_id, device_id)
+            await uow.commit()
+        return restored
 
 
 @dataclass(frozen=True, slots=True)

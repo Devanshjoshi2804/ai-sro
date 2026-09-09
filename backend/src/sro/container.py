@@ -14,7 +14,9 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from sro.application.analytics.audit import ReadAudit
 from sro.application.analytics.summary import ReadSummary
+from sro.application.capture.devices import ReadRoster, RestoreDevice, RevokeDevice
 from sro.application.chat.converse import Converse, StartThread
 from sro.application.chat.read_threads import ReadThreads
 from sro.application.connection.browsers import Browsers
@@ -32,6 +34,7 @@ from sro.application.connection.session_headers import StoreSessionHeaders
 from sro.application.connection.session_life import SessionLife
 from sro.application.connection.sign_in import EnsureSignedIn, SignIn, StoreCredentials
 from sro.application.connection.watch_browser import WatchBrowsers
+from sro.application.context import RequestContext
 from sro.application.execution.batch import RunBatch
 from sro.application.execution.call_run_wrong import CallRunWrong
 from sro.application.execution.choices import ListChoices
@@ -57,6 +60,7 @@ from sro.application.intent.narrow import NarrowARead
 from sro.application.intent.next_steps import SuggestNext
 from sro.application.intent.plan_task import PlanTask
 from sro.application.intent.resolve import ResolveIntent
+from sro.application.intent.spend import spent_today
 from sro.application.knowledge.backfill import BackfillEmbeddings
 from sro.application.knowledge.learn_from_run import LearnFromRun
 from sro.application.knowledge.open_questions import AskAbout
@@ -74,7 +78,6 @@ from sro.application.observation.propose import AnswerJoin, ProposeAboutCandidat
 from sro.application.observation.register import (
     GrantHost,
     ReadDevice,
-    ReadDevices,
     RecordHeartbeat,
     RegisterDevice,
     RevokeHost,
@@ -97,6 +100,7 @@ from sro.application.ports.embedding import Embedder
 from sro.application.ports.http import HttpCaller
 from sro.application.ports.intent import IntentParser
 from sro.application.ports.interpretation import WorkflowInterpreter
+from sro.application.ports.model import Asker
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.schedule import Scheduler
 from sro.application.ports.sign_in import SignInDriver
@@ -122,7 +126,10 @@ from sro.application.skill.map_step_to_tool import MapStepToTool
 from sro.application.skill.promote_skill import PromoteSkill
 from sro.application.skill.read_doings import ReadDoings
 from sro.application.skill.read_skills import GetSkill, ListSkills
+from sro.application.skill.read_workflows import ReadEvidence, ReadWorkflows
+from sro.application.skill.record_offer import RecordOffer
 from sro.application.skill.repair_drift import RepairDrift
+from sro.application.skill.serve_shapes import ServeShapes
 from sro.application.trigger.answer_confirmation import (
     AnswerConfirmation,
     ExpireConfirmations,
@@ -133,13 +140,16 @@ from sro.application.trigger.fire_trigger import FireTrigger
 from sro.application.trigger.read_triggers import DeleteTrigger, ReadTriggers, SetTriggerEnabled
 from sro.application.trigger.receive_inbound import ReceiveInbound
 from sro.config import Settings, get_settings
+from sro.domain.shared.prices import DaySpend
 from sro.infrastructure.agent.drivers import RemoteAgents
 from sro.infrastructure.agent.sockets import DeviceSockets
 from sro.infrastructure.auth.keycloak import KeycloakTokens
 from sro.infrastructure.auth.signed_tokens import SignedTokens
 from sro.infrastructure.blob.minio_store import MinioBlobStore
 from sro.infrastructure.db.repositories import SqlUnitOfWork
+from sro.infrastructure.db.schema_version import SchemaVersion, announce, schema_version
 from sro.infrastructure.db.session import create_engine, create_session_factory
+from sro.infrastructure.gemini.asker import GeminiAsker
 from sro.infrastructure.gemini.computer_use import GeminiVisionDriver
 from sro.infrastructure.gemini.intent import GeminiIntentParser
 from sro.infrastructure.gemini.interpreter import GeminiInterpreter
@@ -171,6 +181,10 @@ class Container:
     must not be shared between concurrent requests.
     """
 
+    _schema_announced: bool = field(default=False, init=False, repr=False)
+    """Whether the schema line has been written this process. See
+    `_announce_once`: the fact is worth saying, and worth saying once."""
+
     settings: Settings
     clock: Clock
     ids: IdFactory
@@ -180,6 +194,22 @@ class Container:
     embedder: Embedder
     vision: VisionDriver | None
     interpreter: WorkflowInterpreter
+    asker: Asker | None
+    """The model the rig's own passes ask, or ``None`` where none is configured.
+
+    Separate from ``interpreter`` and ``intent_parser``, which each answer one
+    narrow question with their own model name. This is the general one: the
+    miner and the runner hand it a schema and an instruction and read structured
+    JSON back, and both need to bill what they spent, which is why the port
+    carries ``Answer`` rather than a string.
+
+    ``None`` rather than a no-op double, deliberately. A miner with nothing to
+    ask must not run and quietly find nothing -- that reads exactly like a day
+    with no work in it. The caller that checks and refuses arrives in 4b: this
+    is built and read by nothing today, because `mining_pass.mine` and
+    `run_workflow` have no production caller either. Built here rather than in
+    4b so the wiring is one commit and not three.
+    """
     intent_parser: IntentParser
     vault: CredentialVault
     http: HttpCaller
@@ -220,17 +250,112 @@ class Container:
     def unit_of_work(self) -> UnitOfWork:
         return SqlUnitOfWork(self.session_factory)
 
-    async def database_reachable(self) -> bool:
-        """Readiness probe. Lives here so the interface layer stays free of SQL."""
+    async def readiness(self) -> dict[str, bool]:
+        """Both halves of "can this process serve", on ONE connection.
+
+        Reachable and current are different questions: a database that answers
+        `SELECT 1` while four migrations behind is reachable and useless, and
+        until this existed the only symptom was a 500 from whichever call
+        touched a missing column first.
+
+        One session for both, deliberately. Asked on a probe endpoint, which
+        under load is called far more often than anything else here -- two
+        sessions per call is how a readiness check becomes the thing that
+        exhausts the pool it exists to report on.
+
+        Lives here so the interface layer stays free of SQL, and returns plain
+        booleans so it stays free of the infrastructure's types as well.
+        """
         try:
             async with self.session_factory() as session:
                 await session.execute(text("SELECT 1"))
+                version = await schema_version(session)
         except SQLAlchemyError:
-            return False
-        return True
+            return {"database": False, "schema": False}
+        self._announce_once(version)
+        return {"database": True, "schema": version.current}
+
+    def _announce_once(self, version: SchemaVersion) -> None:
+        """Write the schema line to the log the first time anybody probes.
+
+        Not from the lifespan, where it belongs on the face of it: a check
+        there opens a connection before the process serves anything, and every
+        app instance would hold one from boot. The contract suite builds many
+        apps and exhausted Postgres on the first run of exactly that -- which
+        is a fair warning about what it would do to a deployment that starts
+        several workers against a small connection limit.
+
+        A probe is where the fact is wanted anyway, it already has the session
+        open, and nothing that matters is lost: a deployment probes readiness
+        within seconds of starting, and a developer sees the line the first
+        time they or their tooling ask.
+        """
+        if self._schema_announced:
+            return
+        self._schema_announced = True
+        announce(version)
 
     def read_summary(self) -> ReadSummary:
         return ReadSummary(self.unit_of_work())
+
+    def read_roster(self) -> ReadRoster:
+        return ReadRoster(self.unit_of_work(), self.agents())
+
+    def revoke_device(self) -> RevokeDevice:
+        return RevokeDevice(self.unit_of_work(), self.agents(), self.clock)
+
+    def restore_device(self) -> RestoreDevice:
+        # No drivers, where `revoke_device` above has them: letting a browser
+        # back in opens no socket, and a use case with no `AgentDrivers` cannot
+        # grow one by accident.
+        return RestoreDevice(self.unit_of_work())
+
+    def read_audit(self) -> ReadAudit:
+        return ReadAudit(self.unit_of_work())
+
+    def serve_shapes(self) -> ServeShapes:
+        return ServeShapes(self.unit_of_work(), self.clock)
+
+    def read_workflows(self) -> ReadWorkflows:
+        return ReadWorkflows(self.unit_of_work())
+
+    def read_evidence(self) -> ReadEvidence:
+        return ReadEvidence(self.unit_of_work())
+
+    async def read_spend(self, ctx: RequestContext) -> DaySpend:
+        """What this tenant has been billed since midnight, on this clock.
+
+        A method rather than a factory like the two above, and the reason is
+        the plain one: ``spent_today`` is a bare function, so there is no
+        class to construct and a factory would be a wrapper for its own sake.
+        Not "nothing route-supplied to hold" -- the tenant IS route-supplied,
+        it arrives on the ``ctx`` below, and ``ServeShapes`` holds nothing
+        route-supplied either. ``record_offer`` next door was a bare function
+        too, and became a class anyway, because it took a bare ``tenant_id``.
+
+        That is the line: takes the whole context and never a bare
+        ``tenant_id``, so the one seam where passing the wrong tenant is the
+        failure stays out of the interface layer -- the same reason
+        ``ServeShapes.execute`` takes one, and the reason ``RecordOffer``
+        exists as a class at all. ``now`` is supplied here because which day
+        is being asked about is a decision no route may make: one that read a
+        clock would answer for the server's day.
+        """
+        # Entered here, not inside ``spent_today``: a unit of work has no
+        # repositories until its session opens, and ``over_cap``'s other
+        # callers pass one that is already open.
+        async with self.unit_of_work() as uow:
+            return await spent_today(uow, ctx.tenant_id, now=self.clock.now())
+
+    def record_offer(self) -> RecordOffer:
+        """A factory, where ``read_spend`` above is a method, and not because
+        this one has more to hold: ``record_offer`` is a bare function like
+        ``spent_today``, but it takes a bare ``tenant_id``. A route calling it
+        would unpack the caller itself, at the one seam where passing the
+        wrong tenant is the failure. ``RecordOffer`` takes the context
+        instead, and the clock ``clamped`` needs comes from here so that no
+        route reads one."""
+        return RecordOffer(self.unit_of_work(), self.clock)
 
     def adopt_rig_workflow(self) -> AdoptRigWorkflow:
         return AdoptRigWorkflow(self.unit_of_work(), self.clock, self.ids)
@@ -356,9 +481,6 @@ class Container:
 
     def read_device(self) -> ReadDevice:
         return ReadDevice(self.unit_of_work())
-
-    def read_devices(self) -> ReadDevices:
-        return ReadDevices(self.unit_of_work())
 
     def read_observation_policy(self) -> ReadObservationPolicy:
         return ReadObservationPolicy(self.unit_of_work())
@@ -710,6 +832,18 @@ def _build_interpreter(settings: Settings) -> WorkflowInterpreter:
     return NoInterpreter()
 
 
+def _build_asker(settings: Settings) -> Asker | None:
+    """The same two switches as its neighbours: a key is not consent to send.
+
+    ``interpretation_enabled`` is the switch, because what this sends is what
+    that switch is about -- a tenant's captured gestures and the bodies of
+    their calls, read by a hosted model.
+    """
+    if settings.interpretation_enabled and settings.gemini_api_key:
+        return GeminiAsker(settings.gemini_api_key)
+    return None
+
+
 def _build_vision(settings: Settings) -> VisionDriver | None:
     """Two switches again, and the more consequential pair: this one sends a
     picture of a customer's live warehouse system."""
@@ -785,6 +919,7 @@ def build_container(settings: Settings | None = None) -> Container:
         embedder=_build_embedder(settings),
         vision=_build_vision(settings),
         interpreter=_build_interpreter(settings),
+        asker=_build_asker(settings),
         intent_parser=_build_intent_parser(settings),
         vault=(built_vault := _build_vault(settings)),
         http=HttpxCaller(),

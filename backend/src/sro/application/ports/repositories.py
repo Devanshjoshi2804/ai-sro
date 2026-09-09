@@ -326,6 +326,23 @@ class DeviceRepository(Protocol):
         """
         ...
 
+    async def restore(self, tenant_id: TenantId, device_id: DeviceId) -> bool:
+        """Give a revoked browser its authority back. ``True`` when one had
+        been taken away, ``False`` when it was never revoked.
+
+        Exists because revocation started enforcing. While ``revoked_at``
+        changed no answer, a wrong press was cosmetic; now `refuse_unless_itself`
+        refuses the browser on every device-scoped path, and registration is
+        deliberately idempotent and hands back the same secret -- so
+        re-registering does NOT undo it, and without this the only way back is
+        a hand-edited row. ``NotFound`` for a browser this tenant does not
+        have, as `revoke` gives.
+
+        The secret is untouched: the browser still holds a working one, which
+        is the whole reason it needs no reinstall.
+        """
+        ...
+
     async def since(self, tenant_id: TenantId, *, since: str) -> tuple[AgentDevice, ...]:
         """Every browser registered or revoked at or after this ISO instant,
         newest registration first.

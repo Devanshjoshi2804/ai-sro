@@ -679,6 +679,22 @@ class SqlDeviceRepository(DeviceRepository):
         row.revoked_at = when(at)
         return True
 
+    async def restore(self, tenant_id: TenantId, device_id: DeviceId) -> bool:
+        # Read then set under the same lock as `revoke`, and for the same two
+        # reasons: the row is the one this session already holds, so nothing
+        # can read a browser it has just restored as still revoked; and two
+        # concurrent presses must not both answer True, because the boolean is
+        # what the route reports as "this press is what moved it".
+        #
+        # `revoked_at = NULL` and nothing else. The secret is not reissued --
+        # revoking never blanked it, and the extension is still holding the one
+        # it was minted with.
+        row = await self._row(tenant_id, device_id, lock=True)
+        if row.revoked_at is None:
+            return False
+        row.revoked_at = None
+        return True
+
     async def _row(
         self, tenant_id: TenantId, device_id: DeviceId, *, lock: bool = False
     ) -> AgentDeviceRow:

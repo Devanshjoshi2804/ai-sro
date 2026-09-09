@@ -9,11 +9,13 @@ from __future__ import annotations
 
 import json
 from collections.abc import Sequence
-from dataclasses import dataclass
-from datetime import datetime
+from dataclasses import asdict, dataclass
+from datetime import UTC, datetime
 
+from sro.application.capture.rig_wire import Batch as WireBatch
 from sro.application.context import RequestContext
 from sro.application.observation.admit import Event, admit
+from sro.application.observation.correlate import correlate
 from sro.application.observation.policy import current_policy
 from sro.application.observation.redact import redact_events
 from sro.application.observation.register import refuse_unless_itself
@@ -22,10 +24,58 @@ from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock
 from sro.config import get_settings
 from sro.domain.observation.batch import CaptureMode, ObservationBatch, RejectedEvent
+from sro.domain.observation.gesture import GestureBatch
 from sro.domain.shared.errors import DomainError
 from sro.domain.shared.identifiers import BatchId, DeviceId, RecordingId
 
 CONTENT_TYPE = "application/x-ndjson"
+
+
+def _as_wire_batch(batch: ObservationBatch, events: Sequence[Event]) -> tuple[WireBatch, int]:
+    """The stored batch in the shape `correlate` reads, and how many events it
+    could not.
+
+    Parsed one at a time and never as a whole envelope, which is the rig's rule
+    at `new_agent_arch/src/rig/api.py:482-487` and it holds harder here: these
+    events have already been admitted, stored and answered for. An event kind
+    the extension shipped last week must not take the batch beside it down --
+    by the time this runs the upload is a fact, and raising would roll back a
+    claim for events that are already in the blob store.
+
+    The count comes back so the tally says a batch had events nothing could
+    read, rather than a batch that quietly had fewer.
+    """
+    readable = []
+    unreadable = 0
+    for event in events:
+        try:
+            readable.append(
+                WireBatch.model_validate(
+                    {
+                        "batch_id": batch.id.value,
+                        "device_id": batch.device_id.value,
+                        "started_at": batch.started_at.isoformat(),
+                        "ended_at": batch.ended_at.isoformat(),
+                        "mode": batch.mode.value,
+                        "recording_id": batch.recording_id.value if batch.recording_id else None,
+                        "events": [event],
+                    }
+                ).events[0]
+            )
+        except ValueError:
+            unreadable += 1
+    return (
+        WireBatch(
+            batch_id=batch.id.value,
+            device_id=batch.device_id.value,
+            started_at=batch.started_at.isoformat(),
+            ended_at=batch.ended_at.isoformat(),
+            mode=batch.mode.value,
+            recording_id=batch.recording_id.value if batch.recording_id else None,
+            events=readable,
+        ),
+        unreadable,
+    )
 
 
 class ObservationRefused(DomainError):
@@ -49,6 +99,19 @@ class Ingested:
     screening, in which case no object was written and no row was made."""
 
     already_had_it: bool = False
+    snapshots_ignored: int = 0
+    """Accessibility-tree snapshots admitted, stored, and read by nothing.
+
+    There is nowhere in the schema to put one, and `correlate`'s docstring says
+    why the count exists anyway: silently dropping them is not the same as
+    never having received them. On the response for the same reason the
+    rejections are -- a browser shipping snapshots nothing reads should be able
+    to see that from the answer, not from a mining run three weeks later. The
+    rig returns it in the same 202 body (`new_agent_arch/src/rig/api.py:534`).
+
+    0 on a batch we already had: nothing re-read it, and no column records what
+    the first pass ignored.
+    """
 
 
 class IngestObservation:
@@ -148,7 +211,8 @@ class IngestObservation:
             # measured, on this tenant's real traffic: a live JWT and the
             # `&code=` carrying it reached the blob store with no marker on
             # them at all.
-            payload = _ndjson(redact_events(admission.accepted))
+            redacted = redact_events(admission.accepted)
+            payload = _ndjson(redacted)
             # ponytail: the daily byte budget is enforced in the extension only.
             # Server-side would mean summing today's batches on every upload;
             # add it here when a device is seen to ignore the policy.
@@ -172,6 +236,88 @@ class IngestObservation:
                 rejected=admission.rejected,
             )
             await uow.observations.add(batch)
+            # The same upload again, as the miner reads it. Two tables, neither
+            # derived from the other: `observations` keeps the events verbatim
+            # in the blob store, and this keeps what was read out of them.
+            #
+            # In this block on purpose, so the batch claim and its gestures
+            # commit together. A claim written without them is an id that can
+            # never be retried -- the events it named are gone, and the row says
+            # they were handled. The rig makes the same argument for the same
+            # reason at `new_agent_arch/src/rig/api.py:63-72`.
+            #
+            # Correlated from the REDACTED events, not the accepted ones: the
+            # redacted payload is what was stored, and a gesture carrying a
+            # value the blob store does not have is a citation pointing at
+            # nothing.
+            #
+            # Measured, because the argument is right and the margin is not:
+            # `rig_wire`'s validators redact on their own, so a url, a typed
+            # value, a prose label, a header and a body TEXT come out the same
+            # either way. The one field that does not is `redacted_fields` --
+            # the wire's `redact_body` reports shapes and this one reports
+            # names -- so `admission.accepted` here would store bodies that no
+            # longer say a password was ever in them. Pinned by
+            # `test_the_gesture_stored_says_which_field_the_blob_store_lost`.
+            # Defence in depth, then, rather than the only belt; keep it that
+            # way, and do not let the wire's copy become the argument for
+            # deleting this one.
+            wire, unreadable = _as_wire_batch(batch, redacted)
+            gestures, orphans, marks, snapshots = correlate(wire, ctx.tenant_id.value)
+            await uow.gestures.add_batch(
+                GestureBatch(
+                    batch_id=batch.id.value,
+                    device_id=device_id.value,
+                    tenant=ctx.tenant_id.value,
+                    mode=mode.value,
+                    received_at=now.isoformat(),
+                    started_at=started_at.isoformat(),
+                    ended_at=ended_at.isoformat(),
+                    recording_id=recording_id.value if recording_id else None,
+                    accepted=len(gestures),
+                    # Two kinds of loss, deliberately one number. An event
+                    # `admit()` turned away never reached the blob store; one
+                    # `_as_wire_batch` could not parse did, was paid for, and
+                    # is read by nobody. Neither became a gesture, and this
+                    # column's question is "what did this batch not yield" --
+                    # so `accepted + rejected` is not the event count and was
+                    # never meant to be. Split them the day something acts on
+                    # the difference rather than reports it.
+                    rejected=len(admission.rejected) + unreadable,
+                )
+            )
+            if gestures:
+                await uow.gestures.add_gestures(tuple(gestures))
+            # A call or a page event no gesture in THIS batch claimed. In the
+            # same block for the same reason the gestures are: an orphan
+            # written outside the batch claim is a row nothing can retry.
+            #
+            # The whole point is the batch boundary. The extension uploads on
+            # a timer, so a click at the end of batch N routinely has its XHR
+            # arrive in batch N+1, and `correlate` -- which only ever sees one
+            # batch -- cannot own it. Dropped here, that call is gone for good
+            # and the gesture reads as a click that asked the server nothing.
+            # Kept, it is a row a later pass can join on. The rig stores both
+            # (`new_agent_arch/src/rig/api.py:118-136`); this discarded both as
+            # `_calls` and `_marks` until now, which made cross-batch
+            # correlation dead on this side and alive on that one.
+            for orphan in orphans:
+                await uow.gestures.add_orphan_request(
+                    ctx.tenant_id,
+                    batch_id=batch.id.value,
+                    request_id=orphan.request_id,
+                    payload=asdict(orphan),
+                )
+            for mark in marks:
+                await uow.gestures.add_orphan_page(
+                    ctx.tenant_id,
+                    batch_id=batch.id.value,
+                    # The column is a string and the domain keeps epoch
+                    # seconds, so it is spelled here the way the rig spells it
+                    # and the way the contract test writes it: ISO, UTC.
+                    at=datetime.fromtimestamp(mark.at, UTC).isoformat(),
+                    payload=asdict(mark),
+                )
             device.uploaded(now)
             await uow.devices.save(device)
             await uow.commit()
@@ -181,6 +327,7 @@ class IngestObservation:
             accepted=batch.event_count,
             rejected=batch.rejected,
             stored_at=batch.uri,
+            snapshots_ignored=snapshots,
         )
 
 

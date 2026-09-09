@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import cast
 
 import pytest
 
@@ -15,15 +16,37 @@ from sro.application.observation.retain import SweepRetention
 from sro.domain.observation.batch import CaptureMode
 from sro.domain.observation.device import AgentDevice
 from sro.domain.observation.policy import ObservationPolicy
+from sro.domain.recording.sensitivity import REDACTED
 from sro.domain.shared.errors import Conflict
 from sro.domain.shared.identifiers import BatchId, DeviceId, PrincipalId, TenantId
 from tests import factories as f
-from tests.unit.fakes import FakeBlobStore, FakeClock, FakeIdFactory, FakeUnitOfWork
+from tests.unit.fakes import (
+    FakeBlobStore,
+    FakeClock,
+    FakeGestureRepository,
+    FakeIdFactory,
+    FakeUnitOfWork,
+)
 
 ACME = RequestContext(tenant_id=TenantId("acme"), principal_id=f.OPERATOR)
 OTHER = RequestContext(tenant_id=TenantId("acme"), principal_id=PrincipalId("priya"))
 
-GESTURE = {
+SNAPSHOT: dict[str, object] = {
+    "kind": "snapshot",
+    "url": "https://wms.acme.com/orders",
+    "taken_at": "2026-03-01T09:01:00Z",
+    "snapshot": {"role": "main"},
+}
+
+JWT = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJvcHMifQ.c2lnbmF0dXJlLWhlcmU"
+"""A signed JWT, the shape `SECRET_SHAPES` matches and the audit found in this
+deployment's own store."""
+
+AT = 1772355630.0
+"""2026-03-01T09:00:30Z as the recorder writes it -- Unix seconds, so that a
+request's ISO `started_at` lands inside this gesture's correlation window."""
+
+GESTURE: dict[str, object] = {
     "kind": "gesture",
     "gesture": {
         "kind": "click",
@@ -32,6 +55,14 @@ GESTURE = {
         "target": {"tag": "button", "cssPath": "div > button"},
     },
 }
+
+
+def _evidence(uow: FakeUnitOfWork) -> FakeGestureRepository:
+    """`FakeUnitOfWork.gestures` is annotated as the port, and the port is
+    write-only for batches and orphans -- so reading what ingest actually
+    stored needs the concrete fake. One cast here rather than one per
+    assertion."""
+    return cast(FakeGestureRepository, uow.gestures)
 
 
 async def _switch_observation_on(uow: FakeUnitOfWork, ctx: RequestContext) -> None:
@@ -320,3 +351,240 @@ async def _ingest(
         mode=CaptureMode.PASSIVE,
         events=events if events is not None else [GESTURE],
     )
+
+
+async def test_an_upload_lands_in_the_evidence_plane_and_not_only_the_blob_store() -> None:
+    """The link that was never made.
+
+    `correlate` turns a batch into gestures and `add_gestures` stores them, and
+    until this existed neither had a caller anywhere in `src/`: ingest stopped
+    at `observation_batches`, so a browser could upload all day and the miner
+    would read an empty store. Found by running the real thing -- 397 real
+    batches, 4,661 real events, and 0 gestures.
+    """
+    uow, blobs = FakeUnitOfWork(), FakeBlobStore()
+    ctx = RequestContext(tenant_id=f.TENANT, principal_id=f.OPERATOR)
+    await _switch_observation_on(uow, ctx)
+    device_id = await _register(uow, ctx)
+
+    await _ingest(uow, blobs, device_id, ctx=ctx)
+
+    kept = await uow.gestures.gestures_for(f.TENANT, ids=None)
+    assert len(kept) == 1, "the upload was stored and read out of by nobody"
+    assert kept[0].url == "https://wms.acme.com/orders"
+    assert kept[0].batch_id == "bat_one"
+    assert kept[0].tenant == f.TENANT.value
+
+
+async def test_the_batch_the_miner_reads_counts_the_gestures_and_not_the_events() -> None:
+    """Two tables describing one upload, neither derived from the other.
+
+    `observation_batches` counts events admitted; this one counts what was read
+    out of them. A snapshot is admitted and stored and is not a gesture, so the
+    two numbers are allowed to differ -- and a tally that copied the other's
+    would say a batch of pictures was a batch of work.
+    """
+    uow, blobs = FakeUnitOfWork(), FakeBlobStore()
+    ctx = RequestContext(tenant_id=f.TENANT, principal_id=f.OPERATOR)
+    await _switch_observation_on(uow, ctx)
+    device_id = await _register(uow, ctx)
+
+    ingested = await _ingest(
+        uow,
+        blobs,
+        device_id,
+        ctx=ctx,
+        events=[
+            GESTURE,
+            SNAPSHOT,
+        ],
+    )
+
+    assert ingested.accepted == 2, "both events were admitted and stored"
+    kept = await uow.gestures.gestures_for(f.TENANT, ids=None)
+    assert len(kept) == 1, "the snapshot was read out as a gesture"
+    # The store and the tally are two facts, not one. `accepted=len(gestures)`
+    # is what this test is named for, and asserting only the store leaves the
+    # number free to be `admission.accepted_count` -- the other table's count,
+    # which would say a batch of pictures was a batch of work.
+    assert next(iter(_evidence(uow).batches.values())).accepted == 1
+
+
+async def test_the_gesture_stored_says_which_field_the_blob_store_lost() -> None:
+    """The decision at `ingest.py`'s `_as_wire_batch(batch, redacted)`.
+
+    Correlating from `admission.accepted` instead is very nearly -- but not
+    quite -- invisible, and the reason is worth writing down: `rig_wire`'s
+    models redact on their own validators, so a url, a typed value, a prose
+    label, a header and a body TEXT come out identical down the either path.
+    The belt that is not doubled is `redacted_fields`: the wire's
+    `redact_body` reports only shapes, while the one `redact_events` runs
+    reports the field NAMES too. So a gesture correlated from the raw events
+    carries a body whose password is gone and which does not say a password
+    was ever there -- and `redacted_fields` is exactly the record a reviewer
+    greps to decide the store is clean.
+
+    Named for the whole decision rather than for that one field, because the
+    doubling is an accident of two modules agreeing today and this line is
+    what stops them diverging tomorrow.
+    """
+    uow, blobs = FakeUnitOfWork(), FakeBlobStore()
+    ctx = RequestContext(tenant_id=f.TENANT, principal_id=f.OPERATOR)
+    await _switch_observation_on(uow, ctx)
+    device_id = await _register(uow, ctx)
+
+    await _ingest(
+        uow,
+        blobs,
+        device_id,
+        ctx=ctx,
+        events=[
+            {
+                "kind": "gesture",
+                "tab_id": 1,
+                "gesture": {
+                    "kind": "type",
+                    "at": AT,
+                    "url": f"https://wms.acme.com/login?code={JWT}",
+                    "value": JWT,
+                    "target": {"tag": "input", "cssPath": "div > input"},
+                },
+            },
+            {
+                "kind": "request",
+                "tab_id": 1,
+                "request": {
+                    "request_id": "req_0",
+                    "method": "POST",
+                    "started_at": "2026-03-01T09:00:35+00:00",
+                    "url": "https://wms.acme.com/api/session",
+                    "request_body": {
+                        "text": '{"user": "ops", "password": "hunter2"}',
+                        "mime_type": "application/json",
+                    },
+                    "status": 200,
+                },
+            },
+        ],
+    )
+
+    stored = (await uow.gestures.gestures_for(f.TENANT, ids=None))[0]
+    body = stored.requests[0].request_body
+    assert body is not None
+    assert body.redacted_fields == ("password",), "the store no longer says what it lost"
+    # Guarded twice -- once here and once by the wire model's own validators.
+    # Asserted anyway: the day one belt is loosened, this says which.
+    assert stored.url == f"https://wms.acme.com/login?code={REDACTED}"
+    assert stored.action.value == REDACTED
+    assert all(JWT.encode() not in blob for blob in blobs.objects.values()), "nor the blob"
+
+
+async def test_an_event_nothing_could_read_is_counted_as_a_loss_and_not_a_silence() -> None:
+    """`rejected=len(admission.rejected) + unreadable`, the `unreadable` half.
+
+    `admit()` requires only that a gesture name some kind; the wire model the
+    miner reads knows seven of them. A `drag` is therefore admitted, stored and
+    answered for, and then read by nothing -- and dropping the `+ unreadable`
+    passes the rest of this suite, because a batch that quietly had fewer
+    gestures looks exactly like a batch that had fewer gestures.
+    """
+    uow, blobs = FakeUnitOfWork(), FakeBlobStore()
+    ctx = RequestContext(tenant_id=f.TENANT, principal_id=f.OPERATOR)
+    await _switch_observation_on(uow, ctx)
+    device_id = await _register(uow, ctx)
+
+    ingested = await _ingest(
+        uow,
+        blobs,
+        device_id,
+        ctx=ctx,
+        events=[
+            {
+                "kind": "gesture",
+                "gesture": {
+                    "kind": "drag",
+                    "at": 1787654321.9,
+                    "url": "https://wms.acme.com/orders",
+                    "target": {"tag": "div", "cssPath": "div > div"},
+                },
+            }
+        ],
+    )
+
+    assert ingested.accepted == 1, "admitted, stored, and paid for"
+    batch = next(iter(_evidence(uow).batches.values()))
+    assert batch.accepted == 0, "nothing read it"
+    assert batch.rejected == 1, "and the batch does not pretend it never arrived"
+
+
+async def test_a_call_that_lands_in_the_next_batch_is_kept_and_not_dropped() -> None:
+    """Cross-batch correlation, which was dead on this side and alive in the rig.
+
+    The extension uploads on a timer, so a click at the end of one batch
+    routinely has its XHR arrive in the next. `correlate` sees one batch, so it
+    hands that call back as an orphan -- and ingest discarded it as `_calls`,
+    which made it a call the operator's browser made and this store has no
+    record of. `add_orphan_request` and `add_orphan_page` existed on the port,
+    the adapter, the fake and two test suites with no production caller
+    anywhere in `src/`: the same no-caller defect `add_gestures` had.
+    """
+    uow, blobs = FakeUnitOfWork(), FakeBlobStore()
+    ctx = RequestContext(tenant_id=f.TENANT, principal_id=f.OPERATOR)
+    await _switch_observation_on(uow, ctx)
+    device_id = await _register(uow, ctx)
+
+    await _ingest(uow, blobs, device_id, ctx=ctx, batch_id="bat_one", events=[GESTURE])
+    await _ingest(
+        uow,
+        blobs,
+        device_id,
+        ctx=ctx,
+        batch_id="bat_two",
+        events=[
+            {
+                "kind": "request",
+                "tab_id": 1,
+                "request": {
+                    "request_id": "req_0",
+                    "method": "POST",
+                    "started_at": "2026-03-01T09:00:35+00:00",
+                    "url": "https://wms.acme.com/api/orders",
+                    "status": 200,
+                },
+            },
+            {
+                "kind": "page",
+                "tab_id": 1,
+                "at": "2026-03-01T09:00:36+00:00",
+                "page_kind": "navigated",
+                "url": "https://wms.acme.com/orders/new",
+            },
+        ],
+    )
+
+    assert _evidence(uow).orphan_requests[("bat_two", "req_0")]["url"] == (
+        "https://wms.acme.com/api/orders"
+    )
+    tenant, batch_id, at, payload = _evidence(uow).orphan_pages[0]
+    assert (tenant, batch_id) == (f.TENANT.value, "bat_two")
+    assert at == "2026-03-01T09:00:36+00:00", "epoch seconds in, ISO out, as the column wants"
+    assert payload["url"] == "https://wms.acme.com/orders/new"
+
+
+async def test_a_batch_of_pictures_says_so_on_the_way_out() -> None:
+    """`snapshots_ignored`, which `correlate` counts and nothing carried.
+
+    A snapshot is admitted, stored, billed and read by nothing -- there is
+    nowhere in the schema to put one. `correlate`'s docstring says the count
+    exists because silently dropping them is not the same as never having
+    received them, and until this it was bound to a local and dropped one line
+    later. The rig returns it in the same 202 body.
+    """
+    uow, blobs = FakeUnitOfWork(), FakeBlobStore()
+    ctx = RequestContext(tenant_id=f.TENANT, principal_id=f.OPERATOR)
+    await _switch_observation_on(uow, ctx)
+    device_id = await _register(uow, ctx)
+
+    ingested = await _ingest(uow, blobs, device_id, ctx=ctx, events=[GESTURE, SNAPSHOT, SNAPSHOT])
+
+    assert ingested.snapshots_ignored == 2

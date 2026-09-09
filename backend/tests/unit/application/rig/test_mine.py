@@ -30,7 +30,7 @@ import pytest
 from sro.application.observation.mining_pass import MineResult, mine, propose, rekey_workflows
 from sro.domain.observation.gesture import Gesture, Intent, ValueSeen
 from sro.domain.observation.pool import K_POOL_AGE
-from sro.domain.observation.window import Packed, Window
+from sro.domain.observation.window import K_WINDOW_TOKENS, Packed, Window
 from sro.domain.shared.identifiers import TenantId
 from sro.domain.shared.prices import Answer
 from sro.domain.skill.umbrella import INSTRUCTIONS, K_EFFORT, K_SAMPLES
@@ -159,10 +159,17 @@ leave evidence out without reaching past `mine`'s own arguments to set the
 budget. Under it the budget holds nothing and K_MIN_GESTURES decides how many
 are packed, so strength decides which."""
 
-NEARLY_FULL_KB = "x" * (140_000 * 4)
-"""Most of the budget, and not all of it: what is left is a few thousand
-tokens of room, so what else is subtracted from it is visible in how many
-gestures fit. Under CROWDED_KB the floor decides and nothing else shows."""
+NEARLY_FULL_KB = "x" * ((K_WINDOW_TOKENS - 10_000) * 4)
+"""Most of the budget, and not all of it: what is left is ten thousand tokens
+of room, so what else is subtracted from it is visible in how many gestures
+fit. Under CROWDED_KB the floor decides and nothing else shows.
+
+Derived from `K_WINDOW_TOKENS` rather than written as the 140,000 it used to
+be. When the budget was lowered to keep the prompt under the 200K price
+boundary, a literal sized against the old one left NEGATIVE room -- so the
+floor decided, both halves of the comparison packed exactly
+`K_MIN_GESTURES`, and a test about the budget passed on nothing to do with
+it."""
 
 
 # --------------------------------------------------------------------------
@@ -675,7 +682,7 @@ async def test_the_cost_of_the_pass_is_recorded() -> None:
     assert result.cost_usd == 0.037
     billed = await uow.workflows.passes(TENANT)
     assert [one.cost_usd for one in billed] == [0.037]
-    # The tokens as well, and `thought_tokens` above all: K_EFFORT = "high"
+    # The tokens as well, and `thought_tokens` above all: K_EFFORT
     # exists to spend those, and a row that reports the dollars without them
     # cannot say what the pass was thinking with.
     assert (billed[0].in_tokens, billed[0].out_tokens, billed[0].thought_tokens) == (900, 100, 40)
@@ -873,6 +880,23 @@ async def test_a_pass_that_recognises_a_job_learns_what_varies_in_it() -> None:
     stored = (await uow.workflows.known(TENANT))[0]
     assert "SOMETHING-ELSE" in _seen(stored.parameters, "clientCode")
 
+    # And the ROW says so, not only the result. Until 0041 there was no column
+    # for it: `MineResult` counted what the pass learnt and the persistence
+    # layer dropped it, so a pass that learnt three left no record it had --
+    # measured on the real store, where the only place the figure appeared was
+    # a return value in a terminal. This test asserted the result and never the
+    # row, which is exactly how that survived being ported.
+    #
+    # Asserted as a multiset and not in order, deliberately: `FakeClock` gives
+    # every pass the same instant, so `passes()` orders on `(started_at, id)`
+    # and the tie is broken by an id nobody planted. Sorting on `started_at`
+    # here read [1, 0] and expected [0, 1] -- an ordering assertion the data
+    # cannot support, which is this project's fourth instance of exactly that.
+    learnt = sorted(one.learned_parameters for one in await uow.workflows.passes(TENANT))
+    assert learnt == [0, again.learned_parameters]
+    kept = {one.kept for one in await uow.workflows.passes(TENANT)}
+    assert kept == {0, 1}, "a pass that learnt without keeping still reads as a pass"
+
 
 async def test_a_third_doing_widens_a_parameter_it_does_not_discard_it() -> None:
     """`seen_values` promises "every value observed" and delivered two.
@@ -1061,6 +1085,12 @@ async def test_the_pass_asks_for_the_effort_it_names() -> None:
     await _proposed(asker)
 
     assert asker.asked[0]["effort"] == K_EFFORT
+    # And the value, not only the constant. Comparing a call against the
+    # constant it was made from passes whatever the constant says, so it cannot
+    # fail when the value changes -- and this value cost $2.00 to establish: at
+    # "high" the first real pass over 507 real gestures truncated after 2,610
+    # tokens of answer and kept nothing, where "medium" kept 2 of 3.
+    assert asker.asked[0]["effort"] == "medium"
 
 
 async def test_two_steps_claiming_the_same_order_can_still_be_stored() -> None:

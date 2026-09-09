@@ -1006,6 +1006,8 @@ class MiningPassRow(Base):
     proposed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     kept: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     rejected: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    learned_parameters: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    """What the pass LEARNT, beside what it kept. See `MiningPass`."""
     coverage: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
     skew: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
     lopsided: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)

@@ -546,6 +546,7 @@ def _billed(pass_id: str, tenant_id: TenantId, started_at: str, result: MineResu
         proposed=result.proposed,
         kept=result.kept,
         rejected=len(result.rejections),
+        learned_parameters=result.learned_parameters,
         coverage=result.coverage.coverage,
         skew=result.coverage.skew,
         lopsided=result.lopsided,

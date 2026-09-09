@@ -99,6 +99,9 @@ class _FakeContainer(Container):
         self.credentials = SignedTokens(TEST_SECRET)
         self.ui = FakeUiDriver()
         self.vision = None
+        # No model for the rig's own passes. `None` is what a deployment with
+        # no key gets, and what the miner and the runner must refuse to run on.
+        self.asker = None
         self.tokens = None
         self.intent_parser = FakeIntentParser()
         self.pursuits = Pursuits()
@@ -113,7 +116,11 @@ class _FakeContainer(Container):
         self.durable = FakeDurableExecution(self.induce_skill(), execute=self.execute_skill())
 
     def unit_of_work(self) -> UnitOfWork:
-        return self._uow
+        # `hand_out`, not the bare instance: the real container returns a
+        # `SqlUnitOfWork` whose repositories do not exist until `async with`
+        # opens its session, and a use case that forgets the block has to
+        # fail here rather than against a customer's database.
+        return self._uow.hand_out()
 
 
 class FakeCaptureSupervisor(CaptureController):

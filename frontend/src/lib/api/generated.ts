@@ -414,6 +414,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Audit
+         * @description The runs, the offers, the browsers and the chat readings since a time.
+         *
+         *     The `since` that comes back is the use case's, never this parameter: a
+         *     naive time is read as UTC one layer down, and a caller has to be able to
+         *     tell which instant they were actually given.
+         */
+        get: operations["audit_v1_audit_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/candidates": {
         parameters: {
             query?: never;
@@ -795,6 +819,75 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/devices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Roster
+         * @description Every browser this tenant registered, most recently seen first, with
+         *     whether each is connected and when its authority ended if it has.
+         */
+        get: operations["roster_v1_devices_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/devices/{device}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Revoke
+         * @description `moved` is false for a browser that was already revoked.
+         *
+         *     Not a 404 and not an error: the first revocation's instant is what an audit
+         *     is read against, and a second press must not move it. The 404 is for a
+         *     browser this tenant does not have, which is a different answer.
+         */
+        post: operations["revoke_v1_devices__device__revoke_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/devices/{device}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restore
+         * @description `moved` is false for a browser that was never revoked -- the same
+         *     idempotence the revoke has, for the same reason: an administrator pressing
+         *     twice has not made a mistake worth an error page.
+         *
+         *     No socket is opened. The extension dials on its own next heartbeat.
+         */
+        post: operations["restore_v1_devices__device__restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/observations": {
         parameters: {
             query?: never;
@@ -843,6 +936,26 @@ export interface paths {
          *     them with the evidence they illustrate.
          */
         post: operations["store_artifact_v1_observations_artifacts_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/offers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record Offer
+         * @description One offer this browser showed, and what the operator did with it.
+         */
+        post: operations["record_offer_v1_offers_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1209,6 +1322,46 @@ export interface paths {
         put?: never;
         /** Promote Skill */
         post: operations["promote_skill_v1_skills__skill_id__promote_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/shapes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Shapes
+         * @description Every proven workflow of this tenant, as the extension needs it.
+         */
+        get: operations["shapes_v1_shapes_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/spend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Spend
+         * @description This tenant's bill since midnight UTC, with what could not be priced.
+         */
+        get: operations["spend_v1_spend_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1781,6 +1934,51 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/workflows": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Workflows
+         * @description Every workflow this tenant has mined, with what has become of each.
+         *
+         *     `asking` is not read: the menu is the tenant's and does not vary by
+         *     browser. It is here to be refused -- a `?device_id=` this tenant does not
+         *     have, or one named without its secret, is a 404 here exactly as it is at
+         *     `/v1/shapes`. See the module docstring.
+         */
+        get: operations["workflows_v1_workflows_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workflows/{workflow_id}/evidence": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Workflow Evidence
+         * @description Everything one workflow cites, for the bridge that replays it.
+         */
+        get: operations["workflow_evidence_v1_workflows__workflow_id__evidence_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1860,6 +2058,149 @@ export interface components {
             pointer: string | null;
             /** Written By */
             written_by?: string | null;
+        };
+        /**
+         * AuditChatModel
+         * @description The chat door, used: when, for which job, at what cost.
+         *
+         *     The sentence is not here because it was never kept -- it is an operator's
+         *     words about their warehouse, and the record exists for the bill.
+         */
+        AuditChatModel: {
+            /** Id */
+            id: string;
+            /** Workflow Id */
+            workflow_id: string | null;
+            /** Cost Usd */
+            cost_usd: number;
+            /** Unpriced */
+            unpriced: boolean;
+            /** Error */
+            error: string | null;
+            /** At */
+            at: string;
+        };
+        /**
+         * AuditDeviceModel
+         * @description Which browser could act, and from when to when.
+         *
+         *     `registered_at` where the rig said `issued_at`: there a device held a token
+         *     of its own and the row was that token's, here the browser registers once and
+         *     is handed a secret, so registration IS the moment its authority began.
+         *
+         *     No `online`: what `DeviceLineModel` next door reports is a socket held right
+         *     now, which is a fact about this second and not about the window asked for.
+         */
+        AuditDeviceModel: {
+            /** Device Id */
+            device_id: string;
+            /**
+             * Registered At
+             * Format: date-time
+             */
+            registered_at: string;
+            /** Revoked At */
+            revoked_at: string | null;
+        };
+        /** AuditOfferModel */
+        AuditOfferModel: {
+            /** Id */
+            id: string;
+            /** Workflow Id */
+            workflow_id: string;
+            /** Device Id */
+            device_id: string;
+            /** K */
+            k: number;
+            /** Fate */
+            fate: string;
+            /** Run Id */
+            run_id: string | null;
+            /** At */
+            at: string;
+        };
+        /** AuditResponse */
+        AuditResponse: {
+            /** Since */
+            since: string;
+            /** Runs */
+            runs: components["schemas"]["AuditedRunModel"][];
+            /** Offers */
+            offers: components["schemas"]["AuditOfferModel"][];
+            /** Devices */
+            devices: components["schemas"]["AuditDeviceModel"][];
+            /** Chats */
+            chats: components["schemas"]["AuditChatModel"][];
+        };
+        /**
+         * AuditStepModel
+         * @description One step of a run as the audit reads it, with the approval that let it out.
+         *
+         *     `sent` is the *kind* of command that was planned and never its payload.
+         *     Ported from the rig's `sent.get("kind")`, and kept for a reason of its own:
+         *     the payload is a warehouse's own data -- an order number, a client's name --
+         *     and this list is read on a console screen by whoever holds a tenant
+         *     credential. What an audit has to answer is that a click on Save went out at
+         *     09:11, and the run's own row is where the rest lives.
+         *
+         *     `order` and not the rig's `ord`, which was its column name: the field is
+         *     `RunStep.order` here and a wire name that disagrees with the domain is the
+         *     kind of thing that gets read back into the wrong one.
+         *
+         *     The approval is folded onto its step although `AuditedRun` keeps approvals
+         *     beside the run. That separation is about the record -- a `RunStep` the
+         *     runner saves back must not be able to carry somebody's approval in it --
+         *     and nothing saves a wire model back.
+         */
+        AuditStepModel: {
+            /** Order */
+            order: number;
+            /** Says */
+            says: string;
+            /** Verdict */
+            verdict: string;
+            /** Verdict By */
+            verdict_by: string;
+            /** Reason */
+            reason: string;
+            /** Sent */
+            sent: string | null;
+            /** Matched By */
+            matched_by: string | null;
+            /** Stale */
+            stale: boolean;
+            /** Approved At */
+            approved_at: string | null;
+            /** Approved By */
+            approved_by: string | null;
+        };
+        /**
+         * AuditedRunModel
+         * @description One run, its steps' verdicts, and what each of them cost.
+         */
+        AuditedRunModel: {
+            /** Id */
+            id: string;
+            /** Workflow Id */
+            workflow_id: string;
+            /** Device Id */
+            device_id: string;
+            /** Started By */
+            started_by: string;
+            /** Live */
+            live: boolean;
+            /** Started At */
+            started_at: string;
+            /** Finished At */
+            finished_at: string | null;
+            /** Outcome */
+            outcome: string;
+            /** Cost Usd */
+            cost_usd: number;
+            /** Unpriced */
+            unpriced: boolean;
+            /** Steps */
+            steps: components["schemas"]["AuditStepModel"][];
         };
         /** BatchItemModel */
         BatchItemModel: {
@@ -2100,6 +2441,42 @@ export interface components {
             when_to_use: string;
         };
         /**
+         * DeviceLineModel
+         * @description One browser on the roster: who registered it, when its authority ended
+         *     if it did, and whether it is connected right now.
+         *
+         *     `revoked_at` is why a revoked browser stays on this list rather than
+         *     disappearing from it. This is the list read before cutting one off and
+         *     after, and a revocation that erased its own subject would leave an
+         *     administrator unable to confirm the thing they just did.
+         *
+         *     A string, not a `datetime`, because that is what `AgentDevice.revoked_at`
+         *     is -- the instant is written by whoever revoked and read back verbatim, and
+         *     re-parsing it here would invent a timezone the row did not record.
+         */
+        DeviceLineModel: {
+            /** Device Id */
+            device_id: string;
+            /** Principal Id */
+            principal_id: string;
+            /** Label */
+            label: string;
+            /**
+             * Registered At
+             * Format: date-time
+             */
+            registered_at: string;
+            /**
+             * Last Seen At
+             * Format: date-time
+             */
+            last_seen_at: string;
+            /** Revoked At */
+            revoked_at: string | null;
+            /** Online */
+            online: boolean;
+        };
+        /**
          * DeviceModel
          * @description Whose browser is being observed, and whether we are hearing from it.
          */
@@ -2130,6 +2507,8 @@ export interface components {
             queued_bytes: number;
             /** Uploads */
             uploads: number;
+            /** Online */
+            online: boolean;
         };
         /**
          * Direction
@@ -2189,6 +2568,38 @@ export interface components {
          * @enum {string}
          */
         EvidenceLevel: "asserted" | "observed" | "reproduced" | "round_trip";
+        /**
+         * EvidenceResponse
+         * @description Everything a workflow cites, in the shape a runner's bridge consumes.
+         *
+         *     Three maps and not one. `gestures` is the extension's own wire shape --
+         *     what `application.skill.from_rig` reads a replayable plan out of -- and a
+         *     gesture on the wire never carried its calls, so folding them in would give
+         *     the bridge a shape neither side speaks. `requests` is keyed by gesture id
+         *     beside it, as the rig served it and as the two are stored.
+         *
+         *     `dict[str, Any]` per gesture and not a model per field, for
+         *     `ShapesResponse`'s reason: the domain's dataclass is the declaration, and a
+         *     second copy of its fields here goes stale the first time it gains one.
+         */
+        EvidenceResponse: {
+            /** Gestures */
+            gestures: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            };
+            /** Requests */
+            requests: {
+                [key: string]: {
+                    [key: string]: unknown;
+                }[];
+            };
+            /** Recordings */
+            recordings: string[];
+            /** Missing */
+            missing: string[];
+        };
         /** FinishRecordingRequest */
         FinishRecordingRequest: {
             /**
@@ -2652,6 +3063,11 @@ export interface components {
             stored_at: string | null;
             /** Already Had It */
             already_had_it: boolean;
+            /**
+             * Snapshots Ignored
+             * @default 0
+             */
+            snapshots_ignored: number;
         };
         /** ObservationArtifactResponse */
         ObservationArtifactResponse: {
@@ -2721,6 +3137,11 @@ export interface components {
             daily_budget_bytes: number;
             /** Retention Days */
             retention_days: number;
+        };
+        /** OfferRecordedResponse */
+        OfferRecordedResponse: {
+            /** Offer Id */
+            offer_id: string;
         };
         /**
          * OpenBrowserModel
@@ -2892,6 +3313,39 @@ export interface components {
              */
             skill_id: string;
         };
+        /**
+         * RecordOfferRequest
+         * @description What a browser showed, and what became of it.
+         *
+         *     No `device_id`. The rig read one out of this body; here the browser is the
+         *     one that proved itself with `X-Device-Secret`, for `/v1/shapes`' reason
+         *     next door -- a job's rest is per browser, so a body that could name
+         *     another browser could spend that browser's rest, or earn it.
+         *
+         *     `k` is `StrictInt`, which is the whole of why this is not a plain `int`:
+         *     `True` IS an `int` in Python and pydantic coerces it, so `{"k": true}`
+         *     would be stored as a tail that matched one gesture -- because the language
+         *     says so, and not because any browser matched anything. The rig hit exactly
+         *     this on `from_step`. `ge=0` for the rest of it: k is how many gestures
+         *     matched, and no tail matches a negative number of them.
+         *
+         *     `at` is the browser's own reading of when it showed the offer, parsed here
+         *     rather than in the application layer so that a clock nobody can read is a
+         *     422 naming the field rather than a 500 out of `datetime.fromisoformat`.
+         *     Optional: absent, the row carries the server's instant.
+         */
+        RecordOfferRequest: {
+            /** Workflow Id */
+            workflow_id: string;
+            /** Fate */
+            fate: string;
+            /** K */
+            k: number;
+            /** Run Id */
+            run_id?: string | null;
+            /** At */
+            at?: string | null;
+        };
         /** RecordingDetail */
         RecordingDetail: {
             /** Id */
@@ -3049,6 +3503,23 @@ export interface components {
             };
         };
         /**
+         * RevocationResponse
+         * @description `moved` rather than `revoked`: this one answer serves both presses, and
+         *     what it says is whether *this* press changed the row -- not what state the
+         *     browser is now in, which the roster answers.
+         */
+        RevocationResponse: {
+            /** Device Id */
+            device_id: string;
+            /** Moved */
+            moved: boolean;
+        };
+        /** RosterResponse */
+        RosterResponse: {
+            /** Devices */
+            devices: components["schemas"]["DeviceLineModel"][];
+        };
+        /**
          * RunFromPreviewRequest
          * @description The press. No `authorized_by` field: reading the preview and pressing
          *     `Do it` is the confirmation, not a second box to tick on top of it.
@@ -3179,6 +3650,13 @@ export interface components {
             /** Stored */
             stored: string[];
         };
+        /** ShapesResponse */
+        ShapesResponse: {
+            /** Shapes */
+            shapes: {
+                [key: string]: unknown;
+            }[];
+        };
         /** SignedInResponse */
         SignedInResponse: {
             /** Target System */
@@ -3274,6 +3752,23 @@ export interface components {
             systems: string[];
             /** Starts On */
             starts_on: string | null;
+        };
+        /**
+         * SpendResponse
+         * @description What the day has cost, whether that figure can be trusted, and the cap.
+         *
+         *     Three numbers rather than one. `cost_usd` alone cannot tell an
+         *     honestly-cheap morning from one whose bills were never priced, and a
+         *     number with no cap beside it cannot answer "am I about to be cut off",
+         *     which is the question this door is opened for.
+         */
+        SpendResponse: {
+            /** Cost Usd */
+            cost_usd: number;
+            /** Unpriced */
+            unpriced: number;
+            /** Cap Usd */
+            cap_usd: number;
         };
         /** StartRecordingRequest */
         StartRecordingRequest: {
@@ -3796,6 +4291,73 @@ export interface components {
             events: number;
             /** Hours */
             hours: number;
+        };
+        /**
+         * WorkflowHistoryModel
+         * @description What has become of one job: how often it ran, how often it held, whether
+         *     its page is moving under it, and whether its writes go unasked now.
+         *
+         *     Four fields where the rig answered seven. `last`, the offer fates and the
+         *     counsel derived from them are served already -- by `/v1/audit` and
+         *     `/v1/shapes` -- and a second door onto a field is a second place it is
+         *     computed. `sro.application.skill.read_workflows` carries the whole of that
+         *     reasoning.
+         */
+        WorkflowHistoryModel: {
+            /** Total */
+            total: number;
+            /** Held */
+            held: number;
+            /** Stale */
+            stale: number;
+            /** Earned */
+            earned: boolean;
+        };
+        /** WorkflowModel */
+        WorkflowModel: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Narrative */
+            narrative: string;
+            /** Systems */
+            systems: string[];
+            /** Pass Id */
+            pass_id: string;
+            /** Parameters */
+            parameters: {
+                [key: string]: unknown;
+            }[];
+            /** Unproven */
+            unproven: string[];
+            /** Steps */
+            steps: components["schemas"]["WorkflowStepModel"][];
+            runs: components["schemas"]["WorkflowHistoryModel"];
+        };
+        /**
+         * WorkflowStepModel
+         * @description One mined step: what it says, and the evidence that proves it.
+         *
+         *     `order` and not the rig's `ord`, which was its column name -- as
+         *     `AuditStepModel` above does, and for the same reason.
+         */
+        WorkflowStepModel: {
+            /** Order */
+            order: number;
+            /** Says */
+            says: string;
+            /** System */
+            system: string | null;
+            /** Cites */
+            cites: string[];
+            /** Parameters */
+            parameters: string[];
+        };
+        /** WorkflowsResponse */
+        WorkflowsResponse: {
+            /** Workflows */
+            workflows: components["schemas"]["WorkflowModel"][];
         };
     };
     responses: never;
@@ -5515,6 +6077,132 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SummaryModel"];
+                };
+            };
+            /** @description No credential, or one this deployment rejects. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description No such thing, or not yours. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The system's state says no, not the request. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The request cannot be processed as asked. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description Something this depends on is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+        };
+    };
+    audit_v1_audit_get: {
+        parameters: {
+            query: {
+                since: string;
+                device_id?: string | null;
+            };
+            header?: {
+                "X-Device-Secret"?: string;
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditResponse"];
                 };
             };
             /** @description No credential, or one this deployment rejects. */
@@ -7755,6 +8443,385 @@ export interface operations {
             };
         };
     };
+    roster_v1_devices_get: {
+        parameters: {
+            query?: {
+                device_id?: string | null;
+            };
+            header?: {
+                "X-Device-Secret"?: string;
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RosterResponse"];
+                };
+            };
+            /** @description No credential, or one this deployment rejects. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description No such thing, or not yours. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The system's state says no, not the request. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The request cannot be processed as asked. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description Something this depends on is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+        };
+    };
+    revoke_v1_devices__device__revoke_post: {
+        parameters: {
+            query?: {
+                device_id?: string | null;
+            };
+            header?: {
+                "X-Device-Secret"?: string;
+                authorization?: string | null;
+            };
+            path: {
+                device: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RevocationResponse"];
+                };
+            };
+            /** @description No credential, or one this deployment rejects. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description No such thing, or not yours. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The system's state says no, not the request. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The request cannot be processed as asked. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description Something this depends on is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+        };
+    };
+    restore_v1_devices__device__restore_post: {
+        parameters: {
+            query?: {
+                device_id?: string | null;
+            };
+            header?: {
+                "X-Device-Secret"?: string;
+                authorization?: string | null;
+            };
+            path: {
+                device: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RevocationResponse"];
+                };
+            };
+            /** @description No credential, or one this deployment rejects. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description No such thing, or not yours. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The system's state says no, not the request. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The request cannot be processed as asked. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description Something this depends on is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+        };
+    };
     ingest_observations_v1_observations_post: {
         parameters: {
             query?: never;
@@ -8030,6 +9097,135 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ObservationArtifactResponse"];
+                };
+            };
+            /** @description No credential, or one this deployment rejects. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description No such thing, or not yours. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The system's state says no, not the request. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The request cannot be processed as asked. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description Something this depends on is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+        };
+    };
+    record_offer_v1_offers_post: {
+        parameters: {
+            query?: {
+                device_id?: string | null;
+            };
+            header?: {
+                authorization?: string | null;
+                "X-Device-Secret"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecordOfferRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OfferRecordedResponse"];
                 };
             };
             /** @description No credential, or one this deployment rejects. */
@@ -10306,6 +11502,256 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SkillVersionModel"];
+                };
+            };
+            /** @description No credential, or one this deployment rejects. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description No such thing, or not yours. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The system's state says no, not the request. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The request cannot be processed as asked. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description Something this depends on is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+        };
+    };
+    shapes_v1_shapes_get: {
+        parameters: {
+            query?: {
+                device_id?: string | null;
+            };
+            header?: {
+                authorization?: string | null;
+                "X-Device-Secret"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShapesResponse"];
+                };
+            };
+            /** @description No credential, or one this deployment rejects. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description No such thing, or not yours. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The system's state says no, not the request. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The request cannot be processed as asked. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description Something this depends on is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+        };
+    };
+    spend_v1_spend_get: {
+        parameters: {
+            query?: {
+                device_id?: string | null;
+            };
+            header?: {
+                "X-Device-Secret"?: string;
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpendResponse"];
                 };
             };
             /** @description No credential, or one this deployment rejects. */
@@ -13813,6 +15259,258 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RunModel"];
+                };
+            };
+            /** @description No credential, or one this deployment rejects. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description No such thing, or not yours. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The system's state says no, not the request. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The request cannot be processed as asked. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description Something this depends on is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+        };
+    };
+    workflows_v1_workflows_get: {
+        parameters: {
+            query?: {
+                device_id?: string | null;
+            };
+            header?: {
+                authorization?: string | null;
+                "X-Device-Secret"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkflowsResponse"];
+                };
+            };
+            /** @description No credential, or one this deployment rejects. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description No such thing, or not yours. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The system's state says no, not the request. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The request cannot be processed as asked. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description Something this depends on is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+        };
+    };
+    workflow_evidence_v1_workflows__workflow_id__evidence_get: {
+        parameters: {
+            query?: {
+                device_id?: string | null;
+            };
+            header?: {
+                "X-Device-Secret"?: string;
+                authorization?: string | null;
+            };
+            path: {
+                workflow_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvidenceResponse"];
                 };
             };
             /** @description No credential, or one this deployment rejects. */

@@ -16,21 +16,27 @@ from sro.interface.http.v1.routers import (
     agent_channel,
     agents,
     analytics,
+    audit,
     candidates,
     confirmations,
     connections,
+    devices,
     health,
     inbound,
     intent,
     knowledge,
     observations,
+    offers,
     recordings,
     runs,
+    shapes,
     skills,
+    spend,
     stream,
     threads,
     triggers,
     watch,
+    workflows,
 )
 from sro.observability import configure_logging
 
@@ -86,11 +92,16 @@ def create_app() -> FastAPI:
     app.include_router(inbound.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(agent_channel.router, prefix="/v1")
     app.include_router(analytics.router, prefix="/v1", responses=PROBLEMS)
+    app.include_router(audit.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(candidates.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(connections.router, prefix="/v1", responses=PROBLEMS)
+    app.include_router(devices.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(observations.router, prefix="/v1", responses=PROBLEMS)
+    app.include_router(offers.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(recordings.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(skills.router, prefix="/v1", responses=PROBLEMS)
+    app.include_router(shapes.router, prefix="/v1", responses=PROBLEMS)
+    app.include_router(spend.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(intent.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(stream.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(knowledge.router, prefix="/v1", responses=PROBLEMS)
@@ -98,6 +109,7 @@ def create_app() -> FastAPI:
     app.include_router(triggers.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(runs.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(watch.router, prefix="/v1", responses=PROBLEMS)
+    app.include_router(workflows.router, prefix="/v1", responses=PROBLEMS)
     return app
 
 

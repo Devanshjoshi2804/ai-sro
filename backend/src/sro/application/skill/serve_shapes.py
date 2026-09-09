@@ -18,11 +18,53 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from sro.application.context import RequestContext
 from sro.application.ports.repositories import UnitOfWork
+from sro.application.ports.system import Clock
 from sro.application.skill.counsel import counsel
 from sro.domain.shared.identifiers import DeviceId, TenantId
 from sro.domain.skill.shape import Shape, cited_pairs, shape_of
 from sro.domain.skill.workflow import ordered_cites
+
+
+class ServeShapes:
+    """The extension's list, with this container's clock.
+
+    Beside `shapes_for` rather than in a module of its own: it is the same
+    read, under the same promise that nothing here writes, and four lines
+    wrapping the function directly below them do not need a file.
+
+    A class and not a container method, which is what plan 4a's task 2 wrote.
+    The clock is kept just as far from the route either way -- it is supplied
+    here, and `RevokeDevice` does exactly this three lines away in the same
+    container. What the method could not do is take a `RequestContext`: handed
+    a bare `tenant_id`, the route unpacks the caller itself, which puts the
+    tenant boundary in the interface layer at the one seam where passing the
+    wrong tenant is the failure.
+
+    `device_id` is the asking browser and is passed through rather than
+    defaulted: it decides whose refusals earned the rest, so dropping it serves
+    one browser the rest another browser earned. Keyword-only for the same
+    reason -- `(ctx, device_id)` has no other argument to be swapped with
+    today, and this is the call site that must not gain one.
+    """
+
+    def __init__(self, uow: UnitOfWork, clock: Clock) -> None:
+        self._uow = uow
+        self._clock = clock
+
+    async def execute(self, ctx: RequestContext, *, device_id: DeviceId | None) -> list[Shape]:
+        # `shapes_for` reads repositories, and a `UnitOfWork` has none until
+        # its session opens on entry -- so the block is opened here and not
+        # inside the function, whose other callers already hold one. Nothing
+        # commits: the read-only promise this module makes is untouched.
+        async with self._uow as uow:
+            return await shapes_for(
+                uow,
+                tenant_id=ctx.tenant_id,
+                device_id=device_id,
+                now=self._clock.now(),
+            )
 
 
 async def shapes_for(

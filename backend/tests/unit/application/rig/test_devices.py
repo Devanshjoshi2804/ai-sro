@@ -16,9 +16,11 @@ returned boolean.
 
 from __future__ import annotations
 
+import inspect
+
 import pytest
 
-from sro.application.capture.devices import ReadRoster, RevokeDevice
+from sro.application.capture.devices import ReadRoster, RestoreDevice, RevokeDevice
 from sro.application.context import RequestContext
 from sro.application.observation.register import RecordHeartbeat, RegisterDevice
 from sro.domain.observation.device import AgentDevice
@@ -256,3 +258,148 @@ async def test_the_roster_is_this_tenants_browsers_most_recently_seen_first() ->
         (LAPTOP, True),
     ]
     assert drivers.asked_online == ["acme"]
+
+
+# --- Letting a browser back in -------------------------------------------
+#
+# No rig ancestor. There, `issue` minted a fresh token and un-revoked as a side
+# effect of doing so; here registration is idempotent and hands back the SAME
+# secret, so nothing undid a revoke at all until `RestoreDevice`. That mattered
+# only once plan 3b made revocation enforce on all seven device-scoped paths:
+# before that a wrong press was cosmetic, and after it the only way back was a
+# hand-edited row.
+
+
+async def test_a_restored_browser_may_act_again() -> None:
+    """The gap the enforcement opened, closed.
+
+    Asked through the heartbeat rather than off the column, because the column
+    is not what was broken: `refuse_unless_itself` is, and a restore that
+    cleared `revoked_at` without re-opening that gate would read as fixed on
+    the roster and still refuse the operator's extension.
+    """
+    uow = FakeUnitOfWork()
+    registered = await RegisterDevice(uow, FakeClock(), FakeIdFactory()).execute(
+        ACME, label="laptop", extension_version="0.1.0"
+    )
+    beat = RecordHeartbeat(uow, FakeClock())
+    await RevokeDevice(uow, _Drivers(), FakeClock()).execute(ACME, device_id=registered.device_id)
+    with pytest.raises(NotFound):
+        await beat.execute(ACME, device_id=registered.device_id, secret=registered.secret)
+
+    restored = await RestoreDevice(uow).execute(ACME, device_id=registered.device_id)
+
+    assert restored is True
+    device = await uow.devices.get(f.TENANT, registered.device_id)
+    assert device.revoked_at is None
+    assert not device.revoked
+    await beat.execute(ACME, device_id=registered.device_id, secret=registered.secret)
+
+
+async def test_restoring_a_browser_that_was_never_revoked_moves_nothing() -> None:
+    # False rather than an error: the press is idempotent, and an administrator
+    # pressing it twice has not made a mistake worth an error page.
+    uow = await _known(f.device(id=LAPTOP))
+
+    assert await RestoreDevice(uow).execute(ACME, device_id=LAPTOP) is False
+    assert (await uow.devices.get(f.TENANT, LAPTOP)).revoked_at is None
+    assert uow.commits == 1, "and the press was written, not left in the session"
+
+
+async def test_a_restore_does_not_open_a_socket_by_itself() -> None:
+    """Revoking drops the socket; restoring must not dial one.
+
+    The browser reconnects on its own next heartbeat, and a backend that
+    dialled a laptop nobody is sitting at is a channel nobody asked for. The
+    guarantee is structural -- there is no `AgentDrivers` to dial with, and no
+    parameter through which one could arrive -- so that is what is asserted.
+    """
+    uow = await _known(f.device(id=LAPTOP, revoked_at=f.at(600).isoformat()))
+
+    await RestoreDevice(uow).execute(ACME, device_id=LAPTOP)
+
+    # The whole parameter list, not "no parameter spelled `drivers`". A double
+    # constructed here and never handed to the use case observes nothing, and
+    # a second parameter named `agents` -- which is what `Container.agents()`
+    # would make the idiomatic name -- would slip past a spelling check while
+    # dialling on every press.
+    assert list(inspect.signature(RestoreDevice).parameters) == ["uow"], "a restore can dial"
+
+
+async def test_a_restored_browser_keeps_the_secret_it_had() -> None:
+    # Deliberate, and the reason there is no "restore under a fresh secret":
+    # this port already chose idempotent registration, so the extension still
+    # holds a working secret and needs no reinstall.
+    uow = await _known(f.device(id=LAPTOP, revoked_at=f.at(600).isoformat()))
+    before = (await uow.devices.get(f.TENANT, LAPTOP)).secret
+
+    await RestoreDevice(uow).execute(ACME, device_id=LAPTOP)
+
+    assert (await uow.devices.get(f.TENANT, LAPTOP)).secret == before
+    assert before, "and there was a secret to keep"
+
+
+async def test_a_browser_of_another_tenant_is_not_restored() -> None:
+    """`NotFound`, not a quiet `False`, and for the same reason as the revoke:
+    a restore that softened it would let a tenant confirm another tenant's
+    device ids by pressing at them."""
+    ended = f.at(600).isoformat()
+    uow = await _known(
+        f.device(id=LAPTOP, revoked_at=ended),
+        f.device(id=THEIRS, tenant_id=OTHER.tenant_id, revoked_at=ended),
+    )
+
+    with pytest.raises(NotFound):
+        await RestoreDevice(uow).execute(OTHER, device_id=LAPTOP)
+    with pytest.raises(NotFound):
+        await RestoreDevice(uow).execute(ACME, device_id=THEIRS)
+
+    assert (await uow.devices.get(f.TENANT, LAPTOP)).revoked_at == ended
+    assert (await uow.devices.get(OTHER.tenant_id, THEIRS)).revoked_at == ended
+
+
+async def test_the_restore_names_the_browser_that_was_asked_for() -> None:
+    """The sibling browser is the thing that goes wrong: an administrator
+    letting the desktop back in and finding the laptop live instead."""
+    ended = f.at(600).isoformat()
+    uow = await _known(
+        f.device(id=LAPTOP, revoked_at=ended), f.device(id=DESKTOP, revoked_at=ended)
+    )
+
+    await RestoreDevice(uow).execute(ACME, device_id=DESKTOP)
+
+    assert (await uow.devices.get(f.TENANT, DESKTOP)).revoked_at is None
+    assert (await uow.devices.get(f.TENANT, LAPTOP)).revoked_at == ended
+
+
+async def test_re_registering_a_revoked_browser_does_not_let_it_back_in() -> None:
+    """The premise every docstring about `RestoreDevice` rests on.
+
+    The rig's `issue` un-revoked as a side effect of minting a fresh token, so
+    a browser came back by asking for a new one. Registration here is
+    idempotent on (tenant, principal, label) and hands back the SAME secret, so
+    the same gesture must leave the revocation exactly where it was -- otherwise
+    `RestoreDevice` is answering a question nobody has, and worse, an
+    administrator's revocation is undone by whoever reinstalls the extension.
+
+    Both halves matter. If the secret changed, the browser would need a
+    reinstall and this port would owe a "restore under a fresh secret"; if
+    `revoked_at` cleared, the rig's side effect would be back and invisible.
+    """
+    uow = FakeUnitOfWork()
+    register = RegisterDevice(uow, FakeClock(), FakeIdFactory())
+    first = await register.execute(ACME, label="laptop", extension_version="0.1.0")
+    await RevokeDevice(uow, _Drivers(), FakeClock()).execute(ACME, device_id=first.device_id)
+    ended = (await uow.devices.get(f.TENANT, first.device_id)).revoked_at
+    assert ended is not None
+
+    again = await register.execute(ACME, label="laptop", extension_version="0.2.0")
+
+    assert again.device_id == first.device_id, "and it is the same browser, not a second row"
+    assert again.secret == first.secret, "a fresh secret here would mean a reinstall"
+    assert (await uow.devices.get(f.TENANT, first.device_id)).revoked_at == ended
+    # And it is still refused, which is the fact an administrator is relying on.
+    with pytest.raises(NotFound):
+        await RecordHeartbeat(uow, FakeClock()).execute(
+            ACME, device_id=first.device_id, secret=again.secret
+        )

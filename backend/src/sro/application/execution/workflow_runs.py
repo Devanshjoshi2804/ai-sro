@@ -343,6 +343,14 @@ class ListWorkflowRuns:
     a cap applied first would answer "nothing is waiting" out of the busiest
     tenant, which is the one that needs the queue.
 
+    **`limit` caps the rows and not that set, and this is the one unbounded
+    thing on this read.** Every parked run id of the tenant is interpolated
+    into the `IN (...)`. What bounds it is migration 0043 rather than a number
+    here: one running run per browser, and only a running run can be parked, so
+    the set is at most one id per browser the tenant has. A bound in code would
+    have to be a cap on `awaiting` itself, which would drop parked runs out of
+    the queue silently -- the thing the ruling below exists to refuse.
+
     The whole row comes back rather than the rig's one line each, so every
     parked step is already on the wire. The rig reported the deepest parked
     step of each run and this reports all of them, `ord` ascending -- plan 4b's
@@ -358,10 +366,15 @@ class ListWorkflowRuns:
         self,
         ctx: RequestContext,
         *,
-        workflow_id: str | None = None,
-        limit: int = 20,
-        awaiting: bool = False,
+        workflow_id: str | None,
+        limit: int,
+        awaiting: bool,
     ) -> tuple[WorkflowRun, ...]:
+        # No defaults. The route passes all three, so a default here is
+        # unreachable -- and a `limit` default would be a second copy of the
+        # page size, in the one of the two places that never reaches
+        # `openapi.json`.
+
         async with self._uow as uow:
             parked: frozenset[str] | None = None
             if awaiting:

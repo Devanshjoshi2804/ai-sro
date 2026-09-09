@@ -372,8 +372,10 @@ async def test_the_list_is_newest_first_out_of_the_real_store(
     """
     await _plant(
         container,
-        _row("run_b", at="2025-02-11T23:00:00+00:00"),
+        # `run_a` first and answered second: a tie planted the way the heap
+        # already returns it is a tie the tie-break never has to break.
         _row("run_a", at="2025-02-11T23:00:00+00:00"),
+        _row("run_b", at="2025-02-11T23:00:00+00:00"),
         _row("run_text_first", at="2025-02-11T23:30:00+02:00"),
         _row("run_early", at="2025-02-11T10:00:00+00:00"),
     )

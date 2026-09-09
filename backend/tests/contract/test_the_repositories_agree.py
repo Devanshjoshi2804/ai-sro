@@ -506,8 +506,12 @@ class TestWorkflowRuns:
         is a row a caller never sees.
         """
         async with store as work:
-            await work.workflow_runs.save(_run("run_b", started_at=_at(11)))
+            # Planted `run_a` first and asserted second: the tie has to
+            # disagree with insertion order, or the assertion is satisfied by
+            # the tie-break and by its absence equally -- Postgres hands back
+            # heap order, and heap order here WAS the answer.
             await work.workflow_runs.save(_run("run_a", started_at=_at(11)))
+            await work.workflow_runs.save(_run("run_b", started_at=_at(11)))
             await work.workflow_runs.save(_run("run_oldest", started_at=_at(9)))
             await work.workflow_runs.save(_run("run_elsewhere", workflow_id="wfl_2"))
             await work.workflow_runs.save(_run("run_theirs", tenant=OTHER_TENANT))
@@ -703,6 +707,15 @@ class TestWorkflowRuns:
                     started_at=_at(10),
                     outcome="running",
                     steps=[
+                        # Two parked steps, and the deeper one planted FIRST.
+                        # The rig reported only the deepest of these and this
+                        # port returns every one, `ord` ascending -- plan 4b's
+                        # ruling, and until this second step existed nothing
+                        # anywhere held either half of it: a store flipped to
+                        # `ord DESC` passed 2710 tests. Planted out of order
+                        # because an assertion that agrees with insertion order
+                        # agrees with the sort and with its absence equally.
+                        RunStep(order=3, says="and let the second out", verdict="awaiting"),
                         RunStep(order=0, says="scan", verdict="held"),
                         RunStep(order=1, says="confirm the write", verdict="awaiting"),
                     ],
@@ -740,6 +753,7 @@ class TestWorkflowRuns:
         assert parked == (
             ("run_also_running", 0, "approve the move"),
             ("run_running", 1, "confirm the write"),
+            ("run_running", 3, "and let the second out"),
         )
 
     async def test_approve_is_first_tap_wins(self, store: UnitOfWork) -> None:

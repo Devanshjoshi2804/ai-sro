@@ -691,6 +691,11 @@ class WorkflowRunRepository(Protocol):
         to have removed once already: it is linear in rows nobody asked for,
         and it degrades exactly as a customer succeeds.
 
+        It caps the ROWS, though, and not ``ids``. A caller passing a set
+        interpolates all of it, and the honest bound on that set is whatever
+        the caller's own read returns -- see ``ListWorkflowRuns``, which says
+        what bounds its one.
+
         Total, reversed, and for ``for_workflow``'s reason -- ``(started_at,
         id)`` descending, so a page boundary falls in the same place twice.
         """
@@ -738,7 +743,7 @@ class WorkflowRunRepository(Protocol):
         A stated divergence from the rig, not an accident: the rig reported the
         deepest parked step of each run and this returns every one of them,
         ``ord`` ascending. Plan 4b decided it that way and kept it -- anyone
-        may answer a parked run, and a queue that shows all but the deepest
+        may answer a parked run, and a queue that hides all but the deepest
         step hides work from the person who could clear it. ``GET
         /v1/workflow-runs`` serves the same rule from the other end: it
         answers with whole rows, so every parked step is on the wire and no

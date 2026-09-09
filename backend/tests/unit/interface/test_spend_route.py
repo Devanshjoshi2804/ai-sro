@@ -28,7 +28,9 @@ from httpx import ASGITransport
 from sro.config import Settings
 from sro.domain.chat.reading import ChatReading
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
+from sro.domain.shared.errors import Conflict
 from sro.domain.shared.identifiers import DeviceId
+from sro.domain.shared.prices import DaySpend
 from sro.interface.http.app import create_app
 from sro.interface.http.deps import get_container
 from tests import factories as f
@@ -309,3 +311,43 @@ async def test_no_credential_is_refused_before_anything_is_read(
     answered = await client.get("/v1/spend", headers={"Authorization": ""})
 
     assert answered.status_code == 401
+
+
+# --- what happens when the read underneath refuses --------------------------
+
+
+async def test_a_domain_error_beneath_this_door_comes_back_as_a_problem(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork, day: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The comment at the top of `routers/spend.py` -- "nothing here catches a
+    domain error: `sro.interface.http.errors` maps them once, for every route"
+    -- with a test that fails when it stops being true.
+
+    It had none in either file that carries it. A route that grew a
+    `try/except DomainError` and answered a cheerful empty day would keep
+    every other assertion in this file green, and a console would draw $0.00
+    against the cap for a tenant whose bill could not be read at all.
+
+    The healthy read is taken first, through the same door, so what the 409
+    proves is the mapping rather than a route that answers 409 to everything.
+    """
+    healthy = await client.get("/v1/spend")
+
+    async def refuse(*_: object, **__: object) -> DaySpend:
+        raise Conflict("the day's bill could not be read")
+
+    monkeypatch.setattr(uow.spend, "today", refuse)
+    answered = await _spend(client)
+
+    assert healthy.status_code == 200
+    assert answered.status_code == 409
+    assert answered.headers["content-type"].startswith("application/problem+json")
+    # Named, not `.../problems/error`: `problem.type` is how a console tells
+    # one refusal from another.
+    assert answered.json() == {
+        "type": "https://ai-sro.dev/problems/conflict",
+        "title": "Conflict",
+        "status": 409,
+        "detail": "the day's bill could not be read",
+        "instance": "/v1/spend",
+    }

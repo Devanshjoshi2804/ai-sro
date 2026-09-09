@@ -28,6 +28,7 @@ from httpx import ASGITransport
 
 from sro.domain.chat.reading import ChatReading
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
+from sro.domain.shared.errors import Conflict
 from sro.domain.shared.identifiers import DeviceId
 from sro.domain.skill.offers import Offer
 from sro.interface.http.app import create_app
@@ -617,3 +618,50 @@ async def test_another_tenants_credential_reads_its_own_nothing(
 
     assert body["runs"] == body["offers"] == body["devices"] == body["chats"] == []
     assert body["since"] == DAWN
+
+
+# --- what happens when a read underneath refuses ----------------------------
+
+
+async def test_a_domain_error_beneath_this_door_comes_back_as_a_problem(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork, day: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The comment at the top of `routers/audit.py` -- "nothing here catches a
+    domain error: `sro.interface.http.errors` maps them once, for every route"
+    -- with a test that fails when it stops being true.
+
+    It had none in either file that carries it. `ReadAudit` reads four
+    collections in a row, so a route that grew a `try/except DomainError` and
+    answered four empty lists would report a quiet morning for a tenant whose
+    history could not be read -- the one failure an audit must never be able
+    to produce, and one that looks exactly like the truth on every screen that
+    draws it.
+
+    Raised at the repository rather than stubbed at the route's own call, so
+    what is proved is that a refusal travels the whole way up: `since` on the
+    browsers, through the use case, past the router, to the handler.
+
+    The healthy read is taken first, through the same door, so what the 409
+    proves is the mapping rather than a route that answers 409 to everything.
+    """
+    healthy = await _since(client, DAWN)
+
+    async def refuse(*_: object, **__: object) -> tuple[object, ...]:
+        raise Conflict("the browsers could not be read")
+
+    monkeypatch.setattr(uow.devices, "since", refuse)
+    answered = await _since(client, DAWN)
+
+    assert healthy.status_code == 200
+    assert healthy.json()["devices"], "the plant never reached the store"
+    assert answered.status_code == 409
+    assert answered.headers["content-type"].startswith("application/problem+json")
+    # Named, not `.../problems/error`: `problem.type` is how a console tells
+    # one refusal from another.
+    assert answered.json() == {
+        "type": "https://ai-sro.dev/problems/conflict",
+        "title": "Conflict",
+        "status": 409,
+        "detail": "the browsers could not be read",
+        "instance": "/v1/audit",
+    }

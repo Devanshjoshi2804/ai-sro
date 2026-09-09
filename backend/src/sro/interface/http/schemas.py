@@ -1467,6 +1467,17 @@ a POST that creates a thread will not 404 -- and that is the right trade against
 the alternative these replaced, which was declaring none of them anywhere.
 """
 
+TOO_LARGE: dict[int | str, dict[str, Any]] = {
+    413: _problem("The request is larger than this door accepts."),
+}
+"""Declared per route rather than added to ``PROBLEMS``.
+
+Two doors have a size belt on them -- the observation batch and the artifact
+upload -- and every other operation in v1 has none. Putting 413 in the shared
+table would promise it on forty doors that cannot answer it, which is a lie a
+generated client would carry.
+"""
+
 
 class ObservationPolicyModel(BaseModel):
     """What the extension is allowed to do. Read on registration, and again only

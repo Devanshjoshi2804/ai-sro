@@ -118,6 +118,7 @@ _TITLES = {
     status.HTTP_401_UNAUTHORIZED: "No credential",
     status.HTTP_403_FORBIDDEN: "Not allowed",
     status.HTTP_405_METHOD_NOT_ALLOWED: "Method not allowed",
+    status.HTTP_413_CONTENT_TOO_LARGE: "Content too large",
     status.HTTP_429_TOO_MANY_REQUESTS: "Too many requests",
 }
 
@@ -126,6 +127,11 @@ _SLUGS = {
     status.HTTP_403_FORBIDDEN: "forbidden",
     status.HTTP_404_NOT_FOUND: "not_found",
     status.HTTP_405_METHOD_NOT_ALLOWED: "method_not_allowed",
+    # The size belts on the two observation doors raise a bare `HTTPException`,
+    # so without this line both would answer `.../problems/error` and the title
+    # "Error" -- the locator that promises a page nobody can write, removed from
+    # this file once already.
+    status.HTTP_413_CONTENT_TOO_LARGE: "content_too_large",
     # `OverCap` brings its own `code`, so this is not for it. It is for the
     # bare 429 any future rate limiter raises: a hole in this table is how
     # `problem.type` was `undefined` for every 401.

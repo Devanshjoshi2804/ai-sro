@@ -226,6 +226,26 @@ class Settings(BaseSettings):
     """Payloads above this go to object storage and the row keeps the URI.
     Nothing is discarded either way -- see docs/11-capture-completeness.md."""
 
+    observation_artifact_bytes: int = 8_000_000
+    """Bytes one artifact upload may carry. The rig's `K_ARTIFACT_BYTES`
+    (`new_agent_arch/src/rig/api.py:374`), with its measurement: a full-page PNG
+    of a warehouse form is a few hundred kilobytes; eight megabytes is a retina
+    screen of noise. Past this, the bytes are not a picture of anything the rig
+    reads.
+
+    The measurement travels with the number on purpose. A constant whose reason
+    is missing is one the next person re-tunes by guess."""
+
+    observation_batch_events: int = 5000
+    """Events one `POST /v1/observations` may carry. The rig's `K_BATCH_EVENTS`
+    (`new_agent_arch/src/rig/api.py:379`), with its measurement: the extension
+    flushes about once a minute; the busiest measured minute was under a hundred
+    gestures, and the whole 81-gesture measured day would fit sixty times over.
+    Past this is not capture, it is a payload.
+
+    A bound on one request and not on a day: a browser with more than this to
+    say splits it, and the refusal names the count so that it can."""
+
     capture_drain_interval_seconds: float = 5.0
     capture_screenshot_per_frame: bool = True
 

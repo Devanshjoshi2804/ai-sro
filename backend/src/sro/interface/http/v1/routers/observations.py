@@ -1,16 +1,30 @@
-"""What an operator's browser saw, arriving in batches."""
+"""What an operator's browser saw, arriving in batches.
+
+Both doors here take an authenticated but *operator-controlled* payload: an
+extension on somebody's laptop decides how much to send. So both wear the rig's
+size belts (`new_agent_arch/src/rig/api.py:374`, `:379`), with the rig's
+measurements kept beside the numbers in `sro.config`.
+
+**413 and not 422.** Pydantic's `max_length` on the event list would answer 422
+for free, and 422 says the body is malformed. These bodies are not malformed;
+they are too big, which is a different thing a sender acts on differently -- a
+422 is retried never, a 413 is retried in two halves. So the bound is an
+explicit check that raises the status the meaning demands, and not a constraint
+whose status would then need translating back.
+"""
 
 from __future__ import annotations
 
 from datetime import datetime
 from typing import Annotated
 
-from fastapi import APIRouter, File, Form, Query, UploadFile, status
+from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile, status
 
 from sro.domain.recording.artifact import ArtifactKind
 from sro.domain.shared.identifiers import BatchId, DeviceId, RecordingId
 from sro.interface.http.deps import ContainerDep, ContextDep, DeviceSecretDep
 from sro.interface.http.schemas import (
+    TOO_LARGE,
     ForgottenResponse,
     ObservationAcceptedResponse,
     ObservationArtifactResponse,
@@ -21,7 +35,7 @@ from sro.interface.http.schemas import (
 router = APIRouter(prefix="/observations", tags=["observations"])
 
 
-@router.post("", status_code=status.HTTP_202_ACCEPTED)
+@router.post("", status_code=status.HTTP_202_ACCEPTED, responses=TOO_LARGE)
 async def ingest_observations(
     body: ObservationBatchRequest,
     container: ContainerDep,
@@ -35,6 +49,23 @@ async def ingest_observations(
     day it ships rather than in a mining run three weeks later that quietly saw
     fewer tasks than happened.
     """
+    # Counted before a single event is parsed, so a payload past the belt costs
+    # a length and not a domain parse of every event in it -- and refused whole,
+    # naming the count that would have been taken, so the sender can split.
+    #
+    # What this closes is exactly what the rig's closes and no more: pydantic
+    # has already turned the JSON into Python objects by the time this runs, so
+    # the saving is `_as_wire_batch`, not the JSON parse. Bounding the *bytes*
+    # before anything looks at them is a body-size middleware, which neither
+    # this system nor the rig has.
+    if len(body.events) > container.settings.observation_batch_events:
+        raise HTTPException(
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+            detail=(
+                f"{len(body.events)} events in one batch; "
+                f"at most {container.settings.observation_batch_events}"
+            ),
+        )
     ingested = await container.ingest_observation().execute(
         ctx,
         device_id=DeviceId(body.device_id),
@@ -57,7 +88,7 @@ async def ingest_observations(
     )
 
 
-@router.post("/artifacts", status_code=status.HTTP_201_CREATED)
+@router.post("/artifacts", status_code=status.HTTP_201_CREATED, responses=TOO_LARGE)
 async def store_artifact(
     container: ContainerDep,
     ctx: ContextDep,
@@ -72,13 +103,27 @@ async def store_artifact(
     """Screenshots and oversized bodies. No row: the key says which batch and
     which frame, so a miner finds them by prefix and a retention rule expires
     them with the evidence they illustrate."""
+    # `+ 1`, and not a length check after `await file.read()`. Reading one byte
+    # past the bound is what makes this a *bound on memory* rather than a
+    # measurement taken afterwards: a caller cannot make this process hold a
+    # gigabyte in order to be told the file was too big. Do not "simplify" it.
+    #
+    # It bounds what this process holds and hands to the blob store. The request
+    # body itself was already spooled by the multipart parser -- that is the
+    # rig's position too, and bounding the wire needs middleware.
+    data = await file.read(container.settings.observation_artifact_bytes + 1)
+    if len(data) > container.settings.observation_artifact_bytes:
+        raise HTTPException(
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+            detail=f"an artifact is at most {container.settings.observation_artifact_bytes} bytes",
+        )
     stored = await container.store_observation_artifact().execute(
         ctx,
         device_id=DeviceId(device_id),
         secret=x_device_secret,
         batch_id=BatchId(batch_id),
         kind=kind,
-        data=await file.read(),
+        data=data,
         content_type=file.content_type or "application/octet-stream",
         frame_index=frame_index,
         label=label,

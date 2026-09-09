@@ -9792,6 +9792,26 @@ export interface operations {
                     };
                 };
             };
+            /** @description The request is larger than this door accepts. */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
             /** @description The request cannot be processed as asked. */
             422: {
                 headers: {
@@ -10026,6 +10046,26 @@ export interface operations {
             };
             /** @description The system's state says no, not the request. */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The request is larger than this door accepts. */
+            413: {
                 headers: {
                     [name: string]: unknown;
                 };

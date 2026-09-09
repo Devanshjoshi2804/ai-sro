@@ -109,6 +109,19 @@ next person to re-tune one silently re-tunes the other.
      `mining_passes` holds a real row whose `error` says *"truncated: the answer
      hit the 65536 output-token ceiling after 2610 tokens"*, a $2.00 call that
      returned nothing, which the route answered `200` with `error: null`.
+   - **Every value passed to a shared helper**, especially `ctx.tenant_id` and
+     `now`. This bullet exists because the checklist above was written without
+     it and the very next review found the hole it left: `over_cap(uow,
+     ctx.tenant_id, ...)` could be replaced with `over_cap(uow,
+     TenantId("acme"), ...)` in **both** `read_chat.py:80` and
+     `mine_pass.py:70`, and **2383 tests passed.** One tenant's spending would
+     have refused another tenant's readings, or shielded them from their own
+     cap.
+     The diagnosis is worth more than the fix: both files had correct
+     two-tenant tests **and** correct cap tests. **Neither axis crossed the
+     other** — the two-tenant tests planted no spend, and every cap test used
+     one tenant. Two things each proved, never together. When a use case takes
+     two things from the caller, test them **crossed**, not one at a time.
    - **Write these red first.** Apply the constant, watch the test fail, revert,
      watch it pass. Task 2 wrote code before tests and this is precisely the gap
      that produced; Task 3 did the same and M13 survived 45 tests.

@@ -3063,6 +3063,11 @@ export interface components {
             stored_at: string | null;
             /** Already Had It */
             already_had_it: boolean;
+            /**
+             * Snapshots Ignored
+             * @default 0
+             */
+            snapshots_ignored: number;
         };
         /** ObservationArtifactResponse */
         ObservationArtifactResponse: {

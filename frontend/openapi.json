@@ -28740,6 +28740,11 @@
           "already_had_it": {
             "type": "boolean",
             "title": "Already Had It"
+          },
+          "snapshots_ignored": {
+            "type": "integer",
+            "title": "Snapshots Ignored",
+            "default": 0
           }
         },
         "type": "object",

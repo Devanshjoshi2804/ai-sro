@@ -2095,6 +2095,11 @@ class ObservationAcceptedResponse(BaseModel):
     problems: list[RejectedEventModel]
     stored_at: str | None
     already_had_it: bool
+    snapshots_ignored: int = 0
+    """Snapshots stored and read by nothing. The rig's own 202 carries this
+    key (`new_agent_arch/src/rig/api.py:534`) and for the same reason the
+    rejections are here: a browser shipping evidence nothing reads should learn
+    it from the answer."""
 
 
 class ObservationArtifactResponse(BaseModel):

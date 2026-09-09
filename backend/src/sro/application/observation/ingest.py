@@ -9,20 +9,20 @@ from __future__ import annotations
 
 import json
 from collections.abc import Sequence
-from dataclasses import dataclass
-from datetime import datetime
+from dataclasses import asdict, dataclass
+from datetime import UTC, datetime
 
+from sro.application.capture.rig_wire import Batch as WireBatch
 from sro.application.context import RequestContext
 from sro.application.observation.admit import Event, admit
+from sro.application.observation.correlate import correlate
 from sro.application.observation.policy import current_policy
 from sro.application.observation.redact import redact_events
-from sro.application.observation.correlate import correlate
 from sro.application.observation.register import refuse_unless_itself
 from sro.application.ports.blob import BlobStore
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock
 from sro.config import get_settings
-from sro.application.capture.rig_wire import Batch as WireBatch
 from sro.domain.observation.batch import CaptureMode, ObservationBatch, RejectedEvent
 from sro.domain.observation.gesture import GestureBatch
 from sro.domain.shared.errors import DomainError
@@ -99,6 +99,19 @@ class Ingested:
     screening, in which case no object was written and no row was made."""
 
     already_had_it: bool = False
+    snapshots_ignored: int = 0
+    """Accessibility-tree snapshots admitted, stored, and read by nothing.
+
+    There is nowhere in the schema to put one, and `correlate`'s docstring says
+    why the count exists anyway: silently dropping them is not the same as
+    never having received them. On the response for the same reason the
+    rejections are -- a browser shipping snapshots nothing reads should be able
+    to see that from the answer, not from a mining run three weeks later. The
+    rig returns it in the same 202 body (`new_agent_arch/src/rig/api.py:534`).
+
+    0 on a batch we already had: nothing re-read it, and no column records what
+    the first pass ignored.
+    """
 
 
 class IngestObservation:
@@ -250,7 +263,7 @@ class IngestObservation:
             # way, and do not let the wire's copy become the argument for
             # deleting this one.
             wire, unreadable = _as_wire_batch(batch, redacted)
-            gestures, _calls, _marks, snapshots = correlate(wire, ctx.tenant_id.value)
+            gestures, orphans, marks, snapshots = correlate(wire, ctx.tenant_id.value)
             await uow.gestures.add_batch(
                 GestureBatch(
                     batch_id=batch.id.value,
@@ -275,6 +288,36 @@ class IngestObservation:
             )
             if gestures:
                 await uow.gestures.add_gestures(tuple(gestures))
+            # A call or a page event no gesture in THIS batch claimed. In the
+            # same block for the same reason the gestures are: an orphan
+            # written outside the batch claim is a row nothing can retry.
+            #
+            # The whole point is the batch boundary. The extension uploads on
+            # a timer, so a click at the end of batch N routinely has its XHR
+            # arrive in batch N+1, and `correlate` -- which only ever sees one
+            # batch -- cannot own it. Dropped here, that call is gone for good
+            # and the gesture reads as a click that asked the server nothing.
+            # Kept, it is a row a later pass can join on. The rig stores both
+            # (`new_agent_arch/src/rig/api.py:118-136`); this discarded both as
+            # `_calls` and `_marks` until now, which made cross-batch
+            # correlation dead on this side and alive on that one.
+            for orphan in orphans:
+                await uow.gestures.add_orphan_request(
+                    ctx.tenant_id,
+                    batch_id=batch.id.value,
+                    request_id=orphan.request_id,
+                    payload=asdict(orphan),
+                )
+            for mark in marks:
+                await uow.gestures.add_orphan_page(
+                    ctx.tenant_id,
+                    batch_id=batch.id.value,
+                    # The column is a string and the domain keeps epoch
+                    # seconds, so it is spelled here the way the rig spells it
+                    # and the way the contract test writes it: ISO, UTC.
+                    at=datetime.fromtimestamp(mark.at, UTC).isoformat(),
+                    payload=asdict(mark),
+                )
             device.uploaded(now)
             await uow.devices.save(device)
             await uow.commit()
@@ -284,6 +327,7 @@ class IngestObservation:
             accepted=batch.event_count,
             rejected=batch.rejected,
             stored_at=batch.uri,
+            snapshots_ignored=snapshots,
         )
 
 

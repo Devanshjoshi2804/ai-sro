@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import cast
 
 import pytest
 
@@ -19,7 +20,13 @@ from sro.domain.recording.sensitivity import REDACTED
 from sro.domain.shared.errors import Conflict
 from sro.domain.shared.identifiers import BatchId, DeviceId, PrincipalId, TenantId
 from tests import factories as f
-from tests.unit.fakes import FakeBlobStore, FakeClock, FakeIdFactory, FakeUnitOfWork
+from tests.unit.fakes import (
+    FakeBlobStore,
+    FakeClock,
+    FakeGestureRepository,
+    FakeIdFactory,
+    FakeUnitOfWork,
+)
 
 ACME = RequestContext(tenant_id=TenantId("acme"), principal_id=f.OPERATOR)
 OTHER = RequestContext(tenant_id=TenantId("acme"), principal_id=PrincipalId("priya"))
@@ -48,6 +55,14 @@ GESTURE: dict[str, object] = {
         "target": {"tag": "button", "cssPath": "div > button"},
     },
 }
+
+
+def _evidence(uow: FakeUnitOfWork) -> FakeGestureRepository:
+    """`FakeUnitOfWork.gestures` is annotated as the port, and the port is
+    write-only for batches and orphans -- so reading what ingest actually
+    stored needs the concrete fake. One cast here rather than one per
+    assertion."""
+    return cast(FakeGestureRepository, uow.gestures)
 
 
 async def _switch_observation_on(uow: FakeUnitOfWork, ctx: RequestContext) -> None:
@@ -392,7 +407,7 @@ async def test_the_batch_the_miner_reads_counts_the_gestures_and_not_the_events(
     # is what this test is named for, and asserting only the store leaves the
     # number free to be `admission.accepted_count` -- the other table's count,
     # which would say a batch of pictures was a batch of work.
-    assert next(iter(uow.gestures.batches.values())).accepted == 1
+    assert next(iter(_evidence(uow).batches.values())).accepted == 1
 
 
 async def test_the_gesture_stored_says_which_field_the_blob_store_lost() -> None:
@@ -497,6 +512,79 @@ async def test_an_event_nothing_could_read_is_counted_as_a_loss_and_not_a_silenc
     )
 
     assert ingested.accepted == 1, "admitted, stored, and paid for"
-    batch = next(iter(uow.gestures.batches.values()))
+    batch = next(iter(_evidence(uow).batches.values()))
     assert batch.accepted == 0, "nothing read it"
     assert batch.rejected == 1, "and the batch does not pretend it never arrived"
+
+
+async def test_a_call_that_lands_in_the_next_batch_is_kept_and_not_dropped() -> None:
+    """Cross-batch correlation, which was dead on this side and alive in the rig.
+
+    The extension uploads on a timer, so a click at the end of one batch
+    routinely has its XHR arrive in the next. `correlate` sees one batch, so it
+    hands that call back as an orphan -- and ingest discarded it as `_calls`,
+    which made it a call the operator's browser made and this store has no
+    record of. `add_orphan_request` and `add_orphan_page` existed on the port,
+    the adapter, the fake and two test suites with no production caller
+    anywhere in `src/`: the same no-caller defect `add_gestures` had.
+    """
+    uow, blobs = FakeUnitOfWork(), FakeBlobStore()
+    ctx = RequestContext(tenant_id=f.TENANT, principal_id=f.OPERATOR)
+    await _switch_observation_on(uow, ctx)
+    device_id = await _register(uow, ctx)
+
+    await _ingest(uow, blobs, device_id, ctx=ctx, batch_id="bat_one", events=[GESTURE])
+    await _ingest(
+        uow,
+        blobs,
+        device_id,
+        ctx=ctx,
+        batch_id="bat_two",
+        events=[
+            {
+                "kind": "request",
+                "tab_id": 1,
+                "request": {
+                    "request_id": "req_0",
+                    "method": "POST",
+                    "started_at": "2026-03-01T09:00:35+00:00",
+                    "url": "https://wms.acme.com/api/orders",
+                    "status": 200,
+                },
+            },
+            {
+                "kind": "page",
+                "tab_id": 1,
+                "at": "2026-03-01T09:00:36+00:00",
+                "page_kind": "navigated",
+                "url": "https://wms.acme.com/orders/new",
+            },
+        ],
+    )
+
+    assert _evidence(uow).orphan_requests[("bat_two", "req_0")]["url"] == (
+        "https://wms.acme.com/api/orders"
+    )
+    tenant, batch_id, at, payload = _evidence(uow).orphan_pages[0]
+    assert (tenant, batch_id) == (f.TENANT.value, "bat_two")
+    assert at == "2026-03-01T09:00:36+00:00", "epoch seconds in, ISO out, as the column wants"
+    assert payload["url"] == "https://wms.acme.com/orders/new"
+
+
+async def test_a_batch_of_pictures_says_so_on_the_way_out() -> None:
+    """`snapshots_ignored`, which `correlate` counts and nothing carried.
+
+    A snapshot is admitted, stored, billed and read by nothing -- there is
+    nowhere in the schema to put one. `correlate`'s docstring says the count
+    exists because silently dropping them is not the same as never having
+    received them, and until this it was bound to a local and dropped one line
+    later. The rig returns it in the same 202 body.
+    """
+    uow, blobs = FakeUnitOfWork(), FakeBlobStore()
+    ctx = RequestContext(tenant_id=f.TENANT, principal_id=f.OPERATOR)
+    await _switch_observation_on(uow, ctx)
+    device_id = await _register(uow, ctx)
+
+    ingested = await _ingest(uow, blobs, device_id, ctx=ctx, events=[GESTURE, SNAPSHOT, SNAPSHOT])
+
+    assert ingested.snapshots_ignored == 2

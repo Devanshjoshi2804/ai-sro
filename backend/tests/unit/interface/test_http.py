@@ -13,6 +13,7 @@ import pytest
 from httpx import ASGITransport
 
 from sro.application.context import RequestContext
+from sro.application.execution.approvals import Approvals
 from sro.application.execution.pursuits import Pursuits
 from sro.application.execution.stops import Stops
 from sro.application.ports.auth import Caller
@@ -108,6 +109,10 @@ class _FakeContainer(Container):
         # Hand-set beside the pursuits: this container writes its own
         # `__init__`, so the dataclass defaults never run for it.
         self.stops = Stops()
+        # Beside the stops, and for the same reason: a run parked on a person
+        # waits on an event in this process, so a container with a register of
+        # its own is a tap nothing is waiting on.
+        self.approvals = Approvals()
         self.agent_sockets = DeviceSockets()
         self.scheduler = FakeScheduler()
         self.dispatcher = FakeRunDispatcher()

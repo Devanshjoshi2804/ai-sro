@@ -36,6 +36,7 @@ from sro.application.connection.session_life import SessionLife
 from sro.application.connection.sign_in import EnsureSignedIn, SignIn, StoreCredentials
 from sro.application.connection.watch_browser import WatchBrowsers
 from sro.application.context import RequestContext
+from sro.application.execution.approvals import Approvals
 from sro.application.execution.batch import RunBatch
 from sro.application.execution.call_run_wrong import CallRunWrong
 from sro.application.execution.choices import ListChoices
@@ -54,6 +55,7 @@ from sro.application.execution.run_from_preview import RunFromPreview
 from sro.application.execution.self_heal import SelfHeal
 from sro.application.execution.stops import Stops
 from sro.application.execution.vision_step import PerformWithVision
+from sro.application.execution.workflow_runs import StartWorkflowRun
 from sro.application.induction.induce_skill import InduceSkill
 from sro.application.induction.seed_from_flow import SeedSkillFromFlow
 from sro.application.induction.understand import UnderstandRecording
@@ -143,6 +145,7 @@ from sro.application.trigger.read_triggers import DeleteTrigger, ReadTriggers, S
 from sro.application.trigger.receive_inbound import ReceiveInbound
 from sro.config import Settings, get_settings
 from sro.domain.shared.prices import DaySpend
+from sro.infrastructure.agent.channel import SocketChannel
 from sro.infrastructure.agent.drivers import RemoteAgents
 from sro.infrastructure.agent.sockets import DeviceSockets
 from sro.infrastructure.auth.keycloak import KeycloakTokens
@@ -245,6 +248,15 @@ class Container:
     sockets, and for the same reason: the task that would honour it is in this
     process, so an intention that outlived the process would outlive the only
     thing able to act on it."""
+
+    approvals: Approvals = field(default_factory=Approvals)
+
+    """Runs parked in front of a person, and the event each one waits on. In
+    memory for `Stops`' reason and one more of its own: the wait is an
+    `asyncio.Event` in the task driving the run, so a tap that landed in another
+    process would set an event nothing is waiting on. That is the same
+    one-worker assumption the sockets above already make, and
+    `application/execution/approvals.py` is where its end is written down."""
 
     pursuits: Pursuits = field(default_factory=Pursuits)
 
@@ -839,6 +851,34 @@ class Container:
 
     def stop_run(self) -> StopRun:
         return StopRun(self.unit_of_work(), self.stops)
+
+    def start_workflow_run(self) -> StartWorkflowRun:
+        """The press on a mined job. Not `start_run` above, which mints the row
+        for a skill run keyed on a `RunId`.
+
+        `SocketChannel` over the sockets this worker already holds, rather than
+        a second channel: `DeviceSockets` mints the command ids and correlates
+        the answers, and a run that opened its own would be talking to a
+        browser nobody else could hear. The stop register and the approval
+        register are the process-wide ones for the same reason -- the tap and
+        the stop button arrive on routes in this process, and a second register
+        is a tap nothing is waiting on.
+
+        `gemini_plan_model` plans and `gemini_rescue_model` rescues: a clean
+        step never touches the expensive one, and the wiring is the rig's own
+        (`api.py:1140`).
+        """
+        return StartWorkflowRun(
+            self.unit_of_work(),
+            channel=SocketChannel(self.agent_sockets),
+            asker=self.asker,
+            plan_model=self.settings.gemini_plan_model,
+            rescue_model=self.settings.gemini_rescue_model,
+            clock=self.clock,
+            cap_usd=self.settings.daily_usd_cap,
+            stops=self.stops,
+            approvals=self.approvals,
+        )
 
     def call_run_wrong(self) -> CallRunWrong:
         return CallRunWrong(self.unit_of_work(), self.clock)

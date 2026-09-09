@@ -28,12 +28,28 @@ from sro.domain.recording.state import PageEvent
 
 FIXTURES = Path(__file__).resolve().parents[3] / "new-chrome-extension" / "fixtures"
 
+# Files that live in the fixtures directory but are not extension output, so
+# neither this suite nor the drift test in `tests/browser` may treat them as
+# golden payloads.
+#
+#   shape-identity.json -- a JSON *array* of control-identity cases, not a
+#   protocol event. It is the shared golden fixture for `target_identity`,
+#   read by `tests/unit/domain/rig/test_shape.py` on the Python side and by
+#   the generated twin `new-chrome-extension/src/background/shape.generated.js`
+#   on the browser side. Those tests cover it; do not re-assert it here.
+#
+# `test_the_named_exclusions_still_exist` below stops this set outliving the
+# files it names.
+NOT_EXTENSION_OUTPUT = frozenset({"shape-identity.json"})
+
 _REQUEST = TypeAdapter(CapturedRequest)
 _PAGE_EVENT = TypeAdapter(PageEvent)
 
 
 def _fixtures() -> list[Path]:
-    return sorted(FIXTURES.glob("*.json")) if FIXTURES.is_dir() else []
+    if not FIXTURES.is_dir():
+        return []
+    return sorted(p for p in FIXTURES.glob("*.json") if p.name not in NOT_EXTENSION_OUTPUT)
 
 
 def _parse_event(event: dict[str, Any]) -> InputAction | CapturedRequest | AxGraph | PageEvent:
@@ -90,6 +106,22 @@ def test_every_captured_payload_parses_into_the_domain(path: Path) -> None:
         return
 
     _parse_event(payload)
+
+
+@pytest.mark.skipif(not FIXTURES.is_dir(), reason="the extension has captured no fixtures yet")
+def test_the_named_exclusions_still_exist() -> None:
+    """An exclusion that outlives its file protects nothing and hides the next one.
+
+    Without this, `NOT_EXTENSION_OUTPUT` goes on naming a deleted file forever,
+    and whoever adds the next non-event fixture gets no signal that the set is
+    where it belongs.
+    """
+    missing = sorted(name for name in NOT_EXTENSION_OUTPUT if not (FIXTURES / name).is_file())
+
+    assert not missing, (
+        f"NOT_EXTENSION_OUTPUT names {missing}, which the fixtures directory no longer holds. "
+        "Drop the name from the set rather than leaving it to shadow a future fixture."
+    )
 
 
 @pytest.mark.skipif(

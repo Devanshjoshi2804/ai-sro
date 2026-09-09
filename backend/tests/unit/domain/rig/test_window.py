@@ -20,6 +20,7 @@ from sro.domain.observation.window import (
     K_MAX_ITEMS,
     K_MAX_TEXT_CHARS,
     K_MIN_GESTURES,
+    K_WINDOW_TOKENS,
     Packed,
     Window,
     arrange,
@@ -46,6 +47,40 @@ def _seq(value: object) -> list[object]:
 def test_tokens_is_a_length_not_a_guess() -> None:
     assert tokens("") == 0
     assert tokens("a" * 400) == 100
+
+
+MEASURED_RATIO = 1.697
+"""What `tokens()` under-counts real tokens by, on real evidence.
+
+507 gestures of Blue Yonder capture, 481,566 characters: `tokens()` returned
+120,438 and Gemini counted 204,333. 2.36 characters to the token, not 4.
+"""
+
+PRICE_BOUNDARY = 200_000
+"""Where Gemini 3.1 Pro's input price doubles. An external fact about a
+supplier, which is what makes it worth an assertion: every other number in
+`window.py` is a bound on another number in `window.py`."""
+
+
+def test_the_budget_stays_under_the_price_boundary_in_real_tokens() -> None:
+    """The only assertion `K_WINDOW_TOKENS` has that is not derived from it.
+
+    `NEARLY_FULL_KB` (test_mine.py:162) is computed FROM it, and
+    `test_a_window_packed_to_the_budget_still_fits_the_budget` asserts
+    `shipped <= K_WINDOW_TOKENS` -- both self-referential, and both counted
+    with the same under-reading `tokens()`. So the 200,000 boundary appeared in
+    no assertion anywhere, and setting the budget back to 150,000 -- the exact
+    value that shipped 204,747 real tokens and cost $2.00 -- passed every gate
+    in this repository.
+
+    This is the boundary, not the constant. Raising the budget is allowed; a
+    budget whose REAL token count crosses the price line is not, and the ratio
+    is the only thing standing between the two.
+    """
+    assert K_WINDOW_TOKENS * MEASURED_RATIO < PRICE_BOUNDARY, (
+        f"{K_WINDOW_TOKENS} estimated is ~{int(K_WINDOW_TOKENS * MEASURED_RATIO)} real tokens, "
+        f"over the {PRICE_BOUNDARY} boundary where the price doubles"
+    )
 
 
 def test_evidence_is_measured_the_way_the_prompt_ships_it() -> None:

@@ -37,12 +37,23 @@ boundary: 100,000 estimated is about 170,000 real at the measured ratio, leaving
 room for the instructions, the schema, the crossings and the known-workflow
 summary that ride on top of the evidence.
 
-Corrected here rather than in `tokens()` deliberately. Every other cap in this
-module -- `K_MAX_GESTURE_TOKENS`, `K_MAX_CROSSING_TOKENS`, the `kb` subtraction
--- was tuned against that same estimator, so changing the divisor silently
-re-tunes all of them; four cap tests failed on exactly that when it was tried.
-This constant is the only one whose job is a price boundary, and it is the only
-one that was wrong about it.
+Corrected here rather than in `tokens()` because this is the only cap that can
+be corrected on the evidence there is -- not because the estimator is sound.
+The estimator is wrong, `tokens()` now says so, and every other cap in this
+module inherits the error. They get away with it: `K_MAX_GESTURE_TOKENS`,
+`K_MAX_CROSSING_TOKENS` and the `kb` subtraction are bounds on each other,
+expressed in the estimator's own units and internally consistent as such, and
+`K_MAX_GESTURE_TOKENS` has no docstring to re-tune against anyway. Changing the
+divisor would silently re-tune all of them; four cap tests failed on exactly
+that when it was tried. This constant is the only one holding an EXTERNAL
+referent -- a real-token price boundary -- which is the only reason its error
+was ever visible.
+
+Pinned against that boundary rather than against itself by
+`test_the_budget_stays_under_the_price_boundary_in_real_tokens`. Every other
+assertion this constant has is derived from it and measured with the same
+under-counting `tokens()`, so 150,000 -- the value that shipped 204,747 tokens
+and cost $2.00 -- passed all of them.
 """
 K_MIN_GESTURES = 25
 K_MAX_GESTURE_TOKENS = 2_000
@@ -113,9 +124,30 @@ ladder already covers the case those numbers would be guarding against.
 
 
 def tokens(text: str) -> int:
-    """Four characters to a token. Close enough to budget with, and it never
-    lies in the expensive direction the way a model-specific tokeniser would
-    when the model changes."""
+    """Four characters to a token, and it UNDER-counts what this module ships.
+
+    It used to say it "never lies in the expensive direction the way a
+    model-specific tokeniser would". Measured on the first real pass over a
+    real store -- 507 gestures of Blue Yonder capture, 481,566 characters --
+    this returned 120,438 and Gemini counted 204,333. That is 2.36 characters
+    to the token, a 1.697x under-count, and it lies in exactly the expensive
+    direction: it crossed the 200,000 boundary where the input price doubles
+    and spent $2.00 doing it. The estimate is fine to BUDGET with, because it
+    is monotonic in length and stable across models; it is not fine to trust
+    about a real-token threshold.
+
+    The divisor stays 4 anyway, and `K_WINDOW_TOKENS` carries the correction
+    instead. Changing it here would silently re-tune every other cap in this
+    module, all of which were measured against this estimator and are
+    internally consistent in its units.
+
+    # ponytail: every other cap in this module -- K_MAX_GESTURE_TOKENS,
+    # K_MAX_CROSSING_TOKENS, the kb subtraction -- is denominated in a unit
+    # measured wrong by 1.697x. That costs nothing while they are only bounds
+    # on each other. Re-tune them, or fix the divisor and re-tune them all at
+    # once, the day a SECOND cap acquires an external referent the way
+    # K_WINDOW_TOKENS has.
+    """
     return len(text) // 4
 
 

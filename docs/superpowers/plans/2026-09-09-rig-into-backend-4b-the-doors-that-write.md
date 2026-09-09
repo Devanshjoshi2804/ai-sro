@@ -88,13 +88,79 @@ next person to re-tune one silently re-tunes the other.
 1. **Guard the caller, not only the rule.** Mutate each argument at each call
    site and report every one. Twenty-nine findings across phase 4a's eight tasks
    came from this.
-2. **Any mutation touching set or dict ordering is re-run under several
-   `PYTHONHASHSEED` values.** This project has been bitten by a test that
-   sorted two rows by a `FakeClock` that returns the same instant every call, so
-   the tie broke on an unplanted id.
+
+   **Restated, because it has now caught something in every single task of this
+   plan and nothing else has.** Tasks 1, 2 and 3 each shipped tests that proved
+   the rule and left the *traffic* unpinned:
+
+   | Task | What survived | Why the suite could not see it |
+   |---|---|---|
+   | 1 | `_SLUGS[429]` deleted; the refusal sentence replaced with `"nope"` | the 503 test built its own exception instead of calling the guard |
+   | 2 | `error`, `left_out`, `lost_pool`, `unpriced` each replaced with a literal | every assertion used the field's own **default** value |
+   | 3 | the route passing `utterance=""` instead of `body.utterance` | 45 tests asserted the answer's shape, or that the sentence was *absent*; none that it was the one typed |
+
+   So the rule as a **checklist you must be able to answer for every route**:
+   - **Every value the caller supplies** — each request-body field, each path and
+     query parameter — has a test that fails when the route passes a constant
+     instead. Not "a test that sends it": a test that *dies* when it is ignored.
+   - **Every value the caller receives** — each response-model field — has a test
+     that gives it a **non-default** value. A field asserted only at its own
+     default is indistinguishable from a constant, and that is not a hypothetical:
+     `mining_passes` holds a real row whose `error` says *"truncated: the answer
+     hit the 65536 output-token ceiling after 2610 tokens"*, a $2.00 call that
+     returned nothing, which the route answered `200` with `error: null`.
+   - **Write these red first.** Apply the constant, watch the test fail, revert,
+     watch it pass. Task 2 wrote code before tests and this is precisely the gap
+     that produced; Task 3 did the same and M13 survived 45 tests.
+
+2. **Any test whose result depends on set or dict ordering must hold under
+   several `PYTHONHASHSEED` values — and the only way to vary it is a fresh
+   interpreter.** `PYTHONHASHSEED` is read **once at interpreter start**, so
+   `monkeypatch.setenv("PYTHONHASHSEED", ...)` changes nothing: a parameterised
+   test that only sets it asserts the same arrangement four times and proves
+   nothing. Use `subprocess.run([sys.executable, ...], env={**os.environ,
+   "PYTHONHASHSEED": seed})` — see `tests/unit/application/rig/test_read_chat.py:396`
+   for the shape.
+
+   **And there is no random-ordering pytest plugin in this repo.** `-p randomly`
+   and `-p no:randomly` both do nothing here; neither proves nor disproves
+   anything about ordering.
+
+   This project has been bitten by a test that sorted two rows by a `FakeClock`
+   returning the same instant every call, so the tie broke on an unplanted id —
+   and twice more by *instruments that measured nothing*: `-p no:randomly`
+   disabling a plugin that was never installed, and a `grep` for stale
+   `type: ignore` comments that missed all eight because mypy capitalises
+   "Unused". **Prove your instrument fires before you trust a zero from it.**
 3. **Never date a fixture "today."**
 4. **Where a comment records a measurement or a decision that cost something, a
    test must fail when that thing changes.**
+
+### The mypy gate does not read the tests, and eight stale suppressions prove it
+
+`make lint-backend` runs `uv run mypy src tests/unit/fakes.py`. **The rest of
+`tests/` is unchecked.** Measured 2026-09-09:
+
+```
+uv run mypy src tests/unit/fakes.py   →  clean, 359 files      (the gate)
+uv run mypy src tests                 →  325 errors in 71 files
+uv run mypy --warn-unused-ignores src tests | grep '\[unused-ignore\]'  →  8
+```
+
+Widening the gate means fixing 325 errors and is not this plan's job. **The eight
+are.** They are stale `# type: ignore` comments that suppress nothing, in
+`test_vision_step.py`, `test_the_backend_stores_what_the_browser_sent.py` (three),
+`test_running_what_the_operator_previewed.py`, `test_teaching_what_was_watched.py`
+(two) and `test_teaching_two_candidates_as_one.py` — all pre-existing, none from
+this phase.
+
+**Why it is worth eight lines:** Task 1 put `# type: ignore[attr-defined]` on
+`container.mine_pass()` and `container.read_chat()` because neither existed yet.
+Tasks 2 and 3 added them, the suppressions went stale, and **nothing could see
+it** — Task 3 found them by reading. A suppression that outlives its reason is a
+silenced future error, and this is the file where the next one will be silenced.
+
+Carried as an item for whoever has a free tree, not a task requirement.
 
 ### A fake more permissive than the thing it doubles manufactures confidence
 

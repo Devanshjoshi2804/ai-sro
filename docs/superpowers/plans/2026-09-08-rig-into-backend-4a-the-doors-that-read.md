@@ -1196,49 +1196,262 @@ unchanged — read the rig's script for the shape before writing.
 
 ## Task 10: The count, and what is left
 
-**Files:** Modify: this plan file.
+**Files:** Modify: this plan file. **Status: done at `63dc580`.** No code
+changed in this task; everything below is the accounting, and every line
+number was read off the file rather than copied from a brief.
 
-Every route in `new_agent_arch/src/rig/api.py` accounted for as ported in this
-plan, left to phase 4b by name, or dropped with a reason. **Count the rig's
-routes yourself** — do not trust this plan's arithmetic; two counts in this
-project were already wrong in ways only a real comparison caught.
+### The count, made by hand
 
-| Rig route | Here / 4b / dropped |
-|---|---|
-| `GET /v1/health` | |
-| `WS /v1/agents/{id}/commands` | |
-| `POST /v1/observations` | |
-| `POST /v1/observations/artifacts` | |
-| `GET /v1/streams` | |
-| `GET /v1/gestures` | |
-| `GET /v1/spend` | |
-| `POST /v1/mine` | |
-| `GET /v1/pool` | |
-| `GET /v1/workflows` | |
-| `GET /v1/workflows/{id}/evidence` | |
-| `POST /v1/devices/register` | |
-| `POST /v1/devices/{id}/revoke` | |
-| `GET /v1/devices` | |
-| `POST /v1/runs` | |
-| `GET /v1/runs` | |
-| `GET /v1/runs/{id}` | |
-| `POST /v1/runs/{id}/abort` | |
-| `POST /v1/runs/{id}/approve` | |
-| `GET /v1/bakeoff`, `/v1/bakeoff/readings` | |
-| `GET /v1/audit` | |
-| `POST /v1/chat` | |
-| `GET /v1/shapes` | |
-| `POST /v1/offers` | |
-| `GET /` (the served page) | |
+**26 routes**, all of them in `new_agent_arch/src/rig/api.py`, all registered
+by an `@app.get` / `@app.post` / `@app.websocket` decorator inside
+`create_app`. Checked for registration anywhere else and found none: no
+`APIRouter`, no `include_router`, no `add_api_route`, no `.mount()` — in
+`api.py` or anywhere else under `new_agent_arch/src/`. The rig has no static
+mount either; its one page is a route (`api.py:1575`) that reads
+`web/index.html` off disk.
 
-**Write the carried items into this file**, not only into a ledger —
-`.superpowers/` is gitignored and does not travel. At minimum, phase 4b
-inherits: no route reaches a parked workflow run to stop it; `run_workflow` has
-no production caller; `from_step` is on no persisted field of `WorkflowRun`; the
-`/rig` served page (spec Open item); and whatever Task 9's replay number turns
-out to be.
+**The table above listed 25 rows for those 26 routes**, because `/v1/bakeoff`
+and `/v1/bakeoff/readings` shared a row. So its arithmetic was right. Its
+**paths were not** — six rows name a `{id}` segment the rig does not use, and
+one route this plan shipped is missing from it entirely:
 
-**Gates at head:** fill in all seven.
+| The table said | The rig actually spells it | At |
+|---|---|---|
+| `WS /v1/agents/{id}/commands` | `{device_id}` | `api.py:440` |
+| `GET /v1/workflows/{id}/evidence` | `{workflow_id}` | `api.py:904` |
+| `POST /v1/devices/{id}/revoke` | `{device_id}` | `api.py:988` |
+| `GET /v1/runs/{id}` | `{run_id}` | `api.py:1217` |
+| `POST /v1/runs/{id}/abort` | `{run_id}` | `api.py:1237` |
+| `POST /v1/runs/{id}/approve` | `{run_id}` | `api.py:1270` |
+| *(no row)* | `POST /v1/devices/{device}/restore` — **4a shipped it; the rig has no such route** | `devices.py:71` |
+
+Also worth stating because the table's shape hides it: **most of the rig's
+surface was already on the backend before this plan started.** Nine of the 26
+were ported in earlier phases, eight are ported here, seven are 4b's, and two
+are dropped.
+
+### Every rig route, accounted for
+
+| # | Rig route (`api.py`) | Verdict | Where it is now |
+|---|---|---|---|
+| 1 | `GET /v1/health` :436 | **Ported before 4a**, path changed | `routers/health.py:25` as **`GET /health`** — `health.router` is the one router `app.py:89` includes *without* the `/v1` prefix. 4a added `GET /ready` beside it (`health.py:33`, commit `a3ac456`); the rig has no counterpart. |
+| 2 | `WS /v1/agents/{device_id}/commands` :440 | **Ported before 4a**, byte-identical | `routers/agent_channel.py:36` |
+| 3 | `POST /v1/observations` :478 | **Ported before 4a**; the spec's *observations extension* is **4b** | `routers/observations.py:24`. Diverges in the 202 body — see `snapshots_ignored` below. |
+| 4 | `POST /v1/observations/artifacts` :537 | **Ported before 4a** | `routers/observations.py:59` |
+| 5 | `GET /v1/streams` :587 | **Not ported. Later phase.** | Nothing reads the per-stream gesture roll-up. Tenant-only and read-only, so it would have fitted 4a; it was never in this plan's scope and the plan never claimed it. |
+| 6 | `GET /v1/gestures` :596 | **Not ported. Later phase.** | Nearest is 4a's `GET /v1/workflows/{id}/evidence`, which reaches gestures only through one workflow's citations — not the raw stream a debugging page reads. |
+| 7 | `GET /v1/spend` :663 | **Ported in 4a** | `routers/spend.py:44`, tenant-only. **Narrowed on purpose**: the rig answered twenty-two fields, this answers three (day's dollars, day's unpriced calls, cap). Reason written into the module docstring. |
+| 8 | `POST /v1/mine` :739 | **4b** | `application/observation/mining_pass.py:164` is the ported pass and **has no caller**. **`POST /v1/candidates/mine` (`routers/candidates.py:51`) is NOT this route** — it is the heuristic candidate miner and makes no model call. Do not mistake one for the other in 4b. |
+| 9 | `GET /v1/pool` :794 | **Not ported. Cheap for 4b.** | Everything behind it exists: `domain/observation/pool.py`, and `PoolRepository.retired` at `application/ports/repositories.py:623`. Nothing over the wire can read `retired`, which is the exact blindness the rig's docstring says the route exists to remove. |
+| 10 | `GET /v1/workflows` :812 | **Ported in 4a** | `routers/workflows.py:51`, `authorised` — matching the rig. |
+| 11 | `GET /v1/workflows/{workflow_id}/evidence` :904 | **Ported in 4a** | `routers/workflows.py:66`, `TenantOnly` — matching the rig. |
+| 12 | `POST /v1/devices/register` :976 | **Ported before 4a**, path and shape changed | `routers/agents.py:35` as **`POST /v1/agents/register`**. The rig minted a fresh token each call and un-revoked as a side effect; backend registration is **idempotent and hands back the same secret**, which is precisely why `restore` had to exist (see `RestoreDevice`, `application/capture/devices.py:67-96`). |
+| 13 | `POST /v1/devices/{device_id}/revoke` :988 | **Ported in 4a**, segment renamed | `routers/devices.py:59` as `/v1/devices/{device}/revoke`. URL byte-identical; see carried item 8 for why the segment differs. |
+| 14 | `GET /v1/devices` :997 | **Ported in 4a**, two declared divergences | `routers/devices.py:52`. A device token gets a **403** here where the rig gave it a reduced answer; the body is `{"devices": [rows carrying online]}` where the rig's `devices` key meant the online-id subset. Both reasons are in the module docstring. |
+| 15 | `POST /v1/runs` :1021 | **4b** | Nothing starts a workflow run. `application/execution/run_workflow.py:267` has no production caller — grep finds only `tests/unit/application/rig/test_runner.py`. `POST /v1/skills/{skill_id}/runs` (`routers/runs.py:48`) and `POST /v1/threads/{id}/runs` (`routers/threads.py:65`) start **skill** runs, a different resource. |
+| 16 | `GET /v1/runs` :1152 | **4b — and the path is already occupied** | `routers/runs.py:217` answers a *different resource*: skill runs, filtered by `skill_id`, with no `awaiting`. The rig's lists **workflow** runs by `workflow_id` and can narrow to the parked ones. 4b must decide between extending that route and giving workflow runs their own path; it cannot simply "port" this one. |
+| 17 | `GET /v1/runs/{run_id}` :1217 | **4b**, same collision | `routers/runs.py:234` resolves a skill run. |
+| 18 | `POST /v1/runs/{run_id}/abort` :1237 | **4b** | `POST /v1/runs/{run_id}/stop` (`routers/runs.py:130`) is the skill-run half only — see carried item 1. |
+| 19 | `POST /v1/runs/{run_id}/approve` :1270 | **4b** | `POST /v1/confirmations/{id}/approve` (`routers/confirmations.py:38`) approves a *confirmation*, keyed on the confirmation and not the run. Not the same door. |
+| 20 | `GET /v1/bakeoff` :1313 | **Dropped** | The word `bakeoff` appears **nowhere** under `backend/`. The sweep it reads is started from a terminal (`make bakeoff`, in `new_agent_arch`) and writes a rig-private table; a read route over a table nothing on this side writes is a 404 with extra steps. If model comparison is ever wanted here it is a plan of its own, starting with the writer. |
+| 21 | `GET /v1/bakeoff/readings` :1340 | **Dropped**, same reason | — |
+| 22 | `GET /v1/audit` :1366 | **Ported in 4a** | `routers/audit.py:40`, tenant-only. |
+| 23 | `POST /v1/chat` :1495 | **4b** | `application/chat/understand.py:114` is ported and **has no caller** — it takes an `Asker` nothing supplies. `POST /v1/intent/resolve` (`routers/intent.py:13`) is a different resolver over skills, not the rig's workflow chat. |
+| 24 | `GET /v1/shapes` :1533 | **Ported in 4a** | `routers/shapes.py:30` |
+| 25 | `POST /v1/offers` :1548 | **Ported in 4a** | `routers/offers.py:46`. Keeps the rig's four validations in the rig's order with the rig's 400s. Body drops the rig's `device_id` — the browser proves itself with `X-Device-Secret` instead, so no body can spend another browser's rest. |
+| 26 | `GET /` (the served page) :1575 | **Not ported. Spec Open item, still open.** | The spec (`…-design.md:288-294`) recommends serving `index.html` at **`/rig`** during phase 4 so nothing is lost while console pages are built in phase 6. 4a did not do it. Still a decision, not a bug. |
+
+**Totals:** ported before 4a **9** · ported in 4a **8** (7 rig routes + `restore`,
+which has no rig ancestor) · 4b **7** · not ported, later phase **3** ·
+dropped **2**. 9 + 7 + 7 + 3 = 26.
+
+### What 4a added, in one place
+
+Six new routers (`app.py:94-112`), eight routes:
+`GET /v1/audit` · `GET /v1/devices` · `POST /v1/devices/{device}/revoke` ·
+`POST /v1/devices/{device}/restore` · `POST /v1/offers` · `GET /v1/shapes` ·
+`GET /v1/spend` · `GET /v1/workflows` · `GET /v1/workflows/{id}/evidence`
+— plus `GET /ready` on the pre-existing health router.
+
+### Gates at head
+
+**Not filled in, deliberately, and this is the honest note rather than a
+number.** This task changed no code, so no gate could move on it; and at the
+time it was written a reviewer was mutating `backend/src` and `backend/tests`
+in a separate worktree, so any figure taken here would have measured that
+worktree and not this branch. The gate numbers for this branch belong to the
+whole-branch review of `63dc580`, whose verdict is **NEEDS FIXES** — see
+*Open against this branch* below.
+
+---
+
+## What phase 4b inherits
+
+`.superpowers/` is gitignored and does not travel. This section is the record.
+
+### Phase 4b's scope has shrunk, and this is the important part
+
+4b was scoped as *"wire the Asker, give the miner and the runner a caller,
+then the doors that write."* **The wiring is done, on this branch.** What is
+left is a caller for `run_workflow`, the write doors, and the items below.
+
+Four things were established by running the thing against a real store rather
+than by reading it, and they change what 4b is:
+
+- **The rig's model-driven half could not be constructed at all.**
+  `container.asker` did not exist, and `mining_pass.mine` and `run_workflow`
+  both take an `Asker` — neither could be built. Fixed here (`e32e478`;
+  `container.py:197`, `:832`, `:919`). **Nothing under `src/` reads
+  `container.asker` yet** — its docstring says "its caller checks and refuses"
+  and there is no caller. **Phase 4b owns that**, and it is now the whole of
+  what "wire the Asker" means.
+- **Ingest never reached the evidence plane.** `correlate` and `add_gestures`
+  had no caller anywhere; an upload stopped at `observation_batches`. Fixed
+  (`f8b218f`; `application/observation/ingest.py:241-257`). A backfill then
+  replayed **266 real batches into 507 gestures, 0 failures**.
+- **The miner works on real evidence.** A real pass over those 507 gestures
+  mined **2 workflows**, and the offer replay named **2 of 2 as themselves**.
+  The chain runs end to end for the first time.
+- **Task 9's "0 of 0" is superseded.** The replay reported nothing because the
+  store was empty, and its conclusion — that *no phase moves the corpus into
+  Postgres* — was a misreading: nothing could mine a corpus, because ingest
+  never reached the gesture tables. **There is no import task for 4b to
+  find.** The original reading would have sent it hunting one.
+
+### Two money findings, both measured, both with a latent sibling
+
+- **`K_EFFORT` was `"high"` and truncated the Pro model.** 204,747 tokens in,
+  65,522 out, the answer truncated after 2,610 tokens, **$2.00 spent and
+  nothing kept**. At `"medium"`: 6,041 output tokens, $0.93, 2 of 3 jobs kept.
+  Fixed (`527d8f2`; `domain/skill/umbrella.py:23`).
+- **`K_WINDOW_TOKENS` did not guard the price boundary it exists for.**
+  `tokens()` (`domain/observation/window.py:115`) counts 4 characters to a
+  token; on this evidence the real ratio is **2.36** — a **1.697×
+  under-count** — so a 150,000 window shipped past 200,000, where Gemini 3.1
+  Pro's input price doubles. Now 100,000, shipping 164,028 measured. Fixed
+  (`63dc580`; `window.py:23`).
+- **The latent sibling, which is the part 4b must not forget.** The fix was
+  made at the constant and not at `tokens()`, because **every other cap in
+  `window.py` is tuned against the same estimator** — `K_MAX_GESTURE_TOKENS`,
+  `K_MAX_CROSSING_TOKENS`, the `kb` subtraction — and changing the divisor
+  silently re-tunes all of them (four cap tests failed when it was tried).
+  Each of those is the same bug in waiting; only the price-boundary one has
+  been corrected.
+
+### The pool rotates and does not starve
+
+Ten simulated passes over the real store: pass 1 shows 81% of the day, pass 2
+reaches 96%, and thereafter the window genuinely rotates — 375 to 426 gestures
+shown per pass, a different set each time. The 19 never shown are all
+**claimed**: cited by a mined workflow and deliberately out of the pool. This
+is evidence, not a worry; recorded so nobody re-derives it.
+
+### Nine carried defects and decisions
+
+1. **No route can reach a parked workflow run to stop it.** The loop's half is
+   built and proved, but `StopRun.execute`
+   (`application/execution/read_runs.py:68-79`) resolves only through
+   `uow.runs` — skill runs. A workflow run parked on an approval cannot be
+   stopped from outside the process.
+2. **`run_workflow` has no production caller.** `application/execution/run_workflow.py:267`;
+   grep finds only `tests/unit/application/rig/test_runner.py`. **This is now
+   the last unwired link in the whole chain** — ingest, mining and the Asker
+   were all closed on this branch.
+3. **A resumed run does not remember where it got to.** `from_step` is a
+   parameter of `run_workflow` (`run_workflow.py:284`) and is on no persisted
+   field of `WorkflowRun`. A run re-entered from a claimed row would redo the
+   operator's steps. A resume route cannot be written until the field exists.
+4. **`RestoreDevice` erases the audit instant.** Documented in the code
+   (`application/capture/devices.py:83-90`): a restore deletes the revocation
+   outright, so `DeviceRepository.since` afterwards has no record the browser
+   was ever cut off, and a day containing a revoke and a restore reads as a day
+   containing neither. `ReadAudit` cannot reconstruct one. The real answer is a
+   **device-event table this codebase does not have** — a plan of its own, not
+   a 4b line item.
+5. **`SqlDeviceRepository.since` has no id tiebreak.**
+   `infrastructure/db/repositories.py:653` orders `registered_at.desc()` alone.
+   `ReadAudit` reads four collections (`application/analytics/audit.py:75-86`)
+   and the **other three all break their tie** — `workflow_runs.since` on
+   `id.desc()` (`db/workflow_runs.py:226`), `offers.since` on `seq`
+   (`db/offers.py:118`), `chats.since` on `id.desc()` (`db/offers.py:180`).
+   Landed with plan 3b. **The fix is `.id.desc()`.** (Noted while checking:
+   `list_for_tenant` in the same class, `repositories.py:632`, has no tiebreak
+   either — but it is not one of the audit's four and is out of scope for this
+   item.)
+6. **One response carries two spellings of UTC.** `DeviceLineModel`
+   (`interface/http/schemas.py:1596-1598`) has `registered_at: datetime` and
+   `revoked_at: str | None`, because `AgentDevice` is inconsistent the same way
+   (`domain/observation/device.py:29` and `:62`). **Judged acceptable and the
+   reason is in the schema's docstring** — re-parsing the string here would
+   invent a timezone the row never recorded. The root cause is a **domain**
+   inconsistency and the fix belongs there, not in a response model.
+7. **`container.read_spend`'s docstring is correct at head — item closed.**
+   The check was whether Task 8's conversion of `record_offer` into a class had
+   left the docstring citing something that no longer exists. It has not:
+   `container.py:330-331` already reads *"`record_offer` next door **was** a
+   bare function too, and became a class anyway"* — past tense, and accurate
+   against `container.py:347-355`. Nothing to fix; recorded so nobody re-opens
+   it.
+8. **`{device}` is the one path segment not spelled `device_id`.** Not
+   cosmetic and not a choice: `tenant_only` pulls in `asking_device`, which
+   reads `?device_id=` to learn which browser is proving itself, and FastAPI
+   **refuses to build the app** when one name is both a path parameter and a
+   defaulted query parameter. Two different browsers can be named on one of
+   these requests. The seven `/v1/agents/{device_id}/…` paths keep their
+   spelling because none of them is tenant-only. **The URL an operator types is
+   byte-identical.** Reason is in `routers/devices.py:25-32`.
+9. **`spend.py`'s "nothing here catches a domain error" has no test behind
+   it.** `routers/spend.py:30-31`, inherited word for word from
+   `routers/audit.py:22`. The project's fourth test rule says a comment
+   recording a decision needs a test that fails when the decision stops being
+   true; this one has none in either file.
+
+### Three more, found by running it, that 4b must decide
+
+- **`add_orphan_request` and `add_orphan_page` have no caller in `src/`.**
+  Declared at `application/ports/repositories.py:552` and `:563`, implemented
+  at `infrastructure/db/evidence.py:281` and `:300`, called by nothing.
+  This is **the same no-caller defect that `f8b218f` fixed for
+  `add_gestures`, still standing**: `correlate` returns both lists and
+  `ingest.py:241` discards them as `_calls` and `_marks`. The consequence is
+  concrete — a click whose XHR lands in the *next* batch loses its call
+  permanently. **Cross-batch correlation is dead in the backend and alive in
+  the rig.** Either wire them or declare the divergence in the code; it should
+  not stay a silent one.
+- **`snapshots_ignored` is dropped on the floor.** The rig returns it in the
+  202 body (`new_agent_arch/src/rig/api.py:534`); `ingest.py:241` unpacks it as
+  `snapshots` and never uses it, and `Ingested` does not carry it. This is
+  against `correlate`'s own docstring, which says the count exists because
+  *silently dropping them is not the same as never having received them*.
+- **`GET /v1/pool`, `GET /v1/streams`, `GET /v1/gestures`** — three read-only
+  rig doors with nothing behind them on this side. `pool` is the cheap one:
+  `PoolRepository.retired` already exists and nothing can read it.
+
+---
+
+## Open against this branch, pending a second reader
+
+A whole-branch review of `63dc580` returned **NEEDS FIXES**, and a second
+independent review of the same commit was still running when this was written.
+**Nothing in this section is settled, agreed, or done.** It is here so that a
+later phase reading this plan does not mistake silence for a clean bill.
+
+Fixes are outstanding, or at least claimed, for:
+
+- **`K_WINDOW_TOKENS` is unpinned.** No test asserts its value or an upper
+  bound on it; every test that mentions it *derives* from it
+  (`tests/unit/application/rig/test_mine.py:162`,
+  `tests/unit/domain/rig/test_umbrella.py:184`), so raising it back to 150,000
+  — the value that crossed the price boundary — fails nothing.
+- **The redacted-events decision in ingest is untested.** `ingest.py` correlates
+  from the **redacted** events rather than the accepted ones, with a reason
+  written beside it; no test fails if that flips.
+- **`tokens()`'s docstring claims a safety property that was measured false.**
+  `window.py:115-118` still says it "never lies in the expensive direction",
+  which the 1.697× under-count above directly contradicts.
+- **A tally assertion was weakened by `527d8f2`.**
+
+Each is named, not judged. Confirm against the reviews before acting.
 
 ---
 

@@ -1,4 +1,4 @@
-"""Runs of mined workflows: start one, list them, read one.
+"""Runs of mined workflows: start one, list them, read one, stop one, approve one.
 
 Ported from `start_run`, `runs` and `read_run` in
 `new_agent_arch/src/rig/api.py:1021`, `:1152` and `:1217`.
@@ -38,8 +38,13 @@ from typing import Annotated
 from fastapi import APIRouter, Query, status
 
 from sro.domain.shared.identifiers import DeviceId
+from sro.interface.http.asking import AskingDeviceDep
 from sro.interface.http.deps import ContainerDep, ContextDep
-from sro.interface.http.schemas import StartWorkflowRunRequest, WorkflowRunModel
+from sro.interface.http.schemas import (
+    StartWorkflowRunRequest,
+    WorkflowRunModel,
+    WorkflowStepApprovedModel,
+)
 
 router = APIRouter(tags=["workflow-runs"])
 """The tenant's credential and nothing else, which is the rig's own gate
@@ -54,6 +59,13 @@ and `asking_device` answers a secret with no `?device_id=` beside it with a 404
 -- so `TenantOnly` here would refuse the one caller these doors exist for, on
 every one of them. Which browser to drive is a body field, as it is in the rig,
 and the tenant's browsers are the tenant's to drive.
+
+`approve` is the one door here that reads a browser, and it reads it with
+`asking_device` rather than as a gate. It is the only one that lets a withheld
+warehouse write out, and a browser answers for the run it is driving and no
+other -- so a tap from a browser must name it in `?device_id=` beside the
+secret, as every other device-aware call the extension makes already does. The
+tenant's credential alone still taps: a supervisor's console has no extension.
 """
 
 
@@ -181,3 +193,50 @@ async def abort_workflow_run(
     it through the MRO walk without a table entry of its own.
     """
     return WorkflowRunModel.of(await container.abort_workflow_run().execute(ctx, run_id=run_id))
+
+
+@router.post("/workflow-runs/{run_id}/approve")
+async def approve_workflow_step(
+    run_id: str, container: ContainerDep, ctx: ContextDep, asking: AskingDeviceDep
+) -> WorkflowStepApprovedModel:
+    """A person saw the write the panel showed and said go.
+
+    Ported from `approve_run` in `new_agent_arch/src/rig/api.py:1270`, and it
+    is the precondition on anything ever being pressed live: until this
+    existed, a run that parked on a person waited out its five minutes and
+    failed however hard anybody tapped. Not `POST /v1/confirmations/{id}/
+    approve` next door, which approves a *confirmation*, keyed on the
+    confirmation and not on the run.
+
+    **No body**, exactly as `abort` above has none, and one reason further. A
+    bare POST is what a tap is and a route that 422s one is a Stop-shaped
+    button that sometimes does nothing; and the browser that tapped is the one
+    that proved itself, so a `device_id` in a body would be a name nobody
+    checked written into the row an audit reads first. That is the ruling
+    `StartWorkflowRunRequest` already made about `started_by`. The rig had to
+    rank a token's own device above the body's claim; here there is no claim to
+    rank it against.
+
+    **`asking` is why this door alone reads a browser.** `AbortWorkflowRun`
+    needs none -- it stops the run whoever asks -- but this one lets a
+    warehouse write out, and a browser answers for the run it is driving and no
+    other: one compromised browser must not satisfy every other browser's
+    human-in-the-loop gate. So the tap must name its browser in `?device_id=`
+    beside the `X-Device-Secret` the extension already sends on every call, as
+    `/v1/shapes` and `/v1/offers` require; half a pair is `asking_device`'s
+    usual 404. The tenant's own credential with neither names no browser, and
+    may answer a parked run as anyone may -- that is a supervisor's console,
+    which has no extension of its own.
+
+    200 and not 202: unlike the stop next door, this has already happened by
+    the time it answers. The row naming who let the write out is committed, and
+    the wait is released.
+
+    A run of another tenant is a 404 and never a 403, for `get_workflow_run`'s
+    reason. A run with nothing parked on a person is a 409 `Conflict`, and a
+    browser reaching for a run it is not driving is `NotDrivingThisRun`, a 403.
+    """
+    order, first = await container.approve_workflow_step().execute(
+        ctx, run_id=run_id, asking=asking
+    )
+    return WorkflowStepApprovedModel(order=order, first=first)

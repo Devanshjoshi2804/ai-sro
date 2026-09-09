@@ -27965,6 +27965,316 @@
           }
         }
       }
+    },
+    "/v1/workflow-runs/{run_id}/approve": {
+      "post": {
+        "tags": [
+          "workflow-runs"
+        ],
+        "summary": "Approve Workflow Step",
+        "description": "A person saw the write the panel showed and said go.\n\nPorted from `approve_run` in `new_agent_arch/src/rig/api.py:1270`, and it\nis the precondition on anything ever being pressed live: until this\nexisted, a run that parked on a person waited out its five minutes and\nfailed however hard anybody tapped. Not `POST /v1/confirmations/{id}/\napprove` next door, which approves a *confirmation*, keyed on the\nconfirmation and not on the run.\n\n**No body**, exactly as `abort` above has none, and one reason further. A\nbare POST is what a tap is and a route that 422s one is a Stop-shaped\nbutton that sometimes does nothing; and the browser that tapped is the one\nthat proved itself, so a `device_id` in a body would be a name nobody\nchecked written into the row an audit reads first. That is the ruling\n`StartWorkflowRunRequest` already made about `started_by`. The rig had to\nrank a token's own device above the body's claim; here there is no claim to\nrank it against.\n\n**`asking` is why this door alone reads a browser.** `AbortWorkflowRun`\nneeds none -- it stops the run whoever asks -- but this one lets a\nwarehouse write out, and a browser answers for the run it is driving and no\nother: one compromised browser must not satisfy every other browser's\nhuman-in-the-loop gate. So the tap must name its browser in `?device_id=`\nbeside the `X-Device-Secret` the extension already sends on every call, as\n`/v1/shapes` and `/v1/offers` require; half a pair is `asking_device`'s\nusual 404. The tenant's own credential with neither names no browser, and\nmay answer a parked run as anyone may -- that is a supervisor's console,\nwhich has no extension of its own.\n\n200 and not 202: unlike the stop next door, this has already happened by\nthe time it answers. The row naming who let the write out is committed, and\nthe wait is released.\n\nA run of another tenant is a 404 and never a 403, for `get_workflow_run`'s\nreason. A run with nothing parked on a person is a 409 `Conflict`, and a\nbrowser reaching for a run it is not driving is `NotDrivingThisRun`, a 403.",
+        "operationId": "approve_workflow_step_v1_workflow_runs__run_id__approve_post",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "device_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Device Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "X-Device-Secret",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "X-Device-Secret"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowStepApprovedModel"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No credential, or one this deployment rejects.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "description": "An RFC 9457 problem document, as `errors.py` writes them.\n\nDeclared so the generated client knows the shape. It did not: every failure\nreached the browser as whatever the success model said it should be, and a\n404 was read as a RecordingDetail with every field missing.",
+                  "properties": {
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "instance": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Instance"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail"
+                  ],
+                  "title": "ProblemModel",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such thing, or not yours.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "description": "An RFC 9457 problem document, as `errors.py` writes them.\n\nDeclared so the generated client knows the shape. It did not: every failure\nreached the browser as whatever the success model said it should be, and a\n404 was read as a RecordingDetail with every field missing.",
+                  "properties": {
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "instance": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Instance"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail"
+                  ],
+                  "title": "ProblemModel",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The system's state says no, not the request.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "description": "An RFC 9457 problem document, as `errors.py` writes them.\n\nDeclared so the generated client knows the shape. It did not: every failure\nreached the browser as whatever the success model said it should be, and a\n404 was read as a RecordingDetail with every field missing.",
+                  "properties": {
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "instance": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Instance"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail"
+                  ],
+                  "title": "ProblemModel",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request cannot be processed as asked.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "description": "An RFC 9457 problem document, as `errors.py` writes them.\n\nDeclared so the generated client knows the shape. It did not: every failure\nreached the browser as whatever the success model said it should be, and a\n404 was read as a RecordingDetail with every field missing.",
+                  "properties": {
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "instance": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Instance"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail"
+                  ],
+                  "title": "ProblemModel",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Something this depends on is unavailable.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "description": "An RFC 9457 problem document, as `errors.py` writes them.\n\nDeclared so the generated client knows the shape. It did not: every failure\nreached the browser as whatever the success model said it should be, and a\n404 was read as a RecordingDetail with every field missing.",
+                  "properties": {
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "instance": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Instance"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail"
+                  ],
+                  "title": "ProblemModel",
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -34428,6 +34738,25 @@
         ],
         "title": "WorkflowRunStepModel",
         "description": "One step of a mined-workflow run, as the panel reads it.\n\n`sent` and `result` in full, where `AuditStepModel` next door reduces\n`sent` to its kind. The two are read by different people about different\nthings: the audit is every run of the tenant on a console screen, and this\nis the one run an operator is watching in their own browser -- the write a\ndry run withheld is the thing they are being asked to approve, and a kind\nwith no payload is not something anybody can say yes to.\n\n`sent` is what was planned and not proof that it went out. A step parked on\na person carries the command a tap would release, and `verdict ==\n\"awaiting\"` is what tells the two apart."
+      },
+      "WorkflowStepApprovedModel": {
+        "properties": {
+          "order": {
+            "type": "integer",
+            "title": "Order"
+          },
+          "first": {
+            "type": "boolean",
+            "title": "First"
+          }
+        },
+        "type": "object",
+        "required": [
+          "order",
+          "first"
+        ],
+        "title": "WorkflowStepApprovedModel",
+        "description": "What one tap on the panel's approve button let out.\n\nTwo fields, and neither is a constant. The rig answered `{\"approved\": true,\n\"ord\": ord}`; `approved` was a literal on every answer this route ever\ngives -- a refusal is a problem document -- so it is not here.\n\n`order` rather than the store's `ord`, because `WorkflowRunStepModel.order`\nis what a panel already reads a step's number from and one wire vocabulary\nis enough."
       },
       "WorkflowStepModel": {
         "properties": {

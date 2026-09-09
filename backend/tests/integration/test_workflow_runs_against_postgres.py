@@ -29,6 +29,11 @@ the third is the one that decides whether a browser whose last run FINISHED can
 ever be used again. A fake filters a dict in Python and cannot be wrong about
 it; the store can.
 
+**And the Yes at the foot of the file**, where the first tap winning is the
+store's own rule and not the caller's: `ON CONFLICT DO NOTHING` with
+`RETURNING` is what makes the first authorisation the one in the audit, and a
+fake that checks a dict for the key gets it right by accident.
+
 The model is the only fake left, and nothing is spawned: `_Handed` records the
 work and closes it, so no run drives a browser after the request that started it
 has gone.
@@ -57,6 +62,7 @@ from sro.domain.skill.workflow import Step, Workflow
 from sro.infrastructure.db.repositories import SqlUnitOfWork
 from sro.interface.http.app import create_app
 from sro.interface.http.deps import get_container
+from tests import factories as f
 from tests.unit.fakes import FakeAsker, FakeClock, FakeUnitOfWork
 from tests.unit.interface.test_http import _FakeContainer, token_for
 
@@ -586,3 +592,170 @@ async def test_a_finished_run_in_the_store_cannot_be_stopped(
     assert "aborted" in landed.json()["detail"]
     assert not container.stops.asked("run_done")
     assert (await client.post("/v1/workflow-runs/run_going/abort")).status_code == 202
+
+
+# --- and the Yes, where the first tap winning is the store's own rule --------
+
+
+APPROVER = "the-secret-the-laptop-was-minted"
+
+
+def _parked_row(run_id: str, *ords: int, device: DeviceId = LAPTOP) -> WorkflowRun:
+    return _row(
+        run_id,
+        at="2025-02-11T23:00:00+00:00",
+        outcome="running",
+        device=device,
+        steps=[
+            RunStep(order=order, says=f"click Save at step {order}", verdict="awaiting")
+            for order in ords
+        ],
+    )
+
+
+async def _register(container: _RealSessionContainer, device: DeviceId) -> None:
+    async with SqlUnitOfWork(container._session_factory) as uow:
+        await uow.devices.add(f.device(id=device, label=device.value, secret=APPROVER))
+        await uow.commit()
+
+
+async def _waiting_on(container: _RealSessionContainer, run_id: str) -> asyncio.Task[bool]:
+    container.approvals.register(run_id)
+    task = asyncio.ensure_future(container.approvals.wait_for(run_id, timeout=5.0))
+    await asyncio.sleep(0)
+    return task
+
+
+async def test_a_tap_records_the_deepest_parked_step_in_the_store_and_releases_it(
+    container: _RealSessionContainer, client: httpx.AsyncClient
+) -> None:
+    """Both halves, through the real approvals table and a real parked task.
+
+    `FakeUnitOfWork` builds its repositories in `__init__` and `SqlUnitOfWork`
+    assigns them inside `__aenter__`, so a use case reading `workflow_runs` off
+    a session nobody opened is a green unit test and an `AttributeError`
+    against a customer's database.
+
+    Which step, out of three parked, because `ORDER BY ord DESC LIMIT 1` is the
+    rule a tap follows and it is NOT `awaiting`'s -- that one returns every
+    parked step, ascending, and a route that reused it would authorise the
+    shallowest.
+    """
+    await _plant(container, _parked_row("run_parked", 0, 2, 5))
+    waiting = await _waiting_on(container, "run_parked")
+
+    landed = await client.post("/v1/workflow-runs/run_parked/approve")
+
+    assert landed.status_code == 200, landed.text
+    assert landed.json() == {"order": 5, "first": True}
+    assert await waiting is True
+    async with SqlUnitOfWork(container._session_factory) as uow:
+        recorded = await uow.workflow_runs.approvals("run_parked")
+    assert [order for order, _, _ in recorded] == [5]
+
+
+async def test_the_second_tap_does_not_overwrite_the_first_authorisation(
+    container: _RealSessionContainer, client: httpx.AsyncClient
+) -> None:
+    """The rule the fake gets right by accident. `ON CONFLICT DO NOTHING` with
+    `RETURNING` is what makes the first tap the one in the audit -- and what
+    makes the second one say so instead of claiming the row.
+
+    A write rescued to the second rung parks at the same step and takes a
+    second tap. It is not refused: the run really is parked again, and a 409
+    would leave it sitting out its five minutes. But the browser and the
+    instant on the row stay the first tapper's.
+    """
+    await _register(container, LAPTOP)
+    await _plant(container, _parked_row("run_rescued", 2))
+
+    first = await client.post(
+        "/v1/workflow-runs/run_rescued/approve",
+        params={"device_id": LAPTOP.value},
+        headers={"X-Device-Secret": APPROVER},
+    )
+    second = await client.post("/v1/workflow-runs/run_rescued/approve")
+
+    assert first.status_code == 200 and first.json() == {"order": 2, "first": True}
+    assert second.status_code == 200, second.text
+    assert second.json() == {"order": 2, "first": False}
+    async with SqlUnitOfWork(container._session_factory) as uow:
+        recorded = await uow.workflow_runs.approvals("run_rescued")
+    # One row, and it names the browser that got there first -- not the second
+    # tap, which named none at all.
+    assert len(recorded) == 1
+    assert recorded[0][0] == 2 and recorded[0][2] == LAPTOP.value
+
+
+async def test_a_browser_driving_another_run_cannot_release_this_ones_write(
+    container: _RealSessionContainer, client: httpx.AsyncClient
+) -> None:
+    """The check `WorkflowRunRepository.approve`'s tenant-blindness is
+    predicated on, through the real device registry that resolves the browser.
+
+    Three answers in one test, because a refusal proved alone passes against a
+    door that refuses everything and one that was never registered: another
+    tenant's parked run is a 404, another browser's is a 403, and the browser
+    that is driving this run releases it. Nothing is written by either refusal
+    and the wait is still parked after both.
+    """
+    await _register(container, LAPTOP)
+    await _register(container, DeviceId("dev-2"))
+    await _plant(
+        container,
+        _parked_row("run_mine", 1),
+        _row(
+            "run_theirs",
+            at="2025-02-11T23:00:00+00:00",
+            tenant=TenantId("rival"),
+            device=DeviceId("dev-8"),
+            outcome="running",
+            steps=[RunStep(order=1, says="click Save", verdict="awaiting")],
+        ),
+    )
+    waiting = await _waiting_on(container, "run_mine")
+    proving = {"headers": {"X-Device-Secret": APPROVER}}
+
+    theirs = await client.post(
+        "/v1/workflow-runs/run_theirs/approve", params={"device_id": LAPTOP.value}, **proving
+    )
+    stranger = await client.post(
+        "/v1/workflow-runs/run_mine/approve", params={"device_id": "dev-2"}, **proving
+    )
+    driving = await client.post(
+        "/v1/workflow-runs/run_mine/approve", params={"device_id": LAPTOP.value}, **proving
+    )
+
+    assert theirs.status_code == 404, theirs.text
+    assert stranger.status_code == 403, stranger.text
+    assert driving.status_code == 200, driving.text
+    assert await waiting is True
+    async with SqlUnitOfWork(container._session_factory) as uow:
+        assert await uow.workflow_runs.approvals("run_theirs") == ()
+        recorded = await uow.workflow_runs.approvals("run_mine")
+    assert len(recorded) == 1 and recorded[0][2] == LAPTOP.value
+
+
+async def test_a_run_with_nothing_parked_is_refused_out_of_the_real_rows(
+    container: _RealSessionContainer, client: httpx.AsyncClient
+) -> None:
+    """`verdict` and `outcome` off real columns, not off an object handed to a
+    fake. Approving a step nobody parked records a person authorising a write
+    that was never withheld."""
+    await _plant(
+        container,
+        _row(
+            "run_walking",
+            at="2025-02-11T23:00:00+00:00",
+            outcome="running",
+            steps=[RunStep(order=0, says="open it", verdict="done", verdict_by="agent")],
+        ),
+        _parked_row("run_parked", 1, device=DeviceId("dev-3")),
+    )
+
+    landed = await client.post("/v1/workflow-runs/run_walking/approve")
+
+    assert landed.status_code == 409, landed.text
+    async with SqlUnitOfWork(container._session_factory) as uow:
+        assert await uow.workflow_runs.approvals("run_walking") == ()
+    assert (await client.post("/v1/workflow-runs/run_parked/approve")).status_code == 200

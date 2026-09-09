@@ -2962,3 +2962,31 @@ class WorkflowRunModel(BaseModel):
             cost_usd=run.cost_usd,
             unpriced=run.unpriced,
         )
+
+
+class WorkflowStepApprovedModel(BaseModel):
+    """What one tap on the panel's approve button let out.
+
+    Two fields, and neither is a constant. The rig answered `{"approved": true,
+    "ord": ord}`; `approved` was a literal on every answer this route ever
+    gives -- a refusal is a problem document -- so it is not here.
+
+    `order` rather than the store's `ord`, because `WorkflowRunStepModel.order`
+    is what a panel already reads a step's number from and one wire vocabulary
+    is enough.
+    """
+
+    order: int
+    """Which step this tap authorised: the DEEPEST one parked on a person, which
+    is where a run is waiting. Not the shallowest, and deliberately not the
+    order `GET /v1/workflow-runs?awaiting=true` lists -- that answers what is
+    waiting, across every step and every browser, and this answers what one tap
+    let out."""
+
+    first: bool
+    """Whether THIS tap was the one that authorised the step.
+
+    False means somebody had already approved it and theirs is the name in the
+    audit: a write rescued to the second rung parks at the same step and takes
+    a second tap, and the first authorisation stands. The tap is not refused --
+    the run really is parked again -- and this is how a panel can say so."""

@@ -57,6 +57,7 @@ from sro.application.execution.stops import Stops
 from sro.application.execution.vision_step import PerformWithVision
 from sro.application.execution.workflow_runs import (
     AbortWorkflowRun,
+    ApproveWorkflowStep,
     GetWorkflowRun,
     ListWorkflowRuns,
     StartWorkflowRun,
@@ -904,6 +905,20 @@ class Container:
         flag nothing ever reads and release a wait nobody is holding.
         """
         return AbortWorkflowRun(self.unit_of_work(), self.stops, self.approvals)
+
+    def approve_workflow_step(self) -> ApproveWorkflowStep:
+        """The Yes on a run of a mined job, and the other half of the seam
+        `abort_workflow_run` above opens.
+
+        The same process-wide `approvals` for the reason `start_workflow_run`
+        gives: the task parked on a person is waiting on the register this
+        container handed it, and a use case built with one of its own would
+        release a wait nobody is holding.
+
+        The clock, because the row says WHEN the write was let out. A route
+        never reads one.
+        """
+        return ApproveWorkflowStep(self.unit_of_work(), self.approvals, self.clock)
 
     def call_run_wrong(self) -> CallRunWrong:
         return CallRunWrong(self.unit_of_work(), self.clock)

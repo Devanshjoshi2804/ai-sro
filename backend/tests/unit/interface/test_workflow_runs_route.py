@@ -33,12 +33,18 @@ that was never registered -- same words, same `type`, same `title`, because
 `_SLUGS[404]` is `NotFound.code` -- and seventeen tests in this repo had exactly
 that defect. The effect asserted is `Stops.ask`, never the status code: a door
 answering 202 having asked nothing is a stop button that does nothing.
+
+**And the Yes under that**, which is the same shape and one more rule: every
+refusal asserts that the wait is STILL parked, against a real `wait_for` task
+rather than a spy. A door that answers 403 and releases the write anyway is
+exactly what this route exists to prevent, and no status code can see it.
 """
 
 from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncIterator, Coroutine
+from contextlib import suppress
 from typing import Any
 
 import httpx
@@ -1289,3 +1295,358 @@ async def test_the_stop_is_refused_with_no_credential(
 
     assert landed.status_code == 401
     assert not container.stops.asked("run_going")
+
+
+# --- and the Yes under it ----------------------------------------------------
+#
+# The other half of the pair the stop button opened. Without this door a run
+# that parks on a person waits out `K_APPROVAL_WAIT_S` and fails for want of an
+# answer -- and pressing the panel's approve button did nothing at all.
+#
+# Two halves must both happen and the order is the argument: the durable row
+# first, committed, and only then the in-process event the parked task is
+# waiting on. Event first and a failed write is a live warehouse write with no
+# record of who authorised it; row first and a failed release is a run that
+# times out and a tap the operator makes again. A lost tap is recoverable.
+#
+# Every refusal is proved beside an approval that lands in the same test, and
+# every one of them asserts the EFFECT and not the status: a door that answers
+# 403 and releases the wait anyway is the bug this route exists to prevent, and
+# a status code cannot see it.
+
+APPROVER = "the-secret-the-laptop-was-minted"
+
+
+def _parked_run(
+    run_id: str, *ords: int, device: DeviceId = LAPTOP, tenant: TenantId = TENANT
+) -> WorkflowRun:
+    """A `running` run with one step parked on a person per `ord` given."""
+    return _planted(
+        run_id,
+        outcome="running",
+        device=device,
+        tenant=tenant,
+        steps=[_parked(order, f"click Save at step {order}") for order in ords],
+    )
+
+
+async def _waiting_on(container: _FakeContainer, run_id: str) -> asyncio.Task[bool]:
+    """A run really waiting on the register, as `run_workflow` leaves it.
+
+    A real `wait_for` task and not a spy: this file's job is to prove the wait
+    was released, and a spy asserting `Approvals.approve` was called passes
+    against a route that calls it on the wrong run id.
+    """
+    container.approvals.register(run_id)
+    task = asyncio.ensure_future(container.approvals.wait_for(run_id, timeout=5.0))
+    await asyncio.sleep(0)
+    return task
+
+
+async def _still_waiting(task: asyncio.Task[bool]) -> bool:
+    """Whether the parked task is STILL parked, and tidied up either way."""
+    await asyncio.sleep(0)
+    parked = not task.done()
+    task.cancel()
+    with suppress(asyncio.CancelledError):
+        await task
+    return parked
+
+
+async def test_the_waiting_task_is_released_and_not_only_the_row_written(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork, container: _FakeContainer
+) -> None:
+    """Both halves. A route that writes the row and never fires the event
+    leaves the run parked forever with an audit trail saying it was approved --
+    the worst of the three possible bugs here."""
+    await _plant(uow, _parked_run("run_parked", 3))
+    waiting = await _waiting_on(container, "run_parked")
+
+    landed = await client.post("/v1/workflow-runs/run_parked/approve")
+
+    assert landed.status_code == 200, landed.text
+    assert await waiting is True
+    assert ("run_parked", 3) in uow.workflow_runs.approved
+
+
+async def test_the_approval_names_the_run_in_the_path_and_the_deepest_parked_step(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork, container: _FakeContainer
+) -> None:
+    """Which run and which step, because a door that authorises SOME step of
+    SOME run answers 200 exactly like this one.
+
+    The deepest parked step, `ORDER BY ord DESC LIMIT 1`, and that is NOT the
+    `awaiting` queue's rule: `WorkflowRunRepository.awaiting` returns every
+    parked step of every run, `ord` ascending, because anyone may answer a
+    parked run and a queue hiding all but the deepest hides work. Which step
+    ONE tap authorises is a different question, and the run is parked at its
+    deepest.
+    """
+    await _plant(uow, _parked_run("run_watched", 0, 2, 5), _parked_run("run_other", 9, device=DESK))
+    waiting = await _waiting_on(container, "run_watched")
+
+    landed = await client.post("/v1/workflow-runs/run_watched/approve")
+
+    assert landed.status_code == 200, landed.text
+    assert landed.json()["order"] == 5
+    assert await waiting is True
+    assert ("run_watched", 5) in uow.workflow_runs.approved
+    assert ("run_watched", 0) not in uow.workflow_runs.approved
+    assert ("run_watched", 2) not in uow.workflow_runs.approved
+    assert ("run_other", 9) not in uow.workflow_runs.approved
+
+
+async def test_a_browser_that_is_not_driving_this_run_cannot_release_its_write(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork, container: _FakeContainer
+) -> None:
+    """The check `approve`'s tenant-blindness is predicated on. Without it the
+    docstring at ports/repositories.py:705 is describing a guarantee nothing
+    provides.
+
+    One compromised browser must not be able to satisfy every other browser's
+    human-in-the-loop gate. Checked BEFORE the event is set, which is why the
+    task is still parked below -- a 403 that released the wait anyway would be
+    a warehouse write let out by a browser with no business in this run, and
+    the status code alone cannot see it.
+    """
+    await uow.devices.add(f.device(id=DESK, secret=APPROVER))
+    await _plant(uow, _parked_run("run_theirs", 1, device=LAPTOP))
+    waiting = await _waiting_on(container, "run_theirs")
+
+    landed = await client.post(
+        "/v1/workflow-runs/run_theirs/approve",
+        params={"device_id": DESK.value},
+        headers={"X-Device-Secret": APPROVER},
+    )
+
+    assert landed.status_code == 403, landed.text
+    assert landed.headers["content-type"].startswith("application/problem+json")
+    assert await _still_waiting(waiting)
+    assert uow.workflow_runs.approved == {}
+    # The same door, the browser that IS driving it: a refusal proved alone
+    # passes against a route that refuses everything and one never registered.
+    await uow.devices.add(f.device(id=LAPTOP, secret=APPROVER))
+    allowed = await client.post(
+        "/v1/workflow-runs/run_theirs/approve",
+        params={"device_id": LAPTOP.value},
+        headers={"X-Device-Secret": APPROVER},
+    )
+    assert allowed.status_code == 200, allowed.text
+    assert ("run_theirs", 1) in uow.workflow_runs.approved
+
+
+async def test_a_step_that_is_not_awaiting_is_refused(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork, container: _FakeContainer
+) -> None:
+    """Approving a step nobody parked releases nothing and records a person
+    authorising a write that was never withheld."""
+    walking = _planted(
+        "run_walking",
+        outcome="running",
+        steps=[RunStep(order=0, says="open it", verdict="done", verdict_by="agent")],
+    )
+    await _plant(uow, walking, _parked_run("run_parked", 4, device=DESK))
+    waiting = await _waiting_on(container, "run_walking")
+
+    landed = await client.post("/v1/workflow-runs/run_walking/approve")
+
+    assert landed.status_code == 409, landed.text
+    assert "awaiting" in landed.json()["detail"]
+    assert await _still_waiting(waiting)
+    assert uow.workflow_runs.approved == {}
+    assert (await client.post("/v1/workflow-runs/run_parked/approve")).status_code == 200
+
+
+async def test_a_step_left_awaiting_on_a_finished_run_is_refused_too(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork
+) -> None:
+    """The same predicate `WorkflowRunRepository.awaiting` carries: a step left
+    `awaiting` on a run that was aborted or failed is not waiting on anybody,
+    and a tap on it records a person letting out a write nothing is holding."""
+    stale = _planted("run_done", outcome="aborted", steps=[_parked(1, "click Save")])
+    await _plant(uow, stale, _parked_run("run_going", 1, device=DESK))
+
+    landed = await client.post("/v1/workflow-runs/run_done/approve")
+
+    assert landed.status_code == 409, landed.text
+    assert uow.workflow_runs.approved == {}
+    assert (await client.post("/v1/workflow-runs/run_going/approve")).status_code == 200
+
+
+async def test_the_second_tap_does_not_overwrite_the_first_authorisation(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork, container: _FakeContainer
+) -> None:
+    """`approve` returns whether this tap was the one. A write rescued to the
+    second rung parks at the same step and takes a second tap, and the first
+    authorisation stands -- it is the one in the audit.
+
+    The second tap still releases the wait: the run really is parked again, and
+    a 409 there would leave it sitting out its five minutes.
+    """
+    await uow.devices.add(f.device(id=LAPTOP, secret=APPROVER))
+    await _plant(uow, _parked_run("run_rescued", 2))
+    first = await client.post(
+        "/v1/workflow-runs/run_rescued/approve",
+        params={"device_id": LAPTOP.value},
+        headers={"X-Device-Secret": APPROVER},
+    )
+    waiting = await _waiting_on(container, "run_rescued")
+
+    second = await client.post("/v1/workflow-runs/run_rescued/approve")
+
+    assert first.status_code == 200 and first.json()["first"] is True
+    assert second.status_code == 200, second.text
+    assert second.json()["first"] is False
+    assert second.json()["order"] == 2
+    assert await waiting is True
+    assert uow.workflow_runs.approved[("run_rescued", 2)][1] == LAPTOP.value
+
+
+async def test_the_browser_written_down_is_the_one_that_proved_itself(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork
+) -> None:
+    """Who tapped is what an audit asks first, and this row is the answer.
+
+    The browser comes off the credential's own pair -- `?device_id=` beside
+    `X-Device-Secret` -- and never off a field in a body. A request that says
+    who authorised it is a signature nobody checked, which is the ruling
+    `StartWorkflowRunRequest` already made about `started_by`.
+    """
+    await uow.devices.add(f.device(id=LAPTOP, secret=APPROVER))
+    await _plant(uow, _parked_run("run_tapped", 7))
+
+    landed = await client.post(
+        "/v1/workflow-runs/run_tapped/approve",
+        params={"device_id": LAPTOP.value},
+        headers={"X-Device-Secret": APPROVER},
+        json={"device_id": DESK.value},
+    )
+
+    assert landed.status_code == 200, landed.text
+    assert uow.workflow_runs.approved[("run_tapped", 7)][1] == LAPTOP.value
+
+
+async def test_a_tap_from_the_tenants_own_credential_names_no_browser(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork
+) -> None:
+    """A supervisor's console holds the tenant's credential and no extension of
+    its own. It may answer a parked run -- anyone may -- and the row says no
+    browser rather than naming one nobody proved."""
+    await _plant(uow, _parked_run("run_parked", 1))
+
+    landed = await client.post("/v1/workflow-runs/run_parked/approve", json={"device_id": "dev-9"})
+
+    assert landed.status_code == 200, landed.text
+    assert uow.workflow_runs.approved[("run_parked", 1)][1] is None
+
+
+async def test_the_row_is_written_before_the_wait_is_released(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork, container: _FakeContainer
+) -> None:
+    """The ordering ruling, made observable: a store that cannot record the tap
+    releases nothing.
+
+    The rig fires the event first and writes the row after. Written that way, a
+    failed write is a live warehouse write with no record of who authorised it
+    -- and `routers/runs.py:52-60` already ruled that the audit trail on a
+    warehouse write is worth more than that. Written this way the run stays
+    parked, times out and aborts, and the operator taps again. A lost tap is
+    recoverable; an unauthorised-looking write is not.
+    """
+    await _plant(uow, _parked_run("run_parked", 1))
+    waiting = await _waiting_on(container, "run_parked")
+    uow.commit_raises = RuntimeError("the store went away mid-tap")
+
+    with pytest.raises(RuntimeError, match="went away"):
+        await client.post("/v1/workflow-runs/run_parked/approve")
+
+    assert await _still_waiting(waiting)
+    # And not that the row is gone: `FakeUnitOfWork` does not simulate rollback
+    # at all, by its own docstring. That half is the store's and is proved
+    # against real Postgres in `test_workflow_runs_against_postgres.py`.
+
+
+async def test_another_tenants_parked_run_cannot_be_approved_and_is_the_same_404(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork, container: _FakeContainer
+) -> None:
+    """`WorkflowRunRepository.approve` is tenant-blind and the run id is the
+    only thing it takes: this lookup is the whole of what keeps one tenant's
+    tap off another tenant's run.
+
+    A 403 would confirm the id exists, and run ids are unguessable -- so a run
+    of another tenant answers exactly what a run that never existed answers.
+    """
+    await _plant(uow, _parked_run("run_theirs", 1, tenant=RIVAL), _parked_run("run_mine", 1))
+    waiting = await _waiting_on(container, "run_theirs")
+
+    theirs = await client.post("/v1/workflow-runs/run_theirs/approve")
+    missing = await client.post("/v1/workflow-runs/run_nope/approve")
+
+    assert theirs.status_code == 404 and missing.status_code == 404
+    assert theirs.json()["detail"] == missing.json()["detail"]
+    assert await _still_waiting(waiting)
+    assert uow.workflow_runs.approved == {}
+    assert (await client.post("/v1/workflow-runs/run_mine/approve")).status_code == 200
+
+
+async def test_a_bare_post_is_a_tap(client: httpx.AsyncClient, uow: FakeUnitOfWork) -> None:
+    """No body at all, and no `Content-Type`. A route that 422s one is a
+    Stop-shaped button that sometimes does nothing.
+
+    There is no request model here for the same reason `abort` has none: the
+    row already says which browser is driving the run, and the browser that
+    tapped is the one that proved itself. A `device_id` in a body would be a
+    third answer to a question two things already answer.
+    """
+    await _plant(uow, _parked_run("run_parked", 1))
+
+    landed = await client.post("/v1/workflow-runs/run_parked/approve", content=b"")
+
+    assert landed.status_code == 200, landed.text
+
+
+async def test_the_tap_is_refused_with_no_credential(
+    container: _FakeContainer, uow: FakeUnitOfWork
+) -> None:
+    """A door that lets a withheld warehouse write out, registered without
+    `ContextDep`, would be a public one."""
+    await _plant(uow, _parked_run("run_parked", 1))
+    waiting = await _waiting_on(container, "run_parked")
+    app = create_app()
+    app.dependency_overrides[get_container] = lambda: container
+    async with httpx.AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as http:
+        landed = await http.post("/v1/workflow-runs/run_parked/approve")
+
+    assert landed.status_code == 401
+    assert await _still_waiting(waiting)
+    assert uow.workflow_runs.approved == {}
+
+
+async def test_a_secret_with_no_browser_named_beside_it_is_the_usual_404(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork, container: _FakeContainer
+) -> None:
+    """The one place this door differs from the stop button next to it, pinned
+    so nobody has to discover it from a support ticket.
+
+    `abort` reads no browser at all, so the `X-Device-Secret` the extension
+    sends on every call (`api.js:40`) is ignored there. This door has to know
+    which browser is tapping, so it takes `asking_device` -- and half a pair is
+    a 404 there, exactly as it is at `/v1/shapes` and `/v1/offers`. **The tap
+    must name its browser in `?device_id=` beside the secret**, which is what
+    every other device-aware call the extension makes already does.
+    """
+    await uow.devices.add(f.device(id=LAPTOP, secret=APPROVER))
+    await _plant(uow, _parked_run("run_parked", 1))
+
+    half = await client.post(
+        "/v1/workflow-runs/run_parked/approve", headers={"X-Device-Secret": APPROVER}
+    )
+
+    assert half.status_code == 404, half.text
+    assert uow.workflow_runs.approved == {}
+    whole = await client.post(
+        "/v1/workflow-runs/run_parked/approve",
+        params={"device_id": LAPTOP.value},
+        headers={"X-Device-Secret": APPROVER},
+    )
+    assert whole.status_code == 200, whole.text

@@ -60,6 +60,12 @@ it there.
 **And the stop button under them**, `AbortWorkflowRun` (`api.py:1237`), for the
 same reason: the run it interrupts is the one claimed at the top of this file,
 and the register it sets is the one `StartWorkflowRun` hands the task.
+
+**And the Yes beside it**, `ApproveWorkflowStep` (`api.py:1270`), which is the
+other half of the same seam: the stop button releases the approval wait to end
+a run, and this one releases it to let the write out. Both reach the register
+`StartWorkflowRun` handed the task, and neither of them is `/v1/confirmations`
+-- that approves a *confirmation*, keyed on the confirmation and not the run.
 """
 
 from __future__ import annotations
@@ -85,13 +91,15 @@ from sro.domain.execution.workflow_run import (
     already_running,
     new_run_id,
 )
-from sro.domain.shared.errors import Conflict, NotFound
+from sro.domain.shared.errors import Conflict, DomainError, NotFound
 from sro.domain.shared.identifiers import DeviceId
 
 __all__ = [
     "AbortWorkflowRun",
+    "ApproveWorkflowStep",
     "GetWorkflowRun",
     "ListWorkflowRuns",
+    "NotDrivingThisRun",
     "RunRefused",
     "StartWorkflowRun",
 ]
@@ -504,3 +512,133 @@ class AbortWorkflowRun:
         # worker, so stopping must land there too -- sticky-route by device_id
         # if this is ever run with more than one.
         return run
+
+
+class NotDrivingThisRun(DomainError):
+    """This browser is not the one driving the run it is trying to release.
+
+    403 and not 404: the caller holds a tenant credential that was accepted and
+    a browser secret that checked out, so this is not an enumeration channel --
+    they have already been told the run exists by every read on this router.
+    `tenant_only` refuses in the same words for the same reason.
+
+    A `DomainError` with its own entry in `errors._STATUS_BY_ERROR`, rather
+    than a subclass of `call_run_wrong.NotYours` -- which is the nearest thing
+    to it and says the same sentence about a person. That one is mapped to 403
+    in the table and NOT registered as a handler, and it is not a `DomainError`
+    either, so nothing catches it and it reaches a caller as a 500. Inheriting
+    from it would have inherited that. Reported rather than fixed here: making
+    it fire changes what `POST /v1/runs/{id}/wrong` answers, which is another
+    door's decision. (There are two unrelated classes called `NotYours`, in
+    `call_run_wrong` and `revise_run`; only one is in the table at all.)
+    """
+
+    code = "not_driving_this_run"
+
+
+class ApproveWorkflowStep:
+    """A person saw the write the panel showed and said go.
+
+    Ported from `approve_run` in `new_agent_arch/src/rig/api.py:1270`, and it
+    is the precondition on anything ever being pressed live: without it a run
+    that parks on a person sits out `K_APPROVAL_WAIT_S` and fails for want of
+    an answer, however hard anybody taps.
+
+    **Two halves, and the durable one goes first.** The row says who let the
+    write out; the event is what the parked `run_workflow` task is waiting on.
+    The rig fires the event and writes the row after (`api.py:1284` then
+    `:1305`) and this is deliberately the other way round. The asymmetry is not
+    symmetric: event first and a failed write is a live warehouse write with no
+    record of who authorised it, which `routers/runs.py` has already ruled
+    against -- "the audit trail on a warehouse write is worth more than that";
+    row first and a failed release is a run that stays parked, times out and
+    aborts, and an operator who taps again. A lost tap is recoverable.
+
+    The rig's order has a second cost this one does not pay. It reads which
+    step to record AFTER releasing the wait, so it is racing the task it has
+    just woken -- and that task's next act is to rewrite the very `verdict =
+    'awaiting'` the read selects on. Lose the race and `ord_` is `None` and no
+    approval row is written at all, for a write that went out.
+
+    **The order is what the 409 costs.** The rig got "nothing is awaiting" from
+    `Approvals.approve` returning False, which is not available before the
+    event is fired. This asks the run's own steps instead, with the predicate
+    `WorkflowRunRepository.awaiting` already carries -- a `running` run with a
+    step whose verdict is `awaiting` -- so the queue and the tap agree about
+    what "parked" means. The two are not identical and the difference falls the
+    safe way: `run_workflow` registers on `Approvals` BEFORE it saves the
+    parked step, so in the window between them the event exists and the row
+    does not. The rig would have released the wait there and written no
+    authorisation; this answers 409 and the operator taps again a moment later.
+
+    **The deepest parked step is the one a tap authorises**, `ORDER BY ord DESC
+    LIMIT 1`, and that is deliberately NOT `awaiting`'s rule. That one returns
+    every parked step of every run, `ord` ascending, because anyone may answer
+    a parked run and a queue hiding all but the deepest hides work from the
+    person who could clear it. It answers "what is waiting"; this answers
+    "which step does THIS tap let out", and a run is parked at its deepest.
+
+    **`WorkflowRunRepository.approve` is tenant-blind on purpose** -- the run
+    id is the only thing the panel has -- and the lookup at the top of this
+    method is the whole of what stands between that and a cross-tenant write.
+    A run of another tenant takes the same path as one that never existed, for
+    `GetWorkflowRun`'s reason: a 403 confirms the id exists.
+
+    **And a browser answers for the run it is driving and no other**, checked
+    before anything is written and before the event is set: one compromised
+    browser must not be able to satisfy every other browser's human-in-the-loop
+    gate. `asking` is the browser that proved itself with `X-Device-Secret`
+    beside `?device_id=`, so it can never be a claim -- the rig had to rank a
+    token's own device above a `device_id` in the body, and here there is no
+    body to rank it against. `None` is the tenant's own credential, which is a
+    supervisor's console with no extension of its own: it may answer a parked
+    run, as anyone may, and the row then names no browser rather than one
+    nobody proved.
+
+    The return says which step was authorised and whether THIS tap was the one
+    that authorised it. The first tap wins: a write rescued to the second rung
+    parks at the same step and takes a second tap, and the first authorisation
+    is the one in the audit. A second tap is not refused, though -- the run
+    really is parked again, and a 409 would leave it sitting out five minutes.
+    """
+
+    def __init__(self, uow: UnitOfWork, approvals: Approvals, clock: Clock) -> None:
+        self._uow = uow
+        self._approvals = approvals
+        self._clock = clock
+
+    async def execute(
+        self, ctx: RequestContext, *, run_id: str, asking: DeviceId | None
+    ) -> tuple[int, bool]:
+        """(the step authorised, whether this tap was the one)."""
+        async with self._uow as uow:
+            run = await uow.workflow_runs.get(ctx.tenant_id, run_id)
+            if run is None:
+                raise NotFound("no such run")
+            if asking is not None and run.device_id != asking.value:
+                raise NotDrivingThisRun("that run is not the one this browser is driving")
+            parked = [step.order for step in run.steps if step.verdict == "awaiting"]
+            # `running` beside the verdict, which is `awaiting`'s own second
+            # predicate: a step left `awaiting` on a run that was aborted or
+            # failed is not waiting on anybody, and a tap on it would record a
+            # person letting out a write nothing is holding open.
+            if run.outcome != "running" or not parked:
+                raise Conflict("nothing is awaiting approval on this run")
+            ord_ = max(parked)
+            first = await uow.workflow_runs.approve(
+                run.id,
+                ord_,
+                at=self._clock.now().isoformat(),
+                device_id=asking.value if asking else None,
+            )
+            # Committed inside the block and the release outside it, so the row
+            # is durable before anything can act on the event. The other order
+            # would let a write out on a transaction that then rolled back.
+            await uow.commit()
+        # Whether anything was waiting is not read: the run may legitimately be
+        # parked again at the same step after a rescue, and it may equally have
+        # given up while the row was being written. Neither is a reason to
+        # refuse a tap whose authorisation is already recorded, and the
+        # question this answers is the repository's, not the register's.
+        self._approvals.approve(run.id)
+        return ord_, first

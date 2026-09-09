@@ -2168,6 +2168,61 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/workflow-runs/{run_id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve Workflow Step
+         * @description A person saw the write the panel showed and said go.
+         *
+         *     Ported from `approve_run` in `new_agent_arch/src/rig/api.py:1270`, and it
+         *     is the precondition on anything ever being pressed live: until this
+         *     existed, a run that parked on a person waited out its five minutes and
+         *     failed however hard anybody tapped. Not `POST /v1/confirmations/{id}/
+         *     approve` next door, which approves a *confirmation*, keyed on the
+         *     confirmation and not on the run.
+         *
+         *     **No body**, exactly as `abort` above has none, and one reason further. A
+         *     bare POST is what a tap is and a route that 422s one is a Stop-shaped
+         *     button that sometimes does nothing; and the browser that tapped is the one
+         *     that proved itself, so a `device_id` in a body would be a name nobody
+         *     checked written into the row an audit reads first. That is the ruling
+         *     `StartWorkflowRunRequest` already made about `started_by`. The rig had to
+         *     rank a token's own device above the body's claim; here there is no claim to
+         *     rank it against.
+         *
+         *     **`asking` is why this door alone reads a browser.** `AbortWorkflowRun`
+         *     needs none -- it stops the run whoever asks -- but this one lets a
+         *     warehouse write out, and a browser answers for the run it is driving and no
+         *     other: one compromised browser must not satisfy every other browser's
+         *     human-in-the-loop gate. So the tap must name its browser in `?device_id=`
+         *     beside the `X-Device-Secret` the extension already sends on every call, as
+         *     `/v1/shapes` and `/v1/offers` require; half a pair is `asking_device`'s
+         *     usual 404. The tenant's own credential with neither names no browser, and
+         *     may answer a parked run as anyone may -- that is a supervisor's console,
+         *     which has no extension of its own.
+         *
+         *     200 and not 202: unlike the stop next door, this has already happened by
+         *     the time it answers. The row naming who let the write out is committed, and
+         *     the wait is released.
+         *
+         *     A run of another tenant is a 404 and never a 403, for `get_workflow_run`'s
+         *     reason. A run with nothing parked on a person is a 409 `Conflict`, and a
+         *     browser reaching for a run it is not driving is `NotDrivingThisRun`, a 403.
+         */
+        post: operations["approve_workflow_step_v1_workflow_runs__run_id__approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -4892,6 +4947,24 @@ export interface components {
             cost_usd: number;
             /** Unpriced */
             unpriced: boolean;
+        };
+        /**
+         * WorkflowStepApprovedModel
+         * @description What one tap on the panel's approve button let out.
+         *
+         *     Two fields, and neither is a constant. The rig answered `{"approved": true,
+         *     "ord": ord}`; `approved` was a literal on every answer this route ever
+         *     gives -- a refusal is a problem document -- so it is not here.
+         *
+         *     `order` rather than the store's `ord`, because `WorkflowRunStepModel.order`
+         *     is what a panel already reads a step's number from and one wire vocabulary
+         *     is enough.
+         */
+        WorkflowStepApprovedModel: {
+            /** Order */
+            order: number;
+            /** First */
+            first: boolean;
         };
         /**
          * WorkflowStepModel
@@ -16823,6 +16896,133 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["WorkflowRunModel"];
+                };
+            };
+            /** @description No credential, or one this deployment rejects. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description No such thing, or not yours. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The system's state says no, not the request. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The request cannot be processed as asked. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description Something this depends on is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+        };
+    };
+    approve_workflow_step_v1_workflow_runs__run_id__approve_post: {
+        parameters: {
+            query?: {
+                device_id?: string | null;
+            };
+            header?: {
+                authorization?: string | null;
+                "X-Device-Secret"?: string;
+            };
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkflowStepApprovedModel"];
                 };
             };
             /** @description No credential, or one this deployment rejects. */

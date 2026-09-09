@@ -1411,7 +1411,15 @@ async def test_a_re_press_that_moves_from_step_is_refused_rather_than_performed(
     channel = FakeChannel(_looks(4))
     asker = FakeAsker(_plan("click"))
 
-    with pytest.raises(ValueError, match=f"run_claimed was saved .*from step {claimed}"):
+    # Both halves of the sentence, not just the saved one. Matching only what
+    # the row holds leaves the refusal free to stop naming what the caller
+    # ASKED for -- and a message that says "this run is at step 1" without
+    # saying "you pressed for 0" is one nobody can act on. Deleting the
+    # ` from step {from_step}` clause left 2389 tests green until this line.
+    with pytest.raises(
+        ValueError,
+        match=f"run_claimed was saved .*from step {claimed}, not running .*from step {asked}",
+    ):
         await _ran(
             uow,
             workflow,

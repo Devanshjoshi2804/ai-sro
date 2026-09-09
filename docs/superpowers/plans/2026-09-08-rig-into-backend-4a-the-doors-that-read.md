@@ -13,7 +13,9 @@ every door and a per-browser secret that proves *which* browser — a stronger
 rule that phase 4 adopts rather than replaces. Each rig route becomes a router
 under `interface/http/v1/routers/`, keeping the rig's paths so the extension's
 `api.js` changes only its base; the bodies come from use cases the earlier
-plans already built and reviewed.
+plans already built and reviewed. **That premise is false for two of them** —
+`/v1/shapes` and `/v1/offers` need a header `rigHeaders()` does not send. See
+*Carried to phase 5*, item 1.
 
 **Tech Stack:** FastAPI, pydantic v2 schemas in `interface/http/schemas.py`,
 SQLAlchemy async over Postgres, pytest (unit / contract / integration),
@@ -1354,9 +1356,10 @@ is evidence, not a worry; recorded so nobody re-derives it.
    `uow.runs` — skill runs. A workflow run parked on an approval cannot be
    stopped from outside the process.
 2. **`run_workflow` has no production caller.** `application/execution/run_workflow.py:267`;
-   grep finds only `tests/unit/application/rig/test_runner.py`. **This is now
-   the last unwired link in the whole chain** — ingest, mining and the Asker
-   were all closed on this branch.
+   grep finds only `tests/unit/application/rig/test_runner.py`. Ingest was
+   closed on this branch and the Asker was only *built* on it: `container.asker`
+   has no reader either, and `mining_pass.mine` has no production caller. All
+   three arrive in 4b — see *Carried to phase 5*, item 2.
 3. **A resumed run does not remember where it got to.** `from_step` is a
    parameter of `run_workflow` (`run_workflow.py:284`) and is on no persisted
    field of `WorkflowRun`. A run re-entered from a claimed row would redo the
@@ -1408,50 +1411,120 @@ is evidence, not a worry; recorded so nobody re-derives it.
 
 ### Three more, found by running it, that 4b must decide
 
-- **`add_orphan_request` and `add_orphan_page` have no caller in `src/`.**
-  Declared at `application/ports/repositories.py:552` and `:563`, implemented
-  at `infrastructure/db/evidence.py:281` and `:300`, called by nothing.
-  This is **the same no-caller defect that `f8b218f` fixed for
-  `add_gestures`, still standing**: `correlate` returns both lists and
-  `ingest.py:241` discards them as `_calls` and `_marks`. The consequence is
-  concrete — a click whose XHR lands in the *next* batch loses its call
-  permanently. **Cross-batch correlation is dead in the backend and alive in
-  the rig.** Either wire them or declare the divergence in the code; it should
-  not stay a silent one.
-- **`snapshots_ignored` is dropped on the floor.** The rig returns it in the
-  202 body (`new_agent_arch/src/rig/api.py:534`); `ingest.py:241` unpacks it as
-  `snapshots` and never uses it, and `Ingested` does not carry it. This is
-  against `correlate`'s own docstring, which says the count exists because
-  *silently dropping them is not the same as never having received them*.
+- ~~**`add_orphan_request` and `add_orphan_page` have no caller in `src/`.**~~
+  **CLOSED in the fix round — wired, not declared.** Both are now called from
+  `IngestObservation.execute`, in the same block as the batch claim, for the
+  same atomicity reason the gestures are. They existed at every layer — port,
+  Postgres adapter, fake, contract test, two integration tests — and the rig
+  stores both, so a divergence that silently loses a cross-batch call was not
+  one to declare and leave. `test_a_call_that_lands_in_the_next_batch_is_kept_and_not_dropped`
+  pins it; dropping either write fails it.
+- ~~**`snapshots_ignored` is dropped on the floor.**~~ **CLOSED in the fix
+  round — carried, not underscored.** It is a field on `Ingested`, a key on
+  `ObservationAcceptedResponse`, and in the committed `openapi.json` and the
+  generated frontend types. The rig returns the same key. It is `0` on a batch
+  we already had: nothing re-read it, and no column records what the first pass
+  ignored.
 - **`GET /v1/pool`, `GET /v1/streams`, `GET /v1/gestures`** — three read-only
   rig doors with nothing behind them on this side. `pool` is the cheap one:
-  `PoolRepository.retired` already exists and nothing can read it.
+  `PoolRepository.retired` already exists and nothing can read it. **Still
+  open.**
 
 ---
 
-## Open against this branch, pending a second reader
+## Closed by the fix round — both reviews in, and they agreed
 
-A whole-branch review of `63dc580` returned **NEEDS FIXES**, and a second
-independent review of the same commit was still running when this was written.
-**Nothing in this section is settled, agreed, or done.** It is here so that a
-later phase reading this plan does not mistake silence for a clean bill.
+Two independent whole-branch reviews of `63dc580` ran without contact and
+returned almost the same list. **Every finding was in the five commits made
+outside this plan** — under time pressure, against a live system, with no
+reviewer. Tasks 1–8 were reviewed and no survivor was found in any of them.
+That is the lesson worth keeping: the process held everywhere it was applied.
 
-Fixes are outstanding, or at least claimed, for:
+All of it is fixed, and **every fix was verified by running its mutation and
+watching the new test fail**:
 
-- **`K_WINDOW_TOKENS` is unpinned.** No test asserts its value or an upper
-  bound on it; every test that mentions it *derives* from it
-  (`tests/unit/application/rig/test_mine.py:162`,
-  `tests/unit/domain/rig/test_umbrella.py:184`), so raising it back to 150,000
-  — the value that crossed the price boundary — fails nothing.
-- **The redacted-events decision in ingest is untested.** `ingest.py` correlates
-  from the **redacted** events rather than the accepted ones, with a reason
-  written beside it; no test fails if that flips.
-- **`tokens()`'s docstring claims a safety property that was measured false.**
-  `window.py:115-118` still says it "never lies in the expensive direction",
-  which the 1.697× under-count above directly contradicts.
-- **A tally assertion was weakened by `527d8f2`.**
+| Was | Mutation that used to pass every gate | Now |
+| --- | --- | --- |
+| The redacted-vs-accepted decision in ingest had no test | `_as_wire_batch(batch, redacted)` → `(batch, admission.accepted)` | `test_the_gesture_stored_says_which_field_the_blob_store_lost` |
+| The gesture tally was unguarded, and `527d8f2` had gutted the test named for it | `accepted=len(gestures)` → `admission.accepted_count` | tally assertion restored **beside** the store one |
+| The unreadable-event count was unguarded and conflated | `rejected=len(admission.rejected) + unreadable` → without the sum | `test_an_event_nothing_could_read_is_counted_as_a_loss_and_not_a_silence`, plus a comment saying the two kinds of loss are summed on purpose |
+| `K_WINDOW_TOKENS` was pinned by nothing | `100_000` → `150_000`, the value that cost $2.00 | `test_the_budget_stays_under_the_price_boundary_in_real_tokens` asserts `K_WINDOW_TOKENS * 1.697 < 200_000` |
+| `tokens()`'s docstring was refuted by the one 90 lines above it | — | rewritten to record the measured 2.36 ratio, with a `# ponytail:` note naming the ceiling |
+| The dry run's secret flag had two halves and the corpus planted neither | drop `target.secret` | `test_a_password_field_exports_as_secret_by_either_half_of_the_flag` |
 
-Each is named, not judged. Confirm against the reviews before acting.
+### One thing the reviews got slightly wrong, worth writing down
+
+The redacted-vs-accepted mutation is **very nearly equivalent**, and neither
+review said so. `rig_wire`'s pydantic validators redact on their own
+validators, so a url, a typed value, a prose label, a header and a body TEXT
+come out byte-identical down either path. Diffing the two paths over a gesture,
+a request and a page event carrying credentials in ten places, the entire diff
+was the random gesture id and one list: `request_body.redacted_fields`. The
+wire's `redact_body` reports shapes only; the one `redact_events` runs reports
+field NAMES too.
+
+So the argument beside that line is right and its margin is one field. That is
+what the test pins, and the comment now says the wire's copy must not become
+the argument for deleting this one.
+
+### `ruff check` is the eighth gate
+
+`uv run ruff check .` was reporting 3 errors on this branch — import ordering in
+`container.py` and `ingest.py`, both clean at `f6c6902`, plus a `RUF059` on the
+`snapshots` binding. It is not among the seven gates the plan lists, which is
+exactly how three errors got in. **It is now a gate.** It reaches **0**.
+
+---
+
+## Carried to phase 5
+
+### 1. The extension cannot call two of the doors 4a built — and it is not 4a's defect
+
+The plan's premise that **"the extension's `api.js` changes only its base"** is
+false for `/v1/shapes` and `/v1/offers`. Both go through `rigHeaders()`
+(`new-chrome-extension/src/background/api.js:84`), documented as sending *"one
+bearer, no device registry, **none of the backend's headers**"* — and
+`X-Device-Secret` is one of the backend's headers.
+
+Against this backend, today:
+
+- **`shapes()`** (`api.js:250`) gets a **404** from `asking_device`'s half-pair
+  rule and returns `[]`. `[]` on every failure is deliberate and correct — the
+  gesture path must not pay for a rig that is down — so the extension would
+  match nothing at all, silently, forever, and look exactly like a tenant with
+  no proven jobs.
+- **`reportOffer()`** (`api.js:275`) gets a **403** and **swallows it: there is
+  no status check at all in that function.** Every offer fate would be lost, so
+  `counsel` would never learn that a job was refused and would never rest one.
+
+**The move is small and belongs to whoever ports the extension:** `rigHeaders()`
+→ `call()` for both, plus `?device_id=` on the offers POST. Not done here on
+purpose — this branch does not touch the extension, and doing it blind against
+a backend nothing has yet dialled would be a change nobody could test.
+
+### 2. `container.asker` has no reader, and that is 4b's
+
+`grep` finds no consumer in `src/` or `scripts/`; `mining_pass.mine` and
+`run_workflow` still have no production caller. The docstring said *"Its caller
+checks and refuses"* and has been corrected to say the caller arrives in 4b.
+**Do not wire it in a fix round** — it spends money, which is the line the
+4a/4b split was drawn on. It is built here so the wiring is one commit and not
+three.
+
+### 3. `RecordOfferRequest` keeps pydantic's `extra="ignore"` — decided, not overlooked
+
+A stale extension naming `device_id` in the offers body is silently
+reinterpreted rather than refused. `extra="forbid"` would make that a loud 422.
+
+**Keeping `ignore`, deliberately.** The body's `device_id` is not
+*mis*-interpreted: the row goes against the browser that proved itself with
+`X-Device-Secret`, which is exactly the semantics the schema's docstring
+argues for, and ignoring a field the request had no business sending is the
+right answer to it. `forbid` would buy one diagnostic and sell version skew in
+return — a browser extension updates on its own schedule, and every field a
+future recorder adds first would become a 422 against a backend that has not
+shipped yet. The 403 for a request that proves no browser is the loud refusal
+that matters, and it is already there.
 
 ---
 

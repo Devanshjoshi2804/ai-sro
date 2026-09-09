@@ -278,13 +278,20 @@ class TestRecordings:
         assert "Connect it once" in response.json()["detail"]
 
     async def test_an_unknown_recording_is_a_problem_document(
-        self, client: httpx.AsyncClient
+        self, client: httpx.AsyncClient, uow: FakeUnitOfWork
     ) -> None:
+        """A real recording is read through the same door on purpose: a path
+        nobody registered answers 404 with this exact problem document, so
+        without it this proves the route absent rather than well-mannered."""
+        real = f.recording(frames=0)
+        await uow.recordings.add(real)
+
         response = await client.get("/v1/recordings/nope")
 
         assert response.status_code == 404
         assert response.headers["content-type"].startswith("application/problem+json")
         assert response.json()["status"] == 404
+        assert (await client.get(f"/v1/recordings/{real.id}")).status_code == 200
 
     async def test_a_recording_renders_its_frames(
         self, client: httpx.AsyncClient, uow: FakeUnitOfWork
@@ -452,9 +459,19 @@ class TestBrowsersAreNotShared:
         self, client: httpx.AsyncClient, uow: FakeUnitOfWork, container: _FakeContainer
     ) -> None:
         """This one emptied their cookies into the caller's vault: naming
-        somebody else's browser was the entire attack."""
+        somebody else's browser was the entire attack.
+
+        The caller's own browser is stored through the same door on purpose. A
+        `/v1/connections/{id}/session` that was never registered answers the
+        same 404, so a refusal on its own proves the endpoint absent rather
+        than the ownership check present -- and this is the one regression
+        where "absent" and "safe" must not be allowed to look alike.
+        """
         theirs = await container.browsers().open(
             RequestContext(tenant_id=TenantId("rival"), principal_id=PrincipalId("somebody-else"))
+        )
+        mine = await container.browsers().open(
+            RequestContext(tenant_id=f.TENANT, principal_id=f.OPERATOR)
         )
         await _connected(uow, container)
 
@@ -463,6 +480,9 @@ class TestBrowsersAreNotShared:
         )
 
         assert response.status_code == 404
+        assert (
+            await client.post(f"/v1/connections/con-1/session?browser_session_id={mine.id}")
+        ).status_code == 200
 
 
 class TestRunReversal:

@@ -277,6 +277,11 @@ class TestStoppingARunYouAreWatching:
     async def test_another_tenant_cannot_stop_this_one_s_run(
         self, client: httpx.AsyncClient, container: _FakeContainer, uow: FakeUnitOfWork
     ) -> None:
+        """The owner presses the same button afterwards on purpose: a 404 and
+        an unasked stop are both satisfied by a `/v1/runs/{id}/stop` that was
+        never registered, which would prove the control tenant-scoped and
+        absent at the same time.
+        """
         run = _running(device_id=DeviceId("dev-1"))
         await uow.runs.add(run)
 
@@ -291,6 +296,9 @@ class TestStoppingARunYouAreWatching:
 
         assert theirs.status_code == 404
         assert not container.stops.asked(run.id.value)
+
+        assert (await client.post(f"/v1/runs/{run.id.value}/stop")).status_code == 202
+        assert container.stops.asked(run.id.value)
 
     async def test_a_stop_is_accepted_and_the_run_is_asked_rather_than_ended(
         self, client: httpx.AsyncClient, container: _FakeContainer, uow: FakeUnitOfWork

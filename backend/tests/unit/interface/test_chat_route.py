@@ -377,12 +377,20 @@ async def test_the_sentence_itself_is_not_stored_and_is_not_echoed_back(
     layer out. A body that echoed the sentence back would put it into every
     proxy log, browser history and error report the answer passes through --
     undoing the column that was deliberately never added.
+
+    The 200 and the billed row are asserted first on purpose: every assertion
+    below is an absence, and an absence is satisfied by any answer that never
+    reached the route at all. Without them a deleted endpoint passes this test
+    -- the 404 quotes none of these words either -- so the door would be proved
+    private and absent at the same time, which is no proof of privacy.
     """
     said = "create a work area for zone 4 for ACME-99, ask Priya"
     container.asker = FakeAsker(_answer("wfl_1", [{"name": "areaName", "value": "ZONE4"}]))
 
     answered = await client.post("/v1/chat", json={"utterance": said})
 
+    assert answered.status_code == 200, answered.text
+    assert len(_billed_rows(uow)) == 1, "the reading was never stored, so it stores nothing"
     for word in ("ACME-99", "Priya", said):
         assert word not in answered.text, f"{word!r} came back on the wire"
         assert word not in str(_billed_rows(uow)), f"{word!r} reached the row"

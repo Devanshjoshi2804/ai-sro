@@ -101,7 +101,20 @@ async def test_revoking_a_browser_this_tenant_does_not_have_is_a_404(
 async def test_restoring_a_browser_this_tenant_does_not_have_is_a_404(
     client: httpx.AsyncClient, registered: AgentDevice
 ) -> None:
+    """The revoke's two answers again, at the other door: "no such browser" is
+    not "nothing to restore".
+
+    The registered browser is pressed in the same test on purpose: a 404 alone
+    passes against a path nobody registered -- Starlette's own miss goes
+    through `_http_problem` and answers the same `not_found` problem document
+    -- so the route would be proved tenant-scoped and absent at once.
+    """
     assert (await client.post("/v1/devices/nobody/restore")).status_code == 404
+
+    mine = await client.post(f"/v1/devices/{LAPTOP.value}/restore")
+
+    assert mine.status_code == 200
+    assert mine.json() == {"device_id": LAPTOP.value, "moved": False}
 
 
 async def test_a_browser_may_not_revoke_or_restore_or_read_the_roster(

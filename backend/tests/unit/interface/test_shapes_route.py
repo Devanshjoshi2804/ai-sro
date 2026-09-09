@@ -306,12 +306,22 @@ async def test_a_query_string_alone_does_not_name_a_browser(
 ) -> None:
     """Without this, `?device_id=` is an impersonation parameter: every
     device-scoped answer would be one query string away from any credential in
-    the tenant. A refusal and never a quiet downgrade to the tenant."""
+    the tenant. A refusal and never a quiet downgrade to the tenant.
+
+    The tenant's own read is taken in the same test, and it is what "never a
+    quiet downgrade" is measured against: the same door, the same credential,
+    one query parameter apart. Without it a `/v1/shapes` nobody registered
+    answers the same 404 and this passes, proving the parameter checked and
+    the route absent at the same time.
+    """
     await _refused(uow, container, LAPTOP)
 
     answered = await client.get("/v1/shapes", params={"device_id": LAPTOP.value})
+    as_the_tenant = await client.get("/v1/shapes")
 
     assert answered.status_code == 404
+    assert as_the_tenant.status_code == 200
+    assert as_the_tenant.json()["shapes"], "the refusal is not a downgrade to this answer"
 
 
 async def test_naming_no_browser_at_all_is_the_tenant_and_not_a_refusal(
@@ -338,12 +348,20 @@ async def test_a_blank_browser_with_a_secret_is_still_refused(
 ) -> None:
     """The other half of the normalisation: blank is "no browser named", and a
     secret with no browser named is half a pair, which is a 404 and not the
-    tenant."""
+    tenant.
+
+    Asked twice off the same blank id, the header the only difference, so what
+    is being read is the header rather than a route that answers 404 to
+    everything -- including one that was never registered.
+    """
     answered = await client.get(
         "/v1/shapes", params={"device_id": " "}, headers={"X-Device-Secret": HERS}
     )
+    without = await client.get("/v1/shapes", params={"device_id": " "})
 
     assert answered.status_code == 404
+    assert without.status_code == 200
+    assert without.json()["shapes"], "the blank id is refused with a secret and served without one"
 
 
 # --- whose list it is -----------------------------------------------------

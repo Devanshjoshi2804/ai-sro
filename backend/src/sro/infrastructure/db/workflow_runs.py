@@ -252,10 +252,16 @@ class SqlWorkflowRunRepository(WorkflowRunRepository):
         return await self._with_steps(rows.all())
 
     async def in_flight(self, tenant_id: TenantId, device_id: DeviceId) -> str | None:
-        # ponytail: a read the caller acts on, not a lock -- sound while one
-        # worker owns every run, as the rig required. A second worker needs a
-        # UNIQUE partial index on (tenant_id, device_id) WHERE outcome =
-        # 'running'.
+        # A read the caller acts on, and no longer the only thing standing
+        # between two presses and one browser: migration 0043 added the UNIQUE
+        # partial index on (tenant_id, device_id) WHERE outcome = 'running'
+        # that the note here used to ask a future worker for.
+        #
+        # This stays because it is the answer a person can act on -- it names
+        # the run already driving, where the index can only refuse. The index
+        # is the backstop for the race this read cannot see: there are two
+        # awaits between it and the commit, and two gathered presses against
+        # real Postgres both claimed the browser before it existed.
         busy: str | None = await self._session.scalar(
             select(WorkflowRunRow.id)
             .where(
@@ -266,6 +272,15 @@ class SqlWorkflowRunRepository(WorkflowRunRepository):
             # Total, so that a device somehow driving two runs at one instant
             # names the same one of them on every read rather than whichever
             # Postgres happens to hand back first.
+            #
+            # 0043 makes that state unreachable through this schema, so the
+            # ordering is now defensive rather than load-bearing, and the test
+            # that planted two running rows to prove the tie-break went with it.
+            # Kept anyway: a hand-typed INSERT, a restore from a dump taken
+            # before 0043, or a future outcome value that is not 'running' but
+            # means it would each put two rows here, and a query that returns
+            # "whichever" in that state is worse than one that returns the same
+            # one twice.
             .order_by(WorkflowRunRow.started_at, WorkflowRunRow.id)
             .limit(1)
         )

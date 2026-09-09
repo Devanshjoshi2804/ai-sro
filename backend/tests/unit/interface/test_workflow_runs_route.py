@@ -1,4 +1,5 @@
-"""`POST /v1/workflow-runs` -- the door that starts a run in a live warehouse.
+"""`/v1/workflow-runs` -- the door that starts a run in a live warehouse, and
+the two reads of what it left behind.
 
 The refusals and the claimed row are proved at their own layer in
 `tests/unit/application/rig/test_start_workflow_run.py`. What is here is the
@@ -18,6 +19,13 @@ closes it: what this file asserts is that the work was handed over, and what it
 would do is `test_start_workflow_run.py`'s and `test_runner.py`'s. A test that
 let the task run would drive a socket that answers nothing, on a timer, after
 the request it belongs to had finished.
+
+**The reads are at the foot of the file**, and every query parameter of the
+list has a test that dies if the route passes a constant instead: a door that
+ignores `awaiting` and answers with everything looks perfectly fine on a
+fixture where nothing is parked. The ordering is asserted on three rows, not
+two -- a reversed pair agrees with a two-element assertion once in two, and
+phase 4a shipped that defect twice.
 """
 
 from __future__ import annotations
@@ -641,3 +649,397 @@ def test_the_container_plans_on_one_model_and_rescues_on_the_other(
     # another route sets the register this run is waiting on.
     assert starter._stops is container.stops
     assert starter._approvals is container.approvals
+
+
+# --- the two reads: the list to pick from, and the run itself ----------------
+#
+# The order these serve is the RIG's -- newest first, capped -- and it is not
+# `for_workflow`'s. `for_workflow` is oldest first because `proofs` reads a
+# job's writes forward through time; a person opening a list wants what
+# happened last at the top, and the extension and console are written against
+# the rig's shape. The port docstring used to justify its ascending order by
+# citing the rig, which says the opposite; that citation is now corrected and
+# this is the read that keeps the rig's promise.
+
+
+def _planted(
+    run_id: str,
+    *,
+    workflow_id: str = "wfl_1",
+    tenant: TenantId = TENANT,
+    device: DeviceId = LAPTOP,
+    at: str = "2026-03-01T09:00:00+00:00",
+    outcome: str = "held",
+    steps: list[RunStep] | None = None,
+) -> WorkflowRun:
+    return WorkflowRun(
+        id=run_id,
+        tenant=tenant.value,
+        workflow_id=workflow_id,
+        device_id=device.value,
+        values={"clientCode": "NEWTESTS"},
+        started_by=f.OPERATOR.value,
+        live=True,
+        allow_focus=False,
+        started_at=at,
+        finished_at=None if outcome == "running" else at,
+        outcome=outcome,
+        steps=steps or [],
+    )
+
+
+def _parked(order: int, says: str) -> RunStep:
+    """A step waiting on a person, as the runner leaves it."""
+    return RunStep(order=order, says=says, verdict="awaiting", sent={"kind": "ui.perform"})
+
+
+async def _plant(uow: FakeUnitOfWork, *runs: WorkflowRun) -> None:
+    for run in runs:
+        await uow.workflow_runs.save(run)
+
+
+# --- the list ---------------------------------------------------------------
+
+
+async def test_the_list_is_newest_first_and_the_test_would_notice_the_reverse(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork
+) -> None:
+    """Three rows, not two: a reversed pair agrees with a two-element ordering
+    assertion once in two, and phase 4a shipped exactly that defect twice.
+
+    Newest first is the rig's order (`ORDER BY started_at DESC LIMIT ?`) and
+    deliberately not `for_workflow`'s. A person opening this list is looking
+    for what happened last.
+    """
+    await _plant(
+        uow,
+        _planted("run_middle", at="2026-03-01T10:00:00+00:00"),
+        _planted("run_oldest", at="2026-03-01T09:00:00+00:00"),
+        _planted("run_newest", at="2026-03-01T11:00:00+00:00"),
+    )
+
+    listed = await client.get("/v1/workflow-runs")
+
+    assert listed.status_code == 200, listed.text
+    assert [one["id"] for one in listed.json()] == ["run_newest", "run_middle", "run_oldest"]
+
+
+async def test_which_job_to_list_comes_from_the_query(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork
+) -> None:
+    """A route that ignored `workflow_id` and answered with everything looks
+    healthy on a fixture holding one job."""
+    await _plant(uow, _planted("run_mine"), _planted("run_other", workflow_id="wfl_2"))
+
+    listed = await client.get("/v1/workflow-runs", params={"workflow_id": "wfl_2"})
+
+    assert [one["id"] for one in listed.json()] == ["run_other"]
+
+
+async def test_no_job_named_lists_every_job_of_the_tenant(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork
+) -> None:
+    """The rig's default is the empty string, which meant every job. A route
+    that always narrowed to something would answer an empty list to the console
+    opening cold."""
+    await _plant(uow, _planted("run_mine"), _planted("run_other", workflow_id="wfl_2"))
+
+    listed = await client.get("/v1/workflow-runs")
+
+    assert {one["id"] for one in listed.json()} == {"run_mine", "run_other"}
+
+
+async def test_the_limit_is_the_callers_and_it_keeps_the_newest(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork
+) -> None:
+    """Three rows and a limit of two, so a route passing a constant limit --
+    or none -- answers three where this expects the two most recent."""
+    await _plant(
+        uow,
+        _planted("run_middle", at="2026-03-01T10:00:00+00:00"),
+        _planted("run_oldest", at="2026-03-01T09:00:00+00:00"),
+        _planted("run_newest", at="2026-03-01T11:00:00+00:00"),
+    )
+
+    listed = await client.get("/v1/workflow-runs", params={"limit": 2})
+
+    assert [one["id"] for one in listed.json()] == ["run_newest", "run_middle"]
+
+
+async def test_a_limit_that_is_not_a_page_is_refused_rather_than_clamped(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork
+) -> None:
+    """The rig clamped to `max(1, min(limit, 200))`. A caller asking for 5000
+    and silently getting 200 cannot tell a cap from a truncated answer, and
+    FastAPI already says this once, in the place the generated client reads."""
+    await _plant(uow, _planted("run_1"))
+
+    assert (await client.get("/v1/workflow-runs", params={"limit": 0})).status_code == 422
+    assert (await client.get("/v1/workflow-runs", params={"limit": 5000})).status_code == 422
+
+
+async def test_the_list_holds_only_this_tenants_runs(
+    container: _FakeContainer, uow: FakeUnitOfWork
+) -> None:
+    """Two tenants and the same job id in both: a read that dropped the tenant
+    would answer with somebody else's warehouse."""
+    await _plant(uow, _planted("run_mine"), _planted("run_theirs", tenant=RIVAL))
+
+    app = create_app()
+    app.dependency_overrides[get_container] = lambda: container
+    async with httpx.AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        headers={"Authorization": f"Bearer {token_for(tenant=RIVAL.value)}"},
+    ) as http:
+        listed = await http.get("/v1/workflow-runs")
+
+    assert [one["id"] for one in listed.json()] == ["run_theirs"]
+
+
+async def test_a_run_reaches_the_list_whole_and_not_as_a_summary(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork
+) -> None:
+    """The rig's list was one line each with the full record a second request
+    away. This answers with the row, so what a panel needs to render a parked
+    run is already on the wire -- pinned at values that are not defaults."""
+    planted = _planted("run_1", steps=[_parked(0, "click Save")])
+    planted.values = {"clientCode": "THIRD"}
+    planted.withheld = [{"step": 0, "planned": {"kind": "http.send"}}]
+    planted.cost_usd, planted.unpriced, planted.from_step = 0.44, True, 2
+    await _plant(uow, planted)
+
+    (row,) = (await client.get("/v1/workflow-runs")).json()
+
+    assert row == WorkflowRunModel.of(planted).model_dump()
+    assert row["values"] == {"clientCode": "THIRD"} and row["from_step"] == 2
+    assert row["cost_usd"] == 0.44 and row["unpriced"] is True
+    assert row["withheld"] == [{"step": 0, "planned": {"kind": "http.send"}}]
+    assert [step["says"] for step in row["steps"]] == ["click Save"]
+
+
+# --- awaiting: the supervisor's queue ----------------------------------------
+
+
+async def test_awaiting_narrows_the_list_to_the_runs_parked_on_a_person(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork
+) -> None:
+    """Two tenants x two jobs x parked-against-running, because a route that
+    ignores `awaiting` and answers with everything looks perfectly fine on a
+    fixture where nothing is parked.
+
+    A second browser for the second running run: one browser holds one running
+    run, and the parked steps this list is for are the ones across browsers.
+    """
+    await _plant(
+        uow,
+        _planted("run_parked", outcome="running", steps=[_parked(1, "confirm the write")]),
+        _planted("run_going", outcome="running", device=DESK),
+        _planted("run_done", steps=[_parked(0, "left awaiting on a finished run")]),
+        _planted(
+            "run_parked_elsewhere",
+            workflow_id="wfl_2",
+            outcome="running",
+            device=DeviceId("dev-3"),
+            steps=[_parked(0, "approve the move")],
+        ),
+        _planted(
+            "run_parked_theirs",
+            tenant=RIVAL,
+            outcome="running",
+            steps=[_parked(0, "not this tenant's queue")],
+        ),
+    )
+
+    listed = await client.get("/v1/workflow-runs", params={"awaiting": "true"})
+
+    assert {one["id"] for one in listed.json()} == {"run_parked", "run_parked_elsewhere"}
+
+
+async def test_awaiting_and_a_job_narrow_together(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork
+) -> None:
+    """The rig applied both in one WHERE clause, and a route that dropped
+    either would answer a supervisor about work that is not theirs to clear."""
+    await _plant(
+        uow,
+        _planted("run_parked", outcome="running", steps=[_parked(0, "confirm")]),
+        _planted(
+            "run_parked_elsewhere",
+            workflow_id="wfl_2",
+            outcome="running",
+            device=DESK,
+            steps=[_parked(0, "approve")],
+        ),
+    )
+
+    listed = await client.get(
+        "/v1/workflow-runs", params={"awaiting": "true", "workflow_id": "wfl_2"}
+    )
+
+    assert [one["id"] for one in listed.json()] == ["run_parked_elsewhere"]
+
+
+async def test_the_queue_is_narrowed_before_it_is_capped(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork
+) -> None:
+    """The rig put `id IN (...)` in the WHERE and the cap after it. A route
+    that took the newest two runs and then kept the parked ones among them
+    answers "nothing is waiting" to a supervisor with a queue -- the busiest
+    tenant being the one it fails for."""
+    await _plant(
+        uow,
+        _planted(
+            "run_parked",
+            outcome="running",
+            at="2026-03-01T09:00:00+00:00",
+            steps=[_parked(0, "confirm")],
+        ),
+        _planted("run_newer_1", at="2026-03-01T10:00:00+00:00"),
+        _planted("run_newer_2", at="2026-03-01T11:00:00+00:00"),
+    )
+
+    listed = await client.get("/v1/workflow-runs", params={"awaiting": "true", "limit": 2})
+
+    assert [one["id"] for one in listed.json()] == ["run_parked"]
+
+
+async def test_awaiting_returns_every_parked_step_and_not_only_the_deepest(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork
+) -> None:
+    """The divergence this plan settles.
+
+    The rig reported the deepest parked step of each run -- `ORDER BY ord DESC
+    LIMIT 1` -- and this returns every one of them, `ord` ascending, matching
+    the repository. Anyone may answer a parked run, and a queue that hides all
+    but the deepest step hides work from the person who could clear it.
+    """
+    await _plant(
+        uow,
+        _planted(
+            "run_parked",
+            outcome="running",
+            steps=[
+                _parked(1, "confirm the write"),
+                RunStep(order=2, says="a step nobody is waiting on", verdict="done"),
+                _parked(3, "and let the second one out"),
+            ],
+        ),
+    )
+
+    (row,) = (await client.get("/v1/workflow-runs", params={"awaiting": "true"})).json()
+
+    waiting = [step for step in row["steps"] if step["verdict"] == "awaiting"]
+    assert [step["order"] for step in waiting] == [1, 3]
+    assert [step["says"] for step in waiting] == ["confirm the write", "and let the second one out"]
+
+
+async def test_a_tenant_with_nothing_parked_is_answered_with_nothing(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork
+) -> None:
+    """The rig returned `{"runs": []}` without touching the runs table. A route
+    that fell through to an unfiltered query here would show a supervisor every
+    run of the tenant as work waiting on them."""
+    await _plant(uow, _planted("run_done"), _planted("run_going", outcome="running"))
+
+    listed = await client.get("/v1/workflow-runs", params={"awaiting": "true"})
+
+    assert listed.json() == []
+
+
+# --- one run ----------------------------------------------------------------
+
+
+async def test_the_run_asked_for_is_the_one_answered(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork
+) -> None:
+    """Two rows, so a route reading the first one it found agrees with this
+    once in two."""
+    await _plant(uow, _planted("run_1"), _planted("run_2", workflow_id="wfl_2"))
+
+    read = await client.get("/v1/workflow-runs/run_2")
+
+    assert read.status_code == 200, read.text
+    assert read.json()["id"] == "run_2" and read.json()["workflow_id"] == "wfl_2"
+
+
+async def test_a_run_is_read_back_whole(client: httpx.AsyncClient, uow: FakeUnitOfWork) -> None:
+    """Every field at a value that is not its default, so a mapping that
+    dropped one -- or a model built off a stale row -- fails here."""
+    planted = _planted("run_1", steps=[_parked(2, "click Save")])
+    planted.values = {"clientCode": "THIRD"}
+    planted.withheld = [{"step": 2, "planned": {"kind": "http.send"}}]
+    planted.in_tokens, planted.out_tokens, planted.thought_tokens = 11, 22, 33
+    planted.cost_usd, planted.unpriced, planted.from_step = 0.44, True, 2
+    await _plant(uow, planted)
+
+    read = await client.get("/v1/workflow-runs/run_1")
+
+    assert read.json() == WorkflowRunModel.of(planted).model_dump()
+    assert read.json()["live"] is True and read.json()["allow_focus"] is False
+    assert read.json()["in_tokens"] == 11 and read.json()["cost_usd"] == 0.44
+
+
+async def test_a_run_of_another_tenant_is_a_404_and_not_a_403(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork
+) -> None:
+    """A 403 confirms the id exists. Run ids are unguessable and the answer to
+    "is this yours" must not differ from the answer to "does this exist".
+
+    The reachable row is read in the same test on purpose: a 404 test alone
+    passes against a path that was never registered, which is how a door can be
+    proved private and absent at the same time.
+    """
+    await _plant(uow, _planted("run_mine"), _planted("run_theirs", tenant=RIVAL))
+
+    read = await client.get("/v1/workflow-runs/run_theirs")
+
+    assert read.status_code == 404
+    assert read.headers["content-type"].startswith("application/problem+json")
+    assert (await client.get("/v1/workflow-runs/run_mine")).status_code == 200
+
+
+async def test_a_run_that_never_existed_is_the_same_404(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork
+) -> None:
+    """Byte for byte the answer above, which is the whole point of it."""
+    await _plant(uow, _planted("run_mine"), _planted("run_theirs", tenant=RIVAL))
+
+    missing = await client.get("/v1/workflow-runs/run_nope")
+    theirs = await client.get("/v1/workflow-runs/run_theirs")
+
+    assert missing.status_code == 404
+    assert missing.json()["detail"] == theirs.json()["detail"]
+    assert (await client.get("/v1/workflow-runs/run_mine")).status_code == 200
+
+
+# --- who may read them -------------------------------------------------------
+
+
+async def test_a_browser_that_proves_itself_may_read_the_runs(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork
+) -> None:
+    """The same auth ruling the press is pinned on, at the two reads.
+
+    The extension sends `X-Device-Secret` on every call it makes
+    (`api.js:40`), and `asking_device` answers a secret with no `?device_id=`
+    beside it with a 404 before it reaches a repository. `TenantOnly` on these
+    would 404 every call from the panel that shows a run -- and every other
+    test in this file would stay green, because none of them sends the header.
+    """
+    await _plant(uow, _planted("run_1"))
+    proving = {"X-Device-Secret": "whatever-this-is"}
+
+    listed = await client.get("/v1/workflow-runs", headers=proving)
+    read = await client.get("/v1/workflow-runs/run_1", headers=proving)
+
+    assert listed.status_code == 200, listed.text
+    assert read.status_code == 200, read.text
+
+
+async def test_the_reads_are_refused_with_no_credential(container: _FakeContainer) -> None:
+    app = create_app()
+    app.dependency_overrides[get_container] = lambda: container
+    async with httpx.AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as http:
+        assert (await http.get("/v1/workflow-runs")).status_code == 401
+        assert (await http.get("/v1/workflow-runs/run_1")).status_code == 401

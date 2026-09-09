@@ -55,7 +55,11 @@ from sro.application.execution.run_from_preview import RunFromPreview
 from sro.application.execution.self_heal import SelfHeal
 from sro.application.execution.stops import Stops
 from sro.application.execution.vision_step import PerformWithVision
-from sro.application.execution.workflow_runs import StartWorkflowRun
+from sro.application.execution.workflow_runs import (
+    GetWorkflowRun,
+    ListWorkflowRuns,
+    StartWorkflowRun,
+)
 from sro.application.induction.induce_skill import InduceSkill
 from sro.application.induction.seed_from_flow import SeedSkillFromFlow
 from sro.application.induction.understand import UnderstandRecording
@@ -879,6 +883,15 @@ class Container:
             stops=self.stops,
             approvals=self.approvals,
         )
+
+    def list_workflow_runs(self) -> ListWorkflowRuns:
+        """The runs of mined jobs, newest first. Not `list_runs` above, which
+        lists skill runs keyed on a `RunId`."""
+        return ListWorkflowRuns(self.unit_of_work())
+
+    def get_workflow_run(self) -> GetWorkflowRun:
+        """One run of a mined job. Not `get_run` above, for the same reason."""
+        return GetWorkflowRun(self.unit_of_work())
 
     def call_run_wrong(self) -> CallRunWrong:
         return CallRunWrong(self.unit_of_work(), self.clock)

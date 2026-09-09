@@ -1,6 +1,7 @@
-"""The press, from outside the process: start a run of a mined workflow.
+"""Runs of mined workflows: start one, list them, read one.
 
-Ported from `start_run` in `new_agent_arch/src/rig/api.py:1021`.
+Ported from `start_run`, `runs` and `read_run` in
+`new_agent_arch/src/rig/api.py:1021`, `:1152` and `:1217`.
 
 **Why not `/v1/runs`, which is where the rig put this.** `/v1/runs`,
 `/v1/runs/{run_id}`, `/v1/runs/{run_id}/stop` and `/v1/runs/{run_id}/values`
@@ -23,7 +24,7 @@ written down.
 Not `/v1/workflows/runs` either, which would make a workflow whose id is
 literally `runs` a live ambiguity with `/v1/workflows/{workflow_id}`.
 
-*If you are looking for where the rig's `POST /v1/runs` went, this is it.*
+*If you are looking for where the rig's `/v1/runs` went, all three are here.*
 
 Nothing here catches a refusal: `sro.interface.http.errors` maps them once, for
 every route -- `AskerUnavailable` to 503, `OverCap` to 429, `Conflict` to 409,
@@ -32,7 +33,9 @@ every route -- `AskerUnavailable` to 503, `OverCap` to 429, `Conflict` to 409,
 
 from __future__ import annotations
 
-from fastapi import APIRouter, status
+from typing import Annotated
+
+from fastapi import APIRouter, Query, status
 
 from sro.domain.shared.identifiers import DeviceId
 from sro.interface.http.deps import ContainerDep, ContextDep
@@ -45,11 +48,12 @@ router = APIRouter(tags=["workflow-runs"])
 
 Chat refuses a browser proving itself because a browser's secret opens its own
 doors and not the tenant's purse. A press is different in the one way that
-matters: pressing start is exactly what a browser does. The extension sends
-`X-Device-Secret` on every call it makes, and `asking_device` answers a secret
-with no `?device_id=` beside it with a 404 -- so `TenantOnly` here would refuse
-the one caller this door exists for. Which browser to drive is a body field, as
-it is in the rig, and the tenant's browsers are the tenant's to drive.
+matters: pressing start is exactly what a browser does, and so is reading back
+what it started. The extension sends `X-Device-Secret` on every call it makes,
+and `asking_device` answers a secret with no `?device_id=` beside it with a 404
+-- so `TenantOnly` here would refuse the one caller these doors exist for, on
+every one of them. Which browser to drive is a body field, as it is in the rig,
+and the tenant's browsers are the tenant's to drive.
 """
 
 
@@ -89,3 +93,60 @@ async def start_workflow_run(
     )
     container.pursuits.spawn(starter.perform(ctx, claimed))
     return WorkflowRunModel.of(claimed)
+
+
+@router.get("/workflow-runs")
+async def list_workflow_runs(
+    container: ContainerDep,
+    ctx: ContextDep,
+    workflow_id: Annotated[str | None, Query()] = None,
+    limit: Annotated[int, Query(ge=1, le=200)] = 20,
+    awaiting: Annotated[bool, Query()] = False,
+) -> list[WorkflowRunModel]:
+    """The most recent runs, newest first, as one row each.
+
+    Ported from `runs` in `new_agent_arch/src/rig/api.py:1152`, and this keeps
+    its order: newest first, capped. That is deliberately not
+    `WorkflowRunRepository.for_workflow`'s ascending order -- that one is the
+    evidence order `proofs` reads, and its docstring used to cite the rig for
+    it, which is exactly backwards. A person opening a list wants what happened
+    last at the top.
+
+    **The rows are whole, where the rig sent one line each with the full record
+    a `GET` away.** `WorkflowRunModel` is what the press already answers with,
+    and a panel that has to make a second request per row to show a parked step
+    is a panel that makes twenty.
+
+    That is also how the divergence this plan settles reaches the wire. The rig
+    reported the deepest parked step of each run, in an `awaiting` field of its
+    own; this reports every parked step, `ord` ascending, in `steps` -- the
+    ones with `verdict == "awaiting"`. **Plan 4b's ruling**, written here and on
+    `WorkflowRunRepository.awaiting`: anyone may answer a parked run, and a
+    queue that hides all but the deepest step hides work from the person who
+    could clear it.
+
+    `limit` is validated rather than clamped, which is the one other deviation.
+    The rig did `max(1, min(limit, 200))`; a caller that asks for 5000 and
+    silently gets 200 cannot tell a cap from a truncated answer, and FastAPI
+    says this once, in the place the generated client reads.
+    """
+    runs = await container.list_workflow_runs().execute(
+        ctx, workflow_id=workflow_id, limit=limit, awaiting=awaiting
+    )
+    return [WorkflowRunModel.of(run) for run in runs]
+
+
+@router.get("/workflow-runs/{run_id}")
+async def get_workflow_run(
+    run_id: str, container: ContainerDep, ctx: ContextDep
+) -> WorkflowRunModel:
+    """One run of a mined job, whole.
+
+    Ported from `read_run` in `new_agent_arch/src/rig/api.py:1217`.
+
+    A run of another tenant is a 404 and never a 403: a 403 confirms the id
+    exists, run ids are unguessable, and the answer to "is this yours" must not
+    differ from the answer to "does this exist". The repository answers `None`
+    for both, `GetWorkflowRun` raises `NotFound`, and `errors` maps it once.
+    """
+    return WorkflowRunModel.of(await container.get_workflow_run().execute(ctx, run_id=run_id))

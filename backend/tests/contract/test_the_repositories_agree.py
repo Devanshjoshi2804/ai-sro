@@ -493,6 +493,94 @@ class TestWorkflowRuns:
             found = await work.workflow_runs.for_workflow(TENANT, "wfl_1")
         assert [one.id for one in found] == ["run_early", "run_a", "run_b", "run_c"]
 
+    async def test_recent_is_newest_first_capped_and_filtered_as_the_rig_listed_them(
+        self, store: UnitOfWork
+    ) -> None:
+        """The other order, on purpose: ``for_workflow`` is oldest first for
+        ``proofs`` and this is the rig's own list query -- newest first, with
+        the cap applied after every predicate rather than before them.
+
+        Three rows for the ordering, because a reversed pair agrees with a
+        two-element assertion once in two. The tie is planted as well: an order
+        that is not total changes between reads, and a page boundary that moves
+        is a row a caller never sees.
+        """
+        async with store as work:
+            await work.workflow_runs.save(_run("run_b", started_at=_at(11)))
+            await work.workflow_runs.save(_run("run_a", started_at=_at(11)))
+            await work.workflow_runs.save(_run("run_oldest", started_at=_at(9)))
+            await work.workflow_runs.save(_run("run_elsewhere", workflow_id="wfl_2"))
+            await work.workflow_runs.save(_run("run_theirs", tenant=OTHER_TENANT))
+            await work.commit()
+
+        async with store as work:
+            newest_first = await work.workflow_runs.recent(TENANT, limit=20)
+            capped = await work.workflow_runs.recent(TENANT, limit=2)
+            one_job = await work.workflow_runs.recent(TENANT, limit=20, workflow_id="wfl_2")
+
+        assert [one.id for one in newest_first] == [
+            "run_b",
+            "run_a",
+            "run_elsewhere",
+            "run_oldest",
+        ]
+        # The cap is the query's, and it keeps the newest rather than whichever
+        # the store handed back first.
+        assert [one.id for one in capped] == ["run_b", "run_a"]
+        assert [one.id for one in one_job] == ["run_elsewhere"]
+
+    async def test_recent_narrows_to_named_ids_and_an_empty_set_matches_nothing(
+        self, store: UnitOfWork
+    ) -> None:
+        """How ``awaiting=true`` is served: the parked runs are a set of ids,
+        and an empty set is "nothing matches" rather than "no filter" -- the
+        difference between a supervisor's empty queue and every run of the
+        tenant presented as work waiting on them."""
+        async with store as work:
+            await work.workflow_runs.save(_run("run_parked", started_at=_at(9)))
+            await work.workflow_runs.save(_run("run_going", started_at=_at(11)))
+            await work.commit()
+
+        async with store as work:
+            named = await work.workflow_runs.recent(TENANT, limit=20, ids=frozenset({"run_parked"}))
+            # Named and capped: the ids narrow first, so a run outside the cap
+            # is still found by the queue that asked for it by name.
+            narrowed_then_capped = await work.workflow_runs.recent(
+                TENANT, limit=1, ids=frozenset({"run_parked"})
+            )
+            nothing = await work.workflow_runs.recent(TENANT, limit=20, ids=frozenset())
+
+        assert [one.id for one in named] == ["run_parked"]
+        assert [one.id for one in narrowed_then_capped] == ["run_parked"]
+        assert nothing == ()
+
+    async def test_recent_carries_the_steps_of_every_row_it_returns(
+        self, store: UnitOfWork
+    ) -> None:
+        """The list answers with whole rows, which is what puts every parked
+        step on the wire. A read that returned bare run rows would serve a panel
+        that cannot tell a parked run from a finished one."""
+        async with store as work:
+            await work.workflow_runs.save(
+                _run(
+                    "run_parked",
+                    outcome="running",
+                    steps=[
+                        RunStep(order=1, says="confirm the write", verdict="awaiting"),
+                        RunStep(order=3, says="and the second", verdict="awaiting"),
+                    ],
+                )
+            )
+            await work.commit()
+
+        async with store as work:
+            (found,) = await work.workflow_runs.recent(TENANT, limit=20)
+
+        assert [(step.order, step.says) for step in found.steps] == [
+            (1, "confirm the write"),
+            (3, "and the second"),
+        ]
+
     async def test_tallies_count_runs_and_holds_per_workflow_for_one_tenant(
         self, store: UnitOfWork
     ) -> None:

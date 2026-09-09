@@ -1,4 +1,10 @@
-"""`POST /v1/workflow-runs` through the real container, against real Postgres.
+"""`/v1/workflow-runs` through the real container, against real Postgres.
+
+The press first, then the two reads at the foot of the file: the list a person
+picks from and the run itself. Ordering, the cap and the `awaiting` join are
+exactly what a fake gets right by accident -- it sorts a dict in Python and
+cannot be wrong about the direction of a `timestamptz` or about what the store
+returns when two runs share an instant.
 
 The unit suite cannot settle two of these. `FakeUnitOfWork` builds its
 repositories in `__init__` and `SqlUnitOfWork` assigns them inside `__aenter__`,
@@ -44,7 +50,7 @@ from sro.application.execution.pursuits import Pursuits
 from sro.application.ports.repositories import UnitOfWork
 from sro.config import Settings
 from sro.domain.chat.reading import ChatReading
-from sro.domain.execution.workflow_run import already_running
+from sro.domain.execution.workflow_run import RunStep, WorkflowRun, already_running
 from sro.domain.shared.errors import Conflict
 from sro.domain.shared.identifiers import DeviceId, PrincipalId, TenantId
 from sro.domain.skill.workflow import Step, Workflow
@@ -314,3 +320,190 @@ async def test_a_browser_freed_by_a_finished_run_is_not_held_by_the_index(
             run.outcome, run.finished_at = "held", NOW.isoformat()
             await uow.workflow_runs.save(run)
             await uow.commit()
+
+
+# --- and the two reads, against the same store -------------------------------
+
+
+def _row(
+    run_id: str,
+    *,
+    at: str,
+    tenant: TenantId = TENANT,
+    workflow_id: str = "wfl_1",
+    device: DeviceId = LAPTOP,
+    outcome: str = "held",
+    steps: list[RunStep] | None = None,
+) -> WorkflowRun:
+    return WorkflowRun(
+        id=run_id,
+        tenant=tenant.value,
+        workflow_id=workflow_id,
+        device_id=device.value,
+        values={"clientCode": "NEWTESTS"},
+        started_by="night-shift",
+        live=True,
+        allow_focus=False,
+        started_at=at,
+        finished_at=None if outcome == "running" else at,
+        outcome=outcome,
+        steps=steps or [],
+    )
+
+
+async def _plant(container: _RealSessionContainer, *runs: WorkflowRun) -> None:
+    async with SqlUnitOfWork(container._session_factory) as uow:
+        for run in runs:
+            await uow.workflow_runs.save(run)
+        await uow.commit()
+
+
+async def test_the_list_is_newest_first_out_of_the_real_store(
+    container: _RealSessionContainer, client: httpx.AsyncClient
+) -> None:
+    """Four rows including a tie, because ordering is what a fake gets right by
+    accident: it sorts a dict in Python and cannot be wrong about the direction
+    of a `timestamptz`, or about what Postgres returns for two runs that share
+    an instant with nothing breaking the tie.
+
+    `23:30+02:00` is half past nine -- later than everything as text, third as
+    an instant. And newest first is the RIG's order, not `for_workflow`'s: the
+    same store answers the two reads in opposite directions on purpose.
+    """
+    await _plant(
+        container,
+        _row("run_b", at="2025-02-11T23:00:00+00:00"),
+        _row("run_a", at="2025-02-11T23:00:00+00:00"),
+        _row("run_text_first", at="2025-02-11T23:30:00+02:00"),
+        _row("run_early", at="2025-02-11T10:00:00+00:00"),
+    )
+
+    listed = await client.get("/v1/workflow-runs")
+
+    assert listed.status_code == 200, listed.text
+    assert [one["id"] for one in listed.json()] == [
+        "run_b",
+        "run_a",
+        "run_text_first",
+        "run_early",
+    ]
+
+
+async def test_the_cap_is_the_querys_and_it_keeps_the_newest(
+    container: _RealSessionContainer, client: httpx.AsyncClient
+) -> None:
+    """`LIMIT` after the `ORDER BY`, in the store. A route slicing in Python
+    would load every run of the tenant with all of its steps to answer with two
+    of them -- the defect `tallies` exists to have removed once already."""
+    await _plant(
+        container,
+        _row("run_newest", at="2025-02-11T23:00:00+00:00"),
+        _row("run_middle", at="2025-02-11T22:00:00+00:00"),
+        _row("run_oldest", at="2025-02-11T21:00:00+00:00"),
+    )
+
+    listed = await client.get("/v1/workflow-runs", params={"limit": 2})
+
+    assert [one["id"] for one in listed.json()] == ["run_newest", "run_middle"]
+
+
+async def test_the_queue_is_the_join_the_store_makes(
+    container: _RealSessionContainer, client: httpx.AsyncClient
+) -> None:
+    """`awaiting` is a join across two tables with three predicates -- the
+    tenant, `outcome = 'running'` on the run and `verdict = 'awaiting'` on the
+    step -- and the middle one decides whether a step left parked on a run that
+    was aborted sits in a supervisor's queue forever, asking for a tap that can
+    no longer let anything out.
+
+    Two browsers, because one browser holds one running run since 0043, and
+    because the queue is the parked steps across browsers: anyone may answer a
+    parked run.
+    """
+    await _plant(
+        container,
+        _row(
+            "run_parked",
+            at="2025-02-11T23:00:00+00:00",
+            outcome="running",
+            steps=[
+                RunStep(order=1, says="confirm the write", verdict="awaiting"),
+                RunStep(order=2, says="a step nobody waits on", verdict="done"),
+                RunStep(order=3, says="and let the second out", verdict="awaiting"),
+            ],
+        ),
+        _row(
+            "run_going",
+            at="2025-02-11T23:00:00+00:00",
+            outcome="running",
+            device=DeviceId("dev-2"),
+        ),
+        _row(
+            "run_aborted",
+            at="2025-02-11T23:00:00+00:00",
+            outcome="aborted",
+            steps=[RunStep(order=0, says="left awaiting on a dead run", verdict="awaiting")],
+        ),
+    )
+
+    listed = await client.get("/v1/workflow-runs", params={"awaiting": "true"})
+
+    assert [one["id"] for one in listed.json()] == ["run_parked"]
+    # Every parked step, `ord` ascending, and not only the deepest: plan 4b's
+    # ruling, read back through the real steps join.
+    (row,) = listed.json()
+    waiting = [step for step in row["steps"] if step["verdict"] == "awaiting"]
+    assert [(step["order"], step["says"]) for step in waiting] == [
+        (1, "confirm the write"),
+        (3, "and let the second out"),
+    ]
+
+
+async def test_a_run_is_read_back_whole_from_the_real_store(
+    container: _RealSessionContainer, client: httpx.AsyncClient
+) -> None:
+    """Through the real mapper, at values that are not defaults: a column
+    dropped in the mapping is invisible to a fake holding the object it was
+    handed."""
+    await _plant(
+        container,
+        _row(
+            "run_1",
+            at="2025-02-11T23:00:00+00:00",
+            steps=[RunStep(order=2, says="click Save", verdict="held")],
+        ),
+    )
+
+    read = await client.get("/v1/workflow-runs/run_1")
+
+    assert read.status_code == 200, read.text
+    body = read.json()
+    assert body["id"] == "run_1" and body["workflow_id"] == "wfl_1"
+    assert body["values"] == {"clientCode": "NEWTESTS"}
+    assert body["live"] is True and body["allow_focus"] is False
+    assert body["outcome"] == "held" and body["finished_at"] is not None
+    assert [(step["order"], step["says"]) for step in body["steps"]] == [(2, "click Save")]
+
+
+async def test_a_run_of_another_tenant_is_a_404_from_the_real_store(
+    container: _RealSessionContainer, client: httpx.AsyncClient
+) -> None:
+    """The tenant predicate is in the WHERE clause, not a Python filter over
+    what came back. A 403 would confirm the id exists, and run ids are
+    unguessable."""
+    await _plant(
+        container,
+        _row("run_mine", at="2025-02-11T23:00:00+00:00"),
+        _row(
+            "run_theirs",
+            at="2025-02-11T23:00:00+00:00",
+            tenant=TenantId("rival"),
+            device=DeviceId("dev-8"),
+        ),
+    )
+
+    theirs = await client.get("/v1/workflow-runs/run_theirs")
+
+    assert theirs.status_code == 404
+    assert (await client.get("/v1/workflow-runs/run_mine")).status_code == 200
+    assert [one["id"] for one in (await client.get("/v1/workflow-runs")).json()] == ["run_mine"]

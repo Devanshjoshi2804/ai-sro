@@ -212,6 +212,36 @@ class SqlWorkflowRunRepository(WorkflowRunRepository):
         ).scalars()
         return await self._with_steps(rows.all())
 
+    async def recent(
+        self,
+        tenant_id: TenantId,
+        *,
+        limit: int,
+        workflow_id: str | None = None,
+        ids: frozenset[str] | None = None,
+    ) -> tuple[WorkflowRun, ...]:
+        # The rig's list query (`api.py:1152`), filters and all: tenant, then
+        # the job if one was named, then the named set `awaiting=true` narrows
+        # to -- and the cap last, after every predicate, because a cap applied
+        # before them answers "nothing is waiting" out of a busy tenant.
+        query = self._rows().where(WorkflowRunRow.tenant_id == tenant_id.value)
+        if workflow_id is not None:
+            query = query.where(WorkflowRunRow.workflow_id == workflow_id)
+        if ids is not None:
+            # An empty set is not "no filter": it is "nothing matches", and
+            # `in_` of nothing is exactly that.
+            query = query.where(WorkflowRunRow.id.in_(sorted(ids)))
+        rows = (
+            await self._session.execute(
+                # `since`'s order, and for `for_workflow`'s reason: reversed,
+                # id and all, so a page boundary falls in the same place twice.
+                query.order_by(WorkflowRunRow.started_at.desc(), WorkflowRunRow.id.desc()).limit(
+                    limit
+                )
+            )
+        ).scalars()
+        return await self._with_steps(rows.all())
+
     async def tallies(self, tenant_id: TenantId) -> Mapping[str, tuple[int, int]]:
         # The rig's two counts off the runs index, batched: it asked
         # ``COUNT(*), SUM(outcome = 'held')`` per workflow, and this asks the

@@ -49,6 +49,13 @@ here. What values a run may be performed *with*, and which steps a job has, are
 this module's: trimming, dropping a value that is blank once trimmed, and the
 range of `from_step` all need the workflow, and they live beside the refusal
 that reads it.
+
+**And the two reads of what the press left behind**, at the foot of the file:
+`ListWorkflowRuns` (`api.py:1152`) and `GetWorkflowRun` (`api.py:1217`). They
+are here rather than in a file of their own because the row they answer with
+is the one `StartWorkflowRun` claims, and a reader asking what a run looks
+like on the way out should not have to find a second module to learn what put
+it there.
 """
 
 from __future__ import annotations
@@ -73,10 +80,10 @@ from sro.domain.execution.workflow_run import (
     already_running,
     new_run_id,
 )
-from sro.domain.shared.errors import Conflict
+from sro.domain.shared.errors import Conflict, NotFound
 from sro.domain.shared.identifiers import DeviceId
 
-__all__ = ["RunRefused", "StartWorkflowRun"]
+__all__ = ["GetWorkflowRun", "ListWorkflowRuns", "RunRefused", "StartWorkflowRun"]
 
 logger = logging.getLogger(__name__)
 
@@ -315,3 +322,88 @@ class StartWorkflowRun:
                 await uow.commit()
         except Exception:
             logger.exception("and its row could not be closed either")
+
+
+class ListWorkflowRuns:
+    """The most recent runs, newest first, as the rig listed them.
+
+    Ported from `runs` in `new_agent_arch/src/rig/api.py:1152`.
+
+    **Newest first, and that is deliberately not `for_workflow`'s order.**
+    `for_workflow` is oldest first because `proofs` reads a job's writes
+    forward through time. This is the list a person opens, and what they are
+    looking for is what happened last -- which is also the shape the extension
+    and the console will be written against. The port used to justify its
+    ascending order by citing the rig, whose list says the opposite; the
+    citation is corrected and the rig's order lives here, under `recent`.
+
+    **`awaiting=true` is the supervisor's queue**, narrowed to the runs parked
+    on a write nobody has let out yet -- from any browser, not the one the run
+    is in. Narrowed by the ids `awaiting` gives and then capped, in that order:
+    a cap applied first would answer "nothing is waiting" out of the busiest
+    tenant, which is the one that needs the queue.
+
+    The whole row comes back rather than the rig's one line each, so every
+    parked step is already on the wire. The rig reported the deepest parked
+    step of each run and this reports all of them, `ord` ascending -- plan 4b's
+    ruling, recorded here and on `WorkflowRunRepository.awaiting`: anyone may
+    answer a parked run, and a queue that hides all but the deepest step hides
+    work from the person who could clear it.
+    """
+
+    def __init__(self, uow: UnitOfWork) -> None:
+        self._uow = uow
+
+    async def execute(
+        self,
+        ctx: RequestContext,
+        *,
+        workflow_id: str | None = None,
+        limit: int = 20,
+        awaiting: bool = False,
+    ) -> tuple[WorkflowRun, ...]:
+        async with self._uow as uow:
+            parked: frozenset[str] | None = None
+            if awaiting:
+                # No early return on an empty queue, which is what the rig
+                # did. Its `id IN ()` would have been a syntax error with no
+                # ids to interpolate; here an empty set is a filter that
+                # matches nothing, said once in `recent` and kept by the
+                # contract suite. A branch here would be a second statement of
+                # the same rule that no test can tell from its absence -- it
+                # was written, and the mutation that deleted it passed 59
+                # tests.
+                parked = frozenset(
+                    run_id for run_id, _, _ in await uow.workflow_runs.awaiting(ctx.tenant_id)
+                )
+            return await uow.workflow_runs.recent(
+                ctx.tenant_id, limit=limit, workflow_id=workflow_id, ids=parked
+            )
+
+
+class GetWorkflowRun:
+    """One run, whole, or the 404 that will not say which kind of missing.
+
+    Ported from `read_run` in `new_agent_arch/src/rig/api.py:1217`.
+
+    The repository answers `None` rather than raising -- "every caller answers
+    404 itself" -- and this is that caller. A run of another tenant takes the
+    same path as one that never existed, because a 403 confirms the id exists:
+    run ids are unguessable and the answer to "is this yours" must not differ
+    from the answer to "does this exist".
+
+    The rig also hung `approved_at` and `approved_by` off each step out of the
+    approvals table. Not here: `/v1/audit` already serves the approvals of
+    every run of the tenant, and a second place that says when a write was let
+    out is a second place for the two to disagree.
+    """
+
+    def __init__(self, uow: UnitOfWork) -> None:
+        self._uow = uow
+
+    async def execute(self, ctx: RequestContext, *, run_id: str) -> WorkflowRun:
+        async with self._uow as uow:
+            run = await uow.workflow_runs.get(ctx.tenant_id, run_id)
+            if run is None:
+                raise NotFound("no such run")
+            return run

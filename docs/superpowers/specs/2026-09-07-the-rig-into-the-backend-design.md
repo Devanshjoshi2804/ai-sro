@@ -215,6 +215,10 @@ at `/rig` against the ported routes. That is the interim named in *Open*.
 
 ## Deletions, at the end
 
+Nothing on this list goes until the shared-day measurement in *Verification*
+has been made and read. The first bullet deletes the rule-based path, which is
+the one currently producing more answers than its replacement.
+
 - `application/observation/segment.py`, `mine.py` (old), `propose.py`, the
   miner sweep and its Temporal schedule, `induction/diff.py`'s signature and
   what only it feeds, the `candidates` router, the pairing judge in
@@ -275,6 +279,23 @@ Phases 1 and 2 can run in parallel; 3 needs both; 4 needs 3; 5 and 6 need
 - The findings' live measurements (*An offer lands*, *A real key*) are
   repeated once through the backend before the rig is deleted, and the
   numbers written beside the originals.
+- **The model path is measured against the rule-based one on one shared day,
+  before either is deleted.** Both miners run over the same batches and the
+  two answers are written down side by side: how many jobs each named, how
+  many a person agrees with, and what one found that the other missed.
+
+  This is a precondition on *Deletions*, not a nice-to-have, because the two
+  do not meet anywhere. `MineObservations` reads `observations` and writes
+  `task_candidates`; `mining_pass.mine` reads `gestures` and the pool and
+  writes `workflows`. Neither reads the other's tables. So "the model path
+  works" and "the rule-based path is safe to delete" are two claims, and only
+  the first has ever been tested.
+
+  Measured on 2026-09-09, on the 266 real batches this backend holds: the
+  rule-based miner named **53 candidates**, the model path **2 workflows**
+  from 507 gestures. That gap is mostly evidence -- the rig mined 8 from a
+  larger corpus -- but it is the whole of the case against deleting anything
+  yet, and it is the number the shared-day run has to move.
 
 ## Out of scope
 

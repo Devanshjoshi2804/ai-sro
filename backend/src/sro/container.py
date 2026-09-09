@@ -205,10 +205,15 @@ class Container:
 
     ``None`` rather than a no-op double, deliberately. A miner with nothing to
     ask must not run and quietly find nothing -- that reads exactly like a day
-    with no work in it. The caller that checks and refuses arrives in 4b: this
-    is built and read by nothing today, because `mining_pass.mine` and
-    `run_workflow` have no production caller either. Built here rather than in
-    4b so the wiring is one commit and not three.
+    with no work in it. The caller that checks and refuses has arrived: it is
+    `asker_or_refuse` in `application/ports/model.py`, and it is read by the
+    three doors 4b opens -- `POST /v1/mine`, `POST /v1/chat` and
+    `POST /v1/workflow-runs`.
+
+    The check is deliberately not on this attribute and not a method here. Each
+    of those three takes `Asker | None` and refuses at the top of its own
+    `execute`, so a deployment with no model still builds every factory and
+    fails at use rather than at construction.
     """
     intent_parser: IntentParser
     vault: CredentialVault

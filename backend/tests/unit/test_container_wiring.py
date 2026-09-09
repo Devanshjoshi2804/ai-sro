@@ -30,7 +30,7 @@ from sro.container import Container
 from sro.domain.shared.identifiers import DeviceId, PrincipalId, TenantId
 from sro.domain.skill.workflow import Workflow
 from sro.infrastructure.agent.drivers import RemoteAgents
-from tests.unit.fakes import FakeClock, FakeUnitOfWork
+from tests.unit.fakes import FakeAsker, FakeClock, FakeUnitOfWork
 from tests.unit.interface.test_http import _FakeContainer
 
 FROZEN = datetime(2026, 3, 4, 9, 30, tzinfo=UTC)
@@ -266,3 +266,46 @@ def test_no_key_and_no_consent_each_mean_no_model() -> None:
         _build_asker(Settings(gemini_api_key="k", interpretation_enabled=False, _env_file=None))
         is None
     )
+
+
+def test_no_asker_refuses_rather_than_handing_back_none() -> None:
+    """`container.asker` is `Asker | None` and three callers need an `Asker`.
+    Returning None to them means the refusal happens somewhere downstream, in
+    the middle of a pass, after the window has been packed."""
+    from sro.application.ports.model import AskerUnavailable, asker_or_refuse
+
+    with pytest.raises(AskerUnavailable):
+        asker_or_refuse(None)
+
+
+def test_an_asker_is_handed_back_as_that_exact_object() -> None:
+    """Not 'an Asker' -- that one. A guard that built a second one would bill
+    against a client the spend tests never see."""
+    from sro.application.ports.model import asker_or_refuse
+
+    asker = FakeAsker()
+
+    assert asker_or_refuse(asker) is asker
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="`container.mine_pass()` arrives in Task 2 and `container.read_chat()` in "
+    "Task 3. Strict: this passing before those tasks would mean a factory got "
+    "built somewhere it was not planned.",
+)
+async def test_a_container_with_no_model_still_builds_every_factory(
+    container: Container,
+) -> None:
+    """The reason the guard is not on the container. A factory that raised
+    would make `container.mine_pass()` unbuildable, and every test that
+    constructs a container without a model would fail at construction rather
+    than at use.
+
+    The `container` fixture above is already a container with no model:
+    `_FakeContainer` sets `asker = None`, which is what a deployment with no
+    key gets.
+    """
+    assert container.asker is None
+    assert container.mine_pass() is not None  # type: ignore[attr-defined]
+    assert container.read_chat() is not None  # type: ignore[attr-defined]

@@ -337,6 +337,27 @@ class Settings(BaseSettings):
     what an operator will see for the life of the skill -- so this is the
     reasoning model. It cannot enable computer use, and does not need to."""
 
+    gemini_mine_model: str = "gemini-3.1-pro-preview"
+    """The model one mining pass asks. The rig's `mine_model`
+    (`new_agent_arch/src/rig/config.py:20`), and the same string as
+    `gemini_interpreter_model` above by coincidence rather than by design --
+    they answer different questions and each is re-tunable without the other.
+
+    Measured on 2026-09-09 against 507 real gestures: at `K_EFFORT="high"` this
+    model billed 204,747 tokens in and 65,522 out, truncated its answer after
+    2,610 tokens, cost $2.00 and kept nothing. The effort knob that fixed that
+    lives at `domain/skill/umbrella.py:23`; this is only the name."""
+
+    gemini_plan_model: str = "gemini-3.8-flash"
+    """What plans each step of a workflow run. The rig's `plan_model`
+    (`config.py:41`). Deliberately the fast model: a run plans once per step and
+    a slow plan is felt by an operator standing at a screen."""
+
+    gemini_rescue_model: str = "gemini-3.1-pro-preview"
+    """What re-plans a step the plan model got wrong. The rig's `rescue_model`
+    (`config.py:45`). The expensive model earns its price here and not above:
+    it is asked once per failure, not once per step."""
+
     interpretation_enabled: bool = False
     """Reading one demonstration as a workflow sends the captured calls and
     bodies to a hosted model. Same rule as every other egress: a key is not

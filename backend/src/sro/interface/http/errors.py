@@ -21,11 +21,13 @@ from sro.application.induction.errors import InductionFailed
 from sro.application.observation.ingest import ObservationRefused
 from sro.application.observation.teach import NothingToTeach
 from sro.application.ports.browser import BrowserUnavailable
+from sro.application.ports.model import AskerUnavailable
 from sro.application.ports.schedule import SchedulerUnavailable
 from sro.application.ports.sign_in import SignInFailed
 from sro.application.ports.token import TokenRefused
 from sro.application.ports.vault import VaultUnavailable
 from sro.application.recording.start_recording import NoSessionForSystem
+from sro.application.shared.refusals import OverCap
 from sro.application.skill.record_offer import OfferRefused
 from sro.application.trigger.create_trigger import TriggerRefused
 from sro.application.trigger.receive_inbound import InboundRefused
@@ -43,6 +45,10 @@ _STATUS_BY_ERROR: dict[type[Exception], int] = {
     InductionFailed: status.HTTP_422_UNPROCESSABLE_CONTENT,
     BrowserUnavailable: status.HTTP_503_SERVICE_UNAVAILABLE,
     VaultUnavailable: status.HTTP_503_SERVICE_UNAVAILABLE,
+    # Not a DomainError either, and the same shape as the two above: the
+    # request was fine and the deployment has no model to answer it with.
+    # Without its own entry the MRO walk finds nothing and it is a 500.
+    AskerUnavailable: status.HTTP_503_SERVICE_UNAVAILABLE,
     SchedulerUnavailable: status.HTTP_503_SERVICE_UNAVAILABLE,
     NotAuthenticated: status.HTTP_409_CONFLICT,
     Refused: status.HTTP_409_CONFLICT,
@@ -77,6 +83,10 @@ _STATUS_BY_ERROR: dict[type[Exception], int] = {
     # malformed body gets, because the body parsed and its shape was right --
     # what it named was not there.
     OfferRefused: status.HTTP_400_BAD_REQUEST,
+    # Budget, not identity and not shape: the same request is accepted
+    # tomorrow or under a larger cap. 429 is the one status that means
+    # "later, not never".
+    OverCap: status.HTTP_429_TOO_MANY_REQUESTS,
 }
 
 _TITLES = {
@@ -89,6 +99,7 @@ _TITLES = {
     status.HTTP_401_UNAUTHORIZED: "No credential",
     status.HTTP_403_FORBIDDEN: "Not allowed",
     status.HTTP_405_METHOD_NOT_ALLOWED: "Method not allowed",
+    status.HTTP_429_TOO_MANY_REQUESTS: "Too many requests",
 }
 
 _SLUGS = {
@@ -96,6 +107,10 @@ _SLUGS = {
     status.HTTP_403_FORBIDDEN: "forbidden",
     status.HTTP_404_NOT_FOUND: "not_found",
     status.HTTP_405_METHOD_NOT_ALLOWED: "method_not_allowed",
+    # `OverCap` brings its own `code`, so this is not for it. It is for the
+    # bare 429 any future rate limiter raises: a hole in this table is how
+    # `problem.type` was `undefined` for every 401.
+    status.HTTP_429_TOO_MANY_REQUESTS: "too_many_requests",
 }
 """The ``type`` a client matches on. Only for the statuses FastAPI raises by
 itself; a domain error brings its own ``code``."""
@@ -188,5 +203,10 @@ def install_error_handlers(app: FastAPI) -> None:
         # a 500 and the operator is told nothing they can act on.
         SignInFailed,
         TokenRefused,
+        # Neither is a DomainError, so neither is reached by the line above:
+        # without these two a route with no model answers 500, and a tenant
+        # at its cap is told the server broke.
+        AskerUnavailable,
+        OverCap,
     ):
         app.add_exception_handler(error_type, _problem)

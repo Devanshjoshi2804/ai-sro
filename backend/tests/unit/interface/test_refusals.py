@@ -6,6 +6,8 @@ import pytest
 from fastapi import FastAPI, HTTPException, status
 from fastapi.testclient import TestClient
 
+from sro.application.execution.call_run_wrong import NotYours as _WrongNotYours
+from sro.application.execution.revise_run import NotYours as _ReviseNotYours
 from sro.application.ports.model import AskerUnavailable
 from sro.application.shared.refusals import OverCap
 from sro.interface.http.errors import install_error_handlers
@@ -95,3 +97,26 @@ def test_the_mine_model_is_not_the_interpreters() -> None:
     fields = Settings.model_fields
     assert "gemini_mine_model" in fields
     assert "gemini_interpreter_model" in fields
+
+
+def test_a_run_that_is_not_yours_is_a_403_and_not_a_500() -> None:
+    """Both classes named `NotYours`, on both doors that raise one.
+
+    Neither is a `DomainError`, so `install_error_handlers`'s blanket line does
+    not reach them and neither did anything else: `NotYours` sat in
+    `_STATUS_BY_ERROR` at 403 while no handler was registered for it, and
+    `revise_run.NotYours` was in neither. Measured before the fix -- both
+    answered **500 in text/plain**, so a caller who is simply not the person a
+    run was performed for was told the server broke, on
+    `POST /v1/runs/{run_id}/wrong` and `POST /v1/runs/{run_id}/values`.
+
+    Parametrised over both on purpose: they are separate classes with one name
+    in two modules, and fixing the one that was already in the table would have
+    left the other exactly as broken.
+    """
+    for raised in (_WrongNotYours, _ReviseNotYours):
+        response = _app_that_raises(raised("that run is not yours")).get("/boom")
+
+        assert response.status_code == status.HTTP_403_FORBIDDEN, raised.__module__
+        assert response.headers["content-type"].startswith("application/problem+json")
+        assert response.json()["detail"] == "that run is not yours"

@@ -17,6 +17,7 @@ from sro.application.connection.connect_system import NotAuthenticated
 from sro.application.connection.sign_in import NoCredentials
 from sro.application.execution.call_run_wrong import NotYours
 from sro.application.execution.execute_skill import NotRunnable, Refused
+from sro.application.execution.revise_run import NotYours as NotYoursToRevise
 from sro.application.execution.workflow_runs import NotDrivingThisRun, RunRefused
 from sro.application.induction.errors import InductionFailed
 from sro.application.observation.ingest import ObservationRefused
@@ -79,12 +80,18 @@ _STATUS_BY_ERROR: dict[type[Exception], int] = {
     # one person who saw what it produced. That is an identity mismatch, not a
     # missing resource or a conflicting state.
     NotYours: status.HTTP_403_FORBIDDEN,
+    # The same refusal on the sibling door that changes a run's values.
+    # A separate class with the same name, in a different module, and it
+    # was in neither this table nor the handler list -- so `/v1/runs/{id}/values`
+    # answered a wrong principal with a 500.
+    NotYoursToRevise: status.HTTP_403_FORBIDDEN,
     # A browser reaching for a run some other browser is driving. Same shape as
     # the entry above and the same 403: the credential was accepted and the
     # browser proved it is itself, it is simply not the one that may answer for
-    # this run. A `DomainError`, so the handler registered below reaches it --
-    # which is the one way it differs from `NotYours`, whose 403 above nothing
-    # ever fires because no handler is registered for it.
+    # this run. A `DomainError`, so the handler registered below reaches it
+    # without being named -- which is the one way it differs from the two
+    # `NotYours` classes above, which are plain `Exception`s and had to be
+    # listed by name before their 403s could fire at all.
     NotDrivingThisRun: status.HTTP_403_FORBIDDEN,
     # The rig's own answer, kept: a body field naming a job that is not one is
     # a bad request and never a missing endpoint. 400 rather than the 422 a
@@ -223,5 +230,11 @@ def install_error_handlers(app: FastAPI) -> None:
         # Neither is `OfferRefused`, which is a `DomainError` and is reached by
         # the line above. This one is not, so it needs saying by name.
         RunRefused,
+        # Neither is a `DomainError` either, and until this line their 403s
+        # above never fired: a caller who is not the person a run was
+        # performed for was told the server broke, in text/plain, on both
+        # `/v1/runs/{run_id}/wrong` and `/v1/runs/{run_id}/values`.
+        NotYours,
+        NotYoursToRevise,
     ):
         app.add_exception_handler(error_type, _problem)

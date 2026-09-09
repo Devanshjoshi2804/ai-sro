@@ -274,8 +274,12 @@ def test_no_asker_refuses_rather_than_handing_back_none() -> None:
     the middle of a pass, after the window has been packed."""
     from sro.application.ports.model import AskerUnavailable, asker_or_refuse
 
-    with pytest.raises(AskerUnavailable):
+    # `match=` and not a bare raises: the sentence IS the refusal. An operator
+    # who gets this 503 has two settings to go and set, and a message that
+    # named neither would leave them with a working system and no next step.
+    with pytest.raises(AskerUnavailable, match="gemini_api_key") as raised:
         asker_or_refuse(None)
+    assert "interpretation_enabled" in str(raised.value)
 
 
 def test_an_asker_is_handed_back_as_that_exact_object() -> None:

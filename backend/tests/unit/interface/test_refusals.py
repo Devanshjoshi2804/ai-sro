@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import pytest
-from fastapi import FastAPI, status
+from fastapi import FastAPI, HTTPException, status
 from fastapi.testclient import TestClient
 
 from sro.application.ports.model import AskerUnavailable
@@ -43,6 +43,24 @@ def test_the_cap_is_429_and_carries_the_sentence_that_says_which_number_stopped_
     assert body["title"] == "Too many requests"
     assert body["type"] == "https://ai-sro.dev/problems/over_cap"
     assert body["detail"] == said
+
+
+def test_a_bare_429_still_has_a_slug_and_not_error() -> None:
+    """`OverCap` never reads `_SLUGS`: it brings its own `code`. The only
+    reader is `_http_problem`, so without this the 429 slug could be deleted
+    and every suite stayed green -- the same hole, in the same table, that the
+    entry was added to close for 401."""
+    app = FastAPI()
+    install_error_handlers(app)
+
+    @app.get("/limited")
+    async def limited() -> None:
+        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "slow down")
+
+    body = TestClient(app, raise_server_exceptions=False).get("/limited").json()
+
+    assert body["type"] == "https://ai-sro.dev/problems/too_many_requests"
+    assert body["title"] == "Too many requests"
 
 
 @pytest.mark.parametrize(

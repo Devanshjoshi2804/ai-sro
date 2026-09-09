@@ -205,10 +205,11 @@ class Container:
 
     ``None`` rather than a no-op double, deliberately. A miner with nothing to
     ask must not run and quietly find nothing -- that reads exactly like a day
-    with no work in it. The caller that checks and refuses has arrived: it is
-    `asker_or_refuse` in `application/ports/model.py`, and it is read by the
-    three doors 4b opens -- `POST /v1/mine`, `POST /v1/chat` and
-    `POST /v1/workflow-runs`.
+    with no work in it. The caller that checks and refuses now exists: it is
+    `asker_or_refuse` in `application/ports/model.py`. It has no reader yet --
+    it will be read by the three doors 4b opens, `POST /v1/mine` (task 2),
+    `POST /v1/chat` (task 3) and `POST /v1/workflow-runs` (task 5), and this
+    sentence goes present-tense when the last of them lands and not before.
 
     The check is deliberately not on this attribute and not a method here. Each
     of those three takes `Asker | None` and refuses at the top of its own

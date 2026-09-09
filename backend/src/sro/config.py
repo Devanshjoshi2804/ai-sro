@@ -343,10 +343,12 @@ class Settings(BaseSettings):
     `gemini_interpreter_model` above by coincidence rather than by design --
     they answer different questions and each is re-tunable without the other.
 
-    Measured on 2026-09-09 against 507 real gestures: at `K_EFFORT="high"` this
-    model billed 204,747 tokens in and 65,522 out, truncated its answer after
-    2,610 tokens, cost $2.00 and kept nothing. The effort knob that fixed that
-    lives at `domain/skill/umbrella.py:23`; this is only the name."""
+    This model at `K_EFFORT="high"` is what spent $2.00 over a day of real
+    gestures and kept nothing. The run and all of its numbers are written down
+    once, beside the effort knob that fixed it, at `domain/skill/umbrella.py:23`
+    -- cited and not copied, because a measurement kept in two places is a
+    measurement that drifts, and only one of the two would be corrected. This
+    setting is the name; that constant is the reason it was affordable."""
 
     gemini_plan_model: str = "gemini-3.8-flash"
     """What plans each step of a workflow run. The rig's `plan_model`

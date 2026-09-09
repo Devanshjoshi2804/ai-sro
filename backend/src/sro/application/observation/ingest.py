@@ -250,6 +250,14 @@ class IngestObservation:
                     ended_at=ended_at.isoformat(),
                     recording_id=recording_id.value if recording_id else None,
                     accepted=len(gestures),
+                    # Two kinds of loss, deliberately one number. An event
+                    # `admit()` turned away never reached the blob store; one
+                    # `_as_wire_batch` could not parse did, was paid for, and
+                    # is read by nobody. Neither became a gesture, and this
+                    # column's question is "what did this batch not yield" --
+                    # so `accepted + rejected` is not the event count and was
+                    # never meant to be. Split them the day something acts on
+                    # the difference rather than reports it.
                     rejected=len(admission.rejected) + unreadable,
                 )
             )

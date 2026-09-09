@@ -15,6 +15,7 @@ from sro.application.observation.retain import SweepRetention
 from sro.domain.observation.batch import CaptureMode
 from sro.domain.observation.device import AgentDevice
 from sro.domain.observation.policy import ObservationPolicy
+from sro.domain.recording.sensitivity import REDACTED
 from sro.domain.shared.errors import Conflict
 from sro.domain.shared.identifiers import BatchId, DeviceId, PrincipalId, TenantId
 from tests import factories as f
@@ -29,6 +30,10 @@ SNAPSHOT: dict[str, object] = {
     "taken_at": "2026-03-01T09:01:00Z",
     "snapshot": {"role": "main"},
 }
+
+JWT = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJvcHMifQ.c2lnbmF0dXJlLWhlcmU"
+"""A signed JWT, the shape `SECRET_SHAPES` matches and the audit found in this
+deployment's own store."""
 
 GESTURE: dict[str, object] = {
     "kind": "gesture",
@@ -379,3 +384,85 @@ async def test_the_batch_the_miner_reads_counts_the_gestures_and_not_the_events(
     assert ingested.accepted == 2, "both events were admitted and stored"
     kept = await uow.gestures.gestures_for(f.TENANT, ids=None)
     assert len(kept) == 1, "the snapshot was read out as a gesture"
+    # The store and the tally are two facts, not one. `accepted=len(gestures)`
+    # is what this test is named for, and asserting only the store leaves the
+    # number free to be `admission.accepted_count` -- the other table's count,
+    # which would say a batch of pictures was a batch of work.
+    assert next(iter(uow.gestures.batches.values())).accepted == 1
+
+
+async def test_the_gesture_stored_carries_the_redaction_the_blob_store_got() -> None:
+    """The decision at `ingest.py`'s `_as_wire_batch(batch, redacted)`.
+
+    Correlating from `admission.accepted` instead passes every other test in
+    this suite: the gesture rows would be byte-identical apart from the one
+    thing that matters. A gesture citing a value the blob store does not hold
+    is a citation pointing at nothing, and the audit measured what gets in --
+    a live JWT and the `&code=` carrying it reached the store unmarked.
+    """
+    uow, blobs = FakeUnitOfWork(), FakeBlobStore()
+    ctx = RequestContext(tenant_id=f.TENANT, principal_id=f.OPERATOR)
+    await _switch_observation_on(uow, ctx)
+    device_id = await _register(uow, ctx)
+
+    await _ingest(
+        uow,
+        blobs,
+        device_id,
+        ctx=ctx,
+        events=[
+            {
+                "kind": "gesture",
+                "gesture": {
+                    "kind": "type",
+                    "at": 1787654321.9,
+                    "url": f"https://wms.acme.com/orders?code={JWT}",
+                    "value": JWT,
+                    "target": {"tag": "input", "cssPath": "div > input"},
+                },
+            }
+        ],
+    )
+
+    stored = (await uow.gestures.gestures_for(f.TENANT, ids=None))[0]
+    assert stored.url == f"https://wms.acme.com/orders?code={REDACTED}"
+    assert stored.action.value == REDACTED
+    assert all(JWT.encode() not in blob for blob in blobs.objects.values()), "nor the blob"
+
+
+async def test_an_event_nothing_could_read_is_counted_as_a_loss_and_not_a_silence() -> None:
+    """`rejected=len(admission.rejected) + unreadable`, the `unreadable` half.
+
+    `admit()` requires only that a gesture name some kind; the wire model the
+    miner reads knows seven of them. A `drag` is therefore admitted, stored and
+    answered for, and then read by nothing -- and dropping the `+ unreadable`
+    passes the rest of this suite, because a batch that quietly had fewer
+    gestures looks exactly like a batch that had fewer gestures.
+    """
+    uow, blobs = FakeUnitOfWork(), FakeBlobStore()
+    ctx = RequestContext(tenant_id=f.TENANT, principal_id=f.OPERATOR)
+    await _switch_observation_on(uow, ctx)
+    device_id = await _register(uow, ctx)
+
+    ingested = await _ingest(
+        uow,
+        blobs,
+        device_id,
+        ctx=ctx,
+        events=[
+            {
+                "kind": "gesture",
+                "gesture": {
+                    "kind": "drag",
+                    "at": 1787654321.9,
+                    "url": "https://wms.acme.com/orders",
+                    "target": {"tag": "div", "cssPath": "div > div"},
+                },
+            }
+        ],
+    )
+
+    assert ingested.accepted == 1, "admitted, stored, and paid for"
+    batch = next(iter(uow.gestures.batches.values()))
+    assert batch.accepted == 0, "nothing read it"
+    assert batch.rejected == 1, "and the batch does not pretend it never arrived"

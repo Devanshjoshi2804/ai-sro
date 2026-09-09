@@ -394,7 +394,13 @@ class Settings(BaseSettings):
     deployment, and it was the one with nothing written next to it -- the
     paragraph above belongs to the switch above it. Off, the rungs that replay
     what somebody demonstrated work exactly as they do now; what stops is the
-    rung that looks at a screen nobody has demonstrated."""
+    rung that looks at a screen nobody has demonstrated.
+
+    Separate from the key, like every other egress here: a step whose control
+    has vanished then fails with that reason rather than quietly reaching for a
+    model. (That sentence spent some time stranded after
+    `keycloak_client_secret`, documenting nothing -- a second orphan of the same
+    move this docstring already records.)"""
 
     keycloak_realm_url: str = ""
     """The realm that issues offline tokens for the connected system.
@@ -409,12 +415,6 @@ class Settings(BaseSettings):
     secret, and a confidential one sent none, with the same "Invalid client"
     -- so this is set when the realm says the client is confidential rather
     than guessed at."""
-    """The L3 rung sends a screenshot of a customer's live WMS to Google.
-
-    Off by default and separate from the key, like every other egress here. With
-    it off, a step whose control has vanished fails with that reason rather than
-    quietly reaching for a model."""
-
     knowledge_embeddings_enabled: bool = False
     """Embeddings order what a structured filter already chose. Off by default:
     retrieval works without them, and turning them on sends the knowledge base's

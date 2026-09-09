@@ -37,6 +37,8 @@ class AskerUnavailable(Exception):
     ``SchedulerUnavailable`` -- a dependency that is absent, answered 503.
     """
 
+    code = "no_model"
+
 
 def asker_or_refuse(asker: Asker | None) -> Asker:
     """The general model, or a 503 saying there is not one.

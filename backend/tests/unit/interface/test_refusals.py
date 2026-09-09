@@ -10,7 +10,7 @@ from sro.application.execution.call_run_wrong import NotYours as _WrongNotYours
 from sro.application.execution.revise_run import NotYours as _ReviseNotYours
 from sro.application.ports.model import AskerUnavailable
 from sro.application.shared.refusals import OverCap
-from sro.interface.http.errors import install_error_handlers
+from sro.interface.http.errors import _problem, install_error_handlers
 
 
 def _app_that_raises(exc: Exception) -> TestClient:
@@ -128,3 +128,49 @@ def test_a_run_that_is_not_yours_is_a_403_and_not_a_500() -> None:
         assert response.headers["content-type"].startswith("application/problem+json")
         assert response.json()["detail"] == "that run is not yours"
         assert response.json()["type"].endswith("/not_yours"), raised.__module__
+
+
+def test_every_mapped_error_names_a_problem_type_a_reader_could_look_up() -> None:
+    """RFC 9457 §3.1.1: when `type` is a locator, "dereferencing it should
+    provide human-readable documentation for the problem type".
+
+    So a URI under `/problems/` is a promise that a documented kind of problem
+    lives there. Seven mapped errors carried no `code` and answered
+    `.../problems/error` -- a locator pointing at the absence of a kind, which
+    is a page that can never be written. Among them were the two the operator
+    is most likely to meet: no model configured, and no usable secret store.
+    """
+    from sro.interface.http.errors import _STATUS_BY_ERROR
+
+    uncoded = sorted(e.__name__ for e in _STATUS_BY_ERROR if not getattr(e, "code", ""))
+
+    assert not uncoded, f"these answer .../problems/error, which documents nothing: {uncoded}"
+
+
+def test_an_error_with_no_code_says_about_blank_rather_than_inventing_a_kind() -> None:
+    """The spec's own value for "adds no semantics beyond the status code".
+
+    Unreached by anything mapped -- the test above keeps it that way -- so this
+    guards the next error type somebody adds and forgets to give a code. It must
+    tell that reader nothing, rather than tell them a lie.
+    """
+
+    class _Nameless(Exception):
+        """No `code`, deliberately."""
+
+    # Registered by hand: an UNregistered exception never reaches `_problem` at
+    # all -- it raises through to Starlette as a 500 in text/plain, which is the
+    # separate defect two shipped doors carried until `0302584`. This test is
+    # about what `_problem` renders, so it has to be reached.
+    app = FastAPI()
+    install_error_handlers(app)
+    app.add_exception_handler(_Nameless, _problem)
+
+    @app.get("/nameless")
+    async def nameless() -> None:
+        raise _Nameless("something went wrong")
+
+    body = TestClient(app, raise_server_exceptions=False).get("/nameless").json()
+
+    assert body["type"] == "about:blank"
+    assert body["detail"] == "something went wrong"

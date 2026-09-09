@@ -45,3 +45,5 @@ class TokenRefused(Exception):
     """The identity provider would not issue or refresh. Not a ``DomainError``:
     the request was fine, the credential is not -- revoked, expired past its
     idle window, or a password that has since changed."""
+
+    code = "token_refused"

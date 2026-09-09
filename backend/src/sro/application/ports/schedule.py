@@ -40,3 +40,5 @@ class SchedulerUnavailable(Exception):
     Raised rather than storing a trigger that will never fire, which is worse
     than refusing to store it -- somebody would believe the task was covered.
     """
+
+    code = "no_scheduler"

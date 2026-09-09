@@ -55,3 +55,5 @@ class SignInFailed(Exception):
     be stale, the identity provider may want a second factor, or the page may
     have changed shape -- all of which a human resolves by signing in once.
     """
+
+    code = "sign_in_failed"

@@ -144,13 +144,33 @@ def _status_for(exc: Exception) -> int:
     return status.HTTP_500_INTERNAL_SERVER_ERROR
 
 
+def _problem_type(exc: Exception) -> str:
+    """The URI naming this KIND of problem, or `about:blank` when there is none."""
+    code = getattr(exc, "code", "")
+    return f"https://ai-sro.dev/problems/{code}" if code else "about:blank"
+
+
 def _problem(request: Request, exc: Exception) -> JSONResponse:
     code = _status_for(exc)
     return JSONResponse(
         status_code=code,
         media_type="application/problem+json",
         content={
-            "type": f"https://ai-sro.dev/problems/{getattr(exc, 'code', 'error')}",
+            # `about:blank` where an error carries no `code`, and not
+            # `.../problems/error`. RFC 9457 §3.1.1: when `type` is a locator,
+            # "dereferencing it should provide human-readable documentation for
+            # the problem type" -- so a URI under `/problems/` is a promise that
+            # this is a documented KIND of problem. `error` is not a kind; it is
+            # the absence of one, and pointing a locator at it promises a page
+            # that can never exist. The spec's own value for "adds no semantics
+            # beyond the status code" is `about:blank`, which is also what a
+            # consumer assumes when `type` is missing entirely.
+            #
+            # Every error in `_STATUS_BY_ERROR` carries a code today, so this
+            # branch is unreached by anything mapped -- it exists for the next
+            # error type somebody adds and forgets, and it should tell them
+            # nothing rather than tell them a lie.
+            "type": _problem_type(exc),
             "title": _TITLES[code],
             "status": code,
             "detail": str(exc),

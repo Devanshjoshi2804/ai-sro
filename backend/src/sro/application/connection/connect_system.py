@@ -31,6 +31,8 @@ from sro.domain.shared.identifiers import BrowserSessionId
 class NotAuthenticated(Exception):
     """The browser was opened but nobody completed the login."""
 
+    code = "not_authenticated"
+
 
 @dataclass(frozen=True, slots=True)
 class OpenedConnection:

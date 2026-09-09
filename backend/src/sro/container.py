@@ -99,8 +99,8 @@ from sro.application.ports.durable import DurableExecution
 from sro.application.ports.embedding import Embedder
 from sro.application.ports.http import HttpCaller
 from sro.application.ports.intent import IntentParser
-from sro.application.ports.model import Asker
 from sro.application.ports.interpretation import WorkflowInterpreter
+from sro.application.ports.model import Asker
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.schedule import Scheduler
 from sro.application.ports.sign_in import SignInDriver
@@ -205,7 +205,10 @@ class Container:
 
     ``None`` rather than a no-op double, deliberately. A miner with nothing to
     ask must not run and quietly find nothing -- that reads exactly like a day
-    with no work in it. Its caller checks and refuses.
+    with no work in it. The caller that checks and refuses arrives in 4b: this
+    is built and read by nothing today, because `mining_pass.mine` and
+    `run_workflow` have no production caller either. Built here rather than in
+    4b so the wiring is one commit and not three.
     """
     intent_parser: IntentParser
     vault: CredentialVault

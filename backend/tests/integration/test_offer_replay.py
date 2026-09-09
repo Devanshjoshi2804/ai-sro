@@ -22,7 +22,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from scripts.dry_run import TYPED, replay
+from scripts.dry_run import TYPED, _gestures_of, replay
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from sro.application.context import RequestContext
@@ -270,3 +270,54 @@ async def test_a_gesture_carries_the_mark_of_a_value_and_never_the_value(
     assert [gesture["value"] for gesture in job["gestures"]] == [None, None, TYPED, None]
     assert [gesture["secret"] for gesture in job["gestures"]] == [False, False, False, False]
     assert TYPED_VALUE not in json.dumps(written)
+
+
+def test_a_password_field_exports_as_secret_by_either_half_of_the_flag() -> None:
+    """`bool(action.secret or (action.target and action.target.secret))`.
+
+    Dropping the `target.secret` half survives every other test in the Python
+    suite and all seven replay tests here, because nothing planted a secret
+    gesture at all. It is not cosmetic: `recognise.js` builds its tail from
+    these entries, so a gesture on a password field exported as not-secret puts
+    a gesture in the tail the extension would never have built -- and the
+    replay would then be measuring a tail that does not exist. The rig carries
+    both halves at `new_agent_arch/scripts/dry_run.py:253-255`.
+
+    No database: `_gestures_of` is pure, and it is the function the flag lives
+    in. It sits here rather than in `tests/unit` because that is where the
+    import of `scripts.dry_run` already is.
+    """
+    marked_on_the_gesture = _gesture(
+        "ges_a",
+        at=1.0,
+        action=Action(kind="type", at=1.0, secret=True, target=Target(tag="input", name="Token")),
+    )
+    marked_on_the_element = _gesture(
+        "ges_b",
+        at=2.0,
+        action=Action(
+            kind="type", at=2.0, target=Target(tag="input", name="Password", secret=True)
+        ),
+    )
+    plain = _click("ges_c", "Save", at=3.0)
+    by_id = {g.id: g for g in (marked_on_the_gesture, marked_on_the_element, plain)}
+    workflow = Workflow(
+        id="wfl_secret",
+        tenant=TENANT.value,
+        title="sign in",
+        narrative="the operator signed in",
+        systems=[SYSTEM],
+        steps=[
+            Step(
+                order=0,
+                says="sign in",
+                system=SYSTEM,
+                cites=["ges_a", "ges_b", "ges_c"],
+                parameters=[],
+            )
+        ],
+    )
+
+    exported = _gestures_of(workflow, by_id)
+
+    assert [entry["secret"] for entry in exported] == [True, True, False]

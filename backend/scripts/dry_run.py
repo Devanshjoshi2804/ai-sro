@@ -19,6 +19,13 @@ Reads only. Nothing here writes, and no model is asked: the shapes come from
 `ServeShapes` and the gestures from the evidence repository, both under a unit
 of work that never commits.
 
+`ServeShapes` is called directly, where the rig's script went over
+`GET /v1/shapes`. So the acceptance test proves the use case and the matcher
+and does NOT exercise the HTTP door: the router, its auth dependency and its
+response model are covered by `tests/integration/test_the_read_only_doors.py`
+and by nothing here. A shape that serialises differently through the route
+than through the use case would pass this replay.
+
     uv run python scripts/dry_run.py --replay /tmp/backend-replay.json
 """
 

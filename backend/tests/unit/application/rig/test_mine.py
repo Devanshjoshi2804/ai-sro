@@ -880,6 +880,23 @@ async def test_a_pass_that_recognises_a_job_learns_what_varies_in_it() -> None:
     stored = (await uow.workflows.known(TENANT))[0]
     assert "SOMETHING-ELSE" in _seen(stored.parameters, "clientCode")
 
+    # And the ROW says so, not only the result. Until 0041 there was no column
+    # for it: `MineResult` counted what the pass learnt and the persistence
+    # layer dropped it, so a pass that learnt three left no record it had --
+    # measured on the real store, where the only place the figure appeared was
+    # a return value in a terminal. This test asserted the result and never the
+    # row, which is exactly how that survived being ported.
+    #
+    # Asserted as a multiset and not in order, deliberately: `FakeClock` gives
+    # every pass the same instant, so `passes()` orders on `(started_at, id)`
+    # and the tie is broken by an id nobody planted. Sorting on `started_at`
+    # here read [1, 0] and expected [0, 1] -- an ordering assertion the data
+    # cannot support, which is this project's fourth instance of exactly that.
+    learnt = sorted(one.learned_parameters for one in await uow.workflows.passes(TENANT))
+    assert learnt == [0, again.learned_parameters]
+    kept = {one.kept for one in await uow.workflows.passes(TENANT)}
+    assert kept == {0, 1}, "a pass that learnt without keeping still reads as a pass"
+
 
 async def test_a_third_doing_widens_a_parameter_it_does_not_discard_it() -> None:
     """`seen_values` promises "every value observed" and delivered two.

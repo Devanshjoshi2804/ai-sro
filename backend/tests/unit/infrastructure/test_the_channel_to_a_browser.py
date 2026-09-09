@@ -151,7 +151,22 @@ async def test_busy_may_delay_a_command_but_never_veto_it() -> None:
     """Bounded by half the command's own deadline. A device that could hold
     work back indefinitely is a device deciding whether work happens at all --
     and a browser that says it is busy and then closes its laptop would be
-    exactly that."""
+    exactly that.
+
+    This one fails under heavy contention perhaps once in many full-suite runs,
+    and the bound below is NOT the reason. Measured 2026-09-09 on a machine busy
+    with the full suite, Docker and a second agent, 60 runs of exactly this
+    sequence: min 0.2004, median 0.2015, mean 0.2033, max 0.2342 -- against an
+    upper bound of 0.35, so the worst observed run still had 0.116s of slack and
+    nothing came near either edge.
+
+    So a failure here means the event loop was starved past 0.115s beyond
+    typical, which is a statement about the machine and not about `DeviceSockets`.
+    Re-run it before believing it.
+
+    The bound stays as it is, deliberately. `< 0.35` is what enforces the "half
+    the deadline" half of this test's own first sentence; widening it to quiet a
+    rare flake would delete the guarantee to protect the schedule."""
     sockets, socket = DeviceSockets(timeout_s=1.0), FakeSocket()
     sockets.attach(ACME, LAPTOP, socket)
     sockets.deliver(json.dumps({"kind": "busy", "for_ms": 30_000}), ACME, LAPTOP)

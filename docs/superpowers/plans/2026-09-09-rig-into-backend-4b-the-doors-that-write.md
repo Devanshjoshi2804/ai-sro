@@ -210,6 +210,50 @@ The same applies to type and schema names. `ResolutionModel` and `MinedModel`
 are already taken in `schemas.py`, and **two different classes are named
 `Resolution`** (`intent/resolve.py:52` and `observation/identity.py:109`).
 
+### Symbols the later tasks need, located and verified
+
+All 56 module paths in this plan were resolved against disk on 2026-09-09; the
+four wrong ones survive only in the table above. These are the symbols Tasks 3
+to 10 name, with the lines this plan originally failed to give:
+
+| Symbol | Where it is | Needed by |
+|---|---|---|
+| `Approvals` | `application/execution/approvals.py:49` | Task 8 |
+| `Stops` | `application/execution/stops.py:22` | Tasks 5, 7 |
+| `CannotStop` | `application/execution/read_runs.py:42` | Task 7 |
+| `StopRun` | `application/execution/read_runs.py:54` — **do not extend it**, it is the skill-run half | Task 7 |
+| `RunDispatcher` | `application/ports/dispatch.py:23` | Task 5 |
+| `read_utterance` | `application/chat/understand.py:109` | Task 3 |
+| `Understood` | `application/chat/understand.py:32` | Task 3 |
+| `over_cap` | `application/intent/spend.py:56` | Tasks 3, 5 |
+| `PoolEntry` | `domain/observation/pool.py:50` | Task 10a |
+| `TenantOnly` | `interface/http/asking.py` — **one grep from the `ports/asking.py` that does not exist** | Tasks 3, 5–10 |
+
+All eight repository methods these tasks call are present in
+`application/ports/repositories.py`: `retired`, `waiting`, `in_flight`,
+`awaiting`, `approve`, `approvals`, `for_workflow`, `fail_orphans`.
+
+**`CannotStop` subclasses `Conflict`, so Task 7's status code is already
+decided — 409, through the MRO walk in `errors._status_for`.** Do not invent
+one, and do not add a `_STATUS_BY_ERROR` entry for it.
+
+### Three more corrections, paid for by Task 2
+
+1. **`FakeSpendRepository` holds no rows and has no `record`.** It sums the four
+   billable repositories with the rig's predicates, and refuses by construction
+   to be handed a total nobody spent. **Plant spend the way `test_spend.py`
+   does** — `uow.chats.record(ChatReading(...))` — not with a fabricated total.
+   Task 2's brief sketched `await uow.spend.record(..., cost_usd=5.01)`, which
+   would not have run.
+2. **`OverCap`'s wire body has no `code` key.** `errors._problem` renders
+   `exc.code` into **`type`**, as `https://ai-sro.dev/problems/over_cap`. A test
+   asserting `body["code"]` fails. Task 3 raises the same exception.
+3. **`lopsided` is top-level on `MineResult`, not on the domain `Coverage`**
+   (`domain/skill/checks.py:33` carries `coverage`, `skew`, `gini` and nothing
+   else). A response model that groups them must take `lopsided` as a separate
+   keyword rather than spreading the dataclass — and that join is where a
+   swapped-field mutation hides.
+
 ---
 
 ## The one place this plan departs from the spec

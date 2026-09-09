@@ -268,7 +268,21 @@ filterwarnings = [
 ]
 markers = [
     # Needs a real Chromium with the unpacked extension loaded. Run by
-    # `make test-browser`, kept out of `make check` because it depends on a
-    # browser being installed rather than on this repository alone.
+    # `make test-browser` AND by `make check` (Makefile:198), which is the
+    # trade being made deliberately: a machine without Chromium fails `check`
+    # here, and in exchange the suite that reads the extension's own fixtures
+    # runs on every full pass.
+    #
+    # This comment used to say the opposite -- "kept out of `make check`" --
+    # and was wrong for as long as anyone can trace. It cost something. The
+    # fixtures directory is globbed by two suites, `tests/browser` and
+    # `tests/contract/test_observation_payloads.py`, and on 2026-09-06 one file
+    # that is not a protocol payload started failing both. Only the contract
+    # failure was ever looked at, because this line said the browser suite was
+    # not running -- so three consecutive plans recorded "one pre-existing
+    # failure, do not fix it" while a second suite failed for the same reason,
+    # blaming the capture for no longer emitting a file nobody had removed.
+    #
+    # 86 tests, 5m23s, measured 2026-09-09.
     "browser: drives a real browser with the extension loaded",
 ]

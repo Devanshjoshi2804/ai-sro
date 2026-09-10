@@ -113,6 +113,10 @@ let shapesServed = [SHAPE];
  * one. `null` is the door letting the write out. */
 let approveRefusal = null;
 
+/** How the backend answers `POST /v1/offers`, for the test that a refusal is
+ * `false` and never a throw. `null` is the door recording the fate. */
+let offerRefusal = null;
+
 /** The rig and the backend, as far as this browser can tell. Re-installed by
  * `ready()`: a test that swaps it for one of its own must not leave every later
  * test dialling that one.
@@ -121,7 +125,12 @@ let approveRefusal = null;
  * phase 5 is that calls move between them -- a server that assumed one base
  * would record a call to the other under a mangled path and match nothing.
  * `base`, `query` and `headers` are kept as well as the path: which door was
- * knocked on is only half of what the approve call has to get right. */
+ * knocked on is only half of what any of these calls has to get right.
+ *
+ * **The rig serves nothing.** Every door this browser knocks on is the
+ * backend's now, so a call that reverted to the rig's base, or to the rig's
+ * `/v1/runs*` paths on the backend's base, gets the same 404 a real backend
+ * would give it -- which is what makes the mutations die rather than pass. */
 const rigServer = async (url, options = {}) => {
   const full = String(url);
   const base = full.startsWith(BACKEND) ? BACKEND : RIG;
@@ -134,19 +143,23 @@ const rigServer = async (url, options = {}) => {
     body: options.body,
     headers: options.headers || {},
   });
-  if (base === BACKEND) {
-    if (path === "/v1/workflow-runs/run-9/approve") {
-      return approveRefusal
-        ? json({ detail: approveRefusal.detail }, approveRefusal.status)
-        : json({ order: 0, first: true });
-    }
-    return json({ detail: `nothing serves ${path}` }, 404);
+  if (base !== BACKEND) return json({ detail: `the rig serves nothing: ${path}` }, 404);
+  if (path === "/v1/workflow-runs/run-9/approve") {
+    return approveRefusal
+      ? json({ detail: approveRefusal.detail }, approveRefusal.status)
+      : json({ order: 0, first: true });
   }
   if (path === "/v1/shapes") return json({ shapes: shapesServed });
-  if (path === "/v1/offers") return json({ offer_id: "off_1" });
-  if (path === "/v1/runs") return json({ run_id: "run-9" });
-  if (path === "/v1/runs/run-9") {
-    return rigRunFails ? json({ detail: "the rig is down" }, 503) : json(rigRunServed);
+  if (path === "/v1/offers") {
+    return offerRefusal
+      ? json({ detail: offerRefusal.detail }, offerRefusal.status)
+      : json({ offer_id: "off_1" }, 201);
+  }
+  // The backend answers the whole row, where the rig answered `{run_id}`.
+  if (path === "/v1/workflow-runs") return json({ ...rigRunServed, id: "run-9" }, 201);
+  if (path === "/v1/workflow-runs/run-9/abort") return json({ ...rigRunServed }, 202);
+  if (path === "/v1/workflow-runs/run-9") {
+    return rigRunFails ? json({ detail: "the backend is down" }, 503) : json(rigRunServed);
   }
   return json({ detail: `nothing serves ${path}` }, 404);
 };
@@ -209,10 +222,14 @@ function ready() {
   rigRunServed = { id: "run-9", outcome: "held", steps: [] };
   rigRunFails = false;
   approveRefusal = null;
+  offerRefusal = null;
   globalThis.fetch = rigServer;
-  held.set("sro.token", "tok");
-  held.set("sro.deviceId", "dev-1");
-  held.set("sro.deviceSecret", "sec-1");
+  // Distinctive on purpose. `dev-1` was the literal that a mutation of
+  // `shapes()`'s `?device_id=` was replaced with, and all 27 suites stayed
+  // green -- because every assertion about it was against `dev-1` too.
+  held.set("sro.token", "tok-ready-77d3");
+  held.set("sro.deviceId", "dev-ready-2f8a");
+  held.set("sro.deviceSecret", "secret-ready-b061");
   held.set("sro.policy", { capture_enabled: true });
   held.set("sro.watched", [{ tabId: TAB, host: "wms.example", since: 1 }]);
   held.set("sro.rigUrl", RIG);
@@ -221,24 +238,59 @@ function ready() {
 
 // -- the tests ----------------------------------------------------------------
 
-// FIRST ON PURPOSE. `shapesFor` holds a non-empty answer for five minutes in
-// module scope, so the moment any test in this process has seen a shape every
-// later one is served from that cache -- and this is the one test that needs
-// the rig asked twice.
-test("an empty answer from the rig is not cached, so the first shape it proves is offered on", async () => {
+// FIRST ON PURPOSE, and it is the cache that decides the order. `shapesFor`
+// holds a non-empty answer for five minutes in module scope, so the moment any
+// test in this process has seen a shape every later one is served from that
+// cache and asks nothing. That makes this the only test in the file that can
+// pin what the request itself carries, so it does both jobs.
+test("an empty answer is not cached, and the shapes asked for are this browser's", async () => {
+  // The survivor task 1 found and could not fix from inside its own subject:
+  // `?device_id=` is the only caller-supplied value `shapes()` sends, and
+  // replacing it with the literal `dev-1` left all 27 suites green -- because
+  // the one browser any test named was `dev-1`. A job's rest is per browser --
+  // three refusals quiet it for the browser that refused and for nobody else
+  // -- so one browser served another's shapes is one operator spending a
+  // colleague's rest, silently, forever.
+  //
+  // Half a pair is worse than useless: `asking_device` answers a `?device_id=`
+  // with no `X-Device-Secret` beside it with a 404, and `shapes()` turns every
+  // failure into `[]`, so the whole recogniser would go quiet with nothing
+  // anywhere going red. Both halves, pinned separately, against what this
+  // browser actually holds rather than against a literal.
   ready();
   shapesServed = [];
 
   await gesture("a", "NEW");
   const askedWhileEmpty = calls.filter((call) => call.path === "/v1/shapes").length;
-  assert.ok(askedWhileEmpty >= 1, "the rig was never asked for its shapes");
+  assert.ok(askedWhileEmpty >= 1, "nothing was ever asked for this browser's shapes");
 
-  // The rig proves its first job. Held for five minutes, the empty list would
-  // still be what this browser matched against.
+  const asking = calls.filter((call) => call.path === "/v1/shapes").at(-1);
+  assert.equal(asking.base, BACKEND, "the shapes were asked of something that is not the backend");
+  assert.equal(asking.method, "GET");
+  assert.equal(
+    new URLSearchParams(asking.query).get("device_id"),
+    held.get("sro.deviceId"),
+    "the shapes request named no browser, or named a browser that is not this one",
+  );
+  assert.equal(
+    asking.headers["X-Device-Secret"],
+    held.get("sro.deviceSecret"),
+    "the shapes request proved no browser, so `?device_id=` alone is half a pair and a 404",
+  );
+  assert.equal(asking.headers.Authorization, `Bearer ${held.get("sro.token")}`);
+  assert.equal(
+    calls.filter((call) => call.base !== BACKEND).length,
+    0,
+    "something still dialled the rig for shapes",
+  );
+
+  // The backend proves its first job. Held for five minutes, the empty list
+  // would still be what this browser matched against -- and this is also the
+  // successful request the refusal above is measured against.
   shapesServed = [SHAPE];
   await gesture("a", "NEW");
   await gesture("b", "north");
-  await until(() => openOnes().length === 1, "a rig that had answered [] once was never asked again");
+  await until(() => openOnes().length === 1, "a backend that had answered [] once was never asked again");
   assert.ok(
     calls.filter((call) => call.path === "/v1/shapes").length > askedWhileEmpty,
     "the empty answer was cached",
@@ -293,6 +345,9 @@ test("nothing is offered while this browser is performing a run", async () => {
 
 test("yes starts the run, and marks the offer accepted on the list as it is then", async () => {
   ready();
+  held.set("sro.deviceId", "dev-start-a17f");
+  held.set("sro.deviceSecret", "secret-start-33c9");
+  held.set("sro.token", "tok-start-6d20");
   await gesture("a", "NEW");
   await gesture("b", "north");
   await until(() => openOnes().length === 1, "no offer to accept");
@@ -301,9 +356,42 @@ test("yes starts the run, and marks the offer accepted on the list as it is then
   const answer = await send({ kind: "start-rig-run", nudgeId: offer.id, values: { description: "dock" } });
 
   assert.deepEqual(answer, { ok: true, run_id: "run-9" });
-  const started = JSON.parse(calls.find((call) => call.path === "/v1/runs").body);
+  const press = calls.find((call) => call.path === "/v1/workflow-runs");
+  assert.ok(press, "the press never reached `POST /v1/workflow-runs`");
+  assert.equal(press.base, BACKEND, "the press went somewhere that is not the backend");
+  assert.equal(press.method, "POST");
+  assert.equal(
+    press.headers["X-Device-Secret"],
+    held.get("sro.deviceSecret"),
+    "the press did not prove this browser",
+  );
+  assert.equal(press.headers.Authorization, `Bearer ${held.get("sro.token")}`);
+  assert.equal(press.headers["Content-Type"], "application/json");
+  // The rig's own door, which on this host means a *skill* run keyed on a
+  // different id space, was not knocked on instead or as well.
+  assert.equal(
+    calls.filter((call) => call.path === "/v1/runs").length,
+    0,
+    "the press still went to `/v1/runs`, which on the backend is a skill run",
+  );
+  const started = JSON.parse(press.body);
   assert.equal(started.workflow_id, "wfl_wa");
   assert.equal(started.from_step, 2);
+  assert.equal(started.live, true);
+  assert.equal(started.allow_focus, true);
+  // Which browser to drive is a body field here and not the query, unlike
+  // every other call in this file: a supervisor's console holds the tenant's
+  // credential and no extension of its own, so the browser named is the one to
+  // drive and not the one asking. `StartWorkflowRunRequest`'s docstring is
+  // where that is decided.
+  assert.equal(
+    started.device_id,
+    held.get("sro.deviceId"),
+    "the press named no browser to drive, or named one that is not this browser",
+  );
+  // `started_by` is gone: the backend reads it off the credential, and a
+  // request that says who authorised it is a signature nobody checked.
+  assert.equal(started.started_by, undefined, "the press still claims who started it");
   // What the panel was told wins over what the page was read for, and what the
   // page gave is still there.
   assert.deepEqual(started.values, { workArea: "NEW", description: "dock" });
@@ -335,7 +423,7 @@ test("an offer taken has left open before the run is asked for, so nothing else 
 
   let whileStarting = null;
   globalThis.fetch = async (url, options = {}) => {
-    if (String(url).slice(RIG.length) === "/v1/runs") {
+    if (String(url).slice(BACKEND.length) === "/v1/workflow-runs") {
       whileStarting = nudges().find((n) => n.id === offer.id).state;
       await send({ kind: "drop-nudge", nudgeId: offer.id });
     }
@@ -362,9 +450,9 @@ test("a start whose POST fails leaves the offer open and reports nothing", async
   const offer = openOnes()[0];
 
   globalThis.fetch = async (url, options = {}) => {
-    const path = String(url).slice(RIG.length);
+    const path = String(url).slice(BACKEND.length);
     calls.push({ path, method: options.method || "GET", body: options.body });
-    if (path === "/v1/runs") return json({ detail: "the rig is down" }, 503);
+    if (path === "/v1/workflow-runs") return json({ detail: "the backend is down" }, 503);
     return rigServer(url, options);
   };
 
@@ -416,13 +504,13 @@ test("marking accepted does not write back a list read before the run started", 
   // silently undo it.
   const meanwhile = { id: "n_other", state: "open", source: "backend", tabId: 2, at: offer.at };
   globalThis.fetch = async (url, options = {}) => {
-    const path = String(url).slice(RIG.length);
+    const [path] = String(url).slice(BACKEND.length).split("?");
     calls.push({ path, method: options.method || "GET", body: options.body });
-    if (path === "/v1/runs") {
+    if (path === "/v1/workflow-runs") {
       held.set("sro.nudges", [...(held.get("sro.nudges") || []), meanwhile]);
-      return json({ run_id: "run-9" });
+      return json({ id: "run-9" }, 201);
     }
-    if (path === "/v1/offers") return json({ offer_id: "off_1" });
+    if (path === "/v1/offers") return json({ offer_id: "off_1" }, 201);
     if (path === "/v1/shapes") return json({ shapes: shapesServed });
     return json({ detail: "no" }, 404);
   };
@@ -471,10 +559,81 @@ test("an offer that was dropped cannot then be started", async () => {
   const answer = await send({ kind: "start-rig-run", nudgeId: offer.id, values: { description: "dock" } });
 
   assert.deepEqual(answer, { ok: false, error: "this offer has already ended" });
-  assert.equal(calls.filter((call) => call.path === "/v1/runs").length, 0, "a dropped offer started a run");
+  assert.equal(calls.filter((call) => call.path === "/v1/workflow-runs").length, 0, "a dropped offer started a run");
   assert.equal(nudges().find((n) => n.id === offer.id).state, "dismissed");
   await new Promise((resolve) => setTimeout(resolve, 30));
   assert.deepEqual(offersSent().map((each) => each.fate), ["dismissed"], "one offer reported two fates");
+});
+
+test("an offer's fate is recorded against the browser that showed it, in the query and not the body", async () => {
+  // `/v1/offers` refuses a request that names no browser with a 403 and writes
+  // nothing: an offer is evidence about the browser that showed it, and a row
+  // with no browser on it is a shift nobody worked. The rig read the id out of
+  // the body; the backend reads it off `?device_id=` + `X-Device-Secret`, and
+  // a body field would be a browser this request merely named -- which could
+  // spend a colleague's rest, or earn it.
+  ready();
+  held.set("sro.deviceId", "dev-offer-9b6c");
+  held.set("sro.deviceSecret", "secret-offer-1f74");
+  held.set("sro.token", "tok-offer-52ad");
+  await gesture("a", "NEW");
+  await gesture("b", "north");
+  await until(() => openOnes().length === 1, "no offer to drop");
+
+  await send({ kind: "drop-nudge", nudgeId: openOnes()[0].id });
+  await until(() => calls.some((call) => call.path === "/v1/offers"), "no fate was reported");
+
+  const fate = calls.find((call) => call.path === "/v1/offers");
+  assert.equal(fate.base, BACKEND, "the fate went somewhere that is not the backend");
+  assert.equal(fate.method, "POST");
+  assert.equal(
+    new URLSearchParams(fate.query).get("device_id"),
+    held.get("sro.deviceId"),
+    "the fate named no browser in the query, so the backend refuses it with a 403",
+  );
+  assert.equal(
+    fate.headers["X-Device-Secret"],
+    held.get("sro.deviceSecret"),
+    "the fate proved no browser, so `?device_id=` alone is half a pair and a 404",
+  );
+  assert.equal(fate.headers.Authorization, `Bearer ${held.get("sro.token")}`);
+  const body = JSON.parse(fate.body);
+  assert.equal(body.fate, "dismissed");
+  assert.equal(body.workflow_id, "wfl_wa");
+  assert.equal(
+    body.device_id,
+    undefined,
+    "the fate still names a browser in the body, which is a name nothing checks",
+  );
+});
+
+test("an offer the backend refuses is a false, and never a throw", async () => {
+  // `f7c00ca` made this answer whether the fate landed, and its one caller
+  // still uses `void`. A throw here is an unhandled rejection on a path that
+  // has already happened -- the offer was shown and answered -- so the answer
+  // is a boolean and the failure is silent to everything but a caller that
+  // asked. Both halves: a refusal test that makes no successful request proves
+  // only that something failed.
+  ready();
+  const { api } = await import("./api.js");
+  const offer = { workflow_id: "wfl_wa", k: 2, fate: "did_it", run_id: null, device_id: "dev-1", at: null };
+
+  assert.equal(await api.reportOffer(offer), true, "a fate the backend recorded was reported as lost");
+
+  offerRefusal = { status: 403, detail: "an offer is a browser's to record" };
+  assert.equal(
+    await api.reportOffer(offer),
+    false,
+    "a 403 was read as a fate that landed -- every offer would be eaten silently",
+  );
+
+  // And not by throwing on the way to `false`.
+  globalThis.fetch = async () => {
+    throw new TypeError("Failed to fetch");
+  };
+  assert.equal(await api.reportOffer(offer), false, "a backend that could not be reached threw");
+  globalThis.fetch = rigServer;
+  offerRefusal = null;
 });
 
 // Not tested here: that a browser with no rig writes no tail. `shapesFor`
@@ -494,7 +653,7 @@ test("the run the rig is driving is drawn while it runs, and Approve reaches the
 
   await send({ kind: "start-rig-run", nudgeId: openOnes()[0].id, values: {} });
   await until(
-    () => calls.some((call) => call.path === "/v1/runs/run-9"),
+    () => calls.some((call) => call.path === "/v1/workflow-runs/run-9"),
     "nothing asked the rig what the run it had just started was doing",
   );
 
@@ -582,7 +741,7 @@ test("a backend that refuses the approval is a refusal in the panel, not a succe
 });
 
 /** How many times this browser has asked the rig what the run is doing. */
-const asked = () => calls.filter((call) => call.path === "/v1/runs/run-9").length;
+const asked = () => calls.filter((call) => call.path === "/v1/workflow-runs/run-9").length;
 
 test("a rig run this browser did not start is polled from status, and a failed ask is asked again", async () => {
   // No `start-rig-run` here. `commands.js` writes this record for every command
@@ -664,4 +823,113 @@ test("Approve is refused for a run this browser is not driving", async () => {
   );
 
   held.delete("sro.activeRun");
+});
+
+// LAST ON PURPOSE. `abort` in `commands.js` refuses every later command for a
+// run in module scope and there is no undo, so a test that stops `run-9` has
+// to be the last one that wants `run-9` driven.
+test("Stop tells the backend to stop the workflow run, with no body naming a browser", async () => {
+  // The row already says which browser is driving it. A `device_id` in the
+  // body would be a second answer to that question which can disagree with the
+  // first, and `abort_workflow_run` takes none -- a bare POST is what a tap
+  // is. On `/v1/runs/{id}/abort` this would be a 404 on a skill run's id space
+  // while the workflow run went on stepping: a Stop button that stops the
+  // browser and not the run.
+  ready();
+  held.set("sro.deviceSecret", "secret-abort-0e5b");
+  held.set("sro.token", "tok-abort-c483");
+  held.set("sro.activeRun", { runId: "run-9", at: Date.now(), source: "rig" });
+
+  const answer = await send({ kind: "abort-run", runId: "run-9" });
+
+  assert.equal(answer.ok, true);
+  assert.equal(answer.error, undefined, `Stop reported a failure: ${answer.error}`);
+  const stop = calls.find((call) => call.path === "/v1/workflow-runs/run-9/abort");
+  assert.ok(stop, "Stop never reached the backend's abort door");
+  assert.equal(stop.base, BACKEND);
+  assert.equal(stop.method, "POST");
+  assert.equal(stop.body, undefined, "Stop sent a body the route does not read");
+  assert.equal(
+    stop.headers["X-Device-Secret"],
+    held.get("sro.deviceSecret"),
+    "Stop did not prove this browser",
+  );
+  assert.equal(stop.headers.Authorization, `Bearer ${held.get("sro.token")}`);
+  assert.equal(
+    calls.filter((call) => call.path === "/v1/runs/run-9/abort").length,
+    0,
+    "Stop still went to `/v1/runs`, which on the backend is a skill run",
+  );
+  assert.equal(
+    calls.filter((call) => call.path === "/v1/runs/run-9/stop").length,
+    0,
+    "a workflow run was stopped through the skill-run door",
+  );
+
+  // The run id is the caller's and is never a constant. Directly on `api`,
+  // because the worker only ever stops the run it is driving and this file has
+  // one of those: a frozen id here would stop somebody else's run and report
+  // the operator's as stopped.
+  const { api } = await import("./api.js");
+  const asked = [];
+  globalThis.fetch = async (url) => (asked.push(String(url)), json({ id: "run-c4e7" }, 202));
+  await api.rigAbort("run-c4e7");
+  assert.equal(asked.at(-1), `${BACKEND}/v1/workflow-runs/run-c4e7/abort`);
+  globalThis.fetch = rigServer;
+
+  held.delete("sro.activeRun");
+});
+
+test("a backend that will not stop the run says so to the operator who pressed Stop", async () => {
+  // The other half. A stop that failed is a run still stepping somewhere with
+  // nobody told about it, and the operator who just pressed Stop is the one
+  // person who can act on that -- so it must not be swallowed. The test above
+  // is the successful request this one is measured against.
+  ready();
+  held.set("sro.activeRun", { runId: "run-9", at: Date.now(), source: "rig" });
+  globalThis.fetch = async (url, options = {}) => {
+    const [path] = String(url).slice(BACKEND.length).split("?");
+    calls.push({ path, method: options.method || "GET", body: options.body });
+    if (path === "/v1/workflow-runs/run-9/abort") return json({ detail: "no such run here" }, 404);
+    return rigServer(url, options);
+  };
+
+  const answer = await send({ kind: "abort-run", runId: "run-9" });
+
+  assert.equal(answer.ok, true, "the local half of Stop is unconditional");
+  assert.match(
+    answer.error || "",
+    /no such run here/,
+    "a run the backend would not stop was reported to the operator as stopped",
+  );
+
+  held.delete("sro.activeRun");
+});
+
+/** `shapes()`'s two rules, at the level they live: the browser the caller
+ * names is the browser the request asks for, and a refusal is `[]` and never a
+ * throw. Directly on `api.shapes` rather than through a gesture, because
+ * `considerOffer` is not awaited on the gesture path -- a shape served through
+ * the worker here would be stamped into `shapesFor`'s five-minute cache by a
+ * call landing after the test returned. */
+test("the shapes read are the ones the named browser is served, and a refusal is []", async () => {
+  ready();
+  const { api } = await import("./api.js");
+  const asked = [];
+  globalThis.fetch = async (url) => {
+    asked.push(String(url));
+    return json({ shapes: [SHAPE] });
+  };
+
+  assert.deepEqual(await api.shapes("dev-other-6b90"), [SHAPE], "a served list came back as nothing");
+  assert.equal(
+    new URLSearchParams(asked.at(-1).split("?")[1] || "").get("device_id"),
+    "dev-other-6b90",
+    "the browser named by the caller is not the browser the request asks for",
+  );
+  assert.ok(asked.at(-1).startsWith(`${BACKEND}/v1/shapes`), `shapes were read from ${asked.at(-1)}`);
+
+  globalThis.fetch = async () => json({ detail: "device was not found" }, 404);
+  assert.deepEqual(await api.shapes("dev-other-6b90"), [], "a refused read threw on the gesture path");
+  globalThis.fetch = rigServer;
 });

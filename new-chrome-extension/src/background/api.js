@@ -78,16 +78,6 @@ async function mirror(path, options) {
   }
 }
 
-/** What the rig is dialled with: one bearer, no device registry, none of the
- * backend's headers. Built here rather than at each call site so the token has
- * one place it is read and none it is logged. */
-async function rigHeaders() {
-  return {
-    Authorization: `Bearer ${await state.rigToken()}`,
-    "Content-Type": "application/json",
-  };
-}
-
 export const api = {
   register: (label, extensionVersion) =>
     call("/v1/agents/register", {
@@ -177,23 +167,30 @@ export const api = {
    * which rung it is on and how far through it is are the run's own record. */
   run: (runId) => call(`/v1/runs/${encodeURIComponent(runId)}`),
 
-  /** A run the rig is performing, in the panel's vocabulary.
+  /** A workflow run this browser is performing, in the panel's vocabulary.
    *
-   * Not `call`: the rig has one token and no device registry, so it takes the
-   * same bearer `rig-channel.js` dials with and none of the backend's headers.
-   * The rig's `outcome` is the panel's `status` -- `running` means running and
-   * every other one of them is finished -- and its steps are `{order, says,
-   * verdict}` where the card wants `{index, outcome}`. Mapped here rather than
-   * in the card, so the card has one shape to draw whoever drove the run.
+   * `/v1/workflow-runs/{id}`, not `/v1/runs/{id}`: on this host `/v1/runs`
+   * already means a *skill* run, `sro.domain.execution.run.Run`, keyed on a
+   * `RunId` and not on a workflow run's plain string. Two aggregates, two id
+   * spaces; `workflow_runs.py`'s module docstring is where that was decided.
+   *
+   * **The mapping layer stays, and this is the reason.** `WorkflowRunModel`'s
+   * docstring says phase 5 deletes it "against this" -- the backend answering
+   * its own field names. It cannot, because `{index, outcome, status}` are not
+   * rig-shaped aliases: they are the *skill* run's own names. `RunModel.status`
+   * and `StepOutcomeModel.index` are what `api.run` answers, and `run-card.js`
+   * draws both kinds of run from one shape -- `run.status`, `step.index` --
+   * telling them apart only by `source`. Deleting this would mean teaching the
+   * card a second vocabulary, and the card is one of the files phase 5 states
+   * outright it does not change. So the translation happens here, in the one
+   * place that already exists for it, and the card keeps one shape to draw.
+   *
+   * `source: "rig"` is likewise kept: it is what `finishing.js` and the panel
+   * read to decide which door to ask about a run, and it is a workflow run
+   * either way. Phase 7 is where that word can change, with its readers.
    */
   rigRun: async (runId) => {
-    const base = await state.rigUrl();
-    if (!isMirrorable(base)) throw new ApiError(0, { detail: "no rig is configured" });
-    const response = await fetch(`${base}/v1/runs/${encodeURIComponent(runId)}`, {
-      headers: await rigHeaders(),
-    });
-    if (!response.ok) throw new ApiError(response.status, { detail: `the rig has no run ${runId}` });
-    const run = await response.json();
+    const run = await call(`/v1/workflow-runs/${encodeURIComponent(runId)}`);
     return {
       id: run.id,
       source: "rig",
@@ -226,35 +223,39 @@ export const api = {
     };
   },
 
-  /** Stop a run the rig is driving. The rig's own abort: it sets the flag its
-   * loop checks between steps and, best effort, tells this browser -- which
-   * has already stopped taking part by the time this is called. */
-  rigAbort: async (runId, deviceId) => {
-    const base = await state.rigUrl();
-    if (!isMirrorable(base)) throw new ApiError(0, { detail: "no rig is configured" });
-    const response = await fetch(`${base}/v1/runs/${encodeURIComponent(runId)}/abort`, {
-      method: "POST",
-      headers: await rigHeaders(),
-      body: JSON.stringify({ device_id: deviceId }),
-    });
-    if (!response.ok) throw new ApiError(response.status, { detail: `the rig would not stop ${runId}` });
-    return null;
-  },
+  /** Stop a workflow run this browser is driving. It takes effect at the next
+   * step: a gesture already sent cannot be recalled from a warehouse.
+   *
+   * **No `device_id`, and no body at all.** The rig's abort took one naming the
+   * browser; the row already says which browser is driving it, and a second
+   * answer to that question is one that can disagree with the first. The route
+   * reads none, so sending one would be a value nothing checks -- and a bare
+   * POST is what a tap is. `deviceId` is gone from the signature rather than
+   * left unused, so nothing reads a browser id for a call that cannot carry
+   * one. */
+  rigAbort: (runId) =>
+    call(`/v1/workflow-runs/${encodeURIComponent(runId)}/abort`, { method: "POST" }),
 
-  /** Every job the rig has proved, with the shape each one has. Read on a
+  /** Every job this tenant has proved, with the shape each one has. Read on a
    * five-minute cache by the worker: a shape changes when a job is mined, not
    * when somebody types.
    *
-   * `[]` on every failure, and never a throw: this is read on the gesture path,
-   * where a rig that is down must cost the operator nothing at all. */
+   * `?device_id=` is not decoration and it is not optional: a job's rest is per
+   * browser -- three refusals quiet it for the browser that refused and for
+   * nobody else -- so a browser served another browser's list spends or earns a
+   * colleague's rest, and nothing anywhere goes red. It rides the query beside
+   * `X-Device-Secret` in the headers because `asking_device` wants both
+   * together; half a pair is a 404, which here means `[]`, which here means an
+   * extension that has silently stopped recognising anything.
+   *
+   * `call` for the headers and a `try` around it for the rule: `[]` on every
+   * failure and never a throw. This is read on the gesture path, where a
+   * backend that is down must cost the operator nothing at all -- the one
+   * reason it is not a bare `call`. */
   shapes: async (deviceId) => {
-    const base = await state.rigUrl();
-    if (!isMirrorable(base)) return [];
     try {
       const query = deviceId ? `?device_id=${encodeURIComponent(deviceId)}` : "";
-      const r = await fetch(`${base}/v1/shapes${query}`, { headers: await rigHeaders() });
-      if (!r.ok) return [];
-      return (await r.json()).shapes || [];
+      return (await call(`/v1/shapes${query}`)).shapes || [];
     } catch {
       return [];
     }
@@ -265,7 +266,7 @@ export const api = {
    * The one measurement that says whether recognising a job early was worth
    * doing, which is why every fate is reported and not just the ones that
    * became runs. */
-  reportOffer: async (body) => {
+  reportOffer: async ({ device_id: deviceId, ...rest }) => {
     // Every read inside the guard, the settings read included: this is called
     // with `void` from paths that must not fail, and a rejected storage read
     // outside the `try` is an unhandled rejection rather than a lost record.
@@ -279,22 +280,25 @@ export const api = {
     // the old `catch` comment calling the record "a nicety" contradicted it
     // three lines down.
     //
-    // It is latent rather than live today: these go to the rig, which has no
-    // device registry and accepts the bare bearer. Phase 5 points them at the
-    // backend, where `rigHeaders()` -- documented as sending "none of the
-    // backend's headers" -- omits `X-Device-Secret`, and every one of these
-    // becomes a 403. THAT is still open; what is fixed here is only that the
-    // 403 will be visible on the day it starts happening instead of silently
-    // eating every offer fate until somebody wonders why counsel never rests.
+    // The 403 an earlier note here warned was coming is closed rather than
+    // arrived: `call` is the one place `X-Device-Secret` is built, and
+    // `?device_id=` goes beside it. Half a pair is `asking_device`'s 404, so
+    // neither half is optional.
+    //
+    // **The browser rides the query, not the body.** The rig read a `device_id`
+    // out of the body; `/v1/offers` refuses a request naming no browser with a
+    // 403 and writes nothing, because an offer is evidence *about* the browser
+    // that showed it -- one a body merely named could spend a colleague's
+    // rest, or earn it. Lifted out of the caller's record here rather than at
+    // the call site: `service-worker.js`'s `report` writes one record of what
+    // happened, and which part of the wire each field rides on is this file's
+    // business.
     try {
-      const base = await state.rigUrl();
-      if (!isMirrorable(base)) return false;
-      const r = await fetch(`${base}/v1/offers`, {
+      await call(`/v1/offers${deviceId ? `?device_id=${encodeURIComponent(deviceId)}` : ""}`, {
         method: "POST",
-        headers: await rigHeaders(),
-        body: JSON.stringify(body),
+        body: rest,
       });
-      return r.ok;
+      return true;
     } catch {
       // The offer already happened; losing the record must not break the path
       // that reported it. Said as `false` rather than swallowed, so a caller
@@ -303,14 +307,22 @@ export const api = {
     }
   },
 
-  /** They said yes. The rig starts the job from the step they have reached. */
-  rigStart: async (body) => {
-    const base = await state.rigUrl();
-    if (!isMirrorable(base)) throw new ApiError(0, { detail: "no rig is configured" });
-    const r = await fetch(`${base}/v1/runs`, { method: "POST", headers: await rigHeaders(), body: JSON.stringify(body) });
-    if (!r.ok) throw new ApiError(r.status, await r.json().catch(() => ({ detail: r.statusText })));
-    return r.json();
-  },
+  /** They said yes. The backend starts the job from the step they have reached,
+   * and answers with the row it claimed -- `id`, not the rig's `{run_id}`.
+   *
+   * `/v1/workflow-runs`, not `/v1/runs`, which on this host starts a *skill*
+   * run from a preview and would refuse a workflow id outright.
+   *
+   * **Which browser to drive is a body field here, and it is the one call in
+   * this file where that is right.** Everywhere else `?device_id=` names the
+   * browser *asking*; a press names the browser to *drive*, and the screen
+   * somebody presses on is not always it -- a supervisor's console holds the
+   * tenant's credential and no extension of its own. `StartWorkflowRunRequest`
+   * is where that is written down.
+   *
+   * No `started_by`: the backend reads who authorised it off the credential,
+   * and a request that says who authorised it is a signature nobody checked. */
+  rigStart: (body) => call("/v1/workflow-runs", { method: "POST", body }),
 
   /** A token of this browser's own, minted by the rig against the tenant's
    * bearer the operator typed. Called once, when the options page is saved;

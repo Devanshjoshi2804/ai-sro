@@ -145,25 +145,40 @@ function keyedOnThePress() {
   );
 }
 
-/** The rig's record, in the panel's vocabulary.
+/** A workflow run, in the panel's vocabulary, off the backend's own door.
  *
- * Two vocabularies meet in `api.rigRun` and nowhere else: the rig's `outcome`
- * is the panel's `status`, and its `{order, says, verdict}` is the card's
- * `{index, outcome, says, reason}`. Every other test here stubs that call, so
- * this is the one that would notice if the mapping read the wrong field --
- * `order` as `index` is the whole of what puts a step's glyph on the right row.
+ * Two vocabularies meet in `api.rigRun` and nowhere else: a workflow run's
+ * `outcome` is the panel's `status`, and its `{order, says, verdict}` is the
+ * card's `{index, outcome, says, reason}`. Every other test here stubs that
+ * call, so this is the one that would notice if the mapping read the wrong
+ * field -- `order` as `index` is the whole of what puts a step's glyph on the
+ * right row.
  *
  * Driven through the real `fetch` stub above rather than a fake `api`, because
  * the thing under test *is* what the answer is turned into.
+ *
+ * The wire is pinned as well as the mapping. `/v1/runs/{id}` on this host is a
+ * *skill* run keyed on a different id space, so a call that reverted to it
+ * would 404 in production and answer somebody else's row in the worst case;
+ * and `X-Device-Secret` is what makes this browser itself rather than anyone
+ * holding the tenant's token. Both are asserted against values chosen so that
+ * a literal frozen into `api.js` could not be them by accident.
  */
 async function theRigsRunInThePanelsWords() {
-  // No rig configured is the ordinary case -- the rig is optional -- and a
-  // relative path would be fetched against the extension's own origin, which
-  // is not a rig. Refused before the fetch, the same rule `mirror.js` applies.
-  await assert.rejects(() => api.rigRun("run_a1b2"), /no rig is configured/);
-  await state.setRigUrl("http://127.0.0.1:8099");
+  await state.setToken("tok-run-5d19");
+  await state.setDeviceSecret("sec-run-8c40");
+  /** Every request `api.rigRun` made: url, method, headers. */
+  const wire = [];
+  const record = (url, options = {}) => {
+    wire.push({
+      url: String(url),
+      method: options.method || "GET",
+      headers: options.headers || {},
+      body: options.body,
+    });
+  };
 
-  answer = async () => ({
+  answer = async (url, options) => (record(url, options), {
     ok: true,
     status: 200,
     json: async () => ({
@@ -226,13 +241,38 @@ async function theRigsRunInThePanelsWords() {
   ]);
   assert.strictEqual(mapped.withheld.length, 1);
 
+  // The door, whole. Not `/v1/runs/{id}`, which on this host is a skill run
+  // keyed on a `RunId` -- see `workflow_runs.py`'s module docstring.
+  assert.strictEqual(wire.length, 1, "one read of the run, and one request for it");
+  assert.strictEqual(
+    wire[0].url,
+    "http://localhost:8000/v1/workflow-runs/run_a1b2",
+    "a workflow run was read from somewhere other than the backend's workflow-run door",
+  );
+  assert.strictEqual(wire[0].method, "GET");
+  assert.strictEqual(wire[0].body, undefined, "a read carried a body");
+  assert.strictEqual(
+    wire[0].headers["X-Device-Secret"],
+    "sec-run-8c40",
+    "the run was read without this browser proving it is itself",
+  );
+  assert.strictEqual(wire[0].headers.Authorization, "Bearer tok-run-5d19");
+
+  // The run id is the caller's and is never a constant: a frozen one would
+  // draw whatever run happened to be named in `api.js` over the one the
+  // operator is watching.
+  wire.length = 0;
+  await api.rigRun("run_c9d4");
+  assert.strictEqual(wire[0].url, "http://localhost:8000/v1/workflow-runs/run_c9d4");
+
   // The one status both vocabularies share, and it has to survive the mapping:
   // a run still running is what `noteFinished` refuses to write a card for.
   answer = async () => ({ ok: true, status: 200, json: async () => ({ id: "r", outcome: "running" }) });
   assert.strictEqual((await api.rigRun("r")).status, "running");
 
-  // And a rig that has never heard of the run says so with a status on it --
-  // `noteFinished` reads that 404 to stop asking.
+  // And a backend that has never heard of the run says so with a status on it
+  // -- `noteFinished` reads that 404 to stop asking. A failed read must never
+  // be mapped as though it were a row.
   answer = async () => ({ ok: false, status: 404, json: async () => ({}) });
   await assert.rejects(() => api.rigRun("nope"), (error) => error.status === 404);
 }

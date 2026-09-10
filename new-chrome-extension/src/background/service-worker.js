@@ -1141,9 +1141,12 @@ async function handle(message, sender) {
       const values = { ...(nudge.values || {}), ...(message.values || {}) };
       let started;
       try {
+        // No `started_by`. The backend reads who authorised the press off the
+        // credential it arrived on; a body field saying so is a signature
+        // nobody checked, written into the row an audit reads first.
         started = await api.rigStart({
           workflow_id: nudge.workflowId, values, device_id: await state.deviceId(),
-          live: true, allow_focus: true, started_by: "offer", from_step: nudge.k || 0,
+          live: true, allow_focus: true, from_step: nudge.k || 0,
         });
       } catch (error) {
         // No run was started, so nothing was accepted. The offer goes back to
@@ -1157,7 +1160,11 @@ async function handle(message, sender) {
         });
         return { ok: false, error: error.problem?.detail || error.message };
       }
-      await state.setActiveRun({ runId: started.run_id, at: Date.now(), source: "rig" });
+      // `started.id`, not `started.run_id`: `POST /v1/workflow-runs` answers
+      // 201 with the whole `WorkflowRunModel`, where the rig answered 202 and
+      // `{"run_id": ...}`. Read as `run_id` this is `undefined`, and the panel
+      // draws a run with no id it can ever poll or approve.
+      await state.setActiveRun({ runId: started.id, at: Date.now(), source: "rig" });
       // From here the panel draws the run itself, a row per step as it lands.
       // Beside the record that says a rig run is active, because that record is
       // the whole of what `pollRigRun` reads. Not awaited: the press answers as
@@ -1165,8 +1172,8 @@ async function handle(message, sender) {
       // that either way.
       void pollRigRun();
       void hideNudge(nudge.tabId);
-      void report(nudge, "accepted", started.run_id);
-      return { ok: true, run_id: started.run_id };
+      void report(nudge, "accepted", started.id);
+      return { ok: true, run_id: started.id };
     }
     case "drop-nudge": {
       // "No thanks", from the panel. An offer taken off the screen unanswered
@@ -1280,7 +1287,7 @@ async function handle(message, sender) {
         // together or not at all.
         const active = await state.activeRun();
         if (active?.runId === message.runId && active.source === "rig") {
-          await api.rigAbort(message.runId, await state.deviceId());
+          await api.rigAbort(message.runId);
         } else {
           await api.stopRun(message.runId);
         }

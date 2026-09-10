@@ -133,6 +133,12 @@ async def test_a_batch_one_event_over_the_limit_is_refused(client: httpx.AsyncCl
         f"{over} events in one batch; at most {BELTS.observation_batch_events}"
     )
     assert refused.json()["type"].endswith("/content_too_large")
+    # And the title, not only the slug. `_TITLES` renders through
+    # `.get(code, "Error")`, so with the slug pinned and the title not, the 413
+    # entry could be deleted -- or set to "Bananas" -- and every suite stayed
+    # green while the door answered the "Error" title that `fbd2160` was
+    # written to remove. `test_refusals.py` already asserts both halves for 429.
+    assert refused.json()["title"] == "Content too large"
     assert served.status_code == 202, served.text
 
 

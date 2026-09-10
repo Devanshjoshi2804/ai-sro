@@ -51,6 +51,7 @@ import httpx
 import pytest
 from httpx import ASGITransport
 
+from sro.application.execution.approvals import K_APPROVAL_WAIT_S
 from sro.application.execution.pursuits import Pursuits
 from sro.config import Settings
 from sro.domain.chat.reading import ChatReading
@@ -1338,14 +1339,32 @@ async def _waiting_on(container: _FakeContainer, run_id: str) -> asyncio.Task[bo
     against a route that calls it on the wrong run id.
     """
     container.approvals.register(run_id)
-    task = asyncio.ensure_future(container.approvals.wait_for(run_id, timeout=5.0))
+    # The production wait, not a short one. At `timeout=5.0` this file failed
+    # 3/3 when run on its own and passed inside `tests/unit`: a park that
+    # expires on the wall clock is `done()` exactly like a park the route
+    # released, so `_still_waiting` read a timeout as a release and the one
+    # test pinning "row before event" failed for a reason that had nothing to
+    # do with the ordering it proves. Five minutes is longer than any test in
+    # this suite can live, and it is the number the register itself writes
+    # down.
+    task = asyncio.ensure_future(container.approvals.wait_for(run_id, timeout=K_APPROVAL_WAIT_S))
     await asyncio.sleep(0)
     return task
 
 
 async def _still_waiting(task: asyncio.Task[bool]) -> bool:
-    """Whether the parked task is STILL parked, and tidied up either way."""
+    """Whether the parked task is STILL parked, and tidied up either way.
+
+    A wait that TIMED OUT is refused rather than reported: `wait_for` answers
+    `False` for a park that gave up and `True` for one the route released, and
+    both are `done()`. Without this the helper fails in one direction and
+    passes for the wrong reason in the other -- a suite where every park had
+    quietly expired would assert "not still waiting" on a door that never
+    released anything and call it proof.
+    """
     await asyncio.sleep(0)
+    if task.done() and task.result() is False:
+        raise AssertionError("the park timed out on the wall clock; this test proves nothing")
     parked = not task.done()
     task.cancel()
     with suppress(asyncio.CancelledError):

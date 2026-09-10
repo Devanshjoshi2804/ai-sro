@@ -20,7 +20,11 @@ export function SpendLine() {
   return (
     <span
       data-over-cap={String(overCap)}
-      className={cn("font-mono text-xs", overCap ? "text-warn" : "text-muted-foreground")}
+      className={cn(
+        // The bar is 46px tall; two lines of running total do not fit in it.
+        "font-mono text-xs whitespace-nowrap",
+        overCap ? "text-warn" : "text-muted-foreground",
+      )}
     >
       {text}
     </span>

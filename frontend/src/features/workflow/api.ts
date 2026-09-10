@@ -8,8 +8,11 @@ export type DeviceLineModel = Schemas["DeviceLineModel"];
 export type AuditResponse = Schemas["AuditResponse"];
 export type SpendResponse = Schemas["SpendResponse"];
 
+export type EvidenceResponse = Schemas["EvidenceResponse"];
+
 export const workflowKeys = {
   all: ["workflows"] as const,
+  evidence: (workflowId: string) => ["workflows", workflowId, "evidence"] as const,
 };
 
 export const workflowRunKeys = {
@@ -25,6 +28,20 @@ export const spendKeys = { all: ["spend"] as const };
 
 export const listWorkflows = () =>
   api.get<{ workflows: WorkflowModel[] }>("/v1/workflows").then((r) => r.workflows);
+
+/**
+ * What a mined job was mined FROM: the gestures its steps cite, the calls
+ * those gestures carried, the recordings they came from, and -- the point of
+ * the route -- the cited ids that are no longer there.
+ *
+ * `missing` is not an error field. Evidence ages out of the pool, and a step
+ * whose citations have gone is a step nobody can check any more. It is the one
+ * thing on this page that gets louder rather than quieter over time.
+ */
+export const readEvidence = (workflowId: string) =>
+  api.get<EvidenceResponse>(
+    `/v1/workflows/${encodeURIComponent(workflowId)}/evidence`,
+  );
 
 /** The parked runs, whichever browser is driving them. */
 export const listAwaitingRuns = () =>

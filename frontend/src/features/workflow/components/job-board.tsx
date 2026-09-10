@@ -53,7 +53,14 @@ function Job({ workflow: w }: { workflow: WorkflowModel }) {
   return (
     <Card>
       <CardHeader className="flex items-start justify-between gap-3">
-        <CardTitle>{w.title}</CardTitle>
+        <CardTitle>
+          {/* The card is a summary; the evidence behind it lives on its own
+              page. Without this link the citations under each step are a
+              count with nothing to open. */}
+          <Link href={`/jobs/${w.id}`} className="hover:text-brand underline-offset-4 hover:underline">
+            {w.title}
+          </Link>
+        </CardTitle>
         {/* An id, not a price. One mining call proposes every job in a pass,
             so a per-card dollar figure would draw the whole pass's bill once
             per card. */}

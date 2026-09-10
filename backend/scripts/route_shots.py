@@ -29,13 +29,22 @@ TOKEN = os.environ.get("SRO_TOKEN", "")
 OUT = Path(os.environ.get("SRO_SHOTS", "/tmp/sro-shots"))
 
 ROUTES = (
+    # Bar order, left to right, so a contact sheet reads the way the nav does.
+    # `/waiting` was missing here while its page existed, which is the failure
+    # this list is for: a route nobody shoots is a route nobody compares.
     "/console",
+    "/waiting",
+    "/needs",
     "/overview",
+    "/jobs",
     "/candidates",
     "/recordings",
     "/skills",
     "/runs",
     "/triggers",
+    "/browsers",
+    "/audit",
+    "/spend",
     "/knowledge",
 )
 

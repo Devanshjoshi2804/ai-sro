@@ -174,17 +174,26 @@ test-extension: ## The extension's own self-checks, in plain node
 	@# file added and forgotten was the same defect facing the other way.
 	@#
 	@# `**/*.test.?(c|m)js` is one of node's own default patterns and glob
-	@# positional arguments have worked since v21; this repo runs v24. Both
-	@# suite styles survive the move -- 9 files use `node:test`, 16 are plain
-	@# scripts that throw -- because the runner spawns one process per file and
-	@# reads its exit code. Verified in both directions: 0 when green, 1 for a
-	@# `node:test` failure AND 1 for a plain script that throws.
+	@# positional arguments have worked since v21; this repo runs v24. It is
+	@# the whole tree and not `src/` and `scripts/`, because those two were a
+	@# hand-written list again wearing a glob: a suite named `.test.cjs`, or
+	@# put in `mock-server/` or `fixtures/`, was skipped in silence. Measured
+	@# both ways -- one planted throwing file of each kind: exit 0 under the
+	@# two narrow globs, exit 1 under this one. `node_modules` is still not
+	@# descended into (measured too, with a throwing file planted in one),
+	@# and the extension has none of its own -- eslint comes from the
+	@# frontend's.
+	@#
+	@# Both suite styles survive the move -- 9 files use `node:test`, 17 are
+	@# plain scripts that throw -- because the runner spawns one process per
+	@# file and reads its exit code. Verified in both directions: 0 when green,
+	@# 1 for a `node:test` failure AND 1 for a plain script that throws.
 	@#
 	@# One process per file also retires two ordering traps the old serial run
 	@# had: `commands.js`'s `abort()` poisoned a run id in module scope with no
 	@# undo, so the Stop tests had to run last, and `shapesFor`'s five-minute
 	@# module-scope cache meant only the first test in the process could pin a
 	@# shapes request. Neither survives a fresh process per file.
-	cd new-chrome-extension && node --test "src/**/*.test.mjs" "scripts/**/*.test.mjs"
+	cd new-chrome-extension && node --test "**/*.test.?(c|m)js"
 
 check: lint test test-contract test-frontend test-extension test-browser ## What CI runs

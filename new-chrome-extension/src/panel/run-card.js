@@ -122,15 +122,16 @@ export function runCard({ run, skill, message, notes = [] }, { onPress, onChange
     );
   }
 
-  // What a dry run held back. Said on the card rather than left to the rig's
-  // own screen: the operator watching this browser is the person who needs to
-  // know the writes they just watched be planned did not happen.
+  // What a dry run held back. There is no other screen it could be said on --
+  // phase 5 left one system, and this card is where the writes were drawn in
+  // words -- and the operator watching them be planned is the person who needs
+  // to know they did not happen.
   const withheld = rig && !live ? (run.withheld || []).length : 0;
   if (withheld) {
     const line = document.createElement("p");
     line.className = "note";
     line.textContent =
-      `dry run — ${withheld} write${withheld === 1 ? "" : "s"} shown on the rig, not sent`;
+      `dry run — ${withheld} write${withheld === 1 ? "" : "s"} shown here, not sent`;
     card.append(line);
   }
 

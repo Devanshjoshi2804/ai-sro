@@ -125,7 +125,7 @@ async def _taught(
         blobs,
         FakeClock(START),
         FakeIdFactory(),
-        _NoUnderstanding(),  # type: ignore[arg-type]
+        _NoUnderstanding(),
         None,
     )
     taught = await teach.execute(CTX, candidate_id=candidate.id)
@@ -136,7 +136,7 @@ async def _taught(
 def _shots(recording: object) -> dict[int, str]:
     return {
         artifact.frame_index: artifact.uri
-        for artifact in recording.artifacts  # type: ignore[attr-defined]
+        for artifact in recording.artifacts
         if artifact.kind is ArtifactKind.SCREENSHOT
     }
 

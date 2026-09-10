@@ -28,14 +28,14 @@ def _skill(*stages: PromotionStage) -> object:
 def test_the_version_offered_is_the_newest_one_that_can_run() -> None:
     taught_twice = _skill(PromotionStage.ASSISTED, PromotionStage.RECORDED)
 
-    assert taught_twice.runnable is not None  # type: ignore[attr-defined]
-    assert taught_twice.runnable.version == 1  # type: ignore[attr-defined]
+    assert taught_twice.runnable is not None
+    assert taught_twice.runnable.version == 1
 
 
 def test_the_newest_wins_once_it_has_been_reviewed() -> None:
     promoted = _skill(PromotionStage.ASSISTED, PromotionStage.SHADOW)
 
-    assert promoted.runnable.version == 2  # type: ignore[attr-defined]
+    assert promoted.runnable.version == 2
 
 
 def test_a_skill_that_has_only_ever_been_recorded_has_nothing_runnable() -> None:
@@ -43,4 +43,4 @@ def test_a_skill_that_has_only_ever_been_recorded_has_nothing_runnable() -> None
     operator is told to promote it rather than told it does not exist."""
     fresh = _skill(PromotionStage.RECORDED)
 
-    assert fresh.runnable is None  # type: ignore[attr-defined]
+    assert fresh.runnable is None

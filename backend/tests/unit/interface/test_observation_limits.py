@@ -73,7 +73,7 @@ def _batch(batch_id: str, events: int) -> dict[str, Any]:
 @pytest.fixture
 async def uow() -> AsyncIterator[FakeUnitOfWork]:
     unit = FakeUnitOfWork()
-    unit.devices.rows[LENA.value] = AgentDevice(  # type: ignore[attr-defined]
+    unit.devices.rows[LENA.value] = AgentDevice(
         id=LENA,
         tenant_id=f.TENANT,
         principal_id=PrincipalId("lena@acme.test"),

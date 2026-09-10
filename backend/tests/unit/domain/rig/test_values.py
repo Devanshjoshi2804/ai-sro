@@ -263,7 +263,7 @@ def test_a_non_str_value_from_the_store_does_not_take_the_crossing_down() -> Non
         tenant="acme",
         # `ValueSeen.value` is typed `str`; the store hands back unvalidated
         # JSON where it is not, which is the case `str(seen.value)` defends.
-        values_seen=[ValueSeen(field="qty", value=42)],  # type: ignore[arg-type]
+        values_seen=[ValueSeen(field="qty", value=42)],
     )
 
     assert "42" in typed_values(gesture, intent)

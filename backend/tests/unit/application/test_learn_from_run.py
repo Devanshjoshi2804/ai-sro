@@ -55,7 +55,7 @@ def _outcome(**overrides: object) -> StepOutcome:
         "url": "https://wms.test/data/WM/wm/inventory/adjust?siteId=SG",
         "status_code": 200,
     }
-    return StepOutcome(**{**defaults, **overrides})  # type: ignore[arg-type]
+    return StepOutcome(**{**defaults, **overrides})
 
 
 async def _learn(run: Run, uow: FakeUnitOfWork) -> None:

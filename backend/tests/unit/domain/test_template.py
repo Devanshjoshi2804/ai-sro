@@ -38,7 +38,7 @@ class TestIdentifiers:
     def test_ids_of_different_kinds_never_compare_equal(self) -> None:
         # mypy also rejects this comparison, which is the same guarantee one
         # layer earlier. The runtime check stands for callers that lose types.
-        assert SkillId("x") != RecordingId("x")  # type: ignore[comparison-overlap]
+        assert SkillId("x") != RecordingId("x")
 
     def test_blank_ids_are_rejected(self) -> None:
         with pytest.raises(InvariantViolation):

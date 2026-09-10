@@ -46,7 +46,7 @@ def _step(**overrides: object) -> StepOutcome:
         "intent": "adjust",
         "status_code": 200,
     }
-    return StepOutcome(**{**defaults, **overrides})  # type: ignore[arg-type]
+    return StepOutcome(**{**defaults, **overrides})
 
 
 def _clean_run() -> Run:

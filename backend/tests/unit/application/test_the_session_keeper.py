@@ -55,7 +55,7 @@ async def test_a_connected_system_is_kept_open(uow: FakeUnitOfWork) -> None:
     await uow.connections.add(_connected())
     ensure = _Ensure(asked=[])
 
-    swept = await KeepSessionsOpen(uow, ensure).sweep()  # type: ignore[arg-type]
+    swept = await KeepSessionsOpen(uow, ensure).sweep()
 
     assert swept.open_now == ("blue_yonder",)
     assert ensure.asked == [("acme", KEEPER.value)]
@@ -69,7 +69,7 @@ async def test_nothing_is_touched_while_somebody_is_demonstrating(
     await uow.recordings.add(f.recording())
     ensure = _Ensure(asked=[])
 
-    swept = await KeepSessionsOpen(uow, ensure).sweep()  # type: ignore[arg-type]
+    swept = await KeepSessionsOpen(uow, ensure).sweep()
 
     assert swept.left_alone == ("blue_yonder",)
     assert swept.open_now == ()
@@ -81,7 +81,7 @@ async def test_a_system_that_cannot_be_opened_is_reported_not_retried(
 ) -> None:
     await uow.connections.add(_connected())
 
-    swept = await KeepSessionsOpen(uow, _Ensure(reachable=False)).sweep()  # type: ignore[arg-type]
+    swept = await KeepSessionsOpen(uow, _Ensure(reachable=False)).sweep()
 
     assert swept.unreachable == ("blue_yonder",)
 
@@ -93,7 +93,7 @@ async def test_every_tenant_is_swept_under_its_own_name(uow: FakeUnitOfWork) -> 
     await uow.connections.add(_connected(tenant="rival"))
     ensure = _Ensure(asked=[])
 
-    swept = await KeepSessionsOpen(uow, ensure).sweep()  # type: ignore[arg-type]
+    swept = await KeepSessionsOpen(uow, ensure).sweep()
 
     assert len(swept.open_now) == 2
     assert {tenant for tenant, _ in (ensure.asked or [])} == {"acme", "rival"}
@@ -115,7 +115,7 @@ async def test_forgotten_browsers_are_given_back(uow: FakeUnitOfWork) -> None:
     await uow.connections.add(_connected())
     strays = _Strays(released=("abandoned-session",))
 
-    swept = await KeepSessionsOpen(uow, _Ensure(), strays).sweep()  # type: ignore[arg-type]
+    swept = await KeepSessionsOpen(uow, _Ensure(), strays).sweep()
 
     assert swept.released == ("abandoned-session",)
 
@@ -128,7 +128,7 @@ async def test_nothing_is_reaped_while_somebody_is_demonstrating(
     await uow.recordings.add(f.recording())
     strays = _Strays(released=("would-have-taken-theirs",))
 
-    swept = await KeepSessionsOpen(uow, _Ensure(), strays).sweep()  # type: ignore[arg-type]
+    swept = await KeepSessionsOpen(uow, _Ensure(), strays).sweep()
 
     assert swept.released == ()
     assert strays.asked == 0

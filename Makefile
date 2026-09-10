@@ -113,7 +113,7 @@ lint: lint-backend lint-frontend lint-extension ## Run every linter
 lint-backend: ## ruff + mypy --strict + import-linter
 	$(BACKEND) uv run ruff check .
 	$(BACKEND) uv run ruff format --check .
-	$(BACKEND) uv run mypy src tests/unit/fakes.py
+	$(BACKEND) uv run mypy src tests
 	$(BACKEND) uv run lint-imports
 
 lint-frontend: ## eslint + tsc
@@ -167,32 +167,33 @@ offer-replay-backend: ## The same question of the backend's own store, through t
 	$(BACKEND) uv run python scripts/dry_run.py --replay /tmp/backend-replay.json > /dev/null && node ../new-chrome-extension/scripts/offer-replay.mjs /tmp/backend-replay.json
 
 test-extension: ## The extension's own self-checks, in plain node
-	node new-chrome-extension/scripts/offer-replay.test.mjs
-	node new-chrome-extension/src/background/queue.test.mjs
-	node new-chrome-extension/src/background/in-page.test.mjs
-	node new-chrome-extension/src/background/queue.upgrade.test.mjs
-	node new-chrome-extension/src/background/showing.test.mjs
-	node new-chrome-extension/src/background/frames.test.mjs
-	node new-chrome-extension/src/background/pages.test.mjs
-	node new-chrome-extension/src/background/finishing.test.mjs
-	node new-chrome-extension/src/background/watching-across-a-reload.test.mjs
-	node new-chrome-extension/src/background/trees.test.mjs
-	node new-chrome-extension/src/background/mirror.test.mjs
-	node new-chrome-extension/src/background/rig-settings.test.mjs
-	node new-chrome-extension/src/background/channel.test.mjs
-	node new-chrome-extension/src/background/shape.generated.test.mjs
-	node new-chrome-extension/src/background/recognise.test.mjs
-	node new-chrome-extension/src/background/offering.test.mjs
-	node new-chrome-extension/src/background/offering-worker.test.mjs
-	node new-chrome-extension/src/content/network.test.mjs
-	node new-chrome-extension/src/content/sensitivity.test.mjs
-	node new-chrome-extension/src/content/watch.test.mjs
-	node new-chrome-extension/src/panel/panel.test.mjs
-	node new-chrome-extension/src/panel/ledger.test.mjs
-	node new-chrome-extension/src/panel/strip.test.mjs
-	node new-chrome-extension/src/panel/today.test.mjs
-	node new-chrome-extension/src/panel/run-card.test.mjs
-	node new-chrome-extension/src/panel/nudge.test.mjs
-	node new-chrome-extension/src/tokens.test.mjs
+	@# Discovered, not listed. This target named all 25 suites by hand until
+	@# 2026-09-10, and the list was load-bearing in the wrong direction: phase
+	@# 5 deleted `mirror.test.mjs` without editing it, the run aborted at suite
+	@# 11 of 25, and the grep watching for failures returned zero -- green. A
+	@# file added and forgotten was the same defect facing the other way.
+	@#
+	@# `**/*.test.?(c|m)js` is one of node's own default patterns and glob
+	@# positional arguments have worked since v21; this repo runs v24. It is
+	@# the whole tree and not `src/` and `scripts/`, because those two were a
+	@# hand-written list again wearing a glob: a suite named `.test.cjs`, or
+	@# put in `mock-server/` or `fixtures/`, was skipped in silence. Measured
+	@# both ways -- one planted throwing file of each kind: exit 0 under the
+	@# two narrow globs, exit 1 under this one. `node_modules` is still not
+	@# descended into (measured too, with a throwing file planted in one),
+	@# and the extension has none of its own -- eslint comes from the
+	@# frontend's.
+	@#
+	@# Both suite styles survive the move -- 9 files use `node:test`, 17 are
+	@# plain scripts that throw -- because the runner spawns one process per
+	@# file and reads its exit code. Verified in both directions: 0 when green,
+	@# 1 for a `node:test` failure AND 1 for a plain script that throws.
+	@#
+	@# One process per file also retires two ordering traps the old serial run
+	@# had: `commands.js`'s `abort()` poisoned a run id in module scope with no
+	@# undo, so the Stop tests had to run last, and `shapesFor`'s five-minute
+	@# module-scope cache meant only the first test in the process could pin a
+	@# shapes request. Neither survives a fresh process per file.
+	cd new-chrome-extension && node --test "**/*.test.?(c|m)js"
 
 check: lint test test-contract test-frontend test-extension test-browser ## What CI runs

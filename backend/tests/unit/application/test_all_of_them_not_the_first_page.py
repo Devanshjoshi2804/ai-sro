@@ -89,7 +89,7 @@ class TestMerging:
         first = read_answer(_page(50, total=None), url=LISTING)
         assert first is not None and first.partial
 
-        whole = merge((first, read_answer(_page(12, start=50, total=None), url=LISTING)))  # type: ignore[arg-type]
+        whole = merge((first, read_answer(_page(12, start=50, total=None), url=LISTING)))
 
         assert whole is not None
         assert not whole.partial

@@ -95,7 +95,7 @@ def _proposal(cites: list[str], **over: object) -> dict[str, object]:
 
 
 def _answer(*proposals: dict[str, object], **over: object) -> Answer:
-    return Answer(data={"workflows": list(proposals)}, cost_usd=0.01, **over)  # type: ignore[arg-type]
+    return Answer(data={"workflows": list(proposals)}, cost_usd=0.01, **over)
 
 
 def _fat_day(count: int) -> list[Gesture]:

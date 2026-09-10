@@ -54,7 +54,7 @@ def test_a_flow_with_a_colliding_resource_name_still_gets_its_own_claim(
 def test_claims_keep_the_evidence_level_they_were_recorded_at(claims: tuple) -> None:
     """Flattening everything to "we know this" is what the base's own audit
     caught. Help-text fields are asserted; a re-run probe battery is not."""
-    by_kind = {kind: set() for kind in EntryKind}
+    by_kind: dict[EntryKind, set[EvidenceLevel]] = {kind: set() for kind in EntryKind}
     for claim in claims:
         by_kind[claim.kind].add(claim.evidence)
 

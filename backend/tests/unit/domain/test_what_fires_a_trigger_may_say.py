@@ -34,7 +34,7 @@ def _trigger(**over: object) -> Trigger:
         "inbound_token": "a-secret",
         "from_message": ("order_id",),
     }
-    return Trigger(**{**defaults, **over})  # type: ignore[arg-type]
+    return Trigger(**{**defaults, **over})
 
 
 def test_the_message_fills_the_names_it_was_told_it_could() -> None:

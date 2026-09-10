@@ -67,7 +67,7 @@ def _gesture(
         ),
     }
     fields.update(overrides)
-    return Gesture(**fields)  # type: ignore[arg-type]
+    return Gesture(**fields)
 
 
 def _batch(batch_id: str = "bat_1", **overrides: object) -> GestureBatch:
@@ -79,7 +79,7 @@ def _batch(batch_id: str = "bat_1", **overrides: object) -> GestureBatch:
         "received_at": "2026-09-03T10:00:00+00:00",
     }
     fields.update(overrides)
-    return GestureBatch(**fields)  # type: ignore[arg-type]
+    return GestureBatch(**fields)
 
 
 class TestGestures:

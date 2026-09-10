@@ -117,8 +117,11 @@ def connector() -> Any:
     server = ThreadingHTTPServer(("127.0.0.1", 0), _Server)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
-    host, port = server.server_address[:2]
-    yield McpToolCaller([McpServer(name="mail", url=f"http://{host}:{port}/mcp", token=TOKEN)])
+    # The host is the literal this server was bound to. Reading it back off
+    # `server_address` types as `str | bytes` -- the AF_UNIX arm -- and a bytes
+    # host would silently build `http://b'127.0.0.1':.../mcp`.
+    port = server.server_address[1]
+    yield McpToolCaller([McpServer(name="mail", url=f"http://127.0.0.1:{port}/mcp", token=TOKEN)])
     server.shutdown()
     server.server_close()
 

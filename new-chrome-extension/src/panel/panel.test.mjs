@@ -1261,27 +1261,34 @@ test("with no way to reverse it, it says so rather than offering a dead button",
   assert.ok(/I'll fix it/i.test(said), "no way to say it was wrong at all");
 });
 
-test("a run in flight links to whichever process is driving it", async () => {
-  // The backend's console has never heard of a rig run and the rig has no
-  // per-run URL of its own, so "details" for one is the rig's own page, bare.
-  // Everything else about the card -- the band, the step count, Stop -- is the
-  // same for both, which is the point.
+test("only a run the console can draw is offered a link to it", async () => {
+  // A skill run has a page there. A workflow run (`source: "rig"`) has none
+  // anywhere -- the rig's own went with the rig in phase 5, and the console has
+  // never had a workflow-run screen -- so it is offered no link rather than one
+  // that lands on a 404 dressed as an answer. Everything else about the card --
+  // the band, the step count, Stop -- is the same for both, which is the point.
   const driving = { runId: "run_a1b2", kind: "ui", since: Date.now(), step: 2 };
-  const rig = panel(
+  const workflow = panel(
     {
       deviceId: "dev-1",
       capturing: true,
-      rigUrl: "http://127.0.0.1:8099",
+      consoleUrl: "https://console.test",
       performing: { ...driving, source: "rig" },
     },
     { id: 7, host: "wms.example", url: "https://wms.example/portal" },
   );
-  const rigLink = rig.cards.flatMap(buttons).find((b) => /Details/.test(b.textContent));
-  assert.equal(rigLink.textContent, "Details on the rig", "a rig run pointed at the console");
-  rigLink.listeners[0]();
-  assert.equal(rig.opened.length, 1, "a rig run's details went elsewhere");
-  assert.match(rig.opened[0], /^http:\/\/127\.0\.0\.1:8099\/#run-/, "the rig page opens on the run");
-  assert.deepEqual(sentOf(rig.sent, "panel-console"), [], "the console token was asked for anyway");
+  const pressable = workflow.cards.flatMap(buttons);
+  assert.equal(
+    pressable.find((b) => /Details/.test(b.textContent)),
+    undefined,
+    "a workflow run was sent somewhere that has no page for it",
+  );
+  assert.ok(
+    pressable.some((b) => /Stop this run/.test(b.textContent)),
+    "the card lost its Stop along with the link",
+  );
+  assert.deepEqual(workflow.opened, [], "a workflow run opened a tab anyway");
+  assert.deepEqual(sentOf(workflow.sent, "panel-console"), [], "the console token was asked for anyway");
 
   // No `source` at all -- an older worker's status, or the backend's own run.
   const backend = panel(
@@ -1289,10 +1296,10 @@ test("a run in flight links to whichever process is driving it", async () => {
     { id: 7, host: "wms.example", url: "https://wms.example/portal" },
   );
   const link = backend.cards.flatMap(buttons).find((b) => /Details/.test(b.textContent));
-  assert.equal(link.textContent, "Details in console", "a backend run was sent to the rig");
+  assert.equal(link.textContent, "Details in console", "a skill run was offered no console link");
   link.listeners[0]();
   assert.equal(sentOf(backend.sent, "panel-console").length, 1, "the console was not opened");
-  assert.deepEqual(backend.opened, [], "a backend run opened the rig instead");
+  assert.deepEqual(backend.opened, [], "a skill run opened a bare tab instead");
 });
 
 test("a run the rig drove shows its own steps and offers nothing the rig cannot do", async () => {

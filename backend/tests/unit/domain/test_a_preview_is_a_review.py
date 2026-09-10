@@ -143,4 +143,7 @@ def test_a_demoted_version_is_refused_a_preview_promotion_outright() -> None:
     # And the door that is open: somebody who looks may put it back.
     version.promote(PromotionStage.ASSISTED, f.at(200), f.OPERATOR, from_where="console")
     assert version.stage is PromotionStage.ASSISTED
-    assert version.demotion_reason is None
+    # False positive: the SHADOW assert above narrowed `version.stage`, and mypy
+    # does not invalidate that across `promote`, which mutates it -- so the
+    # ASSISTED assert narrows to Never and this passing check looks dead.
+    assert version.demotion_reason is None  # type: ignore[unreachable]

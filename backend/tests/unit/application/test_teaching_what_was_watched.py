@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
+from typing import cast
 
 import pytest
 
@@ -131,7 +132,7 @@ def _teach(
     induce: object | None = None,
     now: datetime | None = None,
 ) -> TeachCandidate:
-    return TeachCandidate(uow, blobs, FakeClock(now), FakeIdFactory(), understand, induce)  # type: ignore[arg-type]
+    return TeachCandidate(uow, blobs, FakeClock(now), FakeIdFactory(), understand, induce)
 
 
 class _Induces:
@@ -383,14 +384,14 @@ async def _seen_twice(uow: FakeUnitOfWork, blobs: FakeBlobStore) -> TaskCandidat
 
 def _events_at(at: datetime) -> list[dict[str, object]]:
     shifted = at - START
-    events = []
+    events: list[dict[str, object]] = []
     for event in _events():
         if event["kind"] == "gesture":
-            gesture = dict(event["gesture"])
+            gesture = dict(cast("dict[str, object]", event["gesture"]))
             gesture["at"] = float(gesture["at"]) + shifted.total_seconds()
             events.append({"kind": "gesture", "gesture": gesture})
         else:
-            request = dict(event["request"])
+            request = dict(cast("dict[str, object]", event["request"]))
             request["started_at"] = (
                 datetime.fromisoformat(str(request["started_at"])) + shifted
             ).isoformat()
@@ -449,7 +450,7 @@ async def test_every_doing_is_handed_over_even_though_only_two_are_diffed() -> N
     assert first not in rest and second not in rest, "a diffed run was handed over twice"
     # Freshest first, still: the pair is the two most recent, and the oldest is
     # the one read only for what somebody left empty.
-    stored = [await uow.recordings.get(f.TENANT, ident) for ident in (first, second, *rest)]  # type: ignore[arg-type]
+    stored = [await uow.recordings.get(f.TENANT, ident) for ident in (first, second, *rest)]
     watched = [recording.started_at for recording in stored]
     assert watched == sorted(watched, reverse=True), (
         "the oldest doing was diffed and a fresher one read only for emptiness"

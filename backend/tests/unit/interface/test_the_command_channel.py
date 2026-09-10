@@ -46,7 +46,7 @@ SECRET = "what-this-browser-was-minted-at-registration"  # noqa: S105 -- not a c
 
 def _register(container: _FakeContainer, *, tenant: TenantId = f.TENANT) -> None:
     at = f.at(0)
-    container.unit_of_work().devices.rows[LAPTOP.value] = AgentDevice(  # type: ignore[attr-defined]
+    container.unit_of_work().devices.rows[LAPTOP.value] = AgentDevice(
         id=LAPTOP,
         tenant_id=tenant,
         principal_id=f.OPERATOR,

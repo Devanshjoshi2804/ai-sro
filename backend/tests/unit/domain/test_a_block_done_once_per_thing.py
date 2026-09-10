@@ -36,7 +36,7 @@ def _loop(**over: object) -> Loop:
         "last_step": 2,
         "binds": (LINE,),
     }
-    return Loop(**{**defaults, **over})  # type: ignore[arg-type]
+    return Loop(**{**defaults, **over})
 
 
 def test_a_loop_iterates_over_a_list_an_earlier_step_produced() -> None:

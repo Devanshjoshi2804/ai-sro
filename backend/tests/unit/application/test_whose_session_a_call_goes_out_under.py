@@ -200,7 +200,7 @@ async def test_a_system_this_deployment_has_no_session_for_still_runs() -> None:
     run = await _run(uow, http, vault)
 
     assert len(http.sent) == 2
-    assert all(step.disposition is StepDisposition.PERFORMED for step in run.steps)  # type: ignore[attr-defined]
+    assert all(step.disposition is StepDisposition.PERFORMED for step in run.steps)
 
 
 async def test_the_other_system_s_token_is_not_sent_to_this_one() -> None:
@@ -260,7 +260,7 @@ async def test_what_a_browser_run_is_told_when_a_value_has_to_be_minted() -> Non
 
     run = await _run(uow, http, vault)
 
-    detail = run.steps[0].detail or ""  # type: ignore[attr-defined]
+    detail = run.steps[0].detail or ""
     assert _missing_named(detail) == ("x-csrf-token",)
     assert "a run in your browser cannot mint it" in detail
     assert "connect the system" not in detail

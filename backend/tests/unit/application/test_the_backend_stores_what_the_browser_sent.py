@@ -119,13 +119,13 @@ def test_the_identity_fields_a_workflow_is_recognised_by_are_not_touched() -> No
     # An attribute VALUE that reads "password" is a LABEL -- it is how the page
     # says what the control is. The NAME rule runs on attribute keys only, and
     # running it on values instead is the over-redaction that would blank it.
-    assert password["gesture"]["target"]["attributes"]["name"] == "password"  # type: ignore[index]
-    assert password["gesture"]["target"]["attributes"]["type"] == "password"  # type: ignore[index]
-    assert signin["gesture"]["target"]["name"] == "Sign In"  # type: ignore[index]
+    assert password["gesture"]["target"]["attributes"]["name"] == "password"
+    assert password["gesture"]["target"]["attributes"]["type"] == "password"
+    assert signin["gesture"]["target"]["name"] == "Sign In"
     # The operator's typed value survives where the control was not a secret
     # one; only the gesture the browser marked loses it.
-    assert after[1]["gesture"]["value"] == "NOBODY01"  # type: ignore[index]
-    assert password["gesture"]["value"] is None  # type: ignore[index]
+    assert after[1]["gesture"]["value"] == "NOBODY01"
+    assert password["gesture"]["value"] is None
 
 
 def test_a_url_the_browser_sent_clean_is_stored_byte_for_byte() -> None:
@@ -143,7 +143,7 @@ def test_a_url_the_browser_sent_clean_is_stored_byte_for_byte() -> None:
     ]
     assert untouched, "the fixture no longer carries the request this asserts on"
     for was, now in untouched:
-        assert now["request"]["url"] == was["request"]["url"]  # type: ignore[index]
+        assert now["request"]["url"] == was["request"]["url"]
 
 
 async def test_nothing_reaches_the_blob_store_without_passing_the_boundary() -> None:

@@ -48,7 +48,7 @@ def _step(**overrides: object) -> StepOutcome:
         "intent": "adjust",
         "status_code": 200,
     }
-    return StepOutcome(**{**defaults, **overrides})  # type: ignore[arg-type]
+    return StepOutcome(**{**defaults, **overrides})
 
 
 async def _a_finished_run(uow: FakeUnitOfWork, run_id: str = "run-1") -> Run:

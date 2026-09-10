@@ -73,7 +73,7 @@ def _built(**kwargs: object) -> SkillVersion:
         recordings=("str_1",),
         induced_by="rig",
         induced_at=NOW,
-        **kwargs,  # type: ignore[arg-type]
+        **kwargs,
     )
     assert version is not None
     return version

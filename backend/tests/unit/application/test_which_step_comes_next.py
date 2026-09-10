@@ -73,9 +73,9 @@ def _did(run: Run, index: int, *, plan_step: int | None = None, iteration: int =
 def test_a_skill_with_no_loop_walks_its_steps_exactly_as_before() -> None:
     version, run = _version(looped=False), _run()
 
-    assert next_step(version, run).step_index == 0  # type: ignore[union-attr]
+    assert next_step(version, run).step_index == 0
     _did(run, 0)
-    assert next_step(version, run).step_index == 1  # type: ignore[union-attr]
+    assert next_step(version, run).step_index == 1
     _did(run, 1)
     _did(run, 2)
     assert next_step(version, run) is None

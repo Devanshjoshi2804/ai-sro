@@ -154,7 +154,7 @@ run that would start and be skipped a moment later.
 """
 
 
-_CANDIDATES = [
+_CANDIDATES: list[dict[str, object]] = [
     {
         "id": "cnd-here",
         "title": "Adjust an LPN quantity",

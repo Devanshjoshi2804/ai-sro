@@ -113,8 +113,8 @@ async def test_the_model_cannot_propose_an_action_the_step_never_used() -> None:
     await _vision(ui, model).execute(_run(), f.step())
 
     allowed = model.asked[0]["allowed"]
-    assert ActionKind.NAVIGATE not in allowed  # type: ignore[operator]
-    assert ActionKind.CLICK in allowed  # type: ignore[operator]
+    assert ActionKind.NAVIGATE not in allowed
+    assert ActionKind.CLICK in allowed
 
 
 async def test_a_refusal_stops_the_step_and_says_why() -> None:

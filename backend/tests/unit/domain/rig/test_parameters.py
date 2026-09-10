@@ -181,7 +181,7 @@ def _extra(
     if at is not None:
         made.at = at
         updates["at"] = at
-    made.action = replace(made.action, **updates)  # type: ignore[arg-type]
+    made.action = replace(made.action, **updates)
     by_id[gesture_id] = made
     workflow.steps[0].cites.append(gesture_id)
     return made

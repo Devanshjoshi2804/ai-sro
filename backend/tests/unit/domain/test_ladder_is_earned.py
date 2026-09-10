@@ -27,7 +27,7 @@ def _earned(current: PromotionStage, **overrides: object) -> PromotionStage | No
         "sends_writes": True,
     }
     options.update(overrides)
-    return earned_stage(current=current, **options)  # type: ignore[arg-type]
+    return earned_stage(current=current, **options)
 
 
 def test_a_taught_skill_may_rehearse_immediately() -> None:

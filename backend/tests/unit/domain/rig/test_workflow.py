@@ -30,7 +30,7 @@ def _workflow(**over: object) -> Workflow:
         "unproven": ["ges_9"],
         "pass_id": "pas_1",
     }
-    return Workflow(**{**base, **over})  # type: ignore[arg-type]
+    return Workflow(**{**base, **over})
 
 
 def test_a_workflow_id_has_the_rig_shape() -> None:

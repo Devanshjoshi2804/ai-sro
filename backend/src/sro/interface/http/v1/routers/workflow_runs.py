@@ -76,11 +76,21 @@ with a NULL approver and the 403 never evaluated**: a write let out by nobody,
 recorded as let out by nobody, on the door whose entire job is recording who
 let it out. That is worse than a 404, because nothing goes red.
 
-The `?device_id=` in `api.js:254` is not the precedent to copy either: it is
+The `?device_id=` in `shapes()` is not the precedent to copy either: it is
 sent with `rigHeaders()` too, so it is half a pair and `asking_device` answers
 it with a 404. **Phase 5 must send BOTH** -- `?device_id=` in the query and
-`X-Device-Secret` in the headers, which is what `call()` (`api.js:29-44`) plus
-an explicit query parameter already does for `/v1/offers`.
+`X-Device-Secret` in the headers.
+
+**Corrected 2026-09-10.** This paragraph used to end "which is what `call()`
+plus an explicit query parameter already does for `/v1/offers`". It did not.
+`reportOffer` was a raw `fetch` to the *rig* with `rigHeaders()`, sending
+neither the secret nor `?device_id=` -- one of the broken calls, not a working
+precedent, and the pattern existed nowhere in `api.js`. Phase 5 built it:
+`rigApprove` and `reportOffer` are both one `call()` with an explicit
+`?device_id=` now, `rigHeaders()` is deleted, and the header rule lives in
+`call()` alone -- which is the whole reason a second place to put headers was
+what broke this door. Line cites are dropped rather than re-pinned; every one
+in this file had drifted by a hunk or more.
 """
 
 

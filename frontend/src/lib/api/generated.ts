@@ -4879,10 +4879,19 @@ export interface components {
          * @description One run of a mined workflow, whole.
          *
          *     The backend's own field names, deliberately. The extension's `rigRun()`
-         *     (`api.js:196-210`) maps the rig's `outcome` onto a panel `status` and
-         *     `{order, says, verdict}` onto `{index, outcome}`; phase 5 deletes that
-         *     mapping layer against this. Inventing rig-shaped aliases now would mean two
-         *     vocabularies to keep in step forever.
+         *     maps `outcome` onto a panel `status` and `{order, says, verdict}` onto
+         *     `{index, outcome}`.
+         *
+         *     **Corrected 2026-09-10.** This said phase 5 would delete that mapping layer
+         *     against this docstring, on the reasoning that rig-shaped aliases mean two
+         *     vocabularies forever. Phase 5 kept it, deliberately, and the reasoning was
+         *     the thing that was wrong: `{status, index}` are not rig-shaped aliases, they
+         *     are the *skill* run's own names -- `RunModel.status` and
+         *     `StepOutcomeModel.index`, both in this same module. The extension's
+         *     `run-card.js` draws both kinds of run from that one shape, telling them
+         *     apart only by `source`. Deleting the map means teaching the run card a
+         *     second vocabulary, so the map is what keeps there being one. It moves when
+         *     the card does, and not before.
          *
          *     Not `RunModel`, which is `sro.domain.execution.run.Run` -- a skill run, keyed
          *     on a `RunId`. Two aggregates, two id spaces; see the router's docstring for

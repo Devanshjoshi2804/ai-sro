@@ -1,9 +1,11 @@
-// One socket, dialled twice: at the backend and at the rig.
+// One socket, and the factory it is built with.
 //
-// The point of the factory is that there is only one implementation of the
-// keepalive, the exactly-once answering and the backoff, so these checks are
-// about the two things that actually differ -- where a channel dials and what
-// it offers -- plus the shared behaviour, exercised once.
+// Phase 5 deleted the second caller (`rig-channel.js`); `channel.js` and
+// `createChannel` stay, and so does every check here that was about the
+// factory rather than about the rig. Where a test needed a second channel to
+// say anything -- a gesture going down one socket and not the other, a `dial`
+// that names nowhere -- it now builds one through `stubbedChannel`, which is
+// the same factory the backend channel is built with.
 //
 // `commands.perform` cannot be stubbed by assigning to the module namespace
 // (an ES module namespace is read-only, and the assignment throws), so
@@ -21,8 +23,6 @@ const stored = new Map([
   ["sro.deviceId", "dev_1"],
   ["sro.deviceSecret", "shh"],
   ["sro.apiUrl", "http://backend:8000"],
-  ["sro.rigUrl", "http://rig:8100"],
-  ["sro.rigToken", "rig-token"],
 ]);
 globalThis.chrome = {
   runtime: { getManifest: () => ({ version: "0.1.0" }) },
@@ -57,7 +57,6 @@ FakeSocket.OPEN = 1;
 globalThis.WebSocket = FakeSocket;
 
 const channel = await import("./channel.js");
-const rig = await import("./rig-channel.js");
 
 const settle = () => new Promise((r) => setTimeout(r, 0));
 
@@ -65,18 +64,21 @@ const settle = () => new Promise((r) => setTimeout(r, 0));
 // running long after the last check.
 after(() => {
   channel.close();
-  rig.close();
 });
 
-/** A channel shaped like the rig's, but answering with a stub. */
-function stubbedChannel(describe, perform) {
+/** A second channel through the same factory, answering with a stub. `dial`
+ * returning null is a channel with nowhere to dial, which is a state the
+ * factory has to hold without erroring. */
+function stubbedChannel(describe, perform, dial) {
   return channel.createChannel({
     describe,
     perform,
-    dial: async () => ({
-      url: `ws://${describe}.test/v1/agents/dev_1/commands`,
-      protocols: ["bearer", "tok"],
-    }),
+    dial:
+      dial ||
+      (async () => ({
+        url: `ws://${describe}.test/v1/agents/dev_1/commands`,
+        protocols: ["bearer", "tok"],
+      })),
   });
 }
 
@@ -90,17 +92,8 @@ test("the backend channel dials the backend with token and secret", async () => 
   assert.equal(socket.sent[0].kind, "hello");
 });
 
-test("the rig channel dials the rig with the rig token and no secret", async () => {
-  await rig.settle();
-  await settle();
-  const socket = opened.find((s) => s.url.startsWith("ws://rig:8100"));
-  assert.ok(socket, "dialled the rig");
-  assert.equal(socket.url, "ws://rig:8100/v1/agents/dev_1/commands");
-  assert.deepEqual(socket.protocols, ["bearer", "rig-token"]);
-});
-
 test("a command is answered exactly once, on the socket it came in on", async () => {
-  const one = stubbedChannel("rig", async (command) => ({
+  const one = stubbedChannel("second", async (command) => ({
     ok: true,
     result: { echoed: command.kind },
   }));
@@ -118,7 +111,7 @@ test("a command is answered exactly once, on the socket it came in on", async ()
 
 test("every command carries the channel it came in on as its source", async () => {
   const sources = [];
-  for (const describe of ["rig", "backend"]) {
+  for (const describe of ["second", "backend"]) {
     const one = stubbedChannel(describe, async (_command, source) => {
       sources.push(source);
       return { ok: true, result: {} };
@@ -139,60 +132,46 @@ test("every command carries the channel it came in on as its source", async () =
     await settle();
     one.close();
   }
-  assert.deepEqual(sources, ["rig", "backend"]);
-});
-
-test("a re-pointed rig is dialled at its new url, and the old socket is dropped", async () => {
-  // `settle()` alone would not do it: an open socket makes it a no-op, so
-  // without the `close()` service-worker.js's "rig" case does first, a browser
-  // pointed at a second rig would go on taking commands from the first.
-  rig.close();
-  await rig.settle();
-  await settle();
-  const before = opened.at(-1);
-  assert.equal(before.url, "ws://rig:8100/v1/agents/dev_1/commands");
-
-  stored.set("sro.rigUrl", "http://rig-two:8100");
-  rig.close();
-  await rig.settle();
-  await settle();
-
-  const after = opened.at(-1);
-  assert.notEqual(after, before, "nothing was re-dialled");
-  assert.equal(after.url, "ws://rig-two:8100/v1/agents/dev_1/commands");
-  assert.equal(before.readyState, 3, "the socket authenticated at the old rig is still open");
-  stored.set("sro.rigUrl", "http://rig:8100");
+  assert.deepEqual(sources, ["second", "backend"]);
 });
 
 test("busy goes down the channel the gesture is told to, and no other", async () => {
-  rig.close();
+  // Two channels exist again the moment anything is added beside the backend's,
+  // and `operatorIsWorking` is per channel: a browser that told the wrong
+  // socket somebody is typing is one that queues a command against the wrong
+  // run, or lands one mid-keystroke on the right one.
   channel.close();
   await channel.settle();
-  await rig.settle();
+  const other = stubbedChannel("second", async () => ({ ok: true, result: {} }));
+  await other.settle();
   await settle();
-  const backendSocket = opened.at(-2);
-  const rigSocket = opened.at(-1);
-  assert.ok(backendSocket.url.startsWith("ws://backend:8000"));
-  assert.ok(rigSocket.url.startsWith("ws://rig:8100"));
+  const otherSocket = opened.at(-1);
+  const backendSocket = opened.findLast((s) => s.url.startsWith("ws://backend:8000"));
+  assert.ok(backendSocket, "the backend was not dialled");
+  assert.ok(otherSocket.url.startsWith("ws://second.test"));
 
   const busy = (socket) => socket.sent.filter((m) => m.kind === "busy");
   channel.operatorIsWorking();
   assert.equal(busy(backendSocket).length, 1, "the backend was not told");
-  assert.equal(busy(rigSocket).length, 0, "the backend's gesture went down the rig's socket");
+  assert.equal(busy(otherSocket).length, 0, "the backend's gesture went down the other socket");
 
-  rig.operatorIsWorking();
-  assert.equal(busy(rigSocket).length, 1, "the rig was not told");
-  assert.equal(busy(backendSocket).length, 1, "the rig's gesture went down the backend's socket");
+  other.operatorIsWorking();
+  assert.equal(busy(otherSocket).length, 1, "the other channel was not told");
+  assert.equal(busy(backendSocket).length, 1, "the other channel's gesture went down the backend's");
+  other.close();
 });
 
-test("no rig url means no rig socket, and no error", async () => {
-  stored.set("sro.rigUrl", "");
-  rig.close();
+test("a dial that names nowhere opens no socket, and no error", async () => {
+  // `dial` answering null is how a channel says it has nothing to dial at --
+  // no credential yet, no device id yet. Silence, not a throw and not a
+  // retry storm: the absence of somewhere to dial is not a fault.
+  const nowhere = stubbedChannel("nowhere", async () => ({ ok: true, result: {} }), async () => null);
   const before = opened.length;
-  await rig.settle();
+  await nowhere.settle();
   await settle();
-  assert.equal(opened.length, before, "nothing dialled");
-  assert.equal(rig.status(), "closed");
+  assert.equal(opened.length, before, "something was dialled");
+  assert.equal(nowhere.status(), "closed");
+  nowhere.close();
 });
 
 test("a channel that will not dial says which of the four reasons it is", async () => {

@@ -1,11 +1,16 @@
 """The exclusion list is a default, and a default is something a person may
 decide otherwise about for one page of their own.
 
-Webmail is excluded for everyone, deliberately: continuous capture of somebody's
-mailbox is what needs a DPIA and what employee consent cannot make lawful. The
-cost of that is that a task involving the operator's mail could never be
-demonstrated at all -- press teach in a mailbox and the recording came back
+These tests build their own policy with `excluding(("mail.google.com",))` rather
+than leaning on the default, and that is now the only reason they still read
+correctly: webmail was in `DEFAULT_EXCLUSIONS` and was taken out, because the
+cost of it being there was that a task involving the operator's mail could never
+be demonstrated at all -- press teach in a mailbox and the recording came back
 empty.
+
+So what is exercised here is the mechanism, not the default: a tenant who does
+want mailboxes excluded says so in one call, and this is what their operators
+are left with.
 
 A grant is the other act. One host, chosen by the person whose browser it is,
 for the tab in front of them, visible in the panel while it lasts, gone when

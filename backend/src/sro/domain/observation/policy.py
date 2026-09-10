@@ -14,48 +14,52 @@ from sro.domain.shared.errors import InvariantViolation
 from sro.domain.shared.hosts import domain_matches
 
 DEFAULT_EXCLUSIONS: tuple[str, ...] = (
-    "mail.google.com",
-    "outlook.live.com",
-    "outlook.office.com",
-    "outlook.office365.com",
-    "outlook.cloud.microsoft",
-    "mail.yahoo.com",
     "accounts.google.com",
     "login.microsoftonline.com",
     "b2clogin.com",
 )
-"""Webmail and the identity providers in front of it.
+"""The identity providers. Sign-in pages, and nothing else.
 
 Deliberately short. Finance, health and HR are the categories that matter most
 and they are named differently at every customer, so they are supplied by the
 tenant when observation is switched on. A guessed list would read as coverage
 and provide none.
 
-The Microsoft 365 mailbox hosts are here because the consumer ones were and
-they were not, which is the wrong way round: `outlook.office.com` is corporate
-mail, `outlook.live.com` is somebody's holiday photos. `domain_matches` is a
-host-or-subdomain test, so excluding `login.microsoftonline.com` protected the
-sign-in page and not the mailbox behind it -- and a tenant that switched
-observation on with the defaults was recording message bodies, recipients and a
-screenshot of the open message every gesture, for thirty days.
+**Webmail was here and is not any more, deliberately.** `mail.google.com`, the
+four Outlook hosts and `mail.yahoo.com` were excluded by default; the work that
+starts in a mailbox -- a mail arrives, somebody reads it, and what it says
+decides what they then do in the WMS -- could not be recorded without an
+operator granting the host by hand on every tab. That is a real workflow this
+product exists to learn, and a default that hides half of it teaches half a
+task. Mail is now observed like any other host: only in a tab somebody pressed
+Watch on, only while `capture_enabled`, and only until they close it.
 
-`b2clogin.com` is the same family as `login.microsoftonline.com` and was missing
-beside it: Azure AD B2C, where the host is always `<tenant>.b2clogin.com` and
-`domain_matches` is a host-or-subdomain test. It is here rather than in one
-customer's policy because it is Microsoft's host, not theirs -- this deployment
-captured a real sign-in on `blueyonderalphaus.b2clogin.com` and closed it by
-editing that tenant's stored list, which left the next tenant exactly where this
-one started. Nothing but sign-in is served from b2clogin.com, so excluding the
+What that costs is written down rather than argued away, because it happened.
+`domain_matches` is a host-or-subdomain test, so excluding
+`login.microsoftonline.com` protected the sign-in page and not the mailbox
+behind it -- and a tenant that switched observation on with the older defaults
+was recording message bodies, recipients and a screenshot of the open message
+every gesture, for thirty days. That is now the documented consequence of
+pressing Watch on a mailbox, not an accident of a list being wrong. A tenant
+that does not want it says so: `excluding(...)` puts any of these back for that
+tenant alone, and `only()` turns the policy into an allow-list, which is the
+form that survives a mail client this file has never heard of.
+
+The identity hosts stay, and they are a different question from mail. A
+sign-in page is where somebody types a password; there is no task to learn
+there and nothing on it anybody wants in evidence. `b2clogin.com` is the same
+family as `login.microsoftonline.com`: Azure AD B2C, where the host is always
+`<tenant>.b2clogin.com`. It is here rather than in one customer's policy
+because it is Microsoft's host, not theirs -- this deployment captured a real
+sign-in on `blueyonderalphaus.b2clogin.com` and closed it by editing that
+tenant's stored list, which left the next tenant exactly where this one
+started. Nothing but sign-in is served from b2clogin.com, so excluding the
 domain costs no evidence anybody wanted.
 
 A customer's OWN identity host stays out. This deployment also excluded a
 Keycloak at `keycloak-…-wms-keycloak-prod.us.live.external.byp.ai`, and that
 name belongs to one warehouse rather than to a vendor -- guessing at those is
 the "coverage that provides none" this list exists to avoid.
-
-This list is still the wrong shape for anything nobody predicted, and no list of
-hosts is ever complete. `only()` turns the policy into an allow-list, which is
-the form that survives a mail client this file has never heard of.
 """
 
 

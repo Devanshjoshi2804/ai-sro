@@ -43,8 +43,40 @@ def test_naming_hosts_narrows_capture_to_those_and_nothing_else() -> None:
     assert policy.allows("https://intranet.acme.com/news") is False
 
 
-def test_personal_webmail_is_excluded_before_anybody_configures_anything() -> None:
-    assert ObservationPolicy().enabled().allows("https://mail.google.com/mail/u/0") is False
+def test_a_sign_in_page_is_excluded_before_anybody_configures_anything() -> None:
+    # The default list is now sign-in pages and nothing else. There is no task
+    # to learn on one and nothing on it anybody wants in evidence, and unlike a
+    # mailbox no tenant has ever asked for the opposite.
+    policy = ObservationPolicy().enabled()
+
+    assert policy.allows("https://accounts.google.com/signin") is False
+    assert policy.allows("https://login.microsoftonline.com/common/oauth2") is False
+    # A host-or-subdomain test, which is what makes one entry cover Azure AD
+    # B2C: the host is always `<tenant>.b2clogin.com`.
+    assert policy.allows("https://blueyonderalphaus.b2clogin.com/oauth2/v2.0") is False
+
+
+def test_webmail_is_observable_by_default_and_only_in_a_watched_tab() -> None:
+    # Webmail was in the default list and was taken out deliberately: the work
+    # that starts in a mailbox is a workflow this product exists to learn, and
+    # a default that hides half of it teaches half a task.
+    #
+    # `allows` is not the whole gate, which is why this is safe to assert. It
+    # says the policy does not forbid the host; capture still requires
+    # `capture_enabled` AND somebody pressing Watch on that tab. The two
+    # assertions below are that pair, and the second is the one that stops
+    # "observable by default" from meaning "recorded by default".
+    assert ObservationPolicy().enabled().allows("https://mail.google.com/mail/u/0") is True
+    assert ObservationPolicy().allows("https://mail.google.com/mail/u/0") is False
+
+
+def test_a_tenant_that_wants_webmail_back_can_have_it_back() -> None:
+    # The default moved; the mechanism did not. This is the whole remedy for a
+    # tenant who does not want mailboxes observed, and it is one call.
+    policy = ObservationPolicy().enabled().excluding(("mail.google.com",))
+
+    assert policy.allows("https://mail.google.com/mail/u/0") is False
+    assert policy.allows("https://wms.acme.com/orders") is True
 
 
 def test_a_url_with_no_host_is_not_something_to_observe() -> None:

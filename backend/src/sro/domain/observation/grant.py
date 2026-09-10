@@ -1,15 +1,25 @@
 """An operator saying, in their own browser, that this one page may be watched.
 
-The exclusion list is what a tenant agreed to *by default*: webmail and sign-in
-pages are never observed, because continuous capture of somebody's mailbox is
-the thing that needs a DPIA and that employee consent cannot make lawful.
+The exclusion list is what a tenant agreed to *by default*: sign-in pages are
+never observed, because there is no task to learn on one and a password is the
+last thing anybody wants in an evidence plane.
 
-A grant is a different act, and the difference is the whole justification. It is
-one host, chosen by the person whose browser it is, in the tab in front of them,
-visible in the panel for as long as it lasts, revoked by closing the tab. That
-is not monitoring somebody; it is somebody showing you something. Without it the
-mail half of a task can never be demonstrated at all -- press teach in a mailbox
-today and the recording comes back empty.
+**Webmail was on that list and is not any more**, so the sentence this docstring
+used to open with is no longer true and is worth saying plainly rather than
+quietly deleting. Continuous capture of somebody's mailbox is still the thing
+that needs a DPIA and that employee consent cannot make lawful -- what changed
+is where that is paid for. It is now paid for by the same two acts that gate
+every other host: the tenant switching observation on at all, and a person
+pressing Watch on the tab in front of them. Nothing records a mailbox because
+it happens to be open.
+
+A grant is a different act again, and the difference is the whole justification.
+It is one host, chosen by the person whose browser it is, in the tab in front of
+them, visible in the panel for as long as it lasts, revoked by closing the tab.
+That is not monitoring somebody; it is somebody showing you something. It is
+what a tenant who puts webmail back on their own exclusion list still leaves
+their operators -- press teach in a mailbox under that policy and, without a
+grant, the recording comes back empty.
 
 Two limits keep it from becoming the exclusion list's undoing. It expires, so a
 browser that crashed cannot leave a mailbox standing open; and it widens

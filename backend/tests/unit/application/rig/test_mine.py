@@ -912,13 +912,24 @@ async def test_a_third_doing_widens_a_parameter_it_does_not_discard_it() -> None
 
     await _mine(uow, FakeAsker(_found(_proposal(ids))))
 
+    passes = []
     for value, suffix, offset in (
         ("SOMETHING-ELSE", "again", 10_000.0),
         ("A-THIRD-ONE", "thrice", 20_000.0),
     ):
         rows = _redone(original, value, suffix, offset)
         await uow.gestures.add_gestures(tuple(rows))
-        await _mine(uow, FakeAsker(_found(_proposal([g.id for g in rows]))))
+        passes.append(await _mine(uow, FakeAsker(_found(_proposal([g.id for g in rows])))))
+
+    # The third doing NAMES nothing -- `clientCode` was already a parameter --
+    # so `fresh` is empty and the only work it did was widen. The count is what
+    # the pass TOUCHED, not what it named: counting names reported this pass as
+    # having learnt nothing while it wrote a third value to the store, which is
+    # the reading `mining_passes.learned_parameters` published on the live
+    # database. Asserted on the wire's own figure and not only on the store,
+    # because asserting the store is exactly how it survived.
+    assert passes[1].kept == 0, "the third doing is still the same job"
+    assert passes[1].learned_parameters == 1, "and widening one parameter is learning one"
 
     stored = (await uow.workflows.known(TENANT))[0]
     seen = _seen(stored.parameters, "clientCode")

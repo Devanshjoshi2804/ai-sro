@@ -204,7 +204,7 @@ test("a finished rig run offers no reversal, and says what the dry run held back
   assert.doesNotMatch(words(card), /wrong|Undo/i, "a rig run offered an undo it cannot perform");
   assert.match(
     words(card),
-    /dry run — 1 write shown on the rig, not sent/,
+    /dry run — 1 write shown here, not sent/,
     "a dry run did not say what it withheld",
   );
 });

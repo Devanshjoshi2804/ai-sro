@@ -102,7 +102,7 @@ async def _held(tenant: TenantId = TENANT) -> FakeUnitOfWork:
 def _answer(workflow_id: str | None, values: list[dict[str, str]], **over: object) -> Answer:
     return Answer(
         data={"workflow_id": workflow_id, "values": values, "missing": []},
-        **over,  # type: ignore[arg-type]
+        **over,
     )
 
 

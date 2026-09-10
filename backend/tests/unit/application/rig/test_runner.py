@@ -91,11 +91,11 @@ def _bare_run(**over: object) -> WorkflowRun:
         "allow_focus": True,
         "started_at": STARTED,
     }
-    return WorkflowRun(**{**base, **over})  # type: ignore[arg-type]
+    return WorkflowRun(**{**base, **over})
 
 
 def _step_record(**over: object) -> RunStep:
-    return RunStep(**{"order": 0, "says": "s", "verdict": "skipped", **over})  # type: ignore[arg-type]
+    return RunStep(**{"order": 0, "says": "s", "verdict": "skipped", **over})
 
 
 def _payload(sent: Mapping[str, object]) -> Mapping[str, object]:
@@ -652,7 +652,7 @@ class _PerSchemaAsker(FakeAsker):
         self.plan, self.verdict = plan, verdict
 
     async def ask(self, **asked: object) -> Answer:
-        await super().ask(**asked)  # type: ignore[arg-type]
+        await super().ask(**asked)
         schema = asked["schema"]
         assert isinstance(schema, dict)
         return self.verdict if "held" in schema["properties"] else self.plan
@@ -2380,7 +2380,7 @@ class _ByRungAsker(FakeAsker):
         self.plans, self.sights, self.verdict = list(plans), list(sights), verdict
 
     async def ask(self, **asked: object) -> Answer:
-        await super().ask(**asked)  # type: ignore[arg-type]
+        await super().ask(**asked)
         schema = asked["schema"]
         assert isinstance(schema, dict)
         properties = schema["properties"]

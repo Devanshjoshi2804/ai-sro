@@ -350,7 +350,7 @@ async def test_a_workflow_with_no_cites_is_never_asked_for_its_evidence(
     async def counted(*args: object, **kwargs: object) -> tuple[Gesture, ...]:
         nonlocal reads
         reads += 1
-        return await asked(*args, **kwargs)  # type: ignore[arg-type]
+        return await asked(*args, **kwargs)
 
     monkeypatch.setattr(uow.gestures, "gestures_for", counted)
 

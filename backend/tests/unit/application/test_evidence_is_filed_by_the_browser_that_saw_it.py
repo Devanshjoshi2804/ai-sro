@@ -95,7 +95,7 @@ async def test_the_browser_it_says_it_is_files_its_own_evidence() -> None:
 
     ingested = await _ingest(uow, blobs, SECRET)
 
-    assert ingested.accepted == 1  # type: ignore[attr-defined]
+    assert ingested.accepted == 1
 
 
 async def test_a_colleagues_valid_credential_is_not_enough_to_file_under_your_device() -> None:
@@ -169,7 +169,7 @@ async def test_a_demonstration_cannot_be_started_in_a_browser_you_cannot_prove()
     # refused before the recording exists.
     uow = FakeUnitOfWork()
     await _ready(uow)
-    start = StartRecording(uow, None, FakeClock(), FakeIdFactory(), None)  # type: ignore[arg-type]
+    start = StartRecording(uow, None, FakeClock(), FakeIdFactory(), None)
 
     with pytest.raises(NotFound):
         await start.execute(CTX, device_id=MINE, device_secret=A_GUESS, label="teaching")

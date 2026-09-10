@@ -123,7 +123,7 @@ class _RacyDevices:
         self._winner = winner
 
     async def add(self, device: AgentDevice) -> None:
-        await self._real.add(self._winner)  # type: ignore[attr-defined]
+        await self._real.add(self._winner)
         raise Conflict(f"a device is already registered as {device.label!r}")
 
     def __getattr__(self, name: str) -> object:

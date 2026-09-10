@@ -132,10 +132,10 @@ class TestNarrowing:
     ) -> None:
         parser = _Parser({"supplierNumber": "TESTSUPPLIERSRO"})
 
-        narrowed = await NarrowARead(uow, parser).for_utterance(  # type: ignore[arg-type]
+        narrowed = await NarrowARead(uow, parser).for_utterance(
             CTX,
             utterance="show me supplier TESTSUPPLIERSRO in detail",
-            version=_version(),  # type: ignore[arg-type]
+            version=_version(),
             system="blue_yonder",
             entity="supplier",
         )
@@ -150,10 +150,10 @@ class TestNarrowing:
         self, uow: FakeUnitOfWork
     ) -> None:
         """Then the taught skill runs exactly as it always did."""
-        narrowed = await NarrowARead(uow, _Parser(None)).for_utterance(  # type: ignore[arg-type]
+        narrowed = await NarrowARead(uow, _Parser(None)).for_utterance(
             CTX,
             utterance="how many suppliers are there",
-            version=_version(),  # type: ignore[arg-type]
+            version=_version(),
             system="blue_yonder",
             entity="supplier",
         )
@@ -162,10 +162,10 @@ class TestNarrowing:
 
     async def test_a_field_the_model_invented_is_refused(self, uow: FakeUnitOfWork) -> None:
         """It can name anything; only what the dictionary has survives."""
-        narrowed = await NarrowARead(uow, _Parser({"madeUpField": "X"})).for_utterance(  # type: ignore[arg-type]
+        narrowed = await NarrowARead(uow, _Parser({"madeUpField": "X"})).for_utterance(
             CTX,
             utterance="show me supplier X",
-            version=_version(),  # type: ignore[arg-type]
+            version=_version(),
             system="blue_yonder",
             entity="supplier",
         )
@@ -207,12 +207,12 @@ class TestPlacingAWordNobodyTaught:
         await uow.knowledge.add(
             _field("smallPackageFlag", "Parcel (smallPackageFlag)"),
         )
-        narrow = NarrowARead(uow, _Parser(None), _Ask(None), _Says(("Y", "parcel")))  # type: ignore[arg-type]
+        narrow = NarrowARead(uow, _Parser(None), _Ask(None), _Says(("Y", "parcel")))
 
         placed = await narrow.for_utterance(
             CTX,
             utterance="which suppliers are used for parcel",
-            version=_version(),  # type: ignore[arg-type]
+            version=_version(),
             system="blue_yonder",
             entity="supplier",
             unexplained=("parcel",),
@@ -226,13 +226,13 @@ class TestPlacingAWordNobodyTaught:
     ) -> None:
         """ "Used" is not a value anybody can place, and a question about it is
         one nobody can answer either."""
-        narrow = NarrowARead(uow, _Parser(None), _Ask(None), _Says(()))  # type: ignore[arg-type]
+        narrow = NarrowARead(uow, _Parser(None), _Ask(None), _Says(()))
 
         assert (
             await narrow.for_utterance(
                 CTX,
                 utterance="which suppliers are used for parcel",
-                version=_version(),  # type: ignore[arg-type]
+                version=_version(),
                 system="blue_yonder",
                 entity="supplier",
                 unexplained=("used",),
@@ -246,12 +246,12 @@ class TestPlacingAWordNobodyTaught:
         """Choosing between two plausible fields is the guess this avoids."""
         await uow.knowledge.add(_field("smallPackageFlag", "Parcel (smallPackageFlag)"))
         await uow.knowledge.add(_field("serviceName", "Parcel Manifest Service (serviceName)"))
-        narrow = NarrowARead(uow, _Parser(None), _Ask(None), _Says(()))  # type: ignore[arg-type]
+        narrow = NarrowARead(uow, _Parser(None), _Ask(None), _Says(()))
 
         asking = await narrow.for_utterance(
             CTX,
             utterance="which suppliers are used for parcel",
-            version=_version(),  # type: ignore[arg-type]
+            version=_version(),
             system="blue_yonder",
             entity="supplier",
             unexplained=("parcel",),
@@ -266,12 +266,12 @@ class TestPlacingAWordNobodyTaught:
         """Somebody said parcel means smallPackageFlag. The records spell it
         `Y`, and asking for `smallPackageFlag = parcel` would find none and
         report that as an answer."""
-        narrow = NarrowARead(uow, _Parser(None), _Ask("smallPackageFlag"), _Says(("Y", "N")))  # type: ignore[arg-type]
+        narrow = NarrowARead(uow, _Parser(None), _Ask("smallPackageFlag"), _Says(("Y", "N")))
 
         asking = await narrow.for_utterance(
             CTX,
             utterance="which suppliers are used for parcel",
-            version=_version(),  # type: ignore[arg-type]
+            version=_version(),
             system="blue_yonder",
             entity="supplier",
             skill_id=SkillId("skl-1"),

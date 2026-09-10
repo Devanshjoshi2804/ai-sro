@@ -142,7 +142,7 @@ def _click(**overrides: object) -> StepOutcome:
         "intent": "close the wave",
         "matched_by": LocatorStrategy.CSS_PATH.value,
     }
-    return StepOutcome(**{**defaults, **overrides})  # type: ignore[arg-type]
+    return StepOutcome(**{**defaults, **overrides})
 
 
 class _Witnessed:

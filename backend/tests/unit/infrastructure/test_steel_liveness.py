@@ -76,7 +76,7 @@ def _steel(*, status: str, others: list[dict[str, object]] | None = None) -> Ste
         "http://steel:9223",
         client=httpx.AsyncClient(transport=httpx.MockTransport(handle)),
     )
-    steel.released = released  # type: ignore[attr-defined]
+    steel.released = released
     return steel
 
 
@@ -112,7 +112,7 @@ async def test_a_refused_session_is_not_left_behind() -> None:
     with pytest.raises(BrowserUnavailable):
         await steel.open()
 
-    assert steel.released  # type: ignore[attr-defined]
+    assert steel.released
 
 
 async def test_a_release_that_changes_nothing_is_reported(caplog: pytest.LogCaptureFixture) -> None:
@@ -158,4 +158,4 @@ async def test_the_browser_is_never_taken_from_a_session_that_is_using_it() -> N
 
     assert "already in use" in str(refused.value)
     assert "someone-working" in str(refused.value)
-    assert steel.released == [], "nothing was created, so there is nothing to release"  # type: ignore[attr-defined]
+    assert steel.released == [], "nothing was created, so there is nothing to release"

@@ -165,7 +165,7 @@ def test_a_step_writes_when_any_cited_gesture_caused_a_mutation() -> None:
 
 def _call(**over: object) -> Call:
     base: dict[str, object] = {"method": "GET", "url": "https://wms.example/api/x"}
-    return Call(**{**base, **over})  # type: ignore[arg-type]
+    return Call(**{**base, **over})
 
 
 def test_a_cited_gesture_the_store_no_longer_holds_is_read_past_not_stopped_at() -> None:

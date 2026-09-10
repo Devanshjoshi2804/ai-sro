@@ -40,7 +40,7 @@ def _both(index: int) -> ActionFrame:
 def test_one_gesture_that_wrote_twice_becomes_two_steps() -> None:
     pairs = align((_both(0),), (_both(0),))
 
-    assert [pair[0].primary_request.method for pair in pairs] == ["POST", "PUT"]  # type: ignore[union-attr]
+    assert [pair[0].primary_request.method for pair in pairs] == ["POST", "PUT"]
 
 
 def test_the_calls_pair_with_their_own_kind_across_runs() -> None:
@@ -48,7 +48,7 @@ def test_the_calls_pair_with_their_own_kind_across_runs() -> None:
     pairs = align((_both(0),), (_both(0),))
 
     for frame_a, frame_b in pairs:
-        assert frame_a.primary_request.method == frame_b.primary_request.method  # type: ignore[union-attr]
+        assert frame_a.primary_request.method == frame_b.primary_request.method
 
 
 def test_a_gesture_that_wrote_differently_in_each_run_is_refused() -> None:
@@ -59,4 +59,4 @@ def test_a_gesture_that_wrote_differently_in_each_run_is_refused() -> None:
 
 
 def test_a_single_run_unfolds_the_same_way() -> None:
-    assert [frame.primary_request.method for frame in unfold((_both(0),))] == ["POST", "PUT"]  # type: ignore[union-attr]
+    assert [frame.primary_request.method for frame in unfold((_both(0),))] == ["POST", "PUT"]

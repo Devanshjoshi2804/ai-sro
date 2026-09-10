@@ -132,7 +132,7 @@ def _teach(
     induce: object | None = None,
     now: datetime | None = None,
 ) -> TeachCandidate:
-    return TeachCandidate(uow, blobs, FakeClock(now), FakeIdFactory(), understand, induce)  # type: ignore[arg-type]
+    return TeachCandidate(uow, blobs, FakeClock(now), FakeIdFactory(), understand, induce)
 
 
 class _Induces:
@@ -450,7 +450,7 @@ async def test_every_doing_is_handed_over_even_though_only_two_are_diffed() -> N
     assert first not in rest and second not in rest, "a diffed run was handed over twice"
     # Freshest first, still: the pair is the two most recent, and the oldest is
     # the one read only for what somebody left empty.
-    stored = [await uow.recordings.get(f.TENANT, ident) for ident in (first, second, *rest)]  # type: ignore[arg-type]
+    stored = [await uow.recordings.get(f.TENANT, ident) for ident in (first, second, *rest)]
     watched = [recording.started_at for recording in stored]
     assert watched == sorted(watched, reverse=True), (
         "the oldest doing was diffed and a fresher one read only for emptiness"

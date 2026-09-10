@@ -49,7 +49,7 @@ def _watch(**over: object) -> Watch:
         "sender_at": SENDER_IS_HERE,
         "subject_at": SUBJECT_IS_HERE,
     }
-    return Watch(**{**defaults, **over})  # type: ignore[arg-type]
+    return Watch(**{**defaults, **over})
 
 
 def _trigger(**over: object) -> Trigger:
@@ -64,7 +64,7 @@ def _trigger(**over: object) -> Trigger:
         "watch": _watch(),
         "device_id": DeviceId("dev-lena-laptop"),
     }
-    return Trigger(**{**defaults, **over})  # type: ignore[arg-type]
+    return Trigger(**{**defaults, **over})
 
 
 # --- a watch names a host and at least one thing to match on ----------------

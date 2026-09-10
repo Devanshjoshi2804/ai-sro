@@ -104,7 +104,7 @@ async def test_a_step_mapped_onto_a_connector_is_performed_by_calling_it() -> No
     assert tools.calls == [
         ("mail", "send_message", {"to": "dispatch@supplier.test", "body": "acknowledged"})
     ]
-    outcome = run.steps[0]  # type: ignore[attr-defined]
+    outcome = run.steps[0]
     assert outcome.medium is Medium.TOOL
     assert outcome.disposition is StepDisposition.PERFORMED
     assert outcome.assertion_failures == ()
@@ -118,7 +118,7 @@ async def test_a_run_of_calls_is_clean_and_can_therefore_earn_its_way_up() -> No
 
     _, run = await _run(tools)
 
-    assert judge(run) is Verdict.CLEAN  # type: ignore[arg-type]
+    assert judge(run) is Verdict.CLEAN
 
 
 async def test_a_tool_that_says_no_is_an_answer_and_not_a_crash() -> None:
@@ -126,8 +126,8 @@ async def test_a_tool_that_says_no_is_an_answer_and_not_a_crash() -> None:
 
     _, run = await _run(tools)
 
-    assert run.steps[0].disposition is StepDisposition.FAILED  # type: ignore[attr-defined]
-    assert "no mailbox" in run.steps[0].detail  # type: ignore[attr-defined]
+    assert run.steps[0].disposition is StepDisposition.FAILED
+    assert "no mailbox" in run.steps[0].detail
 
 
 async def test_a_deployment_with_no_connector_says_so_rather_than_failing_the_skill() -> None:
@@ -135,7 +135,7 @@ async def test_a_deployment_with_no_connector_says_so_rather_than_failing_the_sk
     same rule a WMS that was not there gets."""
     _, run = await _run(FakeToolCaller(available=False))
 
-    outcome = run.steps[0]  # type: ignore[attr-defined]
+    outcome = run.steps[0]
     assert outcome.disposition is StepDisposition.FAILED
     assert outcome.unreachable is True
 

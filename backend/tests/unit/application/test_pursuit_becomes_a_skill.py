@@ -76,10 +76,10 @@ def _pursuit(
         None,
         None,
         FakeClock(),
-        capture,  # type: ignore[arg-type]
-        None,  # type: ignore[arg-type]
-        finish,  # type: ignore[arg-type]
-        understand,  # type: ignore[arg-type]
+        capture,
+        None,
+        finish,
+        understand,
         Browsers(provider, uow, FakeClock(), FakeIdFactory()),
         egress_enabled=True,
     )

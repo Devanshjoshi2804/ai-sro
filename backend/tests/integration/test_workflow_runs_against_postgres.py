@@ -260,7 +260,7 @@ async def test_the_cap_is_summed_over_the_real_tables(
     landed = await client.post("/v1/workflow-runs", json=_body())
 
     assert landed.status_code == 429
-    assert container.pursuits.handed_over == 0  # type: ignore[attr-defined]
+    assert container.pursuits.handed_over == 0
     async with SqlUnitOfWork(container._session_factory) as uow:
         assert await uow.workflow_runs.for_workflow(TENANT, "wfl_1") == ()
 
@@ -795,7 +795,7 @@ async def test_a_violation_that_is_not_the_index_is_not_reported_as_a_busy_brows
             workflow_id="wfl_1",
             device_id=LAPTOP.value,
             values={},
-            started_by=None,  # type: ignore[arg-type]
+            started_by=None,
             live=False,
             allow_focus=False,
             started_at=NOW.isoformat(),

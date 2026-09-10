@@ -166,16 +166,20 @@ ignore_missing_imports = true
 # cross from this list to the checked set, never back.
 #
 # `strict` is not a per-module option, so this names codes rather than a mode.
-# `warn_unused_ignores = false` is load-bearing: `strict = true` implies it, so
-# without this line every existing `# type: ignore[<disabled code>]` in tests
-# becomes an `[unused-ignore]` error -- 119 of them -- and the change makes
-# things worse instead of better.
+#
+# There is deliberately no `warn_unused_ignores = false` here. It was here, and
+# it made the first paragraph false: switched off, stale-ignore detection dies
+# in `tests/` for *every* code, not merely the eight below -- a review planted
+# stale `attr-defined`, `arg-type` and `return-value` suppressions and all
+# three survived the gate. The 133 `# type: ignore[<disabled code>]` comments
+# it was protecting were not worth protecting: a code on this list is already
+# off, so its suppression suppresses nothing. They were deleted instead, which
+# is what makes `strict`'s implied `warn_unused_ignores` survivable here.
 module = ["tests.*"]
 disable_error_code = [
     "attr-defined", "arg-type", "type-arg", "index", "union-attr",
     "operator", "no-any-return", "comparison-overlap",
 ]
-warn_unused_ignores = false
 
 # =============================================================================
 # Import Linter — the dependency rule, enforced. This is the load-bearing part

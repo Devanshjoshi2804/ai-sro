@@ -110,12 +110,12 @@ async def test_the_body_is_performed_once_for_each_thing_the_system_listed() -> 
         "https://wms.test/api/lines/9/adjust",
     ]
     assert [json.loads(call["body"])["lineId"] for call in http.sent[1:]] == ["7", "8", "9"]
-    assert run.status is RunStatus.SUCCEEDED  # type: ignore[attr-defined]
+    assert run.status is RunStatus.SUCCEEDED
 
     # The run says which step of the plan each position was, and which time
     # round: "four steps" would be a log nobody can read against a two-step
     # skill.
-    steps = run.steps  # type: ignore[attr-defined]
+    steps = run.steps
     assert [(s.index, s.step_index, s.iteration) for s in steps] == [
         (0, 0, 0),
         (1, 1, 0),
@@ -134,7 +134,7 @@ async def test_an_order_with_nothing_short_does_nothing_and_succeeds() -> None:
     run = await _run(uow, http)
 
     assert len(http.sent) == 1
-    assert run.status is RunStatus.SUCCEEDED  # type: ignore[attr-defined]
+    assert run.status is RunStatus.SUCCEEDED
 
 
 async def test_a_list_longer_than_a_person_would_approve_stops_before_the_first_write() -> None:
@@ -150,8 +150,8 @@ async def test_a_list_longer_than_a_person_would_approve_stops_before_the_first_
     run = await _run(uow, http)
 
     assert len(http.sent) == 1, "nothing was adjusted"
-    assert run.status is RunStatus.FAILED  # type: ignore[attr-defined]
-    detail = run.steps[0].detail or ""  # type: ignore[attr-defined]
+    assert run.status is RunStatus.FAILED
+    detail = run.steps[0].detail or ""
     assert f"more than {MAX_ITEMS_PER_BATCH} in one run is a decision for a person" in detail
 
 
@@ -165,8 +165,8 @@ async def test_an_answer_without_the_list_fails_the_step_that_should_have_carrie
     run = await _run(uow, http)
 
     assert len(http.sent) == 1
-    assert run.steps[0].disposition is StepDisposition.FAILED  # type: ignore[attr-defined]
-    assert "no /data/lines to act on" in (run.steps[0].detail or "")  # type: ignore[attr-defined]
+    assert run.steps[0].disposition is StepDisposition.FAILED
+    assert "no /data/lines to act on" in (run.steps[0].detail or "")
 
 
 async def test_a_looping_skill_is_refused_at_the_rungs_that_cannot_read_a_list() -> None:

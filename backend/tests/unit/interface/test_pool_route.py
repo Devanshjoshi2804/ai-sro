@@ -90,9 +90,9 @@ def _plant(
         reason=reason,
         waited=waited,
     )
-    uow.pool.rows[(tenant, gesture_id)] = entry  # type: ignore[attr-defined]
+    uow.pool.rows[(tenant, gesture_id)] = entry
     if reason:
-        uow.pool.retired_ids.add((tenant, gesture_id))  # type: ignore[attr-defined]
+        uow.pool.retired_ids.add((tenant, gesture_id))
 
 
 @pytest.fixture

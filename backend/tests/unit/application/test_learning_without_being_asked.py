@@ -94,7 +94,7 @@ async def _learner(*candidates: TaskCandidate) -> tuple[LearnWhatRepeats, _Teach
     for candidate in candidates:
         await uow.candidates.add(candidate)
     teaches = _Teaches(asked=[])
-    return LearnWhatRepeats(uow, teaches), teaches, uow  # type: ignore[arg-type]
+    return LearnWhatRepeats(uow, teaches), teaches, uow
 
 
 async def test_a_task_done_often_enough_is_learned_with_nobody_asking() -> None:

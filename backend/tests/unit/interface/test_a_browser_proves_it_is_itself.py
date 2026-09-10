@@ -61,7 +61,7 @@ async def client(container: _FakeContainer) -> AsyncIterator[httpx.AsyncClient]:
 
 
 def _device(uow: FakeUnitOfWork, device_id: DeviceId, secret: str | None) -> None:
-    uow.devices.rows[device_id.value] = AgentDevice(  # type: ignore[attr-defined]
+    uow.devices.rows[device_id.value] = AgentDevice(
         id=device_id,
         tenant_id=f.TENANT,
         principal_id=PrincipalId(f"{device_id.value}@acme.test"),

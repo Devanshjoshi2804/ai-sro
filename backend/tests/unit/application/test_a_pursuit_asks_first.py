@@ -44,13 +44,13 @@ def _pursuit(uow: FakeUnitOfWork, *, sees: object = None) -> PursueGoal:
         uow,
         FakeCredentialVault(),
         provider,
-        sees,  # type: ignore[arg-type]
-        sees,  # type: ignore[arg-type]
+        sees,
+        sees,
         clock,
-        None,  # type: ignore[arg-type]
-        None,  # type: ignore[arg-type]
-        None,  # type: ignore[arg-type]
-        None,  # type: ignore[arg-type]
+        None,
+        None,
+        None,
+        None,
         Browsers(provider, uow, clock, FakeIdFactory()),
         egress_enabled=True,
     )

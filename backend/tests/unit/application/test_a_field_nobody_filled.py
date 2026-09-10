@@ -479,7 +479,7 @@ def test_a_value_matching_two_writes_is_bound_to_neither() -> None:
 def _typing(index: int, target: object, value: str) -> object:
     return f.frame(
         index,
-        action=InputAction(kind=ActionKind.TYPE, target=target, value=value),  # type: ignore[arg-type]
+        action=InputAction(kind=ActionKind.TYPE, target=target, value=value),
         requests=(),
     )
 
@@ -753,7 +753,7 @@ def _drafting(index: int, target: object, value: str, body: dict[str, object]) -
     thing for a form in a single-page application to do."""
     return f.frame(
         index,
-        action=InputAction(kind=ActionKind.TYPE, target=target, value=value),  # type: ignore[arg-type]
+        action=InputAction(kind=ActionKind.TYPE, target=target, value=value),
         requests=(
             f.request(method="PATCH", url=f"{URL}/draft", request_body=f.body(json.dumps(body))),
         ),
@@ -1734,7 +1734,7 @@ def _typed_ui_step(index: int, *, when: str | None, target: object, parameter: s
         network_plan=None,
         ui_plan=UiPlan(
             action=ActionKind.TYPE,
-            target=target,  # type: ignore[arg-type]
+            target=target,
             value=Template(f"${{{parameter}}}"),
             locators=(
                 ControlLocator(strategy=LocatorStrategy.COMPONENT, query=Template(f"#{parameter}")),
@@ -2177,7 +2177,7 @@ def _body_of(version: SkillVersion) -> tuple[object, ...]:
 
 
 def _sends(step: object) -> str:
-    plan = step.network_plan  # type: ignore[attr-defined]
+    plan = step.network_plan
     return f"{plan.url}{plan.body or ''}"
 
 

@@ -17,7 +17,7 @@ def _workflow(cites: list[str], shape: list[list[str]], **over: object) -> Workf
         ],
         "shape_key": shape,
     }
-    return Workflow(**{**base, **over})  # type: ignore[arg-type]
+    return Workflow(**{**base, **over})
 
 
 SHAPE = [

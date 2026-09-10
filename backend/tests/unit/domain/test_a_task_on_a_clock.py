@@ -27,7 +27,7 @@ def _trigger(**overrides: object) -> Trigger:
         "created_at": AT,
         "cron": "0 7 * * 1-5",
     }
-    return Trigger(**{**fields, **overrides})  # type: ignore[arg-type]
+    return Trigger(**{**fields, **overrides})
 
 
 def test_a_scheduled_write_must_name_who_stands_behind_it() -> None:

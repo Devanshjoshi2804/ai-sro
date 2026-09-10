@@ -102,8 +102,8 @@ async def test_writing_one_is_what_makes_a_mapped_write_verifiable() -> None:
     await _wrote(uow)
 
     fresh = await _latest(uow)
-    assert fresh.verifiable is True  # type: ignore[attr-defined]
-    assert fresh.unchecked_writes == ()  # type: ignore[attr-defined]
+    assert fresh.verifiable is True
+    assert fresh.unchecked_writes == ()
 
 
 async def test_it_says_who_decided_that_this_counts_as_success() -> None:
@@ -116,7 +116,7 @@ async def test_it_says_who_decided_that_this_counts_as_success() -> None:
 
     await _wrote(uow)
 
-    written = (await _latest(uow)).steps[1].assertions[-1]  # type: ignore[attr-defined]
+    written = (await _latest(uow)).steps[1].assertions[-1]
     assert written.written_by == f.OPERATOR
 
 
@@ -127,7 +127,7 @@ async def test_an_assertion_induction_derived_still_says_nobody_wrote_it() -> No
 
     await _wrote(uow, kind=AssertionKind.RESPONSE_FIELD_PRESENT, pointer="/id", expected="")
 
-    assertions = (await _latest(uow)).steps[1].assertions  # type: ignore[attr-defined]
+    assertions = (await _latest(uow)).steps[1].assertions
     assert assertions[0].written_by is None
     assert assertions[1].written_by == f.OPERATOR
 
@@ -141,7 +141,7 @@ async def test_it_only_ever_adds() -> None:
 
     await _wrote(uow, kind=AssertionKind.RESPONSE_FIELD_PRESENT, pointer="/id", expected="")
 
-    assert len((await _latest(uow)).steps[1].assertions) == 2  # type: ignore[attr-defined]
+    assert len((await _latest(uow)).steps[1].assertions) == 2
 
 
 async def test_the_version_starts_at_the_bottom_of_the_ladder() -> None:
@@ -153,8 +153,8 @@ async def test_the_version_starts_at_the_bottom_of_the_ladder() -> None:
     await _wrote(uow)
 
     fresh = await _latest(uow)
-    assert fresh.stage is PromotionStage.RECORDED  # type: ignore[attr-defined]
-    assert fresh.track_record.clean_streak == 0  # type: ignore[attr-defined]
+    assert fresh.stage is PromotionStage.RECORDED
+    assert fresh.track_record.clean_streak == 0
 
 
 @pytest.mark.parametrize("kind", [AssertionKind.HTTP_STATUS, AssertionKind.UI_TEXT_VISIBLE])
@@ -222,5 +222,5 @@ async def test_a_network_step_may_be_checked_by_hand_too() -> None:
 
     await _wrote(uow, kind=AssertionKind.HTTP_STATUS, expected="201", pointer=None)
 
-    written = (await _latest(uow)).steps[1].assertions[-1]  # type: ignore[attr-defined]
+    written = (await _latest(uow)).steps[1].assertions[-1]
     assert written.written_by == f.OPERATOR

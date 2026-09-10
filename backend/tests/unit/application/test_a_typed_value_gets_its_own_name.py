@@ -35,7 +35,7 @@ def _typed(index: int, value: str, label: str, url: str) -> object:
 def test_a_typed_value_is_offered_as_a_parameter() -> None:
     run = (_typed(0, "SUP-9", "Supplier number", "https://wms.test/api/suppliers"),)
 
-    choices = typed_values(run)  # type: ignore[arg-type]
+    choices = typed_values(run)
 
     assert [choice.value for choice in choices] == ["SUP-9"]
 
@@ -44,8 +44,8 @@ def test_it_does_not_take_a_name_the_induction_has_already_given_out() -> None:
     """Taking one means two parameters with one name, which the skill refuses
     to be built with -- so the whole induction failed rather than the naming."""
     run = (_typed(0, "SUP-9", "Supplier number", "https://wms.test/api/suppliers"),)
-    theirs = {choice.field for choice in typed_values(run)}  # type: ignore[arg-type]
+    theirs = {choice.field for choice in typed_values(run)}
 
-    choices = typed_values(run, taken=set(theirs))  # type: ignore[arg-type]
+    choices = typed_values(run, taken=set(theirs))
 
     assert {choice.field for choice in choices}.isdisjoint(theirs)

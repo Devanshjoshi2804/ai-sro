@@ -126,7 +126,7 @@ def _device(
     tenant: TenantId = f.TENANT,
     principal: PrincipalId = f.OPERATOR,
 ) -> None:
-    uow.devices.rows[device_id.value] = AgentDevice(  # type: ignore[attr-defined]
+    uow.devices.rows[device_id.value] = AgentDevice(
         id=device_id,
         tenant_id=tenant,
         principal_id=principal,

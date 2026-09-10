@@ -40,6 +40,9 @@ console pages or stays a served page for a while.
 | `entry.py` (chat door) | `application/chat/` (exists) | the rig's `understand` becomes the chat's job reading; the schema fix and instruction travel |
 | `store.py` (SQLite, ~20 tables) | `infrastructure/db/models.py`, `repositories.py`, alembic migrations | rewritten as repositories behind ports |
 | `api.py` routes | `interface/http/v1/routers/`: `observations.py` extended; `shapes.py`, `offers.py`, `devices.py`, `audit.py`, `spend.py`, `mine.py`, `chat.py`, `workflow_runs.py`, `pool.py` added | ported route by route — **but not at the same paths, and the extension needs more than a base URL change. See the amendment below.** |
+| `web/index.html` | console pages under `frontend/src/app/(console)/` | rebuilt, see *The console* |
+| `scripts/dry_run.py`, `offer-replay`, `mutation_floor.py` | `backend/scripts/`, the backend's mutation step | ported; the replay stays the acceptance test for shapes |
+| `config.py` settings | `sro.config` | folded, `RIG_` prefix dropped |
 
 > **Amendment, 2026-09-10, after phase 4b shipped.** Two claims in the row above
 > were false and are corrected here rather than left for a reader to trip over.
@@ -69,9 +72,6 @@ console pages or stays a served page for a while.
 > refusal — so the route records `approved_by = None` **and skips the
 > driving-browser check entirely.** A live warehouse write authorised by nobody,
 > on the door whose whole purpose is recording who authorised it.
-| `web/index.html` | console pages under `frontend/src/app/(console)/` | rebuilt, see *The console* |
-| `scripts/dry_run.py`, `offer-replay`, `mutation_floor.py` | `backend/scripts/`, the backend's mutation step | ported; the replay stays the acceptance test for shapes |
-| `config.py` settings | `sro.config` | folded, `RIG_` prefix dropped |
 
 Everything under `backend/src/sro/application/observation/{segment,mine,propose}.py`,
 `application/induction/diff.py`'s signature, the `candidates` router and the

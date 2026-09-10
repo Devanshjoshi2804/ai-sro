@@ -64,7 +64,7 @@ console pages or stays a served page for a while.
 > | Call | Pointed at the backend | How loud |
 > |---|---|---|
 > | `shapes()` `api.js:255` | 404 → returns `[]` | silent, degrades |
-> | `reportOffer()` `api.js:275` | 403 | visible since `f7c00ca` |
+> | `reportOffer()` `api.js:238` | 403 | **still silent in practice** — `f7c00ca` made it *return* whether the fate landed, but its only caller is `void api.reportOffer(...)` (`service-worker.js:414`), so the answer reaches nobody |
 > | `rigApprove()` `api.js:329` | **200, NULL approver, 403 check skipped** | **silent, and worst** |
 >
 > `rigApprove` is the one to fix first: sending neither the secret nor

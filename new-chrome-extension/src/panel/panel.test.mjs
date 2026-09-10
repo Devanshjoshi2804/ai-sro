@@ -1261,45 +1261,52 @@ test("with no way to reverse it, it says so rather than offering a dead button",
   assert.ok(/I'll fix it/i.test(said), "no way to say it was wrong at all");
 });
 
-test("only a run the console can draw is offered a link to it", async () => {
-  // A skill run has a page there. A workflow run (`source: "rig"`) has none
-  // anywhere -- the rig's own went with the rig in phase 5, and the console has
-  // never had a workflow-run screen -- so it is offered no link rather than one
-  // that lands on a 404 dressed as an answer. Everything else about the card --
-  // the band, the step count, Stop -- is the same for both, which is the point.
+test("each kind of run is linked into the console route that can read its id", async () => {
+  // Both kinds have a page now, and they are different pages because the ids
+  // are from different spaces: `/jobs/runs/` reads a workflow-run id and
+  // `/runs/` a skill-run id. Sending a workflow run to `/runs/` would look up
+  // its id in the skill-run repository, find nothing, and draw "no such run"
+  // -- so which route the press opens is the whole of what this card gets
+  // right or wrong. Everything else about it -- the band, the step count,
+  // Stop -- is the same for both.
   const driving = { runId: "run_a1b2", kind: "ui", since: Date.now(), step: 2 };
+  const address = { "panel-console": { consoleUrl: "https://console.test" } };
+  const press = async (drawn) => {
+    const link = drawn.cards.flatMap(buttons).find((b) => /Details/.test(b.textContent));
+    assert.equal(link?.textContent, "Details in console", "a run was offered no console link");
+    link.listeners[0]();
+    // `openConsole` asks the worker for the address and opens the tab in the
+    // reply, so the press only reaches `chrome.tabs.create` a turn later.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    return drawn.opened;
+  };
+
   const workflow = panel(
-    {
-      deviceId: "dev-1",
-      capturing: true,
-      consoleUrl: "https://console.test",
-      performing: { ...driving, source: "rig" },
-    },
+    { deviceId: "dev-1", capturing: true, performing: { ...driving, source: "rig" } },
     { id: 7, host: "wms.example", url: "https://wms.example/portal" },
-  );
-  const pressable = workflow.cards.flatMap(buttons);
-  assert.equal(
-    pressable.find((b) => /Details/.test(b.textContent)),
-    undefined,
-    "a workflow run was sent somewhere that has no page for it",
+    address,
   );
   assert.ok(
-    pressable.some((b) => /Stop this run/.test(b.textContent)),
-    "the card lost its Stop along with the link",
+    workflow.cards.flatMap(buttons).some((b) => /Stop this run/.test(b.textContent)),
+    "the card lost its Stop",
   );
-  assert.deepEqual(workflow.opened, [], "a workflow run opened a tab anyway");
-  assert.deepEqual(sentOf(workflow.sent, "panel-console"), [], "the console token was asked for anyway");
+  assert.deepEqual(
+    await press(workflow),
+    ["https://console.test/jobs/runs/run_a1b2"],
+    "a workflow run was sent to the route that reads skill-run ids",
+  );
 
   // No `source` at all -- an older worker's status, or the backend's own run.
   const backend = panel(
-    { deviceId: "dev-1", capturing: true, consoleUrl: "https://console.test", performing: driving },
+    { deviceId: "dev-1", capturing: true, performing: driving },
     { id: 7, host: "wms.example", url: "https://wms.example/portal" },
+    address,
   );
-  const link = backend.cards.flatMap(buttons).find((b) => /Details/.test(b.textContent));
-  assert.equal(link.textContent, "Details in console", "a skill run was offered no console link");
-  link.listeners[0]();
-  assert.equal(sentOf(backend.sent, "panel-console").length, 1, "the console was not opened");
-  assert.deepEqual(backend.opened, [], "a skill run opened a bare tab instead");
+  assert.deepEqual(
+    await press(backend),
+    ["https://console.test/runs/run_a1b2"],
+    "a skill run was sent to the workflow route",
+  );
 });
 
 test("a run the rig drove shows its own steps and offers nothing the rig cannot do", async () => {

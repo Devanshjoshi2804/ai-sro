@@ -556,16 +556,17 @@ function performing(status) {
           await refresh();
         },
       },
-      // Where the run actually is -- for a skill run, which is what the
-      // console's `/runs/{id}` draws. A workflow run (`source: "rig"`, the
-      // name the channel gave it) has no page anywhere: the rig's own one went
-      // with the rig in phase 5, and the console has never had a workflow-run
-      // screen. No link rather than one that lands on a 404 dressed up as an
-      // answer -- the card below already draws the run's own steps, which is
-      // more than that page ever showed.
-      ...(run.source === "rig"
-        ? []
-        : [{ label: "Details in console", act: () => openConsole(`/runs/${run.runId}`) }]),
+      // Where the run actually is. Two routes because there are two id
+      // spaces: `/jobs/runs/{id}` reads a workflow-run id (`source: "rig"`,
+      // the name the channel gave it) and `/runs/{id}` a skill-run id. The
+      // backend keeps them apart on purpose, so a workflow-run id sent to
+      // `/runs/` is not a type error -- it is looked up in the skill-run
+      // repository, found missing, and drawn as a run that does not exist.
+      {
+        label: "Details in console",
+        act: () =>
+          openConsole(run.source === "rig" ? `/jobs/runs/${run.runId}` : `/runs/${run.runId}`),
+      },
     ],
   });
 

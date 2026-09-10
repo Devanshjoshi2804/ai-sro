@@ -113,7 +113,7 @@ lint: lint-backend lint-frontend lint-extension ## Run every linter
 lint-backend: ## ruff + mypy --strict + import-linter
 	$(BACKEND) uv run ruff check .
 	$(BACKEND) uv run ruff format --check .
-	$(BACKEND) uv run mypy src tests/unit/fakes.py
+	$(BACKEND) uv run mypy src tests
 	$(BACKEND) uv run lint-imports
 
 lint-frontend: ## eslint + tsc

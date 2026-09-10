@@ -135,6 +135,13 @@ def _row_to_run(row: WorkflowRunRow, steps: list[RunStep]) -> WorkflowRun:
     )
 
 
+_ONE_RUNNING = "uq_workflow_runs_one_running_per_device"
+"""The one constraint on `workflow_runs` whose violation this module has a
+sentence for. Matched as a substring of the driver's own message: asyncpg and
+psycopg both name the index there, and `orig.diag.constraint_name` is spelled
+differently on each."""
+
+
 class SqlWorkflowRunRepository(WorkflowRunRepository):
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
@@ -163,6 +170,16 @@ class SqlWorkflowRunRepository(WorkflowRunRepository):
                 )
             )
         except IntegrityError as clash:
+            if _ONE_RUNNING not in str(getattr(clash, "orig", clash)):
+                # Some OTHER constraint. Every integrity violation used to be
+                # reported as "that browser is already running a run this press
+                # cannot see" -- a sentence about a different problem, naming a
+                # run that would be `None` because there isn't one, with the
+                # caller's transaction already rolled back underneath it so the
+                # real cause could not be recovered from the response. There is
+                # no second constraint a legal save can violate today, which is
+                # exactly why nobody would find this the day one is added.
+                raise
             # One browser, one hand -- enforced here because the caller's own
             # `in_flight` read cannot enforce it: between that read and this
             # there are awaits, and two presses on one event loop both read

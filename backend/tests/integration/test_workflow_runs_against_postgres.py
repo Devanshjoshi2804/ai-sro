@@ -48,6 +48,7 @@ from datetime import UTC, datetime
 import httpx
 import pytest
 from httpx import ASGITransport
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from sro.application.context import RequestContext
@@ -771,3 +772,36 @@ async def test_a_run_with_nothing_parked_is_refused_out_of_the_real_rows(
     async with SqlUnitOfWork(container._session_factory) as uow:
         assert await uow.workflow_runs.approvals("run_walking") == ()
     assert (await client.post("/v1/workflow-runs/run_parked/approve")).status_code == 200
+
+
+async def test_a_violation_that_is_not_the_index_is_not_reported_as_a_busy_browser(
+    container: _RealSessionContainer,
+) -> None:
+    """The catch names one constraint, and this is the one that is not it.
+
+    `except IntegrityError` was unqualified: ANY integrity violation was
+    reported to the operator as "dev-1 is already running a run this press
+    cannot see" -- a sentence about a different problem, and one that names no
+    run at all, because `in_flight` finds nothing running and the detail
+    renders `None`. Worse, the handler rolls the caller's transaction back on
+    the way past, so the real cause is gone by the time the response is
+    written. `started_by` is NOT NULL and no legal press can violate it, which
+    is exactly why this needs a test rather than a reader.
+    """
+    async with SqlUnitOfWork(container._session_factory) as uow:
+        run = WorkflowRun(
+            id="run_broken",
+            tenant=TENANT.value,
+            workflow_id="wfl_1",
+            device_id=LAPTOP.value,
+            values={},
+            started_by=None,  # type: ignore[arg-type]
+            live=False,
+            allow_focus=False,
+            started_at=NOW.isoformat(),
+        )
+        with pytest.raises(IntegrityError) as raised:
+            await uow.workflow_runs.save(run)
+
+    assert "started_by" in str(raised.value)
+    assert "already running" not in str(raised.value)

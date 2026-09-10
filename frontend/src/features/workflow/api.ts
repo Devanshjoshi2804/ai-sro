@@ -1,0 +1,78 @@
+import { api, type Schemas } from "@/lib/api/client";
+
+export type WorkflowModel = Schemas["WorkflowModel"];
+export type WorkflowStepModel = Schemas["WorkflowStepModel"];
+export type WorkflowRunModel = Schemas["WorkflowRunModel"];
+export type WorkflowRunStepModel = Schemas["WorkflowRunStepModel"];
+export type DeviceLineModel = Schemas["DeviceLineModel"];
+export type AuditResponse = Schemas["AuditResponse"];
+export type SpendResponse = Schemas["SpendResponse"];
+
+export const workflowKeys = {
+  all: ["workflows"] as const,
+};
+
+export const workflowRunKeys = {
+  all: ["workflow-runs"] as const,
+  awaiting: ["workflow-runs", "awaiting"] as const,
+  of: (workflowId: string) => ["workflow-runs", "of", workflowId] as const,
+  detail: (runId: string) => ["workflow-runs", runId] as const,
+};
+
+export const rosterKeys = { all: ["roster"] as const };
+export const auditKeys = { since: (iso: string) => ["audit", iso] as const };
+export const spendKeys = { all: ["spend"] as const };
+
+export const listWorkflows = () =>
+  api.get<{ workflows: WorkflowModel[] }>("/v1/workflows").then((r) => r.workflows);
+
+/** The parked runs, whichever browser is driving them. */
+export const listAwaitingRuns = () =>
+  api.get<WorkflowRunModel[]>("/v1/workflow-runs?awaiting=true&limit=50");
+
+export const listRunsOfWorkflow = (workflowId: string) =>
+  api.get<WorkflowRunModel[]>(
+    `/v1/workflow-runs?workflow_id=${encodeURIComponent(workflowId)}&limit=10`,
+  );
+
+export const getWorkflowRun = (runId: string) =>
+  api.get<WorkflowRunModel>(`/v1/workflow-runs/${encodeURIComponent(runId)}`);
+
+/**
+ * `started_by` is deliberately absent: the route reads the starter off the
+ * credential. The rig sent `started_by: "form"` and the backend refuses to
+ * take a name nobody checked.
+ */
+export const startWorkflowRun = (body: {
+  workflow_id: string;
+  device_id: string;
+  values: Record<string, string>;
+  live: boolean;
+}) => api.post<WorkflowRunModel>("/v1/workflow-runs", { ...body, allow_focus: true });
+
+/** A bare POST. A body here would be a name nobody checked. */
+export const approveWorkflowRun = (runId: string) =>
+  api.post<{ order: number; first: boolean }>(
+    `/v1/workflow-runs/${encodeURIComponent(runId)}/approve`,
+  );
+
+export const abortWorkflowRun = (runId: string) =>
+  api.post<WorkflowRunModel>(`/v1/workflow-runs/${encodeURIComponent(runId)}/abort`);
+
+export const listBrowsers = () =>
+  api.get<{ devices: DeviceLineModel[] }>("/v1/devices").then((r) => r.devices);
+
+export const revokeBrowser = (deviceId: string) =>
+  api.post<{ device_id: string; moved: boolean }>(
+    `/v1/devices/${encodeURIComponent(deviceId)}/revoke`,
+  );
+
+export const restoreBrowser = (deviceId: string) =>
+  api.post<{ device_id: string; moved: boolean }>(
+    `/v1/devices/${encodeURIComponent(deviceId)}/restore`,
+  );
+
+export const readAudit = (sinceIso: string) =>
+  api.get<AuditResponse>(`/v1/audit?since=${encodeURIComponent(sinceIso)}`);
+
+export const readSpend = () => api.get<SpendResponse>("/v1/spend");

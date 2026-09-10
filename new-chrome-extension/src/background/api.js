@@ -1,6 +1,6 @@
 // Every call to the backend. See docs/14-extension-protocol.md.
 
-import { isRigUrl, state } from "./state.js";
+import { state } from "./state.js";
 
 export class ApiError extends Error {
   // `where` is the call that failed, as "METHOD /path". A backend that answers
@@ -292,29 +292,6 @@ export const api = {
    * No `started_by`: the backend reads who authorised it off the credential,
    * and a request that says who authorised it is a signature nobody checked. */
   rigStart: (body) => call("/v1/workflow-runs", { method: "POST", body }),
-
-  /** A token of this browser's own, minted by the rig against the tenant's
-   * bearer the operator typed. Called once, when the options page is saved;
-   * the answer is what the browser keeps, and the tenant's secret is not.
-   *
-   * **The last call in this file that still dials the rig, and the seam phase
-   * 5's rig-settings task closes.** `register()` above is the backend's
-   * equivalent and is the better door -- it is idempotent and hands back the
-   * same secret, where this one minted a fresh token on every call and
-   * un-revoked the browser as a side effect. Not repointed here because the
-   * options page, `status.rigRegistered` and the `dev_` prefix it is read by
-   * all move together, and moving one of them alone is how a browser ends up
-   * holding a token nothing recognises. */
-  rigRegister: async (base, tenantToken, deviceId) => {
-    if (!isRigUrl(base)) throw new ApiError(0, { detail: "no rig is configured" });
-    const r = await fetch(`${base}/v1/devices/register`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${tenantToken}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ device_id: deviceId }),
-    });
-    if (!r.ok) throw new ApiError(r.status, await r.json().catch(() => ({ detail: r.statusText })));
-    return r.json();
-  },
 
   /** They said yes: let the withheld write out.
    *

@@ -11,9 +11,6 @@ const KEYS = {
   deviceSecret: "sro.deviceSecret",
   apiUrl: "sro.apiUrl",
   consoleUrl: "sro.consoleUrl",
-  rigUrl: "sro.rigUrl",
-  rigToken: "sro.rigToken",
-  rigRefusal: "sro.rigRefusal",
   policy: "sro.policy",
   grants: "sro.grants",
   watches: "sro.watches",
@@ -36,30 +33,17 @@ const KEYS = {
 };
 
 export const DEFAULT_API_URL = "http://localhost:8000";
-export const DEFAULT_RIG_URL = "";   // empty means: no rig is configured
 
-/** Whether a saved rig base is an address that may be dialled or posted to.
+/** Keys this extension used to write and no longer does.
  *
- * Lived in `mirror.js` until phase 5 deleted it, and moved here rather than
- * dying with it because it is not about mirroring: it is the check on a
- * free-text options field with no default host. A relative path would resolve
- * against the extension's own origin, and a pasted `javascript:` or `file:`
- * value parses without being anywhere a rig could be. Scheme and shape only,
- * and deliberately no host allowlist -- this is a development second process
- * pointed at whatever the person debugging happens to be running.
- *
- * The other half is the options page refusing to *save* a value that fails
- * here, so a rejected configuration is visible where it was typed. Phase 5's
- * rig-settings task deletes both halves together. */
-export function isRigUrl(base) {
-  if (typeof base !== "string" || !base) return false;
-  try {
-    const { protocol } = new URL(base);
-    return protocol === "http:" || protocol === "https:";
-  } catch {
-    return false;
-  }
-}
+ * The rig's URL, the tenant's rig bearer and the rig's last refusal. They were
+ * in `KEYS`, so `forget()` took them at sign-out; dropped from `KEYS` they
+ * would sit in `chrome.storage.local` forever on every browser that ever had a
+ * rig configured -- including the tenant's bearer, which is a credential this
+ * extension no longer has any door to use. Removed once on update rather than
+ * left for a sign-out that may never come; see `service-worker.js`'s
+ * `onInstalled`. */
+export const RETIRED_KEYS = ["sro.rigUrl", "sro.rigToken", "sro.rigRefusal"];
 
 async function read(key, fallback = null) {
   const held = await chrome.storage.local.get(key);
@@ -102,18 +86,6 @@ export const state = {
    * what it can do itself, which is most of why it exists. */
   consoleUrl: () => read(KEYS.consoleUrl, ""),
   setConsoleUrl: (url) => write(KEYS.consoleUrl, url.replace(/\/+$/, "")),
-
-  /** Where the rig runs, if one is configured. Optional -- empty means this
-   * browser talks to the backend and nothing else, which after phase 5 is the
-   * only arrangement there is. The two remaining readers are the rig socket
-   * and `rigRegister`; both go with the rig settings. */
-  rigUrl: () => read(KEYS.rigUrl, DEFAULT_RIG_URL),
-  setRigUrl: (url) => write(KEYS.rigUrl, (url || "").replace(/\/+$/, "")),
-  rigToken: () => read(KEYS.rigToken, ""),
-  setRigToken: (value) => write(KEYS.rigToken, value || ""),
-  /** The last reason the rig refused a copy, or "" once it took one again. */
-  rigRefusal: () => read(KEYS.rigRefusal, ""),
-  setRigRefusal: (value) => write(KEYS.rigRefusal, value || ""),
 
   /** The tabs the operator asked to be watched, newest first. Each is
    * `{ tabId, host, since }`.

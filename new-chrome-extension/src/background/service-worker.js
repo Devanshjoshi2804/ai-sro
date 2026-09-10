@@ -7,7 +7,6 @@ import { api, ApiError } from "./api.js";
 import * as channel from "./channel.js";
 import { abort, isDriving, performing, RUN_QUIET_MS } from "./commands.js";
 import * as queue from "./queue.js";
-import * as rigChannel from "./rig-channel.js";
 import { redactUrl } from "../content/sensitivity.module.js";
 import {
   allowsHost,
@@ -25,7 +24,7 @@ import { tripleOf } from "./shape.generated.js";
 import { hideNudge, showNudge } from "./showing.js";
 import { capture } from "./shots.js";
 import { noteFinished } from "./finishing.js";
-import { activeRunAge, afterRunWrong, capturing, finishedRun, isRigUrl, state } from "./state.js";
+import { activeRunAge, afterRunWrong, capturing, finishedRun, RETIRED_KEYS, state } from "./state.js";
 import * as teaching from "./teaching.js";
 import { release as releaseTree, releaseAll, takeTree, takeTreeSoon } from "./trees.js";
 import { flush } from "./upload.js";
@@ -41,13 +40,29 @@ const VERSION = chrome.runtime.getManifest().version;
 // the moment you look at it.
 void chrome.sidePanel?.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {});
 
+/** Everything the rig settings wrote, taken off this browser -- one of the
+ * three is the tenant's bearer, and a credential nothing can spend any more is
+ * one nothing should still hold.
+ *
+ * On both hooks rather than only `onInstalled`, and not awaited on either. MV3
+ * tears this worker down at any await point with no lock and no rollback, so a
+ * removal that ran only on the update that shipped it would be lost for good on
+ * a browser evicted mid-call -- `onInstalled` does not fire again until the
+ * next update, which may never come. Removing a key that is not there is free,
+ * so the cheap fix is a second occasion rather than a ledger: every browser
+ * launch tries again until one of them lands. Harmless on a fresh install,
+ * where there is nothing to remove. */
+const dropRetired = () => void chrome.storage.local.remove(RETIRED_KEYS);
+
 chrome.runtime.onInstalled.addListener(() => {
+  dropRetired();
   chrome.alarms.create(BEAT, { periodInMinutes: EVERY_MINUTES });
   chrome.alarms.create(FLUSH, { periodInMinutes: EVERY_MINUTES });
   void settle();
 });
 
 chrome.runtime.onStartup.addListener(() => {
+  dropRetired();
   chrome.alarms.create(BEAT, { periodInMinutes: EVERY_MINUTES });
   chrome.alarms.create(FLUSH, { periodInMinutes: EVERY_MINUTES });
   void settle();
@@ -79,7 +94,6 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   // socket goes with it, so without this a quiet browser is an unreachable one
   // until the operator happens to click something.
   void channel.settle();
-  void rigChannel.settle();
 });
 
 // Page lifecycle, straight from the platform -- no content script needed for
@@ -764,9 +778,8 @@ async function handle(message, sender) {
       // a page's background traffic is not a person at a keyboard.
       if (message.kind === "gesture") {
         channel.operatorIsWorking();
-        rigChannel.operatorIsWorking();
         // And the same gesture, read the other way: is this the start of a job
-        // the rig has already proved? Never awaited -- recognising a job may
+        // the backend has already proved? Never awaited -- recognising a job may
         // not hold up recording one.
         void considerOffer(sender?.tab?.id ?? null, message.gesture);
       }
@@ -867,7 +880,6 @@ async function handle(message, sender) {
       // exact thing the sign-out path below clears the queue to prevent.
       await unregister();
       channel.close();
-      rigChannel.close();
       await queue.clear();
       await state.newQueueEpoch();
       // A batch minted for the last operator names their epoch and their
@@ -897,7 +909,6 @@ async function handle(message, sender) {
       // Before the credential goes: a socket authenticated as the operator
       // who is leaving must not still be open for the next one.
       channel.close();
-      rigChannel.close();
       // Before the credential goes, so nothing captured under it can be
       // uploaded under the next one. What this browser recorded for one
       // operator must not arrive in another operator's tenant because they
@@ -910,55 +921,6 @@ async function handle(message, sender) {
     case "set-paused":
       await state.setPaused(Boolean(message.paused));
       return settle();
-    case "rig":
-      // Its own message rather than part of sign-in: sign-in clears the device
-      // registration, and an optional second reader is not worth re-registering
-      // a browser for.
-      //
-      // Refused before it is saved, rather than left to fail at the first
-      // use: a rejected *configuration* is not a network failure, and belongs
-      // in front of the person who typed it. Until phase 5 this was the loud
-      // half of a pair -- the mirror's own check was silent by design, so a
-      // typo in this field was indistinguishable from a rig that was merely
-      // down. The mirror is gone; this half stays because the socket dial is
-      // just as quiet about a URL it cannot use. The options page renders this
-      // string.
-      if (message.rigUrl && !isRigUrl(message.rigUrl)) {
-        return {
-          error:
-            "the rig URL was not saved: it must be an absolute http:// or https:// address",
-        };
-      }
-      await state.setRigUrl(message.rigUrl || "");
-      // A blank token means "leave it alone", not "clear it". status() does not
-      // return the token, so the field is empty every time the page renders,
-      // and somebody changing only the URL would otherwise wipe the token
-      // without being told -- and the socket fails to dial in silence, so they
-      // would find out when somebody noticed the rig had gone quiet.
-      if (message.rigToken) {
-        await state.setRigToken(message.rigToken);
-        await mintRigToken();
-      } else if (!message.rigUrl) {
-        // Clearing the URL takes the rig out of this browser, and its secret
-        // goes with it -- and the last refusal, about a rig there no longer is.
-        await state.setRigToken("");
-        await state.setRigRefusal("");
-      }
-      // Closed first, then dialled. `settle()` leaves an open socket alone --
-      // correctly, since re-dialling a channel that is already up is how a
-      // browser hammers a rig -- but the socket that is up was authenticated
-      // against the URL and token that were just replaced. Without the close,
-      // pointing this browser at a second rig would leave it taking commands
-      // from the first until that socket happened to drop, and a rotated token
-      // would never be offered. Sign-in is the same shape for the backend, and
-      // closes for the same reason.
-      rigChannel.close();
-      // Dialled now rather than at the next alarm: an operator who has just
-      // pasted a rig URL is watching this page for it to come up.
-      void rigChannel.settle();
-      // status() says which kind of token this browser now holds
-      // (`rigRegistered`), so the options page needs nothing more.
-      return status();
     case "clear-error":
       // The panel's dismiss. `lastError` is the last one, not a live one, so
       // it outlives whatever fixed it; without this the amber stays until the
@@ -970,11 +932,9 @@ async function handle(message, sender) {
       // redials itself on the minute alarm anyway, so this buys impatience
       // rather than correctness -- but a card that states a fault and offers
       // nothing to do about it sends the operator to the options page to
-      // toggle something at random. Both channels, because an operator does
-      // not know which one the card is about.
+      // toggle something at random.
       await state.setLastError("");
       void channel.settle();
-      void rigChannel.settle();
       return status();
     case "flush":
       // Upload now rather than on the next tick, and all of it: the options
@@ -1603,33 +1563,6 @@ async function flushQueue() {
   }
 }
 
-/**
- * The typed rig token is the tenant's. A rig that can mint one for this
- * browser is asked to, and its answer is what this browser keeps: a token of
- * its own, revocable by the tenant, that names it on every call. True when it
- * now holds one. Nothing to ask with (no URL, no token, no device id yet), a
- * token that is already its own (the rig's `dev_` prefix), an older rig, or
- * one that refuses: false, and the held token stays -- the tenant's bearer
- * still opens every door. Asked on save and again at sign-in, since a rig
- * pasted before the browser had a device id had nothing to register.
- */
-async function mintRigToken() {
-  const [rigUrl, held, deviceId] = await Promise.all([
-    state.rigUrl(),
-    state.rigToken(),
-    state.deviceId(),
-  ]);
-  if (!rigUrl || !held || !deviceId || held.startsWith("dev_")) return false;
-  try {
-    const minted = await api.rigRegister(rigUrl, held, deviceId);
-    if (!minted?.token) return false;
-    await state.setRigToken(minted.token);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 /** Register this browser profile, then apply whatever policy came back. */
 async function register(label) {
   // The queue was cleared and the epoch rotated by the `sign-in` case before
@@ -1644,9 +1577,6 @@ async function register(label) {
   await state.setDeviceSecret(registered.device_secret || "");
   await state.setPolicy(registered.policy);
   await state.setLastError("");
-  // Before `settle` dials the rig: the socket should open with this
-  // browser's own token when the rig can mint one.
-  await mintRigToken();
   // Before `settle`, which is what registers the script that evaluates them.
   await refreshWatches();
   await settle();
@@ -1737,7 +1667,6 @@ async function settle() {
   // not at the next tab close. Nothing re-attaches until a gesture asks.
   if (!policy?.capture_snapshots) await releaseAll();
   await channel.settle();
-  void rigChannel.settle();
   await badge();
   return status();
 }
@@ -1766,8 +1695,6 @@ async function status(sender = null) {
     policy,
     apiUrl,
     consoleUrl,
-    rigUrl,
-    rigToken,
     paused,
     serverPaused,
     lastBeat,
@@ -1779,17 +1706,11 @@ async function status(sender = null) {
       state.policy(),
       state.apiUrl(),
       state.consoleUrl(),
-      state.rigUrl(),
-      state.rigToken(),
       state.paused(),
       state.serverPaused(),
       state.lastBeat(),
       state.lastError(),
     ]);
-  // rigToken is read above only to compute the boolean below -- it never
-  // leaves this function. status() is polled by the side panel every two
-  // seconds and any content script can request it, the same reason `token`
-  // and `deviceSecret` are already absent from what it returns.
   // Not awaited: the panel polls this every two seconds and a card about a run
   // that already finished should not make every one of those polls wait on a
   // network round trip. See `checkFinishing()` -- also run off the heartbeat
@@ -1844,18 +1765,6 @@ async function status(sender = null) {
     policy,
     apiUrl,
     consoleUrl,
-    rigUrl,
-    rigTokenSet: Boolean(rigToken),
-    // Whether the saved token is this browser's own (the rig's `dev_` prefix)
-    // or the tenant's typed bearer. Every render of the options page says
-    // which, not only the one that follows a save.
-    rigRegistered: rigToken.startsWith("dev_"),
-    // The last copy the rig refused, and why. **Dead since phase 5 deleted
-    // the mirror**: the mirror was its only writer, so this can now only ever
-    // be "", and the options page's `rig-trouble` line is never shown. Left
-    // for the rig-settings task, which deletes the field, its two accessors
-    // and that line together.
-    rigRefusal: await state.rigRefusal(),
     paused,
     serverPaused,
     lastBeat,

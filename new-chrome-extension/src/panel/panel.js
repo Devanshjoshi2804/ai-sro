@@ -556,24 +556,16 @@ function performing(status) {
           await refresh();
         },
       },
-      // Where the run actually is. The rig has never heard of the backend's
-      // console and the backend's console has never heard of a rig run, so a
-      // `/runs/{id}` there is a 404 dressed as a link. The rig serves one page
-      // and has no per-run URL, so it is opened bare.
-      run.source === "rig"
-        ? {
-            label: "Details on the rig",
-            act: () => {
-              // The rig page opens on this run: `#run-<id>` is the one deep
-              // link it honours.
-              if (status.rigUrl) {
-                void chrome.tabs.create({
-                  url: `${status.rigUrl}/#run-${encodeURIComponent(run.runId)}`,
-                });
-              }
-            },
-          }
-        : { label: "Details in console", act: () => openConsole(`/runs/${run.runId}`) },
+      // Where the run actually is -- for a skill run, which is what the
+      // console's `/runs/{id}` draws. A workflow run (`source: "rig"`, the
+      // name the channel gave it) has no page anywhere: the rig's own one went
+      // with the rig in phase 5, and the console has never had a workflow-run
+      // screen. No link rather than one that lands on a 404 dressed up as an
+      // answer -- the card below already draws the run's own steps, which is
+      // more than that page ever showed.
+      ...(run.source === "rig"
+        ? []
+        : [{ label: "Details in console", act: () => openConsole(`/runs/${run.runId}`) }]),
     ],
   });
 

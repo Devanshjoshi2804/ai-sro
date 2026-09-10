@@ -51,23 +51,7 @@ function render(status) {
 
   $("api-url").value = status.apiUrl || "";
   $("console-url").value = status.consoleUrl || "";
-  $("rig-url").value = status.rigUrl || "";
-  // status() no longer carries the token itself -- only whether one is saved.
-  $("rig-token").value = "";
-  // The token typed here is the tenant's; on save the rig mints one for this
-  // browser and that is what stays saved. The tenant's is not kept.
-  $("rig-token").placeholder = status.rigRegistered
-    ? "registered: this browser holds a token of its own"
-    : status.rigTokenSet
-      ? "saved: the tenant's token, until a rig that registers browsers is saved"
-      : "the tenant's rig token; this browser keeps one of its own";
-  // The rig's last refusal, in its own words: a batch that was not this
-  // browser's, one past the bound, a token it no longer holds. Hidden once
-  // the rig takes a copy again. textContent, so the rig's `detail` is text.
-  $("rig-trouble").hidden = !status.rigRefusal;
-  $("rig-trouble").textContent = status.rigRefusal ? `the rig refused the last copy — ${status.rigRefusal}` : "";
   $("purge").disabled = !status.deviceId;
-
 }
 
 function trouble(error) {
@@ -103,20 +87,6 @@ $("sign-out").addEventListener("click", async () => {
 $("paused").addEventListener("change", async (event) => {
   try {
     render(await ask({ kind: "set-paused", paused: event.target.checked }));
-  } catch (error) {
-    trouble(error);
-  }
-});
-
-$("rig").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  try {
-    const answer = await ask({
-      kind: "rig",
-      rigUrl: $("rig-url").value.trim(),
-      rigToken: $("rig-token").value.trim(),
-    });
-    render(answer);
   } catch (error) {
     trouble(error);
   }

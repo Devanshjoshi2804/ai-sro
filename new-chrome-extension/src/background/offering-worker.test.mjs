@@ -8,9 +8,11 @@
 // nobody made, and a run was accepted by writing back a list read before the
 // POST that started it.
 //
-// Same scaffolding as `rig-settings.test.mjs`: `case "gesture"` and the panel's
-// messages live inside an unexported dispatcher, so reaching them means
-// standing up the worker's module-scope wiring. None of it runs anything real.
+// The scaffolding `rig-settings.test.mjs` used to carry, inherited here when
+// phase 5 deleted that suite with its subject: `case "gesture"`, the panel's
+// messages and the two lifecycle hooks live inside service-worker.js's own
+// module scope, so reaching them means standing the whole of it up. None of it
+// runs anything real -- every hook below is a no-op or a recorder.
 //
 // Run with `node src/background/offering-worker.test.mjs`.
 
@@ -38,8 +40,18 @@ globalThis.chrome = {
     },
   },
   runtime: {
-    onInstalled: { addListener: () => {} },
-    onStartup: { addListener: () => {} },
+    // Held rather than dropped: the retired-key removal is wired to both, and
+    // a listener nothing can call is a migration nothing can check.
+    onInstalled: {
+      addListener: (fn) => {
+        globalThis.__installed = fn;
+      },
+    },
+    onStartup: {
+      addListener: (fn) => {
+        globalThis.__started = fn;
+      },
+    },
     onMessage: {
       addListener: (fn) => {
         globalThis.__handle = fn;
@@ -66,7 +78,13 @@ globalThis.chrome = {
       painted.push(call);
       return [];
     },
+    // `settle()`, which both lifecycle hooks kick, re-registers the content
+    // scripts. Nothing here registers anything.
+    getRegisteredContentScripts: async () => [],
+    unregisterContentScripts: async () => {},
+    registerContentScripts: async () => {},
   },
+  permissions: { getAll: async () => ({ origins: [] }), contains: async () => false },
   action: {
     setBadgeText: async () => {},
     setBadgeBackgroundColor: async () => {},
@@ -127,10 +145,13 @@ let offerRefusal = null;
  * `base`, `query` and `headers` are kept as well as the path: which door was
  * knocked on is only half of what any of these calls has to get right.
  *
- * **The rig serves nothing.** Every door this browser knocks on is the
- * backend's now, so a call that reverted to the rig's base, or to the rig's
- * `/v1/runs*` paths on the backend's base, gets the same 404 a real backend
- * would give it -- which is what makes the mutations die rather than pass. */
+ * **The rig serves nothing, and nothing points this browser at it any more.**
+ * Every door this browser knocks on is the backend's, so a call that reverted
+ * to the rig's base, or to the rig's `/v1/runs*` paths on the backend's base,
+ * gets the same 404 a real backend would give it -- which is what makes the
+ * mutations die rather than pass. `RIG` is kept for exactly that: it is now
+ * "any base that is not the backend", not a server this browser can be
+ * configured to reach. */
 const rigServer = async (url, options = {}) => {
   const full = String(url);
   const base = full.startsWith(BACKEND) ? BACKEND : RIG;
@@ -232,8 +253,6 @@ function ready() {
   held.set("sro.deviceSecret", "secret-ready-b061");
   held.set("sro.policy", { capture_enabled: true });
   held.set("sro.watched", [{ tabId: TAB, host: "wms.example", since: 1 }]);
-  held.set("sro.rigUrl", RIG);
-  held.set("sro.rigToken", "rig-tok");
 }
 
 // -- the tests ----------------------------------------------------------------
@@ -660,7 +679,15 @@ test("the run the rig is driving is drawn while it runs, and Approve reaches the
   // Live in this browser, as it is once the rig's channel has had a command
   // performed for it -- which is also what records that the rig is driving.
   await perform({ run_id: "run-9", kind: "nothing-doing" }, "rig");
-  const shown = (await send({ kind: "status" })).performing;
+  const answered = await send({ kind: "status" });
+  // The browser it names is the browser it is. `deviceId` is what the options
+  // page prints and what the panel gates registration on, and a status frozen
+  // to a literal is a screen that says "registered" for somebody else's
+  // browser -- checked against what is actually held, never against a literal,
+  // because a literal on both sides is what let the same mutation live through
+  // 27 suites in task 1.
+  assert.equal(answered.deviceId, held.get("sro.deviceId"), "status named a browser that is not this one");
+  const shown = answered.performing;
   assert.equal(shown.source, "rig");
   assert.equal(shown.run?.id, "run-9", "the panel was told a rig run is happening but not which");
   abort("run-9");
@@ -1001,4 +1028,39 @@ test("an upload names this browser to the backend, and only the backend's refusa
   );
 
   globalThis.fetch = rigServer;
+});
+
+test("an update takes the rig's settings off this browser, and a launch tries again", async () => {
+  // The rig token is the *tenant's* bearer, not this browser's device secret --
+  // `call()` sends `sro.deviceSecret`, which `register()` mints and which is
+  // untouched by any of this. So nothing here can leave a browser holding a
+  // credential the backend does not recognise; what it can leave behind is a
+  // spendable tenant credential in `chrome.storage.local` with no door in this
+  // extension that uses it, on every browser that ever had a rig configured.
+  // The keys left `KEYS` in phase 5, so `forget()` no longer takes them at
+  // sign-out and this is the only thing that does.
+  //
+  // No device id: `dial()` answers null without one, so `settle()` -- which
+  // both hooks kick -- opens no socket this test would then have to close.
+  held.clear();
+  held.set("sro.token", "tenant-cred-4e17");
+  held.set("sro.rigUrl", "http://rig.test");
+  held.set("sro.rigToken", "dev_minted-8b40");
+  held.set("sro.rigRefusal", "/v1/observations 403: not yours");
+
+  globalThis.__installed();
+  await until(() => !held.has("sro.rigToken"), "the update left the tenant's rig bearer on this browser");
+  assert.equal(held.has("sro.rigUrl"), false, "the rig url outlived the rig");
+  assert.equal(held.has("sro.rigRefusal"), false, "a refusal from a rig there no longer is");
+  assert.equal(held.get("sro.token"), "tenant-cred-4e17", "the credential still in use was taken too");
+
+  // Fire-and-forget in a worker Chrome may evict at any await point, and
+  // `onInstalled` does not fire again until the next update -- which may never
+  // come. Every browser launch tries again, and removing an absent key is free.
+  held.set("sro.rigToken", "dev_minted-8b40");
+  globalThis.__started();
+  await until(
+    () => !held.has("sro.rigToken"),
+    "a browser that missed the update-time removal never got another chance",
+  );
 });

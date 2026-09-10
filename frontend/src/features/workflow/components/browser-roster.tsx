@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -40,7 +40,15 @@ export function BrowserRoster() {
   const shape = (browsers.data ?? [])
     .map((b) => `${b.device_id}:${b.online}:${b.revoked_at ?? ""}`)
     .join("|");
-  useEffect(() => setArmed(null), [shape]);
+  // Adjusted during render rather than in an effect. An effect would disarm on
+  // a second pass, which is one paint in which a stale armed button is on
+  // screen and clickable -- and `react-hooks/set-state-in-effect` refuses it
+  // for that reason.
+  const [drawnFor, setDrawnFor] = useState(shape);
+  if (shape !== drawnFor) {
+    setDrawnFor(shape);
+    setArmed(null);
+  }
 
   // On the row, not in a toast: with several browsers a toast cannot say which
   // one refused.
@@ -52,7 +60,9 @@ export function BrowserRoster() {
     }));
   const forget = (deviceId: string) =>
     setRefusals((prev) => {
-      const { [deviceId]: _gone, ...rest } = prev;
+      if (!(deviceId in prev)) return prev;
+      const rest = { ...prev };
+      delete rest[deviceId];
       return rest;
     });
 

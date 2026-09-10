@@ -14,7 +14,15 @@ import { forget, whoAmI } from "@/lib/api/credential";
  * promoted. Two visual languages would make the review page look like a
  * different, older tool — which is exactly how a reviewer stops trusting it.
  */
-export function TopBar({ children, tenant }: { children?: ReactNode; tenant?: string }) {
+export function TopBar({
+  children,
+  tenant,
+  right,
+}: {
+  children?: ReactNode;
+  tenant?: string;
+  right?: ReactNode;
+}) {
   // Read from the credential, never defaulted. A hardcoded "acme" said acme
   // over a console signed in as another tenant, which is the one label in the
   // whole application that has to be right: it is what tells somebody which
@@ -30,11 +38,13 @@ export function TopBar({ children, tenant }: { children?: ReactNode; tenant?: st
         borderBottom: `1px solid ${ink.line}`,
         padding: "0 14px",
         height: 46,
-        // Below about 700px the last group used to fall off the end of the bar
-        // with nothing to say it was there. Scrolling is the smallest honest
-        // answer; a menu is a second navigation to keep in step.
-        overflowX: "auto",
-        scrollbarWidth: "none",
+        // The BAR does not scroll; the links inside it do. When the bar
+        // scrolled as a whole, adding the five workflow pages pushed the
+        // tenant name and the sign-out button off the right-hand edge at
+        // 1512px -- and that label is, by this file's own rule, the one that
+        // has to be right, because it says which warehouse you are about to
+        // write to. A control you have to go looking for is not on the bar.
+        overflow: "hidden",
         flex: "0 0 auto",
         fontFamily: "var(--font-display), system-ui, sans-serif",
       }}
@@ -64,9 +74,25 @@ export function TopBar({ children, tenant }: { children?: ReactNode; tenant?: st
         </span>
       </Link>
 
-      {children}
+      {/* Below about 700px the last group used to fall off the end with
+          nothing to say it was there. Scrolling is still the smallest honest
+          answer; a menu is a second navigation to keep in step. `minWidth: 0`
+          is what lets a flex child actually shrink and scroll rather than
+          forcing its parent wider. */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "stretch",
+          flex: "1 1 auto",
+          minWidth: 0,
+          overflowX: "auto",
+          scrollbarWidth: "none",
+        }}
+      >
+        {children}
+      </div>
 
-      <span style={{ flex: 1 }} />
+      {right}
       <div
         style={{
           display: "flex",
@@ -75,6 +101,8 @@ export function TopBar({ children, tenant }: { children?: ReactNode; tenant?: st
           fontSize: 11.5,
           color: ink.textMuted,
           fontWeight: 600,
+          flex: "0 0 auto",
+          paddingLeft: 14,
         }}
       >
         {/* Signing out lives here rather than in a pill fixed to the corner of

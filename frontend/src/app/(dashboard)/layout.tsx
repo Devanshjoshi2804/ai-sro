@@ -14,7 +14,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           run alone never need the same screen at the same time. The bar scrolls
           rather than clipping -- at 560px the last three used to be unreachable,
           with no menu and no way to know they were there. */}
-      <TopBar>
+      {/* The running total rides in `right`, beside the tenant, rather than
+          among the links: those scroll and it must not. It renders nothing
+          while loading and nothing on error, so the bar is unchanged whenever
+          the number cannot be trusted. */}
+      <TopBar
+        right={
+          <span style={{ display: "flex", alignItems: "center", paddingLeft: 18 }}>
+            <SpendLine />
+          </span>
+        }
+      >
         <BarGroup label="Do">
           <BarLink href="/console">Threads</BarLink>
           {/* Beside Threads rather than under Watch: a card here is a decision
@@ -50,19 +60,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <BarGroup label="Know">
           <BarLink href="/knowledge">What we know</BarLink>
         </BarGroup>
-        {/* Last child of the bar, left of the spacer, rather than a `right`
-            prop on TopBar: every surface in the application shares that
-            component and one line of running total does not justify widening
-            its interface. It renders nothing while loading and nothing on
-            error, so the bar is unchanged when the number cannot be trusted.
-            The wrapper is here and not in the component because the bar lays
-            its children out `stretch`, and a bare span would hang its text off
-            the top edge. */}
-        <span
-          style={{ display: "flex", alignItems: "center", paddingLeft: 18, flex: "0 0 auto" }}
-        >
-          <SpendLine />
-        </span>
       </TopBar>
       {/* Wider than a reading measure, because these are tables. At `max-w-6xl`
           the Recordings table was 1327px inside an 1104px container -- Frames,

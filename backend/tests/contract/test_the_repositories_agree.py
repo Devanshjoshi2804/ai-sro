@@ -177,6 +177,14 @@ def _run(run_id: str, *, tenant: TenantId = TENANT, **over: Any) -> WorkflowRun:
         "live": False,
         "allow_focus": True,
         "started_at": _at(10),
+        # Finished, where the record's own default is `running`. Since migration
+        # 0043 a browser may hold at most one RUNNING run -- a unique partial
+        # index, because reading "is this browser busy" and then claiming it are
+        # two statements and two presses both read free between them. So a
+        # fixture that plants several runs for one browser is planting a state
+        # the store refuses unless it says which one is in flight, and every
+        # test below that cares says `outcome="running"` itself.
+        "outcome": "held",
     }
     fields.update(over)
     return WorkflowRun(**fields)
@@ -485,6 +493,98 @@ class TestWorkflowRuns:
             found = await work.workflow_runs.for_workflow(TENANT, "wfl_1")
         assert [one.id for one in found] == ["run_early", "run_a", "run_b", "run_c"]
 
+    async def test_recent_is_newest_first_capped_and_filtered_as_the_rig_listed_them(
+        self, store: UnitOfWork
+    ) -> None:
+        """The other order, on purpose: ``for_workflow`` is oldest first for
+        ``proofs`` and this is the rig's own list query -- newest first, with
+        the cap applied after every predicate rather than before them.
+
+        Three rows for the ordering, because a reversed pair agrees with a
+        two-element assertion once in two. The tie is planted as well: an order
+        that is not total changes between reads, and a page boundary that moves
+        is a row a caller never sees.
+        """
+        async with store as work:
+            # Planted `run_a` first and asserted second: the tie has to
+            # disagree with insertion order, or the assertion is satisfied by
+            # the tie-break and by its absence equally -- Postgres hands back
+            # heap order, and heap order here WAS the answer.
+            await work.workflow_runs.save(_run("run_a", started_at=_at(11)))
+            await work.workflow_runs.save(_run("run_b", started_at=_at(11)))
+            await work.workflow_runs.save(_run("run_oldest", started_at=_at(9)))
+            await work.workflow_runs.save(_run("run_elsewhere", workflow_id="wfl_2"))
+            await work.workflow_runs.save(_run("run_theirs", tenant=OTHER_TENANT))
+            await work.commit()
+
+        async with store as work:
+            newest_first = await work.workflow_runs.recent(TENANT, limit=20)
+            capped = await work.workflow_runs.recent(TENANT, limit=2)
+            one_job = await work.workflow_runs.recent(TENANT, limit=20, workflow_id="wfl_2")
+
+        assert [one.id for one in newest_first] == [
+            "run_b",
+            "run_a",
+            "run_elsewhere",
+            "run_oldest",
+        ]
+        # The cap is the query's, and it keeps the newest rather than whichever
+        # the store handed back first.
+        assert [one.id for one in capped] == ["run_b", "run_a"]
+        assert [one.id for one in one_job] == ["run_elsewhere"]
+
+    async def test_recent_narrows_to_named_ids_and_an_empty_set_matches_nothing(
+        self, store: UnitOfWork
+    ) -> None:
+        """How ``awaiting=true`` is served: the parked runs are a set of ids,
+        and an empty set is "nothing matches" rather than "no filter" -- the
+        difference between a supervisor's empty queue and every run of the
+        tenant presented as work waiting on them."""
+        async with store as work:
+            await work.workflow_runs.save(_run("run_parked", started_at=_at(9)))
+            await work.workflow_runs.save(_run("run_going", started_at=_at(11)))
+            await work.commit()
+
+        async with store as work:
+            named = await work.workflow_runs.recent(TENANT, limit=20, ids=frozenset({"run_parked"}))
+            # Named and capped: the ids narrow first, so a run outside the cap
+            # is still found by the queue that asked for it by name.
+            narrowed_then_capped = await work.workflow_runs.recent(
+                TENANT, limit=1, ids=frozenset({"run_parked"})
+            )
+            nothing = await work.workflow_runs.recent(TENANT, limit=20, ids=frozenset())
+
+        assert [one.id for one in named] == ["run_parked"]
+        assert [one.id for one in narrowed_then_capped] == ["run_parked"]
+        assert nothing == ()
+
+    async def test_recent_carries_the_steps_of_every_row_it_returns(
+        self, store: UnitOfWork
+    ) -> None:
+        """The list answers with whole rows, which is what puts every parked
+        step on the wire. A read that returned bare run rows would serve a panel
+        that cannot tell a parked run from a finished one."""
+        async with store as work:
+            await work.workflow_runs.save(
+                _run(
+                    "run_parked",
+                    outcome="running",
+                    steps=[
+                        RunStep(order=1, says="confirm the write", verdict="awaiting"),
+                        RunStep(order=3, says="and the second", verdict="awaiting"),
+                    ],
+                )
+            )
+            await work.commit()
+
+        async with store as work:
+            (found,) = await work.workflow_runs.recent(TENANT, limit=20)
+
+        assert [(step.order, step.says) for step in found.steps] == [
+            (1, "confirm the write"),
+            (3, "and the second"),
+        ]
+
     async def test_tallies_count_runs_and_holds_per_workflow_for_one_tenant(
         self, store: UnitOfWork
     ) -> None:
@@ -556,6 +656,24 @@ class TestWorkflowRuns:
         assert kept is not None
         assert [step.says for step in kept.steps] == ["scan"]
 
+    async def test_a_run_carries_back_the_step_it_was_saved_at(self, store: UnitOfWork) -> None:
+        """Both repositories, one assertion. The fake keeps a dataclass and the
+        SQL mapper copies column by column, so a field the mapper forgets round
+        trips as its default through every unit test and loses the operator's
+        progress only against real Postgres.
+
+        Non-default on purpose: ``from_step=0`` is what a dropped column
+        returns, so an assertion written against the default cannot fail.
+        """
+        async with store as work:
+            await work.workflow_runs.save(_run("run_resumed", from_step=4))
+            await work.commit()
+
+        async with store as work:
+            read = await work.workflow_runs.get(TENANT, "run_resumed")
+        assert read is not None
+        assert read.from_step == 4
+
     async def test_a_step_that_sent_nothing_reads_back_as_nothing(self, store: UnitOfWork) -> None:
         """``sent IS NULL`` is the question every reader asks about a step. A
         JSON scalar ``null`` would answer it wrong."""
@@ -589,6 +707,15 @@ class TestWorkflowRuns:
                     started_at=_at(10),
                     outcome="running",
                     steps=[
+                        # Two parked steps, and the deeper one planted FIRST.
+                        # The rig reported only the deepest of these and this
+                        # port returns every one, `ord` ascending -- plan 4b's
+                        # ruling, and until this second step existed nothing
+                        # anywhere held either half of it: a store flipped to
+                        # `ord DESC` passed 2710 tests. Planted out of order
+                        # because an assertion that agrees with insertion order
+                        # agrees with the sort and with its absence equally.
+                        RunStep(order=3, says="and let the second out", verdict="awaiting"),
                         RunStep(order=0, says="scan", verdict="held"),
                         RunStep(order=1, says="confirm the write", verdict="awaiting"),
                     ],
@@ -599,6 +726,12 @@ class TestWorkflowRuns:
                     "run_also_running",
                     started_at=_at(10),
                     outcome="running",
+                    # A second browser, because one browser may hold one
+                    # running run since 0043 -- and because that is what this
+                    # read is FOR: the parked steps across browsers, so a
+                    # supervisor can answer a run they are not sitting in
+                    # front of.
+                    device_id=OTHER_DEVICE.value,
                     steps=[RunStep(order=0, says="approve the move", verdict="awaiting")],
                 )
             )
@@ -620,6 +753,7 @@ class TestWorkflowRuns:
         assert parked == (
             ("run_also_running", 0, "approve the move"),
             ("run_running", 1, "confirm the write"),
+            ("run_running", 3, "and let the second out"),
         )
 
     async def test_approve_is_first_tap_wins(self, store: UnitOfWork) -> None:
@@ -657,15 +791,42 @@ class TestWorkflowRuns:
 
         async with store as work:
             assert await work.workflow_runs.in_flight(TENANT, DEVICE) is None
-            # Two, tied on the instant and planted in the order that is not the
-            # answer: "one browser, one hand" has to name the same run on every
-            # read, or a second poll drives a different one.
-            await work.workflow_runs.save(_run("run_zebra", outcome="running", started_at=_at(10)))
             await work.workflow_runs.save(_run("run_ant", outcome="running", started_at=_at(10)))
             await work.commit()
 
         async with store as work:
             assert await work.workflow_runs.in_flight(TENANT, DEVICE) == "run_ant"
+            # Per browser, and the other one is unaffected: this read answers
+            # "may I put a hand on THIS window", not "is anything happening".
+            assert await work.workflow_runs.in_flight(TENANT, OTHER_DEVICE) == "run_other_browser"
+
+    async def test_a_browser_cannot_hold_two_running_runs_at_once(self, store: UnitOfWork) -> None:
+        """What `in_flight` used to have to break a tie about.
+
+        This test previously planted TWO running runs for one browser, tied on
+        the instant, and asserted `in_flight` named the same one every time --
+        because an order that is not total is an order that changes between
+        reads. Migration 0043 makes that state unreachable: a unique partial
+        index on `(tenant_id, device_id) WHERE outcome = 'running'`, because
+        reading "is this browser busy" and then claiming it are two statements
+        with awaits between them, and two presses both read free.
+
+        So the tie is gone and what replaces it is the refusal. The `ORDER BY`
+        in both implementations stays -- it costs nothing and it is the answer
+        if the index is ever dropped -- but it is no longer what stops a second
+        hand reaching the same window.
+        """
+        async with store as work:
+            await work.workflow_runs.save(_run("run_first", outcome="running"))
+            await work.commit()
+
+        async with store as work:
+            with pytest.raises(Conflict) as refused:
+                await work.workflow_runs.save(_run("run_second", outcome="running"))
+        assert DEVICE.value in str(refused.value)
+
+        async with store as work:
+            assert await work.workflow_runs.in_flight(TENANT, DEVICE) == "run_first"
 
     async def test_fail_orphans_sweeps_every_tenant_and_lands_the_reason_on_a_step(
         self, store: UnitOfWork
@@ -1202,6 +1363,8 @@ class TestTenantScoping:
                     "run_theirs_parked",
                     tenant=OTHER_TENANT,
                     outcome="running",
+                    # Their second browser: one browser holds one running run.
+                    device_id=OTHER_DEVICE.value,
                     steps=[RunStep(order=0, says="confirm", verdict="awaiting")],
                 )
             )

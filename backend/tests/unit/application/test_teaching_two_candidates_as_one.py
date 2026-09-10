@@ -212,7 +212,7 @@ def _teach(
 ) -> TeachWorkflow:
     return TeachWorkflow(
         uow, blobs, FakeClock(datetime(2026, 4, 1, tzinfo=UTC)), FakeIdFactory(), induce, namer
-    )  # type: ignore[arg-type]
+    )
 
 
 async def test_each_time_the_operator_did_both_halves_becomes_one_demonstration() -> None:
@@ -557,8 +557,7 @@ async def test_a_job_done_in_the_other_order_is_the_same_job() -> None:
     assert taught.skill_id is not None, f"it refused its own pair: {taught.because}"
     async with uow:
         keys = [
-            (await uow.recordings.get(f.TENANT, one)).objective_key
-            for one in taught.recording_ids
+            (await uow.recordings.get(f.TENANT, one)).objective_key for one in taught.recording_ids
         ]
     assert len(keys) == 2, f"expected both doings, got {len(keys)}"
     assert keys[0] == keys[1], f"the same job named two things: {keys[0]} and {keys[1]}"

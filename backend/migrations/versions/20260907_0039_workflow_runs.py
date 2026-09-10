@@ -29,6 +29,12 @@ caller acts on rather than a lock, which is sound only while one worker owns
 every run; a second worker needs a UNIQUE partial index on (tenant_id,
 device_id) WHERE outcome = 'running'.
 
+That last sentence was too generous and migration 0043 is the correction: ONE
+worker needs it too. The read and the claim are separated by awaits, so two
+presses on one event loop both read free -- two rows, one browser, against real
+Postgres. The index 0043 builds is the one named above; this one stays as what
+it always was, the read that gives the friendly answer.
+
 `approvals` is keyed on (run_id, ord) and that composite key IS the rule: the
 first tap wins, and a second tap on the same step is not a second
 authorisation. A write rescued to the second rung parks at the same step and

@@ -18,6 +18,7 @@ from sro.application.analytics.audit import ReadAudit
 from sro.application.analytics.summary import ReadSummary
 from sro.application.capture.devices import ReadRoster, RestoreDevice, RevokeDevice
 from sro.application.chat.converse import Converse, StartThread
+from sro.application.chat.read_chat import ReadChat
 from sro.application.chat.read_threads import ReadThreads
 from sro.application.connection.browsers import Browsers
 from sro.application.connection.check_session import CheckSession
@@ -35,6 +36,7 @@ from sro.application.connection.session_life import SessionLife
 from sro.application.connection.sign_in import EnsureSignedIn, SignIn, StoreCredentials
 from sro.application.connection.watch_browser import WatchBrowsers
 from sro.application.context import RequestContext
+from sro.application.execution.approvals import Approvals
 from sro.application.execution.batch import RunBatch
 from sro.application.execution.call_run_wrong import CallRunWrong
 from sro.application.execution.choices import ListChoices
@@ -53,6 +55,13 @@ from sro.application.execution.run_from_preview import RunFromPreview
 from sro.application.execution.self_heal import SelfHeal
 from sro.application.execution.stops import Stops
 from sro.application.execution.vision_step import PerformWithVision
+from sro.application.execution.workflow_runs import (
+    AbortWorkflowRun,
+    ApproveWorkflowStep,
+    GetWorkflowRun,
+    ListWorkflowRuns,
+    StartWorkflowRun,
+)
 from sro.application.induction.induce_skill import InduceSkill
 from sro.application.induction.seed_from_flow import SeedSkillFromFlow
 from sro.application.induction.understand import UnderstandRecording
@@ -73,8 +82,10 @@ from sro.application.observation.forget import ForgetObservations
 from sro.application.observation.ingest import IngestObservation
 from sro.application.observation.learn import LearnWhatRepeats
 from sro.application.observation.mine import MineEverything, MineObservations
+from sro.application.observation.mine_pass import MinePass
 from sro.application.observation.policy import ReadObservationPolicy, SetObservationPolicy
 from sro.application.observation.propose import AnswerJoin, ProposeAboutCandidates
+from sro.application.observation.read_pool import ReadPool
 from sro.application.observation.register import (
     GrantHost,
     ReadDevice,
@@ -141,6 +152,7 @@ from sro.application.trigger.read_triggers import DeleteTrigger, ReadTriggers, S
 from sro.application.trigger.receive_inbound import ReceiveInbound
 from sro.config import Settings, get_settings
 from sro.domain.shared.prices import DaySpend
+from sro.infrastructure.agent.channel import SocketChannel
 from sro.infrastructure.agent.drivers import RemoteAgents
 from sro.infrastructure.agent.sockets import DeviceSockets
 from sro.infrastructure.auth.keycloak import KeycloakTokens
@@ -205,10 +217,24 @@ class Container:
 
     ``None`` rather than a no-op double, deliberately. A miner with nothing to
     ask must not run and quietly find nothing -- that reads exactly like a day
-    with no work in it. The caller that checks and refuses arrives in 4b: this
-    is built and read by nothing today, because `mining_pass.mine` and
-    `run_workflow` have no production caller either. Built here rather than in
-    4b so the wiring is one commit and not three.
+    with no work in it. The caller that checks and refuses now exists: it is
+    `asker_or_refuse` in `application/ports/model.py`, and every door that needs
+    a model reaches it through that one function.
+
+    Which doors those are is NOT written down here any more. This paragraph
+    used to name them and count them, with a note saying the count went up
+    "when task 5 lands and not before" -- and task 5 landed, and the sentence
+    stayed at two for a week, on the same attribute that carried a "nothing
+    reads this" defect the week before. It wrote its own trip-wire and nobody
+    tripped it, which is what a prose trip-wire is worth. The count now lives
+    in `test_every_door_that_needs_a_model_refuses_through_the_one_guard`,
+    which fails on the commit that adds or removes a caller instead of on the
+    commit that reads the comment.
+
+    The check is deliberately not on this attribute and not a method here. Each
+    caller takes `Asker | None` and refuses at the top of its own `execute`, so
+    a deployment with no model still builds every factory and fails at use
+    rather than at construction.
     """
     intent_parser: IntentParser
     vault: CredentialVault
@@ -236,6 +262,15 @@ class Container:
     sockets, and for the same reason: the task that would honour it is in this
     process, so an intention that outlived the process would outlive the only
     thing able to act on it."""
+
+    approvals: Approvals = field(default_factory=Approvals)
+
+    """Runs parked in front of a person, and the event each one waits on. In
+    memory for `Stops`' reason and one more of its own: the wait is an
+    `asyncio.Event` in the task driving the run, so a tap that landed in another
+    process would set an event nothing is waiting on. That is the same
+    one-worker assumption the sockets above already make, and
+    `application/execution/approvals.py` is where its end is written down."""
 
     pursuits: Pursuits = field(default_factory=Pursuits)
 
@@ -322,6 +357,9 @@ class Container:
     def read_evidence(self) -> ReadEvidence:
         return ReadEvidence(self.unit_of_work())
 
+    def read_pool(self) -> ReadPool:
+        return ReadPool(self.unit_of_work())
+
     async def read_spend(self, ctx: RequestContext) -> DaySpend:
         """What this tenant has been billed since midnight, on this clock.
 
@@ -362,6 +400,54 @@ class Container:
 
     def mine_observations(self) -> MineObservations:
         return MineObservations(self.unit_of_work(), self.blobs, self.ids)
+
+    def mine_pass(self) -> MinePass:
+        """The model-first rig's pass, which until now had no caller in `src/`.
+
+        `asker` is handed over as `Asker | None` rather than through
+        `asker_or_refuse` here: a factory that raised would make this method
+        itself unbuildable, and a deployment with no key would fail at
+        construction instead of at the one call that needs a model.
+
+        Not `mine_observations` above. That one clusters a week of observation
+        into task candidates with no model in the loop at all; this one packs
+        one window, makes one call and writes one `mining_passes` row.
+        """
+        return MinePass(
+            self.unit_of_work(),
+            asker=self.asker,
+            model=self.settings.gemini_mine_model,
+            clock=self.clock,
+            cap_usd=self.settings.daily_usd_cap,
+        )
+
+    def read_chat(self) -> ReadChat:
+        """The chat door's reader, which until now had no caller in `src/`.
+
+        `gemini_plan_model` and NOT `gemini_mine_model` beside it. A chat door
+        and a mining door look like they should share a model and must not: an
+        operator is standing at a screen waiting for this answer, so it is the
+        fast one -- the same trade `gemini_intent_model` records having
+        measured at ~2.3s against ~4.8s for the pro model. This is the rig's
+        own wiring: `api.py:1507` hands `understand` `settings().plan_model`.
+
+        Not `resolve_intent`. That one resolves an utterance over this tenant's
+        *skills* with no model in the loop at all; this one resolves it over
+        the *workflows* a mining pass read, and it spends money doing it.
+
+        `asker` is handed over as `Asker | None` rather than through
+        `asker_or_refuse` here, for `mine_pass`'s reason: a factory that raised
+        would make this method itself unbuildable, and a deployment with no key
+        would fail at construction instead of at the one call that needs a
+        model.
+        """
+        return ReadChat(
+            self.unit_of_work(),
+            asker=self.asker,
+            model=self.settings.gemini_plan_model,
+            clock=self.clock,
+            cap_usd=self.settings.daily_usd_cap,
+        )
 
     def mine_everything(self) -> MineEverything:
         return MineEverything(
@@ -782,6 +868,68 @@ class Container:
 
     def stop_run(self) -> StopRun:
         return StopRun(self.unit_of_work(), self.stops)
+
+    def start_workflow_run(self) -> StartWorkflowRun:
+        """The press on a mined job. Not `start_run` above, which mints the row
+        for a skill run keyed on a `RunId`.
+
+        `SocketChannel` over the sockets this worker already holds, rather than
+        a second channel: `DeviceSockets` mints the command ids and correlates
+        the answers, and a run that opened its own would be talking to a
+        browser nobody else could hear. The stop register and the approval
+        register are the process-wide ones for the same reason -- the tap and
+        the stop button arrive on routes in this process, and a second register
+        is a tap nothing is waiting on.
+
+        `gemini_plan_model` plans and `gemini_rescue_model` rescues: a clean
+        step never touches the expensive one, and the wiring is the rig's own
+        (`api.py:1140`).
+        """
+        return StartWorkflowRun(
+            self.unit_of_work(),
+            channel=SocketChannel(self.agent_sockets),
+            asker=self.asker,
+            plan_model=self.settings.gemini_plan_model,
+            rescue_model=self.settings.gemini_rescue_model,
+            clock=self.clock,
+            cap_usd=self.settings.daily_usd_cap,
+            stops=self.stops,
+            approvals=self.approvals,
+        )
+
+    def list_workflow_runs(self) -> ListWorkflowRuns:
+        """The runs of mined jobs, newest first. Not `list_runs` above, which
+        lists skill runs keyed on a `RunId`."""
+        return ListWorkflowRuns(self.unit_of_work())
+
+    def get_workflow_run(self) -> GetWorkflowRun:
+        """One run of a mined job. Not `get_run` above, for the same reason."""
+        return GetWorkflowRun(self.unit_of_work())
+
+    def abort_workflow_run(self) -> AbortWorkflowRun:
+        """The stop button on a run of a mined job. Not `stop_run` above, which
+        reaches a skill run through `uow.runs` on a `RunId`.
+
+        Both process-wide registers, and both for the reason `start_workflow_run`
+        gives: the task that honours a stop is waiting on the ones this container
+        handed it, and a use case built with registers of its own would set a
+        flag nothing ever reads and release a wait nobody is holding.
+        """
+        return AbortWorkflowRun(self.unit_of_work(), self.stops, self.approvals)
+
+    def approve_workflow_step(self) -> ApproveWorkflowStep:
+        """The Yes on a run of a mined job, and the other half of the seam
+        `abort_workflow_run` above opens.
+
+        The same process-wide `approvals` for the reason `start_workflow_run`
+        gives: the task parked on a person is waiting on the register this
+        container handed it, and a use case built with one of its own would
+        release a wait nobody is holding.
+
+        The clock, because the row says WHEN the write was let out. A route
+        never reads one.
+        """
+        return ApproveWorkflowStep(self.unit_of_work(), self.approvals, self.clock)
 
     def call_run_wrong(self) -> CallRunWrong:
         return CallRunWrong(self.unit_of_work(), self.clock)

@@ -39,8 +39,24 @@ async def test_upgrading_from_nothing_builds_the_schema(postgres_url: str) -> No
 
     async with engine.connect() as connection:
         tables = set(await connection.run_sync(lambda sync: inspect(sync).get_table_names()))
+        # Not a table, and the one thing here that is a RULE rather than a
+        # shape: `uq_workflow_runs_one_running_per_device` is what stops two
+        # concurrent presses both claiming one browser, and the rest of the
+        # suite builds its schema from `Base.metadata` -- where the index is
+        # also declared, and would keep every test green while the migration
+        # that a deployment actually runs built nothing.
+        indexes = set(
+            (
+                await connection.execute(
+                    text("SELECT indexname FROM pg_indexes WHERE schemaname = 'public'")
+                )
+            )
+            .scalars()
+            .all()
+        )
     await engine.dispose()
 
     assert upgrade.returncode == 0, upgrade.stderr
     assert "browser_sessions" in tables, "the ownership record a browser is claimed in"
     assert {"skills", "runs", "recordings", "connections"} <= tables
+    assert "uq_workflow_runs_one_running_per_device" in indexes

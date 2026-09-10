@@ -18,6 +18,7 @@ from sro.interface.http.v1.routers import (
     analytics,
     audit,
     candidates,
+    chat,
     confirmations,
     connections,
     devices,
@@ -25,8 +26,10 @@ from sro.interface.http.v1.routers import (
     inbound,
     intent,
     knowledge,
+    mine,
     observations,
     offers,
+    pool,
     recordings,
     runs,
     shapes,
@@ -36,6 +39,7 @@ from sro.interface.http.v1.routers import (
     threads,
     triggers,
     watch,
+    workflow_runs,
     workflows,
 )
 from sro.observability import configure_logging
@@ -94,10 +98,13 @@ def create_app() -> FastAPI:
     app.include_router(analytics.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(audit.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(candidates.router, prefix="/v1", responses=PROBLEMS)
+    app.include_router(chat.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(connections.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(devices.router, prefix="/v1", responses=PROBLEMS)
+    app.include_router(mine.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(observations.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(offers.router, prefix="/v1", responses=PROBLEMS)
+    app.include_router(pool.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(recordings.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(skills.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(shapes.router, prefix="/v1", responses=PROBLEMS)
@@ -110,6 +117,7 @@ def create_app() -> FastAPI:
     app.include_router(runs.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(watch.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(workflows.router, prefix="/v1", responses=PROBLEMS)
+    app.include_router(workflow_runs.router, prefix="/v1", responses=PROBLEMS)
     return app
 
 

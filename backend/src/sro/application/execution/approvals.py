@@ -22,19 +22,16 @@ The other half of the rig's pair, `Aborts`, is already here as `Stops` next
 door in `stops.py`: a person stopping a run is a separate register from a
 person authorising one step, and one stop register is enough.
 
-Half of that seam is built, and this module's safety argument depends on the
-other half. In the rig, the abort route sets the flag and then releases the
+Both halves of that seam are built, and this module's safety argument depends
+on the pair. In the rig, the abort route sets the flag and then releases the
 wait, so a parked run wakes at once instead of sitting out the full five
 minutes -- and because a release says only that the wait ended, the loop asks
 `Aborts` on the way out before it treats one as a person's yes. The loop's
-half is here: `run_workflow` asks `Stops` after `wait_for` returns and before
-the write goes out, so a release that was a stop aborts the run rather than
-writing. The route's half is not. The only route that sets `Stops` is
-`StopRun`, which resolves a skill run through `uow.runs`, so a run parked on
-this register cannot be reached by it, and a workflow-run stop route that sets
-the flag and then calls `approve` is still to be written. Until it lands, a
-stopped run parked here waits out its five minutes and then fails for want of
-an answer, which is safe and slow rather than a write nobody approved.
+half: `run_workflow` asks `Stops` after `wait_for` returns and before the write
+goes out, so a release that was a stop aborts the run rather than writing. The
+route's half is `AbortWorkflowRun`, which sets `Stops` and then calls `approve`
+here, in that order. Not `StopRun`, which resolves a skill run through
+`uow.runs` and so cannot reach a run parked on this register at all.
 """
 
 from __future__ import annotations

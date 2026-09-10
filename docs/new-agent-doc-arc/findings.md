@@ -1370,6 +1370,169 @@ reported as one once, and that is why this line is here.
    the loop — perform, verify, earn autonomy — is built, reviewed, and reachable
    by nothing. Phase 4b.
 
+## Those nine, re-checked against the running system — 2026-09-09, later
+
+Every line below was read off the live store or the source, not off the section
+above. **Nothing is fully closed. Two moved, one of them decisively.**
+
+### The route exists now, and it works
+
+`POST /v1/mine` reached the model path over HTTP for the first time —
+`backend/scripts/probe_mine_route.py`, through the real ASGI app and the
+container the application builds for itself, against real Postgres and a real
+Gemini call. 200, a `mining_passes` row written, and the wire body matching that
+row on both `learned_parameters` and `cost_usd`. Before today every mining
+figure this document quotes came from a script calling `mine()` directly.
+
+### Seven passes over the same 507 gestures
+
+| started | proposed | kept | rejected | learnt | cost | coverage | lopsided |
+|---|---|---|---|---|---|---|---|
+| 09-08 18:21 | 0 | 0 | 0 | 0 | $0.0090 | 0.0 | yes |
+| 09-08 18:34 | 0 | 0 | 0 | 0 | $1.9984 | 0.0 | no — **truncated** |
+| 09-08 18:43 | 3 | 2 | 0 | 0 | $0.9277 | 0.4 | yes |
+| 09-09 07:30 | 4 | 2 | 0 | 0 | $0.4406 | 0.9 | no |
+| 09-09 07:57 | 1 | 0 | **1** | 0 | $0.3574 | 0.0 | yes |
+| 09-09 10:37 | 1 | 0 | 0 | 0 | $0.3421 | 0.2 | yes |
+| 09-09 10:38 | 2 | 1 | 0 | 0 | $0.4464 | 0.6 | yes |
+| **total** | **11** | **5** | **1** | **0** | **$4.52** | — | 5 of 7 |
+
+**Item 3 is settled and the answer is bad.** Coverage on identical input:
+0.0, 0.0, 0.4, 0.9, 0.0, 0.2, 0.6 — and five passes of seven are `lopsided`.
+One pass tells you almost nothing about this system.
+
+**Item 2 has a number, and it is not the one quoted above.** We wrote "one in
+eight". `mining_passes.rejected` — the instrument that item named — totals
+**1 rejection in 11 proposals, ~9%**. The rejection is the 07:57 pass: $0.36 for
+one hallucinated citation, caught by `validate`, nothing kept. Still a small n.
+
+**Item 1 got worse, not better.** `learned_parameters` reads **0 on all seven
+rows**. The column, its migration, its mapper and its contract test all exist
+and the figure has never once survived a real pass — learning fires only on
+`resolve() == same_job`, and no pass has reached it since the one that predates
+the column.
+
+**The unit economics, measured rather than estimated.** $2.71 across the four
+passes that kept nothing; $1.81 across the three that kept five workflows.
+**$4.52 for 5 workflows kept.**
+
+**Against the criterion, quoted as written:** 8 of 8 workflows and 10 of 11
+values is what the spec asks. The store now holds **5 of 8 workflows and 3 of
+11 values** — workflows moved by one (`Create a Work Activity`, mined today
+with zero parameters), values have not moved at all since they first appeared.
+
+### Item 8, confirmed in the code and half fixed
+
+`api.js:275` read `await fetch(...)` with **no assignment and no status check**,
+so a 4xx and a success were the same nothing. Its own docstring calls this "the
+one measurement that says whether recognising a job early was worth doing";
+three lines below, the `catch` called the record "a nicety". Two comments in one
+function disagreeing about whether the data matters.
+
+**Fixed here: it returns whether the fate landed, and still never throws.** The
+single caller uses `void`, so nothing downstream changes.
+
+**What is NOT fixed, and item 8 stays open for it:** `rigHeaders()` omits
+`X-Device-Secret`. Today these calls reach the rig, which has no device registry
+and accepts the bare bearer, so they work. Phase 5 points them at the backend
+and every one becomes a 403. The swallow was fixed first *because* of that — the
+403 will be visible on the day it starts, rather than silently eating every
+offer fate until somebody wonders why counsel never rests a job.
+
+### Items unchanged, with today's evidence
+
+- **4, 5** — untouched. Network-first parameter learning is still an accepted-ADR
+  violation with no work started, and no test yet asks whether a body-derived
+  parameter can carry a redacted value.
+- **6** — confirmed in the live store: `task_candidates` **53** rows,
+  `workflows` **5**. Two miners over one day, neither reading the other's tables.
+- **7** — unchanged.
+- **9** — `run_workflow` still has no caller; `grep` finds one docstring mention
+  in `approvals.py` and nothing else. Phase 4b's Task 5 owns it.
+
+### Fixed today, and none of it was on the list above
+
+The contract suite had been red since 2026-09-06 and is green (109 passed);
+`make lint-backend` had been broken by two unformatted files and is clean;
+`make check` runs `tests/browser` (86 passed) despite a `pyproject.toml` comment
+that said for years it did not — which is why one fixture defect failed two
+suites while only one was ever looked at.
+
+## Phase 4b shipped — 2026-09-10, and the number that still has not moved
+
+Eleven tasks, each with a fresh implementer, a task review, and a fix round where
+the review found something. **Every one of the eleven corrected the plan at least
+once.**
+
+### The rig's surface, recounted from `api.py` rather than inherited
+
+**26 routes.** Not the arithmetic phase 4a recorded — that totalled 28 against a
+count of 26, and this recount is what the discrepancy was.
+
+| | |
+|---|---|
+| **Served by the backend** | **21** (20 in the OpenAPI schema + the websocket, which OpenAPI cannot describe) |
+| Still unported | **2** — `GET /v1/streams`, `GET /v1/gestures` |
+| Dropped | **2** — both `bakeoff` routes; the word appears nowhere under `backend/` |
+| Undecided | **1** — `GET /`, the served page, still the spec's open item |
+
+Phase 4b delivered **8 operations**: `POST /v1/mine`, `POST /v1/chat`, `GET` and
+`POST /v1/workflow-runs`, `GET /v1/workflow-runs/{run_id}`, `.../abort`,
+`.../approve`, and `GET /v1/pool`.
+
+### Eight passes over the same 507 gestures
+
+| started | proposed | kept | rejected | learnt | cost | coverage | lopsided |
+|---|---|---|---|---|---|---|---|
+| 09-08 18:21 | 0 | 0 | 0 | 0 | $0.0090 | 0.0 | yes |
+| 09-08 18:34 | 0 | 0 | 0 | 0 | $1.9984 | 0.0 | **truncated** |
+| 09-08 18:43 | 3 | 2 | 0 | 0 | $0.9277 | 0.4 | yes |
+| 09-09 07:30 | 4 | 2 | 0 | 0 | $0.4406 | 0.9 | no |
+| 09-09 07:57 | 1 | 0 | **1** | 0 | $0.3574 | 0.0 | yes |
+| 09-09 10:37 | 1 | 0 | 0 | 0 | $0.3421 | 0.2 | yes |
+| 09-09 10:38 | 2 | 1 | 0 | 0 | $0.4464 | 0.6 | yes |
+| **09-10 06:02** | **3** | **2** | 0 | 0 | **$0.4103** | **0.7** | **no** |
+| **total** | **14** | **7** | **1** | **0** | **$4.93** | — | 5 of 8 |
+
+The last row is the first pass ever made **through the route** rather than by
+calling `mine()` from a script — `backend/scripts/probe_mine_route.py`, real ASGI
+app, the container the application builds for itself, real Postgres, real Gemini.
+
+### Against the criterion, quoted as written
+
+The spec asks for **8 of 8 workflows named as themselves and 10 of 11 values.**
+
+**Recognition is converging. Learning is flat.**
+
+| | first measured | now |
+|---|---|---|
+| workflows | 2 of 8 | **7 of 8** |
+| values | 0 of 11 | **3 of 11** |
+
+Workflows went 2 → 4 → 5 → 7 across the day. **Values went 0 → 3 and have not
+moved since**, across five subsequent passes and $2.00 of model calls. The two
+mined today — *Search for Work Areas* and *Review Video Recordings for Teach
+Task* — each arrived with **zero** parameters, like every workflow since the
+third.
+
+`mining_passes.learned_parameters` reads **0 on all eight rows**. The column, its
+migration, its mapper and its contract test all exist and the figure has never
+once survived a real pass. Learning fires only on `resolve() == same_job`, and no
+pass has reached it since the one that predates the column.
+
+**So the honest split:** the system recognises jobs well and is getting better at
+it; it does not learn what varies within them at all. Those are different halves
+and only one is working.
+
+### The money, measured rather than estimated
+
+**$4.93 for 7 workflows kept out of 14 proposed.** Four of the eight passes kept
+nothing and cost **$2.71** between them — 55% of everything spent.
+
+One rejection in 14 proposals (~7%): the 07:57 pass, $0.36 for a hallucinated
+citation that `validate` caught. That is the rate the earlier "one in eight" was
+an anecdote about.
+
 ### The instruments
 
 ```

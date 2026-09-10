@@ -224,8 +224,15 @@ async def test_another_tenant_is_refused_the_browser_it_does_not_own(
 
     The same ownership check the command channel does: a credential proves who
     is asking, never which browser they may ask about.
+
+    Lena's own tenant reads the same path afterwards, and the watch it comes
+    back with is the one just created: a 404 alone passes against a
+    `/v1/agents/{id}/watches` nobody registered, and against a create that
+    silently failed, so the refusal would be about an empty listing behind a
+    missing door rather than about ownership.
     """
-    await _create_watch(client, uow, device_id=LENA)
+    created = await _create_watch(client, uow, device_id=LENA)
+    assert created.status_code == 201, created.text
 
     theirs = await client.get(
         f"/v1/agents/{LENA.value}/watches",
@@ -234,8 +241,10 @@ async def test_another_tenant_is_refused_the_browser_it_does_not_own(
             **_proving(LENA),
         },
     )
+    hers = await client.get(f"/v1/agents/{LENA.value}/watches", headers=_proving(LENA))
 
     assert theirs.status_code == 404
+    assert [trigger["id"] for trigger in hers.json()] == [created.json()["id"]]
 
 
 async def test_a_watch_switched_off_is_left_out_rather_than_sent_with_a_flag(

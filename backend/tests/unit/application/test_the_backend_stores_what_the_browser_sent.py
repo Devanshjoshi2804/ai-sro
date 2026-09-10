@@ -104,8 +104,8 @@ def test_the_identity_fields_a_workflow_is_recognised_by_are_not_touched() -> No
     after = redact_events(before)
 
     for original, stored in zip(before, after, strict=True):
-        was = (original.get("gesture") or {}).get("target")  # type: ignore[union-attr]
-        now = (stored.get("gesture") or {}).get("target")  # type: ignore[union-attr]
+        was = (original.get("gesture") or {}).get("target")
+        now = (stored.get("gesture") or {}).get("target")
         if not isinstance(was, dict) or not isinstance(now, dict):
             continue
         for field in ("cssPath", "xpath", "testId", "role", "tag", "bounds"):
@@ -139,7 +139,7 @@ def test_a_url_the_browser_sent_clean_is_stored_byte_for_byte() -> None:
         (was, now)
         for was, now in zip(before, after, strict=True)
         if isinstance(was.get("request"), dict)
-        and "subsites" in str((was["request"] or {}).get("url"))  # type: ignore[union-attr]
+        and "subsites" in str((was["request"] or {}).get("url"))
     ]
     assert untouched, "the fixture no longer carries the request this asserts on"
     for was, now in untouched:

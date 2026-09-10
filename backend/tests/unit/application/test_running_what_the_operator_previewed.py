@@ -201,7 +201,7 @@ async def test_the_run_is_pinned_to_the_version_this_press_promoted() -> None:
     async def racing_get(tenant_id: object, skill_id: object) -> object:
         nonlocal calls
         calls += 1
-        got = await real_get(tenant_id, skill_id)  # type: ignore[misc]
+        got = await real_get(tenant_id, skill_id)
         if calls == 2:
             # The race: a second demonstration lands and is appended right
             # after this call's own promotion has already committed v1 to

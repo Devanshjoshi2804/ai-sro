@@ -648,7 +648,57 @@ class WorkflowRunRepository(Protocol):
         ...
 
     async def for_workflow(self, tenant_id: TenantId, workflow_id: str) -> tuple[WorkflowRun, ...]:
-        """Oldest first, as the rig listed them."""
+        """Every run of one job, oldest first -- which is NOT how the rig
+        listed them.
+
+        The rig's ``GET /v1/runs`` was ``ORDER BY started_at DESC LIMIT ?``:
+        the most recent runs, newest first. That is a list for a person to
+        pick from, and it is ``recent`` below.
+
+        This is the evidence order. What reads it is ``proofs`` -- the store's
+        own query orders ``(started_at, id)`` ascending and the fake reaches
+        this method to get the same -- and a job's writes are read forward,
+        because the question is how this job has settled over time and the
+        answer to it runs in the direction time does. Unbounded for the same
+        reason: proof is not a page.
+
+        Total, and the id is what makes it so: two runs of one workflow
+        routinely start in the same instant -- one form submits them -- and an
+        order that is not total is an order that changes between reads.
+        """
+        ...
+
+    async def recent(
+        self,
+        tenant_id: TenantId,
+        *,
+        limit: int,
+        workflow_id: str | None = None,
+        ids: frozenset[str] | None = None,
+    ) -> tuple[WorkflowRun, ...]:
+        """The most recent runs, newest first, capped: the rig's own list
+        query (``api.py:1152``), filters and all.
+
+        ``workflow_id`` narrows to one job and ``ids`` to a named set --
+        which is how ``awaiting=true`` is served, because the parked runs are
+        a set of ids that comes from ``awaiting`` below. An empty ``ids`` is
+        not the same as ``None``: it means nothing can match, said here so no
+        caller has to branch on it -- the rig had to, because ``id IN ()`` with
+        no ids to interpolate was a syntax error where it ran.
+
+        The cap is in the query and not in the caller. Filtering or slicing a
+        tenant's whole run history in Python is the defect ``tallies`` exists
+        to have removed once already: it is linear in rows nobody asked for,
+        and it degrades exactly as a customer succeeds.
+
+        It caps the ROWS, though, and not ``ids``. A caller passing a set
+        interpolates all of it, and the honest bound on that set is whatever
+        the caller's own read returns -- see ``ListWorkflowRuns``, which says
+        what bounds its one.
+
+        Total, reversed, and for ``for_workflow``'s reason -- ``(started_at,
+        id)`` descending, so a page boundary falls in the same place twice.
+        """
         ...
 
     async def tallies(self, tenant_id: TenantId) -> Mapping[str, tuple[int, int]]:
@@ -692,8 +742,12 @@ class WorkflowRunRepository(Protocol):
 
         A stated divergence from the rig, not an accident: the rig reported the
         deepest parked step of each run and this returns every one of them,
-        ``ord`` ascending. Plan 3 owns the choice between deepest and
-        shallowest; it is written down here so it is decided once.
+        ``ord`` ascending. Plan 4b decided it that way and kept it -- anyone
+        may answer a parked run, and a queue that hides all but the deepest
+        step hides work from the person who could clear it. ``GET
+        /v1/workflow-runs`` serves the same rule from the other end: it
+        answers with whole rows, so every parked step is on the wire and no
+        reader has to ask a second time which of them are waiting.
         """
         ...
 

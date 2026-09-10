@@ -26,7 +26,16 @@ from sro.domain.execution.run import Run, RunId
 
 
 class NotYours(Exception):
-    """This caller is not the person this run is being performed for."""
+    """This caller is not the person this run is being performed for.
+
+    A separate class from `call_run_wrong.NotYours` with the same name and the
+    same `code`: two doors, one refusal to the same person, and a console that
+    matches on `problem.type` should not have to learn two spellings of it.
+    Without a `code` -- which is how both shipped -- `_problem` falls back to
+    `error`, so the 403 `0302584` finally gave them was untellable from every
+    other refusal in the system."""
+
+    code = "not_yours"
 
 
 class ReviseRun:

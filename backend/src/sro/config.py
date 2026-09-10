@@ -226,6 +226,26 @@ class Settings(BaseSettings):
     """Payloads above this go to object storage and the row keeps the URI.
     Nothing is discarded either way -- see docs/11-capture-completeness.md."""
 
+    observation_artifact_bytes: int = 8_000_000
+    """Bytes one artifact upload may carry. The rig's `K_ARTIFACT_BYTES`
+    (`new_agent_arch/src/rig/api.py:374`), with its measurement: a full-page PNG
+    of a warehouse form is a few hundred kilobytes; eight megabytes is a retina
+    screen of noise. Past this, the bytes are not a picture of anything the rig
+    reads.
+
+    The measurement travels with the number on purpose. A constant whose reason
+    is missing is one the next person re-tunes by guess."""
+
+    observation_batch_events: int = 5000
+    """Events one `POST /v1/observations` may carry. The rig's `K_BATCH_EVENTS`
+    (`new_agent_arch/src/rig/api.py:379`), with its measurement: the extension
+    flushes about once a minute; the busiest measured minute was under a hundred
+    gestures, and the whole 81-gesture measured day would fit sixty times over.
+    Past this is not capture, it is a payload.
+
+    A bound on one request and not on a day: a browser with more than this to
+    say splits it, and the refusal names the count so that it can."""
+
     capture_drain_interval_seconds: float = 5.0
     capture_screenshot_per_frame: bool = True
 
@@ -337,6 +357,29 @@ class Settings(BaseSettings):
     what an operator will see for the life of the skill -- so this is the
     reasoning model. It cannot enable computer use, and does not need to."""
 
+    gemini_mine_model: str = "gemini-3.1-pro-preview"
+    """The model one mining pass asks. The rig's `mine_model`
+    (`new_agent_arch/src/rig/config.py:20`), and the same string as
+    `gemini_interpreter_model` above by coincidence rather than by design --
+    they answer different questions and each is re-tunable without the other.
+
+    This model at `K_EFFORT="high"` is what spent $2.00 over a day of real
+    gestures and kept nothing. The run and all of its numbers are written down
+    once, beside the effort knob that fixed it, at `domain/skill/umbrella.py:23`
+    -- cited and not copied, because a measurement kept in two places is a
+    measurement that drifts, and only one of the two would be corrected. This
+    setting is the name; that constant is the reason it was affordable."""
+
+    gemini_plan_model: str = "gemini-3.8-flash"
+    """What plans each step of a workflow run. The rig's `plan_model`
+    (`config.py:41`). Deliberately the fast model: a run plans once per step and
+    a slow plan is felt by an operator standing at a screen."""
+
+    gemini_rescue_model: str = "gemini-3.1-pro-preview"
+    """What re-plans a step the plan model got wrong. The rig's `rescue_model`
+    (`config.py:45`). The expensive model earns its price here and not above:
+    it is asked once per failure, not once per step."""
+
     interpretation_enabled: bool = False
     """Reading one demonstration as a workflow sends the captured calls and
     bodies to a hosted model. Same rule as every other egress: a key is not
@@ -351,7 +394,13 @@ class Settings(BaseSettings):
     deployment, and it was the one with nothing written next to it -- the
     paragraph above belongs to the switch above it. Off, the rungs that replay
     what somebody demonstrated work exactly as they do now; what stops is the
-    rung that looks at a screen nobody has demonstrated."""
+    rung that looks at a screen nobody has demonstrated.
+
+    Separate from the key, like every other egress here: a step whose control
+    has vanished then fails with that reason rather than quietly reaching for a
+    model. (That sentence spent some time stranded after
+    `keycloak_client_secret`, documenting nothing -- a second orphan of the same
+    move this docstring already records.)"""
 
     keycloak_realm_url: str = ""
     """The realm that issues offline tokens for the connected system.
@@ -366,12 +415,6 @@ class Settings(BaseSettings):
     secret, and a confidential one sent none, with the same "Invalid client"
     -- so this is set when the realm says the client is confidential rather
     than guessed at."""
-    """The L3 rung sends a screenshot of a customer's live WMS to Google.
-
-    Off by default and separate from the key, like every other egress here. With
-    it off, a step whose control has vanished fails with that reason rather than
-    quietly reaching for a model."""
-
     knowledge_embeddings_enabled: bool = False
     """Embeddings order what a structured filter already chose. Off by default:
     retrieval works without them, and turning them on sends the knowledge base's

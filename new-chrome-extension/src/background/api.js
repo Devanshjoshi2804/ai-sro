@@ -269,12 +269,37 @@ export const api = {
     // Every read inside the guard, the settings read included: this is called
     // with `void` from paths that must not fail, and a rejected storage read
     // outside the `try` is an unhandled rejection rather than a lost record.
+    //
+    // Returns whether the fate actually landed. It still never throws -- the
+    // `void` callers are unchanged -- but the answer is no longer thrown away.
+    // This had no status check at all: `await fetch(...)`, result discarded, so
+    // a 4xx and a success were the same nothing. That matters more than it
+    // looks, because the docstring above is right that this is the one
+    // measurement saying whether recognising a job early was worth doing, and
+    // the old `catch` comment calling the record "a nicety" contradicted it
+    // three lines down.
+    //
+    // It is latent rather than live today: these go to the rig, which has no
+    // device registry and accepts the bare bearer. Phase 5 points them at the
+    // backend, where `rigHeaders()` -- documented as sending "none of the
+    // backend's headers" -- omits `X-Device-Secret`, and every one of these
+    // becomes a 403. THAT is still open; what is fixed here is only that the
+    // 403 will be visible on the day it starts happening instead of silently
+    // eating every offer fate until somebody wonders why counsel never rests.
     try {
       const base = await state.rigUrl();
-      if (!isMirrorable(base)) return;
-      await fetch(`${base}/v1/offers`, { method: "POST", headers: await rigHeaders(), body: JSON.stringify(body) });
+      if (!isMirrorable(base)) return false;
+      const r = await fetch(`${base}/v1/offers`, {
+        method: "POST",
+        headers: await rigHeaders(),
+        body: JSON.stringify(body),
+      });
+      return r.ok;
     } catch {
-      // The record is a nicety; the offer already happened.
+      // The offer already happened; losing the record must not break the path
+      // that reported it. Said as `false` rather than swallowed, so a caller
+      // that wants to count what was lost can.
+      return false;
     }
   },
 

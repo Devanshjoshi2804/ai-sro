@@ -81,3 +81,5 @@ class UiUnavailable(Exception):
     Distinct from "the control was not found", which is a fact about the page
     and means the skill has drifted from the system it was taught on.
     """
+
+    code = "ui_unavailable"

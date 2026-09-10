@@ -21,6 +21,7 @@ from typing import Any
 import pytest
 
 from tests.browser.capture_fixtures import FIXTURES, main
+from tests.contract.test_observation_payloads import NOT_EXTENSION_OUTPUT
 
 pytestmark = pytest.mark.browser
 
@@ -59,7 +60,9 @@ def freshly_captured(tmp_path_factory: pytest.TempPathFactory) -> Path:
 
 
 def _committed() -> list[Path]:
-    return sorted(FIXTURES.glob("*.json"))
+    # A file the capture never writes cannot have drifted from it. Same set the
+    # contract suite skips, for the same reason: it is not extension output.
+    return sorted(p for p in FIXTURES.glob("*.json") if p.name not in NOT_EXTENSION_OUTPUT)
 
 
 @pytest.mark.parametrize("path", _committed(), ids=lambda p: p.stem)

@@ -32,3 +32,5 @@ class VaultUnavailable(Exception):
     into a file of readable passwords is worse than one that refuses to start,
     because nothing downstream can tell the difference.
     """
+
+    code = "no_vault"

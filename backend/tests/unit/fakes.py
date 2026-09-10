@@ -77,7 +77,7 @@ from sro.domain.connection.connection import Connection, ConnectionId, Connectio
 from sro.domain.execution.belts import RunProof, state_verified
 from sro.domain.execution.model_call import ModelCall
 from sro.domain.execution.run import Medium, Run, RunId
-from sro.domain.execution.workflow_run import RunStep, WorkflowRun
+from sro.domain.execution.workflow_run import RunStep, WorkflowRun, already_running
 from sro.domain.knowledge.entry import (
     EntryKind,
     EvidenceLevel,
@@ -975,7 +975,14 @@ class FakeDeviceRepository:
                 or (device.revoked_at is not None and when(device.revoked_at) >= at)
             )
         ]
-        return tuple(sorted(found, key=lambda device: device.registered_at, reverse=True))
+        # `(registered_at, id)` reversed, which is the store's
+        # `ORDER BY registered_at DESC, id DESC`. A fake that sorted on the
+        # instant alone is a stable sort, so it would hand a tie back in
+        # insertion order -- an order the store does not promise and does not
+        # give, and the one thing this fake must not be more forgiving about.
+        return tuple(
+            sorted(found, key=lambda device: (device.registered_at, device.id.value), reverse=True)
+        )
 
     async def revoke(self, tenant_id: TenantId, device_id: DeviceId, *, at: str) -> bool:
         device = await self.get(tenant_id, device_id)
@@ -1551,6 +1558,27 @@ class FakeWorkflowRunRepository:
         self.approved: dict[tuple[str, int], tuple[str, str | None]] = {}
 
     async def save(self, run: WorkflowRun) -> None:
+        # `uq_workflow_runs_one_running_per_device`, the rule rather than the
+        # mechanism. A fake more permissive than the store is how `ServeShapes`
+        # and `read_spend` shipped dead, and a fake that let a browser hold two
+        # running runs would let a caller be written that the store refuses.
+        # It cannot reproduce the RACE -- nothing here yields, which is exactly
+        # why the concurrent-press test is an integration test -- but it can
+        # refuse the state.
+        if run.outcome == "running":
+            clash = next(
+                (
+                    held
+                    for held in self.rows.values()
+                    if held.id != run.id
+                    and held.tenant == run.tenant
+                    and held.device_id == run.device_id
+                    and held.outcome == "running"
+                ),
+                None,
+            )
+            if clash is not None:
+                raise Conflict(already_running(run.device_id, clash.id))
         kept = deepcopy(run)
         # Both clocks as the store hands them back, not as the caller spelled
         # them: `started_at` is what three reads order on.
@@ -1575,6 +1603,29 @@ class FakeWorkflowRunRepository:
         return tuple(
             deepcopy(run) for run in sorted(found, key=lambda run: (when(run.started_at), run.id))
         )
+
+    async def recent(
+        self,
+        tenant_id: TenantId,
+        *,
+        limit: int,
+        workflow_id: str | None = None,
+        ids: frozenset[str] | None = None,
+    ) -> tuple[WorkflowRun, ...]:
+        found = [
+            run
+            for run in self.rows.values()
+            if run.tenant == tenant_id.value
+            and (workflow_id is None or run.workflow_id == workflow_id)
+            # An empty set means nothing matches, which is what `IN ()` does
+            # and not what "no filter" does.
+            and (ids is None or run.id in ids)
+        ]
+        # Newest first and on instants, as the store orders it: `(started_at,
+        # id)` reversed, because ISO text sorts by its digits and not by the
+        # moment it names.
+        found.sort(key=lambda run: (when(run.started_at), run.id), reverse=True)
+        return tuple(deepcopy(run) for run in found[:limit])
 
     async def tallies(self, tenant_id: TenantId) -> Mapping[str, tuple[int, int]]:
         # A workflow with no runs contributes no key, as the store's GROUP BY

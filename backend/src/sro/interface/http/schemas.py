@@ -9,22 +9,25 @@ from __future__ import annotations
 
 from dataclasses import asdict
 from datetime import datetime
-from typing import Any
+from typing import Annotated, Any
 
-from pydantic import BaseModel, Field, StrictInt
+from pydantic import BaseModel, Field, StrictInt, StringConstraints
 
 from sro.application.analytics.audit import Audit, AuditedRun
 from sro.application.analytics.summary import Summary
 from sro.application.capture.devices import DeviceLine
+from sro.application.chat.understand import Understood
 from sro.application.execution.pursuits import PursuitProgress
 from sro.application.execution.reversal import Reversal
 from sro.application.intent.match import Candidate
 from sro.application.intent.resolve import Resolution
+from sro.application.observation.mining_pass import MineResult
+from sro.application.observation.read_pool import Pool
 from sro.application.skill.read_workflows import CitedEvidence, KnownWorkflow
 from sro.domain.chat.reading import ChatReading
 from sro.domain.chat.thread import Thread
 from sro.domain.execution.run import Medium, Run, StepOutcome
-from sro.domain.execution.workflow_run import RunStep
+from sro.domain.execution.workflow_run import RunStep, WorkflowRun
 from sro.domain.observation.batch import CaptureMode, RejectedEvent
 from sro.domain.observation.candidate import (
     Episode,
@@ -34,11 +37,14 @@ from sro.domain.observation.candidate import (
     TaskCandidate,
 )
 from sro.domain.observation.device import AgentDevice
+from sro.domain.observation.identity import Resolution as MinedResolution
 from sro.domain.observation.policy import ObservationPolicy
+from sro.domain.observation.pool import PoolEntry
 from sro.domain.recording.recording import Recording
 from sro.domain.shared.objective import Direction, ObjectiveKey
 from sro.domain.shared.prices import DaySpend
 from sro.domain.skill.assertion import AssertionKind
+from sro.domain.skill.checks import Coverage, Rejection
 from sro.domain.skill.locator import ControlLocator, LocatorStrategy
 from sro.domain.skill.offers import Offer
 from sro.domain.skill.promotion import PromotionStage
@@ -1463,6 +1469,17 @@ a POST that creates a thread will not 404 -- and that is the right trade against
 the alternative these replaced, which was declaring none of them anywhere.
 """
 
+TOO_LARGE: dict[int | str, dict[str, Any]] = {
+    413: _problem("The request is larger than this door accepts."),
+}
+"""Declared per route rather than added to ``PROBLEMS``.
+
+Two doors have a size belt on them -- the observation batch and the artifact
+upload -- and every other operation in v1 has none. Putting 413 in the shared
+table would promise it on forty doors that cannot answer it, which is a lie a
+generated client would carry.
+"""
+
 
 class ObservationPolicyModel(BaseModel):
     """What the extension is allowed to do. Read on registration, and again only
@@ -1862,6 +1879,63 @@ class AuditResponse(BaseModel):
             offers=[AuditOfferModel.of(offer) for offer in audit.offers],
             devices=[AuditDeviceModel.of(device) for device in audit.devices],
             chats=[AuditChatModel.of(chat) for chat in audit.chats],
+        )
+
+
+class PoolEntryModel(BaseModel):
+    """One gesture waiting for a better reading, and how long it has waited."""
+
+    gesture_id: str
+
+    age: int
+    """Readings this entry was SHOWN and not cited. Runs out at `K_POOL_AGE`."""
+
+    waited: int
+    """Passes it was PASSED OVER. The other clock, and the one that drives
+    priority so the day rotates -- an entry read six times outranking one never
+    seen at all is what happened when age did both jobs."""
+
+    entered_at: str
+
+    reason: str
+    """Why it retired, empty while it is still live.
+
+    There is no `retired` field, here or on the entry: `reason != ""` IS
+    retirement, so the flag and its cause cannot drift apart. Carried on both
+    lists rather than only on the retired one, so a reader that concatenates
+    them can still tell which is which.
+    """
+
+    @classmethod
+    def of(cls, entry: PoolEntry) -> PoolEntryModel:
+        return cls(
+            gesture_id=entry.gesture_id,
+            age=entry.age,
+            waited=entry.waited,
+            entered_at=entry.entered_at,
+            reason=entry.reason,
+        )
+
+
+class PoolResponse(BaseModel):
+    """What the next pass will be offered first, and what it will not."""
+
+    waiting: list[PoolEntryModel]
+    """Live entries, oldest first."""
+
+    retired: list[PoolEntryModel]
+    """What stopped being privileged, and under which cap.
+
+    A second list rather than a flag on the first, because a retired entry is
+    not a deleted one: it goes on being packed at its own strength, and the two
+    lists are the two reads the repository promises.
+    """
+
+    @classmethod
+    def of(cls, pool: Pool) -> PoolResponse:
+        return cls(
+            waiting=[PoolEntryModel.of(entry) for entry in pool.waiting],
+            retired=[PoolEntryModel.of(entry) for entry in pool.retired],
         )
 
 
@@ -2576,3 +2650,413 @@ class SummaryModel(BaseModel):
             doing=DoingModel(**asdict(summary.doing)),
             tasks=[TaskLineModel(**asdict(line)) for line in summary.tasks],
         )
+
+
+class MineRejectionModel(BaseModel):
+    """A proposal the checker would not let through, and why.
+
+    `Mine...` rather than `RejectionModel` for the same reason as the two
+    below: the names without the prefix are taken in this file by models over
+    entirely different domain classes.
+    """
+
+    workflow_title: str
+    reason: str
+    detail: str
+
+    @classmethod
+    def of(cls, rejection: Rejection) -> MineRejectionModel:
+        return cls(**asdict(rejection))
+
+
+class MineResolutionModel(BaseModel):
+    """Where a proposed workflow went when it was not kept.
+
+    `kind` is "new", "same_occurrence" or "same_job". Named `Mine...` because
+    `ResolutionModel` further up already belongs to the intent resolver, over
+    a different `Resolution` class entirely -- there are two classes of that
+    name and this one is `observation.identity.Resolution`.
+    """
+
+    kind: str
+    workflow_id: str | None
+    score: float
+    contains: bool
+
+    @classmethod
+    def of(cls, resolution: MinedResolution) -> MineResolutionModel:
+        return cls(**asdict(resolution))
+
+
+class MineCoverageModel(BaseModel):
+    """How much of the window the kept proposals actually accounted for."""
+
+    coverage: float
+    skew: float
+    gini: float
+
+    lopsided: bool
+    """The reading was concentrated in part of the window.
+
+    Which of the three numbers beside it broke its threshold is readable from
+    them; that one did is the verdict, and long-context citation bias is real
+    and model-specific enough that a pass saying so is worth a field. Carried
+    on this object rather than at the top level, matching the rig -- on
+    `MineResult` it sits at the top, which is why this is assembled rather
+    than mapped straight across.
+    """
+
+    @classmethod
+    def of(cls, coverage: Coverage, *, lopsided: bool) -> MineCoverageModel:
+        return cls(**asdict(coverage), lopsided=lopsided)
+
+
+class MinePassResponse(BaseModel):
+    """What one reading of a day cost and found.
+
+    `rejections` and `resolutions` are both here and neither is optional. The
+    rig's reason, kept: without resolutions, `proposed: 3, kept: 0,
+    rejections: []` is three jobs that vanished with no account of where they
+    went.
+
+    `learned_parameters` is the one figure that says whether parameter
+    learning is getting better, and until migration 0041 every pass computed
+    it and the persistence layer discarded it. A pass that recognises nothing
+    new and widens two parameters did real work.
+
+    `left_out` and `lost_pool` are counted rather than inferred: `left_out`
+    did not fit the token budget and is offered again next pass, `lost_pool`
+    is a pooled id with no gesture row that no pass can ever read. Neither is
+    derivable from `window_size` alone.
+
+    Three deliberate divergences from the rig. It names the window field
+    `window` and this keeps `window_size`, matching `MineResult`; it names a
+    rejection's job `title` (`api.py:766`) and this says `workflow_title`, so
+    that a rejection read beside a workflow cannot be mistaken for one; and it
+    rounds `cost_usd` to six places in the route while this does not --
+    rounding for display is the reader's job, and a bill rounded on the way
+    out cannot be summed against the row it came from.
+    """
+
+    pass_id: str
+    error: str | None
+    """What the model said went wrong, when something did. A pass that failed
+    and a pass that honestly found nothing are the same body without it."""
+
+    proposed: int
+    kept: int
+    learned_parameters: int
+    window_size: int
+    left_out: int
+    lost_pool: list[str]
+    rejections: list[MineRejectionModel]
+    resolutions: list[MineResolutionModel]
+    coverage: MineCoverageModel
+    in_tokens: int
+    out_tokens: int
+    thought_tokens: int
+    """Inside `out_tokens`, not beside them. Added to them, a reader reports a
+    number no invoice will match."""
+
+    cost_usd: float
+    unpriced: bool
+
+    @classmethod
+    def of(cls, result: MineResult) -> MinePassResponse:
+        return cls(
+            pass_id=result.pass_id,
+            error=result.error,
+            proposed=result.proposed,
+            kept=result.kept,
+            learned_parameters=result.learned_parameters,
+            window_size=result.window_size,
+            left_out=result.left_out,
+            lost_pool=list(result.lost_pool),
+            rejections=[MineRejectionModel.of(one) for one in result.rejections],
+            resolutions=[MineResolutionModel.of(one) for one in result.resolutions],
+            coverage=MineCoverageModel.of(result.coverage, lopsided=result.lopsided),
+            in_tokens=result.in_tokens,
+            out_tokens=result.out_tokens,
+            thought_tokens=result.thought_tokens,
+            cost_usd=result.cost_usd,
+            unpriced=result.unpriced,
+        )
+
+
+class ChatRequest(BaseModel):
+    """What an operator said, and nothing else.
+
+    No tenant and no day: both come off the credential and the container's
+    clock. A body naming either would be a request to read somebody else's jobs
+    or to bill a day the cap was not measured against.
+
+    All three constraints are about the same thing: this is the door whose
+    entire premise is refusing before it spends, so the one part of the prompt
+    a caller controls is bounded at both ends before a model is asked.
+
+    * `strip_whitespace` FIRST, so `min_length` judges what will actually be
+      sent. Without it `"   "` validates, and three spaces is a paid model call
+      about nothing.
+    * `min_length=1` because the rig took `str(body.get("utterance") or "")`
+      and asked the model that: a missing field there spent money on a prompt
+      containing nothing. This is the one refusal that costs nothing to make.
+    * `max_length=500` because without a ceiling a 200,000-character body is a
+      valid request and one caller's spend is unbounded. 500 is not a new
+      number -- it is `CalledWrongRequest.because`'s, the only other free-text
+      sentence in this file that a person types by hand, and one number for
+      "one sentence a human wrote" is worth more here than a bound tuned to
+      this door alone. It is roughly eighty words; the sentences this door was
+      built for are "create a work area for zone 4".
+    """
+
+    utterance: Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500)
+    ]
+
+
+class ChatResponse(BaseModel):
+    """Which job one sentence turned out to be, and what reading it cost.
+
+    An offer, never a start. The form renders `workflow_id` with `values`
+    filled in and `missing` asked for; pressing start is a different door.
+
+    The sentence is not echoed back, and that is deliberate rather than
+    incidental: `ChatReading` has no column for an operator's words about their
+    own warehouse, and a response model carrying them would put them into every
+    proxy log and browser history the answer passes through, which is exactly
+    what having no column was for.
+
+    The bill is here and it is not in the rig, which answered the three fields
+    above and dropped what it had just spent. A reading that cost money and
+    named no job is indistinguishable from a sentence about nothing without
+    `error` beside it -- and a day summed on `cost_usd` alone reads as free
+    while it spends, which is what `unpriced` says.
+    """
+
+    workflow_id: str | None
+    values: dict[str, str]
+    missing: list[str]
+    """Sorted, out of `understand`: `declared` is a set, and a form whose
+    fields reorder between two identical sentences is a form nothing can
+    screenshot."""
+
+    error: str | None
+    """What the model said went wrong, when something did. A reading that
+    failed and a sentence naming no job are the same body without it."""
+
+    in_tokens: int
+    out_tokens: int
+    thought_tokens: int
+    """Inside `out_tokens`, not beside them. Added to them, a reader reports a
+    number no invoice will match."""
+
+    cost_usd: float
+    """Unrounded, as `MinePassResponse` leaves it: rounding for display is the
+    reader's job, and a bill rounded on the way out cannot be summed against
+    the `chats` row it came from."""
+
+    unpriced: bool
+
+    @classmethod
+    def of(cls, got: Understood) -> ChatResponse:
+        return cls(
+            workflow_id=got.workflow_id,
+            values=dict(got.values),
+            missing=list(got.missing),
+            error=got.answer.error,
+            in_tokens=got.answer.in_tokens,
+            out_tokens=got.answer.out_tokens,
+            thought_tokens=got.answer.thought_tokens,
+            cost_usd=got.answer.cost_usd,
+            unpriced=got.answer.unpriced,
+        )
+
+
+class StartWorkflowRunRequest(BaseModel):
+    """The press: which job, in which browser, with what, live or dry.
+
+    Every divergence from the rig's body at `api.py:1021`, and why:
+
+    * **No `started_by`.** The rig read it out of the body and defaulted it to
+      `"form"`. Here it is the authenticated caller: a request that says who
+      authorised it is a signature nobody checked, and the audit trail on a
+      warehouse write is worth more than that.
+    * **No `tenant`.** It never was in the body; the rig had one tenant per
+      process. Here it comes off the credential, as it does on every door.
+    * **`device_id` stays in the body**, unlike `/v1/offers`, which dropped it
+      because a browser proves itself with `X-Device-Secret`. An offer is
+      evidence *about* the browser that showed it, so a browser it merely named
+      would be a shift nobody worked. A press *names the browser to drive*, and
+      the screen somebody presses on is not always the browser the job runs in
+      -- a supervisor's console holds the tenant's credential and no extension
+      of its own. The tenant's browsers are the tenant's to drive.
+
+    `live` defaults to false and `allow_focus` to true, both the rig's: a
+    missing `live` is not a caller who forgot, it is the default this system
+    promises, and a run that may not take focus cannot reach a control the page
+    only renders when focused.
+
+    Two checks are here rather than in `StartWorkflowRun`, and both are facts
+    about the wire rather than about the job:
+
+    * `values` as `dict[str, str]`. Coerced values, not checked ones, would
+      turn `{"clientCode": {...}}` into the string `"{...}"` and type it into
+      somebody's form. Pydantic refuses a nested object for a `str` already, so
+      an `isinstance` loop next door would be a second answer to a question the
+      wire type has answered. Trimming and dropping the blanks is *not* here:
+      that decides what the run is performed with, and it lives beside the
+      refusal that reads the job's declared parameters.
+    * `from_step` as `StrictInt`. `True` is an `int` in Python, so
+      `{"from_step": true}` would pass every range check and start a two-step
+      job at its second step -- the operator's first step recorded
+      `done_by_operator` and never sent, on a job nobody started. Outside
+      strict mode pydantic coerces `true` to `1` before anything downstream can
+      tell them apart, so this is the only layer where the guard can be made.
+      The range itself needs the job's step count and is checked where the job
+      is read.
+    """
+
+    workflow_id: str
+    device_id: str
+    values: dict[str, str] = Field(default_factory=dict)
+    live: bool = False
+    allow_focus: bool = True
+    from_step: StrictInt = 0
+
+
+class WorkflowRunStepModel(BaseModel):
+    """One step of a mined-workflow run, as the panel reads it.
+
+    `sent` and `result` in full, where `AuditStepModel` next door reduces
+    `sent` to its kind. The two are read by different people about different
+    things: the audit is every run of the tenant on a console screen, and this
+    is the one run an operator is watching in their own browser -- the write a
+    dry run withheld is the thing they are being asked to approve, and a kind
+    with no payload is not something anybody can say yes to.
+
+    `sent` is what was planned and not proof that it went out. A step parked on
+    a person carries the command a tap would release, and `verdict ==
+    "awaiting"` is what tells the two apart.
+    """
+
+    order: int
+    says: str
+    verdict: str
+    verdict_by: str
+    reason: str
+    planned_by: str | None
+    sent: dict[str, Any] | None
+    result: dict[str, Any] | None
+    matched_by: str | None
+    stale: bool
+    before_url: str | None
+    after_url: str | None
+    in_tokens: int
+    out_tokens: int
+    thought_tokens: int
+    """Inside `out_tokens`, not beside them. Added to them, a reader reports a
+    number no invoice will match."""
+
+    cost_usd: float
+    unpriced: bool
+
+    @classmethod
+    def of(cls, step: RunStep) -> WorkflowRunStepModel:
+        return cls(**asdict(step))
+
+
+class WorkflowRunModel(BaseModel):
+    """One run of a mined workflow, whole.
+
+    The backend's own field names, deliberately. The extension's `rigRun()`
+    (`api.js:196-210`) maps the rig's `outcome` onto a panel `status` and
+    `{order, says, verdict}` onto `{index, outcome}`; phase 5 deletes that
+    mapping layer against this. Inventing rig-shaped aliases now would mean two
+    vocabularies to keep in step forever.
+
+    Not `RunModel`, which is `sro.domain.execution.run.Run` -- a skill run, keyed
+    on a `RunId`. Two aggregates, two id spaces; see the router's docstring for
+    why the path differs too.
+
+    `from_step` is on the wire because it is a request input the row carries: a
+    re-press that moves it finishes a different job under this run's id, and a
+    caller that cannot read back what it claimed cannot re-press correctly.
+
+    `unpriced` beside `cost_usd` because a run whose cost is 0.0 and whose
+    `unpriced` is true did not cost nothing; nobody could say.
+    """
+
+    id: str
+    tenant: str
+    workflow_id: str
+    device_id: str
+    values: dict[str, str]
+    started_by: str
+    live: bool
+    allow_focus: bool
+    started_at: str
+    finished_at: str | None
+    outcome: str
+    from_step: int
+    steps: list[WorkflowRunStepModel]
+    withheld: list[dict[str, Any]]
+    """The writes a dry run produced and did not send, in full. This is what a
+    person reads before pressing through to live."""
+
+    in_tokens: int
+    out_tokens: int
+    thought_tokens: int
+    cost_usd: float
+    unpriced: bool
+
+    @classmethod
+    def of(cls, run: WorkflowRun) -> WorkflowRunModel:
+        return cls(
+            id=run.id,
+            tenant=run.tenant,
+            workflow_id=run.workflow_id,
+            device_id=run.device_id,
+            values=dict(run.values),
+            started_by=run.started_by,
+            live=run.live,
+            allow_focus=run.allow_focus,
+            started_at=run.started_at,
+            finished_at=run.finished_at,
+            outcome=run.outcome,
+            from_step=run.from_step,
+            steps=[WorkflowRunStepModel.of(step) for step in run.steps],
+            withheld=[dict(one) for one in run.withheld],
+            in_tokens=run.in_tokens,
+            out_tokens=run.out_tokens,
+            thought_tokens=run.thought_tokens,
+            cost_usd=run.cost_usd,
+            unpriced=run.unpriced,
+        )
+
+
+class WorkflowStepApprovedModel(BaseModel):
+    """What one tap on the panel's approve button let out.
+
+    Two fields, and neither is a constant. The rig answered `{"approved": true,
+    "ord": ord}`; `approved` was a literal on every answer this route ever
+    gives -- a refusal is a problem document -- so it is not here.
+
+    `order` rather than the store's `ord`, because `WorkflowRunStepModel.order`
+    is what a panel already reads a step's number from and one wire vocabulary
+    is enough.
+    """
+
+    order: int
+    """Which step this tap authorised: the DEEPEST one parked on a person, which
+    is where a run is waiting. Not the shallowest, and deliberately not the
+    order `GET /v1/workflow-runs?awaiting=true` lists -- that answers what is
+    waiting, across every step and every browser, and this answers what one tap
+    let out."""
+
+    first: bool
+    """Whether THIS tap was the one that authorised the step.
+
+    False means somebody had already approved it and theirs is the name in the
+    audit: a write rescued to the second rung parks at the same step and takes
+    a second tap, and the first authorisation stands. The tap is not refused --
+    the run really is parked again -- and this is how a panel can say so."""

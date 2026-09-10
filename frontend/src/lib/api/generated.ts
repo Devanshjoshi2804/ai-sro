@@ -604,6 +604,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/chat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Read Chat
+         * @description Which job the operator meant, with what values, missing what.
+         *
+         *     200 rather than 201: nothing is created. The reading leaves a `chats` row
+         *     behind because the tenant was billed for it, but the answer is an offer and
+         *     the operator may walk away from it.
+         */
+        post: operations["read_chat_v1_chat_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/connections": {
         parameters: {
             query?: never;
@@ -888,6 +912,35 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/mine": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mine The Day
+         * @description Read this tenant's day and keep what it recognises.
+         *
+         *     No body: the tenant comes from the caller and the day comes from the
+         *     container's clock. A body naming either would be a request to mine
+         *     somebody else's evidence, or to mine a day the spend cap was not measured
+         *     against.
+         *
+         *     200 rather than 202: the pass is synchronous and the caller is billed for
+         *     it, so answering "accepted" and hanging up would leave nobody holding the
+         *     receipt.
+         */
+        post: operations["mine_the_day_v1_mine_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/observations": {
         parameters: {
             query?: never;
@@ -956,6 +1009,26 @@ export interface paths {
          * @description One offer this browser showed, and what the operator did with it.
          */
         post: operations["record_offer_v1_offers_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/pool": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Pool
+         * @description This tenant's live entries, oldest first, and what has retired.
+         */
+        get: operations["pool_v1_pool_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1979,6 +2052,197 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/workflow-runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Workflow Runs
+         * @description The most recent runs, newest first, as one row each.
+         *
+         *     Ported from `runs` in `new_agent_arch/src/rig/api.py:1152`, and this keeps
+         *     its order: newest first, capped. That is deliberately not
+         *     `WorkflowRunRepository.for_workflow`'s ascending order -- that one is the
+         *     evidence order `proofs` reads, and its docstring used to cite the rig for
+         *     it, which is exactly backwards. A person opening a list wants what happened
+         *     last at the top.
+         *
+         *     **The rows are whole, where the rig sent one line each with the full record
+         *     a `GET` away.** `WorkflowRunModel` is what the press already answers with,
+         *     and a panel that has to make a second request per row to show a parked step
+         *     is a panel that makes twenty.
+         *
+         *     That is also how the divergence this plan settles reaches the wire. The rig
+         *     reported the deepest parked step of each run, in an `awaiting` field of its
+         *     own; this reports every parked step, `ord` ascending, in `steps` -- the
+         *     ones with `verdict == "awaiting"`. **Plan 4b's ruling**, written here and on
+         *     `WorkflowRunRepository.awaiting`: anyone may answer a parked run, and a
+         *     queue that hides all but the deepest step hides work from the person who
+         *     could clear it.
+         *
+         *     `limit` is validated rather than clamped, which is the one other deviation.
+         *     The rig did `max(1, min(limit, 200))`; a caller that asks for 5000 and
+         *     silently gets 200 cannot tell a cap from a truncated answer, and FastAPI
+         *     says this once, in the place the generated client reads.
+         */
+        get: operations["list_workflow_runs_v1_workflow_runs_get"];
+        put?: never;
+        /**
+         * Start Workflow Run
+         * @description Start one run of a mined job, and answer with the row it claimed.
+         *
+         *     201 and the whole row, where the rig answered 202 and `{"run_id": ...}`.
+         *     The row exists and is committed by the time this returns -- that is the
+         *     whole point of claiming it here -- so 201 is what happened, and a caller
+         *     that has to poll for what it just created to learn which browser and which
+         *     step it got is a caller that cannot show the operator anything yet.
+         *
+         *     Answered as soon as the row exists rather than when the last step lands,
+         *     exactly as `run_skill`'s device path is: this is a run a person sits and
+         *     watches happen in their own browser, and they could not if the id only
+         *     arrived with the result.
+         *
+         *     `container.pursuits.spawn`, not a bare `create_task`: a task nobody holds
+         *     is a task the loop may collect mid-gesture, which would leave a browser
+         *     open on a half-filled form. `perform` catches everything and closes the row
+         *     itself -- nobody is awaiting this, so a run left `running` would be swept
+         *     only by `fail_orphans` at the next process start, which is a restart away
+         *     and not a moment away.
+         */
+        post: operations["start_workflow_run_v1_workflow_runs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workflow-runs/{run_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Workflow Run
+         * @description One run of a mined job, whole.
+         *
+         *     Ported from `read_run` in `new_agent_arch/src/rig/api.py:1217`.
+         *
+         *     A run of another tenant is a 404 and never a 403: a 403 confirms the id
+         *     exists, run ids are unguessable, and the answer to "is this yours" must not
+         *     differ from the answer to "does this exist". The repository answers `None`
+         *     for both, `GetWorkflowRun` raises `NotFound`, and `errors` maps it once.
+         */
+        get: operations["get_workflow_run_v1_workflow_runs__run_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workflow-runs/{run_id}/abort": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Abort Workflow Run
+         * @description Ask a run of a mined job to stop.
+         *
+         *     Ported from `abort_run` in `new_agent_arch/src/rig/api.py:1237`, and it
+         *     closes phase 4a's carried item 1: nothing outside this process could reach
+         *     a parked run to stop it.
+         *
+         *     202 rather than 200, as `/v1/runs/{id}/stop` next door is: it takes effect
+         *     at the next step, because a gesture already sent cannot be recalled from a
+         *     warehouse and a stop that ended the run mid-command would report a write as
+         *     not having happened when it had. The row answered with therefore still says
+         *     `running` -- the task driving the browser closes it, and it is the only
+         *     thing that knows how the step it was in the middle of ended.
+         *
+         *     **No body**, where the rig's took one naming the browser. The row already
+         *     says which browser is driving it, and a `device_id` in the body is a second
+         *     answer to that question which can disagree with the first. A bare POST is
+         *     also what a tap is: a route that 422s one is a Stop-shaped button that
+         *     sometimes does nothing.
+         *
+         *     A run of another tenant is a 404 and never a 403, for `get_workflow_run`'s
+         *     reason. A run that is not `running`, or one naming no browser, is the 409
+         *     `CannotStop` already carries -- it subclasses `Conflict`, so `errors` maps
+         *     it through the MRO walk without a table entry of its own.
+         */
+        post: operations["abort_workflow_run_v1_workflow_runs__run_id__abort_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workflow-runs/{run_id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve Workflow Step
+         * @description A person saw the write the panel showed and said go.
+         *
+         *     Ported from `approve_run` in `new_agent_arch/src/rig/api.py:1270`, and it
+         *     is the precondition on anything ever being pressed live: until this
+         *     existed, a run that parked on a person waited out its five minutes and
+         *     failed however hard anybody tapped. Not `POST /v1/confirmations/{id}/
+         *     approve` next door, which approves a *confirmation*, keyed on the
+         *     confirmation and not on the run.
+         *
+         *     **No body**, exactly as `abort` above has none, and one reason further. A
+         *     bare POST is what a tap is and a route that 422s one is a Stop-shaped
+         *     button that sometimes does nothing; and the browser that tapped is the one
+         *     that proved itself, so a `device_id` in a body would be a name nobody
+         *     checked written into the row an audit reads first. That is the ruling
+         *     `StartWorkflowRunRequest` already made about `started_by`. The rig had to
+         *     rank a token's own device above the body's claim; here there is no claim to
+         *     rank it against.
+         *
+         *     **`asking` is why this door alone reads a browser.** `AbortWorkflowRun`
+         *     needs none -- it stops the run whoever asks -- but this one lets a
+         *     warehouse write out, and a caller that names a browser answers for the run
+         *     that browser is driving and no other. So a tap FROM a browser must send
+         *     `?device_id=` and `X-Device-Secret` together, as `/v1/shapes` and
+         *     `/v1/offers` require; half a pair is `asking_device`'s usual 404. The
+         *     tenant's own credential with neither names no browser and may answer a
+         *     parked run, as anyone may -- that is a supervisor's console, which has no
+         *     extension of its own. See the module docstring for what that check is and
+         *     is not, and for what phase 5 has to change to reach it.
+         *
+         *     200 and not 202: unlike the stop next door, this has already happened by
+         *     the time it answers. The row naming who let the write out is committed, and
+         *     the wait is released.
+         *
+         *     A run of another tenant is a 404 and never a 403, for `get_workflow_run`'s
+         *     reason. A run with nothing parked on a person is a 409 `Conflict`, and a
+         *     browser reaching for a run it is not driving is `NotDrivingThisRun`, a 403.
+         */
+        post: operations["approve_workflow_step_v1_workflow_runs__run_id__approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2302,6 +2566,77 @@ export interface components {
              * @default
              */
             reason: string;
+        };
+        /**
+         * ChatRequest
+         * @description What an operator said, and nothing else.
+         *
+         *     No tenant and no day: both come off the credential and the container's
+         *     clock. A body naming either would be a request to read somebody else's jobs
+         *     or to bill a day the cap was not measured against.
+         *
+         *     All three constraints are about the same thing: this is the door whose
+         *     entire premise is refusing before it spends, so the one part of the prompt
+         *     a caller controls is bounded at both ends before a model is asked.
+         *
+         *     * `strip_whitespace` FIRST, so `min_length` judges what will actually be
+         *       sent. Without it `"   "` validates, and three spaces is a paid model call
+         *       about nothing.
+         *     * `min_length=1` because the rig took `str(body.get("utterance") or "")`
+         *       and asked the model that: a missing field there spent money on a prompt
+         *       containing nothing. This is the one refusal that costs nothing to make.
+         *     * `max_length=500` because without a ceiling a 200,000-character body is a
+         *       valid request and one caller's spend is unbounded. 500 is not a new
+         *       number -- it is `CalledWrongRequest.because`'s, the only other free-text
+         *       sentence in this file that a person types by hand, and one number for
+         *       "one sentence a human wrote" is worth more here than a bound tuned to
+         *       this door alone. It is roughly eighty words; the sentences this door was
+         *       built for are "create a work area for zone 4".
+         */
+        ChatRequest: {
+            /** Utterance */
+            utterance: string;
+        };
+        /**
+         * ChatResponse
+         * @description Which job one sentence turned out to be, and what reading it cost.
+         *
+         *     An offer, never a start. The form renders `workflow_id` with `values`
+         *     filled in and `missing` asked for; pressing start is a different door.
+         *
+         *     The sentence is not echoed back, and that is deliberate rather than
+         *     incidental: `ChatReading` has no column for an operator's words about their
+         *     own warehouse, and a response model carrying them would put them into every
+         *     proxy log and browser history the answer passes through, which is exactly
+         *     what having no column was for.
+         *
+         *     The bill is here and it is not in the rig, which answered the three fields
+         *     above and dropped what it had just spent. A reading that cost money and
+         *     named no job is indistinguishable from a sentence about nothing without
+         *     `error` beside it -- and a day summed on `cost_usd` alone reads as free
+         *     while it spends, which is what `unpriced` says.
+         */
+        ChatResponse: {
+            /** Workflow Id */
+            workflow_id: string | null;
+            /** Values */
+            values: {
+                [key: string]: string;
+            };
+            /** Missing */
+            missing: string[];
+            /** Error */
+            error: string | null;
+            /** In Tokens */
+            in_tokens: number;
+            /** Out Tokens */
+            out_tokens: number;
+            /** Thought Tokens */
+            thought_tokens: number;
+            /** Cost Usd */
+            cost_usd: number;
+            /** Unpriced */
+            unpriced: boolean;
         };
         /**
          * ChoiceModel
@@ -2950,6 +3285,115 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /**
+         * MineCoverageModel
+         * @description How much of the window the kept proposals actually accounted for.
+         */
+        MineCoverageModel: {
+            /** Coverage */
+            coverage: number;
+            /** Skew */
+            skew: number;
+            /** Gini */
+            gini: number;
+            /** Lopsided */
+            lopsided: boolean;
+        };
+        /**
+         * MinePassResponse
+         * @description What one reading of a day cost and found.
+         *
+         *     `rejections` and `resolutions` are both here and neither is optional. The
+         *     rig's reason, kept: without resolutions, `proposed: 3, kept: 0,
+         *     rejections: []` is three jobs that vanished with no account of where they
+         *     went.
+         *
+         *     `learned_parameters` is the one figure that says whether parameter
+         *     learning is getting better, and until migration 0041 every pass computed
+         *     it and the persistence layer discarded it. A pass that recognises nothing
+         *     new and widens two parameters did real work.
+         *
+         *     `left_out` and `lost_pool` are counted rather than inferred: `left_out`
+         *     did not fit the token budget and is offered again next pass, `lost_pool`
+         *     is a pooled id with no gesture row that no pass can ever read. Neither is
+         *     derivable from `window_size` alone.
+         *
+         *     Three deliberate divergences from the rig. It names the window field
+         *     `window` and this keeps `window_size`, matching `MineResult`; it names a
+         *     rejection's job `title` (`api.py:766`) and this says `workflow_title`, so
+         *     that a rejection read beside a workflow cannot be mistaken for one; and it
+         *     rounds `cost_usd` to six places in the route while this does not --
+         *     rounding for display is the reader's job, and a bill rounded on the way
+         *     out cannot be summed against the row it came from.
+         */
+        MinePassResponse: {
+            /** Pass Id */
+            pass_id: string;
+            /** Error */
+            error: string | null;
+            /** Proposed */
+            proposed: number;
+            /** Kept */
+            kept: number;
+            /** Learned Parameters */
+            learned_parameters: number;
+            /** Window Size */
+            window_size: number;
+            /** Left Out */
+            left_out: number;
+            /** Lost Pool */
+            lost_pool: string[];
+            /** Rejections */
+            rejections: components["schemas"]["MineRejectionModel"][];
+            /** Resolutions */
+            resolutions: components["schemas"]["MineResolutionModel"][];
+            coverage: components["schemas"]["MineCoverageModel"];
+            /** In Tokens */
+            in_tokens: number;
+            /** Out Tokens */
+            out_tokens: number;
+            /** Thought Tokens */
+            thought_tokens: number;
+            /** Cost Usd */
+            cost_usd: number;
+            /** Unpriced */
+            unpriced: boolean;
+        };
+        /**
+         * MineRejectionModel
+         * @description A proposal the checker would not let through, and why.
+         *
+         *     `Mine...` rather than `RejectionModel` for the same reason as the two
+         *     below: the names without the prefix are taken in this file by models over
+         *     entirely different domain classes.
+         */
+        MineRejectionModel: {
+            /** Workflow Title */
+            workflow_title: string;
+            /** Reason */
+            reason: string;
+            /** Detail */
+            detail: string;
+        };
+        /**
+         * MineResolutionModel
+         * @description Where a proposed workflow went when it was not kept.
+         *
+         *     `kind` is "new", "same_occurrence" or "same_job". Named `Mine...` because
+         *     `ResolutionModel` further up already belongs to the intent resolver, over
+         *     a different `Resolution` class entirely -- there are two classes of that
+         *     name and this one is `observation.identity.Resolution`.
+         */
+        MineResolutionModel: {
+            /** Kind */
+            kind: string;
+            /** Workflow Id */
+            workflow_id: string | null;
+            /** Score */
+            score: number;
+            /** Contains */
+            contains: boolean;
+        };
         /** MinedModel */
         MinedModel: {
             /** Episodes */
@@ -3217,6 +3661,32 @@ export interface components {
              * @default proven
              */
             evidence: string;
+        };
+        /**
+         * PoolEntryModel
+         * @description One gesture waiting for a better reading, and how long it has waited.
+         */
+        PoolEntryModel: {
+            /** Gesture Id */
+            gesture_id: string;
+            /** Age */
+            age: number;
+            /** Waited */
+            waited: number;
+            /** Entered At */
+            entered_at: string;
+            /** Reason */
+            reason: string;
+        };
+        /**
+         * PoolResponse
+         * @description What the next pass will be offered first, and what it will not.
+         */
+        PoolResponse: {
+            /** Waiting */
+            waiting: components["schemas"]["PoolEntryModel"][];
+            /** Retired */
+            retired: components["schemas"]["PoolEntryModel"][];
         };
         /**
          * PromoteRequest
@@ -3789,6 +4259,75 @@ export interface components {
             /** Live View Url */
             live_view_url: string;
         };
+        /**
+         * StartWorkflowRunRequest
+         * @description The press: which job, in which browser, with what, live or dry.
+         *
+         *     Every divergence from the rig's body at `api.py:1021`, and why:
+         *
+         *     * **No `started_by`.** The rig read it out of the body and defaulted it to
+         *       `"form"`. Here it is the authenticated caller: a request that says who
+         *       authorised it is a signature nobody checked, and the audit trail on a
+         *       warehouse write is worth more than that.
+         *     * **No `tenant`.** It never was in the body; the rig had one tenant per
+         *       process. Here it comes off the credential, as it does on every door.
+         *     * **`device_id` stays in the body**, unlike `/v1/offers`, which dropped it
+         *       because a browser proves itself with `X-Device-Secret`. An offer is
+         *       evidence *about* the browser that showed it, so a browser it merely named
+         *       would be a shift nobody worked. A press *names the browser to drive*, and
+         *       the screen somebody presses on is not always the browser the job runs in
+         *       -- a supervisor's console holds the tenant's credential and no extension
+         *       of its own. The tenant's browsers are the tenant's to drive.
+         *
+         *     `live` defaults to false and `allow_focus` to true, both the rig's: a
+         *     missing `live` is not a caller who forgot, it is the default this system
+         *     promises, and a run that may not take focus cannot reach a control the page
+         *     only renders when focused.
+         *
+         *     Two checks are here rather than in `StartWorkflowRun`, and both are facts
+         *     about the wire rather than about the job:
+         *
+         *     * `values` as `dict[str, str]`. Coerced values, not checked ones, would
+         *       turn `{"clientCode": {...}}` into the string `"{...}"` and type it into
+         *       somebody's form. Pydantic refuses a nested object for a `str` already, so
+         *       an `isinstance` loop next door would be a second answer to a question the
+         *       wire type has answered. Trimming and dropping the blanks is *not* here:
+         *       that decides what the run is performed with, and it lives beside the
+         *       refusal that reads the job's declared parameters.
+         *     * `from_step` as `StrictInt`. `True` is an `int` in Python, so
+         *       `{"from_step": true}` would pass every range check and start a two-step
+         *       job at its second step -- the operator's first step recorded
+         *       `done_by_operator` and never sent, on a job nobody started. Outside
+         *       strict mode pydantic coerces `true` to `1` before anything downstream can
+         *       tell them apart, so this is the only layer where the guard can be made.
+         *       The range itself needs the job's step count and is checked where the job
+         *       is read.
+         */
+        StartWorkflowRunRequest: {
+            /** Workflow Id */
+            workflow_id: string;
+            /** Device Id */
+            device_id: string;
+            /** Values */
+            values?: {
+                [key: string]: string;
+            };
+            /**
+             * Live
+             * @default false
+             */
+            live: boolean;
+            /**
+             * Allow Focus
+             * @default true
+             */
+            allow_focus: boolean;
+            /**
+             * From Step
+             * @default 0
+             */
+            from_step: number;
+        };
         /** StepModel */
         StepModel: {
             /** Index */
@@ -4334,6 +4873,144 @@ export interface components {
             /** Steps */
             steps: components["schemas"]["WorkflowStepModel"][];
             runs: components["schemas"]["WorkflowHistoryModel"];
+        };
+        /**
+         * WorkflowRunModel
+         * @description One run of a mined workflow, whole.
+         *
+         *     The backend's own field names, deliberately. The extension's `rigRun()`
+         *     (`api.js:196-210`) maps the rig's `outcome` onto a panel `status` and
+         *     `{order, says, verdict}` onto `{index, outcome}`; phase 5 deletes that
+         *     mapping layer against this. Inventing rig-shaped aliases now would mean two
+         *     vocabularies to keep in step forever.
+         *
+         *     Not `RunModel`, which is `sro.domain.execution.run.Run` -- a skill run, keyed
+         *     on a `RunId`. Two aggregates, two id spaces; see the router's docstring for
+         *     why the path differs too.
+         *
+         *     `from_step` is on the wire because it is a request input the row carries: a
+         *     re-press that moves it finishes a different job under this run's id, and a
+         *     caller that cannot read back what it claimed cannot re-press correctly.
+         *
+         *     `unpriced` beside `cost_usd` because a run whose cost is 0.0 and whose
+         *     `unpriced` is true did not cost nothing; nobody could say.
+         */
+        WorkflowRunModel: {
+            /** Id */
+            id: string;
+            /** Tenant */
+            tenant: string;
+            /** Workflow Id */
+            workflow_id: string;
+            /** Device Id */
+            device_id: string;
+            /** Values */
+            values: {
+                [key: string]: string;
+            };
+            /** Started By */
+            started_by: string;
+            /** Live */
+            live: boolean;
+            /** Allow Focus */
+            allow_focus: boolean;
+            /** Started At */
+            started_at: string;
+            /** Finished At */
+            finished_at: string | null;
+            /** Outcome */
+            outcome: string;
+            /** From Step */
+            from_step: number;
+            /** Steps */
+            steps: components["schemas"]["WorkflowRunStepModel"][];
+            /** Withheld */
+            withheld: {
+                [key: string]: unknown;
+            }[];
+            /** In Tokens */
+            in_tokens: number;
+            /** Out Tokens */
+            out_tokens: number;
+            /** Thought Tokens */
+            thought_tokens: number;
+            /** Cost Usd */
+            cost_usd: number;
+            /** Unpriced */
+            unpriced: boolean;
+        };
+        /**
+         * WorkflowRunStepModel
+         * @description One step of a mined-workflow run, as the panel reads it.
+         *
+         *     `sent` and `result` in full, where `AuditStepModel` next door reduces
+         *     `sent` to its kind. The two are read by different people about different
+         *     things: the audit is every run of the tenant on a console screen, and this
+         *     is the one run an operator is watching in their own browser -- the write a
+         *     dry run withheld is the thing they are being asked to approve, and a kind
+         *     with no payload is not something anybody can say yes to.
+         *
+         *     `sent` is what was planned and not proof that it went out. A step parked on
+         *     a person carries the command a tap would release, and `verdict ==
+         *     "awaiting"` is what tells the two apart.
+         */
+        WorkflowRunStepModel: {
+            /** Order */
+            order: number;
+            /** Says */
+            says: string;
+            /** Verdict */
+            verdict: string;
+            /** Verdict By */
+            verdict_by: string;
+            /** Reason */
+            reason: string;
+            /** Planned By */
+            planned_by: string | null;
+            /** Sent */
+            sent: {
+                [key: string]: unknown;
+            } | null;
+            /** Result */
+            result: {
+                [key: string]: unknown;
+            } | null;
+            /** Matched By */
+            matched_by: string | null;
+            /** Stale */
+            stale: boolean;
+            /** Before Url */
+            before_url: string | null;
+            /** After Url */
+            after_url: string | null;
+            /** In Tokens */
+            in_tokens: number;
+            /** Out Tokens */
+            out_tokens: number;
+            /** Thought Tokens */
+            thought_tokens: number;
+            /** Cost Usd */
+            cost_usd: number;
+            /** Unpriced */
+            unpriced: boolean;
+        };
+        /**
+         * WorkflowStepApprovedModel
+         * @description What one tap on the panel's approve button let out.
+         *
+         *     Two fields, and neither is a constant. The rig answered `{"approved": true,
+         *     "ord": ord}`; `approved` was a literal on every answer this route ever
+         *     gives -- a refusal is a problem document -- so it is not here.
+         *
+         *     `order` rather than the store's `ord`, because `WorkflowRunStepModel.order`
+         *     is what a panel already reads a step's number from and one wire vocabulary
+         *     is enough.
+         */
+        WorkflowStepApprovedModel: {
+            /** Order */
+            order: number;
+            /** First */
+            first: boolean;
         };
         /**
          * WorkflowStepModel
@@ -7189,6 +7866,135 @@ export interface operations {
             };
         };
     };
+    read_chat_v1_chat_post: {
+        parameters: {
+            query?: {
+                device_id?: string | null;
+            };
+            header?: {
+                "X-Device-Secret"?: string;
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatResponse"];
+                };
+            };
+            /** @description No credential, or one this deployment rejects. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description No such thing, or not yours. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The system's state says no, not the request. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The request cannot be processed as asked. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description Something this depends on is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+        };
+    };
     list_connections_v1_connections_get: {
         parameters: {
             query?: never;
@@ -8822,6 +9628,131 @@ export interface operations {
             };
         };
     };
+    mine_the_day_v1_mine_post: {
+        parameters: {
+            query?: {
+                device_id?: string | null;
+            };
+            header?: {
+                "X-Device-Secret"?: string;
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MinePassResponse"];
+                };
+            };
+            /** @description No credential, or one this deployment rejects. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description No such thing, or not yours. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The system's state says no, not the request. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The request cannot be processed as asked. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description Something this depends on is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+        };
+    };
     ingest_observations_v1_observations_post: {
         parameters: {
             query?: never;
@@ -8889,6 +9820,26 @@ export interface operations {
             };
             /** @description The system's state says no, not the request. */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The request is larger than this door accepts. */
+            413: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -9159,6 +10110,26 @@ export interface operations {
                     };
                 };
             };
+            /** @description The request is larger than this door accepts. */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
             /** @description The request cannot be processed as asked. */
             422: {
                 headers: {
@@ -9226,6 +10197,128 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OfferRecordedResponse"];
+                };
+            };
+            /** @description No credential, or one this deployment rejects. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description No such thing, or not yours. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The system's state says no, not the request. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The request cannot be processed as asked. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description Something this depends on is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+        };
+    };
+    pool_v1_pool_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PoolResponse"];
                 };
             };
             /** @description No credential, or one this deployment rejects. */
@@ -15511,6 +16604,633 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EvidenceResponse"];
+                };
+            };
+            /** @description No credential, or one this deployment rejects. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description No such thing, or not yours. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The system's state says no, not the request. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The request cannot be processed as asked. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description Something this depends on is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+        };
+    };
+    list_workflow_runs_v1_workflow_runs_get: {
+        parameters: {
+            query?: {
+                workflow_id?: string | null;
+                limit?: number;
+                awaiting?: boolean;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkflowRunModel"][];
+                };
+            };
+            /** @description No credential, or one this deployment rejects. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description No such thing, or not yours. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The system's state says no, not the request. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The request cannot be processed as asked. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description Something this depends on is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+        };
+    };
+    start_workflow_run_v1_workflow_runs_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StartWorkflowRunRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkflowRunModel"];
+                };
+            };
+            /** @description No credential, or one this deployment rejects. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description No such thing, or not yours. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The system's state says no, not the request. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The request cannot be processed as asked. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description Something this depends on is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+        };
+    };
+    get_workflow_run_v1_workflow_runs__run_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkflowRunModel"];
+                };
+            };
+            /** @description No credential, or one this deployment rejects. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description No such thing, or not yours. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The system's state says no, not the request. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The request cannot be processed as asked. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description Something this depends on is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+        };
+    };
+    abort_workflow_run_v1_workflow_runs__run_id__abort_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkflowRunModel"];
+                };
+            };
+            /** @description No credential, or one this deployment rejects. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description No such thing, or not yours. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The system's state says no, not the request. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The request cannot be processed as asked. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description Something this depends on is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+        };
+    };
+    approve_workflow_step_v1_workflow_runs__run_id__approve_post: {
+        parameters: {
+            query?: {
+                device_id?: string | null;
+            };
+            header?: {
+                authorization?: string | null;
+                "X-Device-Secret"?: string;
+            };
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkflowStepApprovedModel"];
                 };
             };
             /** @description No credential, or one this deployment rejects. */

@@ -28,6 +28,7 @@ from httpx import ASGITransport
 
 from sro.domain.chat.reading import ChatReading
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
+from sro.domain.shared.errors import Conflict
 from sro.domain.shared.identifiers import DeviceId
 from sro.domain.skill.offers import Offer
 from sro.interface.http.app import create_app
@@ -38,6 +39,7 @@ from tests.unit.interface.test_http import _FakeContainer, token_for
 
 LAPTOP = DeviceId("dev-1")
 DESKTOP = DeviceId("dev-2")
+TABLET = DeviceId("dev-3")
 HERS = "the-secret-the-laptop-was-minted"
 
 EARLY = f.at(0)
@@ -117,10 +119,12 @@ async def day(uow: FakeUnitOfWork) -> None:
     the store's `ORDER BY ... DESC` gives at these row counts, and reading them
     back in the order they were written is a failure rather than a coincidence.
 
-    The devices are the exception, and deliberately: `since` orders them on
-    `registered_at` alone, so two browsers registered in the same instant have
-    no order anybody promised and there is nothing here to assert. They are
-    planted a hundred seconds apart, oldest first.
+    The devices were the exception until `since` broke its tie too. Three of
+    them now, planted like the other three kinds: oldest first, then two tied
+    on `registered_at` with the LOWER id written first. A read ordering on
+    `registered_at` alone is a stable sort, so it hands those two back in the
+    order they were written -- which is the answer this fixture is built to
+    disagree with.
     """
     early, late = EARLY.isoformat(), LATE.isoformat()
 
@@ -139,6 +143,9 @@ async def day(uow: FakeUnitOfWork) -> None:
     await uow.devices.add(f.device(id=LAPTOP, secret=HERS, registered_at=EARLY, last_seen_at=LATE))
     await uow.devices.add(
         f.device(id=DESKTOP, label="desktop", registered_at=LATE, last_seen_at=LATE)
+    )
+    await uow.devices.add(
+        f.device(id=TABLET, label="tablet", registered_at=LATE, last_seen_at=LATE)
     )
 
 
@@ -218,7 +225,7 @@ async def test_nothing_before_the_bound_is_in_the_answer(
     assert [run["id"] for run in body["runs"]] == ["run_3", "run_2"]
     assert [offer["id"] for offer in body["offers"]] == ["off_3", "off_2"]
     assert [chat["id"] for chat in body["chats"]] == ["cht_3", "cht_2"]
-    assert [device["device_id"] for device in body["devices"]] == [DESKTOP.value]
+    assert [device["device_id"] for device in body["devices"]] == [TABLET.value, DESKTOP.value]
 
 
 # --- the four lists -------------------------------------------------------
@@ -243,9 +250,22 @@ async def test_the_chats_come_back_newest_first(client: httpx.AsyncClient, day: 
 
 
 async def test_the_browsers_come_back_newest_first(client: httpx.AsyncClient, day: None) -> None:
+    """Newest first, and two browsers registered in the same instant come back
+    in a stable order rather than in whichever one the read happened to find.
+
+    `since` ordered on `registered_at` alone while the audit's other three
+    reads all broke their tie -- so the one list assembled from browsers was
+    the one an audit read twice could report two different ways, and a reader
+    diffing two audits saw a change nobody made. `(registered_at, id)`
+    descending, as `workflow_runs.since` and `chats.since` already are.
+    """
     body = (await _since(client, DAWN)).json()
 
-    assert [device["device_id"] for device in body["devices"]] == [DESKTOP.value, LAPTOP.value]
+    assert [device["device_id"] for device in body["devices"]] == [
+        TABLET.value,
+        DESKTOP.value,
+        LAPTOP.value,
+    ]
     # And no `online`, which is the one field the roster next door carries and
     # this list must not: a socket held right now is a fact about this second,
     # not about the window that was asked for, and an audit read a week later
@@ -524,9 +544,9 @@ async def test_a_browsers_row_says_when_its_authority_began_and_ended(
     lists, exactly like one that is still trusted."""
     body = (await _since(client, DAWN)).json()
 
-    ended = {line["device_id"]: line["revoked_at"] for line in body["devices"]}
-    assert ended[DESKTOP.value] is None
-    assert ended[LAPTOP.value] is not None
+    rows = {line["device_id"]: line for line in body["devices"]}
+    assert rows[DESKTOP.value]["revoked_at"] is None
+    assert rows[LAPTOP.value]["revoked_at"] is not None
     # `registered_at` is a `datetime` on this model, as it is on the roster
     # next door, so pydantic writes it `...Z` rather than `...+00:00`. Compared
     # as an instant: what matters is that it is the browser's own registration
@@ -535,11 +555,11 @@ async def test_a_browsers_row_says_when_its_authority_began_and_ended(
     # The laptop is the one that can say so. It registered EARLY and was last
     # seen LATE, so a model reading `last_seen_at` into this field is wrong
     # here and right for the desktop, whose two clocks are the same instant.
-    assert datetime.fromisoformat(body["devices"][1]["registered_at"]) == EARLY
-    assert datetime.fromisoformat(body["devices"][0]["registered_at"]) == LATE
+    assert datetime.fromisoformat(rows[LAPTOP.value]["registered_at"]) == EARLY
+    assert datetime.fromisoformat(rows[DESKTOP.value]["registered_at"]) == LATE
     # And nothing else on the row: three fields, and a browser's authority is
     # the whole of what this list is for.
-    assert body["devices"][0] == {
+    assert rows[DESKTOP.value] == {
         "device_id": DESKTOP.value,
         "registered_at": "2026-03-01T09:01:40Z",
         "revoked_at": None,
@@ -598,3 +618,50 @@ async def test_another_tenants_credential_reads_its_own_nothing(
 
     assert body["runs"] == body["offers"] == body["devices"] == body["chats"] == []
     assert body["since"] == DAWN
+
+
+# --- what happens when a read underneath refuses ----------------------------
+
+
+async def test_a_domain_error_beneath_this_door_comes_back_as_a_problem(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork, day: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The comment at the top of `routers/audit.py` -- "nothing here catches a
+    domain error: `sro.interface.http.errors` maps them once, for every route"
+    -- with a test that fails when it stops being true.
+
+    It had none in either file that carries it. `ReadAudit` reads four
+    collections in a row, so a route that grew a `try/except DomainError` and
+    answered four empty lists would report a quiet morning for a tenant whose
+    history could not be read -- the one failure an audit must never be able
+    to produce, and one that looks exactly like the truth on every screen that
+    draws it.
+
+    Raised at the repository rather than stubbed at the route's own call, so
+    what is proved is that a refusal travels the whole way up: `since` on the
+    browsers, through the use case, past the router, to the handler.
+
+    The healthy read is taken first, through the same door, so what the 409
+    proves is the mapping rather than a route that answers 409 to everything.
+    """
+    healthy = await _since(client, DAWN)
+
+    async def refuse(*_: object, **__: object) -> tuple[object, ...]:
+        raise Conflict("the browsers could not be read")
+
+    monkeypatch.setattr(uow.devices, "since", refuse)
+    answered = await _since(client, DAWN)
+
+    assert healthy.status_code == 200
+    assert healthy.json()["devices"], "the plant never reached the store"
+    assert answered.status_code == 409
+    assert answered.headers["content-type"].startswith("application/problem+json")
+    # Named, not `.../problems/error`: `problem.type` is how a console tells
+    # one refusal from another.
+    assert answered.json() == {
+        "type": "https://ai-sro.dev/problems/conflict",
+        "title": "Conflict",
+        "status": 409,
+        "detail": "the browsers could not be read",
+        "instance": "/v1/audit",
+    }

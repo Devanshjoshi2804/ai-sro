@@ -109,3 +109,5 @@ class BrowserProvider(Protocol):
 
 class BrowserUnavailable(Exception):
     """Provider is down. Not a ``DomainError``: the request was fine, we are not."""
+
+    code = "browser_unavailable"

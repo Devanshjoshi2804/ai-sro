@@ -110,6 +110,11 @@ async def test_a_browser_presenting_no_secret_is_refused_everywhere(
     A validation error saying `X-Device-Secret` is required is an answer: it
     confirms the route, and a caller working out what to try next is exactly
     who must learn nothing here.
+
+    Lena's real secret is offered at the end, over the same four paths: 404
+    everywhere is also what four routes nobody registered answer, in the same
+    words and the same problem document, so without a call that must be served
+    these doors would be proved shut and absent at the same time.
     """
     _device(uow, LENA, HERS)
 
@@ -117,6 +122,9 @@ async def test_a_browser_presenting_no_secret_is_refused_everywhere(
         assert response.status_code == 404, response.text
     for response in await _every_route(client, LENA, secret=""):
         assert response.status_code == 404, response.text
+
+    beat, watches, _, _ = await _every_route(client, LENA, secret=HERS)
+    assert (beat.status_code, watches.status_code) == (200, 200), beat.text
 
 
 async def test_another_browsers_secret_reads_exactly_like_a_device_that_never_existed(
@@ -131,9 +139,18 @@ async def test_another_browsers_secret_reads_exactly_like_a_device_that_never_ex
 
     Asked about the same id both times, so the comparison is on the answer and
     not on the sentence quoting back what the caller wrote.
+
+    Sam asks about Sam's own browser first, and is served. Two lists of 404s
+    are equal to each other whether the secret is being checked or the four
+    routes were never registered at all -- an unmatched path answers the same
+    `not_found` document through the same handler -- so the indistinguishable
+    pair means nothing until something here is distinguishable.
     """
     _device(uow, LENA, HERS)
     _device(uow, SAM, HIS)
+
+    beat, watches, _, _ = await _every_route(client, SAM, secret=HIS)
+    assert (beat.status_code, watches.status_code) == (200, 200), beat.text
 
     stolen = await _every_route(client, LENA, secret=HIS)
     uow.devices.rows.pop(LENA.value)

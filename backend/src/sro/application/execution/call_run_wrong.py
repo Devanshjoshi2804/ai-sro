@@ -23,6 +23,14 @@ from sro.domain.shared.errors import Conflict
 class NotYours(Exception):
     """This caller is not the one person who may pass judgement on this run."""
 
+    code = "not_yours"
+    """Shared, deliberately, with the same-named class in `revise_run`. Both
+    are "that run is not yours" to the same person on two doors, and a console
+    matching on `problem.type` should not have to learn two spellings of it.
+    Without a `code` at all -- which is how both shipped -- `_problem` falls
+    back to `error`, so the 403 `0302584` gave them was untellable from every
+    other refusal in the system."""
+
 
 class StillRunning(Conflict):
     """This run has not finished; there is no result yet for anyone to judge.

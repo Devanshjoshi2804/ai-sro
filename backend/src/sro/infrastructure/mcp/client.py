@@ -120,7 +120,6 @@ class McpToolCaller(ToolCaller):
         result = body.get("result")
         return result if isinstance(result, dict) else {}
 
-
     async def _greet(
         self, client: httpx.AsyncClient, known: McpServer, headers: Mapping[str, str]
     ) -> dict[str, str]:

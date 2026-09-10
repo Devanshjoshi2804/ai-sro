@@ -335,6 +335,11 @@ async def test_a_browser_the_tenant_does_not_have_may_not_list(
     404 and not 403: absent, wrong, revoked and somebody else's are one answer
     on every device-scoped path, so a caller cannot probe for which browsers
     exist.
+
+    The laptop's own secret is offered in the same test on purpose: two 404s
+    alone pass against a path that was never registered -- an unregistered
+    `/v1/workflows` answers 404 in the same words, with the same problem
+    document -- which is how a door gets proved private and absent at once.
     """
     await uow.devices.add(f.device(id=LAPTOP, secret=HERS))
 
@@ -348,9 +353,16 @@ async def test_a_browser_the_tenant_does_not_have_may_not_list(
         params={"device_id": LAPTOP.value},
         headers={"X-Device-Secret": "not-the-one-it-was-minted"},
     )
+    proving = await client.get(
+        "/v1/workflows",
+        params={"device_id": LAPTOP.value},
+        headers={"X-Device-Secret": HERS},
+    )
 
     assert unregistered.status_code == 404
     assert wrong_secret.status_code == 404
+    assert proving.status_code == 200, proving.text
+    assert proving.json()["workflows"], "the door refuses everyone, including the browser it serves"
 
 
 async def test_a_browser_may_not_read_the_evidence_under_a_job(
@@ -842,24 +854,38 @@ async def test_a_job_nobody_mined_is_a_404_and_never_an_empty_list(
 ) -> None:
     """Softening this into `{"gestures": {}}` is the mutation this asserts
     against: it would tell a caller their bridge is fine and their job is
-    empty, which is the one wrong answer that looks like a right one."""
+    empty, which is the one wrong answer that looks like a right one.
+
+    The mined job is read through the same door on purpose. `title` is not the
+    distinguisher it looks like: Starlette's own 404 for a path nobody
+    registered goes through `_http_problem` and comes back with the same
+    `type` and the same `Not found`, so without a read that must succeed this
+    test passes against a deleted endpoint.
+    """
     answered = await _evidence(client, "wfl_nobody_mined")
 
     assert answered.status_code == 404
     assert answered.json()["title"] == "Not found"
+    assert (await _evidence(client)).status_code == 200
 
 
 async def test_another_tenants_job_is_not_found_rather_than_read(
-    rival: httpx.AsyncClient, mined: list[Gesture]
+    client: httpx.AsyncClient, rival: httpx.AsyncClient, mined: list[Gesture]
 ) -> None:
     """The evidence read is tenant-scoped, and this is the whole of its 404.
 
     A `rival` credential naming `acme`'s workflow by its real id must not get
     a gesture. The tenant comes off the credential and never off a literal.
+
+    `acme` reads the same id in the same test on purpose: a 404 alone passes
+    against a path that was never registered, which proves the door tenant-
+    scoped and absent at the same time -- and the refusal only means something
+    if the id would have answered somebody.
     """
     answered = await _evidence(rival)
 
     assert answered.status_code == 404
+    assert (await _evidence(client)).status_code == 200
 
 
 async def test_another_tenants_credential_lists_its_own_nothing(

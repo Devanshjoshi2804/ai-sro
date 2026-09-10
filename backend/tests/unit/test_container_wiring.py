@@ -30,7 +30,7 @@ from sro.container import Container
 from sro.domain.shared.identifiers import DeviceId, PrincipalId, TenantId
 from sro.domain.skill.workflow import Workflow
 from sro.infrastructure.agent.drivers import RemoteAgents
-from tests.unit.fakes import FakeClock, FakeUnitOfWork
+from tests.unit.fakes import FakeAsker, FakeClock, FakeUnitOfWork
 from tests.unit.interface.test_http import _FakeContainer
 
 FROZEN = datetime(2026, 3, 4, 9, 30, tzinfo=UTC)
@@ -266,3 +266,80 @@ def test_no_key_and_no_consent_each_mean_no_model() -> None:
         _build_asker(Settings(gemini_api_key="k", interpretation_enabled=False, _env_file=None))
         is None
     )
+
+
+def test_no_asker_refuses_rather_than_handing_back_none() -> None:
+    """`container.asker` is `Asker | None` and three callers need an `Asker`.
+    Returning None to them means the refusal happens somewhere downstream, in
+    the middle of a pass, after the window has been packed."""
+    from sro.application.ports.model import AskerUnavailable, asker_or_refuse
+
+    # `match=` and not a bare raises: the sentence IS the refusal. An operator
+    # who gets this 503 has two settings to go and set, and a message that
+    # named neither would leave them with a working system and no next step.
+    with pytest.raises(AskerUnavailable, match="gemini_api_key") as raised:
+        asker_or_refuse(None)
+    assert "interpretation_enabled" in str(raised.value)
+
+
+def test_every_door_that_needs_a_model_refuses_through_the_one_guard() -> None:
+    """The count `container.py` used to keep in prose, kept where it rots loudly.
+
+    That docstring said two of 4b's three doors read `asker_or_refuse` and that
+    the sentence "goes present-tense when task 5 lands and not before". Task 5
+    landed; the sentence did not move. A comment naming a grep result is a
+    trip-wire nobody trips -- so this is the grep, and it fails on the commit
+    that adds a caller rather than on the commit that reads the comment.
+
+    Asserted as an exact set and not a count: a caller that MOVES from one
+    module to another leaves the number alone, and which door refuses is the
+    fact worth pinning. A new door that asks a model belongs on this list; a
+    new door that asks a model and is NOT on it is refusing somewhere else, or
+    not refusing at all.
+    """
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[2] / "src"
+    callers = {
+        module.relative_to(root).as_posix()
+        for module in root.rglob("*.py")
+        if "asker_or_refuse(" in module.read_text()
+    }
+
+    assert callers == {
+        # Where the guard itself lives.
+        "sro/application/ports/model.py",
+        # POST /v1/mine
+        "sro/application/observation/mine_pass.py",
+        # POST /v1/chat
+        "sro/application/chat/read_chat.py",
+        # POST /v1/workflow-runs -- both the press and the rescue path.
+        "sro/application/execution/workflow_runs.py",
+    }
+
+
+def test_an_asker_is_handed_back_as_that_exact_object() -> None:
+    """Not 'an Asker' -- that one. A guard that built a second one would bill
+    against a client the spend tests never see."""
+    from sro.application.ports.model import asker_or_refuse
+
+    asker = FakeAsker()
+
+    assert asker_or_refuse(asker) is asker
+
+
+async def test_a_container_with_no_model_still_builds_every_factory(
+    container: Container,
+) -> None:
+    """The reason the guard is not on the container. A factory that raised
+    would make `container.mine_pass()` unbuildable, and every test that
+    constructs a container without a model would fail at construction rather
+    than at use.
+
+    The `container` fixture above is already a container with no model:
+    `_FakeContainer` sets `asker = None`, which is what a deployment with no
+    key gets.
+    """
+    assert container.asker is None
+    assert container.mine_pass() is not None
+    assert container.read_chat() is not None

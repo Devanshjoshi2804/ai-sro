@@ -50,6 +50,8 @@ class ToolsUnavailable(Exception):
     answers them differently.
     """
 
+    code = "tools_unavailable"
+
 
 class ToolCaller(Protocol):
     @property

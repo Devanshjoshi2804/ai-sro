@@ -46,6 +46,8 @@ class TargetUnreachable(Exception):
     caller knows whether that is safe to retry.
     """
 
+    code = "target_unreachable"
+
 
 class MalformedRequest(TargetUnreachable):
     """Nothing was sent, and the reason is this end rather than the far one.

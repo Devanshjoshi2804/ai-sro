@@ -32,10 +32,12 @@ from typing import Any
 
 from sqlalchemy import Select, delete, func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sro.application.ports.repositories import WorkflowRunRepository
-from sro.domain.execution.workflow_run import RunStep, WorkflowRun
+from sro.domain.execution.workflow_run import RunStep, WorkflowRun, already_running
+from sro.domain.shared.errors import Conflict
 from sro.domain.shared.identifiers import DeviceId, TenantId
 from sro.infrastructure.db.codec import when
 from sro.infrastructure.db.models import ApprovalRow, WorkflowRunRow, WorkflowRunStepRow
@@ -54,6 +56,7 @@ def _run_values(run: WorkflowRun) -> dict[str, Any]:
         "started_at": when(run.started_at),
         "finished_at": None if run.finished_at is None else when(run.finished_at),
         "outcome": run.outcome,
+        "from_step": run.from_step,
         "withheld": list(run.withheld),
         "in_tokens": run.in_tokens,
         "out_tokens": run.out_tokens,
@@ -121,6 +124,7 @@ def _row_to_run(row: WorkflowRunRow, steps: list[RunStep]) -> WorkflowRun:
         started_at=row.started_at.isoformat(),
         finished_at=None if row.finished_at is None else row.finished_at.isoformat(),
         outcome=row.outcome,
+        from_step=row.from_step,
         steps=steps,
         withheld=list(row.withheld),
         in_tokens=row.in_tokens,
@@ -131,25 +135,61 @@ def _row_to_run(row: WorkflowRunRow, steps: list[RunStep]) -> WorkflowRun:
     )
 
 
+_ONE_RUNNING = "uq_workflow_runs_one_running_per_device"
+"""The one constraint on `workflow_runs` whose violation this module has a
+sentence for. Matched as a substring of the driver's own message: asyncpg and
+psycopg both name the index there, and `orig.diag.constraint_name` is spelled
+differently on each."""
+
+
 class SqlWorkflowRunRepository(WorkflowRunRepository):
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
     async def save(self, run: WorkflowRun) -> None:
         statement = pg_insert(WorkflowRunRow).values(**_run_values(run))
-        await self._session.execute(
-            statement.on_conflict_do_update(
-                index_elements=["id"],
-                # Every column but the key takes the new value, which is what
-                # INSERT OR REPLACE did: a run is written whole after every
-                # step, so the later write supersedes the earlier one.
-                set_={
-                    column.name: statement.excluded[column.name]
-                    for column in WorkflowRunRow.__table__.columns
-                    if column.name != "id"
-                },
+        try:
+            await self._session.execute(
+                statement.on_conflict_do_update(
+                    # The id, and only the id. A second running run for a
+                    # browser that already has one violates
+                    # `uq_workflow_runs_one_running_per_device`, which is NOT
+                    # this conflict target, so it raises rather than quietly
+                    # updating somebody else's row -- which is the whole point
+                    # of naming the target instead of swallowing every
+                    # constraint the way SQLite's INSERT OR REPLACE did.
+                    index_elements=["id"],
+                    # Every column but the key takes the new value, which is
+                    # what INSERT OR REPLACE did: a run is written whole after
+                    # every step, so the later write supersedes the earlier one.
+                    set_={
+                        column.name: statement.excluded[column.name]
+                        for column in WorkflowRunRow.__table__.columns
+                        if column.name != "id"
+                    },
+                )
             )
-        )
+        except IntegrityError as clash:
+            if _ONE_RUNNING not in str(getattr(clash, "orig", clash)):
+                # Some OTHER constraint. Every integrity violation used to be
+                # reported as "that browser is already running a run this press
+                # cannot see" -- a sentence about a different problem, naming a
+                # run that would be `None` because there isn't one, with the
+                # caller's transaction already rolled back underneath it so the
+                # real cause could not be recovered from the response. There is
+                # no second constraint a legal save can violate today, which is
+                # exactly why nobody would find this the day one is added.
+                raise
+            # One browser, one hand -- enforced here because the caller's own
+            # `in_flight` read cannot enforce it: between that read and this
+            # there are awaits, and two presses on one event loop both read
+            # free. The session is finished either way, so it is rolled back
+            # before the sentence is composed, which is also what makes the
+            # read below possible: the winner's row is visible once this
+            # transaction is gone.
+            await self._session.rollback()
+            busy = await self.in_flight(TenantId(run.tenant), DeviceId(run.device_id))
+            raise Conflict(already_running(run.device_id, busy)) from clash
         # Deleted and reinserted rather than upserted one by one. A step
         # removed from the record has to leave the store with it, and an
         # upsert would leave it behind -- and this is the rule the second save
@@ -185,6 +225,36 @@ class SqlWorkflowRunRepository(WorkflowRunRepository):
                 # return them in heap order, which is an order that changes
                 # between reads. `proofs` has always broken the tie this way.
                 query.order_by(WorkflowRunRow.started_at, WorkflowRunRow.id)
+            )
+        ).scalars()
+        return await self._with_steps(rows.all())
+
+    async def recent(
+        self,
+        tenant_id: TenantId,
+        *,
+        limit: int,
+        workflow_id: str | None = None,
+        ids: frozenset[str] | None = None,
+    ) -> tuple[WorkflowRun, ...]:
+        # The rig's list query (`api.py:1152`), filters and all: tenant, then
+        # the job if one was named, then the named set `awaiting=true` narrows
+        # to -- and the cap last, after every predicate, because a cap applied
+        # before them answers "nothing is waiting" out of a busy tenant.
+        query = self._rows().where(WorkflowRunRow.tenant_id == tenant_id.value)
+        if workflow_id is not None:
+            query = query.where(WorkflowRunRow.workflow_id == workflow_id)
+        if ids is not None:
+            # An empty set is not "no filter": it is "nothing matches", and
+            # `in_` of nothing is exactly that.
+            query = query.where(WorkflowRunRow.id.in_(sorted(ids)))
+        rows = (
+            await self._session.execute(
+                # `since`'s order, and for `for_workflow`'s reason: reversed,
+                # id and all, so a page boundary falls in the same place twice.
+                query.order_by(WorkflowRunRow.started_at.desc(), WorkflowRunRow.id.desc()).limit(
+                    limit
+                )
             )
         ).scalars()
         return await self._with_steps(rows.all())
@@ -229,10 +299,16 @@ class SqlWorkflowRunRepository(WorkflowRunRepository):
         return await self._with_steps(rows.all())
 
     async def in_flight(self, tenant_id: TenantId, device_id: DeviceId) -> str | None:
-        # ponytail: a read the caller acts on, not a lock -- sound while one
-        # worker owns every run, as the rig required. A second worker needs a
-        # UNIQUE partial index on (tenant_id, device_id) WHERE outcome =
-        # 'running'.
+        # A read the caller acts on, and no longer the only thing standing
+        # between two presses and one browser: migration 0043 added the UNIQUE
+        # partial index on (tenant_id, device_id) WHERE outcome = 'running'
+        # that the note here used to ask a future worker for.
+        #
+        # This stays because it is the answer a person can act on -- it names
+        # the run already driving, where the index can only refuse. The index
+        # is the backstop for the race this read cannot see: there are two
+        # awaits between it and the commit, and two gathered presses against
+        # real Postgres both claimed the browser before it existed.
         busy: str | None = await self._session.scalar(
             select(WorkflowRunRow.id)
             .where(
@@ -243,6 +319,15 @@ class SqlWorkflowRunRepository(WorkflowRunRepository):
             # Total, so that a device somehow driving two runs at one instant
             # names the same one of them on every read rather than whichever
             # Postgres happens to hand back first.
+            #
+            # 0043 makes that state unreachable through this schema, so the
+            # ordering is now defensive rather than load-bearing, and the test
+            # that planted two running rows to prove the tie-break went with it.
+            # Kept anyway: a hand-typed INSERT, a restore from a dump taken
+            # before 0043, or a future outcome value that is not 'running' but
+            # means it would each put two rows here, and a query that returns
+            # "whichever" in that state is worse than one that returns the same
+            # one twice.
             .order_by(WorkflowRunRow.started_at, WorkflowRunRow.id)
             .limit(1)
         )

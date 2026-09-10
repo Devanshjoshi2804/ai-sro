@@ -1392,6 +1392,76 @@ async def test_a_claimed_run_that_has_already_finished_is_not_performed_again(
     assert still is not None and still.outcome == outcome and still.steps == []
 
 
+@pytest.mark.parametrize(("claimed", "asked"), [(1, 0), (0, 1)])
+async def test_a_re_press_that_moves_from_step_is_refused_rather_than_performed(
+    claimed: int, asked: int
+) -> None:
+    """The fourth thing the row is the authority for. Claim a run at
+    `from_step=1`, re-enter it at `from_step=0`, and the operator's step is
+    redone against a live warehouse -- silently, because the other three checks
+    all pass. The other direction is the same defect wearing the opposite face:
+    a step nobody performed is recorded `done_by_operator` and skipped.
+
+    Both directions, because a check written against a constant -- `!= 0`
+    rather than `!= from_step` -- catches exactly one of them.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    await _claimed(uow, from_step=claimed)
+    channel = FakeChannel(_looks(4))
+    asker = FakeAsker(_plan("click"))
+
+    # Both halves of the sentence, not just the saved one. Matching only what
+    # the row holds leaves the refusal free to stop naming what the caller
+    # ASKED for -- and a message that says "this run is at step 1" without
+    # saying "you pressed for 0" is one nobody can act on. Deleting the
+    # ` from step {from_step}` clause left 2389 tests green until this line.
+    with pytest.raises(
+        ValueError,
+        match=f"run_claimed was saved .*from step {claimed}, not running .*from step {asked}",
+    ):
+        await _ran(
+            uow,
+            workflow,
+            channel=channel,
+            asker=asker,
+            values={},
+            run_id="run_claimed",
+            from_step=asked,
+        )
+
+    assert channel.sent == [] and asker.asked == [], "refused before it cost anything"
+    still = await uow.workflow_runs.get(TENANT, "run_claimed")
+    assert still is not None and still.from_step == claimed and still.steps == []
+
+
+async def test_a_re_press_that_agrees_on_from_step_finishes_the_job_it_was_claimed_for() -> None:
+    """The other half of the crossing: a claimed row and an argument that agree
+    on a *non-zero* `from_step` is performed, so the refusal above is a
+    comparison and not a rule against resuming at all."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    await _claimed(uow, from_step=1, live=True)
+    channel = FakeChannel({**_looks(2), "ui.perform": [_performed()]})
+    asker = _PerSchemaAsker(
+        plan=_plan("click"), verdict=Answer(data={"held": True, "why": "saved"})
+    )
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        values={},
+        run_id="run_claimed",
+        earned=True,
+        from_step=1,
+    )
+
+    assert [s.verdict for s in run.steps] == ["done_by_operator", "held"]
+    assert run.from_step == 1, "and the row still says what it was claimed for"
+
+
 async def test_the_claimed_row_says_what_the_run_is_doing_and_the_arguments_do_not() -> None:
     """New, and the rule the rig wrote down in a comment: the row `POST /v1/runs`
     saved is read back rather than rebuilt here, so there is one answer to "what
@@ -2866,6 +2936,58 @@ async def test_a_stop_pressed_during_the_wait_aborts_the_run() -> None:
     assert run.outcome == "aborted"
     assert run.steps[-1].verdict == "failed" and "stopped while waiting" in run.steps[-1].reason
     assert [s["kind"] for s in channel.sent].count("ui.perform") == 1, "the write never went out"
+    # The browser is told, on this path as well as between steps. Until it
+    # hears the abort its band goes on claiming the run for up to
+    # `RUN_QUIET_MS`, and this is the path where somebody is watching: they
+    # pressed Stop on a panel showing a write and their own screen would go on
+    # saying the run was theirs.
+    assert [s["kind"] for s in channel.sent][-1] == "abort"
+    assert _payload(channel.sent[-1]) == {"run_id": run_id}
+
+
+async def test_a_stop_during_the_wait_still_aborts_when_the_browser_has_gone() -> None:
+    """The send is best effort and the abort is not. A browser that has already
+    gone is the commonest reason to press Stop, and a raise here would reach
+    `_fell_over` -- which rewrites the outcome to `failed` and the reason to the
+    socket error, reporting "the browser went away" for a run a person
+    deliberately stopped.
+
+    Deliberately unlike the between-steps send at the top of the loop, which is
+    bare: there a send that raises IS a run that died, and
+    `test_a_run_that_died_between_two_steps_leaves_the_finished_one_alone` pins
+    it. Here the intention is already recorded before anything is sent.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = _AbortIsGone(
+        {**_looks(4), "ui.perform": [Reply(ok=True, result={"performed": True})]}
+    )
+    asker = _PerSchemaAsker(
+        plan=_plan("type", "THIRD"), verdict=Answer(data={"held": True, "why": "ok"})
+    )
+    approvals, stops = Approvals(), Stops()
+
+    task = asyncio.create_task(
+        _ran(
+            uow,
+            workflow,
+            channel=channel,
+            asker=asker,
+            values={"clientCode": "THIRD"},
+            started_by="offer",
+            approvals=approvals,
+            stops=stops,
+        )
+    )
+    run_id = await _parked(approvals)
+
+    stops.ask(run_id)
+    approvals.approve(run_id)
+    run = await task
+
+    assert run.outcome == "aborted", "a browser that went away did not turn a stop into a failure"
+    assert "stopped while waiting" in run.steps[-1].reason
+    assert [s["kind"] for s in channel.sent].count("ui.perform") == 1, "the write never went out"
 
 
 async def test_a_dry_run_never_pauses() -> None:
@@ -3108,6 +3230,12 @@ async def test_a_run_started_mid_job_records_the_operators_steps_and_performs_th
     assert run.steps[0].sent is None and run.steps[0].in_tokens == 0, "nothing asked, nothing sent"
     assert [s["kind"] for s in channel.sent].count("ui.perform") == 1
     assert run.outcome == "held"
+    stored = await uow.workflow_runs.get(TENANT, run.id)
+    assert stored is not None and stored.from_step == 1, (
+        "and on the row rather than only in this frame -- it is what a re-press"
+        " has to agree with, and a row saying zero would refuse the resume it"
+        " was itself started for"
+    )
 
 
 async def test_a_run_started_mid_job_starts_on_the_page_of_the_step_it_starts_at() -> None:

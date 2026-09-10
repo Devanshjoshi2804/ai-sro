@@ -298,7 +298,10 @@ class TestOrphans:
         self, session_factory: async_sessionmaker[AsyncSession]
     ) -> None:
         orphan = _run(steps=[RunStep(order=0, says="s", verdict="held")])
-        bare = _run()
+        # A second browser, because one browser holds one running run since
+        # migration 0043 -- and because that is the shape of the thing being
+        # swept: one process died, and every browser it was driving is orphaned.
+        bare = _run(device_id="dev_2")
         done = _run(outcome="held", finished_at="2026-09-05T10:01:00+00:00")
         # Across tenants, unlike every other read here: nobody is making the
         # request at startup, and a run left running in one tenant would go on
@@ -445,7 +448,11 @@ class TestApprovals:
                 RunStep(order=1, says="save the work area", verdict="awaiting"),
             ]
         )
-        moving = _run(steps=[RunStep(order=0, says="type the code", verdict="held")])
+        # A second browser: one browser holds one running run since migration
+        # 0043, and "from any browser" is what this read is for.
+        moving = _run(
+            device_id="dev_2", steps=[RunStep(order=0, says="type the code", verdict="held")]
+        )
         # A run nobody can answer any more: the tap it is asking for could not
         # let anything out, and without a liveness predicate it would sit in
         # the supervisor's queue forever.

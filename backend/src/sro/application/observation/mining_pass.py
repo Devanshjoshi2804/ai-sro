@@ -222,10 +222,13 @@ async def learn_parameters(
 ) -> int:
     """Diff a job's two doings and keep what they disagree about.
 
-    Returns how many parameters the job now has that it did not before, so a
-    pass can say it learnt something rather than only that it recognised
-    something. Nothing is removed: a control that stopped varying may simply
-    not have been reached this time, and forgetting a parameter on that
+    Returns how many parameters this pass TOUCHED -- the ones it named for the
+    first time plus the ones whose range it widened -- so a pass can say it
+    learnt something rather than only that it recognised something. A widening
+    is learning: `seen_values` promises every value observed, and a pass that
+    adds a third one to a control it already knew did real work and used to
+    report nothing. Nothing is removed: a control that stopped varying may
+    simply not have been reached this time, and forgetting a parameter on that
     evidence would be worse than carrying one too many.
 
     ponytail: read-modify-write inside one pass's transaction, where the rig
@@ -250,7 +253,7 @@ async def learn_parameters(
     # Staged, not only the first two.
     by_name = {str(p["name"]): p for p in stored.parameters if "name" in p}
     fresh: list[dict[str, object]] = []
-    widened = False
+    widened = 0
     for parameter in found:
         existing = by_name.get(parameter.name)
         if existing is None:
@@ -261,12 +264,12 @@ async def learn_parameters(
         added = [value for value in parameter.seen if value not in seen]
         if added:
             existing["seen_values"] = [*seen, *added]
-            widened = True
+            widened += 1
     if not fresh and not widened:
         return 0
     stored.parameters = [*stored.parameters, *fresh]
     await uow.workflows.save(stored)
-    return len(fresh)
+    return len(fresh) + widened
 
 
 def _packed(gesture: Gesture, intent: Intent | None, linked: set[str]) -> Packed:

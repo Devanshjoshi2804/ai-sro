@@ -51,6 +51,17 @@ class CannotStop(Conflict):
     code = "cannot_stop"
 
 
+NOT_IN_A_BROWSER_HERE = "that run is not being performed in a browser this process is driving"
+"""Said by both stop buttons, so it is said once.
+
+`StopRun` below and `AbortWorkflowRun` in `workflow_runs.py` refuse the same
+thing for the same reason -- a run nothing in this process is driving cannot be
+stopped by this process -- and the two aggregates are the only difference
+between them. Two literals is how the console ends up with two sentences for
+one refusal, and a person told two different things about the same button reads
+it as two different failures."""
+
+
 class StopRun:
     """Ask a run being performed here to end at its next step.
 
@@ -71,7 +82,7 @@ class StopRun:
         if run.status is not RunStatus.RUNNING:
             raise CannotStop(f"that run already {run.status.value}")
         if run.device_id is None:
-            raise CannotStop("that run is not being performed in a browser this process is driving")
+            raise CannotStop(NOT_IN_A_BROWSER_HERE)
         self._stops.ask(run.id.value)
         # ponytail: in-process only. A device run and its socket live in one
         # worker, so stopping must land there too -- sticky-route by device_id

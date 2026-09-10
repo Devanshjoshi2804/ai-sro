@@ -39,7 +39,36 @@ console pages or stays a served page for a while.
 | `devices.py`, tenant bearer, `caller`/`tenant_only` | `infrastructure/auth`, the device secrets the backend already issues | folded: a browser's secret is its token; the tenant-only route list is preserved as a dependency on the routers |
 | `entry.py` (chat door) | `application/chat/` (exists) | the rig's `understand` becomes the chat's job reading; the schema fix and instruction travel |
 | `store.py` (SQLite, ~20 tables) | `infrastructure/db/models.py`, `repositories.py`, alembic migrations | rewritten as repositories behind ports |
-| `api.py` routes | `interface/http/v1/routers/`: `observations.py` and `runs.py` extended; `shapes.py`, `offers.py`, `devices.py`, `audit.py`, `spend.py`, `mine.py`, `chat.py` added | ported route by route, same paths and bodies so the extension changes only its base URL |
+| `api.py` routes | `interface/http/v1/routers/`: `observations.py` extended; `shapes.py`, `offers.py`, `devices.py`, `audit.py`, `spend.py`, `mine.py`, `chat.py`, `workflow_runs.py`, `pool.py` added | ported route by route — **but not at the same paths, and the extension needs more than a base URL change. See the amendment below.** |
+
+> **Amendment, 2026-09-10, after phase 4b shipped.** Two claims in the row above
+> were false and are corrected here rather than left for a reader to trip over.
+>
+> **1. `runs.py` is not extended; workflow runs live at `/v1/workflow-runs`.**
+> `/v1/runs` already means a *skill* run on this backend — `domain.execution.run.Run`,
+> keyed on `RunId`. The rig's `/v1/runs` means a *workflow* run, keyed on a plain
+> `str`. Two aggregates, two id spaces, one path. The extension is already living
+> with the collision: `api.js:178` calls `/v1/runs/{id}` on the backend base and
+> `api.js:192` calls the byte-identical path on the *rig* base, telling them apart
+> by a mirrored `source` field — which stops being able to route anything the
+> moment phase 7 puts both on one host. Four routes moved:
+> `POST|GET /v1/runs`, `GET /v1/runs/{run_id}`, `.../abort`, `.../approve`.
+>
+> **2. "The extension changes only its base URL" is false for three calls**, and
+> the reason is one line: `rigHeaders()` (`api.js:84-89`) sends the rig's bearer
+> and **none of the backend's headers**, of which `X-Device-Secret` is one.
+>
+> | Call | Pointed at the backend | How loud |
+> |---|---|---|
+> | `shapes()` `api.js:255` | 404 → returns `[]` | silent, degrades |
+> | `reportOffer()` `api.js:275` | 403 | visible since `f7c00ca` |
+> | `rigApprove()` `api.js:329` | **200, NULL approver, 403 check skipped** | **silent, and worst** |
+>
+> `rigApprove` is the one to fix first: sending neither the secret nor
+> `?device_id=` means `asking_device` resolves *no browser*, which is not a
+> refusal — so the route records `approved_by = None` **and skips the
+> driving-browser check entirely.** A live warehouse write authorised by nobody,
+> on the door whose whole purpose is recording who authorised it.
 | `web/index.html` | console pages under `frontend/src/app/(console)/` | rebuilt, see *The console* |
 | `scripts/dry_run.py`, `offer-replay`, `mutation_floor.py` | `backend/scripts/`, the backend's mutation step | ported; the replay stays the acceptance test for shapes |
 | `config.py` settings | `sro.config` | folded, `RIG_` prefix dropped |

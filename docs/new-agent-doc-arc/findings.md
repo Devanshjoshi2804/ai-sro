@@ -1458,6 +1458,81 @@ The contract suite had been red since 2026-09-06 and is green (109 passed);
 that said for years it did not — which is why one fixture defect failed two
 suites while only one was ever looked at.
 
+## Phase 4b shipped — 2026-09-10, and the number that still has not moved
+
+Eleven tasks, each with a fresh implementer, a task review, and a fix round where
+the review found something. **Every one of the eleven corrected the plan at least
+once.**
+
+### The rig's surface, recounted from `api.py` rather than inherited
+
+**26 routes.** Not the arithmetic phase 4a recorded — that totalled 28 against a
+count of 26, and this recount is what the discrepancy was.
+
+| | |
+|---|---|
+| **Served by the backend** | **21** (20 in the OpenAPI schema + the websocket, which OpenAPI cannot describe) |
+| Still unported | **2** — `GET /v1/streams`, `GET /v1/gestures` |
+| Dropped | **2** — both `bakeoff` routes; the word appears nowhere under `backend/` |
+| Undecided | **1** — `GET /`, the served page, still the spec's open item |
+
+Phase 4b delivered **8 operations**: `POST /v1/mine`, `POST /v1/chat`, `GET` and
+`POST /v1/workflow-runs`, `GET /v1/workflow-runs/{run_id}`, `.../abort`,
+`.../approve`, and `GET /v1/pool`.
+
+### Eight passes over the same 507 gestures
+
+| started | proposed | kept | rejected | learnt | cost | coverage | lopsided |
+|---|---|---|---|---|---|---|---|
+| 09-08 18:21 | 0 | 0 | 0 | 0 | $0.0090 | 0.0 | yes |
+| 09-08 18:34 | 0 | 0 | 0 | 0 | $1.9984 | 0.0 | **truncated** |
+| 09-08 18:43 | 3 | 2 | 0 | 0 | $0.9277 | 0.4 | yes |
+| 09-09 07:30 | 4 | 2 | 0 | 0 | $0.4406 | 0.9 | no |
+| 09-09 07:57 | 1 | 0 | **1** | 0 | $0.3574 | 0.0 | yes |
+| 09-09 10:37 | 1 | 0 | 0 | 0 | $0.3421 | 0.2 | yes |
+| 09-09 10:38 | 2 | 1 | 0 | 0 | $0.4464 | 0.6 | yes |
+| **09-10 06:02** | **3** | **2** | 0 | 0 | **$0.4103** | **0.7** | **no** |
+| **total** | **14** | **7** | **1** | **0** | **$4.93** | — | 5 of 8 |
+
+The last row is the first pass ever made **through the route** rather than by
+calling `mine()` from a script — `backend/scripts/probe_mine_route.py`, real ASGI
+app, the container the application builds for itself, real Postgres, real Gemini.
+
+### Against the criterion, quoted as written
+
+The spec asks for **8 of 8 workflows named as themselves and 10 of 11 values.**
+
+**Recognition is converging. Learning is flat.**
+
+| | first measured | now |
+|---|---|---|
+| workflows | 2 of 8 | **7 of 8** |
+| values | 0 of 11 | **3 of 11** |
+
+Workflows went 2 → 4 → 5 → 7 across the day. **Values went 0 → 3 and have not
+moved since**, across five subsequent passes and $2.00 of model calls. The two
+mined today — *Search for Work Areas* and *Review Video Recordings for Teach
+Task* — each arrived with **zero** parameters, like every workflow since the
+third.
+
+`mining_passes.learned_parameters` reads **0 on all eight rows**. The column, its
+migration, its mapper and its contract test all exist and the figure has never
+once survived a real pass. Learning fires only on `resolve() == same_job`, and no
+pass has reached it since the one that predates the column.
+
+**So the honest split:** the system recognises jobs well and is getting better at
+it; it does not learn what varies within them at all. Those are different halves
+and only one is working.
+
+### The money, measured rather than estimated
+
+**$4.93 for 7 workflows kept out of 14 proposed.** Four of the eight passes kept
+nothing and cost **$2.71** between them — 55% of everything spent.
+
+One rejection in 14 proposals (~7%): the 07:57 pass, $0.36 for a hallucinated
+citation that `validate` caught. That is the rate the earlier "one in eight" was
+an anecdote about.
+
 ### The instruments
 
 ```

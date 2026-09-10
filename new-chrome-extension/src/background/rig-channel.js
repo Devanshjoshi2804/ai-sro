@@ -1,19 +1,20 @@
 /**
  * The same socket, dialled at the rig.
  *
- * The rig is the model-first architecture's own process: it mirrors this
- * browser's uploads already (mirror.js), and a run it starts has to reach a
- * browser too. It gets the backend's channel verbatim -- keepalive,
+ * The rig is the model-first architecture's own process, and a run it starts
+ * has to reach a browser. It gets the backend's channel verbatim -- keepalive,
  * exactly-once answering, backoff -- pointed at `state.rigUrl()`.
  *
  * No device secret: the rig has one token and no device registry, and offers
- * `["bearer", rigToken]`. Empty rig url means what it means for the mirror --
- * nothing is dialled, silently. The rig is optional; its absence is not the
- * extension's problem.
+ * `["bearer", rigToken]`. An empty rig url dials nothing, silently. The rig is
+ * optional; its absence is not the extension's problem.
+ *
+ * **This whole module goes in phase 5's rig-settings task**, along with the
+ * two settings it reads. `channel.js` and `createChannel` stay: this is a
+ * caller, not the implementation.
  */
 import { createChannel } from "./channel.js";
-import { isMirrorable } from "./mirror.js";
-import { state } from "./state.js";
+import { isRigUrl, state } from "./state.js";
 
 const rig = createChannel({
   describe: "rig",
@@ -23,7 +24,7 @@ const rig = createChannel({
       state.rigToken(),
       state.deviceId(),
     ]);
-    if (!isMirrorable(rigUrl) || !rigToken || !deviceId) return null;
+    if (!isRigUrl(rigUrl) || !rigToken || !deviceId) return null;
     return {
       url: `${rigUrl.replace(/^http/, "ws")}/v1/agents/${encodeURIComponent(deviceId)}/commands`,
       protocols: ["bearer", rigToken],

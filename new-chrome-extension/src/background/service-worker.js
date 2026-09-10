@@ -6,7 +6,6 @@
 import { api, ApiError } from "./api.js";
 import * as channel from "./channel.js";
 import { abort, isDriving, performing, RUN_QUIET_MS } from "./commands.js";
-import { isMirrorable } from "./mirror.js";
 import * as queue from "./queue.js";
 import * as rigChannel from "./rig-channel.js";
 import { redactUrl } from "../content/sensitivity.module.js";
@@ -26,7 +25,7 @@ import { tripleOf } from "./shape.generated.js";
 import { hideNudge, showNudge } from "./showing.js";
 import { capture } from "./shots.js";
 import { noteFinished } from "./finishing.js";
-import { activeRunAge, afterRunWrong, capturing, finishedRun, state } from "./state.js";
+import { activeRunAge, afterRunWrong, capturing, finishedRun, isRigUrl, state } from "./state.js";
 import * as teaching from "./teaching.js";
 import { release as releaseTree, releaseAll, takeTree, takeTreeSoon } from "./trees.js";
 import { flush } from "./upload.js";
@@ -916,14 +915,15 @@ async function handle(message, sender) {
       // registration, and an optional second reader is not worth re-registering
       // a browser for.
       //
-      // Refused here, not only in mirror.js: the mirror is silent about
-      // failure by design -- it must never reach upload.js's decision about a
-      // batch the backend already took -- and that silence would make a typo
-      // in this field indistinguishable from a rig that is merely down. A
-      // rejected *configuration* is not a network failure, and belongs in
-      // front of the person who typed it. The options page renders this
+      // Refused before it is saved, rather than left to fail at the first
+      // use: a rejected *configuration* is not a network failure, and belongs
+      // in front of the person who typed it. Until phase 5 this was the loud
+      // half of a pair -- the mirror's own check was silent by design, so a
+      // typo in this field was indistinguishable from a rig that was merely
+      // down. The mirror is gone; this half stays because the socket dial is
+      // just as quiet about a URL it cannot use. The options page renders this
       // string.
-      if (message.rigUrl && !isMirrorable(message.rigUrl)) {
+      if (message.rigUrl && !isRigUrl(message.rigUrl)) {
         return {
           error:
             "the rig URL was not saved: it must be an absolute http:// or https:// address",
@@ -933,14 +933,14 @@ async function handle(message, sender) {
       // A blank token means "leave it alone", not "clear it". status() does not
       // return the token, so the field is empty every time the page renders,
       // and somebody changing only the URL would otherwise wipe the token
-      // without being told -- and mirrorSafely swallows the failure, so they
+      // without being told -- and the socket fails to dial in silence, so they
       // would find out when somebody noticed the rig had gone quiet.
       if (message.rigToken) {
         await state.setRigToken(message.rigToken);
         await mintRigToken();
       } else if (!message.rigUrl) {
-        // Clearing the URL turns the mirror off, and its secret goes with it
-        // -- and its last refusal, which was about a rig there no longer is.
+        // Clearing the URL takes the rig out of this browser, and its secret
+        // goes with it -- and the last refusal, about a rig there no longer is.
         await state.setRigToken("");
         await state.setRigRefusal("");
       }
@@ -1850,8 +1850,11 @@ async function status(sender = null) {
     // or the tenant's typed bearer. Every render of the options page says
     // which, not only the one that follows a save.
     rigRegistered: rigToken.startsWith("dev_"),
-    // The last copy the rig refused, and why, until it takes one again. The
-    // mirror is silent by contract; this is the one place its no is said.
+    // The last copy the rig refused, and why. **Dead since phase 5 deleted
+    // the mirror**: the mirror was its only writer, so this can now only ever
+    // be "", and the options page's `rig-trouble` line is never shown. Left
+    // for the rig-settings task, which deletes the field, its two accessors
+    // and that line together.
     rigRefusal: await state.rigRefusal(),
     paused,
     serverPaused,

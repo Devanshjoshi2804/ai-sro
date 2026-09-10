@@ -933,3 +933,72 @@ test("the shapes read are the ones the named browser is served, and a refusal is
   assert.deepEqual(await api.shapes("dev-other-6b90"), [], "a refused read threw on the gesture path");
   globalThis.fetch = rigServer;
 });
+
+/** The upload path, which had no test of its own in any suite and is the only
+ * road every demonstration travels.
+ *
+ * Written when phase 5 deleted `mirror.js`. The mirror posted a copy of each
+ * upload to the rig and its docstring said why it was silent: *"upload.js
+ * drops queued rows on a permanent 4xx from the backend, and a rig that is
+ * down, slow, or refusing must never be able to reach that decision."* That
+ * decision is `isPermanent(error.status)` in `upload.js`, and after the
+ * deletion its whole guarantee is this: **the only thing `api.observations`
+ * can throw is the backend's own answer, with the backend's own status on
+ * it.** Nothing stands between `call()` and the caller any more, so nothing
+ * can invent a status the backend did not give -- and a 413 invented by a
+ * second reader would have dropped a batch the backend had accepted.
+ *
+ * Directly on `api` rather than through `flush()`: `upload.js` exports only
+ * `flush`, has no suite, and standing one up means a queue, a device and a
+ * clock. What is pinned here is the one thing the deletion changed. */
+test("an upload names this browser to the backend, and only the backend's refusal comes back", async () => {
+  ready();
+  const { api, ApiError } = await import("./api.js");
+
+  const batch = { batch_id: "bat-7c31", device_id: "dev-ready-2f8a", events: [{ at: 91 }] };
+  let served = json({ accepted: 1, batch_id: "bat-7c31" });
+  const asked = [];
+  globalThis.fetch = async (url, options = {}) => {
+    asked.push({ url: String(url), ...options });
+    return served;
+  };
+
+  assert.deepEqual(
+    await api.observations(batch),
+    { accepted: 1, batch_id: "bat-7c31" },
+    "what the backend said about the upload did not reach the caller",
+  );
+  const sent = asked.at(-1);
+  assert.equal(sent.url, `${BACKEND}/v1/observations`, `the batch was posted to ${sent.url}`);
+  assert.equal(sent.method, "POST");
+  // The body, not a body. A batch replaced by a constant is every operator's
+  // demonstration uploaded as somebody else's.
+  assert.deepEqual(JSON.parse(sent.body), batch, "the batch posted was not the batch given");
+  assert.equal(sent.headers.Authorization, `Bearer ${held.get("sro.token")}`);
+  assert.equal(sent.headers["X-Device-Secret"], held.get("sro.deviceSecret"));
+
+  // A picture is the same road, and the multipart body is passed through
+  // rather than stringified -- a `JSON.stringify(FormData)` is "{}".
+  const form = { pretend: "multipart" };
+  served = json({ artifact_id: "art_4d02" });
+  assert.deepEqual(await api.artifact(form), { artifact_id: "art_4d02" });
+  assert.equal(asked.at(-1).url, `${BACKEND}/v1/observations/artifacts`, "a picture went somewhere else");
+  assert.equal(asked.at(-1).body, form, "the multipart body was mangled on the way out");
+  assert.equal(asked.at(-1).headers["Content-Type"], undefined, "a boundary-less Content-Type was set");
+
+  // The status `upload.js` reads to decide whether to drop the rows. It must
+  // be the backend's, unchanged, and it must arrive as a throw -- a refusal
+  // returned instead of thrown is a batch reported as uploaded and lost.
+  served = json({ detail: "that batch is too large" }, 413);
+  await assert.rejects(
+    () => api.observations(batch),
+    (error) => {
+      assert.ok(error instanceof ApiError, "a refused upload did not come back as an ApiError");
+      assert.equal(error.status, 413, "the status upload.js drops rows on was not the backend's");
+      return true;
+    },
+    "a backend that refused the batch was reported to the caller as success",
+  );
+
+  globalThis.fetch = rigServer;
+});

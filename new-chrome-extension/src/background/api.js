@@ -1,7 +1,6 @@
 // Every call to the backend. See docs/14-extension-protocol.md.
 
-import { state } from "./state.js";
-import { isMirrorable, mirrorSafely, mirrorTo } from "./mirror.js";
+import { isRigUrl, state } from "./state.js";
 
 export class ApiError extends Error {
   // `where` is the call that failed, as "METHOD /path". A backend that answers
@@ -56,28 +55,6 @@ async function call(path, { method = "GET", body, form, signal } = {}) {
   return response.status === 204 ? null : response.json();
 }
 
-/** Copy an upload to the rig, if one is configured. See `mirror.js`: this
- * never affects what `call` above already decided. `mirrorSafely` rather than
- * `mirrorTo` because the two `state` reads must happen inside its guard --
- * written at this call site they would be evaluated before `mirrorTo` is
- * entered, where nothing catches them. */
-async function mirror(path, options) {
-  const became = await mirrorSafely(state.rigUrl, state.rigToken, path, options);
-  // A refusal the rig gave a reason for is written where the options page
-  // reads it, and cleared by the next copy the rig took. A rig that is down
-  // writes nothing: that is silence, not a refusal, and the last refusal
-  // stays until the rig answers again. Never awaited by upload.js's
-  // decision: `mirror` is already outside it.
-  try {
-    if (became.sent && became.ok) await state.setRigRefusal("");
-    else if (became.sent) {
-      await state.setRigRefusal(`${path} ${became.status}${became.detail ? `: ${became.detail}` : ""}`);
-    }
-  } catch {
-    // The same contract as the mirror itself: nothing here fails an upload.
-  }
-}
-
 export const api = {
   register: (label, extensionVersion) =>
     call("/v1/agents/register", {
@@ -104,20 +81,12 @@ export const api = {
       { method: "DELETE" },
     ),
 
-  observations: async (batch) => {
-    const answer = await call("/v1/observations", { method: "POST", body: batch });
-    await mirror("/v1/observations", { body: batch });
-    return answer;
-  },
+  observations: (batch) => call("/v1/observations", { method: "POST", body: batch }),
 
   /** A screenshot or an oversized body, uploaded beside the batch it
    * illustrates. `form` carries device_id, batch_id, kind, file and the
    * frame_index that says which gesture it followed. */
-  artifact: async (form) => {
-    const answer = await call("/v1/observations/artifacts", { method: "POST", form });
-    await mirror("/v1/observations/artifacts", { form });
-    return answer;
-  },
+  artifact: (form) => call("/v1/observations/artifacts", { method: "POST", form }),
 
   policy: () => call("/v1/agents/policy"),
 
@@ -326,9 +295,18 @@ export const api = {
 
   /** A token of this browser's own, minted by the rig against the tenant's
    * bearer the operator typed. Called once, when the options page is saved;
-   * the answer is what the browser keeps, and the tenant's secret is not. */
+   * the answer is what the browser keeps, and the tenant's secret is not.
+   *
+   * **The last call in this file that still dials the rig, and the seam phase
+   * 5's rig-settings task closes.** `register()` above is the backend's
+   * equivalent and is the better door -- it is idempotent and hands back the
+   * same secret, where this one minted a fresh token on every call and
+   * un-revoked the browser as a side effect. Not repointed here because the
+   * options page, `status.rigRegistered` and the `dev_` prefix it is read by
+   * all move together, and moving one of them alone is how a browser ends up
+   * holding a token nothing recognises. */
   rigRegister: async (base, tenantToken, deviceId) => {
-    if (!isMirrorable(base)) throw new ApiError(0, { detail: "no rig is configured" });
+    if (!isRigUrl(base)) throw new ApiError(0, { detail: "no rig is configured" });
     const r = await fetch(`${base}/v1/devices/register`, {
       method: "POST",
       headers: { Authorization: `Bearer ${tenantToken}`, "Content-Type": "application/json" },

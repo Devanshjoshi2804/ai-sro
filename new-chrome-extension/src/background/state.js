@@ -36,7 +36,30 @@ const KEYS = {
 };
 
 export const DEFAULT_API_URL = "http://localhost:8000";
-export const DEFAULT_RIG_URL = "";   // empty means: do not mirror
+export const DEFAULT_RIG_URL = "";   // empty means: no rig is configured
+
+/** Whether a saved rig base is an address that may be dialled or posted to.
+ *
+ * Lived in `mirror.js` until phase 5 deleted it, and moved here rather than
+ * dying with it because it is not about mirroring: it is the check on a
+ * free-text options field with no default host. A relative path would resolve
+ * against the extension's own origin, and a pasted `javascript:` or `file:`
+ * value parses without being anywhere a rig could be. Scheme and shape only,
+ * and deliberately no host allowlist -- this is a development second process
+ * pointed at whatever the person debugging happens to be running.
+ *
+ * The other half is the options page refusing to *save* a value that fails
+ * here, so a rejected configuration is visible where it was typed. Phase 5's
+ * rig-settings task deletes both halves together. */
+export function isRigUrl(base) {
+  if (typeof base !== "string" || !base) return false;
+  try {
+    const { protocol } = new URL(base);
+    return protocol === "http:" || protocol === "https:";
+  } catch {
+    return false;
+  }
+}
 
 async function read(key, fallback = null) {
   const held = await chrome.storage.local.get(key);
@@ -80,9 +103,10 @@ export const state = {
   consoleUrl: () => read(KEYS.consoleUrl, ""),
   setConsoleUrl: (url) => write(KEYS.consoleUrl, url.replace(/\/+$/, "")),
 
-  /** A second base to copy every upload to, beside the backend. Optional --
-   * empty means nothing is mirrored. See `mirror.js` for why it is a second
-   * reader and never a second source of truth. */
+  /** Where the rig runs, if one is configured. Optional -- empty means this
+   * browser talks to the backend and nothing else, which after phase 5 is the
+   * only arrangement there is. The two remaining readers are the rig socket
+   * and `rigRegister`; both go with the rig settings. */
   rigUrl: () => read(KEYS.rigUrl, DEFAULT_RIG_URL),
   setRigUrl: (url) => write(KEYS.rigUrl, (url || "").replace(/\/+$/, "")),
   rigToken: () => read(KEYS.rigToken, ""),

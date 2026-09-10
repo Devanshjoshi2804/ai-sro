@@ -45,3 +45,5 @@ class RunDispatcher(Protocol):
 
 class DispatchFailed(Exception):
     """The other process refused or could not be reached."""
+
+    code = "dispatch_failed"

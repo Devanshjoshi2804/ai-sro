@@ -79,3 +79,5 @@ class VisionUnavailable(Exception):
     Not a ``DomainError``: the skill and the screen were both fine. Distinct
     from a refusal, which means the model looked and declined.
     """
+
+    code = "vision_unavailable"

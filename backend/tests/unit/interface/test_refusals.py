@@ -174,3 +174,74 @@ def test_an_error_with_no_code_says_about_blank_rather_than_inventing_a_kind() -
 
     assert body["type"] == "about:blank"
     assert body["detail"] == "something went wrong"
+
+
+def test_every_mapped_error_is_also_registered_so_its_status_can_fire() -> None:
+    """A status with no handler is a 500, and so is a handler with no status.
+
+    `_STATUS_BY_ERROR` decides WHAT a refusal answers; `install_error_handlers`
+    decides WHETHER anything gets to ask. Writing one half without the other
+    changes nothing observable, which is how `NotYours`, `NotYoursToRevise`,
+    `DispatchFailed` and `UiUnavailable` each spent their whole lives answering
+    `500 text/plain` with a correct entry sitting in the table above them. This
+    walks the MRO the way `_status_for` does, so a subclass registered through
+    its base counts -- that is exactly why `DomainError` needs no per-subclass
+    line.
+    """
+    from sro.interface.http.errors import _STATUS_BY_ERROR
+
+    app = FastAPI()
+    install_error_handlers(app)
+    registered = set(app.exception_handlers)
+
+    unreachable = sorted(
+        error.__name__
+        for error in _STATUS_BY_ERROR
+        if not any(klass in registered for klass in error.__mro__)
+    )
+
+    assert not unreachable, f"these answer 500 whatever the table says: {unreachable}"
+
+
+def test_a_browser_that_cannot_be_reached_is_a_conflict_and_not_a_broken_server() -> None:
+    """`AnswerConfirmation.approve` calls the same `start_for` that
+    `FireTrigger` guards and does not guard it, so an operator tapping Approve
+    on a card whose laptop is closed was told the server broke -- on the one
+    door in the system whose whole job is a person authorising an unattended
+    write. 409 and not 503, because this deployment is fine: the same tap
+    succeeds when the laptop opens.
+    """
+    from sro.application.ports.dispatch import DispatchFailed
+
+    response = _app_that_raises(DispatchFailed("this process cannot reach a browser")).get("/boom")
+
+    assert response.status_code == status.HTTP_409_CONFLICT
+    assert response.headers["content-type"].startswith("application/problem+json")
+    body = response.json()
+    assert body["type"] == "https://ai-sro.dev/problems/dispatch_failed"
+    assert body["detail"] == "this process cannot reach a browser"
+
+
+def test_the_four_port_failures_are_503_rather_than_500() -> None:
+    """Each is caught at every call site that exists today and at no call site
+    that does not, which is why `UiUnavailable` escaped `vision_step.py`'s one
+    unguarded `perform_at` to `POST /v1/skills/{id}/batch` while a reviewer
+    tracing catch clauses rather than call sites cleared it. Mapped here, the
+    next call site outside a guard is a 503 instead of a 500.
+    """
+    from sro.application.ports.http import TargetUnreachable
+    from sro.application.ports.tools import ToolsUnavailable
+    from sro.application.ports.ui import UiUnavailable
+    from sro.application.ports.vision import VisionUnavailable
+
+    for raised, slug in (
+        (TargetUnreachable, "target_unreachable"),
+        (ToolsUnavailable, "tools_unavailable"),
+        (UiUnavailable, "ui_unavailable"),
+        (VisionUnavailable, "vision_unavailable"),
+    ):
+        response = _app_that_raises(raised("nothing answered")).get("/boom")
+
+        assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE, raised.__name__
+        assert response.json()["type"].endswith(f"/{slug}"), raised.__name__
+        assert response.json()["title"] == "Dependency unavailable", raised.__name__

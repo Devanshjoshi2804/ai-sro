@@ -23,11 +23,16 @@ from sro.application.induction.errors import InductionFailed
 from sro.application.observation.ingest import ObservationRefused
 from sro.application.observation.teach import NothingToTeach
 from sro.application.ports.browser import BrowserUnavailable
+from sro.application.ports.dispatch import DispatchFailed
+from sro.application.ports.http import TargetUnreachable
 from sro.application.ports.model import AskerUnavailable
 from sro.application.ports.schedule import SchedulerUnavailable
 from sro.application.ports.sign_in import SignInFailed
 from sro.application.ports.token import TokenRefused
+from sro.application.ports.tools import ToolsUnavailable
+from sro.application.ports.ui import UiUnavailable
 from sro.application.ports.vault import VaultUnavailable
+from sro.application.ports.vision import VisionUnavailable
 from sro.application.recording.start_recording import NoSessionForSystem
 from sro.application.shared.refusals import OverCap
 from sro.application.skill.record_offer import OfferRefused
@@ -52,6 +57,26 @@ _STATUS_BY_ERROR: dict[type[Exception], int] = {
     # Without its own entry the MRO walk finds nothing and it is a 500.
     AskerUnavailable: status.HTTP_503_SERVICE_UNAVAILABLE,
     SchedulerUnavailable: status.HTTP_503_SERVICE_UNAVAILABLE,
+    # The four port failures, on the same argument: the request was fine and a
+    # thing this deployment depends on is not answering. Every one of them was
+    # a 500 in `text/plain` until now, and the reason none of them had been
+    # noticed is that each is caught at every call site that exists TODAY --
+    # `UiUnavailable` was the exception that proved it, escaping
+    # `vision_step.py`'s one unguarded `perform_at` to `POST
+    # /v1/skills/{id}/batch`. Safety by review does not survive the next call
+    # site; these five lines make it safe by default instead.
+    TargetUnreachable: status.HTTP_503_SERVICE_UNAVAILABLE,
+    ToolsUnavailable: status.HTTP_503_SERVICE_UNAVAILABLE,
+    UiUnavailable: status.HTTP_503_SERVICE_UNAVAILABLE,
+    VisionUnavailable: status.HTTP_503_SERVICE_UNAVAILABLE,
+    # 409 and not 503, because it is not this deployment that is down: the
+    # other process refused or its laptop is closed, and the same tap succeeds
+    # when it opens. `AnswerConfirmation.approve` calls the same `start_for`
+    # that `FireTrigger` guards at `fire_trigger.py:143` and does not guard it,
+    # so tapping Approve on a card whose browser is away answered 500 in
+    # `text/plain` -- on the one door whose whole job is a person authorising
+    # an unattended write.
+    DispatchFailed: status.HTTP_409_CONFLICT,
     NotAuthenticated: status.HTTP_409_CONFLICT,
     Refused: status.HTTP_409_CONFLICT,
     # The durable path re-raises every refusal as NotRunnable, so without this
@@ -253,6 +278,16 @@ def install_error_handlers(app: FastAPI) -> None:
         # at its cap is told the server broke.
         AskerUnavailable,
         OverCap,
+        # None of the five is a `DomainError`, so the line above does not reach
+        # them and their entries in the table above would do nothing on their
+        # own. A status with no handler and a handler with no status are both
+        # a 500; two doors answered one for the life of this codebase because
+        # only one half was ever written.
+        TargetUnreachable,
+        ToolsUnavailable,
+        UiUnavailable,
+        VisionUnavailable,
+        DispatchFailed,
         # Neither is `OfferRefused`, which is a `DomainError` and is reached by
         # the line above. This one is not, so it needs saying by name.
         RunRefused,

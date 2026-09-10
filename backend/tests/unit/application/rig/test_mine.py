@@ -939,6 +939,55 @@ async def test_a_third_doing_widens_a_parameter_it_does_not_discard_it() -> None
     assert len(stored.parameters) == 1, "one control, not one parameter per doing"
 
 
+def _redone_both(rows: list[Gesture], value: str, suffix: str, offset: float) -> list[Gesture]:
+    """The same job done again with BOTH filled-in controls changed.
+
+    `_redone` touches only the typed one, which is why every test above it
+    learns exactly one parameter. The upload beside it is a second control the
+    operator filled in, and holding it constant is what makes it part of the
+    job rather than an input to it.
+    """
+    fresh = []
+    for row in rows:
+        action = row.action
+        if action.kind in ("type", "upload") and action.value:
+            action = replace(action, value=f"{value}-{action.kind}")
+        fresh.append(replace(row, id=f"{row.id}_{suffix}", at=row.at + offset, action=action))
+    return fresh
+
+
+async def test_a_pass_that_widens_two_parameters_says_two_and_not_one() -> None:
+    """The sentence `MinePassResponse.learned_parameters` ships with, as a test:
+    "a pass that recognises nothing new and widens TWO parameters did real
+    work".
+
+    One widening and two are the same reading if the counter is a flag. It was
+    a `bool` -- so a pass that widened everything it knew reported nothing --
+    and a counter that saturates at one is the same defect one value further
+    along. Nothing else here can see the difference: every other doing in this
+    file varies a single control.
+    """
+    uow, ids = await _day()
+    original = [_rows(uow)[gesture_id] for gesture_id in ids]
+
+    await _mine(uow, FakeAsker(_found(_proposal(ids))))
+
+    passes = []
+    for value, suffix, offset in (
+        ("SECOND", "again", 10_000.0),
+        ("THIRD", "thrice", 20_000.0),
+    ):
+        rows = _redone_both(original, value, suffix, offset)
+        await uow.gestures.add_gestures(tuple(rows))
+        passes.append(await _mine(uow, FakeAsker(_found(_proposal([g.id for g in rows])))))
+
+    stored = (await uow.workflows.known(TENANT))[0]
+    assert len(stored.parameters) == 2, "two controls varied, so two parameters"
+    assert passes[0].learned_parameters == 2, "the second doing named both"
+    assert passes[1].kept == 0, "the third doing is the same job again"
+    assert passes[1].learned_parameters == 2, "and widening both is learning two"
+
+
 # --------------------------------------------------------------------------
 # the prompt this pass sends
 

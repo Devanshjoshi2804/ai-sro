@@ -242,6 +242,63 @@ async def test_an_unplugged_browser_is_answered_before_the_workflow_is_looked_up
     assert "wfl_nope" not in str(refused.value)
 
 
+async def test_the_cap_is_answered_before_the_browser_is_asked_anything() -> None:
+    """The second position in the refusal order, made to fail rather than
+    asserted in prose.
+
+    The browser is unplugged too, and the job does not exist either -- so a
+    door that checked the cap after the browser answers "dev-1 is not
+    connected" to a tenant whose real problem is that the day is paid out, and
+    a door that checked it after the workflow lookup answers a 404. Moving the
+    cap check to either position passed 1630 tests: the only cap test above
+    presses a connected browser at an existing job, which every ordering
+    survives.
+    """
+    uow = await _held()
+    await _billed(uow, cost_usd=5.01)
+
+    with pytest.raises(OverCap) as refused:
+        await _press(
+            _starter(uow, channel=_Browsers({})),
+            workflow_id="wfl_nope",
+        )
+
+    assert "5.0100" in str(refused.value)
+    assert "not connected" not in str(refused.value)
+
+
+class _CountsOpens(FakeUnitOfWork):
+    """A unit of work that says how many times a session was taken from it."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.opens = 0
+
+    async def __aenter__(self) -> FakeUnitOfWork:
+        self.opens += 1
+        return await super().__aenter__()
+
+
+async def test_the_missing_model_is_answered_without_taking_a_session() -> None:
+    """The first position, and the half `test_a_deployment_with_no_model...`
+    above cannot see.
+
+    That test asserts no row was claimed and nothing committed, both of which
+    are true with the guard moved INSIDE `async with self._uow` -- which is why
+    that mutation passed 1630 tests. The module's own argument is about the
+    connection and not the row: "a 503 that first took a connection is a 503
+    that made the outage slightly worse", and a pool exhausted by an outage is
+    exactly when this door is pressed most.
+    """
+    uow = _CountsOpens()
+    await uow.workflows.save(_workflow())
+
+    with pytest.raises(AskerUnavailable):
+        await _press(_starter(uow, asker=None))
+
+    assert uow.opens == 0, "a 503 for a missing model took a session on the way out"
+
+
 async def test_a_browser_connected_for_another_tenant_is_not_connected_here() -> None:
     """`online` is asked per tenant, and a check that ignored the tenant would
     let one tenant's credential reach another's browser."""

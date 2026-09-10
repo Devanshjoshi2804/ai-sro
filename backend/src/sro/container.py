@@ -218,16 +218,23 @@ class Container:
     ``None`` rather than a no-op double, deliberately. A miner with nothing to
     ask must not run and quietly find nothing -- that reads exactly like a day
     with no work in it. The caller that checks and refuses now exists: it is
-    `asker_or_refuse` in `application/ports/model.py`. Two of the three doors
-    4b opens read it -- `POST /v1/mine` (task 2) and `POST /v1/chat` (task 3),
-    which is what `grep -rn asker_or_refuse src/` answers with today; the third
-    is `POST /v1/workflow-runs` (task 5), and this sentence goes present-tense
-    when that one lands and not before.
+    `asker_or_refuse` in `application/ports/model.py`, and every door that needs
+    a model reaches it through that one function.
+
+    Which doors those are is NOT written down here any more. This paragraph
+    used to name them and count them, with a note saying the count went up
+    "when task 5 lands and not before" -- and task 5 landed, and the sentence
+    stayed at two for a week, on the same attribute that carried a "nothing
+    reads this" defect the week before. It wrote its own trip-wire and nobody
+    tripped it, which is what a prose trip-wire is worth. The count now lives
+    in `test_every_door_that_needs_a_model_refuses_through_the_one_guard`,
+    which fails on the commit that adds or removes a caller instead of on the
+    commit that reads the comment.
 
     The check is deliberately not on this attribute and not a method here. Each
-    of those three takes `Asker | None` and refuses at the top of its own
-    `execute`, so a deployment with no model still builds every factory and
-    fails at use rather than at construction.
+    caller takes `Asker | None` and refuses at the top of its own `execute`, so
+    a deployment with no model still builds every factory and fails at use
+    rather than at construction.
     """
     intent_parser: IntentParser
     vault: CredentialVault

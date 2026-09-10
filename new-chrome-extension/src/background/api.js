@@ -326,19 +326,39 @@ export const api = {
     return r.json();
   },
 
-  rigApprove: async (runId, deviceId) => {
-    const base = await state.rigUrl();
-    if (!isMirrorable(base)) throw new ApiError(0, { detail: "no rig is configured" });
-    // Who tapped: the browser this panel belongs to. The rig writes it beside
-    // the approval, which is what an audit asks first.
-    const r = await fetch(`${base}/v1/runs/${encodeURIComponent(runId)}/approve`, {
-      method: "POST",
-      headers: await rigHeaders(),
-      body: JSON.stringify({ device_id: deviceId }),
-    });
-    if (!r.ok) throw new ApiError(r.status, await r.json().catch(() => ({ detail: r.statusText })));
-    return r.json();
-  },
+  /** They said yes: let the withheld write out.
+   *
+   * `call`, not a hand-rolled `fetch`, and that is the whole fix. The backend
+   * reads which browser tapped through `asking_device`, which wants
+   * `?device_id=` in the query and `X-Device-Secret` in the headers TOGETHER --
+   * and `call` is already the one place the second of those is built. Sending
+   * neither, which is what `rigHeaders()` and a `device_id` body did, is not a
+   * refusal: `asking` resolves to nobody, the row records `approved_by = None`,
+   * and the check that a browser only answers for the run it is driving is
+   * skipped entirely, because it can only bind a caller that names a browser.
+   * A live warehouse write, let out by nobody, on the door whose entire job is
+   * recording who let it out -- and a 200, so nothing goes red. Half a pair is
+   * at least a 404. Neither half is silent, which is why this call was fixed
+   * before the other five.
+   *
+   * `/v1/workflow-runs`, not `/v1/runs`: on this host `/v1/runs` is a *skill*
+   * run, keyed on a `RunId` and not on a workflow run's plain string. Phase 4b
+   * moved all three of the rig's run doors and wrote the reason down in
+   * `workflow_runs.py`'s module docstring.
+   *
+   * No body. The route takes none -- a `device_id` in one would be a second
+   * answer to which browser is asking, one nothing checks, written into the row
+   * an audit reads first.
+   *
+   * `deviceId` stays a parameter rather than being read from `state` here: the
+   * worker already refuses a tap for any run but the one this browser is
+   * driving, and it reads the id to do it.
+   */
+  rigApprove: (runId, deviceId) =>
+    call(
+      `/v1/workflow-runs/${encodeURIComponent(runId)}/approve?device_id=${encodeURIComponent(deviceId)}`,
+      { method: "POST" },
+    ),
 
   /** One skill, for the name and the shape of the version being run. */
   skill: (skillId) => call(`/v1/skills/${encodeURIComponent(skillId)}`),

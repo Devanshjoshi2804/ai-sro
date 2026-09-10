@@ -78,6 +78,8 @@ globalThis.chrome = {
 // -- the rig, as far as this browser can tell --------------------------------
 
 const RIG = "http://rig.test";
+/** `DEFAULT_API_URL` in `state.js`, which is what `ready()` leaves in place. */
+const BACKEND = "http://localhost:8000";
 const H = "https://wms.example";
 const PAGE = `${H}/wa`;
 const TAB = 1;
@@ -107,20 +109,45 @@ let rigRunServed = { id: "run-9", outcome: "held", steps: [] };
 /** A rig that cannot be reached, for the tick that has to be retried. */
 let rigRunFails = false;
 let shapesServed = [SHAPE];
+/** How the backend answers the approve door, for the test that a refusal is
+ * one. `null` is the door letting the write out. */
+let approveRefusal = null;
 
-/** The rig, as far as this browser can tell. Re-installed by `ready()`: a test
- * that swaps it for one of its own must not leave every later test dialling
- * that one. */
+/** The rig and the backend, as far as this browser can tell. Re-installed by
+ * `ready()`: a test that swaps it for one of its own must not leave every later
+ * test dialling that one.
+ *
+ * Two bases, told apart by which one the url starts with, because the point of
+ * phase 5 is that calls move between them -- a server that assumed one base
+ * would record a call to the other under a mangled path and match nothing.
+ * `base`, `query` and `headers` are kept as well as the path: which door was
+ * knocked on is only half of what the approve call has to get right. */
 const rigServer = async (url, options = {}) => {
-  const path = String(url).slice(RIG.length).split("?")[0];
-  calls.push({ path, method: options.method || "GET", body: options.body });
+  const full = String(url);
+  const base = full.startsWith(BACKEND) ? BACKEND : RIG;
+  const [path, query = ""] = full.slice(base.length).split("?");
+  calls.push({
+    base,
+    path,
+    query,
+    method: options.method || "GET",
+    body: options.body,
+    headers: options.headers || {},
+  });
+  if (base === BACKEND) {
+    if (path === "/v1/workflow-runs/run-9/approve") {
+      return approveRefusal
+        ? json({ detail: approveRefusal.detail }, approveRefusal.status)
+        : json({ order: 0, first: true });
+    }
+    return json({ detail: `nothing serves ${path}` }, 404);
+  }
   if (path === "/v1/shapes") return json({ shapes: shapesServed });
   if (path === "/v1/offers") return json({ offer_id: "off_1" });
   if (path === "/v1/runs") return json({ run_id: "run-9" });
   if (path === "/v1/runs/run-9") {
     return rigRunFails ? json({ detail: "the rig is down" }, 503) : json(rigRunServed);
   }
-  if (path === "/v1/runs/run-9/approve") return json({ ok: true });
   return json({ detail: `nothing serves ${path}` }, 404);
 };
 
@@ -181,9 +208,11 @@ function ready() {
   shapesServed = [SHAPE];
   rigRunServed = { id: "run-9", outcome: "held", steps: [] };
   rigRunFails = false;
+  approveRefusal = null;
   globalThis.fetch = rigServer;
   held.set("sro.token", "tok");
   held.set("sro.deviceId", "dev-1");
+  held.set("sro.deviceSecret", "sec-1");
   held.set("sro.policy", { capture_enabled: true });
   held.set("sro.watched", [{ tabId: TAB, host: "wms.example", since: 1 }]);
   held.set("sro.rigUrl", RIG);
@@ -478,15 +507,78 @@ test("the run the rig is driving is drawn while it runs, and Approve reaches the
   abort("run-9");
 
   const answer = await send({ kind: "approve-rig-run", runId: "run-9" });
-  const approve = calls.find((call) => call.path === "/v1/runs/run-9/approve");
-  assert.ok(approve, "Approve never reached the rig");
+  const approve = calls.find((call) => call.path === "/v1/workflow-runs/run-9/approve");
+  assert.ok(approve, "Approve never reached the door that lets the write out");
   assert.equal(approve.method, "POST");
-  assert.deepEqual(
-    JSON.parse(approve.body),
-    { device_id: "dev-1" },
-    "the tap names the browser it came from, and the route wants a JSON body",
+  assert.deepEqual(answer, { order: 0, first: true });
+});
+
+test("Approve proves this browser twice -- the query and the secret -- or the backend records nobody", async () => {
+  // The whole of task 1. `POST /v1/workflow-runs/{id}/approve` reads the
+  // browser through `asking_device`, which needs `?device_id=` and
+  // `X-Device-Secret` TOGETHER. Half a pair is a 404, which is loud. Neither
+  // half is `asking = None` -- and that is a 200 with a NULL approver and the
+  // driving-browser check never evaluated, on the one door whose entire job is
+  // recording who let a live warehouse write out. Nothing goes red. So each
+  // half is pinned separately here, and against what this browser actually
+  // holds rather than against a literal: a `device_id` or a secret frozen into
+  // `api.js` would have to be these exact strings to survive.
+  ready();
+  held.set("sro.deviceId", "dev-approve-e3f1");
+  held.set("sro.deviceSecret", "secret-approve-9ab2");
+  held.set("sro.token", "tok-approve-4c7d");
+  held.set("sro.activeRun", { runId: "run-9", at: Date.now(), source: "rig" });
+
+  const answer = await send({ kind: "approve-rig-run", runId: "run-9" });
+
+  const approve = calls.find((call) => call.path === "/v1/workflow-runs/run-9/approve");
+  assert.ok(approve, "Approve did not reach /v1/workflow-runs/{id}/approve");
+  assert.equal(approve.base, BACKEND, "Approve went somewhere that is not the backend");
+  assert.equal(approve.method, "POST");
+  assert.equal(
+    new URLSearchParams(approve.query).get("device_id"),
+    held.get("sro.deviceId"),
+    "the tap named no browser in the query, so the backend resolves nobody and records nobody",
   );
-  assert.deepEqual(answer, { ok: true });
+  assert.equal(
+    approve.headers["X-Device-Secret"],
+    held.get("sro.deviceSecret"),
+    "the tap proved no browser, so `?device_id=` alone is half a pair and the row names nobody",
+  );
+  assert.equal(
+    approve.headers.Authorization,
+    `Bearer ${held.get("sro.token")}`,
+    "the tap carried the rig's bearer, or none",
+  );
+  // No body at all: the route takes none, and a `device_id` in one would be a
+  // second answer to which browser is asking that nothing checks.
+  assert.equal(approve.body, undefined, "the tap sent a body the route does not read");
+  // And the old rig door was not knocked on instead, or as well.
+  assert.equal(
+    calls.filter((call) => call.path === "/v1/runs/run-9/approve").length,
+    0,
+    "Approve still went to the rig's `/v1/runs` path, which on the backend means a skill run",
+  );
+  assert.deepEqual(answer, { order: 0, first: true });
+
+  held.delete("sro.activeRun");
+});
+
+test("a backend that refuses the approval is a refusal in the panel, not a success", async () => {
+  // The status check, which is the difference between an operator seeing why
+  // the write did not go out and an operator watching a button do nothing. The
+  // test above is the success half: a refusal test that never makes a
+  // successful request proves only that something failed.
+  ready();
+  approveRefusal = { status: 403, detail: "that browser is not driving this run" };
+  held.set("sro.activeRun", { runId: "run-9", at: Date.now(), source: "rig" });
+
+  assert.deepEqual(await send({ kind: "approve-rig-run", runId: "run-9" }), {
+    ok: false,
+    error: "that browser is not driving this run",
+  });
+
+  held.delete("sro.activeRun");
 });
 
 /** How many times this browser has asked the rig what the run is doing. */

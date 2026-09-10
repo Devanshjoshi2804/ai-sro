@@ -227,6 +227,55 @@ this port's acceptance; it is the first item after it.
   upload", same mechanism.
 - `K_TAIL = 40` stays.
 
+> **Amendment, 2026-09-10, after phase 5 shipped.** Four claims in the section
+> above were wrong or stale. They are corrected here rather than edited away,
+> and this amendment sits *after* the section it corrects — phase 4b's was first
+> inserted into the middle of the table it amends and had to be moved.
+>
+> **1. "The ten node suites" (also in *Sequence*, phase 5's acceptance line).**
+> There were **27** when phase 5 was planned. There are **25** now: phase 5
+> deleted `mirror.test.mjs` and `rig-settings.test.mjs` with their subjects.
+> More to the point, **the number is no longer a fact anyone has to maintain** —
+> `make test-extension` named every suite by hand until `e3b24d3` and now
+> discovers them with node's own glob, because the hand-written list failed in
+> the direction nobody watches: a suite deleted without editing the `Makefile`
+> aborted the run at file 11 of 27, and the grep watching for failures read that
+> as green. At this amendment: 25 files, 95 tests, 0 failures, exit 0.
+>
+> **2. "They speak to `/v1/shapes`, `/v1/offers`, `/v1/runs`, which the backend
+> now hosts at the same paths."** `/v1/runs` on this backend is a **skill** run.
+> Workflow runs are at **`/v1/workflow-runs`** (see the phase-4b amendment
+> above). **Four of the seven calls changed path, not just base** — `rigRun`,
+> `rigStart`, `rigAbort`, `rigApprove`. Two more changed shape rather than path:
+> `POST /v1/workflow-runs` answers `id` where the rig answered `run_id` (read as
+> `run_id` the panel draws a run it can never poll or approve), `abort` takes no
+> body at all, and `reportOffer` moves `device_id` from the body to the query,
+> where `record_offer` 403s a request that names no browser.
+>
+> **3. "`channel.js` … carries the rig's command envelope now, including
+> `ui.perform_at` and `screenshot`."** **This was already true before phase 5
+> started.** `UiDriver.perform_at` is at `application/ports/ui.py:69`,
+> `vision_step.py:168` and `pursue_goal.py:294` call it, and `commands.js:414`
+> and `:574` already handled both kinds. It was listed as work and needed none.
+>
+> **4. "One base URL … and the rig-settings page go" understates the count.**
+> There were **seven** rig-dialling calls in `api.js`, not six. The seventh was
+> `rigRegister`, the rig's own device registration — the last reader of the
+> scheme guard and, on a browser whose rig could not mint a device token, the
+> holder of the **tenant's** bearer. Dropping the three `sro.rig*` keys from
+> `KEYS` would have left that credential in `chrome.storage.local` forever with
+> no sign-out that clears it; `RETIRED_KEYS` and `dropRetired()` exist for that.
+>
+> **What phase 5 deliberately did not do.** `rigRun`'s mapping layer **stays**.
+> `WorkflowRunModel`'s docstring said phase 5 would delete it; `{status, index}`
+> are not rig-shaped aliases but the *skill* run's own field names
+> (`RunModel.status`, `StepOutcomeModel.index`), and `run-card.js` draws both
+> kinds of run from that one shape. Deleting it means teaching the run card a
+> second vocabulary, and the run card is a file this phase does not change. The
+> `rig*` **vocabulary** therefore survives — `source: "rig"`, `start-rig-run`,
+> `api.rigRun` — pointed at the backend since phase 5. It is a rename task, and
+> it is not this one.
+
 ## The console
 
 The rig's page has three views and two strips. They become pages under the
@@ -286,6 +335,10 @@ mutation floor).
 5. Extension. One URL, mirror and rig settings removed, channel carries the
    envelope. Acceptance: the ten node suites; a browser signed in once
    registers, uploads, is served shapes, is offered, runs, approves.
+   **"The ten node suites" is wrong and the envelope was already carried before
+   this phase began — see the amendment under *The extension*. The second half
+   of this line is the part still owed: nothing has run against a live backend,
+   every suite fakes `fetch`.**
 6. Console. The five pages. Acceptance: the page tests move from the node
    harness to the frontend's suite; the two-press revoke and the audit walk
    in a real browser as they did on 2026-09-06.

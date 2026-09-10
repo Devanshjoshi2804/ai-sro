@@ -11,11 +11,18 @@ same way the recorder did, then ask the store which of them were photographed.
 Without this, a skill learned from watching has an empty Artifacts tab and a
 timeline of prose, while the pictures of the very gestures it describes sit in
 the object store unreferenced.
+
+Two callers, one counter. `teach` numbers the events it is assembling into a
+recording; `read_shots` numbers a batch to answer which stored gesture each
+picture belongs to. Both go through `numbered` below, because the recorder's
+rule is one rule and a second spelling of it is a second answer to which
+gesture a picture is of.
 """
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+import json
+from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -43,6 +50,108 @@ class ShotRef:
     """
 
 
+@dataclass(frozen=True, slots=True)
+class Shot:
+    """One picture the store actually holds."""
+
+    uri: str
+    content_type: str
+    size_bytes: int
+
+
+def numbered(payload: bytes) -> Iterator[tuple[int | None, Mapping[str, object]]]:
+    """Every readable line of a stored batch, each gesture carrying its frame
+    number and everything else carrying ``None``.
+
+    The counter walks every gesture line, including the ones the caller then
+    drops -- out of the episode, unreadable, a scroll -- because that is what
+    the recorder counted when it numbered the pictures (`upload.js`,
+    ``framesOf``). Counting only the surviving gestures slides every later
+    picture onto the wrong one.
+    """
+    ordinal = -1
+    for line in payload.splitlines():
+        if not line.strip():
+            continue
+        try:
+            event = json.loads(line)
+        except ValueError:
+            continue
+        if not isinstance(event, Mapping):
+            continue
+        if event.get("kind") == "gesture":
+            ordinal += 1
+            yield ordinal, event
+        else:
+            yield None, event
+
+
+def frames_by_instant(payload: bytes) -> Mapping[float, int]:
+    """Each gesture's frame number in this batch, keyed by the instant it
+    happened.
+
+    For the reader that has `Gesture` rows rather than the payload's own
+    lines. The two share no id -- `correlate` mints a gesture id this payload
+    never saw -- so the browser's clock is the only thing both sides carry.
+
+    An instant two gestures share is dropped rather than guessed at, which is
+    this module's rule everywhere: a picture hung on the wrong gesture is
+    worse evidence than no picture, because nothing about it looks wrong.
+    """
+    seen: dict[float, int] = {}
+    twice: set[float] = set()
+    for ordinal, event in numbered(payload):
+        if ordinal is None:
+            continue
+        gesture = event.get("gesture")
+        if not isinstance(gesture, Mapping):
+            continue
+        at = gesture.get("at")
+        if not isinstance(at, int | float):
+            continue
+        if float(at) in seen:
+            twice.add(float(at))
+        seen[float(at)] = ordinal
+    for at in twice:
+        del seen[at]
+    return seen
+
+
+async def stored_shots(blobs: BlobStore, batch: ObservationBatch) -> Mapping[str, int]:
+    """Every screenshot the store holds for one batch, by URI, with its size.
+
+    Nothing at all for a batch the server filtered: the recorder counted the
+    gestures it sent, `admit` then dropped some of them, so the gestures
+    stored here are not the gestures the pictures were numbered against. Which
+    ones went is not recoverable from a `RejectedEvent`, so this batch's
+    pictures are left behind rather than hung on whichever gesture the shifted
+    count lands on.
+    """
+    if batch.rejected:
+        return {}
+    found: dict[str, int] = {}
+    for prefix in artifact_prefixes(batch):
+        found.update(await blobs.list_prefix(f"{prefix}{ArtifactKind.SCREENSHOT.value}/"))
+    return found
+
+
+def frame_of(found: Mapping[str, int], ordinal: int) -> Shot | None:
+    """The picture numbered for this gesture, or ``None`` when none was taken.
+
+    Absent is the ordinary answer: the per-minute cap, a background tab, a
+    trim for the byte budget.
+    """
+    for uri, size in found.items():
+        name, _, suffix = uri.rpartition("/")[2].partition(".")
+        if name == f"{ordinal:05d}":
+            return Shot(
+                uri=uri,
+                content_type=_CONTENT_TYPES.get(f".{suffix}", "image/png"),
+                size_bytes=size,
+            )
+    return None
+
+
 async def pictures(
     blobs: BlobStore,
     *,
@@ -61,38 +170,24 @@ async def pictures(
     """
     listings: dict[BatchId, Mapping[str, int]] = {}
     for batch in batches:
-        if batch.rejected:
-            # The recorder counted the gestures it sent; `admit` then dropped
-            # some of them, so the gestures stored here are not the gestures
-            # the pictures were numbered against. Which ones went is not
-            # recoverable from a `RejectedEvent`, so this batch's pictures are
-            # left behind rather than hung on whichever gesture the shifted
-            # count lands on.
-            continue
-        found: dict[str, int] = {}
-        for prefix in artifact_prefixes(batch):
-            found.update(await blobs.list_prefix(f"{prefix}{ArtifactKind.SCREENSHOT.value}/"))
-        listings[batch.id] = found
+        listings[batch.id] = await stored_shots(blobs, batch)
 
     artifacts: list[MediaArtifact] = []
     for index, source in enumerate(sources):
         ref = refs.get(id(source))
         if ref is None:
             continue
-        found = dict(listings.get(ref.batch_id, {}))
-        for uri, size in found.items():
-            name, _, suffix = uri.rpartition("/")[2].partition(".")
-            if name != f"{ref.ordinal:05d}":
-                continue
-            artifacts.append(
-                MediaArtifact(
-                    kind=ArtifactKind.SCREENSHOT,
-                    uri=uri,
-                    content_type=_CONTENT_TYPES.get(f".{suffix}", "image/png"),
-                    size_bytes=size,
-                    created_at=now,
-                    frame_index=index,
-                )
+        shot = frame_of(listings.get(ref.batch_id, {}), ref.ordinal)
+        if shot is None:
+            continue
+        artifacts.append(
+            MediaArtifact(
+                kind=ArtifactKind.SCREENSHOT,
+                uri=shot.uri,
+                content_type=shot.content_type,
+                size_bytes=shot.size_bytes,
+                created_at=now,
+                frame_index=index,
             )
-            break
+        )
     return tuple(artifacts)

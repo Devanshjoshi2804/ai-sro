@@ -7,6 +7,7 @@ behind them stay free to change.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import asdict
 from datetime import datetime
 from typing import Annotated, Any
@@ -23,6 +24,7 @@ from sro.application.intent.match import Candidate
 from sro.application.intent.resolve import Resolution
 from sro.application.observation.mining_pass import MineResult
 from sro.application.observation.read_pool import Pool
+from sro.application.observation.read_shots import PlayableShot
 from sro.application.skill.read_workflows import CitedEvidence, KnownWorkflow
 from sro.domain.chat.reading import ChatReading
 from sro.domain.chat.thread import Thread
@@ -2081,6 +2083,18 @@ class WorkflowsResponse(BaseModel):
         return cls(workflows=[WorkflowModel.of(one) for one in known])
 
 
+class ShotModel(BaseModel):
+    """One picture of one gesture, addressed for a browser to fetch.
+
+    The URL is minted per request and expires with `PLAYBACK_TTL`, as a
+    recording's playback links do: a link to a picture of somebody's screen
+    that outlives the page it was drawn on is a copy nobody is tracking.
+    """
+
+    url: str
+    content_type: str
+
+
 class EvidenceResponse(BaseModel):
     """Everything a workflow cites, in the shape a runner's bridge consumes.
 
@@ -2113,8 +2127,18 @@ class EvidenceResponse(BaseModel):
     was refused if it cited evidence that did not exist, so a non-empty
     `missing` means the store moved after the job was kept."""
 
+    shots: dict[str, ShotModel] = {}
+    """What the screen looked like, keyed by gesture id.
+
+    A gesture nobody photographed has no entry rather than a null one: the
+    recorder's per-minute cap, a background tab, a batch the server filtered.
+    A key carrying nothing would have the console draw a broken picture where
+    there was never one to draw."""
+
     @classmethod
-    def of(cls, evidence: CitedEvidence) -> EvidenceResponse:
+    def of(
+        cls, evidence: CitedEvidence, *, shots: Mapping[str, PlayableShot] | None = None
+    ) -> EvidenceResponse:
         served: dict[str, dict[str, Any]] = {}
         calls: dict[str, list[dict[str, Any]]] = {}
         for gesture in evidence.gestures:
@@ -2130,6 +2154,10 @@ class EvidenceResponse(BaseModel):
             requests=calls,
             recordings=list(evidence.recordings),
             missing=list(evidence.missing),
+            shots={
+                gesture_id: ShotModel(url=shot.url, content_type=shot.content_type)
+                for gesture_id, shot in (shots or {}).items()
+            },
         )
 
 

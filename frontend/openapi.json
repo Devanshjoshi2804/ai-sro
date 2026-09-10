@@ -26863,7 +26863,7 @@
           "workflows"
         ],
         "summary": "Workflow Evidence",
-        "description": "Everything one workflow cites, for the bridge that replays it.",
+        "description": "Everything one workflow cites, for the bridge that replays it.\n\nThe evidence first, so an unknown workflow is the one 404 it always was\nrather than whichever of the two reads happens to be asked first.",
         "operationId": "workflow_evidence_v1_workflows__workflow_id__evidence_get",
         "parameters": [
           {
@@ -30174,6 +30174,14 @@
             },
             "type": "array",
             "title": "Missing"
+          },
+          "shots": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ShotModel"
+            },
+            "type": "object",
+            "title": "Shots",
+            "default": {}
           }
         },
         "type": "object",
@@ -32989,6 +32997,25 @@
           "shapes"
         ],
         "title": "ShapesResponse"
+      },
+      "ShotModel": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "content_type": {
+            "type": "string",
+            "title": "Content Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url",
+          "content_type"
+        ],
+        "title": "ShotModel",
+        "description": "One picture of one gesture, addressed for a browser to fetch.\n\nThe URL is minted per request and expires with `PLAYBACK_TTL`, as a\nrecording's playback links do: a link to a picture of somebody's screen\nthat outlives the page it was drawn on is a copy nobody is tracking."
       },
       "SignedInResponse": {
         "properties": {

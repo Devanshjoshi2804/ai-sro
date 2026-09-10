@@ -13,7 +13,6 @@ skill nobody can trust.
 
 from __future__ import annotations
 
-import json
 import logging
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass
@@ -41,7 +40,7 @@ from sro.application.induction.understand import UnderstandRecording
 from sro.application.observation.evidence import once_each
 from sro.application.observation.propose import occurrences
 from sro.application.observation.segment import _host
-from sro.application.observation.shots import ShotRef, pictures
+from sro.application.observation.shots import ShotRef, numbered, pictures
 from sro.application.ports.blob import BlobStore
 from sro.application.ports.interpretation import WorkflowInterpreter
 from sro.application.ports.repositories import UnitOfWork
@@ -764,29 +763,17 @@ def _within(
     """This episode's slice of one batch, each gesture carrying where its
     picture would be.
 
-    The ordinal counts every gesture line in the batch, including the ones
-    this episode does not want and the ones `_capture` cannot read -- because
-    that is what the recorder counted when it numbered the pictures
-    (`upload.js`, ``framesOf``). Counting only the surviving gestures would
-    slide every later picture onto the wrong one.
+    The counting is `numbered`'s, not this module's: it walks every gesture
+    line in the batch, including the ones this episode does not want and the
+    ones `_capture` cannot read, because that is what the recorder counted
+    when it numbered the pictures (`upload.js`, ``framesOf``). Counting only
+    the surviving gestures would slide every later picture onto the wrong one.
     """
     kept: list[tuple[CaptureEvent, ShotRef | None]] = []
-    ordinal = -1
-    for line in payload.splitlines():
-        if not line.strip():
-            continue
-        try:
-            event = json.loads(line)
-        except ValueError:
-            continue
-        if not isinstance(event, Mapping):
-            continue
-        gesture = event.get("kind") == "gesture"
-        if gesture:
-            ordinal += 1
+    for ordinal, event in numbered(payload):
         capture = _capture(event, episode)
         if capture is not None:
-            kept.append((capture, ShotRef(batch_id, ordinal) if gesture else None))
+            kept.append((capture, None if ordinal is None else ShotRef(batch_id, ordinal)))
     return kept
 
 

@@ -104,6 +104,7 @@ export function WorkflowDetail({ workflowId }: { workflowId: string }) {
 
   const gestures = (evidence.data?.gestures ?? {}) as Record<string, unknown>;
   const calls = (evidence.data?.requests ?? {}) as Record<string, unknown>;
+  const shots = (evidence.data?.shots ?? {}) as Record<string, { url?: string } | undefined>;
   const recordings = evidence.data?.recordings ?? [];
   const missing = evidence.data?.missing ?? [];
 
@@ -160,6 +161,7 @@ export function WorkflowDetail({ workflowId }: { workflowId: string }) {
               step={step}
               gestures={gestures}
               calls={calls}
+              shots={shots}
               loading={evidence.isLoading}
             />
           ))}
@@ -177,7 +179,7 @@ export function WorkflowDetail({ workflowId }: { workflowId: string }) {
             <>
               <p className="text-muted-foreground">
                 {Object.keys(gestures).length} gestures · {Object.keys(calls).length} carrying
-                calls · {recordings.length}{" "}
+                calls · {Object.keys(shots).length} photographed · {recordings.length}{" "}
                 {recordings.length === 1 ? "recording" : "recordings"}
               </p>
               {recordings.length > 0 && (
@@ -239,11 +241,13 @@ function Step({
   step,
   gestures,
   calls,
+  shots,
   loading,
 }: {
   step: WorkflowStepModel;
   gestures: Record<string, unknown>;
   calls: Record<string, unknown>;
+  shots: Record<string, { url?: string } | undefined>;
   loading: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -282,7 +286,7 @@ function Step({
         <div className="mt-2 ml-9 space-y-2">
           {loading && <Skeleton className="h-12 w-full" />}
           {cites.map((id: string) => (
-            <Cited key={id} id={id} gesture={gestures[id]} calls={calls[id]} />
+            <Cited key={id} id={id} gesture={gestures[id]} calls={calls[id]} shot={shots[id]} />
           ))}
         </div>
       )}
@@ -290,7 +294,17 @@ function Step({
   );
 }
 
-function Cited({ id, gesture, calls }: { id: string; gesture: unknown; calls: unknown }) {
+function Cited({
+  id,
+  gesture,
+  calls,
+  shot,
+}: {
+  id: string;
+  gesture: unknown;
+  calls: unknown;
+  shot?: { url?: string };
+}) {
   if (gesture === undefined) {
     return (
       <p className="text-destructive font-mono text-xs">
@@ -337,6 +351,23 @@ function Cited({ id, gesture, calls }: { id: string; gesture: unknown; calls: un
         <span className="text-muted-foreground">{hostOf(g.url)}</span>
       </p>
       {label && <p className="mt-0.5 truncate text-xs">{label}</p>}
+      {/* The screen as it was at that instant. The prose above says what the
+          model read; this is what it was reading, and it is the only thing on
+          the page a person can check without trusting anything the model
+          wrote. Lazy, because a step can cite a dozen of them. */}
+      {shot?.url && (
+        <a href={shot.url} target="_blank" rel="noreferrer" className="mt-1.5 block">
+          {/* eslint-disable-next-line @next/next/no-img-element -- a presigned
+              URL on a per-request host; next/image would need it in remotePatterns
+              and would proxy bytes the browser can already fetch itself. */}
+          <img
+            src={shot.url}
+            alt={`The screen when this gesture happened${label ? `: ${label}` : ""}`}
+            loading="lazy"
+            className="border-border max-h-56 w-auto rounded border object-contain"
+          />
+        </a>
+      )}
       {shown.map((c, i) => (
         <div key={i} className="mt-1">
           <p className="text-warn font-mono text-xs break-all">

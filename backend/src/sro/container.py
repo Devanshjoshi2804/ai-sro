@@ -86,6 +86,7 @@ from sro.application.observation.mine_pass import MinePass
 from sro.application.observation.policy import ReadObservationPolicy, SetObservationPolicy
 from sro.application.observation.propose import AnswerJoin, ProposeAboutCandidates
 from sro.application.observation.read_pool import ReadPool
+from sro.application.observation.read_shots import ReadShots
 from sro.application.observation.register import (
     GrantHost,
     ReadDevice,
@@ -356,6 +357,9 @@ class Container:
 
     def read_evidence(self) -> ReadEvidence:
         return ReadEvidence(self.unit_of_work())
+
+    def read_shots(self) -> ReadShots:
+        return ReadShots(self.unit_of_work(), self.blobs)
 
     def read_pool(self) -> ReadPool:
         return ReadPool(self.unit_of_work())

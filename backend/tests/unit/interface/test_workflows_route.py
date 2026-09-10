@@ -32,6 +32,7 @@ a route by the calendar.
 
 from __future__ import annotations
 
+import json
 from collections.abc import AsyncIterator
 
 import httpx
@@ -39,8 +40,9 @@ import pytest
 from httpx import ASGITransport
 
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
+from sro.domain.observation.batch import CaptureMode, ObservationBatch
 from sro.domain.observation.gesture import Action, Body, Call, Component, Gesture, Target
-from sro.domain.shared.identifiers import DeviceId
+from sro.domain.shared.identifiers import BatchId, DeviceId
 from sro.domain.skill.shape import Shape
 from sro.domain.skill.workflow import Step, Workflow
 from sro.interface.http.app import create_app
@@ -737,6 +739,50 @@ async def test_a_job_that_cites_nothing_is_an_answer_and_not_a_failure(
         "requests": {},
         "recordings": [],
         "missing": [],
+        "shots": {},
+    }
+
+
+async def test_the_evidence_carries_a_link_to_the_picture_of_the_gesture(
+    client: httpx.AsyncClient, container: _FakeContainer, uow: FakeUnitOfWork, mined: list[Gesture]
+) -> None:
+    """The screenshots were in the object store and no route read one back.
+
+    `ges_1` is photographed and the five gestures cited beside it are not, so
+    a route that answered the whole batch, or a fixed map, or nothing at all is
+    a different body from this one. The URL is asserted whole: what makes this
+    field worth serving is that it is dereferenceable, and a key that carries
+    the wrong path is a broken picture rather than a missing one.
+    """
+    day = f.T0.date().isoformat()
+    stem = f"{f.TENANT}/{f.OPERATOR}/{day}/bat_ges_1"
+    container.blobs.objects[f"{stem}.ndjson"] = (
+        json.dumps({"kind": "gesture", "gesture": {"kind": "click", "at": 10.0}}).encode() + b"\n"
+    )
+    container.blobs.objects[f"{stem}/screenshot/00000.png"] = b"PNG"
+    await uow.observations.add(
+        ObservationBatch(
+            id=BatchId("bat_ges_1"),
+            tenant_id=f.TENANT,
+            device_id=LAPTOP,
+            principal_id=f.OPERATOR,
+            mode=CaptureMode.PASSIVE,
+            started_at=f.T0,
+            ended_at=f.at(60),
+            received_at=f.at(60),
+            uri=f"s3://sro-artifacts/{stem}.ndjson",
+            event_count=1,
+            byte_count=len(container.blobs.objects[f"{stem}.ndjson"]),
+        )
+    )
+
+    body = (await _evidence(client)).json()
+
+    assert body["shots"] == {
+        "ges_1": {
+            "url": f"https://blobs.test/{stem}/screenshot/00000.png?expires=1800",
+            "content_type": "image/png",
+        }
     }
 
 

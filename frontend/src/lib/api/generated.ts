@@ -2042,6 +2042,9 @@ export interface paths {
         /**
          * Workflow Evidence
          * @description Everything one workflow cites, for the bridge that replays it.
+         *
+         *     The evidence first, so an unknown workflow is the one 404 it always was
+         *     rather than whichever of the two reads happens to be asked first.
          */
         get: operations["workflow_evidence_v1_workflows__workflow_id__evidence_get"];
         put?: never;
@@ -2934,6 +2937,13 @@ export interface components {
             recordings: string[];
             /** Missing */
             missing: string[];
+            /**
+             * Shots
+             * @default {}
+             */
+            shots: {
+                [key: string]: components["schemas"]["ShotModel"];
+            };
         };
         /** FinishRecordingRequest */
         FinishRecordingRequest: {
@@ -4126,6 +4136,20 @@ export interface components {
             shapes: {
                 [key: string]: unknown;
             }[];
+        };
+        /**
+         * ShotModel
+         * @description One picture of one gesture, addressed for a browser to fetch.
+         *
+         *     The URL is minted per request and expires with `PLAYBACK_TTL`, as a
+         *     recording's playback links do: a link to a picture of somebody's screen
+         *     that outlives the page it was drawn on is a copy nobody is tracking.
+         */
+        ShotModel: {
+            /** Url */
+            url: string;
+            /** Content Type */
+            content_type: string;
         };
         /** SignedInResponse */
         SignedInResponse: {

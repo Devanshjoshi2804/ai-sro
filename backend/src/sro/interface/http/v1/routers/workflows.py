@@ -67,7 +67,12 @@ async def workflows(
 async def workflow_evidence(
     container: ContainerDep, ctx: ContextDep, workflow_id: str
 ) -> EvidenceResponse:
-    """Everything one workflow cites, for the bridge that replays it."""
+    """Everything one workflow cites, for the bridge that replays it.
+
+    The evidence first, so an unknown workflow is the one 404 it always was
+    rather than whichever of the two reads happens to be asked first.
+    """
+    evidence = await container.read_evidence().execute(ctx, workflow_id=workflow_id)
     return EvidenceResponse.of(
-        await container.read_evidence().execute(ctx, workflow_id=workflow_id)
+        evidence, shots=await container.read_shots().execute(ctx, workflow_id=workflow_id)
     )

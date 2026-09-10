@@ -73,10 +73,20 @@ whole purpose is recording who authorised it.
   bundler, a framework, or a package.
 - **eslint with `no-undef`** is the only static check the extension has —
   `make lint-extension`. There is no type checker here.
-- **`make test-extension` runs 27 node suites.** All 27 pass at `fd89531`.
-  **Report the number you observe**, and note that `grep -c "fail"` over that
-  output returns 14 on a fully green run, because `fail 0` and test names
-  contain the word. Match `fail [1-9]` or read the summary lines.
+- **`make test-extension` runs the node suites.** 27 at `fd89531`; 26 after
+  Task 3 deleted `mirror.test.mjs` with its subject.
+
+  **Judge it by the exit code, not by grepping the output.** Two greps have
+  already lied here. `grep -c "fail"` returns 14 on a fully green run, because
+  `fail 0` lines and test names both match — and my replacement,
+  `grep -cE "fail [1-9]"`, is worse: **it returns 0 on a run that aborted
+  early.** Task 3 deleted a suite without editing the Makefile, the run died at
+  suite 11 of 27 with `Error 2`, and that grep called it green. I put that
+  instruction in three briefs before it was caught.
+
+- **The `Makefile` names all 27 suites by hand** (`test-extension`, `:169-196`).
+  Deleting a `.test.mjs` without editing the Makefile **breaks the build** — the
+  target invokes a file that is gone. Nothing in the spec says so.
 
 ### What must not change
 

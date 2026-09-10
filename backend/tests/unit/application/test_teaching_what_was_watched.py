@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
+from typing import cast
 
 import pytest
 
@@ -383,14 +384,14 @@ async def _seen_twice(uow: FakeUnitOfWork, blobs: FakeBlobStore) -> TaskCandidat
 
 def _events_at(at: datetime) -> list[dict[str, object]]:
     shifted = at - START
-    events = []
+    events: list[dict[str, object]] = []
     for event in _events():
         if event["kind"] == "gesture":
-            gesture = dict(event["gesture"])
+            gesture = dict(cast("dict[str, object]", event["gesture"]))
             gesture["at"] = float(gesture["at"]) + shifted.total_seconds()
             events.append({"kind": "gesture", "gesture": gesture})
         else:
-            request = dict(event["request"])
+            request = dict(cast("dict[str, object]", event["request"]))
             request["started_at"] = (
                 datetime.fromisoformat(str(request["started_at"])) + shifted
             ).isoformat()

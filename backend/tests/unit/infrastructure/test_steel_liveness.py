@@ -17,7 +17,7 @@ from sro.domain.shared.identifiers import BrowserSessionId
 from sro.infrastructure.steel import client as steel_module
 from sro.infrastructure.steel.client import SteelClient
 
-GHOST = {
+GHOST: dict[str, object] = {
     "id": "cc2b7d07-ghost",
     "status": "live",
     "createdAt": "2026-08-13T17:17:00.000Z",

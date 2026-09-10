@@ -17,10 +17,11 @@ from sro.application.execution.execute_skill import ExecuteSkill, NotRunnable
 from sro.application.execution.run_from_preview import RunFromPreview
 from sro.domain.execution.run import Medium
 from sro.domain.shared.errors import InvariantViolation
-from sro.domain.shared.identifiers import DeviceId, RecordingId, SkillId
+from sro.domain.shared.identifiers import DeviceId, RecordingId, SkillId, TenantId
 from sro.domain.skill.loop import Binding, Loop
 from sro.domain.skill.parameter import Parameter, ParameterKind
 from sro.domain.skill.promotion import PromotionStage
+from sro.domain.skill.skill import Skill
 from sro.domain.skill.template import Template
 from sro.domain.skill.track_record import REQUIRED_CLEAN_RUNS, TrackRecord
 from tests import factories as f
@@ -198,7 +199,7 @@ async def test_the_run_is_pinned_to_the_version_this_press_promoted() -> None:
     calls = 0
     real_get = uow.skills.get
 
-    async def racing_get(tenant_id: object, skill_id: object) -> object:
+    async def racing_get(tenant_id: TenantId, skill_id: SkillId) -> Skill:
         nonlocal calls
         calls += 1
         got = await real_get(tenant_id, skill_id)

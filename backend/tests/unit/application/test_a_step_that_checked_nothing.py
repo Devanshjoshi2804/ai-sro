@@ -183,7 +183,11 @@ def test_promoting_a_demoted_version_clears_what_demoted_it() -> None:
     version.promote(PromotionStage.ASSISTED, f.at(900), f.OPERATOR)
 
     assert version.track_record.should_demote is False
-    assert version.demotion_reason is None
+    # False positive: `assert ...should_demote` above narrowed the property to
+    # Literal[True], and mypy does not invalidate that across `promote`, which
+    # changes it -- so `is False` narrows to Never and this passing check looks
+    # dead. The assertion is real and passes.
+    assert version.demotion_reason is None  # type: ignore[unreachable]
     # The history is kept -- what happened happened.
     assert version.track_record.failed_runs == 3
 

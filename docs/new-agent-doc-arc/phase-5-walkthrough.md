@@ -52,9 +52,27 @@ union all select 'chats',              count(*) from chats;
 Five offers, on two tenants, all of them real — three `diverged`, two `expired`,
 none `accepted`. So steps 1 to 7 below have now happened in a signed-in Chrome
 against the real WMS, and the writes behind them proved out against real
-Postgres. **Step 8 has never been pressed**, and everything downstream of it —
-the run, its steps, the approval, the planning calls — is exactly as empty as
-the table above says. That is the whole of what phase 5 still owes.
+Postgres.
+
+**And then two more, without a browser at all.** `backend/scripts/stub_device.py`
+holds the command channel open and answers as a browser would; three dry runs
+through it on 2026-09-11 put **`workflow_runs` at 3 and `workflow_run_steps` at
+4**, with real model calls behind them — $0.0105 to $0.0274 a run, 7 rows in
+`model_calls`. `POST /v1/workflow-runs` answered **201 with the whole row keyed
+`id`**, which is the contract step 8 below exists to check, and the backend
+accepted every part of it against real Postgres. So the signature failure this
+file was written about — a door that is green in 2299 tests and dead against
+the real store — is ruled out for the run path by something other than a
+promise.
+
+What a stub cannot pay is the rest. It is not a warehouse, so a dry run's
+withheld write is withheld from nobody, and `live: true` against a stub proves
+the *parking* but not the *writing*. And `approvals` is still **0**: a live run
+is the only thing that parks, and a live run is the one thing nobody should
+start on somebody else's behalf.
+
+So what phase 5 still owes, exactly: **steps 8 and 9 pressed by a person, in
+their own Chrome, against the real WMS.** Everything before them is paid.
 
 
 Everything on the execution side — the press, the poll, the offer fate, the
@@ -500,8 +518,17 @@ where run_id = (select id from workflow_runs order by started_at desc limit 1)
 order by ord;
 ```
 
-The rows here and the rows on screen must be the same rows. `chats` should also
-stop being empty around now — every planning call is a row:
+The rows here and the rows on screen must be the same rows.
+
+**`chats` is the wrong table and this file was wrong to name it.** Nothing in a
+workflow run writes it: `chats` is written only by `application/chat/understand.py`,
+which is the reading path behind `POST /v1/chat`, and it will still be empty
+when every check on this page has passed. A run's planning calls are rows in
+**`model_calls`**, and the run's own totals are on the run and its steps
+(`in_tokens`, `out_tokens`, `thought_tokens`, `cost_usd`, `unpriced`). Three dry
+runs on 2026-09-11 put 7 rows in `model_calls` and none in `chats`. The query
+below is kept because it is still the right query for the chat path — it is just
+not evidence of anything on this page.
 
 ```sql
 select id, workflow_id, in_tokens, out_tokens, thought_tokens,

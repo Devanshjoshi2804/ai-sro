@@ -65,11 +65,30 @@ file was written about — a door that is green in 2299 tests and dead against
 the real store — is ruled out for the run path by something other than a
 promise.
 
-What a stub cannot pay is the rest. It is not a warehouse, so a dry run's
-withheld write is withheld from nobody, and `live: true` against a stub proves
-the *parking* but not the *writing*. And `approvals` is still **0**: a live run
-is the only thing that parks, and a live run is the one thing nobody should
-start on somebody else's behalf.
+**A fourth stub run, pressed `live: true`, paid one more — 2026-09-11.**
+`workflow_runs` to 4, `workflow_run_steps` to 5, and `approvals` off zero for
+the first time ever: the run parked on step 1 (`may_write`, `earned` false —
+nothing has three held runs yet), `POST /v1/workflow-runs/{id}/approve` was
+called, and the write went out (`ui.perform`, `"wrote": true`, a real
+`gemini-3.8-flash` call at $0.006813). The run then failed anyway, honestly:
+`state unknown after a write; not retried` — the stub's canned answer cannot
+show the value this run supplied, so the belt check that reads back a write
+correctly refuses to call it held. That failure is the stub's ceiling, not a
+defect in the parking gate.
+
+**What this does and does not settle.** The approve call above was made with
+the tenant's bare credential, naming no browser — the same door's
+"supervisor's console" path, legitimate by the router's own design. The row
+it left has `device_id IS NULL`, which is correct for that path and is *not*
+the NULL-approver bug this file warns about below (that bug was a call that
+meant to send a browser's credentials and silently sent neither). But it is
+also not the check steps 8 and 9 exist to run: `approver_is_the_driver`, which
+needs an approval sent *as* the driving browser, `?device_id=` and
+`X-Device-Secret` together. A stub answering a websocket has no panel to press
+Approve from, so that specific check — and a `held` outcome, which needs a
+warehouse that can show its own write back — are still unproven by anything
+in this repository. `approvals` being non-zero is a fact now; `approver_is_the_driver`
+being `true` is not yet one.
 
 So what phase 5 still owes, exactly: **steps 8 and 9 pressed by a person, in
 their own Chrome, against the real WMS.** Everything before them is paid.

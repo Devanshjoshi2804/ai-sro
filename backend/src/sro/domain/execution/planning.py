@@ -40,6 +40,18 @@ from sro.domain.skill.workflow import Step
 
 KINDS = frozenset({"ui.perform", "http.send", "navigate"})
 
+LIVE_FETCHABLE_HEADERS = frozenset({"csrf-encrypt-token"})
+"""Lower-cased header names the extension itself knows how to read off the
+live page, rather than out of a recording.
+
+Small and explicit on purpose, the same way `verified_writes.VerifiedWrite`
+is: the extension runs whatever JS this list names, so the list is a fixed
+menu the extension owns, never a JS snippet the backend sends down the wire
+to be run unexamined. One entry today -- `CSRF-ENCRYPT-TOKEN`, read off
+`Ext.Ajax.defaultHeaders` on a Blue Yonder page (see
+`sro.domain.execution.verified_writes`) -- and a header this deployment has
+no live source for is simply never asked for."""
+
 PLAN_SCHEMA: dict[str, object] = {
     "type": "object",
     # kind first, why last: decide, then explain.

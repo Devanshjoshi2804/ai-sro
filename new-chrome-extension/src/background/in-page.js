@@ -364,6 +364,16 @@ export function viewportInPage() {
   return { url: location.href, width, height, digest: seen.slice(0, 200).join("\n").slice(0, 8000) };
 }
 
+/** The one header this extension knows how to read live: Blue Yonder keeps
+ * its write token in a page-level JS global, never in a cookie, so a
+ * recording can only ever capture a value the recorder correctly redacts.
+ * Runs in the MAIN world -- `Ext` is the page's own framework object, not
+ * reachable from the isolated world `sendInPage` runs in -- and answers
+ * `null`, never throws, when the page has no such global to read. */
+export function csrfTokenInPage() {
+  return window.Ext?.Ajax?.defaultHeaders?.["CSRF-ENCRYPT-TOKEN"] ?? null;
+}
+
 /** Send a request from a tab that is already on that origin, so the operator's
  * own session applies -- which is why a skill can be replayed against a system
  * this deployment holds no credentials for at all.

@@ -60,6 +60,7 @@ from sro.domain.execution.evidence import (
     writes,
 )
 from sro.domain.execution.planning import Look, Planned
+from sro.domain.execution.verified_writes import VerifiedWrite
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun, new_run_id
 from sro.domain.observation.gesture import Gesture
 from sro.domain.shared.hosts import system_of
@@ -283,6 +284,7 @@ async def run_workflow(
     approvals: Approvals,
     run_id: str | None = None,
     from_step: int = 0,
+    verified_writes: tuple[VerifiedWrite, ...] = (),
 ) -> WorkflowRun:
     # A run the caller already claimed. `POST /v1/runs` writes the `running` row
     # itself, before it answers, so a second press for the same browser is
@@ -468,6 +470,7 @@ async def run_workflow(
                             model=model,
                             failure=verdict.reason if verdict else None,
                             failed_look=after_failed,
+                            verified_writes=verified_writes,
                         )
                     record.planned_by = model
                     record.before_url = before.url

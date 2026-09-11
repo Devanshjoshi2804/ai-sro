@@ -18,6 +18,7 @@ import copy
 import json
 from collections.abc import Mapping
 from dataclasses import replace
+from urllib.parse import urlsplit
 
 from sro.application.execution.plan_step import ACTIONS, plan_by_sight, plan_step
 from sro.domain.execution.evidence import locators_for
@@ -29,6 +30,7 @@ from sro.domain.execution.planning import (
     Look,
     Planned,
 )
+from sro.domain.execution.verified_writes import VerifiedWrite
 from sro.domain.observation.gesture import Body, Call, Gesture
 from sro.domain.observation.trim import trim
 from sro.domain.shared.hosts import REDACTED
@@ -187,6 +189,92 @@ async def test_an_http_plan_replays_the_recorded_call_with_redacted_headers_drop
     assert isinstance(headers, dict)
     assert "CSRF-ENCRYPT-TOKEN" not in headers, "a marker is never sent as a header"
     assert headers["Content-Type"] == "application/json"
+    assert "live_headers" not in planned.payload, "unverified: the rule above is the whole of it"
+
+
+async def test_a_verified_call_names_its_struck_header_for_a_live_fetch_instead() -> None:
+    """The one narrow exception. `verified_writes` carries this call's own
+    `(method, path)`, so the header the extension has a live source for is
+    named in `live_headers` rather than silently left off -- which is what
+    sends a Blue Yonder write into the 404 the KB's own notes describe.
+    """
+    saver = _saver()
+    post = next(r for r in saver.requests if r.method == "POST")
+    struck = replace(
+        post,
+        request_headers={"Content-Type": "application/json", "CSRF-ENCRYPT-TOKEN": REDACTED},
+    )
+    saver.requests[saver.requests.index(post)] = struck
+    asker = FakeAsker(
+        Answer(
+            data={
+                "kind": "http.send",
+                "action": None,
+                "value": None,
+                "url": None,
+                "why": "no ui target",
+            }
+        )
+    )
+
+    planned = await plan_step(
+        step=Step(order=0, says="save", system=None, cites=[saver.id]),
+        cited=[saver],
+        values={},
+        look=Look(None, None, ""),
+        origin=None,
+        starts_on=None,
+        allow_focus=False,
+        asker=asker,
+        model="m",
+        verified_writes=(VerifiedWrite(method="POST", path_pattern=urlsplit(post.url).path),),
+    )
+
+    assert planned.kind == "http.send"
+    assert planned.payload["live_headers"] == ["CSRF-ENCRYPT-TOKEN"]
+    assert "CSRF-ENCRYPT-TOKEN" not in planned.payload["headers"], (
+        "named for a live fetch, never carried on the wire from here"
+    )
+
+
+async def test_a_call_that_matches_no_verified_write_still_drops_the_header() -> None:
+    """Verification is per call, not a switch this deployment flips once: a
+    ledger naming some other path leaves this one exactly as unverified as an
+    empty ledger would."""
+    saver = _saver()
+    post = next(r for r in saver.requests if r.method == "POST")
+    struck = replace(
+        post,
+        request_headers={"Content-Type": "application/json", "CSRF-ENCRYPT-TOKEN": REDACTED},
+    )
+    saver.requests[saver.requests.index(post)] = struck
+    asker = FakeAsker(
+        Answer(
+            data={
+                "kind": "http.send",
+                "action": None,
+                "value": None,
+                "url": None,
+                "why": "no ui target",
+            }
+        )
+    )
+
+    planned = await plan_step(
+        step=Step(order=0, says="save", system=None, cites=[saver.id]),
+        cited=[saver],
+        values={},
+        look=Look(None, None, ""),
+        origin=None,
+        starts_on=None,
+        allow_focus=False,
+        asker=asker,
+        model="m",
+        verified_writes=(VerifiedWrite(method="POST", path_pattern="/somewhere/else"),),
+    )
+
+    assert "live_headers" not in planned.payload
+    assert "CSRF-ENCRYPT-TOKEN" not in planned.payload["headers"]
 
 
 async def test_an_http_plan_whose_body_the_store_never_kept_is_downgraded_to_the_interface() -> (

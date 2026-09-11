@@ -171,6 +171,7 @@ from sro.infrastructure.gemini.null_interpreter import NoInterpreter
 from sro.infrastructure.http.api_runs import ApiRunDispatcher
 from sro.infrastructure.http.httpx_caller import HttpxCaller
 from sro.infrastructure.knowledge.embedding import GeminiEmbedder, NoEmbedder
+from sro.infrastructure.knowledge.write_endpoints import load_verified_writes
 from sro.infrastructure.mcp.client import McpServer, McpToolCaller
 from sro.infrastructure.mcp.server import SkillToolServer
 from sro.infrastructure.steel.client import SteelClient
@@ -891,6 +892,11 @@ class Container:
         `gemini_plan_model` plans and `gemini_rescue_model` rescues: a clean
         step never touches the expensive one, and the wiring is the rig's own
         (`api.py:1140`).
+
+        `verified_writes` reads `knowledge-base/index/write-endpoints.json`,
+        cached by `load_verified_writes` -- an empty ledger where the
+        knowledge base is not checked out beside this deployment, never an
+        error.
         """
         return StartWorkflowRun(
             self.unit_of_work(),
@@ -902,6 +908,7 @@ class Container:
             cap_usd=self.settings.daily_usd_cap,
             stops=self.stops,
             approvals=self.approvals,
+            verified_writes=load_verified_writes(),
         )
 
     def list_workflow_runs(self) -> ListWorkflowRuns:

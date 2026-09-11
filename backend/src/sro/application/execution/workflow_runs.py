@@ -86,6 +86,7 @@ from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock
 from sro.application.shared.refusals import OverCap
 from sro.domain.execution.evidence import unperformable
+from sro.domain.execution.verified_writes import VerifiedWrite
 from sro.domain.execution.workflow_run import (
     RunStep,
     WorkflowRun,
@@ -147,6 +148,7 @@ class StartWorkflowRun:
         cap_usd: float,
         stops: Stops,
         approvals: Approvals,
+        verified_writes: tuple[VerifiedWrite, ...] = (),
     ) -> None:
         self._uow = uow
         self._channel = channel
@@ -161,6 +163,7 @@ class StartWorkflowRun:
         self._cap_usd = cap_usd
         self._stops = stops
         self._approvals = approvals
+        self._verified_writes = verified_writes
 
     async def execute(
         self,
@@ -323,6 +326,7 @@ class StartWorkflowRun:
                     approvals=self._approvals,
                     run_id=run.id,
                     from_step=run.from_step,
+                    verified_writes=self._verified_writes,
                 )
         except Exception as error:
             logger.exception("a run in an operator's browser could not be finished")

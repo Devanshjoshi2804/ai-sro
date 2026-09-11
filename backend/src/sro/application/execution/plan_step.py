@@ -20,8 +20,18 @@ That preference was measured, not assumed. Blue Yonder signs every write with a
 what holds this module to it. An `http.send` replaying the recorded call would
 send the marker as its token and be refused; clicking Save lets the page mint
 its own. So `http.send` is for a step whose evidence carries a call and no
-usable target -- and a header whose stored value is the redaction marker is
-never sent under any plan.
+usable target -- and a struck-out header is never sent as its marker under
+any plan.
+
+One narrow exception, and it is opt-in per call: `verified_writes` -- see
+`sro.domain.execution.verified_writes` -- is a ledger of `(method, path)`
+pairs this deployment has individually watched succeed, edit, verify, revert.
+For a call that matches one, a header the extension itself has a live source
+for (today, only `CSRF-ENCRYPT-TOKEN`) is named in the plan's `live_headers`
+rather than left off; the extension fetches the value off the page it is
+already in, and it is never carried on the wire from here. Everything else --
+an unverified call, or a header the extension has no live source for -- keeps
+the rule above exactly as it was.
 
 An instance count of those headers used to stand here in place of the name. It
 was taken over a capture store that was a scratchpad and is gone, nothing in
@@ -40,6 +50,7 @@ from sro.application.ports.model import Asker
 from sro.domain.execution.evidence import locators_for, primary_gesture, recorded_call
 from sro.domain.execution.planning import (
     KINDS,
+    LIVE_FETCHABLE_HEADERS,
     PLAN_INSTRUCTIONS,
     PLAN_SCHEMA,
     SIGHT_ACTIONS,
@@ -50,8 +61,10 @@ from sro.domain.execution.planning import (
     unreplayable,
     value_for,
 )
+from sro.domain.execution.verified_writes import VerifiedWrite, verified_write_for
 from sro.domain.observation.gesture import Gesture, Kind
 from sro.domain.observation.trim import trim
+from sro.domain.shared.hosts import REDACTED
 from sro.domain.shared.prices import Answer, Effort
 from sro.domain.skill.workflow import Step
 
@@ -91,6 +104,7 @@ async def plan_step(
     effort: Effort | None = None,
     failure: str | None = None,
     failed_look: Look | None = None,
+    verified_writes: tuple[VerifiedWrite, ...] = (),
 ) -> Planned:
     primary = _primary(step, cited)
     evidence = json.dumps(
@@ -165,17 +179,30 @@ async def plan_step(
             why = f"recorded call is not replayable; {why}"
         else:
             body = call.request_body.text if call.request_body and call.request_body.text else None
-            return Planned(
-                "http.send",
-                {
-                    "method": call.method.upper(),
-                    "url": call.url,
-                    "headers": headers_without_markers(call.request_headers),
-                    "body": body,
-                },
-                why,
-                answer,
-            )
+            payload: dict[str, object] = {
+                "method": call.method.upper(),
+                "url": call.url,
+                "headers": headers_without_markers(call.request_headers),
+                "body": body,
+            }
+            # A struck-out header is not sent as its marker -- that much holds
+            # for every call. For a call this deployment has individually
+            # watched succeed (`verified_write_for`), a header the extension
+            # itself knows a live source for is asked for instead of being
+            # left off: dropping `CSRF-ENCRYPT-TOKEN` sends a Blue Yonder
+            # write the app will refuse before routing it, the third 404 shape
+            # `knowledge-base/KNOWLEDGE-BASE.md` names. Named, not sent: the
+            # extension fetches the value itself, off the page it is already
+            # in, and it never reaches the backend at all.
+            if verified_write_for(call, verified_writes) is not None:
+                live = [
+                    name
+                    for name, value in call.request_headers.items()
+                    if REDACTED in value and name.lower() in LIVE_FETCHABLE_HEADERS
+                ]
+                if live:
+                    payload["live_headers"] = live
+            return Planned("http.send", payload, why, answer)
 
     # Both the plan the model asked for and the one it gets when its http.send
     # cannot be replayed. One path, so the downgrade cannot drift from the plan

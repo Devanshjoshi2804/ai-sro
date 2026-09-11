@@ -12,7 +12,13 @@
 // laptop was simply closed is how a working skill gets demoted for somebody
 // going to lunch.
 
-import { performAtInPage, performInPage, sendInPage, viewportInPage } from "./in-page.js";
+import {
+  csrfTokenInPage,
+  performAtInPage,
+  performInPage,
+  sendInPage,
+  viewportInPage,
+} from "./in-page.js";
 import { hideDriving, showDriving } from "./showing.js";
 import { state } from "./state.js";
 
@@ -511,14 +517,32 @@ async function navigate(payload) {
   return { ok: true, result: { navigated: true } };
 }
 
+/** The extension's own menu of headers it knows how to read off a live page,
+ * matching `LIVE_FETCHABLE_HEADERS` on the backend -- a name the backend asks
+ * for that is not here is `unreachable`, never silently dropped, because that
+ * gap is a deployment the two sides disagree about, not a normal miss. */
+const LIVE_HEADER_SOURCES = { "csrf-encrypt-token": csrfTokenInPage };
+
 async function httpSend(payload) {
   const tab = await tabOnOrigin(payload?.url || "");
   if (!tab) {
     return failure("no_tab_for_origin", `no tab is open on ${payload?.url || "that origin"}`);
   }
+  const headers = { ...(payload.headers || {}) };
+  for (const name of payload.live_headers || []) {
+    const source = LIVE_HEADER_SOURCES[name.toLowerCase()];
+    if (!source) {
+      return failure("unreachable", `no live source for header ${name}`);
+    }
+    const value = await inPage(tab.id, source, [], "MAIN");
+    if (!value) {
+      return failure("unreachable", `${name} is not on this page`);
+    }
+    headers[name] = value;
+  }
   // The isolated world: same origin and the same cookies, but not the page's
   // patched fetch, so a replayed call is not captured as the operator's own.
-  const answer = await inPage(tab.id, sendInPage, [payload], "ISOLATED");
+  const answer = await inPage(tab.id, sendInPage, [{ ...payload, headers }], "ISOLATED");
   return answer || failure("unreachable", "the page did not answer");
 }
 

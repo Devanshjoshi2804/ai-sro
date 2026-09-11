@@ -15,9 +15,13 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Mapping
 from datetime import datetime
 
 from sro.application.intent.spend import over_cap
+from sro.application.observation.evidence import once_each
+from sro.application.observation.shots import frame_of, frames_by_instant, stored_shots
+from sro.application.ports.blob import BlobStore
 from sro.application.ports.model import Asker
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.shared.locks import one_at_a_time
@@ -28,9 +32,10 @@ from sro.domain.observation.reading import (
     TAIL,
     intent_from,
     one_line,
+    with_recent_values,
 )
 from sro.domain.observation.trim import thin, trim
-from sro.domain.shared.identifiers import TenantId
+from sro.domain.shared.identifiers import BatchId, TenantId
 
 logger = logging.getLogger(__name__)
 
@@ -76,7 +81,8 @@ async def read_gesture(
         # field label already did.
         image=image if thin(gesture.action.target) else None,
     )
-    return intent_from(answer.data, gesture, answer, model=model)
+    intent = intent_from(answer.data, gesture, answer, model=model)
+    return with_recent_values(intent, gesture, tail[-TAIL:])
 
 
 async def read_new_gestures(
@@ -88,6 +94,7 @@ async def read_new_gestures(
     now: datetime,
     cap_usd: float,
     limit: int = READING_LIMIT,
+    blobs: BlobStore | None = None,
 ) -> int:
     """Every stored gesture of THIS TENANT with no intent gets exactly one reading.
 
@@ -113,6 +120,13 @@ async def read_new_gestures(
 
     `uow` is already open: this commits per reading and never enters or leaves
     the block, so the caller owns the session.
+
+    `blobs` is optional and, missing, changes nothing: every gesture is read
+    exactly as before. Given, it is read from only for a `thin` gesture --
+    see `sro.domain.observation.trim.thin` -- the one case a picture can tell
+    the model something its markup could not. A deployment with no object
+    store wired to this pass is not a broken one; it is one asking the same
+    question this always asked, without the one extra source a picture is.
     """
     async with one_at_a_time(f"reading:{tenant_id.value}"):
         return await _read_unread(
@@ -123,6 +137,7 @@ async def read_new_gestures(
             now=now,
             cap_usd=cap_usd,
             limit=limit,
+            blobs=blobs,
         )
 
 
@@ -135,6 +150,7 @@ async def _read_unread(
     now: datetime,
     cap_usd: float,
     limit: int,
+    blobs: BlobStore | None,
 ) -> int:
     # An intent row means a reading happened, whatever came back in it -- an
     # error, or an answer whose `act` was the wrong type and got nulled. None
@@ -169,12 +185,19 @@ async def _read_unread(
     intents = {intent.gesture_id: intent for intent in await uow.gestures.intents_for(tenant_id)}
 
     written = 0
+    shots: dict[str, tuple[Mapping[str, int], Mapping[float, int]] | None] = {}
     for gesture in rows:
+        image = None
+        if blobs is not None and thin(gesture.action.target):
+            image = await _thin_shot(
+                gesture, uow=uow, blobs=blobs, tenant_id=tenant_id, cache=shots
+            )
         intent = await read_gesture(
             gesture,
             tail=_tail_for(ordered, intents, gesture),
             asker=asker,
             model=model,
+            image=image,
         )
         await uow.gestures.save_intent(intent)
         # Committed one reading at a time, not once at the end: a loop that
@@ -186,6 +209,58 @@ async def _read_unread(
         intents[gesture.id] = intent
         written += 1
     return written
+
+
+async def _thin_shot(
+    gesture: Gesture,
+    *,
+    uow: UnitOfWork,
+    blobs: BlobStore,
+    tenant_id: TenantId,
+    cache: dict[str, tuple[Mapping[str, int], Mapping[float, int]] | None],
+) -> bytes | None:
+    """The picture behind one thin gesture, or `None` when there is not one.
+
+    A `thin` gesture is the one case `read_gesture` can use a picture for at
+    all, and this is that picture -- the same join `ReadShots` reads back for
+    a mined job's evidence tab: the recorder numbers every gesture in a batch,
+    a screenshot is filed under that number, and the two sides are matched on
+    the browser's clock because a gesture row carries an id the recording's
+    own payload never saw.
+
+    `cache` holds the listing and the frame numbering per batch, keyed once
+    per reading pass rather than once per gesture: a pass over hundreds of
+    gestures from a handful of batches would otherwise re-list the object
+    store and re-parse the same NDJSON payload for every thin gesture in it.
+    """
+    if gesture.batch_id not in cache:
+        batch = await uow.observations.get(tenant_id, BatchId(gesture.batch_id))
+        found = await stored_shots(blobs, batch) if batch is not None else {}
+        if batch is None or not found:
+            cache[gesture.batch_id] = None
+        else:
+            try:
+                frames = frames_by_instant(once_each(await blobs.read(batch.uri)))
+            except (KeyError, OSError):
+                # The evidence aged out from under the gesture that cites it.
+                cache[gesture.batch_id] = None
+            else:
+                cache[gesture.batch_id] = (found, frames)
+
+    entry = cache[gesture.batch_id]
+    if entry is None:
+        return None
+    found, frames = entry
+    ordinal = frames.get(gesture.at)
+    if ordinal is None:
+        return None
+    shot = frame_of(found, ordinal)
+    if shot is None:
+        return None
+    try:
+        return await blobs.read(shot.uri)
+    except (KeyError, OSError):
+        return None
 
 
 def _tail_for(

@@ -163,3 +163,52 @@ def _values_seen(data: dict[str, object], *, hide: bool) -> list[ValueSeen]:
             )
         )
     return found
+
+
+_WRITE_METHODS = frozenset({"POST", "PUT", "PATCH"})
+
+
+def is_write(gesture: Gesture) -> bool:
+    """Whether this gesture's own calls actually wrote something.
+
+    A save click is asked about like every other gesture -- what it touched,
+    what it typed -- and it typed nothing: the click itself carries no value,
+    only the calls it caused prove a write happened at all.
+    """
+    return any(
+        call.status is not None
+        and 200 <= call.status < 300
+        and call.method.upper() in _WRITE_METHODS
+        for call in gesture.requests
+    )
+
+
+def with_recent_values(intent: Intent, gesture: Gesture, tail: list[Intent]) -> Intent:
+    """A write's reading folds in the tail's values, not just its own.
+
+    Measured against a real save: the write's own POST body carried five
+    submitted fields, and the model's reading of the click itself named one of
+    them -- the rest were typed in the gestures just before it, each already a
+    reading sitting in `tail`. Left alone, `values.typed_values` -- the one
+    mechanism that can find a value inside another system's request body
+    without reading the body itself, see its own docstring -- sees only the
+    one field the click happened to name, and a value the operator plainly
+    carried across a system boundary is invisible to it.
+
+    Scoped to a write on purpose: folding history into every gesture would
+    make an ordinary click on an empty form report values from three screens
+    ago. A later tail entry wins a field name over an earlier one -- typed
+    twice, the last value is the one that reached the write -- and the
+    write's own reading wins over both, being the more direct evidence for
+    whatever it actually named.
+    """
+    if not is_write(gesture):
+        return intent
+    merged: dict[str, str] = {}
+    for prior in tail:
+        for seen in prior.values_seen:
+            merged[seen.field] = seen.value
+    for seen in intent.values_seen:
+        merged[seen.field] = seen.value
+    intent.values_seen = [ValueSeen(field=field, value=value) for field, value in merged.items()]
+    return intent

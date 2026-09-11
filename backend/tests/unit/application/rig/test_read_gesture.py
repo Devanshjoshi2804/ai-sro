@@ -8,8 +8,9 @@ in production.
 """
 
 import asyncio
+import json
 from dataclasses import replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -18,15 +19,16 @@ from sro.application.observation.read_gesture import (
     read_gesture,
     read_new_gestures,
 )
-from sro.domain.observation.gesture import Body, Call, Gesture, Intent
+from sro.domain.observation.batch import CaptureMode, ObservationBatch
+from sro.domain.observation.gesture import Action, Body, Call, Gesture, Intent, Target, ValueSeen
 from sro.domain.observation.reading import INSTRUCTIONS, INTENT_SCHEMA, TAIL
 from sro.domain.observation.redaction import is_secret_name
 from sro.domain.observation.trim import is_secret
 from sro.domain.shared.hosts import REDACTED
-from sro.domain.shared.identifiers import TenantId
+from sro.domain.shared.identifiers import BatchId, DeviceId, PrincipalId, TenantId
 from sro.domain.shared.prices import Answer
 from tests.unit.domain.rig.conftest import gestures as _gestures
-from tests.unit.fakes import FakeAsker, FakeUnitOfWork
+from tests.unit.fakes import FakeAsker, FakeBlobStore, FakeUnitOfWork
 
 MODEL = "gemini-3.8-flash"
 TENANT = TenantId("acme")
@@ -591,3 +593,109 @@ async def test_a_call_that_raised_is_never_filed_as_a_reading_that_happened() ->
     assert len(await uow.gestures.intents_for(TENANT)) == 2
     assert uow.commits == 2
     assert len(await uow.gestures.unread(TENANT, limit=100)) == len(day) - 2
+
+
+async def test_a_write_gestures_reading_folds_in_the_tails_values() -> None:
+    """The real gap a harsh look at real captured data found: a save click's
+    own reading names one field, and the fields typed just before it in the
+    same doing -- already readings sitting in `tail` -- were being left off
+    rather than folded in."""
+    save = replace(
+        _gestures()[0],
+        id="ges_save",
+        action=Action(kind="click", at=1.0),
+        requests=[Call(method="POST", url="http://127.0.0.1:63319/api/save", status=201)],
+    )
+    tail = [
+        Intent(
+            gesture_id="ges_0",
+            tenant="new",
+            values_seen=[ValueSeen(field="code", value="DSS")],
+        )
+    ]
+    asker = FakeAsker(_answer(values_seen=[{"field": "customerType", "value": "CCD"}]))
+
+    intent = await read_gesture(save, tail=tail, asker=asker, model=MODEL)
+
+    assert {seen.field: seen.value for seen in intent.values_seen} == {
+        "code": "DSS",
+        "customerType": "CCD",
+    }
+
+
+async def test_a_thin_gesture_is_asked_about_with_its_real_picture() -> None:
+    """`read_new_gestures` wired to a blob store: a thin gesture (an icon-only
+    button, a shadow-dom host -- the real shapes a genuinely unlabeled target
+    takes) is asked about with the picture the recorder took of it, joined the
+    same way `ReadShots` joins a mined job's evidence tab."""
+    tenant = TenantId("new")
+    batch_id = "bat-thin"
+    device = DeviceId("dev-thin")
+    operator = PrincipalId("clerk@acme.test")
+    at = 1789000000.0
+    day = NOW.date().isoformat()
+    key = f"{tenant.value}/{operator}/{day}/{batch_id}.ndjson"
+    uri = f"s3://sro-artifacts/{key}"
+    shots_prefix = f"{tenant.value}/{operator}/{day}/{batch_id}/screenshot"
+
+    payload = (
+        json.dumps(
+            {
+                "kind": "gesture",
+                "gesture": {"kind": "click", "at": at, "url": "https://wms.test/portal"},
+            }
+        ).encode()
+        + b"\n"
+    )
+
+    uow, blobs = FakeUnitOfWork(), FakeBlobStore()
+    blobs.objects[key] = payload
+    blobs.objects[f"{shots_prefix}/00000.png"] = b"PNG-BYTES"
+    await uow.observations.add(
+        ObservationBatch(
+            id=BatchId(batch_id),
+            tenant_id=tenant,
+            device_id=device,
+            principal_id=operator,
+            mode=CaptureMode.PASSIVE,
+            started_at=NOW,
+            ended_at=NOW + timedelta(minutes=1),
+            received_at=NOW,
+            uri=uri,
+            event_count=1,
+            byte_count=len(payload),
+        )
+    )
+    thin_gesture = Gesture(
+        id="ges_thin",
+        tenant=tenant.value,
+        stream_id="str-1",
+        batch_id=batch_id,
+        at=at,
+        url="https://wms.test/portal",
+        system="https://wms.test",
+        tab_id=1,
+        frame_url=None,
+        action=Action(kind="click", at=at, target=Target(tag="img")),
+    )
+    await uow.gestures.add_gestures((thin_gesture,))
+    asker = FakeAsker(_answer())
+
+    await read_new_gestures(
+        uow, tenant_id=tenant, asker=asker, model=MODEL, now=NOW, cap_usd=NO_CAP, blobs=blobs
+    )
+
+    assert asker.asked[0]["image"] == b"PNG-BYTES"
+
+
+async def test_with_no_blob_store_a_thin_gesture_is_asked_about_without_a_picture() -> None:
+    """Optional and, missing, changes nothing: every gesture is read exactly
+    as it was before this was wired in."""
+    uow, day = await _stored(TENANT)
+    asker = FakeAsker(*_answers(len(day)))
+
+    await read_new_gestures(
+        uow, tenant_id=TENANT, asker=asker, model=MODEL, now=NOW, cap_usd=NO_CAP
+    )
+
+    assert all(asked["image"] is None for asked in asker.asked)

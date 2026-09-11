@@ -563,3 +563,85 @@ bullet are about the *rig*, not about the rule-based miner, and nothing in this
 measurement defends them. The first bullet — `segment.py`, `mine.py`,
 `propose.py`, the miner sweep, the `candidates` router — is the one this
 precondition guards, and it stays.
+
+---
+
+## Half of that pass, run deliberately — 2026-09-11
+
+The first missing thing above is a pass over one shared day given to both
+miners on purpose. **The rule-based half has now been run that way.** The model
+half has not: it costs real money and the decision to spend it is the operator's,
+so it is still owed. What follows is therefore one side of a controlled
+comparison, not both — read it as such.
+
+```bash
+curl -s -X POST "localhost:8000/v1/candidates/mine?hours=20" -H "Authorization: Bearer $TOKEN"
+```
+
+```json
+{"episodes":50,"candidates_seen":45,"candidates_new":14,"occurrences_new":30}
+```
+
+Twenty hours back from 07:10 UTC on 2026-09-11 covers `new` 2026-09-10's window
+in full — the pool's own rows run 15:28 to 16:22 UTC that day — and takes in
+2026-09-11's 23 batches as well, which are this session's own traffic and are
+named in the table below so nobody counts them as warehouse work.
+
+Tenant `new` afterwards, by `times_seen`:
+
+```sql
+select title, host, times_seen, named_by_model, status
+from task_candidates where tenant_id = 'new'
+order by times_seen desc, title;
+```
+
+```
+Create s on mail.google.com                                    12  model=f  taught
+Create u on mail.google.com                                    11  model=f  new
+Create a customer type          …jdadelivers.com                8  model=t  taught
+Create a supplier               …jdadelivers.com                5  model=t  taught
+Create a work area              …jdadelivers.com                4  model=t  taught
+Create bv on mail.google.com                                    4  model=f  new
+Create equipmentTypes on …jdadelivers.com                       4  model=f  new
+…and 18 more, of which 16 are `Create <two letters> on mail.google.com`
+```
+
+Thirty-one candidates, and the shape of the answer is the finding.
+
+## The rule-based path cannot represent a two-system job. Structurally.
+
+Not "did not on this day" — cannot, and the code says so in its own words.
+
+```python
+# domain/observation/candidate.py:150
+    host: str
+```
+
+A candidate carries **one** host. `JoinKind.WORKFLOW`
+(`candidate.py:89`) is the only bridge, and its own docstring reads:
+
+> Two halves of one piece of work, in two systems. Segmentation runs each host
+> on its own stream, so an episode is always one host's: **this is a shape no
+> single candidate can ever have.**
+
+A `WORKFLOW` join does not assert the pair; it *asks*, and `JoinAnswer` is
+supplied by a person. The store holds two join rows in total, both `variant`,
+both unanswered — so the question has never once been put.
+
+This is visible in the table above without any of that reading. On the day the
+operator did two cross-system jobs, the rule path returned the halves:
+`Create a customer type` on the WMS and `Create s on mail.google.com` beside it,
+`Create equipmentTypes on …jdadelivers.com` and `Create bv on mail.google.com`
+beside that. Four host-local candidates for two jobs, and nothing anywhere
+saying they are pairs. The model path returned two jobs, each naming both
+systems in order, with the mail read between fields as a step.
+
+So the part of the precondition that asks *what one found that the other
+missed* has a harder answer than it did: the cross-system join is not something
+the rule-based path missed on this corpus. It is something that path has no
+place to put.
+
+**This does not settle the precondition.** The rules still found two whole days
+the model never read and a taught skill no workflow names, and the model path
+still has 0 accepted offers against 9 taught candidates. Both of those survive
+this section untouched, and the model half of the paired pass is still owed.

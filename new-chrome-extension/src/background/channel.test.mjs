@@ -135,6 +135,34 @@ test("every command carries the channel it came in on as its source", async () =
   assert.deepEqual(sources, ["second", "backend"]);
 });
 
+test("a command naming its own source wins over the channel it arrived on", async () => {
+  // The one socket carries both a rig run's commands and a skill run's, so
+  // `describe` -- this channel's own fixed name -- cannot tell them apart.
+  // Only the backend, sending the command, knows which engine it is; a
+  // command with no `source` of its own (an older backend) still falls back
+  // to `describe`, which is the case above.
+  const sources = [];
+  const one = stubbedChannel("backend", async (_command, source) => {
+    sources.push(source);
+    return { ok: true, result: {} };
+  });
+  await one.settle();
+  await settle();
+  opened
+    .at(-1)
+    .deliver({
+      command_id: "cmd_rig",
+      run_id: "run_r1",
+      kind: "ui.url",
+      source: "rig",
+      deadline_ms: 50,
+      payload: {},
+    });
+  await settle();
+  one.close();
+  assert.deepEqual(sources, ["rig"]);
+});
+
 test("busy goes down the channel the gesture is told to, and no other", async () => {
   // Two channels exist again the moment anything is added beside the backend's,
   // and `operatorIsWorking` is per channel: a browser that told the wrong

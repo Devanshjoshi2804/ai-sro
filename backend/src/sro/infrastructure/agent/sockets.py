@@ -169,7 +169,15 @@ class DeviceSockets:
         payload: Mapping[str, object],
         run_id: str | None = None,
         timeout_s: float | None = None,
+        source: str = "backend",
     ) -> Answer:
+        """``source`` rides in the envelope because the extension has one socket
+        and cannot otherwise tell a workflow run's command from a skill run's --
+        both arrive on the same channel it dialled as "backend". `SocketChannel`
+        is the rig's only door onto this method and passes "rig" on every call;
+        `AgentDrivers`, the skill executor's, never passes it and gets the
+        default. Without this the panel can show Approve only for a run it
+        started itself, never one a console or another caller began."""
         key = _key(tenant_id, device_id)
         if key not in self._sockets:
             # Keyed by tenant as well as device, so another tenant's id is not
@@ -199,6 +207,7 @@ class DeviceSockets:
                         "command_id": command_id,
                         "kind": kind,
                         "run_id": run_id,
+                        "source": source,
                         "deadline_ms": int(deadline * 1000),
                         "payload": dict(payload),
                     }

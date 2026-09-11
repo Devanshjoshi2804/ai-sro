@@ -47,8 +47,10 @@ const BUSY_EVERY_MS = 4_000;
  * outside. Production passes nothing and gets the real one.
  */
 export function createChannel({ describe, dial, perform = commands.perform }) {
-  // `describe` doubles as the run's source: the panel asks the process that
-  // started a run how it ended, and only the channel knows which one did.
+  // `describe` is this channel's own fallback name, used only when a command
+  // carries no `source` of its own -- see `handle()`'s call to `perform`
+  // below. There is one channel for both a rig run and a skill run, so
+  // `describe` alone cannot say which a given command belongs to.
   let socket = null;
   let keepalive = null;
   let retryIn = FIRST_RETRY_MS;
@@ -224,9 +226,12 @@ export function createChannel({ describe, dial, perform = commands.perform }) {
 
     const deadline = Number(command.deadline_ms) || 20_000;
     const answer = await Promise.race([
-      // Which channel this arrived on rides with it: the run's finish is asked
-      // of the process that started it, and this is the only place that knows.
-      perform(command, describe),
+      // `command.source`, not `describe`. There is one socket for both a
+      // workflow run and a skill run, so `describe` -- this channel's own
+      // fixed name -- cannot tell them apart; only the backend, sending the
+      // command, knows which engine sent it. A rig command with no `source`
+      // (an older backend) still falls back to `describe`.
+      perform(command, command.source || describe),
       new Promise((resolve) =>
         setTimeout(
           () =>

@@ -35,8 +35,18 @@ class SocketChannel(Channel):
             # Not folded into `timeout_s or default`: that could not express a
             # short deadline near zero and let a negative one reach the wire.
             return Reply(ok=False, error_kind="timeout", error_detail="a non-positive deadline")
+        # "rig", unconditionally: this port has exactly one caller, the
+        # workflow-run engine, and the extension's one socket has no other
+        # way to tell a rig command from a skill command it should not offer
+        # Approve for.
         answer = await self._sockets.send(
-            tenant_id, device_id, kind=kind, payload=payload, run_id=run_id, timeout_s=deadline_s
+            tenant_id,
+            device_id,
+            kind=kind,
+            payload=payload,
+            run_id=run_id,
+            timeout_s=deadline_s,
+            source="rig",
         )
         return Reply(
             ok=answer.ok,

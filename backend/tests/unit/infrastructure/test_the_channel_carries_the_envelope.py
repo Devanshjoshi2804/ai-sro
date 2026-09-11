@@ -67,6 +67,23 @@ async def test_an_explicit_deadline_is_honoured_and_a_non_positive_one_never_shi
     assert len(socket.sent) == 2, "nothing went on the wire for a deadline it could not meet"
 
 
+async def test_every_command_over_this_port_names_itself_rig_on_the_wire() -> None:
+    """The extension has one socket for both a workflow run and a skill run,
+    and cannot tell them apart from `describe` alone -- only the envelope can
+    say which. `Channel` has exactly one caller, the workflow-run engine, so
+    `SocketChannel` stamps every command it sends "rig" unconditionally; a
+    skill run reaches the wire through `AgentDrivers` instead and never
+    passes this at all, so `DeviceSockets.send` defaults to "backend" for it.
+    """
+    sockets, socket = DeviceSockets(timeout_s=1.0), FakeSocket()
+    sockets.attach(ACME, LAPTOP, socket)
+    channel = SocketChannel(sockets)
+
+    await _round_trip(channel, sockets, socket, kind="ui.url", payload={})
+
+    assert socket.sent[0]["source"] == "rig"
+
+
 async def test_the_fake_channel_answers_by_kind_and_remembers_what_was_sent() -> None:
     fake = FakeChannel({"ui.url": [Reply(ok=True, result={"url": "https://a/x"})]})
 

@@ -2811,6 +2811,18 @@ class MinePassResponse(BaseModel):
         )
 
 
+class ReadGesturesResponse(BaseModel):
+    """How many of this tenant's unread gestures this reading picked up.
+
+    A bare count, not a per-gesture list: `POST /v1/mine` already answers what
+    each stored reading amounts to, and re-serving the readings themselves
+    here would be a second, narrower door onto the same rows the gestures
+    route -- not yet ported -- exists to open properly.
+    """
+
+    read: int
+
+
 class ChatRequest(BaseModel):
     """What an operator said, and nothing else.
 

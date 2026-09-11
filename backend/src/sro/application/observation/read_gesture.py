@@ -18,13 +18,16 @@ import logging
 from collections.abc import Mapping
 from datetime import datetime
 
+from sro.application.context import RequestContext
 from sro.application.intent.spend import over_cap
 from sro.application.observation.evidence import once_each
 from sro.application.observation.shots import frame_of, frames_by_instant, stored_shots
 from sro.application.ports.blob import BlobStore
-from sro.application.ports.model import Asker
+from sro.application.ports.model import Asker, asker_or_refuse
 from sro.application.ports.repositories import UnitOfWork
+from sro.application.ports.system import Clock
 from sro.application.shared.locks import one_at_a_time
+from sro.application.shared.refusals import OverCap
 from sro.domain.observation.gesture import Gesture, Intent
 from sro.domain.observation.reading import (
     INSTRUCTIONS,
@@ -280,3 +283,53 @@ def _tail_for(
         for other in ordered
         if other.stream_id == gesture.stream_id and other.at < gesture.at and other.id in intents
     ]
+
+
+class ReadGestures:
+    """Read this tenant's unread gestures, once, and bill it.
+
+    The same shape as `sro.application.observation.mine_pass.MinePass`, and for
+    the same reasons: both refusals happen here, before `read_new_gestures`
+    itself. That function's own cap check returns a bare `int` -- no reason a
+    reader can tell apart from "nothing was unread" -- which is right for a
+    loop that fires on every ingest and wrong for a request that asked to be
+    told. Raised here, the door answers 503 and 429, which is what those two
+    facts are.
+    """
+
+    def __init__(
+        self,
+        uow: UnitOfWork,
+        *,
+        asker: Asker | None,
+        model: str,
+        clock: Clock,
+        cap_usd: float,
+        blobs: BlobStore | None = None,
+    ) -> None:
+        self._uow = uow
+        self._asker = asker
+        self._model = model
+        self._clock = clock
+        self._cap_usd = cap_usd
+        self._blobs = blobs
+
+    async def execute(self, ctx: RequestContext) -> int:
+        # Before the session is opened: neither refusal needs a database, and
+        # a 503 that first took a connection is a 503 that made the outage
+        # slightly worse.
+        asker = asker_or_refuse(self._asker)
+        now = self._clock.now()
+        async with self._uow as uow:
+            why = await over_cap(uow, ctx.tenant_id, now=now, cap_usd=self._cap_usd)
+            if why is not None:
+                raise OverCap(why)
+            return await read_new_gestures(
+                uow,
+                tenant_id=ctx.tenant_id,
+                asker=asker,
+                model=self._model,
+                now=now,
+                cap_usd=self._cap_usd,
+                blobs=self._blobs,
+            )

@@ -85,6 +85,7 @@ from sro.application.observation.mine import MineEverything, MineObservations
 from sro.application.observation.mine_pass import MinePass
 from sro.application.observation.policy import ReadObservationPolicy, SetObservationPolicy
 from sro.application.observation.propose import AnswerJoin, ProposeAboutCandidates
+from sro.application.observation.read_gesture import ReadGestures
 from sro.application.observation.read_pool import ReadPool
 from sro.application.observation.read_shots import ReadShots
 from sro.application.observation.register import (
@@ -427,6 +428,26 @@ class Container:
             # `work_only` reads a workflow's own systems, which have no path --
             # so only the host:port half of `our_own_origins` applies here.
             ours=frozenset(host_port for host_port, _ in self.settings.our_own_origins()),
+        )
+
+    def read_gestures(self) -> ReadGestures:
+        """This tenant's unread gestures, which until now had no caller in
+        `src/`. Same shape as `mine_pass` above and the same reason: `asker`
+        is handed over as `Asker | None` rather than through `asker_or_refuse`
+        here, so a deployment with no key fails at the one call that needs a
+        model rather than at construction.
+
+        `self.blobs` is the same store `ingest_observation` already writes an
+        upload's screenshots into -- the one source `read_new_gestures` reads
+        a thin gesture's picture back from.
+        """
+        return ReadGestures(
+            self.unit_of_work(),
+            asker=self.asker,
+            model=self.settings.gemini_read_model,
+            clock=self.clock,
+            cap_usd=self.settings.daily_usd_cap,
+            blobs=self.blobs,
         )
 
     def read_chat(self) -> ReadChat:

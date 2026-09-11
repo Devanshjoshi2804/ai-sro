@@ -311,6 +311,8 @@ def test_every_door_that_needs_a_model_refuses_through_the_one_guard() -> None:
         "sro/application/ports/model.py",
         # POST /v1/mine
         "sro/application/observation/mine_pass.py",
+        # POST /v1/gestures/read
+        "sro/application/observation/read_gesture.py",
         # POST /v1/chat
         "sro/application/chat/read_chat.py",
         # POST /v1/workflow-runs -- both the press and the rescue path.
@@ -343,3 +345,4 @@ async def test_a_container_with_no_model_still_builds_every_factory(
     assert container.asker is None
     assert container.mine_pass() is not None
     assert container.read_chat() is not None
+    assert container.read_gestures() is not None

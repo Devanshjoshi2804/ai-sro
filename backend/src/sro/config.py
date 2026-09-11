@@ -319,12 +319,15 @@ class Settings(BaseSettings):
     """What one day of model calls may cost before the rig stops asking:
     readings, mining passes, runs and the chat door, summed.
 
-    read_on_ingest bills per gesture as capture arrives, so an unattended run
-    spends whatever the operator's day produces. On the measured evidence that
-    is about $0.37 per 81-gesture day, but the whole point of watching every tab
-    is that a day is thousands, and nothing here knew what the ceiling was. A
-    pass or a run is a bigger call than a reading, and the cap that saw only
-    readings let a day of those through untouched.
+    The rig's `read_on_ingest` bills per gesture as capture arrives, so an
+    unattended run spends whatever the operator's day produces. On the
+    measured evidence that is about $0.37 per 81-gesture day, but the whole
+    point of watching every tab is that a day is thousands, and nothing here
+    knew what the ceiling was. A pass or a run is a bigger call than a
+    reading, and the cap that saw only readings let a day of those through
+    untouched. This backend's own reading door, `POST /v1/gestures/read`, is
+    deliberately not that: pulled like `/v1/mine` rather than pushed on every
+    ingest, so a batch upload never itself triggers a model call.
 
     A cap that stops asking is honest in a way a cap that stops CAPTURE is not:
     the evidence still arrives and is still stored, so raising this tomorrow
@@ -379,6 +382,25 @@ class Settings(BaseSettings):
     """What re-plans a step the plan model got wrong. The rig's `rescue_model`
     (`config.py:45`). The expensive model earns its price here and not above:
     it is asked once per failure, not once per step."""
+
+    gemini_read_model: str = "gemini-3.8-flash"
+    """What reads one gesture into an intent -- `sro.domain.observation.
+    reading`, called once per gesture, hundreds a day. The rig's own
+    `intent_model` (`new_agent_arch/src/rig/config.py:19`), renamed here
+    because this deployment's `gemini_intent_model` above already names an
+    unrelated door -- reading one sentence out of a chat message, not one
+    gesture out of a browser.
+
+    A real bake-off against gemini-3.1-flash-lite and gemini-3.1-pro-preview,
+    on real captured gestures, measured this one paying $0.0024/gesture at
+    ~4.1s against flash-lite's $0.0003/gesture at ~1.2s and pro-preview's
+    $0.0140/gesture at ~11.5s -- and, checked against ground truth rather than
+    against each other, this one and pro-preview read the real DOM identifiers
+    correctly while flash-lite drifted onto the wrong screen entirely once its
+    own wrong reading entered its tail. Pro-preview bought nothing over this
+    one on the same evidence. Worth re-running once `with_recent_values` and
+    the thin-gesture picture are live in production: both were missing when
+    that bake-off ran."""
 
     interpretation_enabled: bool = False
     """Reading one demonstration as a workflow sends the captured calls and

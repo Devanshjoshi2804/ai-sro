@@ -209,7 +209,7 @@ async def plan_step(
     # it is downgrading to.
     action = data.get("action") if data.get("action") in ACTIONS else primary.action.kind
     said = data.get("value")
-    payload: dict[str, object] = {
+    payload = {
         "action": action,
         # str(), because nothing validates the model's answer against the
         # schema: a `"value": 123` otherwise reaches the extension as an int.

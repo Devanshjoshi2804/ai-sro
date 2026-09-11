@@ -1035,6 +1035,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/gestures/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Read Gestures
+         * @description Read every one of this tenant's gestures that has no reading yet.
+         *
+         *     No body: the tenant comes from the caller, same as `/v1/mine`. 200 rather
+         *     than 202, and for the same reason -- the caller is billed for whatever
+         *     this reads, so answering "accepted" and hanging up would leave nobody
+         *     holding the receipt.
+         */
+        post: operations["read_gestures_v1_gestures_read_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/recordings": {
         parameters: {
             query?: never;
@@ -3792,6 +3817,19 @@ export interface components {
              * @default
              */
             skill_id: string;
+        };
+        /**
+         * ReadGesturesResponse
+         * @description How many of this tenant's unread gestures this reading picked up.
+         *
+         *     A bare count, not a per-gesture list: `POST /v1/mine` already answers what
+         *     each stored reading amounts to, and re-serving the readings themselves
+         *     here would be a second, narrower door onto the same rows the gestures
+         *     route -- not yet ported -- exists to open properly.
+         */
+        ReadGesturesResponse: {
+            /** Read */
+            read: number;
         };
         /**
          * RecordOfferRequest
@@ -10352,6 +10390,131 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PoolResponse"];
+                };
+            };
+            /** @description No credential, or one this deployment rejects. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description No such thing, or not yours. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The system's state says no, not the request. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The request cannot be processed as asked. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description Something this depends on is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+        };
+    };
+    read_gestures_v1_gestures_read_post: {
+        parameters: {
+            query?: {
+                device_id?: string | null;
+            };
+            header?: {
+                "X-Device-Secret"?: string;
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReadGesturesResponse"];
                 };
             };
             /** @description No credential, or one this deployment rejects. */

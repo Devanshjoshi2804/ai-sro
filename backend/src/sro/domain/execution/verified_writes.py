@@ -43,7 +43,7 @@ def _matches_path(path: str, pattern: str) -> bool:
     if len(path_segments) != len(pattern_segments):
         return False
     return all(
-        pattern_segment.startswith("{") and pattern_segment.endswith("}")
+        (pattern_segment.startswith("{") and pattern_segment.endswith("}"))
         or pattern_segment == path_segment
         for path_segment, pattern_segment in zip(path_segments, pattern_segments, strict=True)
     )

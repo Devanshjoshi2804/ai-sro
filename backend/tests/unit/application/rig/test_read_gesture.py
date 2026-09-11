@@ -14,11 +14,16 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from sro.application.context import RequestContext
 from sro.application.observation.read_gesture import (
     READING_LIMIT,
+    ReadGestures,
     read_gesture,
     read_new_gestures,
 )
+from sro.application.ports.model import AskerUnavailable
+from sro.application.shared.refusals import OverCap
+from sro.domain.chat.reading import ChatReading
 from sro.domain.observation.batch import CaptureMode, ObservationBatch
 from sro.domain.observation.gesture import Action, Body, Call, Gesture, Intent, Target, ValueSeen
 from sro.domain.observation.reading import INSTRUCTIONS, INTENT_SCHEMA, TAIL
@@ -28,7 +33,7 @@ from sro.domain.shared.hosts import REDACTED
 from sro.domain.shared.identifiers import BatchId, DeviceId, PrincipalId, TenantId
 from sro.domain.shared.prices import Answer
 from tests.unit.domain.rig.conftest import gestures as _gestures
-from tests.unit.fakes import FakeAsker, FakeBlobStore, FakeUnitOfWork
+from tests.unit.fakes import FakeAsker, FakeBlobStore, FakeClock, FakeUnitOfWork
 
 MODEL = "gemini-3.8-flash"
 TENANT = TenantId("acme")
@@ -699,3 +704,122 @@ async def test_with_no_blob_store_a_thin_gesture_is_asked_about_without_a_pictur
     )
 
     assert all(asked["image"] is None for asked in asker.asked)
+
+
+# --- the door: ReadGestures, POST /v1/gestures/read -------------------------
+
+
+def _ctx(tenant: TenantId = TENANT) -> RequestContext:
+    return RequestContext(tenant_id=tenant, principal_id=PrincipalId("operator"))
+
+
+def _door(
+    uow: FakeUnitOfWork,
+    *,
+    asker: FakeAsker | None,
+    clock: FakeClock | None = None,
+    model: str = MODEL,
+    cap_usd: float = NO_CAP,
+) -> ReadGestures:
+    # `hand_out`, as a container hands one out: strict, and not yet entered. A
+    # door that read a repository without opening its own session would be an
+    # AttributeError here rather than a green test and a 500 in production.
+    return ReadGestures(
+        uow.hand_out(), asker=asker, model=model, clock=clock or FakeClock(NOW), cap_usd=cap_usd
+    )
+
+
+async def _billed(uow: FakeUnitOfWork, *, cost_usd: float, at: datetime) -> None:
+    await uow.chats.record(
+        ChatReading(id=f"cht_{cost_usd}", tenant=TENANT.value, at=at.isoformat(), cost_usd=cost_usd)
+    )
+
+
+async def test_no_asker_refuses_before_anything_is_read() -> None:
+    uow, _ = await _stored(TENANT)
+
+    with pytest.raises(AskerUnavailable):
+        await _door(uow, asker=None).execute(_ctx())
+
+    assert uow.commits == 0, "a refused door opened and committed a transaction"
+
+
+async def test_over_the_cap_refuses_and_says_which_number_stopped_it() -> None:
+    uow, day = await _stored(TENANT)
+    await _billed(uow, cost_usd=5.01, at=NOW.replace(hour=10))
+    asker = FakeAsker(*_answers(len(day)))
+
+    with pytest.raises(OverCap) as refused:
+        await _door(uow, asker=asker, cap_usd=5.0).execute(_ctx())
+
+    assert "5.0100" in str(refused.value)
+    assert "5.00" in str(refused.value)
+    assert asker.asked == [], "a call was made after the door should have refused"
+
+
+async def test_a_refusal_at_the_door_reads_nothing() -> None:
+    uow, day = await _stored(TENANT)
+    await _billed(uow, cost_usd=5.01, at=NOW.replace(hour=10))
+    asker = FakeAsker(*_answers(len(day)))
+
+    with pytest.raises(OverCap):
+        await _door(uow, asker=asker, cap_usd=5.0).execute(_ctx())
+
+    assert await uow.gestures.intents_for(TENANT) == ()
+
+
+async def test_a_door_that_runs_reads_every_unread_gesture_and_says_how_many() -> None:
+    uow, day = await _stored(TENANT)
+    asker = FakeAsker(*_answers(len(day)))
+
+    read = await _door(uow, asker=asker).execute(_ctx())
+
+    assert read == len(day)
+    assert len(await uow.gestures.intents_for(TENANT)) == len(day)
+
+
+async def test_the_tenant_read_is_the_ones_on_the_context_and_never_the_stores() -> None:
+    """Two tenants, because a door that read the tenant off anything but `ctx`
+    passes every other assertion in this file. Asked for `OTHER`, it reads
+    `OTHER`'s day and never touches `TENANT`'s."""
+    uow, _ = await _stored(TENANT)
+    other_day = _gestures(OTHER.value)
+    await uow.gestures.add_gestures(tuple(other_day))
+    asker = FakeAsker(*_answers(len(other_day)))
+
+    read = await _door(uow, asker=asker).execute(_ctx(OTHER))
+
+    assert read == len(other_day)
+    assert await uow.gestures.intents_for(TENANT) == ()
+    assert len(await uow.gestures.intents_for(OTHER)) == len(other_day)
+
+
+async def test_the_model_asked_is_the_one_this_deployment_configured() -> None:
+    uow, day = await _stored(TENANT)
+    asker = FakeAsker(*_answers(len(day)))
+
+    await _door(uow, asker=asker, model="gemini-3.1-flash-preview").execute(_ctx())
+
+    assert [one["model"] for one in asker.asked] == ["gemini-3.1-flash-preview"] * len(day)
+
+
+async def test_the_cap_is_checked_against_the_doors_own_clock() -> None:
+    """23:00, one hour before a midnight the same way `test_mine_pass.py`
+    measures it: `over_cap` sums the day from the midnight before `now`, so an
+    hour's advance moves this into the next day and out of reach of the spend
+    planted below."""
+    edge = datetime(2026, 9, 7, 23, 0, tzinfo=UTC)
+    uow, day = await _stored(TENANT)
+    await _billed(uow, cost_usd=5.01, at=edge.replace(hour=10))
+    clock = FakeClock(edge)
+
+    with pytest.raises(OverCap):
+        await _door(uow, asker=FakeAsker(*_answers(len(day))), clock=clock, cap_usd=5.0).execute(
+            _ctx()
+        )
+
+    clock.advance(3600)
+
+    assert await _door(
+        uow, asker=FakeAsker(*_answers(len(day))), clock=clock, cap_usd=5.0
+    ).execute(_ctx())

@@ -54,16 +54,24 @@ def test_the_schema_puts_the_citations_before_the_sentence() -> None:
 def test_the_prompt_the_model_is_given_is_the_one_the_rig_measured() -> None:
     """The prompt IS the product, and nothing pinned INSTRUCTIONS beyond its
     first and last 40 characters -- a reworded middle instruction shipped green.
-    This hash is the rig's own, sha256 of `new_agent_arch/src/rig/umbrella.py`'s
+    The hash was the rig's own, sha256 of `new_agent_arch/src/rig/umbrella.py`'s
     INSTRUCTIONS, and it is what the port's parity was proved with in review;
     proved-once in a review that is now gone is not a guarantee.
+
+    It is no longer the rig's, and this is why the model reads something else:
+    the rig's prompt never said what a title is for, so the model named each
+    job after the one doing it was reading -- "Create Customer Type DSS" over a
+    customer type since observed as DSS, DPP, CCD and CCF. The paragraph added
+    is the only place a title can be got right on a FIRST doing, where nothing
+    yet knows which of its values vary.
 
     Changing the wording is allowed. Changing it silently is not: update this
     hash in the same commit and say why the model should read something else."""
     assert (
         hashlib.sha256(INSTRUCTIONS.encode()).hexdigest()
-        == "e06f0e4b2d47467cdb5079e86a4341318d4e260e591bac6ddea542f84a50efb5"
+        == "9ad8b63b20713a123211b7438fed866db204a6350fd254c4144f4b390b05b428"
     )
+    assert '"Create a Customer Type", never' in INSTRUCTIONS
 
 
 def test_the_task_is_stated_at_both_ends_of_the_prompt() -> None:

@@ -2,8 +2,22 @@
 
 from __future__ import annotations
 
+import re
 import secrets
 from dataclasses import dataclass, field
+
+K_MIN_VALUE_LENGTH = 3
+"""How long a parameter value has to be before a title repeating it is quoting
+it rather than coinciding with it. `DSS` and `DDD` name a customer type and an
+equipment type; a voice code of `2` is a value too, and a title is allowed to
+contain the word "3"."""
+
+_DANGLING = frozenset(
+    {"a", "an", "the", "and", "at", "by", "for", "from", "in", "of", "on", "to", "with"}
+)
+"""What a title is left ending on once a value is taken out of it: "Create a
+Carrier Cross Reference for Test Drive LLC" loses the customer and keeps the
+`for`."""
 
 
 def new_workflow_id() -> str:
@@ -43,6 +57,44 @@ class Workflow:
     # times. Empty for a workflow saved outside a pass, which today is only a
     # test.
     pass_id: str = ""
+
+    def generalise_title(self) -> None:
+        """This job's own parameter values taken out of its name.
+
+        The title is written by a model reading ONE doing, so it names that
+        doing: "Create Customer Type DSS" for a job whose customer type has
+        since been observed as DSS, DPP, CCD and CCF. Every later doing then
+        looks like a different job to the person reading the offer card, which
+        is the thing the title is for -- and `sro.domain.chat.reading` carries
+        a paragraph of prompt whose only job is teaching the chat door to see
+        past it.
+
+        The moment a value is PROVEN to vary is the moment its presence in the
+        title is known to be wrong, so this belongs beside the parameters
+        rather than in the prompt alone: a model told to generalise still
+        cannot tell a parameter from a constant on one doing. Whole words
+        only, longest value first, and a title that turns out to be nothing
+        but its values is left alone -- a job with a bad name beats a job with
+        no name.
+        """
+        seen: list[str] = []
+        for parameter in self.parameters:
+            values = parameter.get("seen_values")
+            if isinstance(values, list):
+                seen += [str(value).strip() for value in values]
+
+        title = self.title
+        for value in sorted(set(seen), key=len, reverse=True):
+            if len(value) < K_MIN_VALUE_LENGTH:
+                continue
+            title = re.sub(rf"(?<!\w){re.escape(value)}(?!\w)", " ", title, flags=re.IGNORECASE)
+
+        words = " ".join(title.split()).strip(" -:,").split()
+        while words and words[-1].lower() in _DANGLING:
+            words.pop()
+        tidied = " ".join(words).strip(" -:,")
+        if tidied:
+            self.title = tidied
 
 
 def cited_ids(workflow: Workflow) -> set[str]:

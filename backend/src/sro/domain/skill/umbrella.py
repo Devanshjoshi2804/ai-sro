@@ -73,6 +73,11 @@ person would name -- creating a supplier, receiving a shipment, correcting a
 count. A job may span more than one system: the operator may do half of it in a
 warehouse system and half in an ERP, and those halves are still one job.
 
+Name the job, not the one doing of it you are reading. The title is what every
+doing of that job has in common, so keep the particular values this operator
+typed -- codes, names, quantities -- out of it: "Create a Customer Type", never
+"Create Customer Type DSS". Those values belong in the steps.
+
 For every step of every job, cite the ids of the gestures that prove it. Cite
 before you describe. A step you cannot cite is a step you should not report.
 

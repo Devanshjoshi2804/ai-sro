@@ -898,6 +898,32 @@ async def test_a_pass_that_recognises_a_job_learns_what_varies_in_it() -> None:
     assert kept == {0, 1}, "a pass that learnt without keeping still reads as a pass"
 
 
+async def test_the_job_stops_being_named_after_the_first_doing_of_it() -> None:
+    """A title is written by a model reading ONE occurrence, so it names that
+    occurrence -- and the store holds "Create Customer Type DSS" over a
+    customer type since observed as DSS, DPP, CCD and CCF. The second doing is
+    the first moment anything knows that value varies, and it is where the job
+    gets its own name back: the title is what the offer card shows, and one
+    run's value in it makes every later demonstration look like other work.
+    """
+    uow, ids = await _day()
+    original = [_rows(uow)[gesture_id] for gesture_id in ids]
+
+    named_after_one = _proposal(ids, title="create a work operation ACME-4471")
+    await _mine(uow, FakeAsker(_found(named_after_one)))
+    first = (await uow.workflows.known(TENANT))[0]
+    assert first.title == "create a work operation ACME-4471", "one doing proves nothing yet"
+
+    again_rows = _redone(original, "SOMETHING-ELSE", "again", 10_000.0)
+    await uow.gestures.add_gestures(tuple(again_rows))
+    again = await _mine(uow, FakeAsker(_found(_proposal([g.id for g in again_rows]))))
+
+    assert again.kept == 0, "it is the same job, not a new one"
+    stored = (await uow.workflows.known(TENANT))[0]
+    assert stored.title == "create a work operation", "and it is the job's name now"
+    assert "ACME-4471" in _seen(stored.parameters, "clientCode"), "the value is kept where it goes"
+
+
 async def test_a_third_doing_widens_a_parameter_it_does_not_discard_it() -> None:
     """`seen_values` promises "every value observed" and delivered two.
 

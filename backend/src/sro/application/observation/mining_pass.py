@@ -268,6 +268,12 @@ async def learn_parameters(
     if not fresh and not widened:
         return 0
     stored.parameters = [*stored.parameters, *fresh]
+    # And the name stops describing the first doing. A title is minted from one
+    # occurrence, values and all, and this is the only moment the system finds
+    # out that one of those values varies -- so the job is renamed where it is
+    # learnt rather than left reading "Create Customer Type DSS" over a
+    # parameter that has since been DSS, DPP, CCD and CCF.
+    stored.generalise_title()
     await uow.workflows.save(stored)
     return len(fresh) + widened
 

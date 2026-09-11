@@ -566,13 +566,13 @@ precondition guards, and it stays.
 
 ---
 
-## Half of that pass, run deliberately — 2026-09-11
+## Both halves of that pass, run deliberately — 2026-09-11
 
 The first missing thing above is a pass over one shared day given to both
-miners on purpose. **The rule-based half has now been run that way.** The model
-half has not: it costs real money and the decision to spend it is the operator's,
-so it is still owed. What follows is therefore one side of a controlled
-comparison, not both — read it as such.
+miners on purpose. **Both halves have now been run that way.** The rule-based
+half is free and ran first; the model half costs real money, so it waited for
+the operator to say to spend it, which they did — `PROBE_TENANT=new uv run
+python scripts/probe_mine_route.py`, $0.2437 of real spend.
 
 ```bash
 curl -s -X POST "localhost:8000/v1/candidates/mine?hours=20" -H "Authorization: Bearer $TOKEN"
@@ -607,6 +607,35 @@ Create equipmentTypes on …jdadelivers.com                       4  model=f  ne
 ```
 
 Thirty-one candidates, and the shape of the answer is the finding.
+
+## The model half, run — 2026-09-11
+
+Same tenant, the model's own pass over the same pool:
+
+```bash
+PROBE_TENANT=new uv run python scripts/probe_mine_route.py
+```
+
+```
+proposed=6  kept=0  learned_parameters=0  cost=$0.2437  error=None
+coverage 1.0  skew 0.143  gini 0.292  lopsided false
+in_tokens 82047  out_tokens 6636
+resolution: same_job vs wfl_7ceb3b15... score 0.909
+AFTER passes=12 workflows=9 parameters=17
+```
+
+Six proposed, zero kept. Every one of the six resolved against a workflow the
+model had already mined — the resolver's own job — and not one widened a
+parameter on the workflow it resolved against. `kept=0` is not the pass finding
+nothing; it is the pass finding nothing *new*, on a corpus it had already
+priced this same day. The `AFTER` row is unchanged from `BEFORE` on both counts
+that would show new work: nine workflows, seventeen parameters.
+
+One caveat travels with the number: this pass ran before `work_only`
+(`domain/skill/checks.py`, added and left unwired) existed, so nothing filtered
+a proposal for being a sign-in page or a hop through a system that was never
+the job. A rerun after `work_only` is wired could only lower `proposed`, never
+raise `kept` — so the finding above is not provisional on it.
 
 ## The rule-based path cannot represent a two-system job. Structurally.
 
@@ -644,4 +673,5 @@ place to put.
 **This does not settle the precondition.** The rules still found two whole days
 the model never read and a taught skill no workflow names, and the model path
 still has 0 accepted offers against 9 taught candidates. Both of those survive
-this section untouched, and the model half of the paired pass is still owed.
+this section untouched — the model half's own finding, above, is only that it
+proposed nothing on this corpus it had not already priced.

@@ -74,12 +74,28 @@ export function resting(shape, now = Date.now()) {
   return Boolean(shape.quiet_until) && Date.parse(shape.quiet_until) > now;
 }
 
-/** The one job this tail is a prefix of, or null. */
-export function match(tail, shapes, { origin }) {
+/** The one job this tail is a prefix of, or null.
+ *
+ * There was an origin filter here -- a shape was skipped unless its FIRST step
+ * was on the system the current gesture is on -- and on a job that stays on one
+ * system it costs nothing, because every gesture has that origin. On a job that
+ * spans two it is fatal: the operator reads the mail, moves to the WMS, and
+ * from that gesture onward the shape whose first step is the mail is skipped on
+ * every comparison. `Create Warehouse Equipment Type DDD` -- one mail gesture,
+ * then twelve on the WMS -- was NEVER offered, and the customer-type job beside
+ * it was only ever offered during its opening run of mail gestures.
+ *
+ * The filter was redundant as well as wrong. `endsWith` compares whole triples,
+ * origin included, so the current gesture's origin is already required to equal
+ * `shape.shape[k - 1][0]` -- the step the tail's last gesture aligns to. The
+ * filter tested `shape.shape[0][0]` instead, which is the same index only when
+ * k is 1, and k is never 1: it stops at `offer_after`, whose floor is 2.
+ */
+export function match(tail, shapes) {
   let best = null;
   let shared = false;
   for (const shape of shapes) {
-    if (!shape.shape?.length || shape.shape[0][0] !== origin || resting(shape)) continue;
+    if (!shape.shape?.length || resting(shape)) continue;
     // The rig may say a job is offered later than the default: its earlier
     // offers kept diverging at the default.
     const after = shape.offer_after ?? K_OFFER_AFTER;

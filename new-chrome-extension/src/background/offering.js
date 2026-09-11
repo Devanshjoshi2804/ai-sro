@@ -18,7 +18,7 @@ export function decideOffer({ tail, shapes, open, origin, now }) {
   // counts every prefix at least as long as the offer's as still on it, so the
   // match below is free to find the longer `k` and replace the offer with it.
   if (rigOpen && diverged(tail, rigOpen, shapes)) return { replace: null, end: "diverged" };
-  const found = match(tail, shapes, { origin });
+  const found = match(tail, shapes);
   if (!found) return { replace: null, end: null };
   // A shorter or equal prefix is the same offer said again, and an offer that
   // redraws itself on every keystroke is a flicker, not a prompt.

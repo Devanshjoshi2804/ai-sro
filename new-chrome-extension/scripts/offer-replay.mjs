@@ -21,7 +21,7 @@ export function replay(shapes, jobs) {
     let offered = null;
     for (const [i, entry] of job.gestures.entries()) {
       tail = tailWith(tail, entry);
-      const found = match(tail, shapes, { origin: entry.triple[0] });
+      const found = match(tail, shapes);
       if (found) {
         offered = {
           at: i + 1,

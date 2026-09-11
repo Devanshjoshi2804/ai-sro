@@ -19,14 +19,14 @@ const typed = (identity, value, extra = {}) => ({ triple: [H, identity, "type"],
 
 test("one gesture offers nothing", () => {
   const tail = tailWith([], typed("wm.workAreas.code", "NEWTESTS"));
-  assert.equal(match(tail, shapes, { origin: H }), null);
+  assert.equal(match(tail, shapes), null);
   assert.equal(K_OFFER_AFTER, 2);
 });
 
 test("two gestures offer the job whose prefix they are, with the values typed so far", () => {
   let tail = tailWith([], typed("wm.workAreas.code", "NEWTESTS"));
   tail = tailWith(tail, typed("wm.workAreas.desc", "north dock"));
-  const offer = match(tail, shapes, { origin: H });
+  const offer = match(tail, shapes);
   assert.equal(offer.workflowId, "wfl_wa");
   assert.equal(offer.title, "Create Work Area");
   assert.equal(offer.k, 2);
@@ -37,13 +37,35 @@ test("two gestures offer the job whose prefix they are, with the values typed so
 test("a shared first step resolves to whichever job the second step names", () => {
   let tail = tailWith([], typed("wm.workAreas.code", "NEWTESTS"));
   tail = tailWith(tail, typed("wm.ops.code", "PICK"));
-  assert.equal(match(tail, shapes, { origin: H }).workflowId, "wfl_op");
+  assert.equal(match(tail, shapes).workflowId, "wfl_op");
 });
 
 test("a shape on another origin is never matched", () => {
-  let tail = tailWith([], typed("wm.workAreas.code", "A"));
-  tail = tailWith(tail, typed("wm.workAreas.desc", "b"));
-  assert.equal(match(tail, shapes, { origin: "https://elsewhere" }), null);
+  // The tail's own triples carry the origin, so a job on another system is
+  // refused by `endsWith` and needs no filter of its own. This used to pass
+  // `{ origin: "https://elsewhere" }` beside a tail whose every gesture was on
+  // `H`, which is a state no browser can be in -- and it was the only thing
+  // holding up a filter that silently un-offered every cross-system job.
+  let tail = tailWith([], { triple: ["https://elsewhere", "wm.workAreas.code", "type"], value: "A", secret: false, at: 1 });
+  tail = tailWith(tail, { triple: ["https://elsewhere", "wm.workAreas.desc", "type"], value: "b", secret: false, at: 2 });
+  assert.equal(match(tail, shapes), null);
+});
+
+test("a job is still offered after the operator has crossed to its second system", () => {
+  // `Create Warehouse Equipment Type DDD` -- one gesture in the mail, then
+  // twelve on the WMS -- was never offered at all, and the job beside it was
+  // offered only during its opening run of mail gestures. Both were mined from
+  // real demonstrations; the matcher, not the miner, was losing them.
+  const MAIL = "https://mail.example";
+  const spanning = {
+    id: "wfl_span", title: "Create Equipment Type", held_runs: 2,
+    shape: [[MAIL, "name|the brief", "click"], [H, "addButton", "click"], [H, "wm.equip.code", "type"]],
+    parameters: [{ name: "equipment", at: 2 }],
+  };
+  let tail = tailWith([], { triple: [MAIL, "name|the brief", "click"], value: "", secret: false, at: 1 });
+  assert.equal(match(tail, [spanning]), null, "one gesture is not yet an offer");
+  tail = tailWith(tail, { triple: [H, "addButton", "click"], value: "", secret: false, at: 2 });
+  assert.equal(match(tail, [spanning])?.k, 2, "the offer lands on the far system");
 });
 
 test("the tail drops scrolls, so one in the middle does not break a prefix", () => {
@@ -53,7 +75,7 @@ test("the tail drops scrolls, so one in the middle does not break a prefix", () 
   let tail = tailWith([], typed("wm.workAreas.code", "A"));
   tail = tailWith(tail, { triple: [H, "anon|scroll", "scroll"], value: "300", secret: false, at: 2 });
   tail = tailWith(tail, typed("wm.workAreas.desc", "b"));
-  assert.equal(match(tail, shapes, { origin: H }).k, 2);
+  assert.equal(match(tail, shapes).k, 2);
 });
 
 test("the tail is bounded", () => {
@@ -93,12 +115,12 @@ test("a shape served with offer_after is not offered before it", () => {
   // Alone, so no shared prefix withholds the offer.
   const later = { ...workArea, offer_after: 3 };
   const two = tailWith(tailWith([], typed("wm.workAreas.code", "NEWTESTS")), typed("wm.workAreas.desc", "d"));
-  assert.equal(match(two, [later], { origin: H }), null, "offered at 2 against the rig's 3");
+  assert.equal(match(two, [later]), null, "offered at 2 against the rig's 3");
   const three = tailWith(two, { triple: [H, "button|Save", "click"], at: 1 });
   // Three gestures is the whole shape; k stops at length - 1, so still nothing.
-  assert.equal(match(three, [later], { origin: H }), null);
+  assert.equal(match(three, [later]), null);
   const wider = { ...later, shape: [...later.shape, [H, "button|Next", "click"]] };
-  assert.equal(match(three, [wider], { origin: H })?.k, 3);
+  assert.equal(match(three, [wider])?.k, 3);
 });
 
 test("a job the rig says this browser is resting from is not offered, until then", () => {
@@ -108,8 +130,8 @@ test("a job the rig says this browser is resting from is not offered, until then
   assert.equal(resting({ quiet_until: tomorrow }), true);
   assert.equal(resting({ quiet_until: yesterday }), false);
   assert.equal(resting({ quiet_until: null }), false);
-  assert.equal(match(two, [{ ...workArea, quiet_until: tomorrow }], { origin: H }), null);
-  assert.equal(match(two, [{ ...workArea, quiet_until: yesterday }], { origin: H })?.k, 2);
+  assert.equal(match(two, [{ ...workArea, quiet_until: tomorrow }]), null);
+  assert.equal(match(two, [{ ...workArea, quiet_until: yesterday }])?.k, 2);
   // Still on the list: an open offer on it can tell diverging from finishing.
   const offer = { workflowId: "wfl_wa", k: 2 };
   assert.equal(diverged(two, offer, [{ ...workArea, quiet_until: tomorrow }]), false);
@@ -118,9 +140,9 @@ test("a job the rig says this browser is resting from is not offered, until then
 test("a job already finished is not offered back", () => {
   let tail = tailWith([], typed("wm.workAreas.code", "A"));
   tail = tailWith(tail, typed("wm.workAreas.desc", "b"));
-  assert.equal(match(tail, shapes, { origin: H }).k, 2);
+  assert.equal(match(tail, shapes).k, 2);
   tail = tailWith(tail, { triple: [H, "button|Save", "click"], value: null, secret: false, at: 3 });
-  assert.equal(match(tail, shapes, { origin: H }), null);
+  assert.equal(match(tail, shapes), null);
 });
 
 // Gone: "the job held more often wins a tie on the same prefix". A tie on `k`
@@ -137,8 +159,8 @@ test("a prefix two jobs share offers neither", () => {
     shape: [...workArea.shape.slice(0, 2), [H, "button|Archive", "click"]] };
   let tail = tailWith([], typed("wm.workAreas.code", "A"));
   tail = tailWith(tail, typed("wm.workAreas.desc", "b"));
-  assert.equal(match(tail, [workArea, cancel, archive], { origin: H }), null);
-  assert.equal(match(tail, [archive, cancel, workArea], { origin: H }), null, "served order decided it");
+  assert.equal(match(tail, [workArea, cancel, archive]), null);
+  assert.equal(match(tail, [archive, cancel, workArea]), null, "served order decided it");
 });
 
 test("the gesture that separates them is the gesture that offers", () => {
@@ -150,7 +172,7 @@ test("the gesture that separates them is the gesture that offers", () => {
   let tail = tailWith([], typed("wm.workAreas.code", "A"));
   tail = tailWith(tail, typed("wm.workAreas.desc", "b"));
   tail = tailWith(tail, { triple: [H, "button|Cancel", "click"], value: null, secret: false, at: 3 });
-  const offer = match(tail, three, { origin: H });
+  const offer = match(tail, three);
   assert.equal(offer.workflowId, "wfl_cancel");
   assert.equal(offer.k, 3);
 });
@@ -158,7 +180,7 @@ test("the gesture that separates them is the gesture that offers", () => {
 test("going another way ends the offer, but carrying it further does not", () => {
   let tail = tailWith([], typed("wm.workAreas.code", "A"));
   tail = tailWith(tail, typed("wm.workAreas.desc", "b"));
-  const offer = match(tail, shapes, { origin: H });
+  const offer = match(tail, shapes);
   assert.equal(diverged(tail, offer, shapes), false);
   const save = { triple: [H, "button|Save", "click"], value: null, secret: false, at: 3 };
   assert.equal(diverged(tailWith(tail, save), offer, shapes), false, "advancing the job is not diverging from it");
@@ -172,5 +194,5 @@ test("a gesture older than the tail's lifetime is not the start of today's job",
   let tail = tailWith([], { triple: [H, "wm.workAreas.code", "type"], value: "OLD", secret: false, at: 1000 });
   tail = tailWith(tail, { triple: [H, "wm.workAreas.desc", "type"], value: "b", secret: false, at: 1000 + K_TAIL_TTL_S + 1 });
   assert.equal(tail.length, 1, "yesterday's gesture fell out");
-  assert.equal(match(tail, shapes, { origin: H }), null, "one fresh gesture is not a prefix");
+  assert.equal(match(tail, shapes), null, "one fresh gesture is not a prefix");
 });

@@ -55,6 +55,7 @@ def _pass(
     clock: FakeClock | None = None,
     model: str = MODEL,
     cap_usd: float = CAP,
+    ours: frozenset[str] = frozenset(),
 ) -> MinePass:
     # `hand_out`, as a container hands one out: strict, and not yet entered.
     # A use case that read a repository without opening its own session would
@@ -66,6 +67,7 @@ def _pass(
         model=model,
         clock=clock or FakeClock(NOW),
         cap_usd=cap_usd,
+        ours=ours,
     )
 
 
@@ -175,6 +177,19 @@ async def test_a_refusal_at_the_door_leaves_no_row_behind() -> None:
         await _pass(uow, asker=FakeAsker()).execute(_ctx())
 
     assert await uow.workflows.passes(TENANT) == ()
+
+
+async def test_ours_reaches_the_pass_this_door_opens() -> None:
+    """`MinePass` takes `ours` at construction, one seam away from where a
+    container reads `Settings.our_own_origins` -- and the only proof it is not
+    dropped in transit is a job with nothing left once `mine` strikes it."""
+    uow, ids = await _day()
+    asker = FakeAsker(Answer(data={"workflows": [_proposal(ids[:2])]}, cost_usd=0.01))
+
+    result = await _pass(uow, asker=asker, ours=frozenset({"127.0.0.1:63319"})).execute(_ctx())
+
+    assert result.kept == 0
+    assert result.rejections[0].reason == "not a job"
 
 
 async def test_a_negative_cap_is_no_cap_and_the_pass_runs() -> None:

@@ -423,6 +423,9 @@ class Container:
             model=self.settings.gemini_mine_model,
             clock=self.clock,
             cap_usd=self.settings.daily_usd_cap,
+            # `work_only` reads a workflow's own systems, which have no path --
+            # so only the host:port half of `our_own_origins` applies here.
+            ours=frozenset(host_port for host_port, _ in self.settings.our_own_origins()),
         )
 
     def read_chat(self) -> ReadChat:

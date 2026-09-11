@@ -46,6 +46,7 @@ from sro.domain.skill.checks import (
     Rejection,
     coverage,
     validate,
+    work_only,
 )
 from sro.domain.skill.learned import parameters_across
 from sro.domain.skill.umbrella import (
@@ -166,6 +167,7 @@ async def mine(
     now: datetime,
     cap_usd: float,
     kb: str = "",
+    ours: frozenset[str] = frozenset(),
 ) -> MineResult:
     """One reading of one tenant's day.
 
@@ -207,7 +209,14 @@ async def mine(
     """
     async with one_at_a_time(f"mining:{tenant_id.value}"):
         return await _one_pass(
-            uow, tenant_id=tenant_id, asker=asker, model=model, now=now, cap_usd=cap_usd, kb=kb
+            uow,
+            tenant_id=tenant_id,
+            asker=asker,
+            model=model,
+            now=now,
+            cap_usd=cap_usd,
+            kb=kb,
+            ours=ours,
         )
 
 
@@ -301,6 +310,7 @@ async def _one_pass(
     now: datetime,
     cap_usd: float,
     kb: str,
+    ours: frozenset[str] = frozenset(),
 ) -> MineResult:
     why = await over_cap(uow, tenant_id, now=now, cap_usd=cap_usd)
     if why:
@@ -411,7 +421,7 @@ async def _one_pass(
         # want the second.
         placed: list[Workflow] = []
         for proposal in proposals:
-            rejection = validate(proposal, evidence)
+            rejection = validate(proposal, evidence) or work_only(proposal, by_id, ours=ours)
             if rejection is not None:
                 result.rejections.append(rejection)
                 continue

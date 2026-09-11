@@ -47,12 +47,14 @@ class MinePass:
         model: str,
         clock: Clock,
         cap_usd: float,
+        ours: frozenset[str] = frozenset(),
     ) -> None:
         self._uow = uow
         self._asker = asker
         self._model = model
         self._clock = clock
         self._cap_usd = cap_usd
+        self._ours = ours
 
     async def execute(self, ctx: RequestContext) -> MineResult:
         # Before the session is opened and long before a window is packed:
@@ -77,4 +79,5 @@ class MinePass:
                 model=self._model,
                 now=now,
                 cap_usd=self._cap_usd,
+                ours=self._ours,
             )

@@ -75,9 +75,10 @@ async def _mine(
     model: str = MODEL,
     cap_usd: float = CAP,
     tenant: TenantId = TENANT,
+    ours: frozenset[str] = frozenset(),
 ) -> MineResult:
     return await mine(
-        uow, tenant_id=tenant, asker=asker, model=model, now=NOW, cap_usd=cap_usd, kb=kb
+        uow, tenant_id=tenant, asker=asker, model=model, now=NOW, cap_usd=cap_usd, kb=kb, ours=ours
     )
 
 
@@ -215,6 +216,33 @@ async def test_a_workflow_naming_a_system_its_evidence_never_touched_is_refused(
 
     assert result.kept == 0
     assert result.rejections[0].reason == "system not in evidence"
+
+
+async def test_a_job_that_is_only_this_deployments_own_console_is_refused() -> None:
+    """`checks.work_only`, wired into the loop rather than left unreachable:
+    `validate` has already asked whether the evidence is honest, and this asks
+    whether anybody wanted it mined. A proposal naming no system but ours has
+    none left once `ours` strikes it."""
+    uow, ids = await _day()
+    asker = FakeAsker(_found(_proposal(ids[:2])))
+
+    result = await _mine(uow, asker, ours=frozenset({"127.0.0.1:63319"}))
+
+    assert result.kept == 0
+    assert result.rejections[0].reason == "not a job"
+    assert await uow.workflows.known(TENANT) == ()
+
+
+async def test_a_job_on_a_host_that_is_not_ours_survives_the_strike() -> None:
+    """The other side of the same guard: `ours` naming a host this proposal
+    never touches strikes nothing, and the job is kept as it always was."""
+    uow, ids = await _day()
+    asker = FakeAsker(_found(_proposal(ids[:2])))
+
+    result = await _mine(uow, asker, ours=frozenset({"console.example:3000"}))
+
+    assert result.kept == 1
+    assert result.rejections == []
 
 
 async def test_a_gesture_whose_system_is_unknown_cannot_prove_a_step_that_names_one() -> None:

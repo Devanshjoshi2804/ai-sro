@@ -4,16 +4,34 @@ One shape adaptation, in `test_a_proposal_whose_steps_are_all_junk_is_refused`:
 the rig drove `_as_workflow` through `propose`, which asks a model and belongs
 to the mining use case. It calls `workflow_from` directly here instead -- the
 same junk steps, the same two assertions, no `Asker` and no `await`.
+
+The `work_only` tests below are this repo's own and have no rig ancestor. Their
+shapes are the two jobs the real acme store actually holds -- the console
+watching itself, and a sign-in chain read as the start of a job -- plus the two
+real jobs each half of the transit rule exists to keep.
 """
 
+from sro.domain.observation.gesture import Action, Gesture, PageMark
 from sro.domain.observation.window import Packed, Window, pack
-from sro.domain.skill.checks import K_MAX_SKEW, K_MIN_COVERAGE, coverage, validate
+from sro.domain.skill.checks import (
+    K_MAX_SKEW,
+    K_MIN_COVERAGE,
+    coverage,
+    validate,
+    work_only,
+)
 from sro.domain.skill.umbrella import workflow_from
 from sro.domain.skill.workflow import Step, Workflow
 from tests.unit.domain.rig.conftest import gestures as _gestures
 
 WMS = "https://wms.example"
 SAP = "https://sap.example"
+MAIL = "https://mail.example"
+SSO = "https://login.example"
+CONSOLE = "http://localhost:3000"
+OURS = frozenset({"localhost:3000", "localhost:8000"})
+"""This deployment as `Settings.our_own_origins` names it: host and port, no
+scheme and no path."""
 
 
 def _workflow(*, systems: list[str] | None = None, steps: list[Step] | None = None) -> Workflow:
@@ -282,3 +300,108 @@ def test_gini_separates_an_even_window_from_a_clustered_one() -> None:
 
     assert abs(coverage([_citing(range(0, 100, 5))], window).gini) < 1e-9
     assert coverage([_citing(range(10))], window).gini > 0.8
+
+
+def _gesture(gesture_id: str, system: str, *, left_for: tuple[str, ...] = ()) -> Gesture:
+    """One gesture as `work_only` reads it: the system it happened on, and the
+    pages it ended on. `left_for` is where the browser took the operator
+    without being asked -- the shape of a redirect."""
+    return Gesture(
+        id=gesture_id,
+        tenant="acme",
+        stream_id="str_1",
+        batch_id="bat_1",
+        at=0.0,
+        url=f"{system}/page",
+        system=system,
+        tab_id=1,
+        frame_url=None,
+        action=Action(kind="click", at=0.0),
+        page_events=[
+            PageMark(at=0.0, page_kind="navigated", url=f"{where}/landed") for where in left_for
+        ],
+    )
+
+
+def _job(*evidence: Gesture, systems: list[str]) -> tuple[Workflow, dict[str, Gesture]]:
+    """A workflow whose steps cite this evidence in the order it is given,
+    which is the order `ordered_cites` reads it back in."""
+    workflow = _workflow(
+        systems=systems,
+        steps=[
+            Step(order=index, says="do it", system=one.system, cites=[one.id])
+            for index, one in enumerate(evidence)
+        ],
+    )
+    return workflow, {one.id: one for one in evidence}
+
+
+def test_a_job_whose_only_system_is_this_deployments_own_console_is_not_a_job() -> None:
+    """The miner watched somebody use SRO while capture was on and proposed
+    "using SRO" as warehouse work. The console is the apparatus."""
+    job, evidence = _job(_gesture("ges_1", CONSOLE), systems=[CONSOLE])
+
+    rejection = work_only(job, evidence, ours=OURS)
+
+    assert rejection is not None
+    assert rejection.reason == "not a job"
+
+
+def test_the_console_on_a_default_port_is_the_same_console() -> None:
+    """`https://sro.acme.com:443` and `https://sro.acme.com` are one origin,
+    and a deployment that wrote the first left every call to the second
+    proposable."""
+    job, evidence = _job(
+        _gesture("ges_1", "https://sro.acme.com:443"), systems=["https://sro.acme.com:443"]
+    )
+
+    assert work_only(job, evidence, ours=frozenset({"sro.acme.com"})) is not None
+
+
+def test_a_job_on_a_real_warehouse_host_is_left_exactly_as_it_was() -> None:
+    job, evidence = _job(_gesture("ges_1", WMS), _gesture("ges_2", WMS), systems=[WMS])
+
+    assert work_only(job, evidence, ours=OURS) is None
+    assert job.systems == [WMS]
+
+
+def test_a_sign_in_hop_is_struck_and_the_job_keeps_where_the_work_landed() -> None:
+    """`Search for Work Areas` in the real store opens on two identity hosts
+    and does its work on the third. The chain is how it got there, not what it
+    is."""
+    job, evidence = _job(
+        _gesture("ges_1", SSO, left_for=(WMS,)),
+        _gesture("ges_2", WMS),
+        systems=[SSO, WMS],
+    )
+
+    assert work_only(job, evidence, ours=OURS) is None
+    assert job.systems == [WMS]
+
+
+def test_a_system_the_job_comes_back_to_is_not_a_hop_through() -> None:
+    """Half the rule. The warehouse host bounced somewhere else on 4 of its 495
+    real gestures; it is never transit, because the work ends on it."""
+    job, evidence = _job(
+        _gesture("ges_1", WMS, left_for=(SAP,)),
+        _gesture("ges_2", SAP),
+        _gesture("ges_3", WMS),
+        systems=[WMS, SAP],
+    )
+
+    assert work_only(job, evidence, ours=OURS) is None
+    assert job.systems == [WMS, SAP]
+
+
+def test_a_system_that_bounced_nobody_is_not_a_hop_through_however_early_it_comes() -> None:
+    """The other half. Two stored jobs read a mail and then go and do the work,
+    so the mail host is never the last system either -- and it is kept, because
+    nothing there sent the operator anywhere."""
+    job, evidence = _job(
+        _gesture("ges_1", MAIL),
+        _gesture("ges_2", WMS),
+        systems=[MAIL, WMS],
+    )
+
+    assert work_only(job, evidence, ours=OURS) is None
+    assert job.systems == [MAIL, WMS]

@@ -1,25 +1,36 @@
 """A9, A10 — the only code here that overrules a model.
 
-None of it reads a URL, a body or a call shape. It asks whether a workflow has
-any steps at all, whether every step cites something, whether everything cited
-exists, whether every step says something a person could act on, and whether
-every system named -- by a step or by the workflow -- is one the cited evidence
-actually happened on. Then it measures where in the window the citations fell,
-because long-context citation bias is real, is model-specific, and is invisible
-without counting.
+`validate` reads no URL, no body and no call shape. It asks whether a workflow
+has any steps at all, whether every step cites something, whether everything
+cited exists, whether every step says something a person could act on, and
+whether every system named -- by a step or by the workflow -- is one the cited
+evidence actually happened on. Then `coverage` measures where in the window the
+citations fell, because long-context citation bias is real, is model-specific,
+and is invisible without counting.
 
-Ported from `new_agent_arch/src/rig/checks.py`. Pure -- it reads `Window` and
-`Workflow` and nothing else -- so it lives in the domain beside them rather
+`work_only` is the one that does read URLs, and it answers a different
+question: not "is this workflow honest about its evidence" but "is this
+evidence a job anybody wanted mined". See its docstring.
+
+Ported from `new_agent_arch/src/rig/checks.py`. Pure -- it reads `Window`,
+`Workflow` and `Gesture` and nothing else, and is told what this deployment is
+rather than reading settings -- so it lives in the domain beside them rather
 than in the application layer with the mining pass that calls it.
 """
 
 from dataclasses import dataclass
+from urllib.parse import urlsplit
 
+from sro.domain.observation.gesture import Gesture
 from sro.domain.observation.window import Window
-from sro.domain.skill.workflow import Workflow, cited_ids
+from sro.domain.skill.workflow import Workflow, cited_ids, ordered_cites
 
 K_MIN_COVERAGE = 0.5
 K_MAX_SKEW = 0.4
+
+_DEFAULT_PORTS = {"http": "80", "https": "443"}
+"""`config._origins_of` keeps the same map for the same reason and cannot be
+imported here: the domain reads settings through arguments or not at all."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -144,3 +155,101 @@ def coverage(workflows: list[Workflow], window: Window) -> Coverage:
         skew=sum(mass[:3]) - sum(mass[-3:]),
         gini=_gini(mass),
     )
+
+
+def _origin(url: str) -> str:
+    """A url as the system it belongs to: host and port, default port dropped.
+
+    `https://wms.acme.com:443` and `https://wms.acme.com` are one system, and
+    a rule that cannot say so refuses half the pages on it. Port and not
+    hostname alone, because an API on 8000 beside a console on 3000 is the
+    ordinary shape of this deployment.
+    """
+    parsed = urlsplit(url)
+    host = (parsed.hostname or "").rstrip(".")
+    if not host:
+        return ""
+    if ":" in host:
+        host = f"[{host}]"
+    try:
+        port = str(parsed.port) if parsed.port else ""
+    except ValueError:
+        return ""
+    if port and port == _DEFAULT_PORTS.get(parsed.scheme.lower()):
+        port = ""
+    return f"{host}:{port}" if port else host
+
+
+def _passed_through(gesture: Gesture) -> bool:
+    """Whether this gesture ended on a different system from the one it
+    happened on -- the browser moved the operator, the operator did not."""
+    here = _origin(gesture.system or "")
+    return any(mark.url and _origin(mark.url) not in ("", here) for mark in gesture.page_events)
+
+
+def work_only(
+    workflow: Workflow, gestures: dict[str, Gesture], *, ours: frozenset[str]
+) -> Rejection | None:
+    """Strike the systems that were never the work, and refuse a job with none
+    left. None when it may be kept, as `validate` answers.
+
+    ``ours`` is this deployment itself as ``Settings.our_own_origins`` names
+    it, host and port, no path -- a workflow's system is a scheme and a host
+    and has no path to route on.
+
+    Two things are struck, and both were mined off the real acme store:
+
+    **This product's own console.** `Review Video Recordings for Teach Task`
+    is the miner watching somebody use SRO while capture was on. `admit`
+    already refuses the apparatus at the door, which stops the NEXT one and
+    does nothing about the day already in the store -- and the operator has
+    deliberately emptied the tenant's exclusions, so capture is meant to stay
+    whole and the judgment belongs here, where a job is proposed rather than
+    where a gesture is kept.
+
+    **A hop the browser bounced the operator through.** `Search for Work
+    Areas` opened on `blueyonderalphaus.b2clogin.com` and
+    `keycloak-...byp.ai`, which is a sign-in redirect chain read as the
+    beginning of a job. A system is transit when the job carried on somewhere
+    else afterwards AND some gesture on it ended on another system. Both
+    halves are needed and each saves a real job the other would have lost: the
+    WMS host bounced elsewhere on 4 of its 495 gestures, and is never struck
+    because the work ends there; `mail.google.com` is read first and left for
+    the WMS in two stored jobs, and is never struck because Gmail bounces
+    nobody anywhere.
+
+    What it wrongly strikes, said plainly: a job whose last act on one system
+    is a hand-off link into another it never returns from -- raise it in the
+    ticketing system, follow the link into the WMS, finish there. Real work on
+    the first system, and this reads it as a doorway. Naming identity-provider
+    domains instead would have been narrower and would also have been a list
+    somebody has to keep, wrong for every customer running an SSO nobody here
+    has heard of.
+    """
+    cited = [gestures[one] for one in ordered_cites(workflow) if one in gestures]
+    order = [gesture.system or "" for gesture in cited]
+    # Last occurrence per system: what matters is whether the job carried on
+    # after this system the LAST time it was on it, not the first.
+    last = {system: index for index, system in enumerate(order)}
+    bounced = {gesture.system or "" for gesture in cited if _passed_through(gesture)}
+    transit = {
+        system
+        for system, index in last.items()
+        if system and index < len(order) - 1 and system in bounced
+    }
+
+    kept = [
+        system
+        for system in workflow.systems
+        if _origin(system) not in ours and system not in transit
+    ]
+    # `workflow.systems` empty to begin with is a model that named none, which
+    # `validate` allows and this must not start refusing: nothing was struck.
+    if workflow.systems and not kept:
+        return Rejection(
+            workflow.title,
+            "not a job",
+            "every system it names is this deployment or a hop through one",
+        )
+    workflow.systems = kept
+    return None

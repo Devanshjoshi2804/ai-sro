@@ -57,6 +57,7 @@ from sro.application.ports.repositories import UnitOfWork
 from sro.config import Settings
 from sro.domain.chat.reading import ChatReading
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun, already_running
+from sro.domain.observation.gesture import Action, Gesture
 from sro.domain.shared.errors import Conflict
 from sro.domain.shared.identifiers import DeviceId, PrincipalId, TenantId
 from sro.domain.skill.workflow import Step, Workflow
@@ -133,7 +134,11 @@ async def client(container: _RealSessionContainer) -> AsyncIterator[httpx.AsyncC
 
 
 async def _hold(container: _RealSessionContainer) -> None:
-    """One mined job in the real store, five steps and one declared value."""
+    """One mined job in the real store, five steps and one declared value.
+
+    With the gestures it cites, because the press reads them: a job whose
+    evidence the store no longer holds is refused before a row is claimed.
+    """
     async with SqlUnitOfWork(container._session_factory) as uow:
         await uow.workflows.save(
             Workflow(
@@ -141,8 +146,30 @@ async def _hold(container: _RealSessionContainer) -> None:
                 tenant=TENANT.value,
                 title="create a work area",
                 narrative="the operator created a work area",
-                steps=[Step(order=n, says=f"step {n}", system=None) for n in range(5)],
+                steps=[
+                    Step(order=n, says=f"step {n}", system=None, cites=[f"ges-{n}"])
+                    for n in range(5)
+                ],
                 parameters=[{"name": "clientCode", "seen_values": ["NEWTESTS"]}],
+            )
+        )
+        await uow.gestures.add_gestures(
+            tuple(
+                Gesture(
+                    id=f"ges-{n}",
+                    tenant=TENANT.value,
+                    stream_id="str-1",
+                    batch_id="bat-1",
+                    at=1_739_314_800.0 + n,
+                    url="https://wms.acme.test/work-areas",
+                    system="https://wms.acme.test",
+                    tab_id=7,
+                    frame_url=None,
+                    action=Action(
+                        kind="click", at=1_739_314_800.0 + n, url="https://wms.acme.test/work-areas"
+                    ),
+                )
+                for n in range(5)
             )
         )
         await uow.commit()

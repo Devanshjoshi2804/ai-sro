@@ -85,6 +85,7 @@ from sro.application.ports.model import Asker, asker_or_refuse
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock
 from sro.application.shared.refusals import OverCap
+from sro.domain.execution.evidence import unperformable
 from sro.domain.execution.workflow_run import (
     RunStep,
     WorkflowRun,
@@ -93,6 +94,7 @@ from sro.domain.execution.workflow_run import (
 )
 from sro.domain.shared.errors import Conflict, DomainError, NotFound
 from sro.domain.shared.identifiers import DeviceId
+from sro.domain.skill.workflow import cited_ids
 
 __all__ = [
     "AbortWorkflowRun",
@@ -217,6 +219,24 @@ class StartWorkflowRun:
             if isinstance(from_step, bool) or not 0 <= from_step < len(workflow.steps):
                 raise RunRefused(
                     f"from_step must be a step of this job (0..{len(workflow.steps) - 1})"
+                )
+            # After `from_step`, because which steps have to be performable is
+            # what the press just decided. The runner asks this same question
+            # of one step at a time, mid-run, once a browser is open and the
+            # earlier steps are already sent -- so a job whose evidence has
+            # gone is one an operator presses Yes on and watches stop half way.
+            # It is a stored row going bad rather than a bad row being stored:
+            # the workflow outlives the gestures it cites, and no check at mine
+            # time can see that coming.
+            cited = await uow.gestures.gestures_for(
+                ctx.tenant_id, ids=tuple(sorted(cited_ids(workflow)))
+            )
+            undoable = unperformable(
+                workflow, {gesture.id: gesture for gesture in cited}, from_step=from_step
+            )
+            if undoable is not None:
+                raise RunRefused(
+                    f"step {undoable.order} has no evidence a browser can act on: {undoable.says}"
                 )
             run = WorkflowRun(
                 id=run_id or new_run_id(),

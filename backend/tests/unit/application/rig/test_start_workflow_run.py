@@ -33,6 +33,7 @@ from sro.application.ports.model import AskerUnavailable
 from sro.application.shared.refusals import OverCap
 from sro.domain.chat.reading import ChatReading
 from sro.domain.execution.workflow_run import WorkflowRun
+from sro.domain.observation.gesture import Action, Gesture
 from sro.domain.shared.errors import Conflict, NotFound
 from sro.domain.shared.identifiers import DeviceId, PrincipalId, TenantId
 from sro.domain.skill.workflow import Step, Workflow
@@ -83,6 +84,9 @@ def _ctx(tenant: TenantId = TENANT, who: PrincipalId = WHO) -> RequestContext:
     return RequestContext(tenant_id=tenant, principal_id=who)
 
 
+WMS = "https://wms.acme.test"
+
+
 def _workflow(
     *,
     tenant: TenantId = TENANT,
@@ -90,21 +94,56 @@ def _workflow(
     steps: int = 5,
     parameters: list[dict[str, object]] | None = None,
 ) -> Workflow:
+    """Every step cites one gesture, because a mined one does: `checks.validate`
+    refuses an uncited step, so a fixture without citations is a job that could
+    not have been stored -- and the press now reads the evidence.
+
+    `system=None` on every step, which is the shape the store actually holds:
+    the model is not required to name one and two of the tenant's nine jobs
+    carry NULL on every step. Nothing about starting a run reads it."""
     return Workflow(
         id=workflow_id,
         tenant=tenant.value,
         title="create a work area",
         narrative="the operator created a work area",
-        steps=[Step(order=n, says=f"step {n}", system=None) for n in range(steps)],
+        steps=[
+            Step(order=n, says=f"step {n}", system=None, cites=[f"ges-{n}"]) for n in range(steps)
+        ],
         parameters=[{"name": "clientCode", "seen_values": ["NEWTESTS"]}]
         if parameters is None
         else parameters,
     )
 
 
-async def _held(workflow: Workflow | None = None) -> FakeUnitOfWork:
+def _gesture(gesture_id: str, *, tenant: TenantId = TENANT, kind: str = "click") -> Gesture:
+    return Gesture(
+        id=gesture_id,
+        tenant=tenant.value,
+        stream_id="str-1",
+        batch_id="bat-1",
+        at=1_739_314_800.0,
+        url=f"{WMS}/work-areas",
+        system=WMS,
+        tab_id=7,
+        frame_url=None,
+        action=Action(kind=kind, at=1_739_314_800.0, url=f"{WMS}/work-areas"),
+    )
+
+
+async def _held(workflow: Workflow | None = None, *, evidence: bool = True) -> FakeUnitOfWork:
+    """The job, and by default the evidence it cites. `evidence=False` is the
+    job whose gestures have aged out from under it."""
     uow = FakeUnitOfWork()
-    await uow.workflows.save(workflow or _workflow())
+    job = workflow or _workflow()
+    await uow.workflows.save(job)
+    if evidence:
+        await uow.gestures.add_gestures(
+            tuple(
+                _gesture(cited, tenant=TenantId(job.tenant))
+                for step in job.steps
+                for cited in step.cites
+            )
+        )
     return uow
 
 
@@ -459,6 +498,73 @@ async def test_a_job_with_no_steps_cannot_be_started() -> None:
     assert "no steps" in str(refused.value)
 
 
+# --- the evidence the job stands on -----------------------------------------
+
+
+async def test_a_job_whose_evidence_is_gone_is_refused_rather_than_started() -> None:
+    """A workflow row outlives the gestures it cites, so a job that could be run
+    the day it was mined can stop being one without anything rewriting it. The
+    runner asks this per step, mid-run -- by which point a browser is open, the
+    steps before it have been sent to a warehouse and the task is half done."""
+    uow = await _held(evidence=False)
+
+    with pytest.raises(RunRefused) as refused:
+        await _press(_starter(uow))
+
+    assert "step 0" in str(refused.value)
+    assert uow.workflow_runs.rows == {}
+
+
+async def test_the_refusal_names_the_step_a_person_has_to_go_and_look_at() -> None:
+    """Not "this job cannot run". A job of twenty-five steps refused without a
+    number is a person reading twenty-five rows of evidence to find the one the
+    store lost."""
+    uow = await _held()
+    uow.gestures.rows.pop("ges-3")
+
+    with pytest.raises(RunRefused) as refused:
+        await _press(_starter(uow))
+
+    assert "step 3" in str(refused.value)
+
+
+async def test_a_step_citing_nothing_but_a_scroll_is_not_a_step_a_browser_can_do() -> None:
+    """Present evidence is not actionable evidence: a scroll has no target, so
+    it yields no locator ladder and no control to aim at. `primary_gesture`
+    already says so, one step at a time, after the run has started."""
+    uow = await _held()
+    uow.gestures.rows["ges-2"] = _gesture("ges-2", kind="scroll")
+
+    with pytest.raises(RunRefused) as refused:
+        await _press(_starter(uow))
+
+    assert "step 2" in str(refused.value)
+
+
+async def test_a_job_whose_every_step_has_evidence_is_started() -> None:
+    """The other half, and the one that makes the refusal above worth having:
+    nine of nine stored jobs cite gestures that are all still there, and a guard
+    that refused any of them would have shut the door on the whole tenant."""
+    uow = await _held()
+
+    claimed = await _press(_starter(uow))
+
+    assert claimed.workflow_id == "wfl_1"
+    assert uow.workflow_runs.rows != {}
+
+
+async def test_evidence_missing_from_a_step_the_operator_already_did_stops_nothing() -> None:
+    """The steps before `from_step` are recorded `done_by_operator` and never
+    sent, so evidence they no longer have costs this run nothing. A guard that
+    read the whole job would refuse every mid-job re-press of an ageing one."""
+    uow = await _held()
+    uow.gestures.rows.pop("ges-0")
+
+    claimed = await _press(_starter(uow), from_step=1)
+
+    assert claimed.from_step == 1
+
+
 # --- the claimed row --------------------------------------------------------
 
 
@@ -574,7 +680,11 @@ async def test_a_run_claimed_at_step_four_is_driven_from_step_four() -> None:
         run_id=claimed.id,
         from_step=4,
     )
-    assert [step.verdict for step in run.steps] == ["done_by_operator"] * 4 + ["skipped"]
+    # The four the operator did, and a fifth that was attempted rather than
+    # assumed. Which verdict the fake's plan earns for it is `test_runner.py`'s
+    # question; this one is about the step the loop began at.
+    assert [step.verdict for step in run.steps[:4]] == ["done_by_operator"] * 4
+    assert len(run.steps) == 5
 
 
 async def test_a_re_press_that_moves_the_step_is_refused_by_the_loop() -> None:
@@ -619,7 +729,8 @@ async def test_perform_drives_the_run_the_row_describes() -> None:
     stored = await uow.workflow_runs.get(TENANT, claimed.id)
     assert stored is not None
     assert stored.outcome == "stopped", "the run never got past the claim"
-    assert [step.verdict for step in stored.steps] == ["done_by_operator"] * 4 + ["skipped"]
+    assert [step.verdict for step in stored.steps[:4]] == ["done_by_operator"] * 4
+    assert len(stored.steps) == 5
     assert stored.live is True and stored.allow_focus is False
 
 

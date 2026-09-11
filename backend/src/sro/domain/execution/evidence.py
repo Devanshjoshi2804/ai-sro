@@ -111,6 +111,27 @@ def primary_gesture(step: Step, by_id: Mapping[str, Gesture]) -> Gesture | None:
     return None
 
 
+def unperformable(
+    workflow: Workflow, by_id: Mapping[str, Gesture], *, from_step: int = 0
+) -> Step | None:
+    """The first step this job could not be asked to do, or None if it can.
+
+    `primary_gesture`'s question asked of the whole job before it starts, not
+    of one step in the middle of it. A step whose every citation is gone or
+    untargeted gets no locator, no origin and no plan, so the runner records it
+    skipped and stops -- with the steps before it already sent, which leaves a
+    warehouse task half performed and a browser open on it.
+
+    Only the steps the run will attempt: the ones before `from_step` were done
+    by the operator and are never sent, so evidence they no longer have costs
+    this run nothing.
+    """
+    for step in sorted(workflow.steps, key=lambda step: step.order):
+        if step.order >= from_step and primary_gesture(step, by_id) is None:
+            return step
+    return None
+
+
 def recorded_call(step: Step, by_id: Mapping[str, Gesture]) -> Call | None:
     """The call this step's evidence made: the first mutation, else the first
     call at all. What `http.send` would replay, and what `verify` reads an

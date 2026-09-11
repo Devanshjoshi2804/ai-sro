@@ -57,6 +57,7 @@ from sro.config import Settings
 from sro.domain.chat.reading import ChatReading
 from sro.domain.execution.run import Run, RunId
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
+from sro.domain.observation.gesture import Action, Gesture
 from sro.domain.shared.identifiers import DeviceId, SkillId, TenantId
 from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.workflow import Step, Workflow
@@ -160,14 +161,37 @@ async def client(container: _FakeContainer) -> AsyncIterator[httpx.AsyncClient]:
         yield http
 
 
+WMS = "https://wms.acme.test"
+
+
 def _workflow(workflow_id: str = "wfl_1", *, steps: int = 5, tenant: TenantId = TENANT) -> Workflow:
+    """Every step cites one gesture, as a mined one does -- `checks.validate`
+    refuses an uncited step -- because the press reads the evidence before it
+    claims a row."""
     return Workflow(
         id=workflow_id,
         tenant=tenant.value,
         title="create a work area",
         narrative="the operator created a work area",
-        steps=[Step(order=n, says=f"step {n}", system=None) for n in range(steps)],
+        steps=[
+            Step(order=n, says=f"step {n}", system=None, cites=[f"ges-{n}"]) for n in range(steps)
+        ],
         parameters=[{"name": "clientCode", "seen_values": ["NEWTESTS"]}],
+    )
+
+
+def _gesture(gesture_id: str, *, tenant: TenantId = TENANT) -> Gesture:
+    return Gesture(
+        id=gesture_id,
+        tenant=tenant.value,
+        stream_id="str-1",
+        batch_id="bat-1",
+        at=1_739_314_800.0,
+        url=f"{WMS}/work-areas",
+        system=WMS,
+        tab_id=7,
+        frame_url=None,
+        action=Action(kind="click", at=1_739_314_800.0, url=f"{WMS}/work-areas"),
     )
 
 
@@ -175,6 +199,9 @@ def _workflow(workflow_id: str = "wfl_1", *, steps: int = 5, tenant: TenantId = 
 async def held(uow: FakeUnitOfWork) -> Workflow:
     workflow = _workflow()
     await uow.workflows.save(workflow)
+    await uow.gestures.add_gestures(
+        tuple(_gesture(cited) for step in workflow.steps for cited in step.cites)
+    )
     return workflow
 
 

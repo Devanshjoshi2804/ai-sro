@@ -37,6 +37,25 @@ union all select 'chats',              count(*) from chats;
  offers             |     0
  chats              |     0
 ```
+**Re-measured 2026-09-11.** One of the five has been paid:
+
+```
+ t                  | count
+--------------------+-------
+ workflow_runs      |     0
+ workflow_run_steps |     0
+ approvals          |     0
+ offers             |     5
+ chats              |     0
+```
+
+Five offers, on two tenants, all of them real — three `diverged`, two `expired`,
+none `accepted`. So steps 1 to 7 below have now happened in a signed-in Chrome
+against the real WMS, and the writes behind them proved out against real
+Postgres. **Step 8 has never been pressed**, and everything downstream of it —
+the run, its steps, the approval, the planning calls — is exactly as empty as
+the table above says. That is the whole of what phase 5 still owes.
+
 
 Everything on the execution side — the press, the poll, the offer fate, the
 approval — is built, reviewed and mutation-tested. Every one of those tests
@@ -702,6 +721,30 @@ parameters before it ran before migration 0041 created the column. Whether those
 question, and a mining one. **Nothing in this walkthrough touches it.** Running
 every step above and passing every check leaves both figures exactly where they
 were.
+**Measured 2026-09-11, and the criterion is the replay, not the row count.**
+The spec makes `make offer-replay` the acceptance test for recognition at every
+phase after 4 — *8 of 8 named as themselves, 10 of 11 values by the end*. Run it
+per tenant (`scripts/dry_run.py --replay … --tenant <t>`, then
+`offer-replay.mjs` on the file), because the script serves one tenant's shapes
+at a time and a job can only be recognised among the shapes it is served beside:
+
+```
+acme  7 jobs  7 offered as themselves  0 as another job  0 never   values  6/11
+new   2 jobs  2 offered as themselves  0 as another job  0 never   values  6/6
+```
+
+Nine of nine, nothing misnamed, nothing lost. Two of those nine were being lost
+before the cross-system fix above, which is the measurement that found it.
+
+The store's own counts are 9 workflows and 17 declared parameters, and they are
+a worse number than they look: `Review Video Recordings for Teach Task` is the
+console recording itself and `Search for Work Areas` is the SSO hop, neither of
+which is a warehouse job anybody wants offered. Two more bake a parameter's
+value into their title — `Create Customer Type DSS`, `Create Warehouse Equipment
+Type DDD` — so a second demonstration with a different value joins a job named
+after the first. Both are mining defects, both are still open, and **nothing in
+this walkthrough touches either.**
+
 
 **Nor does it prove:**
 
@@ -713,15 +756,23 @@ were.
   `stageShots` ordering, the 401 re-throw, the screenshot drop. Step 5 exercises
   the happy path and nothing else. Four mutations to the upload path survived
   until phase 5's task 3 wrote the first test for `api.observations`.
-- **Anything about a second system.** Every gesture in the store came from one
-  WMS host. The claim this architecture exists to test — *a model reading
-  everything beats arithmetic reading call shapes, when the job spans two
-  systems* — has no two-system evidence behind it in this repo.
-- **The console.** Phase 6. A workflow run currently has **no details action in
-  the panel at all**: the link was removed rather than left pointing at
-  `/runs/{id}`, which on this host is a *skill* run route and would have been a
-  404 dressed as a link. `panel.js:566` is where it goes back when there is a
-  workflow-run screen to send it to.
+- ~~**Anything about a second system.** Every gesture in the store came from one
+  WMS host.~~ **Untrue since 2026-09-10.** Tenant `new` holds two jobs mined from
+  demonstrations that cross `mail.google.com` and the WMS — the operator reads
+  the field values out of a mail, types them into the form, and goes back to the
+  mail between fields. `Create Customer Type DSS` and `Create Warehouse Equipment
+  Type DDD`, seven steps each, four learnt parameters on the second. The claim
+  this architecture exists to test now has evidence behind it, and the first
+  thing that evidence found was a defect no single-system corpus could ever have
+  shown: `match` skipped a shape unless its *first* step's origin matched the
+  gesture in hand, so a job was offerable only while the operator was still on
+  the system it started on. Fixed; the replay figures are below.
+- ~~**The console.** Phase 6. A workflow run currently has **no details action in
+  the panel at all**.~~ **Done in phase 6.** The five pages exist, a mined job
+  has its own page at `/jobs/{id}` with the evidence and the screenshots under
+  every cited step, and the panel's link is back — routed by id space, so a
+  workflow run goes to `/jobs/runs/{id}` and a skill run still goes to
+  `/runs/{id}`.
 - **`apiUrl` and `consoleUrl` are unvalidated.** `isRigUrl` was the extension's
   only scheme check on an operator-typed URL and it died with the rig field.
   `<input type="url">` accepts any *absolute* URL, `javascript:` and `file:`

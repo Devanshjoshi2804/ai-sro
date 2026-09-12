@@ -86,7 +86,13 @@ def _proposal(cites: list[str], **over: object) -> dict[str, object]:
         "title": "create a work operation",
         "narrative": "the operator created a work operation",
         "systems": [HOST],
-        "steps": [{"order": 0, "cites": cites, "says": "do it", "system": HOST, "parameters": []}],
+        # Two steps: `validate` refuses a workflow shorter than
+        # `identity.K_MIN_SHARED_STEPS`. Both cite the same evidence, so
+        # nothing else about the fixture moves.
+        "steps": [
+            {"order": 0, "cites": cites, "says": "do it", "system": HOST, "parameters": []},
+            {"order": 1, "cites": cites, "says": "save it", "system": HOST, "parameters": []},
+        ],
         "parameters": [],
         "same_as": None,
         "unproven": [],

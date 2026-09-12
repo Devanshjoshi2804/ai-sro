@@ -22,6 +22,7 @@ from dataclasses import dataclass
 from urllib.parse import urlsplit
 
 from sro.domain.observation.gesture import Gesture
+from sro.domain.observation.identity import K_MIN_SHARED_STEPS
 from sro.domain.observation.window import Window
 from sro.domain.skill.workflow import Workflow, cited_ids, ordered_cites
 
@@ -116,6 +117,32 @@ def validate(workflow: Workflow, evidence: dict[str, str]) -> Rejection | None:
     invented = claimed - evidenced
     if invented:
         return Rejection(workflow.title, "system not in evidence", ", ".join(sorted(invented)))
+
+    # Last, because it is the only rejection here that is not about honesty.
+    # Everything above catches a workflow that misdescribes its own evidence,
+    # and those diagnose better than "too short" does -- a one-step proposal
+    # that also cites a gesture nobody recorded should be refused for the
+    # citation. This one is about what the rest of the system can do with an
+    # honest answer.
+    #
+    # Fewer steps than `identity.resolve` needs to ever recognise this job
+    # again. The bound is imported from the rule that causes it rather than
+    # chosen here: `resolve` requires K_MIN_SHARED_STEPS shared shape entries
+    # before it will call two proposals the same job, so a workflow with fewer
+    # steps can only ever come back "new". Every pass over the same evidence
+    # mints another copy and nothing ever merges them.
+    #
+    # Mined off the real acme store: a clean six-pass re-mine produced a second
+    # `Create a Customer Type` of one step -- "Save the customer type
+    # configuration" -- beside the real six-step job it was a fragment of. One
+    # step is also not a job an operator would want offered: there is nothing
+    # to parameterise and nothing in it to save them.
+    if len(workflow.steps) < K_MIN_SHARED_STEPS:
+        return Rejection(
+            workflow.title,
+            "too few steps to recognise",
+            f"{len(workflow.steps)} step(s); resolve needs {K_MIN_SHARED_STEPS} to match",
+        )
     return None
 
 

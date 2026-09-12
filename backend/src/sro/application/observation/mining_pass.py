@@ -49,7 +49,7 @@ from sro.domain.skill.checks import (
     validate,
     work_only,
 )
-from sro.domain.skill.learned import parameters_across
+from sro.domain.skill.learned import LearnedParameter, parameters_across
 from sro.domain.skill.umbrella import (
     K_EFFORT,
     WORKFLOW_SCHEMA,
@@ -265,7 +265,7 @@ async def learn_parameters(
     fresh: list[dict[str, object]] = []
     widened = 0
     for parameter in found:
-        existing = by_name.get(parameter.name)
+        existing = by_name.get(parameter.name) or _same_control(parameter, stored.parameters)
         if existing is None:
             fresh.append({"name": parameter.name, "seen_values": list(parameter.seen)})
             continue
@@ -286,6 +286,41 @@ async def learn_parameters(
     stored.generalise_title()
     await uow.workflows.save(stored)
     return len(fresh) + widened
+
+
+def _same_control(
+    parameter: LearnedParameter, stored: list[dict[str, object]]
+) -> dict[str, object] | None:
+    """The stored parameter that is this one under the model's own name.
+
+    `_by_control` names a control by its `item_id` -- `basePriority` -- and the
+    model names the same control by the label the operator reads -- `Base
+    Priority`. Neither is wrong and they never match as strings, so a job that
+    the model declared parameters for grew a second parameter per control on
+    its second doing. The real acme store carried `Create a Work Operation`
+    with `Operation` beside `operationCode`, `Description` beside
+    `longDescription` and `Base Priority` beside `basePriority`, which reaches
+    a runner as six inputs to fill in for three fields.
+
+    Matched on the values rather than the names, because the values are the
+    evidence and the two names are two opinions about it. A learned parameter
+    whose every observed value is already recorded against a stored one was
+    read off the same typing.
+
+    ponytail: two genuinely distinct controls that varied over the same value
+    set -- two Yes/No toggles -- merge into one, and the second loses its
+    `item_id` name. `planning.value_for` still finds it by `field_label`, so
+    the cost is a machine name, not a parameter. Compare on the cited gesture
+    ids instead if that ever bites.
+    """
+    wanted = set(parameter.seen)
+    for candidate in stored:
+        was = candidate.get("seen_values")
+        if not isinstance(was, list):
+            continue
+        if wanted and wanted <= {str(value) for value in was}:
+            return candidate
+    return None
 
 
 def _packed(gesture: Gesture, intent: Intent | None, linked: set[str]) -> Packed:

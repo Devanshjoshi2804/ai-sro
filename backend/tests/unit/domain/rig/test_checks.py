@@ -46,7 +46,15 @@ def _workflow(*, systems: list[str] | None = None, steps: list[Step] | None = No
         title="a job",
         narrative="",
         systems=[WMS] if systems is None else systems,
-        steps=[Step(order=0, says="do it", system=WMS, cites=["ges_1"])]
+        # Two steps by default, both citing the same gesture: `validate`
+        # refuses anything shorter than `identity.K_MIN_SHARED_STEPS`, since
+        # `resolve` can never match such a proposal to a later doing of the
+        # same job. Sharing one citation keeps `cited_ids` and every system
+        # check reading exactly as they did when this was one step.
+        steps=[
+            Step(order=0, says="do it", system=WMS, cites=["ges_1"]),
+            Step(order=1, says="save it", system=WMS, cites=["ges_1"]),
+        ]
         if steps is None
         else steps,
     )
@@ -147,7 +155,10 @@ def test_a_step_whose_evidence_really_is_on_that_system_is_kept() -> None:
     refuses everything catches the invented system too."""
     good = _workflow(
         systems=[SAP],
-        steps=[Step(order=0, says="x", system=SAP, cites=["ges_1"])],
+        steps=[
+            Step(order=0, says="x", system=SAP, cites=["ges_1"]),
+            Step(order=1, says="y", system=SAP, cites=["ges_1"]),
+        ],
     )
 
     assert validate(good, _on("ges_1", system=SAP)) is None
@@ -171,7 +182,10 @@ def test_a_step_naming_no_system_is_not_asked_to_evidence_one() -> None:
     when the gesture it cites is itself unattributed."""
     quiet = _workflow(
         systems=[],
-        steps=[Step(order=0, says="x", system=None, cites=["ges_1"])],
+        steps=[
+            Step(order=0, says="x", system=None, cites=["ges_1"]),
+            Step(order=1, says="y", system=None, cites=["ges_1"]),
+        ],
     )
 
     assert validate(quiet, _on("ges_1", system="")) is None
@@ -633,3 +647,41 @@ def test_a_job_that_signs_in_and_then_does_the_work_is_kept() -> None:
 
     assert work_only(job, evidence, ours=OURS) is None
     assert WMS in job.systems
+
+
+def test_a_job_too_short_for_resolve_to_ever_match_is_refused() -> None:
+    """A one-step proposal is honest and still unkeepable.
+
+    `identity.resolve` needs K_MIN_SHARED_STEPS shared shape entries before it
+    will call two proposals the same job, so a shorter one always comes back
+    "new" and every pass over the same evidence mints another copy. The real
+    acme store grew a second `Create a Customer Type` of one step -- "Save the
+    customer type configuration" -- beside the six-step job it was a fragment
+    of.
+
+    Nothing else about this workflow is wrong: it cites real evidence, on a
+    system that evidence touched, and says something a person could act on. The
+    reason is asserted so the guard cannot be satisfied by some other rejection.
+    """
+    short = _workflow(steps=[Step(order=0, says="save it", system=WMS, cites=["ges_1"])])
+
+    rejection = validate(short, _on("ges_1"))
+
+    assert rejection is not None
+    assert rejection.reason == "too few steps to recognise"
+
+
+def test_a_short_job_is_refused_for_its_dishonesty_first() -> None:
+    """The step floor is last of `validate`'s rejections, and deliberately.
+
+    A one-step proposal that also cites a gesture nobody recorded has two
+    things wrong with it, and "you cited evidence that does not exist" is the
+    one that diagnoses. Ordering this the other way makes every citation bug in
+    a short proposal read as a length problem.
+    """
+    short_and_lying = _workflow(steps=[Step(order=0, says="x", system=WMS, cites=["ges_nope"])])
+
+    rejection = validate(short_and_lying, _on("ges_1"))
+
+    assert rejection is not None
+    assert rejection.reason == "unknown gesture"

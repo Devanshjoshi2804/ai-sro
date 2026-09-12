@@ -87,7 +87,15 @@ def _proposal(cites: list[str], **over: object) -> dict[str, object]:
         "title": "create a work operation",
         "narrative": "the operator created a work operation",
         "systems": [HOST],
-        "steps": [{"order": 0, "cites": cites, "says": "do it", "system": HOST, "parameters": []}],
+        # Two steps, not one: `validate` refuses a workflow shorter than
+        # `identity.K_MIN_SHARED_STEPS`, because `resolve` can never match one
+        # against a later doing and every pass would mint another copy. Both
+        # steps cite the same evidence, so nothing else about these fixtures
+        # moves -- `cited_ids` and the system checks read exactly as before.
+        "steps": [
+            {"order": 0, "cites": cites, "says": "do it", "system": HOST, "parameters": []},
+            {"order": 1, "cites": cites, "says": "save it", "system": HOST, "parameters": []},
+        ],
         "parameters": [],
         "same_as": None,
         "unproven": [],
@@ -991,6 +999,43 @@ async def test_a_third_doing_widens_a_parameter_it_does_not_discard_it() -> None
     assert "A-THIRD-ONE" in seen, "and the third doing widened it"
     assert "SOMETHING-ELSE" in seen, "without losing the second"
     assert len(stored.parameters) == 1, "one control, not one parameter per doing"
+
+
+async def test_a_control_the_model_already_named_does_not_gain_a_second_parameter() -> None:
+    """The model names a control by the label the operator reads; `_by_control`
+    names the same control by its `item_id`. Neither is wrong and they never
+    match as strings.
+
+    So a job the model declared parameters for grew a SECOND parameter per
+    control on its second doing. The real acme store carried `Create a Work
+    Operation` with `Operation` beside `operationCode`, `Description` beside
+    `longDescription` and `Base Priority` beside `basePriority` -- six inputs a
+    runner would demand for three fields, half of them under a machine name no
+    operator has seen.
+
+    The values are the evidence and the two names are two opinions about it, so
+    a learned parameter whose every observed value is already recorded against
+    a stored one was read off the same typing. The operator-facing label is the
+    one that survives, because it is the one a person is asked to fill in.
+    """
+    uow, ids = await _day()
+    original = [_rows(uow)[gesture_id] for gesture_id in ids]
+    labelled = _proposal(
+        ids,
+        parameters=[{"name": "Client Code", "seen_values": ["ACME-4471", "SOMETHING-ELSE"]}],
+    )
+
+    assert (await _mine(uow, FakeAsker(_found(labelled)))).kept == 1
+
+    again = _redone(original, "SOMETHING-ELSE", "again", 10_000.0)
+    await uow.gestures.add_gestures(tuple(again))
+    second = await _mine(uow, FakeAsker(_found(_proposal([g.id for g in again]))))
+
+    stored = (await uow.workflows.known(TENANT))[0]
+    names = [parameter.get("name") for parameter in stored.parameters]
+    assert names == ["Client Code"], f"one control, one parameter; got {names}"
+    assert "clientCode" not in names, "not the same field again under its item_id"
+    assert second.learned_parameters == 0, "recognising a control is not learning a new one"
 
 
 def _redone_both(rows: list[Gesture], value: str, suffix: str, offset: float) -> list[Gesture]:

@@ -163,8 +163,18 @@ def test_a_step_writes_when_any_cited_gesture_caused_a_mutation() -> None:
     assert call is not None and call.method == "POST"
 
 
+HOST = "http://127.0.0.1:63319"
+"""The fixture gestures' own origin.
+
+`recorded_call` reads only the calls on the gesture's OWN origin -- a page's
+third-party traffic is not what the operator did -- so a planted call has to
+be on the host the planted-on gesture happened on, or it is not that gesture's
+evidence at all. These used to be planted on `wms.example` while every fixture
+gesture is on `127.0.0.1:63319`, which made them cross-origin by accident."""
+
+
 def _call(**over: object) -> Call:
-    base: dict[str, object] = {"method": "GET", "url": "https://wms.example/api/x"}
+    base: dict[str, object] = {"method": "GET", "url": f"{HOST}/api/x"}
     return Call(**{**base, **over})
 
 
@@ -186,8 +196,8 @@ def test_a_cited_gesture_the_store_no_longer_holds_is_read_past_not_stopped_at()
 def test_a_step_that_only_read_names_its_first_read_and_does_not_write() -> None:
     gesture = copy.deepcopy(next(g for g in _gestures() if g.requests))
     gesture.requests = [
-        _call(url="https://wms.example/api/first", status=200),
-        _call(url="https://wms.example/api/second", status=200),
+        _call(url=f"{HOST}/api/first", status=200),
+        _call(url=f"{HOST}/api/second", status=200),
     ]
     step = Step(order=0, says="open the list", system=None, cites=[gesture.id])
 
@@ -249,3 +259,46 @@ def test_a_call_that_names_no_system_is_not_the_origin_and_none_of_them_is_none(
 
     g.requests = [_call(url="about:blank", status=None, failure_reason="Failed to fetch")]
     assert origin_of(g) is None
+
+
+def test_a_telemetry_beacon_on_another_host_is_not_this_steps_write() -> None:
+    """The bug that stopped every run this repository has ever recorded.
+
+    Step 1 of tenant `new`'s `Create a Warehouse Equipment Type` is "Read the
+    equipment type details from an email": a click on `mail.google.com` whose
+    only recorded call is a `POST` to `play.google.com/log`, Google's telemetry
+    beacon. `writes` read that as a mutation, so the run parked for a human
+    approval on a beacon, and `verify` then demanded a read-back showing the
+    value the run supplied -- which a beacon can never show. Six runs, six
+    `stopped`, none past step 1.
+
+    Measured over both real corpora: 144 of 360 mutating calls are
+    cross-origin and every one of them is third-party. The real warehouse
+    host's 79 are all same-origin, so this costs nothing where the work is.
+    """
+    gesture = copy.deepcopy(next(g for g in _gestures() if g.requests))
+    gesture.requests = [_call(method="POST", url="https://play.google.com/log", status=200)]
+    step = Step(order=0, says="read the email", system=None, cites=[gesture.id])
+
+    assert not writes(step, {gesture.id: gesture}), "a beacon is not the operator's write"
+    assert recorded_call(step, {gesture.id: gesture}) is None, "and it is not this step's call"
+
+
+def test_the_pages_own_write_is_still_the_steps_write() -> None:
+    """The mirror, and the reason the one above is not just "ignore POSTs".
+
+    The real WMS's every mutating call is on the page's own host, so the
+    origin rule must leave a save exactly as it found it -- otherwise the
+    change buys a run that never parks and never verifies anything.
+    """
+    gesture = copy.deepcopy(next(g for g in _gestures() if g.requests))
+    gesture.requests = [
+        _call(method="POST", url="https://play.google.com/log", status=200),
+        _call(method="POST", url=f"{HOST}/api/equipment-types", status=201),
+    ]
+    step = Step(order=0, says="click add", system=None, cites=[gesture.id])
+
+    call = recorded_call(step, {gesture.id: gesture})
+
+    assert writes(step, {gesture.id: gesture}), "the page's own POST is the write"
+    assert call is not None and call.url.endswith("/api/equipment-types")

@@ -135,13 +135,37 @@ def unperformable(
 def recorded_call(step: Step, by_id: Mapping[str, Gesture]) -> Call | None:
     """The call this step's evidence made: the first mutation, else the first
     call at all. What `http.send` would replay, and what `verify` reads an
-    expected status from."""
+    expected status from.
+
+    Only calls on the gesture's OWN origin. A page's third-party traffic is not
+    what the operator did, and reading it as the step's write is what stopped
+    every run this repository has ever recorded: step 1 of `new`'s `Create a
+    Warehouse Equipment Type` is "Read the equipment type details from an
+    email", a click on `mail.google.com`, and the only call it recorded was a
+    `POST` to `play.google.com/log` -- Google's telemetry beacon. `writes` read
+    that as a mutation, so the run parked for a human approval on a beacon, and
+    then `verify` demanded a read-back showing the value the run supplied,
+    which a beacon can never show. Six runs, six `stopped`.
+
+    Measured over both real corpora, 719 gestures: of 360 mutating calls, 144
+    are cross-origin and every one of them is third-party -- 75 to
+    `play.google.com/log`, 44 to assorted `*-pa.clients6.google.com`, 6 from
+    the WMS to its sign-in host. The real warehouse host's 79 mutating calls
+    are ALL same-origin, so this costs nothing on the system the work happens
+    on. It does not finish the job: Gmail also makes 136 same-origin mutating
+    calls of its own (`/sync/u/0/i/fd`), so a Gmail step that fires one is
+    still read as a write. Separating a SPA's own sync traffic from the
+    operator's write needs evidence this rig does not record.
+    """
     reads: list[Call] = []
     for cited in step.cites:
         gesture = by_id.get(cited)
         if gesture is None:
             continue
+        origin = origin_of(gesture)
         for request in gesture.requests:
+            if origin is not None and system_of(request.url) != origin:
+                continue
             if request.method.upper() not in READ_METHODS:
                 return request
             reads.append(request)

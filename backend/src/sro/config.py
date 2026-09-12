@@ -389,8 +389,19 @@ class Settings(BaseSettings):
     A burst that trips a rate limit measures the rate limit; a burst large
     enough to matter also puts that many calls on the bill before the day's cap
     can be looked at again, which is checked once per pass and not per gesture.
-    Eight is comfortably inside the measured quota and still removes seven
-    eighths of the waiting.
+
+    Measured, the same 164 captured gestures read by the real
+    `sro.cli.read_cron`: **148 seconds at eight, against 683 and 579 seconds
+    for two serial passes of the identical work.** So a little under 4x, not
+    the 8x the width suggests -- a group waits for its slowest member before
+    the next goes out, and nothing here starts a ninth call while eight are in
+    flight. Head-of-line blocking is the price of committing a group at a time,
+    and committing a group at a time is what keeps a pass that dies from
+    throwing away what it has already paid for.
+
+    Note the spread in the two serial numbers -- 683s and 579s on identical
+    work. Wall clock here is a shared API on somebody's network, so treat 4x as
+    the shape and not the constant.
 
     Only the model calls go out together. The pictures are fetched before and
     the readings saved after, one at a time, because both of those go through

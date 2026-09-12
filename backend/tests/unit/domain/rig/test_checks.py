@@ -18,6 +18,7 @@ from sro.domain.observation.window import Packed, Window, pack
 from sro.domain.skill.checks import (
     K_MAX_SKEW,
     K_MIN_COVERAGE,
+    K_SITTING_GAP_S,
     coverage,
     one_occurrence,
     undeliverable,
@@ -726,40 +727,49 @@ def test_a_job_the_operator_did_twice_keeps_one_doing() -> None:
     )
 
 
-def test_the_cross_system_job_survives_the_pause_between_its_two_systems() -> None:
-    """The case that sets K_SITTING_GAP_S, and the one a tighter bound destroys.
+def test_the_cross_system_job_keeps_every_step_and_loses_the_stray() -> None:
+    """The real shape of tenant `new`'s `Create a Warehouse Equipment Type`.
 
-    Tenant `new`'s `Create a Warehouse Equipment Type` is what this
-    architecture exists to find: step 1 reads a request on `mail.google.com`,
-    the rest create the equipment type on the real Blue Yonder host. Its step 2
-    happened at 15:56 and its step 3 at 16:18 -- the operator read the mail,
-    opened the WMS, and got on with something else before typing.
+    This is what the architecture exists to find: one step reads a request on
+    `mail.google.com`, the rest create the equipment type on the real Blue
+    Yonder host. Read down the step list it looks like it has a 22-minute pause
+    in it -- step 2 at 15:56:28, step 3 at 16:18:35 -- and a bound read off
+    STEP order would split it there and lose step 2.
 
-    At a five-minute bound that job splits, the kept piece cannot supply step
-    2, and `validate` refuses the whole thing for an uncited step. A bound
-    tight enough to tidy a repeated single-system job destroys the two-system
-    one, which is the opposite of the trade being made here.
+    In time order there is no 22-minute pause. Step 2 cites TWO gestures, one
+    at 15:56:28 left over from an earlier doing and one at 16:18:35 in the
+    middle of this one, and every other cited gesture falls between 16:18:35
+    and 16:19:24. The only long gap is in front of the whole job.
+
+    So the stray goes, all seven steps survive, and the opening gap falls from
+    22 minutes to nothing -- which is what takes the job under the browser's
+    own `K_TAIL_TTL_S` and makes it offerable. Narrowing it correctly needed
+    the time-order correction first; the two changes are one change.
     """
+    mail_read = 16 * 3600 + 18 * 60 + 46
     workflow = _workflow(
         systems=[MAIL, WMS],
         steps=[
             Step(order=0, says="read the mail", system=MAIL, cites=["mail_1"]),
-            Step(order=1, says="click add", system=WMS, cites=["wms_1"]),
-            Step(order=2, says="type the code", system=WMS, cites=["wms_2"]),
+            Step(order=1, says="click add", system=WMS, cites=["stray", "wms_add"]),
+            Step(order=2, says="type the code", system=WMS, cites=["wms_code"]),
         ],
     )
     gestures = {
-        "mail_1": _at("mail_1", 0.0, MAIL),
-        "wms_1": _at("wms_1", 60.0),
-        # Twenty-two minutes later, exactly as the real recording has it.
-        "wms_2": _at("wms_2", 60.0 + 22 * 60.0),
+        "mail_1": _at("mail_1", float(mail_read), MAIL),
+        # 15:56:28, twenty-two minutes before anything else: the earlier doing.
+        "stray": _at("stray", float(15 * 3600 + 56 * 60 + 28)),
+        "wms_add": _at("wms_add", float(16 * 3600 + 18 * 60 + 35)),
+        "wms_code": _at("wms_code", float(16 * 3600 + 18 * 60 + 38)),
     }
 
     one_occurrence(workflow, gestures)
 
-    assert [step.cites for step in workflow.steps] == [["mail_1"], ["wms_1"], ["wms_2"]], (
-        "a pause between two systems is not a second doing"
+    assert [step.cites for step in workflow.steps] == [["mail_1"], ["wms_add"], ["wms_code"]], (
+        "the stray goes and no step is left uncited"
     )
+    kept = sorted(gestures[c].at for step in workflow.steps for c in step.cites)
+    assert kept[1] - kept[0] <= K_SITTING_GAP_S, "and what is left fits in one browser tail"
 
 
 def test_a_job_done_once_is_left_exactly_as_it_was() -> None:

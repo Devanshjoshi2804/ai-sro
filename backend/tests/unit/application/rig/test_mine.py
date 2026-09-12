@@ -147,7 +147,14 @@ def _crowd(strong: int, weak: int) -> tuple[list[Gesture], list[str], list[str]]
     writing = next(g for g in found if any(call.method != "GET" for call in g.requests))
     plain = next(g for g in found if not g.requests and g.action.kind == "click")
     strong_rows = [replace(writing, id=f"ges_strong_{i:02d}", at=1000.0 + i) for i in range(strong)]
-    weak_rows = [replace(plain, id=f"ges_weak_{i:02d}", at=2000.0 + i) for i in range(weak)]
+    # Close behind the strong ones, not a thousand seconds later. `checks`
+    # narrows a proposal to one sitting -- gestures more than K_SITTING_GAP_S
+    # apart are two doings -- so a fixture that spaced these beyond that bound
+    # had every weak gesture struck off the proposal and land in the pool as
+    # unexplained. The strong ones still come FIRST, which is the plant this
+    # fixture exists to make: a window that ordered on `at` rather than on
+    # strength would pack a different set.
+    weak_rows = [replace(plain, id=f"ges_weak_{i:02d}", at=1100.0 + i) for i in range(weak)]
     return (
         [*strong_rows, *weak_rows],
         [row.id for row in strong_rows],

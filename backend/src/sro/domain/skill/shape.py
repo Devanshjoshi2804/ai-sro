@@ -26,7 +26,7 @@ from sro.domain.observation.identity import shape_key, target_identity
 from sro.domain.shared.hosts import system_of
 from sro.domain.skill.learned import control_name
 from sro.domain.skill.offers import K_OFFER_AFTER, Counsel
-from sro.domain.skill.workflow import Step, Workflow
+from sro.domain.skill.workflow import Step, Workflow, ordered_cites
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,16 +49,61 @@ class Shape:
         return asdict(self)
 
 
+def in_time_order(workflow: Workflow, by_id: Mapping[str, Gesture]) -> list[Gesture]:
+    """The cited gestures in the order they happened.
+
+    **Not step order, and this is the difference between a shape that matches
+    and one that cannot.** A shape key is a SEQUENCE of `(system, control,
+    kind)`, and `recognise.js` asks whether the operator's last *k* gestures
+    ARE this shape's first *k* -- against a tail the browser appends to as
+    gestures arrive, which is time order and nothing else. A shape written in
+    step order is written in the order the MODEL narrated the job, and a model
+    narrates sensibly: "read the request, then create the record". Tenant
+    `new`'s `Create a Warehouse Equipment Type` was really done the other way
+    round -- the operator opened the WMS form at 16:18:35 and read the mail at
+    16:18:46 -- so its step order and its time order disagree, and only one of
+    them is what a browser will ever send.
+
+    Measured on both corpora through the real matcher, with the replay fixed to
+    feed gestures in time order as a browser does: a step-ordered shape offers
+    **3 of acme's 7 jobs and 0 of `new`'s 2**. The same shapes rebuilt in time
+    order offer **6 of 7 and 1 of 2**. The missing measurement was in the
+    harness -- `dry_run._gestures_of` replayed each job's gestures in step
+    order, the same order the shape was built from, so the matcher was being
+    handed its own answer.
+    """
+    # `ordered_cites` and not `cited_ids`: the second is a SET, and a gesture
+    # two steps both stand on is two rungs of the key -- dropping the duplicate
+    # shortens the shape by one and it stops matching its own job.
+    return sorted((by_id[cited] for cited in ordered_cites(workflow) if cited in by_id), key=_when)
+
+
+def _when(gesture: Gesture) -> tuple[float, str]:
+    """Time, then id. `at` is the browser's clock and two gestures of one burst
+    can share it, so `at` alone is not a total order -- and a shape that
+    permutes between two builds is a shape that stops matching itself."""
+    return (gesture.at, gesture.id)
+
+
 def cited_pairs(workflow: Workflow, by_id: Mapping[str, Gesture]) -> list[tuple[Gesture, Step]]:
-    """The cited gestures in step order, each still paired with the step that
-    cited it. The pairing is what `typed_at` needs and what a flat list of
-    gestures throws away."""
-    return [
-        (by_id[cited], step)
-        for step in sorted(workflow.steps, key=lambda s: s.order)
-        for cited in step.cites
-        if cited in by_id
-    ]
+    """The cited gestures in the order they happened, each still paired with
+    the step that cited it. The pairing is what `typed_at` needs and what a
+    flat list of gestures throws away.
+
+    Time order and not step order, for the reason `in_time_order` gives: the
+    served shape is built from this list, and the tail it is matched against is
+    a browser's, which has never heard of a step. `typed_at` reads its index
+    out of the same list, so the parameter's position in the shape moves with
+    it rather than pointing at whatever now sits where it used to."""
+    return sorted(
+        (
+            (by_id[cited], step)
+            for step in sorted(workflow.steps, key=lambda s: s.order)
+            for cited in step.cites
+            if cited in by_id
+        ),
+        key=lambda pair: _when(pair[0]),
+    )
 
 
 def typed_at(cited: list[tuple[Gesture, Step]], parameter: dict[str, object]) -> int | None:

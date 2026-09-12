@@ -51,6 +51,7 @@ from sro.domain.skill.checks import (
     work_only,
 )
 from sro.domain.skill.learned import LearnedParameter, parameters_across
+from sro.domain.skill.shape import in_time_order
 from sro.domain.skill.umbrella import (
     K_EFFORT,
     WORKFLOW_SCHEMA,
@@ -486,8 +487,11 @@ async def _one_pass(
                 proposal.parameters = [
                     declared for declared in proposal.parameters if declared.get("name") not in lost
                 ]
+            # In time order, which is the order the browser's tail arrives in
+            # and the only order a shape can be matched against. See
+            # `shape.in_time_order`.
             proposal.shape_key = [
-                list(entry) for entry in shape_key([by_id[c] for c in ordered_cites(proposal)])
+                list(entry) for entry in shape_key(in_time_order(proposal, by_id))
             ]
             # Resolved against what is stored plus what this pass has already kept,
             # and always before its own save -- which is what makes matching a
@@ -659,7 +663,7 @@ async def rekey_workflows(uow: UnitOfWork, *, tenant_id: TenantId) -> int:
         # matches nothing, which is the duplicate this exists to prevent.
         if any(cited not in by_id for cited in wanted):
             continue
-        fresh = shape_key([by_id[cited] for cited in wanted])
+        fresh = shape_key(in_time_order(workflow, by_id))
         if [list(triple) for triple in fresh] == workflow.shape_key:
             continue
         await uow.workflows.rekey(tenant_id, workflow.id, fresh)

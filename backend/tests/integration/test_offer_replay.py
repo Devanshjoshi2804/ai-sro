@@ -91,10 +91,11 @@ def _corpus() -> tuple[list[Gesture], list[Workflow]]:
     """One proven job of four gestures -- a click, a scroll, a typed
     parameter, a click -- and one unproven job sharing its evidence.
 
-    ``at`` runs BACKWARDS against the citation order. The evidence repository
-    orders by ``at``, the shape is built in step order, and the two orders have
-    to be the same order or the job's gestures are a shape of some other job.
-    Made to differ so that reading the repository's order would fail here.
+    ``at`` runs BACKWARDS against the citation order, so the two orders are
+    never accidentally the same and a test cannot pass by reading the wrong
+    one. Both the served shape and the replayed job are built in ``at`` order,
+    because that is the order a browser's tail arrives in; the citation order
+    is the model's narration and no browser has ever heard of it.
     """
     gestures = [
         _click("ges_1", "Work Areas", at=400.0),
@@ -207,22 +208,39 @@ async def test_every_workflow_is_a_job_even_the_one_no_shape_is_served_for(
     assert [shape["id"] for shape in written["shapes"]] == ["wfl_proven"]
 
 
-async def test_a_jobs_gestures_are_in_citation_order_not_the_order_they_were_made(
+async def test_a_jobs_gestures_arrive_in_the_order_they_were_made(
     session_factory: async_sessionmaker[AsyncSession],
 ) -> None:
-    """The evidence repository orders by ``at``, and the planted corpus was
-    made backwards. Cite order is what the shape is built in, so cite order is
-    what the tail has to arrive in."""
+    """A browser appends to its tail as gestures arrive. It has never heard of
+    a step.
+
+    This assertion used to read the other way round -- citation order, planted
+    corpus made backwards -- and justified itself with "cite order is what the
+    shape is built in, so cite order is what the tail has to arrive in". That
+    reasoning is circular, and the circle was hiding the measurement: the
+    replay fed the matcher the very sequence the shape was built from, so the
+    matcher was being handed its own answer. Fed honestly, in the order a
+    browser would send them, acme's corpus offered 3 of 7 jobs where the
+    harness had been reporting 5, and tenant `new`'s two cross-system jobs
+    offered 0 of 2.
+
+    Both halves moved together: `shape.in_time_order` builds the shape in this
+    order too, which is what took those numbers to 6 of 7 and 2 of 2. The
+    acceptance test that both halves agree is
+    `test_the_job_walks_the_very_triples_its_shape_is_made_of` below, and it
+    passes either way -- which is exactly why this one has to pin the order
+    against the browser rather than against its neighbour.
+    """
     written = await _planted(session_factory)
 
     job = written["jobs"][0]
     assert set(job) == {"id", "title", "gestures"}
-    assert [gesture["at"] for gesture in job["gestures"]] == [400.0, 300.0, 200.0, 100.0]
+    assert [gesture["at"] for gesture in job["gestures"]] == [100.0, 200.0, 300.0, 400.0]
     assert [gesture["triple"][1] for gesture in job["gestures"]] == [
-        "name|Work Areas",
-        "anon|scroll",
-        "name|Work Area",
         "name|Save",
+        "name|Work Area",
+        "anon|scroll",
+        "name|Work Areas",
     ]
 
 
@@ -267,7 +285,9 @@ async def test_a_gesture_carries_the_mark_of_a_value_and_never_the_value(
 
     job = written["jobs"][0]
     assert all(set(gesture) == GESTURE_KEYS for gesture in job["gestures"])
-    assert [gesture["value"] for gesture in job["gestures"]] == [None, None, TYPED, None]
+    # The typed gesture is at 200.0, which is second once the job arrives in
+    # the order it was made rather than in citation order.
+    assert [gesture["value"] for gesture in job["gestures"]] == [None, TYPED, None, None]
     assert [gesture["secret"] for gesture in job["gestures"]] == [False, False, False, False]
     assert TYPED_VALUE not in json.dumps(written)
 

@@ -450,47 +450,34 @@ def work_only(
     return None
 
 
-K_SITTING_GAP_S = 1800.0
+K_SITTING_GAP_S = 600.0
 """How long a pause has to be before the work after it is a different doing.
 
-Measured over both real corpora's nine stored jobs, clustering each job's
-cited gestures by the gap between them:
-
-| gap    | jobs left in one piece | `Create an Activity Code`'s biggest piece, of 31 |
-|--------|------------------------|--------------------------------------------------|
-| 1 min  | 5 of 9                 | 11                                               |
-| 5 min  | 5 of 9                 | 27                                               |
-| 30 min | 6 of 9                 | 30                                               |
-
-**The binding case is the cross-system job, and it is why this is thirty
-minutes and not five.** Tenant `new`'s `Create a Warehouse Equipment Type` is
-the thing this whole architecture exists to find: step 1 reads a request on
-`mail.google.com`, steps 2 to 7 create the equipment type on the real Blue
-Yonder host. Its step 2 happened at 15:56 and its step 3 at 16:18 -- a
-**22-minute** gap, because the operator read the mail, opened the WMS, and got
-on with something else before typing. At five minutes that job splits, the
-kept piece cannot supply step 2, and `validate` refuses the whole thing for an
-uncited step. A bound tight enough to tidy acme's repeated single-system jobs
-destroys the two-system job, which is the opposite of the trade this rig
-exists to make.
-
-Thirty still separates every welded job in the store -- `Create a Work Area`'s
-two doings are 26 hours apart, `Create an Activity Code`'s 22 hours, `Create a
-Work Operation`'s 75 minutes -- and leaves both of `new`'s cross-system jobs
-whole. It is also a pause a person can reason about: the operator went to
-lunch. Measured through the real matcher after this landed: acme went from 4
-of 7 jobs offered as themselves to 5 of 7, `Create a Work Area` going from
-never offered to offered at gesture 2 with 6 of its 7 values in hand.
-
-**This is not the recogniser's bound, and the two are not the same question.**
+**Tied to the recogniser, not chosen here.**
 `new-chrome-extension/src/background/recognise.js` keeps `K_TAIL_TTL_S = 600`:
-a gesture older than ten minutes falls out of the tail before the next one
-arrives. That bound bites only on the first `K_OFFER_AFTER` gestures, which is
-why `new`'s cross-system job is offered at gesture 2 and never notices its own
-22-minute pause at step 3 -- and why `Create an Activity Code`, whose first two
-cited gestures are **26 minutes** apart, is still never offered after this
-narrowing. A job the miner may keep whole is not automatically a job the
-recogniser can hold, and nothing yet tells the miner that.
+a gesture older than ten minutes has fallen out of the browser's tail before
+the next one arrives, so two cited gestures further apart than that can never
+sit in one tail together and no shape spanning the pause can ever be matched.
+Keeping such a pair in one job is keeping a job the operator will never be
+offered.
+
+The bound applies in TIME order, which is the order the tail arrives in and
+the order `shape.in_time_order` now builds the shape from. That correction is
+what makes ten minutes safe: tenant `new`'s `Create a Warehouse Equipment
+Type` looks like it has a 22-minute gap between its step 2 and its step 3, and
+a bound read off STEP order would split it and lose a step. In time order that
+job has no 22-minute gap at all -- it has one stray leading gesture from an
+earlier doing at 15:56 and an unbroken run from 16:18:35. At 600s the stray is
+struck, all seven steps survive, and the opening gap goes from 22 minutes to
+zero.
+
+Measured over both corpora's nine stored jobs, narrowing at 600s: five jobs
+untouched, `new`'s Warehouse Equipment Type 12 cites to 11 with no step lost,
+`Create an Activity Code` 30 to 27 with its opening gap falling from 26
+minutes to 233 seconds -- under the tail's lifetime, and offerable for the
+first time. `Create a Work Operation` loses evidence on 3 of its 11 steps and
+is then refused by `validate` for an uncited step, which is the honest answer:
+those 11 steps were never one doing.
 """
 
 

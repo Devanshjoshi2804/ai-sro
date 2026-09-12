@@ -45,6 +45,7 @@ from sro.container import build_container
 from sro.domain.observation.gesture import Gesture
 from sro.domain.observation.identity import shape_key
 from sro.domain.shared.identifiers import PrincipalId, TenantId
+from sro.domain.skill.shape import in_time_order
 from sro.domain.skill.workflow import Workflow, ordered_cites
 
 TYPED = "•"
@@ -63,7 +64,12 @@ def _gestures_of(workflow: Workflow, by_id: Mapping[str, Gesture]) -> list[dict[
     is a test of `recognise.js` -- handing it a tail with the scrolls already
     removed would be marking its own homework.
     """
-    cited = [by_id[gesture_id] for gesture_id in ordered_cites(workflow) if gesture_id in by_id]
+    # In the order they HAPPENED, not the order the model narrated them.
+    # A browser appends to its tail as gestures arrive; it has never heard of a
+    # step. Replaying in step order -- the same order the served shape is built
+    # from -- handed the matcher its own answer, and the difference is not
+    # small: acme read 5 of 7 offered that way and 3 of 7 honestly.
+    cited = in_time_order(workflow, by_id)
     # The values a declared parameter has been seen holding, which the store
     # already records on the workflow: a typed gesture carrying one is exported
     # as a presence mark and nothing else.

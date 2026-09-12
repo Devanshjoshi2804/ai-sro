@@ -220,6 +220,29 @@ def _did_business(gesture: Gesture) -> bool:
     )
 
 
+def _during(workflow: Workflow, gestures: dict[str, Gesture]) -> list[Gesture]:
+    """Every gesture of this job's own streams inside its own time span.
+
+    A superset of what it cites, and the difference is the point: a citation
+    list is a model's summary of a job, not its boundary, and a rule about what
+    the operator did has to read the doing rather than the summary.
+
+    Bounded by the cited gestures at both ends and by their streams, so this
+    never reaches into another tab or into the next job along. A job that cites
+    nothing gets nothing, which is `validate`'s problem and not this one.
+    """
+    cited = [gestures[one] for one in ordered_cites(workflow) if one in gestures]
+    if not cited:
+        return []
+    first, last = min(one.at for one in cited), max(one.at for one in cited)
+    streams = {one.stream_id for one in cited}
+    return [
+        gesture
+        for gesture in gestures.values()
+        if gesture.stream_id in streams and first <= gesture.at <= last
+    ]
+
+
 def work_only(
     workflow: Workflow, gestures: dict[str, Gesture], *, ours: frozenset[str]
 ) -> Rejection | None:
@@ -305,10 +328,29 @@ def work_only(
     # and nothing was ever written back. That is signing in, and it needs no
     # list of identity hostnames -- which this function declined to keep, on
     # the grounds that every customer runs an SSO nobody here has heard of.
+    #
+    # Asked of what the operator DID during this job, not of what the model
+    # chose to cite about it -- and that distinction is the whole of whether
+    # this rule fires at all. Shipped against `cited`, it could not fire on the
+    # evidence it was written from: a clean re-mine of that same day proposed
+    # `Log in to Warehouse Management System`, and this let it straight
+    # through. The password gesture was in the store the whole time
+    # (`action.secret` true, on the keycloak host) and the model had not cited
+    # it -- reasonably, because redaction strips a credential gesture of its
+    # value AND its target name, leaving nothing worth pointing at. So the one
+    # gesture that proves a job is a sign-in is the one gesture a model
+    # summarising that job will leave out.
+    #
+    # `during` is the cited gestures' own time span on the streams they cite,
+    # which is the job as the operator lived it. Measured on that day: the
+    # sign-in job's span holds the credential, and the two real jobs' spans
+    # hold none -- including a Warehouse Equipment Type job whose span is 52
+    # gestures wide.
+    during = _during(workflow, gestures)
     if (
-        any(_signed_in_here(gesture) for gesture in cited)
-        and any(_passed_through(gesture) for gesture in cited)
-        and not any(_did_business(gesture) for gesture in cited)
+        any(_signed_in_here(gesture) for gesture in during)
+        and any(_passed_through(gesture) for gesture in during)
+        and not any(_did_business(gesture) for gesture in during)
     ):
         return Rejection(
             workflow.title,

@@ -11,6 +11,8 @@ watching itself, and a sign-in chain read as the start of a job -- plus the two
 real jobs each half of the transit rule exists to keep.
 """
 
+from dataclasses import replace
+
 from sro.domain.observation.gesture import Action, Call, Gesture, PageMark
 from sro.domain.observation.window import Packed, Window, pack
 from sro.domain.skill.checks import (
@@ -465,6 +467,65 @@ def test_a_job_that_is_only_signing_in_is_not_a_job() -> None:
 
     assert rejection is not None
     assert rejection.reason == "not a job"
+
+
+def test_the_credential_that_proves_a_sign_in_is_the_one_nobody_cites() -> None:
+    """The rule reads what the operator DID, not what the model cited.
+
+    Shipped against the cited list alone, this refusal could not fire on the
+    evidence it was written from. A clean re-mine of that same real day
+    proposed `Log in to Warehouse Management System` -- SSO option, username,
+    Sign In -- and `work_only` let it straight through. The password gesture
+    was in the store the whole time; the model had simply not cited it, and
+    reasonably so: redaction strips a credential gesture of its value and of
+    its target name, so there is nothing left worth pointing at. The one
+    gesture that proves a job is a sign-in is the one a model summarising that
+    job leaves out.
+
+    Both halves of the span are pinned here. The uncited credential INSIDE the
+    job's own time range counts; the one after it does not, or every job that
+    happened to precede a sign-in would be condemned by it.
+    """
+    signed_in = replace(_credential("ges_secret", KEYCLOAK), at=2.0)
+    later = replace(_credential("ges_later", KEYCLOAK), at=99.0)
+    job, evidence = _job(
+        replace(_gesture("ges_1", IDENTITY, left_for=(KEYCLOAK,)), at=1.0),
+        replace(_gesture("ges_3", KEYCLOAK), at=3.0),
+        systems=[IDENTITY, KEYCLOAK],
+    )
+    evidence[signed_in.id] = signed_in
+    evidence[later.id] = later
+
+    rejection = work_only(job, evidence, ours=OURS)
+
+    assert rejection is not None
+    assert rejection.reason == "not a job"
+
+    # And with the credential only OUTSIDE the span, the same job is kept:
+    # nothing in what the operator did here was a sign-in.
+    kept_job, kept_evidence = _job(
+        replace(_gesture("ges_1", IDENTITY, left_for=(KEYCLOAK,)), at=1.0),
+        replace(_gesture("ges_3", KEYCLOAK), at=3.0),
+        systems=[IDENTITY, KEYCLOAK],
+    )
+    kept_evidence[later.id] = later
+
+    assert work_only(kept_job, kept_evidence, ours=OURS) is None
+
+
+def test_another_tabs_credential_is_not_this_jobs_sign_in() -> None:
+    """The span is bounded by stream as well as by time. An operator signing
+    in to something else in another tab, while this job was running, has not
+    turned this job into a sign-in."""
+    elsewhere = replace(_credential("ges_other_tab", KEYCLOAK), at=2.0, stream_id="str_2")
+    job, evidence = _job(
+        replace(_gesture("ges_1", IDENTITY, left_for=(KEYCLOAK,)), at=1.0),
+        replace(_gesture("ges_3", KEYCLOAK), at=3.0),
+        systems=[IDENTITY, KEYCLOAK],
+    )
+    evidence[elsewhere.id] = elsewhere
+
+    assert work_only(job, evidence, ours=OURS) is None
 
 
 def test_a_warehouse_job_that_sets_a_password_is_still_a_job() -> None:

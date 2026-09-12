@@ -65,13 +65,25 @@ def test_the_prompt_the_model_is_given_is_the_one_the_rig_measured() -> None:
     is the only place a title can be got right on a FIRST doing, where nothing
     yet knows which of its values vary.
 
+    And it says what a job is for, which is the second thing the rig's prompt
+    left to the model's judgment. The first pass over this tenant's readings
+    proposed **Search Mail** -- two steps, "navigate to the Inbox" and "type a
+    query into the search bar", parameter `cvv` -- and every check kept it: it
+    is not the apparatus, not a transit hop, not a sign-in, and `is_write` sees
+    Gmail POST its own sync traffic on every gesture and calls it a write. No
+    rule available here separates looking something up from doing something,
+    because structurally there is nothing between them; the difference is what
+    the job was FOR, which is a question only the model reading it can answer.
+    So it is asked.
+
     Changing the wording is allowed. Changing it silently is not: update this
     hash in the same commit and say why the model should read something else."""
     assert (
         hashlib.sha256(INSTRUCTIONS.encode()).hexdigest()
-        == "9ad8b63b20713a123211b7438fed866db204a6350fd254c4144f4b390b05b428"
+        == "f78c8081540107a479510860d7b8279615ac6a8aa3be5b5802d642a0d4be69d5"
     )
     assert '"Create a Customer Type", never' in INSTRUCTIONS
+    assert "A stretch that only looked at things goes\nunder `unproven`." in INSTRUCTIONS
 
 
 def test_the_task_is_stated_at_both_ends_of_the_prompt() -> None:

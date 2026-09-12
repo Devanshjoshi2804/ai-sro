@@ -73,6 +73,13 @@ person would name -- creating a supplier, receiving a shipment, correcting a
 count. A job may span more than one system: the operator may do half of it in a
 warehouse system and half in an ERP, and those halves are still one job.
 
+A job has something to show for it -- something the operator could point at
+afterwards and say that is what I did. Looking something up is a STEP of a job
+and not a job: somebody who searches for the record they just created is
+finishing one, and somebody who types a query into their own mailbox and reads
+what comes back has not started one. A stretch that only looked at things goes
+under `unproven`.
+
 Name the job, not the one doing of it you are reading. The title is what every
 doing of that job has in common, so keep the particular values this operator
 typed -- codes, names, quantities -- out of it: "Create a Customer Type", never

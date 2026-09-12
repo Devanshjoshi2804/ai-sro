@@ -349,9 +349,15 @@ async def test_evidence_the_pass_could_not_read_is_counted_and_never_inferred(
     pass can ever read it, and it is named rather than quietly missing from a
     count that came out smaller than expected.
 
-    Both numbers are DERIVED -- 85 and 10 fall out of `K_WINDOW_TOKENS` minus
+    Both numbers are DERIVED -- 84 and 10 fall out of `K_WINDOW_TOKENS` minus
     the prompt overhead, not out of a fixture -- so a wire that answered zero,
     or that answered `window_size` for either of them, fails here.
+
+    They were 85 and 10 until the paragraph telling the model that a lookup is
+    not a job went into INSTRUCTIONS, which the prompt carries at both ends.
+    That is what the extra instruction costs, stated rather than absorbed: one
+    gesture of window per pass, and so one more gesture left out of this
+    95-gesture day.
     """
     fat = _fat_day(95)
     await uow.gestures.add_gestures(tuple(fat))
@@ -360,8 +366,8 @@ async def test_evidence_the_pass_could_not_read_is_counted_and_never_inferred(
 
     body = (await client.post("/v1/mine")).json()
 
-    assert body["window_size"] == 85
-    assert body["left_out"] == 10
+    assert body["window_size"] == 84
+    assert body["left_out"] == 11
     assert body["lost_pool"] == ["ges_vanished"]
 
 

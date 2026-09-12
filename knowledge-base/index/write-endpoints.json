@@ -325,7 +325,8 @@
     "verified_at": "2026-08-11",
     "notes": "id is '{buildingId}*!{warehouseId}' URL-encoded, e.g. 'B1*!SG' -- same compound-key convention as businessUnits/areas/locations below. Edit fluidLoadFlag (no UI field exists for it, direct API only) verified edit->200/verified->revert->200/verified. version field (97) did NOT increment across a confirmed-persisted write -- unlike carrierProNumbers.version, which does; version semantics are resource-specific, never assume. See recipes/warehouse/buildings.md.",
     "source": "hand-written, not corroborated by a stored exchange",
-    "proof": "asserted"
+    "proof": "round-trip",
+    "proof_corrected": "2026-09-12: was `asserted`; this entry's own note records the verification, so the field was wrong and not the record."
   },
   {
     "method": "DELETE",
@@ -913,7 +914,8 @@
     "verified_at": "2026-08-10",
     "notes": "Edit client fields (e.g. bolaPrefix). IMPORTANT: sending null for a field that was null does NOT revert it (silently ignored) -- must send empty string \"\" to clear a text field back to null. Confirmed on PEETS: edit->200/verified, revert-with-null->200-but-unchanged (caught by verify), revert-with-empty-string->200/verified null. Strip nested objects (address, clientGroups) from the PUT body before sending, they are read-only expansions.",
     "source": "hand-written, not corroborated by a stored exchange",
-    "proof": "asserted"
+    "proof": "round-trip",
+    "proof_corrected": "2026-09-12: was `asserted`; this entry's own note records the verification, so the field was wrong and not the record."
   },
   {
     "method": "DELETE",
@@ -1454,7 +1456,8 @@
     "verified_at": "2026-08-10",
     "notes": "Unlike suppliers, customers genuinely accept field edits. Verified manufacturerId edit->200/verified->revert(empty string)->200/verified null on customer ----*!0000000040. id is '{clientId}*!{customerNumber}' URL-encoded. Strip nested 'address' before PUT.",
     "source": "hand-written, not corroborated by a stored exchange",
-    "proof": "asserted"
+    "proof": "round-trip",
+    "proof_corrected": "2026-09-12: was `asserted`; this entry's own note records the verification, so the field was wrong and not the record."
   },
   {
     "method": "DELETE",
@@ -2394,7 +2397,8 @@
     "verified_at": "2026-08-11",
     "notes": "id is '{locationId}*!{warehouseId}' URL-encoded, query includes '?buildingId='. Verified on Production, Yard, Dock, Staging, Processing via UI checkbox+Actions>Delete (in-app ExtJS confirm modal, not a native dialog). On Pickup and Deposit the main grid never showed the created row (grid scope disagrees with the Add-wizard's own area-count list) so this was verified via a direct authenticated DELETE instead, requiring the CSRF-ENCRYPT-TOKEN header explicitly (a bare fetch with just credentials:'include' 404s).",
     "source": "hand-written, not corroborated by a stored exchange",
-    "proof": "asserted"
+    "proof": "round-trip",
+    "proof_corrected": "2026-09-12: was `asserted`; this entry's own note records the verification, so the field was wrong and not the record."
   },
   {
     "method": "POST",
@@ -2405,7 +2409,8 @@
     "notes": "Create endpoint for all 7 physical-location category screens (NOT plain POST /locations). Fired by the shared Add wizard (Select Area -> Add Locations -> [Define Location Capacity, most screens] -> Review -> Finish). Verified on Production, Yard, Dock, Staging, Processing, Pickup-and-Deposit -- each via a throwaway ZZAUDIT-prefixed id in a real but low-traffic area (usually CO-STO-FL), verified persisted via a separate GET, then deleted and reverified 404. Dock Doors' wizard has no capacity step (3 steps total); the other 6 have 4. See recipes/warehouse/locations.md for the full function/type-combo option lists per category.",
     "payload_source": "NOT captured. Deliberately skipped: 25k+ real rows and a batch-create path, no provably isolated throwaway target.",
     "source": "hand-written, not corroborated by a stored exchange",
-    "proof": "asserted"
+    "proof": "round-trip",
+    "proof_corrected": "2026-09-12: was `asserted`; this entry's own note records the verification, so the field was wrong and not the record."
   },
   {
     "method": "POST",
@@ -2461,7 +2466,8 @@
     "verified_at": "2026-08-11",
     "notes": "id is '{locationId}*!{warehouseId}' URL-encoded, e.g. 'AA101B*!SG'. IMPORTANT: this single resource backs the 7 physical-location category screens (Yard/Dock/Staging/Storage/Processing/Pickup-and-Deposit/Production Locations) -- they differ only by a locationTypeCategory query filter on the list GET, not by resource. Verified the Enable/Disable toggle edit->200->separate GET verified changed->revert->200->separate GET confirmed a byte-for-byte full-record diff of zero (clean round trip). Exact field driving the toggle not pinned down (locationCode='P' unchanged both times; ruled out active/enabled/locationStatus/locationLockCode). See recipes/warehouse/locations.md.",
     "source": "hand-written, not corroborated by a stored exchange",
-    "proof": "asserted"
+    "proof": "round-trip",
+    "proof_corrected": "2026-09-12: was `asserted`; this entry's own note records the verification, so the field was wrong and not the record."
   },
   {
     "method": "DELETE",
@@ -2783,7 +2789,8 @@
     "verified_at": "2026-08-10",
     "notes": "id is '{clientId}*!{warehouseId}' URL-encoded (e.g. 'ZZTEST%2A%21SG'). Must be deleted FIRST in the client-delete cascade (depends on client+warehouse existing). 200, empty body.",
     "source": "hand-written, not corroborated by a stored exchange",
-    "proof": "asserted"
+    "proof": "observed",
+    "proof_corrected": "2026-09-12: was `asserted`; this entry's own note records the verification, so the field was wrong and not the record."
   },
   {
     "method": "POST",
@@ -3823,7 +3830,8 @@
     "verified_at": "2026-08-10",
     "notes": "Edit warehouse fields (e.g. longDescription). Body is the full record from a prior GET, mutated. Confirmed real value change + revert, both 200, via direct fetch with session cookie + CSRF-ENCRYPT-TOKEN header.",
     "source": "hand-written, not corroborated by a stored exchange",
-    "proof": "asserted"
+    "proof": "round-trip",
+    "proof_corrected": "2026-09-12: was `asserted`; this entry's own note records the verification, so the field was wrong and not the record."
   },
   {
     "method": "DELETE",

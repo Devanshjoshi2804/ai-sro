@@ -26,6 +26,19 @@ from sro.domain.execution.verified_writes import VerifiedWrite
 
 logger = logging.getLogger(__name__)
 
+PROVEN = frozenset({"round-trip", "observed"})
+"""The `proof` values that mean somebody watched this endpoint succeed.
+
+An allowlist and not a denylist of the refusals, for this module's own rule:
+a malformed or unrecognised entry has to narrow what is verified, never widen
+it. A `proof` this file has never heard of -- a new vocabulary word, a typo,
+the field missing entirely -- is not a claim that anything was watched.
+
+The lower two ranks of `knowledge.entry.EvidenceLevel` by name and not by
+import: this ledger is a research project's hand-kept JSON with its own
+spelling (`round-trip`, not `round_trip`), and pretending the two vocabularies
+are one would be a mapping nobody maintains."""
+
 _DEFAULT_ROOT = Path(__file__).resolve().parents[5] / "knowledge-base"
 
 
@@ -56,6 +69,9 @@ def load_verified_writes(root: Path = _DEFAULT_ROOT) -> tuple[VerifiedWrite, ...
             # hand-edited between sessions, and the string "false" is
             # truthy. A typo in the file must narrow what gets verified, not
             # accidentally verify the one entry someone meant to disable.
+            continue
+        if entry.get("proof") not in PROVEN:
+            # Marked verified, but by its own account never watched succeed.
             continue
         method, pattern = entry.get("method"), entry.get("pathPattern")
         if not isinstance(method, str) or not isinstance(pattern, str):

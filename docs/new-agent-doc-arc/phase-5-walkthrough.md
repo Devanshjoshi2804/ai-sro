@@ -84,11 +84,51 @@ the NULL-approver bug this file warns about below (that bug was a call that
 meant to send a browser's credentials and silently sent neither). But it is
 also not the check steps 8 and 9 exist to run: `approver_is_the_driver`, which
 needs an approval sent *as* the driving browser, `?device_id=` and
-`X-Device-Secret` together. A stub answering a websocket has no panel to press
+`X-Device-Secret` together. A stub answering a websocket had no panel to press
 Approve from, so that specific check — and a `held` outcome, which needs a
-warehouse that can show its own write back — are still unproven by anything
-in this repository. `approvals` being non-zero is a fact now; `approver_is_the_driver`
-being `true` is not yet one.
+warehouse that can show its own write back — were unproven by anything in
+this repository. `approvals` being non-zero was a fact; `approver_is_the_driver`
+being `true` was not.
+
+**`approver_is_the_driver` fired for the first time on 2026-09-12.** A stub
+holding a command socket already holds the two things a panel proves itself
+with — the `device_id` in the URL it dialled and the `X-Device-Secret` it
+dialled with — so `scripts/stub_device.py --approve` now sends the pair. It
+polls `GET /v1/workflow-runs?awaiting=true`, taps only the runs THIS browser
+is driving, and reads the `device_id` off its own socket URL rather than a
+flag, so a rig cannot fake the thing it is proving.
+
+A live run of *Create Customer Type DSS* parked on step 1 and the stub
+answered it:
+
+```
+-> approved run_4e5bafb8c156705f3cffc7a0aaf71e0a step 1 (first: True)
+```
+
+```
+ run_id                                    | ord | device_id
+-------------------------------------------+-----+------------------------------------
+ run_015337172df9613f3b03d007b60ed81a       |   1 | NULL          <- console path
+ run_a67c0823eb457ff0c4b85978a945bee3       |   1 | NULL          <- console path
+ run_4e5bafb8c156705f3cffc7a0aaf71e0a       |   1 | dev_c79a150f… <- a browser
+```
+
+The first approval row in this repository's history that names a browser. All
+four doors were then tapped against real Postgres over HTTP, and each answered
+what the router's docstring says it answers:
+
+| who tapped | answer |
+|---|---|
+| the browser driving the run | **409** — past the check; that run had already stopped |
+| another browser of the same tenant | **403** `not_driving_this_run` |
+| the tenant's credential, naming no browser | **409** — the supervisor's console, which skips the check by design |
+| `X-Device-Secret` with no `?device_id=` | **404** — half a pair is not a browser |
+
+The 403 is the line that had never been reached. What is still owed is the
+browser half: `rigApprove` in a real Chrome, and a `held` outcome, which needs
+a warehouse that can show its own write back. The run above failed on its
+first step, honestly — the stub cannot read Gmail — which is the stub's
+ceiling and not a defect in the gate.
 
 **Re-measured 2026-09-12. All five are paid.**
 

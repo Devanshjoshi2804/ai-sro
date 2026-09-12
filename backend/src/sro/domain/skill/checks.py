@@ -448,3 +448,120 @@ def work_only(
         )
     workflow.systems = kept
     return None
+
+
+K_SITTING_GAP_S = 1800.0
+"""How long a pause has to be before the work after it is a different doing.
+
+Measured over both real corpora's nine stored jobs, clustering each job's
+cited gestures by the gap between them:
+
+| gap    | jobs left in one piece | `Create an Activity Code`'s biggest piece, of 31 |
+|--------|------------------------|--------------------------------------------------|
+| 1 min  | 5 of 9                 | 11                                               |
+| 5 min  | 5 of 9                 | 27                                               |
+| 30 min | 6 of 9                 | 30                                               |
+
+**The binding case is the cross-system job, and it is why this is thirty
+minutes and not five.** Tenant `new`'s `Create a Warehouse Equipment Type` is
+the thing this whole architecture exists to find: step 1 reads a request on
+`mail.google.com`, steps 2 to 7 create the equipment type on the real Blue
+Yonder host. Its step 2 happened at 15:56 and its step 3 at 16:18 -- a
+**22-minute** gap, because the operator read the mail, opened the WMS, and got
+on with something else before typing. At five minutes that job splits, the
+kept piece cannot supply step 2, and `validate` refuses the whole thing for an
+uncited step. A bound tight enough to tidy acme's repeated single-system jobs
+destroys the two-system job, which is the opposite of the trade this rig
+exists to make.
+
+Thirty still separates every welded job in the store -- `Create a Work Area`'s
+two doings are 26 hours apart, `Create an Activity Code`'s 22 hours, `Create a
+Work Operation`'s 75 minutes -- and leaves both of `new`'s cross-system jobs
+whole. It is also a pause a person can reason about: the operator went to
+lunch. Measured through the real matcher after this landed: acme went from 4
+of 7 jobs offered as themselves to 5 of 7, `Create a Work Area` going from
+never offered to offered at gesture 2 with 6 of its 7 values in hand.
+
+**This is not the recogniser's bound, and the two are not the same question.**
+`new-chrome-extension/src/background/recognise.js` keeps `K_TAIL_TTL_S = 600`:
+a gesture older than ten minutes falls out of the tail before the next one
+arrives. That bound bites only on the first `K_OFFER_AFTER` gestures, which is
+why `new`'s cross-system job is offered at gesture 2 and never notices its own
+22-minute pause at step 3 -- and why `Create an Activity Code`, whose first two
+cited gestures are **26 minutes** apart, is still never offered after this
+narrowing. A job the miner may keep whole is not automatically a job the
+recogniser can hold, and nothing yet tells the miner that.
+"""
+
+
+def _sittings(times: list[float]) -> list[tuple[float, float]]:
+    """Consecutive runs of `times`, split wherever the pause is long enough."""
+    spans: list[tuple[float, float]] = []
+    for at in sorted(times):
+        if spans and at - spans[-1][1] <= K_SITTING_GAP_S:
+            spans[-1] = (spans[-1][0], at)
+        else:
+            spans.append((at, at))
+    return spans
+
+
+def one_occurrence(workflow: Workflow, gestures: dict[str, Gesture]) -> None:
+    """Strike every citation but one doing's, in place.
+
+    A model asked to read a day and told that an operator often repeats a job
+    does not always answer with one job per doing. It answers with ONE job
+    whose every step cites every doing's gesture: step 1 of acme's `Create a
+    Work Area` cites a gesture from 08-26 10:39 and another from 08-27 13:16,
+    and calls that one step.
+
+    That is not a harmless surplus of evidence. Three things read these
+    citations and all three are wrong about a workflow built this way:
+
+    * **The shape.** `shape_key` is built from the cited gestures in order, so
+      a job done three times is served as a shape three doings long with the
+      doings interleaved. The extension's matcher asks whether the operator's
+      last *k* gestures ARE this shape's first *k*, and no single doing ever
+      is. Measured on acme's seven jobs: the three with more than one doing in
+      them are exactly the three the replay never offers.
+    * **`learn_parameters`.** It needs a SECOND proposal to diff against the
+      stored one. A pass that folds every doing into a single proposal never
+      produces one, so a job the operator did four times can still be stored
+      with no parameters at all.
+    * **`_by_control`.** It keeps the last value per control in time order, so
+      the other doings' values are silently dropped rather than becoming the
+      `seen_values` range that makes a parameter useful.
+
+    The doing kept is the one supplying citations to the most steps, and the
+    latest of those if two tie -- latest because a re-mine should drift towards
+    what the operator does now, not towards the first thing they ever did.
+
+    A step left citing nothing is left that way rather than dropped here:
+    `validate` refuses an uncited step, and a job whose steps do not all belong
+    to one doing should be refused under that name rather than quietly
+    reshaped into a shorter job nobody demonstrated.
+
+    Nothing recovers the struck doings. They stay in the window and the pool,
+    so the next pass reads them again -- which is the path that already exists
+    for a second doing, and the path `learn_parameters` was written for.
+    """
+    times = [gestures[cited].at for cited in cited_ids(workflow) if cited in gestures]
+    if not times:
+        return
+    spans = _sittings(times)
+    if len(spans) < 2:
+        return
+
+    def reach(span: tuple[float, float]) -> tuple[int, float]:
+        lo, hi = span
+        steps = sum(
+            1
+            for step in workflow.steps
+            if any(cited in gestures and lo <= gestures[cited].at <= hi for cited in step.cites)
+        )
+        return steps, hi
+
+    lo, hi = max(spans, key=reach)
+    for step in workflow.steps:
+        step.cites = [
+            cited for cited in step.cites if cited in gestures and lo <= gestures[cited].at <= hi
+        ]

@@ -45,6 +45,7 @@ from sro.domain.skill.checks import (
     Coverage,
     Rejection,
     coverage,
+    one_occurrence,
     undeliverable,
     validate,
     work_only,
@@ -457,6 +458,14 @@ async def _one_pass(
         # want the second.
         placed: list[Workflow] = []
         for proposal in proposals:
+            # Before anything reads the citations. A model told that an
+            # operator repeats a job answers with one job citing every doing,
+            # and `shape_key`, `learn_parameters` and `_by_control` are all
+            # wrong about a workflow built that way -- see `one_occurrence`.
+            # Narrowing first means `validate` judges the job that will
+            # actually be stored, and refuses it for an uncited step if the
+            # doing it kept cannot supply one.
+            one_occurrence(proposal, by_id)
             rejection = validate(proposal, evidence) or work_only(proposal, by_id, ours=ours)
             if rejection is not None:
                 result.rejections.append(rejection)

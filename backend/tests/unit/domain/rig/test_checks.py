@@ -19,6 +19,7 @@ from sro.domain.skill.checks import (
     K_MAX_SKEW,
     K_MIN_COVERAGE,
     coverage,
+    one_occurrence,
     undeliverable,
     validate,
     work_only,
@@ -685,3 +686,92 @@ def test_a_short_job_is_refused_for_its_dishonesty_first() -> None:
 
     assert rejection is not None
     assert rejection.reason == "unknown gesture"
+
+
+def _at(gesture_id: str, at: float, system: str = WMS) -> Gesture:
+    """A cited gesture that exists only to carry a time."""
+    return replace(_gestures("acme")[0], id=gesture_id, at=at, system=system)
+
+
+def test_a_job_the_operator_did_twice_keeps_one_doing() -> None:
+    """The model answers a repeated job as ONE job citing every doing.
+
+    Acme's `Create a Work Area` cites a gesture from 08-26 10:39 and another
+    from 08-27 13:16 on the SAME step. `shape_key` then serves a shape with
+    both doings interleaved, and the extension's matcher -- which asks whether
+    the operator's last k gestures ARE this shape's first k -- can never match
+    it against either doing. The three acme jobs with more than one doing in
+    them are exactly the three the offer replay never offers.
+    """
+    day = 86_400.0
+    workflow = _workflow(
+        steps=[
+            Step(order=0, says="open", system=WMS, cites=["mon_1", "tue_1"]),
+            Step(order=1, says="type", system=WMS, cites=["mon_2", "tue_2"]),
+            Step(order=2, says="save", system=WMS, cites=["tue_3"]),
+        ]
+    )
+    gestures = {
+        "mon_1": _at("mon_1", 0.0),
+        "mon_2": _at("mon_2", 30.0),
+        "tue_1": _at("tue_1", day),
+        "tue_2": _at("tue_2", day + 30.0),
+        "tue_3": _at("tue_3", day + 60.0),
+    }
+
+    one_occurrence(workflow, gestures)
+
+    assert [step.cites for step in workflow.steps] == [["tue_1"], ["tue_2"], ["tue_3"]], (
+        "the doing that reaches the most steps, and the later one on a tie"
+    )
+
+
+def test_the_cross_system_job_survives_the_pause_between_its_two_systems() -> None:
+    """The case that sets K_SITTING_GAP_S, and the one a tighter bound destroys.
+
+    Tenant `new`'s `Create a Warehouse Equipment Type` is what this
+    architecture exists to find: step 1 reads a request on `mail.google.com`,
+    the rest create the equipment type on the real Blue Yonder host. Its step 2
+    happened at 15:56 and its step 3 at 16:18 -- the operator read the mail,
+    opened the WMS, and got on with something else before typing.
+
+    At a five-minute bound that job splits, the kept piece cannot supply step
+    2, and `validate` refuses the whole thing for an uncited step. A bound
+    tight enough to tidy a repeated single-system job destroys the two-system
+    one, which is the opposite of the trade being made here.
+    """
+    workflow = _workflow(
+        systems=[MAIL, WMS],
+        steps=[
+            Step(order=0, says="read the mail", system=MAIL, cites=["mail_1"]),
+            Step(order=1, says="click add", system=WMS, cites=["wms_1"]),
+            Step(order=2, says="type the code", system=WMS, cites=["wms_2"]),
+        ],
+    )
+    gestures = {
+        "mail_1": _at("mail_1", 0.0, MAIL),
+        "wms_1": _at("wms_1", 60.0),
+        # Twenty-two minutes later, exactly as the real recording has it.
+        "wms_2": _at("wms_2", 60.0 + 22 * 60.0),
+    }
+
+    one_occurrence(workflow, gestures)
+
+    assert [step.cites for step in workflow.steps] == [["mail_1"], ["wms_1"], ["wms_2"]], (
+        "a pause between two systems is not a second doing"
+    )
+
+
+def test_a_job_done_once_is_left_exactly_as_it_was() -> None:
+    """A check that strikes everything strikes the single-doing job too."""
+    workflow = _workflow(
+        steps=[
+            Step(order=0, says="open", system=WMS, cites=["a", "b"]),
+            Step(order=1, says="save", system=WMS, cites=["c"]),
+        ]
+    )
+    gestures = {"a": _at("a", 0.0), "b": _at("b", 5.0), "c": _at("c", 11.0)}
+
+    one_occurrence(workflow, gestures)
+
+    assert [step.cites for step in workflow.steps] == [["a", "b"], ["c"]]

@@ -25,7 +25,7 @@ from sro.application.ports.model import AskerUnavailable
 from sro.application.shared.refusals import OverCap
 from sro.domain.chat.reading import ChatReading
 from sro.domain.observation.batch import CaptureMode, ObservationBatch
-from sro.domain.observation.gesture import Action, Body, Call, Gesture, Intent, Target, ValueSeen
+from sro.domain.observation.gesture import Action, Body, Call, Gesture, Intent, Target
 from sro.domain.observation.reading import INSTRUCTIONS, INTENT_SCHEMA, TAIL
 from sro.domain.observation.redaction import is_secret_name
 from sro.domain.observation.trim import is_secret
@@ -683,15 +683,38 @@ async def test_a_call_that_raised_is_never_filed_as_a_reading_that_happened() ->
     assert len(await uow.gestures.unread(TENANT, limit=100)) == len(day) - 2
 
 
-async def test_a_write_gestures_reading_folds_in_the_tails_values() -> None:
+async def test_a_write_gestures_reading_folds_in_what_was_just_typed() -> None:
     """The real gap a harsh look at real captured data found: a save click's
     own reading names one field, and the fields typed just before it in the
-    same doing -- already readings sitting in `tail` -- were being left off
-    rather than folded in."""
+    same doing were being left off rather than folded in.
+
+    At the loop and not in `read_gesture`, which is where this test used to
+    live and where the fold used to happen. The fold reads the recorded
+    GESTURES of the stream -- the keystrokes the recorder captured, not a
+    model's account of them -- and only the loop holds those. Moved here, the
+    test also covers the wiring: the fold defaulted away in the loop is a fold
+    that silently never runs, which is exactly how `gemini_read_tail=0` turned
+    16 of 16 operator-typed fields into 12 on a real pass.
+    """
+    uow = FakeUnitOfWork()
+    first = _gestures(TENANT.value)[0]
+    typed = replace(
+        first,
+        id="ges_typed",
+        at=first.at,
+        action=Action(
+            kind="type",
+            at=1.0,
+            value="DSS0001",
+            target=Target(tag="input", name="code"),
+        ),
+        requests=[],
+    )
     save = replace(
-        _gestures()[0],
+        first,
         id="ges_save",
-        action=Action(kind="click", at=1.0),
+        at=first.at + 1,
+        action=Action(kind="click", at=2.0),
         requests=[
             Call(
                 method="POST",
@@ -708,21 +731,84 @@ async def test_a_write_gestures_reading_folds_in_the_tails_values() -> None:
             )
         ],
     )
-    tail = [
-        Intent(
-            gesture_id="ges_0",
-            tenant="new",
-            values_seen=[ValueSeen(field="code", value="DSS0001")],
-        )
-    ]
-    asker = FakeAsker(_answer(values_seen=[{"field": "customerType", "value": "CCD0002"}]))
+    await uow.gestures.add_gestures((typed, save))
+    asker = FakeAsker(
+        _answer(values_seen=[{"field": "code", "value": "DSS0001"}]),
+        _answer(values_seen=[{"field": "customerType", "value": "CCD0002"}]),
+    )
 
-    intent = await read_gesture(save, tail=tail, asker=asker, model=MODEL)
+    await read_new_gestures(
+        uow, tenant_id=TENANT, asker=asker, model=MODEL, now=NOW, cap_usd=NO_CAP
+    )
 
-    assert {seen.field: seen.value for seen in intent.values_seen} == {
+    filed = {intent.gesture_id: intent for intent in await uow.gestures.intents_for(TENANT)}
+    assert {seen.field: seen.value for seen in filed["ges_save"].values_seen} == {
         "code": "DSS0001",
         "customerType": "CCD0002",
     }
+    # And the gesture that was merely typed into folds nothing: it wrote
+    # nothing, so there is no body to have carried anything.
+    assert [seen.field for seen in filed["ges_typed"].values_seen] == ["code"]
+
+
+async def test_a_reading_reused_from_the_cascade_gets_its_own_fold() -> None:
+    """A reading answered from one already paid for still gets ITS OWN fold.
+
+    `already` caches the unfolded answer for exactly this reason. Cached after
+    the fold, the second save would inherit the first save's fields -- values
+    from a form somebody filled in another tab, filed against a gesture that
+    never carried them.
+
+    Two streams, and that is what makes this bite rather than merely pass. In
+    ONE stream the later save's own fold is a superset of the earlier one's --
+    `_gestures_before` is uncapped -- so the inherited fields are fields it was
+    going to name anyway and the bug is invisible. Across two tabs they are
+    disjoint, and the leak shows.
+    """
+    uow = FakeUnitOfWork()
+    first = _gestures(TENANT.value)[0]
+    body = Body(text='{"v":"SHARED"}', size_bytes=14, mime_type="application/json")
+    call = Call(method="POST", url="http://127.0.0.1:63319/api/save", status=201, request_body=body)
+    made: list[Gesture] = []
+    for field, stream in (("here", "dev_one"), ("elsewhere", "dev_two")):
+        made.append(
+            replace(
+                first,
+                id=f"ges_typed_{field}",
+                stream_id=stream,
+                at=1.0,
+                action=Action(
+                    kind="type", at=1.0, value="SHARED", target=Target(tag="input", name=field)
+                ),
+                requests=[],
+            )
+        )
+        # Identical evidence: same click, same body, no `at` and no stream in
+        # what `trim` shows the model. One call answers both.
+        made.append(
+            replace(
+                first,
+                id=f"ges_save_{field}",
+                stream_id=stream,
+                at=2.0,
+                action=Action(kind="click", at=2.0),
+                requests=[call],
+            )
+        )
+    await uow.gestures.add_gestures(tuple(made))
+    asker = FakeAsker(*_answers(4))
+
+    await read_new_gestures(
+        uow, tenant_id=TENANT, asker=asker, model=MODEL, now=NOW, cap_usd=NO_CAP, tail_size=0
+    )
+
+    # Three calls for four gestures: the second save is the cascade.
+    assert len(asker.asked) == 3
+    filed = {intent.gesture_id: intent for intent in await uow.gestures.intents_for(TENANT)}
+    here = {seen.field for seen in filed["ges_save_here"].values_seen}
+    elsewhere = {seen.field for seen in filed["ges_save_elsewhere"].values_seen}
+    assert "here" in here and "elsewhere" not in here
+    assert "elsewhere" in elsewhere and "here" not in elsewhere
 
 
 async def test_a_thin_gesture_is_asked_about_with_its_real_picture() -> None:

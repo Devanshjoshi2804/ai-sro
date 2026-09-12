@@ -60,7 +60,15 @@ async def read_gesture(
     model: str,
     image: bytes | None = None,
 ) -> Intent:
-    """One gesture, one call, one intent -- error, refusal and nonsense alike."""
+    """One gesture, one call, one intent -- error, refusal and nonsense alike.
+
+    The reading as it came back, and nothing folded into it. `with_recent_values`
+    used to run here and now runs in the loop, because the two have different
+    inputs: this is handed one gesture and the readings before it, and the fold
+    needs the recorded GESTURES before it -- which only the loop holds. Keeping
+    it here also made the cascade unsound, since the answer cached under a piece
+    of evidence would carry the first gesture's fold into the second's reading.
+    """
     # Already bounded by the caller, which is the one that knows how long a
     # tail this deployment asked for. Re-trimming to the constant here made
     # `tail_size` unenforceable from above: a caller asking for none still
@@ -90,8 +98,7 @@ async def read_gesture(
         # field label already did.
         image=image if thin(gesture.action.target) else None,
     )
-    intent = intent_from(answer.data, gesture, answer, model=model)
-    return with_recent_values(intent, gesture, tail)
+    return intent_from(answer.data, gesture, answer, model=model)
 
 
 async def read_new_gestures(
@@ -228,6 +235,12 @@ async def _read_unread(
             )
             if seen is not None:
                 already[seen] = intent
+        # Folded here and not inside `read_gesture`, and after the cascade and
+        # not before it. The fold reads the recorded gestures of this stream,
+        # which is a thing only this loop holds; and `already` therefore caches
+        # the unfolded answer, so a reading reused under a piece of evidence
+        # gets THIS gesture's fold rather than inheriting the first one's.
+        intent = with_recent_values(intent, gesture, _gestures_before(ordered, gesture))
         await uow.gestures.save_intent(intent)
         # Committed one reading at a time, not once at the end: a loop that
         # raises on gesture 50 has already been billed for 49, and a rollback
@@ -332,6 +345,25 @@ async def _thin_shot(
         return await blobs.read(shot.uri)
     except (KeyError, OSError):
         return None
+
+
+def _gestures_before(ordered: tuple[Gesture, ...], gesture: Gesture) -> list[Gesture]:
+    """The recorded gestures of this stream that came before this one, oldest first.
+
+    `_tail_for`'s twin, and deliberately not merged with it: that one answers
+    what the MODEL should be shown about the doing so far, and this one answers
+    what the OPERATOR demonstrably typed. The first is capped by
+    `gemini_read_tail` because every line of it is paid for in prompt tokens;
+    this one is not capped at all, because it costs nothing and a form filled
+    across twenty gestures is a form whose first field still belongs in the
+    save.
+
+    Same stream, same reason: a value typed in the operator's other tab was
+    never on this form.
+    """
+    return [
+        other for other in ordered if other.stream_id == gesture.stream_id and other.at < gesture.at
+    ]
 
 
 def _tail_for(

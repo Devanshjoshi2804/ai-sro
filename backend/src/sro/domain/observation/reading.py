@@ -15,6 +15,7 @@ type is treated as unusable rather than coerced into a plausible-looking one.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import replace
 
 from sro.domain.observation.gesture import Gesture, Intent, ValueSeen
@@ -224,8 +225,51 @@ def is_write(gesture: Gesture) -> bool:
     )
 
 
-def _carried_any(gesture: Gesture, tail: list[Intent]) -> bool:
-    """Whether this gesture's writes actually sent something the tail names.
+def field_of(gesture: Gesture) -> str | None:
+    """What to call the box this value was typed into.
+
+    In order of how much the name was actually chosen by somebody: the ExtJS
+    component's own `field_label` is what the operator read on screen, its
+    `name` is what the form posts under, and `target.name` is the plain-HTML
+    fallback. `target.text` is deliberately not in the list -- on an input it
+    is the typed value itself, so a fold built on it would name every field
+    after its own contents.
+    """
+    target = gesture.action.target
+    if target is None:
+        return None
+    component = target.component
+    if component is not None:
+        for name in (component.field_label, component.name):
+            if name and name.strip():
+                return name.strip()
+    return target.name.strip() if target.name and target.name.strip() else None
+
+
+def _typed_before(recent: Sequence[Gesture]) -> list[tuple[str, str]]:
+    """(field, value) for every value RECORDED as typed just before this one.
+
+    The recorder's own bytes, not a model's account of them. Ordered oldest
+    first and deduplicated by the caller, so a field typed twice keeps the
+    last value -- the one that reached the write.
+
+    A credential never reaches here: `is_secret` is the one place that rule
+    lives, and a secret gesture contributes nothing rather than contributing a
+    blanked value that would then be matched against a request body.
+    """
+    found: list[tuple[str, str]] = []
+    for prior in recent:
+        if prior.action.kind != "type" or prior.action.secret or is_secret(prior):
+            continue
+        value = (prior.action.value or "").strip()
+        field = field_of(prior)
+        if value and field and not is_secret_name(field):
+            found.append((field, value))
+    return found
+
+
+def _carried_any(gesture: Gesture, typed: Sequence[tuple[str, str]]) -> bool:
+    """Whether this gesture's writes actually sent something just typed.
 
     The test is the value, not the field name: a form posts `customerType`
     where the label said `Customer Type`, and it is the value that survives
@@ -247,71 +291,65 @@ def _carried_any(gesture: Gesture, tail: list[Intent]) -> bool:
     )
     if not sent:
         return False
-    return any(
-        seen.value and len(seen.value) >= K_MIN_VALUE_LEN and seen.value in sent
-        for prior in tail
-        for seen in prior.values_seen
-    )
+    return any(len(value) >= K_MIN_VALUE_LEN and value in sent for _, value in typed)
 
 
-def with_recent_values(intent: Intent, gesture: Gesture, tail: list[Intent]) -> Intent:
-    """A write's reading folds in the tail's values, not just its own.
+def with_recent_values(intent: Intent, gesture: Gesture, recent: Sequence[Gesture]) -> Intent:
+    """A write's reading folds in what was typed just before it.
 
     Measured against a real save: the write's own POST body carried five
     submitted fields, and the model's reading of the click itself named one of
-    them -- the rest were typed in the gestures just before it, each already a
-    reading sitting in `tail`. Folded in, the save says what it saved.
+    them -- the rest were typed in the gestures just before it. Folded in, the
+    save says what it saved. `window.py` serialises `values_seen` into the
+    evidence the mining pass reads, and a save whose reading names one field of
+    five is a save whose evidence does not say what was submitted.
+
+    **The RECORDED typed value, not a previous reading of it**, and this is the
+    second version of this function. The first folded in the tail of `Intent`s
+    -- the model's account of what it had seen entered -- which made the fold
+    an accident of `gemini_read_tail`: set that to 0 and the fold silently
+    stopped, and a real 164-gesture pass dropped from naming 16 of 16
+    operator-typed fields to 12. That regression is what sent this looking for
+    the better source, and the better source was already in the store. The
+    recorder captured `action.value` at the keystroke; a reading is a model
+    paraphrasing it afterwards. The bytes beat the paraphrase, they cost no
+    tokens, and they do not care what order anything was read in.
 
     What this is NOT for, stated because the first version of this docstring
-    claimed it and the claim was wrong: it does not rescue a cross-system
-    value crossing. `values.shared_values` needs one value under two distinct
-    systems; `_tail_for` hands over the same stream only, so every value
-    folded here already belongs to a gesture on the same system, and the
-    crossing either existed without this or does not exist. It pushes the
-    other way if anything -- `values.frequencies_over` counts the gestures
-    carrying a value, so a save that now also carries them raises their
-    ubiquity toward the furniture threshold that suppresses a crossing. Small
-    at this corpus size, and the direction is worth knowing.
+    claimed it and the claim was wrong: it does not rescue a cross-system value
+    crossing. `values.shared_values` needs one value under two distinct
+    systems; `recent` is the same stream only, so every value folded here
+    already belongs to a gesture on the same system.
 
-    What it is for: `window.py` serialises `values_seen` into the evidence the
-    mining pass reads, and a save whose reading names one field of five is a
-    save whose evidence does not say what was submitted.
+    Scoped to a write on purpose: folding history into every gesture would make
+    an ordinary click on an empty form report values from three screens ago. A
+    later entry wins a field name over an earlier one -- typed twice, the last
+    value is the one that reached the write -- and the write's own reading wins
+    over both, being the more direct evidence for whatever it actually named.
 
-    Scoped to a write on purpose: folding history into every gesture would
-    make an ordinary click on an empty form report values from three screens
-    ago. A later tail entry wins a field name over an earlier one -- typed
-    twice, the last value is the one that reached the write -- and the
-    write's own reading wins over both, being the more direct evidence for
-    whatever it actually named.
-
-    And scoped a second time, to a write that carried something the operator
-    recently put on screen. `is_write` asks only whether a 2xx POST, PUT or
-    PATCH left the gesture, and measured against one real capture that is far
-    too generous: of 15 gestures it called writes, **6 were saves**. The other
-    nine were the browser talking to itself -- five `sessionKeepAlive` calls
-    keeping the session warm, and four posts to `webPerformanceEntries/batch`,
-    which is the WMS uploading its own performance telemetry. An operator
-    clicking a tab header is not saving anything, and folding a form's worth
-    of values into that reading is exactly the failure the paragraph above
-    warns about, arriving through a door nobody was watching.
-
-    So the fold has to be earned: at least one value from the tail must
-    actually appear in what the write sent. A keepalive sends no body and a
-    telemetry post sends timings, so neither earns it, while a real save sends
-    the form -- and no endpoint anywhere is named to tell those apart, which
-    matters because the next customer's housekeeping endpoints will be called
-    something else entirely.
+    And scoped a second time, to a write that carried something just typed.
+    `is_write` asks only whether a 2xx POST, PUT or PATCH left the gesture, and
+    measured against one real capture that is far too generous: of 15 gestures
+    it called writes, **6 were saves**. The other nine were the browser talking
+    to itself -- five `sessionKeepAlive` calls and four posts to
+    `webPerformanceEntries/batch`, which is the WMS uploading its own
+    performance telemetry. So the fold has to be earned: at least one recorded
+    typed value must actually appear in what the write sent. A keepalive sends
+    no body and a telemetry post sends timings, so neither earns it, while a
+    real save sends the form -- and no endpoint anywhere is named to tell those
+    apart, which matters because the next customer's housekeeping endpoints
+    will be called something else entirely.
 
     Returns a new `Intent` rather than editing the one handed over: the caller
     holds the reading it just built, and a `with_` that quietly rewrites its
     argument is the kind of surprise that costs an afternoon.
     """
-    if not is_write(gesture) or not _carried_any(gesture, tail):
+    if not is_write(gesture):
         return intent
-    merged: dict[str, str] = {}
-    for prior in tail:
-        for seen in prior.values_seen:
-            merged[seen.field] = seen.value
+    typed = _typed_before(recent)
+    if not _carried_any(gesture, typed):
+        return intent
+    merged: dict[str, str] = dict(typed)
     for seen in intent.values_seen:
         merged[seen.field] = seen.value
     return replace(

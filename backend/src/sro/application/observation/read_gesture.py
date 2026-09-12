@@ -13,10 +13,11 @@ the half that asks and the half that stores.
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import logging
-from collections.abc import Mapping
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import replace
 from datetime import datetime
 
@@ -112,6 +113,7 @@ async def read_new_gestures(
     limit: int = READING_LIMIT,
     blobs: BlobStore | None = None,
     tail_size: int = TAIL,
+    at_once: int = 1,
 ) -> int:
     """Every stored gesture of THIS TENANT with no intent gets exactly one reading.
 
@@ -156,6 +158,7 @@ async def read_new_gestures(
             limit=limit,
             blobs=blobs,
             tail_size=tail_size,
+            at_once=at_once,
         )
 
 
@@ -170,6 +173,7 @@ async def _read_unread(
     limit: int,
     blobs: BlobStore | None,
     tail_size: int,
+    at_once: int,
 ) -> int:
     # An intent row means a reading happened, whatever came back in it -- an
     # error, or an answer whose `act` was the wrong type and got nulled. None
@@ -207,50 +211,173 @@ async def _read_unread(
     shots: dict[str, tuple[Mapping[str, int], Mapping[float, int]] | None] = {}
     # One reading per distinct piece of evidence. Two gestures the model would
     # be shown the same bytes for get the same answer, so the second one is
-    # arithmetic rather than a call -- 25.6% of a real 164-gesture day.
+    # arithmetic rather than a call -- 17.1% of a real 164-gesture day.
     #
     # Only reachable with no tail, and that is not a tuning choice but the
     # whole of it: measured on that same day, keyed on the evidence alone the
-    # rate is 25.6%, and keyed on the evidence the model is ACTUALLY shown --
+    # rate is 17.1%, and keyed on the evidence the model is ACTUALLY shown --
     # which ends with the last eight readings -- it is 0.0%. Every gesture has
     # a tail nothing else has, so with one, nothing is ever reusable.
     already: dict[str, Intent] = {}
-    for gesture in rows:
-        image = None
-        if blobs is not None and thin(gesture.action.target):
-            image = await _thin_shot(
-                gesture, uow=uow, blobs=blobs, tenant_id=tenant_id, cache=shots
-            )
 
-        seen = _same_evidence(gesture, image) if not tail_size else None
-        if seen is not None and seen in already:
-            intent = _reread(already[seen], gesture)
-        else:
-            intent = await read_gesture(
-                gesture,
-                tail=_tail_for(ordered, intents, gesture)[-tail_size:] if tail_size else [],
-                asker=asker,
-                model=model,
-                image=image,
-            )
-            if seen is not None:
-                already[seen] = intent
-        # Folded here and not inside `read_gesture`, and after the cascade and
-        # not before it. The fold reads the recorded gestures of this stream,
-        # which is a thing only this loop holds; and `already` therefore caches
-        # the unfolded answer, so a reading reused under a piece of evidence
-        # gets THIS gesture's fold rather than inheriting the first one's.
-        intent = with_recent_values(intent, gesture, _gestures_before(ordered, gesture))
-        await uow.gestures.save_intent(intent)
-        # Committed one reading at a time, not once at the end: a loop that
-        # raises on gesture 50 has already been billed for 49, and a rollback
-        # would leave them unread and ask -- and pay -- for them again.
-        await uow.commit()
-        # So the next gesture of this stream is read against what this one
-        # said, exactly as the rig's per-gesture query was.
-        intents[gesture.id] = intent
-        written += 1
+    for group in _groups(rows, at_once if not tail_size else 1):
+        # The pictures first, and one at a time, because they come off the
+        # unit of work: `_thin_shot` reads the batch row and the object store
+        # through the same session every other query here uses, and a session
+        # is not a thing two coroutines may hold at once.
+        asked: list[tuple[Gesture, bytes | None, str | None]] = []
+        for gesture in group:
+            image = None
+            if blobs is not None and thin(gesture.action.target):
+                image = await _thin_shot(
+                    gesture, uow=uow, blobs=blobs, tenant_id=tenant_id, cache=shots
+                )
+            key = _same_evidence(gesture, image) if not tail_size else None
+            asked.append((gesture, image, key))
+
+        answers, failure = await _ask_group(
+            asked,
+            already=already,
+            asker=asker,
+            model=model,
+            tail=lambda gesture: (
+                _tail_for(ordered, intents, gesture)[-tail_size:] if tail_size else []
+            ),
+        )
+
+        saved = 0
+        for gesture, _, _key in asked:
+            intent = answers.get(gesture.id)
+            if intent is None:
+                # Its own call raised. The rest of the group answered and was
+                # paid for, so they are saved below and this one stays unread
+                # -- which is what `unread` means and what the next pass will
+                # pick up.
+                continue
+            # Folded here and not inside `read_gesture`, and after the cascade
+            # and not before it. The fold reads the recorded gestures of this
+            # stream, which is a thing only this loop holds; and `already`
+            # therefore caches the unfolded answer, so a reading reused under a
+            # piece of evidence gets THIS gesture's fold rather than inheriting
+            # the first one's.
+            intent = with_recent_values(intent, gesture, _gestures_before(ordered, gesture))
+            await uow.gestures.save_intent(intent)
+            # Committed a group at a time, not once at the end: a pass that
+            # dies later has already been billed for these, and a rollback
+            # would leave them unread and ask -- and pay -- for them again.
+            # So the next gesture of this stream is read against what this one
+            # said, exactly as the rig's per-gesture query was.
+            intents[gesture.id] = intent
+            written += 1
+            saved += 1
+        if saved:
+            # Only when there is something to make durable. A group whose every
+            # call raised has staged nothing, and committing it anyway is a
+            # round trip to Postgres that says nothing -- visible, because
+            # `FakeUnitOfWork.commits` is a number a test can read and the
+            # per-reading commit rule is worth keeping legible.
+            await uow.commit()
+
+        if failure is not None:
+            # Loudly, and only after the group's paid-for readings are durable.
+            # Swallowing it would turn a broken deployment into a pass that
+            # quietly reads nothing every night.
+            raise failure
     return written
+
+
+def _groups(rows: Sequence[Gesture], size: int) -> Iterator[Sequence[Gesture]]:
+    for start in range(0, len(rows), size):
+        yield rows[start : start + size]
+
+
+async def _ask_group(
+    asked: list[tuple[Gesture, bytes | None, str | None]],
+    *,
+    already: dict[str, Intent],
+    asker: Asker,
+    model: str,
+    tail: Callable[[Gesture], list[Intent]],
+) -> tuple[dict[str, Intent], BaseException | None]:
+    """Every distinct question in this group, asked once and all at once.
+
+    Nothing in here touches the unit of work, which is the whole reason the
+    group may go out together: `read_gesture` takes a gesture, an image and a
+    port, and the port is an HTTP client. The session work -- the pictures
+    before, the saves after -- stays one at a time around it.
+
+    Distinct is the operative word, and it is why this deduplicates WITHIN the
+    group as well as against `already`. Two gestures carrying the same evidence
+    that happened to land in the same batch would otherwise both be asked, and
+    the cascade's rate would become a function of where the batch boundaries
+    fell -- which is not a property of the evidence and not a number anybody
+    could act on.
+
+    Returns what came back and the first exception if there was one. Not
+    raised here: the answers that did come back have been paid for, and a
+    raise on the way out of this function would discard them unsaved.
+    """
+    questions: dict[str | None, tuple[Gesture, bytes | None]] = {}
+    for gesture, image, key in asked:
+        if key is None:
+            # With a tail there is no shared question -- every gesture trails
+            # a different one -- so it is keyed by itself and the group is one.
+            questions[gesture.id] = (gesture, image)
+        elif key not in already:
+            # Keyed by the evidence, so two gestures carrying the same bytes
+            # collapse to one entry here and are asked once. WHICH of them is
+            # the one asked does not matter -- the key covers the image too, so
+            # it is the same question either way -- but the reading that comes
+            # back is stamped with that gesture's id, and every other sharer
+            # needs it re-stamped with its own. See below.
+            questions[key] = (gesture, image)
+
+    async def one(
+        key: str | None, gesture: Gesture, image: bytes | None
+    ) -> tuple[str | None, Intent]:
+        return key, await read_gesture(
+            gesture, tail=tail(gesture), asker=asker, model=model, image=image
+        )
+
+    done = await asyncio.gather(
+        *(one(key, gesture, image) for key, (gesture, image) in questions.items()),
+        return_exceptions=True,
+    )
+
+    failure: BaseException | None = None
+    fresh: dict[str | None, Intent] = {}
+    for result in done:
+        if isinstance(result, BaseException):
+            failure = failure or result
+            continue
+        key, intent = result
+        fresh[key] = intent
+
+    answers: dict[str, Intent] = {}
+    for gesture, _, key in asked:
+        answered = (
+            already.get(key) if key in already else fresh.get(gesture.id if key is None else key)
+        )
+        if answered is None:
+            # This one's own call raised. Every other member of the group is
+            # unaffected, and this gesture stays unread.
+            continue
+        if key is not None:
+            already.setdefault(key, answered)
+        # Re-stamped unless this IS the gesture that was asked, and the test is
+        # the id rather than the order it was met in. Ordering was what stood
+        # in for this, and it held only while the asked gesture happened to be
+        # the first sharer the loop reached; it stopped holding the moment the
+        # dict kept the last. What went wrong was not subtle and was invisible
+        # in every unit test: the answer carried the asked gesture's id, so it
+        # was SAVED under that id for all of them -- one gesture written twice,
+        # the other never written, and the never-written one read and billed
+        # again on the next pass. A real 164-gesture pass reported 169 readings
+        # for 164 rows, which is how it was found.
+        if answered.gesture_id != gesture.id:
+            answered = _reread(answered, gesture)
+        answers[gesture.id] = answered
+    return answers, failure
 
 
 def _same_evidence(gesture: Gesture, image: bytes | None) -> str:
@@ -407,6 +534,7 @@ class ReadGestures:
         cap_usd: float,
         blobs: BlobStore | None = None,
         tail_size: int = TAIL,
+        at_once: int = 1,
     ) -> None:
         self._uow = uow
         self._asker = asker
@@ -415,6 +543,7 @@ class ReadGestures:
         self._cap_usd = cap_usd
         self._blobs = blobs
         self._tail_size = tail_size
+        self._at_once = at_once
 
     async def execute(self, ctx: RequestContext) -> int:
         # Before the session is opened: neither refusal needs a database, and
@@ -435,4 +564,5 @@ class ReadGestures:
                 cap_usd=self._cap_usd,
                 blobs=self._blobs,
                 tail_size=self._tail_size,
+                at_once=self._at_once,
             )

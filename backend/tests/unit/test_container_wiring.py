@@ -143,6 +143,21 @@ def test_a_deployment_reads_each_gesture_against_nothing_by_default(
     assert container.read_gestures()._tail_size == 8
 
 
+def test_a_deployment_reads_a_group_of_gestures_at_a_time(container: Container) -> None:
+    """And the container has to hand the width over too.
+
+    Same failure as the tail's: `read_new_gestures` defaults `at_once` to 1,
+    so a composition root that forgets this argument is a deployment that
+    reads one gesture at a time for ever, with nothing red anywhere and the
+    setting sitting in `Settings` looking configured.
+    """
+    assert container.settings.gemini_read_at_once == 8
+    assert container.read_gestures()._at_once == 8
+
+    container.settings.gemini_read_at_once = 3
+    assert container.read_gestures()._at_once == 3
+
+
 def test_the_container_builds_serve_shapes_from_its_own_parts(
     container: Container, uow: FakeUnitOfWork
 ) -> None:

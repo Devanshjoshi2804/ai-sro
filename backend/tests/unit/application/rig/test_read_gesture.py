@@ -542,15 +542,28 @@ async def test_a_gesture_is_read_against_what_its_streams_last_readings_said() -
 
 
 async def _one_stream(tenant: TenantId, how_many: int) -> tuple[FakeUnitOfWork, list[Gesture]]:
-    """`how_many` gestures of one stream, each a different question.
+    """`how_many` gestures of one stream, each a genuinely different question.
 
-    Different on purpose: the `at` is what tells them apart, and `trim` carries
-    it, so no two of these hash alike and the cascade below never fires by
-    accident in a test that is about something else.
+    Each types a different value, and that is load-bearing rather than
+    decoration. An earlier version of this helper varied only `id` and `at` and
+    said so in its docstring -- "the `at` is what tells them apart, and `trim`
+    carries it". `trim` does not carry `at`, or `id`, or `stream_id`: it shows
+    the model the kind, the target, the typed value, the url, the host, the
+    calls and the page marks. So those gestures were all ONE question, the
+    cascade answered eight of them with a single call, and a test written to
+    watch eight calls go out watched one.
     """
     uow = FakeUnitOfWork()
     first = _gestures(tenant.value)[0]
-    day = [replace(first, id=f"ges_{n:03d}", at=first.at + n) for n in range(how_many)]
+    day = [
+        replace(
+            first,
+            id=f"ges_{n:03d}",
+            at=first.at + n,
+            action=replace(first.action, value=f"ACME-{n:04d}"),
+        )
+        for n in range(how_many)
+    ]
     await uow.gestures.add_gestures(tuple(day))
     return uow, day
 
@@ -809,6 +822,185 @@ async def test_a_reading_reused_from_the_cascade_gets_its_own_fold() -> None:
     elsewhere = {seen.field for seen in filed["ges_save_elsewhere"].values_seen}
     assert "here" in here and "elsewhere" not in here
     assert "elsewhere" in elsewhere and "here" not in elsewhere
+
+
+class _Counts:
+    """An asker that records how many calls were in flight at once."""
+
+    def __init__(self, answers: list[Answer]) -> None:
+        self.answers = list(answers)
+        self.live = 0
+        self.most = 0
+        self.asked = 0
+
+    async def ask(self, **_: object) -> Answer:
+        self.live += 1
+        self.most = max(self.most, self.live)
+        # Two hops, so a gather that really is concurrent has every coroutine
+        # past the first await before any of them returns. One hop is enough
+        # today and would stop being enough the moment `read_gesture` grew a
+        # second await before the call.
+        await asyncio.sleep(0)
+        await asyncio.sleep(0)
+        self.live -= 1
+        self.asked += 1
+        return self.answers[self.asked - 1]
+
+
+async def test_with_no_tail_a_group_of_readings_goes_out_together() -> None:
+    """The whole point of dropping the tail, and the thing it was blocking.
+
+    Not a wall-clock assertion -- a unit test cannot measure the network -- but
+    the property underneath one: several calls in flight at the same moment.
+    A loop that awaits each reading before starting the next never has two.
+    """
+    uow, day = await _one_stream(TENANT, 8)
+    asker = _Counts([_answer() for _ in day])
+
+    await read_new_gestures(
+        uow,
+        tenant_id=TENANT,
+        asker=asker,
+        model=MODEL,
+        now=NOW,
+        cap_usd=NO_CAP,
+        tail_size=0,
+        at_once=4,
+    )
+
+    assert asker.asked == len(day)
+    assert asker.most == 4
+
+
+async def test_a_tail_is_read_one_at_a_time_however_wide_the_batch() -> None:
+    """With a tail, each reading is an input to the next one's prompt.
+
+    So `at_once` is not a knob that can be turned here: two readings in flight
+    together means the second was asked without the first, which is the one
+    thing the tail exists to prevent. The loop narrows the group to 1 rather
+    than trusting a caller to know that.
+    """
+    uow, day = await _one_stream(TENANT, 6)
+    asker = _Counts([_answer(act=f"did {n}") for n in range(len(day))])
+
+    await read_new_gestures(
+        uow,
+        tenant_id=TENANT,
+        asker=asker,
+        model=MODEL,
+        now=NOW,
+        cap_usd=NO_CAP,
+        tail_size=8,
+        at_once=4,
+    )
+
+    assert asker.asked == len(day)
+    assert asker.most == 1
+
+
+async def test_the_same_evidence_inside_one_group_is_still_asked_once() -> None:
+    """The cascade deduplicates WITHIN a group, not only against earlier ones.
+
+    Otherwise the hit rate becomes a function of where the batch boundaries
+    happened to fall -- two identical gestures in one group both asked, the
+    same two split across groups asked once -- which is not a property of the
+    evidence and not a number anybody could act on.
+    """
+    uow = FakeUnitOfWork()
+    first = _gestures(TENANT.value)[0]
+    twins = tuple(replace(first, id=f"ges_twin_{n}") for n in range(4))
+    await uow.gestures.add_gestures(twins)
+    asker = FakeAsker(_answer())
+
+    written = await read_new_gestures(
+        uow,
+        tenant_id=TENANT,
+        asker=asker,
+        model=MODEL,
+        now=NOW,
+        cap_usd=NO_CAP,
+        tail_size=0,
+        at_once=4,
+    )
+
+    assert written == 4
+    assert len(asker.asked) == 1
+    filed = await uow.gestures.intents_for(TENANT)
+    assert sum(1 for intent in filed if intent.cost_usd == 0) == 3
+
+
+async def test_every_sharer_of_one_answer_is_filed_under_its_own_id() -> None:
+    """A reading is stamped with the id of the gesture that was ASKED.
+
+    So every other gesture sharing that evidence needs it re-stamped, and the
+    test for that has to be the id rather than the order the sharers were met
+    in. Ordering stood in for this and held only while the asked gesture
+    happened to be the first sharer the loop reached.
+
+    What it cost when that stopped holding: the answer was saved under the
+    asked gesture's id for all of them, so one gesture was written twice and
+    the others never written at all -- and a gesture with no intent row is by
+    definition unread, so the next pass asked about it and paid again. A real
+    164-gesture pass reported **169** readings against 164 rows, which is the
+    only place this showed. Every unit test was green, because a count of
+    calls and a count of rows both come out right; it is WHICH rows that was
+    wrong.
+    """
+    uow = FakeUnitOfWork()
+    first = _gestures(TENANT.value)[0]
+    twins = tuple(replace(first, id=f"ges_twin_{n}") for n in range(4))
+    await uow.gestures.add_gestures(twins)
+    asker = FakeAsker(_answer())
+
+    written = await read_new_gestures(
+        uow,
+        tenant_id=TENANT,
+        asker=asker,
+        model=MODEL,
+        now=NOW,
+        cap_usd=NO_CAP,
+        tail_size=0,
+        at_once=4,
+    )
+
+    filed = await uow.gestures.intents_for(TENANT)
+    assert {intent.gesture_id for intent in filed} == {gesture.id for gesture in twins}
+    assert written == len(filed) == 4
+    # Nothing is left unread, so a second pass asks -- and pays -- for nothing.
+    assert await uow.gestures.unread(TENANT, limit=100) == ()
+    assert len(asker.asked) == 1
+    # Exactly one of the four carries the bill; the other three are arithmetic.
+    assert sum(1 for intent in filed if intent.cost_usd > 0) == 1
+
+
+async def test_one_call_raising_does_not_lose_what_the_rest_of_its_group_paid_for() -> None:
+    """A group is several calls, and one of them can die on its own.
+
+    The old loop awaited one reading at a time, so a raise meant everything
+    before it was already committed. A batch has to do that deliberately: the
+    answers that came back were billed, so they are saved and committed BEFORE
+    the exception goes up. Raised first, a group of eight would throw away
+    seven paid-for readings and ask for them again next pass.
+    """
+    uow, _day = await _one_stream(TENANT, 4)
+    asker = _Collapses(after=3)
+
+    with pytest.raises(RuntimeError):
+        await read_new_gestures(
+            uow,
+            tenant_id=TENANT,
+            asker=asker,
+            model=MODEL,
+            now=NOW,
+            cap_usd=NO_CAP,
+            tail_size=0,
+            at_once=4,
+        )
+
+    assert len(await uow.gestures.intents_for(TENANT)) == 3
+    assert uow.commits == 1
+    # And the one that died is still unread, so the next pass asks about it.
+    assert len(await uow.gestures.unread(TENANT, limit=100)) == 1
 
 
 async def test_a_thin_gesture_is_asked_about_with_its_real_picture() -> None:

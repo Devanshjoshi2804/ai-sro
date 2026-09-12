@@ -449,6 +449,7 @@ class Container:
             cap_usd=self.settings.daily_usd_cap,
             blobs=self.blobs,
             tail_size=self.settings.gemini_read_tail,
+            at_once=self.settings.gemini_read_at_once,
         )
 
     def read_chat(self) -> ReadChat:

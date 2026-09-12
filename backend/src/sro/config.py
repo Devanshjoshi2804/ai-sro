@@ -377,6 +377,27 @@ class Settings(BaseSettings):
     A deployment that later finds something to do with `continues` should --
     that is the one field this pays for."""
 
+    gemini_read_at_once: int = 8
+    """How many gestures one reading pass asks about at the same time.
+
+    Only reachable with `gemini_read_tail` at 0, and the loop enforces that by
+    reading one at a time whenever a tail is configured: with one, each reading
+    is an input to the next, so they cannot be in flight together by
+    definition. Dropping the tail is what makes the question askable at all.
+
+    Eight, and the ceiling is somebody else's quota rather than anything here.
+    A burst that trips a rate limit measures the rate limit; a burst large
+    enough to matter also puts that many calls on the bill before the day's cap
+    can be looked at again, which is checked once per pass and not per gesture.
+    Eight is comfortably inside the measured quota and still removes seven
+    eighths of the waiting.
+
+    Only the model calls go out together. The pictures are fetched before and
+    the readings saved after, one at a time, because both of those go through
+    the unit of work -- and a `AsyncSession` held by two coroutines at once is
+    the kind of failure that passes every test and corrupts a connection in
+    production."""
+
     daily_usd_cap: float = 5.0
     """What one day of model calls may cost before the rig stops asking:
     readings, mining passes, runs and the chat door, summed.

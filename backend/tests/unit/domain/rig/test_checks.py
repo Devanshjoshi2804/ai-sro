@@ -11,7 +11,7 @@ watching itself, and a sign-in chain read as the start of a job -- plus the two
 real jobs each half of the transit rule exists to keep.
 """
 
-from sro.domain.observation.gesture import Action, Gesture, PageMark
+from sro.domain.observation.gesture import Action, Call, Gesture, PageMark
 from sro.domain.observation.window import Packed, Window, pack
 from sro.domain.skill.checks import (
     K_MAX_SKEW,
@@ -405,3 +405,98 @@ def test_a_system_that_bounced_nobody_is_not_a_hop_through_however_early_it_come
 
     assert work_only(job, evidence, ours=OURS) is None
     assert job.systems == [MAIL, WMS]
+
+
+IDENTITY = "https://blueyonderalphaus.b2clogin.com"
+KEYCLOAK = "https://keycloak-service-exec-wms-keycloak-prod.us.live.external.byp.ai"
+
+
+def _credential(gesture_id: str, system: str) -> Gesture:
+    """Typing a password, as the recorder marks it: the value is struck and
+    the gesture carries `secret`."""
+    return Gesture(
+        id=gesture_id,
+        tenant="new",
+        stream_id="str_1",
+        batch_id="bat_1",
+        at=0.0,
+        url=f"{system}/login",
+        system=system,
+        tab_id=1,
+        frame_url=None,
+        action=Action(kind="type", at=0.0, secret=True),
+    )
+
+
+def _wrote_here(gesture_id: str, system: str) -> Gesture:
+    """A gesture that saved something back to the system it happened on."""
+    return Gesture(
+        id=gesture_id,
+        tenant="new",
+        stream_id="str_1",
+        batch_id="bat_1",
+        at=0.0,
+        url=f"{system}/page",
+        system=system,
+        tab_id=1,
+        frame_url=None,
+        action=Action(kind="click", at=0.0),
+        requests=[Call(method="POST", url=f"{system}/data/save", status=200)],
+    )
+
+
+def test_a_job_that_is_only_signing_in_is_not_a_job() -> None:
+    """`Sign In to WMS`, mined off the real `new` store by the first pass that
+    ever ran over real readings: three steps on two identity hosts, no
+    parameters, and it would have been offered to an operator as work.
+
+    The transit rule cannot reach it. That one strikes a system the job
+    carried on FROM, and this job never carries on anywhere -- its last
+    gesture is on the identity host, so the hop stands as if it were the work.
+    """
+    job, evidence = _job(
+        _gesture("ges_1", IDENTITY, left_for=(KEYCLOAK,)),
+        _credential("ges_2", KEYCLOAK),
+        _gesture("ges_3", KEYCLOAK),
+        systems=[IDENTITY, KEYCLOAK],
+    )
+
+    rejection = work_only(job, evidence, ours=OURS)
+
+    assert rejection is not None
+    assert rejection.reason == "not a job"
+
+
+def test_a_warehouse_job_that_sets_a_password_is_still_a_job() -> None:
+    """The other half of the rule, and the reason a credential alone does not
+    condemn a system: setting a password for a new user is real warehouse
+    work, and it types one. What separates it is that the WMS also took the
+    write."""
+    job, evidence = _job(
+        _credential("ges_1", WMS),
+        _wrote_here("ges_2", WMS),
+        systems=[WMS],
+    )
+
+    assert work_only(job, evidence, ours=OURS) is None
+    assert job.systems == [WMS]
+
+
+def test_a_job_that_signs_in_and_then_does_the_work_is_kept() -> None:
+    """The third signal, which nothing else here was pinning.
+
+    A credential and a redirect together still describe plenty of real work:
+    an operator signs in, the browser moves them on, and then they do the job.
+    What separates that from `Sign In to WMS` is whether anything was ever
+    written back -- so removing the write check must break a test, and before
+    this one it did not.
+    """
+    job, evidence = _job(
+        _credential("ges_1", KEYCLOAK),
+        _gesture("ges_2", KEYCLOAK, left_for=(WMS,)),
+        _wrote_here("ges_3", WMS),
+        systems=[KEYCLOAK, WMS],
+    )
+
+    assert work_only(job, evidence, ours=OURS) is None
+    assert WMS in job.systems

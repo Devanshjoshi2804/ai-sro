@@ -187,6 +187,39 @@ def _passed_through(gesture: Gesture) -> bool:
     return any(mark.url and _origin(mark.url) not in ("", here) for mark in gesture.page_events)
 
 
+_WROTE_METHODS = frozenset({"POST", "PUT", "PATCH"})
+
+
+def _signed_in_here(gesture: Gesture) -> bool:
+    """Whether this gesture put a credential into the page.
+
+    The recorder marks the password itself rather than the page around it, so
+    this is the one fact about signing in that needs no list of hostnames --
+    and a list is exactly what `work_only` below declined to keep, on the
+    grounds that every customer runs an SSO nobody here has heard of.
+    """
+    target = gesture.action.target
+    return bool(gesture.action.secret or (target is not None and target.secret))
+
+
+def _did_business(gesture: Gesture) -> bool:
+    """Whether this gesture wrote something to the system it happened on.
+
+    A sign-in posts credentials to its identity provider, so "wrote something"
+    on its own would call an identity host a working one. Same-origin is what
+    separates them: signing in sends you somewhere else, and doing the job
+    writes back to the page you are on.
+    """
+    here = _origin(gesture.system or "")
+    return any(
+        call.status is not None
+        and 200 <= call.status < 300
+        and call.method.upper() in _WROTE_METHODS
+        and _origin(call.url) == here
+        for call in gesture.requests
+    )
+
+
 def work_only(
     workflow: Workflow, gestures: dict[str, Gesture], *, ours: frozenset[str]
 ) -> Rejection | None:
@@ -197,7 +230,9 @@ def work_only(
     it, host and port, no path -- a workflow's system is a scheme and a host
     and has no path to route on.
 
-    Two things are struck, and both were mined off the real acme store:
+    Three things are struck. The first two were mined off the real acme
+    store; the third off `new`, by the first pass that ever ran over real
+    readings:
 
     **This product's own console.** `Review Video Recordings for Teach Task`
     is the miner watching somebody use SRO while capture was on. `admit`
@@ -218,6 +253,12 @@ def work_only(
     the WMS in two stored jobs, and is never struck because Gmail bounces
     nobody anywhere.
 
+    **A job that is only signing in.** `Sign In to WMS` is three steps on an
+    identity host and nothing else. The transit rule cannot reach it, and the
+    credential the recorder already marks is what names it without keeping a
+    list of hostnames. Refused rather than struck, because the claim is about
+    the job and not about one of its systems -- see the comment below.
+
     What it wrongly strikes, said plainly: a job whose last act on one system
     is a hand-off link into another it never returns from -- raise it in the
     ticketing system, follow the link into the WMS, finish there. Real work on
@@ -237,6 +278,43 @@ def work_only(
         for system, index in last.items()
         if system and index < len(order) - 1 and system in bounced
     }
+
+    # A job that is only signing in. The transit rule above cannot reach this
+    # one: it strikes a system the job carried on FROM, and a job that is only
+    # a sign-in never carries on anywhere -- its last gesture is on the
+    # identity host, so `index < len(order) - 1` is false and the hop stands as
+    # if it were the work.
+    #
+    # `Sign In to WMS` is what that let through, mined off the real `new` store
+    # by the first pass that ever ran over real readings: three steps on
+    # `b2clogin.com` and a keycloak host, no parameters, and it would have been
+    # offered to an operator as a job worth automating.
+    #
+    # Asked of the whole job rather than of one system, because that is the
+    # claim -- not "this host is a doorway" but "nothing here was work". All
+    # three halves are needed and each saves a job the others would lose:
+    #
+    # - a credential alone condemns the WMS itself on the day somebody mines
+    #   setting a password for a new user, which is real warehouse work;
+    # - no writes alone condemns every read-only job, and looking things up is
+    #   most of what an operator does;
+    # - a redirect alone condemns an honest hand-off, which `work_only` already
+    #   says plainly it does not want to strike.
+    #
+    # Together they say: a password was typed, the browser moved the operator,
+    # and nothing was ever written back. That is signing in, and it needs no
+    # list of identity hostnames -- which this function declined to keep, on
+    # the grounds that every customer runs an SSO nobody here has heard of.
+    if (
+        any(_signed_in_here(gesture) for gesture in cited)
+        and any(_passed_through(gesture) for gesture in cited)
+        and not any(_did_business(gesture) for gesture in cited)
+    ):
+        return Rejection(
+            workflow.title,
+            "not a job",
+            "a credential was typed, the browser moved on, and nothing was written",
+        )
 
     kept = [
         system

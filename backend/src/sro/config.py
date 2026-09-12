@@ -10,8 +10,6 @@ from urllib.parse import urlsplit
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from sro.domain.observation.reading import TAIL
-
 
 def _git_head() -> str:
     """The commit the working tree is on, asked once at import of the settings.
@@ -336,24 +334,31 @@ class Settings(BaseSettings):
     recorded either way -- which is what the rest of the rig already knows how
     to carry."""
 
-    gemini_read_tail: int = TAIL
+    gemini_read_tail: int = 0
     """How many previous readings each gesture is read against.
 
-    `reading.TAIL` is the default, so out of the box this changes nothing.
-    Set to 0 and two things happen, both measured on one real 164-gesture day:
+    Zero. `reading.TAIL` is what this used to be, and the tail was carried for
+    one stated purpose -- deciding `continues` -- which nothing consumes:
+    `mining_pass` does not contain the word and `window.as_evidence` leaves it
+    out of what the miner is shown. That alone is not a reason to drop it, so
+    it was measured instead, three arms over the same 95 real gestures against
+    hand-labelled ground truth.
 
-    - Readings stop depending on each other, so identical evidence is answered
-      once instead of once per gesture. **25.6%** of that day was a repeat of
-      evidence already read; with a tail it is **0.0%**, because every gesture
-      trails a different eight and so no two questions are ever the same.
-    - The wording of most readings changes. `act` and `object` differed on 76%
-      of gestures and six more readings called themselves `low` -- but scored
-      against hand-labelled ground truth the facts did not move, and the whole
-      contribution of the tail was two body fields out of 111.
+    What the tail cost: 86 prompt tokens per gesture, 15.6% of the bill, and
+    the serial order itself -- each reading waiting on the one before it, so a
+    day could not be read in parallel and identical evidence could not be
+    answered once. **25.6%** of a real 164-gesture day is a repeat of evidence
+    already read; with a tail it is **0.0%**, because every gesture trails a
+    different eight and so no two questions are ever the same.
 
-    Not flipped by default because "the wording moved on three gestures in
-    four" is the kind of thing a customer notices, and the number that
-    justifies flipping it is theirs to measure, on their own evidence."""
+    What the tail bought: two body-field hits out of 111. Typed value, entity
+    and verb were unchanged. Dropping it moved the WORDING of `act` and
+    `object` on 76% of gestures and left six more readings calling themselves
+    `low`, which is worth knowing and is not the same as being wrong.
+
+    Set it back to 8 to get the old behaviour exactly, `SRO_GEMINI_READ_TAIL=8`.
+    A deployment that later finds something to do with `continues` should --
+    that is the one field this pays for."""
 
     daily_usd_cap: float = 5.0
     """What one day of model calls may cost before the rig stops asking:

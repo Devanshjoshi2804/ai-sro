@@ -124,6 +124,25 @@ def test_the_container_builds_the_phase_three_use_cases(
     assert vars(restore) == {"_uow": uow}
 
 
+def test_a_deployment_reads_each_gesture_against_nothing_by_default(
+    container: Container,
+) -> None:
+    """The tail is off, and the setting is what turns it back on.
+
+    Two halves, and the suite was green without either. `Settings` decides the
+    number -- the tail was carried to decide `continues`, which nothing reads,
+    and measured against hand-labelled ground truth it bought two body fields
+    out of 111 for 15.6% of the bill and the serial order itself. And the
+    container has to actually hand it over: defaulted away here, every
+    deployment would quietly go on paying for eight.
+    """
+    assert container.settings.gemini_read_tail == 0
+    assert container.read_gestures()._tail_size == 0
+
+    container.settings.gemini_read_tail = 8
+    assert container.read_gestures()._tail_size == 8
+
+
 def test_the_container_builds_serve_shapes_from_its_own_parts(
     container: Container, uow: FakeUnitOfWork
 ) -> None:

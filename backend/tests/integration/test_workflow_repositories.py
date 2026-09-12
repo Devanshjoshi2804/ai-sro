@@ -574,13 +574,23 @@ class TestTheMiningPass:
             "title": "create a work operation",
             "narrative": "n",
             "systems": [gestures[0].system],
+            # Two steps, because `validate` refuses anything shorter than
+            # `identity.K_MIN_SHARED_STEPS` and this probe needs the workflow
+            # to reach the SAVE, where the oversized `same_as` kills the
+            # statement. Both cite the same gesture, so nothing else moves.
             "steps": [
                 {
                     "order": 0,
                     "cites": [gestures[0].id],
                     "says": "do it",
                     "system": gestures[0].system,
-                }
+                },
+                {
+                    "order": 1,
+                    "cites": [gestures[0].id],
+                    "says": "save it",
+                    "system": gestures[0].system,
+                },
             ],
             # Longer than the column, which is what kills the statement.
             "same_as": "wfl_" + "0" * 100,

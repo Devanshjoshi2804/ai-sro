@@ -347,3 +347,60 @@ def test_a_201_that_never_returned_is_not_the_call_to_prefer() -> None:
 
     call = recorded_call(step, {gesture.id: gesture})
     assert call is not None and call.url.endswith("/api/live")
+
+
+def test_a_keep_alive_that_landed_seconds_later_is_not_this_gestures_call() -> None:
+    """The page's own host is not enough: a session keep-alive and a telemetry
+    batch are POSTs on the warehouse's own origin, and reading one as the
+    step's write made a run withhold, park and then demand a read-back of a
+    step that only types into a field. Four steps across both real stores were
+    classified that way, three of them on the warehouse host.
+    """
+    gesture = copy.deepcopy(next(g for g in _gestures() if g.requests))
+    assert gesture.at is not None
+    gesture.requests = [
+        _call(
+            method="POST",
+            url=f"{HOST}/refs/data/api/v1/rp/admin/sessionKeepAlive",
+            request_id="alive",
+            started_at=gesture.at + 8.118,
+            status=200,
+        )
+    ]
+    step = Step(order=0, says="type a name", system=None, cites=[gesture.id])
+
+    assert recorded_call(step, {gesture.id: gesture}) is None
+    assert not writes(step, {gesture.id: gesture})
+
+
+def test_the_write_the_click_caused_is_still_this_gestures_call() -> None:
+    """The slowest real create in either store left its handler 59ms after the
+    gesture. The rule has to keep every one of them: a write read as chatter is
+    a write a dry run would send."""
+    gesture = copy.deepcopy(next(g for g in _gestures() if g.requests))
+    assert gesture.at is not None
+    gesture.requests = [
+        _call(
+            method="POST",
+            url=f"{HOST}/data/WM/wm/customerTypes",
+            request_id="save",
+            started_at=gesture.at + 0.059,
+            status=201,
+        )
+    ]
+    step = Step(order=0, says="save", system=None, cites=[gesture.id])
+
+    call = recorded_call(step, {gesture.id: gesture})
+    assert call is not None and call.url.endswith("/customerTypes")
+
+
+def test_a_call_at_no_time_at_all_is_not_shown_to_be_uncaused() -> None:
+    """The opposite of `confirming_read`, and for the same reason. There the
+    claim is "after the write", so an untimed call cannot support it. Here the
+    claim is "the gesture did not cause this", so an untimed call cannot
+    support that either -- and the mistake this way round sends a write."""
+    gesture = copy.deepcopy(next(g for g in _gestures() if g.requests))
+    gesture.requests = [_call(method="POST", url=f"{HOST}/api/orders", started_at=None)]
+    step = Step(order=0, says="save", system=None, cites=[gesture.id])
+
+    assert writes(step, {gesture.id: gesture})

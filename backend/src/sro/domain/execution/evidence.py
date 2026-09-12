@@ -21,6 +21,36 @@ from sro.domain.skill.workflow import Step, Workflow
 
 _UNTARGETED = frozenset({"scroll"})
 
+K_CAUSED_S = 0.5
+"""How long after a gesture a call the gesture caused can still start.
+
+A browser dispatches a request from the event handler, so a call the operator
+caused starts in the same instant they acted. A page's background traffic runs
+on its own timer and lands on whatever gesture happened to be open when it
+fired. Measured over every same-origin mutating call in both real stores, the
+two populations do not touch:
+
+    every real create   0.016s to 0.059s after its gesture
+    every chatter call  0.667s to 8.118s after its gesture
+
+-- 18 real calls under 60ms, 12 chatter calls over 660ms, and nothing between.
+The threshold sits an order of magnitude above the slowest real one and still
+below the fastest piece of chatter.
+
+It is deliberately generous, because the two mistakes do not cost the same. A
+chatter call read as a write makes a run withhold and park a step that changes
+nothing -- wasteful. A write read as chatter makes a dry run SEND it. So the
+rule only excludes a call it can show was not caused: a call whose start time
+the recorder never captured is kept, which is the opposite of `confirming_read`
+and for the same reason -- there, "after the write" is the claim being made, so
+an untimed call cannot support it; here, "not caused by the gesture" is the
+claim, so an untimed call cannot support that either.
+
+ponytail: one constant, no per-host calibration. A page that saves on a
+debounce longer than this would look like chatter, and the fix then is the
+debounce's own length, not a cleverer rule.
+"""
+
 CREATED = 201
 """What a create came back with, on every real one in both stores, and what no
 chatter endpoint returned. See `recorded_call`, which prefers such a call over
@@ -137,6 +167,13 @@ def unperformable(
     return None
 
 
+def _caused_by(gesture: Gesture, call: Call) -> bool:
+    """Whether this gesture is what made this call. See `K_CAUSED_S`."""
+    if call.started_at is None or gesture.at is None:
+        return True
+    return abs(call.started_at - gesture.at) <= K_CAUSED_S
+
+
 def recorded_call(step: Step, by_id: Mapping[str, Gesture]) -> Call | None:
     """The call this step's evidence made: a mutation that came back `CREATED`
     if there is one, else the first mutation, else the first call at all. What
@@ -157,8 +194,8 @@ def recorded_call(step: Step, by_id: Mapping[str, Gesture]) -> Call | None:
     `play.google.com/log`, 44 to assorted `*-pa.clients6.google.com`, 6 from
     the WMS to its sign-in host. So this costs nothing that any operator did.
 
-    **It does not finish the job, and not only on Gmail.** A page's own origin
-    makes chatter too, and the warehouse host is no exception -- which an
+    **Same origin does not finish the job, and not only on Gmail.** A page's own
+    origin makes chatter too, and the warehouse host is no exception -- which an
     earlier draft of this docstring got wrong by counting its mutating calls
     and calling them work. Counted by how many DISTINCT gestures fire each
     same-origin mutating endpoint:
@@ -181,16 +218,17 @@ def recorded_call(step: Step, by_id: Mapping[str, Gesture]) -> Call | None:
     field. A dry run withholds them, a live run parks them on a person, and
     `verify` asks for a read-back that a keep-alive can never satisfy.
 
-    What is NOT true is that the evidence is missing. The table above is
-    computed from what this rig already stores, and it separates chatter from
-    work everywhere except the 3-to-4 band, where `logstreamz` (chatter) sits
-    beside `workAreas` and `workOperations` (real). A frequency threshold alone
-    would therefore be wrong on real jobs, so none is written here: what is
-    missing is a rule, not the material for one, and a fragile one would be
-    worse than this honest ceiling.
+    That table is what `K_CAUSED_S` answers, and frequency is not how. The
+    table separates chatter from work everywhere except the 3-to-4 band, where
+    `logstreamz` (chatter) sits beside `workAreas` and `workOperations` (real),
+    so a threshold on it would be wrong on real jobs. What does separate them
+    completely is WHEN the call starts: a write leaves the event handler in the
+    same instant the operator acted, and a timer's traffic does not. Of the 13
+    steps this used to classify as writes, the 4 chatter ones are now correctly
+    not writes, and the 9 that remain are every real create in both stores.
 
-    The response status is a sharper signal than any of that, and half of it is
-    safe to act on. Across both stores every real create came back 201 --
+    The response status agrees with that reading, and half of it is safe to act
+    on as well. Across both stores every real create came back 201 --
     `customerTypes`, `equipmentTypes`, `workAreas`, `workOperations`,
     `carrierCrossReferences`, `activityCodes` -- and no chatter endpoint ever
     did: `sessionKeepAlive`, `webPerformanceEntries/batch`, Gmail's `sync/u/*`
@@ -218,6 +256,8 @@ def recorded_call(step: Step, by_id: Mapping[str, Gesture]) -> Call | None:
         origin = origin_of(gesture)
         for request in gesture.requests:
             if origin is not None and system_of(request.url) != origin:
+                continue
+            if not _caused_by(gesture, request):
                 continue
             if request.method.upper() not in READ_METHODS:
                 mutations.append(request)

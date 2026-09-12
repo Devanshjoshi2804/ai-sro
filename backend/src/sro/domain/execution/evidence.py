@@ -150,12 +150,39 @@ def recorded_call(step: Step, by_id: Mapping[str, Gesture]) -> Call | None:
     Measured over both real corpora, 719 gestures: of 360 mutating calls, 144
     are cross-origin and every one of them is third-party -- 75 to
     `play.google.com/log`, 44 to assorted `*-pa.clients6.google.com`, 6 from
-    the WMS to its sign-in host. The real warehouse host's 79 mutating calls
-    are ALL same-origin, so this costs nothing on the system the work happens
-    on. It does not finish the job: Gmail also makes 136 same-origin mutating
-    calls of its own (`/sync/u/0/i/fd`), so a Gmail step that fires one is
-    still read as a write. Separating a SPA's own sync traffic from the
-    operator's write needs evidence this rig does not record.
+    the WMS to its sign-in host. So this costs nothing that any operator did.
+
+    **It does not finish the job, and not only on Gmail.** A page's own origin
+    makes chatter too, and the warehouse host is no exception -- which an
+    earlier draft of this docstring got wrong by counting its mutating calls
+    and calling them work. Counted by how many DISTINCT gestures fire each
+    same-origin mutating endpoint:
+
+        16  POST mail.google.com/mail/u/*/
+        15  POST mail.google.com/sync/u/*/i/s
+        14  POST <wms>/refs/data/api/v1/rp/admin/sessionKeepAlive
+         9  POST mail.google.com/sync/u/*/i/fd
+         8  POST <wms>/data/WM/wm/webPerformanceEntries/batch
+         4  POST <wms>/data/WM/wm/customerTypes          <- real
+         3  POST <wms>/data/WM/wm/workAreas              <- real
+         1  POST <wms>/data/WM/wm/equipmentTypes         <- real
+
+    A session keep-alive and a performance-telemetry batch are POSTs on the
+    warehouse's own host, and `recorded_call` returns them. Measured against
+    the stored jobs: of 13 steps this classifies as writes, **4 are chatter and
+    3 of those 4 are on the WMS** -- `new`'s `Create a Warehouse Equipment
+    Type` has its step 5 read as a write by `sessionKeepAlive` and its step 6
+    by `webPerformanceEntries/batch`, and both of those steps only type into a
+    field. A dry run withholds them, a live run parks them on a person, and
+    `verify` asks for a read-back that a keep-alive can never satisfy.
+
+    What is NOT true is that the evidence is missing. The table above is
+    computed from what this rig already stores, and it separates chatter from
+    work everywhere except the 3-to-4 band, where `logstreamz` (chatter) sits
+    beside `workAreas` and `workOperations` (real). A frequency threshold alone
+    would therefore be wrong on real jobs, so none is written here: what is
+    missing is a rule, not the material for one, and a fragile one would be
+    worse than this honest ceiling.
     """
     reads: list[Call] = []
     for cited in step.cites:

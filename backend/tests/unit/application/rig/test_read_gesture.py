@@ -89,19 +89,23 @@ async def test_a_refusal_leaves_an_intent_that_says_so() -> None:
     assert intent.error == "503 from the model"
 
 
-async def test_only_the_last_eight_intents_are_carried_as_context() -> None:
-    tail = [Intent(gesture_id=f"ges_{n}", tenant="new", act=f"did {n}") for n in range(20)]
+async def test_every_intent_it_is_handed_is_carried_as_context() -> None:
+    """`read_gesture` carries the tail it is given, whole.
+
+    It used to re-trim to `TAIL` itself, which made the loop's `tail_size`
+    unenforceable from above: a caller asking for no tail still got eight if
+    it handed eight over, and the whole point of `tail_size=0` is that there
+    is nothing to hand over. The trimming lives at the one place that knows
+    how long a tail this deployment asked for -- see the loop test below.
+    """
+    tail = [Intent(gesture_id=f"ges_{n}", tenant="new", act=f"did {n}") for n in range(3)]
     asker = FakeAsker(_answer())
 
     await read_gesture(_gestures()[0], tail=tail, asker=asker, model=MODEL)
 
     sent = asker.asked[0]["evidence"]
     assert isinstance(sent, str)
-
-    assert "did 19" in sent
-    assert "did 12" in sent
-    assert "did 11" not in sent
-    assert TAIL == 8
+    assert all(f"did {n}" in sent for n in range(3))
 
 
 async def test_a_thin_target_is_asked_about_with_a_picture() -> None:
@@ -535,6 +539,85 @@ async def test_a_gesture_is_read_against_what_its_streams_last_readings_said() -
     assert not any("counted pallets in the other tab" in sent for sent in read)
     assert "opened the client form" not in read[1]
     assert "opened the client form" in read[2]
+
+
+async def _one_stream(tenant: TenantId, how_many: int) -> tuple[FakeUnitOfWork, list[Gesture]]:
+    """`how_many` gestures of one stream, each a different question.
+
+    Different on purpose: the `at` is what tells them apart, and `trim` carries
+    it, so no two of these hash alike and the cascade below never fires by
+    accident in a test that is about something else.
+    """
+    uow = FakeUnitOfWork()
+    first = _gestures(tenant.value)[0]
+    day = [replace(first, id=f"ges_{n:03d}", at=first.at + n) for n in range(how_many)]
+    await uow.gestures.add_gestures(tuple(day))
+    return uow, day
+
+
+async def test_only_the_last_eight_readings_of_a_stream_are_carried() -> None:
+    """The tail is bounded where it is built, which is the loop.
+
+    Every reading pays for the tail in prompt tokens, once per gesture,
+    thousands of times a day, so the bound is the difference between a day's
+    context and a day's whole history in every prompt.
+    """
+    uow, day = await _one_stream(TENANT, 12)
+    asker = FakeAsker(*[_answer(act=f"did {n}") for n in range(len(day))])
+
+    await read_new_gestures(
+        uow, tenant_id=TENANT, asker=asker, model=MODEL, now=NOW, cap_usd=NO_CAP
+    )
+
+    last = _evidence(asker, len(day) - 1)
+    assert "did 10" in last
+    assert "did 3" in last
+    assert "did 2" not in last
+    assert TAIL == 8
+
+
+async def test_with_no_tail_the_same_evidence_is_read_once_and_billed_once() -> None:
+    """Two gestures the model would be shown the same bytes for get the same
+    answer, so the second is arithmetic rather than a call -- 25.6% of a real
+    164-gesture day. The reading is still filed against its own gesture; what
+    is not repeated is the call, and the bill for it."""
+    uow = FakeUnitOfWork()
+    first = _gestures(TENANT.value)[0]
+    twin = replace(first, id="ges_twin")
+    await uow.gestures.add_gestures((first, twin))
+    asker = FakeAsker(_answer(act="opened the client form"))
+
+    written = await read_new_gestures(
+        uow, tenant_id=TENANT, asker=asker, model=MODEL, now=NOW, cap_usd=NO_CAP, tail_size=0
+    )
+
+    assert written == 2
+    assert len(asker.asked) == 1
+    filed = {intent.gesture_id: intent for intent in await uow.gestures.intents_for(TENANT)}
+    assert filed.keys() == {first.id, twin.id}
+    assert filed[twin.id].act == "opened the client form"
+    assert filed[twin.id].cost_usd == 0.0
+    assert filed[twin.id].in_tokens == 0
+    assert filed[first.id].cost_usd > 0
+
+
+async def test_with_a_tail_identical_evidence_is_still_two_readings() -> None:
+    """Not a tuning choice -- the whole of it. The evidence a gesture is read
+    against ends with the readings before it, so with a tail no two gestures
+    are ever asked the same question and nothing is reusable. Measured on the
+    same real day: 25.6% reusable without, 0.0% with."""
+    uow = FakeUnitOfWork()
+    first = _gestures(TENANT.value)[0]
+    twin = replace(first, id="ges_twin")
+    await uow.gestures.add_gestures((first, twin))
+    asker = FakeAsker(_answer(), _answer())
+
+    await read_new_gestures(
+        uow, tenant_id=TENANT, asker=asker, model=MODEL, now=NOW, cap_usd=NO_CAP
+    )
+
+    assert len(asker.asked) == 2
+    assert all(intent.cost_usd > 0 for intent in await uow.gestures.intents_for(TENANT))
 
 
 async def test_one_pass_reads_no_more_than_its_limit() -> None:

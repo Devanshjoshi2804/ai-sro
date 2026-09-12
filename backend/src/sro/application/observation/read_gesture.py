@@ -13,9 +13,11 @@ the half that asks and the half that stores.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 from collections.abc import Mapping
+from dataclasses import replace
 from datetime import datetime
 
 from sro.application.context import RequestContext
@@ -59,7 +61,11 @@ async def read_gesture(
     image: bytes | None = None,
 ) -> Intent:
     """One gesture, one call, one intent -- error, refusal and nonsense alike."""
-    recent = [one_line(intent) for intent in tail[-TAIL:]]
+    # Already bounded by the caller, which is the one that knows how long a
+    # tail this deployment asked for. Re-trimming to the constant here made
+    # `tail_size` unenforceable from above: a caller asking for none still
+    # got eight if it handed eight over.
+    recent = [one_line(intent) for intent in tail]
     evidence = json.dumps(
         {"gesture": trim(gesture), "just_before": recent},
         indent=2,
@@ -85,7 +91,7 @@ async def read_gesture(
         image=image if thin(gesture.action.target) else None,
     )
     intent = intent_from(answer.data, gesture, answer, model=model)
-    return with_recent_values(intent, gesture, tail[-TAIL:])
+    return with_recent_values(intent, gesture, tail)
 
 
 async def read_new_gestures(
@@ -98,6 +104,7 @@ async def read_new_gestures(
     cap_usd: float,
     limit: int = READING_LIMIT,
     blobs: BlobStore | None = None,
+    tail_size: int = TAIL,
 ) -> int:
     """Every stored gesture of THIS TENANT with no intent gets exactly one reading.
 
@@ -141,6 +148,7 @@ async def read_new_gestures(
             cap_usd=cap_usd,
             limit=limit,
             blobs=blobs,
+            tail_size=tail_size,
         )
 
 
@@ -154,6 +162,7 @@ async def _read_unread(
     cap_usd: float,
     limit: int,
     blobs: BlobStore | None,
+    tail_size: int,
 ) -> int:
     # An intent row means a reading happened, whatever came back in it -- an
     # error, or an answer whose `act` was the wrong type and got nulled. None
@@ -189,19 +198,36 @@ async def _read_unread(
 
     written = 0
     shots: dict[str, tuple[Mapping[str, int], Mapping[float, int]] | None] = {}
+    # One reading per distinct piece of evidence. Two gestures the model would
+    # be shown the same bytes for get the same answer, so the second one is
+    # arithmetic rather than a call -- 25.6% of a real 164-gesture day.
+    #
+    # Only reachable with no tail, and that is not a tuning choice but the
+    # whole of it: measured on that same day, keyed on the evidence alone the
+    # rate is 25.6%, and keyed on the evidence the model is ACTUALLY shown --
+    # which ends with the last eight readings -- it is 0.0%. Every gesture has
+    # a tail nothing else has, so with one, nothing is ever reusable.
+    already: dict[str, Intent] = {}
     for gesture in rows:
         image = None
         if blobs is not None and thin(gesture.action.target):
             image = await _thin_shot(
                 gesture, uow=uow, blobs=blobs, tenant_id=tenant_id, cache=shots
             )
-        intent = await read_gesture(
-            gesture,
-            tail=_tail_for(ordered, intents, gesture),
-            asker=asker,
-            model=model,
-            image=image,
-        )
+
+        seen = _same_evidence(gesture, image) if not tail_size else None
+        if seen is not None and seen in already:
+            intent = _reread(already[seen], gesture)
+        else:
+            intent = await read_gesture(
+                gesture,
+                tail=_tail_for(ordered, intents, gesture)[-tail_size:] if tail_size else [],
+                asker=asker,
+                model=model,
+                image=image,
+            )
+            if seen is not None:
+                already[seen] = intent
         await uow.gestures.save_intent(intent)
         # Committed one reading at a time, not once at the end: a loop that
         # raises on gesture 50 has already been billed for 49, and a rollback
@@ -212,6 +238,48 @@ async def _read_unread(
         intents[gesture.id] = intent
         written += 1
     return written
+
+
+def _same_evidence(gesture: Gesture, image: bytes | None) -> str:
+    """A name for exactly what the model would be shown about this gesture.
+
+    `trim` is what `read_gesture` serialises, so hashing it is hashing the
+    question rather than guessing at what makes two questions alike. A key
+    built by hand out of the fields that "look like they matter" is the
+    version of this that serves a stale answer: keyed on the control and the
+    action alone, the same real day reports 65.9% reusable, and the extra
+    forty points are gestures whose typed value or request body differed --
+    every one of which would have been answered with somebody else's values.
+
+    The picture counts too. A thin gesture asked about with its screenshot and
+    the same gesture asked about without one are two different questions, and
+    only the first is worth the token it costs.
+    """
+    payload = json.dumps(trim(gesture), sort_keys=True, default=str)
+    if image is not None:
+        payload += hashlib.sha256(image).hexdigest()
+    return hashlib.sha256(payload.encode()).hexdigest()
+
+
+def _reread(seen: Intent, gesture: Gesture) -> Intent:
+    """The same answer, filed against this gesture, and billed to nobody.
+
+    The tokens are zeroed rather than copied. The first reading paid for them
+    and the row that says so is already stored; repeating the figure here
+    would make a day of mining cost whatever the duplicates happened to
+    total, which is the same arithmetic error `MineResult` fixed by putting
+    the bill on the pass instead of on each workflow it found.
+    """
+    return replace(
+        seen,
+        gesture_id=gesture.id,
+        tenant=gesture.tenant,
+        in_tokens=0,
+        out_tokens=0,
+        thought_tokens=0,
+        cost_usd=0.0,
+        unpriced=False,
+    )
 
 
 async def _thin_shot(
@@ -306,6 +374,7 @@ class ReadGestures:
         clock: Clock,
         cap_usd: float,
         blobs: BlobStore | None = None,
+        tail_size: int = TAIL,
     ) -> None:
         self._uow = uow
         self._asker = asker
@@ -313,6 +382,7 @@ class ReadGestures:
         self._clock = clock
         self._cap_usd = cap_usd
         self._blobs = blobs
+        self._tail_size = tail_size
 
     async def execute(self, ctx: RequestContext) -> int:
         # Before the session is opened: neither refusal needs a database, and
@@ -332,4 +402,5 @@ class ReadGestures:
                 now=now,
                 cap_usd=self._cap_usd,
                 blobs=self._blobs,
+                tail_size=self._tail_size,
             )

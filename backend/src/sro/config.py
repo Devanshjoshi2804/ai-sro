@@ -277,13 +277,43 @@ class Settings(BaseSettings):
     transcription_enabled: bool = False
     """Narration transcription is optional. Default binding is NullTranscriber."""
 
-    mining_sweep_seconds: float = 900.0
-    """How often a day's observation is mined for tasks worth automating.
+    mining_sweep_seconds: float = 0.0
+    """How often a day's observation is mined for tasks worth automating, or 0
+    to leave it to a deliberate call.
 
-    A loop rather than a schedule, for the same reason as the session keeper: it
-    holds no state worth replaying and a missed sweep is corrected by the next
-    one. Mining is idempotent -- an episode already recorded is not counted
-    twice -- so the only cost of running it often is reading blobs."""
+    **This is the PRE-RIG miner, and it is off by default.**
+    `MineObservations` clusters `observations` into `task_candidates` with no
+    model in the loop; `mining_pass.mine` reads `gestures` and writes
+    `workflows`, and is the path this deployment runs on. Neither reads the
+    other's tables.
+
+    Off because the sweep does not stop at noticing. `worker.mine_lately` runs
+    `LearnWhatRepeats` straight after it, which teaches every candidate seen
+    `WORTH_OFFERING` times with nobody asked -- the console's "Learn this one"
+    is a manual trigger for something that already happens on its own. The
+    admission rule learned this deployment's own origins in `cfdb7e4` and
+    no console candidate has appeared since 2026-09-01, but nothing filters a
+    third party's traffic, and the sweep went on running: of the nine skills
+    taught across both tenants by 2026-09-12, **four are not work.** Two are
+    `POST sync/u/*/i/s` -- Gmail's background synchronisation endpoint, learned
+    on both tenants -- and two are `POST */candidates/*/teach`, this console's
+    own Learn button, which the system watched somebody press and decided was
+    a task somebody keeps doing here. On tenant `new`, 28 of 46 candidates are
+    Google beacons titled as though each were a job: `Create u`, `Create fd`,
+    `Create bv`, `Create perftrace`.
+
+    Nothing is lost by leaving it off. Mining is idempotent by construction --
+    an episode already recorded is not counted twice, so mining a window again
+    changes nothing -- and `observations` keep arriving from ingest either way.
+    A deliberate pass over any window can still be run at any time, which is
+    exactly what the phase 7 precondition in
+    `docs/new-agent-doc-arc/two-miners-one-day.md` asks for and has not had:
+    both miners over one shared day. Set a positive number to run the sweep
+    again.
+
+    A loop rather than a schedule, when it does run, for the same reason as the
+    session keeper: it holds no state worth replaying and a missed sweep is
+    corrected by the next one."""
 
     mining_window_hours: int = 24
     """How far back each sweep looks. Wider than the interval on purpose:

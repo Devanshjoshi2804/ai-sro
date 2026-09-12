@@ -85,6 +85,15 @@ async def mine_lately(container: Container, every_seconds: float, window_hours: 
     episode already recorded is skipped, so running it often is only the price
     of reading the evidence again.
     """
+    if every_seconds <= 0:
+        # The pre-rig miner, left to a deliberate call. `Settings`' own field
+        # carries the whole argument; the short of it is that this sweep
+        # teaches what it notices without asking anybody, and four of the nine
+        # skills it has taught are Gmail's sync endpoint or this console's own
+        # Learn button. Returning rather than looping so the task finishes and
+        # the worker is not holding a coroutine that will never do anything.
+        logger.info("the observation miner is off (mining_sweep_seconds=0)")
+        return
     while True:
         await asyncio.sleep(every_seconds)
         since = datetime.now(UTC) - timedelta(hours=window_hours)

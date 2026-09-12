@@ -226,3 +226,43 @@ def test_a_step_that_never_sent_anything_is_not_read_as_a_write() -> None:
     did."""
     proofs = [_proof(f"run_{i}", wrote={1}, verified={1}) for i in range(K_EARNED_RUNS)]
     assert earned_from(proofs) is True
+
+
+def test_a_beacon_beside_the_write_names_no_status_the_write_came_back_with() -> None:
+    """The set is the replayed endpoint's, not the cited gesture's.
+
+    Four steps across both real tenants fire a 201 create AND a 200 keep-alive
+    or telemetry batch on the same gesture -- acme's `Create a Customer Type`
+    steps 1 and 6, its `Create an Activity Code` step 7, and `new`'s `Create a
+    Customer Type` step 5. Taking every mutating call gave `{200, 201}` there,
+    so a replayed create that came back 200 would be held by rung 1 of `verify`
+    on a performance beacon's status code, with the read-back never asked.
+    """
+    saver = _saver()
+    write = replace(next(r for r in saver.requests if r.method == "POST"), status=201)
+    saver.requests = [
+        write,
+        Call(
+            method="POST",
+            url="http://127.0.0.1:63319/data/WM/wm/webPerformanceEntries/batch",
+            request_id="beacon",
+            started_at=_LATER,
+            status=200,
+        ),
+    ]
+
+    assert expected_statuses(_step(saver), {saver.id: saver}) == {201}
+
+
+def test_the_same_endpoint_twice_names_both_statuses_it_gave() -> None:
+    """Narrowing to one endpoint is not narrowing to one call: a job whose
+    evidence saved twice, once created and once accepted, is verified against
+    both, and neither reading is the browser's background traffic."""
+    saver = _saver()
+    write = next(r for r in saver.requests if r.method == "POST")
+    saver.requests = [
+        replace(write, status=201),
+        replace(write, request_id="again", started_at=_LATER, status=202),
+    ]
+
+    assert expected_statuses(_step(saver), {saver.id: saver}) == {201, 202}

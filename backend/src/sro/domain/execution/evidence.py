@@ -21,6 +21,11 @@ from sro.domain.skill.workflow import Step, Workflow
 
 _UNTARGETED = frozenset({"scroll"})
 
+CREATED = 201
+"""What a create came back with, on every real one in both stores, and what no
+chatter endpoint returned. See `recorded_call`, which prefers such a call over
+a sibling on the same step."""
+
 READ_METHODS = ("GET", "HEAD", "OPTIONS")
 """The methods that change nothing. One copy, because "does this step write?"
 and "is this the read that confirms the write?" have to be the same question --
@@ -133,9 +138,9 @@ def unperformable(
 
 
 def recorded_call(step: Step, by_id: Mapping[str, Gesture]) -> Call | None:
-    """The call this step's evidence made: the first mutation, else the first
-    call at all. What `http.send` would replay, and what `verify` reads an
-    expected status from.
+    """The call this step's evidence made: a mutation that came back `CREATED`
+    if there is one, else the first mutation, else the first call at all. What
+    `http.send` would replay, and what `verify` reads an expected status from.
 
     Only calls on the gesture's OWN origin. A page's third-party traffic is not
     what the operator did, and reading it as the step's write is what stopped
@@ -183,8 +188,29 @@ def recorded_call(step: Step, by_id: Mapping[str, Gesture]) -> Call | None:
     would therefore be wrong on real jobs, so none is written here: what is
     missing is a rule, not the material for one, and a fragile one would be
     worse than this honest ceiling.
+
+    The response status is a sharper signal than any of that, and half of it is
+    safe to act on. Across both stores every real create came back 201 --
+    `customerTypes`, `equipmentTypes`, `workAreas`, `workOperations`,
+    `carrierCrossReferences`, `activityCodes` -- and no chatter endpoint ever
+    did: `sessionKeepAlive`, `webPerformanceEntries/batch`, Gmail's `sync/u/*`
+    and `mail/u/*`, `logstreamz`, `waa` and `perftrace` answer 200 or 204.
+
+    Only half, because the converse does not hold. A real UPDATE returns 200
+    too, so "not 201, therefore chatter" would tell a dry run that an edit is
+    safe to send unwithheld -- a write must fail safe, and that reading fails
+    the wrong way. `writes` is therefore still method-only.
+
+    What IS safe is the preference above: among this step's same-origin
+    mutating calls, a 201 is picked over its siblings. It is still a mutation,
+    so nothing a dry run withheld stops being withheld, and on the four steps
+    that record both -- acme's `Create a Customer Type` steps 1 and 6, its
+    `Create an Activity Code` step 7, `new`'s `Create a Customer Type` step 5
+    -- it picks the create over the keep-alive by rule rather than by the luck
+    of which one the browser happened to fire first.
     """
     reads: list[Call] = []
+    mutations: list[Call] = []
     for cited in step.cites:
         gesture = by_id.get(cited)
         if gesture is None:
@@ -194,8 +220,14 @@ def recorded_call(step: Step, by_id: Mapping[str, Gesture]) -> Call | None:
             if origin is not None and system_of(request.url) != origin:
                 continue
             if request.method.upper() not in READ_METHODS:
-                return request
-            reads.append(request)
+                mutations.append(request)
+            else:
+                reads.append(request)
+    for request in mutations:
+        if request.status == CREATED and not request.failure_reason:
+            return request
+    if mutations:
+        return mutations[0]
     return reads[0] if reads else None
 
 

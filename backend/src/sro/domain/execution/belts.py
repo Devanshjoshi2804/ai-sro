@@ -71,19 +71,40 @@ class StepVerdict:
 
 
 def expected_statuses(step: Step, by_id: Mapping[str, Gesture]) -> set[int]:
-    """Every status the cited evidence's mutation actually came back with.
+    """Every status the call this step replays actually came back with.
+
+    The call this step replays is `recorded_call`'s, so that endpoint is the
+    only one whose statuses mean anything here. An earlier version took every
+    mutating call on every cited gesture, which let a page's own background
+    traffic into the set a run is verified against: on four steps across both
+    real tenants -- `new`'s `Create a Customer Type` step 5, acme's steps 1 and
+    6 of the same job, and acme's `Create an Activity Code` step 7 -- the
+    evidence fires a 201 create AND a 200 keep-alive or telemetry batch, and
+    the set came out `{200, 201}`. A replayed create that came back 200 instead
+    of 201 would then be held by rung 1 of `verify` on the strength of a
+    performance beacon's status code, with the read-back and the screenshot
+    never asked. Narrowed to the replayed endpoint, those four steps give
+    `{201}` and a 200 falls through to the rest of the ladder.
+
+    Only a mutation names a status here. If this step's evidence made no write
+    the set is empty, and `verify` falls back to plain 2xx -- a GET's 204
+    counted here would teach it that 204 is what a write looks like.
 
     A request with a `failure_reason` never completed, so whatever status it
     carries is not a status the warehouse returned -- see `origin_of`, which
     learned the same thing about picking a host off a dead call.
     """
+    replayed = recorded_call(step, by_id)
+    if replayed is None or replayed.method.upper() in READ_METHODS:
+        return set()
+    method = replayed.method.upper()
     found: set[int] = set()
     for cited in step.cites:
         gesture = by_id.get(cited)
         if gesture is None:
             continue
         for request in gesture.requests:
-            if request.method.upper() in READ_METHODS:
+            if request.method.upper() != method or request.url != replayed.url:
                 continue
             if request.status is not None and not request.failure_reason:
                 found.add(request.status)

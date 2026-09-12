@@ -302,3 +302,48 @@ def test_the_pages_own_write_is_still_the_steps_write() -> None:
 
     assert writes(step, {gesture.id: gesture}), "the page's own POST is the write"
     assert call is not None and call.url.endswith("/api/equipment-types")
+
+
+def test_the_create_is_picked_over_the_beacon_beside_it() -> None:
+    """Which call gets replayed stops resting on which one fired first.
+
+    A gesture that saved a record also sent the page's telemetry batch, and
+    both are POSTs on the warehouse's own host. Four steps across both real
+    stores record exactly that pair; the create happened to come first in each,
+    so the right call was replayed by luck. `CREATED` makes it a rule.
+    """
+    gesture = copy.deepcopy(next(g for g in _gestures() if g.requests))
+    gesture.requests = [
+        _call(
+            method="POST",
+            url=f"{HOST}/data/WM/wm/webPerformanceEntries/batch",
+            request_id="beacon",
+            status=200,
+        ),
+        _call(method="POST", url=f"{HOST}/data/WM/wm/customerTypes", request_id="save", status=201),
+    ]
+    step = Step(order=0, says="save", system=None, cites=[gesture.id])
+
+    call = recorded_call(step, {gesture.id: gesture})
+    assert call is not None and call.url.endswith("/customerTypes")
+
+
+def test_a_201_that_never_returned_is_not_the_call_to_prefer() -> None:
+    """A status on a call reporting a failure is not a status the warehouse
+    gave back -- the same reading `origin_of` and `expected_statuses` make. So
+    the mutation that did come back is the one replayed."""
+    gesture = copy.deepcopy(next(g for g in _gestures() if g.requests))
+    gesture.requests = [
+        _call(method="POST", url=f"{HOST}/api/live", request_id="live", status=200),
+        _call(
+            method="POST",
+            url=f"{HOST}/api/dead",
+            request_id="dead",
+            status=201,
+            failure_reason="Failed to fetch",
+        ),
+    ]
+    step = Step(order=0, says="save", system=None, cites=[gesture.id])
+
+    call = recorded_call(step, {gesture.id: gesture})
+    assert call is not None and call.url.endswith("/api/live")

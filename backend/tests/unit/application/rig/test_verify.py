@@ -28,6 +28,7 @@ would let a model reading a picture decide what a job earns the right to write
 unasked.
 """
 
+import copy
 import json
 from collections.abc import Mapping
 from dataclasses import replace
@@ -681,3 +682,55 @@ async def test_a_picture_never_overrides_the_status_the_warehouse_itself_returne
 
         assert (verdict.state, verdict.by) == (state, "status"), status
         assert asker.asked == [], f"a picture was on the table and {status} still decided"
+
+
+async def test_a_step_that_changes_nothing_is_held_on_having_been_performed() -> None:
+    """The rung that unblocked every cross-system job this rig mines.
+
+    `new`'s `Create a Warehouse Equipment Type` opens the request in Gmail
+    before it touches the WMS, and that click's only recorded traffic is a
+    `POST` to `play.google.com/log` -- Google's telemetry beacon, on another
+    origin. So `writes` says no (after the origin fix in `recorded_call`),
+    there is no status to read, no confirming read to send, and a stub browser
+    has no screenshot. The verdict was `unclear`, `run_workflow` stops on
+    anything but `held`, and the job died on its first rung every time.
+
+    There is no state such a step could confirm. The browser reporting that it
+    performed the command and found the control is the whole of the evidence
+    it can ever have, so that is what it is held on.
+    """
+    reader = copy.deepcopy(_saver())
+    reader.requests = [
+        replace(reader.requests[0], method="POST", url="https://play.google.com/log", status=200)
+    ]
+
+    verdict = await _verify(reader, channel=FakeChannel(), values={}, origin=None)
+
+    assert (verdict.state, verdict.by) == ("held", "performed")
+    assert "changes nothing" in verdict.reason
+
+
+async def test_a_step_that_typed_something_is_never_held_on_having_been_performed() -> None:
+    """The right control and the wrong text is a failure nothing on this page
+    shows. A step that put a value somewhere is judged on the value."""
+    typing = copy.deepcopy(_saver())
+    typing.requests = [
+        replace(typing.requests[0], method="POST", url="https://play.google.com/log", status=200)
+    ]
+    typing.action = replace(typing.action, kind="type", value="DDD")
+
+    verdict = await _verify(typing, channel=FakeChannel(), values={}, origin=None)
+
+    assert verdict.state == "unclear", "typing is not held on the browser's say-so"
+
+
+async def test_evidence_that_was_never_watched_is_not_evidence_of_no_write() -> None:
+    """ "Changes nothing" and "we have no evidence either way" are different
+    claims, and only the first earns a `held`. A cited gesture whose call never
+    returned was not watched, so what it did is unknown."""
+    unwatched = copy.deepcopy(_saver())
+    unwatched.requests = [replace(unwatched.requests[0], method="GET", status=None)]
+
+    verdict = await _verify(unwatched, channel=FakeChannel(), values={}, origin=None)
+
+    assert verdict.state == "unclear"

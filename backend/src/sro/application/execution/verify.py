@@ -41,12 +41,31 @@ from sro.domain.execution.belts import (
     mentions,
     status_of,
 )
+from sro.domain.execution.evidence import writes
 from sro.domain.execution.planning import Look
 from sro.domain.observation.gesture import Gesture
 from sro.domain.shared.hosts import REDACTED
 from sro.domain.shared.identifiers import DeviceId, TenantId
 from sro.domain.skill.assertion import Assertion, AssertionKind
 from sro.domain.skill.workflow import Step
+
+
+def _was_watched(gesture: Gesture) -> bool:
+    """Whether the recorder saw this gesture's traffic complete.
+
+    A call with no status never returned, so it is not evidence of what the
+    gesture did -- the same completion guard `origin_of` and `expected_statuses`
+    already wear."""
+    return any(
+        request.status is not None and not request.failure_reason for request in gesture.requests
+    )
+
+
+_PUTS_A_VALUE = frozenset({"type", "select", "upload"})
+"""The gesture kinds that put something somewhere. A step citing one of these
+is a step that can be wrong in a way nothing else on this page would show --
+the right control, the wrong text -- so it is never held on the strength of
+"the browser did something"."""
 
 
 def check(
@@ -260,6 +279,42 @@ async def verify(
 
     # 3. Visible state: last, and least.
     if look_after.screenshot is None:
+        # Nothing to see, and for some steps nothing to have seen. A step whose
+        # own evidence carries no write and no typing changed nothing: it
+        # opened a mail, moved to a tab, followed a link. There is no state for
+        # rungs 1 and 2 to confirm and no proposition a picture could settle,
+        # so "I cannot tell" is the wrong answer -- the browser reporting that
+        # it performed the command and found the control is the whole of the
+        # evidence such a step can ever have.
+        #
+        # This matters because `run_workflow` stops on anything but `held`, and
+        # rightly: a step nobody watched succeed is one the rest of the job
+        # assumes. But every cross-system job this rig mines BEGINS with a step
+        # like this -- `new`'s `Create a Warehouse Equipment Type` opens the
+        # request in Gmail before it touches the WMS -- so an `unclear` here
+        # stopped the job on its first rung, every time, whatever came after.
+        #
+        # Last, and only with no screenshot, on purpose. Where a browser
+        # supplies one the model still looks, and a click that missed is caught
+        # there. This does not spend that check to save a model call; it
+        # answers the case where the check cannot run at all.
+        #
+        # "Changes nothing" and "we have no evidence either way" are not the
+        # same claim, and only the first earns a `held`. A step whose cited
+        # gestures recorded no completed traffic at all -- the capture missed
+        # it, or a re-mine took the evidence with it -- is the second, and it
+        # stays `unclear`. What this rung asserts is that the traffic WAS
+        # watched and none of it on the page's own origin mutated anything.
+        if (
+            not writes(step, by_id)
+            and any(_was_watched(gesture) for gesture in cited)
+            and not any(gesture.action.kind in _PUTS_A_VALUE for gesture in cited)
+        ):
+            return StepVerdict(
+                "held",
+                "performed",
+                "this step changes nothing, and the browser performed it",
+            )
         return StepVerdict(
             "unclear",
             "none",

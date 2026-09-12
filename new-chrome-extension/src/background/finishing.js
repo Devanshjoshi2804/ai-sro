@@ -12,23 +12,31 @@ import { state } from "./state.js";
  * Ask whoever drove this run how it ended, and keep the answer for the panel.
  *
  * `active` is the whole `state.activeRun()` record rather than its id, because
- * which process to ask is on it. A run the rig drove is a run the backend has
- * never heard of -- the id is the rig's own -- so asking the backend about it
- * would answer 404 forever and store nothing.
+ * which DOOR to ask is on it, and the two doors answer about different things.
+ * `source: "rig"` means a mined workflow, at `GET /v1/workflow-runs/{id}`;
+ * anything else -- including a record with no `source` at all, which is every
+ * row an older worker wrote -- means a taught skill, at `GET /v1/runs/{id}`.
+ * The two are separate resources and an id from one is a 404 at the other.
  *
- * A record with no `source` is a backend run: every row an older worker wrote
- * has none, and reading a missing field as "rig" would send all of them to a
- * rig that may not even be configured.
+ * **"rig" is a historical name and no longer a separate process.** This
+ * comment used to say a run the rig drove was one the backend had never heard
+ * of, because the rig was once its own service with its own store. It was
+ * folded into the backend, and both kinds of run now live in the same
+ * Postgres. The value on the record is left spelled `"rig"` because it is
+ * persisted in `state.activeRun()` and written by `commands.js`,
+ * `offering.js` and the worker; renaming it would strand whatever is in
+ * flight in somebody's browser. Read it as "workflow run".
  *
- * Nothing is decided here past that. `derived` and `reversal` are computed
- * against the tenant's whole skill library and only ever copied from the
- * backend's own record; the rig has neither, and a rig run's card says so by
- * having no undo on it rather than by inventing one (see `panel.js`'s
- * `finished()`).
+ * Nothing is decided here past which door. `derived` and `reversal` are
+ * computed against the tenant's whole skill library, which only the skill
+ * door has, so a workflow run's card says so by having no undo on it rather
+ * than by inventing one (see `panel.js`'s `finished()`).
  */
 export async function noteFinished(active) {
   // ponytail: `state.activeRun()` is one slot for one run -- see the note above
   // `checkFinishing()` in `service-worker.js` for the ceiling that shares.
+  // Not rig-versus-backend: both are this backend. Workflow run versus skill
+  // run, two resources behind two doors. The spelling is the persisted one.
   const source = active.source === "rig" ? "rig" : "backend";
   try {
     const run = source === "rig" ? await api.rigRun(active.runId) : await api.run(active.runId);
@@ -63,10 +71,11 @@ export async function noteFinished(active) {
     // reason to show a stale or invented card. `state.activeRun()` is left as
     // it was, so the next trigger tries again.
     //
-    // Except a rig that answered: there is no such run. The rig keeps runs in
-    // its own store and a restart takes them with it, so that answer will not
-    // change however long this browser goes on asking -- once every poll and
-    // every heartbeat for the hour it takes to age out. Nothing to show for it,
+    // Except a door that answered: there is no such run. A run this browser
+    // has an id for and the backend does not is a run that was never written
+    // or has been retained away, so that answer will not change however long
+    // this browser goes on asking -- once every poll and every heartbeat for
+    // the hour it takes to age out. Nothing to show for it,
     // so nothing is shown; asking is what stops.
     if (source === "rig" && error?.status === 404) await forget(active.runId);
     return;

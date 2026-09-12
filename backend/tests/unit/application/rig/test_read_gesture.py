@@ -820,6 +820,6 @@ async def test_the_cap_is_checked_against_the_doors_own_clock() -> None:
 
     clock.advance(3600)
 
-    assert await _door(
-        uow, asker=FakeAsker(*_answers(len(day))), clock=clock, cap_usd=5.0
-    ).execute(_ctx())
+    assert await _door(uow, asker=FakeAsker(*_answers(len(day))), clock=clock, cap_usd=5.0).execute(
+        _ctx()
+    )

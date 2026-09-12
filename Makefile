@@ -88,6 +88,9 @@ token: ## Issue a credential: make token tenant=acme principal=you [days=30]
 observe: ## Read or change a tenant's observation policy: make observe tenant=acme args="--on"
 	@$(BACKEND) uv run python -m sro.cli.observe $(or $(tenant),acme) $(args)
 
+read-gestures: ## Read each named tenant's unread gestures, once: make read-gestures tenants="acme new"
+	@$(BACKEND) uv run python -m sro.cli.read_cron $(or $(tenants),acme)
+
 types: ## Regenerate frontend API types from the backend OpenAPI document
 	$(BACKEND) uv run python -m sro.interface.http.export_openapi > ../frontend/openapi.json
 	$(FRONTEND) npm run generate:types

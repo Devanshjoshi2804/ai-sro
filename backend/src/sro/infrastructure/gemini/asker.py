@@ -63,15 +63,33 @@ def build_config(*, schema: dict[str, object], effort: Effort | None = None) -> 
     )
 
 
+K_TIMEOUT_MS = 120_000
+"""The default ceiling on one call, in milliseconds -- see
+`Settings.gemini_timeout_ms`, which is where a deployment changes it. Stated
+here as well so a caller that builds this adapter directly (a script, a
+bake-off) is bounded too rather than inheriting the SDK's no-timeout."""
+
+
 class GeminiAsker:
-    def __init__(self, api_key: str, client: Any | None = None) -> None:
-        """`client` is for tests; production passes an api_key and nothing else."""
+    def __init__(
+        self, api_key: str, client: Any | None = None, *, timeout_ms: int = K_TIMEOUT_MS
+    ) -> None:
+        """`client` is for tests; production passes an api_key and nothing else.
+
+        `timeout_ms` is passed on to the SDK because its own default is no
+        timeout, and a call with no timeout is not slow -- it is indefinite.
+        One hung socket held a reading pass for 19 hours here, having read
+        nothing and said nothing.
+        """
         if client is not None:
             self._client = client
             return
         from google import genai
+        from google.genai import types
 
-        self._client = genai.Client(api_key=api_key)
+        self._client = genai.Client(
+            api_key=api_key, http_options=types.HttpOptions(timeout=timeout_ms)
+        )
 
     async def ask(
         self,

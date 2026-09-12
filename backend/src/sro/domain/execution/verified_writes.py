@@ -49,9 +49,7 @@ def _matches_path(path: str, pattern: str) -> bool:
     )
 
 
-def verified_write_for(
-    call: Call, verified: tuple[VerifiedWrite, ...]
-) -> VerifiedWrite | None:
+def verified_write_for(call: Call, verified: tuple[VerifiedWrite, ...]) -> VerifiedWrite | None:
     """The ledger entry this call is proven under, or None.
 
     The query string is never part of the match: every entry in the ledger is

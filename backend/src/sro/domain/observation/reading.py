@@ -15,6 +15,8 @@ type is treated as unusable rather than coerced into a plausible-looking one.
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 from sro.domain.observation.gesture import Gesture, Intent, ValueSeen
 from sro.domain.observation.redaction import is_secret_name
 from sro.domain.observation.trim import is_secret
@@ -33,9 +35,14 @@ INSTRUCTIONS = """You are reading one thing a warehouse operator just did in a b
 You are given the gesture, the control it touched, the network calls it caused,
 and a few lines of what the same person did just before.
 
-Say what they did, in the words an operator would use. Name the object they were
-working on. List the values you can see them entering. Say whether this looks
-like a continuation of the previous doing.
+First say why: point at the one piece of evidence (the control's label, its
+component metadata, the request body, the picture) that tells you what
+happened. Only then name the act, in the words an operator would use, and the
+object they were working on. List the values you can see them entering. Say
+whether this looks like a continuation of the previous doing.
+
+If the evidence is thin -- an icon with no label, no field, nothing typed --
+say so in why and mark confidence low, rather than guessing at a specific act.
 
 Do not guess at a value you cannot see. Do not describe the HTML."""
 
@@ -47,7 +54,17 @@ in -- indistinguishable from a model that declined to give one."""
 
 INTENT_SCHEMA: dict[str, object] = {
     "type": "object",
+    # `why` first, and `confidence` last, because a structured answer is
+    # written left to right: the model fills these fields in this order, so
+    # this order is the order it thinks in. Asked for `act` first, it commits
+    # to a verb and then writes the sentence that defends it; asked for `why`
+    # first, it has to name the evidence -- the label, the component metadata,
+    # the request body, the picture -- before it names the act, and states a
+    # confidence with both already written down. INSTRUCTIONS asks for exactly
+    # this sequence, and a prompt that asks for one order while the schema
+    # imposes another is a prompt arguing with itself.
     "properties": {
+        "why": {"type": "string", "description": "one sentence, naming the evidence"},
         "act": {"type": "string", "description": "what the person did, in their words"},
         "object": {"type": "string", "description": "the thing they were working on"},
         "system": {"type": "string"},
@@ -62,8 +79,22 @@ INTENT_SCHEMA: dict[str, object] = {
         },
         "continues": {"type": "string", "description": "empty unless it continues the last doing"},
         "confidence": {"type": "string", "enum": _CONFIDENCE},
-        "why": {"type": "string", "description": "one sentence"},
     },
+    # Stated rather than left to the key order above. Gemini honours the dict's
+    # own order today -- measured, both with and without this field -- and
+    # `propertyOrdering` is the documented way to say so, which makes the
+    # ordering a promise of the schema rather than an accident of how Python
+    # happens to preserve insertion order through the SDK's conversion.
+    "propertyOrdering": [
+        "why",
+        "act",
+        "object",
+        "system",
+        "page",
+        "values_seen",
+        "continues",
+        "confidence",
+    ],
     "required": ["act", "why"],
 }
 
@@ -189,11 +220,22 @@ def with_recent_values(intent: Intent, gesture: Gesture, tail: list[Intent]) -> 
     Measured against a real save: the write's own POST body carried five
     submitted fields, and the model's reading of the click itself named one of
     them -- the rest were typed in the gestures just before it, each already a
-    reading sitting in `tail`. Left alone, `values.typed_values` -- the one
-    mechanism that can find a value inside another system's request body
-    without reading the body itself, see its own docstring -- sees only the
-    one field the click happened to name, and a value the operator plainly
-    carried across a system boundary is invisible to it.
+    reading sitting in `tail`. Folded in, the save says what it saved.
+
+    What this is NOT for, stated because the first version of this docstring
+    claimed it and the claim was wrong: it does not rescue a cross-system
+    value crossing. `values.shared_values` needs one value under two distinct
+    systems; `_tail_for` hands over the same stream only, so every value
+    folded here already belongs to a gesture on the same system, and the
+    crossing either existed without this or does not exist. It pushes the
+    other way if anything -- `values.frequencies_over` counts the gestures
+    carrying a value, so a save that now also carries them raises their
+    ubiquity toward the furniture threshold that suppresses a crossing. Small
+    at this corpus size, and the direction is worth knowing.
+
+    What it is for: `window.py` serialises `values_seen` into the evidence the
+    mining pass reads, and a save whose reading names one field of five is a
+    save whose evidence does not say what was submitted.
 
     Scoped to a write on purpose: folding history into every gesture would
     make an ordinary click on an empty form report values from three screens
@@ -201,6 +243,10 @@ def with_recent_values(intent: Intent, gesture: Gesture, tail: list[Intent]) -> 
     twice, the last value is the one that reached the write -- and the
     write's own reading wins over both, being the more direct evidence for
     whatever it actually named.
+
+    Returns a new `Intent` rather than editing the one handed over: the caller
+    holds the reading it just built, and a `with_` that quietly rewrites its
+    argument is the kind of surprise that costs an afternoon.
     """
     if not is_write(gesture):
         return intent
@@ -210,5 +256,7 @@ def with_recent_values(intent: Intent, gesture: Gesture, tail: list[Intent]) -> 
             merged[seen.field] = seen.value
     for seen in intent.values_seen:
         merged[seen.field] = seen.value
-    intent.values_seen = [ValueSeen(field=field, value=value) for field, value in merged.items()]
-    return intent
+    return replace(
+        intent,
+        values_seen=[ValueSeen(field=field, value=value) for field, value in merged.items()],
+    )

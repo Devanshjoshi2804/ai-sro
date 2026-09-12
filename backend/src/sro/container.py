@@ -1023,7 +1023,7 @@ def _build_asker(settings: Settings) -> Asker | None:
     their calls, read by a hosted model.
     """
     if settings.interpretation_enabled and settings.gemini_api_key:
-        return GeminiAsker(settings.gemini_api_key)
+        return GeminiAsker(settings.gemini_api_key, timeout_ms=settings.gemini_timeout_ms)
     return None
 
 

@@ -315,6 +315,25 @@ class Settings(BaseSettings):
     exactly as it does today -- deliberately, for deployments that may not send
     a customer's screen or a customer's words to a hosted model."""
 
+    gemini_timeout_ms: int = 120_000
+    """How long one model call may hang before it is abandoned.
+
+    The SDK's own default is no timeout at all, which is not a timeout anyone
+    chose -- it is the absence of one. Measured here, on a laptop whose VPN
+    came up mid-run: the TCP connection stayed ESTABLISHED to a Google address
+    while the request never completed, and a reading pass sat on that one call
+    for **19 hours** without reading a single gesture or printing a line. A
+    nightly `sro.cli.read_cron` would have done the same thing, silently, and
+    the next night's run would have found the previous one still holding on.
+
+    Two minutes, against a slowest measured call of ~11s on
+    `gemini-3.1-pro-preview`: far enough above the real distribution that a
+    slow-but-live call is never cut off, and short enough that a dead socket
+    costs one gesture rather than a night. A call that trips this comes back
+    through the asker's own `except` as an errored `Answer` -- billed or not,
+    recorded either way -- which is what the rest of the rig already knows how
+    to carry."""
+
     daily_usd_cap: float = 5.0
     """What one day of model calls may cost before the rig stops asking:
     readings, mining passes, runs and the chat door, summed.

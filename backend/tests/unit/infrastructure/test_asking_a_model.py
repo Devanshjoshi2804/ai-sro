@@ -18,7 +18,7 @@ import pytest
 from sro.application.ports.model import Asker
 from sro.application.shared.locks import one_at_a_time
 from sro.domain.shared.prices import Answer, price
-from sro.infrastructure.gemini.asker import GeminiAsker
+from sro.infrastructure.gemini.asker import K_TIMEOUT_MS, GeminiAsker
 from tests.unit.fakes import FakeAsker
 
 # The one assertion here that mypy makes and pytest cannot: the real asker
@@ -402,3 +402,33 @@ def test_the_lock_still_excludes() -> None:
     asyncio.run(both())
 
     assert order == ["a in", "a out", "b in", "b out"]
+
+
+def test_a_real_client_is_built_with_a_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The SDK's own default is no timeout, and no timeout is not a duration.
+
+    Measured: one call whose socket stayed ESTABLISHED but never answered held
+    a reading pass for 19 hours, having read nothing. `sro.cli.read_cron` runs
+    that pass nightly with nobody watching, so the ceiling is the difference
+    between one lost gesture and one lost night.
+    """
+    from google import genai
+
+    built: dict[str, Any] = {}
+
+    def _client(**kwargs: Any) -> object:
+        built.update(kwargs)
+        return object()
+
+    monkeypatch.setattr(genai, "Client", _client)
+    GeminiAsker(api_key="k", timeout_ms=90_000)
+
+    options = built.get("http_options")
+    assert options is not None, "the client was built with no http_options at all"
+    assert options.timeout == 90_000
+
+
+def test_the_timeout_is_bounded_even_for_a_caller_that_names_none() -> None:
+    """A script or a bake-off that builds this directly is bounded too, rather
+    than inheriting the SDK's indefinite wait."""
+    assert K_TIMEOUT_MS > 0

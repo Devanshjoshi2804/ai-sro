@@ -90,6 +90,35 @@ warehouse that can show its own write back — are still unproven by anything
 in this repository. `approvals` being non-zero is a fact now; `approver_is_the_driver`
 being `true` is not yet one.
 
+**Re-measured 2026-09-12. All five are paid.**
+
+```
+ t                  | count
+--------------------+-------
+ workflow_runs      |     5
+ workflow_run_steps |     4
+ approvals          |     2
+ offers             |     5
+ chats              |     2
+```
+
+`chats` was the last one, and it was empty for the reason section 8 gives
+below — nothing on this page writes it. It was filled by asking the chat door
+what it is for: two real sentences put to `ReadChat` against tenant `new` and
+its three mined workflows, on `gemini-3.8-flash`.
+
+- `"create a customer type called ACME"` matched
+  `wfl_365d0be081b9cea4e22252529b9e5cb6` — *Create Customer Type DSS* — pulled
+  `customertype-customerType = ACME` out of the sentence, and named
+  `customertype-longDescription` as the one parameter the operator had not
+  given. 805 in / 334 out / 237 thought, $0.001856.
+- `"make me a coffee"` matched nothing: `workflow_id` null, no values, nothing
+  missing. 802 in / 86 out, $0.000924.
+
+Both are rows. The refusal is billed and recorded exactly like the match,
+which is the property the reading path has everywhere else in this rig: the
+model was asked, it answered, and the row says what it said.
+
 So what phase 5 still owes, exactly: **steps 8 and 9 pressed by a person, in
 their own Chrome, against the real WMS.** Everything before them is paid.
 
@@ -542,7 +571,9 @@ The rows here and the rows on screen must be the same rows.
 **`chats` is the wrong table and this file was wrong to name it.** Nothing in a
 workflow run writes it: `chats` is written only by `application/chat/understand.py`,
 which is the reading path behind `POST /v1/chat`, and it will still be empty
-when every check on this page has passed. A run's planning calls are rows in
+when every check on this page has passed. It holds two rows as of 2026-09-12,
+and both were put there by the chat door rather than by anything here — see
+the count at the top of this file. A run's planning calls are rows in
 **`model_calls`**, and the run's own totals are on the run and its steps
 (`in_tokens`, `out_tokens`, `thought_tokens`, `cost_usd`, `unpriced`). Three dry
 runs on 2026-09-11 put 7 rows in `model_calls` and none in `chats`. The query

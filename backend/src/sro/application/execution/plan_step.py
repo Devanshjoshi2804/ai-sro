@@ -209,6 +209,44 @@ async def plan_step(
     # it is downgrading to.
     action = data.get("action") if data.get("action") in ACTIONS else primary.action.kind
     said = data.get("value")
+    # A step that was asked for a value and is about to be performed by an
+    # action that cannot carry one. `VALUED` says a click types nothing, so the
+    # value is dropped here and the command goes out carrying the locators of
+    # whatever the RECORDING clicked -- the run creates the record with the
+    # demonstrated choice, the save returns 2xx, and `verify` holds it by
+    # status. The operator asked for ENVEYO and got ConnectShip (TanData), and
+    # nothing anywhere says so.
+    #
+    # `undeliverable` exists for this failure and cannot see this route: it
+    # asks whether `value_for` would FIND the name, and here it does -- through
+    # `step.parameters` -- and the plan then throws the answer away. Nor can it
+    # be decided when the job is mined: the action is the model's to choose at
+    # plan time, so a step whose recorded gesture is a click is routinely
+    # planned as a `type` and delivers its value perfectly well. The only
+    # moment the truth is known is this one.
+    #
+    # Real, and in the store: acme's `Create a Carrier Cross Reference` is done
+    # entirely with dropdowns -- every cited gesture is a click with no value
+    # -- and declares `Carrier`, `Service Level` and `External System Name`.
+    # `StartWorkflowRun` refuses a press that leaves a declared parameter
+    # empty, so the operator is made to supply all three, and a click step
+    # cannot apply any of them.
+    #
+    # Refused rather than logged. A job that stops and says why costs an
+    # operator a minute; a job that writes the wrong carrier into a warehouse
+    # and reports success costs somebody a day finding it.
+    if action not in VALUED:
+        asked = [name for name in step.parameters if name in values]
+        if asked:
+            return Planned(
+                "none",
+                {},
+                f"step {step.order} was given {', '.join(sorted(asked))} and a "
+                f"{action} cannot carry a value: choosing from a list by value "
+                "is not implemented, and performing this step would use the "
+                "recorded choice instead of the one asked for",
+                answer,
+            )
     payload = {
         "action": action,
         # str(), because nothing validates the model's answer against the

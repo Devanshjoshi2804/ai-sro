@@ -482,14 +482,33 @@ async def _workflow(uow: FakeUnitOfWork) -> Workflow:
     return workflow
 
 
-async def _one_step(uow: FakeUnitOfWork, cite: str, says: str = "save") -> Workflow:
+async def _one_step(
+    uow: FakeUnitOfWork, cite: str, says: str = "save", *, parameters: list[str] | None = None
+) -> Workflow:
+    """One step citing one gesture.
+
+    `parameters` defaults to `["clientCode"]` because most of these steps type
+    it. Pass `[]` for a step the run performs as a CLICK: `plan_step` refuses a
+    step that was given a value and is about to be performed by an action that
+    cannot carry one, since the command would go out with the recorded
+    choice's locators and write something other than what was asked. A click
+    step declaring a value it can never apply is a step that does not exist.
+    """
     workflow = Workflow(
         id="wfl_one",
         tenant=ELSEWHERE,
         title=says,
         narrative="n",
         systems=["http://127.0.0.1:63319"],
-        steps=[Step(order=0, says=says, system=None, cites=[cite], parameters=["clientCode"])],
+        steps=[
+            Step(
+                order=0,
+                says=says,
+                system=None,
+                cites=[cite],
+                parameters=["clientCode"] if parameters is None else parameters,
+            )
+        ],
     )
     await uow.workflows.save(workflow)
     return workflow
@@ -1965,7 +1984,7 @@ async def test_the_confirming_read_goes_out_to_the_callers_own_browser_under_thi
     sent at all because the step cites evidence that performs one and the run
     supplied a value it could look for."""
     uow = await _fixture()
-    workflow = await _one_step(uow, _ids(uow)[-1])
+    workflow = await _one_step(uow, _ids(uow)[-1], parameters=[])
     channel = FakeChannel(
         {
             **_looks(2),
@@ -2101,7 +2120,7 @@ async def test_every_command_a_run_sends_names_the_caller_the_browser_and_the_ru
     browser that is not the caller's, and a command with no run on it is a
     command the extension cannot show beside the tab it is driving."""
     uow = await _fixture()
-    workflow = await _one_step(uow, _ids(uow)[-1])
+    workflow = await _one_step(uow, _ids(uow)[-1], parameters=[])
     channel = FakeChannel(
         {
             **_looks(2),
@@ -2602,7 +2621,7 @@ async def test_a_write_that_went_out_is_not_performed_a_second_time() -> None:
     sent and the server accepted, which then could not be shown to have held,
     is not that: retrying it creates the order twice."""
     uow = await _fixture()
-    workflow = await _one_step(uow, _ids(uow)[-1])
+    workflow = await _one_step(uow, _ids(uow)[-1], parameters=[])
     channel = FakeChannel({**_looks(4), "ui.perform": [_performed()]})
     asker = FakeAsker(_plan("click"), Answer(data={"held": False, "why": "no confirmation"}))
 
@@ -2618,7 +2637,7 @@ async def test_a_click_the_capture_heard_nothing_from_is_not_clicked_twice() -> 
     """`writes()` is False for a Save whose call the recorder never saw, and a
     rescue of that click submits the order a second time."""
     uow = await _fixture()
-    workflow = await _one_step(uow, _silent_click(uow), says="press Save")
+    workflow = await _one_step(uow, _silent_click(uow), says="press Save", parameters=[])
     channel = FakeChannel({**_looks(4), "ui.perform": [_performed()]})
     asker = FakeAsker(_plan("click"), Answer(data={"held": False, "why": "no confirmation"}))
 
@@ -2636,7 +2655,7 @@ async def test_a_click_that_fired_a_read_still_gets_its_rescue() -> None:
     nothing, and the write rule must not cost it its second attempt."""
     uow = await _fixture()
     await uow.gestures.add_gestures((_saw_traffic(uow),))
-    workflow = await _one_step(uow, "ges_read_click", says="open the tab")
+    workflow = await _one_step(uow, "ges_read_click", says="open the tab", parameters=[])
     channel = FakeChannel({**_looks(8), "ui.perform": [_performed()] * 2})
     asker = FakeAsker(
         _plan("click"),
@@ -2724,7 +2743,7 @@ async def test_a_dry_run_records_no_effect_even_for_a_click_it_does_send() -> No
     """`writes()` is False for a Save whose call the recorder never saw, so a
     dry run performs it -- and a dry run's evidence earns nothing."""
     uow = await _fixture()
-    workflow = await _one_step(uow, _silent_click(uow), says="press Save")
+    workflow = await _one_step(uow, _silent_click(uow), says="press Save", parameters=[])
     channel = FakeChannel({**_looks(2), "ui.perform": [_performed()]})
     asker = _PerSchemaAsker(plan=_plan("click"), verdict=Answer(data={"held": True, "why": "ok"}))
 
@@ -3065,7 +3084,7 @@ async def test_a_click_the_capture_heard_nothing_from_also_waits() -> None:
     the rescue gate already refuses to retry it. A step nobody may retry is a
     step nobody may send unasked either, so it waits for the tap too."""
     uow = await _fixture()
-    workflow = await _one_step(uow, _silent_click(uow), says="press Save")
+    workflow = await _one_step(uow, _silent_click(uow), says="press Save", parameters=[])
     channel = FakeChannel({**_looks(2), "ui.perform": [Reply(ok=True, result={"performed": True})]})
     asker = _PerSchemaAsker(plan=_plan("click"), verdict=Answer(data={"held": True, "why": "ok"}))
     approvals = Approvals()
@@ -3491,3 +3510,61 @@ async def test_the_operators_steps_are_saved_as_the_run_walks_past_them() -> Non
     assert run.outcome == "held"
     # Claimed with nothing done, the operator's step, the performed one, the finish.
     assert seen == [0, 1, 2, 2]
+
+
+async def test_a_click_cannot_apply_a_value_and_the_run_stops_rather_than_guessing() -> None:
+    """The wrong-carrier bug, refused where the truth is first known.
+
+    `VALUED` says a click types nothing, so a step planned as a click drops the
+    run's value and goes out carrying the locators of whatever the RECORDING
+    clicked. The save returns 2xx, `verify` holds it by status, and the
+    warehouse has the demonstrated choice rather than the asked-for one.
+
+    Real, and in the store: acme's `Create a Carrier Cross Reference` is done
+    entirely with dropdowns -- every cited gesture is a click with no value --
+    and declares `Carrier`, `Service Level` and `External System Name`.
+    `StartWorkflowRun` refuses a press that leaves a declared parameter empty,
+    so the operator is made to supply all three, and no click step can apply
+    one of them.
+
+    `undeliverable` cannot catch this: it asks whether `value_for` would FIND
+    the name, and it does, through `step.parameters`. Nor can the miner: the
+    action is the model's to choose at plan time, so a step whose recorded
+    gesture is a click is routinely planned as a `type` and delivers its value
+    perfectly well -- which is why the check is here and not there.
+    """
+    uow = await _fixture()
+    workflow = await _one_step(uow, _ids(uow)[-1], says="pick the carrier")
+    channel = FakeChannel({**_looks(8), "ui.perform": [_performed()]})
+    # Twice: the refusal costs the step its first rung, and the rescue plans it
+    # again on the stronger model. A click is still a click, so it refuses
+    # again -- which is the point. Nothing is ever sent.
+    asker = FakeAsker(_plan("click"), _plan("click"))
+
+    run = await _ran(
+        uow, workflow, channel=channel, asker=asker, values={"clientCode": "ENVEYO"}, earned=True
+    )
+
+    assert run.outcome == "stopped", "a value that cannot be applied stops the run"
+    reason = run.steps[0].reason or ""
+    assert "clientCode" in reason and "cannot carry a value" in reason, reason
+    assert not [s for s in channel.sent if s["kind"] == "ui.perform"], (
+        "nothing was sent: the wrong click is what this refuses, not a click that failed"
+    )
+
+
+async def test_a_click_that_was_asked_for_nothing_is_performed_as_before() -> None:
+    """The mirror, and the reason the refusal is scoped to a value the run
+    actually supplied. Every Save and every tab click in this suite is a click
+    step, and none of them takes a value -- refusing those would stop every job
+    this rig has."""
+    uow = await _fixture()
+    workflow = await _one_step(uow, _ids(uow)[-1], says="press Save", parameters=[])
+    channel = FakeChannel({**_looks(4), "ui.perform": [_performed()]})
+    asker = FakeAsker(_plan("click"), Answer(data={"held": True, "why": "it saved"}))
+
+    run = await _ran(
+        uow, workflow, channel=channel, asker=asker, values={"clientCode": "ENVEYO"}, earned=True
+    )
+
+    assert run.outcome == "held", "a click nobody asked to carry a value is just a click"

@@ -9,10 +9,14 @@ storage, no opt-out), and this process reads live customer payloads.
 
 from __future__ import annotations
 
+import asyncio
 import json
+import logging
 from typing import Any
 
 from sro.domain.shared.prices import Answer, Effort, is_priced, price
+
+logger = logging.getLogger(__name__)
 
 K_MAX_OUTPUT_TOKENS = 65536
 """What one answer may run to. A mining pass writes every workflow it found,
@@ -63,11 +67,48 @@ def build_config(*, schema: dict[str, object], effort: Effort | None = None) -> 
     )
 
 
+K_TRIES = 3
+"""How many times one call is attempted before it is recorded as failed.
+
+Only for a transient server fault -- see `_worth_retrying`. Measured: three
+mining passes over acme's 555 gestures, and **two of them died on a 504
+DEADLINE_EXCEEDED** from Google's own backend on a 154,200-token prompt. That
+is not this deployment's timeout expiring (a client timeout raises
+`httpx.ReadTimeout`, not a `ServerError` carrying a JSON body); it is the far
+end giving up on a large request. A mining prompt is two orders of magnitude
+bigger than a reading prompt, so the failure lands there and almost never on a
+reading.
+
+Three attempts and not more, because the honest position on a retry is that
+`unpriced` says it: a call that failed may already have been billed, so every
+retry risks paying twice for one answer. Two extra attempts against a 2-in-3
+failure rate is worth that; ten would not be."""
+
+K_BACKOFF_S = 2.0
+"""Waited before a retry, multiplied by the attempt number. A server that just
+gave up on a large request is a server that wants a moment."""
+
 K_TIMEOUT_MS = 120_000
 """The default ceiling on one call, in milliseconds -- see
 `Settings.gemini_timeout_ms`, which is where a deployment changes it. Stated
 here as well so a caller that builds this adapter directly (a script, a
 bake-off) is bounded too rather than inheriting the SDK's no-timeout."""
+
+
+def _worth_retrying(problem: Exception) -> bool:
+    """Whether this failure is the far end's and might not happen again.
+
+    A 5xx is the server saying it could not, which is the one class of failure
+    a second attempt can fix. A 4xx is this deployment being wrong -- a bad
+    schema, a revoked key, a quota -- and retrying it spends money to be told
+    the same thing. 429 is deliberately NOT retried here: it is the quota
+    speaking, and hammering it is how a rate limit becomes a ban.
+
+    Read off `code` rather than by catching `ServerError` by name, so an SDK
+    that renames its exceptions does not silently turn this off.
+    """
+    code = getattr(problem, "code", None)
+    return isinstance(code, int) and 500 <= code < 600
 
 
 class GeminiAsker:
@@ -115,14 +156,30 @@ class GeminiAsker:
         for more in images:
             parts.append(types.Part.from_bytes(data=more, mime_type="image/png"))
 
-        try:
-            response = await self._client.aio.models.generate_content(
-                model=model,
-                contents=parts,
-                config=build_config(schema=schema, effort=effort),
-            )
-        # Broad on purpose: a rig keeps going, and the row records why.
-        except Exception as problem:
+        problem: Exception | None = None
+        response = None
+        for attempt in range(K_TRIES):
+            try:
+                response = await self._client.aio.models.generate_content(
+                    model=model,
+                    contents=parts,
+                    config=build_config(schema=schema, effort=effort),
+                )
+                problem = None
+                break
+            # Broad on purpose: a rig keeps going, and the row records why.
+            except Exception as raised:
+                problem = raised
+                if attempt + 1 >= K_TRIES or not _worth_retrying(raised):
+                    break
+                logger.warning(
+                    "%s from the model, retrying (%d of %d)",
+                    type(raised).__name__,
+                    attempt + 2,
+                    K_TRIES,
+                )
+                await asyncio.sleep(K_BACKOFF_S * (attempt + 1))
+        if problem is not None or response is None:
             # The call may or may not have been billed before it failed, and we
             # cannot tell -- so the cost figure (0.0 here) is not to be trusted.
             return Answer(unpriced=True, error=f"{type(problem).__name__}: {problem}")

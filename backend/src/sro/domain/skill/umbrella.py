@@ -73,6 +73,14 @@ person would name -- creating a supplier, receiving a shipment, correcting a
 count. A job may span more than one system: the operator may do half of it in a
 warehouse system and half in an ERP, and those halves are still one job.
 
+Some of what you are reading may be another doing of a job listed under
+"Jobs already proven". That list is there so you can RECOGNISE work, not so
+you can skip it: report a job you have seen before exactly like any other,
+with its steps and its citations. A second doing is the only way anything here
+learns which of a job's values vary, and a doing left out is a doing nobody
+can learn from. Deciding which of your answers describe the same job is not
+your work -- report what you see and it will be worked out.
+
 An operator often does the same job several times in a row -- four customer
 types, one after another, from four emails. That is ONE job done four times.
 It is not four jobs, and it is not one job of four times the length: report it

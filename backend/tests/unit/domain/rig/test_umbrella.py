@@ -82,15 +82,26 @@ def test_the_prompt_the_model_is_given_is_the_one_the_rig_measured() -> None:
     all four doings inline and no parameters. Steps are what is always done and
     parameters are what varies, and nothing had ever said so.
 
+    And it says what the "Jobs already proven" block is FOR, which the prompt
+    handed the model with no guidance at all. Left to infer, the model treated
+    it as a list of things not to report: an acme pass over 247 gestures
+    proposed ONE job and filed **226 gestures under `unproven`**, 160 of them
+    on the warehouse host, its own readings of them saying "save new equipment
+    type", "create work operation", "create activity code". That is the work,
+    declined because a job of that name was already stored -- and a second
+    doing is the only thing `learn_parameters` can widen a parameter from, so
+    skipping repeats also starved the one mechanism that makes a job general.
+
     Changing the wording is allowed. Changing it silently is not: update this
     hash in the same commit and say why the model should read something else."""
     assert (
         hashlib.sha256(INSTRUCTIONS.encode()).hexdigest()
-        == "e52a27e7925c838febbc181165a495f31228a816fbdc547ea376a5297b26738b"
+        == "11a2435bd4d0604851d4e7b4661e3cbe660391efc1d79923c86049531dcd3195"
     )
     assert '"Create a Customer Type", never' in INSTRUCTIONS
     assert "A stretch that only looked at things goes\nunder `unproven`." in INSTRUCTIONS
     assert "That is ONE job done four times." in INSTRUCTIONS
+    assert "so you can RECOGNISE work, not so\nyou can skip it" in INSTRUCTIONS
 
 
 def test_the_schema_asks_for_the_parameter_shape_the_rest_of_the_code_reads() -> None:

@@ -18,7 +18,7 @@ import pytest
 from sro.application.ports.model import Asker
 from sro.application.shared.locks import one_at_a_time
 from sro.domain.shared.prices import Answer, price
-from sro.infrastructure.gemini.asker import K_TIMEOUT_MS, GeminiAsker
+from sro.infrastructure.gemini.asker import K_TIMEOUT_MS, K_TRIES, GeminiAsker
 from tests.unit.fakes import FakeAsker
 
 # The one assertion here that mypy makes and pytest cannot: the real asker
@@ -245,6 +245,95 @@ async def test_a_call_that_never_returned_does_not_claim_to_be_free() -> None:
     assert answer.error
     assert answer.unpriced is True
     assert answer.cost_usd == 0.0
+
+
+@pytest.fixture(autouse=True)
+def _no_waiting(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The backoff is real and this suite must not sit through it. Patched at
+    the module the asker reads it from, so the retry COUNT is still exercised
+    -- only the waiting is skipped."""
+    monkeypatch.setattr("sro.infrastructure.gemini.asker.K_BACKOFF_S", 0.0)
+
+
+class _Flaky:
+    """Fails with the given exception `times` times, then answers."""
+
+    def __init__(self, problem: Exception, times: int, answer: Any) -> None:
+        self.problem, self.left, self.answer = problem, times, answer
+        self.calls = 0
+
+    def __call__(self) -> Any:
+        self.calls += 1
+        if self.left > 0:
+            self.left -= 1
+            raise self.problem
+        return self.answer
+
+
+def _server_error(code: int) -> Exception:
+    """What the SDK raises when the far end gives up: an exception carrying an
+    HTTP `code`. Read off `code` rather than by class name, so this test does
+    not pin the SDK's own naming."""
+    problem = RuntimeError(f"{code} DEADLINE_EXCEEDED")
+    problem.code = code
+    return problem
+
+
+async def test_a_server_that_gave_up_is_asked_again() -> None:
+    """Two of three real mining passes over acme's 555 gestures died on a 504
+    DEADLINE_EXCEEDED from Google's backend on a 154,200-token prompt -- not a
+    client timeout, which raises `httpx.ReadTimeout`, but the far end giving up
+    on a large request. A mining prompt is two orders of magnitude bigger than
+    a reading prompt, so it lands there and almost never on a reading."""
+    usage = SimpleNamespace(prompt_token_count=10, candidates_token_count=5)
+    good = SimpleNamespace(text=json.dumps({"act": "typed a code"}), usage_metadata=usage)
+    flaky = _Flaky(_server_error(504), times=2, answer=good)
+    client, _ = _fake_client(flaky)
+    asker = GeminiAsker(api_key="unused", client=client)
+
+    answer = await asker.ask(
+        model="gemini-3.8-flash", instructions="i", evidence="e", schema={"type": "object"}
+    )
+
+    assert flaky.calls == 3
+    assert answer.data == {"act": "typed a code"}
+    assert answer.error is None
+    assert answer.unpriced is False
+
+
+async def test_a_refusal_this_deployment_earned_is_not_asked_again() -> None:
+    """A 4xx is this deployment being wrong -- a bad schema, a revoked key, a
+    quota -- and asking again spends money to be told the same thing. 429 is
+    deliberately in that group: it is the quota speaking, and hammering it is
+    how a rate limit becomes a ban."""
+    for code in (400, 403, 429):
+        flaky = _Flaky(_server_error(code), times=99, answer=None)
+        client, _ = _fake_client(flaky)
+        asker = GeminiAsker(api_key="unused", client=client)
+
+        answer = await asker.ask(
+            model="gemini-3.8-flash", instructions="i", evidence="e", schema={"type": "object"}
+        )
+
+        assert flaky.calls == 1, f"{code} should not be retried"
+        assert answer.error
+        assert answer.unpriced is True
+
+
+async def test_a_server_that_never_comes_back_is_recorded_as_failed_not_retried_forever() -> None:
+    flaky = _Flaky(_server_error(503), times=99, answer=None)
+    client, _ = _fake_client(flaky)
+    asker = GeminiAsker(api_key="unused", client=client)
+
+    answer = await asker.ask(
+        model="gemini-3.8-flash", instructions="i", evidence="e", schema={"type": "object"}
+    )
+
+    assert flaky.calls == K_TRIES
+    assert answer.error
+    # Still unpriced: an attempt may have been billed before it failed, and
+    # three attempts means three chances of that.
+    assert answer.unpriced is True
 
 
 async def test_gemini_asker_ask_really_routes_through_build_config() -> None:

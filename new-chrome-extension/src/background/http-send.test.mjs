@@ -76,6 +76,29 @@ test("a header name this extension has no menu entry for is unreachable", async 
   assert.equal(answer.error.kind, "unreachable");
 });
 
+test("names that only exist on Object.prototype are unreachable, not a thrown lookup", async () => {
+  // A plain `LIVE_HEADER_SOURCES[name]` lookup answers truthily for
+  // "constructor" and "__proto__" -- they are not in the menu, they are on
+  // every object there is -- and the value it finds is not a header source
+  // function, so the code past the `if (!source)` guard throws trying to
+  // call it. The menu has to be asked with `Object.hasOwn`, not indexed.
+  for (const name of ["constructor", "__proto__"]) {
+    const answer = await perform({
+      command_id: `cmd-proto-${name}`,
+      kind: "http.send",
+      payload: {
+        method: "POST",
+        url: "https://wms.example/data/WM/wm/customerTypes",
+        headers: {},
+        live_headers: [name],
+      },
+    });
+
+    assert.equal(answer.ok, false, `${name} should be refused, not thrown on`);
+    assert.equal(answer.error.kind, "unreachable");
+  }
+});
+
 test("no live_headers at all sends exactly the headers it was given", async () => {
   let sentHeaders;
   globalThis.fetch = async (_url, init) => {

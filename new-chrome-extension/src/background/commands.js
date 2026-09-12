@@ -530,7 +530,13 @@ async function httpSend(payload) {
   }
   const headers = { ...(payload.headers || {}) };
   for (const name of payload.live_headers || []) {
-    const source = LIVE_HEADER_SOURCES[name.toLowerCase()];
+    const key = name.toLowerCase();
+    // A plain `[key]` lookup also answers for `constructor`, `__proto__`,
+    // and every other name `Object.prototype` carries, each with a truthy
+    // value that is not a header source -- `hasOwn` is the only way to ask
+    // "is this actually in the menu" instead of "does this exist somewhere
+    // on the object", which a name like that would still pass.
+    const source = Object.hasOwn(LIVE_HEADER_SOURCES, key) ? LIVE_HEADER_SOURCES[key] : undefined;
     if (!source) {
       return failure("unreachable", `no live source for header ${name}`);
     }

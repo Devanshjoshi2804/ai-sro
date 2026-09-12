@@ -20,7 +20,7 @@ be clever about near misses.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from urllib.parse import urlsplit
+from urllib.parse import unquote, urlsplit
 
 from sro.domain.observation.gesture import Call
 
@@ -38,9 +38,27 @@ def _segments(path: str) -> tuple[str, ...]:
     return tuple(segment for segment in path.split("/") if segment)
 
 
+def _is_traversal_segment(segment: str) -> bool:
+    """Whether this segment, once decoded, is not really one segment at all.
+
+    `_segments` splits the RAW path on "/" before this ever runs, which is
+    exactly why a segment can still lie: `..`, `%2e%2e`, and
+    `..%2f..%2fadmin%2fwipe` are each one segment by that split, but decode
+    to `..` or to something carrying its own `/`. Blue Yonder runs on Tomcat,
+    which decodes `%2f` before it routes -- so the segment this module
+    matched as `{id}` and the segment the server actually walked to are not
+    the same string, and the gap between them is exactly a path traversal.
+    Decode once and reject anything that is not a single, literal segment.
+    """
+    decoded = unquote(segment)
+    return decoded in (".", "..") or "/" in decoded or "\\" in decoded
+
+
 def _matches_path(path: str, pattern: str) -> bool:
     path_segments, pattern_segments = _segments(path), _segments(pattern)
     if len(path_segments) != len(pattern_segments):
+        return False
+    if any(_is_traversal_segment(segment) for segment in path_segments):
         return False
     return all(
         (pattern_segment.startswith("{") and pattern_segment.endswith("}"))

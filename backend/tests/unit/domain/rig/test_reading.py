@@ -5,7 +5,7 @@ The rest of `new_agent_arch/tests/test_intents.py` lives in
 to a model.
 """
 
-from sro.domain.observation.gesture import Action, Call, Gesture, Intent, ValueSeen
+from sro.domain.observation.gesture import Action, Body, Call, Gesture, Intent, ValueSeen
 from sro.domain.observation.reading import (
     CONFIDENCE_VALUES,
     INSTRUCTIONS,
@@ -131,41 +131,50 @@ def test_a_write_folds_in_every_field_the_tail_typed() -> None:
     itself correlated with, and the fields typed just before it -- already
     readings sitting in `tail` -- are folded in rather than left off."""
     intent = Intent(
-        gesture_id="ges_save", tenant="acme", values_seen=[ValueSeen("customerType", "DSS")]
+        gesture_id="ges_save", tenant="acme", values_seen=[ValueSeen("customerType", "DSS0001")]
     )
     tail = [
-        Intent(gesture_id="ges_0", tenant="acme", values_seen=[ValueSeen("longDescription", "x")]),
+        Intent(
+            gesture_id="ges_0", tenant="acme", values_seen=[ValueSeen("longDescription", "leaning")]
+        ),
         Intent(gesture_id="ges_1", tenant="acme", values_seen=[ValueSeen("crossDockFlag", "-1")]),
     ]
+    # The body a real save sends, carrying one of the tail values: that is what
+    # earns the fold, and a keepalive or a telemetry post never does.
+    sent = _body_call('{"customerType":"DSS0001","longDescription":"leaning"}')
 
-    result = with_recent_values(intent, _gesture(requests=[_write_call()]), tail)
+    result = with_recent_values(intent, _gesture(requests=[sent]), tail)
 
     assert {seen.field: seen.value for seen in result.values_seen} == {
-        "customerType": "DSS",
-        "longDescription": "x",
+        "customerType": "DSS0001",
+        "longDescription": "leaning",
         "crossDockFlag": "-1",
     }
 
 
 def test_a_field_typed_twice_keeps_the_later_tail_value() -> None:
     tail = [
-        Intent(gesture_id="ges_0", tenant="acme", values_seen=[ValueSeen("code", "DSS")]),
-        Intent(gesture_id="ges_1", tenant="acme", values_seen=[ValueSeen("code", "DPP")]),
+        Intent(gesture_id="ges_0", tenant="acme", values_seen=[ValueSeen("code", "DSS0001")]),
+        Intent(gesture_id="ges_1", tenant="acme", values_seen=[ValueSeen("code", "DPP0002")]),
     ]
     intent = Intent(gesture_id="ges_save", tenant="acme", values_seen=[])
+    sent = _body_call('{"code":"DPP0002"}')
 
-    result = with_recent_values(intent, _gesture(requests=[_write_call()]), tail)
+    result = with_recent_values(intent, _gesture(requests=[sent]), tail)
 
-    assert [seen.value for seen in result.values_seen if seen.field == "code"] == ["DPP"]
+    assert [seen.value for seen in result.values_seen if seen.field == "code"] == ["DPP0002"]
 
 
 def test_the_reading_handed_over_is_not_the_one_rewritten() -> None:
     """`with_` names a copy. It mutated its argument in place for a while, and
     the caller holding that reading had no way to know."""
-    intent = Intent(gesture_id="ges_save", tenant="acme", values_seen=[ValueSeen("code", "DSS")])
-    tail = [Intent(gesture_id="ges_0", tenant="acme", values_seen=[ValueSeen("extra", "1")])]
+    intent = Intent(
+        gesture_id="ges_save", tenant="acme", values_seen=[ValueSeen("code", "DSS0001")]
+    )
+    tail = [Intent(gesture_id="ges_0", tenant="acme", values_seen=[ValueSeen("extra", "leaning")])]
+    sent = _body_call('{"code":"DSS0001","extra":"leaning"}')
 
-    result = with_recent_values(intent, _gesture(requests=[_write_call()]), tail)
+    result = with_recent_values(intent, _gesture(requests=[sent]), tail)
 
     assert result is not intent
     assert [seen.field for seen in intent.values_seen] == ["code"], "the argument was rewritten"
@@ -178,7 +187,71 @@ def test_the_writes_own_reading_wins_over_the_tail() -> None:
     with the tail."""
     tail = [Intent(gesture_id="ges_0", tenant="acme", values_seen=[ValueSeen("code", "STALE")])]
     intent = Intent(gesture_id="ges_save", tenant="acme", values_seen=[ValueSeen("code", "FRESH")])
+    sent = _body_call('{"code":"STALE"}')
 
-    result = with_recent_values(intent, _gesture(requests=[_write_call()]), tail)
+    result = with_recent_values(intent, _gesture(requests=[sent]), tail)
 
     assert [seen.value for seen in result.values_seen if seen.field == "code"] == ["FRESH"]
+
+
+def _body_call(text: str, *, status: int = 200, method: str = "POST") -> Call:
+    return Call(
+        method=method,
+        url="https://wms.test/data/customerTypes",
+        status=status,
+        request_body=Body(text=text, size_bytes=len(text), mime_type="application/json"),
+    )
+
+
+def _tail_with(value: str) -> list[Intent]:
+    return [Intent(gesture_id="ges_0", tenant="acme", values_seen=[ValueSeen("code", value)])]
+
+
+def test_a_save_that_sent_what_was_typed_folds_the_tail() -> None:
+    """The case the fold exists for: the form went out carrying the value."""
+    gesture = _gesture(requests=[_body_call('{"customerType":"DSS0001"}')])
+
+    result = with_recent_values(
+        Intent(gesture_id="g", tenant="acme"), gesture, _tail_with("DSS0001")
+    )
+
+    assert [seen.value for seen in result.values_seen] == ["DSS0001"]
+
+
+def test_a_keepalive_is_a_write_by_method_and_folds_nothing() -> None:
+    """Measured on one real capture: five of the fifteen gestures `is_write`
+    called writes were `sessionKeepAlive`, which sends no body at all."""
+    gesture = _gesture(
+        requests=[Call(method="POST", url="https://wms.test/sessionKeepAlive", status=200)]
+    )
+
+    assert is_write(gesture) is True
+    assert (
+        with_recent_values(
+            Intent(gesture_id="g", tenant="acme"), gesture, _tail_with("DSS0001")
+        ).values_seen
+        == []
+    )
+
+
+def test_telemetry_carries_a_body_and_still_folds_nothing() -> None:
+    """The other four: posts to `webPerformanceEntries/batch`, which is the WMS
+    uploading its own timings. A body, a 2xx, and nothing the operator typed."""
+    telemetry = '[{"perfDate":"2026-09-10T11:25:32-04:00","name":"WM.common.view","duration":69}]'
+    gesture = _gesture(requests=[_body_call(telemetry)])
+
+    result = with_recent_values(
+        Intent(gesture_id="g", tenant="acme"), gesture, _tail_with("DSS0001")
+    )
+
+    assert result.values_seen == []
+
+
+def test_a_value_too_short_to_mean_anything_does_not_earn_the_fold() -> None:
+    """`0` appears in every payload ever sent, so matching on one would hand
+    the fold straight back to the telemetry post."""
+    gesture = _gesture(requests=[_body_call('{"duration":69,"perfCount":0}')])
+
+    result = with_recent_values(Intent(gesture_id="g", tenant="acme"), gesture, _tail_with("0"))
+
+    assert result.values_seen == []

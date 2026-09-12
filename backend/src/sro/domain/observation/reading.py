@@ -20,6 +20,7 @@ from dataclasses import replace
 from sro.domain.observation.gesture import Gesture, Intent, ValueSeen
 from sro.domain.observation.redaction import is_secret_name
 from sro.domain.observation.trim import is_secret
+from sro.domain.observation.values import K_MIN_VALUE_LEN
 from sro.domain.shared.prices import Answer
 
 TAIL = 8
@@ -149,8 +150,17 @@ def intent_from(
     intent.page = _string_field(data, "page")
     # `or None`: the schema says "empty unless it continues the last doing", so
     # "" is what a model returns for most gestures. Stored verbatim it is
-    # neither a link nor an absence, and `continues` is what the mining pass
-    # walks to join gestures into one doing.
+    # neither a link nor an absence.
+    #
+    # This comment used to end "and `continues` is what the mining pass walks
+    # to join gestures into one doing", which is not true and was worth
+    # checking rather than repeating: `mining_pass` does not contain the word,
+    # and `window.as_evidence` -- the function that builds what the miner is
+    # shown -- lists `act`, `object`, `page`, `why`, `confidence` and
+    # `values_seen`, and not this. Nothing in the backend reads it. It is
+    # stored because it is cheap to store and because the day something does
+    # join a doing it will want it; it is not load-bearing today, and `TAIL`
+    # above should not be defended on its account.
     intent.continues = _string_field(data, "continues") or None
     confidence = _string_field(data, "confidence")
     intent.confidence = confidence if confidence in CONFIDENCE_VALUES else None
@@ -214,6 +224,36 @@ def is_write(gesture: Gesture) -> bool:
     )
 
 
+def _carried_any(gesture: Gesture, tail: list[Intent]) -> bool:
+    """Whether this gesture's writes actually sent something the tail names.
+
+    The test is the value, not the field name: a form posts `customerType`
+    where the label said `Customer Type`, and it is the value that survives
+    that translation intact.
+
+    Short values are ignored, on the same reasoning and the same threshold as
+    `values.K_MIN_VALUE_LEN`: `0` and `-1` appear in every payload ever sent,
+    so matching on one would hand the fold back to the telemetry post this
+    guard exists to refuse.
+    """
+    sent = "\n".join(
+        call.request_body.text
+        for call in gesture.requests
+        if call.status is not None
+        and 200 <= call.status < 300
+        and call.method.upper() in _WRITE_METHODS
+        and call.request_body is not None
+        and call.request_body.text
+    )
+    if not sent:
+        return False
+    return any(
+        seen.value and len(seen.value) >= K_MIN_VALUE_LEN and seen.value in sent
+        for prior in tail
+        for seen in prior.values_seen
+    )
+
+
 def with_recent_values(intent: Intent, gesture: Gesture, tail: list[Intent]) -> Intent:
     """A write's reading folds in the tail's values, not just its own.
 
@@ -244,11 +284,29 @@ def with_recent_values(intent: Intent, gesture: Gesture, tail: list[Intent]) -> 
     write's own reading wins over both, being the more direct evidence for
     whatever it actually named.
 
+    And scoped a second time, to a write that carried something the operator
+    recently put on screen. `is_write` asks only whether a 2xx POST, PUT or
+    PATCH left the gesture, and measured against one real capture that is far
+    too generous: of 15 gestures it called writes, **6 were saves**. The other
+    nine were the browser talking to itself -- five `sessionKeepAlive` calls
+    keeping the session warm, and four posts to `webPerformanceEntries/batch`,
+    which is the WMS uploading its own performance telemetry. An operator
+    clicking a tab header is not saving anything, and folding a form's worth
+    of values into that reading is exactly the failure the paragraph above
+    warns about, arriving through a door nobody was watching.
+
+    So the fold has to be earned: at least one value from the tail must
+    actually appear in what the write sent. A keepalive sends no body and a
+    telemetry post sends timings, so neither earns it, while a real save sends
+    the form -- and no endpoint anywhere is named to tell those apart, which
+    matters because the next customer's housekeeping endpoints will be called
+    something else entirely.
+
     Returns a new `Intent` rather than editing the one handed over: the caller
     holds the reading it just built, and a `with_` that quietly rewrites its
     argument is the kind of surprise that costs an afternoon.
     """
-    if not is_write(gesture):
+    if not is_write(gesture) or not _carried_any(gesture, tail):
         return intent
     merged: dict[str, str] = {}
     for prior in tail:

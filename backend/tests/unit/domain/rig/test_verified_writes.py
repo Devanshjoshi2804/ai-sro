@@ -59,3 +59,32 @@ def test_an_empty_ledger_verifies_nothing() -> None:
     call = _call("POST", "https://wms.example/data/WM/wm/customerTypes")
 
     assert verified_write_for(call, ()) is None
+
+
+def test_a_literal_dot_dot_segment_is_not_a_templated_match() -> None:
+    """`_segments` splits the raw path on "/" before anything decodes it, so
+    a literal `..` counts as one segment -- the same segment count as
+    `{id}` -- and without the guard it is admitted as the address the
+    server never actually walked to."""
+    call = _call("PUT", "https://wms.example/data/WM/wm/addresses/..")
+
+    assert verified_write_for(call, LEDGER) is None
+
+
+def test_a_percent_encoded_dot_dot_segment_is_not_a_templated_match() -> None:
+    """`%2e%2e` is one raw segment too, and decodes to the same `..` -- the
+    guard has to decode before it judges, not just pattern-match the raw
+    bytes."""
+    call = _call("PUT", "https://wms.example/data/WM/wm/addresses/%2e%2e")
+
+    assert verified_write_for(call, LEDGER) is None
+
+
+def test_an_encoded_slash_smuggling_a_longer_path_is_not_a_templated_match() -> None:
+    """`..%2f..%2fadmin%2fwipe` is one segment by an un-decoded split on "/",
+    but Tomcat decodes `%2f` before it routes, so the segment this matcher
+    would have called `{id}` and the path the server actually walks are two
+    different things entirely."""
+    call = _call("PUT", "https://wms.example/data/WM/wm/addresses/..%2f..%2fadmin%2fwipe")
+
+    assert verified_write_for(call, LEDGER) is None

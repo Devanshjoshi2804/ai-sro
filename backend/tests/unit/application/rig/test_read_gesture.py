@@ -609,22 +609,36 @@ async def test_a_write_gestures_reading_folds_in_the_tails_values() -> None:
         _gestures()[0],
         id="ges_save",
         action=Action(kind="click", at=1.0),
-        requests=[Call(method="POST", url="http://127.0.0.1:63319/api/save", status=201)],
+        requests=[
+            Call(
+                method="POST",
+                url="http://127.0.0.1:63319/api/save",
+                status=201,
+                # The body the save really sent. Without one this is
+                # indistinguishable from a session keepalive, which is a 2xx
+                # POST that folds nothing -- see `_carried_any`.
+                request_body=Body(
+                    text='{"code":"DSS0001","customerType":"CCD0002"}',
+                    size_bytes=43,
+                    mime_type="application/json",
+                ),
+            )
+        ],
     )
     tail = [
         Intent(
             gesture_id="ges_0",
             tenant="new",
-            values_seen=[ValueSeen(field="code", value="DSS")],
+            values_seen=[ValueSeen(field="code", value="DSS0001")],
         )
     ]
-    asker = FakeAsker(_answer(values_seen=[{"field": "customerType", "value": "CCD"}]))
+    asker = FakeAsker(_answer(values_seen=[{"field": "customerType", "value": "CCD0002"}]))
 
     intent = await read_gesture(save, tail=tail, asker=asker, model=MODEL)
 
     assert {seen.field: seen.value for seen in intent.values_seen} == {
-        "code": "DSS",
-        "customerType": "CCD",
+        "code": "DSS0001",
+        "customerType": "CCD0002",
     }
 
 

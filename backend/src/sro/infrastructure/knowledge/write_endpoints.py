@@ -51,10 +51,20 @@ def load_verified_writes(root: Path = _DEFAULT_ROOT) -> tuple[VerifiedWrite, ...
     seen: set[tuple[str, str]] = set()
     verified: list[VerifiedWrite] = []
     for entry in entries:
-        if not isinstance(entry, dict) or not entry.get("verified"):
+        if not isinstance(entry, dict) or entry.get("verified") is not True:
+            # `is not True` on purpose, not a truthiness test: this ledger is
+            # hand-edited between sessions, and the string "false" is
+            # truthy. A typo in the file must narrow what gets verified, not
+            # accidentally verify the one entry someone meant to disable.
             continue
         method, pattern = entry.get("method"), entry.get("pathPattern")
         if not isinstance(method, str) or not isinstance(pattern, str):
+            continue
+        if not pattern or not pattern.startswith("/"):
+            # An empty pattern splits to zero segments, matching every path
+            # of zero segments -- the site root -- and a pattern missing its
+            # leading slash is not a path at all, just a template fragment
+            # that happens to split the same way a real one would.
             continue
         key = (method.upper(), pattern)
         if key in seen:

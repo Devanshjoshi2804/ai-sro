@@ -675,3 +675,121 @@ the model never read and a taught skill no workflow names, and the model path
 still has 0 accepted offers against 9 taught candidates. Both of those survive
 this section untouched — the model half's own finding, above, is only that it
 proposed nothing on this corpus it had not already priced.
+
+---
+
+## What the nine agreements were agreements to — 2026-09-12
+
+The section above leaves the rule-based path's strongest card standing: **9
+candidates taught against 0 workflows accepted**. Deleting the path with nine
+agreements in favour of the path with none is exactly the decision that number
+forbids.
+
+Nobody had looked at what the nine were. Here they are, every taught candidate
+in the store, with the signature each was mined from:
+
+```
+   acme  Create a work area                     POST data/WM/wm/workAreas → GET data/WM/wm/workAreas
+   acme  Create workOperations on bf56-kms-…    POST data/WM/wm/workOperations
+   new   Create a customer type                 POST data/WM/wm/customerTypes
+   new   Create a supplier                      PUT data/WM/wm/addresses/* → POST data/WM/wm/suppliers
+   new   Create a work area                     POST data/WM/wm/workAreas
+   acme  Teach a candidate                      POST */candidates/*/teach → GET */candidates
+   acme  Create teach on localhost              POST */candidates/*/teach
+   acme  Create s on mail.google.com            POST sync/u/*/i/s
+   new   Create s on mail.google.com            POST sync/u/*/i/s
+```
+
+**Five are real warehouse work. Four are not**, and the four are not marginal
+judgement calls:
+
+* `POST sync/u/*/i/s` is Gmail's background synchronisation endpoint. It was
+  taught on **both** tenants. A person clicked a button that said *Learn this
+  one* and the system induced a Skill for making a sync request.
+* `POST */candidates/*/teach` is **this console's own Learn button**. The
+  observation path has no exclusion for the deployment's own origin — the model
+  path's `work_only` strikes it by name and has since `b2e16d0` — so the system
+  watched a person teach a candidate, decided that was a task somebody keeps
+  doing here, and learnt it. Twice, once with the follow-up `GET */candidates`
+  attached.
+
+So the score on agreements is **5 to 0, not 9 to 0**, and two of the four
+discarded are the product learning to operate itself.
+
+### The census the earlier sections could not supply
+
+*What this does not prove* said "it cannot say a dropped candidate was correctly
+dropped", and that stands for a judgement like `Update addresses`. It does not
+stand for origin, which is a fact about the host and the signature. Every
+candidate in the store, classified on those two fields alone:
+
+| tenant | total | our own console | Gmail telemetry | read-only lookup | real WMS work |
+|---|---|---|---|---|---|
+| acme | 49 | **20** (2 taught) | 5 (1 taught) | 11 | 13 (2 taught) |
+| `new` | 46 | 0 | **28** (1 taught) | 13 | 5 (3 taught) |
+
+On `acme`, **41 % of the candidate list is this product watching itself.** On
+`new`, **61 % is Google's telemetry** — `POST mail/u/*`, `POST sync/u/*/i/fd`,
+`sync/u/*/i/bv`, `waa`, and a `perftrace` beacon on the sign-in host, each
+titled as though it were a task: *Create u*, *Create fd*, *Create bv*.
+
+The join question the console puts to a person inherits this. All four join rows
+in the store are `variant`, all four unanswered, and two of them read *"the
+second task contains the exact same primary request as the first, differing only
+by an additional background synchronization request that likely triggered
+automatically."* The system is asking an operator to referee two pieces of its
+own noise.
+
+### The model path's recognition, measured honestly for the first time
+
+The other half of the precondition — 0 accepted offers — needs a caveat that did
+not exist when this document was written: **every offer-replay number ever
+recorded in this repository was taken with the matcher fed its own answer.**
+
+`dry_run._gestures_of` replayed each job's gestures in citation order, which is
+the order the served shape is built from. A browser appends to its tail as
+gestures arrive and has never heard of a step. An integration test pinned the
+citation order and justified it with *"cite order is what the shape is built in,
+so cite order is what the tail has to arrive in"* — the circle, written down as
+a reason.
+
+Replayed in time order, as a browser sends them, against the store as it stood
+this morning:
+
+| corpus | as the harness reported | honestly | after `65cd7cb` |
+|---|---|---|---|
+| acme | 5 of 7 offered as themselves | **3 of 7** | **6 of 7** |
+| `new` | 2 of 2 | **0 of 2** | **2 of 2**, every declared value recovered |
+
+Both of `new`'s jobs are the cross-system Gmail → Blue Yonder shape, and both
+would have been offered to nobody in a real browser. The fix was to build the
+shape in the order the gestures happened (`shape.in_time_order`) and to tie
+`checks.K_SITTING_GAP_S` to the extension's own `K_TAIL_TTL_S`, so the miner
+stops keeping jobs whose opening pause no browser tail can hold.
+
+This does not turn a recognition figure into an accepted offer. It does mean the
+0-of-9 was partly a measurement fault: for two of those days the job could not
+have been offered at all, so nobody declined it.
+
+### Where the precondition stands now
+
+Unchanged: no controlled single-day pass of both miners, no person answering the
+open `variant` joins, no accepted offer, and the two whole days the rules read
+and the model never did — including `Create a supplier`, still named by no
+workflow.
+
+Changed, and both changes cut the same way:
+
+1. The agreement score is **5 to 0**, not 9 to 0. Four of the nine agreements
+   were to telemetry or to the console's own button.
+2. The recognition numbers the deletion argument would have leaned on were
+   measured against themselves. The corrected ones are better, not worse — but
+   they are corrected, and every earlier offer figure in this repository,
+   including the spec's `8 of 8` acceptance line, was taken the flattering way.
+
+**Still not met.** What it changes is the shape of the remaining work: the
+rule-based path's candidate list needs the same two exclusions the model path
+already has — this deployment's own origin, and third-party traffic that is not
+the operator's — before its 9-to-0 means anything. Whether that is worth doing
+to a path phase 7 plans to delete is the decision this document exists to
+inform, and it is not this document's to make.

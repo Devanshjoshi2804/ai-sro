@@ -337,24 +337,41 @@ class Settings(BaseSettings):
     gemini_read_tail: int = 0
     """How many previous readings each gesture is read against.
 
-    Zero. `reading.TAIL` is what this used to be, and the tail was carried for
-    one stated purpose -- deciding `continues` -- which nothing consumes:
-    `mining_pass` does not contain the word and `window.as_evidence` leaves it
-    out of what the miner is shown. That alone is not a reason to drop it, so
-    it was measured instead, three arms over the same 95 real gestures against
-    hand-labelled ground truth.
+    Zero. The tail was carried for one stated purpose -- deciding `continues`
+    -- which nothing consumes: `mining_pass` does not contain the word and
+    `window.as_evidence` leaves it out of what the miner is shown. That alone
+    is not a reason to drop it, so it was measured: three passes of the real
+    `sro.cli.read_cron` over the same 164 captured gestures, scored on the 95
+    with hand-labelled ground truth.
 
-    What the tail cost: 86 prompt tokens per gesture, 15.6% of the bill, and
-    the serial order itself -- each reading waiting on the one before it, so a
-    day could not be read in parallel and identical evidence could not be
-    answered once. **25.6%** of a real 164-gesture day is a repeat of evidence
-    already read; with a tail it is **0.0%**, because every gesture trails a
-    different eight and so no two questions are ever the same.
+    What the tail costs, per whole pass:
 
-    What the tail bought: two body-field hits out of 111. Typed value, entity
-    and verb were unchanged. Dropping it moved the WORDING of `act` and
-    `object` on 76% of gestures and left six more readings calling themselves
-    `low`, which is worth knowing and is not the same as being wrong.
+    | | tail=8 | tail=0 |
+    |---|---|---|
+    | prompt tokens | 172,898 | 143,831 |
+    | output tokens | 112,709 | 79,491 |
+    | cost | $0.5523 | $0.4060 |
+    | readings answered from one already paid for | 0.0% | 17.1% |
+
+    The cascade is the part that cannot exist alongside it: keyed on the
+    evidence a gesture is ACTUALLY read against, which with a tail ends in the
+    last eight readings, no two questions are ever the same.
+
+    What the tail buys: **nothing measurable.** Typed value 100% either way,
+    entity 100% either way, operator-typed fields 100% either way -- once the
+    fold stopped depending on it, which is `with_recent_values`'s own story and
+    the reason the first run of this experiment looked worse.
+
+    **And the reason given here for hesitating was wrong, measured.** This
+    docstring used to say dropping the tail "moved the wording of `act` and
+    `object` on 76% of gestures", offered as the thing a customer would
+    notice. It does move them -- on 85.3%. But two passes at the SAME setting
+    move them on **74.7%**, so almost all of that is the model being
+    non-deterministic and only about ten points of it is the tail. The same
+    goes for the verb score (91.1%, 90.0%, 88.9% across three passes): two
+    identical configurations disagree on the leading verb for 24 of 95
+    gestures, which is wider than any gap between the arms. Wording churn is
+    not a tail effect; it is the weather.
 
     Set it back to 8 to get the old behaviour exactly, `SRO_GEMINI_READ_TAIL=8`.
     A deployment that later finds something to do with `continues` should --

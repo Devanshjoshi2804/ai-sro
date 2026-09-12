@@ -220,6 +220,54 @@ def _did_business(gesture: Gesture) -> bool:
     )
 
 
+def undeliverable(workflow: Workflow, gestures: dict[str, Gesture]) -> list[str]:
+    """The declared parameters no step of this job could ever be given.
+
+    `planning.value_for` is the one place a run's value reaches a control, and
+    it looks the value up by four names in order: the component's `item_id`,
+    its `field_label`, the target's `name`, and whatever the step itself listed
+    in `parameters`. A workflow parameter whose name is none of those, on any
+    step, is a name nothing will ever ask for.
+
+    That is not a harmless spare field. `StartWorkflowRun` refuses a press that
+    leaves a declared parameter empty, so the operator is made to type a value
+    -- and then `value_for` never finds the name, falls through, and performs
+    the step with the value the RECORDING happened to contain. The job runs,
+    reports success, and did something other than what was asked. A parameter
+    that cannot be delivered is worse than no parameter, because no parameter
+    at least tells the truth.
+
+    Found by reading what the miner actually produced. Three clean mines of one
+    real day declared six parameters between them, and **three of the six named
+    controls that do not exist in the evidence** -- `Description` where the
+    label reads `Customer Type Description`, `Equipment Type` for `Warehouse
+    Equipment Type`, `LPN Limit` for `LPN Warehouse Equipment Type Limit`.
+    Those three bound anyway, but only because the model had written the same
+    invented string into `step.parameters` as well, which `value_for` checks
+    last. Nothing anywhere required those two halves of one model answer to
+    agree.
+    """
+    bindable: set[str] = set()
+    for step in workflow.steps:
+        bindable.update(step.parameters)
+        for cite in step.cites:
+            gesture = gestures.get(cite)
+            target = gesture.action.target if gesture else None
+            component = target.component if target else None
+            for name in (
+                component.item_id if component else None,
+                component.field_label if component else None,
+                target.name if target else None,
+            ):
+                if name:
+                    bindable.add(name)
+    return [
+        str(declared["name"])
+        for declared in workflow.parameters
+        if declared.get("name") and str(declared["name"]) not in bindable
+    ]
+
+
 def _during(workflow: Workflow, gestures: dict[str, Gesture]) -> list[Gesture]:
     """Every gesture of this job's own streams inside its own time span.
 

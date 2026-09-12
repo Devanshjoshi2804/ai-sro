@@ -13,12 +13,13 @@ real jobs each half of the transit rule exists to keep.
 
 from dataclasses import replace
 
-from sro.domain.observation.gesture import Action, Call, Gesture, PageMark
+from sro.domain.observation.gesture import Action, Call, Component, Gesture, PageMark, Target
 from sro.domain.observation.window import Packed, Window, pack
 from sro.domain.skill.checks import (
     K_MAX_SKEW,
     K_MIN_COVERAGE,
     coverage,
+    undeliverable,
     validate,
     work_only,
 )
@@ -325,6 +326,23 @@ def _gesture(gesture_id: str, system: str, *, left_for: tuple[str, ...] = ()) ->
     )
 
 
+def _typed_into(gesture_id: str, system: str, *, item_id: str, label: str) -> Gesture:
+    """A gesture on a real, named control -- the shape `value_for` reads."""
+    return replace(
+        _gesture(gesture_id, system),
+        action=Action(
+            kind="type",
+            at=0.0,
+            value="2",
+            target=Target(
+                tag="input",
+                name=None,
+                component=Component(item_id=item_id, field_label=label),
+            ),
+        ),
+    )
+
+
 def _job(*evidence: Gesture, systems: list[str]) -> tuple[Workflow, dict[str, Gesture]]:
     """A workflow whose steps cite this evidence in the order it is given,
     which is the order `ordered_cites` reads it back in."""
@@ -526,6 +544,60 @@ def test_another_tabs_credential_is_not_this_jobs_sign_in() -> None:
     evidence[elsewhere.id] = elsewhere
 
     assert work_only(job, evidence, ours=OURS) is None
+
+
+def test_a_parameter_no_step_can_be_given_is_named() -> None:
+    """`value_for` looks a run's value up by four names: the component's
+    `item_id`, its `field_label`, the target's `name`, and the step's own
+    `parameters`. A declared parameter that is none of those, on any step, is a
+    name nothing will ever ask for -- and that is worse than declaring nothing,
+    because `StartWorkflowRun` refuses a press that leaves it empty, so the
+    operator types a value and then the step performs with the one the
+    RECORDING carried. The job reports success having done something else.
+
+    Real: three clean mines of one day declared six parameters and three of
+    them named controls absent from the evidence -- `Description` where the
+    label reads `Customer Type Description`, `LPN Limit` for `LPN Warehouse
+    Equipment Type Limit`. They bound only because the model had written the
+    same invented string into `step.parameters` too, which nothing required.
+    """
+    typed = _typed_into(
+        "ges_1", WMS, item_id="vehicleLimit", label="LPN Warehouse Equipment Type Limit"
+    )
+    job = _workflow(
+        systems=[WMS],
+        steps=[Step(order=0, says="enter the limit", system=WMS, cites=["ges_1"])],
+    )
+    job.parameters = [
+        {"name": "LPN Warehouse Equipment Type Limit", "seen_values": ["2"]},
+        {"name": "LPN Limit", "seen_values": ["2"]},
+    ]
+
+    assert undeliverable(job, {"ges_1": typed}) == ["LPN Limit"]
+
+
+def test_a_step_may_name_a_parameter_the_control_does_not() -> None:
+    """The escape hatch is real and stays: `value_for` checks `step.parameters`
+    last precisely so a job can call a field something an operator would
+    recognise. What this refuses is only a name that appears in NEITHER."""
+    typed = _typed_into(
+        "ges_1", WMS, item_id="vehicleLimit", label="LPN Warehouse Equipment Type Limit"
+    )
+    job = _workflow(
+        systems=[WMS],
+        steps=[
+            Step(
+                order=0,
+                says="enter the limit",
+                system=WMS,
+                cites=["ges_1"],
+                parameters=["LPN Limit"],
+            )
+        ],
+    )
+    job.parameters = [{"name": "LPN Limit", "seen_values": ["2"]}]
+
+    assert undeliverable(job, {"ges_1": typed}) == []
 
 
 def test_a_warehouse_job_that_sets_a_password_is_still_a_job() -> None:

@@ -76,14 +76,49 @@ def test_the_prompt_the_model_is_given_is_the_one_the_rig_measured() -> None:
     the job was FOR, which is a question only the model reading it can answer.
     So it is asked.
 
+    And it says that a job done four times is one job. The miner folded
+    repetition into length instead: the same real day mined three times gave
+    `Create a Customer Type` as 5 steps twice and as **17 steps** once, with
+    all four doings inline and no parameters. Steps are what is always done and
+    parameters are what varies, and nothing had ever said so.
+
     Changing the wording is allowed. Changing it silently is not: update this
     hash in the same commit and say why the model should read something else."""
     assert (
         hashlib.sha256(INSTRUCTIONS.encode()).hexdigest()
-        == "f78c8081540107a479510860d7b8279615ac6a8aa3be5b5802d642a0d4be69d5"
+        == "e52a27e7925c838febbc181165a495f31228a816fbdc547ea376a5297b26738b"
     )
     assert '"Create a Customer Type", never' in INSTRUCTIONS
     assert "A stretch that only looked at things goes\nunder `unproven`." in INSTRUCTIONS
+    assert "That is ONE job done four times." in INSTRUCTIONS
+
+
+def test_the_schema_asks_for_the_parameter_shape_the_rest_of_the_code_reads() -> None:
+    """`seen_values` is read in three places and was declared in none.
+
+    The schema said `{"type": "array", "items": {"type": "object"}}`, which
+    tells a model nothing at all -- while `chat.understand` builds its match on
+    `p.get("seen_values", [])`, `skill.shape` reads the same key, and
+    `workflow_from` drops any parameter without a usable `name`. So a
+    model-supplied parameter arrived in whatever shape the model guessed and
+    was either discarded or carried no values anybody reads. Three clean mines
+    of a real day returned `parameters: []` every time, on jobs whose evidence
+    plainly showed four different customer types being typed.
+
+    A field the code reads and the schema does not ask for is a field that
+    arrives by luck.
+    """
+    shape = WORKFLOW_SCHEMA["properties"]
+    assert isinstance(shape, dict)
+    workflows = shape["workflows"]
+    assert isinstance(workflows, dict)
+    item = workflows["items"]
+    assert isinstance(item, dict)
+    parameters = item["properties"]["parameters"]
+
+    assert parameters["items"]["properties"].keys() == {"name", "seen_values"}
+    assert parameters["items"]["required"] == ["name", "seen_values"]
+    assert parameters["items"]["properties"]["seen_values"]["type"] == "array"
 
 
 def test_the_task_is_stated_at_both_ends_of_the_prompt() -> None:

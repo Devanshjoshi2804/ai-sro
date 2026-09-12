@@ -45,6 +45,7 @@ from sro.domain.skill.checks import (
     Coverage,
     Rejection,
     coverage,
+    undeliverable,
     validate,
     work_only,
 )
@@ -425,6 +426,22 @@ async def _one_pass(
             if rejection is not None:
                 result.rejections.append(rejection)
                 continue
+            # Dropped rather than refused: the JOB is sound and only its
+            # declaration of what varies is not, so refusing it would throw
+            # away a working job over a spare field. Dropping leaves the job
+            # runnable on the values its recording carries, which is what a
+            # job with no parameters has always done, and a later pass
+            # re-derives the parameter properly from a second doing.
+            lost = undeliverable(proposal, by_id)
+            if lost:
+                logger.warning(
+                    "%s: dropping parameter(s) no step can be given: %s",
+                    proposal.title,
+                    ", ".join(lost),
+                )
+                proposal.parameters = [
+                    declared for declared in proposal.parameters if declared.get("name") not in lost
+                ]
             proposal.shape_key = [
                 list(entry) for entry in shape_key([by_id[c] for c in ordered_cites(proposal)])
             ]

@@ -73,6 +73,13 @@ person would name -- creating a supplier, receiving a shipment, correcting a
 count. A job may span more than one system: the operator may do half of it in a
 warehouse system and half in an ERP, and those halves are still one job.
 
+An operator often does the same job several times in a row -- four customer
+types, one after another, from four emails. That is ONE job done four times.
+It is not four jobs, and it is not one job of four times the length: report it
+once, with the steps of a SINGLE doing, and put what changed between the
+doings in `parameters` -- the name of the field, and every value you saw in
+it. The steps say what is always done; the parameters say what varies.
+
 A job has something to show for it -- something the operator could point at
 afterwards and say that is what I did. Looking something up is a STEP of a job
 and not a job: somebody who searches for the record they just created is
@@ -120,7 +127,31 @@ WORKFLOW_SCHEMA: dict[str, object] = {
                             "required": ["order", "cites", "says"],
                         },
                     },
-                    "parameters": {"type": "array", "items": {"type": "object"}},
+                    # The shape is declared, which it was not. `object` with
+                    # no properties told the model nothing, while
+                    # `chat.understand` and `skill.shape` both read
+                    # `seen_values` off whatever came back -- so a
+                    # model-supplied parameter arrived in whatever shape the
+                    # model guessed and was dropped by `workflow_from`'s name
+                    # check or carried no values anybody reads. Measured across
+                    # three clean mines of a real day: `parameters` came back
+                    # empty every time, on jobs whose evidence plainly showed
+                    # four different customer types being typed.
+                    "parameters": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "name": {"type": "string", "description": "the field that varies"},
+                                "seen_values": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                    "description": "every value observed in it",
+                                },
+                            },
+                            "required": ["name", "seen_values"],
+                        },
+                    },
                     "same_as": {"type": "string"},
                     "unproven": {"type": "array", "items": {"type": "string"}},
                 },

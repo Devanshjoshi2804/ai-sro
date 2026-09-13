@@ -361,12 +361,27 @@ Phases 1 and 2 can run in parallel; 3 needs both; 4 needs 3; 5 and 6 need
 > real panel, as the browser being driven** rather than with the tenant's bare
 > credential.
 >
-> **Served shapes and the offer are still replay-only.** The extension asks for
-> shapes during that session and nothing asserts what came back, and no live
-> run has ever had the panel OFFER a job the operator was in the middle of
-> doing. `make offer-replay-backend` is the evidence for both -- 6 served
-> shapes, 6 offered as themselves, 0 offered as another job -- and a replay
-> through the real matcher is not a browser. That is what phase 5 still owes.
+> **Served shapes and the offer followed the same evening**, so phase 5's line
+> is discharged in full. `one_whole_run.py --offer` does the job by hand a
+> second time and reads what the panel says about it:
+>
+>     -- the panel offered it off this browser's own gestures: 'Create a client'
+>        matched 2 gestures in, values {"clientCode": "OFFER-3"}
+>
+> The offer lands in the middle of the doing, which is the point of it: `change`
+> fires on blur, so clicking Save emits the previous field's gesture first and
+> the click second, and between those two the tail is exactly the shape's first
+> two positions.
+>
+> It also found a defect nothing on the backend side could have caught. A job
+> of exactly `K_OFFER_AFTER` steps was SERVED and could never be offered:
+> `recognise.match` scans k down from `shape.length - 1` because an offer has
+> to leave something to finish, so a two-position shape has no k at or above
+> the floor. Every browser cached it and walked it on every gesture for
+> nothing. The offer replay could not have seen it either -- it only ever fed
+> the matcher real mined jobs, all longer -- and fifteen fixtures had encoded
+> the same off-by-one. `shape_of` refuses one now, and the replay reads
+> identically before and after: 5 served, 5 offered as themselves, 2 never.
 >
 > **2. The floor "the rig ended at (80.2%)"** is no longer the measurement. The
 > backend scores areas apart, each with its own ratchet, because one number

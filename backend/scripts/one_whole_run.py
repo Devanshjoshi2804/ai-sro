@@ -32,6 +32,7 @@ import argparse
 import asyncio
 import json
 import os
+import re
 import threading
 import time
 import urllib.error
@@ -45,6 +46,14 @@ EXTENSION = Path(__file__).resolve().parents[2] / "new-chrome-extension"
 API = os.environ.get("SRO_API_URL", "http://localhost:8000")
 TENANT = os.environ.get("SRO_TENANT", "rigproof")
 CLIENT_CODE = "ACME-4471"
+REFERENCE = "PO-88213"
+"""A second field, so the job is three steps rather than two.
+
+`recognise.match` scans `k` down from `shape.length - 1`: an offer is made with
+something still LEFT to do, so a two-step job can never be offered at all --
+`K_OFFER_AFTER` is 2 and the highest k a two-position shape allows is 1. Three
+steps is the shortest job this browser can be offered, which is what `--offer`
+is here to see happen."""
 
 PAGE = """<!doctype html>
 <html><body>
@@ -52,6 +61,8 @@ PAGE = """<!doctype html>
   <form id="f">
     <label for="client">Client Code</label>
     <input id="client" name="clientCode" type="text">
+    <label for="reference">Reference</label>
+    <input id="reference" name="reference" type="text">
     <button id="save" type="button">Save</button>
   </form>
   <script>
@@ -64,6 +75,7 @@ PAGE = """<!doctype html>
         query: (q) => {
           const byQuery = {
             'panel#clients textfield#clientCode': 'client',
+            'panel#clients textfield#referenceCode': 'reference',
             'panel#clients button#saveButton': 'save',
           };
           const id = byQuery[q];
@@ -75,6 +87,9 @@ PAGE = """<!doctype html>
         'client': {xtype: 'textfield', itemId: 'clientCode', name: 'clientCode',
                    fieldLabel: 'Client Code',
                    ownerCt: {xtype: 'panel', itemId: 'clients'}},
+        'reference': {xtype: 'textfield', itemId: 'referenceCode', name: 'reference',
+                      fieldLabel: 'Reference',
+                      ownerCt: {xtype: 'panel', itemId: 'clients'}},
         'save': {xtype: 'button', itemId: 'saveButton', text: 'Save',
                  ownerCt: {xtype: 'panel', itemId: 'clients'}},
       })[id] || null,
@@ -85,7 +100,10 @@ PAGE = """<!doctype html>
       await fetch('/api/orders', {
         method: 'POST',
         headers: {'content-type': 'application/json'},
-        body: JSON.stringify({clientCode: document.getElementById('client').value}),
+        body: JSON.stringify({
+          clientCode: document.getElementById('client').value,
+          reference: document.getElementById('reference').value,
+        }),
       });
       // The read a page performs to show what it just saved. Not decoration:
       // `confirming_read` is what lets `verify` reach rung 2 and settle a
@@ -218,6 +236,76 @@ def _approve_in_the_panel(context: Any, worker: Any, run_id: str) -> None:
     return
 
 
+def _offered_in_the_panel(context: Any, worker: Any, page: Any, *, title: str) -> None:
+    """Do the whole job by hand again, and read what the panel says about it.
+
+    The half of phase 5 nothing had ever run live. `make offer-replay-backend`
+    proves the matcher over the real corpus -- 6 served shapes, 6 offered as
+    themselves -- but a replay is not a browser: nothing had ever shown a
+    browser being served a shape and offering the job off its own gestures.
+
+    The offer lands in the middle of the doing, which is the whole point of it.
+    `change` fires on blur, so clicking Save emits the Reference gesture first
+    and the click second -- and between those two the tail is exactly the
+    shape's first two positions, `K_OFFER_AFTER` is 2, and `recognise.match`
+    scans k down from `shape.length - 1` because an offer has to leave
+    something to finish. That is also why the job is three steps: a two-step
+    job can never be offered at all.
+
+    What it matches is a job this tenant already knows, which may be this
+    script's own from an earlier invocation rather than the one just built --
+    they have the same shape, and which id the panel names is not what is being
+    proved. The values on the offer are this doing's.
+
+    Retried as a whole doing rather than waited on, because the worker holds
+    served shapes for five minutes and only ever caches a non-empty answer: on
+    a tenant with no proven job the first doing matches, and on one with older
+    jobs the list is already warm.
+    """
+    panel = context.new_page()
+    panel.goto(f"{worker.url.rsplit('/src/', 1)[0]}/src/panel/panel.html")
+    asked = panel.get_by_text(re.compile(rf"{re.escape(title)}.*(finish|do) it\?"))
+
+    for attempt in range(1, 4):
+        page.goto(page.url)
+        page.fill("#client", f"OFFER-{attempt}")
+        page.fill("#reference", f"PO-99{attempt:03d}")
+        page.click("#save")
+        page.wait_for_function("() => window.__done === true", timeout=15_000)
+        _ask(context, worker, {"kind": "flush"})
+        try:
+            asked.wait_for(timeout=20_000)
+            break
+        except Exception:  # the next doing is the retry
+            pass
+
+    made = worker.evaluate(
+        "async () => ((await chrome.storage.local.get('sro.nudges'))['sro.nudges'] || [])"
+        ".find((n) => n.source === 'rig') || null"
+    )
+    if made is None:
+        panel.close()
+        raise SystemExit(f"nothing was offered after doing {title!r} by hand again")
+    # The record behind the sentence. An offer that names the job and draws an
+    # empty box for every value is half an offer -- `valuesFrom` reads the live
+    # tail at the positions the served shape indexes, so an empty one means the
+    # two sides of the wire disagree about where a value is or about what a
+    # gesture put.
+    print(f"-- the panel offered it off this browser's own gestures: {made['title']!r}")
+    print(f"   matched {made['k']} gestures in, values {json.dumps(made['values'])}")
+    if made.get("missing"):
+        # A value the operator has already typed, asked for again, is the
+        # defect this print exists to catch -- so the walk it matched is shown
+        # beside it rather than left to be guessed at.
+        walk = worker.evaluate(
+            "async () => Object.values("
+            "(await chrome.storage.local.get('sro.tails'))['sro.tails'] || {})[0] || []"
+        )
+        print(f"   and it has to ask for: {', '.join(made['missing'])}")
+        print(f"   the walk it matched ended: {json.dumps(walk[-4:])}")
+    panel.close()
+
+
 def _mint(tenant: str) -> str:
     import contextlib
     import io
@@ -268,6 +356,10 @@ async def _build_workflow(tenant: str, page_origin: str) -> str:
             (g for g in gestures if g.action.kind == "type" and g.action.value == CLIENT_CODE),
             None,
         )
+        referenced = next(
+            (g for g in gestures if g.action.kind == "type" and g.action.value == REFERENCE),
+            None,
+        )
         saved = next(
             (
                 g
@@ -279,13 +371,14 @@ async def _build_workflow(tenant: str, page_origin: str) -> str:
             ),
             None,
         )
-        if typed is not None and saved is not None:
+        if typed is not None and referenced is not None and saved is not None:
             break
         await asyncio.sleep(0.5)
-    if typed is None or saved is None:
+    if typed is None or referenced is None or saved is None:
         raise SystemExit(
-            f"the browser recorded {len(gestures)} gesture(s) and not the two this needs:"
-            f" typed={typed is not None} saved={saved is not None}"
+            f"the browser recorded {len(gestures)} gesture(s) and not the three this needs:"
+            f" typed={typed is not None} referenced={referenced is not None}"
+            f" saved={saved is not None}"
         )
     async with container.unit_of_work() as uow:
         workflow = Workflow(
@@ -302,9 +395,19 @@ async def _build_workflow(tenant: str, page_origin: str) -> str:
                     cites=[typed.id],
                     parameters=["clientCode"],
                 ),
-                Step(order=2, says="Click Save.", system=page_origin, cites=[saved.id]),
+                Step(
+                    order=2,
+                    says="Type the reference into the Reference field.",
+                    system=page_origin,
+                    cites=[referenced.id],
+                    parameters=["reference"],
+                ),
+                Step(order=3, says="Click Save.", system=page_origin, cites=[saved.id]),
             ],
-            parameters=[{"name": "clientCode", "seen_values": [CLIENT_CODE]}],
+            parameters=[
+                {"name": "clientCode", "seen_values": [CLIENT_CODE]},
+                {"name": "reference", "seen_values": [REFERENCE]},
+            ],
         )
         await uow.workflows.save(workflow)
         await uow.commit()
@@ -330,6 +433,12 @@ def main() -> int:
         help="let the write out, after a person presses Approve in the panel",
     )
     parser.add_argument("--keep", action="store_true", help="leave the browser open at the end")
+    parser.add_argument(
+        "--offer",
+        action="store_true",
+        help="do the same work by hand a second time and read the offer the panel"
+        " makes off this browser's own gestures, before running anything",
+    )
     parser.add_argument(
         "--via-trigger",
         action="store_true",
@@ -391,6 +500,7 @@ def main() -> int:
 
             # The work, done by hand in a real browser.
             page.fill("#client", CLIENT_CODE)
+            page.fill("#reference", REFERENCE)
             page.click("#save")
             page.wait_for_function("() => window.__done === true", timeout=15_000)
             _ask(context, worker, {"kind": "flush"})
@@ -405,6 +515,9 @@ def main() -> int:
                     lambda: asyncio.run(_build_workflow(args.tenant, depot))
                 ).result()
             print(f"-- a job now stands on that evidence: {workflow_id}")
+
+            if args.offer:
+                _offered_in_the_panel(context, worker, page, title="Create a client")
 
             worst = 0
             for attempt in range(args.runs):
@@ -427,7 +540,7 @@ def main() -> int:
                             "workflow_id": workflow_id,
                             "kind": "manual",
                             "device_id": device,
-                            "parameters": {"clientCode": value},
+                            "parameters": {"clientCode": value, "reference": REFERENCE},
                             # A job is a write by the honest reading, so it
                             # needs a name behind it; `auto_approve` is about
                             # the CARD, not about the run's own approval tap,
@@ -452,7 +565,7 @@ def main() -> int:
                         {
                             "workflow_id": workflow_id,
                             "device_id": device,
-                            "values": {"clientCode": value},
+                            "values": {"clientCode": value, "reference": REFERENCE},
                             "live": args.live,
                         },
                     )

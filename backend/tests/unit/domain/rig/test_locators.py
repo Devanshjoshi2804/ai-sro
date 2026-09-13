@@ -2,6 +2,7 @@ import copy
 from dataclasses import replace
 
 from sro.domain.execution.evidence import (
+    K_CAUSED_S,
     Locator,
     allowlist,
     locators_for,
@@ -387,6 +388,61 @@ def test_the_write_the_click_caused_is_still_this_gestures_call() -> None:
             started_at=gesture.at + 0.059,
             status=201,
         )
+    ]
+    step = Step(order=0, says="save", system=None, cites=[gesture.id])
+
+    call = recorded_call(step, {gesture.id: gesture})
+    assert call is not None and call.url.endswith("/customerTypes")
+
+
+def test_a_call_exactly_at_the_window_is_still_the_gestures_own() -> None:
+    """`K_CAUSED_S` is inclusive, and this is the only test that says so.
+
+    The measured spread left no doubt about the middle -- real creates landed
+    within 59ms, the nearest chatter at 667ms -- but the edge itself is a
+    number nothing stands on, and the two mistakes cost differently: chatter
+    read as a write parks a harmless step, a write read as chatter makes a dry
+    run send it."""
+    gesture = copy.deepcopy(next(g for g in _gestures() if g.requests))
+    assert gesture.at is not None
+    gesture.requests = [
+        _call(
+            method="POST",
+            url=f"{HOST}/data/WM/wm/customerTypes",
+            request_id="slow",
+            started_at=gesture.at + K_CAUSED_S,
+            status=201,
+        )
+    ]
+    step = Step(order=0, says="save", system=None, cites=[gesture.id])
+
+    assert recorded_call(step, {gesture.id: gesture}) is not None
+
+
+def test_chatter_before_the_write_does_not_hide_the_write_behind_it() -> None:
+    """Each call is passed over on its own, and the search goes on.
+
+    Abandoning the loop at the first call the gesture did not cause would leave
+    the real create unfound whenever the page happened to fire a keep-alive
+    first -- which is the ordering three of the four misclassified steps in the
+    real stores actually had."""
+    gesture = copy.deepcopy(next(g for g in _gestures() if g.requests))
+    assert gesture.at is not None
+    gesture.requests = [
+        _call(
+            method="POST",
+            url=f"{HOST}/refs/data/api/v1/rp/admin/sessionKeepAlive",
+            request_id="alive",
+            started_at=gesture.at + 8.118,
+            status=200,
+        ),
+        _call(
+            method="POST",
+            url=f"{HOST}/data/WM/wm/customerTypes",
+            request_id="save",
+            started_at=gesture.at + 0.016,
+            status=201,
+        ),
     ]
     step = Step(order=0, says="save", system=None, cites=[gesture.id])
 

@@ -1,4 +1,4 @@
-"""The mutation score for the skill application package, against its floor.
+"""The mutation score per area, against each area's floor.
 
     uv run mutmut run
     uv run mutmut export-cicd-stats
@@ -7,29 +7,39 @@
 A passing suite says the code does what the tests say. A mutation score says
 whether the tests would notice if it stopped.
 
-**Scoped to `sro/application/skill/`, not the whole backend.** These modules turn
-a model's reading of a captured day into a Skill the runner executes, they parse
-untrusted JSON out of a column at every step, and they are the newest code here.
-Widening this to `src/sro/` would mutate 297 files against a 30-second suite --
-a different tool with a different cost. This one has to stay cheap enough to run
-while a change is still in the working tree.
+**Two areas, two floors, one sweep.** `sro/application/skill/` is the bridge:
+it turns a model's reading of a captured day into a Skill the runner executes,
+parsing untrusted JSON out of a column at every step. `sro/domain/execution/`
+is the ladder: what counts as a write, what counts as proof that one landed,
+what a job has to do before it may write unattended. A surviving mutant in the
+bridge is a field that silently vanishes; a surviving mutant in the ladder is a
+safety rule nothing would notice losing.
 
-The floor is a ratchet, not a target. It is set just under the measured
+They are scored apart because one number over both hides the one that matters.
+The bridge has twice the mutants, so a ladder that fell ten points would move a
+combined score by three -- inside the noise a person would shrug at.
+
+Widening this to `src/sro/` would mutate 297 files. That is a different tool
+with a different cost; this one has to stay cheap enough to run while a change
+is still in the working tree.
+
+Each floor is a ratchet, not a target. It is set just under the measured
 baseline, so the number can only go up: a change that leaves more mutants alive
-than the last measurement fails here, and raising the floor after genuinely
-improving the suite is a deliberate edit to the line below.
+than the last measurement fails here, and raising a floor after genuinely
+improving the suite is a deliberate edit to the table below.
 
-Do NOT lower it to make a build pass. If the score dropped, the tests got
+Do NOT lower one to make a build pass. If the score dropped, the tests got
 weaker -- that is the finding, not the obstacle.
 """
 
 from __future__ import annotations
 
-import json
 import pathlib
+import re
+import subprocess
 import sys
 
-# Measured 2026-09-05 over the 1,489-test unit suite: 1,622 mutants, 1,371
+# Measured 2026-09-05 over the then 1,489-test unit suite: 1,622 mutants, 1,371
 # killed, 251 survived, 58 with no test covering them. **84.5%**.
 #
 # The first sweep of the four bridge modules read far worse -- `from_rig` 57.8%,
@@ -46,9 +56,66 @@ import sys
 #     map_step_to_tool     82.0%      read_doings          81.6%
 #     version_from_rig     80.5%      read_skills          78.6%
 #     add_assertion        75.7%      promote_skill        69.6%
-FLOOR = 84.3
+#
+# Re-measured 2026-09-13 over the 2,895-test unit suite: 2,294 mutants, 1,943
+# killed, 293 survived. The bridge read **85.8%** unchanged by any work here --
+# the floor rises to just under it, which is what a ratchet is for.
+#
+# The ladder's first sweep, the same day, read **83.9%** with two modules far
+# under it: `diagnosis` 49.2% and `safety` 60.6%. Both were the same kind of
+# hole. Every `safety` boundary was a number nothing stood on -- `>` for `>=`
+# on both caps, `<=` for `<` on both windows -- and `diagnosis` never asserted
+# `safe_for_writes` on three of its five branches, which is the one field that
+# module's own docstring calls non-negotiable. Tests on each of those, plus the
+# three judge/apply_verdict branches nothing looked at, took the area to
+# **91.8%**:
+#
+#     belts                98.7%      evidence             97.1%
+#     verdict              94.3%      verified_writes      89.4%
+#     safety               81.8%      diagnosis            77.0%
+#     workflow_run         75.0%      planning/escalation 100.0%
+#
+# What is left in `safety` and `diagnosis` is almost entirely the reason TEXT
+# -- a sweep upper-cases a sentence and nothing notices. Asserting prose
+# verbatim would buy the number and not the safety, so those survive on
+# purpose.
+FLOORS = {
+    "sro.application.skill": (85.6, "the bridge -- a model's reading into a runnable Skill"),
+    "sro.domain.execution": (91.5, "the ladder -- what may write, and what proves it landed"),
+}
 
 STATS = pathlib.Path(__file__).resolve().parent.parent / "mutants" / "mutmut-cicd-stats.json"
+
+RESULT = re.compile(r"^\s+(?P<name>\S+): (?P<status>.+)$")
+"""One line of `mutmut results`: an indented dotted name, a colon, a verdict."""
+
+
+def _results() -> list[tuple[str, str]]:
+    """Every mutant and its verdict, from mutmut itself.
+
+    The exported CI/CD stats are one total over the whole sweep and cannot be
+    split by area, and the cache they come from is mutmut's own format. Asking
+    the tool is cheaper than reading its cache and cannot drift from it.
+    """
+    listed = subprocess.run(
+        # `--all true`, and the value is not optional: mutmut's flag is an
+        # ordinary option with a default, so a bare `--all` swallows the next
+        # word. Without it the listing is survivors only, every area reads 0%,
+        # and the floor fails over a suite that got stronger.
+        [sys.executable, "-m", "mutmut", "results", "--all", "true"],
+        capture_output=True,
+        text=True,
+        check=False,
+        cwd=STATS.parent.parent,
+    )
+    if listed.returncode != 0:
+        print(f"`mutmut results` failed:\n{listed.stderr.strip()}")
+        return []
+    found = []
+    for line in listed.stdout.splitlines():
+        if match := RESULT.match(line):
+            found.append((match["name"], match["status"].strip()))
+    return found
 
 
 def main() -> int:
@@ -56,26 +123,41 @@ def main() -> int:
         print(f"no mutation stats at {STATS} -- run `mutmut run` then `mutmut export-cicd-stats`")
         return 2
 
-    stats = json.loads(STATS.read_text())
-    killed, survived = stats["killed"], stats["survived"]
-    # Killed over killed-plus-survived, so a mutant nothing could reach --
-    # skipped, timed out, no test covers the line -- neither flatters the score
-    # nor is silently counted as a pass.
-    considered = killed + survived
-    if not considered:
+    results = _results()
+    if not results:
         print("no mutants were run")
         return 2
 
-    score = 100 * killed / considered
-    print(f"mutation score {score:.1f}% ({killed} killed, {survived} survived) -- floor {FLOOR}%")
-    for name in ("no_tests", "skipped", "suspicious", "timeout", "segfault"):
-        if stats.get(name):
-            print(f"  {name}: {stats[name]}")
+    worst = 0
+    for area, (floor, what) in FLOORS.items():
+        mine = [status for name, status in results if name.startswith(area + ".")]
+        killed = sum(1 for status in mine if status == "killed")
+        survived = sum(1 for status in mine if status == "survived")
+        # Killed over killed-plus-survived, so a mutant nothing could reach --
+        # skipped, timed out, no test covers the line -- neither flatters the
+        # score nor is silently counted as a pass.
+        considered = killed + survived
+        if not considered:
+            print(f"{area}: no mutants were run")
+            worst = max(worst, 2)
+            continue
+        score = 100 * killed / considered
+        print(f"{area}  {score:.1f}%  ({killed} killed, {survived} survived)  floor {floor}%")
+        print(f"    {what}")
+        unreachable = len(mine) - considered
+        if unreachable:
+            print(f"    {unreachable} mutants no test reaches at all")
+        if score < floor:
+            print(f"    FAILED: the suite got weaker. {floor - score:.1f} points below the floor.")
+            worst = max(worst, 1)
 
-    if score < FLOOR:
-        print(f"FAILED: the suite got weaker. {FLOOR - score:.1f} points below the floor.")
-        return 1
-    return 0
+    named = sum(len([1 for name, _ in results if name.startswith(area + ".")]) for area in FLOORS)
+    if named < len(results):
+        # A source path mutmut was pointed at that this table does not score.
+        # Silent, it would read as a passing sweep over code nobody measured.
+        print(f"FAILED: {len(results) - named} mutants are in no scored area")
+        worst = max(worst, 1)
+    return worst
 
 
 if __name__ == "__main__":

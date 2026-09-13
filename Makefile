@@ -162,11 +162,11 @@ fixtures: ## Recapture the extension's golden payloads from a real session
 test-frontend: ## The console's own tests
 	$(FRONTEND) npm test
 
-# 1,680 mutants over the 1,501-test unit suite, 2m16s from an empty `mutants/`
-# on a machine using all its cores. Most of that is the one-off stats
-# collection; the mutant runs themselves are fast, because mutmut runs only the
-# tests that cover each one.
-mutants-backend: ## Mutation score for the skill application package, against its floor
+# 2,294 mutants over the 2,895-test unit suite, from an empty `mutants/` on a
+# machine using all its cores. Most of that is the one-off stats collection;
+# the mutant runs themselves are fast, because mutmut runs only the tests that
+# cover each one.
+mutants-backend: ## Mutation score for the bridge and the ladder, against their floors
 	$(BACKEND) uv run mutmut run || true
 	$(BACKEND) uv run mutmut export-cicd-stats
 	$(BACKEND) uv run python scripts/mutation_floor.py

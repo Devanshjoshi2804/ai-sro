@@ -103,6 +103,69 @@ def test_a_control_that_moved_is_the_ladders_business_not_the_healers() -> None:
     )
 
     assert found.remedy is Remedy.ESCALATE_MEDIUM
+    # Nothing was sent: the executor could not find the control to send it
+    # with. This is the assertion that was missing on three of the five
+    # branches -- a mutation sweep on 2026-09-13 flipped `safe_for_writes` to
+    # False here, on 403 and on the session-rejection codes, and no test
+    # noticed. `safe_for_writes` is the one field in this module the docstring
+    # calls non-negotiable, and `remedy` alone does not carry it.
+    assert found.safe_for_writes
+
+
+@pytest.mark.parametrize("status", [401, 419, 440])
+def test_every_code_that_rejects_a_session_outright_asks_for_a_new_one(status: int) -> None:
+    """Three codes, three tests, because a set is not a value.
+
+    One example passing says nothing about the other two: a sweep changed 419
+    to 420 and 440 to 441 and the suite stayed green, which means either could
+    have been a typo from the day they were written."""
+    found = diagnose(failure=None, status_code=status, redirected_off_host=False)
+
+    assert found.remedy is Remedy.REFRESH_SESSION
+    assert found.safe_for_writes
+    assert str(status) in found.because
+
+
+def test_a_redirect_off_host_is_a_login_page_whatever_status_carried_it() -> None:
+    # `or`, not `and`: a redirect away from the system is proof on its own, and
+    # not every one of them arrives as a 302.
+    found = diagnose(failure=None, status_code=None, redirected_off_host=True)
+
+    assert found.remedy is Remedy.REFRESH_SESSION
+    assert found.safe_for_writes
+
+
+def test_a_302_the_planner_never_sent_is_not_a_signed_out_session() -> None:
+    """`NO_PLAN` means no request was made at all, so a status beside it is
+    whatever the previous step left lying about -- and signing in again would
+    be a remedy for a symptom that does not exist."""
+    found = diagnose(failure=FailureKind.NO_PLAN, status_code=302, redirected_off_host=False)
+
+    assert found.remedy is Remedy.NONE
+    assert not found.safe_for_writes
+
+
+def test_an_accepted_session_with_a_rejected_request_may_still_be_written_again() -> None:
+    # The 403 branch's own `safe_for_writes`: the anti-forgery check happens
+    # before the application acts, so the write did not land.
+    found = diagnose(failure=None, status_code=403, redirected_off_host=False)
+
+    assert found.safe_for_writes
+
+
+def test_a_missing_header_outranks_the_status_that_came_with_it() -> None:
+    """The first branch wins, and deliberately: the executor refused to build
+    the request, so whatever status is being carried alongside describes an
+    earlier attempt rather than this one."""
+    found = diagnose(
+        failure=FailureKind.CREDENTIAL_MISSING,
+        status_code=403,
+        redirected_off_host=True,
+        missing_headers=("csrf-encrypt-token",),
+    )
+
+    assert found.remedy is Remedy.REFRESH_SESSION_CONTEXT
+    assert "csrf-encrypt-token" in found.because
 
 
 @pytest.mark.asyncio

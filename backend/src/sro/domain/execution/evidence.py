@@ -147,7 +147,7 @@ def primary_gesture(step: Step, by_id: Mapping[str, Gesture]) -> Gesture | None:
 
 
 def unperformable(
-    workflow: Workflow, by_id: Mapping[str, Gesture], *, from_step: int = 0
+    workflow: Workflow, by_id: Mapping[str, Gesture], *, from_step: int
 ) -> Step | None:
     """The first step this job could not be asked to do, or None if it can.
 
@@ -159,7 +159,9 @@ def unperformable(
 
     Only the steps the run will attempt: the ones before `from_step` were done
     by the operator and are never sent, so evidence they no longer have costs
-    this run nothing.
+    this run nothing. Required rather than defaulted to 0 -- a default here is
+    a silent "from the beginning" for a caller resuming halfway, which would
+    refuse a run over evidence for steps it was never going to attempt.
     """
     for step in sorted(workflow.steps, key=lambda step: step.order):
         if step.order >= from_step and primary_gesture(step, by_id) is None:

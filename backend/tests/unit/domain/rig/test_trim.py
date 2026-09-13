@@ -227,11 +227,21 @@ def test_a_field_is_secret_by_its_words_and_not_by_its_letters() -> None:
 
 
 def _extension_source() -> str:
-    source = (
-        Path(__file__).resolve().parents[5]
-        / "new-chrome-extension/src/content/sensitivity.module.js"
-    )
-    return source.read_text(encoding="utf-8")
+    """The extension's generated copy, found by walking up rather than by
+    counting directories.
+
+    A fixed `parents[5]` is the backend's own depth, and the mutation sweep
+    runs this suite from a COPY of the backend one level further down -- where
+    the count lands on a directory with no extension beside it and every test
+    below fails for the copy rather than for any mutant. One failure ends stats
+    collection for the whole sweep, so the count was quietly deciding whether
+    the mutation score could be measured at all."""
+    here = Path(__file__).resolve()
+    for parent in here.parents:
+        source = parent / "new-chrome-extension/src/content/sensitivity.module.js"
+        if source.exists():
+            return source.read_text(encoding="utf-8")
+    raise AssertionError(f"no extension source above {here}")
 
 
 def _declared_in_the_extension(name: str) -> str:

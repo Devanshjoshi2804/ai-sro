@@ -88,3 +88,25 @@ def test_an_encoded_slash_smuggling_a_longer_path_is_not_a_templated_match() -> 
     call = _call("PUT", "https://wms.example/data/WM/wm/addresses/..%2f..%2fadmin%2fwipe")
 
     assert verified_write_for(call, LEDGER) is None
+
+
+def test_a_segment_that_only_opens_a_brace_is_a_literal_and_not_a_wildcard() -> None:
+    """Both ends, and `and` is what makes it both.
+
+    A ledger typed as `{id` -- or a real path segment that happens to start
+    with a brace -- would otherwise match ANY segment, which turns one
+    mistyped entry into a licence to send a write to an endpoint nobody
+    watched succeed. The module's own rule is membership, not resemblance.
+    """
+    ledger = (VerifiedWrite(method="PUT", path_pattern="/data/WM/wm/addresses/{id"),)
+    call = _call("PUT", "https://wms.example/data/WM/wm/addresses/17")
+
+    assert verified_write_for(call, ledger) is None
+
+
+def test_a_templated_segment_matches_the_one_segment_it_stands_for() -> None:
+    # The other half of the same `and`, so the pair cannot both be satisfied by
+    # a matcher that ignores one end.
+    call = _call("PUT", "https://wms.example/data/WM/wm/addresses/17")
+
+    assert verified_write_for(call, LEDGER) is LEDGER[1]

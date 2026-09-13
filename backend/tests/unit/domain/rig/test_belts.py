@@ -266,3 +266,15 @@ def test_the_same_endpoint_twice_names_both_statuses_it_gave() -> None:
     ]
 
     assert expected_statuses(_step(saver), {saver.id: saver}) == {201, 202}
+
+
+def test_a_method_the_browser_recorded_in_lower_case_is_still_a_read() -> None:
+    """`READ_METHODS` holds upper case, and the extension has always sent upper
+    case -- so the `.upper()` guarding that comparison is doing nothing any
+    fixture can see. It is doing something a `fetch("...", {method: "get"})`
+    can: without it a recorded read is classified as a write, given an expected
+    status, and a dry run that replays it is read as having sent one."""
+    saver = _saver()
+    saver.requests = [_get(method="get", request_id="lower", status=200)]
+
+    assert expected_statuses(_step(saver), {saver.id: saver}) == set()

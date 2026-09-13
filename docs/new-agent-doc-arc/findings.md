@@ -1544,3 +1544,68 @@ Both committed, because a measurement whose instrument is not committed is an
 anecdote — the rule this document already states, broken once today: the
 backfill ran from `/tmp` and every number above rested on a database state
 nothing could recreate until it was committed.
+
+## Both miners over one store — 2026-09-14, the precondition on deleting anything
+
+The spec makes this a precondition rather than a nice-to-have, and the reason it
+gives is exact: `MineObservations` reads `observations` and writes
+`task_candidates`; `mining_pass.mine` reads `gestures` and the pool and writes
+`workflows`. **Neither reads the other's tables.** So "the model path works" and
+"the rule-based path is safe to delete" are two claims, and only the first had
+ever been tested.
+
+Measured with `backend/scripts/two_miners.py acme`, over the 30 days to
+2026-09-13: **287 batches, 555 gestures**, the same evidence to both.
+
+### What each named
+
+|  | rule-based | model |
+|---|---|---|
+| named | **49 candidates** | **7 jobs** |
+| on the warehouse host | 24 | 7 |
+| on `localhost` — the console's own API, Next.js dev machinery | 20 | 0 |
+| on `mail.google.com` | 5 | 0 |
+| seen more than once | 12 of 49 | n/a — a job is mined from what was done |
+
+Of the 24 rule-based candidates on the warehouse host, **8 were seen more than
+once**, which is the threshold its own argument rests on. Those eight:
+
+```
+4x  Create an activity code            4x  Create an activity code      <- the same task, twice
+4x  Create a carrier cross-reference   3x  Create a work area
+3x  Create a work area                 3x  Create workOperations on bf56-…   <- a url, not a sentence
+2x  Read nonpaged on bf56-…            2x  Read WMWorkArea on bf56-…         <- reads, not tasks
+```
+
+So **five distinct tasks**, one of them named after a URL path and two of them
+not tasks at all. The model's seven:
+
+```
+11 steps  Create a Work Operation       7 steps  Create a Warehouse Equipment Type
+ 6 steps  Create a Carrier Cross Reference   7 steps  Create a Work Area
+ 7 steps  Create an Activity Code        6 steps  Create a Customer Type
+ 1 step   Create a Customer Type        <- the degenerate row, mined before `validate` refused one
+```
+
+### What one found that the other missed
+
+**The model found everything the rule-based path found**, minus the two reads,
+plus `Create a Warehouse Equipment Type` — which the rule-based miner saw once
+and therefore never proposed.
+
+**The rule-based path found nothing the model missed.** Its extra 41 rows are
+the console talking to itself (20), Gmail (5), and warehouse rows seen a single
+time (16).
+
+Both duplicate: the rule-based path names one task twice because its signature
+splits on something the operator varied; the model names `Create a Customer
+Type` twice, one of them the one-step row `validate` would refuse today.
+
+### What this does not settle
+
+The count is one half of the precondition. The other half is a reading, and it
+is the user's: **which of each list is work worth automating.** This document
+will not answer it by asserting it. `two_miners.py` prints both lists in full
+for exactly that reason, and it reads by default — the rule-based miner writes
+candidates as it runs, and the model pass costs a 150K-token call, so each has
+to be asked for by name.

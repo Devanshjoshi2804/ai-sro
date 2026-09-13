@@ -612,9 +612,12 @@ real browser, watching nothing happen.
 | **The run's own words.** `WorkflowRunModel` here; `api.rigRun`'s mapping there | the card draws a blank where the verdict goes, on a run somebody is watching | `test_the_panel_reads_a_run_by_fields_the_backend_really_answers_with` |
 | **The doors.** Every `/v1/...` path `api.js` calls; this app's OpenAPI | a 404 in a browser somebody is working in | `test_every_door_the_extension_knocks_on_is_one_this_app_opens` |
 
-All five live in `backend/tests/unit/interface/test_the_command_vocabulary.py`
-except where named otherwise, and all five read the extension's real source
-rather than a copy of it. The extension's own suite cannot stand in for any of
+| **What the panel redraws for.** `show()`'s signature here; the offers the worker stores there | an offer made while the thread was quiet is stored, prompted on the page, and never drawn in the panel | `an offer made while the thread is quiet is still drawn` in `panel.test.mjs`, with its twin holding that an unchanged thread and unchanged offers still redraw nothing |
+
+The first five live in `backend/tests/unit/interface/test_the_command_vocabulary.py`
+except where named otherwise, and all of them read the extension's real source
+rather than a copy of it. The sixth is the extension's own, because both halves
+of that one are in the panel: what it stores and what it decides to draw. The extension's own suite cannot stand in for any of
 them: it fakes `fetch`, so the path it asserts is the path it invented.
 
 A mutation score cannot stand in either, and `shape.py` is the proof —

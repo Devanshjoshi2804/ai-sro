@@ -902,3 +902,145 @@ async def test_the_redaction_marker_reaches_both_prompts_as_itself() -> None:
         assert isinstance(sent, str)
         assert "hunter2" not in sent
         assert REDACTED in sent, "the marker, not \\u00abredacted\\u00bb"
+
+
+async def _picking(
+    *,
+    opened: bool = False,
+    values: Mapping[str, str] | None = None,
+    allow_focus: bool = True,
+    starts_on: str | None = "http://127.0.0.1:63319/form",
+) -> Planned:
+    """A step whose parameter can only be chosen from a list.
+
+    The model answers `click`, which carries no value, and the step was given
+    one -- so the planner splits it into two clicks: open the control, then
+    click the row named by the value asked for. `_typed()` cites a gesture with
+    no request on it, so the step does not write and the list may be opened
+    first.
+    """
+    gesture = _typed()
+    asker = FakeAsker(_answer(action="click"))
+    return await plan_step(
+        step=Step(
+            order=0,
+            says="choose the client",
+            system=None,
+            cites=[gesture.id],
+            parameters=["clientCode"],
+        ),
+        cited=[gesture],
+        values={"clientCode": "THIRD"} if values is None else values,
+        look=Look(None, None, ""),
+        origin="http://127.0.0.1:63319",
+        starts_on=starts_on,
+        allow_focus=allow_focus,
+        asker=asker,
+        model="m",
+        opened=opened,
+    )
+
+
+async def test_a_value_a_click_cannot_carry_opens_the_list_first() -> None:
+    """The first of the two clicks, and `opens` is what tells the runner that
+    nothing has been done yet: it sends this command and plans the step again
+    rather than moving on, the same shape `navigate` has."""
+    planned = await _picking()
+
+    assert planned.kind == "ui.perform"
+    assert planned.opens is True
+    assert "opening the list" in planned.why
+    # The whole payload, because every key in it is one the extension matches
+    # on: an action spelled `CLICK` reaches a browser that has no such command.
+    assert planned.payload["action"] == "click"
+    assert planned.payload["value"] is None
+    assert planned.payload["origin"] == "http://127.0.0.1:63319"
+    # The permission to move somebody's tab, and the page the click starts on.
+    # Neither had a test, and a planner that stopped threading either would
+    # have stayed green: a run that may not take focus cannot reach a control
+    # the page only renders when focused.
+    assert planned.payload["allow_focus"] is True
+    assert planned.payload["starts_on"] == "http://127.0.0.1:63319/form"
+    locators = planned.payload["locators"]
+    assert isinstance(locators, list) and locators, "the evidence's own ladder opens it"
+
+
+async def test_the_second_click_is_the_row_named_by_the_value_asked_for() -> None:
+    """Not the row the recording happened to contain. The operator's own choice
+    is what the evidence carries, and using it would do the job with somebody
+    else's client code."""
+    planned = await _picking(opened=True)
+
+    assert planned.opens is False
+    assert "choosing THIRD" in planned.why
+    assert planned.payload["locators"] == [
+        {"strategy": "text", "query": "THIRD", "within": None, "visible_only": True}
+    ]
+    assert planned.payload["action"] == "click" and planned.payload["value"] is None
+
+
+async def test_a_pick_that_may_not_take_the_screen_says_nothing_about_focus() -> None:
+    # Absent, not False: the extension refuses a command that would move a tab
+    # unless the key is there, and a `False` it had to read would be a second
+    # way to say the same thing.
+    planned = await _picking(allow_focus=False, starts_on=None)
+
+    assert "allow_focus" not in planned.payload
+    assert "starts_on" not in planned.payload
+
+
+async def test_a_click_nobody_asked_a_value_of_is_planned_as_itself() -> None:
+    # The split only happens where a value was supplied for the step. A plain
+    # Save is a click, and turning it into two would click Save twice.
+    planned = await _picking(values={})
+
+    assert planned.opens is False
+    assert planned.payload["action"] == "click"
+    assert "opening the list" not in planned.why
+
+
+async def test_the_sight_rung_with_no_picture_costs_nothing_and_says_so() -> None:
+    """`kind` is what the runner switches on, and `none` is what stops it.
+
+    Both early returns hand back a blank `Answer()` rather than the model's,
+    because no model was asked -- a step that reads as having cost money is a
+    step the day's spend is wrong about.
+    """
+    asker = FakeAsker(_answer())
+    planned = await plan_by_sight(
+        step=Step(order=0, says="type the code", system=None, cites=[_typed().id]),
+        cited=[_typed()],
+        values={},
+        look=Look(url="http://127.0.0.1:63319/form", screenshot=None, digest=""),
+        origin=None,
+        asker=asker,
+        model="m",
+        failure=None,
+    )
+
+    assert planned.kind == "none"
+    assert planned.payload == {}
+    assert planned.why == "no screen to look at"
+    assert planned.answer is not None and planned.answer.cost_usd == 0.0
+    assert asker.asked == [], "nothing was asked, so nothing may be billed"
+
+
+async def test_the_sight_rung_with_a_picture_and_no_evidence_asks_nobody() -> None:
+    # A step whose every citation is gone or untargeted. The screen is there
+    # and there is still nothing to say about what to find on it.
+    asker = FakeAsker(_answer())
+    planned = await plan_by_sight(
+        step=Step(order=0, says="type the code", system=None, cites=["ges-gone"]),
+        cited=[],
+        values={},
+        look=_seen(),
+        origin=None,
+        asker=asker,
+        model="m",
+        failure=None,
+    )
+
+    assert planned.kind == "none"
+    assert planned.payload == {}
+    assert planned.why == "no evidence to act on"
+    assert asker.asked == []

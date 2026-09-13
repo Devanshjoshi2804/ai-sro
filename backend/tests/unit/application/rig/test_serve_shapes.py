@@ -63,6 +63,16 @@ def _typed(by_id: dict[str, Gesture]) -> Gesture:
     )
 
 
+def _a_third_gesture(by_id: dict[str, Gesture]) -> Gesture:
+    """The `select` in the measured batch, as a fixture's middle step.
+
+    Three walkable gestures and not two: `shape_of` refuses to serve a shape
+    the matcher could never reach, and `recognise.match` scans k down from
+    `shape.length - 1` because an offer has to leave something to finish.
+    """
+    return next(g for g in by_id.values() if g.action.kind == "select")
+
+
 def _saver(by_id: dict[str, Gesture]) -> Gesture:
     """The click on Save, by its control and not by position."""
     return next(
@@ -89,7 +99,8 @@ def _workflow(by_id: dict[str, Gesture], wid: str = "wfl_1") -> Workflow:
                 cites=[_typed(by_id).id],
                 parameters=["clientCode"],
             ),
-            Step(order=1, says="save", system=None, cites=[_saver(by_id).id]),
+            Step(order=1, says="choose the depot", system=None, cites=[_a_third_gesture(by_id).id]),
+            Step(order=2, says="save", system=None, cites=[_saver(by_id).id]),
         ],
         parameters=[{"name": "clientCode", "seen_values": ["ACME-4471"]}],
     )
@@ -99,8 +110,9 @@ def _saver_first(by_id: dict[str, Gesture], wid: str) -> Workflow:
     """A workflow that begins on the click rather than the typing, so an edit
     to the typed gesture's `page_url` does not touch where it starts.
 
-    Two cited gestures and not one: `shape_of` refuses a walk shorter than
-    `K_OFFER_AFTER`, which `recognise.js` could never match at any k.
+    Three cited gestures and not one: `shape_of` refuses a walk of
+    `K_OFFER_AFTER` positions or fewer, because `recognise.match` scans k down
+    from `shape.length - 1` and could never match one at any k.
     """
     other = next(
         g
@@ -116,6 +128,7 @@ def _saver_first(by_id: dict[str, Gesture], wid: str) -> Workflow:
         steps=[
             Step(order=0, says="save", system=None, cites=[_saver(by_id).id]),
             Step(order=1, says="confirm", system=None, cites=[other.id]),
+            Step(order=2, says="choose the depot", system=None, cites=[_a_third_gesture(by_id).id]),
         ],
     )
 

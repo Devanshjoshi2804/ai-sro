@@ -43,6 +43,18 @@ def _saver(by_id: dict[str, Gesture]) -> Gesture:
     )
 
 
+def _a_third_gesture(by_id: dict[str, Gesture]) -> Gesture:
+    """The `select` in the committed batch, as this fixture's middle step.
+
+    Three walkable gestures and not two, because `shape_of` refuses to serve a
+    shape the matcher could never reach: `recognise.match` scans k down from
+    `shape.length - 1` -- an offer leaves something to finish -- so a
+    two-position shape has no k at or above `K_OFFER_AFTER`. Every test here
+    that is not about that rule needs a job long enough to be offered.
+    """
+    return next(g for g in by_id.values() if g.action.kind == "select")
+
+
 def _workflow(by_id: dict[str, Gesture], wid: str = "wfl_1") -> Workflow:
     return Workflow(
         id=wid,
@@ -58,7 +70,8 @@ def _workflow(by_id: dict[str, Gesture], wid: str = "wfl_1") -> Workflow:
                 cites=[_typed(by_id).id],
                 parameters=["clientCode"],
             ),
-            Step(order=1, says="save", system=None, cites=[_saver(by_id).id]),
+            Step(order=1, says="choose the depot", system=None, cites=[_a_third_gesture(by_id).id]),
+            Step(order=2, says="save", system=None, cites=[_saver(by_id).id]),
         ],
         parameters=[{"name": "clientCode", "seen_values": ["ACME-4471"]}],
     )
@@ -114,7 +127,8 @@ def test_a_proven_workflow_is_served_as_its_shape_with_where_each_parameter_was_
     assert shape.id == "wfl_1" and shape.title == "create a client"
     assert shape.starts_on and shape.starts_on.startswith(HOST)
     assert HOST in shape.hosts
-    assert len(shape.shape) == 2 and shape.shape[0][2] == "type" and shape.shape[1][2] == "click"
+    assert len(shape.shape) == 3
+    assert [triple[2] for triple in shape.shape] == ["type", "select", "click"]
     assert shape.parameters == [{"name": "clientCode", "at": 0}], (
         "the parameter was typed at shape index 0"
     )
@@ -133,10 +147,10 @@ def test_the_steps_are_read_in_their_own_order_and_not_the_order_they_arrived_in
     _typed(by_id).page_url = f"{HOST}/clients/new"
     _saver(by_id).page_url = f"{HOST}/clients/saved"
     workflow.steps = list(reversed(workflow.steps))
-    assert [step.order for step in workflow.steps] == [1, 0], "the save is written first"
+    assert [step.order for step in workflow.steps] == [2, 1, 0], "the save is written first"
 
     pairs = cited_pairs(workflow, by_id)
-    assert [step.order for _, step in pairs] == [0, 1], "sorted by order, not by arrival"
+    assert [step.order for _, step in pairs] == [0, 1, 2], "sorted by order, not by arrival"
 
     shape = shape_of(workflow, pairs, held=0, advice=QUIET)
     assert shape is not None
@@ -189,7 +203,7 @@ def test_a_parameter_is_placed_by_the_step_that_declares_it_not_the_first_match(
     shape = _served(workflow, by_id)
 
     assert shape is not None
-    assert len(shape.shape) == 3
+    assert len(shape.shape) == 4
     assert shape.parameters == [{"name": "clientCode", "at": 1}], (
         "index 0 is the search box the first value match would have bound"
     )
@@ -280,9 +294,9 @@ def test_a_resting_job_is_served_marked_for_the_browser_that_refused_it() -> Non
 
 
 def test_a_later_offer_is_capped_at_the_last_gesture_but_one() -> None:
-    """Diverged at k=5 on both jobs: counsel says 6 for each. The two-gesture
-    job cannot be offered at 6, and the four-gesture one cannot be offered at
-    its last."""
+    """Diverged at k=5 on both jobs: counsel says 6 for each. Neither job can
+    be offered that late, and the cap is the last gesture but one -- an offer
+    has to leave something to finish."""
     by_id = _evidence()
     later = Counsel(offer_after=6, quiet_until=None)
     four = list(by_id.values())
@@ -298,13 +312,37 @@ def test_a_later_offer_is_capped_at_the_last_gesture_but_one() -> None:
         ],
     )
 
-    two_shape = _served(_workflow(by_id), by_id, advice=later)
+    three_shape = _served(_workflow(by_id), by_id, advice=later)
     four_shape = _served(four_steps, by_id, advice=later)
 
-    assert four_shape is not None and two_shape is not None
+    assert four_shape is not None and three_shape is not None
     assert len(four_shape.shape) == 4
     assert four_shape.offer_after == 3, "capped at the last gesture but one"
-    assert two_shape.offer_after == K_OFFER_AFTER, "and never under the default"
+    assert three_shape.offer_after == K_OFFER_AFTER, "and never under the default"
+
+
+def test_a_job_too_short_to_leave_anything_to_finish_is_never_served() -> None:
+    """`recognise.match` scans k down from `shape.length - 1`, so the whole of
+    a shape is never a prefix anybody is offered -- and a two-position shape
+    therefore has no k at or above `K_OFFER_AFTER` at all.
+
+    This was served until 2026-09-14, off by one against the matcher: every
+    browser cached it, walked it on every gesture, and could never fire it.
+    Nothing on this side could have caught it, because the offer replay only
+    ever fed real mined jobs, all of them longer; it was found by watching a
+    browser do a two-step job over and over with the panel open.
+
+    The floor and the cap on `offer_after` are the same rule read from two
+    ends: `max(K_OFFER_AFTER, min(advice, len(walk) - 1))` cannot be satisfied
+    by a walk of `K_OFFER_AFTER` positions, so serving one is serving a shape
+    whose own floor is above its own ceiling.
+    """
+    by_id = _evidence()
+    workflow = _workflow(by_id)
+    workflow.steps = [step for step in workflow.steps if step.order != 1]
+    assert len(workflow.steps) == K_OFFER_AFTER
+
+    assert _served(workflow, by_id) is None
 
 
 def test_a_parameter_learned_across_doings_is_placed_by_the_control_that_typed_it() -> None:
@@ -327,7 +365,8 @@ def test_a_parameter_learned_across_doings_is_placed_by_the_control_that_typed_i
         # No step declares the parameter: it was learned later.
         steps=[
             Step(order=0, says="type the code", system=None, cites=[typed.id]),
-            Step(order=1, says="save", system=None, cites=[_saver(by_id).id]),
+            Step(order=1, says="choose the depot", system=None, cites=[_a_third_gesture(by_id).id]),
+            Step(order=2, says="save", system=None, cites=[_saver(by_id).id]),
         ],
         parameters=[{"name": name, "seen_values": ["ACME-4471", "ACME-9000"]}],
     )
@@ -384,14 +423,14 @@ def test_a_dropdown_pick_is_indexed_by_what_it_clicked_on() -> None:
     picked = _picked("ConnectShip (TanData)")
     by_id[picked.id] = picked
     workflow.steps.append(
-        Step(order=2, says="pick the system", system=None, cites=[picked.id], parameters=["system"])
+        Step(order=3, says="pick the system", system=None, cites=[picked.id], parameters=["system"])
     )
     workflow.parameters.append({"name": "system", "seen_values": ["ConnectShip (TanData)"]})
 
     shape = _served(workflow, by_id)
 
     assert shape is not None
-    assert {"name": "system", "at": 2} in shape.parameters
+    assert {"name": "system", "at": 3} in shape.parameters
 
 
 def test_a_label_no_seen_value_matches_is_nobodys_answer() -> None:

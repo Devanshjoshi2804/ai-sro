@@ -195,16 +195,30 @@ def shape_of(
     # where the job begins is a fact about the recording, not about what can
     # be matched.
     walk = walkable(cited)
-    # `recognise.js` offers on `shape.slice(0, k)` with k at least
-    # `K_OFFER_AFTER`, so a walk shorter than that has no prefix long enough to
-    # be matched at any k -- it would be served, cached and walked by every
-    # browser on every gesture, and could never fire. acme holds one: a one-step
-    # `Create a Customer Type`, no parameters, whose whole content is "Save the
-    # customer type configuration". `validate` refuses to mine such a workflow
-    # now, for the neighbouring reason that `resolve` needs
-    # `K_MIN_SHARED_STEPS` to dedupe one, but the rows mined before that check
-    # are still in the store and there is no way to retire one.
-    if len(walk) < K_OFFER_AFTER:
+    # `recognise.js` offers on `shape.slice(0, k)`, and it scans k DOWN FROM
+    # `shape.length - 1`: an offer has to leave something to finish, so the
+    # whole of a shape is never a prefix anybody is offered. With k at least
+    # `K_OFFER_AFTER`, that makes a walk of exactly `K_OFFER_AFTER` positions
+    # unmatchable at any k -- served, cached and walked by every browser on
+    # every gesture, and unable to fire.
+    #
+    # This read `< K_OFFER_AFTER` and was off by one against the matcher, which
+    # nothing could have caught from this side: the offer replay only ever fed
+    # it real mined jobs, all longer. Found by watching a browser do a two-step
+    # job over and over with the panel open and nothing ever appearing, and
+    # confirmed against `match`'s own loop bound.
+    #
+    # acme holds shorter rows still: a one-step `Create a Customer Type`, no
+    # parameters, whose whole content is "Save the customer type
+    # configuration". `validate` refuses to mine such a workflow now, for the
+    # neighbouring reason that `resolve` needs `K_MIN_SHARED_STEPS` to dedupe
+    # one, but the rows mined before that check are still in the store and
+    # there is no way to retire one.
+    #
+    # `offer_after` below caps at `len(walk) - 1` for the same reason, and that
+    # cap is what gives this line its exact form: a shape whose floor exceeds
+    # its own cap is one the matcher can never reach.
+    if len(walk) <= K_OFFER_AFTER:
         return None
     return Shape(
         id=workflow.id,

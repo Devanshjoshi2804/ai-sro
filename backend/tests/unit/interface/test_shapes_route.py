@@ -72,6 +72,16 @@ def _typed(by_id: dict[str, Gesture]) -> Gesture:
     )
 
 
+def _a_third_gesture(by_id: dict[str, Gesture]) -> Gesture:
+    """The `select` in the measured batch, as this fixture's middle step.
+
+    Three walkable gestures and not two: `shape_of` refuses to serve a shape
+    the matcher could never reach, and `recognise.match` scans k down from
+    `shape.length - 1` because an offer has to leave something to finish.
+    """
+    return next(g for g in by_id.values() if g.action.kind == "select")
+
+
 def _saver(by_id: dict[str, Gesture]) -> Gesture:
     """The click on Save, by its control and not by position."""
     return next(
@@ -117,7 +127,8 @@ async def proven(uow: FakeUnitOfWork, evidence: dict[str, Gesture]) -> Workflow:
                 cites=[_typed(by_id).id],
                 parameters=["clientCode"],
             ),
-            Step(order=1, says="save", system=None, cites=[_saver(by_id).id]),
+            Step(order=1, says="choose the depot", system=None, cites=[_a_third_gesture(by_id).id]),
+            Step(order=2, says="save", system=None, cites=[_saver(by_id).id]),
         ],
         parameters=[{"name": "clientCode", "seen_values": ["ACME-4471"]}],
     )
@@ -212,6 +223,12 @@ async def test_every_proven_job_comes_back_and_in_the_order_it_was_served(
             steps=[
                 Step(order=0, says="save", system=None, cites=[_saver(evidence).id]),
                 Step(order=1, says="type the code", system=None, cites=[_typed(evidence).id]),
+                Step(
+                    order=2,
+                    says="choose the depot",
+                    system=None,
+                    cites=[_a_third_gesture(evidence).id],
+                ),
             ],
         )
     )

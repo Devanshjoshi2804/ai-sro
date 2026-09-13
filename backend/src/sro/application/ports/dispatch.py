@@ -13,6 +13,7 @@ which no taught skill can do.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Protocol
 
 from sro.application.context import RequestContext
@@ -39,6 +40,27 @@ class RunDispatcher(Protocol):
         socket is not the process that read the trigger, and whether an
         operator's screen may be taken is the trigger's decision rather than
         either process's.
+        """
+        ...
+
+
+    async def start_job(
+        self,
+        ctx: RequestContext,
+        *,
+        workflow_id: str,
+        device_id: DeviceId,
+        values: Mapping[str, str],
+        allow_focus: bool = False,
+    ) -> RunId:
+        """The same, for a mined job rather than a taught skill.
+
+        Separate from `start` rather than a flag on it, because the two are
+        different authorities. `start` says "run this taught skill, with these
+        values"; this says "replay this recording of somebody's own work in
+        this browser". Live is not a parameter: a dry run of a scheduled job
+        sends nothing and verifies nothing, and what keeps a live one safe is
+        the ladder the run itself climbs.
         """
         ...
 

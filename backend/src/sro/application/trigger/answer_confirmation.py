@@ -84,17 +84,17 @@ class AnswerConfirmation:
                 # reason the comment below gives about the skill path: a second
                 # start beside the first is how the first one's device_id got
                 # dropped. `authorized_by` is the person who answered.
-                if self._start_run is None:
+                if self._start_run is None and self._dispatcher is None:
                     raise InvariantViolation("this process cannot start a job")
-                run = await start_job_for(
+                run_id = await start_job_for(
                     ctx,
                     trigger,
                     values=dict(waiting.values),
                     start_run=self._start_run,
                     pursuits=self._pursuits,
+                    dispatcher=self._dispatcher,
                     authorized_by=ctx.principal_id.value,
                 )
-                run_id = RunId(run.id)
                 waiting.approve(ctx.principal_id, now, run_id)
                 trigger.fired(now, run_id)
                 await uow.confirmations.save(waiting)

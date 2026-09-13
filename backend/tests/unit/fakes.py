@@ -1302,6 +1302,24 @@ class FakeRunDispatcher:
         self.may_take_focus = may_take_focus
         return RunId(f"run-dispatched-{len(self.asked)}")
 
+    async def start_job(
+        self,
+        ctx: RequestContext,
+        *,
+        workflow_id: str,
+        device_id: DeviceId,
+        values: Mapping[str, str],
+        allow_focus: bool = False,
+    ) -> RunId:
+        """The job half. Same list, because what a caller has to get right is
+        the same thing: which browser, and with what."""
+        if not self.reachable:
+            raise DispatchFailed(f"{device_id} has no channel open anywhere")
+        self.asked.append((workflow_id, device_id.value))
+        self.with_values.append(dict(values))
+        self.may_take_focus = allow_focus
+        return RunId(f"run-dispatched-{len(self.asked)}")
+
 
 class FakeConfirmationRepository:
     def __init__(self) -> None:

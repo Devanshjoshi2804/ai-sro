@@ -30,7 +30,6 @@ from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.schedule import Scheduler
 from sro.application.ports.system import Clock, IdFactory
 from sro.domain.execution.run import RunId
-from sro.domain.execution.workflow_run import WorkflowRun
 from sro.domain.shared.errors import Conflict
 from sro.domain.shared.identifiers import ConfirmationId, TriggerId
 from sro.domain.skill.skill import SkillVersion
@@ -227,7 +226,7 @@ class FireTrigger:
         a workflow is a recording of somebody's own window, and `device_id` is
         how the run reaches it.
         """
-        if self._start_run is None:
+        if self._start_run is None and self._dispatcher is None:
             return Fired(trigger.id, skipped="this process cannot start a job")
         if trigger.device_id is None:
             # Refused at creation too. Belt and braces, because a row written
@@ -250,8 +249,13 @@ class FireTrigger:
             return Fired(trigger.id, confirmation_id=asked.id)
 
         try:
-            run = await start_job_for(
-                ctx, trigger, values=values, start_run=self._start_run, pursuits=self._pursuits
+            run_id = await start_job_for(
+                ctx,
+                trigger,
+                values=values,
+                start_run=self._start_run,
+                pursuits=self._pursuits,
+                dispatcher=self._dispatcher,
             )
         except (DispatchFailed, Conflict, RunRefused) as refused:
             # A closed laptop is a `Conflict` out of `StartWorkflowRun`, not a
@@ -266,10 +270,10 @@ class FireTrigger:
             # the next pass that reads those gestures back.
             logger.info("trigger %s did not start its job: %s", trigger.id, refused)
             return Fired(trigger.id, skipped=str(refused))
-        trigger.fired(now, None)
+        trigger.fired(now, run_id)
         await uow.triggers.save(trigger)
         await uow.commit()
-        return Fired(trigger.id, run_id=RunId(run.id))
+        return Fired(trigger.id, run_id=run_id)
 
     async def _start(
         self, ctx: RequestContext, trigger: Trigger, *, version: int, values: dict[str, str]
@@ -365,10 +369,11 @@ async def start_job_for(
     trigger: Trigger,
     *,
     values: Mapping[str, str],
-    start_run: StartWorkflowRun,
+    start_run: StartWorkflowRun | None,
     pursuits: Pursuits | None,
+    dispatcher: RunDispatcher | None = None,
     authorized_by: str | None = None,
-) -> WorkflowRun:
+) -> RunId:
     """Start the mined job a trigger asks for, in the browser it names.
 
     Module-level for `start_for`'s reason, which is the one that matters most
@@ -389,6 +394,14 @@ async def start_job_for(
     that awaited the whole run would hold a worker's activity slot for its full
     duration -- the same failure `start_for` records above -- and a run nobody
     holds a reference to is one the loop may collect mid-gesture.
+
+    **A dispatcher wins where there is one**, which is `start_for`'s rule and
+    exists for the same reason: the socket to that Chrome is held by whichever
+    process the extension connected to, and the scheduler's worker is not that
+    one. Started in-process there, `StartWorkflowRun` looks for the browser in
+    its own empty register and every scheduled job is skipped forever with
+    "not connected". `start_run` remains the path for a deployment with no
+    dispatcher at all.
     """
     # The name is on the record already: `WorkflowRun.started_by` is the
     # context's principal, which for a fire is the trigger's author and for an
@@ -400,6 +413,17 @@ async def start_job_for(
         raise DispatchFailed("this trigger writes and names nobody who authorised it")
     if trigger.device_id is None:
         raise DispatchFailed("a job runs in a browser: this trigger names none")
+
+    if dispatcher is not None:
+        return await dispatcher.start_job(
+            ctx,
+            workflow_id=str(trigger.workflow_id),
+            device_id=trigger.device_id,
+            values=values,
+            allow_focus=trigger.may_take_focus,
+        )
+    if start_run is None:
+        raise DispatchFailed("this process cannot start a job")
 
     claimed = await start_run.execute(
         ctx,
@@ -417,7 +441,7 @@ async def start_job_for(
         await performing
     else:
         pursuits.spawn(performing)
-    return claimed
+    return RunId(claimed.id)
 
 
 def blank_inputs(version: SkillVersion, values: Mapping[str, str]) -> list[str]:

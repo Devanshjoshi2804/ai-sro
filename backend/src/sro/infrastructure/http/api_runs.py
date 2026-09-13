@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Mapping
 
 import httpx
 
@@ -85,6 +86,63 @@ class ApiRunDispatcher(RunDispatcher):
         run_id = response.json().get("id")
         if not run_id:
             raise DispatchFailed("the run was started but came back without an id")
+        return RunId(str(run_id))
+
+    async def start_job(
+        self,
+        ctx: RequestContext,
+        *,
+        workflow_id: str,
+        device_id: DeviceId,
+        values: Mapping[str, str],
+        allow_focus: bool = False,
+    ) -> RunId:
+        """`POST /v1/workflow-runs`, the same door the console's press uses.
+
+        The job half of `start`, and it exists for the same reason: the socket
+        to that Chrome is held by whichever process the extension connected to,
+        and the scheduler's worker is not that one. Without this a scheduled
+        job could only ever be skipped with "not connected", because the worker
+        looks for the browser in its own empty register.
+
+        `live=True` always. A dry run of a scheduled job sends nothing and
+        verifies nothing -- it is a trigger that appears to work -- and what
+        keeps a live one safe is not dryness but the ladder the run climbs: a
+        write parks for a person until the job has earned the right.
+
+        No `started_by` in the body, deliberately. The API reads the starter off
+        the credential minted above, which is the trigger's own principal.
+        """
+        token = self._credentials.issue(
+            Caller(tenant_id=ctx.tenant_id, principal_id=ctx.principal_id),
+            lasting_hours=CREDENTIAL_HOURS,
+        )
+        body = {
+            "workflow_id": workflow_id,
+            "device_id": device_id.value,
+            "values": dict(values),
+            "live": True,
+            "allow_focus": allow_focus,
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=self._timeout) as client:
+                response = await client.post(
+                    f"{self._base_url}/v1/workflow-runs",
+                    json=body,
+                    headers={"Authorization": f"Bearer {token}"},
+                )
+        except httpx.HTTPError as unreachable:
+            raise DispatchFailed(
+                f"the job could not be handed to {self._base_url}: {unreachable}"
+            ) from unreachable
+
+        if response.status_code >= 400:
+            raise DispatchFailed(_why(response))
+
+        run_id = response.json().get("id")
+        if not run_id:
+            raise DispatchFailed("the job was started but came back without an id")
         return RunId(str(run_id))
 
 

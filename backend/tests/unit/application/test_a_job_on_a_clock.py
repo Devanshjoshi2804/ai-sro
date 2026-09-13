@@ -42,6 +42,7 @@ from tests.unit.fakes import (
     FakeClock,
     FakeDurableExecution,
     FakeIdFactory,
+    FakeRunDispatcher,
     FakeScheduler,
     FakeUnitOfWork,
 )
@@ -388,4 +389,75 @@ async def test_a_closed_laptop_is_skipped_rather_than_retried_all_night() -> Non
 
     assert fired.run_id is None
     assert "not connected" in (fired.skipped or "")
+    assert uow.triggers.rows[trigger.id.value].enabled is True
+
+
+async def test_the_worker_asks_the_process_that_holds_the_browser() -> None:
+    """The reason `start_job` exists at all.
+
+    A schedule fires inside the Temporal worker, and the socket to that Chrome
+    is held by whichever process the extension connected to. Started in-process
+    there, `StartWorkflowRun` looks for the browser in its own empty register
+    and skips forever with "not connected" -- the same trap the skill path
+    escaped with a dispatcher, and the job path needed its own way out.
+    """
+    uow, scheduler = await _held(), FakeScheduler()
+    trigger = await _create(uow, scheduler).execute(CTX, _new(auto_approve=True))
+    elsewhere = FakeRunDispatcher()
+    pursuits = _Dropped()
+
+    fired = await FireTrigger(
+        uow,
+        FakeClock(NOW),
+        FakeDurableExecution(),
+        ids=FakeIdFactory(),
+        dispatcher=elsewhere,
+        start_run=_starter(uow),
+        pursuits=pursuits,
+    ).execute(trigger.id)
+
+    assert fired.run_id is not None
+    assert elsewhere.asked == [("wfl_1", "dev-1")]
+    assert elsewhere.with_values == [{"clientCode": "NEWTESTS"}]
+    # Handed over, not started here: nothing was claimed in this process and
+    # nothing was spawned in it either.
+    assert pursuits.spawned == 0
+    assert uow.workflow_runs.rows == {}
+    assert uow.triggers.rows[trigger.id.value].last_run_id == fired.run_id
+
+
+async def test_a_dispatched_job_carries_the_triggers_focus_decision() -> None:
+    # The process that holds the socket is not the process that read the
+    # trigger, so whether somebody's screen may be taken has to travel.
+    uow, scheduler = await _held(), FakeScheduler()
+    trigger = await _create(uow, scheduler).execute(
+        CTX, _new(auto_approve=True, may_take_focus=True)
+    )
+    elsewhere = FakeRunDispatcher()
+
+    await FireTrigger(
+        uow,
+        FakeClock(NOW),
+        FakeDurableExecution(),
+        ids=FakeIdFactory(),
+        dispatcher=elsewhere,
+    ).execute(trigger.id)
+
+    assert elsewhere.may_take_focus is True
+
+
+async def test_a_worker_that_cannot_reach_the_other_process_skips_the_fire() -> None:
+    uow, scheduler = await _held(), FakeScheduler()
+    trigger = await _create(uow, scheduler).execute(CTX, _new(auto_approve=True))
+
+    fired = await FireTrigger(
+        uow,
+        FakeClock(NOW),
+        FakeDurableExecution(),
+        ids=FakeIdFactory(),
+        dispatcher=FakeRunDispatcher(reachable=False),
+    ).execute(trigger.id)
+
+    assert fired.run_id is None
+    assert "no channel open" in (fired.skipped or "")
     assert uow.triggers.rows[trigger.id.value].enabled is True

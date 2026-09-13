@@ -39,6 +39,25 @@ from sro.domain.shared.prices import Answer
 from sro.domain.skill.workflow import Step
 
 KINDS = frozenset({"ui.perform", "http.send", "navigate"})
+"""What a PLAN may name. The model chooses one of these three."""
+
+COMMAND_KINDS = KINDS | frozenset({"ui.perform_at", "ui.url", "screenshot", "abort"})
+"""Everything the runner may put on the wire, plan or not.
+
+`KINDS` is the subset a model may choose; the other four the runner sends on
+its own -- the sight rung's point (`ui.perform_at`), the two the run asks a
+browser for before and after a step (`ui.url`, `screenshot`), and the one it
+sends when a run is stopped (`abort`).
+
+Named here because the other half of this list lives in another language, in
+another repository directory, as a `switch` in `commands.js` -- and a kind that
+exists on one side only is a command the browser answers `not_actionable` to,
+which the run then reads as a step that could not be done. A rule that lives on
+two sides of a wire drifts on one of them: `shape_of` served a shape
+`recognise.js` could never match for weeks, for exactly this reason.
+`test_the_extension_answers_every_command_this_backend_can_send` holds the two
+lists together.
+"""
 
 LIVE_FETCHABLE_HEADERS = frozenset({"csrf-encrypt-token"})
 """Lower-cased header names the extension itself knows how to read off the

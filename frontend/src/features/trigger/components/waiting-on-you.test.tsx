@@ -49,7 +49,9 @@ describe("fires waiting for somebody to say yes", () => {
     renderWithQuery(<WaitingOnYou />);
 
     await waitFor(() =>
-      expect(screen.getByText(/writes to the warehouse, and the run will carry your name/i)).toBeInTheDocument(),
+      expect(
+        screen.getByText(/writes to the warehouse, and the run will carry your name/i),
+      ).toBeInTheDocument(),
     );
   });
 
@@ -99,6 +101,37 @@ describe("fires waiting for somebody to say yes", () => {
         expect.objectContaining({ description: "this expired without an answer" }),
       ),
     );
+  });
+
+  it("names a mined job by its title, the way the panel's offer says it", async () => {
+    // `skill_name` carries a job's title as well as a skill's name: the
+    // backend fills one field because a person deciding reads a name, not a
+    // kind. A card about a job has no `skill_id` at all, so a screen that fell
+    // back to it would show a blank where the sentence should be.
+    vi.spyOn(triggers, "listConfirmations").mockResolvedValue([
+      {
+        ...waiting,
+        skill_id: null,
+        workflow_id: "wfl_1",
+        skill_name: "Create a work area",
+      },
+    ] as never);
+
+    renderWithQuery(<WaitingOnYou />);
+
+    await waitFor(() => expect(screen.getByText("Create a work area")).toBeInTheDocument());
+  });
+
+  it("falls back to the job id when the job has been re-mined away", async () => {
+    vi.spyOn(triggers, "listConfirmations").mockResolvedValue([
+      { ...waiting, skill_id: null, workflow_id: "wfl_1", skill_name: "" },
+    ] as never);
+
+    renderWithQuery(<WaitingOnYou />);
+
+    // An id is worse than a title and far better than a blank: somebody still
+    // has to answer this card.
+    await waitFor(() => expect(screen.getByText("wfl_1")).toBeInTheDocument());
   });
 
   it("says nothing is waiting rather than showing an empty page", async () => {

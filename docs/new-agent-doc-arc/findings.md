@@ -1603,6 +1603,11 @@ Type` twice, one of them the one-step row `validate` would refuse today.
 
 ### What this does not settle
 
+Nothing yet. A deletion was made on this section's first reading and reverted
+within the hour — the revert is in the log, and both deletion commits are kept
+rather than rewritten, so the mistake stays visible to whoever decides this
+next. The rule-based miner stays until the precondition is actually met.
+
 The count is one half of the precondition. The other half is a reading, and it
 is the user's: **which of each list is work worth automating.** This document
 will not answer it by asserting it. `two_miners.py` prints both lists in full

@@ -532,6 +532,24 @@ class GestureRepository(Protocol):
         """Gestures with no intent row yet, oldest first."""
         ...
 
+    async def tenants_since(self, since: datetime) -> tuple[TenantId, ...]:
+        """Every tenant whose browsers uploaded in the window.
+
+        Tenant-blind, like `ObservationRepository.tenants_since` and for the
+        same reason: the scheduled miner has no request behind it and nobody to
+        take a tenant from. Ids only, never a row.
+
+        The rig's own, rather than reusing the observation table's. The two
+        answer the same today because one upload writes both, and building the
+        rig's autonomy on the table it migrated away from is a trap that only
+        springs the day the legacy write stops.
+
+        Measured against the server's clock and not the browser's: a device
+        whose clock is wrong would otherwise take its tenant out of every sweep
+        or put it in every one.
+        """
+        ...
+
     async def save_intent(self, intent: Intent) -> None:
         """Replaces any earlier reading of that gesture."""
         ...

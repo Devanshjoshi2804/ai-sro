@@ -127,6 +127,46 @@ async def mine_lately(container: Container, every_seconds: float, window_hours: 
                 logger.info("%s: waiting for a demonstration -- %s", tenant, waiting)
 
 
+async def mine_the_rig_lately(container: Container, every_seconds: float) -> None:
+    """Read each recorded tenant's day, for as long as this runs.
+
+    The rig's miner, where `mine_lately` above is the pre-rig one. `mine_pass`
+    had one caller and it was a door, so a deployment learned as often as
+    somebody remembered to press it -- every mining result this project has
+    measured came from a person running a script.
+
+    A loop for the same reasons as the keeper: nothing worth replaying, and a
+    missed sweep is corrected by the next one reading the same window. What one
+    pass costs is bounded by `daily_usd_cap`, checked before the window is
+    packed, and a tenant over it is logged by `MineLately` and skipped rather
+    than raised.
+
+    Sleeps first. A worker restarting in a crash loop would otherwise fire the
+    most expensive call in the system on every start.
+    """
+    if every_seconds <= 0:
+        logger.info("the rig miner is off (rig_sweep_seconds=0)")
+        return
+    while True:
+        await asyncio.sleep(every_seconds)
+        try:
+            mined = await container.mine_lately().execute(now=datetime.now(UTC))
+        except Exception:
+            logger.exception("the rig miner could not finish its sweep")
+            continue
+        for tenant, result in mined.items():
+            if result.error:
+                continue
+            if result.kept or result.learned_parameters:
+                logger.info(
+                    "%s: %s job(s) kept of %s proposed, %s parameter(s) learned",
+                    tenant,
+                    result.kept,
+                    result.proposed,
+                    result.learned_parameters,
+                )
+
+
 async def retain_lately(container: Container, every_seconds: float) -> None:
     """Delete evidence that has aged out of its tenant's own window.
 
@@ -182,6 +222,7 @@ async def run() -> None:
     miner = asyncio.create_task(
         mine_lately(container, settings.mining_sweep_seconds, settings.mining_window_hours)
     )
+    rig_miner = asyncio.create_task(mine_the_rig_lately(container, settings.rig_sweep_seconds))
     retainer = asyncio.create_task(retain_lately(container, settings.retention_sweep_seconds))
     try:
         async with default, browser:
@@ -189,6 +230,7 @@ async def run() -> None:
     finally:
         keeper.cancel()
         miner.cancel()
+        rig_miner.cancel()
         retainer.cancel()
 
 

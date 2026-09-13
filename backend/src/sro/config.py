@@ -315,10 +315,45 @@ class Settings(BaseSettings):
     session keeper: it holds no state worth replaying and a missed sweep is
     corrected by the next one."""
 
+    rig_sweep_seconds: float = 3600.0
+    """How often the RIG's miner reads each recorded tenant's day, or 0 to
+    leave it to a deliberate call.
+
+    On by default, where `mining_sweep_seconds` above is off, and the two are
+    not variants of one setting: that one runs `MineObservations` and then
+    teaches what it found with nobody asked, and four of the nine skills it
+    taught across both real tenants are not work. This one runs
+    `mining_pass.mine`, whose output is a `workflows` row that `validate` has
+    already refused nine ways, that no browser is offered until it is proven,
+    and whose first run is always dry.
+
+    On by default because a system whose whole promise is that it watches the
+    work, notices the repetition and offers the job back cannot wait for
+    somebody to press a button -- and until now `mine_pass` had exactly one
+    caller and it was a door. Every mining result this project has measured
+    came from a person running a script.
+
+    An hour, and the interval is what decides how much of a day gets read
+    rather than how fresh the answer is. A pass reads ONE window of the
+    tenant's evidence, and the carry-over pool rotates which evidence that is:
+    measured over ten simulated passes, pass 1 covered 81% and pass 2 96%, with
+    nineteen gestures never shown. So passes are how coverage is bought, and an
+    hour buys a working day in a working day. What stops it costing more than
+    that is `daily_usd_cap`, checked before the window is packed -- a cap
+    reached is logged per tenant and is not an error.
+
+    A loop rather than a schedule, for the same reason as the session keeper:
+    it holds no state worth replaying, and a missed sweep is corrected by the
+    next one reading the same window."""
+
     mining_window_hours: int = 24
-    """How far back each sweep looks. Wider than the interval on purpose:
-    evidence uploaded late still gets mined, and re-reading what was already
-    mined changes nothing."""
+    """How far back each sweep looks, for both miners. Wider than either
+    interval on purpose: evidence uploaded late still gets mined, and
+    re-reading what was already mined changes nothing.
+
+    For the rig's sweep this bounds only WHICH TENANTS are mined -- a tenant
+    whose browsers uploaded in the window. The pass itself then reads that
+    tenant's whole history, which is `_one_pass`'s own recorded ceiling."""
 
     session_sweep_seconds: float = 600.0
     """How often the keeper looks at the connected systems.

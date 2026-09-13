@@ -82,6 +82,7 @@ from sro.application.observation.forget import ForgetObservations
 from sro.application.observation.ingest import IngestObservation
 from sro.application.observation.learn import LearnWhatRepeats
 from sro.application.observation.mine import MineEverything, MineObservations
+from sro.application.observation.mine_lately import MineLately
 from sro.application.observation.mine_pass import MinePass
 from sro.application.observation.policy import ReadObservationPolicy, SetObservationPolicy
 from sro.application.observation.propose import AnswerJoin, ProposeAboutCandidates
@@ -428,6 +429,22 @@ class Container:
             # `work_only` reads a workflow's own systems, which have no path --
             # so only the host:port half of `our_own_origins` applies here.
             ours=frozenset(host_port for host_port, _ in self.settings.our_own_origins()),
+        )
+
+    def mine_lately(self) -> MineLately:
+        """The rig's miner, on a loop rather than on a person's press.
+
+        `mine_pass` had one caller and it was a door: a deployment learned as
+        often as somebody remembered to press it. The window is
+        `mining_window_hours`, the same one the pre-rig sweep looks back over,
+        and it is deliberately wider than the interval -- evidence uploaded
+        late still gets mined, and mining the same window twice is what the
+        pass is built to survive.
+        """
+        return MineLately(
+            self.unit_of_work(),
+            self.mine_pass(),
+            window_hours=self.settings.mining_window_hours,
         )
 
     def read_gestures(self) -> ReadGestures:

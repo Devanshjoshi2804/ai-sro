@@ -1404,6 +1404,25 @@ class FakeGestureRepository:
         ]
         return tuple(found[:limit])
 
+    async def tenants_since(self, since: datetime) -> tuple[TenantId, ...]:
+        # ``received_at`` is an ISO string on the record and a real timestamp
+        # in the column, so the store compares datetimes and this parses one.
+        # A batch whose field is empty or unreadable is counted IN: it is a
+        # batch that exists, and dropping it would take its tenant out of the
+        # sweep for a reason nobody could see.
+        found: set[str] = set()
+        for batch in self.batches.values():
+            try:
+                taken = datetime.fromisoformat(batch.received_at)
+            except ValueError:
+                found.add(batch.tenant)
+                continue
+            if taken.tzinfo is None:
+                taken = taken.replace(tzinfo=UTC)
+            if taken >= since:
+                found.add(batch.tenant)
+        return tuple(TenantId(tenant) for tenant in sorted(found))
+
     async def save_intent(self, intent: Intent) -> None:
         self.intents[intent.gesture_id] = intent
         # The server's clock, as ``save_intent`` takes it, and taken again on a

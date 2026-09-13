@@ -227,6 +227,16 @@ class SqlGestureRepository(GestureRepository):
         rows = (await self._session.execute(query)).scalars().all()
         return tuple(_row_to_gesture(row) for row in rows)
 
+    async def tenants_since(self, since: datetime) -> tuple[TenantId, ...]:
+        # ``received_at`` and not ``ended_at``: the first is when this process
+        # took the upload and the second is the device's own clock, kept as a
+        # string exactly as it was sent. A browser with a wrong clock would
+        # otherwise take its tenant out of every sweep or put it in every one.
+        rows = await self._session.execute(
+            select(GestureBatchRow.tenant_id).where(GestureBatchRow.received_at >= since).distinct()
+        )
+        return tuple(TenantId(tenant) for tenant in rows.scalars())
+
     async def save_intent(self, intent: Intent) -> None:
         # ``created_at`` is the server's, taken here rather than carried on the
         # record: it is when the reading was stored, and the spend window is

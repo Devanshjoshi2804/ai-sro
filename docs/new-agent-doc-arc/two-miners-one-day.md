@@ -793,3 +793,94 @@ already has — this deployment's own origin, and third-party traffic that is no
 the operator's — before its 9-to-0 means anything. Whether that is worth doing
 to a path phase 7 plans to delete is the decision this document exists to
 inform, and it is not this document's to make.
+
+## The gap was the evidence, not the model — 2026-09-14
+
+The verdict above stood on three unmet items. Two of them turn out to be one
+thing, and it is not what either miner does with what it is shown.
+
+### Four days were observed and never reached the plane the model reads
+
+```
+tenant     day          batches  replayed  gestures accepted
+new        2026-09-02       127         0                  0   <- Create a supplier lives here
+new        2026-09-03         4         0                  0
+```
+
+`observations` held them; `gestures` did not. `MineObservations` reads the
+first table and `mining_pass.mine` reads the second, so for these days the
+rule-based path had a day's work to cluster and the model path had **nothing at
+all**. Every sentence anybody has written about the model "missing"
+`Create a supplier` was a sentence about a table that was empty.
+
+Replayed with `scripts/backfill_gestures.py new`: **131 batches, 137 gestures**,
+100 of them on supplier controls (`supplierform-clientid`,
+`supplierform-autoReceiveFlag`).
+
+The script gained a skip while it was being used, and the skip is the point:
+`correlate` mints a fresh `new_gesture_id()` on every read, so a batch replayed
+twice lands twice under different ids and nothing refuses it — `add_gestures`
+only catches an id it has already seen. It could be run exactly once per store,
+and nothing in it said so. It now skips a batch already in `gesture_batches`.
+
+**Every batch on both tenants is replayed now.** The two days that still carry no
+evidence — `acme 2026-09-03` and `new 2026-09-13` — were replayed and accepted
+zero: batches with no gesture events in them at all.
+
+### Shown it, the model named it
+
+One `MineLately` pass over `new`, **$0.45**, reading 137 gestures and mining
+once:
+
+```
+13 steps  Create a Supplier
+     Supplier            seen ['TestYonder', 'TestYonder2', 'TestYonder5']
+     Supplier Address    seen ['32', 'yard']
+     Client              seen ['NEW', 'NE']
+     Receive Status      seen ['00']        … 8 parameters in all
+```
+
+The rule-based path's `Create a supplier` is five episodes and no parameter
+concept: nothing in its output could be replayed with a different value.
+
+### The comparison, both tenants, after the gap closed
+
+`new` — the rule-based path's warehouse candidates seen more than once, against
+the model's jobs:
+
+| rule-based | model |
+|---|---|
+| Create a customer type (8×) | **Create a Customer Type** |
+| Create a supplier (5×) | **Create a Supplier** |
+| Create an equipment type (4×) | **Create a Warehouse Equipment Type** |
+| Create a work area (4×) | **Create a Work Area** |
+| Read WMEquipment (2×) | — a page read, not a task |
+
+`acme`: the model names all five of the rule-based path's real tasks and one
+more, `Create a Warehouse Equipment Type`, which the rules saw once and so never
+proposed.
+
+**What one found that the other missed, answered for the first time on both
+tenants.** The model found everything the rules proposed, plus one task and the
+parameters and cross-system joins the rules cannot express. The rules found page
+reads, Gmail beacons and this console's own buttons.
+
+### Where the precondition stands now
+
+Met:
+
+1. Both miners over the same evidence, on both tenants, with every batch in the
+   plane.
+2. What each found that the other missed.
+
+Not met, and neither is a count:
+
+3. **Nobody has answered the open `variant` joins.** A person has to say whether
+   two candidates are one job.
+4. **No offer has been accepted in a browser.** An offer is now *made* live — the
+   panel offered a job off a browser's own gestures on 2026-09-14 — but nobody
+   has pressed "Yes, finish it" and had the run go through.
+
+A deletion was attempted on 2026-09-14 against item 2 before this was measured,
+on a reading of `acme` alone, and reverted within the hour. The reverts are in
+the log on purpose.

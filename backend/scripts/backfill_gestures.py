@@ -1,8 +1,22 @@
 """Replay stored batches through correlate into the evidence plane.
 
-One-off: the 397 batches predate the ingest wiring, so their events are in the
-blob store and nothing read them out. Reads the payload that was actually
-stored (already redacted), so a gesture cites what the blob holds.
+Written as a one-off: the 397 batches predate the ingest wiring, so their events
+are in the blob store and nothing read them out. Reads the payload that was
+actually stored (already redacted), so a gesture cites what the blob holds.
+
+**Skips a batch already in `gesture_batches`, and that is not an optimisation.**
+`correlate` mints a fresh `new_gesture_id()` every time it reads an event, so a
+batch replayed twice lands twice with different ids, and nothing refuses it --
+`add_gestures` only catches an id it has already seen. The evidence doubles and
+every doubled gesture is mined as a second doing of the same job. Without this
+the script could be run exactly once per store, and there was nothing in it
+saying so.
+
+That mattered on 2026-09-14: four days were observed and never reached the
+evidence plane -- `new` 2026-09-02 alone was 127 batches and 0 gestures, which
+is where `Create a supplier` was done. The model path was never shown it, and
+the deletion argument in `docs/new-agent-doc-arc/two-miners-one-day.md` rests
+on that gap being closed rather than explained away.
 """
 
 import asyncio
@@ -35,7 +49,16 @@ async def main(tenant: str) -> None:
         " from observation_batches where tenant_id=$1 order by started_at",
         tenant,
     )
-    print(f"{len(rows)} batches for {tenant}")
+    already = {
+        r["batch_id"]
+        for r in await db.fetch("select batch_id from gesture_batches where tenant_id=$1", tenant)
+    }
+    fresh = [r for r in rows if r["id"] not in already]
+    print(
+        f"{len(rows)} batches for {tenant}: {len(already)} already in the evidence plane,"
+        f" {len(fresh)} to replay"
+    )
+    rows = fresh
     done = gestures_total = unreadable = failed = 0
     async with c.unit_of_work() as uow:
         for r in rows:

@@ -41,13 +41,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </BarGroup>
         <BarGroup label="Review">
           {/* First: this is where a run is started, so it is the one a
-              supervisor reaches for before the three that judge what came
-              back. `BarLink` matches by prefix, so it stays lit on
-              /jobs/runs/<id>. */}
+              supervisor reaches for before what judges it. `BarLink` matches
+              by prefix, so it stays lit on /jobs/runs/<id>.
+
+              Candidates and Skills were here and are gone. Both were the
+              pre-rig path: `MineObservations` clustered `observations` into
+              `task_candidates` and `LearnWhatRepeats` taught them, and that
+              sweep is off -- four of the nine skills it taught across both
+              real tenants were not work, two of them this console's own Learn
+              button. With it off, Candidates was a permanently empty page
+              whose one action triggered something the rig now does on its own.
+
+              Recordings stays: a deliberate demonstration is still a thing an
+              operator does, and the rig's own uploads write those rows. */}
           <BarLink href="/jobs">Jobs</BarLink>
-          <BarLink href="/candidates">Candidates</BarLink>
           <BarLink href="/recordings">Recordings</BarLink>
-          <BarLink href="/skills">Skills</BarLink>
         </BarGroup>
         <BarGroup label="Watch">
           <BarLink href="/runs">Runs</BarLink>

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -147,9 +146,11 @@ function Row({
   return (
     <TableRow>
       <TableCell>
-        <Link className="underline" href={`/skills/${trigger.skill_id}`}>
-          {trigger.skill_id}
-        </Link>
+        {/* Plain text, not a link. `/skills/<id>` was the page that showed
+            one, and it is gone with the rest of the pre-rig path -- a link to
+            a route that does not exist is a 404 wearing an underline. The id
+            itself is still what a person needs to find the trigger in a log. */}
+        <span className="font-medium">{trigger.skill_id}</span>
         <p className="text-muted-foreground text-xs">
           {trigger.medium === "ui" ? "in a browser" : "as calls"}
           {trigger.device_id ? " · in the operator's own browser" : ""}

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import {
   getKnowledgeSummary,
@@ -96,9 +95,8 @@ export function KnowledgePage() {
             key={`${skill.skill_id}-${skill.version}`}
             className="flex flex-wrap items-center gap-3 rounded-md border px-4 py-3 text-sm"
           >
-            <Link href={`/skills/${skill.skill_id}`} className="font-medium hover:underline">
-              {skill.name}
-            </Link>
+            {/* Not a link: `/skills/<id>` went with the pre-rig path. */}
+            <span className="font-medium">{skill.name}</span>
             <span className="text-muted-foreground text-xs">
               v{skill.version} · {skill.system}/{skill.facility}
             </span>

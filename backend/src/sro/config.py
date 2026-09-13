@@ -299,8 +299,24 @@ class Settings(BaseSettings):
     on both tenants -- and two are `POST */candidates/*/teach`, this console's
     own Learn button, which the system watched somebody press and decided was
     a task somebody keeps doing here. On tenant `new`, 28 of 46 candidates are
-    Google beacons titled as though each were a job: `Create u`, `Create fd`,
-    `Create bv`, `Create perftrace`.
+    titled after Google's own request paths as though each were a job: `Create
+    u`, `Create fd`, `Create bv`, `Create perftrace`.
+
+    **Corrected 2026-09-14: those are not idle beacons.** 27 of those 28 have
+    warehouse work within three minutes of every doing -- `Create u` sits beside
+    283 warehouse gestures, `Create s` beside 392 -- and on 2026-09-10 the
+    browser went mail, warehouse, mail, warehouse sixteen times in an hour,
+    thirty-five seconds and then two seconds apart. That is somebody reading a
+    mail and doing what it asks. The titles are meaningless because this miner
+    segments per host and names an episode after its busiest request, so it cuts
+    a two-system job in half and titles the half it cannot explain. The model
+    path has both of those as ONE job apiece, `systems=['mail.google.com',
+    'bf56-...jdadelivers.com']`, with the mail step in sequence.
+
+    So the count above is an argument about this miner's OUTPUT, not about the
+    operator's day: the four skills it taught really are not work, and the 28
+    rows really are unusable -- but they are unusable because they are severed,
+    not because nothing was happening.
 
     Nothing is lost by leaving it off. Mining is idempotent by construction --
     an episode already recorded is not counted twice, so mining a window again

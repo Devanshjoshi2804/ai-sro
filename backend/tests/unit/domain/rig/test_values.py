@@ -1,6 +1,6 @@
 from dataclasses import replace
 
-from sro.domain.observation.gesture import Gesture, Intent, ValueSeen
+from sro.domain.observation.gesture import Gesture, Intent, PageMark, ValueSeen
 from sro.domain.observation.values import (
     K_MIN_LONE_WORD,
     K_MIN_VALUE_LEN,
@@ -9,6 +9,7 @@ from sro.domain.observation.values import (
     shared_values,
     trivial,
     typed_values,
+    worked_in_both,
 )
 from tests.unit.domain.rig.conftest import gestures as _gestures
 
@@ -294,3 +295,84 @@ def test_a_real_identifier_is_kept_however_it_is_spelled() -> None:
         "Process Work Status Change For Storage Equipment",
     ):
         assert not trivial(value, 0.0), value
+
+
+MAIL = "https://mail.google.com"
+WMS = "https://wms.example"
+IDP = "https://login.example"
+
+
+def _at(system: str, at: float, *, moved_to: str | None = None) -> Gesture:
+    """One gesture on one system at one moment, and where the browser went
+    next if it took the operator somewhere.
+
+    Nothing is typed. That is the point of every test below: the value rule has
+    nothing to work with, which is exactly the shape of reading a mail.
+    """
+    one = replace(_gestures()[0], id=f"ges_{system[8:12]}_{at:.0f}", at=at, system=system)
+    one.action = replace(one.action, value=None)
+    one.url = f"{system}/page"
+    moved = [PageMark(at=at, page_kind="navigated", url=f"{moved_to}/landing")]
+    one.page_events = moved if moved_to else []
+    return one
+
+
+def test_a_tab_somebody_went_back_to_is_work_in_two_systems() -> None:
+    """The shape the value rule cannot see: read the mail, create the thing it
+    asks for, go back to the mail. Nothing is typed into the mail, so no value
+    crosses -- and on the real acme store this is an operator reading a mail
+    whose subject is "create a customer type :" and typing the value into the
+    warehouse six seconds later."""
+    sitting = [
+        _at(MAIL, 100),
+        _at(WMS, 106),
+        _at(MAIL, 120),
+        _at(WMS, 130),
+    ]
+
+    linked = worked_in_both(sitting, gap=600)
+
+    assert linked == {g.id for g in sitting}
+    assert shared_values(sitting, {}, {}) == {}, "nothing typed crossed: the value rule sees none"
+
+
+def test_a_system_visited_once_is_not_a_second_tab() -> None:
+    # Going somewhere and staying is one system's work with a preamble. Coming
+    # BACK is what says two tabs were being used for one thing.
+    sitting = [_at(MAIL, 100), _at(WMS, 110), _at(WMS, 120), _at(WMS, 130)]
+
+    assert worked_in_both(sitting, gap=600) == set()
+
+
+def test_a_doorway_the_browser_bounced_through_links_nothing() -> None:
+    """A sign-in redirect is entered and left, twice, and it is still not a tab
+    anybody worked in. Every gesture on it moved the operator somewhere else,
+    which is the same rule `checks.work_only` uses to strike one out of a job."""
+    sitting = [
+        _at(WMS, 100),
+        _at(IDP, 110, moved_to=WMS),
+        _at(WMS, 120),
+        _at(IDP, 130, moved_to=WMS),
+        _at(WMS, 140),
+    ]
+
+    assert worked_in_both(sitting, gap=600) == set()
+
+
+def test_a_pause_longer_than_the_browsers_own_tail_is_two_doings() -> None:
+    """`gap` is the caller's, and the caller passes `K_SITTING_GAP_S` -- tied to
+    the extension's `K_TAIL_TTL_S`, because two gestures further apart than the
+    browser's tail can never be matched in one shape however related they are."""
+    apart = [_at(MAIL, 100), _at(WMS, 110), _at(MAIL, 9_000), _at(WMS, 9_010)]
+
+    assert worked_in_both(apart, gap=600) == set()
+
+
+def test_this_deployments_own_console_is_not_a_second_system() -> None:
+    # The operator had the console open while working. `admit` refuses the
+    # apparatus at the door and `work_only` strikes it from a job; this is the
+    # same judgment one layer earlier.
+    ours = "http://localhost:3000"
+    sitting = [_at(ours, 100), _at(WMS, 110), _at(ours, 120), _at(WMS, 130)]
+
+    assert worked_in_both(sitting, gap=600, ours=frozenset({"localhost:3000"})) == set()

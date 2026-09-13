@@ -18,8 +18,9 @@ exists, but it runs through the model rather than around it.
 
 from collections import defaultdict
 
-from sro.domain.observation.gesture import Gesture, Intent
+from sro.domain.observation.gesture import Gesture, Intent, passed_through
 from sro.domain.observation.trim import is_secret
+from sro.domain.shared.hosts import origin_of
 
 K_MIN_VALUE_LEN = 4
 K_UBIQUITY = 0.25
@@ -169,3 +170,106 @@ def shared_values(
         if len({system for _, system in occurrences}) >= 2:
             crossings[value] = [gesture_id for gesture_id, _ in occurrences]
     return crossings
+
+
+K_RETURNED_TO = 2
+"""How many separate stretches on a system count as somebody using it.
+
+One stretch is a visit. Two is going back, and going back is what says a tab
+was being USED rather than passed through: the browser bounces an operator
+through an identity provider exactly once, and somebody working a mail against
+a form returns to it again and again."""
+
+
+def worked_in_both(
+    gestures: list[Gesture],
+    *,
+    gap: float,
+    ours: frozenset[str] = frozenset(),
+) -> set[str]:
+    """Gestures from a sitting where somebody used two systems for one job.
+
+    `shared_values` above is the other half of this question and it answers a
+    narrower one: it links two systems when the same TYPED VALUE appears in
+    both. That misses the commonest shape there is -- read a mail, create the
+    thing it asks for -- because a mail somebody read and never typed into
+    carries no value across.
+
+    Measured on the real stores, 2026-09-14: the value rule links 23 of acme's
+    555 gestures. Its browser's own timeline holds 219 inside a sitting that
+    went to another system and came back, 211 of them linked by no value at
+    all. One of those sittings is an operator reading a mail whose subject is
+    "create a customer type :" and typing the value into the warehouse six
+    seconds later; the job mined from it has no mail step, and so no record of
+    where the value came from.
+
+    Three things keep this from linking the whole browser:
+
+    **A sitting, not a day.** `gap` is the caller's, and the caller passes
+    `checks.K_SITTING_GAP_S` -- itself tied to the extension's `K_TAIL_TTL_S`,
+    because two gestures further apart than the browser's own tail can never
+    be matched in one shape however related they are.
+
+    **Returned to, not merely visited.** A system has to hold `K_RETURNED_TO`
+    separate stretches. A login redirect is entered once and left; a tab
+    somebody is working in is come back to.
+
+    **Not transit, and not ours.** A system every one of whose gestures ended
+    somewhere else is a doorway -- the same rule `checks.work_only` uses to
+    strike a sign-in hop out of a job -- and this deployment's own console is
+    not a system anybody works in.
+    """
+    timed = sorted(
+        (gesture for gesture in gestures if gesture.at is not None and gesture.system),
+        key=lambda gesture: gesture.at or 0.0,
+    )
+    linked: set[str] = set()
+    for sitting in _sittings(timed, gap):
+        worked = _used_for_work(sitting, ours)
+        if len(worked) < 2:
+            continue
+        linked |= {gesture.id for gesture in sitting if gesture.system in worked}
+    return linked
+
+
+def _sittings(gestures: list[Gesture], gap: float) -> list[list[Gesture]]:
+    """Stretches of work with no more than `gap` seconds of silence in them."""
+    if not gestures:
+        return []
+    sittings: list[list[Gesture]] = []
+    run = [gestures[0]]
+    for gesture in gestures[1:]:
+        if (gesture.at or 0.0) - (run[-1].at or 0.0) <= gap:
+            run.append(gesture)
+        else:
+            sittings.append(run)
+            run = [gesture]
+    sittings.append(run)
+    return sittings
+
+
+def _used_for_work(sitting: list[Gesture], ours: frozenset[str]) -> set[str]:
+    """The systems in this sitting somebody was actually working in."""
+    stretches: dict[str, int] = {}
+    last: str | None = None
+    for gesture in sitting:
+        system = gesture.system or ""
+        if system != last:
+            stretches[system] = stretches.get(system, 0) + 1
+            last = system
+    # Every gesture on it moved the operator somewhere else: a doorway, not a
+    # tab. `any` rather than `all` would strike the warehouse host, which
+    # bounced elsewhere on 4 of its 495 gestures in the real store.
+    doorways = {
+        system
+        for system in stretches
+        if system and all(passed_through(g) for g in sitting if (g.system or "") == system)
+    }
+    return {
+        system
+        for system, runs in stretches.items()
+        if system
+        and runs >= K_RETURNED_TO
+        and system not in doorways
+        and origin_of(system) not in ours
+    }

@@ -12,6 +12,8 @@ import secrets
 from dataclasses import dataclass, field
 from typing import Literal
 
+from sro.domain.shared.hosts import origin_of
+
 Kind = Literal["click", "type", "select", "press", "upload", "scroll", "hover"]
 
 
@@ -164,3 +166,16 @@ class Intent:
     cost_usd: float = 0.0
     unpriced: bool = False
     error: str | None = None
+
+
+def passed_through(gesture: Gesture) -> bool:
+    """Whether this gesture ended on a different system from the one it
+    happened on -- the browser moved the operator, the operator did not.
+
+    A fact about a gesture, so it lives beside gestures. `checks.work_only`
+    reads it to know a sign-in hop from a system somebody worked in, and
+    `values.worked_in_both` reads it for the same distinction: a browser
+    bouncing through an identity provider is not somebody using two tabs.
+    """
+    here = origin_of(gesture.system or "")
+    return any(mark.url and origin_of(mark.url) not in ("", here) for mark in gesture.page_events)

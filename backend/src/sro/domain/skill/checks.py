@@ -19,11 +19,11 @@ than in the application layer with the mining pass that calls it.
 """
 
 from dataclasses import dataclass
-from urllib.parse import urlsplit
 
-from sro.domain.observation.gesture import Gesture
+from sro.domain.observation.gesture import Gesture, passed_through
 from sro.domain.observation.identity import K_MIN_SHARED_STEPS
 from sro.domain.observation.window import Window
+from sro.domain.shared.hosts import origin_of
 from sro.domain.skill.workflow import Workflow, cited_ids, ordered_cites
 
 K_MIN_COVERAGE = 0.5
@@ -184,36 +184,6 @@ def coverage(workflows: list[Workflow], window: Window) -> Coverage:
     )
 
 
-def _origin(url: str) -> str:
-    """A url as the system it belongs to: host and port, default port dropped.
-
-    `https://wms.acme.com:443` and `https://wms.acme.com` are one system, and
-    a rule that cannot say so refuses half the pages on it. Port and not
-    hostname alone, because an API on 8000 beside a console on 3000 is the
-    ordinary shape of this deployment.
-    """
-    parsed = urlsplit(url)
-    host = (parsed.hostname or "").rstrip(".")
-    if not host:
-        return ""
-    if ":" in host:
-        host = f"[{host}]"
-    try:
-        port = str(parsed.port) if parsed.port else ""
-    except ValueError:
-        return ""
-    if port and port == _DEFAULT_PORTS.get(parsed.scheme.lower()):
-        port = ""
-    return f"{host}:{port}" if port else host
-
-
-def _passed_through(gesture: Gesture) -> bool:
-    """Whether this gesture ended on a different system from the one it
-    happened on -- the browser moved the operator, the operator did not."""
-    here = _origin(gesture.system or "")
-    return any(mark.url and _origin(mark.url) not in ("", here) for mark in gesture.page_events)
-
-
 _WROTE_METHODS = frozenset({"POST", "PUT", "PATCH"})
 
 
@@ -237,12 +207,12 @@ def _did_business(gesture: Gesture) -> bool:
     separates them: signing in sends you somewhere else, and doing the job
     writes back to the page you are on.
     """
-    here = _origin(gesture.system or "")
+    here = origin_of(gesture.system or "")
     return any(
         call.status is not None
         and 200 <= call.status < 300
         and call.method.upper() in _WROTE_METHODS
-        and _origin(call.url) == here
+        and origin_of(call.url) == here
         for call in gesture.requests
     )
 
@@ -370,7 +340,7 @@ def work_only(
     # Last occurrence per system: what matters is whether the job carried on
     # after this system the LAST time it was on it, not the first.
     last = {system: index for index, system in enumerate(order)}
-    bounced = {gesture.system or "" for gesture in cited if _passed_through(gesture)}
+    bounced = {gesture.system or "" for gesture in cited if passed_through(gesture)}
     transit = {
         system
         for system, index in last.items()
@@ -424,7 +394,7 @@ def work_only(
     during = _during(workflow, gestures)
     if (
         any(_signed_in_here(gesture) for gesture in during)
-        and any(_passed_through(gesture) for gesture in during)
+        and any(passed_through(gesture) for gesture in during)
         and not any(_did_business(gesture) for gesture in during)
     ):
         return Rejection(
@@ -436,7 +406,7 @@ def work_only(
     kept = [
         system
         for system in workflow.systems
-        if _origin(system) not in ours and system not in transit
+        if origin_of(system) not in ours and system not in transit
     ]
     # `workflow.systems` empty to begin with is a model that named none, which
     # `validate` allows and this must not start refusing: nothing was struck.

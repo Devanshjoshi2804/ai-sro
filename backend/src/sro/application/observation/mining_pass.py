@@ -26,7 +26,11 @@ from sro.application.shared.locks import one_at_a_time
 from sro.domain.observation.gesture import Gesture, Intent
 from sro.domain.observation.identity import Resolution, resolve, shape_key
 from sro.domain.observation.mining import MiningPass
-from sro.domain.observation.values import frequencies_over, shared_values
+from sro.domain.observation.values import (
+    frequencies_over,
+    shared_values,
+    worked_in_both,
+)
 from sro.domain.observation.window import (
     K_POOL_WAIT,
     Packed,
@@ -42,6 +46,7 @@ from sro.domain.shared.prices import Answer
 from sro.domain.skill.checks import (
     K_MAX_SKEW,
     K_MIN_COVERAGE,
+    K_SITTING_GAP_S,
     Coverage,
     Rejection,
     coverage,
@@ -387,7 +392,19 @@ async def _one_pass(
     by_id = {gesture.id: gesture for gesture in gestures}
 
     crossings = shared_values(gestures, intents, frequencies_over(gestures, intents))
+    # Two ways a gesture can belong to work in another tab, and the second was
+    # missing until 2026-09-14. A shared VALUE says the two systems carry the
+    # same thing; a shared SITTING says somebody was working in both. The value
+    # rule cannot see "read the mail, create what it asks for", because a mail
+    # nobody typed into carries nothing across -- and on the real acme store it
+    # linked 23 of 555 gestures where the browser's own timeline holds 219
+    # inside a sitting that went to another system and came back.
+    #
+    # `K_SITTING_GAP_S` is the bound `checks` already uses for what counts as
+    # one doing, tied to the extension's own tail. `ours` is this deployment,
+    # which nobody works in.
     linked = {gesture_id for ids in crossings.values() for gesture_id in ids}
+    linked |= worked_in_both(gestures, gap=K_SITTING_GAP_S, ours=ours)
 
     # The pool stores ids; the window takes evidence. This join is the only
     # place the two meet, and a pooled id whose gesture row is gone joins to

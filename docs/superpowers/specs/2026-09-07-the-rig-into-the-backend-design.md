@@ -348,6 +348,41 @@ mutation floor).
 Phases 1 and 2 can run in parallel; 3 needs both; 4 needs 3; 5 and 6 need
 4 and can run in parallel; 7 needs everything.
 
+> **Amendment, 2026-09-13.** Phase 5's owed half is mostly discharged, and the
+> mutation-floor line above has been overtaken.
+>
+> **1. "Nothing has run against a live backend, every suite fakes `fetch`."**
+> `backend/scripts/one_whole_run.py` runs a real Chromium with the real
+> extension against the real API, and has done so repeatedly. Of the six links
+> that line names -- registers, uploads, is served shapes, is offered, runs,
+> approves -- **four are now proved live**: the browser registers and is given
+> a device id, its gestures reach the backend over the socket, `run_workflow`
+> drives that same browser back through them, and Approve is pressed **in the
+> real panel, as the browser being driven** rather than with the tenant's bare
+> credential.
+>
+> **Served shapes and the offer are still replay-only.** The extension asks for
+> shapes during that session and nothing asserts what came back, and no live
+> run has ever had the panel OFFER a job the operator was in the middle of
+> doing. `make offer-replay-backend` is the evidence for both -- 6 served
+> shapes, 6 offered as themselves, 0 offered as another job -- and a replay
+> through the real matcher is not a browser. That is what phase 5 still owes.
+>
+> **2. The floor "the rig ended at (80.2%)"** is no longer the measurement. The
+> backend scores areas apart, each with its own ratchet, because one number
+> over all of them hides the small one: measured 2026-09-13 over 2,294 mutants
+> and the 2,895-test unit suite, the bridge (`application/skill/`) reads 85.8%
+> and the ladder (`domain/execution/`) 91.8%. The ladder's first sweep read
+> 83.9% and found real holes -- `diagnosis` 49.2%, `safety` 60.6%, every
+> boundary in the breaker unstood-on and `safe_for_writes` unasserted on three
+> of five branches.
+>
+> **3. A trigger can start a mined job**, which nothing in this spec
+> anticipated: `Trigger` named a `SkillId`, so the only thing that could ever
+> start a rig workflow was a person accepting an offer in the panel. Proved end
+> to end the same day -- four triggers, four live runs, four writes that landed,
+> the fourth with nobody asked because the three before it had earned it.
+
 ## Verification
 
 - The rig's 673 tests travel, module by module, and the count on the

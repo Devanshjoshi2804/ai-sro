@@ -8,7 +8,7 @@ BACKEND := cd backend &&
 FRONTEND := cd frontend &&
 
 .DEFAULT_GOAL := help
-.PHONY: help up down ps logs reset install migrate revision api worker status web vault-key \
+.PHONY: help up down ps logs reset install migrate revision api worker status web vault-key one-whole-run \
         lint lint-backend lint-frontend format test test-unit test-integration \
         test-contract test-browser types check ingest-kb seed-skills gen-recorder \
         mutants-backend
@@ -141,6 +141,13 @@ test-integration: ## Tests against real Postgres/MinIO via testcontainers
 
 test-contract: ## Fuzz the API against its own OpenAPI schema
 	$(BACKEND) uv run pytest tests/contract -q
+
+one-whole-run: ## A job watched in a real Chrome and then done by the system, end to end
+	@# The only thing in this repository that finishes a workflow run. Needs
+	@# the API up and a Chromium Playwright can load an extension into; the
+	@# tenant is created by the first `make token` it does, and its observation
+	@# policy has to be on (`make observe tenant=rigproof args=--on`).
+	$(BACKEND) uv run python scripts/one_whole_run.py
 
 test-browser: ## Drive a real Chrome with the extension loaded
 	$(BACKEND) uv run pytest tests/browser -q

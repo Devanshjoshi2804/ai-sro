@@ -156,13 +156,15 @@ class _Depot(BaseHTTPRequestHandler):
         self._send(201, b'{"ok": true}', "application/json")
 
 
-def call(path: str, token: str, body: dict[str, Any] | None = None) -> Any:
+def call(
+    path: str, token: str, body: dict[str, Any] | None = None, *, method: str | None = None
+) -> Any:
     # S310: every url is built from this file's own constants.
     request = urllib.request.Request(  # noqa: S310
         f"{API}{path}",
         data=None if body is None else json.dumps(body).encode(),
         headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
-        method="GET" if body is None else "POST",
+        method=method or ("GET" if body is None else "POST"),
     )
     try:
         with urllib.request.urlopen(request, timeout=30) as answer:  # noqa: S310
@@ -306,6 +308,59 @@ def _offered_in_the_panel(context: Any, worker: Any, page: Any, *, title: str) -
     panel.close()
 
 
+def _fired_by_the_worker(
+    token: str, workflow_id: str, device: str, value: str, page: Any
+) -> dict[str, Any]:
+    """Put the job on a cron and wait for the Temporal worker to fire it.
+
+    The one link in the chain nothing had proved, and the one that was broken
+    until today. A schedule fires inside the worker; the socket to that Chrome
+    is held by whichever process the extension connected to, which is the API.
+    Started in-process there, `StartWorkflowRun` looks for the browser in the
+    worker's own empty register and skips forever with "not connected" -- so
+    the worker asks the API through `RunDispatcher.start_job`, exactly as the
+    skill half has always asked through `start`.
+
+    Every minute, because that is the shortest cron there is and the first
+    firing is the whole proof. Deleted in a `finally` whatever happens: a
+    trigger left on this tenant would drive somebody's browser once a minute
+    for as long as the worker lives.
+    """
+    trigger = call(
+        "/v1/triggers",
+        token,
+        {
+            "workflow_id": workflow_id,
+            "kind": "schedule",
+            "cron": "* * * * *",
+            "device_id": device,
+            "parameters": {"clientCode": value, "reference": REFERENCE},
+            "authorized_by": True,
+            "auto_approve": True,
+            "may_take_focus": True,
+        },
+    )
+    print(f"\n-- on a clock: trigger {trigger['id']} every minute, asking for {value}")
+    print("   nothing in this script will start it; the worker has to")
+    try:
+        for _ in range(180):
+            runs = call(f"/v1/workflow-runs?workflow_id={workflow_id}&limit=5", token)
+            if runs:
+                started = runs[0]
+                print(f"-- the worker started {started['id']} by itself")
+                return dict(started)
+            # The page has to keep repainting or the run it is about to drive
+            # has nothing to drive.
+            page.wait_for_timeout(1000)
+        raise SystemExit(
+            "the worker never fired it. `make status` says which commit it is on:"
+            " a worker older than `start_job` skips a job trigger every time"
+        )
+    finally:
+        call(f"/v1/triggers/{trigger['id']}", token, None, method="DELETE")
+        print(f"   the schedule is removed: {trigger['id']}")
+
+
 def _mint(tenant: str) -> str:
     import contextlib
     import io
@@ -440,6 +495,13 @@ def main() -> int:
         " makes off this browser's own gestures, before running anything",
     )
     parser.add_argument(
+        "--via-schedule",
+        action="store_true",
+        help="put the job on a cron and wait for the Temporal worker to fire it."
+        " The one link nothing has proved: the worker is not the process holding"
+        " the socket to that Chrome, so it has to ask the one that does.",
+    )
+    parser.add_argument(
         "--via-trigger",
         action="store_true",
         help="start each run by firing a trigger that names the job, rather than by"
@@ -447,10 +509,13 @@ def main() -> int:
         " because a dry scheduled run sends nothing and verifies nothing.",
     )
     args = parser.parse_args()
-    if args.via_trigger:
+    if args.via_trigger or args.via_schedule:
         # Not a flag the mode respects -- a job a trigger starts is started
         # live, always. Said here rather than silently overridden.
         args.live = True
+    if args.via_schedule:
+        # A minute per run, and the point is the first one.
+        args.runs = 1
 
     try:
         from playwright.sync_api import sync_playwright
@@ -526,7 +591,9 @@ def main() -> int:
                 by_hand = len(_Depot.writes)
                 value = f"ENVEYO-{attempt + 1}"
 
-                if args.via_trigger:
+                if args.via_schedule:
+                    run = _fired_by_the_worker(token, workflow_id, device, value, page)
+                elif args.via_trigger:
                     # The whole point of this mode: nothing here says
                     # "workflow-runs". A trigger names the job, the device and
                     # the values, and firing it is all this script does. What

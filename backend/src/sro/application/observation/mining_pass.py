@@ -641,6 +641,8 @@ def _billed(pass_id: str, tenant_id: TenantId, started_at: str, result: MineResu
         coverage=result.coverage.coverage,
         skew=result.coverage.skew,
         lopsided=result.lopsided,
+        window_size=result.window_size,
+        left_out=result.left_out,
         error=result.error,
     )
 

@@ -127,6 +127,8 @@ def _row_to_pass(row: MiningPassRow) -> MiningPass:
         coverage=row.coverage,
         skew=row.skew,
         lopsided=row.lopsided,
+        window_size=row.window_size,
+        left_out=row.left_out,
         error=row.error,
     )
 
@@ -227,6 +229,8 @@ class SqlWorkflowRepository(WorkflowRepository):
                     coverage=mining_pass.coverage,
                     skew=mining_pass.skew,
                     lopsided=mining_pass.lopsided,
+                    window_size=mining_pass.window_size,
+                    left_out=mining_pass.left_out,
                     error=mining_pass.error,
                 )
             )

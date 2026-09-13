@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import replace
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from sro.application.context import RequestContext
 from sro.application.observation.mine_pass import MinePass
@@ -32,7 +32,7 @@ from sro.application.observation.mining_pass import MineResult
 from sro.application.observation.read_gesture import ReadGestures
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.shared.refusals import OverCap
-from sro.domain.shared.identifiers import PrincipalId
+from sro.domain.shared.identifiers import PrincipalId, TenantId
 
 __all__ = ["MAX_READS", "MineLately"]
 
@@ -53,6 +53,18 @@ number and the same argument as `sro.cli.read_cron.MAX_PASSES`, which is the
 hand-run version of this."""
 
 logger = logging.getLogger(__name__)
+
+
+def _when(stamp: str) -> datetime:
+    """A pass's `started_at`, which is an ISO string on the record and a real
+    timestamp in the column. An unreadable one reads as the beginning of time,
+    which makes the sweep pay for a pass it might not have needed -- the safe
+    direction, since the other one is a tenant that silently stops learning."""
+    try:
+        started = datetime.fromisoformat(stamp)
+    except ValueError:
+        return datetime.min.replace(tzinfo=UTC)
+    return started if started.tzinfo else started.replace(tzinfo=UTC)
 
 
 class MineLately:
@@ -104,13 +116,50 @@ class MineLately:
                 break
         return read
 
+    async def _worth_a_pass(self, uow: UnitOfWork, tenant_id: TenantId) -> bool:
+        """Whether another pass over this tenant has anything new to read.
+
+        A pass re-reads the tenant's whole history, so on evidence that has not
+        changed it asks the same question and pays for the same answer. One
+        measured pass over tenant `new` cost $0.34, proposed the two jobs it
+        already knew and kept nothing -- and on an hourly sweep that is $8 a
+        day to learn nothing.
+
+        Two ways it IS worth paying. Evidence has arrived since the last pass
+        started, which is the ordinary case. Or the last pass LEFT SOMETHING
+        OUT: a day too big for one window is read across several passes, and
+        the carry-over pool rotates which part -- ten simulated passes went 81%
+        then 96% coverage, with nineteen gestures never shown. So a pass with
+        evidence it could not hold has more to say about a day nobody added to,
+        and a pass whose window held everything does not.
+
+        A tenant that has never been mined is always worth a pass.
+        """
+        passes = await uow.workflows.passes(tenant_id)
+        if not passes:
+            return True
+        # `passes` is oldest first, by `started_at` then id.
+        last = passes[-1]
+        if last.left_out:
+            return True
+        # The pass's own clock, against the server's `received_at` on a batch.
+        # A pass that was refused before it read anything still wrote its row,
+        # so this is "since anything last looked", which is what it should be.
+        return bool(await uow.gestures.tenants_since(_when(last.started_at)))
+
     async def execute(self, *, now: datetime) -> dict[str, MineResult]:
         since = now - timedelta(hours=self._window_hours)
         async with self._uow as uow:
             tenants = await uow.gestures.tenants_since(since)
+            worth = {
+                tenant_id.value: await self._worth_a_pass(uow, tenant_id) for tenant_id in tenants
+            }
 
         mined: dict[str, MineResult] = {}
         for tenant_id in tenants:
+            if not worth[tenant_id.value]:
+                logger.info("%s: nothing new since the last pass", tenant_id.value)
+                continue
             ctx = RequestContext(tenant_id=tenant_id, principal_id=PrincipalId("miner"))
             try:
                 read = await self._read(ctx)

@@ -19,6 +19,7 @@ from sro.application.observation.mine_lately import MineLately
 from sro.application.observation.mining_pass import MineResult
 from sro.application.shared.refusals import OverCap
 from sro.domain.observation.gesture import GestureBatch
+from sro.domain.observation.mining import MiningPass
 from tests.unit.fakes import FakeUnitOfWork
 
 NOW = datetime(2026, 9, 13, 12, 0, tzinfo=UTC)
@@ -213,3 +214,79 @@ async def test_a_tenant_whose_reading_is_refused_is_not_then_mined() -> None:
     assert passes.asked == ["new"], "acme was never mined"
     assert mined["acme"].error and "cap" in mined["acme"].error
     assert mined["new"].kept == 1
+
+
+async def _mined(uow: FakeUnitOfWork, tenant: str, *, left_out: int, at: datetime) -> None:
+    await uow.workflows.add_pass(
+        MiningPass(
+            id=f"pas_{tenant}_{at.isoformat()}",
+            tenant=tenant,
+            started_at=at.isoformat(),
+            left_out=left_out,
+        )
+    )
+
+
+async def test_a_tenant_whose_evidence_has_not_changed_is_not_read_again() -> None:
+    """A pass re-reads the tenant's whole history, so on unchanged evidence it
+    asks the same question and pays for the same answer. One measured pass over
+    tenant `new` cost $0.34, proposed the two jobs it already knew and kept
+    nothing -- on an hourly sweep that is $8 a day to learn nothing."""
+    uow = FakeUnitOfWork()
+    await _recorded(uow, "acme", taken=NOW - timedelta(hours=2))
+    await _mined(uow, "acme", left_out=0, at=NOW - timedelta(hours=1))
+    passes = _Passes()
+
+    mined = await _swept(uow, passes)
+
+    assert passes.asked == []
+    assert mined == {}
+
+
+async def test_evidence_that_arrived_since_the_last_pass_is_worth_paying_for() -> None:
+    uow = FakeUnitOfWork()
+    await _mined(uow, "acme", left_out=0, at=NOW - timedelta(hours=2))
+    await _recorded(uow, "acme", taken=NOW - timedelta(hours=1))
+    passes = _Passes()
+
+    mined = await _swept(uow, passes)
+
+    assert passes.asked == ["acme"]
+    assert mined["acme"].kept == 1
+
+
+async def test_a_pass_that_could_not_hold_the_day_is_worth_another_one() -> None:
+    """A day too big for one window is read across several passes, and the
+    carry-over pool rotates which part: ten simulated passes went 81% then 96%
+    coverage, with nineteen gestures never shown. So a pass with evidence it
+    could not hold has more to say about a day nobody added to."""
+    uow = FakeUnitOfWork()
+    await _recorded(uow, "acme", taken=NOW - timedelta(hours=2))
+    await _mined(uow, "acme", left_out=1_204, at=NOW - timedelta(hours=1))
+    passes = _Passes()
+
+    mined = await _swept(uow, passes)
+
+    assert passes.asked == ["acme"]
+    assert mined["acme"].kept == 1
+
+
+async def test_a_tenant_nobody_has_ever_mined_is_always_worth_a_pass() -> None:
+    uow = FakeUnitOfWork()
+    await _recorded(uow, "acme", taken=NOW - timedelta(hours=2))
+    passes = _Passes()
+
+    assert (await _swept(uow, passes))["acme"].kept == 1
+    assert passes.asked == ["acme"]
+
+
+async def test_one_tenants_quiet_day_does_not_skip_the_tenant_beside_it() -> None:
+    uow = FakeUnitOfWork()
+    await _recorded(uow, "acme", "new", taken=NOW - timedelta(hours=2))
+    await _mined(uow, "acme", left_out=0, at=NOW - timedelta(hours=1))
+    passes = _Passes()
+
+    mined = await _swept(uow, passes)
+
+    assert passes.asked == ["new"]
+    assert sorted(mined) == ["new"]

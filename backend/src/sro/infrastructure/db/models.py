@@ -1032,6 +1032,12 @@ class MiningPassRow(Base):
     skew: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
     lopsided: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
+    window_size: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    left_out: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    """How much evidence this pass was shown, and how much the budget dropped.
+    What the scheduled sweep reads to tell a tenant with more to say from one
+    whose window already held everything. See `MiningPass`."""
+
     error: Mapped[str | None] = mapped_column(Text)
     """Why it found nothing, when it found nothing for a reason the API gave.
     An honest zero and a refused call are the same row without this."""

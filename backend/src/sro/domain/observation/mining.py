@@ -46,6 +46,17 @@ class MiningPass:
     coverage: float = 0.0
     skew: float = 0.0
     lopsided: bool = False
+
+    window_size: int = 0
+    left_out: int = 0
+    """How much evidence this pass was shown, and how much the budget dropped.
+
+    Beside `coverage`, which is a different question: coverage says where the
+    pass's citations fell WITHIN its window, and these say how much of the
+    tenant there was to put in one. A pass that left nothing out has read
+    everything there was; one that left evidence out has more to say about
+    evidence that has not changed, which is what the scheduled sweep reads to
+    decide whether to pay for another pass."""
     error: str | None = None
     """Why it found nothing, when it found nothing for a reason the API gave.
     An honest zero and a refused call are the same row without this."""

@@ -31,7 +31,12 @@ class TriggerRefused(DomainError):
 
 @dataclass(frozen=True, slots=True)
 class NewTrigger:
-    skill_id: SkillId
+    skill_id: SkillId | None = None
+    workflow_id: str | None = None
+    """What this will run. Exactly one, refused below rather than by an
+    `InvariantViolation` from `Trigger` -- a caller naming both deserves a
+    sentence about it, not a 500."""
+
     kind: TriggerKind = TriggerKind.SCHEDULE
     cron: str | None = None
     timezone: str = "UTC"
@@ -65,7 +70,17 @@ class CreateTrigger:
 
     async def execute(self, ctx: RequestContext, request: NewTrigger) -> Trigger:
         parameters = dict(request.parameters or {})
+        named = [name for name in (request.skill_id, request.workflow_id) if name]
+        if len(named) != 1:
+            raise TriggerRefused(
+                "a trigger runs one thing: name a skill or a job, not "
+                + ("both" if named else "neither")
+            )
 
+        if request.workflow_id is not None:
+            return await self._for_a_job(ctx, request, parameters=parameters)
+
+        assert request.skill_id is not None  # noqa: S101 - checked directly above
         async with self._uow as uow:
             skill = await uow.skills.get(ctx.tenant_id, request.skill_id)
             version = skill.runnable
@@ -146,4 +161,95 @@ class CreateTrigger:
             await uow.triggers.add(trigger)
             await uow.commit()
 
+        return trigger
+
+    async def _for_a_job(
+        self, ctx: RequestContext, request: NewTrigger, *, parameters: dict[str, str]
+    ) -> Trigger:
+        """A trigger on a mined job.
+
+        The checks are the ones this moment knows and a later one cannot. The
+        job exists and is proven -- an offer is never made for an unproven one,
+        so a schedule must not be the way round that. It runs in a browser,
+        because a workflow is a recording of somebody's own window and there is
+        no headless path for one. And every parameter it declares has a value,
+        from the trigger or from whatever fires it: `StartWorkflowRun` refuses
+        a job with one left blank, which for a schedule means failing at 3am
+        every night instead of being refused once, now, in front of a person.
+
+        `writes` is True for a job and is not computed from its steps. It is a
+        standing authority to drive somebody's browser through a recording of
+        real work, and the honest reading of that is "this changes things" --
+        so it needs a name behind it. What decides whether the write actually
+        goes out unattended is not this flag at all: it is `earned`, three live
+        runs whose every write a state belt verified, checked per run.
+        """
+        async with self._uow as uow:
+            workflow = await uow.workflows.get(ctx.tenant_id, str(request.workflow_id))
+            if workflow.unproven:
+                raise TriggerRefused("this job is not proven yet: " + "; ".join(workflow.unproven))
+            if request.kind is TriggerKind.WATCH:
+                # The browser evaluates a watch and offers what it matched, and
+                # that path (`/v1/agents/{id}/watches/{trigger}/matched`) reads
+                # a skill's inputs to say what the mail did not name. Refused
+                # rather than half-built: a watch that fired into a job nothing
+                # could describe would be a card with no sentence on it.
+                raise TriggerRefused("a job cannot be watched for yet: schedule it instead")
+            if request.device_id is None:
+                raise TriggerRefused("a job runs in a browser: name a device")
+            if not request.authorized_by:
+                raise TriggerRefused(
+                    "a job drives a real browser through real work, so a trigger for one "
+                    "must be authorised"
+                )
+
+            declared = {
+                str(parameter["name"]) for parameter in workflow.parameters if parameter.get("name")
+            }
+            supplied = request.watch.reads if request.watch else request.from_message
+            if unknown := sorted(set(supplied) - declared):
+                raise TriggerRefused(
+                    f"this job has no {', '.join(unknown)} for a message to supply"
+                )
+            if missing := sorted(
+                name for name in declared if name not in parameters and name not in supplied
+            ):
+                # Every declared parameter is required: `StartWorkflowRun`
+                # refuses a press that leaves one blank, because the planner
+                # would otherwise fall back to the value the RECORDING happened
+                # to contain and do the job with somebody else's client code.
+                raise TriggerRefused(
+                    f"this job needs {', '.join(missing)}: supply a value, "
+                    "or say that a message will"
+                )
+
+            trigger = Trigger(
+                id=self._ids.new_trigger_id(),
+                tenant_id=ctx.tenant_id,
+                workflow_id=workflow.id,
+                kind=request.kind,
+                created_by=ctx.principal_id,
+                created_at=self._clock.now(),
+                parameters=parameters,
+                from_message=request.from_message,
+                cron=request.cron,
+                timezone=request.timezone,
+                device_id=request.device_id,
+                medium=request.medium,
+                writes=True,
+                authorized_by=ctx.principal_id,
+                requires_confirmation=not request.auto_approve,
+                may_take_focus=request.may_take_focus,
+                inbound_token=(
+                    secrets.token_urlsafe(32) if request.kind is TriggerKind.INBOUND else None
+                ),
+            )
+            if trigger.is_scheduled:
+                # Before the commit, for the reason the skill path gives: a
+                # schedule for a trigger that was never stored fires once and
+                # removes itself, and a stored trigger with no schedule is a
+                # task somebody believes is covered and is not.
+                await self._scheduler.schedule(trigger)
+            await uow.triggers.add(trigger)
+            await uow.commit()
         return trigger

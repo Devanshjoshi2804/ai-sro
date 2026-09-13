@@ -28,11 +28,16 @@ async def create_trigger(
     A skill that has never been rehearsed, a value nobody supplied, a write with
     nobody's name behind it: all of them answer here, to the person who can do
     something about it, weeks before the first firing.
+
+    `skill_id` or `workflow_id`, never both. The second is a job the rig mined,
+    which until now could be started by a person accepting an offer in their
+    own browser and by nothing else.
     """
     trigger = await container.create_trigger().execute(
         ctx,
         NewTrigger(
-            skill_id=SkillId(body.skill_id),
+            skill_id=SkillId(body.skill_id) if body.skill_id else None,
+            workflow_id=body.workflow_id,
             kind=body.kind,
             cron=body.cron,
             timezone=body.timezone,

@@ -74,8 +74,8 @@ async def _swept(
 ) -> dict[str, MineResult]:
     lately = MineLately(
         uow,
-        passes,  # type: ignore[arg-type]
-        reads or _Reads(),  # type: ignore[arg-type]
+        passes,
+        reads or _Reads(),
         window_hours=24,
         max_reads=max_reads,
     )

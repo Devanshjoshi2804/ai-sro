@@ -200,6 +200,8 @@ async def watch_matched(
         container, ctx, device_id=device_id, trigger_id=trigger_id, secret=x_device_secret
     )
     running_with = watch.values_from(values)
+    # `_watch_of` has already refused a watch with no skill behind it.
+    assert watch.skill_id is not None  # noqa: S101
     skill = await container.get_skill().execute(ctx, skill_id=watch.skill_id)
     version = skill.runnable
     missing = [] if version is None else blank_inputs(version, running_with)
@@ -287,6 +289,13 @@ async def _watch_of(
     watches = await container.read_triggers().watches(ctx, device_id=device.id)
     watch = next((trigger for trigger in watches if trigger.id == TriggerId(trigger_id)), None)
     if watch is None:
+        raise NotFound("no such watch")
+    if watch.skill_id is None:
+        # `CreateTrigger` refuses a watch on a mined job, because this path
+        # reads a skill's inputs to say what the mail did not name. A row
+        # written before that check existed would reach the two calls below
+        # with nothing to read, so it is the same `NotFound` everything else
+        # here answers rather than a 500 about a field.
         raise NotFound("no such watch")
     return watch
 

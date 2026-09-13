@@ -596,7 +596,10 @@ class ConfirmationModel(BaseModel):
 
     id: str
     trigger_id: str
-    skill_id: str
+    skill_id: str | None = None
+    workflow_id: str | None = None
+    """What the card asks about, and exactly one of them carries it. See
+    `Confirmation`."""
     skill_name: str
     asked_at: datetime
     expires_at: datetime
@@ -609,7 +612,8 @@ class ConfirmationModel(BaseModel):
         return cls(
             id=confirmation.id.value,
             trigger_id=confirmation.trigger_id.value,
-            skill_id=confirmation.skill_id.value,
+            skill_id=confirmation.skill_id.value if confirmation.skill_id else None,
+            workflow_id=confirmation.workflow_id,
             skill_name=skill_name,
             asked_at=confirmation.asked_at,
             expires_at=confirmation.expires_at,
@@ -2314,7 +2318,12 @@ class WatchModel(BaseModel):
 
 
 class NewTriggerRequest(BaseModel):
-    skill_id: str
+    skill_id: str | None = None
+    workflow_id: str | None = None
+    """Name one. `CreateTrigger` refuses two and refuses none, which is the
+    same rule `Trigger` keeps -- said here as a refusal a caller can read
+    rather than as a 500."""
+
     kind: TriggerKind = TriggerKind.SCHEDULE
     cron: str | None = None
     """Five fields, in the scheduler's own dialect. `0 7 * * 1-5` is every
@@ -2361,7 +2370,10 @@ class ChangeTriggerRequest(BaseModel):
 
 class TriggerModel(BaseModel):
     id: str
-    skill_id: str
+    skill_id: str | None = None
+    workflow_id: str | None = None
+    """What this trigger runs: a taught skill or a mined job, never both and
+    never neither. See `Trigger`."""
     kind: str
     cron: str | None
     timezone: str
@@ -2389,7 +2401,8 @@ class TriggerModel(BaseModel):
     def of(cls, trigger: Trigger) -> TriggerModel:
         return cls(
             id=trigger.id.value,
-            skill_id=trigger.skill_id.value,
+            skill_id=trigger.skill_id.value if trigger.skill_id else None,
+            workflow_id=trigger.workflow_id,
             kind=trigger.kind.value,
             cron=trigger.cron,
             timezone=trigger.timezone,

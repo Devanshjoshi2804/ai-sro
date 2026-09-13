@@ -576,7 +576,8 @@ def trigger_to_row(trigger: Trigger) -> TriggerRow:
 
 def update_trigger_row(row: TriggerRow, trigger: Trigger) -> None:
     row.tenant_id = trigger.tenant_id.value
-    row.skill_id = trigger.skill_id.value
+    row.skill_id = trigger.skill_id.value if trigger.skill_id else None
+    row.workflow_id = trigger.workflow_id
     row.kind = trigger.kind.value
     row.cron = trigger.cron
     row.timezone = trigger.timezone
@@ -605,7 +606,8 @@ def row_to_trigger(row: TriggerRow) -> Trigger:
     return Trigger(
         id=TriggerId(row.id),
         tenant_id=TenantId(row.tenant_id),
-        skill_id=SkillId(row.skill_id),
+        skill_id=SkillId(row.skill_id) if row.skill_id else None,
+        workflow_id=row.workflow_id,
         kind=TriggerKind(row.kind),
         created_by=PrincipalId(row.created_by),
         created_at=row.created_at,
@@ -687,7 +689,8 @@ def confirmation_to_row(confirmation: Confirmation) -> ConfirmationRow:
 def update_confirmation_row(row: ConfirmationRow, confirmation: Confirmation) -> None:
     row.tenant_id = confirmation.tenant_id.value
     row.trigger_id = confirmation.trigger_id.value
-    row.skill_id = confirmation.skill_id.value
+    row.skill_id = confirmation.skill_id.value if confirmation.skill_id else None
+    row.workflow_id = confirmation.workflow_id
     row.asked_at = confirmation.asked_at
     row.expires_at = confirmation.expires_at
     row.values = dict(confirmation.values)
@@ -704,7 +707,8 @@ def row_to_confirmation(row: ConfirmationRow) -> Confirmation:
         id=ConfirmationId(row.id),
         tenant_id=TenantId(row.tenant_id),
         trigger_id=TriggerId(row.trigger_id),
-        skill_id=SkillId(row.skill_id),
+        skill_id=SkillId(row.skill_id) if row.skill_id else None,
+        workflow_id=row.workflow_id,
         asked_at=row.asked_at,
         expires_at=row.expires_at,
         values=dict(row.values or {}),

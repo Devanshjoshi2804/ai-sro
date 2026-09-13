@@ -1,9 +1,17 @@
 """A clock asking for a task to be done.
 
 Nobody is watching, which is what every check here is about. The trigger's
-standing authorisation is what a write goes out on; the skill is re-read rather
-than trusted, because it may have been re-induced into something that changes a
-system since the day somebody put it on a schedule.
+standing authorisation is what a write goes out on; what it runs is re-read
+rather than trusted, because a skill may have been re-induced into something
+that changes a system since the day somebody put it on a schedule.
+
+Two things a trigger can run, and the difference is where the safety lives. A
+SKILL is checked here: `runnable`, `changes_the_system`, `blank_inputs`. A
+mined JOB is checked by the run itself -- `run_workflow` is dry until somebody
+presses through to live, a live write parks for a person until the job has
+`earned` the right by `K_EARNED_RUNS` state-verified runs, and every step is
+verified before the next one starts. So the workflow path here is plumbing
+rather than a second ladder: what it must not do is invent a weaker one.
 """
 
 from __future__ import annotations
@@ -11,14 +19,18 @@ from __future__ import annotations
 import logging
 from collections.abc import Mapping
 from dataclasses import dataclass
+from datetime import datetime
 
 from sro.application.context import RequestContext
+from sro.application.execution.pursuits import Pursuits
+from sro.application.execution.workflow_runs import StartWorkflowRun
 from sro.application.ports.dispatch import DispatchFailed, RunDispatcher
 from sro.application.ports.durable import DurableExecution
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.schedule import Scheduler
 from sro.application.ports.system import Clock, IdFactory
 from sro.domain.execution.run import RunId
+from sro.domain.execution.workflow_run import WorkflowRun
 from sro.domain.shared.identifiers import ConfirmationId, TriggerId
 from sro.domain.skill.skill import SkillVersion
 from sro.domain.trigger.confirmation import ANSWER_WITHIN, Confirmation
@@ -61,6 +73,8 @@ class FireTrigger:
         ids: IdFactory,
         dispatcher: RunDispatcher | None = None,
         scheduler: Scheduler | None = None,
+        start_run: StartWorkflowRun | None = None,
+        pursuits: Pursuits | None = None,
     ) -> None:
         self._uow = uow
         self._clock = clock
@@ -68,6 +82,11 @@ class FireTrigger:
         self._ids = ids
         self._dispatcher = dispatcher
         self._scheduler = scheduler
+        # `None` in a process that cannot drive a browser, the same shape
+        # `dispatcher` already has: a worker with no channel to an extension
+        # skips the fire rather than failing to construct.
+        self._start_run = start_run
+        self._pursuits = pursuits
 
     async def execute(
         self, trigger_id: TriggerId, *, message: Mapping[str, str] | None = None
@@ -89,6 +108,13 @@ class FireTrigger:
                 return Fired(trigger_id, skipped=trigger.disabled_reason or "disabled")
 
             ctx = RequestContext(tenant_id=trigger.tenant_id, principal_id=trigger.created_by)
+            now = self._clock.now()
+            values = trigger.values_from(message or {})
+
+            if trigger.workflow_id is not None:
+                return await self._fire_a_job(uow, trigger, ctx=ctx, now=now, values=values)
+
+            assert trigger.skill_id is not None  # noqa: S101 - the invariant Trigger keeps
             skill = await uow.skills.get(ctx.tenant_id, trigger.skill_id)
             version = skill.runnable
             if version is None:
@@ -106,8 +132,6 @@ class FireTrigger:
                 await uow.commit()
                 return Fired(trigger_id, skipped=trigger.disabled_reason)
 
-            now = self._clock.now()
-            values = trigger.values_from(message or {})
             if blank := blank_inputs(version, values):
                 # A mail that matched the rule but named no order. Every relay
                 # sends some of these -- an autoreply, a thread with the number
@@ -117,25 +141,10 @@ class FireTrigger:
                 return Fired(trigger_id, skipped="nothing said " + ", ".join(blank))
 
             if trigger.requires_confirmation:
-                # Nobody is here. The fire becomes a card instead of a run, and
-                # the values on it are frozen now rather than re-read when
-                # somebody answers -- what they approve has to be what is
-                # written in front of them, and a trigger edited in between
-                # would turn a yes to one thing into a yes to another.
-                asked = Confirmation(
-                    id=self._ids.new_confirmation_id(),
-                    tenant_id=trigger.tenant_id,
-                    trigger_id=trigger.id,
-                    skill_id=trigger.skill_id,
-                    asked_at=now,
-                    expires_at=now + ANSWER_WITHIN,
-                    values=values,
-                    because=_because(trigger, message),
+                # Nobody is here.
+                asked = await self._ask_a_person(
+                    uow, trigger, now=now, values=values, message=message
                 )
-                await uow.confirmations.add(asked)
-                trigger.fired(now, None)
-                await uow.triggers.save(trigger)
-                await uow.commit()
                 return Fired(trigger_id, confirmation_id=asked.id)
 
             try:
@@ -151,6 +160,105 @@ class FireTrigger:
             await uow.commit()
 
         return Fired(trigger_id, run_id=run_id)
+
+    async def _ask_a_person(
+        self,
+        uow: UnitOfWork,
+        trigger: Trigger,
+        *,
+        now: datetime,
+        values: dict[str, str],
+        message: Mapping[str, str] | None,
+    ) -> Confirmation:
+        """The fire becomes a card instead of a run.
+
+        The values are frozen now rather than re-read when somebody answers:
+        what they approve has to be what is written in front of them, and a
+        trigger edited in between would turn a yes to one thing into a yes to
+        another.
+
+        One helper for both kinds. The card names whichever of the two the
+        trigger names, and every other field is the same question -- a second
+        copy of this, per kind, is two cards that drift.
+        """
+        asked = Confirmation(
+            id=self._ids.new_confirmation_id(),
+            tenant_id=trigger.tenant_id,
+            trigger_id=trigger.id,
+            skill_id=trigger.skill_id,
+            workflow_id=trigger.workflow_id,
+            asked_at=now,
+            expires_at=now + ANSWER_WITHIN,
+            values=values,
+            because=_because(trigger, message),
+        )
+        await uow.confirmations.add(asked)
+        trigger.fired(now, None)
+        await uow.triggers.save(trigger)
+        await uow.commit()
+        return asked
+
+    async def _fire_a_job(
+        self,
+        uow: UnitOfWork,
+        trigger: Trigger,
+        *,
+        ctx: RequestContext,
+        now: datetime,
+        values: dict[str, str],
+        message: Mapping[str, str] | None = None,
+    ) -> Fired:
+        """A mined job, started in the operator's own browser.
+
+        Almost nothing is checked here, and that is the point. `run_workflow`
+        is dry until somebody presses through to live; a live write parks for a
+        person until the job has EARNED the right by `K_EARNED_RUNS` runs whose
+        every write a state belt verified; each step is verified before the
+        next is sent; and `StartWorkflowRun` itself refuses a job with a
+        declared parameter left blank, a job whose evidence has gone, and a
+        browser already driving something else. Repeating any of that here
+        would be a second ladder that can disagree with the first.
+
+        What IS checked here is what only this call site knows: that the job
+        still exists, and that it is one a browser may be offered at all.
+
+        A job runs in a browser or nowhere. There is no headless path for one:
+        a workflow is a recording of somebody's own window, and `device_id` is
+        how the run reaches it.
+        """
+        if self._start_run is None:
+            return Fired(trigger.id, skipped="this process cannot start a job")
+        if trigger.device_id is None:
+            # Refused at creation too. Belt and braces, because a row written
+            # before that check existed is still a row.
+            trigger.disable("a job runs in a browser: name a device")
+            await uow.triggers.save(trigger)
+            await uow.commit()
+            return Fired(trigger.id, skipped=trigger.disabled_reason)
+
+        workflow = await uow.workflows.get(ctx.tenant_id, str(trigger.workflow_id))
+        if workflow.unproven:
+            # Mined and not yet trusted. An offer is never made for one, so a
+            # schedule must not be the way round that.
+            return Fired(
+                trigger.id, skipped="this job is not proven: " + "; ".join(workflow.unproven)
+            )
+
+        if trigger.requires_confirmation:
+            asked = await self._ask_a_person(uow, trigger, now=now, values=values, message=message)
+            return Fired(trigger.id, confirmation_id=asked.id)
+
+        try:
+            run = await start_job_for(
+                ctx, trigger, values=values, start_run=self._start_run, pursuits=self._pursuits
+            )
+        except DispatchFailed as unreachable:
+            logger.info("trigger %s could not reach its browser: %s", trigger.id, unreachable)
+            return Fired(trigger.id, skipped=str(unreachable))
+        trigger.fired(now, None)
+        await uow.triggers.save(trigger)
+        await uow.commit()
+        return Fired(trigger.id, run_id=RunId(run.id))
 
     async def _start(
         self, ctx: RequestContext, trigger: Trigger, *, version: int, values: dict[str, str]
@@ -197,6 +305,11 @@ async def start_for(
     trigger.
     """
     named = authorized_by or (trigger.authorized_by.value if trigger.authorized_by else None)
+    if trigger.skill_id is None:
+        # `Trigger` names one or the other, and this is the skill half. A job
+        # goes to `start_job_for` above, which is not this function's business
+        # to reach into -- `FireTrigger` routes on the same field.
+        raise DispatchFailed("this trigger runs a job, not a skill")
 
     if trigger.device_id is None:
         # Named before it starts, the same reason the console does this --
@@ -234,6 +347,66 @@ async def start_for(
         # set up to watch may.
         may_take_focus=trigger.may_take_focus,
     )
+
+
+async def start_job_for(
+    ctx: RequestContext,
+    trigger: Trigger,
+    *,
+    values: Mapping[str, str],
+    start_run: StartWorkflowRun,
+    pursuits: Pursuits | None,
+    authorized_by: str | None = None,
+) -> WorkflowRun:
+    """Start the mined job a trigger asks for, in the browser it names.
+
+    Module-level for `start_for`'s reason, which is the one that matters most
+    here: two callers need this -- a fire, and a card somebody approved -- and
+    the second one calling `StartWorkflowRun` itself is how the skill path
+    once dropped the trigger's `device_id` and drove the wrong browser.
+
+    Live, always. A dry run of a scheduled job sends nothing and verifies
+    nothing; it is a trigger that appears to work. What keeps it safe is not
+    dryness, it is the ladder underneath: a live write parks for a person
+    until the job has EARNED the right, and `earned` is three runs whose every
+    write a state belt saw.
+
+    `allow_focus` is the trigger's own `may_take_focus`, which defaults to off:
+    a schedule that fires at 3am has no business taking somebody's screen.
+
+    Claimed and then spawned, exactly as `POST /v1/workflow-runs` does. A fire
+    that awaited the whole run would hold a worker's activity slot for its full
+    duration -- the same failure `start_for` records above -- and a run nobody
+    holds a reference to is one the loop may collect mid-gesture.
+    """
+    # The name is on the record already: `WorkflowRun.started_by` is the
+    # context's principal, which for a fire is the trigger's author and for an
+    # approved card is whoever pressed it.
+    named = authorized_by or (trigger.authorized_by.value if trigger.authorized_by else None)
+    if named is None and trigger.writes:
+        # `Trigger` refuses this at creation. A row written before that check
+        # existed is still a row, and this is the last place to notice.
+        raise DispatchFailed("this trigger writes and names nobody who authorised it")
+    if trigger.device_id is None:
+        raise DispatchFailed("a job runs in a browser: this trigger names none")
+
+    claimed = await start_run.execute(
+        ctx,
+        workflow_id=str(trigger.workflow_id),
+        device_id=trigger.device_id,
+        values=values,
+        live=True,
+        allow_focus=trigger.may_take_focus,
+    )
+    performing = start_run.perform(ctx, claimed)
+    if pursuits is None:
+        # Nothing to hold the task, so it is awaited rather than dropped: a
+        # coroutine created and discarded is a run that never happens, and
+        # "the trigger fired" would be a lie told with a run id.
+        await performing
+    else:
+        pursuits.spawn(performing)
+    return claimed
 
 
 def blank_inputs(version: SkillVersion, values: Mapping[str, str]) -> list[str]:

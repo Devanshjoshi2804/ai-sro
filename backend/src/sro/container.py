@@ -561,6 +561,10 @@ class Container:
         return DeleteTrigger(self.unit_of_work(), self.scheduler)
 
     def fire_trigger(self) -> FireTrigger:
+        """`start_run` and `pursuits` are the job half, beside the skill half's
+        `dispatcher`: a trigger can name a mined workflow now, and one that
+        does is started through the same use case `POST /v1/workflow-runs`
+        uses, spawned the same way."""
         return FireTrigger(
             self.unit_of_work(),
             self.clock,
@@ -568,11 +572,19 @@ class Container:
             ids=self.ids,
             dispatcher=self.dispatcher,
             scheduler=self.scheduler,
+            start_run=self.start_workflow_run(),
+            pursuits=self.pursuits,
         )
 
     def answer_confirmation(self) -> AnswerConfirmation:
         return AnswerConfirmation(
-            self.unit_of_work(), self.clock, self.ids, self.durable, self.dispatcher
+            self.unit_of_work(),
+            self.clock,
+            self.ids,
+            self.durable,
+            self.dispatcher,
+            start_run=self.start_workflow_run(),
+            pursuits=self.pursuits,
         )
 
     def read_confirmations(self) -> ReadConfirmations:

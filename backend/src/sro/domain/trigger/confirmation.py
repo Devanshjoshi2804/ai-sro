@@ -64,9 +64,14 @@ class Confirmation:
     id: ConfirmationId
     tenant_id: TenantId
     trigger_id: TriggerId
-    skill_id: SkillId
     asked_at: datetime
     expires_at: datetime
+
+    skill_id: SkillId | None = None
+    workflow_id: str | None = None
+    """What the fire would run. Exactly one, the same rule `Trigger` keeps and
+    for the same reason: a card is a person being asked to authorise one
+    particular thing, and one that named two would be asking about which?"""
 
     values: Mapping[str, str] = field(default_factory=dict)
     """What the run would go with, frozen at the moment it was asked.
@@ -87,12 +92,23 @@ class Confirmation:
     note: str = ""
 
     def __post_init__(self) -> None:
+        named = [name for name in (self.skill_id, self.workflow_id) if name]
+        if len(named) != 1:
+            raise InvariantViolation(
+                "a confirmation asks about one thing: name a skill or a job, not "
+                + ("both" if named else "neither")
+            )
         for name, at in (("asked_at", self.asked_at), ("expires_at", self.expires_at)):
             if at.tzinfo is None:
                 raise InvariantViolation(f"Confirmation.{name} must be timezone-aware")
         if self.expires_at <= self.asked_at:
             raise InvariantViolation("a confirmation that has already expired asks nothing")
         self.values = MappingProxyType(dict(self.values))
+
+    @property
+    def runs(self) -> str:
+        """What this card would run, as an id, whichever kind it is."""
+        return (self.skill_id.value if self.skill_id else None) or str(self.workflow_id)
 
     def waiting_at(self, now: datetime) -> bool:
         """Whether somebody can still answer this.

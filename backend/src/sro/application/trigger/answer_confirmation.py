@@ -16,11 +16,13 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from sro.application.context import RequestContext
+from sro.application.execution.pursuits import Pursuits
+from sro.application.execution.workflow_runs import StartWorkflowRun
 from sro.application.ports.dispatch import RunDispatcher
 from sro.application.ports.durable import DurableExecution
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
-from sro.application.trigger.fire_trigger import start_for
+from sro.application.trigger.fire_trigger import start_for, start_job_for
 from sro.domain.execution.run import RunId
 from sro.domain.shared.errors import InvariantViolation
 from sro.domain.shared.identifiers import ConfirmationId
@@ -42,12 +44,18 @@ class AnswerConfirmation:
         ids: IdFactory,
         durable: DurableExecution,
         dispatcher: RunDispatcher | None = None,
+        start_run: StartWorkflowRun | None = None,
+        pursuits: Pursuits | None = None,
     ) -> None:
         self._uow = uow
         self._clock = clock
         self._ids = ids
         self._durable = durable
         self._dispatcher = dispatcher
+        # The job half, the same shape `dispatcher` has for the skill half:
+        # `None` in a process that cannot drive a browser.
+        self._start_run = start_run
+        self._pursuits = pursuits
 
     async def approve(self, ctx: RequestContext, *, confirmation_id: ConfirmationId) -> Answered:
         """Yes: run it, with this person's name on the run.
@@ -71,6 +79,30 @@ class AnswerConfirmation:
                     f"{trigger.disabled_reason or 'no reason given'}"
                 )
 
+            if waiting.workflow_id is not None:
+                # A mined job. Started the same way a fire starts one, for the
+                # reason the comment below gives about the skill path: a second
+                # start beside the first is how the first one's device_id got
+                # dropped. `authorized_by` is the person who answered.
+                if self._start_run is None:
+                    raise InvariantViolation("this process cannot start a job")
+                run = await start_job_for(
+                    ctx,
+                    trigger,
+                    values=dict(waiting.values),
+                    start_run=self._start_run,
+                    pursuits=self._pursuits,
+                    authorized_by=ctx.principal_id.value,
+                )
+                run_id = RunId(run.id)
+                waiting.approve(ctx.principal_id, now, run_id)
+                trigger.fired(now, run_id)
+                await uow.confirmations.save(waiting)
+                await uow.triggers.save(trigger)
+                await uow.commit()
+                return Answered(confirmation_id, Answer.APPROVED, run_id)
+
+            assert waiting.skill_id is not None  # noqa: S101 - the invariant Confirmation keeps
             skill = await uow.skills.get(ctx.tenant_id, waiting.skill_id)
             version = skill.runnable
             if version is None:

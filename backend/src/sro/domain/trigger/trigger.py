@@ -48,10 +48,25 @@ class Trigger:
 
     id: TriggerId
     tenant_id: TenantId
-    skill_id: SkillId
     kind: TriggerKind
     created_by: PrincipalId
     created_at: datetime
+
+    skill_id: SkillId | None = None
+    """The taught skill this runs, where it runs one."""
+
+    workflow_id: str | None = None
+    """The mined job this runs, where it runs one.
+
+    Exactly one of the two, checked below. A trigger is the authority to do a
+    particular thing at a time nobody is watching, and a record that named two
+    things -- or none -- would be authority over which?
+
+    The rig's jobs were unreachable from here until this field existed: a
+    workflow the miner learned, proved and earned could be started by a person
+    accepting an offer in their own browser and by nothing else. A job that can
+    only run while somebody is already doing it by hand is not automation.
+    """
 
     parameters: Mapping[str, str] = field(default_factory=dict)
     from_message: tuple[str, ...] = ()
@@ -112,6 +127,13 @@ class Trigger:
         if self.created_at.tzinfo is None:
             raise InvariantViolation("Trigger.created_at must be timezone-aware")
 
+        named = [name for name in (self.skill_id, self.workflow_id) if name]
+        if len(named) != 1:
+            raise InvariantViolation(
+                "a trigger runs one thing: name a skill or a job, not "
+                + ("both" if named else "neither")
+            )
+
         if self.kind is TriggerKind.SCHEDULE:
             if not self.cron:
                 raise InvariantViolation("a scheduled trigger needs a cron expression")
@@ -162,7 +184,7 @@ class Trigger:
             # The whole point of the record. Refused here, weeks before it
             # would have written to a warehouse with nobody's name on it.
             raise InvariantViolation(
-                "a trigger for a skill that changes the system must name who authorised it"
+                "a trigger for something that changes the system must name who authorised it"
             )
         if not self.writes and not self.requires_confirmation:
             # Not a rule about safety -- a read needs no confirming -- but about
@@ -170,6 +192,13 @@ class Trigger:
             self.requires_confirmation = False
 
         self.parameters = MappingProxyType(dict(self.parameters))
+
+    @property
+    def runs(self) -> str:
+        """What this trigger runs, as an id, whichever kind it is. One reader
+        for a log line, a card and a console row -- three places that had no
+        business each deciding which field to look in."""
+        return (self.skill_id.value if self.skill_id else None) or str(self.workflow_id)
 
     def values_from(self, message: Mapping[str, str]) -> dict[str, str]:
         """What to run with, given what fired this.

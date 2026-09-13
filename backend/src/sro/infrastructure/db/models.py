@@ -420,7 +420,12 @@ class TriggerRow(Base):
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     tenant_id: Mapped[str] = mapped_column(String(64), nullable=False)
-    skill_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    skill_id: Mapped[str | None] = mapped_column(String(64))
+    workflow_id: Mapped[str | None] = mapped_column(String(64))
+    """What this runs: a taught skill or a mined job, and exactly one of them.
+    Both nullable in the column and neither optional in the domain -- `Trigger`
+    refuses a row that names two or none, and a CHECK constraint here would be
+    the same rule written twice in two languages."""
     kind: Mapped[str] = mapped_column(String(16), nullable=False)
 
     cron: Mapped[str | None] = mapped_column(String(120))
@@ -544,7 +549,9 @@ class ConfirmationRow(Base):
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     tenant_id: Mapped[str] = mapped_column(String(64), nullable=False)
     trigger_id: Mapped[str] = mapped_column(String(64), nullable=False)
-    skill_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    skill_id: Mapped[str | None] = mapped_column(String(64))
+    workflow_id: Mapped[str | None] = mapped_column(String(64))
+    """What the card is asking about. Exactly one, as on `TriggerRow`."""
 
     asked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

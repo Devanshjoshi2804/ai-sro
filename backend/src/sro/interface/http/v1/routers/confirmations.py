@@ -24,12 +24,35 @@ router = APIRouter(prefix="/confirmations", tags=["confirmations"])
 async def list_confirmations(container: ContainerDep, ctx: ContextDep) -> list[ConfirmationModel]:
     """What is waiting, oldest first.
 
-    The skill's name comes along because the card is read by somebody deciding,
-    and an id is not something anybody decides about.
+    The name comes along because the card is read by somebody deciding, and an
+    id is not something anybody decides about. Where the card asks about a
+    mined job that name is the job's title -- the same sentence the console's
+    Jobs page shows and the panel's offer says out loud.
     """
     waiting = await container.read_confirmations().execute(ctx)
     named: list[ConfirmationModel] = []
+    titles: dict[str, str] | None = None
     for confirmation in waiting:
+        if confirmation.workflow_id is not None:
+            # The tenant's jobs, once, rather than a read per card: there is no
+            # single-workflow use case and a card list is short. `titles` is
+            # built lazily so a queue with no job cards makes no extra read.
+            if titles is None:
+                titles = {
+                    known.workflow.id: known.workflow.title
+                    for known in await container.read_workflows().execute(ctx)
+                }
+            named.append(
+                ConfirmationModel.of(
+                    confirmation,
+                    # A job that has since been re-mined away still has a card
+                    # somebody has to answer, and an id is better on it than a
+                    # blank.
+                    skill_name=titles.get(confirmation.workflow_id, confirmation.workflow_id),
+                )
+            )
+            continue
+        assert confirmation.skill_id is not None  # noqa: S101 - Confirmation's invariant
         skill = await container.get_skill().execute(ctx, skill_id=confirmation.skill_id)
         named.append(ConfirmationModel.of(confirmation, skill_name=skill.name))
     return named

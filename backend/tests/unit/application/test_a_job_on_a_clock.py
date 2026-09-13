@@ -72,6 +72,13 @@ class _Dropped(Pursuits):
         coroutine.close()
 
 
+class _Closed(FakeChannel):
+    """No browser of this tenant's is connected."""
+
+    def online(self, tenant_id: TenantId) -> tuple[DeviceId, ...]:
+        return ()
+
+
 def _job(*, workflow_id: str = "wfl_1", unproven: list[str] | None = None) -> Workflow:
     return Workflow(
         id=workflow_id,
@@ -362,3 +369,23 @@ async def test_another_tenants_job_is_not_found_rather_than_scheduled() -> None:
 
     with pytest.raises(NotFound):
         await _create(uow, scheduler).execute(CTX, _new())
+
+
+async def test_a_closed_laptop_is_skipped_rather_than_retried_all_night() -> None:
+    """A `Conflict`, not a `DispatchFailed`.
+
+    The job path has no dispatcher -- it presses the same door the console
+    does, and that door refuses an offline browser with a conflict. Raised out
+    of the fire it would reach the scheduler as a failed activity and be
+    retried until somebody opened the laptop.
+    """
+    uow, scheduler = await _held(), FakeScheduler()
+    trigger = await _create(uow, scheduler).execute(CTX, _new(auto_approve=True))
+    nobody_home = _starter(uow)
+    object.__setattr__(nobody_home, "_channel", _Closed())
+
+    fired = await _fire(uow, starter=nobody_home, pursuits=_Dropped()).execute(trigger.id)
+
+    assert fired.run_id is None
+    assert "not connected" in (fired.skipped or "")
+    assert uow.triggers.rows[trigger.id.value].enabled is True

@@ -23,7 +23,7 @@ from datetime import datetime
 
 from sro.application.context import RequestContext
 from sro.application.execution.pursuits import Pursuits
-from sro.application.execution.workflow_runs import StartWorkflowRun
+from sro.application.execution.workflow_runs import RunRefused, StartWorkflowRun
 from sro.application.ports.dispatch import DispatchFailed, RunDispatcher
 from sro.application.ports.durable import DurableExecution
 from sro.application.ports.repositories import UnitOfWork
@@ -31,6 +31,7 @@ from sro.application.ports.schedule import Scheduler
 from sro.application.ports.system import Clock, IdFactory
 from sro.domain.execution.run import RunId
 from sro.domain.execution.workflow_run import WorkflowRun
+from sro.domain.shared.errors import Conflict
 from sro.domain.shared.identifiers import ConfirmationId, TriggerId
 from sro.domain.skill.skill import SkillVersion
 from sro.domain.trigger.confirmation import ANSWER_WITHIN, Confirmation
@@ -252,9 +253,19 @@ class FireTrigger:
             run = await start_job_for(
                 ctx, trigger, values=values, start_run=self._start_run, pursuits=self._pursuits
             )
-        except DispatchFailed as unreachable:
-            logger.info("trigger %s could not reach its browser: %s", trigger.id, unreachable)
-            return Fired(trigger.id, skipped=str(unreachable))
+        except (DispatchFailed, Conflict, RunRefused) as refused:
+            # A closed laptop is a `Conflict` out of `StartWorkflowRun`, not a
+            # `DispatchFailed`: the job path has no dispatcher, it presses the
+            # same door the console does. Raised out of here it would reach the
+            # scheduler as a failed activity and be retried all night, which is
+            # what the skill path's catch has always existed to prevent -- and
+            # a browser being closed is the most ordinary thing there is.
+            #
+            # `RunRefused` too, and deliberately not a disable: a job whose
+            # cited evidence has aged out is refused today and proven again by
+            # the next pass that reads those gestures back.
+            logger.info("trigger %s did not start its job: %s", trigger.id, refused)
+            return Fired(trigger.id, skipped=str(refused))
         trigger.fired(now, None)
         await uow.triggers.save(trigger)
         await uow.commit()

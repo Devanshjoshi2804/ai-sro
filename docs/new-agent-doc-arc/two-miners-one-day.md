@@ -873,13 +873,35 @@ Met:
    plane.
 2. What each found that the other missed.
 
-Not met, and neither is a count:
+Met later the same day:
 
-3. **Nobody has answered the open `variant` joins.** A person has to say whether
-   two candidates are one job.
-4. **No offer has been accepted in a browser.** An offer is now *made* live — the
-   panel offered a job off a browser's own gestures on 2026-09-14 — but nobody
-   has pressed "Yes, finish it" and had the run go through.
+3. **An offer has been accepted in a browser.** `--accept` presses Yes on the
+   card, filling the inputs the offer could not read off the page first, and
+   the run goes through with the values that were typed:
+
+   ```
+   the panel has drawn it: True
+   the card asked for clientCode, and it is typed in
+   -- pressing Yes in the panel, as the browser the offer was made to
+   -- the offer was accepted and it started run_9b1ca315…
+   == outcome: held
+      step 3: held by read — a read of /api/orders?latest=1 shows the value
+              this run supplied
+   ```
+
+   Proving it found a defect in the panel and one in the instrument. `show()`
+   rebuilt the ledger only when the THREAD changed, and a rig offer writes
+   nothing to the thread — so an offer made while the thread was quiet was
+   stored and never drawn. And this script printed "the panel offered it" after
+   reading the offer out of storage, which is a different claim from the card
+   being in the DOM. Both fixed; both were found by watching a real browser
+   rather than by reading either side.
+
+Not met, and it is not a count:
+
+4. **Nobody has answered the open `variant` joins.** A person has to say whether
+   two candidates are one job. It is the only item left, and it is not one a
+   script can close.
 
 A deletion was attempted on 2026-09-14 against item 2 before this was measured,
 on a reading of `acme` alone, and reverted within the hour. The reverts are in

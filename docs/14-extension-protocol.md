@@ -595,3 +595,30 @@ stale file that keeps passing against a shape nothing produces any more.
 asserts each parses into the domain object it claims to be and satisfies every
 invariant. Neither side edits the other's code; a break in either half shows up
 in both people's `make check`.
+
+### The seams the fixtures do not cover
+
+A fixture proves a payload's *shape*. It cannot prove that the two sides still
+agree about a **rule**, and every rule below lives in two languages at once.
+Each drifted or could have; each now has one guard, named here so the next
+person can find it rather than discovering it the way these were found — in a
+real browser, watching nothing happen.
+
+| The rule, and where its halves live | What drift costs | Held by |
+|---|---|---|
+| **Which jobs may be offered.** `shape_of` serves; `recognise.match` matches, scanning k down from `shape.length - 1` because an offer has to leave something to finish | a shape served, cached and walked by every browser on every gesture that can never fire. It happened: every two-step job, for weeks | `test_a_job_too_short_to_leave_anything_to_finish_is_never_served`, its twin in `recognise.test.mjs`, and `unmatchable()` in `scripts/offer-replay.mjs`, which now exits non-zero |
+| **The command kinds.** `COMMAND_KINDS` in `planning.py`; the `switch` in `commands.js` | the browser answers `not_actionable`; the run records a step that could not be done, live, in front of somebody | `test_the_extension_answers_every_command_this_backend_can_send` |
+| **The reply fields.** What the senders and `belts.py` read; what `commands.js` and `in-page.js` answer with | quieter: no `status` means no state belt, so the job is driven correctly forever and never earns the right to write unattended | `test_the_extension_answers_with_every_field_this_backend_reads` |
+| **The run's own words.** `WorkflowRunModel` here; `api.rigRun`'s mapping there | the card draws a blank where the verdict goes, on a run somebody is watching | `test_the_panel_reads_a_run_by_fields_the_backend_really_answers_with` |
+| **The doors.** Every `/v1/...` path `api.js` calls; this app's OpenAPI | a 404 in a browser somebody is working in | `test_every_door_the_extension_knocks_on_is_one_this_app_opens` |
+
+All five live in `backend/tests/unit/interface/test_the_command_vocabulary.py`
+except where named otherwise, and all five read the extension's real source
+rather than a copy of it. The extension's own suite cannot stand in for any of
+them: it fakes `fetch`, so the path it asserts is the path it invented.
+
+A mutation score cannot stand in either, and `shape.py` is the proof —
+**96.2% while shipping the off-by-one that made every two-step job
+unofferable.** A sweep only asks whether the tests notice the code changing;
+where both sides are wrong the same way, nothing changes when one of them
+moves.

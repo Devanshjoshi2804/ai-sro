@@ -156,6 +156,11 @@ one-whole-run: ## A job watched in a real Chrome and then done by the system, en
 	@# the job instead of pressing the run endpoint -- the path a schedule
 	@# takes with nobody in the room. Always live, and it still stops for the
 	@# panel until the job has earned the right not to.
+	@#
+	@# `args="--offer"` does the whole job by hand a second time and reads
+	@# what the panel says about it: a browser served a shape it has not seen
+	@# before, offering the job off its own gestures. The offer lands in the
+	@# middle of the doing, because an offer has to leave something to finish.
 	$(BACKEND) uv run python scripts/one_whole_run.py $(args)
 
 test-browser: ## Drive a real Chrome with the extension loaded

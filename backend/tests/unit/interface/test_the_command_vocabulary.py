@@ -19,6 +19,7 @@ import re
 from pathlib import Path
 
 from sro.domain.execution.planning import COMMAND_KINDS, KINDS
+from sro.interface.http.app import create_app
 from sro.interface.http.schemas import WorkflowRunModel, WorkflowRunStepModel
 
 _SENDERS = ("run_workflow.py", "verify.py", "plan_step.py", "vision_step.py")
@@ -138,6 +139,42 @@ def test_the_panel_reads_a_run_by_fields_the_backend_really_answers_with() -> No
             f"the panel reads {sorted(read - set(model.model_fields))} off a "
             f"{prefix} and {model.__name__} has no such field"
         )
+
+
+def test_every_door_the_extension_knocks_on_is_one_this_app_opens() -> None:
+    """Every `/v1/...` path in `api.js`, against the app's own OpenAPI.
+
+    The widest of the checks in this file and the cheapest to keep: a route
+    renamed or removed on this side is a 404 in a browser somebody is working
+    in, and the extension's own suite cannot see it -- every one of those tests
+    fakes `fetch`, so the path it asserts is the path it invented.
+
+    Comments are stripped first. `api.js` names several paths in prose --
+    "`/v1/workflow-runs/{id}`, not `/v1/runs/{id}`" is a comment explaining why
+    the rig's old door is not this one -- and a test that read those would fail
+    over an explanation.
+    """
+    body = _extension("api.js")
+    code = re.sub(r"/\*.*?\*/", "", body, flags=re.DOTALL)
+    code = re.sub(r"^\s*//.*$", "", code, flags=re.MULTILINE)
+
+    called = {
+        re.sub(r"\$\{[^}]*\}", "{}", path).split("?")[0].rstrip("/")
+        for path in re.findall(r'["`](/v1/[^"`\s]*)["`]', code)
+    }
+    assert called, "no paths found: the way api.js writes a url changed"
+
+    served = {
+        re.sub(r"\{[^}]*\}", "{}", path).rstrip("/") for path in create_app().openapi()["paths"]
+    }
+    # `/v1/shapes${query}` is one door with a query string, not a path
+    # parameter: the placeholder at the end is `?device_id=...`.
+    missing = sorted(
+        path
+        for path in called
+        if path not in served and not (path.endswith("{}") and path[:-2] in served)
+    )
+    assert not missing, f"the extension calls {missing}, which this app does not serve"
 
 
 def test_a_plan_may_name_only_the_kinds_a_model_is_offered() -> None:

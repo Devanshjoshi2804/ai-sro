@@ -1092,7 +1092,17 @@ async function conversation() {
  * that.
  */
 function show(thread, { asked = false } = {}) {
-  const now = `${thread.id}:${(thread.messages || []).map((message) => message.id).join(",")}`;
+  // The local half belongs in the signature, not only in the draw below it.
+  // It was built from the thread alone, and a rig offer writes nothing to the
+  // thread -- `considerOffer` stores a nudge and prompts on the page. So an
+  // offer made while the thread was quiet was never drawn here: every poll
+  // computed the same signature and returned, and the card appeared only when
+  // something unrelated changed the thread. Found on 2026-09-14 by a browser
+  // that made an offer the panel never showed.
+  const mine = (lastStatus?.nudges || [])
+    .map((nudge) => `${nudge.id}:${nudge.state}:${nudge.k ?? ""}`)
+    .join(",");
+  const now = `${thread.id}:${(thread.messages || []).map((message) => message.id).join(",")}|${mine}`;
   if (now === drawn) return;
   if (!asked && drawn !== null && document.activeElement?.tagName === "INPUT") return;
   drawn = now;

@@ -238,7 +238,9 @@ def _approve_in_the_panel(context: Any, worker: Any, run_id: str) -> None:
     return
 
 
-def _offered_in_the_panel(context: Any, worker: Any, page: Any, *, title: str) -> None:
+def _offered_in_the_panel(
+    context: Any, worker: Any, page: Any, *, title: str, accept: bool = False
+) -> str | None:
     """Do the whole job by hand again, and read what the panel says about it.
 
     The half of phase 5 nothing had ever run live. `make offer-replay-backend`
@@ -288,14 +290,27 @@ def _offered_in_the_panel(context: Any, worker: Any, page: Any, *, title: str) -
     if made is None:
         panel.close()
         raise SystemExit(f"nothing was offered after doing {title!r} by hand again")
+    # Two different claims, and this script printed the second while proving
+    # only the first. The worker MATCHING a shape and making an offer is a
+    # record in storage; the panel DRAWING it is a card in the DOM, and the two
+    # came apart for real: `show()` skipped its redraw whenever the thread was
+    # unchanged, and a rig offer writes nothing to the thread.
+    drawn = panel.locator('li[data-kind="nudge"][data-state="open"]').count() > 0
+    print(
+        f"-- the worker offered {made['title']!r} off this browser's own gestures"
+        f" -- matched {made['k']} gestures in, values {json.dumps(made['values'])}"
+    )
+    print(f"   the panel has drawn it: {drawn}")
     # The record behind the sentence. An offer that names the job and draws an
     # empty box for every value is half an offer -- `valuesFrom` reads the live
     # tail at the positions the served shape indexes, so an empty one means the
     # two sides of the wire disagree about where a value is or about what a
     # gesture put.
-    print(f"-- the panel offered it off this browser's own gestures: {made['title']!r}")
-    print(f"   matched {made['k']} gestures in, values {json.dumps(made['values'])}")
-    if made.get("missing"):
+    if accept:
+        started = _accepted_in_the_panel(panel, made)
+        panel.close()
+        return started
+    if not accept and made.get("missing"):
         # A value the operator has already typed, asked for again, is the
         # defect this print exists to catch -- so the walk it matched is shown
         # beside it rather than left to be guessed at.
@@ -306,6 +321,129 @@ def _offered_in_the_panel(context: Any, worker: Any, page: Any, *, title: str) -
         print(f"   and it has to ask for: {', '.join(made['missing'])}")
         print(f"   the walk it matched ended: {json.dumps(walk[-4:])}")
     panel.close()
+    return None
+
+
+def _accepted_in_the_panel(panel: Any, made: dict[str, Any]) -> str:
+    """Press Yes on the offer, as the operator it was made to.
+
+    The last thing in the spec's phase 5 line that nothing had ever done. An
+    offer being MADE was proved on 2026-09-14; nobody had ever answered one, so
+    no run in this system's history had been started by a person accepting an
+    offer rather than by a console press, a trigger or a script.
+
+    Through the card's own button, and through its own inputs: `ready()` keeps
+    Yes disabled until every value the offer could not read off the page has
+    been typed, which is the panel refusing to start a run with a blank in it.
+    Filling them here is the operator doing what the card asks.
+    """
+    # Off the CARD rather than off the stored record. The two can differ: the
+    # panel draws one nudge per tab and redraws on every poll, and a value the
+    # offer could not read is an input the card made, not a field the record
+    # promised. Asking the card what it is showing is also what an operator
+    # does.
+    card = panel.locator('li[data-kind="nudge"][data-state="open"]').first
+    try:
+        card.wait_for(timeout=15_000)
+    except Exception as never:
+        # The panel draws an OPEN nudge only for the tab it is sitting beside:
+        # `beside()` takes the active http tab of its own window, falling back
+        # to the most recently used one when the active tab is the panel
+        # itself. Which tab that lands on decides whether this card exists, so
+        # both ids are printed rather than guessed at from an empty ledger.
+        where = panel.evaluate(
+            "async () => {"
+            " const [a] = await chrome.tabs.query({active: true, currentWindow: true});"
+            " const all = await chrome.tabs.query({currentWindow: true});"
+            " return {active: a ? {id: a.id, url: (a.url || '').slice(0, 50)} : null,"
+            "         tabs: all.map((t) => ({id: t.id, url: (t.url || '').slice(0, 40)}))};"
+            "}"
+        )
+        raise SystemExit(
+            f"the offer is in storage for tab {made.get('tabId')} and the panel drew"
+            f" no open card. Its window holds: {json.dumps(where)}"
+        ) from never
+    boxes = card.locator("input")
+    for index in range(boxes.count()):
+        box = boxes.nth(index)
+        asked = box.get_attribute("placeholder") or f"field {index}"
+        box.fill(f"ACCEPTED-{index + 1}")
+        print(f"   the card asked for {asked}, and it is typed in")
+    yes = card.get_by_role("button", name=re.compile(r"Yes, (finish|do) it"))
+    yes.wait_for(timeout=10_000)
+    print("-- pressing Yes in the panel, as the browser the offer was made to")
+    yes.click()
+    note = panel.locator("#thread-note, .said, #note").first
+    for _ in range(60):
+        text = (note.text_content() or "") if note.count() else ""
+        if "started" in text or "nothing started" in text:
+            print(f"   the panel says: {text.strip()!r}")
+            break
+        panel.wait_for_timeout(500)
+    started = panel.evaluate(
+        "async () => (await chrome.storage.local.get('sro.activeRun'))['sro.activeRun']"
+    )
+    if not started or not started.get("runId"):
+        raise SystemExit("the press started nothing this browser is driving")
+    print(f"-- the offer was accepted and it started {started['runId']}")
+    return str(started["runId"])
+
+
+def _watch(
+    context: Any,
+    worker: Any,
+    page: Any,
+    token: str,
+    run_id: str,
+    by_hand: int,
+    live: bool,
+) -> int:
+    """Follow a run to its end, pressing Approve in the panel when it parks.
+
+    One loop for every way a run can start -- a press, a trigger, a schedule, an
+    offer somebody accepted -- because what happens after the start is the same
+    story and reading it two ways would let the two disagree.
+
+    Returns 2 where the run ended anywhere but `held`, so the caller's exit code
+    says whether the ladder held.
+    """
+    run: dict[str, Any] = {"outcome": "running", "steps": []}
+    tapped = False
+    for _ in range(240):
+        run = call(f"/v1/workflow-runs/{run_id}", token)
+        if run["outcome"] != "running":
+            break
+        # A live run parks on the write and waits for a person. This is the
+        # person -- until the job has EARNED the right to write unasked, at
+        # which point nothing parks and this never fires. That is the whole
+        # ladder, and the only way to see it is to run the same job until it
+        # climbs.
+        if live and not tapped and any(s["verdict"] == "awaiting" for s in run["steps"]):
+            _approve_in_the_panel(context, worker, run_id)
+            tapped = True
+        # Playwright's own loop has to keep turning or the page the run is
+        # driving never repaints.
+        page.wait_for_timeout(500)
+
+    print(f"== outcome: {run['outcome']}" + ("" if tapped else "  (nobody was asked)"))
+    for step in run["steps"]:
+        print(
+            f"   step {step['order']}: {step['verdict']}"
+            f" by {step.get('verdict_by')} -- {step.get('reason')}"
+        )
+    for held_back in run["withheld"]:
+        # `step`, not `order`: `_withheld` names the step under the key a person
+        # reading the panel sees.
+        print(
+            f"   withheld from step {held_back.get('step')}:"
+            f" {held_back.get('method')} {held_back.get('url')}"
+        )
+    sent = _Depot.writes[by_hand:]
+    print(
+        f"   writes the depot actually received from the run: {len(sent)}"
+        + (f" -- {sent[0]}" if sent else "")
+    )
+    return 2 if run["outcome"] != "held" else 0
 
 
 def _fired_by_the_worker(
@@ -495,6 +633,13 @@ def main() -> int:
         " makes off this browser's own gestures, before running anything",
     )
     parser.add_argument(
+        "--accept",
+        action="store_true",
+        help="press Yes on the offer the panel makes and follow the run it starts."
+        " Implies --offer, and runs nothing else: the point is that the run was"
+        " started by a person answering an offer rather than by this script.",
+    )
+    parser.add_argument(
         "--via-schedule",
         action="store_true",
         help="put the job on a cron and wait for the Temporal worker to fire it."
@@ -509,6 +654,9 @@ def main() -> int:
         " because a dry scheduled run sends nothing and verifies nothing.",
     )
     args = parser.parse_args()
+    if args.accept:
+        args.offer = True
+        args.runs = 0
     if args.via_trigger or args.via_schedule:
         # Not a flag the mode respects -- a job a trigger starts is started
         # live, always. Said here rather than silently overridden.
@@ -582,7 +730,25 @@ def main() -> int:
             print(f"-- a job now stands on that evidence: {workflow_id}")
 
             if args.offer:
-                _offered_in_the_panel(context, worker, page, title="Create a client")
+                accepted = _offered_in_the_panel(
+                    context, worker, page, title="Create a client", accept=args.accept
+                )
+                if accepted is not None:
+                    # Everything the depot has been sent so far is the
+                    # operator's own doing; anything after this line came from
+                    # the run the offer started.
+                    worst = _watch(
+                        context,
+                        worker,
+                        page,
+                        token,
+                        accepted,
+                        by_hand=len(_Depot.writes),
+                        live=True,
+                    )
+                    if args.keep:
+                        input("-- press return to close the browser")
+                    return worst
 
             worst = 0
             for attempt in range(args.runs):
@@ -641,46 +807,7 @@ def main() -> int:
                         f" {'live' if args.live else 'dry'}, asking for {value}"
                     )
 
-                tapped = False
-                for _ in range(240):
-                    run = call(f"/v1/workflow-runs/{run['id']}", token)
-                    if run["outcome"] != "running":
-                        break
-                    # A live run parks on the write and waits for a person.
-                    # This is the person -- until the job has EARNED the right
-                    # to write unasked, at which point nothing parks and this
-                    # never fires. That is the whole ladder, and the only way
-                    # to see it is to run the same job until it climbs.
-                    if (
-                        args.live
-                        and not tapped
-                        and any(s["verdict"] == "awaiting" for s in run["steps"])
-                    ):
-                        _approve_in_the_panel(context, worker, run["id"])
-                        tapped = True
-                    # Playwright's own loop has to keep turning or the page the
-                    # run is driving never repaints.
-                    page.wait_for_timeout(500)
-
-                print(f"== outcome: {run['outcome']}" + ("" if tapped else "  (nobody was asked)"))
-                for step in run["steps"]:
-                    print(
-                        f"   step {step['order']}: {step['verdict']}"
-                        f" by {step.get('verdict_by')} -- {step.get('reason')}"
-                    )
-                for held_back in run["withheld"]:
-                    # `step`, not `order`: `_withheld` names the step under the
-                    # key a person reading the panel sees.
-                    print(
-                        f"   withheld from step {held_back.get('step')}:"
-                        f" {held_back.get('method')} {held_back.get('url')}"
-                    )
-                sent = _Depot.writes[by_hand:]
-                print(
-                    f"   writes the depot actually received from the run: {len(sent)}"
-                    + (f" -- {sent[0]}" if sent else "")
-                )
-                if run["outcome"] != "held":
+                if _watch(context, worker, page, token, run["id"], by_hand, args.live):
                     worst = 2
 
             if args.keep:

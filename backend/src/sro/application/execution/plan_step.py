@@ -47,7 +47,13 @@ from typing import get_args
 
 from sro.application.capture.rig_wire import headers_without_markers
 from sro.application.ports.model import Asker
-from sro.domain.execution.evidence import locators_for, primary_gesture, recorded_call
+from sro.domain.execution.evidence import (
+    Locator,
+    locators_for,
+    primary_gesture,
+    recorded_call,
+    writes,
+)
 from sro.domain.execution.planning import (
     KINDS,
     LIVE_FETCHABLE_HEADERS,
@@ -90,6 +96,23 @@ def _primary(step: Step, cited: list[Gesture]) -> Gesture | None:
     return found or (cited[0] if cited else None)
 
 
+def _clicking(
+    ladder: list[Locator], origin: str | None, allow_focus: bool, starts_on: str | None
+) -> dict[str, object]:
+    """A click on the control this ladder names, carrying no value."""
+    payload: dict[str, object] = {
+        "action": "click",
+        "value": None,
+        "locators": [rung.as_payload() for rung in ladder],
+        "origin": origin,
+    }
+    if allow_focus:
+        payload["allow_focus"] = True
+    if starts_on:
+        payload["starts_on"] = starts_on
+    return payload
+
+
 async def plan_step(
     *,
     step: Step,
@@ -101,6 +124,7 @@ async def plan_step(
     allow_focus: bool,
     asker: Asker,
     model: str,
+    opened: bool = False,
     effort: Effort | None = None,
     failure: str | None = None,
     failed_look: Look | None = None,
@@ -235,15 +259,48 @@ async def plan_step(
     # Refused rather than logged. A job that stops and says why costs an
     # operator a minute; a job that writes the wrong carrier into a warehouse
     # and reports success costs somebody a day finding it.
+    #
+    # Two clicks are how a person answers one of these, and two clicks are how
+    # this does it. `opened` says which half is being planned: the first sends
+    # the demonstrated click, which opens the list and answers nothing, and the
+    # second clicks the row whose text IS the value asked for. Nothing is
+    # guessed -- the row is named by the operator's own answer, so a control
+    # carrying that text either exists on the page or the browser says
+    # `control_not_found` and the step fails, which is where the refusal below
+    # left it anyway.
+    #
+    # Only for a step that changes nothing. The opening click goes out from
+    # inside the planning loop, ahead of the gate that withholds a write from a
+    # dry run and parks one on a person -- the same place `navigate` already
+    # sends from, and safe there for the same reason: opening a list, like
+    # going to a page, is not the writing.
     if action not in VALUED:
-        asked = [name for name in step.parameters if name in values]
+        asked = sorted(name for name in step.parameters if name in values)
+        wanted = values[asked[0]] if asked else ""
+        if asked and not writes(step, {gesture.id: gesture for gesture in cited}):
+            if not opened:
+                return Planned(
+                    "ui.perform",
+                    _clicking(locators_for(primary), origin, allow_focus, starts_on),
+                    f"opening the list so {asked[0]} can be chosen by value",
+                    answer,
+                    opens=True,
+                )
+            return Planned(
+                "ui.perform",
+                _clicking(
+                    [Locator("text", wanted, visible_only=True)], origin, allow_focus, starts_on
+                ),
+                f"choosing {wanted} from the open list",
+                answer,
+            )
         if asked:
             return Planned(
                 "none",
                 {},
-                f"step {step.order} was given {', '.join(sorted(asked))} and a "
-                f"{action} cannot carry a value: choosing from a list by value "
-                "is not implemented, and performing this step would use the "
+                f"step {step.order} was given {', '.join(asked)} and a "
+                f"{action} cannot carry a value: this step also writes, so the "
+                "list cannot be opened first, and performing it would use the "
                 "recorded choice instead of the one asked for",
                 answer,
             )

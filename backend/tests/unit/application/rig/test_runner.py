@@ -488,11 +488,11 @@ async def _one_step(
     """One step citing one gesture.
 
     `parameters` defaults to `["clientCode"]` because most of these steps type
-    it. Pass `[]` for a step the run performs as a CLICK: `plan_step` refuses a
-    step that was given a value and is about to be performed by an action that
-    cannot carry one, since the command would go out with the recorded
-    choice's locators and write something other than what was asked. A click
-    step declaring a value it can never apply is a step that does not exist.
+    it. Pass `[]` for a step the run performs as a CLICK that was given a
+    value: `plan_step` answers such a step with two clicks -- one to open the
+    list, one on the row whose text is the value -- and refuses it outright
+    when the step also writes. Either way it is not the plain single click most
+    of these tests are about.
     """
     workflow = Workflow(
         id="wfl_one",
@@ -3513,7 +3513,9 @@ async def test_the_operators_steps_are_saved_as_the_run_walks_past_them() -> Non
 
 
 async def test_a_click_cannot_apply_a_value_and_the_run_stops_rather_than_guessing() -> None:
-    """The wrong-carrier bug, refused where the truth is first known.
+    """The wrong-carrier bug on a step that writes, refused where the truth is
+    first known. The step that does not write is answered rather than refused
+    -- see the two-click pick below.
 
     `VALUED` says a click types nothing, so a step planned as a click drops the
     run's value and goes out carrying the locators of whatever the RECORDING
@@ -3548,9 +3550,62 @@ async def test_a_click_cannot_apply_a_value_and_the_run_stops_rather_than_guessi
     assert run.outcome == "stopped", "a value that cannot be applied stops the run"
     reason = run.steps[0].reason or ""
     assert "clientCode" in reason and "cannot carry a value" in reason, reason
+    assert "this step also writes" in reason, reason
     assert not [s for s in channel.sent if s["kind"] == "ui.perform"], (
         "nothing was sent: the wrong click is what this refuses, not a click that failed"
     )
+
+
+async def test_a_dropdown_is_answered_with_two_clicks_and_the_second_names_the_value() -> None:
+    """The other half of the wrong-carrier bug: not refusing it, doing it.
+
+    A person answers an ExtJS combo with two clicks -- one on the field, which
+    opens a floating list, and one on the row they want. So does this. The
+    first command carries the demonstrated locators and answers nothing; the
+    second is a click on a control whose TEXT is the value the run was given,
+    so the row is named by the operator's own answer and nothing is guessed. A
+    page with no such row answers `control_not_found`, which is where the
+    refusal left the step anyway.
+    """
+    uow = await _fixture()
+    # A click the recorder heard no traffic from: opening a list is allowed
+    # only for a step that changes nothing, because the opening command goes
+    # out ahead of the gate that withholds a write.
+    workflow = await _one_step(uow, _silent_click(uow), says="pick the external system")
+    channel = FakeChannel({**_looks(8), "ui.perform": [_performed(), _performed()]})
+    asker = FakeAsker(_plan("click"), _plan("click"))
+
+    run = await _ran(
+        uow, workflow, channel=channel, asker=asker, values={"clientCode": "ENVEYO"}, earned=True
+    )
+
+    clicks = [sent for sent in channel.sent if sent["kind"] == "ui.perform"]
+    assert len(clicks) == 2, f"a pick is two clicks, not {len(clicks)}"
+    assert [rung["strategy"] for rung in clicks[1]["payload"]["locators"]] == ["text"]
+    assert clicks[1]["payload"]["locators"][0]["query"] == "ENVEYO"
+    assert clicks[0]["payload"]["locators"] != clicks[1]["payload"]["locators"], (
+        "the first click is the demonstrated control, which opens the list"
+    )
+    assert run.steps[0].verdict != "failed", run.steps[0].reason
+
+
+async def test_a_step_that_writes_still_refuses_rather_than_opening_a_list() -> None:
+    """The opening click is sent from inside the planning loop, ahead of the
+    gate that withholds a write from a dry run and parks one on a person. A
+    step whose own evidence made a mutation must not have a command sent from
+    there, so it keeps the refusal."""
+    uow = await _fixture()
+    workflow = await _one_step(uow, _ids(uow)[-1], says="save the carrier")
+    channel = FakeChannel({**_looks(8), "ui.perform": [_performed(), _performed()]})
+    asker = FakeAsker(_plan("click"), _plan("click"))
+
+    run = await _ran(
+        uow, workflow, channel=channel, asker=asker, values={"clientCode": "ENVEYO"}, earned=True
+    )
+
+    assert run.outcome == "stopped"
+    assert "this step also writes" in (run.steps[0].reason or "")
+    assert not [sent for sent in channel.sent if sent["kind"] == "ui.perform"]
 
 
 async def test_a_click_that_was_asked_for_nothing_is_performed_as_before() -> None:

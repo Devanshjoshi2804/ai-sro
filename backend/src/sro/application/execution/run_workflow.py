@@ -448,6 +448,12 @@ async def run_workflow(
                 planned: Planned | None = None
                 before: Look | None = None
                 navigated = False
+                # A dropdown is answered with two clicks: one to open the list
+                # and one to choose the row. The first is not the step, the
+                # same way a navigate is not the step -- and like a navigate it
+                # is allowed once, so a planner that only ever opens lists runs
+                # out of budget rather than looping.
+                opened = False
                 # What the record says was planned and sent, before this rung
                 # touches it. A rung that ends without producing a command has
                 # to give it back: the verdict on the record is still the
@@ -487,6 +493,7 @@ async def run_workflow(
                             failure=verdict.reason if verdict else None,
                             failed_look=after_failed,
                             verified_writes=verified_writes,
+                            opened=opened,
                         )
                     record.planned_by = model
                     record.before_url = before.url
@@ -512,7 +519,26 @@ async def run_workflow(
                         )
                         run.outcome = "refused"
                         break
-                    if proposal.kind != "navigate":
+                    if proposal.opens and not opened:
+                        # Sent from here, ahead of the gate that withholds a
+                        # write and parks one on a person. `plan_step` only
+                        # marks a command `opens` for a step that changes
+                        # nothing, which is what makes this the same safe
+                        # position `navigate` sends from.
+                        shown = await channel.send(
+                            tenant_id,
+                            device_id,
+                            kind=proposal.kind,
+                            run_id=run.id,
+                            payload=proposal.payload,
+                        )
+                        if not shown.ok:
+                            verdict = StepVerdict(
+                                "failed", "none", f"could not open the list: {shown.detail}"
+                            )
+                            break
+                        opened = True
+                    elif proposal.kind != "navigate":
                         planned = proposal
                     elif navigated:
                         verdict = StepVerdict(

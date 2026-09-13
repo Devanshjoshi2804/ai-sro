@@ -106,6 +106,13 @@ class Planned:
     payload: dict[str, object]
     why: str
     answer: Answer
+    opens: bool = False
+    """This command only opens the control the step answers, and the step is
+    not done when it lands. The runner sends it and plans the step again --
+    the same shape `navigate` already has, and for the same reason: getting to
+    where the answer can be given is not giving it.
+
+    Set for the first half of a pick from a dropdown. See `plan_step`."""
 
 
 def value_for(

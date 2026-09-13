@@ -13,12 +13,19 @@ import {
   workflowRunKeys,
   type WorkflowModel,
 } from "@/features/workflow/api";
+import { listTriggers, triggerKeys, type TriggerModel } from "@/features/trigger/api";
+import { describe as describeCron } from "@/features/trigger/cron";
 import { became, outcomeLabel, when } from "@/features/workflow/format";
 import { RunForm } from "@/features/workflow/components/run-form";
 
 /** The jobs mined out of what operators actually did. */
 export function JobBoard() {
   const workflows = useQuery({ queryKey: workflowKeys.all, queryFn: listWorkflows });
+  // A job that runs on a clock looks identical here to one nobody has
+  // scheduled, which is the wrong thing for a page whose whole job is saying
+  // what this job is. Read beside the jobs rather than per card: one request
+  // for the page, and a failure leaves the cards as they were.
+  const triggers = useQuery({ queryKey: triggerKeys.all, queryFn: listTriggers });
 
   return (
     <DataView
@@ -39,7 +46,11 @@ export function JobBoard() {
       {(shown) => (
         <div className="space-y-3">
           {shown.map((w) => (
-            <Job key={w.id} workflow={w} />
+            <Job
+              key={w.id}
+              workflow={w}
+              triggers={(triggers.data ?? []).filter((t) => t.workflow_id === w.id)}
+            />
           ))}
         </div>
       )}
@@ -47,7 +58,7 @@ export function JobBoard() {
   );
 }
 
-function Job({ workflow: w }: { workflow: WorkflowModel }) {
+function Job({ workflow: w, triggers }: { workflow: WorkflowModel; triggers: TriggerModel[] }) {
   const [showing, setShowing] = useState<"run" | "runs" | null>(null);
 
   return (
@@ -57,7 +68,10 @@ function Job({ workflow: w }: { workflow: WorkflowModel }) {
           {/* The card is a summary; the evidence behind it lives on its own
               page. Without this link the citations under each step are a
               count with nothing to open. */}
-          <Link href={`/jobs/${w.id}`} className="hover:text-brand underline-offset-4 hover:underline">
+          <Link
+            href={`/jobs/${w.id}`}
+            className="hover:text-brand underline-offset-4 hover:underline"
+          >
             {w.title}
           </Link>
         </CardTitle>
@@ -70,6 +84,9 @@ function Job({ workflow: w }: { workflow: WorkflowModel }) {
         <p className="text-muted-foreground text-xs">{w.narrative}</p>
         <p className="font-mono text-xs">{w.systems.join("  ")}</p>
         <p className="text-muted-foreground text-xs">{became(w.runs)}</p>
+        {triggers.map((t) => (
+          <OnAClock key={t.id} trigger={t} />
+        ))}
 
         <ol className="space-y-2">
           {w.steps.map((s) => (
@@ -113,6 +130,31 @@ function Job({ workflow: w }: { workflow: WorkflowModel }) {
         {showing === "runs" && <PastRuns workflowId={w.id} />}
       </CardContent>
     </Card>
+  );
+}
+
+function OnAClock({ trigger }: { trigger: TriggerModel }) {
+  /**
+   * What starts this job when nobody presses anything.
+   *
+   * In words rather than as an expression, because `0 7 * * 1-5` firing on
+   * Sundays is a typo nobody can see — the same reason the trigger board says
+   * it both ways. A paused one is still shown: "nothing is scheduled" and
+   * "something is scheduled and switched off" are different things to know.
+   */
+  const said = trigger.cron ? describeCron(trigger.cron) : null;
+  return (
+    <p className="text-xs">
+      <span className={trigger.enabled ? "text-brand" : "text-muted-foreground"}>
+        {trigger.enabled ? "on a clock" : "paused"}
+      </span>
+      <span className="text-muted-foreground">
+        {" · "}
+        {said ?? trigger.cron ?? trigger.kind}
+        {trigger.requires_confirmation ? " · asks first" : " · sends without asking"}
+        {trigger.disabled_reason ? ` · ${trigger.disabled_reason}` : ""}
+      </span>
+    </p>
   );
 }
 

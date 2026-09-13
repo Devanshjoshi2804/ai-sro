@@ -199,6 +199,9 @@ async def test_every_proven_job_comes_back_and_in_the_order_it_was_served(
     store that handed back a tie in id order) is not satisfied by this plant
     either.
     """
+    # Two cited gestures: `shape_of` refuses a walk shorter than
+    # `K_OFFER_AFTER`, which `recognise.js` could never match at any k, and a
+    # job that is not served cannot show that the route kept the order.
     await uow.workflows.save(
         Workflow(
             id="wfl_0",
@@ -206,7 +209,10 @@ async def test_every_proven_job_comes_back_and_in_the_order_it_was_served(
             title="save it",
             narrative="n",
             systems=[HOST],
-            steps=[Step(order=0, says="save", system=None, cites=[_saver(evidence).id])],
+            steps=[
+                Step(order=0, says="save", system=None, cites=[_saver(evidence).id]),
+                Step(order=1, says="type the code", system=None, cites=[_typed(evidence).id]),
+            ],
         )
     )
 

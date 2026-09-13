@@ -251,8 +251,11 @@ def test_a_job_whose_first_step_is_only_a_scroll_still_says_where_it_begins() ->
     # Two pages, so the answer is the first step's and not the second's.
     scroll = _scroll(page_url=f"{HOST}/list")
     by_id[scroll.id] = scroll
-    workflow.steps[0].cites = [scroll.id]
-    workflow.steps[0].parameters = []
+    # Prepended rather than substituted: dropping the typing would leave one
+    # walkable gesture, and `shape_of` refuses a walk `recognise.js` could
+    # never match. What is under test is where the job begins, not how short
+    # it is.
+    workflow.steps.insert(0, Step(order=-1, says="scroll", system=None, cites=[scroll.id]))
     _saver(by_id).page_url = f"{HOST}/form"
 
     shape = _served(workflow, by_id)

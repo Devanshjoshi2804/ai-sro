@@ -97,14 +97,26 @@ def _workflow(by_id: dict[str, Gesture], wid: str = "wfl_1") -> Workflow:
 
 def _saver_first(by_id: dict[str, Gesture], wid: str) -> Workflow:
     """A workflow that begins on the click rather than the typing, so an edit
-    to the typed gesture's `page_url` does not touch where it starts."""
+    to the typed gesture's `page_url` does not touch where it starts.
+
+    Two cited gestures and not one: `shape_of` refuses a walk shorter than
+    `K_OFFER_AFTER`, which `recognise.js` could never match at any k.
+    """
+    other = next(
+        g
+        for g in by_id.values()
+        if g.action.kind == "press" and g.id not in {_saver(by_id).id, _typed(by_id).id}
+    )
     return Workflow(
         id=wid,
         tenant=TENANT.value,
         title="save it",
         narrative="n",
         systems=[HOST],
-        steps=[Step(order=0, says="save", system=None, cites=[_saver(by_id).id])],
+        steps=[
+            Step(order=0, says="save", system=None, cites=[_saver(by_id).id]),
+            Step(order=1, says="confirm", system=None, cites=[other.id]),
+        ],
     )
 
 

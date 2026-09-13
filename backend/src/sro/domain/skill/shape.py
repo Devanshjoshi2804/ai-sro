@@ -149,7 +149,8 @@ def shape_of(
     workflow: Workflow, cited: list[tuple[Gesture, Step]], *, held: int, advice: Counsel
 ) -> Shape | None:
     """One workflow as the extension needs it, or None when it cannot be
-    served: nothing cited, or a start its own evidence never names."""
+    served: nothing cited, a start its own evidence never names, or too short a
+    walk to ever be offered."""
     if not cited:
         return None
     gestures = [gesture for gesture, _ in cited]
@@ -167,6 +168,17 @@ def shape_of(
     # where the job begins is a fact about the recording, not about what can
     # be matched.
     walk = walkable(cited)
+    # `recognise.js` offers on `shape.slice(0, k)` with k at least
+    # `K_OFFER_AFTER`, so a walk shorter than that has no prefix long enough to
+    # be matched at any k -- it would be served, cached and walked by every
+    # browser on every gesture, and could never fire. acme holds one: a one-step
+    # `Create a Customer Type`, no parameters, whose whole content is "Save the
+    # customer type configuration". `validate` refuses to mine such a workflow
+    # now, for the neighbouring reason that `resolve` needs
+    # `K_MIN_SHARED_STEPS` to dedupe one, but the rows mined before that check
+    # are still in the store and there is no way to retire one.
+    if len(walk) < K_OFFER_AFTER:
+        return None
     return Shape(
         id=workflow.id,
         title=workflow.title,

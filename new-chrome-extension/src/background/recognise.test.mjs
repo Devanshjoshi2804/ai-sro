@@ -34,6 +34,24 @@ test("two gestures offer the job whose prefix they are, with the values typed so
   assert.deepEqual(offer.missing, []);
 });
 
+test("a job as short as the offer threshold is never matched at all", () => {
+  // The other end of `shape_of`'s refusal to SERVE one. An offer has to leave
+  // something to finish, so k stops at `length - 1` -- and a two-position
+  // shape therefore has no k at or above `K_OFFER_AFTER`. The backend served
+  // one until 2026-09-14, off by one against this loop; both sides are pinned
+  // now, because a rule that lives on two sides of a wire is a rule that
+  // drifts on one of them.
+  const twoSteps = { ...workArea, id: "wfl_short", shape: workArea.shape.slice(0, K_OFFER_AFTER) };
+  let tail = tailWith([], typed("wm.workAreas.code", "NEWTESTS"));
+  tail = tailWith(tail, typed("wm.workAreas.desc", "north dock"));
+
+  assert.equal(match(tail, [twoSteps]), null);
+  // And the walk carrying on does not rescue it: the whole of a shape is never
+  // a prefix anybody is offered.
+  const whole = tailWith(tail, { triple: [H, "button|Save", "click"], at: 1 });
+  assert.equal(match(whole, [twoSteps]), null);
+});
+
 test("a shared first step resolves to whichever job the second step names", () => {
   let tail = tailWith([], typed("wm.workAreas.code", "NEWTESTS"));
   tail = tailWith(tail, typed("wm.ops.code", "PICK"));

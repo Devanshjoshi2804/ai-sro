@@ -1,5 +1,17 @@
 """The joins nobody has answered, as questions a person can answer.
 
+**With what the browser was doing either side of them, across every tab.** A
+join is a question about identity, and a candidate on its own cannot answer it:
+segmentation runs each host on its own stream, so the mail half of a two-system
+job looks exactly like a mail client talking to itself. On tenant `new`,
+2026-09-10, the browser went mail -> warehouse -> mail -> warehouse sixteen
+times in an hour, thirty-five seconds and then two seconds apart. Read per host
+that is `Create u on mail.google.com`; read in time order it is somebody doing
+what a mail asked them to do.
+
+So each episode is printed with the other hosts worked in around it. Whoever
+answers can see the minute, not the host.
+
 The last unmet item on phase 7's precondition
 (`docs/new-agent-doc-arc/two-miners-one-day.md`) and the only one no script can
 close: a model may notice that two candidates look like one piece of work and
@@ -18,10 +30,21 @@ from __future__ import annotations
 
 import asyncio
 import sys
+from datetime import timedelta
+from urllib.parse import urlsplit
 
 from sro.container import build_container
-from sro.domain.observation.candidate import TaskCandidate
+from sro.domain.observation.candidate import Episode, TaskCandidate
+from sro.domain.observation.gesture import Gesture
 from sro.domain.shared.identifiers import TenantId
+
+BESIDE = timedelta(minutes=3)
+"""How far either side of an episode counts as the same sitting.
+
+Three minutes because the real interleaving is far tighter than that -- the
+gaps measured on `new` are seconds -- and because a window wide enough to be
+wrong in the other direction would sweep in the next task and call every
+episode two-system."""
 
 
 def _said(candidate: TaskCandidate) -> str:
@@ -29,10 +52,45 @@ def _said(candidate: TaskCandidate) -> str:
     return f"{named} ({len(candidate.episodes)}x on {candidate.host})"
 
 
+def _beside(episode: Episode, gestures: list[Gesture]) -> dict[str, int]:
+    """The other hosts somebody worked in around this episode.
+
+    Gestures, not calls: a page talking in the background is not somebody
+    working, which is the distinction `Episode.touched_from` was added for.
+    """
+    start = (episode.touched_from or episode.started_at) - BESIDE
+    end = (episode.touched_until or episode.ended_at) + BESIDE
+    found: dict[str, int] = {}
+    for gesture in gestures:
+        if gesture.at is None or not (start.timestamp() <= gesture.at <= end.timestamp()):
+            continue
+        host = urlsplit(gesture.url or "").netloc
+        if host and host != episode.host:
+            found[host] = found.get(host, 0) + 1
+    return found
+
+
+def _elsewhere(candidate: TaskCandidate, gestures: list[Gesture]) -> str:
+    """One line: what else the browser was being worked in, and when."""
+    seen: dict[str, int] = {}
+    sittings = 0
+    for episode in candidate.episodes:
+        beside = _beside(episode, gestures)
+        if beside:
+            sittings += 1
+        for host, count in beside.items():
+            seen[host] = seen.get(host, 0) + count
+    if not seen:
+        return "        nothing else was worked in around these doings"
+    named = ", ".join(f"{host} ({count} gestures)" for host, count in sorted(seen.items()))
+    return f"        {sittings} of {len(candidate.episodes)} doings sat beside work in: {named}"
+
+
 async def _ask(tenant: str, first: int = 0) -> int:
     container = build_container()
     async with container.unit_of_work() as uow:
         candidates = await uow.candidates.list_for_tenant(TenantId(tenant))
+        gestures = [g for g in await uow.gestures.gestures_for(TenantId(tenant)) if g.at]
     by_id = {candidate.id.value: candidate for candidate in candidates}
 
     asked: set[frozenset[str]] = set()
@@ -50,7 +108,10 @@ async def _ask(tenant: str, first: int = 0) -> int:
             questions += 1
             print(f"\n{questions}. [{join.kind}] on {tenant}")
             print(f"   {_said(candidate)}")
+            print(_elsewhere(candidate, gestures))
             print(f"   {_said(other) if other else 'a candidate this tenant no longer holds'}")
+            if other:
+                print(_elsewhere(other, gestures))
             print(f"   the model's reason: {join.because}")
             print(
                 f"   answer:  POST /v1/candidates/{candidate.id.value}/joins"

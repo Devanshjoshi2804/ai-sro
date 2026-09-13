@@ -11,7 +11,7 @@ FRONTEND := cd frontend &&
 .PHONY: help up down ps logs reset install migrate revision api worker status web vault-key one-whole-run \
         lint lint-backend lint-frontend format test test-unit test-integration \
         test-contract test-browser types check ingest-kb seed-skills gen-recorder \
-        mutants-backend
+        mutants-backend open-joins two-miners
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -180,6 +180,12 @@ mutants-backend: ## Mutation score for the bridge and the ladder, against their 
 	$(BACKEND) uv run mutmut run || true
 	$(BACKEND) uv run mutmut export-cicd-stats
 	$(BACKEND) uv run python scripts/mutation_floor.py
+
+open-joins: ## The joins waiting on a person -- the last unmet item of phase 7's precondition
+	@$(BACKEND) uv run python scripts/open_joins.py $(args)
+
+two-miners: ## Both miners over one tenant, side by side: make two-miners tenant=acme
+	@$(BACKEND) uv run python scripts/two_miners.py $(or $(tenant),acme) $(args)
 
 offer-replay: ## Would the offer name the right job? The corpus's gestures through the real matcher, no browser
 	cd new_agent_arch && uv run python scripts/dry_run.py --replay /tmp/rig-replay.json > /dev/null && node ../new-chrome-extension/scripts/offer-replay.mjs /tmp/rig-replay.json

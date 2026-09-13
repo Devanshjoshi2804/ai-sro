@@ -80,6 +80,8 @@ from sro.application.observation.artifacts import StoreObservationArtifact
 from sro.application.observation.demonstrate import AssembleDemonstration
 from sro.application.observation.forget import ForgetObservations
 from sro.application.observation.ingest import IngestObservation
+from sro.application.observation.learn import LearnWhatRepeats
+from sro.application.observation.mine import MineEverything, MineObservations
 from sro.application.observation.mine_lately import MineLately
 from sro.application.observation.mine_pass import MinePass
 from sro.application.observation.policy import ReadObservationPolicy, SetObservationPolicy
@@ -403,6 +405,8 @@ class Container:
     def adopt_rig_workflow(self) -> AdoptRigWorkflow:
         return AdoptRigWorkflow(self.unit_of_work(), self.clock, self.ids)
 
+    def mine_observations(self) -> MineObservations:
+        return MineObservations(self.unit_of_work(), self.blobs, self.ids)
 
     def mine_pass(self) -> MinePass:
         """The model-first rig's pass, which until now had no caller in `src/`.
@@ -435,7 +439,7 @@ class Container:
         `sro.cli.read_cron`. The reader is handed over here so the sweep does
         them in the only order that is not a waste of money -- a mining pass
         packs readings, and an unread gesture has none. The window is
-        `mining_window_hours`,
+        `mining_window_hours`, the same one the pre-rig sweep looks back over,
         and it is deliberately wider than the interval -- evidence uploaded
         late still gets mined, and mining the same window twice is what the
         pass is built to survive.
@@ -497,6 +501,11 @@ class Container:
             cap_usd=self.settings.daily_usd_cap,
         )
 
+    def mine_everything(self) -> MineEverything:
+        return MineEverything(
+            self.unit_of_work(), self.mine_observations(), self.propose_about_candidates()
+        )
+
     def answer_join(self) -> AnswerJoin:
         return AnswerJoin(self.unit_of_work())
 
@@ -519,6 +528,9 @@ class Container:
             self.understand_recording(),
             self.induce_skill(),
         )
+
+    def learn_what_repeats(self) -> LearnWhatRepeats:
+        return LearnWhatRepeats(self.unit_of_work(), self.teach_candidate())
 
     def teach_workflow(self) -> TeachWorkflow:
         """Two candidates as one skill. The pair diffed is two occurrences of

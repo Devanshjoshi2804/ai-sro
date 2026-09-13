@@ -469,6 +469,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/candidates/mine": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mine Now
+         * @description Look at the last few hours now, rather than waiting for the sweep.
+         *
+         *     The sweep in the worker is what runs in a deployment; this exists because
+         *     somebody building an extension should not have to wait a quarter of an hour
+         *     to see whether what they captured turns into anything. Idempotent, like the
+         *     sweep: an episode already recorded is not counted twice.
+         */
+        post: operations["mine_now_v1_candidates_mine_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/candidates/{candidate_id}": {
         parameters: {
             query?: never;
@@ -3411,6 +3436,17 @@ export interface components {
             score: number;
             /** Contains */
             contains: boolean;
+        };
+        /** MinedModel */
+        MinedModel: {
+            /** Episodes */
+            episodes: number;
+            /** Candidates Seen */
+            candidates_seen: number;
+            /** Candidates New */
+            candidates_new: number;
+            /** Occurrences New */
+            occurrences_new: number;
         };
         /** NetworkPlanModel */
         NetworkPlanModel: {
@@ -7053,6 +7089,130 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TaskCandidateModel"][];
+                };
+            };
+            /** @description No credential, or one this deployment rejects. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description No such thing, or not yours. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The system's state says no, not the request. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The request cannot be processed as asked. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description Something this depends on is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+        };
+    };
+    mine_now_v1_candidates_mine_post: {
+        parameters: {
+            query?: {
+                hours?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MinedModel"];
                 };
             };
             /** @description No credential, or one this deployment rejects. */

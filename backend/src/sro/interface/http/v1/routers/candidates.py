@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Query, status
@@ -12,6 +13,7 @@ from sro.interface.http.deps import ContainerDep, ContextDep
 from sro.interface.http.schemas import (
     AnswerJoinRequest,
     DismissCandidateRequest,
+    MinedModel,
     TaskCandidateModel,
     TaughtModel,
     TaughtTogetherModel,
@@ -44,6 +46,30 @@ async def list_candidates(
         ctx, seen_at_least=seen_at_least, mine_only=mine_only, host=host
     )
     return [TaskCandidateModel.of(candidate) for candidate in candidates]
+
+
+@router.post("/mine", status_code=status.HTTP_202_ACCEPTED)
+async def mine_now(
+    container: ContainerDep,
+    ctx: ContextDep,
+    hours: Annotated[int, Query(ge=1, le=720)] = 24,
+) -> MinedModel:
+    """Look at the last few hours now, rather than waiting for the sweep.
+
+    The sweep in the worker is what runs in a deployment; this exists because
+    somebody building an extension should not have to wait a quarter of an hour
+    to see whether what they captured turns into anything. Idempotent, like the
+    sweep: an episode already recorded is not counted twice.
+    """
+    mined = await container.mine_observations().execute(
+        ctx, since=datetime.now(UTC) - timedelta(hours=hours)
+    )
+    return MinedModel(
+        episodes=mined.episodes,
+        candidates_seen=mined.candidates_seen,
+        candidates_new=mined.candidates_new,
+        occurrences_new=mined.occurrences_new,
+    )
 
 
 @router.get("/{candidate_id}")

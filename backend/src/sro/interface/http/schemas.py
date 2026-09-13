@@ -2626,6 +2626,13 @@ class TaughtTogetherModel(BaseModel):
     because: str | None
 
 
+class MinedModel(BaseModel):
+    episodes: int
+    candidates_seen: int
+    candidates_new: int
+    occurrences_new: int
+
+
 class WatchingModel(BaseModel):
     devices: int
     batches: int

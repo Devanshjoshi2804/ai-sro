@@ -19,6 +19,7 @@ import re
 from pathlib import Path
 
 from sro.domain.execution.planning import COMMAND_KINDS, KINDS
+from sro.interface.http.schemas import WorkflowRunModel, WorkflowRunStepModel
 
 _SENDERS = ("run_workflow.py", "verify.py", "plan_step.py", "vision_step.py")
 """The files that put a command on the wire. Narrow on purpose: a `kind=`
@@ -27,13 +28,28 @@ elsewhere in the package is a different word -- a trigger kind, a gesture kind
 rather than about this one wire."""
 
 
-def _extension(name: str) -> str:
+def _senders() -> Path:
+    """`src/sro/application/execution`, found by walking up.
+
+    A fixed `parents[N]` is this file's own depth in the tree, which makes
+    moving the test a silent failure -- and the mutation sweep runs the suite
+    from a copy one level down, where the count lands somewhere else entirely.
+    """
+    here = Path(__file__).resolve()
+    for parent in here.parents:
+        found = parent / "src/sro/application/execution"
+        if found.is_dir():
+            return found
+    raise AssertionError(f"no backend source above {here}")
+
+
+def _extension(name: str, *, where: str = "src/background") -> str:
     """Found by walking up rather than by counting directories: the mutation
     sweep runs this suite from a copy of the backend one level down, and a
     fixed `parents[N]` lands somewhere with no extension beside it."""
     here = Path(__file__).resolve()
     for parent in here.parents:
-        source = parent / "new-chrome-extension/src/background" / name
+        source = parent / "new-chrome-extension" / where / name
         if source.exists():
             return source.read_text(encoding="utf-8")
     raise AssertionError(f"no extension source above {here}")
@@ -50,7 +66,7 @@ def _handled() -> set[str]:
 def _sent() -> set[str]:
     """Every kind this backend's senders actually name."""
     found: set[str] = set()
-    senders = Path(__file__).resolve().parents[4] / "src/sro/application/execution"
+    senders = _senders()
     for name in _SENDERS:
         found |= set(re.findall(r'kind="([a-z._]+)"', (senders / name).read_text("utf-8")))
     return found
@@ -86,7 +102,7 @@ def test_the_extension_answers_with_every_field_this_backend_reads() -> None:
     to catch a rename, which is the way this drifts.
     """
     read: set[str] = set()
-    senders = Path(__file__).resolve().parents[4] / "src/sro/application/execution"
+    senders = _senders()
     for name in (*_SENDERS, "../../domain/execution/belts.py"):
         body = (senders / name).read_text("utf-8")
         read |= set(re.findall(r'result\.get\("([a-z_]+)"\)', body))
@@ -96,6 +112,32 @@ def test_the_extension_answers_with_every_field_this_backend_reads() -> None:
     answers = _extension("commands.js") + _extension("in-page.js")
     named = set(re.findall(r"\b([a-z_]+):", answers))
     assert read <= named, f"the extension names no {sorted(read - named)} in any reply"
+
+
+def test_the_panel_reads_a_run_by_fields_the_backend_really_answers_with() -> None:
+    """One level up the same wire: the run's JSON rather than the command's.
+
+    `api.rigRun` maps the backend's row onto the panel's own words -- `outcome`
+    to `status`, `{order, verdict}` to `{index, outcome}` -- and that mapping
+    layer is kept deliberately (see the spec's phase 5 amendment). What is not
+    deliberate is it reading a field this backend does not answer with: the
+    card then draws a blank where the step's verdict goes, on a run somebody is
+    watching, and no test anywhere goes red.
+
+    Against the Pydantic models rather than `frontend/openapi.json`, which is
+    generated and can be stale: the models are what the route really returns.
+    """
+    body = _extension("api.js", where="src/background")
+    start = body.index("rigRun:")
+    reading = body[start : body.index("\n  },", start)]
+
+    for prefix, model in (("run", WorkflowRunModel), ("step", WorkflowRunStepModel)):
+        read = set(re.findall(rf"\b{prefix}\.([a-z_]+)", reading))
+        assert read, f"nothing read off the {prefix}: the mapping moved"
+        assert read <= set(model.model_fields), (
+            f"the panel reads {sorted(read - set(model.model_fields))} off a "
+            f"{prefix} and {model.__name__} has no such field"
+        )
 
 
 def test_a_plan_may_name_only_the_kinds_a_model_is_offered() -> None:

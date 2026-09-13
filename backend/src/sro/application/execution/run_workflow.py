@@ -202,10 +202,26 @@ def _result(reply: Reply, *, wrote: bool = False) -> dict[str, object]:
 
 
 def _saw_nothing(step: Step, by_id: Mapping[str, Gesture]) -> bool:
-    """Whether the capture recorded this step's gesture and none of the traffic
-    it caused. A call that never completed is not traffic the recorder saw --
-    the same completion guard `origin_of` and `expected_statuses` already
-    wear."""
+    """Whether the capture recorded this step's gesture and no traffic at all
+    beside it. A call that never completed is not traffic the recorder saw --
+    the same completion guard `origin_of` and `expected_statuses` already wear.
+
+    Any completed call counts, including one `recorded_call` now discards as
+    the page's own timer (`K_CAUSED_S`). That looks like an oversight and is
+    not: the question here is not "did this gesture write", it is "was the
+    recorder listening when this gesture happened" -- and a keep-alive captured
+    beside a click is evidence about the recorder, not about the click. Where
+    the capture was working and heard nothing from a Save, nothing silently
+    wrote.
+
+    It is the weaker half of that evidence, and worth naming: six steps across
+    both real stores have completed traffic of which none is theirs -- acme's
+    `Create a Work Operation` step 3 and its `Create a Carrier Cross Reference`
+    step 2, and four in `new`. Widening `may_write` to cover them would park
+    step 1 of every cross-system job on a person's approval, since "Read the
+    details in an email" is a Gmail click beside Gmail's own chatter, and that
+    is the friction the `earned` ladder exists to retire rather than to feed.
+    """
     for cited in step.cites:
         gesture = by_id.get(cited)
         if gesture is None:

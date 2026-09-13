@@ -450,6 +450,73 @@ def test_a_label_no_seen_value_matches_is_nobodys_answer() -> None:
     assert {"name": "system", "at": None} in shape.parameters
 
 
+def test_a_parameter_is_placed_where_its_own_value_was_put_and_nowhere_else() -> None:
+    """`seen & put_by(gesture)` is an INTERSECTION, and that is the whole rule.
+
+    Read as a union it is satisfied whenever either side is non-empty, which is
+    every gesture that put anything and every parameter anybody declared -- so
+    a parameter would be indexed at the first control in the walk whatever was
+    typed into it, and the offer would lift somebody else's value off the tail.
+
+    The step declaring the parameter is the right step here; what it typed is
+    not one of the parameter's seen values, so there is no index to give.
+    """
+    by_id = _evidence()
+    workflow = _workflow(by_id)
+    workflow.parameters = [{"name": "clientCode", "seen_values": ["SOMETHING-ELSE"]}]
+
+    shape = _served(workflow, by_id)
+
+    assert shape is not None
+    assert shape.parameters == [{"name": "clientCode", "at": None}]
+
+
+def test_a_learned_parameter_needs_both_the_control_and_the_value() -> None:
+    """The second scan is narrower than a value scan on purpose -- the search
+    box is not named `workArea` -- and narrower than a name scan too: a control
+    of the right name that put none of the parameter's values is not where it
+    sits. `and`, read as `or`, makes either half enough."""
+    by_id = _evidence()
+    typed = _typed(by_id)
+    target = typed.action.target
+    assert target is not None and target.component is not None
+    workflow = Workflow(
+        id="wfl_learned_wrong",
+        tenant="acme",
+        title="create a client",
+        narrative="n",
+        # No step declares it, so only the control-and-value scan can place it.
+        steps=[
+            Step(order=0, says="type the code", system=None, cites=[typed.id]),
+            Step(order=1, says="choose the depot", system=None, cites=[_a_third_gesture(by_id).id]),
+            Step(order=2, says="save", system=None, cites=[_saver(by_id).id]),
+        ],
+        systems=[HOST],
+        parameters=[{"name": target.component.item_id, "seen_values": ["NEVER-TYPED"]}],
+    )
+
+    shape = _served(workflow, by_id)
+
+    assert shape is not None
+    assert shape.parameters == [{"name": target.component.item_id, "at": None}]
+
+
+def test_a_click_that_put_nothing_contributes_no_label() -> None:
+    """`kind == "click" and target and target.text` -- all three, and the
+    precedence matters: read as `(kind and target) or target.text`, a TYPE
+    gesture on a control with a label would contribute that label as something
+    the operator put, and "Save" would become a value the offer could fill in.
+    """
+    typed_in = _typed(_evidence())
+    target = typed_in.action.target
+    assert target is not None
+    labelled = replace(typed_in.action, target=replace(target, text="Save"))
+
+    put = put_by(replace(typed_in, action=labelled))
+
+    assert put == {"ACME-4471"}, "a typed field puts its value, never its label"
+
+
 def test_a_pick_on_a_struck_out_control_puts_nothing() -> None:
     """The rule `typed_values` and the browser's own tail already wear."""
     picked = _picked("ConnectShip (TanData)")

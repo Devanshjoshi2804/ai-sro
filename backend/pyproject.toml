@@ -205,6 +205,11 @@ source_paths = [
     # `domain/execution/` answers one layer down.
     "src/sro/application/execution/plan_step.py",
     "src/sro/application/execution/verify.py",
+    # The offer side of the wire. Added 2026-09-14, the day it was found
+    # serving a shape the matcher could never match: the rule here has to agree
+    # with `recognise.js` exactly, and nothing but a real browser had ever
+    # checked that it did.
+    "src/sro/domain/skill/shape.py",
 ]
 # The rest of the package comes verbatim: mutmut copies only what it mutates,
 # and `sro.application.skill` imports half the domain. The tests are narrowed to

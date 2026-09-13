@@ -100,6 +100,19 @@ FLOORS = {
     # `verify`'s RIG half needed nothing: eleven survivors, every one reason
     # text or JSON indentation. That is the half that gates a live write.
     "sro.application.execution": (92.8, "the step -- what this run sends, and what settles it"),
+    # The offer side of the wire, added the day it was found serving a shape
+    # the matcher could never match. First sweep 2026-09-14: **96.2%**, and all
+    # five survivors were in that morning's own dropdown-pick code -- `seen &
+    # put_by(gesture)` read as a union, and `put_by`'s three-way `and` read as
+    # `or`, both of them the rule that stops a button label becoming somebody's
+    # parameter value. **100.0%** with those pinned.
+    #
+    # And the caution this whole table needs: `shape.py` scored 96.2% while
+    # shipping an off-by-one that made every two-step job unofferable. A
+    # mutation score cannot see a rule that is wrong the same way on both
+    # sides of a wire -- the code said `< K_OFFER_AFTER`, fifteen fixtures
+    # agreed with it, and only a real browser disagreed.
+    "sro.domain.skill.shape": (99.8, "the offer -- which jobs a browser is shown, and where"),
 }
 
 STATS = pathlib.Path(__file__).resolve().parent.parent / "mutants" / "mutmut-cicd-stats.json"

@@ -65,6 +65,32 @@ make lint-backend    # expect: contract "Domain is pure" BROKEN
 git checkout backend/src/sro/domain/shared/errors.py
 ```
 
+## Testing a rule that lives on two sides of a wire
+
+A rule split across the backend and the extension is a rule that can drift on
+one side, and neither side's suite will see it: the backend's tests read the
+backend, the extension's fake `fetch`, and both pass while a real browser does
+nothing.
+
+Where you find one, hold it with a test that reads **the other side's real
+source** — the extension's `.js` as a file, the app's own OpenAPI, the Pydantic
+model the route returns. `backend/tests/unit/interface/test_the_command_vocabulary.py`
+is the worked example, and
+[`docs/14-extension-protocol.md`](14-extension-protocol.md#the-seams-the-fixtures-do-not-cover)
+lists the five that exist today and what each costs when it drifts.
+
+Two habits, both learned the hard way:
+
+- **Walk up to find the other side's file; never count parent directories.**
+  A fixed `parents[N]` is the test file's own depth, so moving the test breaks
+  it silently — and the mutation sweep runs the suite from a copy of the
+  backend one level down, where a wrong count made *every* sweep fail to
+  collect stats. The score was unmeasurable for weeks and nothing said so.
+- **Do not expect the mutation floor to catch this class.** `shape.py` scored
+  96.2% while serving a shape the matcher could never match. A sweep asks
+  whether the tests notice the code changing; where both sides are wrong the
+  same way, nothing changes when one of them moves.
+
 ## Local stack notes
 
 - Steel needs `shm_size: 2gb`. Chrome crashes with Docker's 64 MB default, and

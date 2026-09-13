@@ -71,6 +71,33 @@ def test_every_kind_a_sender_names_is_one_this_list_knows_about() -> None:
     assert _sent() <= set(COMMAND_KINDS), f"undeclared: {sorted(_sent() - set(COMMAND_KINDS))}"
 
 
+def test_the_extension_answers_with_every_field_this_backend_reads() -> None:
+    """The other direction of the same wire, and the quieter failure.
+
+    A kind that goes missing is loud: the browser says `not_actionable` and the
+    step fails. A reply FIELD that goes missing is silent. `status` is what
+    `belts.status_of` reads to settle a write by rung 1; without it the step
+    falls through to a screenshot and a model, `state_verified` is false, and
+    the job never earns the right to write unattended -- correctly driven
+    forever, and never trusted. Nothing would go red anywhere.
+
+    A canary and not a contract: it checks the NAME appears where the extension
+    builds its replies, not that it is filled in the right case. That is enough
+    to catch a rename, which is the way this drifts.
+    """
+    read: set[str] = set()
+    senders = Path(__file__).resolve().parents[4] / "src/sro/application/execution"
+    for name in (*_SENDERS, "../../domain/execution/belts.py"):
+        body = (senders / name).read_text("utf-8")
+        read |= set(re.findall(r'result\.get\("([a-z_]+)"\)', body))
+        read |= set(re.findall(r'result\["([a-z_]+)"\]', body))
+    assert "status" in read and "body" in read, "the two the state belts stand on"
+
+    answers = _extension("commands.js") + _extension("in-page.js")
+    named = set(re.findall(r"\b([a-z_]+):", answers))
+    assert read <= named, f"the extension names no {sorted(read - named)} in any reply"
+
+
 def test_a_plan_may_name_only_the_kinds_a_model_is_offered() -> None:
     """`KINDS` is what the schema offers the model; `COMMAND_KINDS` is
     everything the runner may send. The first has to stay inside the second, or

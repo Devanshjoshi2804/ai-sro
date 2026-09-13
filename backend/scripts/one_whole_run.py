@@ -330,7 +330,18 @@ def main() -> int:
         help="let the write out, after a person presses Approve in the panel",
     )
     parser.add_argument("--keep", action="store_true", help="leave the browser open at the end")
+    parser.add_argument(
+        "--via-trigger",
+        action="store_true",
+        help="start each run by firing a trigger that names the job, rather than by"
+        " pressing /v1/workflow-runs. Always live: a trigger's job is started live"
+        " because a dry scheduled run sends nothing and verifies nothing.",
+    )
     args = parser.parse_args()
+    if args.via_trigger:
+        # Not a flag the mode respects -- a job a trigger starts is started
+        # live, always. Said here rather than silently overridden.
+        args.live = True
 
     try:
         from playwright.sync_api import sync_playwright
@@ -402,20 +413,53 @@ def main() -> int:
                 by_hand = len(_Depot.writes)
                 value = f"ENVEYO-{attempt + 1}"
 
-                run = call(
-                    "/v1/workflow-runs",
-                    token,
-                    {
-                        "workflow_id": workflow_id,
-                        "device_id": device,
-                        "values": {"clientCode": value},
-                        "live": args.live,
-                    },
-                )
-                print(
-                    f"\n-- run {attempt + 1} of {args.runs}: {run['id']}"
-                    f" {'live' if args.live else 'dry'}, asking for {value}"
-                )
+                if args.via_trigger:
+                    # The whole point of this mode: nothing here says
+                    # "workflow-runs". A trigger names the job, the device and
+                    # the values, and firing it is all this script does. What
+                    # starts the run is `FireTrigger` -> `start_job_for` ->
+                    # the dispatcher -> the API's own door, which is the path
+                    # a schedule at 3am takes with nobody in the room.
+                    trigger = call(
+                        "/v1/triggers",
+                        token,
+                        {
+                            "workflow_id": workflow_id,
+                            "kind": "manual",
+                            "device_id": device,
+                            "parameters": {"clientCode": value},
+                            # A job is a write by the honest reading, so it
+                            # needs a name behind it; `auto_approve` is about
+                            # the CARD, not about the run's own approval tap,
+                            # which is still pressed in the panel below.
+                            "authorized_by": True,
+                            "auto_approve": True,
+                            "may_take_focus": True,
+                        },
+                    )
+                    fired = call(f"/v1/triggers/{trigger['id']}/fire", token, {})
+                    if fired.get("skipped") or not fired.get("run_id"):
+                        raise SystemExit(f"the trigger started nothing: {fired}")
+                    print(
+                        f"\n-- run {attempt + 1} of {args.runs}: fired trigger"
+                        f" {trigger['id']} -> {fired['run_id']}, asking for {value}"
+                    )
+                    run = call(f"/v1/workflow-runs/{fired['run_id']}", token)
+                else:
+                    run = call(
+                        "/v1/workflow-runs",
+                        token,
+                        {
+                            "workflow_id": workflow_id,
+                            "device_id": device,
+                            "values": {"clientCode": value},
+                            "live": args.live,
+                        },
+                    )
+                    print(
+                        f"\n-- run {attempt + 1} of {args.runs}: {run['id']}"
+                        f" {'live' if args.live else 'dry'}, asking for {value}"
+                    )
 
                 tapped = False
                 for _ in range(240):

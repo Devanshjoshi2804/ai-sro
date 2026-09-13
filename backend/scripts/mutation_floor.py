@@ -82,6 +82,24 @@ import sys
 FLOORS = {
     "sro.application.skill": (85.6, "the bridge -- a model's reading into a runnable Skill"),
     "sro.domain.execution": (91.5, "the ladder -- what may write, and what proves it landed"),
+    # `plan_step` and `verify` only, not the 7,184-line package around them.
+    # These two are the ladder's other half: the rules say what may be sent and
+    # what counts as proof, and these two decide it for one real step in front
+    # of a real browser.
+    #
+    # First sweep 2026-09-13: **86.8%**, and two holes worth the whole exercise.
+    # `plan_step` 86.0% -- the two-click pick added that same day had no
+    # planner test at all, so `opened`'s default could flip, `opens` could stop
+    # being set, and the click payload's `allow_focus` and `starts_on` could be
+    # dropped. `verify` 88.2% -- `check` and `check_text` were reached only
+    # through `execute_skill`, where one status assertion stood in for all four
+    # kinds, and inverting `RESPONSE_FIELD_PRESENT` in both left the suite
+    # green. Tests on each took the area to **93.0%** (plan_step 92.0,
+    # verify 94.7).
+    #
+    # `verify`'s RIG half needed nothing: eleven survivors, every one reason
+    # text or JSON indentation. That is the half that gates a live write.
+    "sro.application.execution": (92.8, "the step -- what this run sends, and what settles it"),
 }
 
 STATS = pathlib.Path(__file__).resolve().parent.parent / "mutants" / "mutmut-cicd-stats.json"

@@ -196,7 +196,16 @@ disable_error_code = [
 # Widening this to `src/sro/` would mutate 297 files against a 30-second suite.
 # That is a different tool with a different cost; this one has to stay cheap
 # enough to run while a change is still in the working tree.
-source_paths = ["src/sro/application/skill/", "src/sro/domain/execution/"]
+source_paths = [
+    "src/sro/application/skill/",
+    "src/sro/domain/execution/",
+    # Two files rather than the package. `application/execution/` is 7,184
+    # lines and most of it is the pre-rig executor; these two are where a run
+    # decides what to SEND and whether it landed, which is the same question
+    # `domain/execution/` answers one layer down.
+    "src/sro/application/execution/plan_step.py",
+    "src/sro/application/execution/verify.py",
+]
 # The rest of the package comes verbatim: mutmut copies only what it mutates,
 # and `sro.application.skill` imports half the domain. The tests are narrowed to
 # match, so a sweep does not collect suites whose modules were never copied.

@@ -11,15 +11,13 @@ import asyncio
 import logging
 import os
 import socket
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 
 from temporalio.client import Client
 from temporalio.worker import Worker
 
-from sro.application.context import RequestContext
 from sro.config import Settings, get_settings
 from sro.container import Container, build_container
-from sro.domain.shared.identifiers import PrincipalId, TenantId
 from sro.infrastructure.temporal.activities import Activities
 from sro.infrastructure.temporal.queues import BROWSER_QUEUE, DEFAULT_QUEUE
 from sro.infrastructure.temporal.workflows import (
@@ -75,56 +73,6 @@ async def keep_sessions_open(container: Container, every_seconds: float) -> None
                 ", ".join(swept.left_alone) or "none",
                 ", ".join(swept.released) or "none",
             )
-
-
-async def mine_lately(container: Container, every_seconds: float, window_hours: int) -> None:
-    """Notice what somebody keeps doing, for as long as this runs.
-
-    A loop for the same reasons as the keeper above: nothing to replay, and a
-    missed sweep costs nothing because the next one reads the same window. Every
-    episode already recorded is skipped, so running it often is only the price
-    of reading the evidence again.
-    """
-    if every_seconds <= 0:
-        # The pre-rig miner, left to a deliberate call. `Settings`' own field
-        # carries the whole argument; the short of it is that this sweep
-        # teaches what it notices without asking anybody, and four of the nine
-        # skills it has taught are Gmail's sync endpoint or this console's own
-        # Learn button. Returning rather than looping so the task finishes and
-        # the worker is not holding a coroutine that will never do anything.
-        logger.info("the observation miner is off (mining_sweep_seconds=0)")
-        return
-    while True:
-        await asyncio.sleep(every_seconds)
-        since = datetime.now(UTC) - timedelta(hours=window_hours)
-        try:
-            mined = await container.mine_everything().execute(since=since)
-        except Exception:
-            logger.exception("the miner could not finish its sweep")
-            continue
-        for tenant, found in mined.items():
-            if found.candidates_new or found.occurrences_new:
-                logger.info(
-                    "%s: %s new tasks noticed, %s more doings of ones already known",
-                    tenant,
-                    found.candidates_new,
-                    found.occurrences_new,
-                )
-
-        # And anything now done often enough is learned, without waiting for
-        # somebody to press a button. What comes out sits at the bottom of the
-        # promotion ladder; nothing here lets anything run.
-        for tenant in mined:
-            ctx = RequestContext(tenant_id=TenantId(tenant), principal_id=PrincipalId("miner"))
-            try:
-                learned = await container.learn_what_repeats().execute(ctx)
-            except Exception:
-                logger.exception("%s: the learner could not finish its pass", tenant)
-                continue
-            for skill_id in learned.skills:
-                logger.info("%s: learned a task nobody demonstrated -- %s", tenant, skill_id)
-            for waiting in learned.still_waiting:
-                logger.info("%s: waiting for a demonstration -- %s", tenant, waiting)
 
 
 async def mine_the_rig_lately(container: Container, every_seconds: float) -> None:
@@ -222,9 +170,6 @@ async def run() -> None:
     )
 
     keeper = asyncio.create_task(keep_sessions_open(container, settings.session_sweep_seconds))
-    miner = asyncio.create_task(
-        mine_lately(container, settings.mining_sweep_seconds, settings.mining_window_hours)
-    )
     rig_miner = asyncio.create_task(mine_the_rig_lately(container, settings.rig_sweep_seconds))
     retainer = asyncio.create_task(retain_lately(container, settings.retention_sweep_seconds))
     try:
@@ -232,7 +177,6 @@ async def run() -> None:
             await asyncio.Future()
     finally:
         keeper.cancel()
-        miner.cancel()
         rig_miner.cancel()
         retainer.cancel()
 

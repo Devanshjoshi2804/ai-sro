@@ -227,6 +227,13 @@ function panel(status, here = null, replies = {}) {
     focus: (el) => {
       sandbox.document.activeElement = el;
     },
+    // The ledger's LOCAL half: the offers this browser made, which live in no
+    // thread. Set and redrawn the way a poll does it -- `refresh()` stores the
+    // status, `conversation()` calls `show` with whatever thread it fetched.
+    offerLocally: (nudges, thread) => {
+      vm.runInContext(`lastStatus = ${JSON.stringify({ nudges })}`, sandbox);
+      sandbox.show(thread);
+    },
   };
 }
 
@@ -1748,6 +1755,70 @@ test("no thanks on a rig offer drops it and starts nothing", async () => {
   assert.deepEqual(sentOf(sent, "drop-nudge"), [{ kind: "drop-nudge", nudgeId: "n_2" }]);
   assert.deepEqual(sentOf(sent, "start-rig-run"), [], "saying no started a run");
   assert.deepEqual(sentOf(sent, "nudge-answer"), []);
+});
+
+test("an offer made while the thread is quiet is still drawn", async () => {
+  // `show` redrew only when the THREAD changed, and its signature was built
+  // from the thread alone. A rig offer is local -- `considerOffer` stores a
+  // nudge and prompts on the page, and writes nothing to the thread -- so an
+  // offer made while nobody was talking was stored, prompted, and never drawn
+  // in the panel. Every poll computed the same signature and returned.
+  //
+  // Found by a browser on 2026-09-14: the worker matched a shape, made the
+  // offer, and the ledger stayed empty. Neither side's tests could see it --
+  // the worker's prove the match, the panel's drew their own fixtures.
+  const thread = { id: "thr-1", messages: [{ id: "m1", speaker: "system", text: "hello" }] };
+  const { ids, offerLocally } = panel(
+    {
+      deviceId: "dev-1",
+      capturing: true,
+      watched: [{ tabId: 7, host: "wms.example", since: new Date().toISOString() }],
+    },
+    { id: 7, host: "wms.example", url: "https://wms.example/portal" },
+    { thread },
+  );
+  // The load's own `conversation()`, which draws once with no offer in hand.
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  offerLocally(
+    [
+      {
+        id: "n-1",
+        source: "rig",
+        state: "open",
+        tabId: 7,
+        k: 2,
+        title: "Create a Work Area",
+        values: { workArea: "NEWTESTS" },
+        missing: [],
+        parameters: ["workArea"],
+      },
+    ],
+    thread,
+  );
+
+  assert.match(
+    words(ids["said"]),
+    /Create a Work Area/,
+    "the offer was never drawn: the thread had not changed",
+  );
+  assert.match(words(ids["said"]), /finish it/i, "drawn, but not as something to answer");
+});
+
+test("the same thread and the same offers are not redrawn", async () => {
+  // The guard is worth keeping: a redraw replaces the composer and takes
+  // whatever somebody was half way through typing with it. Widening the
+  // signature must not turn every poll into a redraw.
+  const thread = { id: "thr-1", messages: [{ id: "m1", speaker: "system", text: "hello" }] };
+  const { ids, offerLocally } = panel({ deviceId: "dev-1" }, null, { thread });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  const nudges = [{ id: "n-1", source: "rig", state: "open", tabId: 7, k: 2, title: "A job" }];
+  offerLocally(nudges, thread);
+  const first = ids["said"].kids[0];
+  offerLocally(nudges, thread);
+
+  assert.strictEqual(ids["said"].kids[0], first, "nothing changed and it was redrawn anyway");
 });
 
 for (const [name, fn] of tests) {

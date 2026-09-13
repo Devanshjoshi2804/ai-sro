@@ -212,3 +212,13 @@ What starts a run when nobody typed a sentence: `manual`, `schedule` (cron), or
 `inbound` (mail or chat). A trigger for a skill that writes carries the standing
 authorisation, named, from the credential of whoever created it — a scheduled
 write with nobody's name on it is refused at creation, not at fire time.
+
+A trigger names exactly one thing to run: a taught **Skill**, or a mined
+**Workflow**. The two are checked in different places on purpose. A skill is
+checked at fire time — `runnable`, whether it has been re-induced into something
+that writes, whether every input has a value — because nothing downstream will.
+A job is checked by the run itself: the run is dry until somebody presses
+through to live, a live write parks for a person until the job has *earned* the
+right across three runs whose every write a state belt verified, and each step
+is verified before the next is sent. So a job trigger insists on only what the
+fire alone knows — that the job exists, is proven, and names a browser.

@@ -745,6 +745,21 @@ rather than from a field anybody can type into.
 
 Pausing removes the schedule rather than letting it fire into a check.
 
+A trigger can name a **mined job** instead of a taught skill, and the screen's
+picker offers both under one field because a trigger runs exactly one thing. A
+job insists on two things a skill does not: a browser, because a workflow is a
+recording of somebody's own window and there is no headless way to replay one,
+and a name behind it, because a standing authority to drive a real browser
+through real work is a write however the recording is shaped. Only proven jobs
+are offered — an offer is never made for an unproven one, so a schedule must not
+be the way round that.
+
+What a scheduled job may send unattended is not the trigger's decision. The run
+is dry until somebody presses through to live, a live write parks for a person
+until the job has *earned* the right across three runs whose every write a state
+belt verified, and every step is verified before the next is sent. A second
+ladder in the trigger could only disagree with that one.
+
 ## Generated workflows
 
 A skill induced from two demonstrations cites them: which recordings, who

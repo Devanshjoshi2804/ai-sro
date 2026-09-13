@@ -1,4 +1,10 @@
-"""Read every named tenant's unread gestures, once. Meant for cron.
+"""Read every named tenant's unread gestures, once. Named tenants, by hand.
+
+**The worker now does this on its own.** `worker.mine_the_rig_lately` reads
+every tenant whose browsers uploaded in the window and then mines it, on
+`rig_sweep_seconds`. This stays for the two things that loop cannot be: a
+deliberate pass over one named tenant, and a way to read without a worker
+running at all.
 
 Same reason `observe.py` calls the use case directly instead of `POST
 /v1/gestures/read` over HTTP: that route exists for an operator's own
@@ -7,9 +13,11 @@ cron job is not a person. Nothing here mints or stores a token -- it builds
 the container and calls `ReadGestures.execute` the way the router does,
 one tenant at a time.
 
-There is no "every tenant" query in this codebase (every repository method
-is `list_for_tenant`, scoped to one). Name the tenants on the command line,
-the same way `observe.py` and `mint.py` both take one tenant at a time:
+There is one "every tenant" query now -- `GestureRepository.tenants_since`,
+which the worker's sweep uses -- and this does not reach for it: what a person
+runs by hand should say whose evidence it is about. Name the tenants on the
+command line, the same way `observe.py` and `mint.py` both take one tenant at
+a time:
 
     python -m sro.cli.read_cron acme new
 

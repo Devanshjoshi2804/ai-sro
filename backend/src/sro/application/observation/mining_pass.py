@@ -107,6 +107,13 @@ class MineResult:
     # said, when it was the cap. A pass that was refused and a pass that
     # honestly found nothing are the same result without this.
     error: str | None = None
+    read: int = 0
+    """Gestures this sweep read before it mined, where a sweep did the reading.
+
+    Zero from a pass asked for directly -- `MinePass` reads nothing, and a
+    route's caller has its own reader. `MineLately` fills it in, because
+    "nothing was kept" means one thing after a hundred fresh readings and
+    another after none."""
     window_size: int = 0
     # Evidence this pass did not read, and evidence it could not read. The
     # window drops what will not fit the budget; a pooled id whose gesture row

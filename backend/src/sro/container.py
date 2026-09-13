@@ -434,8 +434,11 @@ class Container:
     def mine_lately(self) -> MineLately:
         """The rig's miner, on a loop rather than on a person's press.
 
-        `mine_pass` had one caller and it was a door: a deployment learned as
-        often as somebody remembered to press it. The window is
+        Both halves had a person in them: `mine_pass` was reachable from a door
+        and a script, `read_gestures` from a door and a crontab line in
+        `sro.cli.read_cron`. The reader is handed over here so the sweep does
+        them in the only order that is not a waste of money -- a mining pass
+        packs readings, and an unread gesture has none. The window is
         `mining_window_hours`, the same one the pre-rig sweep looks back over,
         and it is deliberately wider than the interval -- evidence uploaded
         late still gets mined, and mining the same window twice is what the
@@ -444,6 +447,7 @@ class Container:
         return MineLately(
             self.unit_of_work(),
             self.mine_pass(),
+            self.read_gestures(),
             window_hours=self.settings.mining_window_hours,
         )
 

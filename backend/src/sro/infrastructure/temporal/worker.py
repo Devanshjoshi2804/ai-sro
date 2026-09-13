@@ -130,10 +130,11 @@ async def mine_lately(container: Container, every_seconds: float, window_hours: 
 async def mine_the_rig_lately(container: Container, every_seconds: float) -> None:
     """Read each recorded tenant's day, for as long as this runs.
 
-    The rig's miner, where `mine_lately` above is the pre-rig one. `mine_pass`
-    had one caller and it was a door, so a deployment learned as often as
-    somebody remembered to press it -- every mining result this project has
-    measured came from a person running a script.
+    The rig's whole learning cycle, where `mine_lately` above is the pre-rig
+    miner. Both halves had a person in them: `mine_pass` was reachable from a
+    door and a script, `read_gestures` from a door and the crontab line in
+    `sro.cli.read_cron`'s own docstring. Every mining result this project has
+    measured came from somebody running a script.
 
     A loop for the same reasons as the keeper: nothing worth replaying, and a
     missed sweep is corrected by the next one reading the same window. What one
@@ -157,10 +158,12 @@ async def mine_the_rig_lately(container: Container, every_seconds: float) -> Non
         for tenant, result in mined.items():
             if result.error:
                 continue
-            if result.kept or result.learned_parameters:
+            if result.read or result.kept or result.learned_parameters:
                 logger.info(
-                    "%s: %s job(s) kept of %s proposed, %s parameter(s) learned",
+                    "%s: %s gesture(s) read, %s job(s) kept of %s proposed,"
+                    " %s parameter(s) learned",
                     tenant,
+                    result.read,
                     result.kept,
                     result.proposed,
                     result.learned_parameters,

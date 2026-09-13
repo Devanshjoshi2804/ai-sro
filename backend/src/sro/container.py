@@ -80,7 +80,6 @@ from sro.application.observation.artifacts import StoreObservationArtifact
 from sro.application.observation.demonstrate import AssembleDemonstration
 from sro.application.observation.forget import ForgetObservations
 from sro.application.observation.ingest import IngestObservation
-from sro.application.observation.learn import LearnWhatRepeats
 from sro.application.observation.mine_lately import MineLately
 from sro.application.observation.mine_pass import MinePass
 from sro.application.observation.policy import ReadObservationPolicy, SetObservationPolicy
@@ -520,9 +519,6 @@ class Container:
             self.understand_recording(),
             self.induce_skill(),
         )
-
-    def learn_what_repeats(self) -> LearnWhatRepeats:
-        return LearnWhatRepeats(self.unit_of_work(), self.teach_candidate())
 
     def teach_workflow(self) -> TeachWorkflow:
         """Two candidates as one skill. The pair diffed is two occurrences of

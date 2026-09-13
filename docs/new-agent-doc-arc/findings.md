@@ -1589,13 +1589,42 @@ not tasks at all. The model's seven:
 
 ### What one found that the other missed
 
-**The model found everything the rule-based path found**, minus the two reads,
-plus `Create a Warehouse Equipment Type` — which the rule-based miner saw once
-and therefore never proposed.
+**Corrected twice on 2026-09-14, and neither correction was mine to be proud
+of.** What this section first said was *"the rule-based path found nothing the
+model missed"*, written from a run over `acme` alone and phrased as though it
+covered the comparison. A deletion was made on it and reverted within the hour.
 
-**The rule-based path found nothing the model missed.** Its extra 41 rows are
-the console talking to itself (20), Gmail (5), and warehouse rows seen a single
-time (16).
+**First correction — the supplier.** On tenant `new` the rule-based path holds
+`Create a supplier`, seen five times and taught into a skill, and at the time no
+workflow named it. `two-miners-one-day.md` had already found it on 2026-09-11
+and already concluded "Still not met"; this document restated the opposite
+without reading it. The cause turned out to be evidence, not judgement: 131
+batches on `new` — the whole of 2026-09-02, where that work was done — were in
+`observations` and had never been replayed into `gestures`. The model path was
+never shown them. Shown them, one $0.45 pass named `Create a Supplier` in 13
+steps with 8 parameters.
+
+**Second correction — the mail rows, and this one came from the operator.** The
+sentence above counted "Gmail (5)" among the rule-based path's noise. They are
+not noise. Every doing of all five on `acme`, and 27 of the 28 on `new`, has
+warehouse work within three minutes of it: `Create u` beside 283 warehouse
+gestures, `Create s` beside 392. On 2026-09-10 the browser went mail, warehouse,
+mail, warehouse sixteen times in an hour — thirty-five seconds and then two
+seconds apart. Somebody was reading a mail and doing what it asked.
+
+The rule-based path cuts that at the host boundary, because segmentation runs
+each host on its own stream, and titles the half it cannot explain after its
+busiest request: `Create u`, `Create fd`, `Create bv`. The model path has two of
+them as single jobs — `Create a Customer Type` and `Create a Warehouse Equipment
+Type`, each `systems=['mail.google.com', 'bf56-…jdadelivers.com']` — with the
+mail step in sequence and the typed value carried across the boundary.
+
+**So the rows I wrote off as noise are the sharpest argument in the model's
+favour anywhere in these documents.** What stands from the original sentence is
+narrower and still true: within `acme` the model found every real task the rules
+proposed plus `Create a Warehouse Equipment Type`, and the rules' extra rows are
+the console talking to itself (20), warehouse rows seen once (16), and five mail
+rows that are half a job each rather than no job at all.
 
 Both duplicate: the rule-based path names one task twice because its signature
 splits on something the operator varied; the model names `Create a Customer

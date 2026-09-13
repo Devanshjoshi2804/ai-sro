@@ -62,6 +62,26 @@ export function tally(rows) {
   return out;
 }
 
+/**
+ * Shapes the backend served that this matcher could never match at any k.
+ *
+ * A static property and not a replay result: `match` scans k down from
+ * `shape.length - 1`, because an offer has to leave something to finish, so a
+ * shape whose floor is above that bound is dead on arrival -- cached by every
+ * browser and walked on every gesture for nothing.
+ *
+ * Here rather than on the backend because that is the point: the serving rule
+ * lives on one side of this wire and the matching rule on the other, and a
+ * two-step job was served for weeks because each side was only ever read
+ * against itself. Checked in the extension's own code, with the extension's
+ * own constant, against what the backend really served.
+ */
+export function unmatchable(shapes) {
+  return shapes.filter(
+    (shape) => (shape.shape?.length ?? 0) - 1 < (shape.offer_after ?? K_OFFER_AFTER),
+  );
+}
+
 function main(path) {
   const { shapes, jobs } = JSON.parse(readFileSync(path, "utf8"));
   const rows = replay(shapes, jobs);
@@ -87,6 +107,19 @@ function main(path) {
   console.log(
     `${jobs.length} jobs replayed against ${shapes.length} served shapes at K_OFFER_AFTER = ${K_OFFER_AFTER}: ${right} offered as themselves, ${wrong} offered as another job, ${never} never offered`,
   );
+
+  // Two failures, and only two. A job whose own doing diverges before any
+  // prefix matches is information -- the operator did it differently that day
+  // -- but a shape nothing could ever match is a backend bug, and an offer
+  // naming the wrong job is worse than no offer at all.
+  const dead = unmatchable(shapes);
+  for (const shape of dead) {
+    console.log(
+      `FAILED: ${shape.title} was served with ${shape.shape?.length ?? 0} positions and an offer floor of ${shape.offer_after ?? K_OFFER_AFTER}; no k can match it`,
+    );
+  }
+  if (wrong) console.log(`FAILED: ${wrong} job(s) offered as another job`);
+  return dead.length || wrong ? 1 : 0;
 }
 
 // Only when run as a script; the test imports the functions above.
@@ -96,5 +129,5 @@ if (process.argv[1] && process.argv[1].endsWith("offer-replay.mjs")) {
     console.error("usage: node scripts/offer-replay.mjs replay.json");
     process.exit(2);
   }
-  main(path);
+  process.exit(main(path));
 }

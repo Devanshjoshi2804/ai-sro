@@ -151,6 +151,11 @@ one-whole-run: ## A job watched in a real Chrome and then done by the system, en
 	@# `args="--live --runs 4"` is the whole ladder: three live runs each
 	@# stopped for a person to press Approve in the real panel, and a fourth
 	@# that nobody is asked about, because by then the job has earned it.
+	@#
+	@# `args="--via-trigger"` starts each run by firing a trigger that names
+	@# the job instead of pressing the run endpoint -- the path a schedule
+	@# takes with nobody in the room. Always live, and it still stops for the
+	@# panel until the job has earned the right not to.
 	$(BACKEND) uv run python scripts/one_whole_run.py $(args)
 
 test-browser: ## Drive a real Chrome with the extension loaded

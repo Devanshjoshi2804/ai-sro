@@ -15,6 +15,7 @@ import {
   type TriggerModel,
 } from "@/features/trigger/api";
 import { listSkills, skillKeys } from "@/features/skill/api";
+import { listWorkflows, workflowKeys, type WorkflowModel } from "@/features/workflow/api";
 import { describe as describeCron, toCron, type Repeat } from "@/features/trigger/cron";
 import { ApiError } from "@/lib/api/client";
 import { Badge } from "@/components/ui/badge";
@@ -44,6 +45,10 @@ export function TriggerBoard() {
   const triggers = useQuery({ queryKey: triggerKeys.all, queryFn: listTriggers });
   const skills = useQuery({ queryKey: skillKeys.all, queryFn: listSkills });
   const devices = useQuery({ queryKey: deviceKeys.all, queryFn: listDevices });
+  // The jobs the rig mined. On this screen for the same reason skills are: a
+  // trigger can name one now, and until it could, nothing but a person
+  // accepting an offer in the panel could ever start one.
+  const jobs = useQuery({ queryKey: workflowKeys.all, queryFn: listWorkflows });
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: triggerKeys.all });
   const complain = (error: unknown) =>
@@ -97,7 +102,7 @@ export function TriggerBoard() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Skill</TableHead>
+                <TableHead>What runs</TableHead>
                 <TableHead>When</TableHead>
                 <TableHead>Where</TableHead>
                 <TableHead>Writes</TableHead>
@@ -110,6 +115,7 @@ export function TriggerBoard() {
                 <Row
                   key={trigger.id}
                   trigger={trigger}
+                  jobs={jobs.data ?? []}
                   onEnable={(enabled) => enable.mutate({ id: trigger.id, enabled })}
                   onFire={() => fire.mutate(trigger.id)}
                   busy={enable.isPending || fire.isPending}
@@ -124,6 +130,7 @@ export function TriggerBoard() {
 
       <NewTrigger
         skills={skills.data ?? []}
+        jobs={jobs.data ?? []}
         devices={devices.data ?? []}
         onCreated={invalidate}
         onError={complain}
@@ -134,15 +141,24 @@ export function TriggerBoard() {
 
 function Row({
   trigger,
+  jobs,
   onEnable,
   onFire,
   busy,
 }: {
   trigger: TriggerModel;
+  jobs: WorkflowModel[];
   onEnable: (enabled: boolean) => void;
   onFire: () => void;
   busy: boolean;
 }) {
+  // A job by its title, because that is the sentence the panel's offer says
+  // and the one somebody recognises. Falling back to the id rather than to a
+  // blank: a job re-mined away still has a trigger pointing at it, and the id
+  // is what finds it in a log.
+  const name = trigger.workflow_id
+    ? (jobs.find((job) => job.id === trigger.workflow_id)?.title ?? trigger.workflow_id)
+    : trigger.skill_id;
   return (
     <TableRow>
       <TableCell>
@@ -150,8 +166,9 @@ function Row({
             one, and it is gone with the rest of the pre-rig path -- a link to
             a route that does not exist is a 404 wearing an underline. The id
             itself is still what a person needs to find the trigger in a log. */}
-        <span className="font-medium">{trigger.skill_id}</span>
+        <span className="font-medium">{name}</span>
         <p className="text-muted-foreground text-xs">
+          {trigger.workflow_id ? "a mined job · " : ""}
           {trigger.medium === "ui" ? "in a browser" : "as calls"}
           {trigger.device_id ? " · in the operator's own browser" : ""}
         </p>
@@ -207,16 +224,23 @@ function Row({
 
 function NewTrigger({
   skills,
+  jobs,
   devices,
   onCreated,
   onError,
 }: {
   skills: { id: string; name: string; systems?: string[] }[];
+  jobs: WorkflowModel[];
   devices: DeviceModel[];
   onCreated: () => void;
   onError: (error: unknown) => void;
 }) {
-  const [skillId, setSkillId] = useState("");
+  // One field, two kinds, so `skill:` and `job:` prefix what was chosen. Two
+  // selects would let somebody choose both, which the backend refuses -- and a
+  // refusal after the press teaches less than a control that cannot say it.
+  const [runs, setRuns] = useState("");
+  const skillId = runs.startsWith("skill:") ? runs.slice(6) : "";
+  const jobId = runs.startsWith("job:") ? runs.slice(4) : "";
   const [repeat, setRepeat] = useState<Repeat>("weekdays");
   const [at, setAt] = useState("07:00");
   const [weekday, setWeekday] = useState(1);
@@ -231,15 +255,21 @@ function NewTrigger({
   // so a schedule with no browser named would refuse at every fire -- and a
   // schedule that never runs is worse than one that was never made.
   const crosses = (skills.find((skill) => skill.id === skillId)?.systems ?? []).length > 1;
+  const [authorized, setAuthorized] = useState(false);
+  // A job runs in a browser or nowhere: it is a recording of somebody's own
+  // window, and there is no headless path for one. And it always needs a name
+  // behind it -- driving a real browser through real work is a write by the
+  // honest reading, whatever the recording happened to contain.
+  const needsBrowser = crosses || Boolean(jobId);
   // Derived beside the disabled condition it explains, so the two cannot drift.
   const missing = [
-    !skillId && "a skill",
+    !runs && "something to run",
     !cron && "a schedule",
-    crosses && !deviceId && "a browser to run it in",
+    needsBrowser && !deviceId && "a browser to run it in",
+    jobId && !authorized && "your name behind it",
   ]
     .filter(Boolean)
     .join(", ");
-  const [authorized, setAuthorized] = useState(false);
   const [autoApprove, setAutoApprove] = useState(false);
   const [mayTakeFocus, setMayTakeFocus] = useState(false);
 
@@ -247,7 +277,7 @@ function NewTrigger({
     mutationFn: createTrigger,
     onSuccess: () => {
       toast.success("scheduled");
-      setSkillId("");
+      setRuns("");
       setDeviceId("");
       setAuthorized(false);
       setAutoApprove(false);
@@ -259,7 +289,7 @@ function NewTrigger({
 
   return (
     <section className="flex max-w-2xl flex-col gap-4">
-      <h2 className="text-lg font-semibold">Put a skill on a clock</h2>
+      <h2 className="text-lg font-semibold">Put something on a clock</h2>
 
       <form
         className="flex flex-col gap-4"
@@ -267,7 +297,10 @@ function NewTrigger({
           event.preventDefault();
           if (!cron) return;
           create.mutate({
-            skill_id: skillId,
+            // One or the other, never both: `CreateTrigger` refuses two and
+            // refuses none, and this is that rule said in the form.
+            skill_id: skillId || null,
+            workflow_id: jobId || null,
             // Named rather than defaulted: the generated type has no defaults,
             // and a schedule that ran as a manual trigger would never fire.
             kind: "schedule",
@@ -278,7 +311,7 @@ function NewTrigger({
             // server replays the calls. A workflow is the exception on
             // purpose: its steps are calls, and what the browser is there for
             // is the session each system's tab already holds.
-            medium: deviceId && !crosses ? "ui" : "network",
+            medium: jobId || (deviceId && !crosses) ? "ui" : "network",
             device_id: deviceId || null,
             cron,
             timezone,
@@ -289,21 +322,49 @@ function NewTrigger({
         }}
       >
         <div className="flex flex-col gap-2">
-          <Label htmlFor="skill">Skill</Label>
+          <Label htmlFor="runs">What runs</Label>
           <select
-            id="skill"
+            id="runs"
             required
             className="border-input h-9 rounded-md border px-3 text-sm"
-            value={skillId}
-            onChange={(event) => setSkillId(event.target.value)}
+            value={runs}
+            onChange={(event) => {
+              setRuns(event.target.value);
+              // A job has no server-side path, so a device chosen for a skill
+              // does not carry over as "none" into one.
+              if (!event.target.value) setDeviceId("");
+            }}
           >
-            <option value="">choose a taught skill</option>
-            {skills.map((skill) => (
-              <option key={skill.id} value={skill.id}>
-                {skill.name}
-              </option>
-            ))}
+            <option value="">choose a skill or a job</option>
+            <optgroup label="Taught skills">
+              {skills.map((skill) => (
+                <option key={skill.id} value={`skill:${skill.id}`}>
+                  {skill.name}
+                </option>
+              ))}
+            </optgroup>
+            {/* Only the proven ones. An offer is never made for an unproven
+                job, so a schedule must not be the way round that -- and the
+                backend refuses it, which is a refusal after the press rather
+                than a list that never offered it. */}
+            <optgroup label="Mined jobs">
+              {jobs
+                .filter((job) => job.unproven.length === 0)
+                .map((job) => (
+                  <option key={job.id} value={`job:${job.id}`}>
+                    {job.title}
+                  </option>
+                ))}
+            </optgroup>
           </select>
+          {jobId ? (
+            <p className="text-muted-foreground text-xs">
+              A job is a recording of somebody&apos;s own window, so it runs in a browser and never
+              on the server. What it may send unattended is not this screen&apos;s decision: a live
+              write parks for a person until the job has earned the right across three runs whose
+              every write was verified.
+            </p>
+          ) : null}
         </div>
 
         <div className="flex gap-4">
@@ -403,7 +464,7 @@ function NewTrigger({
               if (!event.target.value) setMayTakeFocus(false);
             }}
           >
-            <option value="" disabled={crosses}>
+            <option value="" disabled={needsBrowser}>
               on the server, as calls
             </option>
             {devices.map((device) => (
@@ -413,9 +474,11 @@ function NewTrigger({
             ))}
           </select>
           <p className="text-muted-foreground text-xs">
-            {crosses
-              ? "This skill works across two systems, so it runs in a browser signed in to both — the server holds credentials for one of them at most."
-              : "A run in somebody's own browser carries their session, and happens only while that browser is connected — a property of a laptop rather than a fault."}
+            {jobId
+              ? "A mined job is a recording of somebody's own window; there is no server-side way to replay one."
+              : crosses
+                ? "This skill works across two systems, so it runs in a browser signed in to both — the server holds credentials for one of them at most."
+                : "A run in somebody's own browser carries their session, and happens only while that browser is connected — a property of a laptop rather than a fault."}
           </p>
         </div>
 
@@ -456,7 +519,13 @@ function NewTrigger({
           {missing && <p className="text-muted-foreground text-xs">Still needed: {missing}</p>}
           <Button
             type="submit"
-            disabled={!skillId || !cron || create.isPending || (crosses && !deviceId)}
+            disabled={
+              !runs ||
+              !cron ||
+              create.isPending ||
+              (needsBrowser && !deviceId) ||
+              Boolean(jobId && !authorized)
+            }
           >
             Schedule it
           </Button>

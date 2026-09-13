@@ -43,9 +43,7 @@ export function WaitingOnYou() {
   if (waiting.error) {
     return (
       <p className="text-destructive text-sm">
-        {waiting.error instanceof ApiError
-          ? waiting.error.problem.detail
-          : String(waiting.error)}
+        {waiting.error instanceof ApiError ? waiting.error.problem.detail : String(waiting.error)}
       </p>
     );
   }
@@ -59,10 +57,9 @@ export function WaitingOnYou() {
           Waiting on you <span className="text-muted-foreground">({items.length})</span>
         </h1>
         <p className="text-muted-foreground max-w-2xl text-sm">
-          Each of these is a write that fired with nobody there. Nothing has run: approving
-          one starts it now, with your name on the run. Nothing here runs because time
-          passes — an unanswered card expires, and the trigger fires again if it is still
-          true.
+          Each of these is a write that fired with nobody there. Nothing has run: approving one
+          starts it now, with your name on the run. Nothing here runs because time passes — an
+          unanswered card expires, and the trigger fires again if it is still true.
         </p>
       </header>
 
@@ -112,7 +109,13 @@ function Waiting({ item, onAnswered }: { item: Confirmation; onAnswered: () => v
     <Card>
       <CardHeader className="pb-2">
         <CardTitle className="flex flex-wrap items-center gap-3 text-base">
-          <span className="font-normal">{item.skill_name || item.skill_id}</span>
+          <span className="font-normal">
+            {/* `skill_name` is the skill's name or, for a card about a mined
+                job, that job's title -- the backend fills one field because a
+                person deciding reads a name, not a kind. Whichever id is set
+                is the fallback, and exactly one of them ever is. */}
+            {item.skill_name || item.workflow_id || item.skill_id}
+          </span>
           {/* Not a countdown, and not tinted by how near it is: reading the
               clock while rendering makes this component impure, and a colour
               that changed under somebody mid-decision would be pressure rather

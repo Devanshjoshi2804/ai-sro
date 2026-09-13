@@ -2747,7 +2747,7 @@
           "confirmations"
         ],
         "summary": "List Confirmations",
-        "description": "What is waiting, oldest first.\n\nThe skill's name comes along because the card is read by somebody deciding,\nand an id is not something anybody decides about.",
+        "description": "What is waiting, oldest first.\n\nThe name comes along because the card is read by somebody deciding, and an\nid is not something anybody decides about. Where the card asks about a\nmined job that name is the job's title -- the same sentence the console's\nJobs page shows and the panel's offer says out loud.",
         "operationId": "list_confirmations_v1_confirmations_get",
         "parameters": [
           {
@@ -22799,7 +22799,7 @@
           "triggers"
         ],
         "summary": "Create Trigger",
-        "description": "Everything refusable is refused now rather than at three in the morning.\n\nA skill that has never been rehearsed, a value nobody supplied, a write with\nnobody's name behind it: all of them answer here, to the person who can do\nsomething about it, weeks before the first firing.",
+        "description": "Everything refusable is refused now rather than at three in the morning.\n\nA skill that has never been rehearsed, a value nobody supplied, a write with\nnobody's name behind it: all of them answer here, to the person who can do\nsomething about it, weeks before the first firing.\n\n`skill_id` or `workflow_id`, never both. The second is a job the rig mined,\nwhich until now could be started by a person accepting an offer in their\nown browser and by nothing else.",
         "operationId": "create_trigger_v1_triggers_post",
         "parameters": [
           {
@@ -29948,8 +29948,26 @@
             "title": "Trigger Id"
           },
           "skill_id": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Skill Id"
+          },
+          "workflow_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workflow Id"
           },
           "skill_name": {
             "type": "string",
@@ -29985,7 +30003,6 @@
         "required": [
           "id",
           "trigger_id",
-          "skill_id",
           "skill_name",
           "asked_at",
           "expires_at",
@@ -31604,8 +31621,26 @@
       "NewTriggerRequest": {
         "properties": {
           "skill_id": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Skill Id"
+          },
+          "workflow_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workflow Id"
           },
           "kind": {
             "$ref": "#/components/schemas/TriggerKind",
@@ -31683,9 +31718,6 @@
           }
         },
         "type": "object",
-        "required": [
-          "skill_id"
-        ],
         "title": "NewTriggerRequest"
       },
       "NoticingModel": {
@@ -34739,8 +34771,26 @@
             "title": "Id"
           },
           "skill_id": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Skill Id"
+          },
+          "workflow_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workflow Id"
           },
           "kind": {
             "type": "string",
@@ -34885,7 +34935,6 @@
         "type": "object",
         "required": [
           "id",
-          "skill_id",
           "kind",
           "cron",
           "timezone",

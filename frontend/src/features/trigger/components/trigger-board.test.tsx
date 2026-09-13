@@ -19,6 +19,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { TriggerBoard } from "@/features/trigger/components/trigger-board";
 import * as triggerApi from "@/features/trigger/api";
 import * as skillApi from "@/features/skill/api";
+import * as workflowApi from "@/features/workflow/api";
 
 const DEVICE = {
   id: "dev-1",
@@ -94,9 +95,9 @@ describe("putting a skill on a clock", () => {
     await screen.findByRole("option", { name: "Adjust an LPN" });
 
     expect(screen.getByRole("button", { name: "Schedule it" })).toBeDisabled();
-    expect(screen.getByText(/still needed: a skill/i)).toBeInTheDocument();
+    expect(screen.getByText(/still needed: something to run/i)).toBeInTheDocument();
 
-    await userEvent.setup().selectOptions(screen.getByLabelText("Skill"), "skl-1");
+    await userEvent.setup().selectOptions(screen.getByLabelText("What runs"), "skill:skl-1");
     expect(screen.queryByText(/still needed/i)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Schedule it" })).toBeEnabled();
   });
@@ -113,7 +114,7 @@ describe("putting a skill on a clock", () => {
     // Waits for the skill list to arrive: a select with no options yet is a
     // select nobody can choose from, which is also true of the real screen.
     await screen.findByRole("option", { name: "Adjust an LPN" });
-    await user.selectOptions(screen.getByLabelText("Skill"), "skl-1");
+    await user.selectOptions(screen.getByLabelText("What runs"), "skill:skl-1");
     await user.click(screen.getByRole("button", { name: "Schedule it" }));
 
     await waitFor(() => expect(created).toHaveBeenCalled());
@@ -136,7 +137,7 @@ describe("putting a skill on a clock", () => {
     show();
     const user = userEvent.setup();
     await screen.findByRole("option", { name: "Adjust an LPN" });
-    await user.selectOptions(screen.getByLabelText("Skill"), "skl-1");
+    await user.selectOptions(screen.getByLabelText("What runs"), "skill:skl-1");
     // A browser first. A schedule that runs on the server has no screen to
     // take, so the permission is not offered until one is named.
     await user.selectOptions(screen.getByLabelText("Where it runs"), "dev-1");
@@ -168,7 +169,7 @@ describe("choosing when it runs", () => {
     show();
     const user = userEvent.setup();
     await screen.findByRole("option", { name: "Adjust an LPN" });
-    await user.selectOptions(screen.getByLabelText("Skill"), "skl-1");
+    await user.selectOptions(screen.getByLabelText("What runs"), "skill:skl-1");
     await user.selectOptions(screen.getByLabelText("When"), "weekly");
     await user.selectOptions(screen.getByLabelText("Day"), "3");
 
@@ -192,7 +193,7 @@ describe("choosing when it runs", () => {
     show();
     const user = userEvent.setup();
     await screen.findByRole("option", { name: "Adjust an LPN" });
-    await user.selectOptions(screen.getByLabelText("Skill"), "skl-1");
+    await user.selectOptions(screen.getByLabelText("What runs"), "skill:skl-1");
     await user.selectOptions(screen.getByLabelText("When"), "custom");
     const written = screen.getByLabelText("Cron expression");
     await user.clear(written);
@@ -278,7 +279,7 @@ describe("a permission that could not reach anything", () => {
     show();
     const user = userEvent.setup();
     await screen.findByRole("option", { name: "Adjust an LPN" });
-    await user.selectOptions(screen.getByLabelText("Skill"), "skl-1");
+    await user.selectOptions(screen.getByLabelText("What runs"), "skill:skl-1");
     await user.selectOptions(screen.getByLabelText("Where it runs"), "dev-1");
     await user.click(screen.getByLabelText("May bring a tab to the front"));
     await user.selectOptions(screen.getByLabelText("Where it runs"), "");
@@ -310,7 +311,7 @@ describe("a skill that touches two systems", () => {
     show();
     const user = userEvent.setup();
     await screen.findByRole("option", { name: "Close waves, then record the receipt" });
-    await user.selectOptions(screen.getByLabelText("Skill"), "skl-1");
+    await user.selectOptions(screen.getByLabelText("What runs"), "skill:skl-1");
 
     expect(screen.getByRole("option", { name: "on the server, as calls" })).toBeDisabled();
     expect(screen.getByText(/signed in to both/)).toBeInTheDocument();
@@ -332,7 +333,7 @@ describe("a skill that touches two systems", () => {
     show();
     const user = userEvent.setup();
     await screen.findByRole("option", { name: "Close waves, then record the receipt" });
-    await user.selectOptions(screen.getByLabelText("Skill"), "skl-1");
+    await user.selectOptions(screen.getByLabelText("What runs"), "skill:skl-1");
     await user.selectOptions(screen.getByLabelText("Where it runs"), "dev-1");
     await user.click(screen.getByRole("button", { name: "Schedule it" }));
 
@@ -341,5 +342,101 @@ describe("a skill that touches two systems", () => {
     // opposite: the steps are calls, and the browser is there for the session
     // each system's own tab holds.
     expect(created.mock.calls[0][0]).toMatchObject({ device_id: "dev-1", medium: "network" });
+  });
+});
+
+describe("a mined job on a clock", () => {
+  /**
+   * Until a trigger could name one, nothing but a person accepting an offer in
+   * the panel could ever start a job. What these check is that the two things
+   * a job cannot do without — a browser, and a name behind it — are refused on
+   * the page rather than after the press.
+   */
+  const JOB = {
+    id: "wfl_1",
+    title: "Create a work area",
+    narrative: "the operator created a work area",
+    systems: ["blue_yonder"],
+    pass_id: "pass-1",
+    parameters: [{ name: "clientCode" }],
+    unproven: [],
+    steps: [],
+    runs: { total: 0, held: 0, earned: false },
+  } as unknown as workflowApi.WorkflowModel;
+
+  it("offers the proven jobs and not the ones an offer would never be made for", async () => {
+    vi.spyOn(triggerApi, "listTriggers").mockResolvedValue([]);
+    vi.spyOn(triggerApi, "listDevices").mockResolvedValue([DEVICE]);
+    vi.spyOn(skillApi, "listSkills").mockResolvedValue([] as never);
+    vi.spyOn(workflowApi, "listWorkflows").mockResolvedValue([
+      JOB,
+      { ...JOB, id: "wfl_2", title: "Half a job", unproven: ["step 1 cites nothing"] },
+    ]);
+
+    show();
+
+    expect(await screen.findByRole("option", { name: "Create a work area" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Half a job" })).not.toBeInTheDocument();
+  });
+
+  it("will not schedule one without a browser and a name behind it", async () => {
+    // A job is a recording of somebody's own window: there is no headless path
+    // for one, and driving a real browser through real work needs a name.
+    vi.spyOn(triggerApi, "listTriggers").mockResolvedValue([]);
+    vi.spyOn(triggerApi, "listDevices").mockResolvedValue([DEVICE]);
+    vi.spyOn(skillApi, "listSkills").mockResolvedValue([] as never);
+    vi.spyOn(workflowApi, "listWorkflows").mockResolvedValue([JOB]);
+
+    show();
+    const user = userEvent.setup();
+    await screen.findByRole("option", { name: "Create a work area" });
+    await user.selectOptions(screen.getByLabelText("What runs"), "job:wfl_1");
+
+    expect(screen.getByRole("option", { name: "on the server, as calls" })).toBeDisabled();
+    expect(screen.getByText(/a browser to run it in, your name behind it/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Schedule it" })).toBeDisabled();
+  });
+
+  it("names the job rather than a skill, and runs it in that browser", async () => {
+    vi.spyOn(triggerApi, "listTriggers").mockResolvedValue([]);
+    vi.spyOn(triggerApi, "listDevices").mockResolvedValue([DEVICE]);
+    vi.spyOn(skillApi, "listSkills").mockResolvedValue([] as never);
+    vi.spyOn(workflowApi, "listWorkflows").mockResolvedValue([JOB]);
+    const created = vi.spyOn(triggerApi, "createTrigger").mockResolvedValue(aTrigger());
+
+    show();
+    const user = userEvent.setup();
+    await screen.findByRole("option", { name: "Create a work area" });
+    await user.selectOptions(screen.getByLabelText("What runs"), "job:wfl_1");
+    await user.selectOptions(screen.getByLabelText("Where it runs"), "dev-1");
+    await user.click(screen.getByLabelText("I stand behind every run this starts"));
+    await user.click(screen.getByRole("button", { name: "Schedule it" }));
+
+    await waitFor(() => expect(created).toHaveBeenCalled());
+    // Exactly one of the two, which is the rule `Trigger` keeps.
+    expect(created.mock.calls[0][0]).toMatchObject({
+      workflow_id: "wfl_1",
+      skill_id: null,
+      device_id: "dev-1",
+      medium: "ui",
+      authorized_by: true,
+      auto_approve: false,
+    });
+  });
+
+  it("shows an existing job trigger by its title, not by its id", async () => {
+    vi.spyOn(triggerApi, "listDevices").mockResolvedValue([]);
+    vi.spyOn(skillApi, "listSkills").mockResolvedValue([] as never);
+    vi.spyOn(workflowApi, "listWorkflows").mockResolvedValue([JOB]);
+    vi.spyOn(triggerApi, "listTriggers").mockResolvedValue([
+      aTrigger({ skill_id: null, workflow_id: "wfl_1", device_id: "dev-1", medium: "ui" }),
+    ]);
+
+    show();
+
+    // The row, not the option of the same name in the picker below it.
+    const row = await screen.findByRole("row", { name: /Create a work area/ });
+    expect(row).toBeInTheDocument();
+    expect(screen.getByText(/a mined job/)).toBeInTheDocument();
   });
 });

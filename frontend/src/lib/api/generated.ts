@@ -311,8 +311,10 @@ export interface paths {
          * List Confirmations
          * @description What is waiting, oldest first.
          *
-         *     The skill's name comes along because the card is read by somebody deciding,
-         *     and an id is not something anybody decides about.
+         *     The name comes along because the card is read by somebody deciding, and an
+         *     id is not something anybody decides about. Where the card asks about a
+         *     mined job that name is the job's title -- the same sentence the console's
+         *     Jobs page shows and the panel's offer says out loud.
          */
         get: operations["list_confirmations_v1_confirmations_get"];
         put?: never;
@@ -1777,6 +1779,10 @@ export interface paths {
          *     A skill that has never been rehearsed, a value nobody supplied, a write with
          *     nobody's name behind it: all of them answer here, to the person who can do
          *     something about it, weeks before the first firing.
+         *
+         *     `skill_id` or `workflow_id`, never both. The second is a job the rig mined,
+         *     which until now could be started by a person accepting an offer in their
+         *     own browser and by nothing else.
          */
         post: operations["create_trigger_v1_triggers_post"];
         delete?: never;
@@ -2686,7 +2692,9 @@ export interface components {
             /** Trigger Id */
             trigger_id: string;
             /** Skill Id */
-            skill_id: string;
+            skill_id?: string | null;
+            /** Workflow Id */
+            workflow_id?: string | null;
             /** Skill Name */
             skill_name: string;
             /**
@@ -3464,7 +3472,9 @@ export interface components {
         /** NewTriggerRequest */
         NewTriggerRequest: {
             /** Skill Id */
-            skill_id: string;
+            skill_id?: string | null;
+            /** Workflow Id */
+            workflow_id?: string | null;
             /** @default schedule */
             kind: components["schemas"]["TriggerKind"];
             /** Cron */
@@ -4751,7 +4761,9 @@ export interface components {
             /** Id */
             id: string;
             /** Skill Id */
-            skill_id: string;
+            skill_id?: string | null;
+            /** Workflow Id */
+            workflow_id?: string | null;
             /** Kind */
             kind: string;
             /** Cron */

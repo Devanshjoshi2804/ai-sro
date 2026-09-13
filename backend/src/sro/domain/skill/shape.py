@@ -106,6 +106,33 @@ def cited_pairs(workflow: Workflow, by_id: Mapping[str, Gesture]) -> list[tuple[
     )
 
 
+def put_by(gesture: Gesture) -> set[str]:
+    """What this gesture put into the form, as strings a seen value can match.
+
+    Typing carries it in `action.value`. A pick from a dropdown does not. The
+    WMS's combo is an ExtJS one: the operator clicks the field, a floating list
+    appears, and they click a row of it -- two clicks, neither with a value,
+    and what they chose is the clicked row's TEXT. So ten of the forty declared
+    parameters across both real stores had no shape index, every one of them a
+    dropdown, and an offer could not lift `External System Name` off a live
+    tail even where the operator had just picked it.
+
+    Matching the text against the parameter's own `seen_values` is what keeps
+    this honest: every click has a label, and "Save" is not a value anybody
+    declared. A credential contributes nothing, the rule `typed_values` and the
+    tail already wear.
+    """
+    if gesture.action.secret or (gesture.action.target and gesture.action.target.secret):
+        return set()
+    found: set[str] = set()
+    if gesture.action.value is not None:
+        found.add(str(gesture.action.value).strip())
+    target = gesture.action.target
+    if gesture.action.kind == "click" and target and target.text:
+        found.add(target.text.strip())
+    return {value for value in found if value}
+
+
 def typed_at(cited: list[tuple[Gesture, Step]], parameter: dict[str, object]) -> int | None:
     """Where in the shape this parameter was typed, by the step that declares it.
 
@@ -119,7 +146,7 @@ def typed_at(cited: list[tuple[Gesture, Step]], parameter: dict[str, object]) ->
     values = parameter.get("seen_values")
     seen: set[str] = {str(v) for v in values} if isinstance(values, list) else set()
     for index, (gesture, step) in enumerate(cited):
-        if name in step.parameters and gesture.action.value in seen:
+        if name in step.parameters and seen & put_by(gesture):
             return index
     # A parameter learned across doings (`parameters_across`) is recorded on
     # the workflow and on no step: it is named after the control it was typed
@@ -128,7 +155,7 @@ def typed_at(cited: list[tuple[Gesture, Step]], parameter: dict[str, object]) ->
     # `workArea` -- and without it every learned parameter had no index and
     # no offer could lift its value from a tail.
     for index, (gesture, _) in enumerate(cited):
-        if control_name(gesture) == name and gesture.action.value in seen:
+        if control_name(gesture) == name and seen & put_by(gesture):
             return index
     return None
 

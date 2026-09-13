@@ -40,6 +40,24 @@ export function tailWith(tail, entry) {
   return [...fresh, entry].slice(-K_TAIL);
 }
 
+/** What a gesture with no `value` put into the form: the label of what it
+ *  clicked. The WMS's dropdown is an ExtJS combo -- clicking the field opens a
+ *  floating list and the operator clicks a row of it, so the choice is carried
+ *  by that row's text and by no `value` anywhere. Ten of the forty parameters
+ *  declared across both real stores are dropdowns, and each one reached the
+ *  offer as an empty box however plainly the operator had just picked it.
+ *
+ *  Clicks only: a press or a scroll lands on a control whose text is the
+ *  page's rather than the operator's answer. What keeps the rest honest is
+ *  `valuesFrom`, which reads only the positions a served shape indexes -- and
+ *  the miner indexes one only where that label matched a value the job was
+ *  seen taking, so the click on Save is never anybody's answer. */
+export function chosen(gesture) {
+  if (gesture.kind !== "click" || gesture.target?.secret) return null;
+  const text = typeof gesture.target?.text === "string" ? gesture.target.text.trim() : "";
+  return text || null;
+}
+
 function endsWith(tail, prefix) {
   if (prefix.length > tail.length) return false;
   const from = tail.length - prefix.length;

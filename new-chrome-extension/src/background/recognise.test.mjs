@@ -1,7 +1,7 @@
 // recognise.test.mjs
 import assert from "node:assert/strict";
 import test from "node:test";
-import { K_OFFER_AFTER, K_TAIL, K_TAIL_TTL_S, diverged, match, resting, tailWith, valuesFrom } from "./recognise.js";
+import { K_OFFER_AFTER, K_TAIL, K_TAIL_TTL_S, chosen, diverged, match, resting, tailWith, valuesFrom } from "./recognise.js";
 
 const H = "https://wms.example";
 const workArea = {
@@ -195,4 +195,43 @@ test("a gesture older than the tail's lifetime is not the start of today's job",
   tail = tailWith(tail, { triple: [H, "wm.workAreas.desc", "type"], value: "b", secret: false, at: 1000 + K_TAIL_TTL_S + 1 });
   assert.equal(tail.length, 1, "yesterday's gesture fell out");
   assert.equal(match(tail, shapes), null, "one fresh gesture is not a prefix");
+});
+
+test("a dropdown pick answers with the row it clicked", () => {
+  // The WMS's combo is ExtJS: clicking the field opens a floating list and the
+  // operator clicks a row of it. The choice is that row's text and there is no
+  // `value` anywhere -- ten of the forty parameters across both real stores
+  // are this, and each one drew an empty box on the offer.
+  const shape = {
+    shape: [
+      ["https://wms.example", "combo|click", "click"],
+      ["https://wms.example", "rpComboBoundList|click", "click"],
+    ],
+    parameters: [{ name: "External System Name", at: 1 }],
+  };
+  const tail = [
+    { triple: shape.shape[0], value: null, at: 1 },
+    { triple: shape.shape[1], value: "ConnectShip (TanData)", at: 2 },
+  ];
+
+  const found = valuesFrom(tail, shape, 2);
+
+  assert.deepEqual(found.values, { "External System Name": "ConnectShip (TanData)" });
+  assert.deepEqual(found.missing, []);
+});
+
+test("a click with no value answers with what it clicked on", () => {
+  const pick = { kind: "click", target: { text: "  ConnectShip (TanData)  " } };
+  assert.equal(chosen(pick), "ConnectShip (TanData)");
+});
+
+test("only a click, only a label, and never a struck-out one", () => {
+  // A press or a scroll lands on a control whose text is the page's rather
+  // than the operator's answer. A credential field contributes the fact that
+  // it was typed and nothing else -- the rule the tail already wears.
+  assert.equal(chosen({ kind: "press", target: { text: "Search" } }), null);
+  assert.equal(chosen({ kind: "click", target: { text: "   " } }), null);
+  assert.equal(chosen({ kind: "click", target: {} }), null);
+  assert.equal(chosen({ kind: "click" }), null);
+  assert.equal(chosen({ kind: "click", target: { text: "hunter2", secret: true } }), null);
 });

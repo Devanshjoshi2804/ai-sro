@@ -45,7 +45,7 @@ from sro.container import build_container
 from sro.domain.observation.gesture import Gesture
 from sro.domain.observation.identity import shape_key
 from sro.domain.shared.identifiers import PrincipalId, TenantId
-from sro.domain.skill.shape import in_time_order
+from sro.domain.skill.shape import in_time_order, put_by
 from sro.domain.skill.workflow import Workflow, ordered_cites
 
 TYPED = "•"
@@ -85,9 +85,12 @@ def _gestures_of(workflow: Workflow, by_id: Mapping[str, Gesture]) -> list[dict[
     return [
         {
             "triple": list(triple),
-            "value": TYPED
-            if gesture.action.value is not None and str(gesture.action.value) in seen
-            else None,
+            # `put_by` and not `action.value`: a dropdown pick is a click on a
+            # row of a floating list and carries its answer in that row's text,
+            # which is what the service worker now writes into the tail. Asking
+            # the narrower question here would replay a browser that never
+            # existed and report every dropdown parameter unanswered.
+            "value": TYPED if seen & put_by(gesture) else None,
             "secret": bool(
                 gesture.action.secret or (gesture.action.target and gesture.action.target.secret)
             ),

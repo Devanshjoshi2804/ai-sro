@@ -7,10 +7,11 @@ application layer -- the tests that exercise them are listed at the foot.
 """
 
 import copy
+from dataclasses import replace
 
-from sro.domain.observation.gesture import Action, Gesture
+from sro.domain.observation.gesture import Action, Component, Gesture, Target
 from sro.domain.skill.offers import K_OFFER_AFTER, Counsel
-from sro.domain.skill.shape import Shape, cited_pairs, shape_of
+from sro.domain.skill.shape import Shape, cited_pairs, put_by, shape_of
 from sro.domain.skill.workflow import Step, Workflow
 from tests.unit.domain.rig.conftest import gestures as _gestures
 
@@ -346,3 +347,74 @@ def test_a_parameter_learned_across_doings_is_placed_by_the_control_that_typed_i
 #   test_a_workflow_that_cannot_be_rekeyed_does_not_stop_the_others
 #   test_a_resting_job_is_served_marked_for_the_browser_that_refused_it
 #     -- the counsel query behind it; the shape's own half is above.
+
+
+def _picked(text: str, at: float = 1788165604.9) -> Gesture:
+    """A click on a row of a floating list -- the WMS's ExtJS combo, whose
+    answer is the row's text and whose `value` is nothing at all."""
+    return Gesture(
+        id=f"ges_picked_{text[:6]}",
+        tenant="acme",
+        stream_id="dev_browsertest",
+        batch_id="bat_picked",
+        at=at,
+        url=f"{HOST}/",
+        system=HOST,
+        tab_id=1766715008,
+        frame_url=f"{HOST}/",
+        action=Action(
+            kind="click",
+            at=at,
+            value=None,
+            url=f"{HOST}/",
+            target=Target(tag="li", text=text, component=Component(item_id="rpComboBoundList")),
+        ),
+        page_url=f"{HOST}/",
+    )
+
+
+def test_a_dropdown_pick_is_indexed_by_what_it_clicked_on() -> None:
+    """Ten of the forty declared parameters across both real stores had no
+    shape index, every one of them a dropdown: clicking a row of an ExtJS
+    combo's floating list carries the choice in the row's TEXT and in no
+    `value` anywhere, so an offer drew an empty box for `External System Name`
+    however plainly the operator had just picked it."""
+    by_id = _evidence()
+    workflow = _workflow(by_id)
+    picked = _picked("ConnectShip (TanData)")
+    by_id[picked.id] = picked
+    workflow.steps.append(
+        Step(order=2, says="pick the system", system=None, cites=[picked.id], parameters=["system"])
+    )
+    workflow.parameters.append({"name": "system", "seen_values": ["ConnectShip (TanData)"]})
+
+    shape = _served(workflow, by_id)
+
+    assert shape is not None
+    assert {"name": "system", "at": 2} in shape.parameters
+
+
+def test_a_label_no_seen_value_matches_is_nobodys_answer() -> None:
+    """Every click has a label, and the match against the parameter's own
+    `seen_values` is the whole of what keeps this honest: the click on Save is
+    still a click on Save."""
+    by_id = _evidence()
+    workflow = _workflow(by_id)
+    saver = _saver(by_id)
+    assert saver.action.target is not None
+    saver.action = replace(saver.action, target=replace(saver.action.target, text="Save"))
+    workflow.parameters.append({"name": "system", "seen_values": ["ConnectShip (TanData)"]})
+
+    shape = _served(workflow, by_id)
+
+    assert shape is not None
+    assert {"name": "system", "at": None} in shape.parameters
+
+
+def test_a_pick_on_a_struck_out_control_puts_nothing() -> None:
+    """The rule `typed_values` and the browser's own tail already wear."""
+    picked = _picked("ConnectShip (TanData)")
+    assert picked.action.target is not None
+    struck = replace(picked.action, target=replace(picked.action.target, secret=True))
+
+    assert put_by(replace(picked, action=struck)) == set()

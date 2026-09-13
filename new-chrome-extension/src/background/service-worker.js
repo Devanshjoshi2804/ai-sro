@@ -19,7 +19,7 @@ import {
 } from "./scripts.js";
 import { LIFETIME_MS, fire, mute, onCall, page as pageOf, shouldFire, sweep } from "../panel/nudge.js";
 import { decideOffer } from "./offering.js";
-import { resting, tailWith } from "./recognise.js";
+import { chosen, resting, tailWith } from "./recognise.js";
 import { tripleOf } from "./shape.generated.js";
 import { hideNudge, showNudge } from "./showing.js";
 import { capture } from "./shots.js";
@@ -333,7 +333,17 @@ async function considerOffer(tabId, gesture) {
       // A credential field contributes the fact that it was typed and nothing
       // else: the shape still matches, and the offer simply has one more
       // parameter it has to ask for.
-      value: gesture.secret ? null : (gesture.value ?? null),
+      //
+      // A click falls back to what it clicked ON. The WMS's dropdown is an
+      // ExtJS combo: clicking the field opens a floating list and the operator
+      // clicks a row of it, so the choice is carried by the row's text and by
+      // no `value` anywhere. Without this the offer for a job whose parameter
+      // is a dropdown draws an empty box for it however plainly the operator
+      // just picked it. Only positions a served shape indexes are ever read
+      // (`valuesFrom`), and a shape indexes one only where the miner matched
+      // that text against a value the job was seen taking -- so "Save" never
+      // becomes anybody's answer.
+      value: gesture.secret ? null : (gesture.value ?? chosen(gesture)),
       secret: Boolean(gesture.secret || gesture.target?.secret),
       at: gesture.at,
     });

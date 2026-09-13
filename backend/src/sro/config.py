@@ -338,9 +338,21 @@ class Settings(BaseSettings):
     tenant's evidence, and the carry-over pool rotates which evidence that is:
     measured over ten simulated passes, pass 1 covered 81% and pass 2 96%, with
     nineteen gestures never shown. So passes are how coverage is bought, and an
-    hour buys a working day in a working day. What stops it costing more than
-    that is `daily_usd_cap`, checked before the window is packed -- a cap
-    reached is logged per tenant and is not an error.
+    hour buys a working day in a working day.
+
+    What stops it costing more than that is `daily_usd_cap`, which `over_cap`
+    measures PER TENANT -- so a busy tenant cannot spend a quiet one's budget,
+    and the sweep's alphabetical order decides nothing. Measured over the 38
+    passes stored across both real tenants: mean $0.46 and $0.27, worst case
+    $2.00. Twenty-four hourly passes is therefore $7 to $11 a day against a
+    default cap of $100, and even the worst pass repeated hourly stops at the
+    cap rather than past it. A cap reached is logged per tenant and is not an
+    error.
+
+    A tenant whose browsers uploaded nothing in `mining_window_hours` is not
+    swept at all. A pass re-reads that tenant's whole history, so one with no
+    new evidence has nothing new to learn and would be paying to re-read a
+    month nobody added to.
 
     A loop rather than a schedule, for the same reason as the session keeper:
     it holds no state worth replaying, and a missed sweep is corrected by the

@@ -39,7 +39,7 @@ import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 EXTENSION = Path(__file__).resolve().parents[2] / "new-chrome-extension"
 API = os.environ.get("SRO_API_URL", "http://localhost:8000")
@@ -87,8 +87,15 @@ PAGE = """<!doctype html>
         headers: {'content-type': 'application/json'},
         body: JSON.stringify({clientCode: document.getElementById('client').value}),
       });
+      // The read a page performs to show what it just saved. Not decoration:
+      // `confirming_read` is what lets `verify` reach rung 2 and settle a
+      // write by STATE rather than by a picture, and only a state belt's
+      // verdict is an effect a job can earn autonomy with. A page that never
+      // reads back can be driven correctly forever and never earn anything.
+      const back = await fetch('/api/orders?latest=1');
+      const saved = await back.json();
       document.getElementById('f').insertAdjacentHTML(
-        'afterend', '<p id="saved">Saved ' + document.getElementById('client').value + '</p>');
+        'afterend', '<p id="saved">Saved ' + saved.clientCode + '</p>');
       window.__done = true;
     });
   </script>
@@ -101,6 +108,11 @@ class _Depot(BaseHTTPRequestHandler):
 
     protocol_version = "HTTP/1.1"
 
+    writes: ClassVar[list[str]] = []
+    """Every mutation this depot was actually sent. The operator's own doing is
+    the first; anything after it came from the run, which is the only evidence
+    that a write really went out rather than being reported as though it had."""
+
     def log_message(self, *_: Any) -> None:
         return
 
@@ -112,11 +124,16 @@ class _Depot(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_GET(self) -> None:
+        if self.path.startswith("/api/orders"):
+            latest = json.loads(_Depot.writes[-1]) if _Depot.writes else {}
+            self._send(200, json.dumps(latest).encode(), "application/json")
+            return
         self._send(200, PAGE.encode(), "text/html; charset=utf-8")
 
     def do_POST(self) -> None:
         length = int(self.headers.get("content-length") or 0)
-        self.rfile.read(length)
+        body = self.rfile.read(length)
+        _Depot.writes.append(body.decode("utf-8", "replace"))
         # 201, which is what every real create in both stores came back with.
         self._send(201, b'{"ok": true}', "application/json")
 
@@ -163,6 +180,42 @@ def _watch_this_tab(context: Any, worker: Any, page: Any) -> None:
     answer = _ask(context, worker, {"kind": "watch-tab", "tabId": tab_id})
     if "error" in answer:
         raise SystemExit(f"could not watch that tab: {answer}")
+
+
+def _approve_in_the_panel(context: Any, worker: Any, run_id: str) -> None:
+    """Press Approve, in the real panel, as this browser.
+
+    The half nothing in this repository had ever exercised. A parked run is a
+    live Chrome holding a warehouse write open, and every approval this system
+    has recorded was tapped with the tenant's bare credential naming no browser
+    -- the supervisor's-console path, which skips `approver_is_the_driver`
+    entirely. This is the other one: the panel never holds the rig's bearer, so
+    the press goes to the worker, which sends the run id with this device's own
+    `?device_id=` and `X-Device-Secret`.
+
+    Through the button rather than the message behind it. `run-card.js` draws
+    Approve only on a step whose outcome is `awaiting` AND only while the run is
+    live, and the panel only draws the card at all once the worker has adopted
+    the run -- `commands.js` writes `source: "rig"` for every command arriving
+    on the rig's channel, whoever started it. Sending `approve-rig-run` by hand
+    would prove the backend door and skip every one of those.
+    """
+    panel = context.new_page()
+    panel.goto(f"{worker.url.rsplit('/src/', 1)[0]}/src/panel/panel.html")
+    approve = panel.get_by_role("button", name="Approve")
+    try:
+        approve.wait_for(timeout=90_000)
+    except Exception as never:
+        panel.close()
+        raise SystemExit(
+            f"the panel never offered Approve for {run_id}; the run parked somewhere"
+            f" the panel could not see it: {never}"
+        ) from never
+    print("-- the panel is asking; pressing Approve as this browser")
+    approve.click()
+    # Left open: the panel polls the run, and closing it here would take the
+    # only thing watching the write it just let out.
+    return
 
 
 def _mint(tenant: str) -> str:
@@ -263,6 +316,19 @@ def main() -> int:
     parser.add_argument("--tenant", default=TENANT)
     parser.add_argument("--port", type=int, default=63319, help="where the depot is served")
     parser.add_argument("--headed", action="store_true", help="watch it happen")
+    parser.add_argument(
+        "--runs",
+        type=int,
+        default=1,
+        help="how many times to do the job. K_EARNED_RUNS live runs whose every"
+        " write a state belt verified is what retires the approval tap, so"
+        " --live --runs 4 is the whole ladder: three taps, then none.",
+    )
+    parser.add_argument(
+        "--live",
+        action="store_true",
+        help="let the write out, after a person presses Approve in the panel",
+    )
     parser.add_argument("--keep", action="store_true", help="leave the browser open at the end")
     args = parser.parse_args()
 
@@ -329,42 +395,73 @@ def main() -> int:
                 ).result()
             print(f"-- a job now stands on that evidence: {workflow_id}")
 
-            run = call(
-                "/v1/workflow-runs",
-                token,
-                {
-                    "workflow_id": workflow_id,
-                    "device_id": device,
-                    "values": {"clientCode": "ENVEYO-9"},
-                    "live": False,
-                },
-            )
-            print(f"-- run {run['id']} started; the browser is being driven")
+            worst = 0
+            for attempt in range(args.runs):
+                # The operator's own doing is the first write this depot saw.
+                # Anything after it came from a run.
+                by_hand = len(_Depot.writes)
+                value = f"ENVEYO-{attempt + 1}"
 
-            for _ in range(120):
-                run = call(f"/v1/workflow-runs/{run['id']}", token)
-                if run["outcome"] != "running":
-                    break
-                # Playwright's own loop has to keep turning or the page the run
-                # is driving never repaints.
-                page.wait_for_timeout(500)
+                run = call(
+                    "/v1/workflow-runs",
+                    token,
+                    {
+                        "workflow_id": workflow_id,
+                        "device_id": device,
+                        "values": {"clientCode": value},
+                        "live": args.live,
+                    },
+                )
+                print(
+                    f"\n-- run {attempt + 1} of {args.runs}: {run['id']}"
+                    f" {'live' if args.live else 'dry'}, asking for {value}"
+                )
 
-            print(f"\n== outcome: {run['outcome']}")
-            for step in run["steps"]:
+                tapped = False
+                for _ in range(240):
+                    run = call(f"/v1/workflow-runs/{run['id']}", token)
+                    if run["outcome"] != "running":
+                        break
+                    # A live run parks on the write and waits for a person.
+                    # This is the person -- until the job has EARNED the right
+                    # to write unasked, at which point nothing parks and this
+                    # never fires. That is the whole ladder, and the only way
+                    # to see it is to run the same job until it climbs.
+                    if (
+                        args.live
+                        and not tapped
+                        and any(s["verdict"] == "awaiting" for s in run["steps"])
+                    ):
+                        _approve_in_the_panel(context, worker, run["id"])
+                        tapped = True
+                    # Playwright's own loop has to keep turning or the page the
+                    # run is driving never repaints.
+                    page.wait_for_timeout(500)
+
+                print(f"== outcome: {run['outcome']}" + ("" if tapped else "  (nobody was asked)"))
+                for step in run["steps"]:
+                    print(
+                        f"   step {step['order']}: {step['verdict']}"
+                        f" by {step.get('verdict_by')} -- {step.get('reason')}"
+                    )
+                for held_back in run["withheld"]:
+                    # `step`, not `order`: `_withheld` names the step under the
+                    # key a person reading the panel sees.
+                    print(
+                        f"   withheld from step {held_back.get('step')}:"
+                        f" {held_back.get('method')} {held_back.get('url')}"
+                    )
+                sent = _Depot.writes[by_hand:]
                 print(
-                    f"   step {step['order']}: {step['verdict']}"
-                    f" by {step.get('verdict_by')} -- {step.get('reason')}"
+                    f"   writes the depot actually received from the run: {len(sent)}"
+                    + (f" -- {sent[0]}" if sent else "")
                 )
-            for held_back in run["withheld"]:
-                # `step`, not `order`: `_withheld` names the step under the key
-                # a person reading the panel sees.
-                print(
-                    f"   withheld from step {held_back.get('step')}:"
-                    f" {held_back.get('method')} {held_back.get('url')}"
-                )
+                if run["outcome"] != "held":
+                    worst = 2
+
             if args.keep:
                 input("-- press return to close the browser")
-            return 0 if run["outcome"] == "held" else 2
+            return worst
         finally:
             context.close()
             server.shutdown()

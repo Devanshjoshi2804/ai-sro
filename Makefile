@@ -145,9 +145,13 @@ test-contract: ## Fuzz the API against its own OpenAPI schema
 one-whole-run: ## A job watched in a real Chrome and then done by the system, end to end
 	@# The only thing in this repository that finishes a workflow run. Needs
 	@# the API up and a Chromium Playwright can load an extension into; the
-	@# tenant is created by the first `make token` it does, and its observation
+	@# tenant is created by the first credential it mints, and its observation
 	@# policy has to be on (`make observe tenant=rigproof args=--on`).
-	$(BACKEND) uv run python scripts/one_whole_run.py
+	@#
+	@# `args="--live --runs 4"` is the whole ladder: three live runs each
+	@# stopped for a person to press Approve in the real panel, and a fourth
+	@# that nobody is asked about, because by then the job has earned it.
+	$(BACKEND) uv run python scripts/one_whole_run.py $(args)
 
 test-browser: ## Drive a real Chrome with the extension loaded
 	$(BACKEND) uv run pytest tests/browser -q

@@ -1513,6 +1513,16 @@ def test_the_panel_hands_the_console_the_credential_it_cannot_see(browser: Any, 
     frame = panel.frame_locator("#frame")
     frame.locator("h1").wait_for(timeout=15_000)
 
+    # The h1 is there as soon as the document parses, and the handshake is
+    # three message hops AFTER that: the console announces `sro.ready`, the
+    # panel posts the credential back, the console replies `sro.credential.ok`.
+    # Reading the frame on the h1 raced all three and failed about one in two
+    # runs, on a handshake that was working -- so this waits for the product's
+    # own health signal, which is the note clearing on that last reply.
+    panel.wait_for_function(
+        "() => document.getElementById('console-note').textContent === ''",
+        timeout=15_000,
+    )
     handed = panel.frames[1].evaluate("() => window.__handed")
     note = panel.text_content("#console-note")
     panel.close()

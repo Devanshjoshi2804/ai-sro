@@ -119,3 +119,59 @@ test("no live_headers at all sends exactly the headers it was given", async () =
   assert.equal(answer.ok, true);
   assert.deepEqual(sentHeaders, { "Content-Type": "application/json" });
 });
+
+test("X-Requested-With is taken off the page when the app sets one", async () => {
+  // Read first and only then defaulted: what the application sends beats what
+  // a spec says it ought to. Blue Yonder's ExtJS puts it on
+  // `Ajax.defaultHeaders` beside the CSRF token.
+  globalThis.window = {
+    Ext: { Ajax: { defaultHeaders: { "X-Requested-With": "WMS-Client" } } },
+  };
+  let sentHeaders;
+  globalThis.fetch = async (_url, init) => {
+    sentHeaders = init.headers;
+    return { status: 201, headers: new Map(), text: async () => "" };
+  };
+
+  const answer = await perform({
+    command_id: "cmd-xrw",
+    kind: "http.send",
+    payload: {
+      method: "POST",
+      url: "https://wms.example/data/WM/wm/workAreas",
+      headers: { "Content-Type": "application/json" },
+      live_headers: ["X-Requested-With"],
+    },
+  });
+
+  assert.equal(answer.ok, true);
+  assert.equal(sentHeaders["X-Requested-With"], "WMS-Client");
+});
+
+test("a page that sets none still sends the marker every XHR library sends", async () => {
+  // The difference between this header and the CSRF one: that is a credential
+  // and has no default, so a page without it is `unreachable`. This one is a
+  // fixed marker, struck out of the recording only because it sits in
+  // SECRET_HEADERS beside the real credentials -- and a write that arrives
+  // without it is refused before it is routed.
+  globalThis.window = { Ext: {} };
+  let sentHeaders;
+  globalThis.fetch = async (_url, init) => {
+    sentHeaders = init.headers;
+    return { status: 201, headers: new Map(), text: async () => "" };
+  };
+
+  const answer = await perform({
+    command_id: "cmd-xrw-2",
+    kind: "http.send",
+    payload: {
+      method: "POST",
+      url: "https://wms.example/data/WM/wm/workAreas",
+      headers: {},
+      live_headers: ["X-Requested-With"],
+    },
+  });
+
+  assert.equal(answer.ok, true);
+  assert.equal(sentHeaders["X-Requested-With"], "XMLHttpRequest");
+});

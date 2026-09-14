@@ -14,6 +14,7 @@
 
 import {
   csrfTokenInPage,
+  requestedWithInPage,
   performAtInPage,
   performInPage,
   sendInPage,
@@ -521,7 +522,10 @@ async function navigate(payload) {
  * matching `LIVE_FETCHABLE_HEADERS` on the backend -- a name the backend asks
  * for that is not here is `unreachable`, never silently dropped, because that
  * gap is a deployment the two sides disagree about, not a normal miss. */
-const LIVE_HEADER_SOURCES = { "csrf-encrypt-token": csrfTokenInPage };
+const LIVE_HEADER_SOURCES = {
+  "csrf-encrypt-token": csrfTokenInPage,
+  "x-requested-with": requestedWithInPage,
+};
 
 async function httpSend(payload) {
   const tab = await tabOnOrigin(payload?.url || "");

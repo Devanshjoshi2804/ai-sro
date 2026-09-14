@@ -18,7 +18,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from sro.domain.execution.planning import COMMAND_KINDS, KINDS
+from sro.domain.execution.planning import COMMAND_KINDS, KINDS, LIVE_FETCHABLE_HEADERS
 from sro.interface.http.app import create_app
 from sro.interface.http.schemas import WorkflowRunModel, WorkflowRunStepModel
 
@@ -175,6 +175,24 @@ def test_every_door_the_extension_knocks_on_is_one_this_app_opens() -> None:
         if path not in served and not (path.endswith("{}") and path[:-2] in served)
     )
     assert not missing, f"the extension calls {missing}, which this app does not serve"
+
+
+def test_the_extension_has_a_source_for_every_header_this_backend_asks_for() -> None:
+    """A sixth seam, and the narrowest: `LIVE_FETCHABLE_HEADERS` here,
+    `LIVE_HEADER_SOURCES` there.
+
+    The backend never sends a struck-out header's value -- it names the header
+    and the extension goes and finds it on the page. So a name on this list
+    with no source over there is a write that fails with `unreachable` at the
+    browser, which `commands.js` is careful to make loud rather than silently
+    dropping the header. Loud is still only loud at run time, in front of
+    somebody, on a call that was about to write to a warehouse.
+    """
+    menu = set(re.findall(r'"([a-z-]+)":\s*\w+InPage', _extension("commands.js")))
+    assert menu == set(LIVE_FETCHABLE_HEADERS), (
+        "one side asks for a header the other cannot find: "
+        f"backend {sorted(LIVE_FETCHABLE_HEADERS)}, extension {sorted(menu)}"
+    )
 
 
 def test_a_plan_may_name_only_the_kinds_a_model_is_offered() -> None:

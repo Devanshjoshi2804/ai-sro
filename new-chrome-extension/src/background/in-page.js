@@ -374,6 +374,26 @@ export function csrfTokenInPage() {
   return window.Ext?.Ajax?.defaultHeaders?.["CSRF-ENCRYPT-TOKEN"] ?? null;
 }
 
+/** What this page marks its own XHRs with.
+ *
+ * Read off the page first and only then defaulted, which is the difference
+ * between sending what the application sends and sending what a spec says it
+ * ought to. Blue Yonder's ExtJS puts it on `Ajax.defaultHeaders` beside the
+ * CSRF token; a framework that names itself instead would be sent its own
+ * name, and one that sets nothing gets the value every XHR library has used
+ * for twenty years.
+ *
+ * Not a credential, and that is why it can be defaulted at all. The recorder
+ * strikes it out because it sits in `SECRET_HEADERS` beside the real ones, so
+ * the recording carries a marker and not a value -- and a write that arrives
+ * without it is refused by an application that expects it before it is ever
+ * routed. Nothing is carried from the backend either way: the name is asked
+ * for, the value is found here.
+ */
+export function requestedWithInPage() {
+  return window.Ext?.Ajax?.defaultHeaders?.["X-Requested-With"] ?? "XMLHttpRequest";
+}
+
 /** Send a request from a tab that is already on that origin, so the operator's
  * own session applies -- which is why a skill can be replayed against a system
  * this deployment holds no credentials for at all.

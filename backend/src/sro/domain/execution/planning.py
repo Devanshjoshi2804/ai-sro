@@ -59,17 +59,25 @@ two sides of a wire drifts on one of them: `shape_of` served a shape
 lists together.
 """
 
-LIVE_FETCHABLE_HEADERS = frozenset({"csrf-encrypt-token"})
+LIVE_FETCHABLE_HEADERS = frozenset({"csrf-encrypt-token", "x-requested-with"})
 """Lower-cased header names the extension itself knows how to read off the
 live page, rather than out of a recording.
 
 Small and explicit on purpose, the same way `verified_writes.VerifiedWrite`
 is: the extension runs whatever JS this list names, so the list is a fixed
 menu the extension owns, never a JS snippet the backend sends down the wire
-to be run unexamined. One entry today -- `CSRF-ENCRYPT-TOKEN`, read off
-`Ext.Ajax.defaultHeaders` on a Blue Yonder page (see
-`sro.domain.execution.verified_writes`) -- and a header this deployment has
-no live source for is simply never asked for."""
+to be run unexamined. Two entries, both read off `Ext.Ajax.defaultHeaders` on
+a Blue Yonder page (see `sro.domain.execution.verified_writes`), and a header
+this deployment has no live source for is simply never asked for.
+
+`CSRF-ENCRYPT-TOKEN` is a credential and is struck out for that reason.
+`X-REQUESTED-WITH` is not one: its value is a fixed marker, and it is struck
+out because it sits in `redaction.SECRET_HEADERS` beside the real ones. Either
+way the recording carries a marker rather than a value, and a write that
+arrives without the header is refused by an application that expects it before
+it is ever routed -- so the same mechanism serves both. The alternative was to
+stop redacting it, which would have put a value this deployment has no use for
+into every stored request; asking the page is the narrower change."""
 
 PLAN_SCHEMA: dict[str, object] = {
     "type": "object",

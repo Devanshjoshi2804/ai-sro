@@ -5,8 +5,15 @@ from __future__ import annotations
 import re
 import secrets
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
-from sro.domain.skill.repeats import Repeat
+if TYPE_CHECKING:
+    # Under `TYPE_CHECKING` for a cycle, not for load time: `repeats.detect`
+    # reads a step's recorded call, `evidence` is where that lives, and
+    # `evidence` imports this module for `Step`. The annotation is a string
+    # either way -- `from __future__ import annotations` is the first line of
+    # this file -- and nothing here resolves it at runtime.
+    from sro.domain.skill.repeats import Repeat
 
 K_MIN_VALUE_LENGTH = 3
 """How long a parameter value has to be before a title repeating it is quoting

@@ -557,6 +557,50 @@ test("a run that made nothing says nothing about records", () => {
   assert.ok(!words(runCard({ run })).includes("made"));
 });
 
+test("a run that stopped to ask still says what it asked", () => {
+  // Twelve runs in one day, every one ending `stopped`, and every one drew
+  // this row as a bare pause glyph with no question on it -- the sentence was
+  // in the record and rendered only inside the branch that also holds the
+  // Approve, which a stopped run is not live enough to get.
+  const run = {
+    id: "run_1",
+    source: "rig",
+    status: "stopped",
+    steps: [
+      {
+        index: 0,
+        outcome: "awaiting",
+        says: "Click Save.",
+        reason: "the first of 3 is done — 8SITDWN2. Approve to do the other 2",
+      },
+    ],
+  };
+
+  const card = runCard({ run });
+
+  assert.match(words(card), /the first of 3 is done/, "the question was not drawn");
+  // The buttons stay with the live run: an awaiting row on a run that has
+  // ended is a record, and pressing Approve on it would approve nothing.
+  assert.deepEqual(of(card, "button").map((one) => one.textContent), []);
+});
+
+test("a live run still gets the two answers beside the question", () => {
+  const run = {
+    id: "run_2",
+    source: "rig",
+    status: "running",
+    steps: [
+      { index: 0, outcome: "awaiting", says: "save", sent: { kind: "ui.perform", payload: { action: "click" } } },
+    ],
+  };
+
+  // `stop: false`, so the card-level "Stop this run" is not also drawn: what
+  // is under test is the two answers on the ROW.
+  const card = runCard({ run }, { onPress: () => {}, stop: false });
+
+  assert.deepEqual(of(card, "button").map((one) => one.textContent), ["Approve", "Stop"]);
+});
+
 let failed = 0;
 for (const [name, fn] of tests) {
   try {

@@ -556,16 +556,18 @@ class Settings(BaseSettings):
     asking entirely; a negative value means no cap, which is what a deliberate
     one-off measurement wants. A run already going finishes on its own budget."""
 
-    gemini_transcription_model: str = "gemini-3.7-flash"
+    gemini_transcription_model: str = "gemini-3.8-flash"
     gemini_embedding_model: str = "gemini-embedding-001"
+    """The one model here that is not a chat model and cannot be one. Priced
+    separately in `prices.py`; everything else on this list is `3.8-flash`."""
 
-    gemini_vision_model: str = "gemini-3.7-flash"
+    gemini_vision_model: str = "gemini-3.8-flash"
     """Computer use is native here rather than a separate specialised model.
     Checked against the account rather than assumed: the standalone
     `gemini-2.5-computer-use-preview` still answers, and this one accepts the
     same tool while being the model everything else already uses."""
 
-    gemini_intent_model: str = "gemini-3.7-flash"
+    gemini_intent_model: str = "gemini-3.8-flash"
     """Chat: reading one sentence, extracting values. An operator is waiting, so
     this is the fast one -- measured at ~2.3s against ~4.8s for the pro model,
     for a job where the answer is checked against the skills that exist anyway."""
@@ -590,7 +592,14 @@ class Settings(BaseSettings):
     setting is the name; that constant is the reason it was affordable."""
 
     gemini_plan_model: str = "gemini-3.8-flash"
-    """What plans each step of a workflow run. The rig's `plan_model`
+    """What plans each step of a workflow run.
+
+    Three settings above were `gemini-3.7-flash` until 2026-09-15 -- the
+    transcription, the vision rung and the chat door -- and `3.7-flash` is not
+    in `prices.py`. So every call on those three recorded `cost_usd = 0.0` and
+    the day's spend read lower than it was, which is the exact failure
+    `prices.py` opens by describing. They are on the model the rest of the
+    system already uses and the bakeoff already measured. The rig's `plan_model`
     (`config.py:41`). Deliberately the fast model: a run plans once per step and
     a slow plan is felt by an operator standing at a screen."""
 

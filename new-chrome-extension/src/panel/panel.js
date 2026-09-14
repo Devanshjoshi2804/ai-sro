@@ -1008,27 +1008,59 @@ async function refresh() {
   // far through it is and which rung it is allowed to be on.
   if (status.performing) {
     try {
-      const run = await ask({ kind: "run", runId: status.performing.runId });
-      const skill = await ask({ kind: "skill", skillId: run.skill_id });
-      const version = (skill.versions || []).find((each) => each.version === run.skill_version);
-      status.performing = {
-        ...status.performing,
-        skill: skill.name || null,
-        stage: run.stage || null,
-        step: Array.isArray(run.steps) ? run.steps.length : null,
-        // How many steps the version has, which is what makes "step 3 of 6"
-        // answerable. A looping skill performs more positions than it has
-        // steps, so this is a floor rather than a promise -- and the card says
-        // "step 3" without the total when they disagree.
-        of: version?.steps?.length ?? null,
-        because: run.requested_by ? `Started by ${run.requested_by}` : null,
-      };
+      // The door that holds this kind of run. A mined job's run lives at
+      // `/v1/workflow-runs` and a skill's at `/v1/runs`, and asking the second
+      // about the first is a 404 every time -- which is what the card showing
+      // "A run is performing here" and no job name was, all evening, on every
+      // run this browser drove.
+      const rig = status.performing.source === "rig";
+      const run = await ask({
+        kind: "run",
+        runId: status.performing.runId,
+        source: status.performing.source,
+      });
+      status.performing = rig
+        ? {
+            ...status.performing,
+            // The rig plans one step at a time, so there is no total to count
+            // towards and the card says "step 3" rather than "step 3 of 7".
+            // `rigRun` maps the row; `steps` is what it has done so far.
+            skill: null,
+            step: Array.isArray(run.steps) ? run.steps.length : null,
+            of: null,
+            because: null,
+          }
+        : await _aboutTheSkill(status.performing, run);
     } catch {
       // A run the panel cannot read is still a run the panel can stop.
     }
   }
   void sayTheDay(status);
   return render(status);
+}
+
+/** What a SKILL run is, as the performing card draws it: the skill's name, the
+ * rung it is allowed to be on, and how many steps its version has.
+ *
+ * Only for a skill run. A mined job's run has no version to count towards --
+ * the rig plans one step at a time -- so asking these questions about one is
+ * asking a door that does not hold it.
+ */
+async function _aboutTheSkill(performing, run) {
+  const skill = await ask({ kind: "skill", skillId: run.skill_id });
+  const version = (skill.versions || []).find((each) => each.version === run.skill_version);
+  return {
+    ...performing,
+    skill: skill.name || null,
+    stage: run.stage || null,
+    step: Array.isArray(run.steps) ? run.steps.length : null,
+    // How many steps the version has, which is what makes "step 3 of 6"
+    // answerable. A looping skill performs more positions than it has steps,
+    // so this is a floor rather than a promise -- and the card says "step 3"
+    // without the total when they disagree.
+    of: version?.steps?.length ?? null,
+    because: run.requested_by ? `Started by ${run.requested_by}` : null,
+  };
 }
 
 /** The three numbers over the ledger, fetched beside the redraw rather than in

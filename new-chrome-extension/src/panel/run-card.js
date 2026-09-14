@@ -254,20 +254,30 @@ function stepRow({ step, outcome, live, inFlight, run, notes, onPress, onSecret,
     row.append(said);
   }
 
-  // The rig has stopped here to ask. What it would send is drawn in words --
-  // this is the one moment somebody can read a write before it happens -- and
-  // the two answers go on this row rather than under the card, because "yes"
-  // means yes to *this* step and a button anywhere else would not say which.
-  // Only while the run is live: an `awaiting` row on a run that has since
-  // ended is a record, and pressing Approve on it would approve nothing.
-  if (outcome === "awaiting" && live) {
+  // The rig has stopped here to ask.
+  //
+  // The WORDS whether or not the run is still going, the BUTTONS only while it
+  // is. Those were one condition, and an operator paid for it all evening:
+  // twelve runs in one day, every one of them ending `stopped`, and every one
+  // drew this row as a bare ⏸ with no question on it -- because a stopped run
+  // is not live, and the sentence saying what it had asked for was rendered
+  // inside the same branch as the Approve.
+  //
+  // The buttons really do belong to a live run: an `awaiting` row on a run
+  // that has ended is a record, and pressing Approve on it would approve
+  // nothing. But a question nobody can read is worse than a question nobody
+  // can answer -- "The run stopped to ask" with nothing saying what it asked
+  // is the panel shrugging.
+  if (outcome === "awaiting") {
     const words = document.createElement("span");
     words.className = "planned";
     // What would go out, or -- where the run stopped for a reason rather than
     // a write -- what it is asking. A list stops once after the first thing
-    // with that thing's result in the sentence, and a row with two buttons and
-    // no words is a question nobody can answer.
+    // with that thing's result in the sentence.
     words.textContent = wordsFor(step.sent) || step.reason || "";
+    row.append(words);
+  }
+  if (outcome === "awaiting" && live) {
     const approve = document.createElement("button");
     approve.type = "button";
     approve.textContent = "Approve";
@@ -277,7 +287,7 @@ function stepRow({ step, outcome, live, inFlight, run, notes, onPress, onSecret,
     stop.className = "quiet";
     stop.textContent = "Stop";
     stop.addEventListener("click", () => onPress?.("stop", run, row, stop));
-    row.append(words, approve, stop);
+    row.append(approve, stop);
   }
 
   // The step wanted a password and the vault had none.

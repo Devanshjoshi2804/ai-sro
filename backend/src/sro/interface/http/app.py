@@ -10,8 +10,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from sro.application.execution.run_workflow import fail_orphans
-from sro.config import get_settings
+from sro.config import Settings, get_settings
 from sro.container import Container, build_container
+from sro.domain.shared.prices import PRICES
 from sro.interface.http.errors import install_error_handlers
 from sro.interface.http.schemas import PROBLEMS
 from sro.interface.http.v1.routers import (
@@ -72,6 +73,27 @@ async def on_start(container: Container) -> int:
     `lifespan` builds the real container and mounts the MCP app: a test that
     wanted to know whether startup sweeps would have to stand up both.
     """
+    blind = unpriced_models(container.settings)
+    if blind:
+        # Said once, loudly, at the one moment somebody is watching a boot.
+        #
+        # A model name absent from `prices.py` records `cost_usd = 0.0` on
+        # every call it makes, so the day's spend reads lower than it was and
+        # the cap -- which is summed from those rows -- never trips. That is
+        # the failure `prices.py` opens by describing, and it was live again:
+        # three settings ran on `gemini-3.7-flash`, which the table has never
+        # held, and the tenant that spent $62.89 in a day had 60 of its passes
+        # recorded as free.
+        #
+        # A warning and not a refusal to start. A deployment mid-incident that
+        # points a setting at whatever model is answering today needs to run,
+        # and a boot that refuses over a price is a boot that refuses over
+        # bookkeeping.
+        logging.getLogger(__name__).warning(
+            "these configured models are not in the price table, so their calls "
+            "will record $0.00 and will not count towards the day's cap: %s",
+            ", ".join(f"{name}={model}" for name, model in blind),
+        )
     async with container.unit_of_work() as uow:
         swept = await fail_orphans(uow, "the process driving this run stopped")
     if swept:
@@ -79,6 +101,22 @@ async def on_start(container: Container) -> int:
             "swept %d run(s) left running by a process that is gone", swept
         )
     return swept
+
+
+def unpriced_models(settings: Settings) -> list[tuple[str, str]]:
+    """Every `gemini_*_model` setting whose value `prices.py` cannot price.
+
+    Read off the settings object rather than a list kept here: a setting added
+    next month is covered by this the day it exists, and a list of names to
+    check is a list that goes stale exactly when it matters.
+    """
+    return sorted(
+        (name, model)
+        for name in dir(settings)
+        if name.startswith("gemini_") and name.endswith("model")
+        if isinstance(model := getattr(settings, name), str) and model
+        if model not in PRICES
+    )
 
 
 @asynccontextmanager

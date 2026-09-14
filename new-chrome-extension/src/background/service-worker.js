@@ -278,7 +278,17 @@ async function considerArrival(tabId, url, visit) {
     // standing rule looks, from the operator's side, like their browser
     // deciding to do something -- and the one thing that must never be true is
     // that they cannot see why.
-    await state.setActiveRun({ runId: started.run_id, at: Date.now(), source: "rig" });
+    //
+    // Only where a run actually started. A fire that stopped to ask answers
+    // with a `confirmation_id` and a NULL run id, and one the backend skipped
+    // answers with neither -- and this wrote the null straight into the active
+    // run, where `pollRigRun` then asked the backend about a run called "null"
+    // once a second, forever: 191 of those 404s are in one evening's log. The
+    // card the operator should have seen is the confirmation, which
+    // `waitingOnSomebody` already fetches.
+    if (started?.run_id) {
+      await state.setActiveRun({ runId: started.run_id, at: Date.now(), source: "rig" });
+    }
   } catch (error) {
     // A tab that closed mid-navigation, a rule the backend has since disabled,
     // a browser with no credential. Said out loud rather than swallowed: a
@@ -1268,7 +1278,16 @@ async function handle(message, sender) {
     case "run":
       // The panel says what a run driving this browser is doing. The worker
       // holds the credential, so it does the asking.
-      return api.run(message.runId);
+      //
+      // Two doors, because there are two kinds of run and their ids live in
+      // different tables: a skill run at `/v1/runs`, a mined job's run at
+      // `/v1/workflow-runs`. The panel asked the first about both, so every
+      // rig run 404'd -- 308 of those in one evening across eleven run ids --
+      // and the card an operator watches while their own browser is being
+      // driven never learned the job's name or how far through it was. The
+      // panel says which kind it is asking about; it is the only thing that
+      // knows, because it is what the worker told it.
+      return message.source === "rig" ? api.rigRun(message.runId) : api.run(message.runId);
     case "skill":
       return api.skill(message.skillId);
     case "summary":

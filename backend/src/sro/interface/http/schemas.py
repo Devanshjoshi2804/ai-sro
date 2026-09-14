@@ -3283,6 +3283,11 @@ class WorkflowRunStepModel(BaseModel):
     """Which step of the JOB, and which thing on the list it was done for --
     null for a step done once. What the panel says "item 3 of 5" from."""
 
+    made: dict[str, str]
+    """What the warehouse called the record this step created, where it made
+    one. `{}` for every step that created nothing, which is most of them -- and
+    what a person needs in order to go and look at what a run made."""
+
     says: str
     verdict: str
     verdict_by: str
@@ -3365,8 +3370,20 @@ class WorkflowRunModel(BaseModel):
     cost_usd: float
     unpriced: bool
 
+    undo: str | None = None
+    """The job of this tenant's that takes back what this run made, where one
+    exists: a job whose own evidence shows somebody deleting the records this
+    one creates.
+
+    An id and never a start. What a press would have to do -- address each
+    created record by whatever the warehouse called it -- is a mapping nothing
+    here has evidence for, and a wrong mapping deletes the wrong record. Null
+    on a run still going, on one that made nothing, and on a tenant that has
+    never deleted one of these in front of the recorder, which is every tenant
+    today."""
+
     @classmethod
-    def of(cls, run: WorkflowRun) -> WorkflowRunModel:
+    def of(cls, run: WorkflowRun, undo: str | None = None) -> WorkflowRunModel:
         return cls(
             id=run.id,
             tenant=run.tenant,
@@ -3388,6 +3405,7 @@ class WorkflowRunModel(BaseModel):
             thought_tokens=run.thought_tokens,
             cost_usd=run.cost_usd,
             unpriced=run.unpriced,
+            undo=undo,
         )
 
 

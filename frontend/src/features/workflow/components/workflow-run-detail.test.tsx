@@ -16,6 +16,9 @@ const step = (over: Partial<workflowApi.WorkflowRunStepModel> = {}) => ({
   // one thing once.
   of_step: 0,
   item: null,
+  // Nothing created: what a run made is what a person goes and looks at, and
+  // most steps make nothing.
+  made: {},
   says: "open the order",
   verdict: "held",
   verdict_by: "",

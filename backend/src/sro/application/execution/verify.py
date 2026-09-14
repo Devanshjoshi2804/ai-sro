@@ -372,12 +372,65 @@ async def by_what_the_page_called(
         if status >= 400:
             return StepVerdict("failed", "status", f"{method} {shape} returned {status}")
         if status in wanted or (not wanted and 200 <= status < 300):
-            return StepVerdict("held", "status", f"{method} {shape} returned {status}")
+            return StepVerdict(
+                "held",
+                "status",
+                f"{method} {shape} returned {status}",
+                made=made_by(call),
+            )
         # The endpoint answered something the demonstration never saw. Not a
         # failure and not a hold: exactly the case the rest of the ladder is
         # for.
         return None
     return None
+
+
+K_IDENTIFIES = ("id", "code", "name", "number", "key")
+"""Which fields of a create's answer say WHICH record it made.
+
+Read by suffix and case-insensitively, because a warehouse names them its own
+way: `equipmentTypeId`, `workAreaCode`, `supplierNumber`. Nothing else of the
+body is kept -- a created record's answer is a row of somebody's data, and what
+a person needs in order to go and look at it is what it is called."""
+
+K_NAMED = 6
+"""How many of those fields are kept. A record is identified by one or two of
+them; a body with a dozen matching names is a list, not a record."""
+
+
+def made_by(call: Mapping[str, object]) -> dict[str, str]:
+    """What the warehouse called the record this create made.
+
+    A run that made three records has to be able to say which three, or nobody
+    can go and look at them -- and an undo, the day the evidence for one
+    exists, has to address them by whatever the system called them.
+
+    Never the whole body. A create's answer is a row of a customer's data, and
+    this is stored on the run for as long as the tenant keeps it: what is kept
+    is the handful of fields that NAME the row, and only where their values are
+    short enough to be an identifier rather than a paragraph.
+    """
+    text = call.get("body")
+    if not isinstance(text, str) or not text.strip():
+        return {}
+    try:
+        parsed = json.loads(text)
+    except ValueError:
+        return {}
+    if not isinstance(parsed, dict):
+        return {}
+    named: dict[str, str] = {}
+    for key, value in parsed.items():
+        if not isinstance(key, str) or not isinstance(value, str | int):
+            continue
+        if not key.lower().endswith(K_IDENTIFIES):
+            continue
+        said = str(value).strip()
+        if said and len(said) <= 64:
+            named[key] = said
+        if len(named) == K_NAMED:
+            break
+    return named
 
 
 async def verify(

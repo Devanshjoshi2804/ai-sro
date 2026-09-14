@@ -173,6 +173,11 @@ export const api = {
       // draws a line per thing so somebody watching knows which of the three
       // records is being made now, and how many are left.
       items: run.items || [],
+      // The job of this tenant's that takes back what this run made, where one
+      // exists. An id, never a press: what taking it back would have to do --
+      // address each record by whatever the warehouse called it -- is a
+      // mapping nothing here has evidence for.
+      undo: run.undo || null,
       steps: (run.steps || []).map((step) => ({
         index: step.order,
         // Which thing on the list this row was done for, and which step of the
@@ -180,6 +185,10 @@ export const api = {
         // which is most of them.
         item: step.item ?? null,
         of_step: step.of_step ?? step.order,
+        // What the warehouse called the record this step made, where it made
+        // one. The panel says which records a run created, because nothing
+        // here can take one back and a person has to be able to go and look.
+        made: step.made || {},
         outcome: step.verdict,
         says: step.says,
         reason: step.reason,

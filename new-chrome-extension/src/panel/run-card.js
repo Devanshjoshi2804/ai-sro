@@ -144,6 +144,32 @@ export function runCard(
     );
   }
 
+  // What this run made, named.
+  //
+  // Nothing in this system can take a warehouse record back: the guards in
+  // front of a run -- a door that says when it is unsure, a list that proves
+  // the first thing before doing the rest -- stop wrong records being made and
+  // do nothing about one that was. So a run that made records says which, in
+  // the words the warehouse used, and a person can go and look at them.
+  const made = (run.steps || []).map((step) => step.made || {}).filter((one) => Object.keys(one).length);
+  if (rig && !live && made.length) {
+    const line = document.createElement("p");
+    line.className = "note";
+    const named = made.map((one) => Object.values(one).join(" ")).join(", ");
+    // And whether anything can take them back. Said in words and not drawn as
+    // a button: what an undo would have to do is address each record by
+    // whatever the warehouse called it, and a wrong mapping deletes the wrong
+    // record. Where nothing can, saying so is the honest half -- an operator
+    // who has just watched three records be made needs to know that the
+    // taking-back is theirs to do.
+    line.textContent =
+      `made ${made.length} record${made.length === 1 ? "" : "s"}: ${named}. ` +
+      (run.undo
+        ? "A job you have done before takes these back — open it in the console."
+        : "Nothing here can take them back.");
+    card.append(line);
+  }
+
   // What a dry run held back. There is no other screen it could be said on --
   // phase 5 left one system, and this card is where the writes were drawn in
   // words -- and the operator watching them be planned is the person who needs

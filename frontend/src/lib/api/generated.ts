@@ -5391,6 +5391,8 @@ export interface components {
             cost_usd: number;
             /** Unpriced */
             unpriced: boolean;
+            /** Undo */
+            undo?: string | null;
         };
         /**
          * WorkflowRunStepModel
@@ -5414,6 +5416,10 @@ export interface components {
             of_step: number;
             /** Item */
             item: number | null;
+            /** Made */
+            made: {
+                [key: string]: string;
+            };
             /** Says */
             says: string;
             /** Verdict */

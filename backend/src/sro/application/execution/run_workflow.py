@@ -1090,6 +1090,12 @@ async def run_workflow(
                 _bill(record, verdict.answer)
                 record.verdict, record.verdict_by = verdict.state, verdict.by
                 record.reason = verdict.reason
+                if verdict.made:
+                    # What the warehouse called the record this step made. On
+                    # the row because it is the only place it exists: the panel
+                    # says which records a run created, and an undo -- the day
+                    # the evidence for one exists -- addresses them by it.
+                    record.made = dict(verdict.made)
                 if verdict.state == "held":
                     # Found by sight, or by the last locator: the page moved
                     # under the job, and the job is flagged before it breaks.

@@ -45,6 +45,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import AsyncIterator, Coroutine
 from contextlib import suppress
+from dataclasses import replace
 from typing import Any
 
 import httpx
@@ -57,7 +58,7 @@ from sro.config import Settings
 from sro.domain.chat.reading import ChatReading
 from sro.domain.execution.run import Run, RunId
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
-from sro.domain.observation.gesture import Action, Gesture
+from sro.domain.observation.gesture import Action, Call, Gesture
 from sro.domain.shared.identifiers import DeviceId, SkillId, TenantId
 from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.workflow import Step, Workflow
@@ -671,6 +672,9 @@ def test_a_finished_run_reaches_the_wire_whole() -> None:
                 # all for a job that does one thing once.
                 "of_step": 0,
                 "item": None,
+                # Nothing created: this step is `awaiting`, and a step that has
+                # not gone out has made nothing to go and look at.
+                "made": {},
                 "says": "click Save",
                 "verdict": "awaiting",
                 "verdict_by": "state",
@@ -697,6 +701,10 @@ def test_a_finished_run_reaches_the_wire_whole() -> None:
         "thought_tokens": 33,
         "cost_usd": 0.44,
         "unpriced": True,
+        # Nothing this tenant has been seen doing takes back what this run
+        # made -- which is every tenant until somebody deletes one of these in
+        # front of the recorder.
+        "undo": None,
     }
 
 
@@ -1804,3 +1812,105 @@ async def test_a_process_starting_on_a_clean_store_sweeps_nothing(
     # The ordinary start. A sweep that reported work it did not do would teach
     # everybody to ignore the line it logs.
     assert await on_start(container) == 0
+
+
+async def test_a_run_that_made_records_says_what_takes_them_back(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork
+) -> None:
+    """Where the tenant's evidence holds a deleting job, the run names it.
+
+    An id and never a start: what a press would have to do -- address each
+    created record by whatever the warehouse called it -- is a mapping nothing
+    has evidence for, and a wrong mapping deletes the wrong record.
+    """
+    made = await _a_job_that_creates(uow, "wfl_made", "ges_made", 201, "/wm/equipmentTypes")
+    await _a_job_that_creates(uow, "wfl_gone", "ges_gone", 204, "/wm/equipmentTypes/4471", "DELETE")
+    run = _run_that_made(made.id, {"equipmentTypeId": "4471"})
+    await uow.workflow_runs.save(run)
+
+    answered = await client.get(f"/v1/workflow-runs/{run.id}")
+
+    assert answered.status_code == 200, answered.text
+    assert answered.json()["undo"] == "wfl_gone"
+    assert answered.json()["steps"][0]["made"] == {"equipmentTypeId": "4471"}
+
+
+async def test_a_tenant_that_has_never_deleted_one_is_told_so_plainly(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork
+) -> None:
+    made = await _a_job_that_creates(uow, "wfl_made", "ges_made", 201, "/wm/equipmentTypes")
+    run = _run_that_made(made.id, {"equipmentTypeId": "4471"})
+    await uow.workflow_runs.save(run)
+
+    answered = await client.get(f"/v1/workflow-runs/{run.id}")
+
+    assert answered.json()["undo"] is None
+
+
+async def test_a_run_still_going_is_not_asked_what_would_undo_it(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork
+) -> None:
+    """It may make more, and this is a read of every job's evidence on a door
+    the panel polls every time it draws."""
+    made = await _a_job_that_creates(uow, "wfl_made", "ges_made", 201, "/wm/equipmentTypes")
+    await _a_job_that_creates(uow, "wfl_gone", "ges_gone", 204, "/wm/equipmentTypes/4471", "DELETE")
+    run = _run_that_made(made.id, {"equipmentTypeId": "4471"}, outcome="running")
+    await uow.workflow_runs.save(run)
+
+    answered = await client.get(f"/v1/workflow-runs/{run.id}")
+
+    assert answered.json()["undo"] is None
+
+
+async def _a_job_that_creates(
+    uow: FakeUnitOfWork,
+    workflow_id: str,
+    gesture_id: str,
+    status: int,
+    path: str,
+    method: str = "POST",
+) -> Workflow:
+    await uow.gestures.add_gestures(
+        (
+            replace(
+                _gesture(gesture_id),
+                requests=(
+                    Call(
+                        method=method,
+                        url=f"{WMS}{path}",
+                        status=status,
+                        started_at=1_739_314_800.0,
+                    ),
+                ),
+            ),
+        )
+    )
+    job = Workflow(
+        id=workflow_id,
+        tenant=f.TENANT.value,
+        title=workflow_id,
+        narrative="n",
+        systems=[WMS],
+        steps=[Step(order=0, says="s", system=WMS, cites=[gesture_id])],
+    )
+    await uow.workflows.save(job)
+    return job
+
+
+def _run_that_made(workflow_id: str, made: dict[str, str], outcome: str = "held") -> WorkflowRun:
+    return WorkflowRun(
+        id="run_made",
+        tenant=f.TENANT.value,
+        workflow_id=workflow_id,
+        device_id=LAPTOP.value,
+        values={},
+        started_by="form",
+        live=True,
+        allow_focus=True,
+        started_at=f.T0.isoformat(),
+        finished_at=None if outcome == "running" else f.T0.isoformat(),
+        outcome=outcome,
+        steps=[
+            RunStep(order=0, says="Click Save.", verdict="held", verdict_by="status", made=made)
+        ],
+    )

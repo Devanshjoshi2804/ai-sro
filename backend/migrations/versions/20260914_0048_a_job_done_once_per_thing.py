@@ -45,6 +45,13 @@ def upgrade() -> None:
         sa.Column("of_step", sa.Integer(), nullable=False, server_default="0"),
     )
     op.add_column("workflow_run_steps", sa.Column("item", sa.Integer(), nullable=True))
+    # And what the warehouse called the record a step created, where it made
+    # one. The only place it exists: a run that made three records has to be
+    # able to say which three, or nobody can go and look at them.
+    op.add_column(
+        "workflow_run_steps",
+        sa.Column("made", postgresql.JSONB(), nullable=False, server_default="{}"),
+    )
     # And what one run was asked to do the body for. On the row because a
     # re-press carrying different items would finish a different job under this
     # run's id -- the same argument `from_step` made for its own column, and
@@ -56,6 +63,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    op.drop_column("workflow_run_steps", "made")
     op.drop_column("workflow_run_steps", "item")
     op.drop_column("workflow_run_steps", "of_step")
     op.drop_column("workflow_runs", "items")

@@ -29,7 +29,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Iterator, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from sro.domain.execution.evidence import READ_METHODS, recorded_call
 from sro.domain.observation.gesture import Call, Gesture
@@ -74,6 +74,14 @@ class StepVerdict:
     by: str  # status | read | screen | none
     reason: str
     answer: Answer | None = None
+
+    made: Mapping[str, str] = field(default_factory=dict)
+    """What the warehouse called the record this step created, where it made
+    one and said so. Empty for every step that created nothing, which is most
+    of them -- and for a create whose answer named nothing this can read.
+
+    A run that made three records has to be able to say which three, or nobody
+    can go and look at them."""
 
 
 def expected_statuses(step: Step, by_id: Mapping[str, Gesture]) -> set[int]:

@@ -96,6 +96,7 @@ from sro.domain.execution.workflow_run import (
 )
 from sro.domain.shared.errors import Conflict, DomainError, NotFound
 from sro.domain.shared.identifiers import DeviceId
+from sro.domain.skill.reversals import undoes
 from sro.domain.skill.workflow import cited_ids
 
 __all__ = [
@@ -514,6 +515,30 @@ class GetWorkflowRun:
             if run is None:
                 raise NotFound("no such run")
             return run
+
+    async def undo_for(self, ctx: RequestContext, run: WorkflowRun) -> str | None:
+        """Which of this tenant's jobs takes back what this run made, if any.
+
+        Asked only of a run that is over and made something: a run still going
+        may make more, and a run that made nothing has nothing to take back --
+        and this is a read of every job's evidence, on a door the panel polls.
+
+        Answers an id and never starts anything. What a press would have to do
+        -- address each created record by whatever the warehouse called it --
+        is a mapping this has no evidence for, and a wrong mapping deletes the
+        wrong record.
+        """
+        if run.outcome == "running" or not any(step.made for step in run.steps):
+            return None
+        async with self._uow as uow:
+            known = list(await uow.workflows.known(ctx.tenant_id))
+            made = next((one for one in known if one.id == run.workflow_id), None)
+            if made is None:
+                return None
+            gestures = {
+                gesture.id: gesture for gesture in await uow.gestures.gestures_for(ctx.tenant_id)
+            }
+            return undoes(made, gestures, known)
 
 
 class AbortWorkflowRun:

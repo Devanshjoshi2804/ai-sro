@@ -187,7 +187,13 @@ async def get_workflow_run(
     differ from the answer to "does this exist". The repository answers `None`
     for both, `GetWorkflowRun` raises `NotFound`, and `errors` maps it once.
     """
-    return WorkflowRunModel.of(await container.get_workflow_run().execute(ctx, run_id=run_id))
+    reader = container.get_workflow_run()
+    run = await reader.execute(ctx, run_id=run_id)
+    # And whether anything this tenant has been seen doing takes back what it
+    # made. Asked here rather than in the model: it reads the tenant's jobs and
+    # their evidence, and a response model that went to a repository would be a
+    # response model with a session.
+    return WorkflowRunModel.of(run, await reader.undo_for(ctx, run))
 
 
 @router.post("/workflow-runs/{run_id}/abort", status_code=status.HTTP_202_ACCEPTED)

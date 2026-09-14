@@ -147,8 +147,33 @@ export function noteDriven(tabId, request) {
     url: request.url || "",
     status: request.status ?? null,
     started_at: request.started_at ?? Date.now() / 1000,
+    // What the warehouse answered a CREATE with, and only a create.
+    //
+    // A run that made three records has to be able to say which three, or
+    // nobody can go and look at them -- and an undo, the day one exists, has
+    // to address them by whatever the system called them. The identifier is
+    // in the 201's own body and nowhere else this browser can see.
+    //
+    // Only 201, only the first `CREATED_BODY` characters, and already
+    // redacted by the recorder that produced it. A page's ordinary 200s are
+    // not kept: their bodies are lists, screens and customer data, and
+    // nothing here needs them.
+    body: request.status === 201 ? asText(request.response_body).slice(0, CREATED_BODY) : null,
   });
   driven.set(tabId, kept.slice(-CALLS_KEPT));
+}
+
+const CREATED_BODY = 400;
+
+/** A captured body as the text it was, or "" for one this browser never saw.
+ *
+ * The recorder wraps a body with what it did to it -- truncated, uninspectable,
+ * redacted -- so the text is a field rather than the value itself, and a
+ * caller reading it as a string gets `[object Object]` into a run record. */
+function asText(body) {
+  if (typeof body === "string") return body;
+  const text = body?.text ?? body?.value ?? "";
+  return typeof text === "string" ? text : "";
 }
 
 /** The calls this run's tab made since a moment, newest last. */
@@ -161,6 +186,7 @@ function callsSince(payload, runId) {
   );
   return { ok: true, result: { calls } };
 }
+
 
 export function isDriving(tabId) {
   const until = driving.get(tabId);

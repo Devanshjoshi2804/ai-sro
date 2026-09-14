@@ -37423,6 +37423,17 @@
           "unpriced": {
             "type": "boolean",
             "title": "Unpriced"
+          },
+          "undo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Undo"
           }
         },
         "type": "object",
@@ -37471,6 +37482,13 @@
               }
             ],
             "title": "Item"
+          },
+          "made": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Made"
           },
           "says": {
             "type": "string",
@@ -37586,6 +37604,7 @@
           "order",
           "of_step",
           "item",
+          "made",
           "says",
           "verdict",
           "verdict_by",

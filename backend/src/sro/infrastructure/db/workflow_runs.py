@@ -89,6 +89,7 @@ def _step_values(run_id: str, step: RunStep) -> dict[str, Any]:
         "unpriced": step.unpriced,
         "of_step": step.of_step,
         "item": step.item,
+        "made": dict(step.made),
     }
 
 
@@ -113,6 +114,7 @@ def _row_to_step(row: WorkflowRunStepRow) -> RunStep:
         unpriced=row.unpriced,
         of_step=row.of_step,
         item=row.item,
+        made=dict(row.made or {}),
     )
 
 

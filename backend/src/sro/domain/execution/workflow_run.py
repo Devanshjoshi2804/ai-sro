@@ -99,6 +99,14 @@ class RunStep:
     cost_usd: float = 0.0
     unpriced: bool = False
 
+    made: dict[str, str] = field(default_factory=dict)
+    """What the warehouse called the record this step created, where it made
+    one. Empty for every step that created nothing, which is most of them.
+
+    The only place this exists: the panel says which records a run made, and
+    an undo -- the day a tenant's evidence shows one being deleted -- has to
+    address them by whatever the system called them."""
+
     of_step: int = 0
     """Which step of the JOB this is. `order` says where in the run it happened
     and these are the same number until a job repeats its middle."""

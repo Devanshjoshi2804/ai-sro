@@ -503,6 +503,60 @@ test("a job that does one thing once draws exactly what it always did", () => {
   assert.deepEqual(card.kids.filter((kid) => kid.className === "thing"), []);
 });
 
+test("a finished run says which records it made", () => {
+  // Nothing in this system can take a warehouse record back. The guards in
+  // front of a run stop wrong records being made and do nothing about one that
+  // was, so a run says what it made in the warehouse's own words and a person
+  // can go and look.
+  const run = {
+    id: "run_1",
+    source: "rig",
+    status: "held",
+    items: [{ code: "8SITDWN2" }, { code: "8STANDUP2" }],
+    steps: [
+      { index: 0, item: 0, outcome: "held", says: "Click Save.", made: { equipmentTypeId: "4471" } },
+      { index: 1, item: 1, outcome: "held", says: "Click Save.", made: { equipmentTypeId: "4472" } },
+    ],
+  };
+
+  const card = runCard({ run });
+
+  assert.match(words(card), /made 2 records: 4471, 4472/);
+  assert.match(words(card), /Nothing here can take them back/, (
+    "an operator who has just watched two records be made has to know the"
+    + " taking-back is theirs to do"
+  ));
+});
+
+test("where a job of theirs takes the records back, the card says so", () => {
+  const run = {
+    id: "run_3",
+    source: "rig",
+    status: "held",
+    undo: "wfl_delete",
+    steps: [{ index: 0, outcome: "held", says: "Click Save.", made: { id: "4471" } }],
+  };
+
+  const said = words(runCard({ run }));
+
+  assert.match(said, /A job you have done before takes these back/);
+  // Said, not drawn as a button: what an undo has to do is address each record
+  // by whatever the warehouse called it, and a wrong mapping deletes the wrong
+  // record.
+  assert.ok(!of(runCard({ run }), "button").some((one) => /undo/i.test(one.textContent)));
+});
+
+test("a run that made nothing says nothing about records", () => {
+  const run = {
+    id: "run_2",
+    source: "rig",
+    status: "held",
+    steps: [{ index: 0, outcome: "held", says: "open the form", made: {} }],
+  };
+
+  assert.ok(!words(runCard({ run })).includes("made"));
+});
+
 let failed = 0;
 for (const [name, fn] of tests) {
   try {

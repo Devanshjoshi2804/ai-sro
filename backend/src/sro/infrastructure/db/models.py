@@ -874,6 +874,10 @@ class WorkflowRunStepRow(Base):
 
     says: Mapped[str] = mapped_column(Text, nullable=False, default="")
 
+    made: Mapped[Any] = mapped_column(JSONB, nullable=False, default=dict, server_default="{}")
+    """What the warehouse called the record this step created, where it made
+    one. `{}` for every step that created nothing, which is most of them."""
+
     of_step: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     """Which step of the JOB this row is. `ord` is where in the RUN it happened,
     and the two are the same number until a job repeats its middle."""

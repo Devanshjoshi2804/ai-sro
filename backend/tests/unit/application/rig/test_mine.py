@@ -27,9 +27,16 @@ from datetime import UTC, datetime
 
 import pytest
 
-from sro.application.observation.mining_pass import MineResult, mine, propose, rekey_workflows
+from sro.application.observation.mining_pass import (
+    MineResult,
+    fill_in_passwords,
+    mine,
+    propose,
+    rekey_workflows,
+)
 from sro.domain.observation.gesture import Gesture, Intent, ValueSeen
 from sro.domain.observation.pool import K_POOL_AGE
+from sro.domain.observation.trim import is_secret
 from sro.domain.observation.window import K_WINDOW_TOKENS, Packed, Window
 from sro.domain.shared.identifiers import TenantId
 from sro.domain.shared.prices import Answer
@@ -1487,3 +1494,57 @@ async def test_a_pass_that_changed_nothing_commits_nothing() -> None:
     assert uow.commits == 1
     assert await rekey_workflows(uow, tenant_id=TENANT) == 0
     assert uow.commits == 1
+
+
+async def test_a_job_already_stored_gets_the_credential_step_too() -> None:
+    """The half that only showed up against the real store.
+
+    The rule that adds a password step reached PROPOSALS the moment it was
+    written -- and a job the rig already holds is re-proposed as `same_job` and
+    dropped, so its stored steps, the ones a run actually performs, never
+    changed. An operator whose sign-in job was mined last week would have
+    waited forever for a step that is only ever added to something thrown away.
+    """
+    uow, ids = await _day()
+    secret = next(g for g in await uow.gestures.gestures_for(TENANT) if is_secret(g))
+    stored = Workflow(
+        id="wfl_stored",
+        tenant=TENANT.value,
+        title="Sign in",
+        narrative="the operator signed in",
+        systems=[HOST],
+        steps=[
+            Step(order=0, says="type the code", system=HOST, cites=[ids[0]]),
+            Step(order=1, says="save", system=HOST, cites=[ids[-1]]),
+        ],
+        parameters=[],
+    )
+    await uow.workflows.save(stored)
+
+    filled = await fill_in_passwords(uow, tenant_id=TENANT)
+
+    assert filled == 1
+    back = await uow.workflows.get(TENANT, "wfl_stored")
+    assert [step.cites for step in back.steps].count([secret.id]) == 1
+
+
+async def test_filling_the_same_job_twice_changes_nothing_the_second_time() -> None:
+    # Run every pass, so it has to be free when there is nothing to do.
+    uow, ids = await _day()
+    await uow.workflows.save(
+        Workflow(
+            id="wfl_stored",
+            tenant=TENANT.value,
+            title="Sign in",
+            narrative="n",
+            systems=[HOST],
+            steps=[
+                Step(order=0, says="type the code", system=HOST, cites=[ids[0]]),
+                Step(order=1, says="save", system=HOST, cites=[ids[-1]]),
+            ],
+            parameters=[],
+        )
+    )
+
+    assert await fill_in_passwords(uow, tenant_id=TENANT) == 1
+    assert await fill_in_passwords(uow, tenant_id=TENANT) == 0

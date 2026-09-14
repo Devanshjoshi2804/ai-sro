@@ -68,6 +68,7 @@ from sro.domain.skill.workflow import Workflow, cited_ids, ordered_cites
 
 __all__ = [
     "MineResult",
+    "fill_in_passwords",
     "learn_parameters",
     "mine",
     "new_pass_id",
@@ -224,6 +225,15 @@ async def mine(
     make. It is left empty, and it is left named.
     """
     async with one_at_a_time(f"mining:{tenant_id.value}"):
+        # Before the reading, and cheap: the rule that adds a credential step
+        # reached proposals the moment it was written, and a job already stored
+        # is re-proposed as `same_job` and dropped -- so without this the fix
+        # only ever helps whoever mines a sign-in for the first time after it.
+        # Inside the lock, because it writes workflows this pass is about to
+        # compare against.
+        filled = await fill_in_passwords(uow, tenant_id=tenant_id)
+        if filled:
+            await uow.commit()
         return await _one_pass(
             uow,
             tenant_id=tenant_id,
@@ -676,6 +686,48 @@ def _billed(pass_id: str, tenant_id: TenantId, started_at: str, result: MineResu
         left_out=result.left_out,
         error=result.error,
     )
+
+
+async def fill_in_passwords(uow: UnitOfWork, *, tenant_id: TenantId) -> int:
+    """Every stored job given the credential step nobody could cite, and how
+    many changed.
+
+    The pass above adds it to a PROPOSAL, which is right for a job being mined
+    for the first time and does nothing at all for one already stored: a
+    re-mine of a job the rig holds resolves as `same_job`, the proposal is
+    dropped, and the stored steps -- the ones a run actually performs -- stay
+    as they were. An operator whose sign-in job was mined last week would wait
+    forever for a step that is only ever added to something thrown away.
+
+    So it is applied to the store too, on the same rules, and it is idempotent:
+    a job whose credential gesture is already cited is left exactly alone, so
+    running this every pass costs a read.
+
+    Beside `rekey_workflows` and for its reason -- a rule that changed after a
+    job was mined has to reach the jobs mined before it, or the fix only helps
+    whoever arrives next.
+    """
+    changed = 0
+    for workflow in await uow.workflows.known(tenant_id):
+        wanted = ordered_cites(workflow)
+        if not wanted:
+            continue
+        # The whole doing, not only what is cited: the credential gesture is by
+        # definition the one nothing cites, so a read narrowed to the citations
+        # could never find it. Bounded by the span `with_passwords` then
+        # applies -- this reads a tenant's gestures once per pass.
+        #
+        # ponytail: whole-store read per workflow; a `between(first, last)`
+        # query when a tenant's day stops fitting comfortably in memory.
+        by_id = {gesture.id: gesture for gesture in await uow.gestures.gestures_for(tenant_id)}
+        if any(cited not in by_id for cited in wanted):
+            continue
+        if not with_passwords(workflow, by_id):
+            continue
+        await uow.workflows.save(workflow)
+        changed += 1
+        logger.info("%s: added the credential step no model could cite", workflow.title)
+    return changed
 
 
 async def rekey_workflows(uow: UnitOfWork, *, tenant_id: TenantId) -> int:

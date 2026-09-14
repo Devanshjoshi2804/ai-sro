@@ -630,6 +630,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/lookups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Look
+         * @description Where the answer lives, and -- unless asked not to -- the answer.
+         *
+         *     200 rather than 201: nothing is created. A lookup leaves no row of its own
+         *     behind; what it costs is billed through the model call, and what it found
+         *     belongs to whoever asked rather than to this deployment.
+         */
+        post: operations["look_v1_lookups_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/connections": {
         parameters: {
             query?: never;
@@ -2329,6 +2353,20 @@ export interface components {
             /** Label */
             label: string | null;
         };
+        /**
+         * AskedModel
+         * @description The question this deployment will not answer by guessing.
+         */
+        AskedModel: {
+            /** Key */
+            key: string;
+            /** Question */
+            question: string;
+            /** Options */
+            options: string[];
+            /** Because */
+            because: string[];
+        };
         /** AssertRequest */
         AssertRequest: {
             /** Version */
@@ -3246,6 +3284,116 @@ export interface components {
          * @enum {string}
          */
         LocatorStrategy: "component" | "test_id" | "role_and_name" | "text" | "css_path";
+        /**
+         * LookedModel
+         * @description What one lookup came back with, or why it did not.
+         */
+        LookedModel: {
+            /** System */
+            system: string;
+            /** How */
+            how: string;
+            /** Target */
+            target: string;
+            /** Url */
+            url: string;
+            /** Ok */
+            ok: boolean;
+            /** Detail */
+            detail: string;
+            /** Status */
+            status?: number | null;
+            /** Body */
+            body?: string | null;
+            /**
+             * Truncated
+             * @default false
+             */
+            truncated: boolean;
+            /** Seen */
+            seen?: {
+                [key: string]: unknown;
+            };
+        };
+        /**
+         * LookupModel
+         * @description One place the answer might be, and why this deployment thinks so.
+         */
+        LookupModel: {
+            /** System */
+            system: string;
+            /** How */
+            how: string;
+            /** Target */
+            target: string;
+            /** Params */
+            params: {
+                [key: string]: string;
+            };
+            /** Why */
+            why: string;
+            /** Cites */
+            cites: string[];
+        };
+        /**
+         * LookupRequest
+         * @description A question, and whether to go and answer it.
+         *
+         *     The same two bounds `ChatRequest` carries and for the same reason: this
+         *     door spends a model call, so the one part of the prompt a caller controls
+         *     is bounded at both ends before anything is asked.
+         */
+        LookupRequest: {
+            /** Question */
+            question: string;
+            /** System */
+            system?: string | null;
+            /**
+             * Execute
+             * @default true
+             */
+            execute: boolean;
+            /**
+             * Allow Focus
+             * @default false
+             */
+            allow_focus: boolean;
+        };
+        /**
+         * LookupResponse
+         * @description Where one question's answer lives, and what came back from there.
+         *
+         *     The plan and the answers are both here because a reader needs both: a
+         *     lookup that failed is only readable beside the reason it was planned. The
+         *     bill is here for `ChatResponse`'s reason -- a reading that cost money and
+         *     named nothing is indistinguishable from a question about nothing without
+         *     it.
+         */
+        LookupResponse: {
+            /** Question */
+            question: string;
+            /** Why */
+            why: string;
+            /** Refused */
+            refused: string | null;
+            asks: components["schemas"]["AskedModel"] | null;
+            /** Lookups */
+            lookups: components["schemas"]["LookupModel"][];
+            /** Answers */
+            answers: components["schemas"]["LookedModel"][];
+            /** Error */
+            error: string | null;
+            /** In Tokens */
+            in_tokens: number;
+            /** Out Tokens */
+            out_tokens: number;
+            /** Thought Tokens */
+            thought_tokens: number;
+            /** Cost Usd */
+            cost_usd: number;
+            /** Unpriced */
+            unpriced: boolean;
+        };
         /**
          * LoopModel
          * @description A block of steps done once for each thing an earlier step's answer listed.
@@ -7974,6 +8122,135 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ChatResponse"];
+                };
+            };
+            /** @description No credential, or one this deployment rejects. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description No such thing, or not yours. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The system's state says no, not the request. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The request cannot be processed as asked. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description Something this depends on is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+        };
+    };
+    look_v1_lookups_post: {
+        parameters: {
+            query?: {
+                device_id?: string | null;
+            };
+            header?: {
+                "X-Device-Secret"?: string;
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LookupRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LookupResponse"];
                 };
             };
             /** @description No credential, or one this deployment rejects. */

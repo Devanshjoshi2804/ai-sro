@@ -22,6 +22,8 @@ from sro.application.execution.pursuits import PursuitProgress
 from sro.application.execution.reversal import Reversal
 from sro.application.intent.match import Candidate
 from sro.application.intent.resolve import Resolution
+from sro.application.lookup.plan_lookups import Planned
+from sro.application.lookup.run_lookups import Answers, Looked
 from sro.application.observation.mining_pass import MineResult
 from sro.application.observation.read_pool import Pool
 from sro.application.observation.read_shots import PlayableShot
@@ -30,6 +32,7 @@ from sro.domain.chat.reading import ChatReading
 from sro.domain.chat.thread import Thread
 from sro.domain.execution.run import Medium, Run, StepOutcome
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
+from sro.domain.lookup.plan import Asked, Lookup
 from sro.domain.observation.batch import CaptureMode, RejectedEvent
 from sro.domain.observation.candidate import (
     Episode,
@@ -2834,6 +2837,169 @@ class ReadGesturesResponse(BaseModel):
     """
 
     read: int
+
+
+class LookupRequest(BaseModel):
+    """A question, and whether to go and answer it.
+
+    The same two bounds `ChatRequest` carries and for the same reason: this
+    door spends a model call, so the one part of the prompt a caller controls
+    is bounded at both ends before anything is asked.
+    """
+
+    question: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500)]
+
+    system: str | None = None
+    """Narrows the retrieval to one system's knowledge. Absent means all of
+    them, which is the point of the door."""
+
+    execute: bool = True
+    """False plans and stops. The plan is readable before anything leaves the
+    building, and keeping that separable is what lets a person look at where a
+    question is about to be asked."""
+
+    allow_focus: bool = False
+    """Whether a screen lookup may bring a page in front of the operator. A
+    call never needs this; a screenshot of a background tab is impossible, so
+    a screen lookup without it is refused by the browser rather than taking
+    somebody's window."""
+
+
+class LookupModel(BaseModel):
+    """One place the answer might be, and why this deployment thinks so."""
+
+    system: str
+    how: str
+    target: str
+    params: dict[str, str]
+    why: str
+    cites: list[str]
+
+    @classmethod
+    def of(cls, lookup: Lookup) -> LookupModel:
+        return cls(
+            system=lookup.system,
+            how=lookup.how,
+            target=lookup.target,
+            params=dict(lookup.params),
+            why=lookup.why,
+            cites=list(lookup.cites),
+        )
+
+
+class AskedModel(BaseModel):
+    """The question this deployment will not answer by guessing."""
+
+    key: str
+    question: str
+    options: list[str]
+    because: list[str]
+
+    @classmethod
+    def of(cls, asked: Asked) -> AskedModel:
+        return cls(
+            key=asked.key,
+            question=asked.question,
+            options=list(asked.options),
+            because=list(asked.because),
+        )
+
+
+K_ANSWER_CHARS = 64 * 1024
+"""How much of one system's answer comes back through this door.
+
+The extension already caps a response body at 1MB. This is smaller because
+four systems answering at that size is a four-megabyte response to a question
+somebody typed, and the part that answers "which suppliers are at SG" is at
+the front. `truncated` says when the rest was left behind, because an answer
+silently cut in half is a wrong answer with no sign on it."""
+
+
+class LookedModel(BaseModel):
+    """What one lookup came back with, or why it did not."""
+
+    system: str
+    how: str
+    target: str
+    url: str
+    ok: bool
+    detail: str
+    status: int | None = None
+    body: str | None = None
+    truncated: bool = False
+    """The picture a screen lookup takes is deliberately NOT here. It is
+    hundreds of kilobytes of base64 per screen, and nothing on this side of the
+    wire can read it -- what a picture MEANS is a model's question, and the
+    seam that asks one is not this door. `width`, `height` and the page's text
+    digest come back instead, which is enough to say the screen came up."""
+
+    seen: dict[str, object] = Field(default_factory=dict)
+
+    @classmethod
+    def of(cls, looked: Looked) -> LookedModel:
+        answer = dict(looked.answer)
+        body = answer.get("body")
+        text = body if isinstance(body, str) else None
+        status = answer.get("status")
+        return cls(
+            system=looked.lookup.system,
+            how=looked.lookup.how,
+            target=looked.lookup.target,
+            url=looked.url,
+            ok=looked.ok,
+            detail=looked.detail,
+            status=status if isinstance(status, int) else None,
+            body=text[:K_ANSWER_CHARS] if text is not None else None,
+            truncated=bool(text is not None and len(text) > K_ANSWER_CHARS),
+            seen={
+                name: value
+                for name, value in answer.items()
+                if name in ("width", "height", "text_digest", "url", "navigated", "duration_ms")
+            },
+        )
+
+
+class LookupResponse(BaseModel):
+    """Where one question's answer lives, and what came back from there.
+
+    The plan and the answers are both here because a reader needs both: a
+    lookup that failed is only readable beside the reason it was planned. The
+    bill is here for `ChatResponse`'s reason -- a reading that cost money and
+    named nothing is indistinguishable from a question about nothing without
+    it.
+    """
+
+    question: str
+    why: str
+    refused: str | None
+    asks: AskedModel | None
+    lookups: list[LookupModel]
+    answers: list[LookedModel]
+
+    error: str | None
+    in_tokens: int
+    out_tokens: int
+    thought_tokens: int
+    cost_usd: float
+    unpriced: bool
+
+    @classmethod
+    def of(cls, planned: Planned, answers: Answers | None = None) -> LookupResponse:
+        bill = planned.answer
+        return cls(
+            question=planned.plan.question,
+            why=planned.plan.why,
+            refused=planned.refused,
+            asks=AskedModel.of(planned.plan.asks) if planned.plan.asks else None,
+            lookups=[LookupModel.of(one) for one in planned.plan.lookups],
+            answers=[LookedModel.of(one) for one in (answers.looked if answers else ())],
+            error=bill.error if bill else None,
+            in_tokens=bill.in_tokens if bill else 0,
+            out_tokens=bill.out_tokens if bill else 0,
+            thought_tokens=bill.thought_tokens if bill else 0,
+            cost_usd=bill.cost_usd if bill else 0.0,
+            unpriced=bill.unpriced if bill else False,
+        )
 
 
 class ChatRequest(BaseModel):

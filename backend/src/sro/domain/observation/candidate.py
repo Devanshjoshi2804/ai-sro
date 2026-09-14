@@ -16,6 +16,28 @@ from statistics import median
 from sro.domain.shared.errors import InvariantViolation
 from sro.domain.shared.identifiers import BatchId, CandidateId, PrincipalId, SkillId, TenantId
 
+K_GESTURES_IN_A_DOING = 2
+"""How much has to happen in a typical doing before it may be OFFERED.
+
+A doing of one gesture is a click, not a task. Without this the panel offered
+an operator "you've created 11 us here -- about 1s each" beside a real job, and
+the bad ones outnumbered the good: `u`, `fd` and `bv` are path segments out of
+Gmail's urls, one gesture and half a second each, repeated because opening mail
+is repetitive.
+
+Two, measured on both tenants rather than chosen. Every candidate a model had
+named and any operator would recognise ran 10 to 19 gestures per doing --
+create a work area 19, create an activity code 18, a carrier cross-reference
+12, an equipment type 10. Every candidate nobody could read ran EXACTLY one.
+There is no candidate anywhere in this store between 2 and 9, so the floor sits
+in a gap eight wide and the number could move either way without changing what
+it admits.
+
+It gates the offer and nothing else. The candidate is still mined, still
+counted, still joinable, and still there to be taught deliberately -- what this
+refuses is interrupting somebody about it.
+"""
+
 WORTH_OFFERING = 3
 """How many times something has to have been done before it is proposed.
 
@@ -247,7 +269,21 @@ class TaskCandidate:
 
     @property
     def worth_offering(self) -> bool:
-        return self.status is CandidateStatus.NEW and self.times_seen >= WORTH_OFFERING
+        return (
+            self.status is CandidateStatus.NEW
+            and self.times_seen >= WORTH_OFFERING
+            and self.typical_doing >= K_GESTURES_IN_A_DOING
+        )
+
+    @property
+    def typical_doing(self) -> float:
+        """Gestures in a middling doing of this.
+
+        The median and not the mean: one long doing where somebody was
+        interrupted should not promote a candidate whose other ten were a
+        click, and one click should not demote a real task done ten times.
+        """
+        return median(episode.gestures for episode in self.episodes) if self.episodes else 0
 
     @property
     def minutes_so_far(self) -> float:

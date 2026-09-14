@@ -11,6 +11,7 @@ made.
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
 import httpx
@@ -191,6 +192,7 @@ def _candidate(
     signature: str = ADJUST,
     title: str = "Update adjust on wms.acme.test",
     named_by_model: bool = False,
+    gestures: int = 6,
 ) -> TaskCandidate:
     return TaskCandidate(
         id=CandidateId(ident),
@@ -206,6 +208,10 @@ def _candidate(
                 ended_at=NINE + timedelta(days=day, seconds=51),
                 host="wms.acme.test",
                 batch_ids=(BatchId("bat-1"),),
+                # What a doing of this actually was. Zero here made every
+                # candidate in this file one gesture long, which is a click --
+                # and `worth_offering` is allowed to refuse those.
+                gestures=gestures,
             )
             for day in range(times)
         ),
@@ -459,3 +465,38 @@ async def test_the_answer_lands_in_the_operator_s_thread_not_the_caller_s(
 
     assert len(await _answers_in(uow, theirs)) == 1
     assert await _answers_in(uow, f.OPERATOR) == []
+
+
+async def test_a_task_that_is_one_click_is_not_offered_however_often_it_repeats(
+    uow: FakeUnitOfWork,
+) -> None:
+    """What an operator saw: "you've created 11 us here -- about 1s each",
+    beside a real job, and the unreadable ones outnumbered the good.
+
+    `u`, `fd` and `bv` are path segments out of Gmail's urls. Opening mail is
+    repetitive, so they clear `WORTH_OFFERING` easily; what they never clear is
+    being a task at all. Still mined, still counted, still there to teach
+    deliberately -- what this refuses is interrupting somebody about it.
+    """
+    await uow.candidates.add(_candidate("cnd-click", times=11, gestures=1))
+
+    proposed = await _propose(uow).execute(CTX)
+
+    assert proposed.offered == 0
+    thread = await _thread_of(uow)
+    assert thread is None or _offers_in(thread) == []
+
+
+async def test_one_long_doing_does_not_promote_a_candidate_whose_others_were_clicks(
+    uow: FakeUnitOfWork,
+) -> None:
+    """The median, not the mean. A candidate clicked ten times and worked in
+    once is ten clicks and an accident."""
+    clicked = _candidate("cnd-mixed", times=3, gestures=1)
+    clicked.episodes = (
+        *clicked.episodes[:-1],
+        replace(clicked.episodes[-1], gestures=40),
+    )
+    await uow.candidates.add(clicked)
+
+    assert (await _propose(uow).execute(CTX)).offered == 0

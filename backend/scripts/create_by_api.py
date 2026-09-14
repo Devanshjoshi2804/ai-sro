@@ -123,8 +123,24 @@ async def _make(
 
     online = container.agent_sockets.online(tenant_id)
     if not online:
+        # Not "no browser is connected" -- one may well be, and `/v1/agents`
+        # will say `online: true` while this prints. The socket is held by
+        # whichever process the extension connected to, which is the API, and
+        # this script is not that process. The same wall the Temporal worker
+        # hit: it asks the API through `RunDispatcher` rather than reaching for
+        # a browser it cannot see.
+        #
+        # There is no equivalent door for a bare command, on purpose.
+        # `docs/14-extension-protocol.md`: an internal "send this browser a
+        # command" route would be a way to drive somebody's signed-in session
+        # anywhere, which no taught skill may do. A command reaches a browser
+        # as part of a RUN or not at all.
         print(
-            "\nno browser of this tenant is connected; the call goes out through one or not at all"
+            "\nthis process holds no socket to a browser -- the API does."
+            "\nThe request above is correct and the extension can make it; what"
+            "\ncannot happen is this script sending it. Start a run of a job whose"
+            "\nstep replays this call -- POST /v1/workflow-runs, or the offer in"
+            "\nthe panel -- and the same request goes out in the operator's session."
         )
         return 1
     chosen = DeviceId(device) if device else online[0]

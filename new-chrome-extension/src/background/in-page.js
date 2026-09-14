@@ -231,13 +231,67 @@ export function performInPage(payload) {
     };
   }
 
+  const nearby = nearMisses(payload);
+  // Said in the DETAIL as well as the field, because the detail is what
+  // travels: the socket adapter keeps a reply's `kind` and `detail` and drops
+  // everything else, and the detail is what reaches the run's own record and
+  // the model asked to rescue the step.
+  const also = nearby.length
+    ? `; the page has ${nearby.map((one) => `${one.tag} "${one.name}"`).join(", ")}`
+    : "";
   return {
     ok: false,
     error: {
       kind: "control_not_found",
-      detail: `no control matched: ${tried.join(", ") || "nothing"}`,
+      detail: `no control matched: ${tried.join(", ") || "nothing"}${also}`,
+      // What the page DOES have where the step was looking.
+      //
+      // "no control matched: role_and_name=button|Save, css_path=..." says
+      // what was tried and nothing about what is there, which is the fact a
+      // person reading the run -- or the model asked to rescue the step --
+      // has to have. A screen whose Save became "Save and close" reads as a
+      // screen with no Save at all.
+      //
+      // Deliberately not acted on here. A near miss is evidence, and this
+      // extension does not get to decide that a control with a different name
+      // is the one the operator used: `repair_drift` in the backend already
+      // settles that question from verified runs that agree more than once,
+      // and never from one page's guess.
+      nearby,
     },
   };
+}
+
+/** Controls that look like the one the step wanted, with what they are called.
+ *
+ * Interactive elements only, and at most a handful: this rides on a failure
+ * and its job is to be read, not to be complete.
+ */
+function nearMisses(payload) {
+  const wanted = (payload.locators || [])
+    .map((locator) => String(locator.query || "").split("|").pop())
+    .filter(Boolean)
+    .map((one) => one.toLowerCase());
+  const seen = [];
+  for (const el of document.querySelectorAll(
+    "button, a[href], input, select, textarea, [role=button], [role=link], [role=tab]",
+  )) {
+    const name = (
+      el.getAttribute("aria-label") ||
+      el.getAttribute("title") ||
+      el.getAttribute("placeholder") ||
+      el.getAttribute("name") ||
+      (el.innerText || "").trim()
+    ).slice(0, 60);
+    if (!name) continue;
+    const said = name.toLowerCase();
+    // A near miss and not a catalogue: something the step's own words are
+    // part of, or that is part of them.
+    if (!wanted.some((one) => said.includes(one) || one.includes(said))) continue;
+    seen.push({ tag: el.tagName.toLowerCase(), name });
+    if (seen.length === 5) break;
+  }
+  return seen;
 }
 
 /** Act at a point, because the gesture came from pixels rather than from a

@@ -45,9 +45,24 @@ function element({ tagName = "BUTTON", typeable = false } = {}) {
 }
 
 let at = null;
-globalThis.document = { elementFromPoint: () => at };
+let onScreen = [];
+globalThis.document = {
+  elementFromPoint: () => at,
+  querySelectorAll: () => onScreen,
+};
 
-const { performAtInPage } = await import("./in-page.js");
+const { performAtInPage, performInPage } = await import("./in-page.js");
+
+/** A control on the page, as `nearMisses` reads one. */
+function control(tagName, name) {
+  return {
+    tagName,
+    innerText: name,
+    getAttribute: () => null,
+    matches: () => false,
+    dispatchEvent: () => {},
+  };
+}
 
 test("nothing at the point is a control that was not found", () => {
   at = null;
@@ -110,4 +125,41 @@ test("an action a point cannot take is refused", () => {
   const answer = performAtInPage({ x: 40, y: 30, action: "select", value: "D3" });
   assert.equal(answer.ok, false);
   assert.equal(answer.error.kind, "not_actionable");
+});
+
+test("a control that was not found says what the page does have", () => {
+  // "no control matched: role_and_name=button|Save, css_path=..." says what
+  // was tried and nothing about what is there. A screen whose Save became
+  // "Save and close" read as a screen with no Save at all -- to the person
+  // reading the run, and to the model asked to rescue the step.
+  onScreen = [control("BUTTON", "Save and close"), control("BUTTON", "Cancel")];
+  globalThis.document.querySelectorAll = () => onScreen;
+
+  const answer = performInPage({
+    action: "click",
+    locators: [{ strategy: "role_and_name", query: "button|Save" }],
+  });
+
+  assert.equal(answer.ok, false);
+  assert.equal(answer.error.kind, "control_not_found");
+  assert.deepEqual(
+    answer.error.nearby,
+    [{ tag: "button", name: "Save and close" }],
+    "Cancel is not a near miss",
+  );
+  assert.match(answer.error.detail, /the page has button "Save and close"/, (
+    "the socket keeps a reply's kind and detail and drops the rest, so the near"
+    + " miss has to be in the sentence to reach the run's record at all"
+  ));
+});
+
+test("a page with nothing like it says so with an empty list, not a catalogue", () => {
+  onScreen = [control("BUTTON", "Cancel"), control("A", "Help")];
+
+  const answer = performInPage({
+    action: "click",
+    locators: [{ strategy: "role_and_name", query: "button|Save" }],
+  });
+
+  assert.deepEqual(answer.error.nearby, []);
 });

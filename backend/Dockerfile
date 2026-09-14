@@ -29,14 +29,19 @@ WORKDIR /app
 # The lock alone first, so a change to source does not re-resolve the world.
 # `--no-install-project` because the project itself is the layer that changes.
 COPY pyproject.toml uv.lock ./
+# `--extra gcp` because a deployment keeps its secrets in Secret Manager, and
+# an image without the client refuses at the first password a run tries to
+# type -- which is a deploy-time surprise on the one path that cannot be
+# retried by hand. The extra is optional in `pyproject` so a laptop and the
+# test suite do not carry it; the image is where it stops being optional.
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-install-project --no-dev
+    uv sync --frozen --no-install-project --no-dev --extra gcp
 
 COPY src ./src
 COPY migrations ./migrations
 COPY alembic.ini ./
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev
+    uv sync --frozen --no-dev --extra gcp
 
 
 FROM python:3.12-slim AS runtime

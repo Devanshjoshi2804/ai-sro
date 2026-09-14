@@ -269,6 +269,20 @@ class Settings(BaseSettings):
     who is accountable for it.
     """
 
+    vault_project: str | None = None
+    """The Google project whose Secret Manager holds this deployment's secrets.
+
+    Set it and the vault is Secret Manager; leave it and the vault is the
+    encrypted file beside this process. One switch and not two, so a deployment
+    cannot be configured to believe it is using a cloud secret store while
+    writing a file nobody backs up -- and a developer who points at a real
+    project gets the real thing.
+
+    The client is an optional install (`.[gcp]`). A project named without it
+    refuses at first use with a sentence naming the extra, rather than
+    `no module named google.cloud`.
+    """
+
     vault_path: str = "./.sro-vault"
     vault_key: str | None = None
     """Fernet key for the file vault. Without it the vault refuses to start

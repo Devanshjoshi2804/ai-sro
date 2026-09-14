@@ -168,3 +168,47 @@ def test_a_job_citing_nothing_this_window_holds_is_left_alone() -> None:
     workflow.steps = [Step(order=0, says="do it", system=SIGN_IN, cites=["ges-gone"])]
 
     assert with_passwords(workflow, gestures) == 0
+
+
+def test_a_password_typed_four_times_is_one_step() -> None:
+    """The first real login this ran against had four.
+
+    The operator typed their password four times inside that one doing -- a
+    mistyped attempt, a page that came back, a second go -- and every one of
+    them became a step, two of them AFTER the Sign In click. That is not a
+    login: it is a job that signs in, fails, and types a password into
+    whatever came next.
+    """
+    workflow, gestures = _signing_in()
+    for at in (101.5, 103.0, 104.0):
+        again = _gesture(f"ges-again-{at}", at, secret=True, name="password")
+        gestures[again.id] = again
+
+    with_passwords(workflow, gestures)
+
+    typing = [step for step in workflow.steps if step.says == "Type the password."]
+    assert len(typing) == 1
+    assert typing[0].cites == ["ges-pass"], "the attempt kept is the first, before the click"
+    said = [step.says for step in sorted(workflow.steps, key=lambda step: step.order)]
+    assert said == ["Enter username.", "Type the password.", "Sign in."]
+
+
+def test_a_job_already_carrying_the_spare_attempts_is_healed() -> None:
+    """Written by an earlier version of this rule, against a real store. A job
+    heals on the next pass rather than keeping the shape of whichever day it
+    was mined on."""
+    workflow, gestures = _signing_in()
+    spare = _gesture("ges-again", 103.0, secret=True, name="password")
+    gestures[spare.id] = spare
+    workflow.steps.append(
+        Step(order=9, says="Type the password.", system=SIGN_IN, cites=[spare.id])
+    )
+
+    changed = with_passwords(workflow, gestures)
+
+    assert changed == 2, "one spare removed, one right one added"
+    assert [step.says for step in sorted(workflow.steps, key=lambda step: step.order)] == [
+        "Enter username.",
+        "Type the password.",
+        "Sign in.",
+    ]

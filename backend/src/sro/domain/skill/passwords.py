@@ -45,11 +45,12 @@ from sro.domain.skill.workflow import Step, Workflow
 
 
 def with_passwords(workflow: Workflow, gestures: dict[str, Gesture]) -> int:
-    """Add the credential steps this job does and the model did not say.
+    """Give this job the credential steps it does and the model did not say.
 
-    In place, returning how many were added, which is what a pass logs. A job
-    with no credential in its span is untouched and answers 0 -- which is most
-    jobs, because most work is not signing in.
+    In place, returning how many steps it CHANGED -- added, or removed as a
+    second attempt at the same field. A job with no credential in its span is
+    untouched and answers 0, which is most jobs, because most work is not
+    signing in.
     """
     cited = {
         gesture_id for step in workflow.steps for gesture_id in step.cites if gesture_id in gestures
@@ -61,16 +62,51 @@ def with_passwords(workflow: Workflow, gestures: dict[str, Gesture]) -> int:
     first, last = min(one.at for one in within), max(one.at for one in within)
     systems = {origin_of(one.url or "") for one in within}
 
-    added = 0
+    # ONE step per field, and the first typing of it.
+    #
+    # The first real login this ran against had four. The operator had typed
+    # their password four times inside that doing -- a mistyped attempt, a page
+    # that came back, a second go -- and every one of them became a step, two
+    # of them AFTER the Sign In click, which is not a login: it is a job that
+    # signs in, fails, and types a password into whatever came next.
+    #
+    # A person typing a password twice is one step done twice, so the earliest
+    # is the one that belongs before the submit, and the rest are attempts.
+    # Keyed by system and field rather than by gesture, because that is what
+    # makes two typings the same step -- and it is the same key the vault is
+    # read by, so a job cannot end up with two steps asking for one secret.
+    once: dict[tuple[str, str], Gesture] = {}
     for gesture in sorted(gestures.values(), key=lambda one: one.at):
-        if gesture.id in cited or not is_secret(gesture):
+        if not is_secret(gesture):
             continue
         # The doing this workflow kept, and the systems it was done on. A
         # credential typed an hour later, or on a host this job never touched,
         # belongs to somebody else's job.
         if not first <= gesture.at <= last:
             continue
-        if origin_of(gesture.url or "") not in systems:
+        where = origin_of(gesture.url or "")
+        if where not in systems:
+            continue
+        once.setdefault((where, field_of(gesture)), gesture)
+
+    # Steps that cite a typing this rule did not choose: a second attempt,
+    # written by an earlier version of this rule or by a model that cited one.
+    # Dropped rather than left, so a job heals rather than accumulating the
+    # shape of whichever day it was mined on.
+    kept = {gesture.id for gesture in once.values()}
+    spare = [
+        step
+        for step in workflow.steps
+        if step.cites
+        and all(one in gestures and is_secret(gestures[one]) for one in step.cites)
+        and not any(one in kept for one in step.cites)
+    ]
+    for step in spare:
+        workflow.steps.remove(step)
+
+    added = 0
+    for gesture in sorted(once.values(), key=lambda one: one.at):
+        if gesture.id in cited:
             continue
         workflow.steps.append(
             Step(
@@ -89,9 +125,12 @@ def with_passwords(workflow: Workflow, gestures: dict[str, Gesture]) -> int:
         )
         added += 1
 
-    if added:
+    # Renumbered when anything moved, which includes a spare step removed and
+    # nothing added: a job left with a hole in its numbering is a job whose
+    # steps no longer say what order they run in.
+    if added or spare:
         _in_the_order_it_happened(workflow, gestures)
-    return added
+    return added + len(spare)
 
 
 def _in_the_order_it_happened(workflow: Workflow, gestures: dict[str, Gesture]) -> None:

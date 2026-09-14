@@ -189,6 +189,7 @@ from sro.infrastructure.temporal.schedules import TemporalScheduler
 from sro.infrastructure.transcription.gemini import GeminiTranscriber
 from sro.infrastructure.transcription.null import NullTranscriber
 from sro.infrastructure.vault.file_vault import FileCredentialVault
+from sro.infrastructure.vault.secret_manager import SecretManagerVault
 
 
 @dataclass
@@ -1123,6 +1124,13 @@ def _build_vault(settings: Settings) -> CredentialVault:
     connection is attempted.
     """
     try:
+        # A named project means a deployment, and a deployment keeps its
+        # secrets where the rest of its secrets are. The file vault stays the
+        # laptop's and the suite's: chosen by what is configured rather than by
+        # an environment name, so a developer pointing at a real project gets
+        # the real thing and nobody has to remember a second switch.
+        if settings.vault_project:
+            return SecretManagerVault(project=settings.vault_project)
         return FileCredentialVault(path=Path(settings.vault_path), key=settings.vault_key)
     except VaultUnavailable as exc:
         return _UnavailableVault(str(exc))

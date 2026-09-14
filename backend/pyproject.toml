@@ -40,6 +40,18 @@ dev = [
     "import-linter>=2.1",
     "types-boto3>=1.35",
     "mutmut==3.7.0",
+    # The deployed vault's own client. In `dev` as well as `gcp` so the
+    # adapter is covered by the ordinary suite: one that is only exercised
+    # when somebody remembers an extra is one nobody finds out about until the
+    # deploy it was written for.
+    "google-cloud-secret-manager>=2.20",
+]
+# The deployed vault. Optional because the file vault is the whole story on a
+# laptop and in the test suite, and because a deployment that keeps its secrets
+# somewhere else should not be made to carry a client for a service it does not
+# use. `pip install .[gcp]` -- or `uv sync --extra gcp` -- is the deploy step.
+gcp = [
+    "google-cloud-secret-manager>=2.20",
 ]
 
 [build-system]
@@ -154,7 +166,10 @@ module = [
 disallow_any_explicit = false
 
 [[tool.mypy.overrides]]
-module = ["pgvector.*", "testcontainers.*", "docker.*"]
+# The Google client ships no stubs, and the adapter around it is typed against
+# its own `_Secrets` protocol rather than against theirs -- so what is untyped
+# here is the import itself, and nothing downstream of it.
+module = ["pgvector.*", "testcontainers.*", "docker.*", "google.cloud.*", "google.api_core.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]

@@ -3623,3 +3623,71 @@ async def test_a_click_that_was_asked_for_nothing_is_performed_as_before() -> No
     )
 
     assert run.outcome == "held", "a click nobody asked to carry a value is just a click"
+
+async def test_a_step_that_wants_a_password_keeps_saying_so_after_the_rung_gives_up() -> None:
+    """The refusal has to survive the rung that produced it.
+
+    A step that types a credential with nothing in the vault plans `none`, and
+    the payload it plans names the system and the field so the panel can draw a
+    box and ask the person watching for it. Then the loop reached
+    `planned is None` and handed the record back to the previous rung -- which
+    put `sent` back to `None`, and the operator got a step marked ✗ with
+    nothing on it to act on. Found on a real login: three runs in the store
+    whose password step carried no payload at all.
+    """
+    uow = await _fixture()
+    typed = next(g for g in _evidence(uow) if g.action.kind == "type")
+    secret = replace(
+        typed,
+        id="ges_secret",
+        action=replace(typed.action, target=replace(typed.action.target, secret=True), value=None),
+    )
+    await uow.gestures.add_gestures((secret,))
+    workflow = Workflow(
+        id="wfl_password",
+        tenant=ELSEWHERE,
+        title="sign in",
+        narrative="n",
+        systems=["http://127.0.0.1:63319"],
+        steps=[Step(order=0, says="Type the password.", system=None, cites=["ges_secret"])],
+        parameters=[],
+    )
+    run = await asyncio.wait_for(
+        run_workflow(
+            uow,
+            workflow,
+            tenant_id=TENANT,
+            values={},
+            channel=FakeChannel(_looks(4)),
+            device_id=DEVICE,
+            # The model is asked first and plans the typing; the refusal comes
+            # after, from the vault having nothing under the key.
+            asker=FakeAsker(_plan("type", "x")),
+            plan_model="flash",
+            rescue_model="pro",
+            live=True,
+            allow_focus=True,
+            started_by="form",
+            stops=Stops(),
+            approvals=Approvals(),
+            # The vault this deployment has, holding nothing for this key.
+            secret_for=lambda _key: _nothing_stored(),
+        ),
+        timeout=5,
+    )
+
+    step = run.steps[0]
+    assert step.verdict == "failed"
+    assert step.sent is not None, "the refusal was rolled back and left nothing to act on"
+    wants = step.sent["payload"]["needs_secret"]
+    assert wants["field"] and wants["system"], "a card cannot ask for a password it cannot name"
+    assert "value" not in step.sent["payload"]
+
+
+async def _nothing_stored() -> str | None:
+    """A vault that holds no password for the key it was asked about.
+
+    Absence and not a failure: the port says callers decide what absence means,
+    and this one decides it means "ask the person watching".
+    """
+    return None

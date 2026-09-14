@@ -570,7 +570,17 @@ async def run_workflow(
                         navigated = True
 
                 if planned is None and run.outcome == "running":
+                    # A refusal that carries STRUCTURE is kept, because it is
+                    # not "no command" -- it is the one thing a person can act
+                    # on. `needs_secret` names the system and field a step
+                    # wanted a password for, and the panel draws a box from it;
+                    # rolling it back to the previous rung's command left the
+                    # operator with a step marked ✗ and nothing to do about it,
+                    # which is the whole defect this payload exists to fix.
+                    refusal = record.sent if (record.sent or {}).get("payload") else None
                     record.planned_by, record.sent, record.result = previously
+                    if refusal and refusal.get("kind") == "none":
+                        record.sent = refusal
                     # The sight rung's answer, when it had none: the record
                     # keeps the last command that went out, and says beside it
                     # what the picture said -- "not on this screen" is the fact

@@ -143,3 +143,50 @@ def test_a_credential_typed_twice_is_left_exactly_alone() -> None:
     )
 
     assert settled(signing_in) == signing_in
+
+
+def _select(index: int, name: str, value: str) -> ActionFrame:
+    return _frame(index, ActionKind.SELECT, name, value=value, requests=())
+
+
+def _upload(index: int, name: str, value: str) -> ActionFrame:
+    return _frame(index, ActionKind.UPLOAD, name, value=value, requests=())
+
+
+def test_a_dropdown_picked_twice_is_the_second_pick() -> None:
+    """The same self-correction one control down. Replaying both picks would do
+    the work of the mistake and then the work of the correction."""
+    corrected = (
+        _select(0, "Carrier Type", "PARCEL"),
+        _select(1, "Carrier Type", "FREIGHT"),
+        _write(2),
+    )
+
+    kept = settled(corrected)
+
+    assert [frame.action.value for frame in kept if frame.action.kind == ActionKind.SELECT] == [
+        "FREIGHT"
+    ]
+
+
+def test_a_file_attached_twice_is_the_second_file() -> None:
+    corrected = (
+        _upload(0, "Document", "old-invoice.pdf"),
+        _upload(1, "Document", "invoice.pdf"),
+        _write(2),
+    )
+
+    assert [frame.action.value for frame in settled(corrected)][:1] == ["invoice.pdf"]
+
+
+def test_a_button_pressed_twice_is_two_presses() -> None:
+    """Deliberately not in the set. Two clicks on one control are two presses
+    of a button -- an increment, a row added twice -- and `align` already lets
+    a click through as exploration when it changed nothing."""
+    twice = (
+        _click(0, "Add row", requests=()),
+        _click(1, "Add row", requests=()),
+        _write(2),
+    )
+
+    assert settled(twice) == twice

@@ -307,6 +307,16 @@ def _evidential(frame: ActionFrame) -> bool:
     )
 
 
+FILLS = frozenset({"type", "select", "upload"})
+"""The gestures that put a value in one place, where doing it twice before
+anything is sent means the second one is what the field held.
+
+The same three `verify._PUTS_A_VALUE` names for the same reason, and kept as
+their own constant rather than imported across the layer: a gesture that can be
+corrected and a gesture that can be wrong in a way nothing else on the page
+would show are two different questions that happen to have one answer today."""
+
+
 def settled(run: tuple[ActionFrame, ...]) -> tuple[ActionFrame, ...]:
     """A run with the operator's corrections taken out.
 
@@ -332,6 +342,15 @@ def settled(run: tuple[ActionFrame, ...]) -> tuple[ActionFrame, ...]:
     carries no value to be superseded BY, and the run that types it twice is
     a run that failed to sign in once; `domain/skill/passwords` makes that
     judgement with the evidence to make it.
+
+    The same for a dropdown and a file. Picking the wrong option and picking
+    again, or attaching the wrong document and attaching the right one, is one
+    field filled once by the time the form goes -- and a run that replayed both
+    picks would do the work of the mistake before the work of the correction.
+    A click is deliberately not in this set: two clicks on one control are two
+    presses of a button, which `_evidential` already lets through as
+    exploration when they changed nothing and which really are two actions
+    when they did.
     """
     dropped: set[int] = set()
     latest: dict[str, int] = {}
@@ -341,7 +360,7 @@ def settled(run: tuple[ActionFrame, ...]) -> tuple[ActionFrame, ...]:
             # a fresh fill of the same form, not a correction of the old one.
             latest.clear()
             continue
-        if frame.action.kind != "type" or frame.action.secret or not frame.action.value:
+        if frame.action.kind not in FILLS or frame.action.secret or not frame.action.value:
             continue
         control = _control(frame)
         if control in latest:

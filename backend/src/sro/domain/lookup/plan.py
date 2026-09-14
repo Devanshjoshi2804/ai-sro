@@ -185,31 +185,54 @@ def open_question_for(asked: str, known: list[KnowledgeEntry]) -> Asked | None:
     """The unanswered question this one lands on, if it lands on one.
 
     `open_questions` records the ambiguity this deployment refuses to guess at
-    -- which collection an entity lives in, which of two screens does a task --
     and supersedes it with an answer naming who gave it. An open one here stops
     the plan: two endpoints answered "how many transport modes", the system
     picked the first it saw, and the operator found out by counting rows.
 
-    Matched on the entity word, not on similarity. A question about suppliers
-    is stopped by the open question about suppliers and by nothing else; a
-    looser rule would stop every question on the first ambiguity in the store.
+    **Which ambiguity stops which question is decided by the key's shape, and
+    that is the measured part.** The store holds three:
+
+    `<system>/<entity>/collection` -- which collection an entity lives in.
+    About the entity itself, so any question naming that entity is stopped by
+    it. This is the transport-modes case, and the reason this function exists.
+
+    `<system>/<entity>/value/<word>` -- which field of an entity a word in a
+    demonstration named. About the WORD. A question naming the entity and not
+    the word is not ambiguous at all, and stopping it is a refusal the
+    operator cannot act on.
+
+    `<system>/<entity>/create/<parameter>` -- whether a value both
+    demonstrations used is fixed or asked for each time. About a WRITE, and a
+    read cannot be ambiguous in that way.
+
+    The first rule alone was what this had, and against the real store it
+    stopped three of five ordinary questions, every one of them falsely: "which
+    clients are set up" stopped on which field of client the word 'full' names,
+    "list the transport modes" on 'all', "where do I see customer types" on
+    'system'. A refusal nobody can act on is worse than the guess it prevents,
+    because it stops the question AND teaches the operator to ignore the one
+    stop that was real.
     """
     words = {_stem(word) for word in asked.split()}
     words.discard("")
+    # An answer is a separate entry under the same key rather than a field on
+    # the question, so "is this settled" is a question about the store and not
+    # about one row. Read once here: a question whose answer sits two rows
+    # further down would otherwise stop a plan the deployment has an answer for.
+    settled = {
+        entry.key
+        for entry in known
+        if entry.kind is EntryKind.QUESTION
+        and isinstance(entry.body, dict)
+        and entry.body.get("answer")
+    }
     for entry in known:
         if entry.kind is not EntryKind.QUESTION or entry.superseded_by:
             continue
-        body = entry.body if isinstance(entry.body, dict) else {}
-        if body.get("answer"):
-            # Already settled. The answer is knowledge like any other and the
-            # planner reads it beside the endpoints.
+        if entry.key in settled:
             continue
-        # `blue_yonder/supplier/collection` against "which suppliers are at SG".
-        # Split on the separator too: the key writes `transport_mode` where an
-        # operator writes "transport modes".
-        subject = {_stem(part) for chunk in entry.key.split("/") for part in chunk.split("_")}
-        subject.discard("")
-        if not (words & subject):
+        body = entry.body if isinstance(entry.body, dict) else {}
+        if not _stops(asked, words, entry.key):
             continue
         return Asked(
             key=entry.key,
@@ -218,6 +241,31 @@ def open_question_for(asked: str, known: list[KnowledgeEntry]) -> Asked | None:
             because=_listed(body.get("because")),
         )
     return None
+
+
+def _stops(asked: str, words: set[str], key: str) -> bool:
+    """Whether this ambiguity is about what was asked."""
+    parts = [part for part in key.split("/") if part]
+    if len(parts) < 3:
+        return False
+    entity = {_stem(word) for word in parts[1].split("_")}
+    entity.discard("")
+    about = parts[2]
+
+    if about == "collection":
+        # `blue_yonder/supplier/collection` against "which suppliers are at SG".
+        # Split on the separator: the key writes `transport_mode` where an
+        # operator writes "transport modes".
+        return bool(words & entity)
+    if about == "value" and len(parts) > 3:
+        # The word, not the entity. Substring rather than a stem match because
+        # the word came out of a demonstration and lands inside the operator's
+        # own sentence in whatever form they wrote it.
+        return parts[3].lower() in asked.lower()
+    # `create/<parameter>`, and anything a later pass invents. A read is not
+    # ambiguous about what a write should send, and an ambiguity whose shape
+    # this does not know is one it cannot say is about this question.
+    return False
 
 
 def _listed(value: object) -> tuple[str, ...]:

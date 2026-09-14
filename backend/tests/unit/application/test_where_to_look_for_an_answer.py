@@ -217,6 +217,72 @@ async def test_an_ambiguity_about_something_else_does_not_stop_this_question() -
     assert planned.plan.ready
 
 
+async def test_an_ambiguity_about_a_word_stops_only_a_question_that_uses_that_word() -> None:
+    """Measured against the real store, where the first version of this rule
+    stopped three of five ordinary questions and every stop was false.
+
+    `blue_yonder/client/value/full` asks which field of client the word 'full'
+    named in a demonstration. "which clients are set up" is not ambiguous in
+    that way, and a refusal nobody can act on is worse than the guess it
+    prevents: it stops the question AND teaches the operator to ignore the one
+    stop that was real.
+    """
+    about_a_word = _entry(
+        "blue_yonder/client/value/full",
+        EntryKind.QUESTION,
+        body={
+            "question": "Which field of client does 'full' name?",
+            "options": ["inboundTransFullValidationFlag", "useFullPalletUomQuantity"],
+        },
+    )
+    planner, _ = _planner(_said(), [*KNOWN, about_a_word])
+
+    walked_past = await planner.execute(CTX, question="which clients are set up")
+    assert walked_past.plan.asks is None
+
+    planner, _ = _planner(_said(), [*KNOWN, about_a_word])
+    stopped = await planner.execute(CTX, question="which clients have full validation")
+    assert stopped.plan.asks is not None
+
+
+async def test_an_ambiguity_about_a_write_never_stops_a_read() -> None:
+    """`create/<parameter>` asks whether a value both demonstrations used is
+    fixed or asked for each time. A read cannot be ambiguous in that way."""
+    about_a_write = _entry(
+        "blue_yonder/supplier/create/resource_id",
+        EntryKind.QUESTION,
+        body={"question": "Both demonstrations used 'A000144886'. Is that fixed?"},
+    )
+    planner, _ = _planner(_said(), [*KNOWN, about_a_write])
+
+    planned = await planner.execute(CTX, question="which suppliers are set up at SG")
+
+    assert planned.plan.asks is None and planned.plan.ready
+
+
+async def test_an_answer_stored_as_its_own_entry_settles_the_question_beside_it() -> None:
+    """The store keeps the answer as a second entry under the same key rather
+    than as a field on the question. A plan that read only the row in front of
+    it stopped on a question this deployment has an answer for."""
+    key = "blue_yonder/supplier/collection"
+    planner, _ = _planner(
+        _said(),
+        [
+            *KNOWN,
+            _entry(
+                key, EntryKind.QUESTION, body={"question": "which collection?", "options": ["a"]}
+            ),
+            _entry(
+                key, EntryKind.QUESTION, body={"answer": "WMSupplier", "answered_by": "devansh.j"}
+            ),
+        ],
+    )
+
+    planned = await planner.execute(CTX, question="which suppliers are set up at SG")
+
+    assert planned.plan.asks is None and planned.plan.ready
+
+
 async def test_a_screen_is_planned_where_no_endpoint_answers() -> None:
     # The other half of what the operator asked for: where there is no call,
     # open the page and read it. The route comes from the knowledge base too.

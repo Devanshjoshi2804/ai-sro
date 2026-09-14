@@ -275,6 +275,32 @@ async def test_an_operator_purging_their_own_hour_does_not_touch_a_colleagues() 
     assert [key for key in blobs.objects if "priya" in key] != []
 
 
+async def test_a_time_with_no_offset_is_read_as_utc_and_not_as_the_hosts_clock() -> None:
+    """The one read that cannot be run again to check.
+
+    `DELETE /v1/observations?since=` takes the query string's datetime as it
+    comes, and a browser that sends `2026-03-01T09:00:00` with no offset used
+    to reach asyncpg bare -- where Postgres reads it in the API HOST's zone.
+    On a +05:30 machine that deletes from 03:30Z: five and a half extra hours
+    of the operator's own evidence, rows and screenshots, answered 200. The
+    audit READ normalises (`analytics/audit.py`'s `_bound`, whose docstring
+    names this exact bug) and the destructive write did not.
+    """
+    uow, blobs = FakeUnitOfWork(), FakeBlobStore()
+    await _switch_observation_on(uow, ACME)
+    device_id = await _register(uow, ACME)
+    await _ingest(uow, blobs, device_id, batch_id="bat_mine")
+
+    forgotten = await ForgetObservations(uow, blobs, FakeClock()).execute(
+        # The one call that MEANS to be naive: a query string with no offset
+        # in it, which is what the route really receives.
+        ACME,
+        since=datetime(2026, 3, 1, 0, 0),  # noqa: DTZ001
+    )
+
+    assert forgotten.batches == 1
+
+
 async def test_a_sweep_removes_evidence_past_its_own_tenants_window() -> None:
     uow, blobs = FakeUnitOfWork(), FakeBlobStore()
     await SetObservationPolicy(uow).execute(

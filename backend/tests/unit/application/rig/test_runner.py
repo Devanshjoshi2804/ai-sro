@@ -46,6 +46,7 @@ from sro.application.execution.run_workflow import (
     _withheld,
     fail_orphans,
     run_workflow,
+    write_key,
 )
 from sro.application.execution.stops import Stops
 from sro.application.ports.agent import DeviceUnreachable
@@ -4169,6 +4170,57 @@ async def test_each_thing_gets_its_own_write_claim() -> None:
 
     assert [step.verdict for step in run.steps] == ["held"] * 6
     assert not any("may have landed" in (step.reason or "") for step in run.steps)
+
+    # And the half that not being refused does not prove: that a claim was
+    # made for every thing on the list. `claimed_here` used to hold step
+    # numbers, and a repeating job performs one step number once per item, so
+    # items 2..N never reached the ledger at all -- nothing refused them
+    # because nothing had claimed them, and a second run carrying an
+    # overlapping list created the overlap twice.
+    writing = [step for step in workflow.steps if step.order == 1]
+    keys = {write_key(workflow.id, writing[0], {**item}) for item in items}
+    assert len(keys) == 3, "the fixture's three items do not write three different things"
+    assert {key for _, key in uow.tool_calls.claimed} == keys
+
+
+async def test_what_the_operator_already_did_was_done_once_not_once_per_thing() -> None:
+    """`from_step` is about the operator's own progress, and they made progress
+    on one thing.
+
+    A run entered at `from_step=1` after the operator filled the form for the
+    first item used to mark step 0 `done_by_operator` for every OTHER item
+    too -- so the second and third things on the list never had their fields
+    filled, and the run pressed Save against whatever the first one had left
+    on the screen. It reported `held`, with rows claiming a person had
+    performed steps nobody had touched.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    workflow.repeat, items = _adding_three()
+    channel = FakeChannel(
+        {
+            **_looks(12),
+            "ui.perform": [_performed()] * 6,
+            "http.send": [Reply(ok=True, result={"status": 404, "body": "{}"})] * 3,
+            "calls.since": [Reply(ok=True, result={"calls": []})] * 6,
+        }
+    )
+    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True}))
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        items=items,
+        earned=True,
+        approvals=_SaysYes(),
+        from_step=1,
+    )
+
+    done = [(step.of_step, step.item) for step in run.steps if step.verdict == "done_by_operator"]
+    assert done == [(0, 0)], "a step the operator did once was skipped for things they never saw"
+    assert [step.item for step in run.steps if step.of_step == 0] == [0, 1, 2]
 
 
 async def test_a_list_longer_than_one_press_can_mean_is_refused_before_anything_is_sent() -> None:

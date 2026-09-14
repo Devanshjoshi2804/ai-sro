@@ -1008,13 +1008,37 @@ class SqlTriggerRepository(TriggerRepository):
 
 class SqlUnitOfWork(UnitOfWork):
     """One session per block. The session opens on entry, not on construction,
-    so a unit of work can be built once and used per request."""
+    so a unit of work can be built once and used per request.
+
+    **Re-entrant, by depth count.** A use case handed this object may open a
+    block inside another block on the same instance -- `run_workflow`'s write
+    claim sits inside `StartWorkflowRun`'s block, and `InduceSkill` runs
+    `AskAbout`'s whole block inside its own. Opening a second session there is
+    what the obvious implementation does, and it is a crash and a leak: the
+    inner `__aexit__` closes the new session and sets `_session` to None, so
+    the outer block's next `commit()` raises "must be used as an async context
+    manager" -- which the panel renders as the run's failure reason -- while
+    the outer session's connection is never returned to the pool. Fifteen of
+    those wedge the API on checkout (`pool_size=5, max_overflow=10`).
+
+    So the inner block reuses the session and the outermost exit closes it.
+    One request is one transaction, which is what the surrounding code already
+    assumed and what `tests.unit.fakes.FakeUnitOfWork` has always modelled --
+    its `_entered` is sticky for this exact reason, which is why 3000 green
+    unit tests never saw the real one's behaviour. An inner `commit()` still
+    commits, as it did before; an exception inside a nested block rolls the
+    whole thing back at the outermost exit rather than half of it.
+    """
 
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
         self._session_factory = session_factory
         self._session: AsyncSession | None = None
+        self._depth = 0
 
     async def __aenter__(self) -> SqlUnitOfWork:
+        self._depth += 1
+        if self._session is not None:
+            return self
         self._session = self._session_factory()
         self.recordings = SqlRecordingRepository(self._session)
         self.skills = SqlSkillRepository(self._session)
@@ -1042,11 +1066,16 @@ class SqlUnitOfWork(UnitOfWork):
 
     async def __aexit__(self, *exc: object) -> None:
         session = self._require_session()
+        self._depth -= 1
+        if exc[0] is not None:
+            # At every depth: an inner block that raised must not leave its
+            # half-written rows for the outer block to commit.
+            await session.rollback()
+        if self._depth > 0:
+            return
         try:
-            if exc[0] is not None:
-                await session.rollback()
-        finally:
             await session.close()
+        finally:
             self._session = None
 
     async def commit(self) -> None:

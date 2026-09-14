@@ -357,6 +357,13 @@ async def by_what_the_page_called(
     if replayed is None or not writes(step, by_id):
         return None
 
+    # `since` is sent and the browser does not compare against it. It cannot:
+    # this is the server's clock and the calls are the browser's, and while
+    # that comparison stood -- an ISO string against a float -- it was false
+    # for every call ever made and this rung never once fired. The extension
+    # marks its own counter when a command goes out and answers with what came
+    # after it (`commands.js`'s `marks`), which has one clock and no skew. The
+    # value stays on the wire because it is what an older extension reads.
     got = await channel.send(
         tenant_id, device_id, kind="calls.since", run_id=run_id, payload={"since": since}
     )

@@ -500,9 +500,17 @@ async def run_workflow(
     itinerary = _itinerary(ordered, workflow.repeat, values, run.items)
     # The steps the operator already did cost nothing and are not attempted, so
     # they buy no slack either: the budget is what is left to perform.
-    # Which steps this run has claimed the right to write, so a rescue of a
+    # Which writes this run has claimed the right to make, so a rescue of a
     # refused write is not stopped by its own first attempt.
-    claimed_here: set[int] = set()
+    #
+    # Write keys, not step numbers. A repeating job performs one step.order
+    # once per thing on its list, so a set of step numbers claimed the first
+    # item and let every other one past `tool_calls.remember` entirely -- two
+    # runs whose lists overlap then created the overlap twice, which is the
+    # accident the ledger exists to stop. The key already carries the values,
+    # so a retry of the same leg still finds its own claim and is still let
+    # through.
+    claimed_here: set[str] = set()
     # Which steps a person has already approved for this list. One tap answers
     # for every thing on it: they read the rows and pressed once.
     approved_for_the_list: set[int] = set()
@@ -527,10 +535,18 @@ async def run_workflow(
     try:
         for position, leg in enumerate(itinerary):
             step, values = leg.step, leg.values
-            if step.order < from_step:
+            if step.order < from_step and leg.item in (None, 0):
                 # The operator did this one before the offer was made. Recorded
                 # so the run reads whole, cited so a reviewer can see what it
                 # was, and never sent: the job is being finished, not redone.
+                #
+                # `leg.item in (None, 0)`, because what they did, they did
+                # once. A repeating job performs this same step.order again for
+                # every other thing on the list, and skipping those was the
+                # run filling the form for the first item and then pressing
+                # Save for the second and the third against whatever was left
+                # on the screen -- reported `held`, with the fill steps marked
+                # "performed by the operator" for items nobody had touched.
                 run.steps.append(
                     RunStep(
                         order=position,
@@ -893,8 +909,8 @@ async def run_workflow(
                 # an operator retrying a login that failed. A step whose
                 # evidence carries a real mutating call is the one that can
                 # leave a second record behind.
-                if live and mutates and step.order not in claimed_here:
-                    key = write_key(workflow.id, step, values)
+                key = write_key(workflow.id, step, values) if live and mutates else ""
+                if live and mutates and key not in claimed_here:
                     async with uow:
                         # Not `first`: that name is a gesture in this function.
                         claimed = await uow.tool_calls.remember(
@@ -910,7 +926,7 @@ async def run_workflow(
                     # allowed to plan again, and a claim made by the first
                     # attempt must not refuse the second -- that is this run
                     # colliding with itself.
-                    claimed_here.add(step.order)
+                    claimed_here.add(key)
                     if not claimed:
                         record.verdict, record.verdict_by = "failed", "none"
                         record.reason = (

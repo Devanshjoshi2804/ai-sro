@@ -679,7 +679,9 @@ async def test_a_tap_records_the_deepest_parked_step_in_the_store_and_releases_i
     landed = await client.post("/v1/workflow-runs/run_parked/approve")
 
     assert landed.status_code == 200, landed.text
-    assert landed.json() == {"order": 5, "first": True}
+    # `resumed`, because this run really has a task parked on it: the tap
+    # both records the authorisation and releases the waiter.
+    assert landed.json() == {"order": 5, "first": True, "resumed": True}
     assert await waiting is True
     async with SqlUnitOfWork(container._session_factory) as uow:
         recorded = await uow.workflow_runs.approvals("run_parked")
@@ -715,9 +717,15 @@ async def test_the_second_tap_does_not_overwrite_the_first_authorisation(
     container.clock.advance(1800)
     second = await client.post("/v1/workflow-runs/run_rescued/approve")
 
-    assert first.status_code == 200 and first.json() == {"order": 2, "first": True}
+    # `resumed` is False for both: nothing is holding this planted run, so
+    # the authorisation is recorded and there is nobody to let go.
+    assert first.status_code == 200 and first.json() == {
+        "order": 2,
+        "first": True,
+        "resumed": False,
+    }
     assert second.status_code == 200, second.text
-    assert second.json() == {"order": 2, "first": False}
+    assert second.json() == {"order": 2, "first": False, "resumed": False}
     async with SqlUnitOfWork(container._session_factory) as uow:
         recorded = await uow.workflow_runs.approvals("run_rescued")
     # One row, and it names the browser that got there first -- not the second

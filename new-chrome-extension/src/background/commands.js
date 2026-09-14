@@ -120,6 +120,7 @@ export function abort(runId) {
   return true;
 }
 
+let seq = 0;
 const CALLS_KEPT = 60;
 const driven = new Map();
 
@@ -151,6 +152,9 @@ export function noteDriven(tabId, request) {
     url: request.url || "",
     status: request.status ?? null,
     started_at: request.started_at ?? Date.now() / 1000,
+    // Which side of the command this call is on, and the only thing
+    // `callsSince` compares. See `marks`.
+    seq: ++seq,
     // What the warehouse answered a CREATE with, and only a create.
     //
     // A run that made three records has to be able to say which three, or
@@ -180,13 +184,39 @@ function asText(body) {
   return typeof text === "string" ? text : "";
 }
 
-/** The calls this run's tab made since a moment, newest last. */
-function callsSince(payload, runId) {
+/** Where each run's counter stood when its last acting command went out.
+ *
+ * Not a clock. The backend sends `since` as the server's own epoch seconds
+ * (`run_workflow.py`'s `sent_at`) and this browser's calls carry the
+ * recorder's ISO strings, so the comparison that used to be here --
+ * `"2026-09-14T19:41:09.469Z" >= 1789414869.469` -- is `false` for every call
+ * ever made. `calls.since` therefore always answered `{calls: []}`, the
+ * status rung never once fired in this deployment's 91 recorded steps, and
+ * every step paid for a screenshot and a vision call on the rung the verifier
+ * calls the weakest. `RunStep.made` is filled from the same answer, so a run
+ * could not say which records it created either.
+ *
+ * Parsing the ISO string would fix the types and leave the worse half: two
+ * clocks. A browser a few minutes fast would pass calls from before the
+ * command was sent, and the verifier takes the first method-and-shape match
+ * walking backwards -- on a repeating job, item 2 would be held by item 1's
+ * 201 and would report item 1's identifier as what it made. A counter this
+ * worker increments has one owner and no clock at all.
+ */
+const marks = new Map();
+
+/** Commands that make the page do something, so the calls after one are the
+ * calls it made because of it. `calls.since` and `screenshot` are the run
+ * looking, and must not move the mark they are about to read. */
+const ACTS = new Set(["ui.perform", "ui.perform_at", "http.send", "navigate", "tab.open"]);
+
+/** The calls this run's tab made since its last acting command, newest last. */
+function callsSince(runId) {
   const tabId = runId && latest?.runId === runId ? latest.tabId : undefined;
   if (tabId === undefined) return { ok: true, result: { calls: [] } };
-  const since = Number(payload.since) || 0;
+  const after = marks.get(runId) ?? 0;
   const calls = (driven.get(tabId) || []).filter(
-    (call) => call.started_at >= since && call.status !== null,
+    (call) => call.seq > after && call.status !== null,
   );
   return { ok: true, result: { calls } };
 }
@@ -793,8 +823,17 @@ export async function perform(command, source = "backend") {
     // this one is performing right now -- confusing even though neither fact
     // is wrong, and cheaper to clear here than to wait out however long this
     // run takes to finish on its own.
-    if (isNewRun) void state.setFinishedRun(null);
+    if (isNewRun) {
+      void state.setFinishedRun(null);
+      // One run drives at a time, so the marks of the runs before it are
+      // nobody's to read.
+      marks.clear();
+    }
   }
+
+  // Before the page is touched, so every call it makes because of this
+  // command counts and none of the ones it had already made do.
+  if (command.run_id && ACTS.has(command.kind)) marks.set(command.run_id, seq);
 
   try {
     switch (command.kind) {
@@ -811,7 +850,7 @@ export async function perform(command, source = "backend") {
       case "tab.open":
         return await openTab(command.payload || {});
       case "calls.since":
-        return callsSince(command.payload || {}, command.run_id);
+        return callsSince(command.run_id);
       case "http.send":
         return await httpSend(command.payload || {});
       case "abort":

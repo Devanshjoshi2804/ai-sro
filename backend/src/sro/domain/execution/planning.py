@@ -41,12 +41,17 @@ from sro.domain.skill.workflow import Step
 KINDS = frozenset({"ui.perform", "http.send", "navigate"})
 """What a PLAN may name. The model chooses one of these three."""
 
-COMMAND_KINDS = KINDS | frozenset({"ui.perform_at", "ui.url", "screenshot", "abort", "tab.open"})
+COMMAND_KINDS = KINDS | frozenset(
+    {"ui.perform_at", "ui.url", "screenshot", "abort", "tab.open", "calls.since"}
+)
 """Everything the runner may put on the wire, plan or not.
 
 `KINDS` is the subset a model may choose; the rest the runner sends on its own
 -- the sight rung's point (`ui.perform_at`), the two the run asks a browser for
-before and after a step (`ui.url`, `screenshot`), the one it sends when a run
+before and after a step (`ui.url`, `screenshot`), the one it asks for the
+calls the page made while it was being driven (`calls.since`, which is how a
+step performed in a browser can reach the verifier's first rung at all), the
+one it sends when a run
 is stopped (`abort`), and the one a LOOKUP sends when the system it has to
 read is one nobody has open (`tab.open`). Deliberately not in `KINDS`: opening
 a tab is never a step of a job, it is what has to be true before a read can

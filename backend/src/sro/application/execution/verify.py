@@ -41,9 +41,10 @@ from sro.domain.execution.belts import (
     mentions,
     status_of,
 )
-from sro.domain.execution.evidence import writes
+from sro.domain.execution.evidence import recorded_call, writes
 from sro.domain.execution.planning import Look
 from sro.domain.observation.gesture import Gesture
+from sro.domain.observation.trim import path_shape
 from sro.domain.shared.hosts import REDACTED
 from sro.domain.shared.identifiers import DeviceId, TenantId
 from sro.domain.skill.assertion import Assertion, AssertionKind
@@ -203,6 +204,79 @@ def _has(document: JsonValue, pointer: str) -> bool:
     except (KeyError, IndexError, TypeError, ValueError):
         return False
     return True
+
+
+async def by_what_the_page_called(
+    *,
+    step: Step,
+    cited: list[Gesture],
+    since: float,
+    channel: Channel,
+    tenant_id: TenantId,
+    device_id: DeviceId,
+    run_id: str,
+) -> StepVerdict | None:
+    """The status the warehouse answered this step with, or None to look.
+
+    Rung 1 of the ladder, for a step performed in a browser rather than
+    replayed over http. The verifier's own docstring puts the response the
+    command returned first and the screenshot last and least -- and until this
+    existed, a UI step could never reach the first rung, because a click's
+    reply says "I found the control and clicked it" and nothing about what the
+    server said. So every step of every run this deployment has performed was
+    judged by photographing the screen and asking a model: `verdict_by =
+    screen`, 67 times out of 67, the slowest and weakest rung there is.
+
+    The browser keeps the calls its own driven tab made for the length of the
+    run -- out of the evidence plane, which still drops them, and in a bounded
+    map it can be asked about. This asks, and decides only when the step's own
+    demonstrated endpoint is among them:
+
+    **Only a step whose evidence recorded a write.** A step that changes
+    nothing has no status to be held by, and 2xx on a page's keep-alive is not
+    a step being done.
+
+    **Only that endpoint.** Matched by method and path shape, so an id in the
+    path is not a mismatch and a telemetry beacon on the same host is not a
+    match. This is `expected_statuses`' rule, which the same beacons taught it.
+
+    **None means look.** No call, no status, or an endpoint nobody recognises
+    is not evidence the step failed -- it is the absence of evidence, and the
+    ladder goes on to the read and the screen.
+    """
+    by_id = {gesture.id: gesture for gesture in cited}
+    replayed = recorded_call(step, by_id)
+    if replayed is None or not writes(step, by_id):
+        return None
+
+    got = await channel.send(
+        tenant_id, device_id, kind="calls.since", run_id=run_id, payload={"since": since}
+    )
+    if not got.ok:
+        return None
+
+    wanted = expected_statuses(step, by_id)
+    method, shape = replayed.method.upper(), path_shape(replayed.url)
+    made = got.result.get("calls") if isinstance(got.result, dict) else None
+    for call in reversed(made if isinstance(made, list) else []):
+        if not isinstance(call, dict):
+            continue
+        status = call.get("status")
+        if not isinstance(status, int):
+            continue
+        if str(call.get("method", "")).upper() != method:
+            continue
+        if path_shape(str(call.get("url", ""))) != shape:
+            continue
+        if status >= 400:
+            return StepVerdict("failed", "status", f"{method} {shape} returned {status}")
+        if status in wanted or (not wanted and 200 <= status < 300):
+            return StepVerdict("held", "status", f"{method} {shape} returned {status}")
+        # The endpoint answered something the demonstration never saw. Not a
+        # failure and not a hold: exactly the case the rest of the ladder is
+        # for.
+        return None
+    return None
 
 
 async def verify(

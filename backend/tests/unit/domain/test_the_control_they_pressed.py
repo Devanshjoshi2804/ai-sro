@@ -119,9 +119,7 @@ def test_a_step_with_no_click_at_all_is_not_given_one() -> None:
 
 def test_a_press_another_step_is_built_on_is_that_steps() -> None:
     workflow, gestures = _signing_in()
-    workflow.steps.append(
-        Step(order=1, says="Sign in.", system=KEYCLOAK, cites=["ges-press"])
-    )
+    workflow.steps.append(Step(order=1, says="Sign in.", system=KEYCLOAK, cites=["ges-press"]))
 
     assert with_the_press(workflow, gestures) == 0
 

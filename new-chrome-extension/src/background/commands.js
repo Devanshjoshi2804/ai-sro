@@ -120,6 +120,48 @@ export function abort(runId) {
   return true;
 }
 
+const CALLS_KEPT = 60;
+const driven = new Map();
+
+/** What the page called while this run was driving it.
+ *
+ * The evidence plane drops these deliberately -- a replay's own traffic mined
+ * as though a person had done it is the system learning a task from a robot
+ * imitating one -- and that is right and stays. This is a different thing with
+ * a different life: a handful of calls, in memory, for the length of a run,
+ * so the run can be told whether the write it just made came back 201 or 409.
+ *
+ * Before it existed, every step of every run was judged by photographing the
+ * screen and asking a model what it saw -- `verdict_by = screen` on all 67
+ * steps this deployment has ever performed, the weakest and slowest rung of
+ * the three the verifier documents. A status code is both cheaper and better
+ * evidence (86.9% against 78.8% in the paper the verifier cites).
+ *
+ * Bounded per tab, and never written anywhere: this map is the whole of it.
+ */
+export function noteDriven(tabId, request) {
+  if (tabId === null || tabId === undefined || !request) return;
+  const kept = driven.get(tabId) || [];
+  kept.push({
+    method: request.method || "",
+    url: request.url || "",
+    status: request.status ?? null,
+    started_at: request.started_at ?? Date.now() / 1000,
+  });
+  driven.set(tabId, kept.slice(-CALLS_KEPT));
+}
+
+/** The calls this run's tab made since a moment, newest last. */
+function callsSince(payload, runId) {
+  const tabId = runId && latest?.runId === runId ? latest.tabId : undefined;
+  if (tabId === undefined) return { ok: true, result: { calls: [] } };
+  const since = Number(payload.since) || 0;
+  const calls = (driven.get(tabId) || []).filter(
+    (call) => call.started_at >= since && call.status !== null,
+  );
+  return { ok: true, result: { calls } };
+}
+
 export function isDriving(tabId) {
   const until = driving.get(tabId);
   if (until === undefined) return false;
@@ -713,6 +755,8 @@ export async function perform(command, source = "backend") {
         return await navigate(command.payload || {});
       case "tab.open":
         return await openTab(command.payload || {});
+      case "calls.since":
+        return callsSince(command.payload || {}, command.run_id);
       case "http.send":
         return await httpSend(command.payload || {});
       case "abort":

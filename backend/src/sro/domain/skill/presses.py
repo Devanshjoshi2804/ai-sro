@@ -116,9 +116,7 @@ def with_the_press(workflow: Workflow, gestures: dict[str, Gesture]) -> int:
         # First, and the strays gone. The typings stay: they are what the step
         # was done after, and the step no longer plans from them.
         step.cites = [press.id] + [
-            one
-            for one in step.cites
-            if one in gestures and gestures[one].action.kind != "click"
+            one for one in step.cites if one in gestures and gestures[one].action.kind != "click"
         ]
         cited_anywhere.add(press.id)
         changed += 1

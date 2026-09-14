@@ -3624,6 +3624,7 @@ async def test_a_click_that_was_asked_for_nothing_is_performed_as_before() -> No
 
     assert run.outcome == "held", "a click nobody asked to carry a value is just a click"
 
+
 async def test_a_step_that_wants_a_password_keeps_saying_so_after_the_rung_gives_up() -> None:
     """The refusal has to survive the rung that produced it.
 
@@ -3637,6 +3638,7 @@ async def test_a_step_that_wants_a_password_keeps_saying_so_after_the_rung_gives
     """
     uow = await _fixture()
     typed = next(g for g in _evidence(uow) if g.action.kind == "type")
+    assert typed.action.target is not None
     secret = replace(
         typed,
         id="ges_secret",
@@ -3691,3 +3693,105 @@ async def _nothing_stored() -> str | None:
     and this one decides it means "ask the person watching".
     """
     return None
+
+
+# --- the status a UI step can finally be held by -----------------------------
+
+
+def _called(status: int, url: str = "http://127.0.0.1:63319/api/orders") -> Reply:
+    return Reply(
+        ok=True,
+        result={"calls": [{"method": "POST", "url": url, "status": status, "started_at": 1.0}]},
+    )
+
+
+async def test_a_write_the_server_answered_is_held_by_its_status_and_never_photographed() -> None:
+    """The lever this exists for.
+
+    Every step of every run this deployment has performed was judged `screen`:
+    a screenshot, an upload and a vision call, per step, to reach the weakest
+    of the three rungs the verifier documents. A click cannot reach rung 1 on
+    its own -- its reply says the control was found and clicked -- so the
+    browser is asked what the page called while it was being driven, and the
+    step's own demonstrated endpoint answering 200 settles it with no picture.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel(
+        {
+            **_looks(4),
+            "ui.perform": [_performed(), _performed()],
+            "calls.since": [_called(200), _called(200)],
+        }
+    )
+    asker = FakeAsker(
+        _plan("type", "THIRD"), Answer(data={"held": True, "why": ""}), _plan("click")
+    )
+
+    run = await _ran(
+        uow, workflow, channel=channel, asker=asker, values={"clientCode": "THIRD"}, earned=True
+    )
+
+    saving = run.steps[1]
+    assert (saving.verdict, saving.verdict_by) == ("held", "status"), saving.reason
+    assert "200" in saving.reason
+    # The step still says where it left the browser -- that is what `after_url`
+    # is -- and it costs a message rather than a camera.
+    assert saving.after_url
+    # Three, not four: each step is looked at before it is planned, and only
+    # the first step is looked at again to judge it.
+    shots = [one for one in channel.sent if one["kind"] == "screenshot"]
+    assert len(shots) == 3, "the saving step was photographed to reach a worse answer"
+
+
+async def test_a_write_the_server_refused_fails_on_the_status_rather_than_on_a_picture() -> None:
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel(
+        {
+            **_looks(4),
+            "ui.perform": [_performed(), _performed()],
+            "calls.since": [_called(409), _called(409)],
+        }
+    )
+    asker = FakeAsker(
+        _plan("type", "THIRD"), Answer(data={"held": True, "why": ""}), _plan("click")
+    )
+
+    run = await _ran(
+        uow, workflow, channel=channel, asker=asker, values={"clientCode": "THIRD"}, earned=True
+    )
+
+    saving = run.steps[1]
+    assert (saving.verdict, saving.verdict_by) == ("failed", "status")
+    assert "409" in saving.reason
+
+
+async def test_a_page_that_called_nothing_this_run_recognises_is_still_looked_at() -> None:
+    """Absence of evidence, which the ladder is for. A beacon on the same host
+    is not this step's endpoint, and a step nobody can place by status is
+    judged the way it always was."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    beacon = _called(200, "http://127.0.0.1:63319/telemetry/batch")
+    channel = FakeChannel(
+        {
+            **_looks(4),
+            "ui.perform": [_performed(), _performed()],
+            "calls.since": [beacon, beacon],
+        }
+    )
+    asker = FakeAsker(
+        _plan("type", "THIRD"),
+        Answer(data={"held": True, "why": ""}),
+        _plan("click"),
+        Answer(data={"held": True, "why": "the order is on the screen"}),
+    )
+
+    run = await _ran(
+        uow, workflow, channel=channel, asker=asker, values={"clientCode": "THIRD"}, earned=True
+    )
+
+    saving = run.steps[1]
+    assert (saving.verdict, saving.verdict_by) == ("held", "screen")
+    assert len([one for one in channel.sent if one["kind"] == "screenshot"]) == 4

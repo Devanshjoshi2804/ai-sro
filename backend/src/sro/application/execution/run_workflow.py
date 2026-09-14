@@ -46,7 +46,7 @@ from sro.application.execution.approvals import K_APPROVAL_WAIT_S, Approvals
 from sro.application.execution.effects import earned, forget_effects, record_effect
 from sro.application.execution.plan_step import SecretFor, plan_by_sight, plan_step
 from sro.application.execution.stops import Stops
-from sro.application.execution.verify import verify
+from sro.application.execution.verify import by_what_the_page_called, verify
 from sro.application.ports.agent import DeviceUnreachable
 from sro.application.ports.channel import Channel, Reply
 from sro.application.ports.model import Asker
@@ -132,6 +132,26 @@ def _target_origin(planned: Planned) -> str | None:
         return system_of(str(planned.payload.get("url")))
     origin = planned.payload.get("origin")
     return origin if isinstance(origin, str) else None
+
+
+async def _where(
+    channel: Channel,
+    tenant_id: TenantId,
+    device_id: DeviceId,
+    run_id: str,
+    origin: str | None,
+) -> Look:
+    """Where the browser is, and no picture.
+
+    For the step a status already settled. The record still says where the
+    step left the browser -- that is what `after_url` is -- and asking for it
+    costs a message rather than a screenshot, an upload and a vision call.
+    """
+    where = await channel.send(
+        tenant_id, device_id, kind="ui.url", run_id=run_id, payload={"origin": origin}
+    )
+    url = str(where.result.get("url")) if where.ok and where.result.get("url") else None
+    return Look(url=url, screenshot=None, digest="")
 
 
 async def _look(
@@ -695,6 +715,11 @@ async def run_workflow(
                 # above: a command to send is a command something was looked at
                 # before planning.
                 assert before is not None  # noqa: S101 -- see the comment above
+                # The moment the command went out, so the calls the page makes
+                # because of it can be told from the ones it was already
+                # making. Taken here and not after the reply: a form submit
+                # posts before the click's own answer comes back.
+                sent_at = datetime.now(tz=UTC).timestamp()
                 reply = await channel.send(
                     tenant_id, device_id, kind=planned.kind, run_id=run.id, payload=planned.payload
                 )
@@ -705,13 +730,41 @@ async def run_workflow(
                     record.result["matched_by"] = "sight"
                 matched = record.result["matched_by"]
                 record.matched_by = matched if reply.ok and isinstance(matched, str) else None
-                after = await _look(channel, tenant_id, device_id, run.id, origin, allow_focus)
+                # The cheap rung first, and the picture only if it cannot
+                # answer. A step whose demonstrated endpoint has just answered
+                # 201 is done, and photographing the screen to ask a model
+                # whether it looks done costs a screenshot, a vision call and
+                # most of the step's wall clock to reach a worse answer -- the
+                # verifier's own docstring puts the status first and the screen
+                # "last and least", and until the browser could be asked what
+                # it called, a UI step could never reach the first rung.
+                settled = (
+                    await by_what_the_page_called(
+                        step=step,
+                        cited=cited,
+                        since=sent_at,
+                        channel=channel,
+                        tenant_id=tenant_id,
+                        device_id=device_id,
+                        run_id=run.id,
+                    )
+                    if reply.ok
+                    else None
+                )
+                # Where the status settled it, the url is still wanted -- the
+                # record says where the step left the browser -- and that is a
+                # question the browser answers without a camera.
+                after = (
+                    await _where(channel, tenant_id, device_id, run.id, origin)
+                    if settled is not None
+                    else await _look(channel, tenant_id, device_id, run.id, origin, allow_focus)
+                )
                 record.after_url = after.url
                 # Kept for the rescue: if this attempt does not hold, the next
                 # rung is shown the page it left behind beside the page as it
                 # is when it plans.
                 after_failed = after
-                verdict = await verify(
+                verdict = settled or await verify(
                     step=step,
                     sent_kind=planned.kind,
                     answer=reply,

@@ -5,7 +5,7 @@
 
 import { api, ApiError } from "./api.js";
 import * as channel from "./channel.js";
-import { abort, isDriving, performing, RUN_QUIET_MS } from "./commands.js";
+import { abort, isDriving, noteDriven, performing, RUN_QUIET_MS } from "./commands.js";
 import * as queue from "./queue.js";
 import { redactUrl } from "../content/sensitivity.module.js";
 import {
@@ -941,6 +941,11 @@ async function handle(message, sender) {
       // system learning a task from a robot imitating a person -- and then
       // offering it back as something worth automating.
       if (isDriving(sender?.tab?.id ?? null)) {
+        // Dropped from the evidence plane, and kept for the length of the run
+        // in a bounded map the run can ask about: a step that just posted a
+        // form is verified by what the server answered rather than by
+        // photographing the page and asking a model what it looks like.
+        if (message.kind === "request") noteDriven(sender?.tab?.id ?? null, message.request);
         return { ok: false, dropped: "this browser is performing a run" };
       }
       // Somebody is working in here. Said out loud on the channel so a command

@@ -113,7 +113,20 @@ export function ledger(thread, local = {}, { onPress, runs } = {}) {
   // full of them is noise -- but the operator reads one place, and things that
   // happened belong in the order they happened.
   const entries = [
-    ...messages.map((message) => ({ at: message.said_at, message })),
+    // Not the mining candidates. This deployment runs the rig: a job it has
+    // mined is offered by the rig's own paths -- a prefix match while somebody
+    // works, a page rule they made, a job a card asks about -- and the older
+    // pipeline's "you've done this 4 times, want me to do the next one?" is an
+    // offer to teach a SKILL from recordings, which is not the system this
+    // browser drives any more. An operator pressed one and got "the doings
+    // differ too much", for work the rig already holds as a seven-step job.
+    //
+    // Dropped where it is read rather than where it is written: the backend
+    // goes on mining candidates and the console goes on reviewing them. What
+    // ends here is offering them to the person at the warehouse.
+    ...messages
+      .filter((message) => message.decision?.kind !== "offer")
+      .map((message) => ({ at: message.said_at, message })),
     ...(local?.nudges || []).map((nudge) => ({ at: nudge.at, nudge })),
     ...(local?.answer ? [{ at: at(local.answer.askedAt), answer: local.answer }] : []),
     ...(local?.nearMisses || []).map((miss) => ({ at: at(miss.at), miss })),

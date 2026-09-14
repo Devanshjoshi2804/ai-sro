@@ -131,19 +131,19 @@ const CANDIDATES_FRESH_MS = 300_000;
 const knownHere = new Map();
 
 async function candidatesFor(host) {
+  // The rig's jobs, and nothing else.
+  //
+  // This used to be the rig's jobs plus the mining pipeline's candidates,
+  // which offered to TEACH a skill from recordings. That is not the system
+  // this browser drives: an operator pressed one of those offers for work the
+  // rig already held as a seven-step job and got "the doings differ too much
+  // for me to be sure". Dropped where it is read, so the backend goes on
+  // mining candidates and the console goes on reviewing them.
   const held = knownHere.get(host);
   if (held && Date.now() - held.at < CANDIDATES_FRESH_MS) return held.list;
   const proven = rigArrivals(await shapesFor(), host);
-  try {
-    const list = [...(await api.candidates(host)), ...proven];
-    knownHere.set(host, { at: Date.now(), list });
-    return list;
-  } catch {
-    // Offline, or no credential. The rig is a different server and may well be
-    // up, so what it has proved still stands. Not cached: the backend should be
-    // asked again on the next navigation, not in five minutes.
-    return proven;
-  }
+  knownHere.set(host, { at: Date.now(), list: proven });
+  return proven;
 }
 
 /** The rig's jobs that start on this host, as arrival candidates.
@@ -1404,21 +1404,13 @@ async function handle(message, sender) {
       return api.reviseRun(message.runId, message.values);
     case "say-to-run":
       return api.sayToRun(message.threadId, message.runId, message.text);
-    case "candidates":
-      // Read here rather than in the panel so the credential stays in the
-      // worker: an extension page holding a token is one more place it can be
-      // read from, and the panel has no need of it.
-      return api.candidates(message.host);
-    case "teach-candidate":
-      return api.teachCandidate(message.id);
-    case "teach-together":
-      return api.teachTogether(message.id, message.otherId);
-    case "answer-join":
-      return api.answerJoin(message.id, message.otherId, message.joinKind, message.answer);
-    case "dismiss-candidate":
-      return api.dismissCandidate(message.id, message.reason);
-    case "resolve-intent":
-      return api.resolveIntent(message.utterance);
+    // `candidates`, `teach-candidate`, `teach-together`, `answer-join`,
+    // `dismiss-candidate` and `resolve-intent` were here, and are not any
+    // more: every one of them served the mining pipeline's offer -- a card
+    // that proposed teaching a skill from recordings, and a box that resolved
+    // a sentence against the skills it had taught. This deployment runs the
+    // rig, whose jobs come with their steps already. The routes still exist on
+    // the backend for the console.
     case "thread":
       return api.currentThread();
     case "thread-say": {

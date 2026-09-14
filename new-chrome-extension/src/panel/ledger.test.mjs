@@ -37,9 +37,9 @@ test("each speaker renders as its own kind of thing", () => {
         {
           id: "m3",
           speaker: "system",
-          text: "You've done this 3 times.",
+          text: "A run stopped to ask.",
           said_at: WHEN,
-          decision: { kind: "offer", candidate_id: "cnd_1", times: 3 },
+          decision: { kind: "failure", run_id: "run_1", next: "open" },
         },
       ],
     },
@@ -52,50 +52,40 @@ test("each speaker renders as its own kind of thing", () => {
     ["operator", "assistant", "system"],
   );
   // Everything anybody said is still on the page, in the order it was said.
-  assert.match(words(node_), /create a supplier.*which client\?.*You've done this 3 times/s);
-  // Only the offer is answerable. The other two are things that were said, and
-  // a button on them would be a button that does nothing.
+  assert.match(words(node_), /create a supplier.*which client\?.*A run stopped to ask/s);
+  // Only the decision is answerable. The other two are things that were said,
+  // and a button on them would be a button that does nothing.
   assert.deepEqual(
     said.map((message) => of(message, "button").length),
-    [0, 0, 2],
+    [0, 0, 1],
   );
 });
 
-test("an offer renders the two answers, and pressing one starts nothing itself", () => {
-  const pressed = [];
-  const offer = {
-    id: "m1",
-    speaker: "system",
-    text: "You've created a carrier cross-reference here 3 times. Want me to do the next one?",
-    said_at: WHEN,
-    decision: { kind: "offer", candidate_id: "cnd_1", times: 3, seconds_each: 51 },
-  };
-  const node_ = ledger({ id: "thr-1", messages: [offer] }, undefined, {
-    onPress: (...args) => pressed.push(args),
+test("a mining candidate is not offered at all -- this deployment runs the rig", () => {
+  // The older pipeline's "you've done this 4 times, want me to do the next
+  // one?" offers to teach a SKILL from recordings, which is not the system
+  // this browser drives. An operator pressed one and got "the doings differ
+  // too much" for work the rig already holds as a seven-step job.
+  //
+  // Dropped where it is read, not where it is written: the backend goes on
+  // mining candidates and the console goes on reviewing them.
+  const node_ = ledger({
+    id: "thr-1",
+    messages: [
+      {
+        id: "m1",
+        speaker: "system",
+        text: "Create an equipment type — you've done this 4 times.",
+        said_at: WHEN,
+        decision: { kind: "offer", candidate_id: "cnd_1", times: 4 },
+      },
+      { id: "m2", speaker: "operator", text: "ok", said_at: WHEN },
+    ],
   });
 
-  const [message] = messages(node_);
-  const [yes, no] = of(message, "button");
-  assert.equal(yes.textContent, "Do the next one");
-  assert.equal(no.textContent, "Not now");
-
-  // Drawing the offer did nothing. This is the separation the design turns on:
-  // a message is a thing said, the press is the authorisation, and an assisted
-  // run records the press.
-  assert.deepEqual(pressed, []);
-
-  yes.listeners.click[0]();
-  assert.equal(pressed.length, 1);
-  const [answer, message_, where] = pressed[0];
-  assert.equal(answer, "do");
-  // The whole message, so the caller reads the candidate off the decision
-  // rather than off anything this file invented, and the node it was drawn in,
-  // so an answer can be reported on the offer itself.
-  assert.equal(message_.decision.candidate_id, "cnd_1");
-  assert.equal(where, message);
-
-  no.listeners.click[0]();
-  assert.equal(pressed[1][0], "no");
+  const said = messages(node_);
+  assert.equal(said.length, 1, "the candidate offer was drawn");
+  assert.ok(!words(node_).includes("equipment type"));
 });
 
 test("a decision this panel does not know renders its words and no buttons", () => {
@@ -231,7 +221,6 @@ test("every kind draws its own buttons, and one nobody knows draws none", () => 
   const node_ = ledger({
     id: "thr-1",
     messages: [
-      one("offer", { candidate_id: "c1" }),
       one("result", { run_id: "r1" }),
       one("failure", { run_id: "r2", next: "open" }),
       one("question", { run_id: "r3", choices: ["A000144886", "A000221"] }),
@@ -240,13 +229,12 @@ test("every kind draws its own buttons, and one nobody knows draws none", () => 
   });
 
   const labels = (i) => of(messages(node_)[i], "button").map((b) => b.textContent);
-  assert.deepEqual(labels(0), ["Do the next one", "Not now"]);
-  assert.deepEqual(labels(1), ["Undo that", "It\u2019s wrong \u2014 I\u2019ll fix it"]);
-  assert.deepEqual(labels(2), ["Open the page"], "a failure offers the one thing that helps");
-  assert.deepEqual(labels(3), ["A000144886", "A000221"]);
-  assert.equal(of(messages(node_)[3], "input").length, 1, "a question also takes a typed answer");
-  assert.deepEqual(labels(4), [], "an unknown kind grew buttons nobody wired up");
-  assert.ok(/somethingnew/.test(words(messages(node_)[4])), "an unknown kind lost its words");
+  assert.deepEqual(labels(0), ["Undo that", "It\u2019s wrong \u2014 I\u2019ll fix it"]);
+  assert.deepEqual(labels(1), ["Open the page"], "a failure offers the one thing that helps");
+  assert.deepEqual(labels(2), ["A000144886", "A000221"]);
+  assert.equal(of(messages(node_)[2], "input").length, 1, "a question also takes a typed answer");
+  assert.deepEqual(labels(3), [], "an unknown kind grew buttons nobody wired up");
+  assert.ok(/somethingnew/.test(words(messages(node_)[3])), "an unknown kind lost its words");
 });
 
 test("a nudge the browser is holding is merged into the day by time", () => {
@@ -356,56 +344,6 @@ test("a matched mail draws the values the browser is holding, not the thread", (
 });
 
 let failed = 0;
-
-test("an offer the operator already answered stops asking again", () => {
-  // The offer stays -- it is a record of what was said -- but its buttons go.
-  // Pressing one is refused by the backend ("this candidate is already
-  // taught"), which is safe and useless: the operator answered, and the thread
-  // should look like it. Seen live: two answered offers still carrying live
-  // buttons above their own answers.
-  const node = ledger(
-    {
-      messages: [
-        {
-          id: "m1",
-          speaker: "system",
-          text: "Create a supplier — you've done this 5 times. Want me to do the next one?",
-          said_at: WHEN,
-          decision: { kind: "offer", candidate_id: "cnd-1", times: 5 },
-        },
-        {
-          id: "m2",
-          speaker: "system",
-          text: "Create a supplier — you asked for this one, so I learned it.",
-          said_at: WHEN,
-          decision: { kind: "answered", candidate_id: "cnd-1", answer: "asked" },
-        },
-        {
-          id: "m3",
-          speaker: "system",
-          text: "Create a work area — you've done this 4 times. Want me to do the next one?",
-          said_at: WHEN,
-          decision: { kind: "offer", candidate_id: "cnd-2", times: 4 },
-        },
-      ],
-    },
-  );
-
-  const said = messages(node);
-  const [answeredOffer, itsAnswer, openOffer] = said;
-  assert.equal(
-    of(answeredOffer, "button").length,
-    0,
-    "an offer that was already answered still invited an answer",
-  );
-  assert.equal(answeredOffer.dataset.answered, "asked");
-  assert.ok(
-    /Create a supplier/.test(words(answeredOffer)),
-    "the offer's own words were dropped along with its buttons",
-  );
-  assert.equal(of(itsAnswer, "button").length, 0, "the answer itself grew buttons");
-  assert.equal(of(openOffer, "button").length, 2, "an unanswered offer lost its buttons");
-});
 
 // -- the rig's own offer ------------------------------------------------------
 
@@ -631,53 +569,6 @@ test("a rule that almost fired is drawn, and offers nothing to press", () => {
 
   assert.match(words(item), /nearly matched "order status"/);
   assert.equal(of(item, "button").length, 0);
-});
-
-test("an offer about another system keeps its words and loses its buttons", () => {
-  // What an operator actually saw: standing on their login page, shown "create
-  // an equipment type -- want me to do the next one?" with live buttons, for a
-  // warehouse host they were not on. Pressing it would drive a tab they are
-  // not looking at, off evidence from hours before.
-  const thread = {
-    id: "thr-1",
-    messages: [
-      {
-        id: "m1",
-        speaker: "system",
-        said_at: WHEN,
-        text: "Create an equipment type — you've done this 4 times.",
-        decision: { kind: "offer", candidate_id: "cnd-1", host: "wms.test" },
-      },
-    ],
-  };
-
-  const away = messages(ledger(thread, { here: "login.test" }, {}))[0];
-  assert.match(words(away), /Create an equipment type/, "the offer stopped being said at all");
-  assert.match(words(away), /on wms.test/);
-  assert.equal(of(away, "button").length, 0);
-
-  const there = messages(ledger(thread, { here: "wms.test" }, {}))[0];
-  assert.equal(of(there, "button").length, 2, "the offer lost its buttons where it applies");
-});
-
-test("an offer whose host nobody knows keeps its buttons", () => {
-  // Hiding a control on a guess is worse than showing one that turns out to be
-  // about the next tab: an older backend sends no host, and a panel that has
-  // not learned which tab it is beside knows no `here`.
-  const thread = {
-    id: "thr-1",
-    messages: [
-      {
-        id: "m1",
-        speaker: "system",
-        said_at: WHEN,
-        text: "Create an equipment type.",
-        decision: { kind: "offer", candidate_id: "cnd-1" },
-      },
-    ],
-  };
-
-  assert.equal(of(messages(ledger(thread, { here: "login.test" }, {}))[0], "button").length, 2);
 });
 
 test("a rule that fired and stopped to ask is drawn where the operator is", () => {

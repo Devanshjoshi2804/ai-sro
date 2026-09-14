@@ -342,41 +342,11 @@ export const api = {
   runWrong: (runId, because) =>
     call(`/v1/runs/${encodeURIComponent(runId)}/wrong`, { method: "POST", body: { because } }),
 
-  /** Tasks this operator keeps doing on one system. The panel asks about the
-   * tab it is docked beside; the host is what makes it that question. */
-  candidates: (host) =>
-    call(`/v1/candidates?seen_at_least=3&host=${encodeURIComponent(host)}`),
-
-  teachCandidate: (id) =>
-    call(`/v1/candidates/${encodeURIComponent(id)}/teach`, { method: "POST", body: {} }),
-
-  /** Two candidates a person has said are one job, taught as one skill. Each
-   * time the operator did both halves in a row is one demonstration of it. */
-  teachTogether: (id, otherId) =>
-    call(`/v1/candidates/${encodeURIComponent(id)}/teach-together`, {
-      method: "POST",
-      body: { other_id: otherId },
-    }),
-
-  /** What a person says two candidates are to each other. The model may only
-   * ever have suggested it. */
-  answerJoin: (id, otherId, kind, answer) =>
-    call(`/v1/candidates/${encodeURIComponent(id)}/joins`, {
-      method: "POST",
-      body: { other_id: otherId, kind, answer },
-    }),
-
-  dismissCandidate: (id, reason) =>
-    call(`/v1/candidates/${encodeURIComponent(id)}/dismiss`, {
-      method: "POST",
-      body: { reason },
-    }),
-
-  /** What a sentence asks for. Ranks the whole taught library every time --
-   * there is no field on this request to restrict it to one skill, and the
-   * panel does not invent one: a sentence offered against one candidate that
-   * names a different taught task is answered about that task. */
-  resolveIntent: (utterance) => call("/v1/intent/resolve", { method: "POST", body: { utterance } }),
+  // The mining pipeline's six calls were here -- the candidate list, the two
+  // teach routes, the join answer, the dismissal and the sentence resolver.
+  // Every one of them served an offer to teach a SKILL from recordings, and
+  // this deployment runs the rig, whose jobs arrive with their steps. The
+  // routes are still on the backend, where the console uses them.
 
   /** This operator's running conversation, started if they have none. */
   currentThread: () => call("/v1/threads/current"),
@@ -388,9 +358,9 @@ export const api = {
    * door". It spends a model call doing it -- about a fifth of a cent -- and
    * the backend bills and caps that per tenant.
    *
-   * Not `resolveIntent`, which is the other resolver: that one reads an
-   * utterance over the tenant's taught SKILLS with arithmetic and no model.
-   * This reads it over the mined JOBS. Two vocabularies, one verb.
+   * The rig's resolver, and now the only one this extension has. The other
+   * read an utterance over the tenant's taught SKILLS; it went with the rest
+   * of the mining pipeline's offers.
    */
   readChat: (utterance) => call("/v1/chat", { method: "POST", body: { utterance } }),
 

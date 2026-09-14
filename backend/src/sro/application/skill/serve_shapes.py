@@ -67,6 +67,17 @@ class ServeShapes:
             )
 
 
+K_ONLY_EVER_FAILED = 3
+"""How many times a job must fail on its own account before it stops being
+offered.
+
+One is a slow page, a modal that was still open, a browser that went away
+mid-step -- and one was enough to take a job off every browser this tenant has,
+permanently, because a job nobody is offered is a job nobody runs. Three is the
+same shape as every other streak in this system: enough to be a pattern rather
+than a bad night."""
+
+
 async def shapes_for(
     uow: UnitOfWork,
     *,
@@ -76,6 +87,16 @@ async def shapes_for(
 ) -> list[Shape]:
     """Every proven workflow, as the extension needs it. `device_id` is the
     asking browser, for the rest its own refusals earned it.
+
+    **What counts as failing, and how often.** The gate was "ran and never
+    held", and that emptied this deployment's panel: twelve runs of the sign-in
+    job, eleven of them `stopped` -- the job asking for a password it did not
+    have -- and the job disappeared from the browser that was trying to finish
+    it. Every job an operator actually does was in that state, and the rule
+    feeds itself: a job that is not served is never offered, is never run, and
+    can never hold. So a run that stopped to ask is not a failure, nor is one a
+    person aborted, and `K_ONLY_EVER_FAILED` real failures are needed before a
+    job goes quiet.
 
     A workflow that has been run is asked a harder question -- has it ever
     held -- because an offer to do a job the runner has only ever failed is an
@@ -106,14 +127,14 @@ async def shapes_for(
     batched.
     """
     tallied = await uow.workflow_runs.tallies(tenant_id)
+    broke = await uow.workflow_runs.failures(tenant_id)
     served: list[Shape] = []
     for workflow in await uow.workflows.known(tenant_id):
         if workflow.unproven:
             continue
-        # Absent means never run, which is not the same as run and never
-        # held: the first is served and the second is the gate below.
-        ran, held = tallied.get(workflow.id, (0, 0))
-        if ran and not held:
+        # Absent means never run, which is not the same as run and never held.
+        _, held = tallied.get(workflow.id, (0, 0))
+        if broke.get(workflow.id, 0) >= K_ONLY_EVER_FAILED and not held:
             continue
         wanted = ordered_cites(workflow)
         # Not a null check -- `shape_of` makes one of those below, over the

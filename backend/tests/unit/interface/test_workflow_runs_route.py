@@ -1732,7 +1732,7 @@ async def test_the_tap_is_refused_with_no_credential(
     assert uow.workflow_runs.approved == {}
 
 
-async def test_a_secret_with_no_browser_named_beside_it_is_the_usual_404(
+async def test_a_secret_with_no_browser_named_beside_it_approves_as_the_tenant(
     client: httpx.AsyncClient, uow: FakeUnitOfWork, container: _FakeContainer
 ) -> None:
     """The one place this door differs from the stop button next to it, pinned
@@ -1740,9 +1740,10 @@ async def test_a_secret_with_no_browser_named_beside_it_is_the_usual_404(
 
     `abort` reads no browser at all, so the `X-Device-Secret` the extension
     sends on every call (`api.js:40`) is ignored there. This door has to know
-    which browser is tapping, so it takes `asking_device` -- and half a pair is
-    a 404 there, exactly as it is at `/v1/shapes` and `/v1/offers`. **A tap
-    from a browser must send `?device_id=` AND the secret.**
+    which browser is tapping, so it takes `asking_device` -- and **a tap that
+    wants to be recorded as a BROWSER'S must send `?device_id=` AND the
+    secret.** A secret alone names nobody and is the tenant, which this door
+    allows and records as such.
 
     Which is not what `rigApprove` sends today, and the failure it would get is
     not this one. It sends `rigHeaders()` -- "none of the backend's headers",
@@ -1759,8 +1760,12 @@ async def test_a_secret_with_no_browser_named_beside_it_is_the_usual_404(
         "/v1/workflow-runs/run_parked/approve", headers={"X-Device-Secret": APPROVER}
     )
 
-    assert half.status_code == 404, half.text
-    assert uow.workflow_runs.approved == {}
+    # The tenant tapping: a secret that names no browser names nobody, and the
+    # tap is recorded against the credential rather than a browser. It was a
+    # 404 until an operator's panel went dark -- the extension sends the secret
+    # on every call, so every tenant door it asked answered "device  was not
+    # found".
+    assert half.status_code == 200, half.text
     whole = await client.post(
         "/v1/workflow-runs/run_parked/approve",
         params={"device_id": LAPTOP.value},

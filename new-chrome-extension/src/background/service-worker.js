@@ -467,9 +467,22 @@ async function offerFromWords(text, tabId) {
       );
       await state.setNudges([{ ...made, tabId }, ...rest].slice(0, MAX_NUDGES));
     });
-  } catch {
-    // No model configured, over the day's cap, a sentence about nothing. The
-    // thread still has what they said, and this line adds nothing to it.
+  } catch (error) {
+    // Said out loud, not swallowed.
+    //
+    // A sentence about nothing is the ordinary case and says nothing back --
+    // the thread already has what they said. A door that REFUSED is a
+    // different thing, and this catch hid one for a whole evening: every
+    // sentence an operator typed got a 404 from `/v1/ask`, the panel offered
+    // nothing, and there was no way from the panel to tell "I did not
+    // understand you" from "I could not ask".
+    //
+    // `lastError` is what the strip already draws when something is wrong, so
+    // this needs no new surface: the operator sees that the door refused and
+    // the log says which.
+    if (error instanceof ApiError) {
+      await state.setLastError(`the panel could not ask about that: ${error.message}`);
+    }
   }
 }
 

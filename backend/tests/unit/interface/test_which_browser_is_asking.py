@@ -162,14 +162,24 @@ async def test_a_named_device_with_no_secret_is_refused(
     assert container.watched.asked == [], "half a pair reached the repository"
 
 
-async def test_a_secret_with_no_device_named_is_refused(
+async def test_a_secret_with_no_device_named_is_the_tenant(
     container: _WatchingContainer, registered: AgentDevice
 ) -> None:
-    with pytest.raises(HTTPException) as refused:
-        await asking_device(container, CTX, HERS, None)
+    """A secret on its own names nobody, so nobody is asking: this is the
+    tenant, and it is not a downgrade -- there is nothing to downgrade from.
 
-    assert refused.value.status_code == 404
-    assert container.watched.asked == []
+    It used to be a 404, and that cost this deployment every tenant door the
+    extension has. The browser sends `X-Device-Secret` on every call by design
+    -- it goes to the same backend either way, and a list of which endpoints
+    may see it is a list that goes stale -- so `/v1/ask` answered "device  was
+    not found" for every sentence an operator typed into the panel, with
+    `/v1/chat`, `/v1/mine` and `/v1/spend` behind it.
+
+    The other half-pair still refuses: a caller NAMING a browser without
+    proving it is a caller asking whether that browser exists.
+    """
+    assert await asking_device(container, CTX, HERS, None) is None
+    assert container.watched.asked == [], "a browser nobody named was looked up anyway"
 
 
 async def test_another_tenant_holding_the_right_secret_is_still_refused(

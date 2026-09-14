@@ -735,6 +735,18 @@ class WorkflowRunRepository(Protocol):
         """
         ...
 
+    async def failures(self, tenant_id: TenantId) -> Mapping[str, int]:
+        """How many runs of each job ended in the job's OWN failure.
+
+        `failed` and `refused` only. A run that stopped to ask a person did not
+        fail -- it asked -- and one a person aborted is a person changing their
+        mind. Counting either as a failure silenced every job this deployment
+        has: twelve runs of the sign-in job, eleven of them stopped on a
+        password it was waiting for, and the job vanished from the browser that
+        was trying to finish it.
+        """
+        ...
+
     async def tallies(self, tenant_id: TenantId) -> Mapping[str, tuple[int, int]]:
         """``(runs, held)`` for every workflow of this tenant that has been
         run, in one ``GROUP BY``.

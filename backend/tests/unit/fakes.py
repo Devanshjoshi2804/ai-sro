@@ -1679,6 +1679,16 @@ class FakeWorkflowRunRepository:
         found.sort(key=lambda run: (when(run.started_at), run.id), reverse=True)
         return tuple(deepcopy(run) for run in found[:limit])
 
+    async def failures(self, tenant_id: TenantId) -> Mapping[str, int]:
+        # `failed` and `refused` only: a run that stopped to ask is the job
+        # asking, and one a person aborted is a person changing their mind.
+        broke: dict[str, int] = {}
+        for run in self.rows.values():
+            if run.tenant != tenant_id.value or run.outcome not in ("failed", "refused"):
+                continue
+            broke[run.workflow_id] = broke.get(run.workflow_id, 0) + 1
+        return broke
+
     async def tallies(self, tenant_id: TenantId) -> Mapping[str, tuple[int, int]]:
         # A workflow with no runs contributes no key, as the store's GROUP BY
         # gives it no row: the caller defaults it to (0, 0).

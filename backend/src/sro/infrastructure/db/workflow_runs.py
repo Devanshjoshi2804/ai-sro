@@ -265,6 +265,22 @@ class SqlWorkflowRunRepository(WorkflowRunRepository):
         ).scalars()
         return await self._with_steps(rows.all())
 
+    async def failures(self, tenant_id: TenantId) -> Mapping[str, int]:
+        # One count for the tenant, beside `tallies` and for the same reason it
+        # is batched. `stopped` and `aborted` are deliberately not here: a run
+        # that stopped to ask is the job asking, and one a person aborted is a
+        # person changing their mind.
+        query = (
+            select(WorkflowRunRow.workflow_id, func.count())
+            .where(
+                WorkflowRunRow.tenant_id == tenant_id.value,
+                WorkflowRunRow.outcome.in_(("failed", "refused")),
+            )
+            .group_by(WorkflowRunRow.workflow_id)
+        )
+        rows = (await self._session.execute(query)).all()
+        return {workflow_id: int(count) for workflow_id, count in rows}
+
     async def tallies(self, tenant_id: TenantId) -> Mapping[str, tuple[int, int]]:
         # The rig's two counts off the runs index, batched: it asked
         # ``COUNT(*), SUM(outcome = 'held')`` per workflow, and this asks the

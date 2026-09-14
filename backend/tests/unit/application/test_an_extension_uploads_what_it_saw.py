@@ -20,7 +20,7 @@ from sro.domain.observation.device import AgentDevice
 from sro.domain.observation.policy import ObservationPolicy
 from sro.domain.recording.artifact import ArtifactKind
 from sro.domain.recording.sensitivity import REDACTED
-from sro.domain.shared.errors import Conflict
+from sro.domain.shared.errors import Conflict, InvariantViolation
 from sro.domain.shared.identifiers import BatchId, DeviceId, PrincipalId, TenantId
 from tests import factories as f
 from tests.unit.fakes import (
@@ -691,3 +691,33 @@ async def test_a_picture_is_filed_where_the_purge_will_look_for_it() -> None:
         swept |= {key for key in blobs.objects if key.startswith(prefix)}
     assert stored.uri
     assert swept, "the picture was filed under a day nothing will ever sweep"
+
+
+async def test_a_batch_refused_over_its_clock_leaves_no_object_behind() -> None:
+    """The refusal used to cost a blob nobody could ever delete.
+
+    `ObservationBatch` asks whether the times carry an offset, and it is built
+    AFTER the NDJSON is written -- the object needs an address before the row
+    can name it. So an envelope with an offset-less `started_at` answered 422
+    with the evidence already in the store: the transaction rolls back, the
+    object does not, and no row points at it, so neither `ForgetObservations`
+    nor `SweepRetention` will ever reach it.
+    """
+    uow, blobs = FakeUnitOfWork(), FakeBlobStore()
+    await _switch_observation_on(uow, ACME)
+    device_id = await _register(uow, ACME)
+
+    with pytest.raises(InvariantViolation):
+        await IngestObservation(uow, blobs, FakeClock()).execute(
+            ACME,
+            device_id=DeviceId(device_id),
+            secret=uow.devices.rows[device_id].secret,
+            batch_id=BatchId("bat_naive"),
+            # As a browser that left the offset off really sends it.
+            started_at=datetime(2026, 3, 1, 9, 0),  # noqa: DTZ001
+            ended_at=datetime(2026, 3, 1, 9, 5),  # noqa: DTZ001
+            mode=CaptureMode.PASSIVE,
+            events=[SNAPSHOT],
+        )
+
+    assert blobs.objects == {}, "the refusal left evidence nothing can ever delete"

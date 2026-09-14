@@ -110,7 +110,25 @@ export function runCard(
   const plan = rig
     ? (run.steps || []).map((step) => ({ ...step, intent: step.says }))
     : skill?.latest?.steps || [];
+  // A job done once per thing on a list, drawn one thing at a time.
+  //
+  // Nineteen rows of "Click Save." with nothing saying which record each
+  // belongs to is a run nobody can read -- and the question somebody watching
+  // actually has is not which step it is on, it is how many of the three are
+  // done. So a line goes in front of each thing's rows, naming it and counting
+  // it, and the rows underneath are the rows they always were.
+  const things = run.items || [];
+  let drawing = null;
   for (const step of plan) {
+    const thing = step.item ?? null;
+    if (thing !== null && thing !== drawing) {
+      drawing = thing;
+      const heading = document.createElement("p");
+      heading.className = "thing";
+      const said = Object.values(things[thing] || {}).join(" ");
+      heading.textContent = `${thing + 1} of ${things.length || thing + 1}${said ? ` — ${said}` : ""}`;
+      card.append(heading);
+    }
     card.append(
       stepRow({
         step,

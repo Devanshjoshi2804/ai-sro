@@ -218,6 +218,10 @@ async function theRigsRunInThePanelsWords() {
   assert.deepStrictEqual(mapped.steps, [
     {
       index: 0,
+      // Which thing on the list, and which step of the job. Null and the same
+      // number for a job that does one thing once, which is most of them.
+      item: null,
+      of_step: 0,
       outcome: "held",
       says: "open the supplier form",
       reason: "it did",
@@ -229,6 +233,8 @@ async function theRigsRunInThePanelsWords() {
     },
     {
       index: 1,
+      item: null,
+      of_step: 1,
       outcome: "awaiting",
       says: "save",
       reason: "",

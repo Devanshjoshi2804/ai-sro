@@ -169,8 +169,17 @@ export const api = {
       id: run.id,
       source: "rig",
       status: run.outcome,
+      // The things this run was asked to do its repeated block for. The card
+      // draws a line per thing so somebody watching knows which of the three
+      // records is being made now, and how many are left.
+      items: run.items || [],
       steps: (run.steps || []).map((step) => ({
         index: step.order,
+        // Which thing on the list this row was done for, and which step of the
+        // job it is. `null` on every step of a job that does one thing once,
+        // which is most of them.
+        item: step.item ?? null,
+        of_step: step.of_step ?? step.order,
         outcome: step.verdict,
         says: step.says,
         reason: step.reason,

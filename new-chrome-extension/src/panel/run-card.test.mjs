@@ -451,6 +451,58 @@ test("a blank box sends nothing, and a vault that refuses says so", async () => 
   );
 });
 
+test("a job done once per thing says which thing each run of the block is for", () => {
+  // Nineteen rows of "Click Save." with nothing saying which record each
+  // belongs to is a run nobody can read. The question somebody watching has is
+  // not which step it is on -- it is how many of the three are done.
+  const run = {
+    id: "run_1",
+    source: "rig",
+    status: "running",
+    items: [
+      { code: "8SITDWN2", name: "8-Sitdown Fork" },
+      { code: "8STANDUP2", name: "8-Stand Up Fork" },
+    ],
+    steps: [
+      { index: 0, item: null, of_step: 0, outcome: "held", says: "Read the mail." },
+      { index: 1, item: 0, of_step: 1, outcome: "held", says: "Click Add." },
+      { index: 2, item: 0, of_step: 2, outcome: "held", says: "Click Save." },
+      { index: 3, item: 1, of_step: 1, outcome: "held", says: "Click Add." },
+      { index: 4, item: 1, of_step: 2, says: "Click Save." },
+    ],
+  };
+
+  const card = runCard({ run });
+  const headings = card.kids.filter((kid) => kid.className === "thing").map((kid) => kid.textContent);
+
+  assert.deepEqual(headings, ["1 of 2 — 8SITDWN2 8-Sitdown Fork", "2 of 2 — 8STANDUP2 8-Stand Up Fork"]);
+  // One line per thing, not one per row: the block's six rows sit under it.
+  assert.equal(card.kids.filter((kid) => kid.className === "step").length, 5);
+  // And the step that is not part of the block has no line above it: the
+  // first heading comes after it, where the block begins.
+  const drawn = card.kids.map((kid) => kid.className);
+  assert.equal(drawn.indexOf("thing") > drawn.indexOf("step"), true, (
+    "the mail, which was read once, was given a heading of its own"
+  ));
+});
+
+test("a job that does one thing once draws exactly what it always did", () => {
+  const run = {
+    id: "run_2",
+    source: "rig",
+    status: "running",
+    items: [],
+    steps: [
+      { index: 0, item: null, outcome: "held", says: "type the code" },
+      { index: 1, item: null, says: "save" },
+    ],
+  };
+
+  const card = runCard({ run });
+
+  assert.deepEqual(card.kids.filter((kid) => kid.className === "thing"), []);
+});
+
 let failed = 0;
 for (const [name, fn] of tests) {
   try {

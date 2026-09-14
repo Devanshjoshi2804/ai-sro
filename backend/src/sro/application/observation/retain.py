@@ -47,9 +47,16 @@ class SweepRetention:
             # never everything.
             policy = await uow.observation_policies.get(tenant_id) or ObservationPolicy()
             cutoff = now - timedelta(days=policy.retention_days)
-            doomed = await uow.observations.between(
-                tenant_id, since=_BEFORE_THIS_SYSTEM_EXISTED, until=cutoff
-            )
+            # By when it ARRIVED, not by when the browser says it happened.
+            # The cutoff is this server's clock and `started_at` is the
+            # device's, and on this store the two run up to 23 hours apart --
+            # an extension flushing a queue it held while offline, or a
+            # machine whose clock is simply wrong. Counted on the browser's,
+            # a batch that lands already older than the window is swept the
+            # day it arrives, and a device whose clock reads early is never
+            # swept at all, with the tenant's declared window quietly not
+            # honoured either way.
+            doomed = await uow.observations.received_before(tenant_id, cutoff)
             if not doomed:
                 return Forgotten(batches=0, events=0)
             await uow.observations.forget(tenant_id, tuple(batch.id for batch in doomed))

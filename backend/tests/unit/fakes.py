@@ -1036,6 +1036,16 @@ class FakeObservationRepository:
         ]
         return tuple(sorted(found, key=lambda batch: batch.started_at))
 
+    async def received_before(
+        self, tenant_id: TenantId, cutoff: datetime
+    ) -> tuple[ObservationBatch, ...]:
+        found = [
+            batch
+            for batch in self.rows.values()
+            if batch.tenant_id == tenant_id and batch.received_at <= cutoff
+        ]
+        return tuple(sorted(found, key=lambda batch: batch.received_at))
+
     async def for_recording(
         self, tenant_id: TenantId, recording_id: RecordingId
     ) -> tuple[ObservationBatch, ...]:

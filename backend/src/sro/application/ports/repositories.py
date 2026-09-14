@@ -379,6 +379,21 @@ class ObservationRepository(Protocol):
         what a purge counts."""
         ...
 
+    async def received_before(
+        self, tenant_id: TenantId, cutoff: datetime
+    ) -> tuple[ObservationBatch, ...]:
+        """Batches this deployment RECEIVED before an instant, oldest first.
+
+        What retention is counted on, and the reason it is not `between`: the
+        window a tenant declares is "how long we keep what you send us", and
+        the only clock that can answer it is the one that took delivery.
+        `started_at` is the browser's, and on this store it runs up to 23 hours
+        from `received_at` -- an offline extension flushing a queue, or simply
+        a machine whose clock is wrong. Counted on that, a batch that arrived
+        this morning can be a day old on arrival and be swept the same day.
+        """
+        ...
+
     async def for_recording(
         self, tenant_id: TenantId, recording_id: RecordingId
     ) -> tuple[ObservationBatch, ...]:

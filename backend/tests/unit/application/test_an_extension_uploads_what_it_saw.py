@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from dataclasses import replace
+from datetime import UTC, datetime, timedelta
 from typing import cast
 
 import pytest
 
 from sro.application.context import RequestContext
+from sro.application.observation.artifacts import StoreObservationArtifact, artifact_prefixes
 from sro.application.observation.forget import ForgetObservations
 from sro.application.observation.ingest import Ingested, IngestObservation, ObservationRefused
 from sro.application.observation.policy import SetObservationPolicy
@@ -16,6 +18,7 @@ from sro.application.observation.retain import SweepRetention
 from sro.domain.observation.batch import CaptureMode
 from sro.domain.observation.device import AgentDevice
 from sro.domain.observation.policy import ObservationPolicy
+from sro.domain.recording.artifact import ArtifactKind
 from sro.domain.recording.sensitivity import REDACTED
 from sro.domain.shared.errors import Conflict
 from sro.domain.shared.identifiers import BatchId, DeviceId, PrincipalId, TenantId
@@ -299,6 +302,38 @@ async def test_a_time_with_no_offset_is_read_as_utc_and_not_as_the_hosts_clock()
     )
 
     assert forgotten.batches == 1
+
+
+async def test_retention_is_counted_from_when_it_arrived_not_from_the_browsers_clock() -> None:
+    """A tenant's window is how long this deployment keeps what it was sent.
+
+    `started_at` is the device's clock, and on this store it runs up to 23
+    hours from `received_at` -- an extension flushing a queue it held while
+    offline, or a machine whose clock is wrong. Swept on the browser's time, a
+    batch that lands already older than the window is deleted the day it
+    arrives; a device reading early is never swept at all. Either way the
+    declared window is not what happens.
+    """
+    uow, blobs = FakeUnitOfWork(), FakeBlobStore()
+    clock = FakeClock()
+    await SetObservationPolicy(uow).execute(
+        ACME, policy=ObservationPolicy(retention_days=1).enabled()
+    )
+    device_id = await _register(uow, ACME)
+    await _ingest(uow, blobs, device_id, batch_id="bat_stale")
+    # Two days back on the device's clock, and received a moment ago.
+    stale = uow.observations.rows["bat_stale"]
+    uow.observations.rows["bat_stale"] = replace(
+        stale,
+        started_at=clock.now() - timedelta(days=2),
+        ended_at=clock.now() - timedelta(days=2),
+        received_at=clock.now(),
+    )
+
+    swept = await SweepRetention(uow, blobs, clock).execute()
+
+    assert swept[str(ACME.tenant_id)].batches == 0, "evidence was swept the day it arrived"
+    assert set(uow.observations.rows) == {"bat_stale"}
 
 
 async def test_a_sweep_removes_evidence_past_its_own_tenants_window() -> None:
@@ -614,3 +649,45 @@ async def test_a_batch_of_pictures_says_so_on_the_way_out() -> None:
     ingested = await _ingest(uow, blobs, device_id, ctx=ctx, events=[GESTURE, SNAPSHOT, SNAPSHOT])
 
     assert ingested.snapshots_ignored == 2
+
+
+async def test_a_picture_is_filed_where_the_purge_will_look_for_it() -> None:
+    """One clock writes the key and one clock sweeps it, or the pictures stay.
+
+    The key carried the day this SERVER was having when the screenshot was
+    uploaded; `artifact_prefixes` builds its prefixes from the BATCH's days,
+    which are the browser's. On the real store those run up to 23 hours apart,
+    so an operator asking to forget their evidence got the rows deleted, a
+    `forget_prefix` that matched nothing, and `artifacts: 0` in the answer --
+    which reads as "there were none" rather than "they are still there".
+    """
+    uow, blobs = FakeUnitOfWork(), FakeBlobStore()
+    clock = FakeClock()
+    await _switch_observation_on(uow, ACME)
+    device_id = await _register(uow, ACME)
+    await _ingest(uow, blobs, device_id, batch_id="bat_shot")
+    # The browser's day, two days behind this server's.
+    was = uow.observations.rows["bat_shot"]
+    uow.observations.rows["bat_shot"] = replace(
+        was,
+        started_at=clock.now() - timedelta(days=2),
+        ended_at=clock.now() - timedelta(days=2),
+        received_at=clock.now(),
+    )
+
+    stored = await StoreObservationArtifact(uow, blobs, clock).execute(
+        ACME,
+        device_id=DeviceId(device_id),
+        secret=uow.devices.rows[device_id].secret,
+        batch_id=BatchId("bat_shot"),
+        kind=ArtifactKind.SCREENSHOT,
+        data=b"png-bytes",
+        content_type="image/png",
+        frame_index=1,
+    )
+
+    swept = set()
+    for prefix in artifact_prefixes(uow.observations.rows["bat_shot"]):
+        swept |= {key for key in blobs.objects if key.startswith(prefix)}
+    assert stored.uri
+    assert swept, "the picture was filed under a day nothing will ever sweep"

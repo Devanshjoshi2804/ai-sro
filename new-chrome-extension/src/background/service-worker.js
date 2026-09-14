@@ -1754,11 +1754,16 @@ function hostOf(url) {
  */
 /** The page rules this browser holds, from the backend that keeps them.
  *
+ * Exported, alone in this file, so `page-rules.test.mjs` can drive the one
+ * thing that was missing on a real browser: the list was fetched when the
+ * browser registered and at no other time, so a rule made anywhere else never
+ * arrived. The heartbeat calls this beside `refreshWatches` now.
+ *
  * Beside `refreshWatches` and refreshed with it. A failure leaves the last
  * list standing for the same reason: a backend that cannot be reached is not
  * an operator withdrawing a rule.
  */
-async function refreshArrivals() {
+export async function refreshArrivals() {
   const deviceId = await state.deviceId();
   if (!deviceId) return state.setArrivals([]);
   try {
@@ -1933,6 +1938,12 @@ async function beat() {
   // heartbeat is already the tick that asks what changed, and a mail rule is
   // not urgent to the minute.
   await refreshWatches();
+  // And a page rule, which needs this more than a watch does: a watch made
+  // anywhere else still waits for a mail, but an arrival made in the console
+  // -- or by anything other than this browser's own "Always, here" -- would
+  // never reach the one process that evaluates it, and would look to its
+  // operator like a rule that simply does not work.
+  await refreshArrivals();
   await settle();
 }
 

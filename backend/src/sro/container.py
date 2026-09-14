@@ -998,6 +998,10 @@ class Container:
             stops=self.stops,
             approvals=self.approvals,
             verified_writes=load_verified_writes(),
+            # Where a password comes from when a step types one. The evidence
+            # never held it: the recorder struck the field out, and this is the
+            # only place a run can get one.
+            vault=self.vault,
         )
 
     def list_workflow_runs(self) -> ListWorkflowRuns:

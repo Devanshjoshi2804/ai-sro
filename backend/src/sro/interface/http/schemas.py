@@ -2321,6 +2321,35 @@ class WatchModel(BaseModel):
         )
 
 
+class NewSecretRequest(BaseModel):
+    """One value to keep for a run to type, and where it belongs.
+
+    No tenant field: it comes from the credential. A body that named one would
+    be a caller choosing whose vault to write into.
+    """
+
+    system: str
+    """The host this signs into, with or without a scheme. Kept per system and
+    not per page: an operator signs in once for a host, and a key per url is
+    one they would have to store again the first time the sign-in page carried
+    a different query."""
+
+    field: str
+    """The control's own name, usually `password`. A step that refused says the
+    whole key it looked for, so this is readable off the panel rather than
+    guessed at."""
+
+    value: Annotated[str, StringConstraints(min_length=1, max_length=512)]
+    """Written to the vault and nowhere else: never answered with, never
+    logged, never in the evidence plane. See `v1/routers/secrets`."""
+
+
+class SecretStoredModel(BaseModel):
+    """What was stored, named by its key and never by its value."""
+
+    key: str
+
+
 class NewTriggerRequest(BaseModel):
     skill_id: str | None = None
     workflow_id: str | None = None

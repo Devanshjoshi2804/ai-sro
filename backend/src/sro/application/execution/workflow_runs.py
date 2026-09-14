@@ -84,6 +84,7 @@ from sro.application.ports.channel import Channel
 from sro.application.ports.model import Asker, asker_or_refuse
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock
+from sro.application.ports.vault import CredentialVault, VaultUnavailable
 from sro.application.shared.refusals import OverCap
 from sro.domain.execution.evidence import unperformable
 from sro.domain.execution.verified_writes import VerifiedWrite
@@ -149,8 +150,14 @@ class StartWorkflowRun:
         stops: Stops,
         approvals: Approvals,
         verified_writes: tuple[VerifiedWrite, ...] = (),
+        vault: CredentialVault | None = None,
     ) -> None:
         self._uow = uow
+        # Where a password comes from when a step types one. `None` is a
+        # deployment with no vault configured: the run still happens, and a
+        # step that needs a password refuses with the key it wanted rather
+        # than typing a blank into a login form.
+        self._vault = vault
         self._channel = channel
         # `Asker | None` rather than through `asker_or_refuse` in the container,
         # for `ReadChat`'s reason: a factory that raised would make the factory
@@ -265,6 +272,26 @@ class StartWorkflowRun:
             await uow.commit()
             return run
 
+    async def _secret_for(self, key: str) -> str | None:
+        """One password, at the moment a step types it.
+
+        A method rather than the vault handed down, so `run_workflow` and
+        `plan_step` never learn what a vault is: what they take is "given a
+        key, give me a value or nothing".
+
+        A vault that cannot be reached answers `None` and not an exception. The
+        step then refuses with the key it wanted, which is the same sentence an
+        operator gets when they never stored one -- and both are true from
+        where they are standing. Raising here would fail the whole run on a
+        step that could have said what was missing.
+        """
+        if self._vault is None:
+            return None
+        try:
+            return await self._vault.get(key)
+        except VaultUnavailable:
+            return None
+
     async def perform(self, ctx: RequestContext, run: WorkflowRun) -> None:
         """Drive a run whose caller has already been answered.
 
@@ -327,6 +354,7 @@ class StartWorkflowRun:
                     run_id=run.id,
                     from_step=run.from_step,
                     verified_writes=self._verified_writes,
+                    secret_for=self._secret_for,
                 )
         except Exception as error:
             logger.exception("a run in an operator's browser could not be finished")

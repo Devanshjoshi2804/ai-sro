@@ -30,6 +30,7 @@ from sro.domain.execution.planning import (
     Look,
     Planned,
 )
+from sro.domain.execution.secrets import secret_key_for
 from sro.domain.execution.verified_writes import VerifiedWrite
 from sro.domain.observation.gesture import Body, Call, Gesture
 from sro.domain.observation.trim import trim
@@ -1044,3 +1045,105 @@ async def test_the_sight_rung_with_a_picture_and_no_evidence_asks_nobody() -> No
     assert planned.payload == {}
     assert planned.why == "no evidence to act on"
     assert asker.asked == []
+
+
+# A password the recording was never allowed to keep
+
+
+def _secret_field() -> Gesture:
+    """The gesture a login leaves behind: a type into a field marked secret,
+    with no value, because the boundary struck it out."""
+    return next(g for g in _gestures() if g.action.kind == "type" and g.action.secret)
+
+
+def _says_type() -> FakeAsker:
+    return FakeAsker(
+        Answer(
+            data={
+                "kind": "ui.perform",
+                "action": "type",
+                "value": None,
+                "url": None,
+                "locators": [],
+                "why": "the step signs in",
+            },
+            cost_usd=0.0001,
+        )
+    )
+
+
+async def test_a_password_comes_from_the_vault_and_never_from_the_recording() -> None:
+    """The operator's question answered. The evidence still holds no value --
+    it never will -- and the step types one anyway, fetched at the moment it is
+    sent, by a key built from the system and the field.
+    """
+    field = _secret_field()
+    asked: list[str] = []
+
+    async def vault(key: str) -> str | None:
+        asked.append(key)
+        return "kept-once-deliberately"
+
+    planned = await plan_step(
+        step=Step(order=0, says="sign in", system=None, cites=[field.id]),
+        cited=[field],
+        values={},
+        look=Look(None, None, ""),
+        origin=None,
+        starts_on=None,
+        allow_focus=False,
+        asker=_says_type(),
+        model="m",
+        tenant_id="new",
+        secret_for=vault,
+    )
+
+    assert planned.payload["value"] == "kept-once-deliberately"
+    assert field.action.value is None, "the recording still holds nothing"
+    assert asked == [secret_key_for("new", field)]
+
+
+async def test_a_step_that_needs_a_password_nobody_stored_refuses_by_name() -> None:
+    """Not a blank typed into a login form. A blank submits, fails, and looks
+    to everybody like the job being broken -- where this says the exact key an
+    operator can go and store."""
+    field = _secret_field()
+
+    async def nothing_stored(key: str) -> str | None:
+        return None
+
+    planned = await plan_step(
+        step=Step(order=0, says="sign in", system=None, cites=[field.id]),
+        cited=[field],
+        values={},
+        look=Look(None, None, ""),
+        origin=None,
+        starts_on=None,
+        allow_focus=False,
+        asker=_says_type(),
+        model="m",
+        tenant_id="new",
+        secret_for=nothing_stored,
+    )
+
+    assert planned.kind == "none"
+    assert secret_key_for("new", field) in planned.why
+
+
+async def test_a_run_with_no_vault_says_so_rather_than_typing_nothing() -> None:
+    field = _secret_field()
+
+    planned = await plan_step(
+        step=Step(order=0, says="sign in", system=None, cites=[field.id]),
+        cited=[field],
+        values={},
+        look=Look(None, None, ""),
+        origin=None,
+        starts_on=None,
+        allow_focus=False,
+        asker=_says_type(),
+        model="m",
+    )
+
+    assert planned.kind == "none"
+    assert "vault" in planned.why

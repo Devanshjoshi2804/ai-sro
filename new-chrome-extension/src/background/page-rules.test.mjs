@@ -22,7 +22,8 @@ globalThis.chrome = {
       remove: async () => {},
     },
   },
-  runtime: { onMessage: { addListener: () => {} }, onInstalled: { addListener: () => {} },
+  runtime: { onMessage: { addListener: (fn) => (globalThis.__handle = fn) },
+    onInstalled: { addListener: () => {} },
     onStartup: { addListener: () => {} }, getManifest: () => ({ version: "0.1.0" }), id: "ext" },
   tabs: { query: async () => [], onRemoved: { addListener: () => {} },
     onUpdated: { addListener: () => {} }, onActivated: { addListener: () => {} },
@@ -33,11 +34,22 @@ globalThis.chrome = {
     onCreatedNavigationTarget: { addListener: () => {} },
   },
   action: { setBadgeText: async () => {}, setBadgeBackgroundColor: async () => {}, setTitle: async () => {} },
-  alarms: { create: () => {}, onAlarm: { addListener: () => {} } },
+  alarms: { create: () => {}, onAlarm: { addListener: (fn) => (globalThis.__beat = fn) } },
   scripting: { executeScript: async () => [{ result: undefined }], registerContentScripts: async () => {},
     getRegisteredContentScripts: async () => [], unregisterContentScripts: async () => {} },
   permissions: { contains: async () => true },
   windows: { update: async () => {} },
+};
+
+// The heartbeat flushes the queue on its way past, and the queue is IndexedDB.
+// A store that refuses to open is a browser with nothing queued as far as
+// `flushQueue` is concerned -- which is exactly this test's browser.
+globalThis.indexedDB = {
+  open: () => {
+    const request = {};
+    setTimeout(() => request.onerror?.({ target: { error: new Error("no store here") } }), 0);
+    return request;
+  },
 };
 
 const BACKEND = "http://backend.test";
@@ -45,9 +57,14 @@ const WMS = "bf56-kms-wms-web-np2.jdadelivers.com";
 const THE_PAGE = `${WMS}/portal/page`;
 const PAGE_URL = `https://${WMS}/portal/page?siteId=SG#wm.config.partners.suppliers////`;
 
+let served = [];
+
 globalThis.fetch = async (url, options = {}) => {
   const path = String(url).slice(BACKEND.length);
   calls.push({ path, method: options.method || "GET" });
+  if (path.endsWith("/arrivals")) {
+    return { ok: true, status: 200, json: async () => served };
+  }
   if (path.endsWith("/fire")) {
     fires += 1;
     if (refuse) return { ok: false, status: refuse, statusText: "", json: async () => ({ detail: "no" }) };
@@ -56,7 +73,7 @@ globalThis.fetch = async (url, options = {}) => {
   return { ok: true, status: 200, json: async () => ({}) };
 };
 
-await import("./service-worker.js");
+const worker = await import("./service-worker.js");
 const navigated = globalThis.__navigated;
 
 function ready({ rules = [{ id: "trg-1", page: THE_PAGE }], paused = false } = {}) {
@@ -69,7 +86,19 @@ function ready({ rules = [{ id: "trg-1", page: THE_PAGE }], paused = false } = {
   held.set("sro.deviceId", "dev-1");
   held.set("sro.deviceSecret", "sec");
   held.set("sro.arrivals", rules);
+  served = [];
   held.set("sro.paused", paused);
+}
+
+/** Re-read the rules, which is what the heartbeat does.
+ *
+ * The function rather than the alarm: the alarm also flushes an IndexedDB
+ * queue this fake browser does not have, and what is under test is the list
+ * being re-read at all -- `beat()` calls this, beside the `refreshWatches` it
+ * already called.
+ */
+async function refreshed() {
+  await worker.refreshArrivals();
 }
 
 /** One navigation, as `webNavigation.onCommitted` reports it. */
@@ -78,6 +107,20 @@ async function land(url = PAGE_URL, at = 1000) {
   // The listener fires and forgets; give the fire its turn.
   for (let n = 0; n < 40 && fires === 0; n++) await new Promise((r) => setTimeout(r, 5));
 }
+
+test("a rule made anywhere else reaches this browser, rather than only its own", async () => {
+  // The gap that made a real rule look broken on a real browser: the list was
+  // fetched when the browser registered and at no other time, so a rule made
+  // in the console -- or by anything but this browser's own "Always, here" --
+  // never reached the one process that evaluates it. The heartbeat asks for
+  // them now, beside the mail watches it already asked for.
+  ready({ rules: [] });
+  served = [{ id: "trg-9", arrival: { page: THE_PAGE } }];
+
+  await refreshed();
+
+  assert.deepEqual(held.get("sro.arrivals"), [{ id: "trg-9", page: THE_PAGE }]);
+});
 
 test("landing on the page an operator made a rule about starts the job", async () => {
   ready();

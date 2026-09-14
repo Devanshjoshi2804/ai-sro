@@ -716,6 +716,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/secrets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Store Secret
+         * @description Keep one password, so a run can type it without anybody recording it.
+         *
+         *     `PUT` and not `POST`: storing the same key twice is a rotation, not a
+         *     second credential, and the vault overwrites for exactly that reason.
+         *
+         *     What comes back is the KEY and never the value -- so an operator can see
+         *     what they stored under, check it against what a refused step said it
+         *     wanted, and still have nothing readable in a browser history or a proxy
+         *     log.
+         */
+        put: operations["store_secret_v1_secrets_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/lookups": {
         parameters: {
             query?: never;
@@ -3760,6 +3788,21 @@ export interface components {
             /** Required Credentials */
             required_credentials: string[];
         };
+        /**
+         * NewSecretRequest
+         * @description One value to keep for a run to type, and where it belongs.
+         *
+         *     No tenant field: it comes from the credential. A body that named one would
+         *     be a caller choosing whose vault to write into.
+         */
+        NewSecretRequest: {
+            /** System */
+            system: string;
+            /** Field */
+            field: string;
+            /** Value */
+            value: string;
+        };
         /** NewTriggerRequest */
         NewTriggerRequest: {
             /** Skill Id */
@@ -4449,6 +4492,14 @@ export interface components {
             };
             /** Run Id */
             run_id?: string | null;
+        };
+        /**
+         * SecretStoredModel
+         * @description What was stored, named by its key and never by its value.
+         */
+        SecretStoredModel: {
+            /** Key */
+            key: string;
         };
         /** SessionCheckModel */
         SessionCheckModel: {
@@ -8663,6 +8714,135 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ChatResponse"];
+                };
+            };
+            /** @description No credential, or one this deployment rejects. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description No such thing, or not yours. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The system's state says no, not the request. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The request cannot be processed as asked. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description Something this depends on is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+        };
+    };
+    store_secret_v1_secrets_put: {
+        parameters: {
+            query?: {
+                device_id?: string | null;
+            };
+            header?: {
+                "X-Device-Secret"?: string;
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NewSecretRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SecretStoredModel"];
                 };
             };
             /** @description No credential, or one this deployment rejects. */

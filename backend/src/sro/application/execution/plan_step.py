@@ -42,7 +42,7 @@ header and its guard that are cited instead.
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping
+from collections.abc import Awaitable, Callable, Mapping
 from typing import get_args
 
 from sro.application.capture.rig_wire import headers_without_markers
@@ -67,12 +67,21 @@ from sro.domain.execution.planning import (
     unreplayable,
     value_for,
 )
+from sro.domain.execution.secrets import needs_a_secret, secret_key_for
 from sro.domain.execution.verified_writes import VerifiedWrite, verified_write_for
 from sro.domain.observation.gesture import Gesture, Kind
 from sro.domain.observation.trim import trim
 from sro.domain.shared.hosts import REDACTED
 from sro.domain.shared.prices import Answer, Effort
 from sro.domain.skill.workflow import Step
+
+SecretFor = Callable[[str], Awaitable[str | None]]
+"""Where a password comes from when a step types one: the vault, by key.
+
+A callable rather than the vault itself, so this module -- which builds one
+command out of one step -- does not learn what a vault is. `run_workflow` holds
+the real one; a run with no vault configured passes nothing, and a step that
+needs a password says so rather than typing a blank."""
 
 ACTIONS: frozenset[str] = frozenset(get_args(Kind))
 """What a `ui.perform` may ask for: the gesture kinds the recorder records, and
@@ -129,6 +138,8 @@ async def plan_step(
     failure: str | None = None,
     failed_look: Look | None = None,
     verified_writes: tuple[VerifiedWrite, ...] = (),
+    tenant_id: str = "",
+    secret_for: SecretFor | None = None,
 ) -> Planned:
     primary = _primary(step, cited)
     evidence = json.dumps(
@@ -304,11 +315,40 @@ async def plan_step(
                 "recorded choice instead of the one asked for",
                 answer,
             )
+    # A control the recording was never allowed to keep a value for. The value
+    # comes from the vault at this moment, by a key built from the system and
+    # the field's own name -- never from the evidence, which still holds
+    # nothing but the fact that there was a password here.
+    #
+    # An absent secret is a refusal with the key in it, not a blank typed into
+    # a login form: a blank submits, fails, and looks to everybody like the job
+    # being broken.
+    secret = None
+    if action in VALUED and needs_a_secret(primary):
+        if secret_for is None:
+            return Planned(
+                "none",
+                {},
+                f"step {step.order} types a password and this run has no vault to ask",
+                answer,
+            )
+        wanted = secret_key_for(tenant_id or "", primary)
+        secret = await secret_for(wanted)
+        if not secret:
+            return Planned(
+                "none",
+                {},
+                f"step {step.order} types a password and nothing is stored under {wanted!r}",
+                answer,
+            )
+
     payload = {
         "action": action,
         # str(), because nothing validates the model's answer against the
         # schema: a `"value": 123` otherwise reaches the extension as an int.
-        "value": value_for(step, primary, values, None if said is None else str(said))
+        "value": secret
+        if secret is not None
+        else value_for(step, primary, values, None if said is None else str(said))
         if action in VALUED
         else None,
         # The evidence's ladder, never the model's: the model chooses which

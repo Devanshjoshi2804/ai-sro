@@ -44,7 +44,7 @@ from datetime import UTC, datetime
 
 from sro.application.execution.approvals import K_APPROVAL_WAIT_S, Approvals
 from sro.application.execution.effects import earned, forget_effects, record_effect
-from sro.application.execution.plan_step import plan_by_sight, plan_step
+from sro.application.execution.plan_step import SecretFor, plan_by_sight, plan_step
 from sro.application.execution.stops import Stops
 from sro.application.execution.verify import verify
 from sro.application.ports.agent import DeviceUnreachable
@@ -60,6 +60,7 @@ from sro.domain.execution.evidence import (
     writes,
 )
 from sro.domain.execution.planning import Look, Planned
+from sro.domain.execution.secrets import without_secrets
 from sro.domain.execution.verified_writes import VerifiedWrite
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun, new_run_id
 from sro.domain.observation.gesture import Gesture
@@ -301,6 +302,7 @@ async def run_workflow(
     run_id: str | None = None,
     from_step: int = 0,
     verified_writes: tuple[VerifiedWrite, ...] = (),
+    secret_for: SecretFor | None = None,
 ) -> WorkflowRun:
     # A run the caller already claimed. `POST /v1/runs` writes the `running` row
     # itself, before it answers, so a second press for the same browser is
@@ -493,12 +495,17 @@ async def run_workflow(
                             failure=verdict.reason if verdict else None,
                             failed_look=after_failed,
                             verified_writes=verified_writes,
+                            tenant_id=tenant_id.value,
+                            secret_for=secret_for,
                             opened=opened,
                         )
                     record.planned_by = model
                     record.before_url = before.url
                     _bill(record, proposal.answer)
-                    record.sent = {"kind": proposal.kind, "payload": proposal.payload}
+                    record.sent = {
+                        "kind": proposal.kind,
+                        "payload": without_secrets(proposal.payload),
+                    }
 
                     if proposal.kind == "none":
                         verdict = StepVerdict("failed", "none", proposal.why)
@@ -617,7 +624,14 @@ async def run_workflow(
                 if live and may_write and not await earned(uow.workflows, tenant_id, workflow.id):
                     record.verdict, record.verdict_by = "awaiting", "none"
                     record.reason = "waiting for a person to approve the write"
-                    record.sent = {"kind": planned.kind, "payload": planned.payload}
+                    # `without_secrets`: this row is read by the panel, by an
+                    # operator reviewing what happened, and by the model asked
+                    # to rescue a failed step. A password typed from the vault
+                    # would otherwise reach all three and outlive the run.
+                    record.sent = {
+                        "kind": planned.kind,
+                        "payload": without_secrets(planned.payload),
+                    }
                     # Registered before the save, not by the wait below: the
                     # save is what puts this step in front of a person, and a
                     # tap that lands before the wait starts must find an event

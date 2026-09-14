@@ -12,7 +12,7 @@ from pathlib import Path
 
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, AsyncSession, async_sessionmaker
 
 from sro.application.analytics.audit import ReadAudit
 from sro.application.analytics.summary import ReadSummary
@@ -191,6 +191,12 @@ from sro.infrastructure.transcription.null import NullTranscriber
 from sro.infrastructure.vault.file_vault import FileCredentialVault
 from sro.infrastructure.vault.secret_manager import SecretManagerVault
 
+RUNS_LOCK = 5721966
+"""The advisory lock one API process holds while it owns the runs.
+
+Any constant would do; this one is arbitrary and only has to differ from
+whatever else ever takes an advisory lock on this database."""
+
 
 @dataclass
 class Container:
@@ -300,8 +306,49 @@ class Container:
     """Set by ``build_container``: the supervisor is built from the container's
     own use-case factories, so it cannot be a constructor argument."""
 
+    driving_runs: AsyncConnection | None = None
+    """The connection holding the lock that says this process owns the runs.
+
+    Set by `claim_the_runs`, held open for the life of the process, and
+    released when `lifespan` disposes the engine. One connection out of the
+    pool, permanently, which is the price of the guarantee."""
+
     def unit_of_work(self) -> UnitOfWork:
         return SqlUnitOfWork(self.session_factory)
+
+    async def claim_the_runs(self) -> bool:
+        """Whether this process is the one that owns every run.
+
+        Everything about runs in this codebase is true only because there is
+        exactly one API process: the approval register is an `asyncio.Event`,
+        the device sockets are a dict, and the startup sweep marks EVERY
+        tenant's `running` rows failed on the reasoning that a row still
+        running belongs to a process that died. `Dockerfile` pins
+        `--workers 1` and nothing else enforced it, so a rolling deploy, a
+        `--scale backend=2` or a restarted pod had a second process sweep the
+        first one's live, in-flight runs to `failed` -- which also clears the
+        partial unique index on running runs and frees the browser for a
+        second run to claim while the first is still driving it.
+
+        A Postgres session advisory lock, because it is the one piece of
+        shared state both processes already have and it is released by the
+        connection dying -- a process that is SIGKILLed releases it, which a
+        row in a table would not.
+
+        `True` for a container with no engine of its own: a test brings its
+        own store and is alone in it.
+        """
+        if self.engine is None:
+            return True
+        connection = await self.engine.connect()
+        held = (
+            await connection.execute(text("SELECT pg_try_advisory_lock(:key)"), {"key": RUNS_LOCK})
+        ).scalar()
+        if not held:
+            await connection.close()
+            return False
+        self.driving_runs = connection
+        return True
 
     async def readiness(self) -> dict[str, bool]:
         """Both halves of "can this process serve", on ONE connection.

@@ -20,8 +20,15 @@ own on the same instance.
 from __future__ import annotations
 
 import pytest
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy import NullPool
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
+from sro.container import Container
 from sro.domain.shared.identifiers import DeviceId, TenantId
 from sro.infrastructure.db.repositories import SqlUnitOfWork
 
@@ -86,3 +93,50 @@ async def test_an_exception_inside_the_inner_block_rolls_back_and_still_closes(
                 raise ValueError("the inner block failed")
 
     assert uow._session is None, "a failing nested block left the session open"
+
+
+async def test_only_one_process_claims_the_runs(postgres_url: str) -> None:
+    """The guard in front of the startup sweep, against a real database.
+
+    `fail_orphans` marks EVERY tenant's `running` rows failed on the reasoning
+    that a row still running belongs to a process that died. That is true of
+    one process and false of two: a rolling deploy or a `--scale backend=2`
+    had the second one sweep the first's live, in-flight runs, which also
+    clears the partial unique index on running runs and frees the browser for
+    a second run to claim while the first is still driving it.
+
+    Two engines, because two processes are two pools -- taking the lock twice
+    on one connection would succeed and prove nothing.
+    """
+    first, second = (
+        create_async_engine(postgres_url, poolclass=NullPool),
+        create_async_engine(postgres_url, poolclass=NullPool),
+    )
+    try:
+        mine = _container(first)
+        theirs = _container(second)
+
+        assert await mine.claim_the_runs() is True
+        assert await theirs.claim_the_runs() is False, "two processes both own the runs"
+
+        # And the lock goes with the connection, which is what a worker dying
+        # looks like from here. `dispose()` alone does not do it -- it leaves a
+        # checked-out connection open, which is why `lifespan` closes this one
+        # by name before disposing the engine.
+        assert mine.driving_runs is not None
+        await mine.driving_runs.close()
+        assert await theirs.claim_the_runs() is True
+    finally:
+        for made in (mine, theirs):
+            if made.driving_runs is not None:
+                await made.driving_runs.close()
+        await first.dispose()
+        await second.dispose()
+
+
+def _container(engine: AsyncEngine) -> Container:
+    """Enough of a container for `claim_the_runs`, which reads two fields."""
+    made = Container.__new__(Container)
+    made.engine = engine
+    made.driving_runs = None
+    return made

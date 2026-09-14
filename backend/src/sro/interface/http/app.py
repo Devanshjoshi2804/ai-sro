@@ -63,11 +63,13 @@ async def on_start(container: Container) -> int:
     and an Approve on it recorded a person's name against a write that was
     never going to be sent. An operator hit exactly that.
 
-    Safe here for the reason `approvals.py` states outright: one API worker
-    owns every run until runs become Temporal workflows. A second worker
-    starting would sweep the first one's live runs -- the same assumption the
-    in-process device sockets and the approval register already make, and the
-    same thing that has to change with them.
+    Safe here because `claim_the_runs` makes it so: a Postgres advisory lock
+    held for the life of the process, and a process that cannot take it does
+    not sweep. One API worker owns every run until runs become Temporal
+    workflows -- the same assumption the in-process device sockets and the
+    approval register already make, and the same thing that has to change with
+    them. The difference is that the assumption is now checked rather than
+    written down.
 
     Its own function rather than four lines inside `lifespan`, because
     `lifespan` builds the real container and mounts the MCP app: a test that
@@ -94,6 +96,19 @@ async def on_start(container: Container) -> int:
             "will record $0.00 and will not count towards the day's cap: %s",
             ", ".join(f"{name}={model}" for name, model in blind),
         )
+    # Every claim in the docstring above rests on there being one process, and
+    # until this line nothing checked. A second one starting -- a rolling
+    # deploy, `--scale backend=2`, a restarted pod -- swept the first's live
+    # runs to `failed`, which also cleared the partial unique index on running
+    # runs and freed the browser for a second run to claim while the first was
+    # still driving it. `Dockerfile` pins `--workers 1`; nothing enforced it.
+    if not await container.claim_the_runs():
+        logging.getLogger(__name__).warning(
+            "another API process is driving runs, so this one swept none. "
+            "Runs, approvals and device sockets all live in one process: "
+            "check that this deployment really means to run two"
+        )
+        return 0
     async with container.unit_of_work() as uow:
         swept = await fail_orphans(uow, "the process driving this run stopped")
     if swept:
@@ -143,6 +158,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             # drives the ASGI app per request both walk the database out of
             # them, and the failure lands somewhere else entirely as
             # `TooManyConnectionsError`.
+            # The runs lock first, and explicitly: `dispose()` does not close
+            # a connection that is still checked out, so a process that shut
+            # down cleanly and started again -- a dev reload -- would find its
+            # own lock still held and skip the sweep it exists to do.
+            if container.driving_runs is not None:
+                await container.driving_runs.close()
+                container.driving_runs = None
             if container.engine is not None:
                 await container.engine.dispose()
 

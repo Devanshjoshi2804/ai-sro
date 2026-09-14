@@ -518,12 +518,14 @@ reaching here.
 
 ## A14 · Verify a step
 
-**[paper]** — a propose-then-verify evaluator grounded in **environment state**
-rather than a model reading a screenshot scored **86.9% against 78.8%**, human
-agreement 94.0% (κ 0.84). Its taxonomy is the load-bearing part: evidence is
-visible-state, hidden-state, or artifact, and **artifact verification was the
-largest category — 192 of 321 tasks**. Most completions leave their proof
-somewhere other than the visible screen.
+**[paper]** — a validator judging a run from its own text rather than from a
+screenshot scored **84.24% against 70.04%** over 322 WebVoyager tasks, with
+over 84% agreement with human annotators; a screenshot read beside the agent's
+final answer still reached only 83.00% (arXiv:2410.00689, Tables 1 and 2).
+Checked against the paper 2026-09-14: the figures here previously read
+"86.9% against 78.8%, human agreement 94.0% (κ 0.84), artifact verification
+192 of 321 tasks", which appear in that paper nowhere — it counts 322 tasks and
+has no artifact category. The order below is unchanged; only its evidence is.
 
 ```
 def verify(step, sent, answer):

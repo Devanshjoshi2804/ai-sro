@@ -226,4 +226,11 @@ because the industry's answer is the opposite one.
 - browser-use interactive element detection.
   https://deepwiki.com/browser-use/browser-use/5.3-interactive-element-detection
 - *Multimodal Auto Validation for Self-Refinement in Web Agents*.
-  https://arxiv.org/pdf/2410.00689
+  https://arxiv.org/pdf/2410.00689 — Tables 1 and 2: a validator reading the
+  run's own text scores 84.24% against 70.04% for one reading screenshots
+  (83.00% with the final response beside it), over 322 WebVoyager tasks, with
+  over 84% agreement with human annotators. Read from the paper on 2026-09-14,
+  because the figures this repository had been quoting for it -- 86.9/78.8,
+  94% agreement, "artifact verification 192 of 321 tasks" -- are in no version
+  of it and in nothing else that could be found. The ladder's order stands on
+  the real numbers; six files carried the invented ones.

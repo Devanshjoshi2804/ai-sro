@@ -1,12 +1,18 @@
 """A14: verify against state, and only then against a picture -- and D2: when a
 job has earned the right to write without being asked.
 
-A state-grounded verifier scored 86.9% against 78.8% for one reading
-screenshots, with human agreement at 94%. Most completions leave their proof
-off-screen -- artifact verification was 192 of 321 tasks. So: the response the
+Measured on 322 WebVoyager tasks, a validator reading the run's own text --
+what the calls returned -- scored 84.24% against 70.04% for one reading
+screenshots, with over 84% agreement with human annotators; a screenshot read
+beside the agent's final answer still only reached 83.00%. So: the response the
 command itself returned first, a confirming read the cited evidence shows the
 page performs second, and the screenshot last and least. A green toast is the
 weakest of the three and the easiest to be wrong about.
+
+Checked against the paper on 2026-09-14 (arXiv:2410.00689, Tables 1 and 2).
+The figures that stood here before -- 86.9/78.8, 94% agreement, "192 of 321"
+-- are in no version of it: the task count is 322 and there is no artifact
+category. `verify.py` carries the same note where the ladder is built.
 
 The earning rule reads the same order from the other end. Autonomy is earned by
 verified effect, not by counting runs: a write counts only when the verifier

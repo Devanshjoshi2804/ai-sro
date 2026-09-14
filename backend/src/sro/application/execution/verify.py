@@ -11,14 +11,23 @@ ported from `new_agent_arch/src/rig/verify.py`. The pure half of that one, the
 belts that need no wire and no model, is `sro.domain.execution.belts`; this is
 the half that sends a probe and asks a model to look at a picture.
 
-The belt order is the product. A state-grounded verifier scored 86.9% against
-78.8% for one reading screenshots, with human agreement at 94%, and most
-completions leave their proof off-screen -- artifact verification was 192 of 321
-tasks. So: the response the command itself returned first, a confirming read the
-cited evidence shows the page performs second, and the screenshot last and
-least. A green toast is the weakest of the three and the easiest to be wrong
-about, and `state_verified` -- which is what a job's earned autonomy counts --
-never counts it.
+The belt order is the product. Measured on 322 WebVoyager tasks, a validator
+reading the run's own text -- what the calls returned -- scored 84.24% against
+70.04% for one reading screenshots, with over 84% agreement with human
+annotators; a screenshot read beside the agent's final answer still only
+reached 83.00%. So: the response the command itself returned first, a
+confirming read the cited evidence shows the page performs second, and the
+screenshot last and least. A green toast is the weakest of the three and the
+easiest to be wrong about, and `state_verified` -- which is what a job's earned
+autonomy counts -- never counts it.
+
+The numbers above were checked against the paper itself on 2026-09-14
+(`docs/16-what-others-have-solved.md` cites it: *Multimodal Auto Validation for
+Self-Refinement in Web Agents*, arXiv:2410.00689, Tables 1 and 2). What stood
+here before -- "86.9% against 78.8%, human agreement at 94%, artifact
+verification 192 of 321 tasks" -- appears nowhere in that paper or anywhere
+else that could be found: the task count is 322, and it has no artifact
+category at all. The conclusion held; the evidence for it did not.
 """
 
 from __future__ import annotations

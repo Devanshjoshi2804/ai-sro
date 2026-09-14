@@ -325,14 +325,20 @@ hand-off, so data meant for the second application is typed back into the
 first**. Our per-step `origin` exists for other reasons and defends against
 exactly that.
 
-**Verify against state, not against a picture.** A propose-then-verify evaluator
-(IRA) that grounds completion judgements in environment state — configs, files,
-settings — rather than a model's reading of a screenshot scored **86.9% against
-78.8%**, with human agreement on its verdicts at **94.0% (κ 0.84)**. Its
-taxonomy is the useful part: evidence is visible-state, hidden-state, or
-artifact, and **artifact verification was the largest category, 192 of 321
-tasks** — most real task completions leave their proof somewhere other than the
-visible screen. The runner's verification changes accordingly.
+**Verify against state, not against a picture.** Measured on 322 WebVoyager
+tasks, a validator that judges completion from the run's own text — what the
+calls returned — scored **84.24% against 70.04%** for one reading screenshots,
+with **over 84% agreement with human annotators**; a screenshot read beside the
+agent's final answer still only reached **83.00%**. The runner's verification
+changes accordingly: what the call returned, then a read, then the picture.
+
+> Corrected 2026-09-14. This paragraph previously claimed "86.9% against 78.8%,
+> human agreement 94.0% (κ 0.84), artifact verification the largest category at
+> 192 of 321 tasks", attributed to a propose-then-verify evaluator. Those
+> figures are in no paper this repository cites and none that could be found:
+> the source (*Multimodal Auto Validation for Self-Refinement in Web Agents*,
+> arXiv:2410.00689) reports the numbers above over 322 tasks and has no
+> artifact category. The conclusion held; the evidence for it did not.
 
 **A caution about asking people.** In a click-stream segmentation study, four
 domain experts who work on the product daily estimated the median time to
@@ -866,15 +872,15 @@ for each step:
      still failed ──▶ stop, say what it saw, ask the operator
 ```
 
-**Why verification does not trust the screenshot.** A propose-then-verify
-evaluator grounded in environment state rather than a model reading a picture
-scored **86.9% against 78.8%**, with human agreement on its verdicts at 94.0%.
-More to the point, it found most task completions leave their proof somewhere
-other than the visible screen — **artifact verification was 192 of 321 tasks**,
-the largest category by far. A supplier that was created is proved by the `201`
-and the identifier in the response body, or by a read that returns it; the
-screen showing a green toast is the weakest of the three and the easiest to be
-wrong about. So the response body is read first, a confirming read second where
+**Why verification does not trust the screenshot.** A validator judging a run
+from its own text rather than from a picture scored **84.24% against 70.04%**
+over 322 WebVoyager tasks, with over 84% agreement with human annotators; even
+a screenshot read beside the agent's final answer reached only 83.00%
+(arXiv:2410.00689, Tables 1 and 2; figures checked against the paper
+2026-09-14, replacing an unsourced 86.9/78.8/94%/"192 of 321"). A supplier that
+was created is proved by the `201` and the identifier in the response body, or
+by a read that returns it; the screen showing a green toast is the weakest of
+the three and the easiest to be wrong about. So the response body is read first, a confirming read second where
 the cited evidence shows the page performs one, and the picture is what remains
 when neither exists.
 

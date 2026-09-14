@@ -91,6 +91,14 @@ const NEXT = {
  * without wiring a worker up to it.
  */
 export function ledger(thread, local = {}, { onPress, runs } = {}) {
+  // Loud here rather than silent on the press. A caller once handed this a
+  // string -- a local in `show()` shadowed the handler of the same name -- and
+  // every button in the thread threw "onPress is not a function" into a click
+  // listener nobody was watching: the panel drew cards, the operator pressed
+  // them, and nothing happened, for thirteen minutes, twice.
+  if (onPress !== undefined && typeof onPress !== "function") {
+    throw new TypeError("ledger was given something to press with that cannot be called");
+  }
   const root = document.createElement("div");
   root.className = "thread";
 

@@ -234,6 +234,15 @@ function panel(status, here = null, replies = {}) {
       vm.runInContext(`lastStatus = ${JSON.stringify({ nudges })}`, sandbox);
       sandbox.show(thread);
     },
+    // The same half, for whatever else lives in it. `offerLocally` names the
+    // one field it sets; this draws the thread from the whole local status,
+    // which is how a press in the ledger is actually reached -- the handler
+    // the ledger gets is chosen inside `show`, and calling the exported
+    // `answered` directly cannot tell whether it did.
+    locally: (status, thread) => {
+      vm.runInContext(`lastStatus = ${JSON.stringify(status)}`, sandbox);
+      sandbox.show(thread);
+    },
   };
 }
 
@@ -1819,6 +1828,40 @@ test("the same thread and the same offers are not redrawn", async () => {
   offerLocally(nudges, thread);
 
   assert.strictEqual(ids["said"].kids[0], first, "nothing changed and it was redrawn anyway");
+});
+
+test("pressing Yes on a rule that fired actually answers it", async () => {
+  // A rule fired, the panel drew "Log In - an arrival trigger fired. Shall I?",
+  // the operator pressed Yes twice thirteen minutes apart, and both
+  // confirmations were still `waiting` in the database: no POST had ever
+  // reached the backend.
+  //
+  // `show` had grown a local named `answered`, which shadowed the press
+  // handler of the same name it hands to the ledger -- so `onPress` was a
+  // signature string, and every press in the thread threw "onPress is not a
+  // function" inside a click listener with nobody watching.
+  //
+  // This presses the button that is actually drawn rather than calling the
+  // exported handler, because what broke was the wiring between the two.
+  const made = panel({ deviceId: "dev-1" }, null, {
+    "answer-waiting": { ok: true, run_id: "run_9" },
+  });
+  made.locally(
+    {
+      waiting: [
+        { id: "cnf_1", skill_name: "Log In", because: "an arrival trigger fired", asked_at: 1000 },
+      ],
+    },
+    { id: "thr_1", messages: [] },
+  );
+
+  const yes = buttons(made.ids["said"]).find((one) => one.textContent === "Yes, do it");
+  assert.ok(yes, "the card a rule left waiting drew no way to say yes");
+  await yes.listeners[0]();
+
+  assert.deepEqual(sentOf(made.sent, "answer-waiting"), [
+    { kind: "answer-waiting", confirmationId: "cnf_1", answer: "approve" },
+  ]);
 });
 
 for (const [name, fn] of tests) {

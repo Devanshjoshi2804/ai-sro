@@ -1131,10 +1131,18 @@ function show(thread, { asked = false } = {}) {
   // An answer to a question is drawn from the same local half, and changes
   // without the thread changing -- the same defect the nudges above were found
   // to have: every poll computed the same signature and returned.
-  const answered = `${lastStatus?.answer?.askedAt || ""}:${(lastStatus?.answer?.answers || []).length}`;
+  // NOT `answered`: that is the press handler this function hands to the
+  // ledger twenty lines down, and a local of the same name shadowed it -- so
+  // `onPress` was a string, and every press in the thread threw
+  // "onPress is not a function" into a click listener nobody was watching.
+  // The panel drew the cards and answered none of them. Found by an operator
+  // pressing "Yes, do it" on a rule that had fired and getting nothing.
+  // `said` is taken too -- it is how this panel writes a line back to the
+  // operator -- so this name belongs to neither.
+  const answerSeen = `${lastStatus?.answer?.askedAt || ""}:${(lastStatus?.answer?.answers || []).length}`;
   const missed = (lastStatus?.nearMisses || []).map((one) => `${one.triggerId}:${one.at}`).join(",");
   const asking = (lastStatus?.waiting || []).map((one) => one.id).join(",");
-  const now = `${thread.id}:${(thread.messages || []).map((message) => message.id).join(",")}|${mine}|${answered}|${missed}|${asking}|${hostOf(tabHere.url || "")}`;
+  const now = `${thread.id}:${(thread.messages || []).map((message) => message.id).join(",")}|${mine}|${answerSeen}|${missed}|${asking}|${hostOf(tabHere.url || "")}`;
   if (now === drawn) return;
   if (!asked && drawn !== null && document.activeElement?.tagName === "INPUT") return;
   drawn = now;

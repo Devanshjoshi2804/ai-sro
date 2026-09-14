@@ -83,7 +83,19 @@ auth-secret: ## Generate a signing key for this deployment's own credentials
 	@python3 -c "import secrets; print('SRO_AUTH_SECRET=' + secrets.token_urlsafe(48))"
 
 token: ## Issue a credential: make token tenant=acme principal=you [days=30]
-	@$(BACKEND) uv run python -m sro.cli.mint $(or $(tenant),acme) $(or $(principal),operator) --days $(or $(days),30)
+	@# `principal` has no default here, and the other targets that mint one keep
+	@# theirs. Those drive a throwaway browser; this hands a token to a person.
+	@# A credential names who is being observed, and every candidate is
+	@# `(principal, signature)` -- so a forgotten argument does not fail, it
+	@# quietly files that person's day under somebody else. It is how one
+	@# operator became `devansh`, `operator` and `you` on two tenants, whose
+	@# work can never be paired: see `make open-joins`.
+	@test -n "$(principal)" || { \
+		echo "principal= is required: a credential names a person, and the wrong"; \
+		echo "name splits their work from itself. Try:"; \
+		echo "    make token tenant=$(or $(tenant),acme) principal=<who it is for>"; \
+		exit 2; }
+	@$(BACKEND) uv run python -m sro.cli.mint $(or $(tenant),acme) $(principal) --days $(or $(days),30)
 
 observe: ## Read or change a tenant's observation policy: make observe tenant=acme args="--on"
 	@$(BACKEND) uv run python -m sro.cli.observe $(or $(tenant),acme) $(args)

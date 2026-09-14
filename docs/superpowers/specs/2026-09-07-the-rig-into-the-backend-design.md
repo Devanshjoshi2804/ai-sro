@@ -308,6 +308,36 @@ the one currently producing more answers than its replacement.
 - `docs/17-agent-architecture.md` replaced by a page that points at the new
   architecture doc and at the backup branch.
 
+> **Amendment, 2026-09-14. `propose.py` comes off the first bullet, and the
+> rest of that bullet waits on it.**
+>
+> *Verification* passed and the last two bullets were taken: `new_agent_arch/`
+> is deleted and kept on `backup/the-rig`, and `docs/17` says so. The first
+> bullet was not, and must not be taken as written.
+>
+> `propose.py` is the only code in this repository that proposes a join
+> **between two candidates in different systems**. `JoinKind.WORKFLOW` — "two
+> halves of one piece of work, in two systems... a shape no single candidate
+> can ever have" — is written in exactly three places, and the model path is
+> not one of them: `mining_pass.mine` reads gestures and writes `workflows`,
+> its own table, and never suggests that two candidates are one job. Deleting
+> `propose.py` today removes the mechanism, not a redundant implementation of
+> it, and it takes `candidates`, the `candidates` router and the pairing judge
+> with it because they are what the mechanism is made of.
+>
+> This was not visible when the list was written, because the mechanism had
+> never once fired on real evidence. It fired on 2026-09-14, the same day, on
+> the captured Gmail-to-Blue-Yonder day: `Create u on mail.google.com` joined
+> to `Create an equipment type`, answered `same` by a person. Everything
+> *Verification* proved about cross-system mining before that was measured on
+> a constructed second host.
+>
+> **What would have to be true to take the bullet.** The model path proposes a
+> `workflow` join itself — a pair of candidates, a reason a person can read,
+> and an answer recorded against a name — and a shared-day measurement shows
+> it finding what `_workflows` finds. Until then the rule-based path is not
+> redundant: it is the half of the bet that works.
+
 ## Sequence
 
 Each phase is a plan of its own; each ends green on the backend's full

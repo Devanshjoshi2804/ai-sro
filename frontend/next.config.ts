@@ -11,6 +11,12 @@ const nextConfig: NextConfig = {
   // drift apart immediately.
   agentRules: false,
 
+  // What the image ships: the server and only the dependencies it traced, not
+  // `node_modules` entire. `next start` needs the whole install; this needs
+  // `node server.js`. See `frontend/Dockerfile`, and note that it changes
+  // nothing about `npm run dev` or `npm run build` locally.
+  output: "standalone",
+
   async headers() {
     return [
       {

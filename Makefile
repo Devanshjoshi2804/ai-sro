@@ -11,7 +11,7 @@ FRONTEND := cd frontend &&
 .PHONY: help up down ps logs reset install migrate revision api worker status web vault-key one-whole-run \
         lint lint-backend lint-frontend format test test-unit test-integration \
         test-contract test-browser types check ingest-kb seed-skills gen-recorder \
-        mutants-backend open-joins two-miners
+        mutants-backend open-joins two-miners images
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -102,6 +102,19 @@ observe: ## Read or change a tenant's observation policy: make observe tenant=ac
 
 read-gestures: ## Read each named tenant's unread gestures, once: make read-gestures tenants="acme new"
 	@$(BACKEND) uv run python -m sro.cli.read_cron $(or $(tenants),acme)
+
+images: ## Build both deployment images, tagged with this commit: make images [api=http://host:8000]
+	@# The web image bakes its API url and the extension's origin at build time
+	@# -- Next inlines `NEXT_PUBLIC_*` and evaluates `headers()` during the
+	@# build -- so an image is per environment until the console is proxied.
+	@# See docs/18-deployment.md.
+	@rev=$$(git rev-parse --short HEAD); \
+	docker build -t ai-sro-backend:$$rev --build-arg REVISION=$$rev backend/ && \
+	docker build -t ai-sro-web:$$rev \
+		--build-arg NEXT_PUBLIC_API_URL=$(or $(api),http://localhost:8000) \
+		--build-arg NEXT_PUBLIC_EXTENSION_ORIGINS=$(or $(origins),chrome-extension://onfmljaebeipeiinflhgdochbcjeoehl) \
+		frontend/ && \
+	echo "built ai-sro-backend:$$rev and ai-sro-web:$$rev"
 
 types: ## Regenerate frontend API types from the backend OpenAPI document
 	$(BACKEND) uv run python -m sro.interface.http.export_openapi > ../frontend/openapi.json

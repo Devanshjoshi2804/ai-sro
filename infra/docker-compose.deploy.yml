@@ -1,0 +1,251 @@
+# One VM. Everything AI-SRO needs to serve operators, on a private network.
+#
+#     cp infra/.env.deploy.example infra/.env.qa    # and fill it in
+#     docker compose -f infra/docker-compose.deploy.yml --env-file infra/.env.qa up -d
+#
+# **One file for QA and for production.** They differ by env file, never by
+# compose file: the QA stack is the thing being shown to a client and tested
+# against, so it has to be the production shape or the test proves nothing.
+# The same two image tags are promoted from one to the other -- built once,
+# deployed twice -- because an image rebuilt for production is not the image
+# QA passed.
+#
+# This is `docker-compose.yml`'s sibling, not its replacement: that one is the
+# development stack and keeps its published ports and its `sro/sro` passwords.
+# The differences here are the ones that matter on a machine other people can
+# reach.
+#
+#   * **Nothing publishes a port except the console and the API.** Postgres,
+#     MinIO, Temporal and the collector talk over the compose network only. The
+#     development file publishes all of them so a laptop can poke at them; a VM
+#     on a corporate network that does the same is a database on the network.
+#   * **No default passwords.** Every secret is `${VAR:?...}`, which refuses to
+#     start and says which one is missing. A stack that boots with `sro/sro`
+#     because somebody forgot a variable is worse than one that will not boot.
+#   * **Migrations are a service that must exit 0 before the API starts**, so a
+#     process never serves a schema it has not been migrated to.
+#   * **The worker is restarted by every deploy**, because it is in the same
+#     `up -d` as the API. `CONTEXT.md` §8 opens with what happens otherwise:
+#     induction runs in the worker, and an API-only restart silently keeps
+#     running the old code.
+#
+# Still to decide for a real deployment, and named rather than pretended:
+# TLS terminates in front of this (a reverse proxy or the load balancer the
+# network already has), backups of the `postgres-data` and `minio-data`
+# volumes, and whether object storage should be real S3 rather than MinIO.
+
+name: ai-sro
+
+services:
+  # ---------------------------------------------------------------------------
+  # Postgres + pgvector. `init-db.sh` runs once, on the first boot of an empty
+  # volume, and creates Temporal's two databases beside ours. On managed
+  # Postgres it does not run at all and somebody does it by hand -- that is the
+  # first thing to check when Temporal cannot start.
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-sro}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./init-db.sh:/docker-entrypoint-initdb.d/init-db.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:?set S3_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:?set S3_SECRET_KEY}
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 $${S3_ACCESS_KEY} $${S3_SECRET_KEY} &&
+      mc mb --ignore-existing local/$${S3_BUCKET} &&
+      echo 'bucket ready'
+      "
+    environment:
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY}
+      S3_BUCKET: ${S3_BUCKET:-sro-artifacts}
+
+  temporal:
+    image: temporalio/auto-setup:1.25.2
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB: postgres12
+      DB_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PWD: ${POSTGRES_PASSWORD}
+      POSTGRES_SEEDS: postgres
+      DBNAME: temporal
+      VISIBILITY_DBNAME: temporal_visibility
+    healthcheck:
+      test: ["CMD", "temporal", "operator", "cluster", "health", "--address", "temporal:7233"]
+      interval: 15s
+      timeout: 10s
+      retries: 30
+
+  # ---------------------------------------------------------------------------
+  # Steel. The fallback browser, inside the deployment boundary on purpose --
+  # `docs/10-security-and-data.md` is why it is self-hosted rather than a
+  # service. Every setting here was paid for once: see the development file.
+  # ---------------------------------------------------------------------------
+  steel:
+    image: ghcr.io/steel-dev/steel-browser:latest
+    restart: unless-stopped
+    init: true
+    environment:
+      # Steel builds every url it hands out from these. They are different
+      # addresses because they are dialled by different machines: the session
+      # viewer is opened by a person, so it must be reachable from their
+      # browser; the CDP endpoint is attached to by the API, which is on this
+      # network. Advertising CDP on the host would publish an unauthenticated
+      # DevTools port -- full control of a browser holding warehouse
+      # credentials -- to everything that can route to this VM.
+      DOMAIN: ${STEEL_DOMAIN:?set STEEL_DOMAIN, the address a person's browser can reach, e.g. 10.11.9.25:3010}
+      CDP_DOMAIN: steel:9223
+    ports:
+      # The viewer only. 9223 stays on the compose network.
+      - "${STEEL_BIND:-0.0.0.0:3010}:3000"
+    shm_size: "2gb"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:3000/v1/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.115.1
+    restart: unless-stopped
+    command: ["--config=/etc/otel-collector.yaml"]
+    volumes:
+      - ./otel-collector.yaml:/etc/otel-collector.yaml:ro
+
+  # ---------------------------------------------------------------------------
+  # The schema, before anything serves it. Runs to completion and exits; the
+  # API will not start unless it exited 0.
+  # ---------------------------------------------------------------------------
+  migrate:
+    image: ${BACKEND_IMAGE:?set BACKEND_IMAGE, e.g. ai-sro-backend:8b27470}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment: &backend-env
+      # Anything other than `local` behaves identically -- `local` is the only
+      # value with behaviour attached, and it opens CORS to localhost:3000.
+      # Name the environment honestly anyway: it is reported on `/health` and
+      # is how somebody reading a trace knows which box they are looking at.
+      SRO_ENVIRONMENT: ${SRO_ENVIRONMENT:?set SRO_ENVIRONMENT, e.g. qa}
+      SRO_DEBUG: "false"
+      SRO_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-sro}
+      SRO_S3_ENDPOINT_URL: http://minio:9000
+      SRO_S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+      SRO_S3_SECRET_KEY: ${S3_SECRET_KEY}
+      SRO_S3_BUCKET: ${S3_BUCKET:-sro-artifacts}
+      SRO_STEEL_BASE_URL: http://steel:3000
+      SRO_STEEL_CDP_URL: http://steel:9223
+      SRO_TEMPORAL_ADDRESS: temporal:7233
+      SRO_OTLP_ENDPOINT: http://otel-collector:4318
+      # Signs this deployment's credentials. Unset, every authenticated
+      # endpoint answers 503 rather than letting anything through -- so this is
+      # not a variable a deployment can quietly go without.
+      SRO_AUTH_SECRET: ${SRO_AUTH_SECRET:?set SRO_AUTH_SECRET, from `make auth-secret`}
+      # Without it the file vault refuses to start rather than writing
+      # plaintext credentials for the systems it signs into.
+      SRO_VAULT_KEY: ${SRO_VAULT_KEY:?set SRO_VAULT_KEY, from `make vault-key`}
+      SRO_VAULT_PATH: /var/lib/sro/vault
+      # These two are not cosmetic. `our_own_origins()` reads them to know
+      # which traffic is this system's own, and evidence is refused for them
+      # ahead of any tenant policy. Left at their localhost defaults, the
+      # console's own API calls are captured and mined as warehouse work --
+      # which has happened, and is recorded in `config.py`.
+      SRO_API_URL: ${SRO_API_URL:?set SRO_API_URL, the url operators' browsers use}
+      SRO_CONSOLE_URL: ${SRO_CONSOLE_URL:?set SRO_CONSOLE_URL}
+      # Browser origins allowed to call this API. The extension's id is pinned
+      # by its manifest key. A console on its own hostname belongs here too --
+      # `environment: production` means localhost:3000 is no longer added for
+      # you, and a missing origin is a console that loads and fails every call.
+      SRO_CORS_ORIGINS: ${SRO_CORS_ORIGINS:?set SRO_CORS_ORIGINS}
+      # Every hosted-model destination is off unless a deployment turns it on.
+      # A key is not consent; see `docs/10-security-and-data.md`.
+      SRO_GEMINI_API_KEY: ${SRO_GEMINI_API_KEY:-}
+      SRO_INTERPRETATION_ENABLED: ${SRO_INTERPRETATION_ENABLED:-false}
+      SRO_TRANSCRIPTION_ENABLED: ${SRO_TRANSCRIPTION_ENABLED:-false}
+      SRO_VISION_ENABLED: ${SRO_VISION_ENABLED:-false}
+      SRO_KNOWLEDGE_EMBEDDINGS_ENABLED: ${SRO_KNOWLEDGE_EMBEDDINGS_ENABLED:-false}
+    volumes:
+      - vault-data:/var/lib/sro
+    command: ["alembic", "upgrade", "head"]
+    restart: "no"
+
+  api:
+    image: ${BACKEND_IMAGE}
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      minio-init:
+        condition: service_completed_successfully
+      temporal:
+        condition: service_healthy
+      steel:
+        condition: service_healthy
+    environment: *backend-env
+    volumes:
+      - vault-data:/var/lib/sro
+    ports:
+      - "${API_BIND:-0.0.0.0:8000}:8000"
+
+  # One worker. Two on one task queue must share data or one accepts work it
+  # cannot find (`CONTEXT.md` §8), and the API's in-process run ownership
+  # assumes a single driver besides.
+  worker:
+    image: ${BACKEND_IMAGE}
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      temporal:
+        condition: service_healthy
+    environment: *backend-env
+    volumes:
+      - vault-data:/var/lib/sro
+    command: ["python", "-m", "sro.infrastructure.temporal.worker"]
+
+  web:
+    image: ${WEB_IMAGE:?set WEB_IMAGE, e.g. ai-sro-web:8b27470}
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "${WEB_BIND:-0.0.0.0:3000}:3000"
+
+volumes:
+  postgres-data:
+  minio-data:
+  vault-data:

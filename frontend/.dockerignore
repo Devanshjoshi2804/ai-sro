@@ -1,0 +1,16 @@
+# `docker build` does not read `.gitignore`, and this directory holds an
+# `.env.local` on every working machine.
+.env
+.env.*
+*.pem
+*.key
+
+node_modules/
+.next/
+out/
+coverage/
+playwright-report/
+test-results/
+*.log
+
+.DS_Store

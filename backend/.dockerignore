@@ -1,0 +1,51 @@
+# What must never reach an image.
+#
+# The build context is this directory, and a working machine keeps things here
+# that a running container has no business holding: a live Google OAuth client
+# secret, the vault, `rig.db` with captured warehouse evidence, somebody's
+# `.env`. Git ignores them, which is why they are easy to forget -- `docker
+# build` does not read `.gitignore`.
+#
+# Denying by pattern rather than allowing by name, because the next secret
+# somebody drops in here will not be called what these are called: the
+# credential rules below are wide on purpose.
+
+# Credentials, in every shape this repository has seen them.
+.env
+.env.*
+*.env
+client_secret*
+*client_secret*
+.gmail-token*
+*token.json*
+*.pem
+*.key
+.sro-vault/
+
+# Captured evidence and local state. Large, and not ours to ship.
+*.db
+*.db-shm
+*.db-wal
+*.sqlite*
+*.log
+
+# Build and test residue. None of it changes what runs.
+.venv/
+__pycache__/
+*.pyc
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.hypothesis/
+.import_linter_cache/
+mutants/
+htmlcov/
+.coverage*
+
+# Not run in a container. Tests stay out so a passing image is not mistaken for
+# a passing suite -- CI runs the suite, and it runs it from the tree.
+tests/
+mock-connector/
+gmail-connector/
+
+.DS_Store

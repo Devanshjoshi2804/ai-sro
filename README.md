@@ -34,8 +34,8 @@ Copy `backend/.env.example` to `backend/.env` and `frontend/.env.example` to
 ```
 backend/     Python, FastAPI. Ports and adapters, enforced by import-linter.
 frontend/    Next.js App Router, TypeScript, Tailwind, shadcn/ui.
-infra/       docker-compose for the local stack.
-docs/        Architecture, standards, walkthroughs, ADRs.
+infra/       docker-compose: the local stack, and the deployed one.
+docs/        Architecture, standards, walkthroughs, ADRs, deployment.
 knowledge-base/  Recorded description of a live Blue Yonder SCE instance (evidence, not spec).
 AGENTS.md    Agent-facing instructions (the open standard; CLAUDE.md points here).
 ```
@@ -58,3 +58,6 @@ every decision and its consequence, what is next, and what is knowingly unfinish
 
 [docs/00-overview.md](docs/00-overview.md) — what this is, what v0 covers, and
 what it deliberately does not.
+
+[docs/18-deployment.md](docs/18-deployment.md) — running it on a VM: the two
+images, the compose stack, and the five things that are quiet when wrong.

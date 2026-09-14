@@ -1,0 +1,154 @@
+# Deployment
+
+How this runs on a machine that is not a laptop. Written for the first real
+target: **one VM, QA first, and that QA stack shown to a client as a POC.**
+
+That last part decides the shape of everything below. A QA environment nobody
+outside sees can cut corners; one a client is shown cannot, because the corners
+are what they will find. So QA runs the production compose file, the production
+images and the production switches, and differs from production in its
+hostnames and its secrets and nothing else. When QA passes, the **same image
+tags** are promoted. An image rebuilt for production is an image nothing tested.
+
+## What actually runs
+
+Four processes and five backing services:
+
+| | what | why it is its own process |
+|---|---|---|
+| `api` | `uvicorn sro.main:app` | serves the console and every operator's extension |
+| `worker` | `python -m sro.infrastructure.temporal.worker` | induction, mining sweeps, retention |
+| `web` | `node server.js` | the console |
+| `steel` | the browser sandbox | the fallback rung when the operator's own browser is not driving |
+
+plus Postgres + pgvector, MinIO, Temporal, an OTLP collector, and a one-shot
+`migrate` that must exit 0 before the API starts.
+
+**The worker is not optional and not the API.** Induction runs there. An
+API-only restart silently keeps running last week's code against this week's
+rows — the first line of `CONTEXT.md` §8, learned the hard way. The compose
+file puts both in one `up -d` from one image so they cannot skew.
+
+## Build
+
+Both images are built from the repo root, tagged with the commit:
+
+```bash
+REV=$(git rev-parse --short HEAD)
+
+docker build -t ai-sro-backend:$REV --build-arg REVISION=$REV backend/
+
+docker build -t ai-sro-web:$REV \
+  --build-arg NEXT_PUBLIC_API_URL=http://10.11.9.25:8000 \
+  --build-arg NEXT_PUBLIC_EXTENSION_ORIGINS=chrome-extension://onfmljaebeipeiinflhgdochbcjeoehl \
+  frontend/
+```
+
+`REVISION` matters: the settings read `SRO_REVISION` and otherwise ask git,
+which a container cannot do. A deployment that cannot name its own commit is
+one nobody can debug, and `/health` is where somebody looks first.
+
+**The web image's two build args are baked in and cannot be changed at run
+time.** Next inlines `NEXT_PUBLIC_*` where it appears verbatim, and
+`next.config.ts` reads the extension origins inside `headers()`, which runs
+during the build. So one web image does not serve two environments. Either
+build it twice — which breaks "promote the same tag", and is the honest cost
+of `NEXT_PUBLIC_*` — or put the console behind a proxy so `NEXT_PUBLIC_API_URL`
+can be a same-origin path and the image stops caring. **For QA-to-production
+promotion, do the second.** Until then, rebuild the web image per environment
+and promote only the backend tag.
+
+## The VM
+
+Target `10.11.9.25`, reached over OS Login (`docs`: the Confluence page on GCP
+OS Login). Access is per-person and per-project:
+
+```bash
+gcloud compute os-login describe-profile --format='value(posixAccounts.username)'
+ssh -i ~/.ssh/id_rsa <that username>@10.11.9.25
+```
+
+A `Permission denied (publickey)` here with a key that OS Login already holds
+means the IAM grant is missing, not the key: ask for `roles/compute.osLogin`
+(or `osAdminLogin` for sudo) on the project that owns the VM.
+
+On the box:
+
+```bash
+# once
+sudo apt-get update && sudo apt-get install -y docker.io docker-compose-plugin
+sudo usermod -aG docker "$USER"     # log out and back in
+
+# every deploy
+git clone <this repo> ~/ai-sro && cd ~/ai-sro     # or git pull
+cp infra/.env.deploy.example infra/.env.qa        # fill it in, once
+docker compose -f infra/docker-compose.deploy.yml --env-file infra/.env.qa up -d
+docker compose -f infra/docker-compose.deploy.yml --env-file infra/.env.qa ps
+```
+
+Images reach the VM either by building there or by `docker save | ssh … docker
+load`. A registry is better and is the first thing to add when a second
+environment exists.
+
+`up -d` is the whole deploy: `migrate` runs to completion first, then `api` and
+`worker` start together from the same image.
+
+## Five things that are quiet when wrong
+
+1. **`SRO_API_URL` and `SRO_CONSOLE_URL` default to localhost.** They are not
+   cosmetic. `our_own_origins()` reads them to decide which traffic is this
+   system's own, and evidence is refused for those origins ahead of any tenant
+   policy. Left at their defaults on a VM, the console's own API calls are
+   captured and mined as warehouse work. That has happened; `config.py` records
+   it.
+2. **CORS.** `http://localhost:3000` is added only when `SRO_ENVIRONMENT` is
+   `local`. A console on its own hostname must appear in `SRO_CORS_ORIGINS` or
+   it loads and fails every request.
+3. **`init-db.sh` runs once, on the first boot of an empty Postgres volume.**
+   On managed Postgres it never runs: create `temporal` and
+   `temporal_visibility` and `CREATE EXTENSION vector` by hand, or Temporal
+   will not start and the reason will not be obvious.
+4. **The extension's id is pinned by its manifest key**, and that id is in both
+   `SRO_CORS_ORIGINS` and the console's `frame-ancestors`. If the Chrome Web
+   Store assigns a different id than the unpacked build, both break silently —
+   as a side panel whose handshake never completes.
+5. **Secrets that cannot be rotated casually.** `SRO_AUTH_SECRET` invalidates
+   every credential every operator has pasted; `SRO_VAULT_KEY` makes every
+   stored system credential unreadable. Generate once, store outside git,
+   back them up with the volumes.
+
+## Giving operators access
+
+```bash
+make token tenant=<tenant> principal=<who it is for>
+```
+
+`principal=` is required and names a person. Every candidate is
+`(principal, signature)` and every pairing rule needs one principal on both
+sides, so two names for one human splits their work from itself permanently.
+One token per person, and the same name each time.
+
+**Known friction, and the POC's most likely failure.** The extension's options
+page asks each operator to type an API url, a console url, and paste a token —
+three fields, with `localhost` placeholders. On a client machine the
+placeholders are wrong, and getting the url wrong presents as "cannot reach the
+deployment" rather than as a typo. Before a client POC, the extension should
+ship knowing its deployment — either a generated default beside
+`shape.generated.js` (the pattern `make gen-recorder` and `make tokens` already
+use) or a single pasted connect string carrying url and token together. This is
+not done.
+
+## Not done, named rather than implied
+
+- **TLS.** The stack serves plain HTTP. Fine on a private network for QA;
+  terminate TLS in front of it before anything crosses one.
+- **Backups.** `postgres-data`, `minio-data` and `vault-data` hold the
+  evidence, the artifacts and the system credentials. Nothing backs them up.
+- **Monitoring.** The collector prints to stdout. Point its exporter somewhere
+  real in `infra/otel-collector.yaml`.
+- **A registry**, so promotion is a tag move rather than a rebuild.
+- **Steel's own reachability.** `STEEL_DOMAIN` must be an address a person's
+  browser can dial, or the live view sits on "Session connecting..." forever.
+  Its CDP port is deliberately *not* published: only the API attaches to it,
+  and an open DevTools port is full control of a browser holding warehouse
+  credentials.

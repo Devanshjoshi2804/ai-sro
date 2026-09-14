@@ -321,8 +321,9 @@ class InduceSkill:
             # Worth building when a looping task with more than two
             # demonstrations turns up; the pair still induces it today.
             doings = (frames_a, frames_b) if looped is not None else (frames_a, frames_b, *history)
+            alignment = align_all(doings)
             conditionals = _extra_steps(
-                alignment=align_all(doings),
+                alignment=alignment,
                 pairs=pairs,
                 runs=doings,
                 parameterisation=parameterisation,
@@ -367,8 +368,20 @@ class InduceSkill:
                         last_step=_moved(looped.loop.last_step, conditionals),
                     ),
                 )
+            # How many of the doings made each step, carried on the step
+            # itself. The counts already exist and already decide things --
+            # `standing_of` reads them to tell a branch from a fumble -- and
+            # until now a reviewer could only find them in a log line. A step
+            # three of four doings made is a different thing to look at than a
+            # step all four made, and the skill never said which it was.
             steps = _build_steps(
-                frames_a, frames_b, run_a, objective, parameterisation, conditionals
+                frames_a,
+                frames_b,
+                run_a,
+                objective,
+                parameterisation,
+                conditionals,
+                _Counts(alignment, pairs, frames_a),
             )
             parameters = with_options(parameterisation.parameters, planned)
 
@@ -1027,6 +1040,44 @@ def _key_typed_into(frame: ActionFrame, run: tuple[ActionFrame, ...]) -> str | N
     )
 
 
+class _Counts:
+    """How many doings made each step, in both index spaces at once.
+
+    Two kinds of step are emitted and they are addressed differently. A paired
+    step is a position in `align`'s exploded pairs, and what counted it is a
+    position in `Alignment.reference` -- the two meet through `_reconcile`, the
+    same reconciliation `_extra_steps` needs and for the same reason. A
+    conditional step is a reference frame itself, so it is looked up by the
+    frame.
+
+    A step neither of those places -- nothing counted it at all -- gets no
+    number rather than a neighbour's, because a count that came from the step
+    next to it is worse than none.
+    """
+
+    def __init__(
+        self,
+        alignment: Alignment,
+        pairs: tuple[tuple[ActionFrame, ActionFrame], ...],
+        frames_a: tuple[ActionFrame, ...],
+    ) -> None:
+        self.doings = alignment.doings
+        self._paired = {
+            index: alignment.seen[reference]
+            for reference, paired in _reconcile(alignment, pairs, frames_a).items()
+            for index in paired
+        }
+        self._by_frame = {
+            id(frame): alignment.seen[index] for index, frame in enumerate(alignment.reference)
+        }
+
+    def paired(self, index: int) -> int:
+        return self._paired.get(index, 0)
+
+    def frame(self, frame: ActionFrame) -> int:
+        return self._by_frame.get(id(frame), 0)
+
+
 def _reconcile(
     alignment: Alignment,
     pairs: tuple[tuple[ActionFrame, ActionFrame], ...],
@@ -1165,6 +1216,11 @@ def _make_room(
     )
 
 
+def _stamped(step: SkillStep, seen_in: int, of_doings: int) -> SkillStep:
+    """One step, with what counted it. Zero and zero where nothing did."""
+    return replace(step, seen_in=seen_in, of_doings=of_doings if seen_in else 0)
+
+
 def _build_steps(
     run_a_frames: tuple[ActionFrame, ...],
     run_b_frames: tuple[ActionFrame, ...],
@@ -1172,6 +1228,7 @@ def _build_steps(
     objective: ObjectiveKey,
     parameterisation: Parameterisation,
     conditionals: tuple[_Conditional, ...] = (),
+    counts: _Counts | None = None,
 ) -> tuple[SkillStep, ...]:
     """Frames rather than recordings, because a looping task keeps one iteration
     of its body: the recording holds all of them, and the skill is the block."""
@@ -1189,23 +1246,34 @@ def _build_steps(
     pending = list(conditionals)
     for index in range(len(frames_a) + 1):
         while pending and pending[0].at <= index:
-            steps.append(_emit_conditional(len(steps), pending.pop(0), parameterisation, objective))
+            branch = pending.pop(0)
+            steps.append(
+                _stamped(
+                    _emit_conditional(len(steps), branch, parameterisation, objective),
+                    counts.frame(branch.frame) if counts else 0,
+                    counts.doings if counts else 0,
+                )
+            )
         if index == len(frames_a):
             break
         steps.append(
-            emit_step(
-                len(steps),
-                frames_a[index],
-                parameterisation,
-                assertion_extraction.extract(
+            _stamped(
+                emit_step(
+                    len(steps),
                     frames_a[index],
+                    parameterisation,
+                    assertion_extraction.extract(
+                        frames_a[index],
+                        frames_b[index],
+                        next_a=frames_a[index + 1] if index + 1 < len(frames_a) else None,
+                        next_b=frames_b[index + 1] if index + 1 < len(frames_b) else None,
+                    ),
+                    objective,
                     frames_b[index],
-                    next_a=frames_a[index + 1] if index + 1 < len(frames_a) else None,
-                    next_b=frames_b[index + 1] if index + 1 < len(frames_b) else None,
+                    said.get(frames_a[index].index),
                 ),
-                objective,
-                frames_b[index],
-                said.get(frames_a[index].index),
+                counts.paired(index) if counts else 0,
+                counts.doings if counts else 0,
             )
         )
     return tuple(steps)

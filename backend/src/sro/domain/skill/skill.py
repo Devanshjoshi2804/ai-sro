@@ -43,6 +43,25 @@ class SkillStep:
     """A path the operator described but did not demonstrate. A question for a
     reviewer -- never executed, because nothing was recorded doing it."""
 
+    seen_in: int = 0
+    of_doings: int = 0
+    """How many demonstrations of this task contained this step, out of how
+    many were aligned. `0 of 0` is a step from a version induced before this
+    was recorded, or one nothing counted.
+
+    A count and not a verdict. Induction already refuses a pair that disagrees
+    about what the task is, and keeps a step both demonstrations made even when
+    the wider set is thinner -- and until now it said so only in a log line
+    nobody reads. A reviewer looking at a step that three of four doings made
+    is looking at the one fact that decides whether it belongs, which is what
+    conformance checking has shipped as a graded fitness score since 2010
+    while this gate stayed binary.
+
+    Never read by the runner. What a step's rarity MEANS is settled at
+    induction by `standing_of`, from these same counts and from the
+    parameterisation; a run re-deciding it from a number on the step would be
+    a second opinion about a question already answered with more evidence."""
+
     when: str | None = None
     """The parameter whose presence decides whether this step happens at all.
 

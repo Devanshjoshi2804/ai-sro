@@ -134,6 +134,7 @@ let approveRefusal = null;
 /** How the backend answers `POST /v1/offers`, for the test that a refusal is
  * `false` and never a throw. `null` is the door recording the fate. */
 let offerRefusal = null;
+let chatRead = null;
 
 /** The rig and the backend, as far as this browser can tell. Re-installed by
  * `ready()`: a test that swaps it for one of its own must not leave every later
@@ -171,6 +172,8 @@ const rigServer = async (url, options = {}) => {
       : json({ order: 0, first: true });
   }
   if (path === "/v1/shapes") return json({ shapes: shapesServed });
+  if (path === "/v1/threads/thr-1/messages") return json({ id: "thr-1", messages: [] });
+  if (path === "/v1/chat") return chatRead ? json(chatRead) : json({ detail: "no model" }, 503);
   if (path === "/v1/offers") {
     return offerRefusal
       ? json({ detail: offerRefusal.detail }, offerRefusal.status)
@@ -244,6 +247,7 @@ function ready() {
   rigRunFails = false;
   approveRefusal = null;
   offerRefusal = null;
+  chatRead = null;
   globalThis.fetch = rigServer;
   // Distinctive on purpose. `dev-1` was the literal that a mutation of
   // `shapes()`'s `?device_id=` was replaced with, and all 27 suites stayed
@@ -1063,4 +1067,52 @@ test("an update takes the rig's settings off this browser, and a launch tries ag
     () => !held.has("sro.rigToken"),
     "a browser that missed the update-time removal never got another chance",
   );
+});
+
+test("a sentence in the panel becomes the same offer a recognised walk makes", async () => {
+  // `/v1/chat` reads an utterance against the tenant's jobs and had no caller
+  // in this extension at all: typing "create a work area called APITEST1" said
+  // something to the thread and nothing else. It is an offer and not a start,
+  // the backend's own words, so what a sentence produces is the card -- with
+  // the values it could read, a box for anything it could not, and the press
+  // that is still the authorisation.
+  ready();
+  // `ready()` above already signed this browser in.
+  chatRead = {
+    workflow_id: "wfl_wa",
+    values: { workArea: "APITEST1" },
+    missing: ["description"],
+    cost_usd: 0.0023,
+  };
+
+  await send({ kind: "thread-say", threadId: "thr-1", text: "create a work area called APITEST1", tabId: TAB });
+  await until(() => openOnes().length === 1, "the sentence made no offer");
+
+  const [offered] = openOnes();
+  assert.equal(offered.source, "rig");
+  assert.equal(offered.workflowId, "wfl_wa");
+  assert.equal(offered.title, "Create Work Area", "the title comes off the served shape, not the id");
+  assert.equal(offered.k, 0, "nothing has been done yet: the card asks, it does not offer to finish");
+  assert.deepEqual(offered.values, { workArea: "APITEST1" });
+  assert.deepEqual(offered.missing, ["description"]);
+  assert.equal(offered.tabId, TAB, "an offer drawn for no tab is an offer the panel never shows");
+  assert.deepEqual(
+    calls.filter((call) => call.path === "/v1/workflow-runs"),
+    [],
+    "a sentence started a run without anybody pressing anything",
+  );
+});
+
+test("a sentence about nothing says something and offers nothing", async () => {
+  // No model configured, over the day's cap, or a sentence that named no job.
+  // The thread still has what they said.
+  ready();
+  // `ready()` above already signed this browser in.
+  chatRead = { workflow_id: null, values: {}, missing: [] };
+
+  const said = await send({ kind: "thread-say", threadId: "thr-1", text: "how do I log in", tabId: TAB });
+
+  assert.ok(said, "the sentence was not said at all");
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.deepEqual(openOnes(), []);
 });

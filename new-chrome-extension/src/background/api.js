@@ -376,6 +376,19 @@ export const api = {
   /** This operator's running conversation, started if they have none. */
   currentThread: () => call("/v1/threads/current"),
 
+  /** One sentence, read against the jobs this tenant has been seen doing.
+   *
+   * Answers `{workflow_id, values, missing}` and starts nothing: the backend's
+   * own words are "an offer, never a start; pressing start is a different
+   * door". It spends a model call doing it -- about a fifth of a cent -- and
+   * the backend bills and caps that per tenant.
+   *
+   * Not `resolveIntent`, which is the other resolver: that one reads an
+   * utterance over the tenant's taught SKILLS with arithmetic and no model.
+   * This reads it over the mined JOBS. Two vocabularies, one verb.
+   */
+  readChat: (utterance) => call("/v1/chat", { method: "POST", body: { utterance } }),
+
   /** Say something into it. Answers with the whole thread, which is why the
    * panel re-renders from the reply rather than appending locally. */
   say: (threadId, text) =>

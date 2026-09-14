@@ -310,6 +310,59 @@ function originOf(url) {
   }
 }
 
+/** One sentence, turned into the same offer a recognised walk makes.
+ *
+ * The card, the values, the box for anything missing and the press are all the
+ * recogniser's already -- `offeringToFinish` draws this shape and
+ * `start-rig-run` starts it. What was missing was the sentence: `/v1/chat`
+ * reads an utterance against the tenant's jobs and had no caller in this
+ * extension at all, so typing "create a work area called APITEST1" in the
+ * panel said something to the thread and nothing else.
+ *
+ * `k: 0`, because nothing has been done yet: the card asks "want me to do it?"
+ * rather than "want me to finish it?". The title comes off the served shapes
+ * rather than the reading, which answers an id.
+ *
+ * Nothing here runs anything. A sentence is a request for an offer, and the
+ * press on the card is still the authorisation -- the same rule that holds for
+ * an offer the browser made off somebody's own gestures.
+ */
+async function offerFromWords(text, tabId) {
+  if (!text || tabId === null) return;
+  try {
+    const read = await api.readChat(text);
+    if (!read?.workflow_id) return;
+    const shape = (await shapesFor()).find((one) => one.id === read.workflow_id);
+    const made = fire(
+      {
+        id: read.workflow_id,
+        title: shape?.title || read.workflow_id,
+        starts_on: shape?.starts_on || "",
+        source: "rig",
+        workflow_id: read.workflow_id,
+        k: 0,
+        values: read.values || {},
+        missing: read.missing || [],
+        parameters: (shape?.parameters || []).map((one) => one.name),
+      },
+      Date.now(),
+    );
+    await serially(async () => {
+      const held = await state.nudges();
+      // One open offer at a time, which is the queue this design exists to not
+      // be: a sentence supersedes whatever the browser was offering.
+      const rest = held.map((one) =>
+        one.state === "open" ? { ...one, state: "expired", endedAt: Date.now() } : one,
+      );
+      await state.setNudges([{ ...made, tabId }, ...rest].slice(0, MAX_NUDGES));
+    });
+  } catch {
+    // No model configured, over the day's cap, a sentence about nothing. The
+    // thread still has what they said, and this line adds nothing to it.
+  }
+}
+
+
 async function considerOffer(tabId, gesture) {
   try {
     if (tabId === null || !(await isWatched(tabId))) return;
@@ -1193,8 +1246,15 @@ async function handle(message, sender) {
       return api.resolveIntent(message.utterance);
     case "thread":
       return api.currentThread();
-    case "thread-say":
-      return api.say(message.threadId, message.text);
+    case "thread-say": {
+      const said = await api.say(message.threadId, message.text);
+      // And the same sentence, read the other way: is it asking for a job this
+      // tenant has been seen doing? Never awaited into the answer -- saying
+      // something must not wait on a model call, and a reading that fails is a
+      // sentence that was still said.
+      void offerFromWords(message.text, message.tabId ?? null);
+      return said;
+    }
     case "run-skill":
       // The press. `from-preview`, not the ordinary run endpoint -- the
       // operator read the preview this promotes on, in this browser, and a

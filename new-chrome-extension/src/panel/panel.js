@@ -1134,7 +1134,11 @@ function show(thread, { asked = false } = {}) {
 async function say(text) {
   if (!threadId) return conversation();
   try {
-    show(await ask({ kind: "thread-say", threadId, text }), { asked: true });
+    // `tabId` so an offer the sentence turns into is drawn beside the tab the
+    // operator is working in -- `show` only draws an OPEN nudge for this tab.
+    show(await ask({ kind: "thread-say", threadId, text, tabId: tabHere.tabId }), {
+      asked: true,
+    });
   } catch (error) {
     $("thread-note").textContent = error.message;
   }

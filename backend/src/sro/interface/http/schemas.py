@@ -59,6 +59,7 @@ from sro.domain.skill.track_record import (
     DEMOTE_AFTER_FAILURES,
     REQUIRED_CLEAN_RUNS,
 )
+from sro.domain.trigger.arrival import Arrival
 from sro.domain.trigger.confirmation import Confirmation
 from sro.domain.trigger.trigger import Trigger, TriggerKind
 from sro.domain.trigger.watch import MAX_TERM, Term, TermField, ValueAt, Watch
@@ -2348,6 +2349,11 @@ class NewTriggerRequest(BaseModel):
     evaluates. A watch names the values it supplies by where it reads them, so
     `from_message` stays empty for one: there is no second list."""
 
+    arrival: ArrivalModel | None = None
+    """The page whose arrival starts the job, for `kind: "arrival"`. What an
+    operator makes by standing on the page an offer is about and saying "do
+    this here"."""
+
     device_id: str | None = None
     """Run it in this operator's browser. Such a run happens only while that
     browser is connected, which is a property of a laptop rather than a fault."""
@@ -2376,6 +2382,19 @@ class ChangeTriggerRequest(BaseModel):
     switched back on."""
 
 
+class ArrivalModel(BaseModel):
+    """The page whose arrival starts the job: `host/path`, and nothing else."""
+
+    page: str
+
+    def to_domain(self) -> Arrival:
+        return Arrival(page=self.page)
+
+    @classmethod
+    def of(cls, arrival: Arrival) -> ArrivalModel:
+        return cls(page=arrival.page)
+
+
 class TriggerModel(BaseModel):
     id: str
     skill_id: str | None = None
@@ -2394,6 +2413,10 @@ class TriggerModel(BaseModel):
     parameters: dict[str, str]
     from_message: list[str]
     watch: WatchModel | None
+    arrival: ArrivalModel | None = None
+    """The page this fires on, for an arrival trigger. The browser reads it and
+    evaluates it there: the question is where its operator is standing."""
+
     device_id: str | None
     medium: str
     enabled: bool
@@ -2424,6 +2447,7 @@ class TriggerModel(BaseModel):
             parameters=dict(trigger.parameters),
             from_message=list(trigger.from_message),
             watch=None if trigger.watch is None else WatchModel.of(trigger.watch),
+            arrival=None if trigger.arrival is None else ArrivalModel.of(trigger.arrival),
             device_id=trigger.device_id.value if trigger.device_id else None,
             medium=trigger.medium.value,
             enabled=trigger.enabled,

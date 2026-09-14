@@ -178,6 +178,72 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/agents/{device_id}/arrivals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Arrivals
+         * @description The pages this browser starts a job on.
+         *
+         *     Asked by the extension for `list_watches`'s reason turned around: a watch
+         *     is local because the mail must not leave the browser, and an arrival is
+         *     local because the question is "is this operator standing on that page right
+         *     now", which only the process with the tab open can answer.
+         *
+         *     Same ownership check, and it matters more here. A watch handed to the wrong
+         *     browser reads somebody's mail; an arrival handed to the wrong browser
+         *     DRIVES it.
+         */
+        get: operations["list_arrivals_v1_agents__device_id__arrivals_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/agents/{device_id}/arrivals/{trigger_id}/fire": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Arrival Fire
+         * @description The operator arrived. Start the job they said to start here.
+         *
+         *     No press, and that is the whole point of the kind: a person already
+         *     pressed, once, when they made the rule. What still asks is the write --
+         *     `requires_confirmation` makes the fire a card somebody answers, and a job
+         *     that has not earned three verified live runs parks in front of them
+         *     whatever this says.
+         *
+         *     The url is checked HERE as well as in the browser, against the rule's own
+         *     page. The browser has to evaluate it -- it is the only thing that knows
+         *     where its operator is -- but a browser that got the rule wrong, or a
+         *     request that never came from one, would otherwise start a live run in
+         *     somebody's window on a page nobody chose. The body carries the url and
+         *     nothing else: not the page's contents, not what was on it.
+         *
+         *     From here it is an ordinary fire, with the trigger's own values.
+         *     `FireTrigger` skips rather than starting a run whose required inputs are
+         *     empty.
+         */
+        post: operations["arrival_fire_v1_agents__device_id__arrivals__trigger_id__fire_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/agents/{device_id}/watches/{trigger_id}/matched": {
         parameters: {
             query?: never;
@@ -2363,6 +2429,14 @@ export interface components {
             run_id?: string | null;
         };
         /**
+         * ArrivalModel
+         * @description The page whose arrival starts the job: `host/path`, and nothing else.
+         */
+        ArrivalModel: {
+            /** Page */
+            page: string;
+        };
+        /**
          * ArtifactKind
          * @enum {string}
          */
@@ -2636,6 +2710,14 @@ export interface components {
             performed: number;
             /** Stopped Early */
             stopped_early: string | null;
+        };
+        /** Body_arrival_fire_v1_agents__device_id__arrivals__trigger_id__fire_post */
+        Body_arrival_fire_v1_agents__device_id__arrivals__trigger_id__fire_post: {
+            /**
+             * Url
+             * @default
+             */
+            url: string;
         };
         /** Body_attach_artifact_v1_recordings__recording_id__artifacts_post */
         Body_attach_artifact_v1_recordings__recording_id__artifacts_post: {
@@ -3700,6 +3782,7 @@ export interface components {
             /** From Message */
             from_message?: string[];
             watch?: components["schemas"]["WatchModel"] | null;
+            arrival?: components["schemas"]["ArrivalModel"] | null;
             /** Device Id */
             device_id?: string | null;
             /** @default network */
@@ -4969,7 +5052,7 @@ export interface components {
          * TriggerKind
          * @enum {string}
          */
-        TriggerKind: "manual" | "schedule" | "inbound" | "watch";
+        TriggerKind: "manual" | "schedule" | "inbound" | "arrival" | "watch";
         /** TriggerModel */
         TriggerModel: {
             /** Id */
@@ -4996,6 +5079,7 @@ export interface components {
             /** From Message */
             from_message: string[];
             watch: components["schemas"]["WatchModel"] | null;
+            arrival?: components["schemas"]["ArrivalModel"] | null;
             /** Device Id */
             device_id: string | null;
             /** Medium */
@@ -5920,6 +6004,261 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TriggerModel"][];
+                };
+            };
+            /** @description No credential, or one this deployment rejects. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description No such thing, or not yours. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The system's state says no, not the request. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The request cannot be processed as asked. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description Something this depends on is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+        };
+    };
+    list_arrivals_v1_agents__device_id__arrivals_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Device-Secret"?: string;
+                authorization?: string | null;
+            };
+            path: {
+                device_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TriggerModel"][];
+                };
+            };
+            /** @description No credential, or one this deployment rejects. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description No such thing, or not yours. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The system's state says no, not the request. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The request cannot be processed as asked. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description Something this depends on is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+        };
+    };
+    arrival_fire_v1_agents__device_id__arrivals__trigger_id__fire_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Device-Secret"?: string;
+                authorization?: string | null;
+            };
+            path: {
+                device_id: string;
+                trigger_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["Body_arrival_fire_v1_agents__device_id__arrivals__trigger_id__fire_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FiredModel"];
                 };
             };
             /** @description No credential, or one this deployment rejects. */

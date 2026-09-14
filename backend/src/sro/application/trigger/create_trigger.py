@@ -18,6 +18,7 @@ from sro.application.ports.system import Clock, IdFactory
 from sro.domain.execution.run import Medium
 from sro.domain.shared.errors import DomainError
 from sro.domain.shared.identifiers import DeviceId, SkillId
+from sro.domain.trigger.arrival import Arrival
 from sro.domain.trigger.trigger import Trigger, TriggerKind
 from sro.domain.trigger.watch import QUESTION, Watch
 
@@ -50,6 +51,10 @@ class NewTrigger:
     """What makes a mail one of these, for a trigger the operator's own browser
     evaluates. The names it reads are its `from_message`; there is no second
     list to keep in step."""
+
+    arrival: Arrival | None = None
+    """The page whose arrival fires it -- the other rule a browser holds. An
+    operator standing on the page where a job starts, saying "do this here"."""
 
     device_id: DeviceId | None = None
     medium: Medium = Medium.NETWORK
@@ -86,6 +91,14 @@ class CreateTrigger:
 
         if request.workflow_id is not None:
             return await self._for_a_job(ctx, request, parameters=parameters)
+
+        if request.kind is TriggerKind.ARRIVAL:
+            # Only a mined job, for now. A job knows the page it starts on --
+            # the candidate carried it before the job existed -- and a taught
+            # skill does not: there would be nothing to check the rule against,
+            # so "do this here" could name any page and fire on the wrong one
+            # forever. Refused rather than half-built.
+            raise TriggerRefused("only a mined job can be started by arriving somewhere")
 
         assert request.skill_id is not None  # noqa: S101 - checked directly above
         async with self._uow as uow:
@@ -238,6 +251,11 @@ class CreateTrigger:
             workflow = await uow.workflows.get(ctx.tenant_id, str(request.workflow_id))
             if workflow.unproven:
                 raise TriggerRefused("this job is not proven yet: " + "; ".join(workflow.unproven))
+            if request.kind is TriggerKind.ARRIVAL and request.arrival is None:
+                # The kind and the rule are one decision. A row with the kind
+                # and no page would be refused by `Trigger` as a 500 out of a
+                # route; here it is a sentence the caller can act on.
+                raise TriggerRefused("an arrival trigger needs the page it fires on")
             if request.kind is TriggerKind.WATCH:
                 # The browser evaluates a watch and offers what it matched, and
                 # that path (`/v1/agents/{id}/watches/{trigger}/matched`) reads
@@ -282,6 +300,7 @@ class CreateTrigger:
                 created_at=self._clock.now(),
                 parameters=parameters,
                 from_message=request.from_message,
+                arrival=request.arrival,
                 cron=request.cron,
                 timezone=request.timezone,
                 device_id=request.device_id,

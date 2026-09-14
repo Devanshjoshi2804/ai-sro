@@ -160,6 +160,94 @@ async def list_watches(
     return [TriggerModel.of(trigger) for trigger in watches]
 
 
+@router.get("/{device_id}/arrivals")
+async def list_arrivals(
+    device_id: str,
+    container: ContainerDep,
+    ctx: ContextDep,
+    x_device_secret: DeviceSecretDep = "",
+) -> list[TriggerModel]:
+    """The pages this browser starts a job on.
+
+    Asked by the extension for `list_watches`'s reason turned around: a watch
+    is local because the mail must not leave the browser, and an arrival is
+    local because the question is "is this operator standing on that page right
+    now", which only the process with the tab open can answer.
+
+    Same ownership check, and it matters more here. A watch handed to the wrong
+    browser reads somebody's mail; an arrival handed to the wrong browser
+    DRIVES it.
+    """
+    device = await container.read_device().execute(
+        ctx, device_id=DeviceId(device_id), secret=x_device_secret
+    )
+    arrivals = await container.read_triggers().arrivals(ctx, device_id=device.id)
+    return [TriggerModel.of(trigger) for trigger in arrivals]
+
+
+@router.post("/{device_id}/arrivals/{trigger_id}/fire", status_code=status.HTTP_202_ACCEPTED)
+async def arrival_fire(
+    device_id: str,
+    trigger_id: str,
+    container: ContainerDep,
+    ctx: ContextDep,
+    url: Annotated[str, Body(embed=True)] = "",
+    x_device_secret: DeviceSecretDep = "",
+) -> FiredModel:
+    """The operator arrived. Start the job they said to start here.
+
+    No press, and that is the whole point of the kind: a person already
+    pressed, once, when they made the rule. What still asks is the write --
+    `requires_confirmation` makes the fire a card somebody answers, and a job
+    that has not earned three verified live runs parks in front of them
+    whatever this says.
+
+    The url is checked HERE as well as in the browser, against the rule's own
+    page. The browser has to evaluate it -- it is the only thing that knows
+    where its operator is -- but a browser that got the rule wrong, or a
+    request that never came from one, would otherwise start a live run in
+    somebody's window on a page nobody chose. The body carries the url and
+    nothing else: not the page's contents, not what was on it.
+
+    From here it is an ordinary fire, with the trigger's own values.
+    `FireTrigger` skips rather than starting a run whose required inputs are
+    empty.
+    """
+    arrival = await _arrival_of(
+        container, ctx, device_id=device_id, trigger_id=trigger_id, secret=x_device_secret
+    )
+    if arrival.arrival is None or not arrival.arrival.matches(url):
+        # Not `Conflict`: from the browser's side this is "that rule is not
+        # about this page", which is the same answer as a rule that does not
+        # exist -- and telling the two apart tells a caller which pages this
+        # operator has rules for.
+        raise NotFound("no such arrival")
+    fired = await container.fire_trigger().execute(arrival.id)
+    return FiredModel(
+        trigger_id=fired.trigger_id.value,
+        run_id=fired.run_id.value if fired.run_id else None,
+        confirmation_id=fired.confirmation_id.value if fired.confirmation_id else None,
+        skipped=fired.skipped,
+    )
+
+
+async def _arrival_of(
+    container: Container, ctx: RequestContext, *, device_id: str, trigger_id: str, secret: str
+) -> Trigger:
+    """This browser proving it is itself, then: this tenant's, this device's,
+    enabled, and an arrival. Anything else is `NotFound`, for `_watch_of`'s
+    reason -- a browser holding an id it should not have learns nothing from
+    the difference."""
+    device = await container.read_device().execute(
+        ctx, device_id=DeviceId(device_id), secret=secret
+    )
+    arrivals = await container.read_triggers().arrivals(ctx, device_id=device.id)
+    found = next((trigger for trigger in arrivals if trigger.id == TriggerId(trigger_id)), None)
+    if found is None:
+        raise NotFound("no such arrival")
+    return found
+
+
 @router.post("/{device_id}/watches/{trigger_id}/matched")
 async def watch_matched(
     device_id: str,

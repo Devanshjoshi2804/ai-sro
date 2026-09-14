@@ -445,6 +445,11 @@ class TriggerRow(Base):
     # operator's own phrase, a value carries a place to read and no text, so
     # there is no field here a mail body would fit in.
     watch: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    # And the other rule a browser holds: the page whose arrival starts this.
+    # Beside the watch rather than inside it -- a watch carries terms about a
+    # mail, an arrival carries one page, and there is nowhere in either for
+    # the other's content.
+    arrival: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
 
     device_id: Mapped[str | None] = mapped_column(String(64))
     medium: Mapped[str] = mapped_column(String(16), nullable=False, default="network")

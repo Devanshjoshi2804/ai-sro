@@ -50,6 +50,31 @@ class ReadTriggers:
             and trigger.device_id == device_id
         )
 
+    async def arrivals(self, ctx: RequestContext, *, device_id: DeviceId) -> tuple[Trigger, ...]:
+        """The pages this one browser starts a job on.
+
+        Watches and arrivals are asked for separately rather than as "the rules
+        this browser holds", because the browser does two different things with
+        them: a watch is evaluated against a mail and OFFERS what it matched,
+        an arrival is evaluated against the page in front of somebody and
+        STARTS something. One list would make the caller sort them by kind,
+        which is this method's job.
+
+        Scoped to the device for `watches`'s reason and one of its own: an
+        arrival drives that browser, and a rule about one operator's window
+        handed to another's is that window being driven by somebody who never
+        agreed to it.
+        """
+        async with self._uow as uow:
+            triggers = await uow.triggers.list_for_tenant(ctx.tenant_id)
+        return tuple(
+            trigger
+            for trigger in triggers
+            if trigger.kind is TriggerKind.ARRIVAL
+            and trigger.enabled
+            and trigger.device_id == device_id
+        )
+
 
 class SetTriggerEnabled:
     """Pausing a trigger unschedules it rather than letting it fire into a

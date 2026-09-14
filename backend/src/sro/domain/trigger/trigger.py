@@ -12,6 +12,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from sro.domain.execution.run import Medium, RunId
 from sro.domain.shared.errors import InvariantViolation
 from sro.domain.shared.identifiers import DeviceId, PrincipalId, SkillId, TenantId, TriggerId
+from sro.domain.trigger.arrival import Arrival
 from sro.domain.trigger.cron import why_not
 from sro.domain.trigger.watch import QUESTION, Watch
 
@@ -26,6 +27,15 @@ class TriggerKind(StrEnum):
     INBOUND = "inbound"
     """A mail or a chat message. Not built; named so that the shape it will take
     is decided once rather than invented under time pressure."""
+
+    ARRIVAL = "arrival"
+    """A page the operator landed on. The same shape as a watch -- a rule their
+    own browser holds and applies, speaking only when it matches -- with the
+    page they are standing on in place of the mail they are reading.
+
+    It exists because nothing started a run on its own. A job could be
+    recognised and a browser could be driven, and the only things that joined
+    them were a person pressing a button, a console, and a clock."""
 
     WATCH = "watch"
     """A mail the operator's own browser recognised. The same message as
@@ -99,6 +109,15 @@ class Trigger:
     moving correspondence into the control plane. `watch.py` is where that
     argument is made in full.
     """
+
+    arrival: Arrival | None = None
+    """The page whose arrival fires this, where it is an arrival trigger.
+
+    Beside `watch` rather than inside it: both are rules a browser evaluates,
+    and neither type has a field the other's data would fit in -- a watch
+    carries terms about a mail, an arrival carries one page. Collapsing them
+    into "a local rule" would make the refusals below say "a local rule needs
+    something local", which is a sentence nobody can act on."""
 
     watch: Watch | None = None
     """What makes a mail one of these, and where to read the values out of it.
@@ -183,6 +202,17 @@ class Trigger:
                 raise InvariantViolation("an inbound trigger needs a token to be reached by")
         elif self.inbound_token is not None:
             raise InvariantViolation(f"a {self.kind} trigger is not reached by a token")
+
+        if self.kind is TriggerKind.ARRIVAL:
+            if self.arrival is None:
+                raise InvariantViolation("an arrival trigger needs a page to fire on")
+            if self.device_id is None:
+                # Nothing evaluates an arrival except the browser the operator
+                # is standing in. One with no device is not a trigger that
+                # fires rarely; it is one that cannot fire at all.
+                raise InvariantViolation("an arrival with no browser sees nobody arrive")
+        elif self.arrival is not None:
+            raise InvariantViolation(f"a {self.kind} trigger has no page to arrive on")
 
         if self.kind is TriggerKind.WATCH:
             if self.watch is None:

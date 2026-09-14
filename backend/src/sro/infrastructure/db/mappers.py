@@ -46,6 +46,7 @@ from sro.domain.shared.identifiers import (
 from sro.domain.shared.objective import Direction, ObjectiveKey
 from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.skill import Skill
+from sro.domain.trigger.arrival import Arrival
 from sro.domain.trigger.confirmation import Answer, Confirmation
 from sro.domain.trigger.trigger import Trigger, TriggerKind
 from sro.infrastructure.db.codec import (
@@ -588,6 +589,7 @@ def update_trigger_row(row: TriggerRow, trigger: Trigger) -> None:
     # lists of the same names are two lists that can disagree.
     row.from_message = [] if trigger.watch else list(trigger.from_message)
     row.watch = dump_watch(trigger.watch)
+    row.arrival = {"page": trigger.arrival.page} if trigger.arrival else None
     row.device_id = trigger.device_id.value if trigger.device_id else None
     row.medium = trigger.medium.value
     row.enabled = trigger.enabled
@@ -616,6 +618,7 @@ def row_to_trigger(row: TriggerRow) -> Trigger:
         parameters=dict(row.parameters),
         from_message=tuple(row.from_message or ()),
         watch=load_watch(row.watch),
+        arrival=Arrival(page=str(row.arrival["page"])) if row.arrival else None,
         cron=row.cron,
         timezone=row.timezone,
         device_id=DeviceId(row.device_id) if row.device_id else None,

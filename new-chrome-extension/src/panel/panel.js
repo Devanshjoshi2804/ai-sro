@@ -1106,7 +1106,8 @@ function show(thread, { asked = false } = {}) {
   // without the thread changing -- the same defect the nudges above were found
   // to have: every poll computed the same signature and returned.
   const answered = `${lastStatus?.answer?.askedAt || ""}:${(lastStatus?.answer?.answers || []).length}`;
-  const now = `${thread.id}:${(thread.messages || []).map((message) => message.id).join(",")}|${mine}|${answered}`;
+  const missed = (lastStatus?.nearMisses || []).map((one) => `${one.triggerId}:${one.at}`).join(",");
+  const now = `${thread.id}:${(thread.messages || []).map((message) => message.id).join(",")}|${mine}|${answered}|${missed}`;
   if (now === drawn) return;
   if (!asked && drawn !== null && document.activeElement?.tagName === "INPUT") return;
   drawn = now;
@@ -1119,6 +1120,7 @@ function show(thread, { asked = false } = {}) {
       (nudge) => nudge.state !== "open" || nudge.tabId === tabHere.tabId,
     ),
     answer: lastStatus?.answer || null,
+    nearMisses: lastStatus?.nearMisses || [],
   };
   openOffers = (thread.messages || []).filter(
     (message) => ["offer", "mail_match"].includes(message.decision?.kind || "")

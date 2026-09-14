@@ -353,3 +353,88 @@ def test_only_a_watch_asks_a_question() -> None:
             cron="0 7 * * 1-5",
             watch=None,
         )
+
+
+# --- the same mail, written by a different person ---------------------------
+
+SHORT_SHIP = Term(field=TermField.SUBJECT, contains="Short ship")
+
+
+@pytest.mark.parametrize(
+    "subject",
+    [
+        "Short ship on PO 4471",
+        "PO 4471 arrived short — please ship the rest",
+        "SHORT-SHIPPED: PO 4471",
+        "short shipping, PO 4471",
+    ],
+    ids=["verbatim", "reordered", "punctuation and a suffix", "another suffix"],
+)
+def test_a_term_matches_the_mail_however_the_sender_framed_it(subject: str) -> None:
+    """The weakness an operator named: a rule that only matched a substring
+    matched the mail they pointed at and nothing else anybody wrote.
+
+    Order, punctuation and case are the three things that vary between two
+    people writing about the same thing, and none of them is what the operator
+    was choosing when they marked a phrase.
+    """
+    assert SHORT_SHIP.matches(subject)
+
+
+@pytest.mark.parametrize(
+    "subject",
+    [
+        "Your payslip is ready",
+        "Ship date confirmed for PO 4471",
+        "All items received in full",
+    ],
+    ids=["nothing to do with it", "one word of two", "the opposite"],
+)
+def test_a_term_still_refuses_a_mail_that_is_not_the_one(subject: str) -> None:
+    """Narrowing stays the safe direction. Every word of the term has to be
+    there, so adding a word makes a rule stricter and never looser -- the cost
+    of a miss is a mail nobody was offered help with, and the cost of a false
+    match is a proposal about somebody's payroll."""
+    assert not SHORT_SHIP.matches(subject)
+
+
+def test_a_mail_with_some_of_the_words_is_a_near_miss_and_not_a_match() -> None:
+    """The third failure, which was silent until now. A rule that fires
+    half-way is worse than one that does not fire; a rule that misses without
+    saying so is worse than both, because the operator believes their browser
+    is watching for something and it is not."""
+    watch = _watch(terms=(SHORT_SHIP,))
+
+    assert not watch.matches(GMAIL, sender="ops@northwind.example", subject="Ship date confirmed")
+    assert watch.nearly(GMAIL, sender="ops@northwind.example", subject="Ship date confirmed") == (
+        "Short ship",
+    )
+
+
+def test_a_mail_that_matched_is_not_also_a_near_miss() -> None:
+    watch = _watch(terms=(SHORT_SHIP,))
+
+    assert (
+        watch.nearly(GMAIL, sender="ops@northwind.example", subject="Short ship on PO 4471") == ()
+    )
+
+
+def test_a_near_miss_carries_the_operators_words_and_never_the_mail_s() -> None:
+    """What comes back is the rule, not the message. That is what lets a
+    browser report a near miss without reporting a mail, which is the line
+    ADR 008 draws and this module exists to hold."""
+    watch = _watch(terms=(SHORT_SHIP,))
+
+    said = watch.nearly(GMAIL, sender="ops@northwind.example", subject="Ship date for PO 9999")
+
+    assert said == ("Short ship",)
+    assert "9999" not in "".join(said)
+
+
+def test_a_mail_from_another_host_is_not_a_near_miss_either() -> None:
+    # A rule about one mail client has nothing to say about another's.
+    watch = _watch(terms=(SHORT_SHIP,))
+
+    assert (
+        watch.nearly("mail.other.test", sender="ops@northwind.example", subject="Ship date") == ()
+    )

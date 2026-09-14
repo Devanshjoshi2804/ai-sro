@@ -617,6 +617,22 @@ test("an offer that names no page cannot become a rule about one", () => {
   assert.equal(labelled(item, /Always, here/), undefined);
 });
 
+test("a rule that almost fired is drawn, and offers nothing to press", () => {
+  // The quietest failure this panel had: a mail arrived, the rule was about
+  // that conversation, and nothing happened. A button that ran it anyway would
+  // be the panel deciding the operator's words meant something they did not
+  // write, so what it gives them is the term they wrote.
+  const local = {
+    offers: [],
+    nudges: [],
+    nearMisses: [{ triggerId: "trg-1", terms: ["order status"], at: Date.parse(WHEN) }],
+  };
+  const item = messages(ledger({ id: "thr-1", messages: [] }, local, {}))[0];
+
+  assert.match(words(item), /nearly matched "order status"/);
+  assert.equal(of(item, "button").length, 0);
+});
+
 for (const [name, fn] of tests) {
   try {
     await fn();

@@ -31,6 +31,7 @@ that could hold it.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from enum import StrEnum
 
@@ -86,10 +87,88 @@ class Term:
         object.__setattr__(self, "contains", text)
 
     def matches(self, value: str) -> bool:
-        # ponytail: case-insensitive substring, which is the rule an operator
-        # gets by pointing at a phrase. A regex is what to reach for the first
-        # time somebody needs one, and not before.
-        return self.contains.lower() in value.lower()
+        """Whether this header says what the operator pointed at.
+
+        Substring first, because a phrase somebody marked in their own mail is
+        usually there verbatim in the next one, and an address is a substring
+        by nature. Then WORDS, because the next one is written by a person:
+
+            term    "Short ship"
+            matches "Short ship on PO 4471"      -- the substring
+            matches "PO 4471 arrived short"      -- shipped, reordered
+            matches "SHORT-SHIPPED: PO 4471"     -- punctuation, a suffix
+
+        Every word of the term has to appear, in any order, anywhere in the
+        header. Narrowing is still the safe direction: adding a word to a term
+        makes it stricter, never looser, and a term of one word matches exactly
+        what a substring of that word did. What this drops is order,
+        punctuation and case -- three things that vary between two people
+        writing about the same thing, and none of which the operator was
+        choosing when they pointed at a phrase.
+
+        Stems, so `shipped`, `ships` and `ship` are one word. A trailing `s` or
+        `ed` and nothing cleverer: a real stemmer matches `code` to `coded` and
+        to `barcode`, and this is the direction where being wrong proposes
+        something about somebody's payroll.
+        """
+        if self.contains.lower() in value.lower():
+            return True
+        wanted = _words(self.contains)
+        return bool(wanted) and wanted <= _words(value)
+
+    def nearly(self, value: str) -> bool:
+        """Whether this header has SOME of the term's words but not all.
+
+        Reported, never matched on. A rule that fires half-way is worse than
+        one that does not fire; a rule that misses in silence is worse than
+        both, because the operator believes their browser is watching for
+        something and it is not. `watch.js` reports these and the panel says
+        so, using the OPERATOR'S OWN WORDS -- the mail's text stays in the mail.
+        """
+        wanted = _words(self.contains)
+        if not wanted or self.matches(value):
+            return False
+        return bool(wanted & _words(value))
+
+
+MIN_WORD = 2
+"""How short a word can be and still count. `PO` and `WM` are the vocabulary
+this warehouse actually uses; one letter is a list bullet."""
+
+
+def _words(text: str) -> frozenset[str]:
+    """A header as the set of words in it, stemmed.
+
+    Here and mirrored in `watch.js`, which is the side that evaluates it. One
+    rule in two languages is the thing this codebase has been burned by --
+    `shape_of` served a shape `recognise.js` could never match for weeks -- so
+    the pair is held together by `test_the_mail_rules_a_browser_holds` and by
+    the extension's own suite naming the same examples.
+    """
+    found = set()
+    for raw in re.split(r"[^a-z0-9]+", text.lower()):
+        if len(raw) < MIN_WORD:
+            continue
+        found.add(_stem(raw))
+    return frozenset(found)
+
+
+def _stem(word: str) -> str:
+    """`shipped`, `ships` and `ship` as one word, and nothing cleverer.
+
+    The doubled consonant is not a flourish: English doubles it before `-ed`,
+    so `shipped` strips to `shipp`, and a rule written "Short ship" then failed
+    on a mail saying "SHORT-SHIPPED" -- which is the exact case this whole
+    change is about. Collapsed only after an ending was removed, so `pass` and
+    `across` are left alone.
+    """
+    for ending in ("ed", "s"):
+        if word.endswith(ending) and len(word) - len(ending) >= MIN_WORD + 1:
+            stem = word[: -len(ending)]
+            if len(stem) > MIN_WORD and stem[-1] == stem[-2] and stem[-1] not in "lsz":
+                return stem[:-1]
+            return stem
+    return word
 
 
 @dataclass(frozen=True, slots=True)
@@ -176,6 +255,35 @@ class Watch:
             return False
         against = {TermField.SENDER: sender, TermField.SUBJECT: subject}
         return all(term.matches(against[term.field]) for term in self.terms)
+
+    def nearly(self, host: str, *, sender: str, subject: str) -> tuple[str, ...]:
+        """The terms this mail has some of, when the watch did not match.
+
+        Empty when it matched, empty when the mail has nothing to do with the
+        rule, and empty for a sender term -- see below. What is left is the
+        case worth saying out loud: the operator
+        wrote "Short ship" and a mail arrived saying "shipment delayed", so the
+        rule was about the right conversation and did not fire.
+
+        The terms are the operator's own words. Nothing from the mail is in
+        what comes back, which is what keeps this on the right side of ADR 008
+        -- the browser can report a near miss without reporting a mail.
+        """
+        if not domain_matches(host, self.host) or self.matches(
+            host, sender=sender, subject=subject
+        ):
+            return ()
+        # Subjects only. A sender either is or is not the person, and every
+        # address on earth shares words with every other one -- `@acme.example`
+        # against `@northwind.example` has `example` in common, which is a
+        # near miss on nothing. A subject is where two people writing about the
+        # same thing write it differently, which is the whole of what this
+        # reports.
+        return tuple(
+            term.contains
+            for term in self.terms
+            if term.field is TermField.SUBJECT and term.nearly(subject)
+        )
 
     @property
     def reads(self) -> tuple[str, ...]:

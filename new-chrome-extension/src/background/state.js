@@ -33,6 +33,7 @@ const KEYS = {
   answer: "sro.answer",
   arrivals: "sro.arrivals",
   arrived: "sro.arrived",
+  nearMisses: "sro.nearMisses",
 };
 
 export const DEFAULT_API_URL = "http://localhost:8000";
@@ -135,6 +136,15 @@ export const state = {
    * can never come back. */
   arrived: () => read(KEYS.arrived, []),
   setArrived: (visits) => write(KEYS.arrived, visits),
+
+  /** Rules that almost fired, so a miss is not silent.
+   *
+   * `{ triggerId, terms, at }`, the operator's OWN words and never a word of
+   * the mail -- which is what lets a near miss be reported at all (ADR 008).
+   * Browser-held like the offers beside them: this is the browser it happened
+   * in, and none of it is worth writing down anywhere else. */
+  nearMisses: () => read(KEYS.nearMisses, []),
+  setNearMisses: (misses) => write(KEYS.nearMisses, misses),
 
   muted: () => read(KEYS.muted, {}),
   setMuted: (muted) => write(KEYS.muted, muted),

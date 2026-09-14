@@ -138,7 +138,57 @@ test("the terms are all of them, not any of them", async () => {
     mail({ sender: "hr@acme.example", subject: "Order status for PO 4471?" }),
   );
 
+  // Nothing at all: the subject term matched and the SENDER did not, and a
+  // sender is not something a mail can nearly be from. Every address shares
+  // `example` with every other one.
   assert.deepStrictEqual(await run(), []);
+});
+
+test("the same mail, framed the way the next person wrote it", async () => {
+  // The weakness an operator named. A substring matched the mail they pointed
+  // at and nothing else anybody wrote: order, punctuation and case are what
+  // vary between two people writing about the same thing, and none of them is
+  // what the operator was choosing when they marked a phrase.
+  for (const subject of [
+    "Status of your order, PO 4471",
+    "ORDER-STATUS: PO 4471",
+    "orders status update",
+  ]) {
+    const { run } = open([watch()], mail({ sender: "ops@northwind.example", subject }));
+    const said = await run();
+    assert.strictEqual(
+      said.filter((one) => one.kind === "watch-matched").length,
+      1,
+      `no match for: ${subject}`,
+    );
+  }
+});
+
+test("a mail about something else is not a near miss either", async () => {
+  const { run } = open(
+    [watch()],
+    mail({ sender: "ops@northwind.example", subject: "Your payslip is ready" }),
+  );
+
+  assert.deepStrictEqual(await run(), [], "a mail with none of the words was reported");
+});
+
+test("a subject with some of the words is a near miss, said in the operator's own", async () => {
+  // The third failure, and the one that was silent. A rule that misses without
+  // saying so is worse than one that fires half-way: the operator believes
+  // their browser is watching for something and it is not. What leaves the
+  // frame is the term THEY wrote -- never a word of the mail, which is the
+  // line ADR 008 draws.
+  const { run } = open(
+    [watch()],
+    mail({ sender: "ops@northwind.example", subject: "Status of PO 9999" }),
+  );
+
+  const said = await run();
+  assert.deepStrictEqual(said, [
+    { kind: "watch-nearly", triggerId: "trg-1", terms: ["order status"] },
+  ]);
+  assert.doesNotMatch(JSON.stringify(said), /9999/, "the mail's own text left the frame");
 });
 
 test("nobody writes a subject the way they typed it yesterday", async () => {

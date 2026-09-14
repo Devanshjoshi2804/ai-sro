@@ -1585,6 +1585,36 @@ async function handle(message, sender) {
       await hold(watch, values, offer, offerId);
       return { ok: true, offer };
     }
+    case "watch-nearly": {
+      // A rule that almost fired. Held and shown, never acted on: what makes
+      // it a near miss is that the operator's rule did not match, and a system
+      // that acted on nearly would be deciding that their words meant
+      // something they did not write.
+      //
+      // The same ownership check the match path makes, for a smaller reason --
+      // nothing here starts anything -- but a page that made this message up
+      // should still get nowhere.
+      const host = hostOf(sender?.url || "");
+      const watch = (await state.watches()).find((each) => each.id === message.triggerId);
+      if (!watch || !hostMatches(host, watch.host)) return { error: "no such watch" };
+      // The terms are the watch's own, read from the rule this worker holds
+      // rather than from the message: a page that sent a different string
+      // would otherwise put its own text on the panel.
+      const mine = new Set((watch.terms || []).map((term) => String(term.contains)));
+      const terms = (message.terms || []).map(String).filter((term) => mine.has(term));
+      if (!terms.length) return { ok: true };
+      await serially(async () => {
+        const held = await state.nearMisses();
+        const fresh = [
+          { triggerId: watch.id, terms, at: Date.now() },
+          // One line per rule: a mailbox open all morning would otherwise say
+          // the same thing forty times.
+          ...held.filter((one) => one.triggerId !== watch.id),
+        ];
+        await state.setNearMisses(fresh.slice(0, MOST_NEAR_MISSES));
+      });
+      return { ok: true };
+    }
     case "watch-fire": {
       // The press. The values go up again because nothing was kept: this
       // browser is the only place they exist, which is the whole shape of a
@@ -1695,6 +1725,11 @@ async function hold(watch, read, offer, offerId) {
  * mail body that arrived through a sloppy mark. `watch.js` caps it where it is
  * read and this caps it where it would leave. */
 const MAX_VALUE = 200;
+
+/** How many almost-fired rules this browser remembers. One per rule, and
+ * nobody has twenty mail rules; what this bounds is a browser left open for a
+ * week. */
+const MOST_NEAR_MISSES = 5;
 
 /** The value name that makes a watch a question rather than a job, mirroring
  * the domain's `watch.QUESTION`. The same cap above applies to it: a question
@@ -2039,6 +2074,10 @@ async function status(sender = null) {
     // The mails this browser recognised and nobody has answered yet. Held
     // here and nowhere else -- the panel is the same browser that read them.
     offers: await state.offers(),
+    // And the rules that almost fired. Only for the panel, like the answer
+    // below: the page-side pill has no room for it, and a rule that misses in
+    // silence is the failure an operator cannot see.
+    nearMisses: fromPage ? undefined : await state.nearMisses(),
     // What was offered on the page in front of them, and what came of it. Held
     // here for the same reason the offers are: this is the browser it happened
     // in, and none of it is worth writing down.

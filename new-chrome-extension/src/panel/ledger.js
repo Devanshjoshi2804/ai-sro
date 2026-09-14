@@ -108,6 +108,7 @@ export function ledger(thread, local = {}, { onPress, runs } = {}) {
     ...messages.map((message) => ({ at: message.said_at, message })),
     ...(local?.nudges || []).map((nudge) => ({ at: nudge.at, nudge })),
     ...(local?.answer ? [{ at: at(local.answer.askedAt), answer: local.answer }] : []),
+    ...(local?.nearMisses || []).map((miss) => ({ at: at(miss.at), miss })),
   ].sort((a, b) => String(a.at || "").localeCompare(String(b.at || "")));
 
   let lastMinute = "";
@@ -116,7 +117,9 @@ export function ledger(thread, local = {}, { onPress, runs } = {}) {
       ? saying(entry.message, onPress, spent, { offers, runs })
       : entry.answer
         ? answering(entry.answer)
-        : nudging(entry.nudge, onPress);
+        : entry.miss
+          ? nearlyFired(entry.miss)
+          : nudging(entry.nudge, onPress);
     const minute = hhmm(entry.at);
     // One cell per entry, filled only when the minute changes. Repeating 12:04
     // against three things said in the same minute is noise exactly where the
@@ -131,6 +134,32 @@ export function ledger(thread, local = {}, { onPress, runs } = {}) {
   root.append(said);
 
   return root;
+}
+
+/** A rule that almost fired, said out loud.
+ *
+ * The quietest failure this panel has: a mail arrived, the operator's rule was
+ * about that conversation, and nothing happened -- and until this line existed
+ * the only way to find out was to notice that nothing had.
+ *
+ * It offers nothing to press. The rule did not match, and a button that ran it
+ * anyway would be this panel deciding the operator's words meant something
+ * they did not write. What it gives them is the term they wrote, so they can
+ * widen it themselves.
+ */
+function nearlyFired(miss) {
+  const item = document.createElement("li");
+  item.className = "message";
+  item.dataset.speaker = "system";
+  item.dataset.kind = "near-miss";
+
+  const what = document.createElement("p");
+  what.className = "what";
+  // The operator's own words, which is all this browser was ever told. Nothing
+  // of the mail reaches here -- see `watch.js`'s `nearly`.
+  what.textContent = `A mail nearly matched "${(miss.terms || []).join('", "')}" \u2014 close, but not what you wrote.`;
+  item.append(what);
+  return item;
 }
 
 /** A millisecond clock as the ISO string everything else in the order uses. */

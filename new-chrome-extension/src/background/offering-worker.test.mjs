@@ -1181,6 +1181,53 @@ test("a question is answered rather than turned into an offer", async () => {
   assert.deepEqual(openOnes(), [], "a question was turned into an offer to run something");
 });
 
+test("a rule that almost fired is held where the panel can say so", async () => {
+  // The third failure, and the one that was silent. A rule that misses without
+  // saying so is worse than one that fires half-way: the operator believes
+  // their browser is watching for something and it is not.
+  ready();
+  held.set("sro.watches", [
+    {
+      id: "trg-1",
+      host: "mail.google.com",
+      terms: [{ field: "subject", contains: "order status" }],
+      values: [],
+    },
+  ]);
+
+  const said = await send(
+    { kind: "watch-nearly", triggerId: "trg-1", terms: ["order status"] },
+    { url: "https://mail.google.com/mail/u/0/#inbox" },
+  );
+
+  assert.equal(said.ok, true);
+  assert.deepEqual(held.get("sro.nearMisses")[0].terms, ["order status"]);
+  const status = await send({ kind: "status" });
+  assert.deepEqual(status.nearMisses[0].terms, ["order status"]);
+});
+
+test("a page cannot put its own words on the panel through a near miss", async () => {
+  // The terms are read from the rule this worker holds, never from the
+  // message: a page that sent a different string would otherwise be writing
+  // on the operator's panel.
+  ready();
+  held.set("sro.watches", [
+    {
+      id: "trg-1",
+      host: "mail.google.com",
+      terms: [{ field: "subject", contains: "order status" }],
+      values: [],
+    },
+  ]);
+
+  await send(
+    { kind: "watch-nearly", triggerId: "trg-1", terms: ["click here to claim your prize"] },
+    { url: "https://mail.google.com/mail/u/0/#inbox" },
+  );
+
+  assert.deepEqual(held.get("sro.nearMisses") || [], []);
+});
+
 test("a mail whose watch asks is answered, not turned into an offer to run", async () => {
   // The other end of the same idea, arriving from a mailbox instead of the
   // panel's box. A watch that asks reads the question out of the mail the way

@@ -57,6 +57,7 @@ from sro.domain.skill.checks import (
 )
 from sro.domain.skill.learned import LearnedParameter, parameters_across
 from sro.domain.skill.passwords import with_passwords
+from sro.domain.skill.presses import with_the_press
 from sro.domain.skill.shape import in_time_order
 from sro.domain.skill.umbrella import (
     K_EFFORT,
@@ -515,6 +516,16 @@ async def _one_pass(
                     proposal.title,
                     typed,
                 )
+            # And the opposite failure: a gesture the model could see and
+            # passed over. A step that cites the login card rather than the
+            # Sign In button inside it runs, answers ok, and signs nobody in.
+            pressed = with_the_press(proposal, by_id)
+            if pressed:
+                logger.info(
+                    "%s: %s step(s) repointed at the control the operator pressed",
+                    proposal.title,
+                    pressed,
+                )
             rejection = validate(proposal, evidence) or work_only(proposal, by_id, ours=ours)
             if rejection is not None:
                 result.rejections.append(rejection)
@@ -722,11 +733,14 @@ async def fill_in_passwords(uow: UnitOfWork, *, tenant_id: TenantId) -> int:
         by_id = {gesture.id: gesture for gesture in await uow.gestures.gestures_for(tenant_id)}
         if any(cited not in by_id for cited in wanted):
             continue
-        if not with_passwords(workflow, by_id):
+        # Both healings, and either one is a reason to save. `with_passwords`
+        # adds the step a model cannot see; `with_the_press` repoints a step a
+        # model aimed at the page instead of the button on it.
+        if not with_passwords(workflow, by_id) + with_the_press(workflow, by_id):
             continue
         await uow.workflows.save(workflow)
         changed += 1
-        logger.info("%s: added the credential step no model could cite", workflow.title)
+        logger.info("%s: healed the steps no model got right", workflow.title)
     return changed
 
 

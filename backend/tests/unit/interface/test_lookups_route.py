@@ -305,3 +305,32 @@ async def test_a_question_with_nothing_in_it_is_refused_before_a_model_is_asked(
 
     assert got.status_code == 422
     assert container.asker.asked == []
+
+
+async def test_an_instruction_goes_to_the_job_door_and_a_question_to_the_lookup_one(
+    uow: FakeUnitOfWork, known: None
+) -> None:
+    """`POST /v1/ask` is one box in front of both worlds, so the extension does
+    not carry a copy of the rule that decides."""
+    container = _Container(uow)
+    async with _client(container) as http:
+        asked = await http.post("/v1/ask", json={"said": QUESTION})
+        told = await http.post("/v1/ask", json={"said": "create a supplier called WMSupplier"})
+
+    assert asked.json()["kind"] == "lookup"
+    assert asked.json()["lookup"]["lookups"][0]["target"] == SUPPLIERS
+    assert told.json()["kind"] == "job"
+    assert told.json()["lookup"] is None
+
+
+async def test_an_instruction_wearing_a_question_mark_is_still_an_instruction(
+    uow: FakeUnitOfWork, known: None
+) -> None:
+    # The failure that matters: read as a question, the operator waits for
+    # something that is never going to happen.
+    container = _Container(uow)
+    async with _client(container) as http:
+        got = await http.post("/v1/ask", json={"said": "can you add demo values?"})
+
+    assert got.json()["kind"] == "job"
+    assert container.looked == [], "an instruction reached no browser as a read"

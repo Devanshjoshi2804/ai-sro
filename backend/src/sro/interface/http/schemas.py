@@ -3091,6 +3091,34 @@ class ChatResponse(BaseModel):
         )
 
 
+class AskRequest(BaseModel):
+    """What somebody said, with no claim about which kind of thing it is."""
+
+    said: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500)]
+
+    execute: bool = True
+    """Carried through to the lookup half. A job never starts from here
+    whatever this says -- what comes back is an offer, and the press is a
+    different door."""
+
+    allow_focus: bool = False
+
+
+class AskResponse(BaseModel):
+    """Which of the two worlds the sentence turned out to belong to.
+
+    `kind` is answered even when the half it chose found nothing, because
+    "which door did this go through" is the question a caller debugging a
+    surprising answer actually has.
+    """
+
+    kind: str
+    """`job` or `lookup`."""
+
+    job: ChatResponse | None = None
+    lookup: LookupResponse | None = None
+
+
 class StartWorkflowRunRequest(BaseModel):
     """The press: which job, in which browser, with what, live or dry.
 

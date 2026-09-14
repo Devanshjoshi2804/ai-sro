@@ -397,6 +397,23 @@ export const api = {
    * languages drifts on one of them. */
   ask: (said) => call("/v1/ask", { method: "POST", body: { said } }),
 
+  /** Fires waiting on a person: a rule went off and asked before it ran.
+   *
+   * Read by the panel as well as the console, because the panel is where the
+   * operator IS. A rule that fired on the page in front of them and then
+   * waited in another tab is, from where they are standing, a rule that did
+   * nothing -- which is exactly what one of them reported.
+   */
+  waiting: () => call("/v1/confirmations"),
+
+  /** Yes, on one of those. The run starts with THIS person's name on it, not
+   * the name of whoever made the rule. */
+  approveWaiting: (confirmationId) =>
+    call(`/v1/confirmations/${encodeURIComponent(confirmationId)}/approve`, { method: "POST" }),
+
+  declineWaiting: (confirmationId) =>
+    call(`/v1/confirmations/${encodeURIComponent(confirmationId)}/decline`, { method: "POST" }),
+
   /** The pages this browser starts a job on.
    *
    * Asked for separately from the watches rather than as "this browser's

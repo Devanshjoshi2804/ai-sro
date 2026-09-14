@@ -680,6 +680,49 @@ test("an offer whose host nobody knows keeps its buttons", () => {
   assert.equal(of(messages(ledger(thread, { here: "login.test" }, {}))[0], "button").length, 2);
 });
 
+test("a rule that fired and stopped to ask is drawn where the operator is", () => {
+  // The card an operator could not see: a page rule fired on the page in front
+  // of them, the fire became a confirmation, and the confirmation was drawn in
+  // the console -- another tab, which from where they were standing is
+  // indistinguishable from nothing having happened.
+  const pressed = [];
+  const local = {
+    waiting: [
+      {
+        id: "cnf-1",
+        skill_name: "Log In",
+        because: "a page rule fired",
+        asked_at: WHEN,
+        values: { site: "SG" },
+      },
+    ],
+  };
+  const item = messages(ledger({ id: "thr-1", messages: [] }, local, {
+    onPress: (answer) => pressed.push(answer),
+  }))[0];
+
+  assert.match(words(item), /Log In .* a page rule fired\. Shall I\?/);
+  // What it would run with, before it runs: the one moment somebody can read a
+  // write's values and still stop it.
+  assert.match(words(item), /site: SG/);
+  press(labelled(item, /Yes, do it/));
+  assert.deepEqual(pressed, ["waiting-approve"]);
+});
+
+test("one press settles it: the buttons do not stay live under the cursor", () => {
+  const pressed = [];
+  const item = messages(
+    ledger({ id: "thr-1", messages: [] }, {
+      waiting: [{ id: "cnf-1", skill_name: "Log In", because: "a rule fired", asked_at: WHEN }],
+    }, { onPress: (answer) => pressed.push(answer) }),
+  )[0];
+
+  press(labelled(item, /^No$/));
+  press(labelled(item, /Yes, do it/));
+
+  assert.deepEqual(pressed, ["waiting-decline"], "a declined card started a run");
+});
+
 for (const [name, fn] of tests) {
   try {
     await fn();

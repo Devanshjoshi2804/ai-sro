@@ -109,6 +109,7 @@ export function ledger(thread, local = {}, { onPress, runs } = {}) {
     ...(local?.nudges || []).map((nudge) => ({ at: nudge.at, nudge })),
     ...(local?.answer ? [{ at: at(local.answer.askedAt), answer: local.answer }] : []),
     ...(local?.nearMisses || []).map((miss) => ({ at: at(miss.at), miss })),
+    ...(local?.waiting || []).map((card) => ({ at: card.asked_at, waiting: card })),
   ].sort((a, b) => String(a.at || "").localeCompare(String(b.at || "")));
 
   let lastMinute = "";
@@ -119,7 +120,9 @@ export function ledger(thread, local = {}, { onPress, runs } = {}) {
         ? answering(entry.answer)
         : entry.miss
           ? nearlyFired(entry.miss)
-          : nudging(entry.nudge, onPress);
+          : entry.waiting
+            ? waitingOnYou(entry.waiting, onPress)
+            : nudging(entry.nudge, onPress);
     const minute = hhmm(entry.at);
     // One cell per entry, filled only when the minute changes. Repeating 12:04
     // against three things said in the same minute is noise exactly where the
@@ -235,6 +238,72 @@ function preview(one) {
   const seen = one.seen || {};
   if (seen.text_digest) return String(seen.text_digest).slice(0, 240);
   return one.status ? `answered ${one.status}` : "answered";
+}
+
+/** A rule that fired and stopped to ask.
+ *
+ * The card an operator could not see. A page rule went off on the page in
+ * front of them, the fire became a confirmation, and the confirmation was
+ * drawn in the console -- another tab, which from where they were standing is
+ * indistinguishable from nothing having happened. They said so, in those
+ * words: "I just logged in, nothing on panel".
+ *
+ * Answered from here as well as there. Either window may answer it and the
+ * backend settles which was first, so the two cannot disagree about what was
+ * decided -- only about how quickly they notice.
+ */
+function waitingOnYou(card, onPress) {
+  const item = document.createElement("li");
+  item.className = "message";
+  item.dataset.speaker = "system";
+  item.dataset.kind = "waiting";
+  item.dataset.id = card.id;
+
+  const what = document.createElement("p");
+  what.className = "what";
+  what.textContent = `${card.skill_name} \u2014 ${card.because}. Shall I?`;
+  item.append(what);
+
+  const typed = Object.entries(card.values || {});
+  if (typed.length) {
+    const said = document.createElement("p");
+    said.className = "detail";
+    // What it would run with, before it runs: the one moment somebody can read
+    // a write's values and still stop it.
+    said.textContent = typed.map(([name, value]) => `${name}: ${value}`).join(" \u00b7 ");
+    item.append(said);
+  }
+
+  const yes = document.createElement("button");
+  yes.type = "button";
+  yes.textContent = "Yes, do it";
+  const no = document.createElement("button");
+  no.type = "button";
+  no.className = "quiet";
+  no.textContent = "No";
+  let ended = false;
+  const settle = () => {
+    yes.disabled = ended;
+    no.disabled = ended;
+  };
+  yes.addEventListener("click", () => {
+    if (ended) return;
+    ended = true;
+    settle();
+    onPress?.("waiting-approve", card, item, yes);
+  });
+  no.addEventListener("click", () => {
+    if (ended) return;
+    ended = true;
+    settle();
+    onPress?.("waiting-decline", card, item, no);
+  });
+
+  const row = document.createElement("div");
+  row.className = "row";
+  row.append(yes, no);
+  item.append(row);
+  return item;
 }
 
 /** Whether this offer is about somewhere the operator is not.

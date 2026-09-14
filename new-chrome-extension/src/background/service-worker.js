@@ -1237,6 +1237,26 @@ async function handle(message, sender) {
       }
       return { ok: true, nudge: was || null };
     }
+    case "answer-waiting": {
+      // The press on a card a rule left waiting. Here rather than in the panel
+      // because the credential lives in this worker, and the backend takes the
+      // name off it: an unattended write happens because somebody said so, and
+      // the somebody is whoever is holding this browser.
+      try {
+        const answered =
+          message.answer === "approve"
+            ? await api.approveWaiting(message.confirmationId)
+            : await api.declineWaiting(message.confirmationId);
+        if (answered.run_id) {
+          // So the panel draws the run it just started, rather than waiting
+          // for the first command to arrive and tell it.
+          await state.setActiveRun({ runId: answered.run_id, at: Date.now(), source: "rig" });
+        }
+        return { ok: true, ...answered };
+      } catch (error) {
+        return { ok: false, error: error.problem?.detail || error.message };
+      }
+    }
     case "do-this-here": {
       // "Do this here", from the card that just offered the job. The rule is
       // written on the backend -- a trigger, with the operator's credential
@@ -2089,6 +2109,11 @@ async function status(sender = null) {
     // below: the page-side pill has no room for it, and a rule that misses in
     // silence is the failure an operator cannot see.
     nearMisses: fromPage ? undefined : await state.nearMisses(),
+    // Fires waiting on a person. Asked for here rather than held, because
+    // unlike a nudge this is the backend's record and any browser or console
+    // may answer it -- a stale copy would draw a card somebody already said
+    // yes to in the other window.
+    waiting: fromPage ? undefined : await waitingOnSomebody(),
     // What was offered on the page in front of them, and what came of it. Held
     // here for the same reason the offers are: this is the browser it happened
     // in, and none of it is worth writing down.
@@ -2100,6 +2125,21 @@ async function status(sender = null) {
     answer: fromPage ? undefined : await state.answer(),
     version: VERSION,
   };
+}
+
+/** What is waiting on a person right now, or nothing.
+ *
+ * Never throws: the panel polls this every two seconds, and a backend that is
+ * briefly unreachable is not a reason for the whole status to fail -- the
+ * panel would go blank over a card that may not even exist.
+ */
+async function waitingOnSomebody() {
+  if (!(await state.token())) return [];
+  try {
+    return await api.waiting();
+  } catch {
+    return [];
+  }
 }
 
 /** Guards `checkFinishing()` against running twice at once within this

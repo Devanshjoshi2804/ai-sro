@@ -1115,7 +1115,8 @@ function show(thread, { asked = false } = {}) {
   // to have: every poll computed the same signature and returned.
   const answered = `${lastStatus?.answer?.askedAt || ""}:${(lastStatus?.answer?.answers || []).length}`;
   const missed = (lastStatus?.nearMisses || []).map((one) => `${one.triggerId}:${one.at}`).join(",");
-  const now = `${thread.id}:${(thread.messages || []).map((message) => message.id).join(",")}|${mine}|${answered}|${missed}|${hostOf(tabHere.url || "")}`;
+  const asking = (lastStatus?.waiting || []).map((one) => one.id).join(",");
+  const now = `${thread.id}:${(thread.messages || []).map((message) => message.id).join(",")}|${mine}|${answered}|${missed}|${asking}|${hostOf(tabHere.url || "")}`;
   if (now === drawn) return;
   if (!asked && drawn !== null && document.activeElement?.tagName === "INPUT") return;
   drawn = now;
@@ -1143,6 +1144,7 @@ function show(thread, { asked = false } = {}) {
     ),
     answer: lastStatus?.answer || null,
     nearMisses: lastStatus?.nearMisses || [],
+    waiting: lastStatus?.waiting || [],
     // Which system the operator is actually looking at, so an offer about
     // another one keeps its words and loses its buttons.
     here: hostOf(tabHere.url || ""),
@@ -1203,6 +1205,11 @@ async function answered(answer, message, where, button, values) {
   // reports an offer's FATE, and making a rule is not one of the three -- the
   // offer in front of them is still theirs to answer either way.
   if (answer === "do-this-here") return madeARule(message, button);
+  // A rule that fired and stopped to ask, answered from where the operator is
+  // rather than only in the console.
+  if (answer === "waiting-approve" || answer === "waiting-decline") {
+    return answeredWaiting(answer, message, button);
+  }
   const decision = message.decision || {};
   // A matched mail: the values are the browser's, and the ones the operator
   // typed into the card are what the run must use -- so they go up on the press
@@ -1251,6 +1258,35 @@ async function answeredOffer(answer, nudge, button, values) {
       said(got.ok ? "started \u2014 watching it below" : got.error || "nothing started");
     }
   } catch (error) {
+    said(error.message);
+  }
+  await refresh();
+  drawn = null;
+  await conversation();
+}
+
+
+/** A fire waiting on somebody, answered from the panel.
+ *
+ * The run starts with the name on THIS credential, not the name of whoever
+ * made the rule: an unattended write happens because somebody said so, and
+ * pressing this is the somebody.
+ */
+async function answeredWaiting(answer, card, button) {
+  try {
+    const got = await ask({
+      kind: "answer-waiting",
+      confirmationId: card.id,
+      answer: answer === "waiting-approve" ? "approve" : "decline",
+    });
+    if (!got.ok) {
+      button.disabled = false;
+      said(got.error || "nothing happened");
+      return;
+    }
+    said(got.run_id ? "started \u2014 watching it below" : "declined \u2014 nothing ran");
+  } catch (error) {
+    button.disabled = false;
     said(error.message);
   }
   await refresh();

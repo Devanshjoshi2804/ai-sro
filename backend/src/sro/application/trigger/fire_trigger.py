@@ -476,4 +476,8 @@ def _because(trigger: Trigger, message: Mapping[str, str] | None) -> str:
     for name in ("subject", "title", "summary"):
         if said.get(name):
             return said[name][:200]
-    return f"a {trigger.kind} trigger fired"
+    # "an arrival trigger fired", not "a arrival trigger fired". The sentence
+    # is read by the person deciding whether to let a write out, and one that
+    # cannot manage its own article reads as a system that is guessing.
+    article = "an" if trigger.kind.value[0] in "aeiou" else "a"
+    return f"{article} {trigger.kind} trigger fired"

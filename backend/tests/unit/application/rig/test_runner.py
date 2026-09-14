@@ -4145,3 +4145,106 @@ async def test_a_list_longer_than_one_press_can_mean_is_refused_before_anything_
     assert run.outcome == "refused"
     assert f"at most {K_MOST_ITEMS}" in run.steps[0].reason
     assert channel.sent == [], "a refused list still reached the browser"
+
+
+class _CountsTheAsks(Approvals):
+    """The register, counting how many times a run stopped to ask.
+
+    The run's own rows cannot answer that: a step parked on a person is
+    recorded `awaiting` and then rewritten with the verdict on the write that
+    followed, so by the time anybody reads the run there is no trace of the
+    waiting left in it.
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.asked = 0
+
+    async def wait_for(
+        self,
+        run_id: str,
+        timeout: float = K_APPROVAL_WAIT_S,  # noqa: ASYNC109 - the wait IS the timeout
+    ) -> bool:
+        self.asked += 1
+        return await super().wait_for(run_id, timeout)
+
+
+async def test_one_tap_answers_for_the_whole_list() -> None:
+    """A person answering "add these three" read three rows and pressed one
+    button. Asking again for the second and the third is asking them to
+    authorise what they have already authorised, and a card per thing on a list
+    of ten is a panel nobody reads by the fourth."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    workflow.repeat, items = _adding_three()
+    channel = FakeChannel(
+        {
+            **_looks(12),
+            "ui.perform": [_performed()] * 6,
+            "http.send": [Reply(ok=True, result={"status": 404, "body": "{}"})] * 3,
+            "calls.since": [Reply(ok=True, result={"calls": []})] * 6,
+        }
+    )
+    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True}))
+    approvals = _CountsTheAsks()
+
+    async def _tap() -> None:
+        """The one tap, once the first thing's write is parked on it."""
+        approvals.approve(await _parked(approvals))
+
+    tapping = asyncio.create_task(_tap())
+    run = await _ran(uow, workflow, channel=channel, asker=asker, items=items, approvals=approvals)
+    await tapping
+
+    assert run.outcome == "held", [step.reason for step in run.steps]
+    assert approvals.asked == 1, "one write step, three things, and a person asked once per thing"
+    assert [step.verdict for step in run.steps] == ["held"] * 6
+    # Three writes went out, which is the point: one answer, three records.
+    assert [one["kind"] for one in channel.sent].count("ui.perform") == 6
+
+
+async def test_a_second_run_of_the_same_list_asks_again(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(runner_module, "K_APPROVAL_WAIT_S", 0.05)
+    """The tap answers for this list, not for the job. A second press is a
+    second decision, and a run that inherited the first one's yes would be a
+    write nobody authorised."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    workflow.repeat, items = _adding_three()
+    channel = FakeChannel(
+        {
+            **_looks(12),
+            "ui.perform": [_performed()] * 6,
+            "http.send": [Reply(ok=True, result={"status": 404, "body": "{}"})] * 3,
+            "calls.since": [Reply(ok=True, result={"calls": []})] * 6,
+        }
+    )
+    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True}))
+
+    # Nobody taps. The first write parks and the run fails waiting, which is
+    # what a fresh list does with no answer -- the previous test's yes is not
+    # in this run.
+    run = await asyncio.wait_for(
+        run_workflow(
+            uow,
+            workflow,
+            tenant_id=TENANT,
+            values={},
+            channel=channel,
+            device_id=DEVICE,
+            asker=asker,
+            plan_model="flash",
+            rescue_model="pro",
+            live=True,
+            allow_focus=True,
+            started_by="form",
+            stops=Stops(),
+            approvals=Approvals(),
+            items=items,
+            run_id="run_second_list",
+        ),
+        timeout=5,
+    )
+
+    assert any(step.verdict == "failed" for step in run.steps)
+    assert not any(step.result and step.result.get("wrote") for step in run.steps)

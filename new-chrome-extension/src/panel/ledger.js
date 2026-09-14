@@ -443,13 +443,34 @@ function offeringToFinish(nudge, onPress) {
   item.dataset.id = nudge.id;
 
   const typed = Object.values(nudge.values || {}).join(", ");
+  // How many things this one press would do.
+  //
+  // "Add these three equipment types" is one job done three times, and the
+  // person pressing has to be told that before they press: one press, three
+  // records, and a warehouse record cannot be un-created. Said in the
+  // sentence rather than under it, because a count below the button is a
+  // count somebody reads after deciding.
+  const things = (nudge.items || []).length;
   const what = document.createElement("p");
   what.className = "what";
   what.textContent =
     nudge.k > 0
       ? `${nudge.title} \u2014 ${typed}, so far. Want me to finish it?`
-      : `${nudge.title} \u2014 want me to do it?`;
+      : things > 1
+        ? `${nudge.title}, for ${things} things \u2014 want me to do them?`
+        : `${nudge.title} \u2014 want me to do it?`;
   item.append(what);
+
+  // And which things, in the order they would be done. What a person is being
+  // asked to authorise is these records and not a number.
+  if (things > 1) {
+    const listed = document.createElement("p");
+    listed.className = "detail";
+    listed.textContent = (nudge.items || [])
+      .map((one) => Object.values(one).join(" "))
+      .join(" \u00b7 ");
+    item.append(listed);
+  }
 
   const fields = new Map();
   for (const name of nudge.missing || []) {

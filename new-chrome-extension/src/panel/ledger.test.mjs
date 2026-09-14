@@ -370,6 +370,60 @@ const typing = (field, value) => {
   for (const fn of field.listeners.input || []) fn();
 };
 
+test("an offer for several things says how many, and which", () => {
+  // One press, three records, and a warehouse record cannot be un-created. The
+  // count is in the sentence rather than under the button, because a count
+  // below the button is a count somebody reads after deciding.
+  const item = messages(
+    ledger({ id: "thr-1", messages: [] }, {
+      nudges: [
+        {
+          id: "n-1",
+          source: "rig",
+          state: "open",
+          tabId: 7,
+          k: 0,
+          title: "Create a Warehouse Equipment Type",
+          values: {},
+          items: [
+            { code: "8SITDWN2", name: "8-Sitdown Fork" },
+            { code: "8STANDUP2", name: "8-Stand Up Fork" },
+            { code: "8REACHT2", name: "8-Reach Truck" },
+          ],
+          missing: [],
+        },
+      ],
+    }, { onPress: () => {} }),
+  )[0];
+
+  assert.match(words(item), /for 3 things/);
+  assert.match(words(item), /8SITDWN2 8-Sitdown Fork/, "the things themselves were not said");
+  assert.match(words(item), /8REACHT2/);
+});
+
+test("an offer for one thing reads exactly as it always did", () => {
+  const item = messages(
+    ledger({ id: "thr-1", messages: [] }, {
+      nudges: [
+        {
+          id: "n-1",
+          source: "rig",
+          state: "open",
+          tabId: 7,
+          k: 0,
+          title: "Create a work area",
+          values: {},
+          items: [{ areaName: "NEWTEST9" }],
+          missing: [],
+        },
+      ],
+    }, { onPress: () => {} }),
+  )[0];
+
+  assert.match(words(item), /Create a work area — want me to do it\?/);
+  assert.ok(!words(item).includes("things"));
+});
+
 test("a rig offer asks for what is missing and cannot start until it has it", () => {
   const nudge = { id: "n_1", source: "rig", state: "open", title: "Create Work Area", k: 2,
     values: { workArea: "NEWTESTS" }, missing: ["description"], parameters: ["workArea", "description"], tabId: 1 };

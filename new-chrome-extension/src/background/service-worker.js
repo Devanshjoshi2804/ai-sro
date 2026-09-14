@@ -449,6 +449,10 @@ async function offerFromWords(text, tabId) {
         workflow_id: read.workflow_id,
         k: 0,
         values: read.values || {},
+        // Several things in one sentence: "add these three equipment types" is
+        // one job done three times. The card says how many before anybody
+        // presses it, and the press carries them.
+        items: Array.isArray(read.items) ? read.items : [],
         missing: read.missing || [],
         parameters: (shape?.parameters || []).map((one) => one.name),
       },
@@ -1337,13 +1341,19 @@ async function handle(message, sender) {
       // What the operator typed into the panel wins over what the prefix read
       // off the page: they are looking at both, and the panel is the later word.
       const values = { ...(nudge.values || {}), ...(message.values || {}) };
+      // The things the sentence named, as they were read. What the operator
+      // typed into the card fills the gaps in the job's shared values, not in
+      // one thing's -- there is one box per parameter on the card and three
+      // things behind it, so a typed value that overwrote each thing's own
+      // would make three identical records.
+      const items = Array.isArray(nudge.items) ? nudge.items : [];
       let started;
       try {
         // No `started_by`. The backend reads who authorised the press off the
         // credential it arrived on; a body field saying so is a signature
         // nobody checked, written into the row an audit reads first.
         started = await api.rigStart({
-          workflow_id: nudge.workflowId, values, device_id: await state.deviceId(),
+          workflow_id: nudge.workflowId, values, items, device_id: await state.deviceId(),
           live: true, allow_focus: true, from_step: nudge.k || 0,
         });
       } catch (error) {

@@ -503,6 +503,9 @@ async def run_workflow(
     # Which steps this run has claimed the right to write, so a rescue of a
     # refused write is not stopped by its own first attempt.
     claimed_here: set[int] = set()
+    # Which steps a person has already approved for this list. One tap answers
+    # for every thing on it: they read the rows and pressed once.
+    approved_for_the_list: set[int] = set()
     already_done = [step for step in ordered if step.order < from_step]
     budget = len(itinerary) - len(already_done) + K_STEP_SLACK
     attempts = 0
@@ -860,9 +863,36 @@ async def run_workflow(
                 # held until somebody taps. `live` is checked here rather than
                 # inherited from the block above, whose narrower `mutates` lets
                 # a dry run walk past it: a dry run withholds, never waits.
-                if live and may_write and not await earned(uow.workflows, tenant_id, workflow.id):
+                # Once for the list, not once per thing.
+                #
+                # A person answering "add these three" read three rows and
+                # pressed one button. Asking them again for the second and the
+                # third is asking them to authorise what they have already
+                # authorised -- and a card per thing on a list of ten is a
+                # panel nobody reads by the fourth. So the tap on one step
+                # covers that step for the rest of the list, and only for the
+                # rest of THIS list: a second run asks again, because a second
+                # press is a second decision.
+                #
+                # Not the same as earning the right to write unasked. That is
+                # a job proving itself over runs, and this is one person
+                # answering about one list they have in front of them.
+                approved_here = leg.item is not None and step.order in approved_for_the_list
+                if (
+                    live
+                    and may_write
+                    and not approved_here
+                    and not await earned(uow.workflows, tenant_id, workflow.id)
+                ):
                     record.verdict, record.verdict_by = "awaiting", "none"
-                    record.reason = "waiting for a person to approve the write"
+                    record.reason = (
+                        "waiting for a person to approve the write"
+                        if not run.items
+                        else (
+                            "waiting for a person to approve the write, for this and the "
+                            f"{len(run.items) - 1} other thing(s) on the list"
+                        )
+                    )
                     # `without_secrets`: this row is read by the panel, by an
                     # operator reviewing what happened, and by the model asked
                     # to rescue a failed step. A password typed from the vault
@@ -919,6 +949,11 @@ async def run_workflow(
                                 payload={"run_id": run.id},
                             )
                         break
+                    # Answered yes, and the answer stands for the rest of the
+                    # list. Recorded after both refusals above, so a wait that
+                    # timed out or a Stop cannot be mistaken for a tap.
+                    if leg.item is not None:
+                        approved_for_the_list.add(step.order)
 
                 # `before` and `planned` are set by the same pass of the while
                 # above: a command to send is a command something was looked at

@@ -933,6 +933,10 @@ class Container:
             self.ask_the_system(),
             self.ask_about(),
             self.suggest_next(),
+            # The rig's jobs, asked before the taught skills. An operator
+            # typing at a browser whose rig holds the job they mean was being
+            # answered out of a skills library that does not.
+            self.read_chat(),
         )
 
     def read_threads(self) -> ReadThreads:

@@ -425,6 +425,50 @@ function originOf(url) {
  * making somebody press a button before they are told what the answer is would
  * be a card that says "shall I go and look?" and nothing else.
  */
+/** The job the thread's own reply placed this sentence as, if it placed one.
+ *
+ * The last thing the assistant said, and only the last: a thread is a
+ * conversation, and the offer on screen is about the sentence just typed.
+ */
+function jobInTheReply(thread) {
+  const messages = thread?.messages || [];
+  for (const message of [...messages].reverse()) {
+    if (message.speaker !== "assistant") continue;
+    const decision = message.decision || {};
+    return decision.kind === "job" && decision.workflow_id ? decision : null;
+  }
+  return null;
+}
+
+/** The offer, from a reading somebody else already paid for. */
+async function offerFromJob(placed, tabId) {
+  if (tabId === null) return;
+  const shape = (await shapesFor()).find((one) => one.id === placed.workflow_id);
+  const made = fire(
+    {
+      id: placed.workflow_id,
+      title: placed.title || shape?.title || placed.workflow_id,
+      starts_on: shape?.starts_on || "",
+      source: "rig",
+      workflow_id: placed.workflow_id,
+      k: 0,
+      values: placed.values || {},
+      items: Array.isArray(placed.items) ? placed.items : [],
+      missing: placed.missing || [],
+      parameters: (shape?.parameters || []).map((one) => one.name),
+    },
+    Date.now(),
+  );
+  await serially(async () => {
+    const held = await state.nudges();
+    // One open offer at a time: a sentence supersedes whatever was offered.
+    const rest = held.map((one) =>
+      one.state === "open" ? { ...one, state: "expired", endedAt: Date.now() } : one,
+    );
+    await state.setNudges([{ ...made, tabId }, ...rest].slice(0, MAX_NUDGES));
+  });
+}
+
 async function offerFromWords(text, tabId) {
   if (!text || tabId === null) return;
   try {
@@ -1438,11 +1482,13 @@ async function handle(message, sender) {
       return api.currentThread();
     case "thread-say": {
       const said = await api.say(message.threadId, message.text);
-      // And the same sentence, read the other way: is it asking for a job this
-      // tenant has been seen doing? Never awaited into the answer -- saying
-      // something must not wait on a model call, and a reading that fails is a
-      // sentence that was still said.
-      void offerFromWords(message.text, message.tabId ?? null);
+      // The reply already read the sentence against this tenant's jobs, so the
+      // offer is built from what came back rather than from a second reading
+      // of the same words. That second reading was a second model call per
+      // sentence, and the two could disagree.
+      const placed = jobInTheReply(said);
+      if (placed) void offerFromJob(placed, message.tabId ?? null);
+      else void offerFromWords(message.text, message.tabId ?? null);
       return said;
     }
     case "run-skill":

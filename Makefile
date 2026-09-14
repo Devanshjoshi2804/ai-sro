@@ -196,6 +196,14 @@ offer-replay: ## Would the offer name the right job? The corpus's gestures throu
 offer-replay-backend: ## The same question of the backend's own store, through the same matcher
 	$(BACKEND) uv run python scripts/dry_run.py --replay /tmp/backend-replay.json > /dev/null && node ../new-chrome-extension/scripts/offer-replay.mjs /tmp/backend-replay.json
 
+measure: ## What this system has actually done, and what every number stands on
+	@# Reads only. Every line carries a standing -- warehouse, mail, local,
+	@# recorded, none -- because the argument about whether this direction is
+	@# working is never about arithmetic, it is about what the number was
+	@# measured on. `tenant=` narrows it; `questions=` also plans those lookups.
+	$(BACKEND) uv run python scripts/measure.py $(if $(tenant),--tenant $(tenant),) \
+		--questions scripts/measure-questions.txt $(if $(json),--json $(json),)
+
 test-extension: ## The extension's own self-checks, in plain node
 	@# Discovered, not listed. This target named all 25 suites by hand until
 	@# 2026-09-10, and the list was load-bearing in the wrong direction: phase

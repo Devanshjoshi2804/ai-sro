@@ -106,6 +106,12 @@ ignore = [
 # Same reason, and one more: a script for holding this by hand is not shipped
 # code and says where the window went on stdout.
 "scripts/*" = ["T201", "INP001", "S110", "S108"]
+# The measurement script counts things no repository method answers -- steps by
+# which belt verified them, evidence by host -- so it asks the store in SQL. Its
+# queries are module constants with one bound parameter (`MINE`); what S608 sees
+# is the constant being interpolated, and there is no caller-supplied string in
+# any of them.
+"scripts/measure.py" = ["T201", "INP001", "S110", "S108", "S608"]
 # A connector stood up by hand to prove the tool-step path. What it prints is
 # how you watch the handshake happen, which is the whole point of running it.
 "mock-connector/*" = ["T201", "INP001"]

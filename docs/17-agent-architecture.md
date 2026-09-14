@@ -5,6 +5,20 @@
 > `docs/new-agent-doc-arc/README.md` and is being ported per
 > `docs/superpowers/specs/2026-09-07-the-rig-into-the-backend-design.md`.
 > The code as it stood is on the branch `backup/rule-based-mining`.
+>
+> **`new_agent_arch/` was deleted on 2026-09-14**, the last item on that
+> spec's deletion list, once the shared-day measurement in
+> `docs/new-agent-doc-arc/two-miners-one-day.md` was met. Everything it held
+> is on the branch **`backup/the-rig`** — including the model bake-off
+> harness (`scripts/bakeoff.py`, `compare.py`, `rotate.py`), which was never
+> ported and has no equivalent in the backend. Recover it from there rather
+> than rebuilding it.
+>
+> Documents under `docs/new-agent-doc-arc/` cite `new_agent_arch/...` paths
+> throughout. Those citations are left as they were written: they are the
+> record of what was measured and where, and rewriting them to point at
+> files that no longer exist in this tree would make the record less true,
+> not more.
 
 How a task somebody did three times becomes a skill, and which agent owns each
 step. Worked through one case: **create a supplier**, whose calls are a `PUT` to

@@ -282,6 +282,22 @@ function waitingOnYou(card, onPress) {
     item.append(said);
   }
 
+  // The page this card is about is not open any more.
+  //
+  // An operator signed in, the run took the tab off the login page, and this
+  // card was still here asking whether to sign in. Pressing it started a run
+  // with nowhere to go -- "no tab is open on keycloak-...", a red cross, and
+  // eighteen seconds of a model working out that there was nothing to work
+  // on. So it keeps its words and loses its buttons, the same rule an offer
+  // about another system follows.
+  if (card.still_there === false) {
+    const gone = document.createElement("p");
+    gone.className = "detail";
+    gone.textContent = "You have moved on from that page — nothing to do here.";
+    item.append(gone);
+    return item;
+  }
+
   const yes = document.createElement("button");
   yes.type = "button";
   yes.textContent = "Yes, do it";

@@ -2150,11 +2150,34 @@ async function status(sender = null) {
  */
 async function waitingOnSomebody() {
   if (!(await state.token())) return [];
+  let cards;
   try {
-    return await api.waiting();
+    cards = await api.waiting();
   } catch {
     return [];
   }
+  // Whether the page each card is about is still open somewhere in this
+  // browser.
+  //
+  // An operator signed in, the job's own run took the tab off the login page,
+  // and the card that fired on arriving there was still sitting in the panel.
+  // Pressing it started a run that had nowhere to go: "no tab is open on
+  // keycloak-...", a red cross, and eighteen seconds of a model working it
+  // out. The card was asking about a page nobody is on any more.
+  //
+  // Matched by the rule that made it -- the card carries `trigger_id` and this
+  // browser already holds every arrival rule and the page it watches -- so no
+  // card grows a field the backend has to learn to send.
+  const rules = await state.arrivals();
+  const open = new Set(
+    (await chrome.tabs.query({})).map((tab) => rulePage(tab.url || "")).filter(Boolean),
+  );
+  return (cards || []).map((card) => {
+    const page = rules.find((rule) => rule.id === card.trigger_id)?.page || "";
+    // A card from anything but an arrival rule has no page to be away from,
+    // and is answerable wherever its operator happens to be.
+    return { ...card, page, still_there: !page || open.has(page) };
+  });
 }
 
 /** Guards `checkFinishing()` against running twice at once within this

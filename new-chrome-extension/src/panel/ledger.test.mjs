@@ -723,6 +723,55 @@ test("one press settles it: the buttons do not stay live under the cursor", () =
   assert.deepEqual(pressed, ["waiting-decline"], "a declined card started a run");
 });
 
+test("a card about a page nobody is on any more keeps its words and loses its buttons", () => {
+  // What this is: the operator signed in, the run took the tab off the login
+  // page, and the card that fired on arriving there was still in the panel.
+  // Pressing it started a run with nowhere to go -- "no tab is open on
+  // keycloak-...", a red cross, and eighteen seconds of a model working out
+  // there was nothing to work on.
+  const pressed = [];
+  const item = messages(
+    ledger({ id: "thr-1", messages: [] }, {
+      waiting: [
+        {
+          id: "cnf-1",
+          skill_name: "Log In",
+          because: "an arrival trigger fired",
+          asked_at: WHEN,
+          page: "keycloak.test/auth",
+          still_there: false,
+        },
+      ],
+    }, { onPress: (answer) => pressed.push(answer) }),
+  )[0];
+
+  assert.match(words(item), /Log In .* an arrival trigger fired\. Shall I\?/, "the card lost what it was about, not just its buttons");
+  assert.match(words(item), /moved on from that page/);
+  assert.equal(of(item, "button").length, 0, "a doomed run could still be started");
+  assert.deepEqual(pressed, []);
+});
+
+test("a card about the page in front of them is still answerable", () => {
+  const pressed = [];
+  const item = messages(
+    ledger({ id: "thr-1", messages: [] }, {
+      waiting: [
+        {
+          id: "cnf-1",
+          skill_name: "Log In",
+          because: "an arrival trigger fired",
+          asked_at: WHEN,
+          page: "keycloak.test/auth",
+          still_there: true,
+        },
+      ],
+    }, { onPress: (answer) => pressed.push(answer) }),
+  )[0];
+
+  press(labelled(item, /Yes, do it/));
+  assert.deepEqual(pressed, ["waiting-approve"]);
+});
+
 for (const [name, fn] of tests) {
   try {
     await fn();

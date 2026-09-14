@@ -218,17 +218,35 @@ def worked_in_both(
     somewhere else is a doorway -- the same rule `checks.work_only` uses to
     strike a sign-in hop out of a job -- and this deployment's own console is
     not a system anybody works in.
+
+    **One browser, not one tenant.** A sitting is somebody working, and each
+    `stream_id` is one browser -- this tenant's whole evidence sorted by time
+    is two operators interleaved, so two people working at once would be read
+    as one person moving between systems and the miner would propose a job
+    stitching one person's mailbox to the other's warehouse form. Every
+    sibling that does this arithmetic partitions the same way
+    (`skill.checks.around`, `read_gesture`), and a tenant here really does
+    hold more than one stream: acme's 555 gestures are two browsers. Nothing
+    changes today -- across this whole store no two streams of one tenant hold
+    gestures within `K_SITTING_GAP_S` of each other, because nobody has yet
+    run two browsers at once -- so this is the mechanism, and it matters the
+    first day a tenant has two operators working.
     """
-    timed = sorted(
-        (gesture for gesture in gestures if gesture.at is not None and gesture.system),
-        key=lambda gesture: gesture.at or 0.0,
-    )
     linked: set[str] = set()
-    for sitting in _sittings(timed, gap):
-        worked = _used_for_work(sitting, ours)
-        if len(worked) < 2:
-            continue
-        linked |= {gesture.id for gesture in sitting if gesture.system in worked}
+    for stream in {gesture.stream_id for gesture in gestures}:
+        timed = sorted(
+            (
+                gesture
+                for gesture in gestures
+                if gesture.stream_id == stream and gesture.at is not None and gesture.system
+            ),
+            key=lambda gesture: gesture.at or 0.0,
+        )
+        for sitting in _sittings(timed, gap):
+            worked = _used_for_work(sitting, ours)
+            if len(worked) < 2:
+                continue
+            linked |= {gesture.id for gesture in sitting if gesture.system in worked}
     return linked
 
 

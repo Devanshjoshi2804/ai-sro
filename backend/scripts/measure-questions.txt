@@ -1,0 +1,17 @@
+# Questions an operator on this deployment would really ask. One per line;
+# `#` comments and blank lines are ignored. Kept in the repository rather than
+# typed each time, because a measurement whose input changes between runs
+# measures nothing -- and because the SET is a claim about what this system is
+# for, which is worth reviewing on its own.
+which suppliers are set up at SG
+how many work areas are there
+where do I see customer types
+which clients are set up
+what is the status of inbound shipments
+list the transport modes
+which carriers are configured
+what activity codes exist
+where do I create a work operation
+how many equipment types are there
+which addresses does this site have
+what customer types are configured at SG

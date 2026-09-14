@@ -38,9 +38,11 @@ because a release says only that the wait ended and a stop releases it too.
 from __future__ import annotations
 
 import base64
+import hashlib
+import json
 from collections.abc import Mapping
 from contextlib import suppress
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from sro.application.execution.approvals import K_APPROVAL_WAIT_S, Approvals
 from sro.application.execution.effects import earned, forget_effects, record_effect
@@ -77,6 +79,29 @@ from sro.domain.shared.hosts import system_of
 from sro.domain.shared.identifiers import DeviceId, TenantId
 from sro.domain.shared.prices import Answer
 from sro.domain.skill.workflow import Step, Workflow
+
+K_SAME_WRITE_WINDOW = timedelta(minutes=30)
+"""How long one job's write stays claimed against a second run making it again.
+
+Not forever, which is right for a connector call keyed by run and step and
+wrong here: this key is the JOB, the step and the values, so a claim that never
+expired would mean a tenant could create one supplier with a given code, ever.
+Long enough to cover the case this exists for -- a rule that fires twice, two
+browsers taking one job, a card answered while another run of it is still
+going -- and short enough that "do that again" after lunch just works."""
+
+
+def write_key(workflow_id: str, step: Step, values: Mapping[str, str]) -> str:
+    """What makes two writes the same write.
+
+    The job, the step within it, and the values the run was given -- not the
+    run id, because two runs are exactly what this is about. The values are
+    hashed rather than spelled: they are a customer's data and this key is
+    stored, and a row in `tool_calls` is not a place to keep a supplier's name.
+    """
+    said = json.dumps(dict(sorted(values.items())), separators=(",", ":"))
+    return f"{workflow_id}:{step.order}:{hashlib.sha256(said.encode()).hexdigest()[:16]}"
+
 
 K_STEP_SLACK = 3
 """Attempts a run may make beyond its step count before it stops. A model
@@ -398,6 +423,9 @@ async def run_workflow(
     ordered = sorted(workflow.steps, key=lambda s: s.order)
     # The steps the operator already did cost nothing and are not attempted, so
     # they buy no slack either: the budget is what is left to perform.
+    # Which steps this run has claimed the right to write, so a rescue of a
+    # refused write is not stopped by its own first attempt.
+    claimed_here: set[int] = set()
     already_done = [step for step in ordered if step.order < from_step]
     budget = len(ordered) - len(already_done) + K_STEP_SLACK
     attempts = 0
@@ -690,6 +718,55 @@ async def run_workflow(
                         # this job's ability to write correctly.
                         record.result = {"skipped": True, "already": True}
                         verdict = StepVerdict("held", "read", settled_already)
+                        break
+
+                # And the same write, claimed before it is sent.
+                #
+                # `already_done` above asks the warehouse whether the record is
+                # there; this asks our own store whether we are already making
+                # it. They catch different halves: a read cannot see a write
+                # that is in flight in another run right now, and a claim
+                # cannot see a record somebody made by hand.
+                #
+                # Claimed and kept, never released on failure -- the reason
+                # `tool_calls` gives for connector calls holds here word for
+                # word: a timeout is the one case where the send may well have
+                # landed, and releasing the key would retry it into a second
+                # write.
+                # `mutates` and not `may_write`, which is the wider of the
+                # two on purpose. `may_write` includes a click whose evidence
+                # recorded no traffic at all -- a Sign In that submits a form
+                # the recorder cannot see is one -- and there the evidence says
+                # nothing was created, so refusing a second attempt would stop
+                # an operator retrying a login that failed. A step whose
+                # evidence carries a real mutating call is the one that can
+                # leave a second record behind.
+                if live and mutates and step.order not in claimed_here:
+                    key = write_key(workflow.id, step, values)
+                    async with uow:
+                        # Not `first`: that name is a gesture in this function.
+                        claimed = await uow.tool_calls.remember(
+                            tenant_id,
+                            key,
+                            tool=f"{planned.kind} {step.says}"[:200],
+                            at=datetime.now(tz=UTC),
+                            stale_after=K_SAME_WRITE_WINDOW,
+                        )
+                        await uow.commit()
+                    # Once per step per run, not once per attempt. A write the
+                    # server itself refused is the one write this loop is
+                    # allowed to plan again, and a claim made by the first
+                    # attempt must not refuse the second -- that is this run
+                    # colliding with itself.
+                    claimed_here.add(step.order)
+                    if not claimed:
+                        record.verdict, record.verdict_by = "failed", "none"
+                        record.reason = (
+                            "another run of this job made this write with these values in the "
+                            "last half hour, and it may have landed. Nothing is sent twice on a "
+                            "guess -- start a new run if it did not"
+                        )
+                        verdict = StepVerdict("failed", "none", record.reason)
                         break
 
                 # A live write, on a job that has not yet earned the right to

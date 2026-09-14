@@ -8,7 +8,7 @@ that does not exist -- the difference is not something a caller may learn.
 from __future__ import annotations
 
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from sqlalchemy import delete, or_, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -921,18 +921,40 @@ class SqlToolCallRepository(ToolCallRepository):
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def remember(self, tenant_id: TenantId, key: str, *, tool: str, at: datetime) -> bool:
+    async def remember(
+        self,
+        tenant_id: TenantId,
+        key: str,
+        *,
+        tool: str,
+        at: datetime,
+        stale_after: timedelta | None = None,
+    ) -> bool:
         # `ON CONFLICT DO NOTHING` rather than a read followed by a write:
         # between the two of those, the other run inserts.
+        #
+        # With `stale_after` it is DO UPDATE under a WHERE instead, which is
+        # the same statement doing the same job for a key that expires: the
+        # row is taken over only when the claim on it is older than the
+        # window, and the taking-over is what returns the key. Still one
+        # statement, because a read-then-decide here is the race this class
+        # exists to lose.
+        insert = pg_insert(ToolCallRow).values(
+            tenant_id=tenant_id.value,
+            idempotency_key=key,
+            tool=tool,
+            claimed_at=at,
+        )
         claimed = await self._session.execute(
-            pg_insert(ToolCallRow)
-            .values(
-                tenant_id=tenant_id.value,
-                idempotency_key=key,
-                tool=tool,
-                claimed_at=at,
+            (
+                insert.on_conflict_do_nothing(index_elements=["tenant_id", "idempotency_key"])
+                if stale_after is None
+                else insert.on_conflict_do_update(
+                    index_elements=["tenant_id", "idempotency_key"],
+                    set_={"claimed_at": at, "tool": tool},
+                    where=ToolCallRow.claimed_at < at - stale_after,
+                )
             )
-            .on_conflict_do_nothing(index_elements=["tenant_id", "idempotency_key"])
             # What came back rather than how many rows: `rowcount` is the
             # driver's, and asking the statement to return the key it wrote
             # answers the same question in one shape everywhere.

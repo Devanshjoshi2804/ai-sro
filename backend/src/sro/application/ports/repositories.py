@@ -8,7 +8,7 @@ instead of returning ``None``.
 from __future__ import annotations
 
 from collections.abc import Mapping
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Protocol
 
 from sro.domain.chat.reading import ChatReading
@@ -496,7 +496,15 @@ class ToolCallRepository(Protocol):
     message becoming two, and there is no taking it back.
     """
 
-    async def remember(self, tenant_id: TenantId, key: str, *, tool: str, at: datetime) -> bool:
+    async def remember(
+        self,
+        tenant_id: TenantId,
+        key: str,
+        *,
+        tool: str,
+        at: datetime,
+        stale_after: timedelta | None = None,
+    ) -> bool:
         """Claim this key. ``False`` when somebody already claimed it.
 
         Written *before* the call, and kept whatever the call answers. A key
@@ -504,6 +512,14 @@ class ToolCallRepository(Protocol):
         may well have landed -- be retried into a second send, which is the
         exact thing this exists to prevent. So a retry is refused and somebody
         is told the call may already have happened, which is the truth.
+
+        `stale_after` is for a key that is not unique to one attempt. A
+        connector call is keyed by run and step and is claimed forever; a rig
+        step's write is keyed by the JOB, the step and the values, so that two
+        runs of one job started three minutes apart cannot both create the
+        record -- and a key like that must expire, or a job could never be done
+        twice with the same values for the rest of the tenant's life. A claim
+        older than `stale_after` is taken over rather than refused.
         """
         ...
 

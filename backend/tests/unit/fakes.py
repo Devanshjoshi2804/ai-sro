@@ -1355,11 +1355,26 @@ class FakeToolCallRepository:
 
     def __init__(self) -> None:
         self.claimed: dict[tuple[str, str], str] = {}
+        self.when: dict[tuple[str, str], datetime] = {}
 
-    async def remember(self, tenant_id: TenantId, key: str, *, tool: str, at: datetime) -> bool:
-        if (tenant_id.value, key) in self.claimed:
-            return False
-        self.claimed[(tenant_id.value, key)] = tool
+    async def remember(
+        self,
+        tenant_id: TenantId,
+        key: str,
+        *,
+        tool: str,
+        at: datetime,
+        stale_after: timedelta | None = None,
+    ) -> bool:
+        where = (tenant_id.value, key)
+        if where in self.claimed:
+            # A claim that has aged past the window is taken over, which is
+            # what lets a job be done again tomorrow with the same values.
+            held = self.when.get(where)
+            if stale_after is None or held is None or held >= at - stale_after:
+                return False
+        self.claimed[where] = tool
+        self.when[where] = at
         return True
 
 

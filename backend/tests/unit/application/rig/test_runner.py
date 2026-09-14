@@ -26,12 +26,14 @@ import base64
 import json
 from collections.abc import Mapping
 from dataclasses import replace
+from datetime import UTC, datetime
 
 import pytest
 
 from sro.application.execution import run_workflow as runner_module
 from sro.application.execution.approvals import K_APPROVAL_WAIT_S, Approvals
 from sro.application.execution.run_workflow import (
+    K_SAME_WRITE_WINDOW,
     K_STEP_SLACK,
     _bill,
     _fell_over,
@@ -59,6 +61,7 @@ from tests.unit.fakes import (
     FakeAsker,
     FakeChannel,
     FakeGestureRepository,
+    FakeToolCallRepository,
     FakeUnitOfWork,
     FakeWorkflowRepository,
     FakeWorkflowRunRepository,
@@ -2244,11 +2247,16 @@ async def test_a_stale_step_is_recorded_once_per_step_not_once_per_run() -> None
     workflow = await _workflow(uow)
     asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True}))
 
-    for _ in range(2):
+    # A different code each morning, which is what a job done every morning
+    # looks like: the same values twice inside half an hour is a duplicate
+    # write and the loop now refuses the second one.
+    for code in ("MONDAY-1", "TUESDAY-1"):
         channel = FakeChannel(
             {**_looks(4), "ui.perform": [_performed("component"), _performed("css_path")]}
         )
-        run = await _ran(uow, workflow, channel=channel, asker=asker, earned=True)
+        run = await _ran(
+            uow, workflow, channel=channel, asker=asker, values={"clientCode": code}, earned=True
+        )
         assert run.steps[1].stale is True
 
     assert list(_stale(uow)) == [("wfl_1", 1)], "one row, not one per run"
@@ -3904,3 +3912,88 @@ async def test_a_value_the_page_is_merely_scoped_to_does_not_skip_a_write() -> N
     posts = [one for one in channel.sent if _payload(one).get("method") == "POST"]
     assert posts, "the write was skipped over a value that only says which screen this is"
     assert run.steps[1].verdict == "held"
+
+
+async def test_two_runs_of_one_job_with_one_set_of_values_write_once() -> None:
+    """The double fire, from the panel's side: a rule fires twice, two browsers
+    take one job, a card is answered while another run of it is still going.
+    The warehouse gets one record.
+
+    Keyed by the job, the step and the values -- never the run id, because two
+    runs are the whole point -- and claimed before the send and kept whatever
+    it answers: a timeout is the one case where the write may well have landed.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    values = {"clientCode": "ONCE-9"}
+
+    async def _go() -> WorkflowRun:
+        channel = FakeChannel(
+            {
+                **_looks(4),
+                "ui.perform": [_performed(), _performed()],
+                "http.send": [Reply(ok=True, result={"status": 404, "body": "{}"})] * 2,
+                "calls.since": [Reply(ok=True, result={"calls": []})] * 2,
+            }
+        )
+        asker = _ByRungAsker(
+            plans=[_plan("type", "ONCE-9"), _plan("click")],
+            sights=[],
+            verdict=Answer(data={"held": True, "why": "ok"}),
+        )
+        return await _ran(uow, workflow, channel=channel, asker=asker, values=values, earned=True)
+
+    first, second = await _go(), await _go()
+
+    assert first.steps[1].verdict == "held"
+    assert second.steps[1].verdict == "failed"
+    assert "may have landed" in (second.steps[1].reason or "")
+
+
+async def test_the_same_job_with_different_values_is_a_different_write() -> None:
+    """A job done every morning is done every morning. What makes two writes
+    one write is the values, and a new supplier is a new supplier."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+
+    async def _go(code: str) -> WorkflowRun:
+        channel = FakeChannel(
+            {
+                **_looks(4),
+                "ui.perform": [_performed(), _performed()],
+                "http.send": [Reply(ok=True, result={"status": 404, "body": "{}"})] * 2,
+                "calls.since": [Reply(ok=True, result={"calls": []})] * 2,
+            }
+        )
+        asker = _ByRungAsker(
+            plans=[_plan("type", code), _plan("click")],
+            sights=[],
+            verdict=Answer(data={"held": True, "why": "ok"}),
+        )
+        return await _ran(
+            uow, workflow, channel=channel, asker=asker, values={"clientCode": code}, earned=True
+        )
+
+    assert (await _go("MON-1")).steps[1].verdict == "held"
+    assert (await _go("TUE-1")).steps[1].verdict == "held"
+
+
+async def test_a_claim_older_than_the_window_does_not_stop_tomorrows_run() -> None:
+    """A key that never expired would mean a tenant could create one supplier
+    with a given code, ever. `remember` takes over a claim older than the
+    window, which is the difference between this key and a connector call's."""
+    uow = await _fixture()
+    assert isinstance(uow.tool_calls, FakeToolCallRepository)
+    at = datetime(2026, 9, 14, 9, 0, tzinfo=UTC)
+
+    assert await uow.tool_calls.remember(TENANT, "k", tool="t", at=at)
+    assert not await uow.tool_calls.remember(
+        TENANT, "k", tool="t", at=at + K_SAME_WRITE_WINDOW / 2, stale_after=K_SAME_WRITE_WINDOW
+    )
+    assert await uow.tool_calls.remember(
+        TENANT,
+        "k",
+        tool="t",
+        at=at + K_SAME_WRITE_WINDOW * 2,
+        stale_after=K_SAME_WRITE_WINDOW,
+    )

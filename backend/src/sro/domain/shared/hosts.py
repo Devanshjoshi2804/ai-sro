@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from urllib.parse import urlparse, urlsplit
 
 # The marker a redaction leaves behind, in place of whatever it removed. Lives
@@ -63,3 +64,13 @@ def domain_matches(host: str, domain: str) -> bool:
     if not host or not domain:
         return False
     return host == domain or host.endswith(f".{domain}")
+
+
+def headers_without_markers(headers: Mapping[str, str]) -> dict[str, str]:
+    """The headers that can still be sent: a value the boundary struck out is
+    not a credential the browser can use, it is the marker's own text. Beside
+    REDACTED because everything that sends a recorded request needs the same
+    rule -- the planner replaying a call, the verifier probing a confirming
+    read, the lookup addressing an endpoint -- and a second copy is a second
+    thing to forget."""
+    return {name: value for name, value in headers.items() if REDACTED not in value}

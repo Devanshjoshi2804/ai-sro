@@ -4,7 +4,6 @@ Copied rather than imported: see 'Decision: no path dependency' in the plan.
 Proved against new-chrome-extension/fixtures/, which a real browser produced.
 """
 
-from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Annotated, Any, Literal
@@ -38,6 +37,7 @@ from sro.domain.observation.redaction import redact_shapes as redact_shapes
 from sro.domain.observation.redaction import redact_url as redact_url
 from sro.domain.observation.redaction import shapes_in as shapes_in
 from sro.domain.shared.hosts import REDACTED as REDACTED
+from sro.domain.shared.hosts import headers_without_markers as headers_without_markers
 
 
 def _a_timestamp(value: str) -> str:
@@ -222,15 +222,6 @@ class Body(BaseModel):
     encoding: str | None = None
     redacted_fields: list[str] = Field(default_factory=list)
     blob_uri: str | None = None
-
-
-def headers_without_markers(headers: Mapping[str, str]) -> dict[str, str]:
-    """The headers that can still be sent: a value the boundary struck out is
-    not a credential the browser can use, it is the marker's own text. Lives
-    here beside REDACTED because both senders -- the planner replaying a call
-    and the verifier probing a confirming read -- need the same rule, and a
-    second copy is a second thing to forget."""
-    return {name: value for name, value in headers.items() if REDACTED not in value}
 
 
 def is_secret_header(name: str) -> bool:

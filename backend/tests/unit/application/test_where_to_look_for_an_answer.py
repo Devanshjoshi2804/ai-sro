@@ -55,8 +55,12 @@ def _entry(
 
 
 KNOWN = [
-    _entry(SUPPLIERS, EntryKind.ENDPOINT, title="suppliers (collection)", body={"params": ["siteId"]}),
-    _entry(SUPPLIER_SCREEN, EntryKind.SCREEN, title="Suppliers", body={"seen_on_routes": ["Suppliers"]}),
+    _entry(
+        SUPPLIERS, EntryKind.ENDPOINT, title="suppliers (collection)", body={"params": ["siteId"]}
+    ),
+    _entry(
+        SUPPLIER_SCREEN, EntryKind.SCREEN, title="Suppliers", body={"seen_on_routes": ["Suppliers"]}
+    ),
     _entry("supplierName", EntryKind.FIELD, title="Supplier name"),
 ]
 
@@ -73,7 +77,7 @@ class _Knows(Retrieve):
         self._entries = entries
         self.asked: list[str] = []
 
-    async def execute(self, ctx: RequestContext, question: object) -> tuple[KnowledgeEntry, ...]:  # type: ignore[override]
+    async def execute(self, ctx: RequestContext, question: object) -> tuple[KnowledgeEntry, ...]:
         self.asked.append(getattr(question, "text", ""))
         return tuple(self._entries)
 

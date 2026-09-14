@@ -43,7 +43,6 @@ class RunDispatcher(Protocol):
         """
         ...
 
-
     async def start_job(
         self,
         ctx: RequestContext,

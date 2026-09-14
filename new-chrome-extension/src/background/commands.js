@@ -500,6 +500,56 @@ async function bringForward(tab, allowFocus) {
   }
 }
 
+/**
+ * Open a tab on a system nobody has open, so a lookup has somewhere to look.
+ *
+ * A READ's door, and only a read's. `http.send`, `navigate` and `screenshot`
+ * all need a tab already on the origin -- the point of sending from the
+ * browser is the session that origin's cookies carry -- so a question asked of
+ * four systems is answerable only for the ones the operator happens to have
+ * open. That is not a rule anybody chose; it is what "no tab" meant before
+ * there was a way to say otherwise.
+ *
+ * In the background, always. `active: false` means the page loads behind
+ * whatever the operator is doing and their focus never moves; a lookup is not
+ * worth taking somebody's screen for, and `screenshot` asks for `allow_focus`
+ * separately when it needs the page in front.
+ *
+ * Not a general "open this url": the tab is opened so the next command can
+ * find it, and the backend only ever sends an address resolved from a page
+ * this deployment has already been to.
+ */
+async function openTab(payload) {
+  if (!payload?.url) return failure("not_actionable", "tab.open with no url");
+  let origin;
+  try {
+    origin = new URL(payload.url).origin;
+  } catch {
+    return failure("not_actionable", `tab.open with an unreadable url: ${payload.url}`);
+  }
+  if (!/^https?:$/.test(new URL(payload.url).protocol)) {
+    // A `chrome://` or `file://` url is not a system with a session, and
+    // opening one is the extension reaching outside the job it has.
+    return failure("not_actionable", "tab.open only opens http and https pages");
+  }
+
+  const open = (await chrome.tabs.query({ url: `${origin}/*` })).filter(
+    (tab) => tab.url && /^https?:/.test(tab.url),
+  );
+  if (open.length) {
+    // Already there. Opening a second tab on a system the operator has open
+    // would leave them tidying up after a question they asked.
+    return { ok: true, result: { opened: false, tab_id: open[0].id } };
+  }
+
+  const tab = await chrome.tabs.create({ url: payload.url, active: false });
+  // The page needs time to answer before the command after this one asks it
+  // anything. `hold` is what a driven tab already gets; the wait is the same
+  // one a navigate leaves behind.
+  hold(tab.id, 8000);
+  return { ok: true, result: { opened: true, tab_id: tab.id } };
+}
+
 async function navigate(payload) {
   if (!payload?.url) return failure("not_actionable", "navigate with no url");
   const tab = await drivenTab(payload.origin);
@@ -613,6 +663,8 @@ export async function perform(command, source = "backend") {
         return await screenshot(command.payload || {});
       case "navigate":
         return await navigate(command.payload || {});
+      case "tab.open":
+        return await openTab(command.payload || {});
       case "http.send":
         return await httpSend(command.payload || {});
       case "abort":

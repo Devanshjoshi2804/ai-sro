@@ -1934,6 +1934,13 @@ async function pollRigRun() {
     if (!rigRunShown || rigRunShown.status === "running") {
       clearTimeout(rigPoll);
       rigPoll = setTimeout(() => void pollRigRun(), K_RUN_POLL_MS);
+      // Nothing in Chrome: `setTimeout` there returns a number and this is a
+      // no-op. In node -- which is where this file's own tests run it -- a
+      // pending timer holds the process open, and this one reschedules itself
+      // for as long as a run is going, so `node --test` sat on the suite for
+      // 404 seconds waiting for an event loop that would never drain. A timer
+      // that keeps a poll going is not a reason to keep a process alive.
+      rigPoll?.unref?.();
     }
   } finally {
     pollingRig = false;

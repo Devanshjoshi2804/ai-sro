@@ -22,15 +22,25 @@ from sro.domain.execution.planning import COMMAND_KINDS, KINDS, LIVE_FETCHABLE_H
 from sro.interface.http.app import create_app
 from sro.interface.http.schemas import WorkflowRunModel, WorkflowRunStepModel
 
-_SENDERS = ("run_workflow.py", "verify.py", "plan_step.py", "vision_step.py")
+_SENDERS = (
+    "execution/run_workflow.py",
+    "execution/verify.py",
+    "execution/plan_step.py",
+    "execution/vision_step.py",
+    "lookup/run_lookups.py",
+)
 """The files that put a command on the wire. Narrow on purpose: a `kind=`
 elsewhere in the package is a different word -- a trigger kind, a gesture kind
 -- and reading those in would make this test about vocabulary in general
-rather than about this one wire."""
+rather than about this one wire.
+
+A RUN is not the only sender any more: a lookup drives the same browser with
+the same vocabulary, and a kind it reached for that nothing declares would put
+a word on the wire neither side agreed on."""
 
 
 def _senders() -> Path:
-    """`src/sro/application/execution`, found by walking up.
+    """`src/sro/application`, found by walking up.
 
     A fixed `parents[N]` is this file's own depth in the tree, which makes
     moving the test a silent failure -- and the mutation sweep runs the suite
@@ -38,7 +48,7 @@ def _senders() -> Path:
     """
     here = Path(__file__).resolve()
     for parent in here.parents:
-        found = parent / "src/sro/application/execution"
+        found = parent / "src/sro/application"
         if found.is_dir():
             return found
     raise AssertionError(f"no backend source above {here}")
@@ -104,7 +114,7 @@ def test_the_extension_answers_with_every_field_this_backend_reads() -> None:
     """
     read: set[str] = set()
     senders = _senders()
-    for name in (*_SENDERS, "../../domain/execution/belts.py"):
+    for name in (*_SENDERS, "../domain/execution/belts.py"):
         body = (senders / name).read_text("utf-8")
         read |= set(re.findall(r'result\.get\("([a-z_]+)"\)', body))
         read |= set(re.findall(r'result\["([a-z_]+)"\]', body))

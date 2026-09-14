@@ -147,6 +147,13 @@ export function createChannel({ describe, dial, perform = commands.perform }) {
       retryTimer = null;
       void settle();
     }, wait);
+    // A no-op in Chrome, where `setTimeout` returns a number. In node -- which
+    // is where this extension's own suites run this file -- a pending timer
+    // holds the process open, and both of these reschedule themselves
+    // forever: a suite that imports the service worker sat waiting for an
+    // event loop that would never drain, for 404 seconds, until the runner
+    // was killed. Retrying a socket is not a reason to keep a process alive.
+    retryTimer?.unref?.();
   }
 
   async function announce(open_) {
@@ -162,6 +169,7 @@ export function createChannel({ describe, dial, perform = commands.perform }) {
       // `command_id` on the floor, which is exactly what this wants it to do.
       send(open_, { kind: "ping" });
     }, KEEPALIVE_MS);
+    keepalive?.unref?.();
   }
 
   function stopKeepalive() {

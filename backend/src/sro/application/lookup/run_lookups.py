@@ -13,6 +13,13 @@ time it reaches here.
 the browser already has -- which is why this needs a connected browser and not
 a credential in a file.
 
+**A system nobody has open is opened, in the background.** Every command that
+reaches a system needs a tab already on it -- the point of sending from the
+browser is the session that origin's cookies carry -- so without `tab.open` a
+question asked of four systems is answerable only for the ones the operator
+happens to have in front of them. The tab is opened behind what they are
+doing and their focus never moves.
+
 **One lookup's failure is not the plan's.** A system with no tab open, an
 endpoint this deployment has never been to, a page whose session token has
 expired: each comes back as that lookup's own refusal beside the answers that
@@ -38,6 +45,12 @@ from sro.domain.shared.hosts import system_of
 from sro.domain.shared.identifiers import DeviceId
 
 logger = logging.getLogger(__name__)
+
+NO_TAB = frozenset({"no_tab_for_origin", "no_tab_for_system"})
+"""The extension's two words for "nobody has that system open", which is the
+one failure this side can do something about. Every other error kind -- a page
+that would not answer, a header with no live source, a refused focus -- is a
+fact about the attempt, and retrying it would just cost the same time twice."""
 
 K_DEADLINE_S = 45.0
 """How long one lookup may take.
@@ -134,6 +147,10 @@ class RunLookups:
     ) -> Looked:
         if lookup.how == "call":
             reply = await self._send(ctx, device, "http.send", _call_payload(address))
+            if _shut(reply):
+                reply = await self._reopened(
+                    ctx, device, address, "http.send", _call_payload(address)
+                )
             return _looked(lookup, address, reply)
 
         # A screen takes two commands: put the page up, then photograph it.
@@ -144,18 +161,38 @@ class RunLookups:
         # `hosts.origin_of` answers the host alone, and that is the rule for
         # deciding whether two urls are one SYSTEM, not for finding a tab.
         origin = system_of(address.url)
-        moved = await self._send(
-            ctx,
-            device,
-            "navigate",
-            {"url": address.url, "origin": origin, "allow_focus": allow_focus},
-        )
+        going = {"url": address.url, "origin": origin, "allow_focus": allow_focus}
+        moved = await self._send(ctx, device, "navigate", going)
+        if _shut(moved):
+            # The tab `tab.open` makes is already ON the address, so the
+            # navigate that follows is a no-op that confirms it -- cheaper than
+            # a second code path, and it keeps the failure shape identical
+            # whether the operator had the system open or not.
+            moved = await self._reopened(ctx, device, address, "navigate", going)
         if not moved.ok:
             return _looked(lookup, address, moved)
         shot = await self._send(
             ctx, device, "screenshot", {"origin": origin, "allow_focus": allow_focus}
         )
         return _looked(lookup, address, shot)
+
+    async def _reopened(
+        self,
+        ctx: RequestContext,
+        device: DeviceId,
+        address: Address,
+        kind: str,
+        payload: Mapping[str, object],
+    ) -> Reply:
+        """Open the system this command could not find, and ask it once more.
+
+        Once. A second failure is a system that is open and still would not
+        answer, which is a different problem and not one another tab fixes.
+        """
+        opened = await self._send(ctx, device, "tab.open", {"url": address.url})
+        if not opened.ok:
+            return opened
+        return await self._send(ctx, device, kind, payload)
 
     async def _send(
         self, ctx: RequestContext, device: DeviceId, kind: str, payload: Mapping[str, object]
@@ -184,3 +221,8 @@ def _looked(lookup: Lookup, address: Address, reply: Reply) -> Looked:
         answer=reply.result if reply.ok else {},
         detail="" if reply.ok else reply.detail,
     )
+
+
+def _shut(reply: Reply) -> bool:
+    """Whether this failed because nobody has that system open."""
+    return not reply.ok and (reply.error_kind or "") in NO_TAB

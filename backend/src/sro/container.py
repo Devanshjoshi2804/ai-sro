@@ -76,6 +76,8 @@ from sro.application.knowledge.open_questions import AskAbout
 from sro.application.knowledge.read_knowledge import ReadKnowledge
 from sro.application.knowledge.record_claim import RecordClaims
 from sro.application.knowledge.retrieve import Retrieve
+from sro.application.lookup.plan_lookups import PlanLookups
+from sro.application.lookup.run_lookups import RunLookups
 from sro.application.observation.artifacts import StoreObservationArtifact
 from sro.application.observation.demonstrate import AssembleDemonstration
 from sro.application.observation.forget import ForgetObservations
@@ -500,6 +502,26 @@ class Container:
             clock=self.clock,
             cap_usd=self.settings.daily_usd_cap,
         )
+
+    def plan_lookups(self) -> PlanLookups:
+        """Where to look for the answer to one question.
+
+        `gemini_plan_model` for `read_chat`'s reason, which applies harder
+        here: somebody is waiting on an answer, and a read that takes the slow
+        model has spent the difference before the first system is even asked.
+        """
+        return PlanLookups(
+            self.unit_of_work(),
+            self.retrieve_knowledge(),
+            self.asker,
+            model=self.settings.gemini_plan_model,
+            clock=self.clock,
+            cap_usd=self.settings.daily_usd_cap,
+        )
+
+    def run_lookups(self) -> RunLookups:
+        """Going and looking, through the operator's own browser."""
+        return RunLookups(self.unit_of_work(), SocketChannel(self.agent_sockets))
 
     def mine_everything(self) -> MineEverything:
         return MineEverything(

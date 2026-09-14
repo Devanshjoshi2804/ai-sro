@@ -202,11 +202,57 @@ async def test_a_screen_is_put_up_and_then_photographed() -> None:
     assert answers.looked[0].ok
 
 
-async def test_a_page_that_would_not_come_up_is_not_photographed() -> None:
-    # The picture would be of whatever was there before, and reading it would
-    # be answering the question with a different screen.
+async def test_a_system_nobody_has_open_is_opened_and_asked_again() -> None:
+    """The whole point of the fallback: without it a question is answerable
+    only by the systems the operator happens to have in front of them."""
     channel = FakeChannel(
-        {"navigate": [Reply(ok=False, error_kind="no_tab_for_system", error_detail="no page")]}
+        {
+            "http.send": [
+                Reply(ok=False, error_kind="no_tab_for_origin", error_detail="no tab"),
+                Reply(ok=True, result={"rows": 5}),
+            ],
+            "tab.open": [Reply(ok=True, result={"opened": True, "tab_id": 42})],
+        }
+    )
+    uow = FakeUnitOfWork()
+    await uow.gestures.add_gestures((_gesture(_call()),))
+
+    answers = await RunLookups(uow, channel).execute(CTX, plan=Plan(question="q", lookups=(CALL,)))
+
+    assert [one["kind"] for one in channel.sent] == ["http.send", "tab.open", "http.send"]
+    assert str(channel.sent[1]["payload"]["url"]).startswith(f"{WMS}{SUPPLIERS}")
+    assert answers.looked[0].ok
+
+
+async def test_a_system_that_is_open_and_still_will_not_answer_is_not_retried() -> None:
+    # A second attempt costs the same time twice and changes nothing: another
+    # tab does not fix a page that would not answer.
+    channel = FakeChannel(
+        {
+            "http.send": [
+                Reply(ok=False, error_kind="unreachable", error_detail="the page did not answer")
+            ]
+        }
+    )
+    uow = FakeUnitOfWork()
+    await uow.gestures.add_gestures((_gesture(_call()),))
+
+    answers = await RunLookups(uow, channel).execute(CTX, plan=Plan(question="q", lookups=(CALL,)))
+
+    assert [one["kind"] for one in channel.sent] == ["http.send"]
+    assert answers.looked[0].detail == "unreachable: the page did not answer"
+
+
+async def test_a_screen_on_a_shut_system_is_opened_before_it_is_given_up_on() -> None:
+    channel = FakeChannel(
+        {
+            "navigate": [
+                Reply(ok=False, error_kind="no_tab_for_system", error_detail="no page"),
+                Reply(ok=True, result={"navigated": True}),
+            ],
+            "tab.open": [Reply(ok=True, result={"opened": True, "tab_id": 42})],
+            "screenshot": [Reply(ok=True, result={"image_base64": "iVBOR"})],
+        }
     )
     uow = FakeUnitOfWork()
     await uow.gestures.add_gestures((_gesture(url=SCREEN_URL),))
@@ -215,8 +261,35 @@ async def test_a_page_that_would_not_come_up_is_not_photographed() -> None:
         CTX, plan=Plan(question="q", lookups=(SCREEN,))
     )
 
-    assert [one["kind"] for one in channel.sent] == ["navigate"]
-    assert answers.looked[0].detail == "no_tab_for_system: no page"
+    assert [one["kind"] for one in channel.sent] == [
+        "navigate",
+        "tab.open",
+        "navigate",
+        "screenshot",
+    ]
+    assert answers.looked[0].ok
+
+
+async def test_a_page_that_would_not_come_up_is_not_photographed() -> None:
+    # The picture would be of whatever was there before, and reading it would
+    # be answering the question with a different screen.
+    channel = FakeChannel(
+        {
+            "navigate": [Reply(ok=False, error_kind="no_tab_for_system", error_detail="no page")],
+            "tab.open": [
+                Reply(ok=False, error_kind="not_actionable", error_detail="not an http url")
+            ],
+        }
+    )
+    uow = FakeUnitOfWork()
+    await uow.gestures.add_gestures((_gesture(url=SCREEN_URL),))
+
+    answers = await RunLookups(uow, channel).execute(
+        CTX, plan=Plan(question="q", lookups=(SCREEN,))
+    )
+
+    assert [one["kind"] for one in channel.sent] == ["navigate", "tab.open"]
+    assert answers.looked[0].detail == "not_actionable: not an http url"
 
 
 async def test_one_shut_system_is_one_named_gap_and_not_a_failed_question() -> None:

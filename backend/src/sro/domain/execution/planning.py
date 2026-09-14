@@ -41,13 +41,16 @@ from sro.domain.skill.workflow import Step
 KINDS = frozenset({"ui.perform", "http.send", "navigate"})
 """What a PLAN may name. The model chooses one of these three."""
 
-COMMAND_KINDS = KINDS | frozenset({"ui.perform_at", "ui.url", "screenshot", "abort"})
+COMMAND_KINDS = KINDS | frozenset({"ui.perform_at", "ui.url", "screenshot", "abort", "tab.open"})
 """Everything the runner may put on the wire, plan or not.
 
-`KINDS` is the subset a model may choose; the other four the runner sends on
-its own -- the sight rung's point (`ui.perform_at`), the two the run asks a
-browser for before and after a step (`ui.url`, `screenshot`), and the one it
-sends when a run is stopped (`abort`).
+`KINDS` is the subset a model may choose; the rest the runner sends on its own
+-- the sight rung's point (`ui.perform_at`), the two the run asks a browser for
+before and after a step (`ui.url`, `screenshot`), the one it sends when a run
+is stopped (`abort`), and the one a LOOKUP sends when the system it has to
+read is one nobody has open (`tab.open`). Deliberately not in `KINDS`: opening
+a tab is never a step of a job, it is what has to be true before a read can
+happen at all.
 
 Named here because the other half of this list lives in another language, in
 another repository directory, as a `switch` in `commands.js` -- and a kind that

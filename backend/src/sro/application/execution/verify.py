@@ -13,11 +13,13 @@ the half that sends a probe and asks a model to look at a picture.
 
 The belt order is the product. Measured over the 643 tasks of the WebVoyager
 benchmark, a validator reading the run's own text -- what the calls returned --
-scored 84.24% against 70.04%
-for one reading screenshots, with over 84% agreement with human annotators; a
-screenshot read beside the agent's final answer still only reached 83.00%. So: the response the command itself returned first, a
-confirming read the cited evidence shows the page performs second, and the
-screenshot last and least. A green toast is the weakest of the three and the
+scored 84.24% against 70.04% for one reading screenshots, with over 84%
+agreement with human annotators; a screenshot read beside the agent's final
+answer still only reached 83.00%. So: the response the command itself returned
+first, a confirming read the cited evidence shows the page performs second, and
+the screenshot last and least.
+
+A green toast is the weakest of the three and the
 easiest to be wrong about, and `state_verified` -- which is what a job's earned
 autonomy counts -- never counts it.
 

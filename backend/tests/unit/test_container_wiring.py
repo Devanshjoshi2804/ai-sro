@@ -351,6 +351,10 @@ def test_every_door_that_needs_a_model_refuses_through_the_one_guard() -> None:
         "sro/application/chat/read_chat.py",
         # POST /v1/workflow-runs -- both the press and the rescue path.
         "sro/application/execution/workflow_runs.py",
+        # Planning where to look for the answer to a question. No route yet:
+        # the plan is built and read before anything executes it, and the seam
+        # that runs one is the next slice.
+        "sro/application/lookup/plan_lookups.py",
     }
 
 

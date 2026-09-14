@@ -16,7 +16,7 @@ export class ApiError extends Error {
   }
 }
 
-async function call(path, { method = "GET", body, form, signal } = {}) {
+async function call(path, { method = "GET", body, form, signal, asDevice = true } = {}) {
   const [base, token, secret] = await Promise.all([
     state.apiUrl(),
     state.token(),
@@ -36,7 +36,12 @@ async function call(path, { method = "GET", body, form, signal } = {}) {
       // fires a run in a live warehouse. Sent on every call rather than on the
       // four that check it: it goes to the same backend either way, and a list
       // of which endpoints are allowed to see it is a list that goes stale.
-      ...(secret ? { "X-Device-Secret": secret } : {}),
+      // `asDevice: false` for the one route that is the TENANT's and refuses a
+      // browser proving itself (`tenant_only` 403s rather than quietly serving
+      // the request as the tenant). This extension is already holding the
+      // tenant's own credential -- the operator pasted it -- so the header is
+      // left off rather than the guard being loosened for every device.
+      ...(secret && asDevice ? { "X-Device-Secret": secret } : {}),
       ...(body === undefined ? {} : { "Content-Type": "application/json" }),
     },
     body: form !== undefined ? form : body === undefined ? undefined : JSON.stringify(body),
@@ -396,6 +401,21 @@ export const api = {
    * decides lives there and not here on purpose: a rule with a copy in two
    * languages drifts on one of them. */
   ask: (said) => call("/v1/ask", { method: "POST", body: { said } }),
+
+  /** Keep one password, so a run can type it without anybody recording it.
+   *
+   * The whole reason this exists in the extension: the person who has to
+   * supply it is standing in a warehouse with this panel open. They have no
+   * console, no shell and no reason to know what a vault key is, so a design
+   * where a password is stored by a curl command is a design where it is
+   * never stored.
+   *
+   * Nothing keeps it on this side. It is read out of the field, sent, and the
+   * field is cleared -- it is never written to `chrome.storage`, never logged,
+   * and what comes back is the key it was stored under, never the value.
+   */
+  keepSecret: ({ system, field, value }) =>
+    call("/v1/secrets", { method: "PUT", body: { system, field, value }, asDevice: false }),
 
   /** Fires waiting on a person: a rule went off and asked before it ran.
    *

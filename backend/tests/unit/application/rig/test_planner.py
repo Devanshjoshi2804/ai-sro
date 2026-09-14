@@ -1147,3 +1147,36 @@ async def test_a_run_with_no_vault_says_so_rather_than_typing_nothing() -> None:
 
     assert planned.kind == "none"
     assert "vault" in planned.why
+
+
+async def test_a_step_that_needs_a_password_says_which_one_as_structure() -> None:
+    """The operator who has to fix this is a person in a warehouse with a panel
+    open. They have no console, no shell and no reason to know what a vault key
+    is -- so the panel has to draw "this job needs your password for <system>"
+    and a box, which it cannot do by parsing a sentence.
+    """
+    field = _secret_field()
+
+    async def nothing_stored(key: str) -> str | None:
+        return None
+
+    planned = await plan_step(
+        step=Step(order=0, says="sign in", system=None, cites=[field.id]),
+        cited=[field],
+        values={},
+        look=Look(None, None, ""),
+        origin=None,
+        starts_on=None,
+        allow_focus=False,
+        asker=_says_type(),
+        model="m",
+        tenant_id="new",
+        secret_for=nothing_stored,
+    )
+
+    needs = planned.payload["needs_secret"]
+    assert isinstance(needs, dict)
+    assert needs["key"] == secret_key_for("new", field)
+    assert needs["field"] and needs["system"], "a card cannot ask for a password it cannot name"
+    # And still no value anywhere near it.
+    assert "value" not in planned.payload

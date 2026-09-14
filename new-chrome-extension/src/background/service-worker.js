@@ -1237,6 +1237,21 @@ async function handle(message, sender) {
       }
       return { ok: true, nudge: was || null };
     }
+    case "keep-secret": {
+      // Straight through to the backend and gone. Not held here even for the
+      // length of this function longer than it takes to send: a worker that
+      // kept a password in a variable is a worker whose crash dump has one.
+      try {
+        const kept = await api.keepSecret({
+          system: message.system,
+          field: message.field,
+          value: message.value,
+        });
+        return { ok: true, key: kept.key };
+      } catch (error) {
+        return { ok: false, error: error.problem?.detail || error.message };
+      }
+    }
     case "answer-waiting": {
       // The press on a card a rule left waiting. Here rather than in the panel
       // because the credential lives in this worker, and the backend takes the

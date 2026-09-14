@@ -604,11 +604,30 @@ function performing(status) {
             }
             await refresh();
           },
+          onSecret: keepSecret,
         },
       ),
     );
   }
   return holder;
+}
+
+/** One password, on its way to the vault and gone.
+ *
+ * The panel is the only screen the person who knows it is looking at, and it
+ * is the one place that must not keep it: this reads the field, hands it to
+ * the worker, and returns what the worker said. Nothing is stored on this
+ * side -- not in `chrome.storage`, not in a variable that outlives the call.
+ */
+async function keepSecret({ system, field, value }) {
+  // Caught rather than thrown on: `ask` turns a worker's `error` into an
+  // exception, and an exception inside the Save listener would leave the
+  // person who just typed their password looking at a row that said nothing.
+  try {
+    return await ask({ kind: "keep-secret", system, field, value });
+  } catch (error) {
+    return { ok: false, error: error.message };
+  }
 }
 
 /** What the rig's own outcomes are, said in a sentence. Its vocabulary is not
@@ -649,11 +668,10 @@ function finished(status) {
   // card a backend run is drawn in; what changes is which list it draws and
   // which buttons it puts under it.
   if (run.source === "rig") {
-    return runCard({
-      run,
-      skill: null,
-      message: { text: RIG_ENDINGS[run.status] || "The run ended." },
-    });
+    return runCard(
+      { run, skill: null, message: { text: RIG_ENDINGS[run.status] || "The run ended." } },
+      { onSecret: keepSecret },
+    );
   }
   const ok = run.status === "succeeded";
   const made = ok ? Object.entries(run.derived || {}) : [];

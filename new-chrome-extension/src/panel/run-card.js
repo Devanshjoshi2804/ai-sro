@@ -77,7 +77,10 @@ export function glyphFor(outcome) {
  * `notes` are what they have said to this run, each carrying the step index it
  * arrived during.
  */
-export function runCard({ run, skill, message, notes = [] }, { onPress, onChange, stop = true } = {}) {
+export function runCard(
+  { run, skill, message, notes = [] },
+  { onPress, onChange, onSecret, stop = true } = {},
+) {
   const card = document.createElement("div");
   card.className = "run";
   card.dataset.status = run.status;
@@ -117,6 +120,7 @@ export function runCard({ run, skill, message, notes = [] }, { onPress, onChange
         run,
         notes,
         onPress,
+        onSecret,
         onChange: rig ? undefined : onChange,
       }),
     );
@@ -173,7 +177,7 @@ function wordsFor(sent) {
   return `${p.action || "act"}${p.value ? ` "${p.value}"` : ""} ${where}`.trim();
 }
 
-function stepRow({ step, outcome, live, inFlight, run, notes, onPress, onChange }) {
+function stepRow({ step, outcome, live, inFlight, run, notes, onPress, onSecret, onChange }) {
   const row = document.createElement("div");
   row.className = "step";
   row.dataset.index = String(step.index);
@@ -226,6 +230,49 @@ function stepRow({ step, outcome, live, inFlight, run, notes, onPress, onChange 
     stop.textContent = "Stop";
     stop.addEventListener("click", () => onPress?.("stop", run, row, stop));
     row.append(words, approve, stop);
+  }
+
+  // The step wanted a password and the vault had none.
+  //
+  // The refusal used to be a sentence naming a vault key, which is a sentence
+  // for whoever deploys this system and not for the person it stopped: they
+  // are standing in a warehouse with this panel open, and they have no
+  // console, no shell, and no way to look up what a vault key is. A refusal
+  // only a developer can act on is a refusal nobody acts on -- so the step
+  // that wants a password asks for it here, where the person who knows it is.
+  //
+  // The field is never read back, never defaulted, and never written to
+  // `chrome.storage`: it goes to the worker, which puts it in the vault, and
+  // is cleared on the way. Drawn for a finished run as well as a live one --
+  // this refusal ENDS the run, so the row somebody sees it on is always a
+  // record by the time they read it.
+  const wants = step.sent?.payload?.needs_secret;
+  if (wants && onSecret) {
+    const asking = document.createElement("p");
+    asking.className = "note";
+    asking.textContent = `This job needs your ${(wants.field || "password").replace("-", " ")} for ${wants.system || "this system"}.`;
+    const field = document.createElement("input");
+    field.type = "password";
+    // Not `current-password`: a manager offering to fill this would be
+    // offering the credential for the PANEL's own origin, which is not the
+    // system being signed into.
+    field.autocomplete = "off";
+    field.placeholder = wants.field || "password";
+    const save = document.createElement("button");
+    save.type = "button";
+    save.textContent = "Save for this job";
+    save.addEventListener("click", async () => {
+      const value = field.value;
+      field.value = "";
+      if (!value) return;
+      save.disabled = true;
+      const kept = await onSecret({ system: wants.system, field: wants.field, value }, save);
+      save.disabled = false;
+      asking.textContent = kept?.ok
+        ? "Kept. Run this job again and it will sign in."
+        : `That could not be kept: ${kept?.error || "the vault did not answer"}`;
+    });
+    row.append(asking, field, save);
   }
 
   // Only a step that is still to come, and only one that has values of its own.

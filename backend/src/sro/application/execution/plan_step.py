@@ -67,11 +67,11 @@ from sro.domain.execution.planning import (
     unreplayable,
     value_for,
 )
-from sro.domain.execution.secrets import needs_a_secret, secret_key_for
+from sro.domain.execution.secrets import field_of, needs_a_secret, secret_key_for
 from sro.domain.execution.verified_writes import VerifiedWrite, verified_write_for
 from sro.domain.observation.gesture import Gesture, Kind
 from sro.domain.observation.trim import trim
-from sro.domain.shared.hosts import REDACTED
+from sro.domain.shared.hosts import REDACTED, origin_of
 from sro.domain.shared.prices import Answer, Effort
 from sro.domain.skill.workflow import Step
 
@@ -335,9 +335,21 @@ async def plan_step(
         wanted = secret_key_for(tenant_id or "", primary)
         secret = await secret_for(wanted)
         if not secret:
+            # The refusal carries what it wanted as STRUCTURE and not only as
+            # prose. The operator who has to fix this is a person in a
+            # warehouse with a panel open: they have no console, no shell and
+            # no reason to know what a vault key is, so the panel has to be
+            # able to draw "this job needs your password for <system>" and a
+            # box -- which it cannot do by parsing a sentence.
             return Planned(
                 "none",
-                {},
+                {
+                    "needs_secret": {
+                        "system": origin_of(primary.url or "") or (primary.system or ""),
+                        "field": field_of(primary),
+                        "key": wanted,
+                    }
+                },
                 f"step {step.order} types a password and nothing is stored under {wanted!r}",
                 answer,
             )

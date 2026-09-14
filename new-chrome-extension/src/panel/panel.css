@@ -702,6 +702,17 @@ button.danger:hover:not(:disabled) {
   color: var(--ink-mute);
 }
 
+/* The box a refused step asks for a password in. Full width and beside the
+   sentence that says which system it is for -- this is the one control on this
+   surface an operator types a credential into, and one squeezed between an
+   intent and a cost figure would be one they mistake for a parameter. */
+.run .step input[type="password"] {
+  flex: 1 1 160px;
+  margin-left: 20px;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
 .run .note {
   flex-basis: 100%;
   margin: 2px 0 0 20px;

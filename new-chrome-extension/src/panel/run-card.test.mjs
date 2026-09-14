@@ -346,6 +346,111 @@ test("drawn under a card that already stops the run, the card-level Stop is not 
   assert.ok(!labels(without).includes("Stop"));
 });
 
+
+test("a step refused for want of a password asks the person watching for it", async () => {
+  // The refusal a real operator hit. The step types a credential, the vault
+  // holds none, and the run ends -- and what the panel used to draw was a
+  // sentence naming a vault key, which is actionable by whoever deploys this
+  // system and by nobody standing in a warehouse. The field is here because
+  // the person who knows the password is here.
+  const run = {
+    id: "run_1",
+    source: "rig",
+    status: "failed",
+    steps: [
+      { index: 0, outcome: "held", says: "type the username" },
+      {
+        index: 1,
+        outcome: "failed",
+        says: "Type the password.",
+        sent: {
+          kind: "none",
+          payload: {
+            needs_secret: {
+              system: "keycloak.test",
+              field: "password",
+              key: "new/keycloak.test/password",
+            },
+          },
+        },
+      },
+    ],
+  };
+  const kept = [];
+  const card = runCard(
+    { run },
+    {
+      onSecret: (one) => {
+        kept.push(one);
+        return { ok: true };
+      },
+    },
+  );
+  const row = card.kids.filter((kid) => kid.className === "step")[1];
+
+  assert.match(
+    words(row),
+    /needs your password for keycloak\.test/,
+    "the row did not say which password it wanted, in words anybody can act on",
+  );
+  assert.ok(
+    !words(row).includes("new/keycloak.test/password"),
+    "the vault key was put in front of somebody who cannot use it",
+  );
+
+  const field = of(row, "input")[0];
+  assert.equal(field.type, "password", "a password was asked for in a field that shows it");
+  field.value = "not-in-any-fixture-9c41";
+  const save = of(row, "button").find((button) => button.textContent === "Save for this job");
+  await save.listeners.click[0]();
+
+  assert.deepEqual(kept, [
+    { system: "keycloak.test", field: "password", value: "not-in-any-fixture-9c41" },
+  ]);
+  assert.equal(field.value, "", "the password was left sitting in the panel");
+  assert.match(words(row), /Kept\./, "saving a password said nothing back");
+  assert.deepEqual(asMarkup, [], "a password reached the page as markup");
+});
+
+test("a blank box sends nothing, and a vault that refuses says so", async () => {
+  const run = {
+    id: "run_2",
+    source: "rig",
+    status: "failed",
+    steps: [
+      {
+        index: 0,
+        outcome: "failed",
+        says: "Type the password.",
+        sent: { kind: "none", payload: { needs_secret: { system: "wms.test", field: "password" } } },
+      },
+    ],
+  };
+  const kept = [];
+  const card = runCard(
+    { run },
+    {
+      onSecret: (one) => {
+        kept.push(one);
+        return { ok: false, error: "the secret store refused a write" };
+      },
+    },
+  );
+  const row = card.kids.filter((kid) => kid.className === "step")[0];
+  const save = of(row, "button").find((button) => button.textContent === "Save for this job");
+
+  await save.listeners.click[0]();
+  assert.deepEqual(kept, [], "an empty box was sent to the vault as a password");
+
+  of(row, "input")[0].value = "x";
+  await save.listeners.click[0]();
+  assert.match(
+    words(row),
+    /could not be kept: the secret store refused a write/,
+    "a vault that refused let the operator believe their password was stored",
+  );
+});
+
 let failed = 0;
 for (const [name, fn] of tests) {
   try {

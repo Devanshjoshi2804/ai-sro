@@ -325,8 +325,7 @@ hand-off, so data meant for the second application is typed back into the
 first**. Our per-step `origin` exists for other reasons and defends against
 exactly that.
 
-**Verify against state, not against a picture.** Measured on 322 WebVoyager
-tasks, a validator that judges completion from the run's own text — what the
+**Verify against state, not against a picture.** Measured over the 643 tasks of the WebVoyager benchmark, a validator that judges completion from the run's own text — what the
 calls returned — scored **84.24% against 70.04%** for one reading screenshots,
 with **over 84% agreement with human annotators**; a screenshot read beside the
 agent's final answer still only reached **83.00%**. The runner's verification
@@ -337,7 +336,7 @@ changes accordingly: what the call returned, then a read, then the picture.
 > 192 of 321 tasks", attributed to a propose-then-verify evaluator. Those
 > figures are in no paper this repository cites and none that could be found:
 > the source (*Multimodal Auto Validation for Self-Refinement in Web Agents*,
-> arXiv:2410.00689) reports the numbers above over 322 tasks and has no
+> arXiv:2410.00689) reports the numbers above over its 643 tasks and has no
 > artifact category. The conclusion held; the evidence for it did not.
 
 **A caution about asking people.** In a click-stream segmentation study, four
@@ -874,7 +873,7 @@ for each step:
 
 **Why verification does not trust the screenshot.** A validator judging a run
 from its own text rather than from a picture scored **84.24% against 70.04%**
-over 322 WebVoyager tasks, with over 84% agreement with human annotators; even
+over the benchmark's 643 tasks, with over 84% agreement with human annotators; even
 a screenshot read beside the agent's final answer reached only 83.00%
 (arXiv:2410.00689, Tables 1 and 2; figures checked against the paper
 2026-09-14, replacing an unsourced 86.9/78.8/94%/"192 of 321"). A supplier that

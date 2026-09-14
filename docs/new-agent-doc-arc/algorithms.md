@@ -519,12 +519,12 @@ reaching here.
 ## A14 · Verify a step
 
 **[paper]** — a validator judging a run from its own text rather than from a
-screenshot scored **84.24% against 70.04%** over 322 WebVoyager tasks, with
+screenshot scored **84.24% against 70.04%** over the 643 tasks of the WebVoyager benchmark, with
 over 84% agreement with human annotators; a screenshot read beside the agent's
 final answer still reached only 83.00% (arXiv:2410.00689, Tables 1 and 2).
 Checked against the paper 2026-09-14: the figures here previously read
 "86.9% against 78.8%, human agreement 94.0% (κ 0.84), artifact verification
-192 of 321 tasks", which appear in that paper nowhere — it counts 322 tasks and
+192 of 321 tasks", which appear in that paper nowhere — it counts 643 tasks and
 has no artifact category. The order below is unchanged; only its evidence is.
 
 ```

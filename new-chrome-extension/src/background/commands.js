@@ -135,7 +135,11 @@ const driven = new Map();
  * screen and asking a model what it saw -- `verdict_by = screen` on all 67
  * steps this deployment has ever performed, the weakest and slowest rung of
  * the three the verifier documents. A status code is both cheaper and better
- * evidence (86.9% against 78.8% in the paper the verifier cites).
+ * evidence: 84.24% against 70.04% over the 643 tasks of the WebVoyager
+ * benchmark (arXiv:2410.00689, Table 1). The numbers here read 86.9/78.8
+ * until 2026-09-15 and are in no version of that paper -- the backend's copy
+ * of the same sentence was corrected a day earlier and this one was missed,
+ * which is what a number copied into two languages does.
  *
  * Bounded per tab, and never written anywhere: this map is the whole of it.
  */

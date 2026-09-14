@@ -1614,7 +1614,13 @@ async def test_the_effect_is_filed_against_the_step_that_wrote_it() -> None:
         {
             **_looks(4),
             "ui.perform": [_performed()],
-            "http.send": [Reply(ok=True, result={"status": 200, "body": "{}", "headers": {}})],
+            "http.send": [
+                # The precondition read: is the write's effect already true?
+                # The record does not exist yet, so the page's own read of it
+                # 404s and the write goes ahead.
+                Reply(ok=True, result={"status": 404, "body": "{}", "headers": {}}),
+                Reply(ok=True, result={"status": 200, "body": "{}", "headers": {}}),
+            ],
         }
     )
     # A plan per step: the read is typed, and the write is the recorded call
@@ -1654,7 +1660,10 @@ async def test_a_failed_write_forgets_the_effects_the_workflow_had_earned() -> N
             # Two rungs: a write the server itself refused is the one write
             # that is safe to plan again, so the rescue goes out and fails too.
             **_looks(8),
-            "http.send": [Reply(ok=True, result={"status": 500, "body": "", "headers": {}})] * 2,
+            # Doubled again for the precondition read each write now makes:
+            # a 500 answers nothing about the state, so the write goes ahead
+            # and fails the way this test is about.
+            "http.send": [Reply(ok=True, result={"status": 500, "body": "", "headers": {}})] * 4,
         }
     )
     asker = _PerSchemaAsker(plan=_replay(), verdict=Answer(data={"held": True, "why": "ok"}))
@@ -2080,8 +2089,14 @@ async def test_the_verifier_is_asked_about_the_step_being_performed() -> None:
         {
             **_looks(4),
             "http.send": [
+                # Each write is now preceded by its own step's confirming read,
+                # asked as a precondition: is this already true? The record
+                # does not exist yet, so the page's own read of it 404s, which
+                # is what a read of a record nobody has created answers.
+                Reply(ok=True, result={"status": 404, "body": "{}"}),
                 # Step zero's write: a status step zero's own evidence showed.
                 Reply(ok=True, result={"status": 302, "body": "{}"}),
+                Reply(ok=True, result={"status": 404, "body": "{}"}),
                 # Step one's write: the same status, which step ONE's evidence
                 # never showed. Not 2xx either, so nothing falls back to it.
                 Reply(ok=True, result={"status": 302, "body": "{}"}),
@@ -2108,11 +2123,21 @@ async def test_the_verifier_is_asked_about_the_step_being_performed() -> None:
         " belt passes it on rather than reading step zero's evidence"
     )
     sent = [_payload(s) for s in channel.sent if s["kind"] == "http.send"]
+    # Each write is preceded by its own step's confirming read, asked as a
+    # precondition -- "is this already true" -- and then the write, and then
+    # the same read again where the status did not settle it. What this test
+    # is about is the LAST one: the read that confirmed step one is step one's,
+    # not step zero's.
     assert [s["url"] for s in sent] == [
+        "http://127.0.0.1:63319/api/alpha/1",
         "http://127.0.0.1:63319/api/alpha",
+        "http://127.0.0.1:63319/api/beta/1",
         "http://127.0.0.1:63319/api/beta",
         "http://127.0.0.1:63319/api/beta/1",
     ], "and the read that confirmed step one is the one step one's page performs"
+    assert sent[0]["method"] == "GET" and sent[1]["method"] == "POST", (
+        "the precondition read goes out before the write it might make unnecessary"
+    )
 
 
 async def test_every_command_a_run_sends_names_the_caller_the_browser_and_the_run() -> None:
@@ -3795,3 +3820,87 @@ async def test_a_page_that_called_nothing_this_run_recognises_is_still_looked_at
     saving = run.steps[1]
     assert (saving.verdict, saving.verdict_by) == ("held", "screen")
     assert len([one for one in channel.sent if one["kind"] == "screenshot"]) == 4
+
+
+# --- a write that would only make a second copy ------------------------------
+
+
+async def test_a_write_whose_effect_is_already_true_is_not_made_again() -> None:
+    """The run that made this worth writing signed in an operator who was
+    already signed in. The class behind it is wider -- a rule fires twice, two
+    browsers take one job, a card is answered a day late -- and every one of
+    them ends with a second record in a warehouse that wanted one.
+
+    The verifier's second rung, asked before the write instead of after: the
+    page's own read already shows the value this run would supply, so there is
+    nothing to do.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel(
+        {
+            **_looks(4),
+            "ui.perform": [_performed()],
+            "http.send": [
+                # The precondition read, answering with the record already
+                # there under the code this run was going to create.
+                Reply(ok=True, result={"status": 200, "body": '{"clientCode": "THIRD"}'}),
+            ],
+        }
+    )
+    asker = _ByRungAsker(
+        plans=[_plan("type", "THIRD"), _replay()],
+        sights=[],
+        verdict=Answer(data={"held": True, "why": "ok"}),
+    )
+
+    run = await _ran(
+        uow, workflow, channel=channel, asker=asker, values={"clientCode": "THIRD"}, earned=True
+    )
+
+    saving = run.steps[1]
+    assert (saving.verdict, saving.verdict_by) == ("held", "read")
+    assert saving.result == {"skipped": True, "already": True}
+    assert "already shows the value" in (saving.reason or "")
+    posts = [one for one in channel.sent if _payload(one).get("method") == "POST"]
+    assert posts == [], "the warehouse was given a second copy of a record it already had"
+    # Not a write this run made: what earns a job the right to write unasked is
+    # a write that was watched to hold, and this one never went.
+    assert [key for key in _effects(uow) if key[1] == run.id] == []
+
+
+async def test_a_value_the_page_is_merely_scoped_to_does_not_skip_a_write() -> None:
+    """The false positive worth being strict about.
+
+    A run carries its context as well as its content -- a facility, a site, a
+    screen -- and the page's read is addressed to it, so that value is in the
+    probe's own url AND in everything it returns. Matching on it would skip a
+    write for a record nobody has created. Here the run's only value is the
+    one the read is addressed to (`/api/stream`), so the read proves nothing
+    and the write goes.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel(
+        {
+            **_looks(4),
+            "ui.perform": [_performed()],
+            "http.send": [
+                Reply(ok=True, result={"status": 200, "body": '{"scope": "stream"}'}),
+                Reply(ok=True, result={"status": 200, "body": "{}", "headers": {}}),
+            ],
+        }
+    )
+    asker = _ByRungAsker(
+        plans=[_plan("type", "stream"), _replay()],
+        sights=[],
+        verdict=Answer(data={"held": True, "why": "ok"}),
+    )
+
+    run = await _ran(
+        uow, workflow, channel=channel, asker=asker, values={"scope": "stream"}, earned=True
+    )
+
+    posts = [one for one in channel.sent if _payload(one).get("method") == "POST"]
+    assert posts, "the write was skipped over a value that only says which screen this is"
+    assert run.steps[1].verdict == "held"

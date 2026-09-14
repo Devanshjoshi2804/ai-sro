@@ -46,7 +46,16 @@ from sro.application.execution.approvals import K_APPROVAL_WAIT_S, Approvals
 from sro.application.execution.effects import earned, forget_effects, record_effect
 from sro.application.execution.plan_step import SecretFor, plan_by_sight, plan_step
 from sro.application.execution.stops import Stops
-from sro.application.execution.verify import by_what_the_page_called, verify
+from sro.application.execution.verify import (
+    # `already_done` is taken in this module: the steps an operator did
+    # themselves before the run picked it up. Two true meanings of one name,
+    # and mypy caught the collision the moment the import landed.
+    already_done as effect_already_holds,
+)
+from sro.application.execution.verify import (
+    by_what_the_page_called,
+    verify,
+)
 from sro.application.ports.agent import DeviceUnreachable
 from sro.application.ports.channel import Channel, Reply
 from sro.application.ports.model import Asker
@@ -645,6 +654,43 @@ async def run_workflow(
                         or (planned.kind == "ui.perform" and _saw_nothing(step, by_id))
                     )
                 )
+
+                # Already true, so there is nothing to do.
+                #
+                # Before the approval gate on purpose: a person asked to
+                # approve a write that has already happened is a person being
+                # asked to make a duplicate. The run that made this worth
+                # writing signed an operator in who was already signed in, and
+                # the class behind it is wider -- a rule that fires twice, two
+                # browsers on one job, a card answered a day late -- and every
+                # one of those ends in a second record a warehouse wanted one
+                # of.
+                #
+                # Only where the step's own evidence shows the page reading its
+                # effect back and this run carries the value to look for. None
+                # of the run's other steps are touched: a step that opens a
+                # form or picks a row has no read and is done the way it always
+                # was.
+                if live and may_write:
+                    settled_already = await effect_already_holds(
+                        step=step,
+                        cited=cited,
+                        values=values,
+                        channel=channel,
+                        tenant_id=tenant_id,
+                        device_id=device_id,
+                        run_id=run.id,
+                    )
+                    if settled_already is not None:
+                        record.verdict, record.verdict_by = "held", "read"
+                        record.reason = settled_already
+                        # Not a write this run made. `record_effect` is what
+                        # earns a job the right to write unasked, and a step
+                        # that sent nothing has not demonstrated anything about
+                        # this job's ability to write correctly.
+                        record.result = {"skipped": True, "already": True}
+                        verdict = StepVerdict("held", "read", settled_already)
+                        break
 
                 # A live write, on a job that has not yet earned the right to
                 # write unasked: shown in the panel with what would go out, and

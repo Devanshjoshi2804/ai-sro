@@ -52,7 +52,7 @@ from sro.domain.execution.belts import (
 )
 from sro.domain.execution.evidence import recorded_call, writes
 from sro.domain.execution.planning import Look
-from sro.domain.observation.gesture import Gesture
+from sro.domain.observation.gesture import Call, Gesture
 from sro.domain.observation.trim import path_shape
 from sro.domain.shared.hosts import REDACTED
 from sro.domain.shared.identifiers import DeviceId, TenantId
@@ -215,6 +215,98 @@ def _has(document: JsonValue, pointer: str) -> bool:
     return True
 
 
+async def already_done(
+    *,
+    step: Step,
+    cited: list[Gesture],
+    values: Mapping[str, str],
+    channel: Channel,
+    tenant_id: TenantId,
+    device_id: DeviceId,
+    run_id: str,
+) -> str | None:
+    """Whether this write's effect is already true, said in a sentence.
+
+    The verifier's second rung, asked BEFORE the write instead of after. It is
+    the same question in both places -- does the system already show the value
+    this run would supply -- and the answer means something different on each
+    side of the send: after, the write worked; before, there is nothing to do.
+
+    The run that made this worth writing signed an operator in who was already
+    signed in, and there is a whole class behind it: a rule fires twice, two
+    browsers fire the same job, somebody presses Yes on a card they pressed
+    yesterday. Every one of those is a second record in a warehouse that wanted
+    one, and no amount of care in the runner can take a duplicate back.
+
+    Narrow in the same three ways the after-the-fact rung is narrow: only a
+    step whose evidence shows the page performing a read after its write, only
+    when this run actually carries values for the read to show, and only when
+    the read comes back 2xx -- a 404 or a 503 says nothing about the state and
+    must never be read as "already there", which would skip a write that never
+    happened.
+
+    Returns the sentence to record, or None to go ahead and do the step. None
+    is the safe answer and the common one: a step with no probe, a read that
+    could not be made, a body that does not carry the value.
+    """
+    by_id = {gesture.id: gesture for gesture in cited}
+    probe = confirming_read(step, by_id)
+    if probe is None or not values or REDACTED in probe.url:
+        return None
+    # Only values that say WHICH record. A run carries its context as well as
+    # its content -- a facility, a site, a warehouse -- and those appear in the
+    # probe's own url because they are what the page is scoped to. They also
+    # appear in every row it returns, so a list read would match on them and
+    # skip a write for a record nobody has created yet. Asked after the write
+    # this does not matter; asked before it, it is the difference between
+    # "already there" and "this is the right screen".
+    distinctive = {
+        name: value for name, value in values.items() if value and value not in probe.url
+    }
+    if not distinctive:
+        return None
+    got = await _read_back(probe, channel, tenant_id, device_id, run_id)
+    if got is None or not mentions(got, distinctive):
+        return None
+    return (
+        f"a read of {probe.url} already shows the value this run would supply, "
+        "so the step was not performed again"
+    )
+
+
+async def _read_back(
+    probe: Call,
+    channel: Channel,
+    tenant_id: TenantId,
+    device_id: DeviceId,
+    run_id: str,
+) -> str | None:
+    """The confirming read, made, or None where it answers nothing.
+
+    One function for the two callers -- the rung that judges a write and the
+    precondition that decides whether to make one -- because a read that counts
+    as evidence in one of them and not in the other is two rules for one fact.
+    """
+    got = await channel.send(
+        tenant_id,
+        device_id,
+        kind="http.send",
+        run_id=run_id,
+        payload={
+            "method": "GET",
+            "url": probe.url,
+            "headers": headers_without_markers(probe.request_headers),
+            "body": None,
+        },
+    )
+    # The read has to have come back 2xx before its body means anything. A 404
+    # or a 503 answers ok=True with a body that matches nothing.
+    status = status_of(got.result) if got.ok else None
+    if status is None or not (200 <= status < 300):
+        return None
+    return str(got.result.get("body") or "")
+
+
 async def by_what_the_page_called(
     *,
     step: Step,
@@ -335,24 +427,9 @@ async def verify(
     # A probe whose url carries a struck-out credential would ask with the
     # marker's text in the query string; that answers nothing about the state.
     if probe is not None and values and REDACTED not in probe.url:
-        got = await channel.send(
-            tenant_id,
-            device_id,
-            kind="http.send",
-            run_id=run_id,
-            payload={
-                "method": "GET",
-                "url": probe.url,
-                "headers": headers_without_markers(probe.request_headers),
-                "body": None,
-            },
-        )
-        # The read has to have come back 2xx before its body means anything. A
-        # 404 or a 503 answers ok=True with a body that matches nothing, and
-        # deciding off `ok` alone marked a correct write failed.
-        read_status = status_of(got.result) if got.ok else None
-        if read_status is not None and 200 <= read_status < 300:
-            if mentions(str(got.result.get("body") or ""), values):
+        body = await _read_back(probe, channel, tenant_id, device_id, run_id)
+        if body is not None:
+            if mentions(body, values):
                 return StepVerdict(
                     "held", "read", f"a read of {probe.url} shows the value this run supplied"
                 )

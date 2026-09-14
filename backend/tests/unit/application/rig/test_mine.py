@@ -438,7 +438,13 @@ async def test_the_key_a_pass_mints_is_a_sequence_and_not_a_set() -> None:
 
     assert result.kept == 1
     key = (await uow.workflows.known(TENANT))[0].shape_key
-    assert [triple[2] for triple in key] == ["type", "click", "click"]
+    # Four rungs and not three: this day's evidence includes a type into a
+    # field the recorder marked secret, on the same host and inside the doing,
+    # and `with_passwords` adds the step for it that no model can cite. The
+    # property under test is unchanged -- the key is the order the steps run in
+    # and not a set -- and the password is typed second, where the operator
+    # typed it.
+    assert [triple[2] for triple in key] == ["type", "type", "click", "click"]
 
 
 async def test_the_jobs_already_proven_are_paid_for_out_of_the_window() -> None:

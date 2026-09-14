@@ -633,6 +633,53 @@ test("a rule that almost fired is drawn, and offers nothing to press", () => {
   assert.equal(of(item, "button").length, 0);
 });
 
+test("an offer about another system keeps its words and loses its buttons", () => {
+  // What an operator actually saw: standing on their login page, shown "create
+  // an equipment type -- want me to do the next one?" with live buttons, for a
+  // warehouse host they were not on. Pressing it would drive a tab they are
+  // not looking at, off evidence from hours before.
+  const thread = {
+    id: "thr-1",
+    messages: [
+      {
+        id: "m1",
+        speaker: "system",
+        said_at: WHEN,
+        text: "Create an equipment type — you've done this 4 times.",
+        decision: { kind: "offer", candidate_id: "cnd-1", host: "wms.test" },
+      },
+    ],
+  };
+
+  const away = messages(ledger(thread, { here: "login.test" }, {}))[0];
+  assert.match(words(away), /Create an equipment type/, "the offer stopped being said at all");
+  assert.match(words(away), /on wms.test/);
+  assert.equal(of(away, "button").length, 0);
+
+  const there = messages(ledger(thread, { here: "wms.test" }, {}))[0];
+  assert.equal(of(there, "button").length, 2, "the offer lost its buttons where it applies");
+});
+
+test("an offer whose host nobody knows keeps its buttons", () => {
+  // Hiding a control on a guess is worse than showing one that turns out to be
+  // about the next tab: an older backend sends no host, and a panel that has
+  // not learned which tab it is beside knows no `here`.
+  const thread = {
+    id: "thr-1",
+    messages: [
+      {
+        id: "m1",
+        speaker: "system",
+        said_at: WHEN,
+        text: "Create an equipment type.",
+        decision: { kind: "offer", candidate_id: "cnd-1" },
+      },
+    ],
+  };
+
+  assert.equal(of(messages(ledger(thread, { here: "login.test" }, {}))[0], "button").length, 2);
+});
+
 for (const [name, fn] of tests) {
   try {
     await fn();

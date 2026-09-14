@@ -56,6 +56,7 @@ from sro.domain.skill.checks import (
     work_only,
 )
 from sro.domain.skill.learned import LearnedParameter, parameters_across
+from sro.domain.skill.passwords import with_passwords
 from sro.domain.skill.shape import in_time_order
 from sro.domain.skill.umbrella import (
     K_EFFORT,
@@ -491,6 +492,19 @@ async def _one_pass(
             # actually be stored, and refuses it for an uncited step if the
             # doing it kept cannot supply one.
             one_occurrence(proposal, by_id)
+            # After the narrowing and before the judging. The credential
+            # gesture is invisible to a model -- redaction leaves it no value
+            # and no name to point at -- so the step that types a password is
+            # added from the evidence rather than asked for, and it is judged
+            # like any other step: `validate` sees a step citing a real
+            # gesture of this doing.
+            typed = with_passwords(proposal, by_id)
+            if typed:
+                logger.info(
+                    "%s: %s credential step(s) the model could not see",
+                    proposal.title,
+                    typed,
+                )
             rejection = validate(proposal, evidence) or work_only(proposal, by_id, ours=ours)
             if rejection is not None:
                 result.rejections.append(rejection)

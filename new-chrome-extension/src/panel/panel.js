@@ -520,6 +520,14 @@ async function setWatch(button, on) {
   await refresh();
 }
 
+/** How long a nudge that ended stays on screen.
+ *
+ * Four seconds: long enough that an offer disappearing reads as the offer
+ * ending rather than the panel dropping it, short enough that a day of them
+ * never becomes the wall of unpressable history an operator found themselves
+ * scrolling past on a page none of it was about. */
+const JUST_ENDED_MS = 4_000;
+
 /** A run driving this browser, possibly started somewhere else.
  *
  * Stoppable from here because this is where somebody sees it happening: a run
@@ -1107,7 +1115,7 @@ function show(thread, { asked = false } = {}) {
   // to have: every poll computed the same signature and returned.
   const answered = `${lastStatus?.answer?.askedAt || ""}:${(lastStatus?.answer?.answers || []).length}`;
   const missed = (lastStatus?.nearMisses || []).map((one) => `${one.triggerId}:${one.at}`).join(",");
-  const now = `${thread.id}:${(thread.messages || []).map((message) => message.id).join(",")}|${mine}|${answered}|${missed}`;
+  const now = `${thread.id}:${(thread.messages || []).map((message) => message.id).join(",")}|${mine}|${answered}|${missed}|${hostOf(tabHere.url || "")}`;
   if (now === drawn) return;
   if (!asked && drawn !== null && document.activeElement?.tagName === "INPUT") return;
   drawn = now;
@@ -1116,11 +1124,28 @@ function show(thread, { asked = false } = {}) {
   // Neither is written down, and both belong in the order things happened.
   const local = {
     offers: lastStatus?.offers || [],
-    nudges: (lastStatus?.nudges || []).filter(
-      (nudge) => nudge.state !== "open" || nudge.tabId === tabHere.tabId,
+    // Open ones for THIS tab, and ones that ended in the last few seconds --
+    // nothing else.
+    //
+    // An operator on their login page was shown eleven rows saying "you were
+    // on Create a Work Area" and "you were on Create Customer Type DSS", none
+    // of them about the page in front of them, none of them pressable, from
+    // yesterday. A nudge is a thing offered and then gone; the ledger is for
+    // what was SAID and DECIDED, and an offer nobody answered decided nothing.
+    //
+    // The brief tail is deliberate rather than zero: an offer that vanishes
+    // the instant it expires looks, to somebody who just watched it appear,
+    // like the panel losing it. Four seconds is long enough to see it go.
+    nudges: (lastStatus?.nudges || []).filter((nudge) =>
+      nudge.state === "open"
+        ? nudge.tabId === tabHere.tabId
+        : Date.now() - (nudge.endedAt || 0) < JUST_ENDED_MS,
     ),
     answer: lastStatus?.answer || null,
     nearMisses: lastStatus?.nearMisses || [],
+    // Which system the operator is actually looking at, so an offer about
+    // another one keeps its words and loses its buttons.
+    here: hostOf(tabHere.url || ""),
   };
   openOffers = (thread.messages || []).filter(
     (message) => ["offer", "mail_match"].includes(message.decision?.kind || "")

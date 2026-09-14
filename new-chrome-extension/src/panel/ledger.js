@@ -114,7 +114,7 @@ export function ledger(thread, local = {}, { onPress, runs } = {}) {
   let lastMinute = "";
   for (const entry of entries) {
     const item = entry.message
-      ? saying(entry.message, onPress, spent, { offers, runs })
+      ? saying(entry.message, onPress, spent, { offers, runs, here: local?.here || "" })
       : entry.answer
         ? answering(entry.answer)
         : entry.miss
@@ -235,6 +235,19 @@ function preview(one) {
   const seen = one.seen || {};
   if (seen.text_digest) return String(seen.text_digest).slice(0, 240);
   return one.status ? `answered ${one.status}` : "answered";
+}
+
+/** Whether this offer is about somewhere the operator is not.
+ *
+ * Host and not page: an offer is about a task on a system, and an operator who
+ * is anywhere on that system can sensibly say yes. Unknown either way -- an
+ * older backend that sent no host, a panel that has not learned which tab it
+ * is docked beside -- keeps the buttons, because hiding a control on a guess
+ * is worse than showing one that turns out to be about the next tab.
+ */
+function elsewhere(message, here) {
+  const host = message.decision?.host;
+  return Boolean(host && here && host !== here);
 }
 
 /** Local time, because the operator reads it against their own day. */
@@ -407,7 +420,7 @@ function offeringToFinish(nudge, onPress) {
   return item;
 }
 
-function saying(message, onPress, spent = new Map(), { offers = [], runs } = {}) {
+function saying(message, onPress, spent = new Map(), { offers = [], runs, here = "" } = {}) {
   const item = document.createElement("li");
   item.className = "message";
   item.dataset.speaker = message.speaker || "system";
@@ -433,7 +446,19 @@ function saying(message, onPress, spent = new Map(), { offers = [], runs } = {})
     // offer is still what was said, and the answer is still its own message;
     // what is gone is the invitation to answer a second time.
     if (already) item.dataset.answered = already;
-    else item.append(pressing(KINDS.offer, message, item, onPress));
+    else if (elsewhere(message, here)) {
+      // Somewhere else entirely. An operator standing on their login page was
+      // shown "create an equipment type -- want me to do the next one?" with
+      // live buttons, for a warehouse host they were not on: pressing it would
+      // drive a tab they are not looking at, off evidence from hours ago. The
+      // sentence stays, because it was said; the invitation does not, because
+      // it is not an invitation from here.
+      item.dataset.answered = "elsewhere";
+      const where = document.createElement("p");
+      where.className = "detail";
+      where.textContent = `on ${message.decision.host}`;
+      item.append(where);
+    } else item.append(pressing(KINDS.offer, message, item, onPress));
   } else if (kind === "mail_match") {
     matched(item, message, offers, onPress);
   } else if (kind === "question") {

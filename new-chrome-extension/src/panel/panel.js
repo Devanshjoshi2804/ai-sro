@@ -210,8 +210,25 @@ function render(status) {
   // opens onto. The rest -- a run, what it made, what is wrong -- stay where
   // they are, above the day.
   const [state, ...rest] = cards;
-  $("expanded").replaceChildren(state);
-  $("cards").replaceChildren(...rest);
+  // Never while somebody is typing a password into one of these cards.
+  //
+  // This redraw runs on the two-second poll and replaces every card with a
+  // freshly built one, which takes the box with it: an operator typing their
+  // password into the card that asked for it watched it empty itself every
+  // two seconds. The thread has held this rule since the composer was built
+  // -- a redraw that lands on somebody mid-sentence throws away what they
+  // typed -- and the cards column had no equivalent because nothing in it was
+  // ever typed into.
+  //
+  // Narrow on purpose: only a password box, because that is the one control
+  // here whose value cannot be recovered from anywhere (a parameter field is
+  // redrawn from `run.parameters`, which the worker holds). Everything else
+  // keeps updating, and the moment they press Save or click away the next
+  // poll draws normally.
+  if (document.activeElement?.type !== "password") {
+    $("expanded").replaceChildren(state);
+    $("cards").replaceChildren(...rest);
+  }
 
   // While a demonstration is being recorded the panel is about that and
   // nothing else, and none of it applies to a browser that is not connected.
@@ -624,7 +641,13 @@ async function keepSecret({ system, field, value }) {
   // exception, and an exception inside the Save listener would leave the
   // person who just typed their password looking at a row that said nothing.
   try {
-    return await ask({ kind: "keep-secret", system, field, value });
+    const kept = await ask({ kind: "keep-secret", system, field, value });
+    // Said under the cards as well as on the row. The row's own line is drawn
+    // inside a card the next poll rebuilds -- the guard above only holds it
+    // while the box has the cursor -- so an operator who presses Save and
+    // looks away would otherwise have nothing left saying it worked.
+    if (kept?.ok) said("password kept — press Yes again and it will sign in");
+    return kept;
   } catch (error) {
     return { ok: false, error: error.message };
   }

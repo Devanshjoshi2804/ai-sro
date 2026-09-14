@@ -1830,6 +1830,46 @@ test("the same thread and the same offers are not redrawn", async () => {
   assert.strictEqual(ids["said"].kids[0], first, "nothing changed and it was redrawn anyway");
 });
 
+test("the poll does not empty the box somebody is typing their password into", async () => {
+  // The card asked for the password, the operator started typing it, and the
+  // two-second poll rebuilt every card from scratch -- taking the box and what
+  // was in it. The thread has held this rule since the composer was built; the
+  // cards column had nothing typed into it until this card existed.
+  const status = {
+    deviceId: "dev-1",
+    finished: {
+      id: "run_1",
+      source: "rig",
+      status: "stopped",
+      steps: [
+        {
+          index: 0,
+          outcome: "failed",
+          says: "Type the password.",
+          sent: {
+            kind: "none",
+            payload: { needs_secret: { system: "keycloak.test", field: "password" } },
+          },
+        },
+      ],
+    },
+  };
+  const made = panel(status);
+  const box = inputs(made.ids["cards"]).find((one) => one.type === "password");
+  assert.ok(box, "the card that asked for a password drew no box");
+
+  box.value = "half-ty";
+  made.focus(box);
+  made.render(status);
+
+  assert.strictEqual(
+    inputs(made.ids["cards"]).find((one) => one.type === "password"),
+    box,
+    "the poll replaced the box somebody was typing into",
+  );
+  assert.equal(box.value, "half-ty", "what they had typed was thrown away");
+});
+
 test("pressing Yes on a rule that fired actually answers it", async () => {
   // A rule fired, the panel drew "Log In - an arrival trigger fired. Shall I?",
   // the operator pressed Yes twice thirteen minutes apart, and both

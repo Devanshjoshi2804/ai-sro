@@ -124,6 +124,10 @@ def without_secrets(payload: Mapping[str, object]) -> dict[str, object]:
     password in `workflow_run_steps.sent` would reach all three, and the row
     outlives the run by as long as the tenant keeps its evidence.
     """
-    if "value" not in payload:
+    # `None` is not a value to strike out. A click carries `value: None` --
+    # the planner fills the field for every command shape -- and marking it
+    # put "«from the vault»" on the Sign In click in a real run's record,
+    # which says a password was typed by a step that typed nothing.
+    if payload.get("value") is None:
         return dict(payload)
     return {**payload, "value": SECRET_MARK}

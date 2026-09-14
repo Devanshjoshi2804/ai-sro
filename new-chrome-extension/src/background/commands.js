@@ -230,6 +230,7 @@ async function uiPerform(payload, runId) {
       ? await inPage(tab.id, performInPage, [payload])
       : await inFrame(tab.id, frameId, performInPage, [payload]);
   hold(tab.id);
+  if (answer?.ok) await reacted(tab.id, payload.action);
   return answer || failure("not_actionable", "the page did not answer");
 }
 
@@ -339,6 +340,52 @@ function settled(tabId) {
   });
 }
 
+const REACTS_WITHIN_MS = 900;
+const LOADS_WITHIN_MS = 8_000;
+
+/** Let the page finish reacting before anybody looks at it.
+ *
+ * A click on Sign In is a form submit: the command returns the instant the
+ * click dispatches, and the run then photographs a page that has not started
+ * navigating yet. That is what happened on a real login -- username typed,
+ * password typed from the vault, Sign In pressed, and the verifier reported
+ * "the browser remains on the Keycloak login page with the sign-in form still
+ * visible", because it was looking at the page as it had been a moment before.
+ * The run stopped on a step that had in fact worked.
+ *
+ * Bounded twice. If nothing starts loading within `REACTS_WITHIN_MS` this
+ * returns: a click that opens a menu navigates nowhere, and waiting on it
+ * would add a second to every step of every run. Once something IS loading it
+ * waits for complete, up to `LOADS_WITHIN_MS` -- a page held open by a
+ * third-party script is still worth looking at, and the verifier says what it
+ * sees either way.
+ *
+ * Not for typing. A keystroke does not submit anything, and a run that fills
+ * six fields would pay the wait six times over for nothing.
+ */
+function reacted(tabId, action) {
+  if (action === "type") return Promise.resolve();
+  return new Promise((resolve) => {
+    let loading = false;
+    const done = () => {
+      chrome.tabs.onUpdated.removeListener(watch);
+      clearTimeout(quiet);
+      clearTimeout(cap);
+      resolve();
+    };
+    const watch = (id, change) => {
+      if (id !== tabId) return;
+      if (change.status === "loading") loading = true;
+      else if (change.status === "complete" && loading) done();
+    };
+    const quiet = setTimeout(() => {
+      if (!loading) done();
+    }, REACTS_WITHIN_MS);
+    const cap = setTimeout(done, LOADS_WITHIN_MS);
+    chrome.tabs.onUpdated.addListener(watch);
+  });
+}
+
 /** Which frame of the page holds this control.
  *
  * The recorder registers with `allFrames: true`, so a demonstration on a screen
@@ -399,6 +446,7 @@ async function uiPerformAt(payload) {
   hold(tab.id);
   const answer = await inPage(tab.id, performAtInPage, [payload]);
   hold(tab.id);
+  if (answer?.ok) await reacted(tab.id, payload.action);
   return answer || failure("not_actionable", "the page did not answer");
 }
 

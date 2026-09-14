@@ -127,3 +127,11 @@ def test_what_the_run_writes_down_is_the_mark_and_not_the_value() -> None:
 
 def test_a_payload_with_no_value_is_left_exactly_as_it_is() -> None:
     assert without_secrets({"action": "click"}) == {"action": "click"}
+
+
+def test_a_command_that_types_nothing_is_not_said_to_have_typed_a_password() -> None:
+    """A click carries `value: None` -- the planner fills the field for every
+    command shape -- and marking it put "«from the vault»" on the Sign In click
+    of a real run, which reads as a password typed by a step that typed
+    nothing."""
+    assert without_secrets({"action": "click", "value": None})["value"] is None

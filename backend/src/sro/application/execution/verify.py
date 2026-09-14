@@ -52,6 +52,7 @@ from sro.domain.execution.belts import (
     SCREEN_INSTRUCTIONS,
     SCREEN_SCHEMA,
     StepVerdict,
+    carries_every,
     confirming_read,
     expected_statuses,
     mentions,
@@ -273,7 +274,15 @@ async def already_done(
     if not distinctive:
         return None
     got = await _read_back(probe, channel, tenant_id, device_id, run_id)
-    if got is None or not mentions(got, distinctive):
+    # EVERY distinctive value, not any of them. A job carries values that
+    # change from run to run beside values that do not, and `mentions` -- the
+    # right rule after the write, where one value coming back is the record
+    # coming back -- reads a record whose unchanged half matches as the record
+    # this run was about to create. Four live runs of a three-step job proved
+    # it on 2026-09-15: a new client code each time, the same reference, and
+    # all four skipped the write on the PREVIOUS record's reference and
+    # reported `held` with nothing sent.
+    if got is None or not carries_every(got, distinctive):
         return None
     return (
         f"a read of {probe.url} already shows the value this run would supply, "

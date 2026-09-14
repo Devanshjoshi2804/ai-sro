@@ -29,7 +29,7 @@ the picture -- is the application's, and asks these questions.
 from __future__ import annotations
 
 import json
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 
 from sro.domain.execution.evidence import READ_METHODS, recorded_call
@@ -187,13 +187,44 @@ def mentions(body: str, values: Mapping[str, str]) -> bool:
     either -- this tenant's real work-area codes are two characters. Substring
     is kept only for a body that is not JSON, where there are no leaves to
     compare.
+
+    ANY value, because this is asked AFTER the write: the read is being shown
+    the record that was just made, and one value of it coming back is the
+    record coming back. `carries_every` is the same question asked before the
+    write, where any is the wrong quantifier and the difference is a write
+    that never happens.
     """
+    return _carried(body, values, quantifier=any)
+
+
+def carries_every(body: str, values: Mapping[str, str]) -> bool:
+    """Whether the read shows ALL of what this run would write.
+
+    The precondition's rule, and it has to be every one of them. A job carries
+    values that change from run to run and values that do not -- an order's
+    reference, a facility, a site -- and `any` reads a record whose UNCHANGED
+    half matches as the record this run was going to create.
+
+    Measured end to end, live, on 2026-09-15: four runs of a three-step job
+    that types a new client code and the same reference each time. The
+    confirming read answered the PREVIOUS record, its `reference` matched, and
+    every one of the four skipped its write and reported `held` -- 0 writes
+    reached the page across four runs that each said they had done the job.
+    Nothing in 3000 unit tests saw it, because nothing asked what happens when
+    one of the values is the same as last time.
+    """
+    return _carried(body, values, quantifier=all)
+
+
+def _carried(
+    body: str, values: Mapping[str, str], *, quantifier: Callable[[Iterator[bool]], bool]
+) -> bool:
     try:
         parsed = json.loads(body)
     except ValueError:
-        return any(value and value in body for value in values.values())
+        return quantifier(bool(value) and value in body for value in values.values())
     leaves = set(_leaves(parsed))
-    return any(value and value in leaves for value in values.values())
+    return quantifier(bool(value) and value in leaves for value in values.values())
 
 
 @dataclass(frozen=True, slots=True)

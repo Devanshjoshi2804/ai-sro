@@ -3888,6 +3888,60 @@ async def test_a_write_whose_effect_is_already_true_is_not_made_again() -> None:
     assert [key for key in _effects(uow) if key[1] == run.id] == []
 
 
+async def test_a_record_that_only_matches_on_the_unchanged_half_is_not_this_one() -> None:
+    """The defect four live runs found, which every test here missed by
+    carrying exactly one value.
+
+    A job carries values that change from run to run beside values that do
+    not -- an order's reference, a facility, a site. Asked with `any`, the
+    precondition reads the PREVIOUS record, sees the unchanged half match, and
+    skips the write. On 2026-09-15 that was four live runs of a three-step job
+    against a real page: a new client code each time, the same reference, all
+    four reported `held`, and the page received nothing.
+
+    Every value, or it is not this record.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel(
+        {
+            **_looks(4),
+            "ui.perform": [_performed()],
+            "http.send": [
+                # The record BEFORE this one: same reference, different code.
+                Reply(
+                    ok=True,
+                    result={
+                        "status": 200,
+                        "body": '{"clientCode": "FIRST", "reference": "PO-88213"}',
+                    },
+                ),
+                Reply(ok=True, result={"status": 201, "body": "{}"}),
+            ],
+            "calls.since": [Reply(ok=True, result={"calls": []})] * 4,
+        }
+    )
+    asker = _ByRungAsker(
+        plans=[_plan("type", "SECOND"), _replay()],
+        sights=[],
+        verdict=Answer(data={"held": True, "why": "ok"}),
+    )
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        values={"clientCode": "SECOND", "reference": "PO-88213"},
+        earned=True,
+    )
+
+    saving = run.steps[1]
+    assert "already shows the value" not in (saving.reason or "")
+    posts = [one for one in channel.sent if _payload(one).get("method") == "POST"]
+    assert posts, "the write was skipped on the previous record's reference"
+
+
 async def test_a_value_the_page_is_merely_scoped_to_does_not_skip_a_write() -> None:
     """The false positive worth being strict about.
 

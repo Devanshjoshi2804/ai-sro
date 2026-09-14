@@ -116,8 +116,15 @@ def test_the_shipped_default_leaves_the_rig_miner_on() -> None:
 
     A system whose promise is that it watches the work, notices the repetition
     and offers the job back cannot wait for somebody to press a button.
+
+    A MINUTE, where this was an hour. An operator did a task, nothing offered
+    it back, and the reason was a clock with no idea their evidence had
+    arrived: uploads land a median 27 seconds after the moment they cover and
+    then waited up to 59 more minutes. The interval is affordable because a
+    pass with nothing new to read is refused before it is paid for, and it is
+    safe because a tenant still uploading is left to settle first.
     """
-    assert Settings(_env_file=None).rig_sweep_seconds == 3600.0
+    assert Settings(_env_file=None).rig_sweep_seconds == 60.0
 
 
 async def test_the_rig_sweep_sleeps_before_it_mines() -> None:

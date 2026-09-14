@@ -331,7 +331,7 @@ class Settings(BaseSettings):
     session keeper: it holds no state worth replaying and a missed sweep is
     corrected by the next one."""
 
-    rig_sweep_seconds: float = 3600.0
+    rig_sweep_seconds: float = 60.0
     """How often the RIG's miner reads each recorded tenant's day, or 0 to
     leave it to a deliberate call.
 
@@ -349,21 +349,36 @@ class Settings(BaseSettings):
     caller and it was a door. Every mining result this project has measured
     came from a person running a script.
 
-    An hour, and the interval is what decides how much of a day gets read
-    rather than how fresh the answer is. A pass reads ONE window of the
-    tenant's evidence, and the carry-over pool rotates which evidence that is:
-    measured over ten simulated passes, pass 1 covered 81% and pass 2 96%, with
-    nineteen gestures never shown. So passes are how coverage is bought, and an
-    hour buys a working day in a working day.
+    A MINUTE, where this was an hour until an operator asked the obvious
+    question: they did a task, nothing offered it back, and the reason was a
+    clock with no idea their evidence had arrived. Measured on tenant `new`,
+    an upload lands a median 27 seconds after the moment it covers, and then
+    waited up to 59 more minutes for a sweep. Now: about three minutes, worst
+    case, from doing a thing to being offered it.
+
+    A minute does not cost sixty times an hour, because a pass that has nothing
+    new to read is refused before it is paid for -- `_worth_a_pass` asks whether
+    any evidence arrived since the last pass started, and a tenant nobody is
+    working in is one cheap query per minute. What an interval this short DOES
+    introduce is reading somebody mid-task, and `K_SETTLE_S` is the answer to
+    that: a tenant still uploading is left alone until its evidence goes quiet.
+
+    The interval also decides how much of a day gets read. A pass reads ONE
+    window of the tenant's evidence, and the carry-over pool rotates which
+    evidence that is: measured over ten simulated passes, pass 1 covered 81%
+    and pass 2 96%, with nineteen gestures never shown. So passes are how
+    coverage is bought, and more of them is more coverage as well as less
+    waiting.
 
     What stops it costing more than that is `daily_usd_cap`, which `over_cap`
     measures PER TENANT -- so a busy tenant cannot spend a quiet one's budget,
     and the sweep's alphabetical order decides nothing. Measured over the 38
     passes stored across both real tenants: mean $0.46 and $0.27, worst case
-    $2.00. Twenty-four hourly passes is therefore $7 to $11 a day against a
-    default cap of $100, and even the worst pass repeated hourly stops at the
-    cap rather than past it. A cap reached is logged per tenant and is not an
-    error.
+    $2.00. A pass costs that only when there is something new to read, so the
+    bill follows the work rather than the clock: a day with six bursts of
+    activity is six passes, and the cap stops the pathological case -- somebody
+    working continuously for eight hours -- at $100 rather than past it. A cap
+    reached is logged per tenant and is not an error.
 
     A tenant whose browsers uploaded nothing in `mining_window_hours` is not
     swept at all. A pass re-reads that tenant's whole history, so one with no

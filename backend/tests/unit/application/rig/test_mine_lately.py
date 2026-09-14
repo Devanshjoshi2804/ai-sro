@@ -52,7 +52,14 @@ class _Passes:
         return MineResult(pass_id=f"pas_{ctx.tenant_id.value}", kept=1)
 
 
-async def _recorded(uow: FakeUnitOfWork, *tenants: str, taken: datetime = NOW) -> None:
+SETTLED = NOW - timedelta(minutes=5)
+"""When the evidence in most of these tests arrived: long enough ago that the
+operator has stopped. The sweep leaves a tenant that is still uploading alone,
+so evidence stamped `NOW` would be skipped by every test here for a reason none
+of them is about."""
+
+
+async def _recorded(uow: FakeUnitOfWork, *tenants: str, taken: datetime = SETTLED) -> None:
     for tenant in tenants:
         await uow.gestures.add_batch(
             GestureBatch(
@@ -290,3 +297,47 @@ async def test_one_tenants_quiet_day_does_not_skip_the_tenant_beside_it() -> Non
 
     assert passes.asked == ["new"]
     assert sorted(mined) == ["new"]
+
+
+async def test_a_tenant_still_working_is_left_to_finish() -> None:
+    """The failure a minute-by-minute sweep introduces, and the reason it can
+    run that often.
+
+    An operator halfway through creating a supplier has filled two fields. Mine
+    them now and the half they have done is proposed, kept, and offered back
+    forever as though it were the job. Waiting costs one interval, and nothing
+    is lost by waiting: the evidence does not go anywhere.
+    """
+    uow = FakeUnitOfWork()
+    await _recorded(uow, "acme", taken=NOW - timedelta(seconds=20))
+    passes = _Passes()
+
+    mined = await _swept(uow, passes)
+
+    assert mined == {}
+    assert passes.asked == [], "somebody was mined in the middle of their task"
+
+
+async def test_a_tenant_that_has_gone_quiet_is_mined_on_the_next_sweep() -> None:
+    # The other side of the same rule: two minutes of silence is a person who
+    # stopped, measured against doings of 35 to 180 seconds and uploads that
+    # land a median 27 seconds after the moment they cover.
+    uow = FakeUnitOfWork()
+    await _recorded(uow, "acme", taken=NOW - timedelta(seconds=150))
+    passes = _Passes()
+
+    mined = await _swept(uow, passes)
+
+    assert passes.asked == ["acme"]
+    assert mined["acme"].kept == 1
+
+
+async def test_one_tenant_working_does_not_hold_up_another_who_has_stopped() -> None:
+    uow = FakeUnitOfWork()
+    await _recorded(uow, "acme", taken=NOW - timedelta(seconds=10))
+    await _recorded(uow, "new", taken=NOW - timedelta(minutes=10))
+    passes = _Passes()
+
+    await _swept(uow, passes)
+
+    assert passes.asked == ["new"]

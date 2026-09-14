@@ -67,6 +67,23 @@ def _when(stamp: str) -> datetime:
     return started if started.tzinfo else started.replace(tzinfo=UTC)
 
 
+K_SETTLE_S = 120.0
+"""How quiet a tenant's evidence has to go before a sweep reads it.
+
+The sweep runs every minute now rather than every hour, which is the whole
+point -- a task done at 10:00 was offered back at 11:00 and an operator
+reasonably asked why. What a minute-by-minute sweep introduces is the opposite
+failure: reading somebody mid-task, proposing the half of a job they had
+finished, and offering that half back forever.
+
+Two minutes, against what this store holds: a doing of a real task runs 35 to
+180 seconds of continuous gestures, and uploads arrive a median 27 seconds
+after the moment they cover. So two minutes of silence is a person who has
+stopped, not a person thinking -- and the cost of being wrong is one more
+interval, because nothing is thrown away by waiting.
+"""
+
+
 class MineLately:
     """One pass for each tenant whose browsers uploaded in the window.
 
@@ -93,12 +110,14 @@ class MineLately:
         *,
         window_hours: int,
         max_reads: int = MAX_READS,
+        settle_seconds: float = K_SETTLE_S,
     ) -> None:
         self._uow = uow
         self._pass = pass_
         self._reader = reader
         self._window_hours = window_hours
         self._max_reads = max_reads
+        self._settle = settle_seconds
 
     async def _read(self, ctx: RequestContext) -> int:
         """Everything unread, up to the bound. One `ReadGestures` call reads at
@@ -151,12 +170,28 @@ class MineLately:
         since = now - timedelta(hours=self._window_hours)
         async with self._uow as uow:
             tenants = await uow.gestures.tenants_since(since)
+            # Whoever is still uploading. Asked as "who has sent anything in the
+            # last `settle` seconds" rather than by reading a newest-upload
+            # column, because the port already answers that question and a
+            # second way to ask it is a second thing to keep true.
+            still_going = set(
+                await uow.gestures.tenants_since(now - timedelta(seconds=self._settle))
+            )
             worth = {
                 tenant_id.value: await self._worth_a_pass(uow, tenant_id) for tenant_id in tenants
             }
 
         mined: dict[str, MineResult] = {}
         for tenant_id in tenants:
+            if tenant_id in still_going:
+                # Mid-task. This sweep runs every minute now, so the operator
+                # who is halfway through creating a supplier would otherwise be
+                # mined at the point they had filled two fields -- and half a
+                # job, proposed and kept, is a job that will be offered back
+                # half done. Waiting costs one interval and nothing else: the
+                # evidence does not go anywhere.
+                logger.info("%s: still working; leaving this one to settle", tenant_id.value)
+                continue
             if not worth[tenant_id.value]:
                 logger.info("%s: nothing new since the last pass", tenant_id.value)
                 continue

@@ -6,6 +6,8 @@ import re
 import secrets
 from dataclasses import dataclass, field
 
+from sro.domain.skill.repeats import Repeat
+
 K_MIN_VALUE_LENGTH = 3
 """How long a parameter value has to be before a title repeating it is quoting
 it rather than coinciding with it. `DSS` and `DDD` name a customer type and an
@@ -57,6 +59,15 @@ class Workflow:
     # times. Empty for a workflow saved outside a pass, which today is only a
     # test.
     pass_id: str = ""
+
+    repeat: Repeat | None = None
+    """The steps done once per thing on a list, where this job has them.
+
+    `None` is every job mined before this existed and every job that does one
+    thing once, which is most of them. What repeats is a fact about the JOB;
+    how many times is a fact about the request, and a run of a repeating job
+    given one item performs exactly like a run of a job with no repeat at all.
+    See `domain/skill/repeats`."""
 
     def generalise_title(self) -> None:
         """This job's own parameter values taken out of its name.

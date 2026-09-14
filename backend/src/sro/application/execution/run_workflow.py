@@ -40,8 +40,9 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from contextlib import suppress
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
 from sro.application.execution.approvals import K_APPROVAL_WAIT_S, Approvals
@@ -78,6 +79,7 @@ from sro.domain.observation.gesture import Gesture
 from sro.domain.shared.hosts import system_of
 from sro.domain.shared.identifiers import DeviceId, TenantId
 from sro.domain.shared.prices import Answer
+from sro.domain.skill.repeats import K_MOST_ITEMS, Repeat
 from sro.domain.skill.workflow import Step, Workflow
 
 K_SAME_WRITE_WINDOW = timedelta(minutes=30)
@@ -111,6 +113,54 @@ K_LEAVES = ("http.send", "navigate")
 """The two kinds whose target the model chooses, and so the only two ways a
 plan can leave the system the evidence was recorded on. For everything else the
 origin comes off the evidence."""
+
+
+@dataclass(frozen=True, slots=True)
+class _Leg:
+    """One step of a run, and which thing on the list it is being done for."""
+
+    step: Step
+    values: Mapping[str, str]
+    item: int | None = None
+
+
+def _itinerary(
+    ordered: Sequence[Step],
+    repeat: Repeat | None,
+    values: Mapping[str, str],
+    items: Sequence[Mapping[str, str]],
+) -> list[_Leg]:
+    """The steps this run will actually perform, in the order it will do them.
+
+    A job that does one thing once answers with its own steps and nothing else
+    -- and so does a repeating job handed no items, or one item, which is what
+    keeps every other rule in this loop from having to learn about repeats.
+
+    Where there is a list, the body is laid out once per thing on it, with that
+    thing's values over the run's own. The item's values win: a run carrying a
+    `facility` for the whole job and an item carrying its own is a run where
+    the item is the more specific answer.
+
+    Nothing is interleaved. The body is done for the first thing and then for
+    the second, because that is the order an operator does them in and the
+    order a half-finished run has to be readable in: three records made and two
+    not, rather than five records each missing their last field.
+    """
+    if repeat is None or len(items) <= 1:
+        only = dict(items[0]) if items else {}
+        return [_Leg(step, {**values, **only}) for step in ordered]
+    legs: list[_Leg] = []
+    for step in ordered:
+        if not repeat.covers(step.order):
+            legs.append(_Leg(step, values))
+            continue
+        if step.order != repeat.first_step:
+            continue
+        for index, item in enumerate(items):
+            for inner in ordered:
+                if repeat.covers(inner.order):
+                    legs.append(_Leg(inner, {**values, **item}, index))
+    return legs
 
 
 def _now() -> str:
@@ -355,6 +405,7 @@ async def run_workflow(
     approvals: Approvals,
     run_id: str | None = None,
     from_step: int = 0,
+    items: Sequence[Mapping[str, str]] = (),
     verified_writes: tuple[VerifiedWrite, ...] = (),
     secret_for: SecretFor | None = None,
 ) -> WorkflowRun:
@@ -414,6 +465,7 @@ async def run_workflow(
         # compares a re-press against, and a row that does not carry it would
         # refuse every resume as a disagreement with zero.
         from_step=from_step,
+        items=[dict(item) for item in items],
     )
     values, live, allow_focus = run.values, run.live, run.allow_focus
     device_id = DeviceId(run.device_id)
@@ -421,13 +473,38 @@ async def run_workflow(
     by_id = await _gestures_for(uow, tenant_id, workflow)
     allowed = allowlist(workflow, by_id)
     ordered = sorted(workflow.steps, key=lambda s: s.order)
+    # A list longer than one press can mean.
+    #
+    # Refused before anything is sent and before the first record is made: an
+    # operator pressing yes on "add these" has read a mail with a handful of
+    # rows in it, and two hundred is either a mistake or a decision they have
+    # not made. Whoever wants the two hundred can say so twice.
+    if len(run.items) > K_MOST_ITEMS:
+        run.outcome = "refused"
+        run.steps.append(
+            RunStep(
+                order=0,
+                of_step=0,
+                says=ordered[0].says if ordered else "",
+                verdict="refused",
+                verdict_by="none",
+                reason=(
+                    f"this asks for the job to be done {len(run.items)} times, and one press "
+                    f"may mean at most {K_MOST_ITEMS}. Ask again for the rest"
+                ),
+            )
+        )
+        run.finished_at = _now()
+        await _save(uow, run)
+        return run
+    itinerary = _itinerary(ordered, workflow.repeat, values, run.items)
     # The steps the operator already did cost nothing and are not attempted, so
     # they buy no slack either: the budget is what is left to perform.
     # Which steps this run has claimed the right to write, so a rescue of a
     # refused write is not stopped by its own first attempt.
     claimed_here: set[int] = set()
     already_done = [step for step in ordered if step.order < from_step]
-    budget = len(ordered) - len(already_done) + K_STEP_SLACK
+    budget = len(itinerary) - len(already_done) + K_STEP_SLACK
     attempts = 0
     starts_on = None
     # The page this run begins on, which is the page of the step it begins at
@@ -443,14 +520,17 @@ async def run_workflow(
     # than a fabricated one whose order can collide on (run_id, ord).
     in_flight: RunStep | None = None
     try:
-        for step in ordered:
+        for position, leg in enumerate(itinerary):
+            step, values = leg.step, leg.values
             if step.order < from_step:
                 # The operator did this one before the offer was made. Recorded
                 # so the run reads whole, cited so a reviewer can see what it
                 # was, and never sent: the job is being finished, not redone.
                 run.steps.append(
                     RunStep(
-                        order=step.order,
+                        order=position,
+                        of_step=step.order,
+                        item=leg.item,
                         says=step.says,
                         verdict="done_by_operator",
                         verdict_by="none",
@@ -468,7 +548,13 @@ async def run_workflow(
                 break
             cited = [by_id[c] for c in step.cites if c in by_id]
             primary = primary_gesture(step, by_id)
-            record = RunStep(order=step.order, says=step.says, verdict="skipped")
+            record = RunStep(
+                order=position,
+                of_step=step.order,
+                item=leg.item,
+                says=step.says,
+                verdict="skipped",
+            )
             in_flight = record
             run.steps.append(record)
             origin = origin_of(primary) if primary is not None else None

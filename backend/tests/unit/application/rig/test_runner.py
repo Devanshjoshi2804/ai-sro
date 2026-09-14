@@ -24,7 +24,7 @@ tasks that found them could not pin them at their own layer:
 import asyncio
 import base64
 import json
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import replace
 from datetime import UTC, datetime
 
@@ -55,6 +55,7 @@ from sro.domain.execution.workflow_run import RunStep, WorkflowRun
 from sro.domain.observation.gesture import Call, Gesture
 from sro.domain.shared.identifiers import DeviceId, TenantId
 from sro.domain.shared.prices import Answer
+from sro.domain.skill.repeats import K_MOST_ITEMS, Repeat
 from sro.domain.skill.workflow import Step, Workflow
 from tests.unit.domain.rig.conftest import gestures as _gestures
 from tests.unit.fakes import (
@@ -718,6 +719,7 @@ async def _ran(
     stops: Stops | None = None,
     approvals: Approvals | None = None,
     run_id: str | None = None,
+    items: Sequence[Mapping[str, str]] = (),
     plan_model: str = "flash",
     rescue_model: str = "pro",
     earned: bool = False,
@@ -751,6 +753,7 @@ async def _ran(
             approvals=approvals or Approvals(),
             run_id=run_id,
             from_step=from_step,
+            items=items,
         ),
         timeout=5,
     )
@@ -1237,9 +1240,14 @@ def _only_run(uow: FakeUnitOfWork) -> WorkflowRun:
 
 
 async def test_a_browser_that_goes_away_mid_step_fails_that_step() -> None:
-    """The step in flight is the one that failed -- with the order the workflow
-    gave it and the tokens its plan already cost -- not a fabricated one whose
-    order collides with a real step's."""
+    """The step in flight is the one that failed -- with the step of the job it
+    was on and the tokens its plan already cost -- not a fabricated one whose
+    place in the run collides with a real step's.
+
+    `order` is where in the RUN a row sits and `of_step` is which step of the
+    job it is. They are the same number for a job whose steps are numbered from
+    zero, which is every mined job; this fixture numbers from one on purpose,
+    which is what makes the two visible apart."""
     uow = await _fixture()
     typed = _ids(uow)[0]
     workflow = Workflow(
@@ -1267,7 +1275,8 @@ async def test_a_browser_that_goes_away_mid_step_fails_that_step() -> None:
     run = await _ran(uow, workflow, channel=channel, asker=asker)
 
     assert run.outcome == "failed"
-    assert [s.order for s in run.steps] == [1, 2], "the step in flight kept its own order"
+    assert [s.of_step for s in run.steps] == [1, 2], "the step in flight lost which step it was"
+    assert [s.order for s in run.steps] == [0, 1], "two rows of one run collided on their place"
     assert run.steps[1].verdict == "failed" and "dev_test" in run.steps[1].reason
     assert run.steps[1].in_tokens == 11, "the plan it already paid for is still billed"
     saved = await uow.workflow_runs.get(TENANT, run.id)
@@ -3997,3 +4006,142 @@ async def test_a_claim_older_than_the_window_does_not_stop_tomorrows_run() -> No
         at=at + K_SAME_WRITE_WINDOW * 2,
         stale_after=K_SAME_WRITE_WINDOW,
     )
+
+
+# --- a job done once per thing on a list -------------------------------------
+
+
+def _adding_three() -> tuple[Repeat, list[dict[str, str]]]:
+    """The mail that prompted this: three equipment types in one message."""
+    return Repeat(first_step=0, last_step=1), [
+        {"clientCode": "8SITDOWN"},
+        {"clientCode": "8STANDUP"},
+        {"clientCode": "8REACHT"},
+    ]
+
+
+async def test_the_body_is_done_once_for_each_thing_on_the_list() -> None:
+    """A mail carrying three rows produced a run that created the first, and an
+    operator did the other two by hand while watching a browser that had just
+    proved it could do them."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    repeat, items = _adding_three()
+    workflow.repeat = repeat
+    channel = FakeChannel(
+        {
+            **_looks(12),
+            "ui.perform": [_performed()] * 6,
+            "http.send": [Reply(ok=True, result={"status": 404, "body": "{}"})] * 3,
+            "calls.since": [Reply(ok=True, result={"calls": []})] * 6,
+        }
+    )
+    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True}))
+
+    run = await _ran(uow, workflow, channel=channel, asker=asker, items=items, earned=True)
+
+    assert [step.of_step for step in run.steps] == [0, 1, 0, 1, 0, 1]
+    assert [step.item for step in run.steps] == [0, 0, 1, 1, 2, 2]
+    assert [step.order for step in run.steps] == [0, 1, 2, 3, 4, 5], (
+        "two rows of one run collided on their place, which is the table's own key"
+    )
+    assert run.outcome == "held"
+
+
+async def test_each_thing_is_finished_before_the_next_is_started() -> None:
+    """Three records made and two not is a half-finished run somebody can read.
+    Five records each missing their last field is not."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    workflow.repeat, items = _adding_three()
+    channel = FakeChannel(
+        {
+            **_looks(12),
+            "ui.perform": [_performed()] * 6,
+            "http.send": [Reply(ok=True, result={"status": 404, "body": "{}"})] * 3,
+            "calls.since": [Reply(ok=True, result={"calls": []})] * 6,
+        }
+    )
+    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True}))
+
+    run = await _ran(uow, workflow, channel=channel, asker=asker, items=items, earned=True)
+
+    done = [(step.item, step.of_step) for step in run.steps]
+    assert done == sorted(done), "the run wandered between things rather than finishing each"
+
+
+async def test_one_thing_on_the_list_is_the_job_it_always_was() -> None:
+    """The property everything else in the loop depends on: a repeating job
+    given one item performs exactly like a job with no repeat, so nothing else
+    had to learn about repeats."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    workflow.repeat = Repeat(first_step=0, last_step=1)
+    channel = FakeChannel(
+        {
+            **_looks(4),
+            "ui.perform": [_performed(), _performed()],
+            "http.send": [Reply(ok=True, result={"status": 404, "body": "{}"})],
+            "calls.since": [Reply(ok=True, result={"calls": []})] * 2,
+        }
+    )
+    asker = _PerSchemaAsker(plan=_plan("type", "ONE"), verdict=Answer(data={"held": True}))
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        items=[{"clientCode": "ONE"}],
+        earned=True,
+    )
+
+    assert [step.item for step in run.steps] == [None, None]
+    assert [step.order for step in run.steps] == [0, 1]
+
+
+async def test_each_thing_gets_its_own_write_claim() -> None:
+    """The bug this would have been without it: the ledger keys a write by the
+    job, the step and the VALUES, so the second thing on the list would have
+    been refused as a duplicate of the first."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    workflow.repeat, items = _adding_three()
+    channel = FakeChannel(
+        {
+            **_looks(12),
+            "ui.perform": [_performed()] * 6,
+            "http.send": [Reply(ok=True, result={"status": 404, "body": "{}"})] * 3,
+            "calls.since": [Reply(ok=True, result={"calls": []})] * 6,
+        }
+    )
+    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True}))
+
+    run = await _ran(uow, workflow, channel=channel, asker=asker, items=items, earned=True)
+
+    assert [step.verdict for step in run.steps] == ["held"] * 6
+    assert not any("may have landed" in (step.reason or "") for step in run.steps)
+
+
+async def test_a_list_longer_than_one_press_can_mean_is_refused_before_anything_is_sent() -> None:
+    """An operator pressing yes on "add these" has read a mail with a handful of
+    rows in it. Two hundred is either a mistake or a decision they have not
+    made, and the run that would make two hundred records is not the one they
+    authorised."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    workflow.repeat = Repeat(first_step=0, last_step=1)
+    channel = FakeChannel(_looks(4))
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=FakeAsker(),
+        items=[{"clientCode": f"C{n}"} for n in range(K_MOST_ITEMS + 1)],
+        earned=True,
+    )
+
+    assert run.outcome == "refused"
+    assert f"at most {K_MOST_ITEMS}" in run.steps[0].reason
+    assert channel.sent == [], "a refused list still reached the browser"

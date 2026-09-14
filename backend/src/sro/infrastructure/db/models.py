@@ -799,6 +799,12 @@ class WorkflowRunRow(Base):
     """What this run is performed with. The press is the only source of them:
     nothing a chat door understood is carried across on its own."""
 
+    items: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list, server_default="[]")
+    """What this run was asked to do the repeated block for: one set of values
+    per thing on the list. Empty for every run of a job that does one thing
+    once, which is most of them, and for every run made before repeats
+    existed."""
+
     started_by: Mapped[str] = mapped_column(Text, nullable=False, default="")
     live: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     allow_focus: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
@@ -867,6 +873,14 @@ class WorkflowRunStepRow(Base):
     ord: Mapped[int] = mapped_column(Integer, primary_key=True)
 
     says: Mapped[str] = mapped_column(Text, nullable=False, default="")
+
+    of_step: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    """Which step of the JOB this row is. `ord` is where in the RUN it happened,
+    and the two are the same number until a job repeats its middle."""
+
+    item: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    """Which thing on the list it was done for, or NULL for a step done once."""
+
     planned_by: Mapped[str | None] = mapped_column(Text)
     sent: Mapped[Any | None] = mapped_column(JSONB(none_as_null=True), nullable=True)
     """The command envelope's kind and payload, NULL for a step that sent
@@ -943,6 +957,13 @@ class WorkflowRow(Base):
     place by ``rekey`` when the rule that makes a key changes, because keys
     mined before the change no longer match keys mined after and a job already
     held could then be proposed again as a new one."""
+
+    repeat: Mapped[Any] = mapped_column(JSONB, nullable=True)
+    """The steps this job does once per thing on a list, as `{first_step,
+    last_step}`, or NULL for a job that does one thing once -- which is most of
+    them and every job mined before repeats existed. JSONB rather than two
+    integer columns because the pair is one fact and a row with one of them set
+    is a row that means nothing."""
 
     same_as: Mapped[str | None] = mapped_column(String(64))
     """The model's opinion about whether this is one it has proposed before. It

@@ -44,6 +44,7 @@ from sro.domain.observation.identity import ShapeKey
 from sro.domain.observation.mining import MiningPass
 from sro.domain.shared.errors import Conflict, NotFound
 from sro.domain.shared.identifiers import TenantId
+from sro.domain.skill.repeats import Repeat
 from sro.domain.skill.workflow import Step, Workflow
 from sro.infrastructure.db.codec import when
 from sro.infrastructure.db.models import (
@@ -69,6 +70,14 @@ def _workflow_values(workflow: Workflow) -> dict[str, Any]:
         "shape_key": [list(entry) for entry in workflow.shape_key],
         "same_as": workflow.same_as,
         "unproven": list(workflow.unproven),
+        "repeat": (
+            None
+            if workflow.repeat is None
+            else {
+                "first_step": workflow.repeat.first_step,
+                "last_step": workflow.repeat.last_step,
+            }
+        ),
         "created_at": datetime.now(tz=UTC),
     }
 
@@ -107,6 +116,14 @@ def _row_to_workflow(row: WorkflowRow, steps: list[Step]) -> Workflow:
         same_as=row.same_as,
         unproven=list(row.unproven),
         pass_id=row.pass_id,
+        repeat=(
+            Repeat(
+                first_step=int(row.repeat["first_step"]),
+                last_step=int(row.repeat["last_step"]),
+            )
+            if isinstance(row.repeat, dict)
+            else None
+        ),
     )
 
 

@@ -77,6 +77,11 @@ class RunStep:
     """
 
     order: int
+    """Where this row sits in the run, and unique within it -- which is what
+    the table's own key needs. The same thing as the workflow step's order for
+    a job that does one thing once; for a job whose middle repeats, the second
+    pass through the body is further along even though it is the same step."""
+
     says: str
     verdict: str
     verdict_by: str = ""
@@ -94,6 +99,14 @@ class RunStep:
     cost_usd: float = 0.0
     unpriced: bool = False
 
+    of_step: int = 0
+    """Which step of the JOB this is. `order` says where in the run it happened
+    and these are the same number until a job repeats its middle."""
+
+    item: int | None = None
+    """Which thing on the list this was done for, counting from zero, or None
+    for a step done once. What the panel says "item 3 of 5" from."""
+
 
 @dataclass
 class WorkflowRun:
@@ -108,6 +121,15 @@ class WorkflowRun:
     started_at: str
     finished_at: str | None = None
     outcome: str = "running"
+
+    items: list[dict[str, str]] = field(default_factory=list)
+    """The things this run was asked to do the repeated block for, in order.
+
+    A request input like `from_step`, never a progress marker: the runner reads
+    it and does not write it. Empty is a run of a job that does one thing once,
+    and a run of a REPEATING job given no items does its body once with the
+    run's own values -- which is the same thing a job with no repeat does, and
+    the reason nothing else in the loop had to learn about repeats."""
 
     from_step: int = 0
     """How many steps the operator performed themselves before the offer was

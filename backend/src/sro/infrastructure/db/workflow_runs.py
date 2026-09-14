@@ -57,6 +57,7 @@ def _run_values(run: WorkflowRun) -> dict[str, Any]:
         "finished_at": None if run.finished_at is None else when(run.finished_at),
         "outcome": run.outcome,
         "from_step": run.from_step,
+        "items": [dict(item) for item in run.items],
         "withheld": list(run.withheld),
         "in_tokens": run.in_tokens,
         "out_tokens": run.out_tokens,
@@ -86,6 +87,8 @@ def _step_values(run_id: str, step: RunStep) -> dict[str, Any]:
         "thought_tokens": step.thought_tokens,
         "cost_usd": step.cost_usd,
         "unpriced": step.unpriced,
+        "of_step": step.of_step,
+        "item": step.item,
     }
 
 
@@ -108,6 +111,8 @@ def _row_to_step(row: WorkflowRunStepRow) -> RunStep:
         thought_tokens=row.thought_tokens,
         cost_usd=row.cost_usd,
         unpriced=row.unpriced,
+        of_step=row.of_step,
+        item=row.item,
     )
 
 
@@ -125,6 +130,7 @@ def _row_to_run(row: WorkflowRunRow, steps: list[RunStep]) -> WorkflowRun:
         finished_at=None if row.finished_at is None else row.finished_at.isoformat(),
         outcome=row.outcome,
         from_step=row.from_step,
+        items=[dict(item) for item in (row.items or [])],
         steps=steps,
         withheld=list(row.withheld),
         in_tokens=row.in_tokens,

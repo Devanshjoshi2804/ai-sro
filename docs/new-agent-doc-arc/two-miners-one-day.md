@@ -897,11 +897,40 @@ Met later the same day:
    being in the DOM. Both fixed; both were found by watching a real browser
    rather than by reading either side.
 
-Not met, and it is not a count:
+Met on 2026-09-14, and it is not a count:
 
-4. **Nobody has answered the open `variant` joins.** A person has to say whether
-   two candidates are one job. It is the only item left, and it is not one a
-   script can close.
+4. **The open joins have been answered.** Two `variant` pairs and — after the
+   naming fix below — one `workflow` pair, each answered `same` by `devansh`
+   through `POST /v1/candidates/{id}/joins`. `make open-joins` now reports
+   "nothing is waiting on a person" on both tenants.
+
+   **The `workflow` pair is the one that matters**, and it did not exist when
+   this document was first written. `Create u on mail.google.com` (11x) is now
+   joined to `Create an equipment type` (4x on Blue Yonder), on the model's own
+   reason: *"The first task involves reading an email with instructions to
+   create a warehouse equipment type, and the second task involves actually
+   creating that warehouse equipment type in the WMS system."* That is the
+   first cross-system join this system has made **on real two-host evidence**.
+   Everything above under *the bet* was measured on a constructed second host.
+
+   It was unreachable before because of how a candidate is described, not
+   because of the miner. A title is derived by reading the entity off the last
+   changing call, which is exact for `POST data/WM/wm/equipmentTypes` and empty
+   for `POST mail/u/*` — so every mail candidate reached the model called
+   "Create u" with one opaque step under it, and a pair asking whether reading
+   mail is part of creating an equipment type could only be answered no. On
+   this tenant, 43 pairs qualified on adjacency and every one asked was
+   refused. `_describe` now also shows what the per-gesture pass already read
+   off those gestures, which was in the store the whole time.
+
+**Still open, and named here because the deletions do not wait on it.** Both
+tenants hold work split across principals — `devansh` against `operator` on
+`new`, `devansh` against `you` on `acme` — and a pair needs one principal on
+both sides. That is the rule working, not failing (`GrantHost`: "a browser is
+not a person"), but it means one operator's own supplier and work-area days can
+never pair with their own mail. `make open-joins` now says so on every run.
+Whether to issue one token per person or to let somebody declare two principals
+one operator is a decision nobody has taken.
 
 A deletion was attempted on 2026-09-14 against item 2 before this was measured,
 on a reading of `acme` alone, and reverted within the hour. The reverts are in

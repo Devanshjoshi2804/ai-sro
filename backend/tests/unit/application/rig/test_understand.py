@@ -109,7 +109,7 @@ async def test_a_value_for_a_parameter_the_workflow_does_not_declare_is_dropped(
 def test_the_schema_is_the_specs() -> None:
     properties = UNDERSTAND_SCHEMA["properties"]
     assert isinstance(properties, dict)
-    assert set(properties) == {"workflow_id", "values", "missing"}
+    assert set(properties) == {"workflow_id", "values", "missing", "items"}
 
 
 async def test_a_parameter_with_no_value_is_missing_whatever_the_model_says() -> None:
@@ -330,3 +330,113 @@ async def test_the_sentence_the_door_read_is_not_written_down() -> None:
     written = " ".join(str(value) for value in asdict(row).values())
     for word in ("NEWTEST9", "Coventry", "dock", "create client"):
         assert word not in written, f"the door wrote down what it read: {word!r} in {written!r}"
+
+
+# --- several things, one job -------------------------------------------------
+
+
+def _said(*things: dict[str, str]) -> list[dict[str, object]]:
+    return [
+        {"values": [{"name": name, "value": value} for name, value in thing.items()]}
+        for thing in things
+    ]
+
+
+async def test_three_things_in_one_sentence_are_three_things() -> None:
+    """The mail that prompted this carried three equipment types. The door
+    could answer one, and the other two were lost between a message and a
+    browser that had just proved it could do them."""
+    got = await understand(
+        "add these three",
+        WFS,
+        FakeAsker(
+            Answer(
+                data={
+                    "workflow_id": "wfl_1",
+                    "values": [],
+                    "missing": [],
+                    "items": _said(
+                        {"clientCode": "8SITDOWN"},
+                        {"clientCode": "8STANDUP"},
+                        {"clientCode": "8REACHT"},
+                    ),
+                }
+            )
+        ),
+        "m",
+    )
+
+    assert got.items == [
+        {"clientCode": "8SITDOWN"},
+        {"clientCode": "8STANDUP"},
+        {"clientCode": "8REACHT"},
+    ]
+    assert got.missing == [], "every thing named its own code"
+
+
+async def test_one_thing_names_no_items_at_all() -> None:
+    """Most sentences. A job run for one item performs exactly as a job run for
+    none, and the door says so by answering none."""
+    got = await understand(
+        "make one",
+        WFS,
+        FakeAsker(
+            Answer(
+                data={
+                    "workflow_id": "wfl_1",
+                    "values": [{"name": "clientCode", "value": "ONE"}],
+                    "missing": [],
+                }
+            )
+        ),
+        "m",
+    )
+
+    assert got.items == []
+    assert got.values == {"clientCode": "ONE"}
+
+
+async def test_a_parameter_one_thing_lacks_is_missing() -> None:
+    """Three equipment types of which one has no code is a form that has to ask
+    for the code. Checked against every thing, not against what the job shares:
+    a check against the shared values alone would say somebody supplied it."""
+    got = await understand(
+        "add these",
+        WFS,
+        FakeAsker(
+            Answer(
+                data={
+                    "workflow_id": "wfl_1",
+                    "values": [],
+                    "missing": [],
+                    "items": _said({"clientCode": "8SITDOWN"}, {}),
+                }
+            )
+        ),
+        "m",
+    )
+
+    assert got.items == [{"clientCode": "8SITDOWN"}], "a thing naming nothing is not a thing"
+    assert got.missing == ["clientCode"]
+
+
+async def test_a_key_this_job_never_declared_is_dropped_from_a_thing_too() -> None:
+    # The same filter `values` gets, for the same reason: a sentence a stranger
+    # could have written must not put a key into a run.
+    got = await understand(
+        "add these",
+        WFS,
+        FakeAsker(
+            Answer(
+                data={
+                    "workflow_id": "wfl_1",
+                    "values": [],
+                    "missing": [],
+                    "items": _said({"clientCode": "A", "sudo": "yes"}),
+                }
+            )
+        ),
+        "m",
+    )
+
+    assert got.items == [{"clientCode": "A"}]

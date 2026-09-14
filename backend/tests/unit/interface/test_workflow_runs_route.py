@@ -666,6 +666,11 @@ def test_a_finished_run_reaches_the_wire_whole() -> None:
         "steps": [
             {
                 "order": 2,
+                # Where in the run, which step of the job, and which thing on
+                # the list -- the last two being the same step and no list at
+                # all for a job that does one thing once.
+                "of_step": 0,
+                "item": None,
                 "says": "click Save",
                 "verdict": "awaiting",
                 "verdict_by": "state",
@@ -684,6 +689,8 @@ def test_a_finished_run_reaches_the_wire_whole() -> None:
                 "unpriced": True,
             }
         ],
+        # Empty: this job does one thing once, which is most of them.
+        "items": [],
         "withheld": [{"step": 2, "planned": {"kind": "http.send"}}],
         "in_tokens": 11,
         "out_tokens": 22,

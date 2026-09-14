@@ -124,6 +124,7 @@ async def start_workflow_run(
         workflow_id=body.workflow_id,
         device_id=DeviceId(body.device_id),
         values=body.values,
+        items=body.items,
         live=body.live,
         allow_focus=body.allow_focus,
         from_step=body.from_step,

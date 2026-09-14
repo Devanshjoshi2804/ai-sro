@@ -33,9 +33,40 @@ UNDERSTAND_SCHEMA: dict[str, object] = {
             },
         },
         "missing": {"type": "array", "items": {"type": "string"}},
+        # Several things, one job. "Add these three equipment types" is one
+        # job done three times, and until this existed the door could only
+        # answer the first: the values of one thing, in `values`, and the
+        # other two lost between a mail and a browser that had just proved it
+        # could do them.
+        #
+        # A list of lists of pairs, for the same reason `values` is a list of
+        # pairs one level up: the Developer API refuses `additionalProperties`,
+        # so a map of parameter name to value cannot be asked for at any depth.
+        "items": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "values": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "name": {"type": "string"},
+                                "value": {"type": "string"},
+                            },
+                            "required": ["name", "value"],
+                            "propertyOrdering": ["name", "value"],
+                        },
+                    }
+                },
+                "required": ["values"],
+                "propertyOrdering": ["values"],
+            },
+        },
     },
     "required": ["workflow_id", "values", "missing"],
-    "propertyOrdering": ["workflow_id", "values", "missing"],
+    "propertyOrdering": ["workflow_id", "values", "missing", "items"],
 }
 
 INSTRUCTIONS = """An operator has said what they want done. You are given the jobs this system
@@ -49,7 +80,14 @@ Work Area NEWTESTS" is the job of creating a work area, done once with the name
 NEWTESTS. An operator asking for the same work with other values -- a work area
 called NEWTEST9 -- means that job. Match on what the job does. Answer null only
 when no job here does that kind of work at all. When two jobs do the same work,
-name the one whose demonstration is closest to what was said."""
+name the one whose demonstration is closest to what was said.
+
+An operator may name several things for one job: three equipment types in one
+mail, four work areas in one sentence. That is one job done once per thing.
+Answer one entry in `items` for each thing, carrying that thing's own values,
+and put in `values` only what is true of all of them. Where they named one
+thing, leave `items` empty and put its values in `values`. Never split one
+thing into several, and never merge two things into one."""
 """The second paragraph is the product.
 
 A mined job is named after the one demonstration it was read from, values and

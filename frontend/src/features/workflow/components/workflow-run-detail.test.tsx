@@ -11,6 +11,11 @@ import * as workflowApi from "@/features/workflow/api";
 
 const step = (over: Partial<workflowApi.WorkflowRunStepModel> = {}) => ({
   order: 0,
+  // Where in the run, which step of the job, and which thing on the list --
+  // the last two being the same step and no list at all for a job that does
+  // one thing once.
+  of_step: 0,
+  item: null,
   says: "open the order",
   verdict: "held",
   verdict_by: "",
@@ -43,6 +48,7 @@ const run = (over: Partial<workflowApi.WorkflowRunModel> = {}) => ({
   finished_at: null,
   outcome: "running",
   from_step: 0,
+  items: [],
   steps: [step()],
   withheld: [],
   in_tokens: 10,

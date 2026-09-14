@@ -1729,6 +1729,14 @@ class AuditStepModel(BaseModel):
     """
 
     order: int
+    """Where in the RUN this row sits, unique within it. The same number as
+    `of_step` for a job that does one thing once, which is most of them."""
+
+    of_step: int
+    item: int | None
+    """Which step of the JOB, and which thing on the list it was done for --
+    null for a step done once. What a panel says "item 3 of 5" from."""
+
     says: str
     verdict: str
     verdict_by: str
@@ -1745,6 +1753,8 @@ class AuditStepModel(BaseModel):
         kind = (step.sent or {}).get("kind")
         return cls(
             order=step.order,
+            of_step=step.of_step,
+            item=step.item,
             says=step.says,
             verdict=step.verdict,
             verdict_by=step.verdict_by,
@@ -3119,6 +3129,11 @@ class ChatResponse(BaseModel):
 
     workflow_id: str | None
     values: dict[str, str]
+    items: list[dict[str, str]]
+    """One set of values per thing the operator named, where they named several
+    -- "add these three equipment types" is one job done three times. Empty for
+    one thing, which is most sentences."""
+
     missing: list[str]
     """Sorted, out of `understand`: `declared` is a set, and a form whose
     fields reorder between two identical sentences is a form nothing can
@@ -3146,6 +3161,7 @@ class ChatResponse(BaseModel):
         return cls(
             workflow_id=got.workflow_id,
             values=dict(got.values),
+            items=[dict(item) for item in got.items],
             missing=list(got.missing),
             error=got.answer.error,
             in_tokens=got.answer.in_tokens,
@@ -3231,6 +3247,13 @@ class StartWorkflowRunRequest(BaseModel):
     workflow_id: str
     device_id: str
     values: dict[str, str] = Field(default_factory=dict)
+    items: list[dict[str, str]] = Field(default_factory=list)
+    """The things this job is to be done for, where the operator named several
+    -- three equipment types in one mail. Typed as `values` is and for the same
+    reason: a coerced value would type `{...}` into somebody's form. Empty is
+    one thing, which is most presses, and a job with no repeat is handed none
+    of them whatever arrives here."""
+
     live: bool = False
     allow_focus: bool = True
     from_step: StrictInt = 0
@@ -3252,6 +3275,14 @@ class WorkflowRunStepModel(BaseModel):
     """
 
     order: int
+    """Where in the RUN this row sits, unique within it. The same number as
+    `of_step` for a job that does one thing once, which is most of them."""
+
+    of_step: int
+    item: int | None
+    """Which step of the JOB, and which thing on the list it was done for --
+    null for a step done once. What the panel says "item 3 of 5" from."""
+
     says: str
     verdict: str
     verdict_by: str
@@ -3312,6 +3343,10 @@ class WorkflowRunModel(BaseModel):
     workflow_id: str
     device_id: str
     values: dict[str, str]
+    items: list[dict[str, str]]
+    """The things this run was asked to do the repeated block for. Empty for a
+    job that does one thing once."""
+
     started_by: str
     live: bool
     allow_focus: bool
@@ -3338,6 +3373,7 @@ class WorkflowRunModel(BaseModel):
             workflow_id=run.workflow_id,
             device_id=run.device_id,
             values=dict(run.values),
+            items=[dict(item) for item in run.items],
             started_by=run.started_by,
             live=run.live,
             allow_focus=run.allow_focus,

@@ -2654,6 +2654,10 @@ export interface components {
         AuditStepModel: {
             /** Order */
             order: number;
+            /** Of Step */
+            of_step: number;
+            /** Item */
+            item: number | null;
             /** Says */
             says: string;
             /** Verdict */
@@ -2866,6 +2870,10 @@ export interface components {
             values: {
                 [key: string]: string;
             };
+            /** Items */
+            items: {
+                [key: string]: string;
+            }[];
             /** Missing */
             missing: string[];
             /** Error */
@@ -4732,6 +4740,10 @@ export interface components {
             values?: {
                 [key: string]: string;
             };
+            /** Items */
+            items?: {
+                [key: string]: string;
+            }[];
             /**
              * Live
              * @default false
@@ -5345,6 +5357,10 @@ export interface components {
             values: {
                 [key: string]: string;
             };
+            /** Items */
+            items: {
+                [key: string]: string;
+            }[];
             /** Started By */
             started_by: string;
             /** Live */
@@ -5394,6 +5410,10 @@ export interface components {
         WorkflowRunStepModel: {
             /** Order */
             order: number;
+            /** Of Step */
+            of_step: number;
+            /** Item */
+            item: number | null;
             /** Says */
             says: string;
             /** Verdict */

@@ -14,12 +14,14 @@ model can write on a candidate without ever reaching that.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 
 import pytest
 
 from sro.application.context import RequestContext
 from sro.application.observation.propose import (
+    MOST_DOINGS,
     MOST_PAIRS,
     AnswerJoin,
     ProposeAboutCandidates,
@@ -33,6 +35,7 @@ from sro.domain.observation.candidate import (
     JoinKind,
     TaskCandidate,
 )
+from sro.domain.observation.gesture import Action, Gesture, Intent
 from sro.domain.shared.errors import InvariantViolation
 from sro.domain.shared.identifiers import BatchId, CandidateId, PrincipalId
 from tests import factories as f
@@ -568,3 +571,93 @@ async def test_answering_something_nobody_suggested_is_refused() -> None:
             kind=JoinKind.VARIANT,
             answer=JoinAnswer.SAME,
         )
+
+
+# -- what the readings behind a candidate add to its description --------------
+
+
+async def _seen(uow: FakeUnitOfWork, *, host: str, acts: Sequence[tuple[str, str]]) -> None:
+    """Gestures on one system, each with the reading the rig already wrote."""
+    for index, (act, about) in enumerate(acts):
+        gesture_id = f"ges-{host}-{index}"
+        await uow.gestures.add_gestures(
+            (
+                Gesture(
+                    id=gesture_id,
+                    tenant=f.TENANT.value,
+                    stream_id="str-1",
+                    batch_id="bat-1",
+                    at=float(index),
+                    url=f"https://{host}/whatever",
+                    system=f"https://{host}",
+                    tab_id=1,
+                    frame_url=None,
+                    action=Action(kind="click", at=float(index)),
+                ),
+            )
+        )
+        await uow.gestures.save_intent(
+            Intent(gesture_id=gesture_id, tenant=f.TENANT.value, act=act, object=about)
+        )
+
+
+async def test_a_candidate_is_described_by_what_the_rig_already_read() -> None:
+    """A signature names the entity only where the path carries one. Gmail's
+    do not, so `POST mail/u/*` arrives as "Create u" with one opaque step —
+    and a pair asked whether reading mail is part of creating an equipment
+    type could only ever be answered no. The readings say what was done."""
+    uow = await _world(
+        _candidate("cnd-1", host="mail.google.com", signature="POST mail/u/*", at=_thrice())
+    )
+    await _seen(
+        uow,
+        host="mail.google.com",
+        acts=[("view instructions to create an equipment type", "email instructions")],
+    )
+    interpreter = FakeInterpreter(name=TaskName(title="Read the day's instructions"))
+
+    await ProposeAboutCandidates(uow, interpreter).execute(CTX)
+
+    shown = interpreter.named[0]
+    assert "view instructions to create an equipment type" in shown
+    assert "POST mail/u/*" in shown  # still there; the readings are added, not swapped
+
+
+async def test_a_candidate_is_never_described_by_the_tab_next_to_it() -> None:
+    """One upload carries every tab the operator had open — which is the whole
+    point of it. Keyed on the batch alone, a mail candidate would be described
+    with the warehouse work that arrived beside it, and every cross-system pair
+    would look like one job because both halves were handed the same sentences."""
+    uow = await _world(
+        _candidate("cnd-1", host="mail.google.com", signature="POST mail/u/*", at=_thrice())
+    )
+    await _seen(uow, host="mail.google.com", acts=[("open the inbox", "inbox")])
+    await _seen(uow, host="wms.acme.test", acts=[("create an equipment type", "equipment type")])
+    interpreter = FakeInterpreter(name=TaskName(title="Read the inbox"))
+
+    await ProposeAboutCandidates(uow, interpreter).execute(CTX)
+
+    shown = interpreter.named[0]
+    assert "open the inbox" in shown
+    assert "create an equipment type" not in shown
+
+
+async def test_a_long_doing_is_shown_across_its_whole_length() -> None:
+    """Both ends of a task say least: it opens on navigation and closes on
+    whatever the page did afterwards. The write is in the middle."""
+    uow = await _world(_candidate("cnd-1", at=_thrice()))
+    await _seen(
+        uow,
+        host="wms.acme.test",
+        acts=[(f"step {index}", "the form") for index in range(MOST_DOINGS * 3)],
+    )
+    interpreter = FakeInterpreter(name=TaskName(title="Adjust an LPN"))
+
+    await ProposeAboutCandidates(uow, interpreter).execute(CTX)
+
+    shown = interpreter.named[0]
+    spread = [line.strip() for line in shown.splitlines() if line.strip().startswith("step ")]
+    assert len(spread) == MOST_DOINGS
+    assert spread[0] == "step 0 — the form"
+    # The middle of it, which neither the first eight nor the last eight reach.
+    assert "step 12 — the form" in spread

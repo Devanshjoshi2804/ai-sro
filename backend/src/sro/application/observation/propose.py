@@ -22,6 +22,7 @@ import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import timedelta
+from urllib.parse import urlsplit
 
 from sro.application.chat.converse import StartThread
 from sro.application.chat.read_threads import ReadThreads
@@ -38,7 +39,7 @@ from sro.domain.observation.candidate import (
     JoinKind,
     TaskCandidate,
 )
-from sro.domain.shared.identifiers import CandidateId
+from sro.domain.shared.identifiers import CandidateId, TenantId
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +58,15 @@ TOGETHER_TIMES = 2
 ENOUGH_OVERLAP = 0.6
 """How much of the smaller signature has to appear in the larger before two
 candidates in one system are worth asking about."""
+
+MOST_DOINGS = 8
+"""How many of a candidate's readings are put in front of the model. Enough to
+say what the work was; short enough that a candidate seen ninety times does not
+arrive as ninety lines saying the same thing."""
+
+Readings = dict[tuple[str, str], list[str]]
+"""What the per-gesture pass made of a tenant's evidence, by `(batch, system)`.
+Both halves of the key matter: see `_doings`."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -92,6 +102,7 @@ class ProposeAboutCandidates:
             candidates = await uow.candidates.list_for_tenant(
                 ctx.tenant_id, status=CandidateStatus.NEW
             )
+            said = await _already_read(uow, ctx.tenant_id)
 
         worth = [candidate for candidate in candidates if candidate.worth_offering]
         # A deployment that may not call a hosted model still mines, still
@@ -99,8 +110,8 @@ class ProposeAboutCandidates:
         # reasons, but it still gets the suggestions: which two candidates go
         # together is decided by adjacency in the evidence, and only the
         # sentence about it was ever the model's.
-        named, asked = await self._name(worth) if self._interpreter.available else (0, 0)
-        joined, asked_again = await self._join(worth)
+        named, asked = await self._name(worth, said) if self._interpreter.available else (0, 0)
+        joined, asked_again = await self._join(worth, said)
         # Last, so the sentence said out loud is the one the naming slot just
         # wrote. Over every new candidate rather than over `worth`, because the
         # two rules an offer has to obey -- often enough, and not dismissed --
@@ -108,7 +119,7 @@ class ProposeAboutCandidates:
         offered = await self._offer(ctx, candidates)
         return Proposed(named=named, joined=joined, offered=offered, asked=asked + asked_again)
 
-    async def _name(self, candidates: list[TaskCandidate]) -> tuple[int, int]:
+    async def _name(self, candidates: list[TaskCandidate], said: Readings) -> tuple[int, int]:
         """Slot 1: the sentence on the front.
 
         Only for candidates nothing has named yet. A title a person edited is
@@ -120,7 +131,7 @@ class ProposeAboutCandidates:
             if candidate.named_by_model:
                 continue
             asked += 1
-            answer = await self._interpreter.name_task(_describe(candidate))
+            answer = await self._interpreter.name_task(_describe(candidate, said))
             title = answer.title.strip()
             if not title:
                 # The model was told to say nothing rather than guess. The
@@ -136,7 +147,7 @@ class ProposeAboutCandidates:
             named += 1
         return named, asked
 
-    async def _join(self, candidates: list[TaskCandidate]) -> tuple[int, int]:
+    async def _join(self, candidates: list[TaskCandidate], said: Readings) -> tuple[int, int]:
         """Slots 2 and 3: what this candidate might be part of."""
         pairs = [
             (kind, first, second)
@@ -152,7 +163,7 @@ class ProposeAboutCandidates:
             if self._interpreter.available:
                 asked += 1
                 judgement = await self._interpreter.judge_join(
-                    kind.value, _describe(first), _describe(second)
+                    kind.value, _describe(first, said), _describe(second, said)
                 )
                 if not judgement.joined or not judgement.because.strip():
                     continue
@@ -481,13 +492,24 @@ def _overlap(first: str, second: str) -> float:
     return len(one & two) / min(len(one), len(two))
 
 
-def _describe(candidate: TaskCandidate) -> str:
+def _describe(candidate: TaskCandidate, said: Readings | None = None) -> str:
     """What the model is shown about a candidate.
 
-    Its shape and its cost, and nothing else: no bodies, no responses, no
-    payloads. Naming a task needs the steps and the system, and everything else
-    would be egress bought for nothing.
+    Its shape, its cost, and what the rig already made of the gestures behind
+    it. Still no bodies, no responses and no payloads: the readings below are
+    sentences a model wrote when the gesture was captured, so putting them here
+    sends nothing anywhere it has not already been.
+
+    They are here because a signature is not always a description. The derived
+    title reads the entity off the last changing call, which is exact for
+    `POST data/WM/wm/equipmentTypes` and empty for `POST mail/u/*` -- Gmail's
+    paths carry no nouns, so every mail candidate arrived at the model called
+    "Create u" with one opaque step under it, and was named and judged on that.
+    A pair asked "is reading mail part of creating an equipment type" could only
+    be answered no. The readings are what the operator was doing, which is the
+    thing the question is actually about.
     """
+    doings = _doings(candidate, said or {})
     return "\n".join(
         (
             f"system: {candidate.host}",
@@ -496,8 +518,62 @@ def _describe(candidate: TaskCandidate) -> str:
             f"currently called: {candidate.title}",
             "steps:",
             *(f"  {step}" for step in candidate.signature.split(" → ")),
+            *(("what was done, as read at capture:",) if doings else ()),
+            *(f"  {doing}" for doing in doings),
         )
     )
+
+
+def _doings(candidate: TaskCandidate, said: Readings) -> list[str]:
+    """This candidate's readings, in order, without repeats.
+
+    Keyed on the system as well as the batch: one upload carries every tab the
+    operator had open, and that is the whole point of it -- so a mail candidate
+    keyed on the batch alone would be described with the warehouse work that
+    arrived beside it, and every cross-system pair would look like one job
+    because both halves were handed the same sentences.
+    """
+    found: list[str] = []
+    for episode in candidate.episodes:
+        for batch_id in episode.batch_ids:
+            for one in said.get((batch_id.value, candidate.host), ()):
+                if one not in found:
+                    found.append(one)
+    if len(found) <= MOST_DOINGS:
+        return found
+    # Evenly spaced rather than the first or the last of them. A task opens with
+    # navigation and closes on whatever the page did afterwards, so both ends
+    # are the parts that say least: the first eight readings of creating an
+    # equipment type are a logo, a menu and a tab, and the write itself is in
+    # the middle. Spacing keeps the shape of the whole doing without judging
+    # which sentences are interesting, which would be a second model's job.
+    step = len(found) / MOST_DOINGS
+    return [found[int(index * step)] for index in range(MOST_DOINGS)]
+
+
+async def _already_read(uow: UnitOfWork, tenant_id: TenantId) -> Readings:
+    """What the per-gesture pass already understood, by batch and by system.
+
+    Read once per sweep rather than per candidate, and joined on the batch id
+    because a candidate's episodes name their batches exactly -- no clock
+    arithmetic between a browser's clock and ours.
+
+    ponytail: whole-tenant read, indexed in memory. One sweep, not one per
+    candidate, so it is a single pass over a tenant's evidence; a tenant with
+    a year of gestures wants this narrowed to the batches the candidates name.
+    """
+    intents = {intent.gesture_id: intent for intent in await uow.gestures.intents_for(tenant_id)}
+    found: Readings = {}
+    for gesture in await uow.gestures.gestures_for(tenant_id):
+        intent = intents.get(gesture.id)
+        if intent is None or not intent.act:
+            continue
+        # `system` is an origin and `host` is a hostname; compared as hostnames
+        # so `https://mail.google.com` and `mail.google.com` are one system.
+        host = urlsplit(gesture.system or gesture.url or "").hostname or ""
+        reading = intent.act if not intent.object else f"{intent.act} — {intent.object}"
+        found.setdefault((gesture.batch_id, host), []).append(reading)
+    return found
 
 
 def _offered(candidate: TaskCandidate) -> str:

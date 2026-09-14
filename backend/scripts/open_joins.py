@@ -115,7 +115,8 @@ async def _ask(tenant: str, first: int = 0) -> int:
             print(f"   the model's reason: {join.because}")
             print(
                 f"   answer:  POST /v1/candidates/{candidate.id.value}/joins"
-                f'  {{"other_id": "{join.other_id.value}", "answer": "same|different"}}'
+                f'  {{"other_id": "{join.other_id.value}", "kind": "{join.kind.value}",'
+                '  "answer": "same|different"}'
             )
     if questions == first:
         print(f"{tenant}: nothing is waiting on a person")

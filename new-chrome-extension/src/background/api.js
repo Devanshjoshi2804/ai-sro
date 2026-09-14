@@ -397,6 +397,44 @@ export const api = {
    * languages drifts on one of them. */
   ask: (said) => call("/v1/ask", { method: "POST", body: { said } }),
 
+  /** The pages this browser starts a job on.
+   *
+   * Asked for separately from the watches rather than as "this browser's
+   * rules", because the browser does two different things with them: a watch
+   * is matched against a mail and OFFERS what it found, an arrival is matched
+   * against the page in front of somebody and STARTS something. */
+  arrivals: (deviceId) => call(`/v1/agents/${encodeURIComponent(deviceId)}/arrivals`),
+
+  /** "Do this here": the rule itself, written down.
+   *
+   * An ordinary trigger, which is why there is no special door for it -- the
+   * kind and the page are what make it one. `authorized_by` is true because
+   * the operator is standing there saying so, and the backend takes the name
+   * off the credential rather than off this body.
+   */
+  makeArrival: ({ workflow_id, device_id, page, values }) =>
+    call("/v1/triggers", {
+      method: "POST",
+      body: {
+        workflow_id,
+        device_id,
+        kind: "arrival",
+        arrival: { page },
+        parameters: values || {},
+        authorized_by: true,
+      },
+    }),
+
+  /** The operator arrived. No press: they pressed once, when they made the
+   * rule. The url goes with it so the backend can check the rule is about the
+   * page this browser says it is on -- a browser that got that wrong would
+   * otherwise start a live run in somebody's window on a page nobody chose. */
+  arrivalFire: (deviceId, triggerId, url) =>
+    call(
+      `/v1/agents/${encodeURIComponent(deviceId)}/arrivals/${encodeURIComponent(triggerId)}/fire`,
+      { method: "POST", body: { url } },
+    ),
+
   /** One question, asked of every system that could answer it.
    *
    * Straight at the lookup door rather than through `/v1/ask`: this is used

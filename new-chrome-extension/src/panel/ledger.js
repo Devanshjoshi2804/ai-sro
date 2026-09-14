@@ -352,9 +352,28 @@ function offeringToFinish(nudge, onPress) {
     onPress?.("drop-nudge", nudge, item, no);
   });
 
+  // The third answer, and a different kind of answer: yes to THIS one, no to
+  // this one, and "always, here". It writes a rule rather than starting a run
+  // -- nothing happens now -- so it does not end the card: somebody can make
+  // the rule and still press Yes for the doing in front of them.
+  //
+  // Only where the offer names the page it is about. A rule made from an offer
+  // that named none would be a rule about nowhere.
+  const always = document.createElement("button");
+  always.type = "button";
+  always.className = "quiet";
+  always.textContent = "Always, here";
+  always.addEventListener("click", () => {
+    if (ended) return;
+    always.disabled = true;
+    always.textContent = "every time you land here";
+    onPress?.("do-this-here", nudge, item, always);
+  });
+
   const row = document.createElement("div");
   row.className = "row";
   row.append(yes, no);
+  if (nudge.startsOn) row.append(always);
   item.append(row);
   return item;
 }

@@ -590,6 +590,33 @@ test("no markup reaches the page, whatever a system answered", () => {
   assert.equal(asMarkup.length, before, "a system's answer was assigned as markup");
 });
 
+test("a rig offer carries a third answer: always, here", () => {
+  // A rule rather than a run. Nothing starts on this press, so it does not end
+  // the card -- somebody can make the rule and still say yes to the doing in
+  // front of them.
+  const pressed = [];
+  const item = renderNudge(
+    { id: "n_9", state: "open", source: "rig", title: "Create an equipment type",
+      startsOn: "wms.test/portal/page", workflowId: "wfl_1", k: 0, values: {}, missing: [] },
+    (answer) => pressed.push(answer),
+  );
+
+  const always = labelled(item, /Always, here/);
+  assert.ok(always, "the offer had no way to become a rule");
+  press(always);
+  assert.deepEqual(pressed, ["do-this-here"]);
+  assert.equal(labelled(item, /Yes, do it/).disabled, false, "making a rule ended the offer");
+});
+
+test("an offer that names no page cannot become a rule about one", () => {
+  const item = renderNudge({
+    id: "n_10", state: "open", source: "rig", title: "Create an equipment type",
+    startsOn: "", workflowId: "wfl_1", k: 0, values: {}, missing: [],
+  });
+
+  assert.equal(labelled(item, /Always, here/), undefined);
+});
+
 for (const [name, fn] of tests) {
   try {
     await fn();

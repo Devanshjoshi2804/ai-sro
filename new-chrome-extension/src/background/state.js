@@ -31,6 +31,8 @@ const KEYS = {
   finishedRun: "sro.finishedRun",
   activeRun: "sro.activeRun",
   answer: "sro.answer",
+  arrivals: "sro.arrivals",
+  arrived: "sro.arrived",
 };
 
 export const DEFAULT_API_URL = "http://localhost:8000";
@@ -115,6 +117,24 @@ export const state = {
    * next morning, which is what `askedAt` lets the panel decide. */
   answer: () => read(KEYS.answer, null),
   setAnswer: (answer) => write(KEYS.answer, answer),
+
+  /** The pages this browser starts a job on, from the backend that keeps them.
+   *
+   * Held here for the same reason the watches are: the rule is evaluated where
+   * the operator is, and a browser on a train should still do what its
+   * operator told it to do on the page in front of them. */
+  arrivals: () => read(KEYS.arrivals, []),
+  setArrivals: (arrivals) => write(KEYS.arrivals, arrivals),
+
+  /** Navigations this browser has already fired a rule on.
+   *
+   * In storage and not in a module variable, because MV3 evicts this worker
+   * between events and a reload of the same page would otherwise start the
+   * job again -- the worker having forgotten, not the operator having asked
+   * twice. Capped: the visit id carries the moment it happened, so old ones
+   * can never come back. */
+  arrived: () => read(KEYS.arrived, []),
+  setArrived: (visits) => write(KEYS.arrived, visits),
 
   muted: () => read(KEYS.muted, {}),
   setMuted: (muted) => write(KEYS.muted, muted),

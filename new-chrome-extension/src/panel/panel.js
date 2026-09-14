@@ -1170,6 +1170,12 @@ async function answered(answer, message, where, button, values) {
   if (answer === "start-rig-run" || answer === "drop-nudge") {
     return answeredOffer(answer, message, button, values);
   }
+  // "Always, here." A rule rather than a run: nothing starts now, and the next
+  // time this operator lands on the page this offer is about, their own
+  // browser starts the job. Kept out of `answeredOffer` because that function
+  // reports an offer's FATE, and making a rule is not one of the three -- the
+  // offer in front of them is still theirs to answer either way.
+  if (answer === "do-this-here") return madeARule(message, button);
   const decision = message.decision || {};
   // A matched mail: the values are the browser's, and the ones the operator
   // typed into the card are what the run must use -- so they go up on the press
@@ -1223,6 +1229,32 @@ async function answeredOffer(answer, nudge, button, values) {
   await refresh();
   drawn = null;
   await conversation();
+}
+
+
+/** "Do this here", answered from the ledger.
+ *
+ * The page is the offer's, chosen in the worker: a rule made about whichever
+ * tab the panel happens to be docked beside is a rule about the wrong page
+ * that fires forever after.
+ */
+async function madeARule(nudge, button) {
+  try {
+    const got = await ask({ kind: "do-this-here", nudgeId: nudge.id });
+    if (got.ok) {
+      said(`from now on this runs when you land on ${got.page}`);
+      return;
+    }
+    // The card said "every time you land here" on the press. It is not true,
+    // so it is taken back rather than left standing.
+    button.disabled = false;
+    button.textContent = "Always, here";
+    said(got.error || "no rule was made");
+  } catch (error) {
+    button.disabled = false;
+    button.textContent = "Always, here";
+    said(error.message);
+  }
 }
 
 

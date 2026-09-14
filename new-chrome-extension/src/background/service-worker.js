@@ -110,6 +110,10 @@ chrome.webNavigation.onCommitted.addListener((d) => {
   // it committed. Same property either way: one nudge per navigation rather
   // than one per page for ever.
   void considerNudge(d.tabId, d.url, `${d.tabId}:${d.timeStamp}`);
+  // And the rule the operator made by standing here. Same visit id, so a rule
+  // fires once per navigation rather than once per page for ever, and the
+  // nudge for this page is superseded by the run it starts.
+  void considerArrival(d.tabId, d.url, `${d.tabId}:${d.timeStamp}`);
 });
 chrome.webNavigation.onCompleted.addListener((d) => {
   if (d.frameId === 0) void pageEvent("loaded", d.tabId, d.url, d.timeStamp);
@@ -216,6 +220,97 @@ async function considerNudge(tabId, url, visit) {
     // A tab that closed mid-navigation, or a browser with no credential yet.
     // Nothing offered is the safe answer and the quiet one.
   }
+}
+
+/** The rule this operator made by standing on this page: fire it, once.
+ *
+ * The other half of the wire. `considerNudge` above offers -- "you have done
+ * this here before, want me to?" -- and this one acts, because somebody
+ * already answered that question in advance. The two are deliberately separate
+ * functions over the same navigation: an offer is a question and a rule is an
+ * instruction, and a single path that did both would make the difference a
+ * flag.
+ *
+ * What it will not do, in the order it refuses:
+ *
+ * - While this browser is paused, or the tenant has paused it. A rule is not
+ *   an exception to the badge saying nothing is happening.
+ * - While a run is already performing here. Two runs in one window is the
+ *   panel driving over itself.
+ * - Twice for one navigation. The visit id is the tab and the moment it
+ *   committed, kept in storage because this worker is evicted between events
+ *   and a forgotten fire is indistinguishable to the operator from a second
+ *   one they never asked for.
+ *
+ * The page is matched HERE and again by the backend against the rule's own
+ * page. This side has to match, because it is the only thing that knows where
+ * its operator is; the other side has to, because a browser that got it wrong
+ * would start a live run on a page nobody chose.
+ */
+async function considerArrival(tabId, url, visit) {
+  try {
+    const [deviceId, paused, serverPaused] = await Promise.all([
+      state.deviceId(),
+      state.paused(),
+      state.serverPaused(),
+    ]);
+    if (!deviceId || paused || serverPaused) return;
+    if (performing() || parkedRigRun(await state.activeRun())) return;
+
+    const here = rulePage(url);
+    if (!here) return;
+    const rules = (await state.arrivals()).filter((rule) => rule.page === here);
+    if (!rules.length) return;
+
+    const fired = await serially(async () => {
+      const already = await state.arrived();
+      if (already.includes(visit)) return null;
+      // Written before the call, not after. The call takes a round trip, and a
+      // second navigation event for the same commit -- which Chrome does emit
+      // -- would otherwise find nothing written and fire again.
+      await state.setArrived([visit, ...already].slice(0, MOST_ARRIVALS_REMEMBERED));
+      return rules[0];
+    });
+    if (!fired) return;
+
+    const started = await api.arrivalFire(deviceId, fired.id, url);
+    // Said where the panel can draw it. A run that started because of a
+    // standing rule looks, from the operator's side, like their browser
+    // deciding to do something -- and the one thing that must never be true is
+    // that they cannot see why.
+    await state.setActiveRun({ runId: started.run_id, at: Date.now(), source: "rig" });
+  } catch (error) {
+    // A tab that closed mid-navigation, a rule the backend has since disabled,
+    // a browser with no credential. Said out loud rather than swallowed: a
+    // rule that silently stopped firing is the worst of the three.
+    await state.setLastError(`a page rule did not fire: ${error}`);
+  }
+}
+
+/** How many navigations back this browser remembers firing on. Ten is far more
+ * than the handful of tabs anybody has open, and the visit id carries the
+ * moment it happened, so an old one can never come back and match. */
+const MOST_ARRIVALS_REMEMBERED = 10;
+
+/** The page a RULE is about, which is `page()` plus two narrower rules.
+ *
+ * Not a second parser: `nudge.js`'s `page()` is the one that says what a page
+ * is here, and this is the same string under the two conditions a standing
+ * rule adds. Lowercased, because `domain/trigger/arrival.py` stores rules
+ * lowercase so the two sides of the wire compare one spelling -- done at the
+ * comparison rather than inside `page()`, which the nudge path matches against
+ * `starts_on` strings the miner wrote in whatever case the page used. And http
+ * or https only: `chrome://settings` parses, and the browser's own pages are
+ * not a system, carry no session, and are the one place an extension has no
+ * business driving anything.
+ */
+function rulePage(url) {
+  try {
+    if (!/^https?:$/.test(new URL(url).protocol)) return "";
+  } catch {
+    return "";
+  }
+  return pageOf(url).toLowerCase();
 }
 
 /** Ends the ones that ran out, wherever the operator has got to.
@@ -1142,6 +1237,34 @@ async function handle(message, sender) {
       }
       return { ok: true, nudge: was || null };
     }
+    case "do-this-here": {
+      // "Do this here", from the card that just offered the job. The rule is
+      // written on the backend -- a trigger, with the operator's credential
+      // behind it -- and this worker is where that credential lives.
+      //
+      // The page comes from the OFFER and not from whichever tab the panel is
+      // docked beside. The offer is about a page the miner recorded the job
+      // starting on, and a rule made about the tab somebody happened to have
+      // in front of them is a rule about the wrong page that fires forever.
+      const nudge = (await state.nudges()).find((n) => n.id === message.nudgeId);
+      if (!nudge || !nudge.workflowId) return { ok: false, error: "no such offer" };
+      const page = rulePage(`https://${nudge.startsOn || ""}`);
+      if (!page) return { ok: false, error: "that offer does not name a page" };
+      try {
+        const made = await api.makeArrival({
+          workflow_id: nudge.workflowId,
+          device_id: await state.deviceId(),
+          page,
+          values: nudge.values || {},
+        });
+        // Read back rather than assumed: the rule is only in force once this
+        // browser holds it, and the next navigation is what reads this list.
+        await refreshArrivals();
+        return { ok: true, trigger_id: made.id, page };
+      } catch (error) {
+        return { ok: false, error: error.problem?.detail || error.message };
+      }
+    }
     case "start-rig-run": {
       // Yes, on an offer the rig made. The press is in the panel, where
       // somebody can read what it says; the run is started here, because the
@@ -1594,6 +1717,27 @@ function hostOf(url) {
  * watch being withdrawn, and an operator whose laptop is on a train should
  * still be offered the mail in front of them.
  */
+/** The page rules this browser holds, from the backend that keeps them.
+ *
+ * Beside `refreshWatches` and refreshed with it. A failure leaves the last
+ * list standing for the same reason: a backend that cannot be reached is not
+ * an operator withdrawing a rule.
+ */
+async function refreshArrivals() {
+  const deviceId = await state.deviceId();
+  if (!deviceId) return state.setArrivals([]);
+  try {
+    const triggers = await api.arrivals(deviceId);
+    await state.setArrivals(
+      (triggers || [])
+        .filter((trigger) => trigger.arrival?.page)
+        .map((trigger) => ({ id: trigger.id, page: trigger.arrival.page })),
+    );
+  } catch (error) {
+    await state.setLastError(error instanceof ApiError ? error.message : String(error));
+  }
+}
+
 async function refreshWatches() {
   const deviceId = await state.deviceId();
   if (!deviceId) return state.setWatches([]);
@@ -1689,6 +1833,7 @@ async function register(label) {
   await state.setLastError("");
   // Before `settle`, which is what registers the script that evaluates them.
   await refreshWatches();
+  await refreshArrivals();
   await settle();
   return status();
 }

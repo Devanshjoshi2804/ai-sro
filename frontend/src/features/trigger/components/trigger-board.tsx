@@ -318,6 +318,12 @@ function NewTrigger({
             authorized_by: authorized,
             auto_approve: autoApprove,
             may_take_focus: mayTakeFocus,
+            // A question read out of a mail, rather than a job. Not something
+            // this form makes: it is a watch, marked on an open mail in the
+            // operator's own browser, and there is nowhere here to point at
+            // the sentence it would ask. Said explicitly because the generated
+            // type has no defaults.
+            asks: false,
           });
         }}
       >

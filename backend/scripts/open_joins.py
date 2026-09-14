@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import asyncio
 import sys
+from collections.abc import Sequence
 from datetime import timedelta
 from urllib.parse import urlsplit
 
@@ -120,7 +121,43 @@ async def _ask(tenant: str, first: int = 0) -> int:
             )
     if questions == first:
         print(f"{tenant}: nothing is waiting on a person")
+    print(_split(candidates), end="")
     return questions
+
+
+def _split(candidates: Sequence[TaskCandidate]) -> str:
+    """Work this tenant holds that can never be paired, and why.
+
+    `_variants` and `_workflows` both require one principal on both sides, and
+    they are right to: a candidate is `(principal, signature)`, and pairing two
+    people's days into one job would be a claim about somebody's work that
+    nobody made. So this does not widen the rule -- it says out loud that the
+    rule is biting, which nothing did.
+
+    It bites hardest on the deployment this was written on. A token names its
+    own principal, so a browser re-registered with a second one becomes a
+    second device on purpose (`GrantHost`: "a browser is not a person"), and a
+    month of one person's evidence arrives as two workers who never met. On
+    `new` that is 131 batches as `devansh` against 882 as `operator`, and every
+    cross-system pair between them is passed over in silence.
+
+    An instrument reads; it does not steer. What to do about it -- one token
+    per person from here on, or a way to say two principals are one operator --
+    is a decision, and this only makes sure it is a decision somebody knows
+    they are taking.
+    """
+    hosts: dict[str, set[str]] = {}
+    for candidate in candidates:
+        hosts.setdefault(candidate.host, set()).add(candidate.principal_id.value)
+    split = {host: who for host, who in hosts.items() if len(who) > 1}
+    if not split:
+        return ""
+    lines = [
+        "\n   note: this tenant's work is split across principals, and a pair",
+        "\n   needs one principal on both sides, so these can never be joined:",
+    ]
+    lines += [f"\n     {host}: {', '.join(sorted(who))}" for host, who in sorted(split.items())]
+    return "".join(lines) + "\n"
 
 
 async def _every(tenants: list[str]) -> int:

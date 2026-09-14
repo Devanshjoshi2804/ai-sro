@@ -2283,14 +2283,59 @@ function refused(consoleUrl) {
   $("console-note").textContent = "";
 }
 
-// ponytail: polled while the panel is open rather than pushed from the worker.
-// A few storage reads a second is cheap and has no lifecycle edge cases; make
-// it a broadcast if it is ever felt.
+// The worker pushes the state; this only asks when it has not heard.
+//
+// It used to poll every two seconds, which is two redraws a second of work
+// nobody did and, worse, a state change waiting up to two seconds to appear:
+// a rule fires, a run starts, an offer arrives, and the panel sits on the old
+// picture. A named port lets the worker say so the moment it knows.
+//
+// The port is opened lazily and never retried in a loop -- a service worker
+// is evicted whenever Chrome feels like it, taking every port with it, and an
+// eager reconnect turns each eviction into a storm. The slow beat below
+// reopens it on its own schedule, and doubles as the safety net for a push
+// that was never delivered.
+let toWorker = null;
+
+function listen() {
+  if (toWorker) return;
+  try {
+    toWorker = chrome.runtime.connect({ name: "panel" });
+  } catch {
+    // No worker to connect to this instant. The beat tries again.
+    toWorker = null;
+    return;
+  }
+  toWorker.onDisconnect.addListener(() => {
+    toWorker = null;
+  });
+  toWorker.onMessage.addListener((message) => {
+    if (message?.kind !== "status" || document.visibilityState !== "visible") return;
+    void drawPushed(message.status);
+  });
+}
+
+/** A status the worker sent, drawn the same way a fetched one is.
+ *
+ * `refresh()` is what knows how to finish a status -- the performing card needs
+ * the run and the skill behind it, which are the backend's and not the
+ * worker's -- so a push that carries a run takes that path rather than growing
+ * a second one that would drift from it.
+ */
+async function drawPushed(pushed) {
+  if (pushed?.performing) return refresh();
+  void sayTheDay(pushed);
+  render(pushed);
+}
+
 setInterval(() => {
   if (document.visibilityState !== "visible") return;
-  void refresh();
+  listen();
   void whereWeAre();
-}, 2000);
+  // The safety net, at a tenth of the old rate: a push that never arrived, a
+  // worker evicted between one and the next, a port that closed quietly.
+  void refresh();
+}, 20000);
 
 // ponytail: the thread is polled too, on its own slower tick -- it is a call to
 // the API rather than a read of the worker's own state, and nothing in a
@@ -2301,6 +2346,7 @@ setInterval(() => {
   void conversation();
 }, 5000);
 
+listen();
 void refresh();
 void whereWeAre();
 void conversation();

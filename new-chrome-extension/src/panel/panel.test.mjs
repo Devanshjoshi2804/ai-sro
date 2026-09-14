@@ -131,10 +131,16 @@ function panel(status, here = null, replies = {}) {
   // operator -- and which URL that is, is the whole of what a "details" link
   // gets right or wrong.
   const opened = [];
+  // The panel opens a port to the worker at load and draws whatever it pushes.
+  const ports = [];
   const sandbox = {
     document: {
       getElementById: (id) => (ids[id] ??= node("div")),
       createElement: (tag) => node(tag),
+      // The panel does nothing while it is not on screen. Unset, every push
+      // and every beat would be skipped and every test here would be about a
+      // hidden panel.
+      visibilityState: "visible",
     },
     setInterval: () => 0,
     setTimeout: () => 0,
@@ -142,6 +148,18 @@ function panel(status, here = null, replies = {}) {
     chrome: {
       runtime: {
         id: "test",
+        connect: ({ name }) => {
+          const port = {
+            name,
+            listeners: { message: [], disconnect: [] },
+            onMessage: { addListener: (fn) => port.listeners.message.push(fn) },
+            onDisconnect: { addListener: (fn) => port.listeners.disconnect.push(fn) },
+            postMessage: () => {},
+            disconnect: () => {},
+          };
+          ports.push(port);
+          return port;
+        },
         sendMessage: async (message) => {
           sent.push(message);
           // The status the panel reads for itself on its own two-second poll.
@@ -208,6 +226,7 @@ function panel(status, here = null, replies = {}) {
     opened,
     cards,
     ids,
+    ports,
     renderCandidates: sandbox.here,
     // Exposed so a test can simulate the panel's own two-second poll --
     // `refresh()` calling `render(status)` again with nothing changed --
@@ -1868,6 +1887,43 @@ test("the poll does not empty the box somebody is typing their password into", a
     "the poll replaced the box somebody was typing into",
   );
   assert.equal(box.value, "half-ty", "what they had typed was thrown away");
+});
+
+test("the worker pushes the state and the panel draws it without asking", async () => {
+  // It used to poll every two seconds: two redraws a second of work nobody
+  // did, and a state change waiting up to two seconds to appear. A rule fires,
+  // a run starts, an offer lands -- and the panel sat on the old picture.
+  const made = panel({ deviceId: "dev-1" });
+  const [port] = made.ports;
+  assert.ok(port, "the panel never opened a port to the worker");
+  assert.equal(port.name, "panel");
+
+  // The panel's own load-time fetch first, so what is on screen when the push
+  // lands is what the worker last answered rather than a half-built page.
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  const before = made.sent.filter((message) => message.kind === "status").length;
+  port.listeners.message[0]({
+    kind: "status",
+    status: { deviceId: "dev-1", teaching: { startedAt: new Date().toISOString() } },
+  });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  const drawn = `${words(made.ids["expanded"])} ${words(made.ids["cards"])}`;
+  assert.match(drawn, /[Rr]ecording/, "a pushed status was not drawn");
+  assert.equal(
+    made.sent.filter((message) => message.kind === "status").length,
+    before,
+    "the panel asked for a status it had just been given",
+  );
+});
+
+test("a port that dies is dropped rather than retried into a storm", async () => {
+  const made = panel({ deviceId: "dev-1" });
+  const [port] = made.ports;
+
+  port.listeners.disconnect[0]();
+
+  assert.equal(made.ports.length, 1, "the panel reconnected the instant it was disconnected");
 });
 
 test("pressing Yes on a rule that fired actually answers it", async () => {

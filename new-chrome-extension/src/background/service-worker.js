@@ -1699,10 +1699,76 @@ async function handle(message, sender) {
     }
     case "status":
       return status(sender);
+    case "panel-open":
+      // The panel saying it is there, for a worker that was evicted while it
+      // was open. Answered with the status like any poll -- what this changes
+      // is that the push below knows somebody is listening.
+      return status(null);
     default:
       return { error: `no such message: ${message?.kind}` };
   }
 }
+
+// -- pushing the state, rather than being asked for it every two seconds -----
+
+/** The panels connected to this worker right now.
+ *
+ * A `Set` and not one port: two windows can each have the panel open, and both
+ * are looking at the same browser.
+ */
+const watching = new Set();
+
+/** How long to wait before pushing, so a burst of writes is one redraw.
+ *
+ * Every state change goes through `chrome.storage`, and a single gesture can
+ * write three keys. Pushing per key would redraw the panel three times and
+ * take the cursor out of whatever somebody was typing twice for nothing.
+ */
+const SETTLE_PUSH_MS = 120;
+let pushing = null;
+
+// `?.` for the same reason `chrome.sidePanel?.` above has it: this module is
+// loaded by node in the self-checks, where `chrome` is whatever the test
+// needed and nothing more.
+chrome.runtime.onConnect?.addListener((port) => {
+  if (port.name !== "panel") return;
+  watching.add(port);
+  // Lazily, the way the reconnect guidance says: nothing here retries, and a
+  // port that has gone is simply dropped. The panel reopens it on its own next
+  // beat, which is also what happens after this worker is evicted -- the
+  // connection dies with it and the panel notices.
+  port.onDisconnect.addListener(() => watching.delete(port));
+  void pushStatus();
+});
+
+/** Every panel told what this worker now knows.
+ *
+ * `postMessage` on a port whose other end has gone throws SYNCHRONOUSLY rather
+ * than reporting through `onDisconnect`, which is the one sharp edge of this
+ * API -- so every send is guarded and a port that throws is dropped.
+ */
+async function pushStatus() {
+  if (!watching.size) return;
+  const now = await status(null);
+  for (const port of [...watching]) {
+    try {
+      port.postMessage({ kind: "status", status: now });
+    } catch {
+      watching.delete(port);
+    }
+  }
+}
+
+// What "something changed" means, without a call site having to remember to
+// say so. Everything the panel draws is mirrored into `chrome.storage` --
+// deliberately, because this worker is evicted between commands -- so the
+// storage event is the one signal that cannot be forgotten when a new piece of
+// state is added next month.
+chrome.storage.onChanged?.addListener(() => {
+  if (!watching.size) return;
+  clearTimeout(pushing);
+  pushing = setTimeout(() => void pushStatus(), SETTLE_PUSH_MS);
+});
 
 /** How many offers this browser holds: enough that the morning's mail is still
  * there after lunch, few enough that a watch somebody wrote badly cannot fill

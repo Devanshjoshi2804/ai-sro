@@ -13,7 +13,7 @@ from sro.domain.execution.run import Medium, RunId
 from sro.domain.shared.errors import InvariantViolation
 from sro.domain.shared.identifiers import DeviceId, PrincipalId, SkillId, TenantId, TriggerId
 from sro.domain.trigger.cron import why_not
-from sro.domain.trigger.watch import Watch
+from sro.domain.trigger.watch import QUESTION, Watch
 
 
 class TriggerKind(StrEnum):
@@ -80,6 +80,26 @@ class Trigger:
     somebody authorised for one warehouse would answer about another.
     """
 
+    asks: bool = False
+    """This watch asks a question rather than running anything.
+
+    A mail arrives saying "how many suppliers are set up at SG" and the answer
+    is in the systems the operator works in, not in a job anybody demonstrated
+    -- `umbrella` is explicit that looking something up is a step of a job and
+    never a job, so there is no workflow for a trigger like this to name.
+
+    So the one invariant below is relaxed for exactly this case: a trigger
+    names a skill, or a job, or -- when it asks -- neither. It still names ONE
+    thing to do; the thing is a lookup.
+
+    The question itself is a VALUE and not a term: read out of the mail at
+    match time in the operator's own browser, passed as a parameter, never
+    written down. That is the same contract every other value read out of a
+    mail is under, and it is what keeps this inside ADR 008's line rather than
+    moving correspondence into the control plane. `watch.py` is where that
+    argument is made in full.
+    """
+
     watch: Watch | None = None
     """What makes a mail one of these, and where to read the values out of it.
     A watch trigger's ``from_message`` is derived from it rather than given
@@ -128,7 +148,18 @@ class Trigger:
             raise InvariantViolation("Trigger.created_at must be timezone-aware")
 
         named = [name for name in (self.skill_id, self.workflow_id) if name]
-        if len(named) != 1:
+        if self.asks:
+            if named:
+                raise InvariantViolation(
+                    "a trigger that asks a question runs nothing: name neither"
+                )
+            if self.kind is not TriggerKind.WATCH:
+                raise InvariantViolation(f"a {self.kind} trigger has no question to ask")
+            if self.writes:
+                # Structural rather than a promise. A read may not write, and
+                # the one place a trigger could have claimed otherwise is here.
+                raise InvariantViolation("a question writes nothing")
+        elif len(named) != 1:
             raise InvariantViolation(
                 "a trigger runs one thing: name a skill or a job, not "
                 + ("both" if named else "neither")
@@ -164,6 +195,15 @@ class Trigger:
             if self.from_message:
                 raise InvariantViolation(
                     "a watch names its values by where it reads them; there is no second list"
+                )
+            if self.asks and not any(value.name == QUESTION for value in self.watch.values):
+                # Nothing to ask. A watch that asks a question has to say where
+                # in the mail the question is, and a rule matching a sender
+                # with no question marked would fire on every mail from them
+                # and look up nothing.
+                raise InvariantViolation(
+                    f"a watch that asks needs a {QUESTION!r} value: where in the mail the "
+                    "question is"
                 )
         elif self.watch is not None:
             raise InvariantViolation(f"a {self.kind} trigger has nothing to watch for")

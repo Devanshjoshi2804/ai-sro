@@ -579,6 +579,7 @@ def update_trigger_row(row: TriggerRow, trigger: Trigger) -> None:
     row.skill_id = trigger.skill_id.value if trigger.skill_id else None
     row.workflow_id = trigger.workflow_id
     row.kind = trigger.kind.value
+    row.asks = trigger.asks
     row.cron = trigger.cron
     row.timezone = trigger.timezone
     row.parameters = dict(trigger.parameters)
@@ -609,6 +610,7 @@ def row_to_trigger(row: TriggerRow) -> Trigger:
         skill_id=SkillId(row.skill_id) if row.skill_id else None,
         workflow_id=row.workflow_id,
         kind=TriggerKind(row.kind),
+        asks=bool(row.asks),
         created_by=PrincipalId(row.created_by),
         created_at=row.created_at,
         parameters=dict(row.parameters),

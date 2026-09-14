@@ -23421,7 +23421,7 @@
           "triggers"
         ],
         "summary": "Create Trigger",
-        "description": "Everything refusable is refused now rather than at three in the morning.\n\nA skill that has never been rehearsed, a value nobody supplied, a write with\nnobody's name behind it: all of them answer here, to the person who can do\nsomething about it, weeks before the first firing.\n\n`skill_id` or `workflow_id`, never both. The second is a job the rig mined,\nwhich until now could be started by a person accepting an offer in their\nown browser and by nothing else.",
+        "description": "Everything refusable is refused now rather than at three in the morning.\n\nA skill that has never been rehearsed, a value nobody supplied, a write with\nnobody's name behind it: all of them answer here, to the person who can do\nsomething about it, weeks before the first firing.\n\n`skill_id` or `workflow_id`, never both. The second is a job the rig mined,\nwhich until now could be started by a person accepting an offer in their\nown browser and by nothing else. `asks` is the third case: a watch that\nreads a QUESTION out of a mail and answers it, which names neither because\nlooking something up is a step of a job and never a job.",
         "operationId": "create_trigger_v1_triggers_post",
         "parameters": [
           {
@@ -32680,6 +32680,11 @@
             "type": "boolean",
             "title": "May Take Focus",
             "default": false
+          },
+          "asks": {
+            "type": "boolean",
+            "title": "Asks",
+            "default": false
           }
         },
         "type": "object",
@@ -35760,6 +35765,11 @@
           "kind": {
             "type": "string",
             "title": "Kind"
+          },
+          "asks": {
+            "type": "boolean",
+            "title": "Asks",
+            "default": false
           },
           "cron": {
             "anyOf": [

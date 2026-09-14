@@ -136,6 +136,7 @@ let approveRefusal = null;
 let offerRefusal = null;
 let chatRead = null;
 let lookupRead = null;
+let lookedUp = [];
 
 /** The rig and the backend, as far as this browser can tell. Re-installed by
  * `ready()`: a test that swaps it for one of its own must not leave every later
@@ -178,6 +179,10 @@ const rigServer = async (url, options = {}) => {
   // The one door in front of both worlds. The backend decides which a sentence
   // is -- the rule lives there so this side carries no copy of it -- so the
   // fake answers by the same shape the route does.
+  if (path === "/v1/lookups") {
+    lookedUp.push(JSON.parse(options.body || "{}"));
+    return json(lookupRead || { question: "", lookups: [], answers: [] });
+  }
   if (path === "/v1/ask") {
     if (lookupRead) return json({ kind: "lookup", lookup: lookupRead });
     return chatRead ? json({ kind: "job", job: chatRead }) : json({ detail: "no model" }, 503);
@@ -257,6 +262,7 @@ function ready() {
   offerRefusal = null;
   chatRead = null;
   lookupRead = null;
+  lookedUp = [];
   globalThis.fetch = rigServer;
   // Distinctive on purpose. `dev-1` was the literal that a mutation of
   // `shapes()`'s `?device_id=` was replaced with, and all 27 suites stayed
@@ -1138,6 +1144,70 @@ test("a question is answered rather than turned into an offer", async () => {
   assert.equal(answered.said, "which suppliers are set up at SG");
   assert.equal(answered.answers[0].status, 200);
   assert.deepEqual(openOnes(), [], "a question was turned into an offer to run something");
+});
+
+test("a mail whose watch asks is answered, not turned into an offer to run", async () => {
+  // The other end of the same idea, arriving from a mailbox instead of the
+  // panel's box. A watch that asks reads the question out of the mail the way
+  // every other watch reads an order number -- at match time, as a parameter,
+  // never written down -- and what comes back is an answer.
+  ready();
+  held.set("sro.watches", [
+    {
+      id: "trg-ask",
+      asks: true,
+      host: "mail.google.com",
+      terms: [{ field: "subject", contains: "how many" }],
+      values: [{ name: "question", where: { strategy: "css_path", query: "div.mail-body" } }],
+    },
+  ]);
+  lookupRead = {
+    question: "how many suppliers are set up at SG",
+    lookups: [{ system: "blue_yonder", how: "call", target: "/data/WM/wm/suppliers" }],
+    answers: [{ system: "blue_yonder", target: "/data/WM/wm/suppliers", ok: true, body: "5" }],
+  };
+
+  const answered = await send(
+    {
+      kind: "watch-matched",
+      triggerId: "trg-ask",
+      values: { question: "how many suppliers are set up at SG" },
+    },
+    { url: "https://mail.google.com/mail/u/0/#inbox", tab: { id: TAB } },
+  );
+
+  assert.equal(answered.asked, true);
+  assert.deepEqual(lookedUp, [{ question: "how many suppliers are set up at SG" }]);
+  assert.equal(held.get("sro.answer").answers[0].body, "5");
+  assert.deepEqual(
+    calls.filter((call) => call.path.includes("/matched")),
+    [],
+    "a question was reported as a mail match for a job",
+  );
+  assert.deepEqual(held.get("sro.offers") || [], [], "a question left an offer nobody can press");
+});
+
+test("a watch that asks and finds no question in the mail says so and asks nobody", async () => {
+  // A rule matching a sender with the question mark pointed at the wrong place
+  // would otherwise look up the empty string on every mail from them.
+  ready();
+  held.set("sro.watches", [
+    {
+      id: "trg-ask",
+      asks: true,
+      host: "mail.google.com",
+      terms: [{ field: "subject", contains: "how many" }],
+      values: [{ name: "question", where: { strategy: "css_path", query: "div.mail-body" } }],
+    },
+  ]);
+
+  const answered = await send(
+    { kind: "watch-matched", triggerId: "trg-ask", values: {} },
+    { url: "https://mail.google.com/mail/u/0/#inbox", tab: { id: TAB } },
+  );
+
+  assert.match(answered.error, /no question/);
+  assert.deepEqual(lookedUp, []);
 });
 
 test("a sentence about nothing says something and offers nothing", async () => {

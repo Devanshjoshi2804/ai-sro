@@ -19,7 +19,7 @@ from sro.domain.execution.run import Medium
 from sro.domain.shared.errors import DomainError
 from sro.domain.shared.identifiers import DeviceId, SkillId
 from sro.domain.trigger.trigger import Trigger, TriggerKind
-from sro.domain.trigger.watch import Watch
+from sro.domain.trigger.watch import QUESTION, Watch
 
 
 class TriggerRefused(DomainError):
@@ -60,6 +60,11 @@ class NewTrigger:
     auto_approve: bool = False
     may_take_focus: bool = False
 
+    asks: bool = False
+    """This watch asks a question rather than running anything. No skill and no
+    job, because there is nothing to name: the mail carries a question and the
+    answer is somewhere in the systems the operator works in."""
+
 
 class CreateTrigger:
     def __init__(self, uow: UnitOfWork, clock: Clock, ids: IdFactory, scheduler: Scheduler) -> None:
@@ -71,6 +76,8 @@ class CreateTrigger:
     async def execute(self, ctx: RequestContext, request: NewTrigger) -> Trigger:
         parameters = dict(request.parameters or {})
         named = [name for name in (request.skill_id, request.workflow_id) if name]
+        if request.asks:
+            return await self._for_a_question(ctx, request)
         if len(named) != 1:
             raise TriggerRefused(
                 "a trigger runs one thing: name a skill or a job, not "
@@ -161,6 +168,49 @@ class CreateTrigger:
             await uow.triggers.add(trigger)
             await uow.commit()
 
+        return trigger
+
+    async def _for_a_question(self, ctx: RequestContext, request: NewTrigger) -> Trigger:
+        """A watch that asks rather than runs.
+
+        The checks a job trigger makes are all about the thing it runs, and
+        there is nothing here to check them against: no version to have earned
+        a stage, no parameters to be missing, no write to authorise. What is
+        left is what this kind can get wrong -- being asked of a browser that
+        is not there, or being given no question to ask -- and the second is
+        `Trigger`'s own invariant, checked here so a caller reads a sentence
+        rather than a 500.
+        """
+        if request.skill_id or request.workflow_id:
+            raise TriggerRefused("a trigger that asks a question runs nothing: name neither")
+        if request.kind is not TriggerKind.WATCH:
+            raise TriggerRefused("only a watch asks a question: it is read out of a mail")
+        if request.watch is None or not any(
+            value.name == QUESTION for value in request.watch.values
+        ):
+            raise TriggerRefused(
+                f"a watch that asks needs a {QUESTION!r} value: where in the mail the question is"
+            )
+
+        trigger = Trigger(
+            id=self._ids.new_trigger_id(),
+            tenant_id=ctx.tenant_id,
+            kind=TriggerKind.WATCH,
+            asks=True,
+            created_by=ctx.principal_id,
+            created_at=self._clock.now(),
+            watch=request.watch,
+            device_id=request.device_id,
+            medium=request.medium,
+            # Neither, and both for the same reason: a read writes nothing, so
+            # there is no write to authorise and no card to ask anybody for.
+            writes=False,
+            requires_confirmation=False,
+            may_take_focus=request.may_take_focus,
+        )
+        async with self._uow as uow:
+            await uow.triggers.add(trigger)
+            await uow.commit()
         return trigger
 
     async def _for_a_job(

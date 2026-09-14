@@ -38,6 +38,15 @@ from sro.domain.shared.errors import InvariantViolation
 from sro.domain.shared.hosts import domain_matches
 from sro.domain.skill.locator import ControlLocator
 
+QUESTION = "question"
+"""The value name that makes a watch a question rather than a job.
+
+A location like every other value -- where in the mail the question is -- read
+at match time and never stored. The name is fixed here rather than chosen per
+trigger because two sides read it: the browser that reads the mail and the
+trigger that says it asks.
+"""
+
 MAX_TERM = 200
 """A sender and a subject phrase are short. Not a storage limit -- the second
 half of the guard above. A paragraph in a term is a pasted mail body whatever

@@ -25,7 +25,7 @@ from sro.domain.shared.identifiers import DeviceId, SkillId
 from sro.domain.skill.locator import ControlLocator, LocatorStrategy
 from sro.domain.skill.template import Template
 from sro.domain.trigger.trigger import Trigger, TriggerId, TriggerKind
-from sro.domain.trigger.watch import MAX_TERM, Term, TermField, ValueAt, Watch
+from sro.domain.trigger.watch import MAX_TERM, QUESTION, Term, TermField, ValueAt, Watch
 from tests import factories as f
 
 GMAIL = "mail.google.com"
@@ -294,3 +294,62 @@ def test_a_watch_is_not_reachable_by_a_token() -> None:
     on one is a credential that exists for no reason."""
     with pytest.raises(InvariantViolation, match="not reached by a token"):
         _trigger(inbound_token="a-secret")  # noqa: S106
+
+
+# --- a watch that asks a question rather than running anything ---------------
+
+THE_QUESTION = ValueAt(
+    name=QUESTION,
+    where=ControlLocator(
+        strategy=LocatorStrategy.CSS_PATH, query=Template("div.mail-body p.question")
+    ),
+)
+
+
+def test_a_watch_may_ask_a_question_and_then_names_nothing_to_run() -> None:
+    """The third case of "what does this trigger run".
+
+    A mail arrives asking how many suppliers are set up at SG. The answer is in
+    the systems the operator works in and there is no job to name -- looking
+    something up is a step of a job and never a job, so the miner will never
+    produce one for a trigger to point at.
+    """
+    asking = _trigger(skill_id=None, asks=True, watch=_watch(values=(THE_QUESTION,)))
+
+    assert asking.asks
+    assert asking.skill_id is None and asking.workflow_id is None
+
+
+def test_a_watch_that_asks_and_also_names_a_job_is_refused() -> None:
+    with pytest.raises(InvariantViolation, match="runs nothing"):
+        _trigger(
+            skill_id=None, workflow_id="wfl_1", asks=True, watch=_watch(values=(THE_QUESTION,))
+        )
+
+
+def test_a_watch_that_asks_with_nowhere_to_read_the_question_is_refused() -> None:
+    """A rule matching a sender with no question marked fires on every mail
+    from them and looks up nothing."""
+    with pytest.raises(InvariantViolation, match="where in the mail"):
+        _trigger(skill_id=None, asks=True)
+
+
+def test_a_question_that_claims_to_write_is_refused() -> None:
+    # Structural rather than a promise: a read may not write, and this is the
+    # one place a trigger could have claimed otherwise.
+    with pytest.raises(InvariantViolation, match="writes nothing"):
+        _trigger(skill_id=None, asks=True, writes=True, watch=_watch(values=(THE_QUESTION,)))
+
+
+def test_only_a_watch_asks_a_question() -> None:
+    """A schedule that asked one would be a question nobody is there to read
+    the answer to, and an inbound one would be a stranger's question spending
+    the tenant's model budget."""
+    with pytest.raises(InvariantViolation, match="no question to ask"):
+        _trigger(
+            skill_id=None,
+            asks=True,
+            kind=TriggerKind.SCHEDULE,
+            cron="0 7 * * 1-5",
+            watch=None,
+        )

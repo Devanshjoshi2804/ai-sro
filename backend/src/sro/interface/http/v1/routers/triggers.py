@@ -31,7 +31,9 @@ async def create_trigger(
 
     `skill_id` or `workflow_id`, never both. The second is a job the rig mined,
     which until now could be started by a person accepting an offer in their
-    own browser and by nothing else.
+    own browser and by nothing else. `asks` is the third case: a watch that
+    reads a QUESTION out of a mail and answers it, which names neither because
+    looking something up is a step of a job and never a job.
     """
     trigger = await container.create_trigger().execute(
         ctx,
@@ -49,6 +51,7 @@ async def create_trigger(
             authorized_by=body.authorized_by,
             auto_approve=body.auto_approve,
             may_take_focus=body.may_take_focus,
+            asks=body.asks,
         ),
     )
     return TriggerModel.of(trigger)

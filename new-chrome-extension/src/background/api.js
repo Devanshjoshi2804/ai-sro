@@ -397,6 +397,14 @@ export const api = {
    * languages drifts on one of them. */
   ask: (said) => call("/v1/ask", { method: "POST", body: { said } }),
 
+  /** One question, asked of every system that could answer it.
+   *
+   * Straight at the lookup door rather than through `/v1/ask`: this is used
+   * where the sentence is already known to be a question -- a watch that asks
+   * read it out of a mail -- and running the deciding rule over it again could
+   * only disagree with the trigger the operator set up. */
+  lookup: (question) => call("/v1/lookups", { method: "POST", body: { question } }),
+
   /** Say something into it. Answers with the whole thread, which is why the
    * panel re-renders from the reply rather than appending locally. */
   say: (threadId, text) =>

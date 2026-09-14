@@ -2363,6 +2363,11 @@ class NewTriggerRequest(BaseModel):
 
     may_take_focus: bool = False
 
+    asks: bool = False
+    """This watch asks a question rather than running anything: name no skill
+    and no job, and mark where in the mail the question is with a value called
+    `question`. What comes back is an answer in the panel, never a run."""
+
 
 class ChangeTriggerRequest(BaseModel):
     enabled: bool
@@ -2378,6 +2383,12 @@ class TriggerModel(BaseModel):
     """What this trigger runs: a taught skill or a mined job, never both and
     never neither. See `Trigger`."""
     kind: str
+    asks: bool = False
+    """This watch asks a question rather than running anything: the browser
+    reads the question out of the mail, looks it up across the systems, and
+    shows the answer. The third case of "what does this trigger run" -- a
+    skill, a job, or neither because it is a question."""
+
     cron: str | None
     timezone: str
     parameters: dict[str, str]
@@ -2407,6 +2418,7 @@ class TriggerModel(BaseModel):
             skill_id=trigger.skill_id.value if trigger.skill_id else None,
             workflow_id=trigger.workflow_id,
             kind=trigger.kind.value,
+            asks=trigger.asks,
             cron=trigger.cron,
             timezone=trigger.timezone,
             parameters=dict(trigger.parameters),

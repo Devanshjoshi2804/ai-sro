@@ -427,6 +427,10 @@ class TriggerRow(Base):
     refuses a row that names two or none, and a CHECK constraint here would be
     the same rule written twice in two languages."""
     kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    asks: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    """Whether this watch asks a question rather than running anything. The
+    third branch of the rule above -- a skill, a job, or a question and
+    neither of them -- and the reason there is no CHECK constraint for it."""
 
     cron: Mapped[str | None] = mapped_column(String(120))
     timezone: Mapped[str] = mapped_column(String(64), nullable=False, default="UTC")

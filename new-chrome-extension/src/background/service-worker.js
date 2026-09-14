@@ -1440,6 +1440,23 @@ async function handle(message, sender) {
       // fresh one each time would have the conversation repeat itself once a
       // frame. Reusing the held offer's id makes the second report a no-op at
       // both ends.
+      if (watch.asks) {
+        // A question, not a job. What leaves the machine is the same shape as
+        // any other matched value -- read now, sent as a parameter, never
+        // written down -- and what comes back is an answer rather than an
+        // offer to run something. Nothing is held: a question already answered
+        // has nothing left to press.
+        const question = values[QUESTION];
+        if (!question) return { error: "this mail has no question where the watch says one is" };
+        const answer = await api.lookup(question);
+        await state.setAnswer({
+          said: question,
+          tabId: sender?.tab?.id ?? null,
+          askedAt: Date.now(),
+          ...answer,
+        });
+        return { ok: true, asked: true };
+      }
       const offerId = (await sameOfferAs(watch, values))?.id || crypto.randomUUID();
       const offer = await api.watchMatched(deviceId, watch.id, values, offerId);
       await hold(watch, values, offer, offerId);
@@ -1556,6 +1573,12 @@ async function hold(watch, read, offer, offerId) {
  * read and this caps it where it would leave. */
 const MAX_VALUE = 200;
 
+/** The value name that makes a watch a question rather than a job, mirroring
+ * the domain's `watch.QUESTION`. The same cap above applies to it: a question
+ * somebody wrote in a mail is a sentence, and a hundred kilobytes under this
+ * name is a mail body that arrived through a sloppy mark. */
+const QUESTION = "question";
+
 function hostOf(url) {
   try {
     return new URL(url).hostname;
@@ -1579,7 +1602,12 @@ async function refreshWatches() {
     await state.setWatches(
       (triggers || [])
         .filter((trigger) => trigger.watch)
-        .map((trigger) => ({ id: trigger.id, ...trigger.watch })),
+        // `asks` travels with the rule because the page evaluates the rule:
+        // a watch that asks reads a question out of the mail and is answered,
+        // where every other one becomes an offer to run something. The flag
+        // rides on the watch rather than being looked up per match, so a
+        // browser holding a stale list still knows which kind it holds.
+        .map((trigger) => ({ id: trigger.id, asks: Boolean(trigger.asks), ...trigger.watch })),
     );
   } catch (error) {
     await state.setLastError(error instanceof ApiError ? error.message : String(error));

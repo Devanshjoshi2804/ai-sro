@@ -18,6 +18,7 @@ it.
 from __future__ import annotations
 
 from collections.abc import Coroutine
+from dataclasses import replace
 from datetime import UTC, datetime
 
 import pytest
@@ -33,8 +34,11 @@ from sro.application.trigger.fire_trigger import FireTrigger
 from sro.domain.observation.gesture import Action, Gesture
 from sro.domain.shared.errors import NotFound
 from sro.domain.shared.identifiers import DeviceId, PrincipalId, SkillId, TenantId
+from sro.domain.skill.locator import ControlLocator, LocatorStrategy
+from sro.domain.skill.template import Template
 from sro.domain.skill.workflow import Step, Workflow
 from sro.domain.trigger.trigger import TriggerKind
+from sro.domain.trigger.watch import QUESTION, Term, TermField, ValueAt, Watch
 from tests import factories as f
 from tests.unit.fakes import (
     FakeAsker,
@@ -461,3 +465,76 @@ async def test_a_worker_that_cannot_reach_the_other_process_skips_the_fire() -> 
     assert fired.run_id is None
     assert "no channel open" in (fired.skipped or "")
     assert uow.triggers.rows[trigger.id.value].enabled is True
+
+
+# A watch that asks instead of running
+
+
+SUBJECT_IS_HERE = ControlLocator(strategy=LocatorStrategy.CSS_PATH, query=Template("h2.hP"))
+
+
+def _asking() -> NewTrigger:
+    """A mail that carries a question, and where in it the question is."""
+    return NewTrigger(
+        workflow_id=None,
+        cron=None,
+        parameters={},
+        device_id=LAPTOP,
+        kind=TriggerKind.WATCH,
+        asks=True,
+        watch=Watch(
+            host="mail.google.com",
+            terms=(Term(field=TermField.SUBJECT, contains="how many"),),
+            subject_at=SUBJECT_IS_HERE,
+            values=(
+                ValueAt(
+                    name=QUESTION,
+                    where=ControlLocator(
+                        strategy=LocatorStrategy.CSS_PATH, query=Template("div.mail-body")
+                    ),
+                ),
+            ),
+        ),
+    )
+
+
+async def test_a_watch_that_asks_needs_no_job_to_have_been_proven() -> None:
+    """None of the job checks apply, because there is no job. What is left is
+    the browser that reads the mail and the question it reads."""
+    uow, scheduler = FakeUnitOfWork(), FakeScheduler()
+
+    trigger = await _create(uow, scheduler).execute(CTX, _asking())
+
+    assert trigger.asks
+    assert trigger.workflow_id is None and trigger.skill_id is None
+    assert trigger.writes is False
+    assert trigger.requires_confirmation is False, "a read has nothing to ask anybody about"
+    assert scheduler.scheduled == {}, "a watch is evaluated by a browser, not by a clock"
+
+
+async def test_a_question_with_nowhere_to_read_it_is_refused_with_a_sentence() -> None:
+    # Otherwise it fires on every mail from that sender and looks up nothing.
+    uow, scheduler = FakeUnitOfWork(), FakeScheduler()
+    without = replace(
+        _asking(),
+        watch=Watch(
+            host="mail.google.com",
+            terms=(Term(field=TermField.SUBJECT, contains="how many"),),
+            subject_at=SUBJECT_IS_HERE,
+            values=(),
+        ),
+    )
+
+    with pytest.raises(TriggerRefused, match="where in the mail"):
+        await _create(uow, scheduler).execute(CTX, without)
+
+    assert uow.triggers.rows == {}
+
+
+async def test_a_question_that_also_names_a_job_is_refused_as_a_sentence_not_a_500() -> None:
+    uow, scheduler = await _held(), FakeScheduler()
+
+    with pytest.raises(TriggerRefused, match="runs nothing"):
+        await _create(uow, scheduler).execute(CTX, replace(_asking(), workflow_id="wfl_1"))
+
+    assert uow.triggers.rows == {}

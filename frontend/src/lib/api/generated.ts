@@ -1826,7 +1826,9 @@ export interface paths {
          *
          *     `skill_id` or `workflow_id`, never both. The second is a job the rig mined,
          *     which until now could be started by a person accepting an offer in their
-         *     own browser and by nothing else.
+         *     own browser and by nothing else. `asks` is the third case: a watch that
+         *     reads a QUESTION out of a mail and answers it, which names neither because
+         *     looking something up is a step of a job and never a job.
          */
         post: operations["create_trigger_v1_triggers_post"];
         delete?: never;
@@ -3710,6 +3712,11 @@ export interface components {
              * @default false
              */
             may_take_focus: boolean;
+            /**
+             * Asks
+             * @default false
+             */
+            asks: boolean;
         };
         /** NoticingModel */
         NoticingModel: {
@@ -4966,6 +4973,11 @@ export interface components {
             workflow_id?: string | null;
             /** Kind */
             kind: string;
+            /**
+             * Asks
+             * @default false
+             */
+            asks: boolean;
             /** Cron */
             cron: string | null;
             /** Timezone */

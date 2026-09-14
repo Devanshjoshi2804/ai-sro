@@ -67,9 +67,12 @@ export const startWorkflowRun = (body: {
   live: boolean;
 }) => api.post<WorkflowRunModel>("/v1/workflow-runs", { ...body, allow_focus: true });
 
-/** A bare POST. A body here would be a name nobody checked. */
+/** A bare POST. A body here would be a name nobody checked.
+ *
+ * `resumed` is the field worth reading: false means the write was authorised
+ * and nothing is holding the run, so the browser will not move. */
 export const approveWorkflowRun = (runId: string) =>
-  api.post<{ order: number; first: boolean }>(
+  api.post<{ order: number; first: boolean; resumed: boolean }>(
     `/v1/workflow-runs/${encodeURIComponent(runId)}/approve`,
   );
 

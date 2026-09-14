@@ -195,7 +195,7 @@ const rigServer = async (url, options = {}) => {
   // The backend answers the whole row, where the rig answered `{run_id}`.
   if (path === "/v1/workflow-runs") return json({ ...rigRunServed, id: "run-9" }, 201);
   if (path === "/v1/workflow-runs/run-9/abort") return json({ ...rigRunServed }, 202);
-  if (path === "/v1/workflow-runs/run-9") {
+  if (path === `/v1/workflow-runs/${rigRunServed.id}`) {
     return rigRunFails ? json({ detail: "the backend is down" }, 503) : json(rigRunServed);
   }
   return json({ detail: `nothing serves ${path}` }, 404);
@@ -242,7 +242,9 @@ function gesture(identity, value) {
  * So the test waits for the answer rather than assuming it has landed. */
 async function until(what, why) {
   for (let tries = 0; tries < 200; tries++) {
-    if (what()) return;
+    // Awaited, so a condition that has to ask the worker something -- "has the
+    // panel drawn the run yet" -- can be written as one.
+    if (await what()) return;
     await new Promise((resolve) => setTimeout(resolve, 5));
   }
   assert.fail(why);
@@ -1081,6 +1083,39 @@ test("an update takes the rig's settings off this browser, and a launch tries ag
   await until(
     () => !held.has("sro.rigToken"),
     "a browser that missed the update-time removal never got another chance",
+  );
+});
+
+test("a run started elsewhere is drawn with its steps even when no source word arrived", async () => {
+  // The defect an operator hit on a real login page. The panel polled the
+  // workflow-run door only when the command envelope said `source: "rig"`, so
+  // a browser older than that field drew "a run is performing here" with no
+  // steps and no Approve -- while the console showed the same run parked on a
+  // person, with the button.
+  ready();
+  rigRunServed = {
+    id: "run-elsewhere",
+    outcome: "running",
+    steps: [
+      { order: 1, verdict: "held", says: "Enter username." },
+      { order: 2, verdict: "awaiting", says: "Sign in.", sent: { kind: "ui.perform" } },
+    ],
+  };
+  held.set("sro.activeRun", { runId: "run-elsewhere", at: Date.now(), source: "backend" });
+
+  // Polled, as the panel really does it: `status` kicks the fetch and does not
+  // wait for it, so the picture lands on a later tick than the one that asked.
+  let status = await send({ kind: "status" });
+  await until(async () => {
+    status = await send({ kind: "status" });
+    return Boolean(status.performing?.run);
+  }, "the run was never drawn, however many times the panel asked");
+
+  assert.equal(status.performing?.runId, "run-elsewhere", "the run was not drawn at all");
+  assert.equal(
+    status.performing?.run?.steps?.find((step) => step.outcome === "awaiting")?.index,
+    2,
+    "the parked step never reached the panel, so neither did its Approve",
   );
 });
 

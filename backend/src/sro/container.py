@@ -12,7 +12,7 @@ from pathlib import Path
 
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from sro.application.analytics.audit import ReadAudit
 from sro.application.analytics.summary import ReadSummary
@@ -254,6 +254,17 @@ class Container:
     scheduler: Scheduler
     dispatcher: RunDispatcher
     session_factory: async_sessionmaker[AsyncSession]
+
+    engine: AsyncEngine | None = None
+    """The pool behind `session_factory`, so a process that built one can close
+    it. `None` for a container built in a test, which brings its own store.
+
+    Held because nothing could close it: every app start made an engine and
+    left it open, and a process that starts many apps -- a reloading dev
+    server, a suite that drives the ASGI app per request -- ran the database
+    out of connections. That went unnoticed while nothing connected at startup;
+    the orphan sweep connects, and it surfaced as `TooManyConnectionsError`
+    inside a contract test that had nothing to do with it."""
 
     agent_sockets: DeviceSockets = field(default_factory=DeviceSockets)
     """Channels to operators' browsers, open right now, in this process.
@@ -1187,6 +1198,7 @@ def build_container(settings: Settings | None = None) -> Container:
             address=settings.temporal_address, namespace=settings.temporal_namespace
         ),
         session_factory=create_session_factory(engine),
+        engine=engine,
     )
     container.capture = CaptureSupervisor(
         blobs=container.blobs,

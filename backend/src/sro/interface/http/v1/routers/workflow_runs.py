@@ -257,11 +257,18 @@ async def approve_workflow_step(
     the time it answers. The row naming who let the write out is committed, and
     the wait is released.
 
+    `resumed` says whether there was a wait to release. False means the
+    authorisation is recorded and the run will not move, because the process
+    holding it is gone or its five minutes ran out -- the case an operator hit
+    for real, tapping Approve on a login step and watching nothing happen. Not
+    a refusal, because the tap did authorise the write; a panel that reads it
+    can say the true thing instead of "approved" and silence.
+
     A run of another tenant is a 404 and never a 403, for `get_workflow_run`'s
     reason. A run with nothing parked on a person is a 409 `Conflict`, and a
     browser reaching for a run it is not driving is `NotDrivingThisRun`, a 403.
     """
-    order, first = await container.approve_workflow_step().execute(
+    order, first, resumed = await container.approve_workflow_step().execute(
         ctx, run_id=run_id, asking=asking
     )
-    return WorkflowStepApprovedModel(order=order, first=first)
+    return WorkflowStepApprovedModel(order=order, first=first, resumed=resumed)

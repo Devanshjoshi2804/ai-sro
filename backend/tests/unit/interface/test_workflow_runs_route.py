@@ -61,7 +61,7 @@ from sro.domain.observation.gesture import Action, Gesture
 from sro.domain.shared.identifiers import DeviceId, SkillId, TenantId
 from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.workflow import Step, Workflow
-from sro.interface.http.app import create_app
+from sro.interface.http.app import create_app, on_start
 from sro.interface.http.deps import get_container
 from sro.interface.http.schemas import WorkflowRunModel
 from tests import factories as f
@@ -1415,6 +1415,43 @@ async def test_the_waiting_task_is_released_and_not_only_the_row_written(
     assert ("run_parked", 3) in uow.workflow_runs.approved
 
 
+async def test_an_approval_that_woke_nothing_says_so_rather_than_answering_200_and_silence(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork
+) -> None:
+    """The case an operator actually hit.
+
+    They tapped Approve on a live login step, got a 200, and watched the
+    browser sit on the same screen until they gave up: the process holding
+    that run had restarted, so there was no event to set. The authorisation is
+    real and the row is committed -- refusing would be a lie about that -- but
+    nothing resumed, and the answer has to be able to say which.
+
+    No `_waiting_on` here, and that absence IS the fixture: a run parked in the
+    store with nobody waiting on the register is exactly a run whose process
+    is gone.
+    """
+    await _plant(uow, _parked_run("run_abandoned", 2))
+
+    landed = await client.post("/v1/workflow-runs/run_abandoned/approve")
+
+    assert landed.status_code == 200, landed.text
+    assert landed.json()["resumed"] is False
+    assert landed.json()["first"] is True, "the authorisation still happened"
+    assert ("run_abandoned", 2) in uow.workflow_runs.approved
+
+
+async def test_an_approval_that_released_a_real_wait_says_it_resumed(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork, container: _FakeContainer
+) -> None:
+    await _plant(uow, _parked_run("run_held", 1))
+    waiting = await _waiting_on(container, "run_held")
+
+    landed = await client.post("/v1/workflow-runs/run_held/approve")
+
+    assert landed.json()["resumed"] is True
+    assert await waiting is True
+
+
 async def test_the_approval_names_the_run_in_the_path_and_the_deepest_parked_step(
     client: httpx.AsyncClient, uow: FakeUnitOfWork, container: _FakeContainer
 ) -> None:
@@ -1723,3 +1760,35 @@ async def test_a_secret_with_no_browser_named_beside_it_is_the_usual_404(
         headers={"X-Device-Secret": APPROVER},
     )
     assert whole.status_code == 200, whole.text
+
+
+# What a fresh process does about the runs the last one was driving
+
+
+async def test_a_process_starting_fails_the_runs_the_last_one_left_running(
+    uow: FakeUnitOfWork, container: _FakeContainer
+) -> None:
+    """The defect behind an operator watching Approve do nothing.
+
+    `fail_orphans` has said "called once at startup" since it was written, and
+    nothing called it. So a run whose task died -- a reload in development, a
+    deploy in production -- stayed `running` forever: the console kept it on
+    "Needs a person", the extension kept asking after it every heartbeat, and
+    an Approve on it wrote a person's name against a write nobody would send.
+    """
+    await _plant(uow, _parked_run("run_abandoned", 2))
+
+    swept = await on_start(container)
+
+    assert swept == 1
+    left = uow.workflow_runs.rows["run_abandoned"]
+    assert left.outcome == "failed"
+    assert left.steps[-1].reason == "the process driving this run stopped"
+
+
+async def test_a_process_starting_on_a_clean_store_sweeps_nothing(
+    uow: FakeUnitOfWork, container: _FakeContainer
+) -> None:
+    # The ordinary start. A sweep that reported work it did not do would teach
+    # everybody to ignore the line it logs.
+    assert await on_start(container) == 0

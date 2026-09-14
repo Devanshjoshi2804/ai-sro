@@ -1838,7 +1838,10 @@ async function status(sender = null) {
   // arrives on the rig's channel, whoever started the run -- and what restarts
   // a chain whose first tick failed. Guarded against piling up by
   // `pollingRig`; not awaited, for the same reason `checkFinishing` is not.
-  if (active?.source === "rig") void pollRigRun();
+  // Whatever it says it came from: `pollRigRun` is what finds out, and a run
+  // this browser is driving with no picture beside it is a card with no steps
+  // and no Approve.
+  if (active) void pollRigRun();
   const shown = live || parkedRigRun(active);
   return {
     capturing: allowed.on,
@@ -1941,6 +1944,14 @@ let rigPoll = null;
  * The same guard, for the same reason, as `checkingFinish` above. */
 let pollingRig = false;
 
+/** Run ids that came back 404 from the workflow-run door.
+ *
+ * A skill run's id is not a workflow run's, and asking after one every two
+ * seconds for the length of the run is a request per tick that can only ever
+ * 404. Module-scope and unbounded is fine: it holds at most the ids this
+ * worker has seen since it started, and the worker is evicted between runs. */
+const notWorkflowRuns = new Set();
+
 /**
  * Keep asking the rig what the run it is driving is doing.
  *
@@ -1959,9 +1970,26 @@ async function pollRigRun() {
   pollingRig = true;
   try {
     const active = await state.activeRun();
-    if (!active || active.source !== "rig") {
+    if (!active) {
       rigRunShown = null;
       return;
+    }
+    // `source !== "rig"` used to return here, and that gate cost an operator a
+    // live run: the panel drew "a run is performing here" with no steps and no
+    // Approve, while the console showed the same run parked on a person. Every
+    // command the backend sends carries `source`, but an extension build older
+    // than that field falls back to this channel's own name -- and the panel
+    // is then structurally unable to draw the one control the run is waiting
+    // on. Asking anyway costs one 404 for a run that is not a workflow run,
+    // which the catch below already handles.
+    if (active.source && active.source !== "rig" && rigRunShown?.id !== active.runId) {
+      // Still worth asking once. What is not worth doing is asking every two
+      // seconds forever about an id that is not a workflow run at all, so a
+      // miss is remembered.
+      if (notWorkflowRuns.has(active.runId)) {
+        rigRunShown = null;
+        return;
+      }
     }
     // A picture of some other run is worse than none: it would draw one run's
     // writes under another's title, and `status()` would hand the panel a card
@@ -1969,8 +1997,16 @@ async function pollRigRun() {
     if (rigRunShown && rigRunShown.id !== active.runId) rigRunShown = null;
     try {
       rigRunShown = await api.rigRun(active.runId);
-    } catch {
-      // Keep the last picture; the next tick asks again.
+      notWorkflowRuns.delete(active.runId);
+    } catch (error) {
+      // Keep the last picture; the next tick asks again. A 404 is different in
+      // kind from a network blip: this id is not a workflow run, and asking
+      // again every two seconds answers nothing.
+      if (error?.status === 404) notWorkflowRuns.add(active.runId);
+      // Said out loud, where this used to swallow everything. A panel drawing
+      // a run with no steps because the ask failed looks exactly like a run
+      // that has no steps, and the operator has nothing to go on.
+      else await state.setLastError(`the run this browser is driving could not be read: ${error}`);
     }
     // Only a successful answer saying the run has ended stops the timer. A
     // failed ask does not: a rig that is briefly unreachable while a run is
@@ -2003,9 +2039,18 @@ async function pollRigRun() {
  * assuming it.
  */
 function parkedRigRun(active) {
-  return active?.source === "rig" &&
-    rigRunShown?.id === active.runId &&
-    rigRunShown.status === "running"
+  // Read off the poll's own picture and not off `source`. The word travels on
+  // the command envelope, so a browser that has not been reloaded since the
+  // backend started sending it never sees one -- and this is the function that
+  // keeps the card, and its Approve, on screen for the whole five minutes a
+  // write can wait on a person. `rigRunShown` having this run's id at all is
+  // already proof the workflow-run door answered about it.
+  // Both halves named, because `undefined === undefined` is true: with no run
+  // active and no picture held, the loose comparison passed and the next line
+  // read `.status` off null. Every offer this browser would have made died in
+  // the caller's catch, silently, for as long as that shape stood.
+  if (!active?.runId || !rigRunShown) return null;
+  return rigRunShown.id === active.runId && rigRunShown.status === "running"
     ? { runId: active.runId, kind: "rig", since: active.at }
     : null;
 }

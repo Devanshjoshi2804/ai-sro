@@ -3328,3 +3328,16 @@ class WorkflowStepApprovedModel(BaseModel):
     audit: a write rescued to the second rung parks at the same step and takes
     a second tap, and the first authorisation stands. The tap is not refused --
     the run really is parked again -- and this is how a panel can say so."""
+
+    resumed: bool
+    """Whether a process was actually holding this run when the tap landed.
+
+    False is the case this field exists for: the authorisation is recorded and
+    the run does not move, because the task that was waiting on it is gone --
+    the process restarted, or the five-minute wait had already run out. It
+    happened in a real session: an operator tapped Approve, got a 200, and the
+    browser sat on the same login screen until they gave up.
+
+    Not a refusal. The row naming who let the write out is committed either
+    way, and answering 409 would be claiming the authorisation did not happen.
+    What this says is narrower and truer: nobody was listening."""

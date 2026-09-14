@@ -660,8 +660,8 @@ class ApproveWorkflowStep:
 
     async def execute(
         self, ctx: RequestContext, *, run_id: str, asking: DeviceId | None
-    ) -> tuple[int, bool]:
-        """(the step authorised, whether this tap was the one)."""
+    ) -> tuple[int, bool, bool]:
+        """(the step authorised, whether this tap was the one, whether anything woke)."""
         async with self._uow as uow:
             run = await uow.workflow_runs.get(ctx.tenant_id, run_id)
             if run is None:
@@ -686,15 +686,21 @@ class ApproveWorkflowStep:
             # is durable before anything can act on the event. The other order
             # would let a write out on a transaction that then rolled back.
             await uow.commit()
-        # Whether anything was waiting is not read, and the reason is the
-        # timeout and not the rescue. A rescue re-registers before it parks
-        # again (`run_workflow.py:580`), so the second tap finds an event and
-        # this would return True anyway. The honest window is the other one:
-        # `wait_for` pops its event when `K_APPROVAL_WAIT_S` runs out, so a run
-        # can stop waiting between the 409 check above and this line -- by
-        # which point the authorisation is already committed. Refusing there
-        # would answer "nothing was awaiting" about a row that exists. The run
-        # then fails on its own timeout path, which is the right outcome, and
-        # the caller is still told which step was recorded.
-        self._approvals.approve(run.id)
-        return ord_, first
+        # Whether anything was waiting is REPORTED and never refused, and the
+        # distinction is the whole of this line. Refusing would answer "nothing
+        # was awaiting" about a row that exists: the authorisation is committed
+        # above, and the person really did say go.
+        #
+        # But silence is worse. An operator tapped Approve on a real login
+        # step, got a 200, and watched the browser sit on the same screen until
+        # they gave up -- the process holding that run had restarted, so there
+        # was no event to set and nothing to resume. The 200 was true about the
+        # authorisation and silent about the only thing they cared about.
+        #
+        # Two ways it comes back false. The wait timed out: `wait_for` pops its
+        # event after `K_APPROVAL_WAIT_S`, so a run can stop waiting between
+        # the 409 check above and this line. Or the process that was waiting is
+        # gone, which `fail_orphans` cleans up at the next start and cannot
+        # reach while this one is live.
+        resumed = self._approvals.approve(run.id)
+        return ord_, first, resumed

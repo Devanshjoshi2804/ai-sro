@@ -92,6 +92,11 @@ function Parked({ run, title }: { run: WorkflowRunModel; title: string }) {
   };
 
   const approve = useMutation({ mutationFn: () => approveWorkflowRun(run.id), onSuccess: settle });
+  // `resumed: false` is a 200 that changed nothing: the authorisation is
+  // recorded and no process was holding the run, so the browser will sit where
+  // it is. An operator hit exactly this -- tapped Approve on a login step and
+  // watched nothing happen -- and the card said "approved" the whole time.
+  const orphaned = approve.data?.resumed === false;
   const stop = useMutation({ mutationFn: () => abortWorkflowRun(run.id), onSuccess: settle });
   // On the card, not in a toast: with several parked runs a toast cannot say
   // which one refused.
@@ -129,6 +134,12 @@ function Parked({ run, title }: { run: WorkflowRunModel; title: string }) {
           </Link>
         </div>
         {refusal && <p className="text-destructive text-xs">{refusal.message}</p>}
+        {orphaned && (
+          <p className="text-destructive text-xs">
+            Recorded, but nothing is holding this run: the process driving it has stopped, so the
+            browser will not move. Start the job again.
+          </p>
+        )}
       </CardContent>
     </Card>
   );

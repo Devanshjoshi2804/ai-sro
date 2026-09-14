@@ -2,14 +2,16 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from sro.application.execution.run_workflow import fail_orphans
 from sro.config import get_settings
-from sro.container import build_container
+from sro.container import Container, build_container
 from sro.interface.http.errors import install_error_handlers
 from sro.interface.http.schemas import PROBLEMS
 from sro.interface.http.v1.routers import (
@@ -48,11 +50,43 @@ from sro.interface.http.v1.routers import (
 from sro.observability import configure_logging
 
 
+async def on_start(container: Container) -> int:
+    """What a fresh process has to put right before it serves anything.
+
+    Every run still `running` when this starts belongs to a process that is
+    gone. `fail_orphans` has said "called once at startup" since it was written
+    and nothing called it, so a run whose task died -- a reload in development,
+    a deploy in production -- sat `running` forever: the console kept it on
+    "Needs a person", the extension kept asking after it on every heartbeat,
+    and an Approve on it recorded a person's name against a write that was
+    never going to be sent. An operator hit exactly that.
+
+    Safe here for the reason `approvals.py` states outright: one API worker
+    owns every run until runs become Temporal workflows. A second worker
+    starting would sweep the first one's live runs -- the same assumption the
+    in-process device sockets and the approval register already make, and the
+    same thing that has to change with them.
+
+    Its own function rather than four lines inside `lifespan`, because
+    `lifespan` builds the real container and mounts the MCP app: a test that
+    wanted to know whether startup sweeps would have to stand up both.
+    """
+    async with container.unit_of_work() as uow:
+        swept = await fail_orphans(uow, "the process driving this run stopped")
+    if swept:
+        logging.getLogger(__name__).warning(
+            "swept %d run(s) left running by a process that is gone", swept
+        )
+    return swept
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     configure_logging(level="DEBUG" if get_settings().debug else "INFO")
     container = build_container()
     app.state.container = container
+
+    await on_start(container)
 
     mcp_server = container.mcp_server()
     app.mount("/mcp", mcp_server.streamable_http_app(streamable_http_path="/"))
@@ -65,6 +99,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             yield
         finally:
             await container.capture.stop_all()
+            # The pool this process opened, closed. Left open, every app start
+            # kept its connections: a reloading dev server and a suite that
+            # drives the ASGI app per request both walk the database out of
+            # them, and the failure lands somewhere else entirely as
+            # `TooManyConnectionsError`.
+            if container.engine is not None:
+                await container.engine.dispose()
 
 
 def create_app() -> FastAPI:

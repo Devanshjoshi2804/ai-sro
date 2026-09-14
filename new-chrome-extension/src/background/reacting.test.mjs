@@ -29,7 +29,17 @@ function fireAfter(ms) {
   }
 }
 
+let routes = [];
+
 globalThis.chrome = {
+  webNavigation: {
+    onHistoryStateUpdated: {
+      addListener: (fn) => routes.push(fn),
+      removeListener: (fn) => {
+        routes = routes.filter((one) => one !== fn);
+      },
+    },
+  },
   tabs: {
     query: async () => [{ id: 7, url: "https://keycloak.test/auth", active: true }],
     get: async () => ({ id: 7, url: "https://keycloak.test/auth" }),
@@ -60,6 +70,7 @@ const { perform } = await import("./commands.js");
 
 function acting(action) {
   listeners = [];
+  routes = [];
   times = [];
   return perform({
     command_id: "cmd-1",
@@ -112,6 +123,38 @@ test("a page that never finishes loading still gets looked at", async () => {
 
   await answering;
   assert.deepEqual(listeners, [], "a page held open by a script stopped the run instead");
+});
+
+test("a screen that routed without navigating is waited for too", async () => {
+  // A single-page application routes with `history.pushState` and the tab
+  // never reports `loading`, so the wait above saw nothing at all and the run
+  // photographed the page mid-render. Most of a modern WMS is client-routed.
+  const answering = acting("click");
+  await settle();
+  const [routed] = routes;
+  assert.ok(routed, "nothing was watching for a client-side route change");
+
+  routed({ tabId: 7, frameId: 0 });
+  // The route change is the application deciding what to draw; the pause after
+  // it is the drawing. Resolving on the event itself would move the "looked
+  // too early" problem rather than fix it.
+  fireAfter(300);
+
+  await answering;
+  assert.deepEqual(routes, [], "the route listener outlived the command");
+  assert.deepEqual(listeners, []);
+});
+
+test("a route change in a frame is not the screen changing", async () => {
+  const answering = acting("click");
+  await settle();
+  const [routed] = routes;
+
+  routed({ tabId: 7, frameId: 3 });
+  fireAfter(900);
+
+  await answering;
+  assert.deepEqual(routes, []);
 });
 
 test("typing does not wait for anything", async () => {

@@ -384,6 +384,9 @@ function settled(tabId) {
 
 const REACTS_WITHIN_MS = 900;
 const LOADS_WITHIN_MS = 8_000;
+/** How long a single-page application is given to draw what it just routed to.
+ * The route change is the decision, not the render. */
+const PAINTS_WITHIN_MS = 300;
 
 /** Let the page finish reacting before anybody looks at it.
  *
@@ -411,8 +414,10 @@ function reacted(tabId, action) {
     let loading = false;
     const done = () => {
       chrome.tabs.onUpdated.removeListener(watch);
+      chrome.webNavigation?.onHistoryStateUpdated?.removeListener(routed);
       clearTimeout(quiet);
       clearTimeout(cap);
+      clearTimeout(painting);
       resolve();
     };
     const watch = (id, change) => {
@@ -420,11 +425,31 @@ function reacted(tabId, action) {
       if (change.status === "loading") loading = true;
       else if (change.status === "complete" && loading) done();
     };
+    // The screen changed without the browser navigating.
+    //
+    // A single-page application routes with `history.pushState`, and a tab
+    // that never leaves its document never reports `loading` -- so on a
+    // client-routed screen, which is most of a modern WMS, the wait above
+    // sees nothing at all and the run photographs the page mid-render. This
+    // is the same event the browser raises for the url in its own address
+    // bar, so it costs no injection and no page-realm code.
+    //
+    // Then a short pause, because a route change is the application deciding
+    // what to draw and not the drawing: resolving on the event itself would
+    // move the "too early" problem rather than fix it.
+    let painting = null;
+    const routed = (details) => {
+      if (details.tabId !== tabId || details.frameId !== 0) return;
+      loading = true;
+      clearTimeout(painting);
+      painting = setTimeout(done, PAINTS_WITHIN_MS);
+    };
     const quiet = setTimeout(() => {
       if (!loading) done();
     }, REACTS_WITHIN_MS);
     const cap = setTimeout(done, LOADS_WITHIN_MS);
     chrome.tabs.onUpdated.addListener(watch);
+    chrome.webNavigation?.onHistoryStateUpdated?.addListener(routed);
   });
 }
 

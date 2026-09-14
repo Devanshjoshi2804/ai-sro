@@ -323,14 +323,26 @@ function originOf(url) {
  * rather than "want me to finish it?". The title comes off the served shapes
  * rather than the reading, which answers an id.
  *
- * Nothing here runs anything. A sentence is a request for an offer, and the
- * press on the card is still the authorisation -- the same rule that holds for
- * an offer the browser made off somebody's own gestures.
+ * Nothing here WRITES anything. An instruction is a request for an offer, and
+ * the press on the card is still the authorisation -- the same rule that holds
+ * for an offer the browser made off somebody's own gestures. A question is a
+ * different thing and is answered on the spot: a read writes nothing, and
+ * making somebody press a button before they are told what the answer is would
+ * be a card that says "shall I go and look?" and nothing else.
  */
 async function offerFromWords(text, tabId) {
   if (!text || tabId === null) return;
   try {
-    const read = await api.readChat(text);
+    const said = await api.ask(text);
+    // A question, not an instruction. It has already been looked up -- a read
+    // writes nothing, and waiting for a press before answering a question is
+    // the shortcut this was built to avoid -- so what is left is to put the
+    // answer where the panel draws it.
+    if (said?.kind === "lookup") {
+      await state.setAnswer({ said: text, tabId, askedAt: Date.now(), ...said.lookup });
+      return;
+    }
+    const read = said?.job;
     if (!read?.workflow_id) return;
     const shape = (await shapesFor()).find((one) => one.id === read.workflow_id);
     const made = fire(
@@ -1855,6 +1867,11 @@ async function status(sender = null) {
     // here for the same reason the offers are: this is the browser it happened
     // in, and none of it is worth writing down.
     nudges: nudgesShown,
+    // The last question this browser asked of the systems and what came back.
+    // Only for the panel: the page-side pill has no room for an answer, and
+    // what came back is one tab's business text -- the same rule the nudge
+    // values above are held under.
+    answer: fromPage ? undefined : await state.answer(),
     version: VERSION,
   };
 }

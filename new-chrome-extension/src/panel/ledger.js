@@ -107,13 +107,16 @@ export function ledger(thread, local = {}, { onPress, runs } = {}) {
   const entries = [
     ...messages.map((message) => ({ at: message.said_at, message })),
     ...(local?.nudges || []).map((nudge) => ({ at: nudge.at, nudge })),
+    ...(local?.answer ? [{ at: at(local.answer.askedAt), answer: local.answer }] : []),
   ].sort((a, b) => String(a.at || "").localeCompare(String(b.at || "")));
 
   let lastMinute = "";
   for (const entry of entries) {
     const item = entry.message
       ? saying(entry.message, onPress, spent, { offers, runs })
-      : nudging(entry.nudge, onPress);
+      : entry.answer
+        ? answering(entry.answer)
+        : nudging(entry.nudge, onPress);
     const minute = hhmm(entry.at);
     // One cell per entry, filled only when the minute changes. Repeating 12:04
     // against three things said in the same minute is noise exactly where the
@@ -128,6 +131,81 @@ export function ledger(thread, local = {}, { onPress, runs } = {}) {
   root.append(said);
 
   return root;
+}
+
+/** A millisecond clock as the ISO string everything else in the order uses. */
+function at(millis) {
+  return millis ? new Date(millis).toISOString() : "";
+}
+
+/** What was asked of the systems, and what each of them said back.
+ *
+ * No press on it, deliberately. A read writes nothing, so it has already
+ * happened by the time this is drawn -- a card saying "shall I go and look?"
+ * would be a question about a question. What it offers instead is the reason:
+ * every line names the system and the thing that was read, because an answer
+ * whose source cannot be seen is one nobody can check.
+ *
+ * The one case with nothing to show is the one worth showing most: a question
+ * this deployment has already written down as ambiguous stops before it asks
+ * anybody, and the card says which word and which options rather than a number
+ * that would be a guess.
+ */
+function answering(answer) {
+  const item = document.createElement("li");
+  item.className = "message";
+  item.dataset.speaker = "system";
+  item.dataset.kind = "answer";
+
+  const asked = document.createElement("p");
+  asked.className = "what";
+  asked.textContent = answer.question || answer.said || "";
+  item.append(asked);
+
+  if (answer.asks) {
+    const stopped = document.createElement("p");
+    stopped.className = "detail";
+    stopped.textContent = `${answer.asks.question} — ${(answer.asks.options || []).join(" or ")}`;
+    item.append(stopped);
+    return item;
+  }
+
+  if (answer.refused) {
+    const why = document.createElement("p");
+    why.className = "detail";
+    why.textContent = answer.refused;
+    item.append(why);
+    return item;
+  }
+
+  const found = document.createElement("ul");
+  found.className = "answers";
+  for (const one of answer.answers || []) {
+    const line = document.createElement("li");
+    line.dataset.ok = String(Boolean(one.ok));
+    const where = document.createElement("span");
+    where.className = "where";
+    where.textContent = `${one.system} · ${one.target}`;
+    const said = document.createElement("span");
+    said.className = "said";
+    // The body as it came back, cut to a line: the panel is a column beside a
+    // warehouse screen, and a thousand rows of JSON in it is a card nobody can
+    // read past. What was read in full is one request away -- `target` above
+    // names it.
+    said.textContent = one.ok ? preview(one) : one.detail;
+    line.append(where, said);
+    found.append(line);
+  }
+  item.append(found);
+  return item;
+}
+
+/** One lookup's answer, short enough to read in a column. */
+function preview(one) {
+  if (one.body) return one.body.replace(/\s+/g, " ").slice(0, 240);
+  const seen = one.seen || {};
+  if (seen.text_digest) return String(seen.text_digest).slice(0, 240);
+  return one.status ? `answered ${one.status}` : "answered";
 }
 
 /** Local time, because the operator reads it against their own day. */

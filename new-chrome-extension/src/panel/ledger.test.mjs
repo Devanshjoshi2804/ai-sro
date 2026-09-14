@@ -519,6 +519,77 @@ test("a backend nudge is drawn exactly as before", () => {
   );
 });
 
+// -- what the systems answered -----------------------------------------------
+
+/** One answer, drawn through the whole ledger, handed back as its list item. */
+function renderAnswer(answer) {
+  const local = { offers: [], nudges: [], answer: { askedAt: Date.parse(WHEN), ...answer } };
+  return messages(ledger({ id: "thr-1", messages: [] }, local, {}))[0];
+}
+
+test("an answer names the system and the thing that was read, and offers no press", () => {
+  const item = renderAnswer({
+    question: "which suppliers are set up at SG",
+    answers: [
+      {
+        system: "blue_yonder",
+        target: "/data/WM/wm/suppliers",
+        ok: true,
+        status: 200,
+        body: '{"rows":\n  5}',
+      },
+    ],
+  });
+
+  assert.match(what(item), /which suppliers are set up at SG/);
+  // An answer whose source cannot be seen is one nobody can check.
+  assert.match(words(item), /blue_yonder · \/data\/WM\/wm\/suppliers/);
+  assert.match(words(item), /\{"rows": 5\}/, "the body was not folded onto one line");
+  // A read has already happened by the time this is drawn: a card saying
+  // "shall I go and look?" would be a question about a question.
+  assert.equal(of(item, "button").length, 0);
+});
+
+test("a system that would not answer says which, rather than being left out", () => {
+  const item = renderAnswer({
+    question: "any open orders",
+    answers: [
+      { system: "mail", target: "/gmail/v1/threads", ok: false, detail: "nothing here has been to /gmail/v1/threads" },
+    ],
+  });
+
+  assert.match(words(item), /nothing here has been to/);
+});
+
+test("a word this deployment calls ambiguous is drawn as the question it is", () => {
+  const item = renderAnswer({
+    question: "which suppliers are set up at SG",
+    asks: { question: "which collection is a supplier in?", options: ["WMSupplier", "A000144886"] },
+    answers: [],
+  });
+
+  assert.match(words(item), /which collection is a supplier in\?/);
+  assert.match(words(item), /WMSupplier or A000144886/);
+});
+
+test("no markup reaches the page, whatever a system answered", () => {
+  const before = asMarkup.length;
+  const item = renderAnswer({
+    question: "which suppliers",
+    answers: [
+      {
+        system: "blue_yonder",
+        target: "/data/WM/wm/suppliers",
+        ok: true,
+        body: '<img src=x onerror="alert(1)">',
+      },
+    ],
+  });
+
+  assert.match(words(item), /<img src=x/, "the answer was not drawn at all");
+  assert.equal(asMarkup.length, before, "a system's answer was assigned as markup");
+});
+
 for (const [name, fn] of tests) {
   try {
     await fn();

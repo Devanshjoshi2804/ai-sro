@@ -389,6 +389,14 @@ export const api = {
    */
   readChat: (utterance) => call("/v1/chat", { method: "POST", body: { utterance } }),
 
+  /** One sentence, through the one door that decides what kind it is.
+   *
+   * The backend answers `{kind: "job"|"lookup"}` -- an instruction becomes an
+   * offer somebody presses, a question is gone and looked up. The rule that
+   * decides lives there and not here on purpose: a rule with a copy in two
+   * languages drifts on one of them. */
+  ask: (said) => call("/v1/ask", { method: "POST", body: { said } }),
+
   /** Say something into it. Answers with the whole thread, which is why the
    * panel re-renders from the reply rather than appending locally. */
   say: (threadId, text) =>

@@ -135,6 +135,7 @@ let approveRefusal = null;
  * `false` and never a throw. `null` is the door recording the fate. */
 let offerRefusal = null;
 let chatRead = null;
+let lookupRead = null;
 
 /** The rig and the backend, as far as this browser can tell. Re-installed by
  * `ready()`: a test that swaps it for one of its own must not leave every later
@@ -174,6 +175,13 @@ const rigServer = async (url, options = {}) => {
   if (path === "/v1/shapes") return json({ shapes: shapesServed });
   if (path === "/v1/threads/thr-1/messages") return json({ id: "thr-1", messages: [] });
   if (path === "/v1/chat") return chatRead ? json(chatRead) : json({ detail: "no model" }, 503);
+  // The one door in front of both worlds. The backend decides which a sentence
+  // is -- the rule lives there so this side carries no copy of it -- so the
+  // fake answers by the same shape the route does.
+  if (path === "/v1/ask") {
+    if (lookupRead) return json({ kind: "lookup", lookup: lookupRead });
+    return chatRead ? json({ kind: "job", job: chatRead }) : json({ detail: "no model" }, 503);
+  }
   if (path === "/v1/offers") {
     return offerRefusal
       ? json({ detail: offerRefusal.detail }, offerRefusal.status)
@@ -248,6 +256,7 @@ function ready() {
   approveRefusal = null;
   offerRefusal = null;
   chatRead = null;
+  lookupRead = null;
   globalThis.fetch = rigServer;
   // Distinctive on purpose. `dev-1` was the literal that a mutation of
   // `shapes()`'s `?device_id=` was replaced with, and all 27 suites stayed
@@ -1101,6 +1110,34 @@ test("a sentence in the panel becomes the same offer a recognised walk makes", a
     [],
     "a sentence started a run without anybody pressing anything",
   );
+});
+
+test("a question is answered rather than turned into an offer", async () => {
+  // The other half of the same box. An instruction becomes a card somebody
+  // presses; a question has already been looked up by the time the answer
+  // arrives -- a read writes nothing -- so what is left is to put it where the
+  // panel draws it.
+  ready();
+  lookupRead = {
+    question: "which suppliers are set up at SG",
+    lookups: [{ system: "blue_yonder", how: "call", target: "/data/WM/wm/suppliers" }],
+    answers: [
+      { system: "blue_yonder", target: "/data/WM/wm/suppliers", ok: true, status: 200, body: '{"rows":5}' },
+    ],
+  };
+
+  await send({
+    kind: "thread-say",
+    threadId: "thr-1",
+    text: "which suppliers are set up at SG",
+    tabId: TAB,
+  });
+  await until(() => held.get("sro.answer"), "the question produced no answer");
+
+  const answered = held.get("sro.answer");
+  assert.equal(answered.said, "which suppliers are set up at SG");
+  assert.equal(answered.answers[0].status, 200);
+  assert.deepEqual(openOnes(), [], "a question was turned into an offer to run something");
 });
 
 test("a sentence about nothing says something and offers nothing", async () => {

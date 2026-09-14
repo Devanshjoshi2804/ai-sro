@@ -30,6 +30,7 @@ const KEYS = {
   teaching: "sro.teaching",
   finishedRun: "sro.finishedRun",
   activeRun: "sro.activeRun",
+  answer: "sro.answer",
 };
 
 export const DEFAULT_API_URL = "http://localhost:8000";
@@ -105,6 +106,15 @@ export const state = {
    * rather than of what was asked and ignored. */
   nudges: () => read(KEYS.nudges, []),
   setNudges: (nudges) => write(KEYS.nudges, nudges),
+
+  /** The last question this browser asked of the systems, and what came back.
+   *
+   * One, not a list: a second question supersedes the first, the way a second
+   * nudge does. An answer is worth holding across a worker eviction -- the
+   * operator asked it seconds ago and is reading it -- and worth nothing the
+   * next morning, which is what `askedAt` lets the panel decide. */
+  answer: () => read(KEYS.answer, null),
+  setAnswer: (answer) => write(KEYS.answer, answer),
 
   muted: () => read(KEYS.muted, {}),
   setMuted: (muted) => write(KEYS.muted, muted),

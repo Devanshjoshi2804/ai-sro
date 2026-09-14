@@ -27,6 +27,14 @@
 }
 
 
+/* Every surface here is toggled by the `hidden` attribute rather than by a
+   class, and a bare `.menu { display: flex }` outranks the user-agent's
+   `[hidden] { display: none }`. Without this the profile menu and the console
+   frame are open from the moment the panel draws. */
+[hidden] {
+  display: none !important;
+}
+
 body {
   margin: 0;
   display: flex;

@@ -224,6 +224,25 @@ class Converse:
             known = {one.id: one for one in await uow.workflows.known(ctx.tenant_id)}
             title = known[placed.workflow_id].title if placed.workflow_id in known else "That job"
             things = len(placed.items)
+            # Not sure which job: ask, rather than start one.
+            #
+            # The reading is still the best one it had, and it is offered
+            # first -- but as a question with the others beside it, and with no
+            # `workflow_id` for a press to act on. A guess that creates one
+            # wrong record is a nuisance; the same guess against a list of
+            # twenty is twenty wrong records in a warehouse, and the cost of
+            # asking is one sentence.
+            if not placed.sure:
+                titles = [title, *[known[one].title for one in placed.also if one in known]]
+                said = f"Did you mean {' or '.join(titles)}? Say which and I will set it up."
+                return await self._ask_which(
+                    ctx,
+                    thread_id=thread_id,
+                    text=text,
+                    said=said,
+                    choices=[placed.workflow_id, *placed.also],
+                    titles=titles,
+                )
             if placed.missing:
                 said = (
                     f"{title} does that. I still need {', '.join(placed.missing)}"
@@ -259,6 +278,53 @@ class Converse:
                         "values": dict(placed.values),
                         "items": [dict(one) for one in placed.items],
                         "missing": list(placed.missing),
+                    },
+                )
+            )
+            await uow.threads.save(thread)
+            await uow.commit()
+        return thread
+
+    async def _ask_which(
+        self,
+        ctx: RequestContext,
+        *,
+        thread_id: ThreadId,
+        text: str,
+        said: str,
+        choices: list[str | None],
+        titles: list[str],
+    ) -> Thread:
+        """A question with the jobs it was choosing between, and no press.
+
+        `kind: "which_job"` and deliberately not `"job"`: the browser builds an
+        offer out of a job decision, and a decision it cannot act on must not
+        look like one it can.
+        """
+        async with self._uow as uow:
+            thread = await uow.threads.get(ctx.tenant_id, thread_id)
+            now = self._clock.now()
+            thread.say(
+                Message(
+                    id=self._ids.new_message_id(),
+                    speaker=Speaker.OPERATOR,
+                    text=text,
+                    said_at=now,
+                )
+            )
+            thread.say(
+                Message(
+                    id=self._ids.new_message_id(),
+                    speaker=Speaker.ASSISTANT,
+                    text=said,
+                    said_at=self._clock.now(),
+                    decision={
+                        "kind": "which_job",
+                        "choices": [one for one in choices if one],
+                        # The names, because the question is asked of a person:
+                        # a panel drawing two buttons reading `wfl_c79d02bb`
+                        # asks nobody anything.
+                        "titles": titles,
                     },
                 )
             )

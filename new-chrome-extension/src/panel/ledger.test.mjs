@@ -88,6 +88,37 @@ test("a mining candidate is not offered at all -- this deployment runs the rig",
   assert.ok(!words(node_).includes("equipment type"));
 });
 
+test("two jobs it could have meant are drawn as a question, not started", () => {
+  // A guess that creates one wrong record is a nuisance; the same guess
+  // against a list of twenty is twenty wrong records. The press says the job's
+  // own name back into the conversation -- nothing starts from here.
+  const pressed = [];
+  const item = messages(
+    ledger({
+      id: "thr-1",
+      messages: [
+        {
+          id: "m1",
+          speaker: "assistant",
+          said_at: WHEN,
+          text: "Did you mean Create a Warehouse Equipment Type or Create a Customer Type?",
+          decision: {
+            kind: "which_job",
+            choices: ["wfl_1", "wfl_2"],
+            titles: ["Create a Warehouse Equipment Type", "Create a Customer Type"],
+          },
+        },
+      ],
+    }, {}, { onPress: (answer, _message, _where, _button, values) => pressed.push([answer, values]) }),
+  )[0];
+
+  const buttons = of(item, "button").map((one) => one.textContent);
+  assert.deepEqual(buttons, ["Create a Warehouse Equipment Type", "Create a Customer Type"]);
+
+  of(item, "button")[1].listeners.click[0]();
+  assert.deepEqual(pressed, [["which-job", { title: "Create a Customer Type" }]]);
+});
+
 test("a decision this panel does not know renders its words and no buttons", () => {
   // Forward compatibility. The backend can reach a kind this copy of the
   // extension has never heard of, and every browser in the field is a copy

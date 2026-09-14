@@ -33,6 +33,21 @@ UNDERSTAND_SCHEMA: dict[str, object] = {
             },
         },
         "missing": {"type": "array", "items": {"type": "string"}},
+        # How sure, and what else it nearly was.
+        #
+        # The door always named a job. Asked "lets create warehouse equipment
+        # type" by an operator whose tenant holds exactly that job, an earlier
+        # version of this system answered "Create a customer type does that"
+        # with no way for anything downstream to know it had guessed -- and a
+        # guess that creates one wrong record is a nuisance, while the same
+        # guess against a list of twenty is twenty wrong records in a
+        # warehouse.
+        #
+        # `sure` is the model's own reading of whether the sentence names ONE
+        # of these jobs plainly. `also` is what it nearly said instead, which
+        # is what a person is asked to choose between.
+        "sure": {"type": "boolean"},
+        "also": {"type": "array", "items": {"type": "string"}},
         # Several things, one job. "Add these three equipment types" is one
         # job done three times, and until this existed the door could only
         # answer the first: the values of one thing, in `values`, and the
@@ -65,8 +80,8 @@ UNDERSTAND_SCHEMA: dict[str, object] = {
             },
         },
     },
-    "required": ["workflow_id", "values", "missing"],
-    "propertyOrdering": ["workflow_id", "values", "missing", "items"],
+    "required": ["workflow_id", "values", "missing", "sure"],
+    "propertyOrdering": ["workflow_id", "sure", "also", "values", "missing", "items"],
 }
 
 INSTRUCTIONS = """An operator has said what they want done. You are given the jobs this system
@@ -81,6 +96,15 @@ NEWTESTS. An operator asking for the same work with other values -- a work area
 called NEWTEST9 -- means that job. Match on what the job does. Answer null only
 when no job here does that kind of work at all. When two jobs do the same work,
 name the one whose demonstration is closest to what was said.
+
+Say whether you are SURE. You are sure when the sentence plainly names one of
+these jobs and no other job here does that kind of work. You are not sure when
+two or more could be meant, when the sentence names a kind of work none of
+them quite does, or when you are choosing on a detail rather than on what the
+work is. Where you are not sure, still answer the closest job, and list the
+others you considered in `also` -- a person will be asked which. Guessing
+confidently is worse than saying you are unsure: what gets done with this
+answer is work in a warehouse, and there may be twenty of it.
 
 An operator may name several things for one job: three equipment types in one
 mail, four work areas in one sentence. That is one job done once per thing.

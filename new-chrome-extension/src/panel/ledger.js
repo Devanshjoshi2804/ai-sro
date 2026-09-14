@@ -588,6 +588,24 @@ function saying(message, onPress, spent = new Map(), { offers = [], runs, here =
     } else item.append(pressing(KINDS.offer, message, item, onPress));
   } else if (kind === "mail_match") {
     matched(item, message, offers, onPress);
+  } else if (kind === "which_job") {
+    // Two jobs it could have meant, and a person says which.
+    //
+    // Nothing here starts anything: the press says the job's own name back
+    // into the conversation, and the door reads that sentence with no
+    // ambiguity left in it. A button that started a run off a reading that
+    // had already said it was unsure would be the guess this question exists
+    // to avoid, wearing a confirmation.
+    const choosing = document.createElement("div");
+    choosing.className = "row";
+    for (const title of message.decision.titles || []) {
+      const one = document.createElement("button");
+      one.type = "button";
+      one.textContent = title;
+      one.addEventListener("click", () => onPress?.("which-job", message, item, one, { title }));
+      choosing.append(one);
+    }
+    item.append(choosing);
   } else if (kind === "question") {
     asking(item, message, onPress);
   } else if (kind === "failure") {

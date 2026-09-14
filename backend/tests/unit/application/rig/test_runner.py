@@ -25,6 +25,7 @@ import asyncio
 import base64
 import json
 from collections.abc import Mapping, Sequence
+from contextlib import suppress
 from dataclasses import replace
 from datetime import UTC, datetime
 
@@ -4020,6 +4021,23 @@ def _adding_three() -> tuple[Repeat, list[dict[str, str]]]:
     ]
 
 
+class _SaysYes(Approvals):
+    """Somebody at the panel who answers every time the run stops to ask.
+
+    A subclass rather than a task polling beside the run: the run parks by
+    awaiting this register, so answering from inside it is the one place that
+    cannot race the park it is answering.
+    """
+
+    async def wait_for(
+        self,
+        run_id: str,
+        timeout: float = K_APPROVAL_WAIT_S,  # noqa: ASYNC109 - the wait IS the timeout
+    ) -> bool:
+        self.approve(run_id)
+        return await super().wait_for(run_id, timeout)
+
+
 async def test_the_body_is_done_once_for_each_thing_on_the_list() -> None:
     """A mail carrying three rows produced a run that created the first, and an
     operator did the other two by hand while watching a browser that had just
@@ -4038,7 +4056,17 @@ async def test_the_body_is_done_once_for_each_thing_on_the_list() -> None:
     )
     asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True}))
 
-    run = await _ran(uow, workflow, channel=channel, asker=asker, items=items, earned=True)
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        items=items,
+        earned=True,
+        # A list of more than one thing stops once after the first, to
+        # show somebody what it made before it makes the rest.
+        approvals=_SaysYes(),
+    )
 
     assert [step.of_step for step in run.steps] == [0, 1, 0, 1, 0, 1]
     assert [step.item for step in run.steps] == [0, 0, 1, 1, 2, 2]
@@ -4064,7 +4092,17 @@ async def test_each_thing_is_finished_before_the_next_is_started() -> None:
     )
     asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True}))
 
-    run = await _ran(uow, workflow, channel=channel, asker=asker, items=items, earned=True)
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        items=items,
+        earned=True,
+        # A list of more than one thing stops once after the first, to
+        # show somebody what it made before it makes the rest.
+        approvals=_SaysYes(),
+    )
 
     done = [(step.item, step.of_step) for step in run.steps]
     assert done == sorted(done), "the run wandered between things rather than finishing each"
@@ -4117,7 +4155,17 @@ async def test_each_thing_gets_its_own_write_claim() -> None:
     )
     asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True}))
 
-    run = await _ran(uow, workflow, channel=channel, asker=asker, items=items, earned=True)
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        items=items,
+        earned=True,
+        # A list of more than one thing stops once after the first, to
+        # show somebody what it made before it makes the rest.
+        approvals=_SaysYes(),
+    )
 
     assert [step.verdict for step in run.steps] == ["held"] * 6
     assert not any("may have landed" in (step.reason or "") for step in run.steps)
@@ -4187,19 +4235,42 @@ async def test_one_tap_answers_for_the_whole_list() -> None:
     )
     asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True}))
     approvals = _CountsTheAsks()
+    answering = True
+
+    read: list[str] = []
 
     async def _tap() -> None:
-        """The one tap, once the first thing's write is parked on it."""
-        approvals.approve(await _parked(approvals))
+        """Somebody at the panel, answering whenever the run stops to ask.
+
+        What the card SAID is read here and not off the finished run: a parked
+        step is recorded `awaiting` with its question and then rewritten with
+        the verdict on what followed, so by the time the run is over there is
+        no trace of either.
+        """
+        while answering:
+            with suppress(TimeoutError):
+                run_id = await _parked(approvals)
+                saved = await uow.workflow_runs.get(TENANT, run_id)
+                if saved is not None:
+                    read.append(saved.steps[-1].reason)
+                approvals.approve(run_id)
+            await asyncio.sleep(0.01)
 
     tapping = asyncio.create_task(_tap())
     run = await _ran(uow, workflow, channel=channel, asker=asker, items=items, approvals=approvals)
+    answering = False
     await tapping
 
     assert run.outcome == "held", [step.reason for step in run.steps]
-    assert approvals.asked == 1, "one write step, three things, and a person asked once per thing"
-    assert [step.verdict for step in run.steps] == ["held"] * 6
-    # Three writes went out, which is the point: one answer, three records.
+    # Two, for a list of any length: the write gate once for the whole list,
+    # and once more before the second thing with the first one's result in
+    # front of them. Not one per thing, which for ten things is a panel nobody
+    # reads by the fourth.
+    assert approvals.asked == 2, [step.reason for step in run.steps]
+    assert any("the first of 3 is done" in one for one in read), (
+        f"the second tap was asked for without saying what the first one made: {read}"
+    )
+    # Three writes went out, which is the point: two answers, three records.
     assert [one["kind"] for one in channel.sent].count("ui.perform") == 6
 
 
@@ -4248,3 +4319,74 @@ async def test_a_second_run_of_the_same_list_asks_again(monkeypatch: pytest.Monk
 
     assert any(step.verdict == "failed" for step in run.steps)
     assert not any(step.result and step.result.get("wrote") for step in run.steps)
+
+
+async def test_a_wrong_list_costs_one_record_and_not_twenty(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The protection this exists for.
+
+    A tap on "add these twenty" is one decision made before anything happened.
+    The job read out of a sentence can be the wrong job -- an operator asking
+    for a warehouse equipment type was once answered with a customer type --
+    and the way to find that out is to do one and show them. Nobody says yes to
+    the rest, so the rest is not done.
+    """
+    monkeypatch.setattr(runner_module, "K_APPROVAL_WAIT_S", 0.05)
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    workflow.repeat, items = _adding_three()
+    channel = FakeChannel(
+        {
+            **_looks(12),
+            "ui.perform": [_performed()] * 6,
+            "http.send": [Reply(ok=True, result={"status": 404, "body": "{}"})] * 3,
+            "calls.since": [Reply(ok=True, result={"calls": []})] * 6,
+        }
+    )
+    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True}))
+
+    # Earned, so the write gate does not ask: what is under test is the gate
+    # AFTER the first thing, which asks whether a job that can write unasked
+    # should go on writing.
+    run = await _ran(uow, workflow, channel=channel, asker=asker, items=items, earned=True)
+
+    done = [step for step in run.steps if step.item == 0 and step.verdict == "held"]
+    assert len(done) == 2, "the first thing was not finished before the run stopped"
+    assert not any(step.item == 2 for step in run.steps), "the third thing was done anyway"
+    assert run.outcome == "stopped"
+    assert "within" in (run.steps[-1].reason or "")
+
+
+async def test_even_a_job_that_has_earned_its_autonomy_is_asked_after_the_first(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The one place this system does not let earning through.
+
+    Earning says a job's writes have been watched to hold over runs. It says
+    nothing about whether this is the right job for what somebody just asked
+    for, and that is the question a list makes expensive: a job cannot earn its
+    way out of being the wrong job twenty times.
+    """
+    monkeypatch.setattr(runner_module, "K_APPROVAL_WAIT_S", 0.05)
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    workflow.repeat, items = _adding_three()
+    await _earn(uow, workflow)
+    channel = FakeChannel(
+        {
+            **_looks(12),
+            "ui.perform": [_performed()] * 6,
+            "http.send": [Reply(ok=True, result={"status": 404, "body": "{}"})] * 3,
+            "calls.since": [Reply(ok=True, result={"calls": []})] * 6,
+        }
+    )
+    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True}))
+    approvals = _CountsTheAsks()
+
+    run = await _ran(uow, workflow, channel=channel, asker=asker, items=items, approvals=approvals)
+
+    assert approvals.asked == 1, "an earned job wrote the whole list without being asked once"
+    # Nobody answered, so the rest was not done -- and the first one was.
+    assert len([step for step in run.steps if step.item == 0 and step.verdict == "held"]) == 2
+    assert not any(step.item == 2 for step in run.steps)

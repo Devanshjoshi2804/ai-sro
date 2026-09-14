@@ -237,7 +237,11 @@ function stepRow({ step, outcome, live, inFlight, run, notes, onPress, onSecret,
   if (outcome === "awaiting" && live) {
     const words = document.createElement("span");
     words.className = "planned";
-    words.textContent = wordsFor(step.sent);
+    // What would go out, or -- where the run stopped for a reason rather than
+    // a write -- what it is asking. A list stops once after the first thing
+    // with that thing's result in the sentence, and a row with two buttons and
+    // no words is a question nobody can answer.
+    words.textContent = wordsFor(step.sent) || step.reason || "";
     const approve = document.createElement("button");
     approve.type = "button";
     approve.textContent = "Approve";

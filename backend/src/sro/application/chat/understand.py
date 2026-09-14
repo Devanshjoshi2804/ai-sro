@@ -42,6 +42,19 @@ class Understood:
     answer: Answer
     values: dict[str, str] = field(default_factory=dict)
     missing: list[str] = field(default_factory=list)
+    sure: bool = True
+    """Whether the sentence plainly named ONE of this tenant's jobs.
+
+    `True` by default so a reading built by anything that predates this -- a
+    test, an older row -- reads as it always did. What `False` means is the
+    caller's: the panel asks a person which job was meant rather than pressing
+    on, because a guess that creates one wrong record is a nuisance and the
+    same guess against a list of twenty is twenty wrong records."""
+
+    also: list[str] = field(default_factory=list)
+    """The other jobs it nearly said, ids only, for the question a person is
+    asked. Filtered to jobs this tenant actually holds, like `workflow_id`."""
+
     items: list[dict[str, str]] = field(default_factory=list)
     """The things this job is to be done for, where the operator named several.
 
@@ -114,6 +127,16 @@ async def understand(
     # it: three equipment types of which one has no voice code is a form that
     # has to ask for the voice code, and a check against the job's shared
     # values alone would say every parameter was supplied by somebody.
+    # Sure unless the model said otherwise, and never sure where it named
+    # another job it might have meant instead: a reading that offers an
+    # alternative has already said it was choosing.
+    nearly = answer.data.get("also")
+    also = [
+        one
+        for one in (nearly if isinstance(nearly, list) else [])
+        if isinstance(one, str) and one in by_id and one != chosen.id
+    ]
+    sure = bool(answer.data.get("sure", True)) and not also
     supplied = [{**values, **item} for item in items] or [values]
     # A thing the filter emptied still counts here. The operator said "these
     # two", and a run that quietly does one of them is a run that did not do
@@ -125,7 +148,7 @@ async def understand(
         for name in declared
         if isinstance(name, str) and any(name not in one for one in supplied)
     )
-    return Understood(chosen.id, answer, values, missing, items)
+    return Understood(chosen.id, answer, values, missing, sure, also, items)
 
 
 def _things(raw: object, declared: set[object]) -> list[dict[str, str]]:

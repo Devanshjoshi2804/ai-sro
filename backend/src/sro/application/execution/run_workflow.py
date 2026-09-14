@@ -506,6 +506,8 @@ async def run_workflow(
     # Which steps a person has already approved for this list. One tap answers
     # for every thing on it: they read the rows and pressed once.
     approved_for_the_list: set[int] = set()
+    # Whether the person has seen the first thing done and said to do the rest.
+    proved_the_first = False
     already_done = [step for step in ordered if step.order < from_step]
     budget = len(itinerary) - len(already_done) + K_STEP_SLACK
     attempts = 0
@@ -562,6 +564,67 @@ async def run_workflow(
             run.steps.append(record)
             origin = origin_of(primary) if primary is not None else None
             mutates = writes(step, by_id)
+
+            # The first thing is the proof.
+            #
+            # A tap on "add these twenty" is one decision made before anything
+            # happened. It is a good decision about a job that does what the
+            # person thinks it does -- and the way to find out is to do one and
+            # show them. A job read out of a sentence can be the wrong job: an
+            # operator asking for a warehouse equipment type was once answered
+            # with a customer type, and the same guess against a list is a list
+            # of wrong records.
+            #
+            # So the run stops once, before the second thing, with the first
+            # one's result in front of them. Two taps for a list of any length,
+            # and the second one is informed by something real.
+            #
+            # Asked even of a job that has earned the right to write unasked,
+            # which is the one place this system does not let earning through.
+            # Earning says the job's writes have been watched to hold over
+            # runs; it says nothing about whether this is the right job for
+            # what somebody just asked for, and that is the question a list
+            # makes expensive. A job cannot earn its way out of being the wrong
+            # job twenty times.
+            if live and leg.item == 1 and not proved_the_first:
+                proved_the_first = True
+                did = ", ".join(str(one) for one in run.items[0].values()) or "the first one"
+                rest = len(run.items) - 1
+                record.verdict, record.verdict_by = "awaiting", "none"
+                record.reason = (
+                    f"the first of {len(run.items)} is done — {did}. Approve to do the other {rest}"
+                )
+                approvals.register(run.id)
+                await _save(uow, run)
+                if not await approvals.wait_for(run.id, K_APPROVAL_WAIT_S):
+                    waited = f"{K_APPROVAL_WAIT_S / 60:.0f} minutes"
+                    record.verdict, record.verdict_by = "failed", "none"
+                    record.reason = f"nobody said whether to do the rest within {waited}"
+                    run.outcome = "stopped"
+                    await _save(uow, run)
+                    break
+                if stops.asked(run.id):
+                    record.verdict, record.verdict_by = "failed", "none"
+                    record.reason = "stopped after the first one"
+                    run.outcome = "aborted"
+                    await _save(uow, run)
+                    with suppress(DeviceUnreachable):
+                        await channel.send(
+                            tenant_id,
+                            device_id,
+                            kind="abort",
+                            run_id=run.id,
+                            payload={"run_id": run.id},
+                        )
+                    break
+                # Said yes to the rest, so the write gate is not asked again
+                # for them either: they answered about this list twice already.
+                record.verdict, record.verdict_by = "skipped", "none"
+                record.reason = ""
+                if workflow.repeat is not None:
+                    approved_for_the_list.update(
+                        range(workflow.repeat.first_step, workflow.repeat.last_step + 1)
+                    )
             if primary is None:
                 # A step with nothing actionable cited gets no model call at
                 # all: it is recorded skipped and the run stops below rather

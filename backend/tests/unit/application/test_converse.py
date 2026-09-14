@@ -218,12 +218,16 @@ def _understood(
     values: dict[str, str] | None = None,
     missing: list[str] | None = None,
     items: list[dict[str, str]] | None = None,
+    sure: bool = True,
+    also: list[str] | None = None,
 ) -> Understood:
     return Understood(
         workflow_id=workflow_id,
         answer=Answer(data={}),
         values=dict(values or {}),
         missing=list(missing or []),
+        sure=sure,
+        also=list(also or []),
         items=[dict(one) for one in (items or [])],
     )
 
@@ -315,3 +319,33 @@ async def test_a_rig_that_refuses_is_not_a_conversation_that_stops() -> None:
 
     assert said.messages[-1].speaker is Speaker.ASSISTANT
     assert said.messages[-1].text
+
+
+async def test_a_reading_that_is_not_sure_asks_which_job_rather_than_starting_one() -> None:
+    """One wrong record is a nuisance; the same guess against a list of twenty
+    is twenty wrong records in a warehouse, and the cost of asking is one
+    sentence."""
+    uow = FakeUnitOfWork()
+    await uow.workflows.save(
+        Workflow(
+            id="wfl_2",
+            tenant=f.TENANT.value,
+            title="Create a Customer Type",
+            narrative="n",
+            steps=[Step(order=0, says="s", system=None, cites=["g"])],
+        )
+    )
+    converse = await _with_a_job(uow, _understood("wfl_1", sure=False, also=["wfl_2"]))
+    thread = await StartThread(uow, FakeClock(), FakeIdFactory()).execute(CTX)
+
+    said = await converse.execute(CTX, thread_id=thread.id, text="make one of those")
+
+    last = said.messages[-1]
+    assert "Did you mean" in last.text
+    assert "Create a Warehouse Equipment Type" in last.text
+    assert "Create a Customer Type" in last.text, "the other one it was choosing between"
+    assert last.decision is not None
+    assert last.decision["kind"] == "which_job", (
+        "a decision the browser cannot act on must not look like one it can"
+    )
+    assert "workflow_id" not in last.decision, "there is nothing here to press"

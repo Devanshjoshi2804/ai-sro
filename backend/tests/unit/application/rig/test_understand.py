@@ -109,7 +109,7 @@ async def test_a_value_for_a_parameter_the_workflow_does_not_declare_is_dropped(
 def test_the_schema_is_the_specs() -> None:
     properties = UNDERSTAND_SCHEMA["properties"]
     assert isinstance(properties, dict)
-    assert set(properties) == {"workflow_id", "values", "missing", "items"}
+    assert set(properties) == {"workflow_id", "values", "missing", "items", "sure", "also"}
 
 
 async def test_a_parameter_with_no_value_is_missing_whatever_the_model_says() -> None:
@@ -440,3 +440,104 @@ async def test_a_key_this_job_never_declared_is_dropped_from_a_thing_too() -> No
     )
 
     assert got.items == [{"clientCode": "A"}]
+
+
+# --- saying so when it is not sure -------------------------------------------
+
+
+async def test_a_reading_that_is_not_sure_says_so() -> None:
+    """The answer that started this.
+
+    An operator whose tenant holds "Create a Warehouse Equipment Type" typed
+    "lets create warehouse equipment type" and was told "Create a customer type
+    does that" -- with no way for anything downstream to know it had guessed. A
+    guess that creates one wrong record is a nuisance; the same guess against a
+    list of twenty is twenty wrong records in a warehouse.
+    """
+    got = await understand(
+        "make one of those",
+        [*WFS, SECOND],
+        FakeAsker(
+            Answer(
+                data={
+                    "workflow_id": "wfl_1",
+                    "values": [],
+                    "missing": [],
+                    "sure": False,
+                    "also": ["wfl_2"],
+                }
+            )
+        ),
+        "m",
+    )
+
+    assert got.workflow_id == "wfl_1", "it still answers its best reading"
+    assert got.sure is False
+    assert got.also == ["wfl_2"], "and what a person will be asked to choose between"
+
+
+async def test_naming_another_job_it_might_have_meant_is_not_being_sure() -> None:
+    """A reading that offers an alternative has already said it was choosing,
+    whatever it then claims about itself."""
+    got = await understand(
+        "make one",
+        [*WFS, SECOND],
+        FakeAsker(
+            Answer(
+                data={
+                    "workflow_id": "wfl_1",
+                    "values": [],
+                    "missing": [],
+                    "sure": True,
+                    "also": ["wfl_2"],
+                }
+            )
+        ),
+        "m",
+    )
+
+    assert got.sure is False
+
+
+async def test_a_job_this_tenant_does_not_hold_is_not_an_alternative() -> None:
+    # The same filter `workflow_id` gets: a model naming one is a
+    # hallucination, and a question offering it is a question with a wrong
+    # answer in it.
+    got = await understand(
+        "make one",
+        WFS,
+        FakeAsker(
+            Answer(
+                data={
+                    "workflow_id": "wfl_1",
+                    "values": [],
+                    "missing": [],
+                    "sure": False,
+                    "also": ["wfl_nope", "wfl_1"],
+                }
+            )
+        ),
+        "m",
+    )
+
+    assert got.also == [], "an id nobody holds, and its own answer, are not alternatives"
+
+
+async def test_a_plain_reading_is_sure_and_says_nothing_else() -> None:
+    got = await understand(
+        "create client NEW9",
+        WFS,
+        FakeAsker(
+            Answer(
+                data={
+                    "workflow_id": "wfl_1",
+                    "values": [{"name": "clientCode", "value": "NEW9"}],
+                    "missing": [],
+                    "sure": True,
+                }
+            )
+        ),
+        "m",
+    )
+
+    assert got.sure is True and got.also == []

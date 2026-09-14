@@ -1268,6 +1268,13 @@ async function answered(answer, message, where, button, values) {
   // reports an offer's FATE, and making a rule is not one of the three -- the
   // offer in front of them is still theirs to answer either way.
   if (answer === "do-this-here") return madeARule(message, button);
+  // Which of the two jobs they meant. Said back into the conversation as the
+  // job's own name rather than started here: the door then reads a sentence
+  // with no ambiguity left in it, and the offer it makes is the ordinary one.
+  if (answer === "which-job") {
+    button.disabled = true;
+    return say(values?.title || button.textContent || "");
+  }
   // A rule that fired and stopped to ask, answered from where the operator is
   // rather than only in the console.
   if (answer === "waiting-approve" || answer === "waiting-decline") {

@@ -49,12 +49,20 @@ export function glyphFor(outcome) {
   // reading it: the write has not gone. `done_by_operator` is a plain tick --
   // they went and did it themselves while the rig waited, and that step is as
   // over as one the rig performed.
+  //
+  // `not_needed` is a tick too, and that is the whole of what it says: the
+  // step existed to put a form on the screen, the write that form was for went
+  // out as a call, and there was nothing left to do. It was drawn `✓!` for a
+  // day -- the fallback below -- which means the opposite: "it went out and
+  // nothing could say whether it landed". Four rows of that on a run that did
+  // exactly what it meant to.
   if (typeof outcome === "string") {
     return {
       held: "✓",
       done_by_operator: "✓",
       withheld: "⏸",
       awaiting: "⏸",
+      not_needed: "✓",
       failed: "✗",
       refused: "✗",
       skipped: "○",

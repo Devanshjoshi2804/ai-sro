@@ -3673,6 +3673,54 @@ async def test_a_tap_that_lands_before_the_wait_starts_is_not_lost(
     assert [s["kind"] for s in channel.sent].count("ui.perform") == 2, "and the write went out"
 
 
+async def test_an_approved_step_stops_saying_it_is_waiting_before_the_write_goes_out(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`awaiting` is what the panel draws the Approve button from.
+
+    Left standing through the send it is a row that lies for as long as the
+    step takes -- the call, the read-back, and on the third rung a screenshot
+    and a vision call. So an operator taps Approve, the tap is recorded, the
+    wait really is released, and the panel redraws the same paused row with the
+    same button. Reported on the live deployment 2026-09-16 as "I clicked
+    approve and nothing happened", against a run whose approval had landed
+    every time.
+    """
+    monkeypatch.setattr(runner_module, "K_APPROVAL_WAIT_S", 5.0)
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel({**_looks(4), "ui.perform": [_performed(), _performed()]})
+    asker = _PerSchemaAsker(plan=_plan("type", "THIRD"), verdict=Answer(data={"held": True}))
+    approvals = Approvals()
+    saved = uow.workflow_runs.save
+    seen: list[str] = []
+
+    async def _watch(run: WorkflowRun) -> None:
+        await saved(run)
+        if run.steps:
+            last = run.steps[-1]
+            if not seen or seen[-1] != last.verdict:
+                seen.append(last.verdict or "")
+            if last.verdict == "awaiting":
+                approvals.approve(run.id)
+
+    uow.workflow_runs.save = _watch  # type: ignore[method-assign]
+
+    run = await _ran(
+        uow, workflow, channel=channel, asker=asker, started_by="offer", approvals=approvals
+    )
+
+    assert run.outcome == "held"
+    # The row said `awaiting`, and the very next thing saved about that step
+    # said it no longer was -- before the command went out, not after it came
+    # back.
+    assert "awaiting" in seen, "the step parked"
+    after = seen[seen.index("awaiting") + 1 :]
+    assert after and after[0] == "skipped", (
+        f"the row went {after[:1]} after approval, so the panel kept drawing Approve"
+    )
+
+
 async def test_a_run_that_dies_while_it_parks_leaves_nothing_waiting() -> None:
     """The register is what the panel's `awaiting` list reads. A run that
     registered and then died before it could wait would sit in that list

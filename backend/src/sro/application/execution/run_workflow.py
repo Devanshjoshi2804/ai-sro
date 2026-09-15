@@ -1344,6 +1344,30 @@ async def run_workflow(
                     if leg.item is not None:
                         approved_for_the_list.add(step.order)
 
+                # The row stops saying it is waiting on a person, before the
+                # command goes out rather than after it comes back.
+                #
+                # `awaiting` is what the panel draws the Approve button from.
+                # Left standing through the send it is a row that lies for as
+                # long as the step takes -- the call, the read-back, and on the
+                # ladder's third rung a screenshot and a vision call -- so an
+                # operator taps Approve, the tap is recorded, the wait really
+                # is released, and the panel redraws the same paused row with
+                # the same button. Reported as "I clicked approve and nothing
+                # happened" on the live deployment, 2026-09-16, against a run
+                # whose approval had in fact landed every time (`resumed:
+                # true`, three taps).
+                #
+                # Back to `skipped`, which is what an in-flight step already
+                # says: it is this record's starting value, the panel draws it
+                # `○`, and the real verdict overwrites it a few lines below.
+                # Not a new word for "sending" -- the vocabulary is closed and
+                # a state that exists only between two statements of the same
+                # function is not a disposition anybody needs to read about.
+                if record.verdict == "awaiting":
+                    record.verdict, record.verdict_by = "skipped", "none"
+                    record.reason = "approved; sending the write"
+                    await _save(uow, run)
                 # `before` and `planned` are set by the same pass of the while
                 # above: a command to send is a command something was looked at
                 # before planning.

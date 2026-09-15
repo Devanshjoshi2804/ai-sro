@@ -888,6 +888,36 @@ async def test_a_held_read_names_the_record_the_run_made() -> None:
     assert dict(verdict.made) == {"workArea": "THIRD"}
 
 
+async def test_the_card_names_a_row_and_never_quotes_a_paragraph_back() -> None:
+    """Same discipline `made_by` already keeps, and for the same reason.
+
+    What is stored on the run is what NAMES the record, not the record. A
+    description field can be a paragraph of somebody's data, and this row is
+    kept for as long as the tenant keeps the run -- so the boundary is the
+    whole of the rule and both sides of it are checked.
+    """
+    just_short = "x" * 64
+    too_long = "y" * 65
+    channel = _read(
+        json.dumps({"data": [{"workArea": "THIRD", "note": just_short, "essay": too_long}]})
+    )
+
+    verdict = await _verify(
+        _saver(),
+        channel=channel,
+        values={"workArea": "THIRD"},
+        sent_kind="http.send",
+        answer=Reply(ok=True, result={"status": 200, "body": "{}"}),
+        rewrote=True,
+        confirm={"workArea": "THIRD", "note": just_short, "essay": too_long},
+    )
+
+    assert verdict.state == "held"
+    assert dict(verdict.made) == {"workArea": "THIRD", "note": just_short}, (
+        "sixty-four characters is a name; sixty-five is a paragraph"
+    )
+
+
 async def test_a_re_aimed_write_with_no_slot_a_read_could_settle_never_makes_the_read() -> None:
     """Every field this run wrote is one the demonstration shows the server
     rewriting, so there is no proposition a read could confirm. Asking anyway

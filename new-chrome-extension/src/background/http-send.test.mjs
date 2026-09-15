@@ -175,3 +175,100 @@ test("a page that sets none still sends the marker every XHR library sends", asy
   assert.equal(answer.ok, true);
   assert.equal(sentHeaders["X-Requested-With"], "XMLHttpRequest");
 });
+
+/** Run the page functions against a list of frames instead of one window.
+ *
+ * `executeScript` with `allFrames: true` answers once per frame, top first,
+ * and each answer is that frame's own realm. The default mock above has one
+ * window and so cannot tell a page with frames from a page without.
+ */
+function framesAre(windows) {
+  globalThis.chrome.scripting.executeScript = async ({ target, func, args }) => {
+    const realms = target?.allFrames ? windows : windows.slice(0, 1);
+    const answers = [];
+    for (const realm of realms) {
+      globalThis.window = realm;
+      answers.push({ result: await func(...(args || [])) });
+    }
+    return answers;
+  };
+}
+
+test("a live header is read from the frame that has it, not only the top one", async () => {
+  // Measured on the real system 2026-09-16. Blue Yonder's portal is a shell
+  // hosting the application in an iframe, and BOTH have an `Ext`: the shell's
+  // `Ajax.defaultHeaders` carries only `Accept`, the iframe's carries the
+  // token. Reading the top frame alone found an Ext, found no token, and
+  // refused -- which failed every replay of every write on that system, with
+  // the token one frame down.
+  framesAre([
+    { Ext: { Ajax: { defaultHeaders: { Accept: "application/json" } } } },
+    { Ext: { Ajax: { defaultHeaders: { "CSRF-ENCRYPT-TOKEN": "from-the-iframe" } } } },
+  ]);
+  let sentHeaders;
+  globalThis.fetch = async (_url, init) => {
+    sentHeaders = init.headers;
+    return { status: 201, headers: new Map(), text: async () => "" };
+  };
+
+  const answer = await perform({
+    command_id: "cmd-frame-1",
+    kind: "http.send",
+    payload: {
+      method: "POST",
+      url: "https://wms.example/data/WM/wm/customerTypes",
+      headers: {},
+      live_headers: ["CSRF-ENCRYPT-TOKEN"],
+    },
+  });
+
+  assert.equal(answer.ok, true);
+  assert.equal(sentHeaders["CSRF-ENCRYPT-TOKEN"], "from-the-iframe");
+});
+
+test("no frame having it is still unreachable, and says every frame was asked", async () => {
+  framesAre([{ Ext: { Ajax: { defaultHeaders: { Accept: "x" } } } }, { Ext: {} }]);
+
+  const answer = await perform({
+    command_id: "cmd-frame-2",
+    kind: "http.send",
+    payload: {
+      method: "POST",
+      url: "https://wms.example/data/WM/wm/customerTypes",
+      headers: {},
+      live_headers: ["CSRF-ENCRYPT-TOKEN"],
+    },
+  });
+
+  assert.equal(answer.ok, false);
+  assert.equal(answer.error.kind, "unreachable");
+  assert.match(answer.error.detail, /any frame/);
+});
+
+test("the top frame still wins where it is the one that has it", async () => {
+  // First non-null and not a merge: a header has one value, and Chrome
+  // enumerates the top frame first, so a page that does put it on the shell
+  // behaves exactly as it did before frames were looked at.
+  framesAre([
+    { Ext: { Ajax: { defaultHeaders: { "CSRF-ENCRYPT-TOKEN": "from-the-top" } } } },
+    { Ext: { Ajax: { defaultHeaders: { "CSRF-ENCRYPT-TOKEN": "from-a-frame" } } } },
+  ]);
+  let sentHeaders;
+  globalThis.fetch = async (_url, init) => {
+    sentHeaders = init.headers;
+    return { status: 201, headers: new Map(), text: async () => "" };
+  };
+
+  await perform({
+    command_id: "cmd-frame-3",
+    kind: "http.send",
+    payload: {
+      method: "POST",
+      url: "https://wms.example/data/WM/wm/customerTypes",
+      headers: {},
+      live_headers: ["CSRF-ENCRYPT-TOKEN"],
+    },
+  });
+
+  assert.equal(sentHeaders["CSRF-ENCRYPT-TOKEN"], "from-the-top");
+});

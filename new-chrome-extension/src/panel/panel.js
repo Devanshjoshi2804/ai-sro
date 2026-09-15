@@ -616,6 +616,14 @@ function performing(status) {
               // "yes" takes.
               const got = await ask({ kind: "approve-rig-run", runId: drawn.id });
               if (got?.error) said(got.error);
+              // Said, because the row cannot say it yet. The backend stops
+              // marking the step `awaiting` as soon as the tap lands, but the
+              // write goes out in the same breath and this poll can beat the
+              // save -- so without a word here the panel redraws the same
+              // paused row with the same button and the tap looks lost. It
+              // was: "I clicked approve but nothing happened", on a run whose
+              // approval had landed every time.
+              else said("approved — sending the write");
             } else if (answer === "stop") {
               await ask({ kind: "abort-run", runId: drawn.id });
             }

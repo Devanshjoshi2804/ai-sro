@@ -1,0 +1,202 @@
+# CI. Mirrors `make check`, split so a frontend change does not run mypy.
+#
+# A port of `bitbucket-pipelines.yml`, which this replaces: the same six gates,
+# the same reasons, run by GitHub instead. Anything that reads differently
+# below is a difference GitHub forced, and is commented where it happens.
+#
+# The dependency-rule check (`lint-imports`) runs on every pipeline. It is the
+# one gate that fails on architecture rather than on code, and a deliberate
+# `domain -> infrastructure` import must fail here. See docs/01-architecture.md.
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  # A second push to the same branch cancels the first. Bitbucket queued them;
+  # nobody reads the result of a run against a commit that has been replaced.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Which parts of the tree a change touches, so a docs commit does not run
+  # mypy and a frontend commit does not run pytest. Bitbucket said this inline
+  # with `condition: changesets`; on GitHub it is a job every other job needs.
+  changed:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      extension: ${{ steps.filter.outputs.extension }}
+      contract: ${{ steps.filter.outputs.contract }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          # On `main` every filter is forced true: a push that lands is the one
+          # that has to be green in full, and a path filter there would let a
+          # merge commit through on the strength of its own diff.
+          predicate-quantifier: some
+          filters: |
+            backend:
+              - 'backend/**'
+              - 'docs/**'
+            frontend:
+              - 'frontend/**'
+            extension:
+              - 'new-chrome-extension/**'
+              - 'Makefile'
+              - 'frontend/package.json'
+              - 'frontend/package-lock.json'
+            contract:
+              - 'backend/**'
+              - 'frontend/openapi.json'
+
+  backend-quality:
+    name: Backend — lint, types, dependency rule
+    needs: changed
+    if: needs.changed.outputs.backend == 'true' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+      - run: uv sync --all-extras
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run mypy src tests
+      - run: uv run lint-imports
+
+  backend-tests:
+    name: Backend — unit, contract, integration
+    needs: changed
+    if: needs.changed.outputs.backend == 'true' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: sro
+          POSTGRES_PASSWORD: sro
+          POSTGRES_DB: sro_test
+        ports:
+          - 5432:5432
+        # Bitbucket started its service containers and hoped. GitHub can wait
+        # for one, and an integration suite that opens a connection before
+        # Postgres is listening fails in a way that reads like a bug in the
+        # suite.
+        options: >-
+          --health-cmd "pg_isready -U sro -d sro_test"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+      - run: uv sync --all-extras
+      - run: uv run pytest tests/unit tests/contract -q
+      # Integration points at the service container rather than starting its
+      # own. A disposable database by name: the integration fixtures truncate
+      # every table and refuse to run against anything not marked as such.
+      - name: Integration, against the service container
+        env:
+          SRO_INTEGRATION_DATABASE_URL: postgresql+asyncpg://sro:sro@localhost:5432/sro_test
+        run: uv run pytest tests/integration -q
+      # The live-Steel capture tests skip themselves when no browser is
+      # reachable. They are proved locally against `make up`; running a
+      # privileged browser container here would not be worth the minutes.
+
+  frontend-quality:
+    name: Frontend — lint, types, build
+    needs: changed
+    if: needs.changed.outputs.frontend == 'true' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run format:check
+      - run: npm test
+      - run: npm run build
+
+  extension-quality:
+    name: Extension — node suites, no-undef
+    needs: changed
+    if: needs.changed.outputs.extension == 'true' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      # The extension has no build and no package.json of its own; its eslint
+      # comes from the frontend's node_modules and its tests are plain
+      # `node file.test.mjs`, which is what `make test-extension` enumerates.
+      - run: npm ci
+        working-directory: frontend
+      - run: make lint-extension
+      - run: make test-extension
+
+  backend-mutation:
+    name: Backend — mutation score floor
+    needs: changed
+    if: needs.changed.outputs.backend == 'true' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+      - run: uv sync --all-extras
+        working-directory: backend
+      # Scoped to `sro/application/skill/`, which is what turns a model's
+      # reading of a captured day into a Skill something goes and performs.
+      # `mutmut run` exits non-zero whenever any mutant survived, which is
+      # every run at this score, so the floor script is what decides the build.
+      - run: make mutants-backend
+
+  contract-is-current:
+    name: Contract — the committed OpenAPI matches the code
+    needs: changed
+    if: needs.changed.outputs.contract == 'true' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+      - run: uv sync --all-extras
+        working-directory: backend
+      - run: uv run python -m sro.interface.http.export_openapi > /tmp/openapi.json
+        working-directory: backend
+      # A drifted document means the generated frontend client no longer
+      # describes the API it talks to. Regenerate with `make types`.
+      - run: diff -u frontend/openapi.json /tmp/openapi.json

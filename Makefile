@@ -16,7 +16,7 @@ FRONTEND := cd frontend &&
 .PHONY: help up down ps logs reset install migrate revision api worker status web vault-key one-whole-run \
         lint lint-backend lint-frontend format test test-unit test-integration \
         test-contract test-browser types check ingest-kb seed-skills gen-recorder \
-        mutants-backend open-joins two-miners images smoke
+        mutants-backend open-joins two-miners images smoke gen-deployment
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -124,6 +124,13 @@ images: ## Build both deployment images, tagged with this commit: make images [a
 types: ## Regenerate frontend API types from the backend OpenAPI document
 	$(BACKEND) uv run python -m sro.interface.http.export_openapi > ../frontend/openapi.json
 	$(FRONTEND) npm run generate:types
+
+gen-deployment: ## Tell the extension which deployment it is for: make gen-deployment api=http://host:8088/api console=http://host:8088
+	@# The extension has no build step, so what is in the tree is what gets
+	@# loaded: a QA build and a production build differ by the generated file
+	@# this writes. An operator then pastes a credential and nothing else.
+	@test -n "$(api)" || { echo "api= is required, e.g. api=http://10.11.9.25:8088/api"; exit 2; }
+	$(BACKEND) uv run python scripts/write_deployment.py --api $(api) --console $(or $(console),)
 
 gen-recorder: ## Regenerate the extension's copy of the page recorder, secrets baked in
 	$(BACKEND) uv run python -m sro.infrastructure.steel.generate_extension_recorder

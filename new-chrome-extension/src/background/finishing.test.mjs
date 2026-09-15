@@ -22,6 +22,7 @@
 //
 // Run with `node src/background/finishing.test.mjs`.
 
+import { DEFAULT_API_URL } from "./deployment.generated.js";
 import assert from "node:assert";
 
 // The same minimal chrome.storage.local fake `queue.test.mjs` uses: a dozen
@@ -246,7 +247,7 @@ async function theRigsRunInThePanelsWords() {
   assert.strictEqual(wire.length, 1, "one read of the run, and one request for it");
   assert.strictEqual(
     wire[0].url,
-    "http://localhost:8000/v1/workflow-runs/run_a1b2",
+    `${DEFAULT_API_URL}/v1/workflow-runs/run_a1b2`,
     "a workflow run was read from somewhere other than the backend's workflow-run door",
   );
   assert.strictEqual(wire[0].method, "GET");
@@ -263,7 +264,7 @@ async function theRigsRunInThePanelsWords() {
   // operator is watching.
   wire.length = 0;
   await api.rigRun("run_c9d4");
-  assert.strictEqual(wire[0].url, "http://localhost:8000/v1/workflow-runs/run_c9d4");
+  assert.strictEqual(wire[0].url, `${DEFAULT_API_URL}/v1/workflow-runs/run_c9d4`);
 
   // The one status both vocabularies share, and it has to survive the mapping:
   // a run still running is what `noteFinished` refuses to write a card for.

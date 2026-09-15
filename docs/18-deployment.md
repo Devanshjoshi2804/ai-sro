@@ -169,15 +169,27 @@ make token tenant=<tenant> principal=<who it is for>
 sides, so two names for one human splits their work from itself permanently.
 One token per person, and the same name each time.
 
-**Known friction, and the POC's most likely failure.** The extension's options
-page asks each operator to type an API url, a console url, and paste a token —
-three fields, with `localhost` placeholders. On a client machine the
-placeholders are wrong, and getting the url wrong presents as "cannot reach the
-deployment" rather than as a typo. Before a client POC, the extension should
-ship knowing its deployment — either a generated default beside
-`shape.generated.js` (the pattern `make gen-recorder` and `make tokens` already
-use) or a single pasted connect string carrying url and token together. This is
-not done.
+**Point the extension at this deployment before handing it to anybody:**
+
+```bash
+make gen-deployment api=http://10.11.9.25:8088/api console=http://10.11.9.25:8088
+```
+
+It writes `new-chrome-extension/src/background/deployment.generated.js`, and
+the operator then pastes a credential and nothing else — the addresses are
+filled in and folded away behind *Addresses*. They used to be two empty fields
+with `localhost` placeholders, which are wrong on every machine but a
+developer's, and getting one wrong presents as "cannot reach the deployment"
+rather than as a typo.
+
+The extension has no build step, so **what is in the tree is what gets
+loaded**: a QA build and a production build differ by that one generated file,
+and whichever was generated last is what a `git pull` gives the next person.
+Regenerate after switching environments. The suite reads the constant rather
+than hardcoding an address, so it passes whichever deployment the file names.
+
+It remains a default and not a lock: sign-in still takes whatever url is
+typed, so one build can be pointed elsewhere without regenerating.
 
 ## Looking at it
 

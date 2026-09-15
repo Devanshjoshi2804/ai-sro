@@ -53,20 +53,27 @@
 
       <section class="card">
         <h2>Connection</h2>
+        <p class="note">
+          This build already knows where its deployment is. Paste the
+          credential you were given; the addresses below are filled in and
+          only need changing if somebody tells you to.
+        </p>
         <form id="sign-in">
-          <label>
-            Backend
-            <input id="api-url" type="url" placeholder="http://localhost:8000" required />
-          </label>
-          <label>
-            Console
-            <input id="console-url" type="url" placeholder="http://localhost:3000" />
-          </label>
-          <p class="note">
-            Where the review screens live, for the side panel to show. A
-            different address from the backend. Leave it empty and the panel
-            still does everything only it can do.
-          </p>
+          <details id="addresses">
+            <summary>Addresses</summary>
+            <label>
+              Backend
+              <input id="api-url" type="url" required />
+            </label>
+            <label>
+              Console
+              <input id="console-url" type="url" />
+            </label>
+            <p class="note">
+              Where the review screens live, for the side panel to show. Leave
+              it empty and the panel still does everything only it can do.
+            </p>
+          </details>
           <label>
             Credential
             <input id="token" type="password" placeholder="paste the token" required />

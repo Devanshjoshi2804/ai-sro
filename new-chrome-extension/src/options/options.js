@@ -49,8 +49,15 @@ function render(status) {
     }),
   );
 
+  // Prefilled from the build's own deployment, so a person signing in has one
+  // thing to do and it is the one thing that is theirs. `status` carries what
+  // this browser already stored; before it has stored anything those are the
+  // generated defaults, which is the case this exists for.
   $("api-url").value = status.apiUrl || "";
   $("console-url").value = status.consoleUrl || "";
+  // Opened only when there is nothing to sign in with and the addresses are
+  // therefore worth a glance. Once connected they are noise.
+  $("addresses").open = !status.deviceId && !status.apiUrl;
   $("purge").disabled = !status.deviceId;
 }
 

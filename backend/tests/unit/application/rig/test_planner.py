@@ -173,6 +173,48 @@ async def test_the_values_the_run_was_given_are_what_the_model_sees_not_the_reco
     }
 
 
+async def test_a_call_planned_for_the_step_a_run_begins_at_can_open_its_own_page() -> None:
+    """`starts_on` is what the extension opens a tab at when the operator's own
+    is somewhere else, and an `http.send` used not to carry it.
+
+    It never needed to: the steps that walked the browser to the form ran
+    first and left a tab on the origin. A job whose write goes out as a call
+    performs none of them, and a resumed run can begin at the call itself --
+    and `httpSend` answers `no_tab_for_origin` to an operator who simply has no
+    tab there. `run_workflow` passes this for the run's FIRST command alone, so
+    a later step still cannot drag the browser back to where the job began.
+    """
+    saver = _saver()
+    post = next(r for r in saver.requests if r.method == "POST")
+    asker = FakeAsker(
+        Answer(
+            data={
+                "kind": "http.send",
+                "action": None,
+                "value": None,
+                "url": None,
+                "why": "no ui target",
+            }
+        )
+    )
+
+    planned = await plan_step(
+        step=Step(order=0, says="save", system=None, cites=[saver.id]),
+        cited=[saver],
+        values={},
+        look=Look(None, None, ""),
+        origin=None,
+        starts_on="http://127.0.0.1:63319/form",
+        allow_focus=False,
+        asker=asker,
+        model="m",
+    )
+
+    assert planned.kind == "http.send"
+    assert planned.payload["starts_on"] == "http://127.0.0.1:63319/form"
+    assert planned.payload["url"] == post.url, "and the call is still the recorded one"
+
+
 async def test_an_http_plan_replays_the_recorded_call_with_redacted_headers_dropped() -> None:
     saver = _saver()
     post = next(r for r in saver.requests if r.method == "POST")

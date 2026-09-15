@@ -343,6 +343,14 @@ async def plan_step(
         sending = _replay_of(step, by_id, values, verified_writes, seen)
         if sending is not None:
             payload, rewrote = sending
+            if starts_on:
+                # Same as the deterministic replay below, and for the same
+                # reason. `run_workflow` passes this for the run's FIRST
+                # command only, so a model that chooses a call for the step a
+                # run begins at can open the page it needs -- a resumed run
+                # lands on one of those, and without this it answers
+                # `no_tab_for_origin` to an operator who has no tab there.
+                payload["starts_on"] = starts_on
             return Planned("http.send", payload, why, answer, rewrote=rewrote)
         if unreplayable(call):
             # Falls through to the ui.perform below rather than returning

@@ -778,13 +778,39 @@ async function httpSend(payload) {
   // The one case where a call may open its own page, and it is the first
   // command of a run. A job whose write goes out as a call performs none of
   // the steps that used to walk the browser to the form -- there is no form --
-  // so nothing before this has put a tab on the origin, and the session this
-  // call needs lives in that origin's cookies. `opensFor` still refuses a
-  // `starts_on` that names a different system, so this can only ever open the
-  // page the call is going to.
+  // so nothing before this has put a tab on the origin. `opensFor` still
+  // refuses a `starts_on` that names a different system, so this can only ever
+  // open the page the call is going to.
   const wanted = tab ? null : opensFor({ ...payload, origin: originOf(payload?.url || "") });
   if (wanted) tab = await openAt(wanted);
   if (!tab) {
+    // No tab, and no page to open one at -- and for a call that needs nothing
+    // off a live page, that is still not a reason to give up.
+    //
+    // The tab was never what carried the session. This extension holds
+    // `<all_urls>` host permissions, and Chrome's own rule is that requests
+    // from an extension to a third party are treated as SAME-SITE where the
+    // extension has host permissions for it -- which is what lets even a
+    // `SameSite=Strict` session cookie go -- and a worker request to a
+    // permitted host is not bound by the page's CORS either. The worker can
+    // send what the page would have sent.
+    //
+    // Last, not first, and reached only where the answer today is a hard
+    // failure. The page path is the one this deployment has watched succeed,
+    // and Chrome's rule carries a caveat nothing here can check from the
+    // worker: it does not apply where third-party cookies are blocked. A call
+    // that went out unauthenticated is answered 401, read as a failed write,
+    // and un-earns the job -- so this must never be the cheap path.
+    //
+    // `live_headers` is the real reason a page is wanted. `CSRF-ENCRYPT-TOKEN`
+    // is read out of `Ext.Ajax.defaultHeaders` in the page's MAIN world, and
+    // there is no page here to read it from, so a call naming one still fails.
+    if ((payload.live_headers || []).length === 0) {
+      // The same function the page runs, run here instead: same request, same
+      // answer shape, and no page realm at all -- so it is no more visible to
+      // the recorder's MAIN-world patch than the isolated-world send is.
+      return (await sendInPage(payload)) || failure("unreachable", "the call went nowhere");
+    }
     return failure("no_tab_for_origin", `no tab is open on ${payload?.url || "that origin"}`);
   }
   const headers = { ...(payload.headers || {}) };

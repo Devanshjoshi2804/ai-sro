@@ -6,7 +6,7 @@
 // different deployment is this file, regenerated.
 
 /** Where this extension's backend answers. The extension appends `/v1/...`. */
-export const DEFAULT_API_URL = "http://localhost:8000";
+export const DEFAULT_API_URL = "http://10.11.9.25:8088/api";
 
 /** Where its console lives, for the link in the panel. Blank if there is none. */
-export const DEFAULT_CONSOLE_URL = "http://localhost:3000";
+export const DEFAULT_CONSOLE_URL = "http://10.11.9.25:8088";

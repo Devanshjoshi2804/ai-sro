@@ -232,8 +232,27 @@ class SqlGestureRepository(GestureRepository):
         # took the upload and the second is the device's own clock, kept as a
         # string exactly as it was sent. A browser with a wrong clock would
         # otherwise take its tenant out of every sweep or put it in every one.
+        #
+        # **Batches that carried something.** A watching extension uploads on
+        # its timer whether or not anybody did anything, so an idle browser
+        # posts an empty batch a minute, forever. `MineLately` reads this to
+        # ask "is this tenant mid-task", and an empty heartbeat answered yes --
+        # so a tenant was `still working; leaving this one to settle` for as
+        # long as the browser stayed connected, and mining never ran at all
+        # while the product was in use. Seen on the QA deployment: fifty-four
+        # gestures captured, five empty batches after them, and nothing mined
+        # five minutes later.
+        #
+        # An `exists` rather than a join: one row per tenant is wanted, and a
+        # join would multiply by the gestures before the `distinct` took them
+        # away again.
+        carried = (
+            select(GestureRow.id).where(GestureRow.batch_id == GestureBatchRow.batch_id).exists()
+        )
         rows = await self._session.execute(
-            select(GestureBatchRow.tenant_id).where(GestureBatchRow.received_at >= since).distinct()
+            select(GestureBatchRow.tenant_id)
+            .where(GestureBatchRow.received_at >= since, carried)
+            .distinct()
         )
         return tuple(TenantId(tenant) for tenant in rows.scalars())
 

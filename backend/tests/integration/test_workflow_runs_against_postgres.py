@@ -679,7 +679,10 @@ async def test_a_tap_records_the_deepest_parked_step_in_the_store_and_releases_i
     landed = await client.post("/v1/workflow-runs/run_parked/approve")
 
     assert landed.status_code == 200, landed.text
-    assert landed.json() == {"order": 5, "first": True}
+    # `resumed` is true because `_waiting_on` is holding this run: something
+    # was listening, and the tap released it. False here would mean the
+    # authorisation was recorded against a run nobody was driving.
+    assert landed.json() == {"order": 5, "first": True, "resumed": True}
     assert await waiting is True
     async with SqlUnitOfWork(container._session_factory) as uow:
         recorded = await uow.workflow_runs.approvals("run_parked")
@@ -715,9 +718,18 @@ async def test_the_second_tap_does_not_overwrite_the_first_authorisation(
     container.clock.advance(1800)
     second = await client.post("/v1/workflow-runs/run_rescued/approve")
 
-    assert first.status_code == 200 and first.json() == {"order": 2, "first": True}
+    # `resumed` is false on both, and this test is the case the field was
+    # added for: nothing here is holding `run_rescued`, so each tap records an
+    # authorisation against a run that will not move until somebody starts it
+    # again. `first` and `resumed` answer different questions -- the first tap
+    # is the one whose name is kept, and neither tap released anybody.
+    assert first.status_code == 200 and first.json() == {
+        "order": 2,
+        "first": True,
+        "resumed": False,
+    }
     assert second.status_code == 200, second.text
-    assert second.json() == {"order": 2, "first": False}
+    assert second.json() == {"order": 2, "first": False, "resumed": False}
     async with SqlUnitOfWork(container._session_factory) as uow:
         recorded = await uow.workflow_runs.approvals("run_rescued")
     # One row, and it names the browser that got there first -- not the second

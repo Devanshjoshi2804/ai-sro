@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
@@ -183,7 +184,7 @@ from sro.infrastructure.steel.sign_in import PlaywrightSignIn
 from sro.infrastructure.steel.supervisor import CaptureSupervisor
 from sro.infrastructure.steel.ui_driver import PlaywrightUiDriver
 from sro.infrastructure.system import SystemClock, UuidFactory
-from sro.infrastructure.telemetry.otel import configure_tracing, watch_queries
+from sro.infrastructure.telemetry.otel import configure_tracing, watch_queries, watch_requests
 from sro.infrastructure.temporal.durable import TemporalDurableExecution
 from sro.infrastructure.temporal.schedules import TemporalScheduler
 from sro.infrastructure.transcription.gemini import GeminiTranscriber
@@ -1148,6 +1149,20 @@ class _UnavailableVault:
 
     async def delete(self, key: str) -> None:
         raise VaultUnavailable(self.reason)
+
+
+def instrument(app: Any) -> None:
+    """Make the API's requests produce spans.
+
+    Here rather than in `interface`, which may not reach an adapter: the
+    dependency rule is the one gate that fails on architecture rather than on
+    code, and `interface -> infrastructure` is exactly what it exists to
+    refuse. This module is the composition root and is allowed to bind one.
+
+    Guarded on the endpoint by the caller, so a deployment that has not asked
+    for telemetry installs nothing.
+    """
+    watch_requests(app)
 
 
 def build_container(settings: Settings | None = None) -> Container:

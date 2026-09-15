@@ -285,6 +285,17 @@ function stepRow({ step, outcome, live, inFlight, run, notes, onPress, onSecret,
     words.textContent = wordsFor(step.sent) || step.reason || "";
     row.append(words);
   }
+  // What the field dictionary already knows about the values this step writes,
+  // and the reason it is drawn BEFORE the buttons: it is the thing the person
+  // tapping Approve most needs and would otherwise never learn. A column that
+  // keeps four characters of six answers 201 either way, so no rung of the
+  // ladder below can say it and no later screen shows it.
+  for (const note of step.notes || []) {
+    const said = document.createElement("span");
+    said.className = "note";
+    said.textContent = note;
+    row.append(said);
+  }
   if (outcome === "awaiting" && live) {
     const approve = document.createElement("button");
     approve.type = "button";

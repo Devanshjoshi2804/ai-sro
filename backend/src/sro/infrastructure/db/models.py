@@ -945,6 +945,12 @@ class WorkflowRunStepRow(Base):
     before_url: Mapped[str | None] = mapped_column(Text)
     after_url: Mapped[str | None] = mapped_column(Text)
 
+    notes: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list, server_default="[]")
+    """What is already known about the values this step writes, read off the
+    knowledge base's field claims and shown beside the write a person is asked
+    to approve. Empty for every step that writes nothing and for every one the
+    dictionary has nothing to say about, which is most of them."""
+
     in_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     out_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     thought_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

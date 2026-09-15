@@ -77,9 +77,10 @@ from datetime import datetime
 from sro.application.context import RequestContext
 from sro.application.execution.approvals import Approvals
 from sro.application.execution.read_runs import NOT_IN_A_BROWSER_HERE, CannotStop
-from sro.application.execution.run_workflow import run_workflow
+from sro.application.execution.run_workflow import KnownFields, run_workflow
 from sro.application.execution.stops import Stops
 from sro.application.intent.spend import over_cap
+from sro.application.knowledge.retrieve import Question, Retrieve
 from sro.application.ports.channel import Channel
 from sro.application.ports.model import Asker, asker_or_refuse
 from sro.application.ports.repositories import UnitOfWork
@@ -94,6 +95,7 @@ from sro.domain.execution.workflow_run import (
     already_running,
     new_run_id,
 )
+from sro.domain.knowledge.entry import EntryKind
 from sro.domain.shared.errors import Conflict, DomainError, NotFound
 from sro.domain.shared.identifiers import DeviceId
 from sro.domain.skill.reversals import undoes
@@ -153,6 +155,7 @@ class StartWorkflowRun:
         approvals: Approvals,
         verified_writes: tuple[VerifiedWrite, ...] = (),
         vault: CredentialVault | None = None,
+        retrieve: Retrieve | None = None,
     ) -> None:
         self._uow = uow
         # Where a password comes from when a step types one. `None` is a
@@ -160,6 +163,11 @@ class StartWorkflowRun:
         # step that needs a password refuses with the key it wanted rather
         # than typing a blank into a login form.
         self._vault = vault
+        # What the knowledge base knows about a field. `None` is a deployment
+        # with no retriever built, which is not a degraded mode: a run then
+        # says nothing about its fields, exactly as every run did before the
+        # claims were ingested.
+        self._retrieve = retrieve
         self._channel = channel
         # `Asker | None` rather than through `asker_or_refuse` in the container,
         # for `ReadChat`'s reason: a factory that raised would make the factory
@@ -403,10 +411,46 @@ class StartWorkflowRun:
                     items=run.items,
                     verified_writes=self._verified_writes,
                     secret_for=self._secret_for,
+                    known_fields=None if self._retrieve is None else self._known_fields(ctx),
                 )
         except Exception as error:
             logger.exception("a run in an operator's browser could not be finished")
             await self._close(ctx, run.id, f"{type(error).__name__}: {error}")
+
+    def _known_fields(self, ctx: RequestContext) -> KnownFields:
+        """What the dictionary says about these body keys, by key.
+
+        Bound to the request's own tenant, which is the whole of why this is a
+        closure rather than the retriever handed down: `Retrieve` is
+        tenant-scoped and `run_workflow` has no `RequestContext` to scope it
+        with.
+
+        `kinds=(FIELD,)` and the keys as terms, because `search` matches terms
+        against a claim's title and key. The body key IS the claim's key --
+        `customerType` is stored under `customerType` -- so this is a lookup
+        rather than a search, and nothing here asks a vector store a question
+        it cannot answer without embeddings. Measured on QA 2026-09-16: 404
+        field claims, 0 embeddings, and the lookup answers.
+        """
+
+        async def look(keys: tuple[str, ...]) -> Mapping[str, Mapping[str, object]]:
+            if not keys:
+                return {}
+            found = await self._retrieve.execute(  # type: ignore[union-attr]
+                ctx,
+                Question(text=" ".join(keys), kinds=(EntryKind.FIELD,), limit=len(keys) * 4),
+            )
+            # Keyed by the claim's own key and only where it is one of the body
+            # keys asked about. `search` is an OR over the terms, so a lookup
+            # for two fields answers with claims for either -- and a claim for
+            # a field this write does not fill must not be read as one it does.
+            return {
+                entry.key: entry.body
+                for entry in found
+                if entry.key in keys and isinstance(entry.body, Mapping)
+            }
+
+        return look
 
     async def _close(self, ctx: RequestContext, run_id: str, reason: str) -> None:
         """Mark a row nobody is driving any more, on a session of its own.

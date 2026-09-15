@@ -40,7 +40,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
-from collections.abc import Mapping, Sequence
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from collections.abc import Set as AbstractSet
 from contextlib import suppress
 from dataclasses import dataclass
@@ -79,6 +79,7 @@ from sro.domain.execution.evidence import (
     stood_on,
     writes,
 )
+from sro.domain.execution.field_notes import notes_on
 from sro.domain.execution.planning import Look, Planned
 from sro.domain.execution.secrets import without_secrets
 from sro.domain.execution.verified_writes import VerifiedWrite
@@ -90,6 +91,16 @@ from sro.domain.shared.identifiers import DeviceId, TenantId
 from sro.domain.shared.prices import Answer
 from sro.domain.skill.repeats import K_MOST_ITEMS, Repeat
 from sro.domain.skill.workflow import Step, Workflow
+
+KnownFields = Callable[[tuple[str, ...]], Awaitable[Mapping[str, Mapping[str, object]]]]
+"""What the knowledge base says about these body keys, by key.
+
+A callable rather than `Retrieve` itself, for `SecretFor`'s reason: this module
+drives a run and does not learn what a vector store is. A deployment with an
+empty knowledge base passes nothing and every step says nothing, which is what
+happened before the claims were ever ingested -- 2,076 of them, and the store
+on QA held none until 2026-09-16.
+"""
 
 K_SAME_WRITE_WINDOW = timedelta(minutes=30)
 """How long one job's write stays claimed against a second run making it again.
@@ -491,6 +502,7 @@ async def run_workflow(
     items: Sequence[Mapping[str, str]] = (),
     verified_writes: tuple[VerifiedWrite, ...] = (),
     secret_for: SecretFor | None = None,
+    known_fields: KnownFields | None = None,
     cap_usd: float,
 ) -> WorkflowRun:
     # A run the caller already claimed. `POST /v1/runs` writes the `running` row
@@ -1246,6 +1258,35 @@ async def run_workflow(
                         )
                         verdict = StepVerdict("failed", "none", record.reason)
                         break
+
+                # What is already known about the fields this write fills,
+                # asked once, for every write that is about to go out.
+                #
+                # Not inside the approval branch below, and the difference is
+                # the point: a job that has EARNED the right to write unasked
+                # is exactly the one nobody is watching, and the note belongs
+                # in its audit too. The dictionary is the vendor's own
+                # documentation and the question it answers is "will this value
+                # fit" -- the sharpest instance of the one failure the ladder
+                # cannot see, because a column that keeps four characters of
+                # six still answers 201 and the read-back shows the record the
+                # system actually made.
+                #
+                # A note and never a refusal: see `field_notes`. The two
+                # sources disagree by construction -- the dictionary says
+                # `customerType` holds 60, the ledger's own gotcha says
+                # `csttyp truncates at 4 chars` -- and refusing on the
+                # documented one would stop correct runs against a system that
+                # behaves differently from its manual.
+                if known_fields is not None and planned.filled:
+                    writing = {
+                        slot: values[name]
+                        for slot, name in planned.filled.items()
+                        if name in values
+                    }
+                    record.notes = list(
+                        notes_on(writing, await known_fields(tuple(sorted(writing))))
+                    )
 
                 # A live write, on a job that has not yet earned the right to
                 # write unasked: shown in the panel with what would go out, and

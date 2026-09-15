@@ -3321,6 +3321,12 @@ class WorkflowRunStepModel(BaseModel):
     cost_usd: float
     unpriced: bool
 
+    notes: list[str] = []
+    """What is already known about the values this step writes -- today, a
+    value the field dictionary says will not fit. Shown beside the write a
+    person is asked to approve, because a column that keeps four characters of
+    six still answers 201 and nothing else in the run can tell."""
+
     @classmethod
     def of(cls, step: RunStep) -> WorkflowRunStepModel:
         return cls(**asdict(step))

@@ -221,6 +221,7 @@ def replay_without_asking(
         "the evidence records this call and the ledger has watched it succeed",
         Answer(),
         rewrote=aimed is not None,
+        filled=dict(aimed.filled) if aimed is not None else {},
         confirm=dict(aimed.confirm) if aimed is not None else {},
         by="evidence",
     )
@@ -358,6 +359,7 @@ async def plan_step(
                 why,
                 answer,
                 rewrote=aimed is not None,
+                filled=dict(aimed.filled) if aimed is not None else {},
                 confirm=dict(aimed.confirm) if aimed is not None else {},
             )
         if unreplayable(call):

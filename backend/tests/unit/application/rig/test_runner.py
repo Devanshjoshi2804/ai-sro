@@ -36,6 +36,7 @@ from sro.application.execution.approvals import K_APPROVAL_WAIT_S, Approvals
 from sro.application.execution.run_workflow import (
     K_SAME_WRITE_WINDOW,
     K_STEP_SLACK,
+    KnownFields,
     _bill,
     _fell_over,
     _look,
@@ -779,6 +780,7 @@ async def _ran(
     from_step: int = 0,
     cap_usd: float = -1.0,
     verified_writes: tuple[VerifiedWrite, ...] = (),
+    known_fields: KnownFields | None = None,
 ) -> WorkflowRun:
     """One run, with the arguments no test varies spelled once.
 
@@ -810,6 +812,7 @@ async def _ran(
             from_step=from_step,
             items=items,
             verified_writes=verified_writes,
+            known_fields=known_fields,
             # No cap unless a test is about the cap: `over_cap` answers a
             # negative one before it touches the repository, so every other
             # test here pays nothing and asserts nothing about money.
@@ -4368,6 +4371,52 @@ async def test_the_steps_that_only_opened_a_form_are_not_done_when_the_write_is_
     assert not [one for one in channel.sent if one["kind"] == "ui.perform"], "nothing was typed"
     assert [one["kind"] for one in channel.sent].count("http.send") == 1
     assert not asker.asked, "and no model was asked about any of it"
+
+
+async def test_what_the_dictionary_knows_reaches_the_card_a_person_approves() -> None:
+    """The one failure the ladder cannot see, answered before the write.
+
+    A column that keeps four characters of six answers 201, the read-back shows
+    the record the system actually made, and nothing in the run can tell that
+    from success. The knowledge base already holds the answer -- 404 `field`
+    claims read off the vendor's documentation, `customerType` among them --
+    and this is the run reaching for it at the one moment a person is looking.
+    """
+    uow = await _fixture()
+    workflow = await _demonstrated_twice(uow)
+    channel = FakeChannel(
+        {
+            "ui.url": [Reply(ok=True, result={"url": "http://127.0.0.1:63319/portal"})] * 2,
+            "http.send": [Reply(ok=True, result={"status": 201, "body": "{}"})] * 3,
+        }
+    )
+    asked: list[tuple[str, ...]] = []
+
+    async def _known(keys: tuple[str, ...]) -> Mapping[str, Mapping[str, object]]:
+        asked.append(keys)
+        # The ledger's own gotcha for this endpoint, as a claim: `csttyp
+        # truncates at 4 chars`, and this run asks for five.
+        return {"customerType": {"labels": ["Customer Type"], "max_length": 4}}
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=FakeAsker(),
+        values={_CODE: "ZV9680", _DESCRIPTION: "type 03"},
+        earned=True,
+        verified_writes=(VerifiedWrite(method="POST", path_pattern="/api/orders"),),
+        known_fields=_known,
+    )
+
+    assert asked == [("customerType", "longDescription")], "asked once, about what it fills"
+    # The whole chain: the plan says which body key each value went into, the
+    # dictionary says how much that key holds, and the run says so on the row a
+    # person reads. Without it the write goes out, the warehouse answers 201,
+    # and the record is `ZV96`.
+    assert run.steps[0].notes == ["Customer Type holds 4 characters and this run supplies 6"], (
+        run.steps[0].notes
+    )
 
 
 async def test_a_replay_names_its_own_screen_even_when_it_is_not_the_first_command() -> None:

@@ -164,6 +164,14 @@ class Planned:
     a create asking for a five-character code is answered **201** and the record
     is four characters long, with nobody told."""
 
+    filled: Mapping[str, str] = MappingProxyType({})
+    """Body key -> the parameter whose value now sits there.
+
+    `WritePlan.filled`, carried so the run can ask what is already known about
+    the fields it is filling. Empty for every plan that is not a re-aimed
+    write. `confirm` below is this narrowed to the slots a read can settle;
+    both are needed, and for different questions."""
+
     confirm: Mapping[str, str] = MappingProxyType({})
     """Body key -> the value this run put there, for the keys a read can settle.
 

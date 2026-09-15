@@ -1069,6 +1069,10 @@ class Container:
             # never held it: the recorder struck the field out, and this is the
             # only place a run can get one.
             vault=self.vault,
+            # What is already known about a field the run is about to write,
+            # so the person who taps Approve is shown it. Built here and not
+            # in the runner, which never learns what a vector store is.
+            retrieve=self.retrieve_knowledge(),
         )
 
     def list_workflow_runs(self) -> ListWorkflowRuns:

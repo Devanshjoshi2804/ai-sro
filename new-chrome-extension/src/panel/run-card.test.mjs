@@ -601,6 +601,49 @@ test("a live run still gets the two answers beside the question", () => {
   assert.deepEqual(of(card, "button").map((one) => one.textContent), ["Approve", "Stop"]);
 });
 
+test("what the dictionary knows is drawn beside the write, before the buttons", () => {
+  // The thing the person tapping Approve most needs and would otherwise never
+  // learn. A column that keeps four characters of six answers 201 either way,
+  // so no rung of the ladder can say it and no later screen shows it.
+  const parked = {
+    ...RIG,
+    live: true,
+    steps: [
+      {
+        index: 0,
+        outcome: "awaiting",
+        says: "save the customer type",
+        reason: "",
+        notes: ["Customer Type holds 4 characters and this run supplies 6"],
+      },
+    ],
+  };
+
+  const card = runCard({ run: parked }, { onPress: () => {} });
+  const said = words(card);
+
+  assert.ok(said.includes("holds 4 characters"), `the note was not drawn: ${said}`);
+  assert.ok(
+    said.indexOf("holds 4 characters") < said.indexOf("Approve"),
+    "the note was drawn after the button that acts on it",
+  );
+});
+
+test("a step the dictionary had nothing to say about draws no note", () => {
+  const card = runCard({ run: RIG }, {});
+
+  assert.ok(!words(card).includes("holds"), "an empty notes list still drew something");
+});
+
+test("not_needed is a tick, because the step was not skipped -- it was not needed", () => {
+  // It fell through to `✓!` for a day, which means the opposite: "it went out
+  // and nothing could say whether it landed". Four rows of that on every run
+  // whose write goes out as a call.
+  assert.equal(glyphFor("not_needed"), "✓");
+  assert.equal(glyphFor("held"), "✓");
+  assert.equal(glyphFor("awaiting"), "⏸");
+});
+
 let failed = 0;
 for (const [name, fn] of tests) {
   try {

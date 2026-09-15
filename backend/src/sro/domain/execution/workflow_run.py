@@ -106,6 +106,17 @@ class RunStep:
     cost_usd: float = 0.0
     unpriced: bool = False
 
+    notes: list[str] = field(default_factory=list)
+    """What is already known about the values this step is about to write.
+
+    Read off the knowledge base's `field` claims -- the vendor's own
+    documentation, 404 of them -- and put in front of the person who taps
+    Approve. Today one rule fills it: a value longer than the field holds,
+    which is the sharpest instance of the one failure the ladder cannot see,
+    because the warehouse answers 201 either way.
+
+    A note and never a refusal. See `sro.domain.execution.field_notes`."""
+
     made: dict[str, str] = field(default_factory=dict)
     """What the warehouse called the record this step created, where it made
     one. Empty for every step that created nothing, which is most of them.

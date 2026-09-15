@@ -691,6 +691,10 @@ def test_a_finished_run_reaches_the_wire_whole() -> None:
                 "thought_tokens": 33,
                 "cost_usd": 0.44,
                 "unpriced": True,
+                # What the field dictionary knew about the values this step
+                # wrote. Empty here, and empty on most steps: it says something
+                # only where a value will not fit.
+                "notes": [],
             }
         ],
         # Empty: this job does one thing once, which is most of them.

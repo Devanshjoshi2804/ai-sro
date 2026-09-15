@@ -3987,6 +3987,44 @@ async def test_a_page_that_called_nothing_this_run_recognises_is_still_looked_at
     assert len([one for one in channel.sent if one["kind"] == "screenshot"]) == 4
 
 
+async def test_a_replay_is_not_judged_by_what_the_page_called() -> None:
+    """This rung is for clicks, and asking it about a replay is wrong twice.
+
+    It cannot answer: the extension sends an `http.send` through the page's own
+    `fetch` in the ISOLATED world precisely so the replay does not re-enter the
+    evidence plane as the operator's own action, so `calls.since` can never see
+    it and the round trip buys nothing.
+
+    And it must not answer. The rung settles a step by STATUS, and the runner
+    reads `settled or await verify(...)` -- so a call the page made on its own
+    to the same endpoint shape would decide the step here and skip the ladder
+    entirely, taking the read-back that a re-aimed body needs with it. The 409
+    scripted below is that coincidence: if the rung is consulted, this step
+    fails on a status the replay never got.
+    """
+    uow = await _fixture()
+    workflow = await _one_step(uow, _ids(uow)[-1])
+    channel = FakeChannel(
+        {
+            **_looks(2),
+            "http.send": [Reply(ok=True, result={"status": 200, "body": "{}"})],
+            "calls.since": [_called(409)],
+        }
+    )
+    asker = _PerSchemaAsker(plan=_replay(), verdict=Answer(data={"held": True, "why": "ok"}))
+
+    run = await _ran(
+        uow, workflow, channel=channel, asker=asker, values={}, started_by="offer", earned=True
+    )
+
+    step = run.steps[0]
+    assert (step.verdict, step.verdict_by) == ("held", "status"), step.reason
+    assert "200" in step.reason
+    assert not [one for one in channel.sent if one["kind"] == "calls.since"], (
+        "the browser was asked what it called about a call the browser did not make"
+    )
+
+
 # --- a write that would only make a second copy ------------------------------
 
 

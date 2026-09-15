@@ -1230,6 +1230,21 @@ async def run_workflow(
                 # verifier's own docstring puts the status first and the screen
                 # "last and least", and until the browser could be asked what
                 # it called, a UI step could never reach the first rung.
+                # Never for a replay, and for two separate reasons.
+                #
+                # It cannot work: the extension sends an `http.send` through the
+                # page's own `fetch` in the ISOLATED world specifically so the
+                # replay does NOT re-enter the evidence plane as the operator's
+                # own action, so `calls.since` can never see it. The round trip
+                # is spent to be told nothing.
+                #
+                # And it must not work. This rung settles a step by STATUS, and
+                # `settled or await verify(...)` means a verdict here is a
+                # verdict instead of the ladder -- so a call the page happened
+                # to make to the same endpoint shape would hold the step on its
+                # status and skip the read-back that `rewrote` exists to reach.
+                # The one belt that can tell a truncated record from the record
+                # this run asked for would be bypassed by a coincidence.
                 settled = (
                     await by_what_the_page_called(
                         step=step,
@@ -1240,7 +1255,7 @@ async def run_workflow(
                         device_id=device_id,
                         run_id=run.id,
                     )
-                    if reply.ok
+                    if reply.ok and planned.kind != "http.send"
                     else None
                 )
                 # Where the status settled it, the url is still wanted -- the

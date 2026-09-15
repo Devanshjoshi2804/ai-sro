@@ -58,19 +58,107 @@ export function chosen(gesture) {
   return text || null;
 }
 
-function endsWith(tail, prefix) {
-  if (prefix.length > tail.length) return false;
-  const from = tail.length - prefix.length;
-  return prefix.every((triple, i) => key(triple) === key(tail[from + i].triple));
+/** How far ahead of what it wants next a shape may look, so an operator can
+ *  skip a step they did not need.
+ *
+ *  A recording contains the navigation the person who made it happened to
+ *  need. Somebody already ON the customer types screen does not click the tab
+ *  to get there, and before this they were not recognised as doing the job at
+ *  all: measured on this deployment, 2026-09-15, an operator did `Create a
+ *  Customer Type` end to end -- read the mail, pressed Add, typed the code and
+ *  the description, saved -- and was never once asked, because the shape's
+ *  second entry is a tab click they were already past.
+ *
+ *  Two, and small on purpose. This is the whole of the looseness: the shape may
+ *  jump a couple of entries to meet what the operator actually did, and no
+ *  further. */
+export const K_MISSED = 2;
+
+/** How much of `shape` the tail covers, and which tail entry answered each
+ *  shape entry.
+ *
+ *  Not `endsWith`. That asked whether the tail's last k entries ARE the
+ *  shape's first k, exactly and contiguously, which is true only of an
+ *  operator who repeats a recording gesture for gesture. A real one skips the
+ *  navigation they are already past and leaves noise behind them -- three
+ *  clicks in one mail where the recording has one -- and either of those ended
+ *  the match at k=0.
+ *
+ *  So the shape may skip up to `K_MISSED` entries to meet what came next, and
+ *  the tail may carry anything the shape does not want. `at` records which
+ *  tail entry answered which shape entry, because nothing downstream may
+ *  assume the two line up any more: `valuesFrom` reads the operator's typed
+ *  values out of this, and reading them off a position would show somebody
+ *  values they never typed and start a run with them.
+ *
+ *  `ended` is whether the LAST thing the operator did took part: an offer is
+ *  about what is happening now, not about a shape a tail brushed past ten
+ *  gestures ago. */
+export function covered(tail, shape) {
+  const at = new Map();
+  let want = 0;
+  let matched = 0;
+  let skipped = 0;
+  let ended = false;
+  let straying = 0;
+  for (let j = 0; j < tail.length && want < shape.length; j++) {
+    const here = key(tail[j].triple);
+    if (matched > 0) straying += 1;
+    ended = false;
+    if (here === key(shape[want])) {
+      at.set(want, j);
+      want += 1;
+      matched += 1;
+      ended = true;
+      straying = 0;
+      continue;
+    }
+    // What the shape wants a little further on. The entries in between are
+    // ones this operator did not need -- a navigation to a screen they were
+    // already on is the case this exists for.
+    const last = Math.min(want + K_MISSED, shape.length - 1);
+    for (let ahead = want + 1; ahead <= last; ahead += 1) {
+      if (key(shape[ahead]) !== here) continue;
+      at.set(ahead, j);
+      skipped += ahead - want;
+      want = ahead + 1;
+      matched += 1;
+      ended = true;
+      straying = 0;
+      break;
+    }
+    // Anything else is the operator's own business and is passed over.
+  }
+  return { k: want, matched, skipped, ended, straying, at };
 }
 
+/** How many gestures in a row may advance nothing before an open offer is
+ *  taken to be one the operator walked away from.
+ *
+ *  Noise is not divergence. An operator mid-job reads the mail again, clicks a
+ *  column header, scrolls a list -- measured on the real trace, one such
+ *  gesture sits between typing the code and clicking the description -- and
+ *  before this the match ended at the first of them. But an offer that never
+ *  withdraws is one still on screen while somebody does something else, so a
+ *  RUN of them ends it.
+ *
+ *  Three. The nudge expires by itself in ninety seconds either way, which is
+ *  what makes it safe to be generous here rather than strict. */
+export const K_STRAY = 3;
+
 /** Values typed so far for the parameters the prefix has reached. */
-export function valuesFrom(tail, shape, k) {
+export function valuesFrom(tail, shape, at) {
   const values = {};
   const missing = [];
-  const from = tail.length - k;
   for (const p of shape.parameters || []) {
-    const entry = p.at !== null && p.at < k ? tail[from + p.at] : null;
+    // `p.at` is an index into the SHAPE, and `at` says which tail entry
+    // answered it. It used to be `tail[tail.length - k + p.at]`, which is the
+    // same thing only while the two line up one for one -- and they no longer
+    // do, because a match may skip a shape entry and pass over a tail one. Off
+    // a position it would read somebody else's gesture and offer a value
+    // nobody typed.
+    const found = p.at === null || p.at === undefined ? undefined : at.get(p.at);
+    const entry = found === undefined ? null : tail[found];
     // Blank is not a value. A field cleared, or one the gesture read as an
     // empty string, is a parameter nobody has answered yet -- counting it as
     // answered draws no box for it on the offer and lets the run start with
@@ -117,22 +205,36 @@ export function match(tail, shapes) {
     // The rig may say a job is offered later than the default: its earlier
     // offers kept diverging at the default.
     const after = shape.offer_after ?? K_OFFER_AFTER;
-    for (let k = Math.min(shape.shape.length - 1, tail.length); k >= after; k--) {
-      if (!endsWith(tail, shape.shape.slice(0, k))) continue;
-      if (!best || k > best.k) {
-        best = { workflowId: shape.id, title: shape.title, k, shape };
-        shared = false;
-      } else if (k === best.k) shared = true;
-      break;
-    }
+    const reach = covered(tail, shape.shape);
+    // `matched` and not `k`: `k` is how far INTO the shape the operator has
+    // got and counts the entries a skip stepped over, which are entries they
+    // never performed. What earns an offer is what they actually did.
+    if (reach.matched < after) continue;
+    // An offer is about the gesture that just happened. A tail that brushed
+    // past this shape and then went elsewhere is not somebody starting it.
+    if (!reach.ended) continue;
+    // A strict prefix, as before: a tail that reached the end of the shape is
+    // a job the operator finished, and there is nothing left to offer.
+    if (reach.k >= shape.shape.length) continue;
+    if (!best || reach.matched > best.matched) {
+      best = {
+        workflowId: shape.id,
+        title: shape.title,
+        k: reach.k,
+        matched: reach.matched,
+        at: reach.at,
+        shape,
+      };
+      shared = false;
+    } else if (reach.matched === best.matched) shared = true;
   }
-  // Two shapes matching at the same k both end the tail with their own first k
-  // triples, so those triples are the same triples: the prefix is shared and
-  // the tail holds nothing that says which job it is. Offer neither. A longer
-  // match is not a tie -- a shape that got further has been separated from the
-  // rest by the very gestures that took it there.
+  // Two shapes that matched the same number of the operator's gestures were
+  // answered by the same gestures: the evidence is shared and the tail holds
+  // nothing that says which job it is. Offer neither. More matched is not a
+  // tie -- a shape that got further has been separated from the rest by the
+  // very gestures that took it there.
   if (!best || shared) return null;
-  const { values, missing } = valuesFrom(tail, best.shape, best.k);
+  const { values, missing } = valuesFrom(tail, best.shape, best.at);
   return {
     workflowId: best.workflowId,
     title: best.title,
@@ -151,8 +253,17 @@ export function match(tail, shapes) {
 export function diverged(tail, offer, shapes) {
   const shape = shapes.find((s) => s.id === offer.workflowId);
   if (!shape) return true;
-  for (let j = offer.k; j <= shape.shape.length; j++) {
-    if (endsWith(tail, shape.shape.slice(0, j))) return false;
-  }
-  return true;
+  // Carrying the job further is not divergence, so the test is whether the
+  // tail still covers at least as much of the shape as the offer was made on.
+  // Asked through `covered` rather than `endsWith` for the reason the offer
+  // is: an operator who skipped a step they were already past has not left
+  // the job, and calling that divergence withdrew the offer they were in the
+  // middle of answering.
+  const reach = covered(tail, shape.shape);
+  // Backwards is impossible -- a tail only grows -- so what ends an offer is
+  // the operator going quiet on this job: `K_STRAY` gestures in a row that
+  // advanced none of it. A single stray one is the noise the match now passes
+  // over on purpose, and calling that divergence withdrew the offer somebody
+  // was in the middle of answering.
+  return reach.k < offer.k || reach.straying > K_STRAY;
 }

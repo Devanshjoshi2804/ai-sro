@@ -9,7 +9,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { decideOffer } from "./offering.js";
-import { tailWith } from "./recognise.js";
+import { K_STRAY, tailWith } from "./recognise.js";
 
 const H = "https://wms.example";
 // Four steps, not three: `match` offers a strict prefix only, so a job whose
@@ -40,11 +40,26 @@ test("an open offer is replaced only by a longer prefix", () => {
   assert.equal(decideOffer({ tail: longer, shapes: [shape], open: first, origin: H, now: 3000 }).replace.k, 3);
 });
 
-test("a tail that goes elsewhere ends the open offer as diverged", () => {
+test("a tail that walks away ends the open offer as diverged", () => {
+  // A RUN of gestures that advance nothing, not one of them: the match passes
+  // over a gesture the shape does not want, because an operator mid-job reads
+  // the mail again and clicks a column header. `K_STRAY` is where noise
+  // becomes somebody doing something else.
   const tail = tailWith(tailWith([], typed("a", "NEW")), typed("b", "x"));
   const first = decideOffer({ tail, shapes: [shape], open: null, origin: H, now: 1000 }).replace;
-  const away = tailWith(tail, typed("elsewhere", "y"));
-  assert.equal(decideOffer({ tail: away, shapes: [shape], open: first, origin: H, now: 2000 }).end, "diverged");
+
+  let away = tailWith(tail, typed("elsewhere", "y"));
+  assert.equal(
+    decideOffer({ tail: away, shapes: [shape], open: first, origin: H, now: 2000 }).end,
+    null,
+    "one stray gesture withdrew an offer somebody was answering",
+  );
+
+  for (let more = 0; more < K_STRAY; more += 1) away = tailWith(away, typed("elsewhere", "y"));
+  assert.equal(
+    decideOffer({ tail: away, shapes: [shape], open: first, origin: H, now: 3000 }).end,
+    "diverged",
+  );
 });
 
 test("a concrete rig offer outranks an arrival nudge", () => {

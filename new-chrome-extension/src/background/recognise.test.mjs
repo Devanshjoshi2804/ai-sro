@@ -1,7 +1,20 @@
 // recognise.test.mjs
 import assert from "node:assert/strict";
 import test from "node:test";
-import { K_OFFER_AFTER, K_TAIL, K_TAIL_TTL_S, chosen, diverged, match, resting, tailWith, valuesFrom } from "./recognise.js";
+import {
+  K_MISSED,
+  K_OFFER_AFTER,
+  K_STRAY,
+  K_TAIL,
+  K_TAIL_TTL_S,
+  chosen,
+  covered,
+  diverged,
+  match,
+  resting,
+  tailWith,
+  valuesFrom,
+} from "./recognise.js";
 
 const H = "https://wms.example";
 const workArea = {
@@ -106,7 +119,7 @@ test("the tail is bounded", () => {
 test("a secret control contributes no value and the parameter is missing", () => {
   let tail = tailWith([], typed("wm.workAreas.code", null, { secret: true }));
   tail = tailWith(tail, typed("wm.workAreas.desc", "b"));
-  const { values, missing } = valuesFrom(tail, workArea, 2);
+  const { values, missing } = valuesFrom(tail, workArea, covered(tail, workArea.shape).at);
   assert.deepEqual(values, { description: "b" });
   assert.deepEqual(missing, ["workArea"]);
 });
@@ -117,7 +130,7 @@ test("a value that is blank is a parameter nobody has answered", () => {
   // starts with a blank where the job needs a word.
   let tail = tailWith([], typed("wm.workAreas.code", ""));
   tail = tailWith(tail, typed("wm.workAreas.desc", "   "));
-  const { values, missing } = valuesFrom(tail, workArea, 2);
+  const { values, missing } = valuesFrom(tail, workArea, covered(tail, workArea.shape).at);
   assert.deepEqual(values, {});
   assert.deepEqual(missing, ["workArea", "description"]);
 });
@@ -126,7 +139,7 @@ test("a parameter typed later than the prefix is missing, and one never typed is
   const later = { ...workArea, parameters: [{ name: "workArea", at: 0 }, { name: "code", at: 2 }, { name: "never", at: null }] };
   let tail = tailWith([], typed("wm.workAreas.code", "A"));
   tail = tailWith(tail, typed("wm.workAreas.desc", "b"));
-  assert.deepEqual(valuesFrom(tail, later, 2).missing, ["code", "never"]);
+  assert.deepEqual(valuesFrom(tail, later, covered(tail, later.shape).at).missing, ["code", "never"]);
 });
 
 test("a shape served with offer_after is not offered before it", () => {
@@ -195,17 +208,29 @@ test("the gesture that separates them is the gesture that offers", () => {
   assert.equal(offer.k, 3);
 });
 
-test("going another way ends the offer, but carrying it further does not", () => {
+test("walking away ends the offer, but carrying it further and a stray do not", () => {
+  // The match passes over a gesture the shape does not want, so one of them is
+  // no longer divergence -- an operator mid-job reads the mail again, clicks a
+  // column header, and on the real trace exactly one such gesture sits between
+  // typing the code and clicking the description. What ends the offer is a RUN
+  // of them: `K_STRAY` in a row that advance none of the job.
   let tail = tailWith([], typed("wm.workAreas.code", "A"));
   tail = tailWith(tail, typed("wm.workAreas.desc", "b"));
   const offer = match(tail, shapes);
   assert.equal(diverged(tail, offer, shapes), false);
   const save = { triple: [H, "button|Save", "click"], value: null, secret: false, at: 3 };
-  assert.equal(diverged(tailWith(tail, save), offer, shapes), false, "advancing the job is not diverging from it");
-  tail = tailWith(tail, typed("somewhere.else", "x"));
-  assert.equal(diverged(tail, offer, shapes), true);
-  tail = tailWith(tail, save);
-  assert.equal(diverged(tail, offer, shapes), true, "a prefix broken once does not mend");
+  assert.equal(
+    diverged(tailWith(tail, save), offer, shapes),
+    false,
+    "advancing the job is not diverging from it",
+  );
+
+  const elsewhere = typed("somewhere.else", "x");
+  let strayed = tailWith(tail, elsewhere);
+  assert.equal(diverged(strayed, offer, shapes), false, "one stray gesture withdrew the offer");
+
+  for (let more = 0; more < K_STRAY; more += 1) strayed = tailWith(strayed, elsewhere);
+  assert.equal(diverged(strayed, offer, shapes), true, "the operator has gone elsewhere");
 });
 
 test("a gesture older than the tail's lifetime is not the start of today's job", () => {
@@ -214,6 +239,102 @@ test("a gesture older than the tail's lifetime is not the start of today's job",
   assert.equal(tail.length, 1, "yesterday's gesture fell out");
   assert.equal(match(tail, shapes), null, "one fresh gesture is not a prefix");
 });
+
+// -- the operator who was already on the screen --------------------------------
+//
+// Measured on the deployment, 2026-09-15. An operator did `Create a Customer
+// Type` end to end -- read the mail, pressed Add, typed the code and the
+// description, saved -- and was never once asked to finish it.
+//
+// A recording carries the navigation the person who made it happened to need.
+// This operator was already on the customer types screen, having just deleted
+// some there, so they never clicked the tab the recording has as its second
+// entry. `endsWith` wanted the tail's last k to BE the shape's first k, so it
+// failed at every k and the job the system exists to offer went unoffered
+// while the operator did the whole of it by hand.
+
+
+test("an operator already on the screen is still doing the job", () => {
+  const shape = {
+    id: "wfl_ct",
+    title: "Create a Customer Type",
+    shape: [
+      ["https://mail.example", "anon|click", "click"],
+      [H, "tabItem", "click"],
+      [H, "addButton", "click"],
+      [H, "customertype-customerType", "click"],
+      [H, "customertype-customerType", "type"],
+      [H, "saveButton", "click"],
+    ],
+    parameters: [{ name: "Customer Type", at: 4 }],
+  };
+  const click = (system, id) => ({ triple: [system, id, "click"], value: null, at: 1 });
+
+  // The mail, and then straight to Add: the tab click is the one they were
+  // already past.
+  let tail = tailWith([], click("https://mail.example", "anon|click"));
+  tail = tailWith(tail, click(H, "addButton"));
+  const found = match(tail, [shape]);
+
+  assert.ok(found, "the operator skipped a step they were already past");
+  assert.equal(found.title, "Create a Customer Type");
+  assert.equal(covered(tail, shape.shape).skipped, 1, "the tab click, and nothing else");
+});
+
+
+test("what the operator typed is read off the gestures that answered, not off a position", () => {
+  // The alignment, which is the whole reason the match has to carry one. Once
+  // a shape entry can be skipped and a tail entry passed over, the two no
+  // longer line up -- and `valuesFrom` read `tail[tail.length - k + at]`. Off a
+  // position it shows somebody a value they never typed and starts a run with
+  // it.
+  const shape = {
+    id: "wfl_ct",
+    title: "Create a Customer Type",
+    shape: [
+      ["https://mail.example", "anon|click", "click"],
+      [H, "tabItem", "click"],
+      [H, "addButton", "click"],
+      [H, "customertype-customerType", "type"],
+      [H, "saveButton", "click"],
+    ],
+    parameters: [{ name: "Customer Type", at: 3 }],
+  };
+  let tail = tailWith([], { triple: ["https://mail.example", "anon|click", "click"], at: 1 });
+  // Two more reads of the same mail: noise the shape does not want.
+  tail = tailWith(tail, { triple: ["https://mail.example", "anon|click", "click"], at: 2 });
+  tail = tailWith(tail, { triple: ["https://mail.example", "anon|click", "click"], at: 3 });
+  tail = tailWith(tail, { triple: [H, "addButton", "click"], value: null, at: 4 });
+  tail = tailWith(tail, { triple: [H, "customertype-customerType", "type"], value: "GDD", at: 5 });
+
+  const found = match(tail, [shape]);
+
+  assert.ok(found);
+  assert.deepEqual(found.values, { "Customer Type": "GDD" });
+  assert.deepEqual(found.missing, []);
+});
+
+
+test("the shape may only look a little way ahead", () => {
+  // `K_MISSED` is the whole of the looseness. A tail that lands three entries
+  // further on has not skipped a step, it is doing something else.
+  const shape = {
+    id: "wfl_far",
+    title: "Far",
+    shape: [[H, "a", "click"], [H, "b", "click"], [H, "c", "click"], [H, "d", "click"], [H, "e", "click"]],
+    parameters: [],
+  };
+  const at = (id, n) => ({ triple: [H, id, "click"], value: null, at: n });
+
+  let near = tailWith([], at("a", 1));
+  near = tailWith(near, at("d", 2));
+  assert.ok(match(near, [shape]), `two ahead is a skipped step (K_MISSED is ${K_MISSED})`);
+
+  let far = tailWith([], at("a", 1));
+  far = tailWith(far, at("e", 2));
+  assert.equal(match(far, [shape]), null, "four ahead is not this job");
+});
+
 
 test("a dropdown pick answers with the row it clicked", () => {
   // The WMS's combo is ExtJS: clicking the field opens a floating list and the
@@ -232,7 +353,7 @@ test("a dropdown pick answers with the row it clicked", () => {
     { triple: shape.shape[1], value: "ConnectShip (TanData)", at: 2 },
   ];
 
-  const found = valuesFrom(tail, shape, 2);
+  const found = valuesFrom(tail, shape, covered(tail, shape.shape).at);
 
   assert.deepEqual(found.values, { "External System Name": "ConnectShip (TanData)" });
   assert.deepEqual(found.missing, []);

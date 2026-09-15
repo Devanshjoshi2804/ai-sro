@@ -83,7 +83,7 @@ from sro.domain.execution.planning import Look, Planned
 from sro.domain.execution.secrets import without_secrets
 from sro.domain.execution.verified_writes import VerifiedWrite
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun, new_run_id
-from sro.domain.execution.write_plan import seen_values
+from sro.domain.execution.write_plan import scaffolding_for, seen_values
 from sro.domain.observation.gesture import Gesture
 from sro.domain.shared.hosts import screen_of, system_of
 from sro.domain.shared.identifiers import DeviceId, TenantId
@@ -588,6 +588,41 @@ async def run_workflow(
         await _save(uow, run)
         return run
     itinerary = _itinerary(ordered, workflow.repeat, values, run.items)
+    # The steps that exist only to put a form on the screen, where the write
+    # that form was for is going out as a call instead.
+    #
+    # Measured on the deployment's own row: of the six steps of `Create a
+    # Customer Type`, only step 6 changes warehouse state. Steps 4 and 5 make
+    # no network call at all -- they are keystrokes into a form that step 6
+    # posts -- and step 2's thirty-four GETs are the screen loading. Replay the
+    # write and there is nothing left for the other five to do, so doing them
+    # is five plans, five commands and four screenshots spent to arrive where
+    # the call was going to be sent from anyway.
+    #
+    # Decided here and once, because a scaffolding step comes BEFORE the write
+    # it scaffolds: by the time the run reaches step 6 it has already performed
+    # the five it did not need. Only the replay the EVIDENCE decides can be
+    # known this early -- a model's `http.send` is chosen at the step, long
+    # after step 2 has been done -- which is the second thing the deterministic
+    # rung buys.
+    #
+    # Safe against a job whose values move per item: `write_plan_for` refuses
+    # on the shape of the values, never on the values themselves (a slot is
+    # claimed by comparing the DEMONSTRATED body against `seen_values`), so
+    # every leg of a repeat answers this the same way.
+    collapsed: set[int] = set()
+    for leg in itinerary:
+        if (
+            replay_without_asking(
+                step=leg.step,
+                cited=[by_id[cited] for cited in leg.step.cites if cited in by_id],
+                values=leg.values,
+                verified_writes=verified_writes,
+                seen=observed,
+            )
+            is not None
+        ):
+            collapsed.update(scaffolding_for(workflow, by_id, write_step=leg.step.order))
     # The steps the operator already did cost nothing and are not attempted, so
     # they buy no slack either: the budget is what is left to perform.
     # Which writes this run has claimed the right to make, so a rescue of a
@@ -722,6 +757,26 @@ async def run_workflow(
                 run.outcome = "stopped"
                 await _save(uow, run)
                 break
+            if step.order in collapsed:
+                # Recorded rather than dropped: the per-step audit trail is
+                # what a reviewer reads, and a job that silently performed four
+                # of its six steps would read as a job that lost two.
+                run.steps.append(
+                    RunStep(
+                        order=position,
+                        of_step=step.order,
+                        item=leg.item,
+                        says=step.says,
+                        verdict="not_needed",
+                        verdict_by="none",
+                        reason=(
+                            "this step put the form on the screen for a write "
+                            "this run sends as a call; cites " + ", ".join(step.cites)
+                        ),
+                    )
+                )
+                await _save(uow, run)
+                continue
             cited = [by_id[c] for c in step.cites if c in by_id]
             primary = primary_gesture(step, by_id)
             record = RunStep(

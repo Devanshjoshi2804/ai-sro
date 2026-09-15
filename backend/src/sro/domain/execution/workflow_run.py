@@ -26,9 +26,16 @@ VERDICTS = (
     "skipped",
     "awaiting",
     "done_by_operator",
+    "not_needed",
 )
 """awaiting: shown to a person and waiting on their word. done_by_operator: the
-operator performed it themselves before the rig was asked to finish the job."""
+operator performed it themselves before the rig was asked to finish the job.
+not_needed: the step existed to put a form on the screen and the write that
+form was for is going out as a call, so there is no form and nothing to fill.
+
+`not_needed` is the only verdict that means the rig DELIBERATELY did not do a
+step and the job is still whole, which is why it is not `skipped` -- `skipped`
+is the record's starting value and reads as "nobody got to it"."""
 
 
 def already_running(device_id: str, run_id: str | None) -> str:

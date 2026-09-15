@@ -18,4 +18,5 @@ def test_the_vocabularies_are_closed() -> None:
         "skipped",
         "awaiting",
         "done_by_operator",
+        "not_needed",
     }

@@ -4150,6 +4150,69 @@ async def test_a_replay_that_comes_back_refused_still_falls_to_the_model() -> No
     assert run.outcome == "held"
 
 
+async def test_the_steps_that_only_opened_a_form_are_not_done_when_the_write_is_a_call() -> None:
+    """The job is one request and the rest is scaffolding.
+
+    Of the six steps of `Create a Customer Type`, only step 6 changes warehouse
+    state: steps 4 and 5 make no network call at all -- they are keystrokes
+    into a form step 6 posts -- and step 2's thirty-four GETs are the screen
+    loading. Replay the write and there is nothing left for the others to do,
+    so typing into a form nobody is going to submit is a plan, a command and a
+    screenshot spent to arrive where the call was going to be sent from anyway.
+
+    Recorded, not dropped: the row still says the step existed and why it was
+    not done, because the per-step trail is what a reviewer reads.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel(
+        {
+            "ui.url": [Reply(ok=True, result={"url": "http://127.0.0.1:63319/form"})] * 2,
+            "http.send": [Reply(ok=True, result={"status": 200, "body": "{}"})],
+        }
+    )
+    asker = FakeAsker()
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        values={},
+        earned=True,
+        verified_writes=(VerifiedWrite(method="POST", path_pattern="/api/orders"),),
+    )
+
+    assert run.outcome == "held"
+    assert [one.verdict for one in run.steps] == ["not_needed", "held"]
+    assert "cites" in run.steps[0].reason, "the row says which evidence it stood for"
+    assert not [one for one in channel.sent if one["kind"] == "ui.perform"], "nothing was typed"
+    assert [one["kind"] for one in channel.sent].count("http.send") == 1
+    assert not asker.asked, "and no model was asked about any of it"
+
+
+async def test_a_form_step_is_still_done_when_the_write_is_not_a_call() -> None:
+    """The collapse is tied to the replay, not to the shape of the job. With no
+    ledger row the write goes out as a click, so the form still has to be
+    filled and every step is performed exactly as it was."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel({**_looks(4), "ui.perform": [_performed(), _performed()]})
+    asker = FakeAsker(
+        _plan("type", "THIRD"),
+        Answer(data={"held": True, "why": ""}),
+        _plan("click"),
+        Answer(data={"held": True, "why": ""}),
+    )
+
+    run = await _ran(
+        uow, workflow, channel=channel, asker=asker, values={"clientCode": "THIRD"}, earned=True
+    )
+
+    assert [one.verdict for one in run.steps] == ["held", "held"]
+    assert len([one for one in channel.sent if one["kind"] == "ui.perform"]) == 2
+
+
 # --- a write that would only make a second copy ------------------------------
 
 

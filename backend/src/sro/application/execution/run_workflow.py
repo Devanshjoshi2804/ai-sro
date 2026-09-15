@@ -79,7 +79,7 @@ from sro.domain.execution.secrets import without_secrets
 from sro.domain.execution.verified_writes import VerifiedWrite
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun, new_run_id
 from sro.domain.observation.gesture import Gesture
-from sro.domain.shared.hosts import system_of
+from sro.domain.shared.hosts import screen_of, system_of
 from sro.domain.shared.identifiers import DeviceId, TenantId
 from sro.domain.shared.prices import Answer
 from sro.domain.skill.repeats import K_MOST_ITEMS, Repeat
@@ -597,24 +597,48 @@ async def run_workflow(
     # when the operator's own tab is elsewhere, and aiming a run that starts at
     # step k there would abandon the progress the offer was made on.
     #
-    # The WHOLE url, and not `page_of` the way `Shape.starts_on` is narrowed.
-    # A warehouse addresses its screens by fragment --
+    # Not `page_of` the way `Shape.starts_on` is narrowed: that one is compared
+    # and this one is NAVIGATED to, and no component of a url is particular or
+    # general on its face. A warehouse addresses its screens BY fragment --
     # `…/portal?siteId=SG#wm.config/wm.config.partners.customers.types////` --
-    # so a run opening the path alone lands on the portal root and plans every
-    # step against the wrong page. The served shape is compared; this is
-    # navigated to, and the two want different things from one url.
+    # while Gmail puts a message id in the same place, so dropping either
+    # component by rule lands a run on the portal root and plans every step
+    # against the wrong page.
     #
-    # What it costs is honest and not fixed here: this is one gesture of ONE
-    # demonstration, so a job whose first screen was a particular mail will
-    # send a run to that mail. Nothing in a single demonstration distinguishes
-    # the part of a url that names the screen from the part that names the
-    # visit -- measured 2026-09-15, where the warehouse put its screen in the
-    # fragment and Gmail put its message id in the same place. Telling them
-    # apart needs two demonstrations that differ, which is a change to what is
-    # mined rather than to what is read here.
-    first = primary_gesture(ordered[from_step], by_id) if from_step < len(ordered) else None
-    if first is not None:
-        starts_on = first.page_url or first.url
+    # So it is asked of the demonstrations instead. Every gesture this step
+    # cites is a doing of it, and `screen_of` keeps what they agree on: what
+    # varies between two doings of one step is the visit, and what does not is
+    # the screen. No rule about queries or fragments is needed, and none is
+    # right -- the evidence says which parts moved.
+    #
+    # With one doing it returns that url whole, which is the honest answer:
+    # nothing has said which half of it was the job. It sharpens as the same
+    # work is demonstrated again, with no re-mine and no new field.
+    #
+    # `primary_gesture` stays the anchor, so the origin and the choice of which
+    # gesture speaks first are exactly what they were. What changes is that the
+    # others are now allowed to disagree with it.
+    #
+    # Found the bug it fixes on this deployment's own row: step 2 of `Create a
+    # Customer Type` is "Navigate to the Customer Types screen", and its two
+    # cited gestures sit on `…inbound.receiving.optimaldoorassignment` and
+    # `…warehouse.warehouse` -- the screens the operator happened to be on when
+    # they reached for the menu, neither of them this step's. A run resuming
+    # there opened whichever one `primary_gesture` picked. They agree on
+    # `/portal?siteId=SG`, which is where that step actually starts.
+    step_here = ordered[from_step] if from_step < len(ordered) else None
+    first = primary_gesture(step_here, by_id) if step_here is not None else None
+    if first is not None and step_here is not None:
+        starts_on = screen_of(
+            [
+                first.page_url or first.url,
+                *(
+                    by_id[cited].page_url or by_id[cited].url
+                    for cited in step_here.cites
+                    if cited in by_id
+                ),
+            ]
+        )
 
     # The step being worked on, so a browser that goes away mid-step fails THAT
     # step -- with the tokens its plan already cost, and its own order -- rather

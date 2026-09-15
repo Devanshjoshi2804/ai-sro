@@ -3383,6 +3383,59 @@ async def test_a_run_started_mid_job_starts_on_the_page_of_the_step_it_starts_at
     assert _payload(performed)["starts_on"] == K_SECOND_SCREEN
 
 
+async def test_two_doings_of_a_step_name_the_screen_and_not_either_visit() -> None:
+    """The screen a run opens is asked of the demonstrations, not of one of
+    them.
+
+    Found on the deployment's own row, 2026-09-15. Step 2 of `Create a Customer
+    Type` is "Navigate to the Customer Types screen", and the two gestures it
+    cites sit on `…inbound.receiving.optimaldoorassignment` and
+    `…warehouse.warehouse` -- the screens the operator happened to be on when
+    they reached for the menu, neither of them this step's. A run resuming
+    there opened whichever one `primary_gesture` picked, then planned every
+    step against it.
+
+    What two doings of one step agree on is the screen; what differs is the
+    visit. Here they agree on `/client` and on `siteId=SG`, and disagree on the
+    fragment and on the session token -- so the fragment and the token go and
+    nothing else does.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    # A step with two doings in it, which is what the fixture's one-cite steps
+    # cannot be: a job demonstrated twice cites both, and every step of the
+    # deployment's own `Create a Customer Type` cites two or more.
+    ids = _ids(uow)
+    again = next(one for one in ids if one != workflow.steps[1].cites[0])
+    workflow.steps[1] = replace(workflow.steps[1], cites=[*workflow.steps[1].cites, again])
+    await uow.workflows.save(workflow)
+    once, twice = workflow.steps[1].cites
+    _demonstrated_on(
+        uow, once, "http://127.0.0.1:63319/client?libraryContext=aaaa&siteId=SG#inbound"
+    )
+    _demonstrated_on(
+        uow, twice, "http://127.0.0.1:63319/client?libraryContext=bbbb&siteId=SG#warehouse"
+    )
+    channel = FakeChannel({**_looks(2), "ui.perform": [_performed()]})
+    asker = _PerSchemaAsker(
+        plan=_plan("click"), verdict=Answer(data={"held": True, "why": "saved"})
+    )
+
+    await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        values={"clientCode": "THIRD"},
+        started_by="offer",
+        earned=True,
+        from_step=1,
+    )
+
+    [performed] = [s for s in channel.sent if s["kind"] == "ui.perform"]
+    assert _payload(performed)["starts_on"] == "http://127.0.0.1:63319/client?siteId=SG"
+
+
 async def test_a_run_that_starts_at_the_top_starts_on_the_first_steps_page() -> None:
     """New, and the other half of the same seam: on the same two-screen
     fixture, a run that starts where the job does opens at step zero's page and

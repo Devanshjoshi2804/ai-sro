@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
-from urllib.parse import urlparse, urlsplit
+from collections.abc import Iterable, Mapping
+from urllib.parse import urlparse, urlsplit, urlunparse
 
 # The marker a redaction leaves behind, in place of whatever it removed. Lives
 # here, beside `system_of`, rather than in the wire module that first defined
@@ -82,6 +82,56 @@ def page_of(url: str | None) -> str | None:
     if not parsed.scheme or not parsed.netloc:
         return None
     return f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
+
+
+def screen_of(urls: Iterable[str | None]) -> str | None:
+    """The screen these visits have in common: what every one of them agrees on.
+
+    `page_of` throws away the query and the fragment because it cannot tell
+    which parts of them name a screen. This can, when it is given more than one
+    visit, and it needs no rule about either component -- the demonstrations
+    say which parts vary. What they agree on is the screen; what differs is the
+    particular, and the particular is precisely what must not be navigated to.
+
+    The first url is the anchor: its scheme and host are the answer's, and a
+    visit on a different host is not another demonstration of this screen and
+    is ignored rather than allowed to erase everything.
+
+    Component by component, except the query, which is per PARAMETER -- because
+    a real one mixes both kinds in one string. Measured on the deployment's own
+    evidence, 2026-09-15:
+
+        …/portal/page?libraryContext=f4d6755ab6b6…&siteId=SG&menu=wm.config#…
+
+    `libraryContext` is a session token and `siteId` and `menu` are the screen.
+    Whole-or-nothing on the query would lose the menu to keep out the token, or
+    keep the token to hold the menu. Per parameter loses neither.
+
+    Raw segments rather than parsed pairs, so a value comes back spelled the way
+    the browser spelled it: re-encoding a query is how a url that worked stops
+    working.
+
+    One demonstration agrees with itself, so a single url comes back whole. That
+    is the honest answer and not a fallback -- with one doing there is nothing
+    that says which half of it was the job.
+    """
+    seen = [urlparse(url) for url in urls if url]
+    if not seen:
+        return None
+    anchor = seen[0]
+    if not anchor.scheme or not anchor.netloc:
+        return None
+    same = [one for one in seen if (one.scheme, one.netloc) == (anchor.scheme, anchor.netloc)]
+
+    path = anchor.path if all(one.path == anchor.path for one in same) else ""
+    fragment = anchor.fragment if all(one.fragment == anchor.fragment for one in same) else ""
+    others = [set(one.query.split("&")) if one.query else set() for one in same]
+    query = "&".join(
+        segment
+        for segment in (anchor.query.split("&") if anchor.query else [])
+        if all(segment in one for one in others)
+    )
+    return urlunparse((anchor.scheme, anchor.netloc, path, "", query, fragment))
 
 
 def domain_matches(host: str, domain: str) -> bool:

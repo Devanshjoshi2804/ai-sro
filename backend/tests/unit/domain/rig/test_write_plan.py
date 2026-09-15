@@ -657,3 +657,107 @@ def test_one_doing_that_echoed_a_slot_does_not_answer_for_one_that_rewrote_it() 
     )
 
     assert plan is not None and plan.confirm == {"customerType": "GPDP"}
+
+
+def _with_calls(gesture_id: str, *calls: Call) -> Gesture:
+    """One doing whose whole recorded traffic is given, in order."""
+    gesture = _saving(gesture_id, CREATED)
+    gesture.requests[:] = list(calls)
+    return gesture
+
+
+def _answering(body: dict[str, object], answer: dict[str, object]) -> Call:
+    """The create, with the reply the warehouse actually sends: the record
+    inside `{"@type": "ResponseBodyWrapper", "data": {…}}`, which is the shape
+    112 of the 114 successful writes in the recorded exchanges carry."""
+    text = json.dumps({"@type": "ResponseBodyWrapper", "data": answer}, ensure_ascii=False)
+    return replace(_call(body), response_body=Body(text=text, size_bytes=len(text)))
+
+
+def test_the_answer_is_read_through_its_envelope_like_every_other_reader() -> None:
+    """Read at the top level a Blue Yonder reply has `@type` and `data` and
+    none of the record's own fields, so every slot would look rewritten and
+    nothing would ever be confirmed -- on the one shape that is production."""
+    first = {**CREATED, "longDescription": "ZV9054"}
+    second = {**CREATED, "customerType": "GKB", "longDescription": "ZV8811"}
+    twice = {
+        "g1": _with_calls("g1", _answering(first, {**first, "longDescription": "A handling unit"})),
+        "g2": _with_calls("g2", _answering(second, {**second, "longDescription": "Inventory"})),
+    }
+    seen = {CODE: frozenset({"GGD", "GKB"}), DESCRIPTION: frozenset({"ZV9054", "ZV8811"})}
+
+    plan = write_plan_for(
+        _step("g1", "g2"), twice, {CODE: "GPDP", DESCRIPTION: "ZV7000"}, LEDGER, seen
+    )
+
+    assert plan is not None
+    assert plan.confirm == {"customerType": "GPDP"}, "the envelope hid the record"
+
+
+def test_a_call_that_is_not_the_write_does_not_stop_the_search_for_one() -> None:
+    """Every doing of a real step carries other traffic -- the screen loading,
+    a beacon, the read that follows the write. The create is not the first
+    call, and stopping at the first thing that is not it finds nothing.
+    """
+    first = {**CREATED, "longDescription": "ZV9054"}
+    second = {**CREATED, "customerType": "GKB", "longDescription": "ZV8811"}
+    noise = _call(None, method="GET", url=f"{HOST}/portal/menu")
+    quiet = replace(_call(first), response_body=None)
+    twice = {
+        # A gesture the step cites and the store does not have comes first, so
+        # a search that gave up on the first miss would never reach either
+        # doing. Then a call to another path, then the create with no reply
+        # kept, then the create that answered.
+        "g1": _with_calls(
+            "g1", noise, quiet, _answering(first, {**first, "longDescription": "A handling unit"})
+        ),
+        # `g2` echoes BOTH slots, so the narrowing can only come from `g1` --
+        # and it only comes from `g1` if the search got past the call to
+        # another path and the doing whose reply was never kept.
+        "g2": _with_calls("g2", noise, _answering(second, second)),
+    }
+    seen = {CODE: frozenset({"GGD", "GKB"}), DESCRIPTION: frozenset({"ZV9054", "ZV8811"})}
+
+    plan = write_plan_for(
+        _step("gone", "g1", "g2"), twice, {CODE: "GPDP", DESCRIPTION: "ZV7000"}, LEDGER, seen
+    )
+
+    assert plan is not None
+    assert plan.confirm == {"customerType": "GPDP"}
+
+
+def test_a_body_that_cannot_be_replayed_is_not_evidence_about_any_slot() -> None:
+    """`unreplayable` is a refusal of its own, separate from "a different
+    endpoint", and both have to skip. Reading a struck-out doing as evidence
+    would compare the redaction marker against what the server stored and
+    conclude the server rewrites a slot it hands straight back.
+    """
+    struck = {**CREATED, "customerType": "GZZ", "longDescription": REDACTED}
+    first = {**CREATED, "longDescription": "kept as sent"}
+    second = {**CREATED, "customerType": "GKB", "longDescription": "kept as sent too"}
+    twice = {
+        # The struck doing sits beside the clean one and answered with
+        # something else in the slot, so a search that let it through would
+        # drop `longDescription`. Second, because `recorded_call` takes the
+        # step's write off the front and an unreplayable one there is refused
+        # before any of this -- which is a different rule, already tested.
+        "g1": _with_calls(
+            "g1",
+            _answering(first, first),
+            _answering(struck, {**struck, "longDescription": "A handling unit"}),
+        ),
+        "g2": _with_calls("g2", _answering(second, second)),
+    }
+    seen = {
+        CODE: frozenset({"GGD", "GKB"}),
+        DESCRIPTION: frozenset({"kept as sent", "kept as sent too"}),
+    }
+
+    plan = write_plan_for(
+        _step("g1", "g2"), twice, {CODE: "GPDP", DESCRIPTION: "new"}, LEDGER, seen
+    )
+
+    assert plan is not None
+    assert plan.confirm == {"customerType": "GPDP", "longDescription": "new"}, (
+        "a doing nothing may replay is not a doing that says what the server keeps"
+    )

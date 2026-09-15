@@ -56,9 +56,13 @@ class SteelClient:
         session_timeout_seconds: int = 3600,
         dimensions: tuple[int, int] = (1600, 1000),
         client: httpx.AsyncClient | None = None,
+        public_base_url: str | None = None,
     ) -> None:
         self._base_url = base_url.rstrip("/")
         self._cdp_url = cdp_url.rstrip("/")
+        # Everything this client does itself goes to `_base_url`. The one
+        # string it builds for somebody else's browser uses this.
+        self._viewer_base = (public_base_url or base_url).rstrip("/")
         self._timeout_seconds = session_timeout_seconds
         self._dimensions = dimensions
         self._client = client or httpx.AsyncClient(timeout=30.0)
@@ -369,7 +373,7 @@ class SteelClient:
         recording that we would never hear about. `debugUrl` is the same
         screencast with none of it.
         """
-        return self._base_url + _path_of(body.get("debugUrl") or body.get("sessionViewerUrl"))
+        return self._viewer_base + _path_of(body.get("debugUrl") or body.get("sessionViewerUrl"))
 
     async def health(self) -> bool:
         try:

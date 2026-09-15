@@ -1178,6 +1178,7 @@ def build_container(settings: Settings | None = None) -> Container:
         browser=SteelClient(
             settings.steel_base_url,
             settings.steel_cdp_url,
+            public_base_url=settings.steel_public_base_url,
             session_timeout_seconds=settings.steel_session_timeout_seconds,
             dimensions=(settings.browser_width, settings.browser_height),
         ),

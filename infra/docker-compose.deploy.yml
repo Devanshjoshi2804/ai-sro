@@ -146,11 +146,11 @@ services:
       # network. Advertising CDP on the host would publish an unauthenticated
       # DevTools port -- full control of a browser holding warehouse
       # credentials -- to everything that can route to this VM.
-      DOMAIN: ${STEEL_DOMAIN:?set STEEL_DOMAIN, the address a person's browser can reach, e.g. 10.11.9.25:3010}
+      DOMAIN: ${STEEL_DOMAIN:?set STEEL_DOMAIN, the address a browser reaches the proxy on, e.g. 10.11.9.25:8088}
       CDP_DOMAIN: steel:9223
-    ports:
-      # The viewer only. 9223 stays on the compose network.
-      - "${STEEL_BIND:-0.0.0.0:3010}:3000"
+    # No published port: the proxy serves `/ui`, `/v1/sessions*` and the
+    # root websocket from this container. 9223 was never published and still
+    # is not.
     shm_size: "2gb"
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:3000/v1/health || exit 1"]
@@ -226,6 +226,9 @@ services:
       SRO_S3_SECRET_KEY: ${S3_SECRET_KEY}
       SRO_S3_BUCKET: ${S3_BUCKET:-sro-artifacts}
       SRO_STEEL_BASE_URL: http://steel:3000
+      # Where a browser reaches Steel: the proxy. `live_view_url` is the only
+      # string this system hands out built from a Steel address.
+      SRO_STEEL_PUBLIC_BASE_URL: ${SRO_STEEL_PUBLIC_BASE_URL:?set SRO_STEEL_PUBLIC_BASE_URL, e.g. http://10.11.9.25:8088}
       SRO_STEEL_CDP_URL: http://steel:9223
       SRO_TEMPORAL_ADDRESS: temporal:7233
       SRO_OTLP_ENDPOINT: http://otel-collector:4318

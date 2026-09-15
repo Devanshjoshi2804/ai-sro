@@ -131,6 +131,20 @@ class Settings(BaseSettings):
     """
 
     steel_base_url: str = "http://localhost:3010"
+    steel_public_base_url: str | None = None
+    """Where a *browser* reaches Steel, when that is not where this process
+    reaches it.
+
+    `live_view_url` is built by taking the path out of what Steel hands back
+    and putting a base in front of it. That base was `steel_base_url`, which
+    deployed is `http://steel:3000` -- a name on a private network, handed to
+    an operator's browser as the live view of their own teaching session. It
+    failed as a frame that never loaded. The same mistake as the presigned
+    url in `s3_public_endpoint_url`, one service along, and found the same
+    way: by asking what leaves the deployment.
+
+    Unset means the two are the same address, which is true on a laptop."""
+
     steel_cdp_url: str = "http://localhost:9223"
     """Chrome DevTools endpoint Steel publishes. Playwright connects over it."""
     browser_width: int = 1600

@@ -34,6 +34,33 @@
 		reverse_proxy minio:9000
 	}
 
+	# --- Steel's session viewer ----------------------------------------------
+	# Its own UI, on the same origin. Three routes because Steel spreads itself
+	# across three places and none of them may be rewritten: its bundle is
+	# built with an empty API base, so every call it makes is same-origin and
+	# relative, and its live screencast socket is at the ROOT path.
+	#
+	# `/v1/*` here is Steel's, not ours -- ours is under `/api/v1/*`. Sharing
+	# the root namespace with a third party is the cost of folding it in, and
+	# anything Steel serves under `/v1` in a future version lands here without
+	# being asked for.
+	handle /ui/* {
+		reverse_proxy steel:3000
+	}
+	handle /v1/sessions* {
+		reverse_proxy steel:3000
+	}
+	# Matched on the upgrade header so the console keeps `/` for its own pages.
+	# Every socket this system opens for itself is under `/api`.
+	@steel_socket {
+		path /
+		header Connection *Upgrade*
+		header Upgrade websocket
+	}
+	handle @steel_socket {
+		reverse_proxy steel:3000
+	}
+
 	# --- the API -------------------------------------------------------------
 	# `/api/v1/...` here is `/v1/...` there. Websockets included: the
 	# extension's command channel and the console's live view are both

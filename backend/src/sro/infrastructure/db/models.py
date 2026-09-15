@@ -867,6 +867,15 @@ class WorkflowRunRow(Base):
     """A run that cost nothing and a run whose cost could not be established
     are the same row without this."""
 
+    wrong_because: Mapped[str | None] = mapped_column(Text)
+    """What the operator said was wrong with what this run made.
+
+    Null on every run nobody has reported, which is almost all of them. The
+    ladder cannot see a record created exactly as asked that was not the record
+    the person wanted -- a job read out of a sentence can be the wrong job, and
+    the warehouse answers 201 for it -- so this is the only place that failure
+    is ever written down."""
+
     __table_args__ = (
         Index("ix_workflow_runs_tenant_workflow", "tenant_id", "workflow_id", "started_at"),
         # The busy check: whether this browser already has a run in flight.

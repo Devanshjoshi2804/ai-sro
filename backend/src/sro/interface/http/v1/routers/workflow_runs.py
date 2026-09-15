@@ -41,6 +41,7 @@ from sro.domain.shared.identifiers import DeviceId
 from sro.interface.http.asking import AskingDeviceDep
 from sro.interface.http.deps import ContainerDep, ContextDep
 from sro.interface.http.schemas import (
+    CalledWrongRequest,
     StartWorkflowRunRequest,
     WorkflowRunModel,
     WorkflowStepApprovedModel,
@@ -226,6 +227,40 @@ async def abort_workflow_run(
     it through the MRO walk without a table entry of its own.
     """
     return WorkflowRunModel.of(await container.abort_workflow_run().execute(ctx, run_id=run_id))
+
+
+@router.post("/workflow-runs/{run_id}/wrong", status_code=status.HTTP_202_ACCEPTED)
+async def called_wrong(
+    run_id: str, body: CalledWrongRequest, container: ContainerDep, ctx: ContextDep
+) -> WorkflowRunModel:
+    """The operator says what this run made was wrong.
+
+    The only witness this path has. A run that replays a demonstrated call is
+    settled by what the warehouse answered and, where the evidence records a
+    read, by what that read showed -- and a record created exactly as asked
+    that was not the record the person wanted is invisible to both. `verify`
+    says so in its own words: that is the one failure the ladder cannot see,
+    and the only witness is the person whose browser it ran in.
+
+    It costs the job its autonomy. The register of verified effects is emptied,
+    so the next runs of that job ask for a tap again and it earns its way back
+    from zero -- the same price `effects.forget_effects` charges for a write
+    nobody could show held, for the worse case of a write somebody watched hold
+    and says was wrong.
+
+    202 rather than 200, as the skill door next door is: what it answers with
+    is the run as it stands, not the effect of the report on the next run of
+    the job.
+
+    A run of another tenant is a 404 and never a 403, for `get_workflow_run`'s
+    reason. A run still going is the 409 `StillRunning` -- shared with the
+    skill door so a console matches one spelling of it -- because there is no
+    result yet for anyone to call wrong; stopping one is `abort` above.
+    """
+    run = await container.call_workflow_run_wrong().execute(
+        ctx, run_id=run_id, because=body.because
+    )
+    return WorkflowRunModel.of(run)
 
 
 @router.post("/workflow-runs/{run_id}/approve")

@@ -164,3 +164,16 @@ class WorkflowRun:
     thought_tokens: int = 0
     cost_usd: float = 0.0
     unpriced: bool = False
+
+    wrong_because: str | None = None
+    """What the operator said was wrong with what this run made.
+
+    The one failure the ladder cannot see. A step is settled by what the
+    warehouse answered and, where the evidence records a read, by what that
+    read showed -- and a record created exactly as asked that was not the
+    record the person wanted passes both. A job read out of a sentence can be
+    the wrong job, and the warehouse answers 201 for it.
+
+    So the only witness is the person whose browser it ran in, and this is
+    where what they said is kept. Null on every run nobody has reported, which
+    is almost all of them."""

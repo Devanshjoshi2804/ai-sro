@@ -3383,6 +3383,15 @@ class WorkflowRunModel(BaseModel):
     cost_usd: float
     unpriced: bool
 
+    wrong_because: str | None = None
+    """What the operator said was wrong with what this run made, where anybody
+    has said anything.
+
+    On the wire because the card that reports a run is the same card that has
+    to stop offering to report it twice, and because a run that says `held` on
+    every step and carries this is the one shape a reviewer most needs to be
+    able to find. Null on every run nobody has reported."""
+
     undo: str | None = None
     """The job of this tenant's that takes back what this run made, where one
     exists: a job whose own evidence shows somebody deleting the records this
@@ -3418,6 +3427,7 @@ class WorkflowRunModel(BaseModel):
             thought_tokens=run.thought_tokens,
             cost_usd=run.cost_usd,
             unpriced=run.unpriced,
+            wrong_because=run.wrong_because,
             undo=undo,
         )
 

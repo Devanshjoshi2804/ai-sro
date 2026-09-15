@@ -63,6 +63,7 @@ def _run_values(run: WorkflowRun) -> dict[str, Any]:
         "out_tokens": run.out_tokens,
         "thought_tokens": run.thought_tokens,
         "cost_usd": run.cost_usd,
+        "wrong_because": run.wrong_because,
         "unpriced": run.unpriced,
     }
 
@@ -131,6 +132,7 @@ def _row_to_run(row: WorkflowRunRow, steps: list[RunStep]) -> WorkflowRun:
         started_at=row.started_at.isoformat(),
         finished_at=None if row.finished_at is None else row.finished_at.isoformat(),
         outcome=row.outcome,
+        wrong_because=row.wrong_because,
         from_step=row.from_step,
         items=[dict(item) for item in (row.items or [])],
         steps=steps,

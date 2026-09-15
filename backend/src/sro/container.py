@@ -40,6 +40,7 @@ from sro.application.context import RequestContext
 from sro.application.execution.approvals import Approvals
 from sro.application.execution.batch import RunBatch
 from sro.application.execution.call_run_wrong import CallRunWrong
+from sro.application.execution.call_workflow_run_wrong import CallWorkflowRunWrong
 from sro.application.execution.choices import ListChoices
 from sro.application.execution.derived_read import AskTheSystem
 from sro.application.execution.execute_skill import (
@@ -1106,6 +1107,9 @@ class Container:
 
     def call_run_wrong(self) -> CallRunWrong:
         return CallRunWrong(self.unit_of_work(), self.clock)
+
+    def call_workflow_run_wrong(self) -> CallWorkflowRunWrong:
+        return CallWorkflowRunWrong(self.unit_of_work())
 
     def revise_run(self) -> ReviseRun:
         return ReviseRun(self.unit_of_work(), self.clock)

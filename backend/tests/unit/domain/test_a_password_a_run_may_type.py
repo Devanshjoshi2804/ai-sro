@@ -35,6 +35,7 @@ def _typed(
     name: str | None = "password",
     label: str | None = None,
     url: str = SIGN_IN,
+    system: str = KEYCLOAK,
 ) -> Gesture:
     target = Target(
         tag="input",
@@ -49,7 +50,7 @@ def _typed(
         batch_id="bat-1",
         at=1_000.0,
         url=url,
-        system=KEYCLOAK,
+        system=system,
         tab_id=7,
         frame_url=None,
         action=Action(kind="type", at=1_000.0, url=url, target=target, value=None),
@@ -96,6 +97,43 @@ def test_the_operator_and_the_run_spell_the_same_key() -> None:
 )
 def test_a_person_storing_one_does_not_have_to_type_it_perfectly(system: str, field: str) -> None:
     assert secret_key_of("new", system, field) == secret_key_for("new", _typed())
+
+
+# -- where the system half of the key comes from -------------------------------
+#
+# Three sources in order -- the gesture's url, the gesture's system, then
+# `unknown` -- and the fixture above sets both of the first two to the SAME
+# host, so nothing here discriminated between them: a sweep found the whole
+# fallback chain surviving, including the literal `unknown`. This is the half
+# of the key an operator does not type, and if the run derives it differently
+# from `secret_key_of` the password is stored under one key and asked for under
+# another, which is a step refusing at 3am over a value that is in the vault.
+
+
+def test_the_page_the_operator_typed_on_names_the_key_before_the_stream_does() -> None:
+    """A gesture carries both, and they can disagree: `system` is the stream's
+    host and `url` is the frame the control was actually in. The password
+    belongs to the form the operator typed into."""
+    key = secret_key_for("new", _typed(url="https://login.example/auth", system="https://wms.test"))
+
+    assert key == "new/login.example/password"
+
+
+def test_a_gesture_with_no_page_falls_back_to_the_stream_it_came_from() -> None:
+    """A gesture whose url never made it -- a frame that reported none -- still
+    knows which system it was recorded against, and that is a better key than
+    giving up."""
+    key = secret_key_for("new", _typed(url="", system="https://wms.test"))
+
+    assert key == "new/wms.test/password"
+
+
+def test_a_gesture_that_names_no_system_at_all_keys_under_a_word_a_person_reads() -> None:
+    """`unknown`, spelled exactly. The step that refuses shows the key it
+    wanted so the operator can store one under it -- a key they cannot read is
+    a key they cannot fill, and this is the only half they would have to copy
+    rather than recognise."""
+    assert secret_key_for("new", _typed(url="", system="")) == "new/unknown/password"
 
 
 def test_the_field_is_named_the_way_the_operator_saw_it() -> None:

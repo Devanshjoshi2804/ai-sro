@@ -59,13 +59,21 @@ services:
       timeout: 5s
       retries: 20
 
-  # quay.io, not Docker Hub: `minio/minio` and `minio/mc` there now answer
-  # "pull access denied ... or may require 'docker login'" for anyone who does
-  # not already hold the layers. A machine that has run this before cannot
-  # notice, which is why it surfaced on the first deployment to a fresh host
-  # and not on any laptop.
+  # quay.io, not Docker Hub, and pinned.
+  #
+  # Docker Hub removed the `minio/minio` and `minio/mc` repositories outright
+  # -- not a tag, the repositories -- and anonymous pulls began answering
+  # "pull access denied ... or may require 'docker login'" on 2026-09-14. A
+  # machine that had run this stack before held the layers and could not
+  # notice; the first deployment to a fresh host could not start at all, and
+  # the failed pull took the other five images down with it.
+  #
+  # Pinned rather than `:latest` for the reason this incident is an argument
+  # for: the tag somebody else controls is the one that moves under you. These
+  # are the last releases published before the move, and changing them is a
+  # decision to take deliberately, with the artifacts in mind.
   minio:
-    image: quay.io/minio/minio:latest
+    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
     restart: unless-stopped
     command: ["server", "/data", "--console-address", ":9001"]
     environment:
@@ -80,7 +88,7 @@ services:
       retries: 20
 
   minio-init:
-    image: quay.io/minio/mc:latest
+    image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z
     depends_on:
       minio:
         condition: service_healthy

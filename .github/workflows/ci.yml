@@ -116,6 +116,13 @@ jobs:
       # machine and nowhere else. Pointed here rather than creating a second
       # database, because a contract run against the disposable one is right:
       # fuzzing every operation writes.
+      # And a schema in it, for the same reason: the sweep reads
+      # `workflow_runs`, so an empty database starts the app no better than a
+      # missing one.
+      - name: Schema, so the app can start
+        env:
+          SRO_DATABASE_URL: postgresql+asyncpg://sro:sro@localhost:5432/sro_test
+        run: uv run alembic upgrade head
       - name: Unit and contract
         env:
           SRO_DATABASE_URL: postgresql+asyncpg://sro:sro@localhost:5432/sro_test

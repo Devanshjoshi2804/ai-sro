@@ -25,6 +25,7 @@ from sro.domain.execution.write_plan import (
     write_plan_for,
 )
 from sro.domain.observation.gesture import Action, Body, Call, Gesture, Target
+from sro.domain.shared.hosts import REDACTED
 from sro.domain.skill.workflow import Step, Workflow
 
 HOST = "https://bf56-kms-wms-web-np2.jdadelivers.com"
@@ -303,7 +304,7 @@ def test_a_body_with_a_struck_out_credential_is_never_aimed() -> None:
     struck = _twice()
     struck["g1"] = replace(
         struck["g1"],
-        requests=[_call({**CREATED, "token": "«redacted»"})],
+        requests=[_call({**CREATED, "token": REDACTED})],
     )
 
     assert write_plan_for(_step("g1", "g2"), struck, {CODE: "GPDP"}, LEDGER, SEEN) is None
@@ -458,3 +459,108 @@ def test_a_parameter_the_model_named_badly_is_left_out_rather_than_half_read() -
     ]
 
     assert seen_values(job) == {"kept": frozenset({"real"})}
+
+
+def test_the_fixture_encodes_a_body_the_way_the_store_holds_one() -> None:
+    """The self-consistent trap, pinned.
+
+    This file builds its bodies with its own encoder, so a fixture that encoded
+    differently from the store would let every test above pass while proving
+    nothing about real bytes. That is exactly what happened while writing it:
+    `json.dumps` escapes `«redacted»` to `\\u00ab redacted \\u00bb`, so
+    `unreplayable` could not see the marker and the struck-out-credential test
+    was green against a body no store has ever held.
+
+    The authoritative form was read back off the deployment on 2026-09-16 --
+    redaction runs in Python and the marker lands in JSONB verbatim, so a stored
+    body carries the guillemets themselves. This asserts the encoder this file
+    uses agrees with that, once, where the other tests only assume it.
+    """
+    text = _call({"token": REDACTED}).request_body
+    assert text is not None and text.text is not None
+
+    assert REDACTED in text.text, "the fixture escaped the marker the store holds literally"
+    assert "\\u00ab" not in text.text
+
+
+# -- the edges a sweep found nothing standing on -------------------------------
+
+
+def test_a_step_that_cites_nothing_has_no_call_to_aim() -> None:
+    assert write_plan_for(_step(), {}, {CODE: "GPDP"}, LEDGER, SEEN) is None
+
+
+def test_the_plan_carries_the_method_and_url_the_evidence_recorded() -> None:
+    plan = write_plan_for(_step("g1", "g2"), _twice(), {CODE: "GPDP"}, LEDGER, {CODE: SEEN[CODE]})
+
+    assert plan is not None
+    assert plan.method == "POST"
+    assert plan.url == f"{HOST}{PATH}?siteId=SG"
+    assert plan.entry.path_pattern == PATH
+
+
+def test_another_endpoint_on_the_same_host_is_not_this_step_s_write() -> None:
+    """`_same_endpoint` compares the path as well as the origin. The warehouse
+    posts to eighty different paths on one host, and two of them differ by a
+    single word -- `/customerTypes` and `/customers`."""
+    mixed = _twice()
+    mixed["g2"] = replace(
+        mixed["g2"],
+        requests=[
+            _call(
+                {**CREATED, "customerType": "GKB"},
+                url=f"{HOST}/data/WM/wm/customers?siteId=SG",
+            )
+        ],
+    )
+
+    # One body left to diff, so nothing is a slot and the supplied value has
+    # nowhere to go.
+    assert write_plan_for(_step("g1", "g2"), mixed, {CODE: "GPDP"}, LEDGER, SEEN) is None
+
+
+def test_a_key_one_doing_carried_and_the_other_did_not_is_never_a_slot() -> None:
+    """A form that changed between two recordings is not a value somebody typed,
+    and substituting into it would send a field the demonstration never proved.
+    So the diff runs over the keys both bodies have."""
+    widened = dict(CREATED)
+    widened["customerType"] = "GKB"
+    widened["longDescription"] = "GKB type"
+    widened["fieldAddedLater"] = "new"
+    plan = write_plan_for(
+        _step("g1", "g2"),
+        _twice(CREATED, widened),
+        {CODE: "GPDP"},
+        LEDGER,
+        {CODE: SEEN[CODE]},
+    )
+
+    assert plan is not None
+    sent = json.loads(plan.body or "{}")
+    assert "fieldAddedLater" not in sent, "a key only one doing carried became a slot"
+    assert len(sent) == 46
+
+
+def test_a_constant_that_happens_to_equal_a_typed_value_is_still_a_constant() -> None:
+    """The trap `from_rig` warns about: a constant of the job that happens to
+    equal some parameter's value turns into a slot the runner substitutes. The
+    diff is what stops it -- a key both doings sent identically is structure,
+    whatever its value looks like."""
+    twin = "GGD"
+    first = {**CREATED, "manufacturerId": twin}
+    second = {
+        **CREATED,
+        "customerType": "GKB",
+        "longDescription": "GKB type",
+        "manufacturerId": twin,
+    }
+
+    plan = write_plan_for(
+        _step("g1", "g2"), _twice(first, second), {CODE: "GPDP"}, LEDGER, {CODE: SEEN[CODE]}
+    )
+
+    assert plan is not None
+    sent = json.loads(plan.body or "{}")
+    assert sent["customerType"] == "GPDP"
+    assert sent["manufacturerId"] == twin, "a constant equal to a typed value was substituted"
+    assert plan.filled == {"customerType": CODE}

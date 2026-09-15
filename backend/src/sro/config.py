@@ -582,9 +582,22 @@ class Settings(BaseSettings):
     one-off measurement wants. A run already going finishes on its own budget."""
 
     gemini_transcription_model: str = "gemini-3.8-flash"
-    gemini_embedding_model: str = "gemini-embedding-001"
+    gemini_embedding_model: str = "gemini-embedding-2"
     """The one model here that is not a chat model and cannot be one. Priced
-    separately in `prices.py`; everything else on this list is `3.8-flash`."""
+    separately in `prices.py`; everything else on this list is `3.8-flash`.
+
+    **Changing this makes every stored vector meaningless.** A distance between
+    a vector from one model and a vector from another is noise, not a near
+    miss, and `KnowledgeRow.embedding.cosine_distance` will happily order by it.
+    So a change here is a change plus `make ingest-kb`, and the store is mixed
+    until that finishes.
+
+    The dimension deliberately does NOT move with it. `embedding.DIMENSIONS`
+    stays 768 and `EmbedContentConfig(output_dimensionality=...)` asks for that
+    size, which Matryoshka Representation Learning makes a real truncation of
+    the larger vector rather than a different model. So the better embedding
+    arrives with no migration on `knowledge_entries.embedding`, no rebuild of
+    the HNSW index that only landed in 0050, and one re-embed."""
 
     gemini_vision_model: str = "gemini-3.8-flash"
     """Computer use is native here rather than a separate specialised model.

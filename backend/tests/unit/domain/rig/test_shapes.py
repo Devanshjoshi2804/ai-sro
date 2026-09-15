@@ -253,6 +253,21 @@ def test_a_step_half_matched_is_resumed_at_and_never_counted_done() -> None:
     assert resumes_at(workflow, by_id, 1) == first.order, "one of its two gestures is not done"
 
 
+def test_a_job_the_model_numbered_from_one_resumes_at_its_own_first_step() -> None:
+    """The fixture numbers its steps from zero, so `matched <= 0` and
+    `matched <= 1` answer the same thing on it and a sweep found nothing
+    standing between them. The deployment's own job runs 1..6 -- a model numbers
+    its own steps and `umbrella` keeps that numbering -- so one match there is
+    step ONE, not the top.
+    """
+    by_id = _evidence()
+    workflow = _demonstrated_twice(by_id)
+    workflow.steps = [replace(step, order=step.order + 1) for step in workflow.steps]
+    walk = walkable(cited_pairs(workflow, by_id))
+
+    assert resumes_at(workflow, by_id, 1) == walk[0][1].order == 1
+
+
 def test_a_tail_that_matched_nothing_starts_from_the_top() -> None:
     by_id = _evidence()
     workflow = _workflow(by_id)

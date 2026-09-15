@@ -27,6 +27,13 @@ PRICES: dict[str, tuple[float, float]] = {
     # absent from this table records the whole call as unpriced, and the
     # embedder runs on every reading of the knowledge store.
     "gemini-embedding-001": (0.15, 0.00),
+    # Gemini Embedding 2, $0.20/M in. Dearer than the model it replaces by a
+    # third, and worth it for what the knowledge store is for: this is the one
+    # place a similarity is allowed to decide anything, and it decides which
+    # prose a model is shown. Text only at this rate -- the multimodal rates are
+    # image $0.45/M, audio $6.50/M, video $12.00/M, and nothing here sends any
+    # of those yet.
+    "gemini-embedding-2": (0.20, 0.00),
 }
 
 LONG_PROMPT_TOKENS = 200_000

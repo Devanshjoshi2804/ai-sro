@@ -342,14 +342,20 @@ export function targetIdentity(target, kind) {
   }
   const name = target.name && redactShapes(target.name);
   const text = target.text && redactShapes(target.text);
-  if (target.role && name) return `${target.role}|${name}`;
-  if (name) return `name|${name}`;
-  if (target.testId) return `test|${target.testId}`;
-  // Only a short one-line text names a control; a paragraph names a page.
-  // The same rule, and the same forty, as rig/shape.py's K_TEXT_IDENTITY_MAX.
-  // `[...text].length`: code points, as Python's `len` counts -- a label that
+  // Only short one-line free text names a control; a paragraph names a page.
+  // The same rule, and the same forty, as identity.py's K_TEXT_IDENTITY_MAX --
+  // applied to the accessible NAME as well as the innerText, because a name is
+  // free text off the page too. Chrome's accessible name for the body of a
+  // mail is the whole mail, and a shape keyed on the words of one mail cannot
+  // match the next.
+  //
+  // `[...value].length`: code points, as Python's `len` counts -- a label that
   // ends in an emoji is one character on both sides, not two here.
-  if (text && [...text].length <= 40 && !text.includes("\\n")) return `text|${text}`;
+  const namesAControl = (value) => [...value].length <= 40 && !value.includes("\\n");
+  if (target.role && name && namesAControl(name)) return `${target.role}|${name}`;
+  if (name && namesAControl(name)) return `name|${name}`;
+  if (target.testId) return `test|${target.testId}`;
+  if (text && namesAControl(text)) return `text|${text}`;
   return `anon|${kind}`;
 }
 

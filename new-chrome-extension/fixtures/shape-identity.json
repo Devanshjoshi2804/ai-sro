@@ -192,5 +192,77 @@
       "text": "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy😀"
     },
     "identity": "text|yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy😀"
+  },
+  {
+    "name": "the body of a mail is what a page says, not what a control is called",
+    "kind": "click",
+    "target": {
+      "component": null,
+      "role": null,
+      "name": "a customer type :- GGD\ndescription :- leaning new SRO type 01",
+      "testId": null,
+      "text": null
+    },
+    "identity": "anon|click"
+  },
+  {
+    "name": "the same paragraph arriving as name AND text is refused by both doors",
+    "kind": "click",
+    "target": {
+      "component": null,
+      "role": null,
+      "name": "a customer type :- GGD\ndescription :- leaning new SRO type 01",
+      "testId": null,
+      "text": "a customer type :- GGD\ndescription :- leaning new SRO type 01"
+    },
+    "identity": "anon|click"
+  },
+  {
+    "name": "a role does not rescue a paragraph",
+    "kind": "click",
+    "target": {
+      "component": null,
+      "role": "textbox",
+      "name": "a customer type :- GGD\ndescription :- leaning new SRO type 01",
+      "testId": null,
+      "text": null
+    },
+    "identity": "anon|click"
+  },
+  {
+    "name": "a forty-character name still names a control",
+    "kind": "click",
+    "target": {
+      "component": null,
+      "role": null,
+      "name": "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
+      "testId": null,
+      "text": null
+    },
+    "identity": "name|yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
+  },
+  {
+    "name": "a name longer than forty characters is a sentence, not a control",
+    "kind": "click",
+    "target": {
+      "component": null,
+      "role": null,
+      "name": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "testId": null,
+      "text": null
+    },
+    "identity": "anon|click"
+  },
+  {
+    "name": "refusing the name falls through to a developer-assigned identifier",
+    "kind": "click",
+    "target": {
+      "component": null,
+      "role": null,
+      "name": "a customer type :- GGD\ndescription :- leaning new SRO type 01",
+      "testId": "compose-body",
+      "text": null
+    },
+    "identity": "test|compose-body"
   }
 ]

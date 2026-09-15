@@ -49,6 +49,28 @@ def _saver() -> Gesture:
     return next(g for g in _gestures() if g.requests)
 
 
+def _twice_over(*, sent: str, then: str) -> tuple[Gesture, Gesture]:
+    """The same save, demonstrated twice with different values.
+
+    What a job demonstrated twice actually looks like in the store: one step
+    citing both doings, each carrying its own create. The fixture's save posts
+    `{"clientCode": …, "dock": "D3"}` to `/api/orders`, so `clientCode` is the
+    key that varies and `dock` is the structure.
+    """
+
+    def _doing(gesture_id: str, code: str) -> Gesture:
+        one = copy.deepcopy(_saver())
+        one.id = gesture_id
+        keep = next(r for r in one.requests if r.method == "POST" and "orders" in r.url)
+        text = json.dumps({"clientCode": code, "dock": "D3"})
+        one.requests = [
+            replace(keep, request_body=replace(keep.request_body, text=text))  # type: ignore[arg-type]
+        ]
+        return one
+
+    return _doing("doing-1", sent), _doing("doing-2", then)
+
+
 def test_the_actions_offered_are_the_actions_accepted() -> None:
     """The enum the model is shown and the set its answer is checked against
     are one list. Parting them either offers an action that falls back to the
@@ -447,6 +469,8 @@ async def _planned(
     effort: Effort | None = None,
     starts_on: str | None = None,
     allow_focus: bool = False,
+    verified_writes: tuple[VerifiedWrite, ...] = (),
+    seen: Mapping[str, frozenset[str]] | None = None,
 ) -> tuple[Planned, FakeAsker]:
     asker = FakeAsker(answer)
     planned = await plan_step(
@@ -460,6 +484,8 @@ async def _planned(
         asker=asker,
         model="m",
         effort=effort,
+        verified_writes=verified_writes,
+        seen=seen or {},
     )
     return planned, asker
 
@@ -572,7 +598,9 @@ async def test_a_recorded_call_with_no_body_is_replayed_as_it_was() -> None:
     assert planned.why == "no target", "nothing was downgraded"
 
 
-async def test_an_http_plan_carries_the_body_the_operator_sent() -> None:
+async def test_an_http_plan_carries_the_body_the_operator_sent_where_nothing_varies() -> None:
+    """A job with no parameters replays exactly as it was demonstrated, which is
+    what most calls still are."""
     saver = _saver()
     post = next(r for r in saver.requests if r.method == "POST")
     assert post.request_body is not None
@@ -581,6 +609,52 @@ async def test_an_http_plan_carries_the_body_the_operator_sent() -> None:
 
     assert planned.payload["body"] == post.request_body.text
     assert planned.payload["body"], "the fixture's save posts a body"
+
+
+async def test_an_http_plan_aims_the_operators_body_at_this_runs_values() -> None:
+    """The defect this whole path existed with: the payload carried
+    `call.request_body.text` and nothing put the run's values into it, so a
+    replay created the record the DEMONSTRATION created. The operator asks for
+    one code and the warehouse is told another, and answers 201 for it.
+    """
+    first, second = _twice_over(sent="ACME", then="WIDGET")
+    step = Step(order=0, says="save", system=None, cites=[first.id, second.id])
+
+    planned, _ = await _planned(
+        cited=[first, second],
+        answer=_answer(kind="http.send"),
+        step=step,
+        values={"clientCode": "THIRD"},
+        verified_writes=(VerifiedWrite(method="POST", path_pattern="/api/orders"),),
+        seen={"clientCode": frozenset({"ACME", "WIDGET"})},
+    )
+
+    assert planned.kind == "http.send"
+    assert json.loads(str(planned.payload["body"]))["clientCode"] == "THIRD"
+
+
+async def test_a_body_that_cannot_be_aimed_downgrades_to_clicking_save() -> None:
+    """The form transformed what was typed -- the ledger's own gotcha, `csttyp
+    truncates at 4 chars` -- so the typed value is nowhere in the body and
+    nothing can say where this run's value goes. Sending the recorded bytes
+    would send the demonstration's value, so it falls through to the interface
+    the same way an unreplayable body does, and the click still works.
+    """
+    first, second = _twice_over(sent="ACME", then="WIDGET")
+    step = Step(order=0, says="save", system=None, cites=[first.id, second.id])
+
+    planned, _ = await _planned(
+        cited=[first, second],
+        answer=_answer(kind="http.send"),
+        step=step,
+        values={"clientCode": "THIRD"},
+        verified_writes=(VerifiedWrite(method="POST", path_pattern="/api/orders"),),
+        # The operator was seen typing something the body never carried.
+        seen={"clientCode": frozenset({"TRUNCATED"})},
+    )
+
+    assert planned.kind == "ui.perform"
+    assert "cannot be re-aimed" in planned.why
 
 
 async def test_an_http_plan_for_a_step_whose_evidence_made_no_call_plans_nothing() -> None:

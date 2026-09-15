@@ -78,6 +78,7 @@ from sro.domain.execution.planning import Look, Planned
 from sro.domain.execution.secrets import without_secrets
 from sro.domain.execution.verified_writes import VerifiedWrite
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun, new_run_id
+from sro.domain.execution.write_plan import seen_values
 from sro.domain.observation.gesture import Gesture
 from sro.domain.shared.hosts import screen_of, system_of
 from sro.domain.shared.identifiers import DeviceId, TenantId
@@ -542,6 +543,7 @@ async def run_workflow(
     # operator actually was and is where a plan may SEND the browser;
     # `replayable` adds the origins their page's own requests named, which is
     # what `http.send` replays a demonstrated call to.
+    observed = seen_values(workflow)
     standing = stood_on(workflow, by_id)
     replayable = allowlist(workflow, by_id)
     ordered = sorted(workflow.steps, key=lambda s: s.order)
@@ -877,6 +879,11 @@ async def run_workflow(
                             failure=verdict.reason if verdict else None,
                             failed_look=after_failed,
                             verified_writes=verified_writes,
+                            # What each declared parameter has been seen taking,
+                            # which is how a value this run supplies finds its
+                            # slot in a recorded body. Read off the stored job
+                            # once, before the loop.
+                            seen=observed,
                             tenant_id=tenant_id.value,
                             secret_for=secret_for,
                             opened=opened,

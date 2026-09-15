@@ -43,6 +43,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Awaitable, Callable, Mapping
+from types import MappingProxyType
 from typing import get_args
 
 from sro.application.capture.rig_wire import headers_without_markers
@@ -69,6 +70,7 @@ from sro.domain.execution.planning import (
 )
 from sro.domain.execution.secrets import field_of, needs_a_secret, secret_key_for
 from sro.domain.execution.verified_writes import VerifiedWrite, verified_write_for
+from sro.domain.execution.write_plan import write_plan_for
 from sro.domain.observation.gesture import Gesture, Kind
 from sro.domain.observation.trim import trim
 from sro.domain.shared.hosts import REDACTED, origin_of
@@ -138,6 +140,7 @@ async def plan_step(
     failure: str | None = None,
     failed_look: Look | None = None,
     verified_writes: tuple[VerifiedWrite, ...] = (),
+    seen: Mapping[str, frozenset[str]] = MappingProxyType({}),
     tenant_id: str = "",
     secret_for: SecretFor | None = None,
 ) -> Planned:
@@ -207,13 +210,48 @@ async def plan_step(
             return Planned(
                 "none", {}, "http.send planned for a step whose evidence carries no call", answer
             )
+        aimed = write_plan_for(
+            step,
+            {gesture.id: gesture for gesture in cited},
+            values,
+            verified_writes,
+            seen,
+        )
         if unreplayable(call):
             # Falls through to the ui.perform below rather than returning
             # "none": a step the operator performed by clicking Save is still
             # performable by clicking Save, and planning nothing burns it.
             why = f"recorded call is not replayable; {why}"
+        elif aimed is None and values and verified_write_for(call, verified_writes) is not None:
+            # The run was given values and nothing could work out where they go.
+            # Sending the recorded body would send the DEMONSTRATION's values --
+            # the operator asks for `GPDP` and the warehouse is told `GGD`, and
+            # answers 201 for it. So this falls through the same way an
+            # unreplayable body does, to the interface where the values reach
+            # the form through `value_for` as they always have.
+            #
+            # Gated on the LEDGER, and that is what makes it narrow enough to
+            # be right. A run holds its values for the whole job, so "this run
+            # has values" says nothing about whether a given call carries any
+            # of them, and falling through on that alone turned every replay
+            # into a click. A `(method, path)` this deployment has individually
+            # watched succeed is a real state change, and one this run cannot
+            # aim is the one place a stale value costs a record.
+            #
+            # It also catches what inspecting the body cannot. The ledger's own
+            # gotcha is `csttyp truncates at 4 chars`: the operator typed
+            # `ZV9680`, the body went out as `ZV96`, and no value in the body
+            # equals anything anybody was seen typing. A rule that looked for
+            # the demonstrated value inside the bytes would find nothing and
+            # send the truncation.
+            why = f"the recorded body cannot be re-aimed at this run's values; {why}"
         else:
-            body = call.request_body.text if call.request_body and call.request_body.text else None
+            # `aimed` where there is one, and the recorded bytes where there is
+            # nothing to aim -- a job with no parameters replays exactly as it
+            # was demonstrated, which is what it has always done and what most
+            # calls still are.
+            recorded = call.request_body.text if call.request_body else None
+            body = aimed.body if aimed is not None else (recorded or None)
             payload: dict[str, object] = {
                 "method": call.method.upper(),
                 "url": call.url,

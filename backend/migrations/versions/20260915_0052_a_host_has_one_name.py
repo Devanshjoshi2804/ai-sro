@@ -23,8 +23,8 @@ somebody writes down once, in the knowledge base that already holds facts of
 exactly that shape. It is not a sentence re-invented by a model fifty-five
 times a day.
 
-Revision ID: 0049
-Revises: 0048
+Revision ID: 0052
+Revises: 0051
 """
 
 from __future__ import annotations
@@ -32,8 +32,8 @@ from __future__ import annotations
 import sqlalchemy as sa
 from alembic import op
 
-revision = "0049"
-down_revision = "0048"
+revision = "0052"
+down_revision = "0051"
 branch_labels = None
 depends_on = None
 

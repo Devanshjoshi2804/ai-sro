@@ -552,6 +552,17 @@ class FakeRunRepository:
     def __init__(self) -> None:
         self.rows: dict[tuple[str, str], Run] = {}
 
+    async def in_flight(self, tenant_id: TenantId, device_id: DeviceId) -> str | None:
+        running = [
+            run
+            for run in self.rows.values()
+            if run.tenant_id == tenant_id and run.device_id == device_id and run.ended_at is None
+        ]
+        newest = max(running, key=lambda run: run.started_at, default=None)
+        # `str`, as the port says and as the SQL answers: a `RunId` here reads
+        # the same in a print and compares unequal to everything the caller has.
+        return None if newest is None else str(newest.id)
+
     async def add(self, run: Run) -> None:
         self.rows[(str(run.tenant_id), str(run.id))] = run
 
@@ -1036,6 +1047,16 @@ class FakeObservationRepository:
         ]
         return tuple(sorted(found, key=lambda batch: batch.started_at))
 
+    async def received_before(
+        self, tenant_id: TenantId, cutoff: datetime
+    ) -> tuple[ObservationBatch, ...]:
+        found = [
+            batch
+            for batch in self.rows.values()
+            if batch.tenant_id == tenant_id and batch.received_at <= cutoff
+        ]
+        return tuple(sorted(found, key=lambda batch: batch.received_at))
+
     async def for_recording(
         self, tenant_id: TenantId, recording_id: RecordingId
     ) -> tuple[ObservationBatch, ...]:
@@ -1355,11 +1376,26 @@ class FakeToolCallRepository:
 
     def __init__(self) -> None:
         self.claimed: dict[tuple[str, str], str] = {}
+        self.when: dict[tuple[str, str], datetime] = {}
 
-    async def remember(self, tenant_id: TenantId, key: str, *, tool: str, at: datetime) -> bool:
-        if (tenant_id.value, key) in self.claimed:
-            return False
-        self.claimed[(tenant_id.value, key)] = tool
+    async def remember(
+        self,
+        tenant_id: TenantId,
+        key: str,
+        *,
+        tool: str,
+        at: datetime,
+        stale_after: timedelta | None = None,
+    ) -> bool:
+        where = (tenant_id.value, key)
+        if where in self.claimed:
+            # A claim that has aged past the window is taken over, which is
+            # what lets a job be done again tomorrow with the same values.
+            held = self.when.get(where)
+            if stale_after is None or held is None or held >= at - stale_after:
+                return False
+        self.claimed[where] = tool
+        self.when[where] = at
         return True
 
 
@@ -1663,6 +1699,16 @@ class FakeWorkflowRunRepository:
         # moment it names.
         found.sort(key=lambda run: (when(run.started_at), run.id), reverse=True)
         return tuple(deepcopy(run) for run in found[:limit])
+
+    async def failures(self, tenant_id: TenantId) -> Mapping[str, int]:
+        # `failed` and `refused` only: a run that stopped to ask is the job
+        # asking, and one a person aborted is a person changing their mind.
+        broke: dict[str, int] = {}
+        for run in self.rows.values():
+            if run.tenant != tenant_id.value or run.outcome not in ("failed", "refused"):
+                continue
+            broke[run.workflow_id] = broke.get(run.workflow_id, 0) + 1
+        return broke
 
     async def tallies(self, tenant_id: TenantId) -> Mapping[str, tuple[int, int]]:
         # A workflow with no runs contributes no key, as the store's GROUP BY

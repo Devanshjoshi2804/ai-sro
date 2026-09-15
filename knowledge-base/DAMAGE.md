@@ -2,7 +2,7 @@
 
 Records of state this project changed on the live system and could not restore.
 
-## Hold HLD0307485 left applied on LPN 00000776442003826960 — 2026-08-18
+## 1. Hold HLD0307485 left applied on LPN 00000776442003826960 — 2026-08-18 — **RESOLVED**
 
 **State:** `onHold: true`, quantity 65, status AV (unchanged), holdsHistory 1 row.
 **Hold:** `HLD0307485` prefix `SG` — "Greenlight Hold", type RH, severity 3.
@@ -22,6 +22,9 @@ TYPE, not a malformed request.
 allowMoveFlag and allowInventoryStatusChangeFlag, none of which describe who may release the hold.
 The LPN was verified unheld with an empty hold history before the write, and the least restrictive
 of the 60 hold definitions was chosen deliberately.
+
+**Cleared 2026-09-15:** the user closed the hold from an account with permission to release type
+RH. The LPN can be moved again. The original instruction, kept for the record:
 
 **To clear it:** an account with permission to release type RH holds must release hold
 `HLD0307485` on LPN `00000776442003826960` (detail `D0000006VDYW`). Effect meanwhile: the LPN

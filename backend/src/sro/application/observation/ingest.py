@@ -23,7 +23,12 @@ from sro.application.ports.blob import BlobStore
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock
 from sro.config import get_settings
-from sro.domain.observation.batch import CaptureMode, ObservationBatch, RejectedEvent
+from sro.domain.observation.batch import (
+    CaptureMode,
+    ObservationBatch,
+    RejectedEvent,
+    check_times,
+)
 from sro.domain.observation.gesture import GestureBatch
 from sro.domain.shared.errors import DomainError
 from sro.domain.shared.identifiers import BatchId, DeviceId, RecordingId
@@ -211,6 +216,14 @@ class IngestObservation:
             # measured, on this tenant's real traffic: a live JWT and the
             # `&code=` carrying it reached the blob store with no marker on
             # them at all.
+            # Before the object is written, not after. `ObservationBatch`
+            # asks the same two questions and it is built below, once the blob
+            # has an address -- so an envelope carrying an offset-less time
+            # answered 422 with the NDJSON already in the store, the
+            # transaction rolled back, and no row left pointing at it. Neither
+            # a purge nor the retention sweep can reach an object nothing
+            # names.
+            check_times(started_at, ended_at, now)
             redacted = redact_events(admission.accepted)
             payload = _ndjson(redacted)
             # ponytail: the daily byte budget is enforced in the extension only.

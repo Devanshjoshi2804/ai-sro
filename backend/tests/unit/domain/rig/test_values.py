@@ -368,6 +368,27 @@ def test_a_pause_longer_than_the_browsers_own_tail_is_two_doings() -> None:
     assert worked_in_both(apart, gap=600) == set()
 
 
+def test_two_operators_working_at_once_are_not_one_person_with_two_tabs() -> None:
+    """A sitting is somebody working, and `stream_id` is which browser.
+
+    Sorted by time alone, this tenant's evidence is one operator in a mailbox
+    and another in the warehouse, interleaved -- and the miner would propose a
+    job that reads the first person's mail and fills the second person's form.
+    Every sibling that does this arithmetic partitions by stream
+    (`checks.around`, `read_gesture`), and a real tenant here holds more than
+    one: acme's 555 gestures are two browsers.
+    """
+    mine = [replace(_at(MAIL, at), stream_id="dev_mine") for at in (100, 120)]
+    theirs = [replace(_at(WMS, at), stream_id="dev_theirs") for at in (106, 130)]
+
+    assert worked_in_both([*mine, *theirs], gap=600) == set()
+
+    # And the same four gestures in ONE browser still link, so this is a
+    # partition and not a way of switching the rule off.
+    together = [replace(one, stream_id="dev_mine") for one in (*mine, *theirs)]
+    assert worked_in_both(together, gap=600) == {one.id for one in together}
+
+
 def test_this_deployments_own_console_is_not_a_second_system() -> None:
     # The operator had the console open while working. `admit` refuses the
     # apparatus at the door and `work_only` strikes it from a job; this is the

@@ -152,8 +152,14 @@ class _Depot(BaseHTTPRequestHandler):
         length = int(self.headers.get("content-length") or 0)
         body = self.rfile.read(length)
         _Depot.writes.append(body.decode("utf-8", "replace"))
-        # 201, which is what every real create in both stores came back with.
-        self._send(201, b'{"ok": true}', "application/json")
+        # 201, which is what every real create in both stores came back with,
+        # carrying the name the depot gave the record. A real create answers
+        # with one and `made_by` reads it off the 201's own body -- it is the
+        # only place a browser can learn what the warehouse called the thing
+        # it just made, and a run that cannot say which records it created
+        # cannot be checked and cannot be undone by hand.
+        made = f"ORD-{len(_Depot.writes):04d}"
+        self._send(201, json.dumps({"ok": True, "id": made}).encode(), "application/json")
 
 
 def call(

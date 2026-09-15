@@ -16,7 +16,7 @@ export class ApiError extends Error {
   }
 }
 
-async function call(path, { method = "GET", body, form, signal } = {}) {
+async function call(path, { method = "GET", body, form, signal, asDevice = true } = {}) {
   const [base, token, secret] = await Promise.all([
     state.apiUrl(),
     state.token(),
@@ -36,7 +36,12 @@ async function call(path, { method = "GET", body, form, signal } = {}) {
       // fires a run in a live warehouse. Sent on every call rather than on the
       // four that check it: it goes to the same backend either way, and a list
       // of which endpoints are allowed to see it is a list that goes stale.
-      ...(secret ? { "X-Device-Secret": secret } : {}),
+      // `asDevice: false` for the one route that is the TENANT's and refuses a
+      // browser proving itself (`tenant_only` 403s rather than quietly serving
+      // the request as the tenant). This extension is already holding the
+      // tenant's own credential -- the operator pasted it -- so the header is
+      // left off rather than the guard being loosened for every device.
+      ...(secret && asDevice ? { "X-Device-Secret": secret } : {}),
       ...(body === undefined ? {} : { "Content-Type": "application/json" }),
     },
     body: form !== undefined ? form : body === undefined ? undefined : JSON.stringify(body),
@@ -164,8 +169,26 @@ export const api = {
       id: run.id,
       source: "rig",
       status: run.outcome,
+      // The things this run was asked to do its repeated block for. The card
+      // draws a line per thing so somebody watching knows which of the three
+      // records is being made now, and how many are left.
+      items: run.items || [],
+      // The job of this tenant's that takes back what this run made, where one
+      // exists. An id, never a press: what taking it back would have to do --
+      // address each record by whatever the warehouse called it -- is a
+      // mapping nothing here has evidence for.
+      undo: run.undo || null,
       steps: (run.steps || []).map((step) => ({
         index: step.order,
+        // Which thing on the list this row was done for, and which step of the
+        // job it is. `null` on every step of a job that does one thing once,
+        // which is most of them.
+        item: step.item ?? null,
+        of_step: step.of_step ?? step.order,
+        // What the warehouse called the record this step made, where it made
+        // one. The panel says which records a run created, because nothing
+        // here can take one back and a person has to be able to go and look.
+        made: step.made || {},
         outcome: step.verdict,
         says: step.says,
         reason: step.reason,
@@ -337,41 +360,11 @@ export const api = {
   runWrong: (runId, because) =>
     call(`/v1/runs/${encodeURIComponent(runId)}/wrong`, { method: "POST", body: { because } }),
 
-  /** Tasks this operator keeps doing on one system. The panel asks about the
-   * tab it is docked beside; the host is what makes it that question. */
-  candidates: (host) =>
-    call(`/v1/candidates?seen_at_least=3&host=${encodeURIComponent(host)}`),
-
-  teachCandidate: (id) =>
-    call(`/v1/candidates/${encodeURIComponent(id)}/teach`, { method: "POST", body: {} }),
-
-  /** Two candidates a person has said are one job, taught as one skill. Each
-   * time the operator did both halves in a row is one demonstration of it. */
-  teachTogether: (id, otherId) =>
-    call(`/v1/candidates/${encodeURIComponent(id)}/teach-together`, {
-      method: "POST",
-      body: { other_id: otherId },
-    }),
-
-  /** What a person says two candidates are to each other. The model may only
-   * ever have suggested it. */
-  answerJoin: (id, otherId, kind, answer) =>
-    call(`/v1/candidates/${encodeURIComponent(id)}/joins`, {
-      method: "POST",
-      body: { other_id: otherId, kind, answer },
-    }),
-
-  dismissCandidate: (id, reason) =>
-    call(`/v1/candidates/${encodeURIComponent(id)}/dismiss`, {
-      method: "POST",
-      body: { reason },
-    }),
-
-  /** What a sentence asks for. Ranks the whole taught library every time --
-   * there is no field on this request to restrict it to one skill, and the
-   * panel does not invent one: a sentence offered against one candidate that
-   * names a different taught task is answered about that task. */
-  resolveIntent: (utterance) => call("/v1/intent/resolve", { method: "POST", body: { utterance } }),
+  // The mining pipeline's six calls were here -- the candidate list, the two
+  // teach routes, the join answer, the dismissal and the sentence resolver.
+  // Every one of them served an offer to teach a SKILL from recordings, and
+  // this deployment runs the rig, whose jobs arrive with their steps. The
+  // routes are still on the backend, where the console uses them.
 
   /** This operator's running conversation, started if they have none. */
   currentThread: () => call("/v1/threads/current"),
@@ -383,9 +376,9 @@ export const api = {
    * door". It spends a model call doing it -- about a fifth of a cent -- and
    * the backend bills and caps that per tenant.
    *
-   * Not `resolveIntent`, which is the other resolver: that one reads an
-   * utterance over the tenant's taught SKILLS with arithmetic and no model.
-   * This reads it over the mined JOBS. Two vocabularies, one verb.
+   * The rig's resolver, and now the only one this extension has. The other
+   * read an utterance over the tenant's taught SKILLS; it went with the rest
+   * of the mining pipeline's offers.
    */
   readChat: (utterance) => call("/v1/chat", { method: "POST", body: { utterance } }),
 
@@ -396,6 +389,21 @@ export const api = {
    * decides lives there and not here on purpose: a rule with a copy in two
    * languages drifts on one of them. */
   ask: (said) => call("/v1/ask", { method: "POST", body: { said } }),
+
+  /** Keep one password, so a run can type it without anybody recording it.
+   *
+   * The whole reason this exists in the extension: the person who has to
+   * supply it is standing in a warehouse with this panel open. They have no
+   * console, no shell and no reason to know what a vault key is, so a design
+   * where a password is stored by a curl command is a design where it is
+   * never stored.
+   *
+   * Nothing keeps it on this side. It is read out of the field, sent, and the
+   * field is cleared -- it is never written to `chrome.storage`, never logged,
+   * and what comes back is the key it was stored under, never the value.
+   */
+  keepSecret: ({ system, field, value }) =>
+    call("/v1/secrets", { method: "PUT", body: { system, field, value }, asDevice: false }),
 
   /** Fires waiting on a person: a rule went off and asked before it ran.
    *

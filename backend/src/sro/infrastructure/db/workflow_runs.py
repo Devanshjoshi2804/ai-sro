@@ -57,6 +57,7 @@ def _run_values(run: WorkflowRun) -> dict[str, Any]:
         "finished_at": None if run.finished_at is None else when(run.finished_at),
         "outcome": run.outcome,
         "from_step": run.from_step,
+        "items": [dict(item) for item in run.items],
         "withheld": list(run.withheld),
         "in_tokens": run.in_tokens,
         "out_tokens": run.out_tokens,
@@ -86,6 +87,9 @@ def _step_values(run_id: str, step: RunStep) -> dict[str, Any]:
         "thought_tokens": step.thought_tokens,
         "cost_usd": step.cost_usd,
         "unpriced": step.unpriced,
+        "of_step": step.of_step,
+        "item": step.item,
+        "made": dict(step.made),
     }
 
 
@@ -108,6 +112,9 @@ def _row_to_step(row: WorkflowRunStepRow) -> RunStep:
         thought_tokens=row.thought_tokens,
         cost_usd=row.cost_usd,
         unpriced=row.unpriced,
+        of_step=row.of_step,
+        item=row.item,
+        made=dict(row.made or {}),
     )
 
 
@@ -125,6 +132,7 @@ def _row_to_run(row: WorkflowRunRow, steps: list[RunStep]) -> WorkflowRun:
         finished_at=None if row.finished_at is None else row.finished_at.isoformat(),
         outcome=row.outcome,
         from_step=row.from_step,
+        items=[dict(item) for item in (row.items or [])],
         steps=steps,
         withheld=list(row.withheld),
         in_tokens=row.in_tokens,
@@ -258,6 +266,22 @@ class SqlWorkflowRunRepository(WorkflowRunRepository):
             )
         ).scalars()
         return await self._with_steps(rows.all())
+
+    async def failures(self, tenant_id: TenantId) -> Mapping[str, int]:
+        # One count for the tenant, beside `tallies` and for the same reason it
+        # is batched. `stopped` and `aborted` are deliberately not here: a run
+        # that stopped to ask is the job asking, and one a person aborted is a
+        # person changing their mind.
+        query = (
+            select(WorkflowRunRow.workflow_id, func.count())
+            .where(
+                WorkflowRunRow.tenant_id == tenant_id.value,
+                WorkflowRunRow.outcome.in_(("failed", "refused")),
+            )
+            .group_by(WorkflowRunRow.workflow_id)
+        )
+        rows = (await self._session.execute(query)).all()
+        return {workflow_id: int(count) for workflow_id, count in rows}
 
     async def tallies(self, tenant_id: TenantId) -> Mapping[str, tuple[int, int]]:
         # The rig's two counts off the runs index, batched: it asked

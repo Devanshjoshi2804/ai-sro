@@ -1,5 +1,16 @@
 # Model-first workflow mining
 
+> **Correction, 2026-09-14.** Where this document cites "86.9% against 78.8%"
+> for state-grounded versus screenshot verification, with human agreement at
+> 94% and "artifact verification 192 of 321 tasks": those figures could not be
+> found in any paper, including the one this repository cites for them
+> (arXiv:2410.00689, which reports 84.24% against 70.04% over 322 tasks, over
+> 84% human agreement, and has no artifact category). The plan's conclusion --
+> status first, read second, picture last -- is supported by the real numbers.
+> Left in place rather than rewritten: this file is a record of what was
+> planned and when. `verify.py` and `belts.py` carry the corrected figures.
+
+
 ## Context
 
 The owner drew an architecture on a whiteboard: every captured gesture goes

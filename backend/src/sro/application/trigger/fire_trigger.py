@@ -268,6 +268,20 @@ class FireTrigger:
             # the next pass that reads those gestures back.
             logger.info("trigger %s did not start its job: %s", trigger.id, refused)
             return Fired(trigger.id, skipped=str(refused))
+        # The run is already committed, on its own unit of work, and this is a
+        # second transaction. A failure in between leaves a run started and a
+        # trigger that does not know it fired, so the next tick fires again;
+        # two concurrent ticks both read the pre-`fired` row and both start.
+        #
+        # Left as two on purpose. Both outcomes are already caught downstream
+        # and caught better than a claim here would catch them: the partial
+        # unique index on running runs refuses a second run for the same
+        # browser, and `tool_calls.remember` refuses the same job's same write
+        # with the same values inside half an hour. A claim taken before the
+        # start would have to be released on every refusal path above --
+        # a closed laptop, an aged-out job -- and a released claim that missed
+        # one of them is an arrival trigger that silently drops the mail it
+        # was fired for.
         trigger.fired(now, run_id)
         await uow.triggers.save(trigger)
         await uow.commit()

@@ -91,6 +91,14 @@ const NEXT = {
  * without wiring a worker up to it.
  */
 export function ledger(thread, local = {}, { onPress, runs } = {}) {
+  // Loud here rather than silent on the press. A caller once handed this a
+  // string -- a local in `show()` shadowed the handler of the same name -- and
+  // every button in the thread threw "onPress is not a function" into a click
+  // listener nobody was watching: the panel drew cards, the operator pressed
+  // them, and nothing happened, for thirteen minutes, twice.
+  if (onPress !== undefined && typeof onPress !== "function") {
+    throw new TypeError("ledger was given something to press with that cannot be called");
+  }
   const root = document.createElement("div");
   root.className = "thread";
 
@@ -105,7 +113,20 @@ export function ledger(thread, local = {}, { onPress, runs } = {}) {
   // full of them is noise -- but the operator reads one place, and things that
   // happened belong in the order they happened.
   const entries = [
-    ...messages.map((message) => ({ at: message.said_at, message })),
+    // Not the mining candidates. This deployment runs the rig: a job it has
+    // mined is offered by the rig's own paths -- a prefix match while somebody
+    // works, a page rule they made, a job a card asks about -- and the older
+    // pipeline's "you've done this 4 times, want me to do the next one?" is an
+    // offer to teach a SKILL from recordings, which is not the system this
+    // browser drives any more. An operator pressed one and got "the doings
+    // differ too much", for work the rig already holds as a seven-step job.
+    //
+    // Dropped where it is read rather than where it is written: the backend
+    // goes on mining candidates and the console goes on reviewing them. What
+    // ends here is offering them to the person at the warehouse.
+    ...messages
+      .filter((message) => message.decision?.kind !== "offer")
+      .map((message) => ({ at: message.said_at, message })),
     ...(local?.nudges || []).map((nudge) => ({ at: nudge.at, nudge })),
     ...(local?.answer ? [{ at: at(local.answer.askedAt), answer: local.answer }] : []),
     ...(local?.nearMisses || []).map((miss) => ({ at: at(miss.at), miss })),
@@ -274,6 +295,22 @@ function waitingOnYou(card, onPress) {
     item.append(said);
   }
 
+  // The page this card is about is not open any more.
+  //
+  // An operator signed in, the run took the tab off the login page, and this
+  // card was still here asking whether to sign in. Pressing it started a run
+  // with nowhere to go -- "no tab is open on keycloak-...", a red cross, and
+  // eighteen seconds of a model working out that there was nothing to work
+  // on. So it keeps its words and loses its buttons, the same rule an offer
+  // about another system follows.
+  if (card.still_there === false) {
+    const gone = document.createElement("p");
+    gone.className = "detail";
+    gone.textContent = "You have moved on from that page — nothing to do here.";
+    item.append(gone);
+    return item;
+  }
+
   const yes = document.createElement("button");
   yes.type = "button";
   yes.textContent = "Yes, do it";
@@ -406,13 +443,34 @@ function offeringToFinish(nudge, onPress) {
   item.dataset.id = nudge.id;
 
   const typed = Object.values(nudge.values || {}).join(", ");
+  // How many things this one press would do.
+  //
+  // "Add these three equipment types" is one job done three times, and the
+  // person pressing has to be told that before they press: one press, three
+  // records, and a warehouse record cannot be un-created. Said in the
+  // sentence rather than under it, because a count below the button is a
+  // count somebody reads after deciding.
+  const things = (nudge.items || []).length;
   const what = document.createElement("p");
   what.className = "what";
   what.textContent =
     nudge.k > 0
       ? `${nudge.title} \u2014 ${typed}, so far. Want me to finish it?`
-      : `${nudge.title} \u2014 want me to do it?`;
+      : things > 1
+        ? `${nudge.title}, for ${things} things \u2014 want me to do them?`
+        : `${nudge.title} \u2014 want me to do it?`;
   item.append(what);
+
+  // And which things, in the order they would be done. What a person is being
+  // asked to authorise is these records and not a number.
+  if (things > 1) {
+    const listed = document.createElement("p");
+    listed.className = "detail";
+    listed.textContent = (nudge.items || [])
+      .map((one) => Object.values(one).join(" "))
+      .join(" \u00b7 ");
+    item.append(listed);
+  }
 
   const fields = new Map();
   for (const name of nudge.missing || []) {
@@ -530,6 +588,24 @@ function saying(message, onPress, spent = new Map(), { offers = [], runs, here =
     } else item.append(pressing(KINDS.offer, message, item, onPress));
   } else if (kind === "mail_match") {
     matched(item, message, offers, onPress);
+  } else if (kind === "which_job") {
+    // Two jobs it could have meant, and a person says which.
+    //
+    // Nothing here starts anything: the press says the job's own name back
+    // into the conversation, and the door reads that sentence with no
+    // ambiguity left in it. A button that started a run off a reading that
+    // had already said it was unsure would be the guess this question exists
+    // to avoid, wearing a confirmation.
+    const choosing = document.createElement("div");
+    choosing.className = "row";
+    for (const title of message.decision.titles || []) {
+      const one = document.createElement("button");
+      one.type = "button";
+      one.textContent = title;
+      one.addEventListener("click", () => onPress?.("which-job", message, item, one, { title }));
+      choosing.append(one);
+    }
+    item.append(choosing);
   } else if (kind === "question") {
     asking(item, message, onPress);
   } else if (kind === "failure") {

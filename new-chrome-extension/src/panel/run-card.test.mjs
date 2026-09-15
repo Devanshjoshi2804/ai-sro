@@ -346,6 +346,261 @@ test("drawn under a card that already stops the run, the card-level Stop is not 
   assert.ok(!labels(without).includes("Stop"));
 });
 
+
+test("a step refused for want of a password asks the person watching for it", async () => {
+  // The refusal a real operator hit. The step types a credential, the vault
+  // holds none, and the run ends -- and what the panel used to draw was a
+  // sentence naming a vault key, which is actionable by whoever deploys this
+  // system and by nobody standing in a warehouse. The field is here because
+  // the person who knows the password is here.
+  const run = {
+    id: "run_1",
+    source: "rig",
+    status: "failed",
+    steps: [
+      { index: 0, outcome: "held", says: "type the username" },
+      {
+        index: 1,
+        outcome: "failed",
+        says: "Type the password.",
+        sent: {
+          kind: "none",
+          payload: {
+            needs_secret: {
+              system: "keycloak.test",
+              field: "password",
+              key: "new/keycloak.test/password",
+            },
+          },
+        },
+      },
+    ],
+  };
+  const kept = [];
+  const card = runCard(
+    { run },
+    {
+      onSecret: (one) => {
+        kept.push(one);
+        return { ok: true };
+      },
+    },
+  );
+  const row = card.kids.filter((kid) => kid.className === "step")[1];
+
+  assert.match(
+    words(row),
+    /needs your password for keycloak\.test/,
+    "the row did not say which password it wanted, in words anybody can act on",
+  );
+  assert.ok(
+    !words(row).includes("new/keycloak.test/password"),
+    "the vault key was put in front of somebody who cannot use it",
+  );
+
+  const field = of(row, "input")[0];
+  assert.equal(field.type, "password", "a password was asked for in a field that shows it");
+  field.value = "not-in-any-fixture-9c41";
+  const save = of(row, "button").find((button) => button.textContent === "Save for this job");
+  await save.listeners.click[0]();
+
+  assert.deepEqual(kept, [
+    { system: "keycloak.test", field: "password", value: "not-in-any-fixture-9c41" },
+  ]);
+  assert.equal(field.value, "", "the password was left sitting in the panel");
+  assert.match(words(row), /Kept\./, "saving a password said nothing back");
+  assert.deepEqual(asMarkup, [], "a password reached the page as markup");
+});
+
+test("a blank box sends nothing, and a vault that refuses says so", async () => {
+  const run = {
+    id: "run_2",
+    source: "rig",
+    status: "failed",
+    steps: [
+      {
+        index: 0,
+        outcome: "failed",
+        says: "Type the password.",
+        sent: { kind: "none", payload: { needs_secret: { system: "wms.test", field: "password" } } },
+      },
+    ],
+  };
+  const kept = [];
+  const card = runCard(
+    { run },
+    {
+      onSecret: (one) => {
+        kept.push(one);
+        return { ok: false, error: "the secret store refused a write" };
+      },
+    },
+  );
+  const row = card.kids.filter((kid) => kid.className === "step")[0];
+  const save = of(row, "button").find((button) => button.textContent === "Save for this job");
+
+  await save.listeners.click[0]();
+  assert.deepEqual(kept, [], "an empty box was sent to the vault as a password");
+
+  of(row, "input")[0].value = "x";
+  await save.listeners.click[0]();
+  assert.match(
+    words(row),
+    /could not be kept: the secret store refused a write/,
+    "a vault that refused let the operator believe their password was stored",
+  );
+});
+
+test("a job done once per thing says which thing each run of the block is for", () => {
+  // Nineteen rows of "Click Save." with nothing saying which record each
+  // belongs to is a run nobody can read. The question somebody watching has is
+  // not which step it is on -- it is how many of the three are done.
+  const run = {
+    id: "run_1",
+    source: "rig",
+    status: "running",
+    items: [
+      { code: "8SITDWN2", name: "8-Sitdown Fork" },
+      { code: "8STANDUP2", name: "8-Stand Up Fork" },
+    ],
+    steps: [
+      { index: 0, item: null, of_step: 0, outcome: "held", says: "Read the mail." },
+      { index: 1, item: 0, of_step: 1, outcome: "held", says: "Click Add." },
+      { index: 2, item: 0, of_step: 2, outcome: "held", says: "Click Save." },
+      { index: 3, item: 1, of_step: 1, outcome: "held", says: "Click Add." },
+      { index: 4, item: 1, of_step: 2, says: "Click Save." },
+    ],
+  };
+
+  const card = runCard({ run });
+  const headings = card.kids.filter((kid) => kid.className === "thing").map((kid) => kid.textContent);
+
+  assert.deepEqual(headings, ["1 of 2 — 8SITDWN2 8-Sitdown Fork", "2 of 2 — 8STANDUP2 8-Stand Up Fork"]);
+  // One line per thing, not one per row: the block's six rows sit under it.
+  assert.equal(card.kids.filter((kid) => kid.className === "step").length, 5);
+  // And the step that is not part of the block has no line above it: the
+  // first heading comes after it, where the block begins.
+  const drawn = card.kids.map((kid) => kid.className);
+  assert.equal(drawn.indexOf("thing") > drawn.indexOf("step"), true, (
+    "the mail, which was read once, was given a heading of its own"
+  ));
+});
+
+test("a job that does one thing once draws exactly what it always did", () => {
+  const run = {
+    id: "run_2",
+    source: "rig",
+    status: "running",
+    items: [],
+    steps: [
+      { index: 0, item: null, outcome: "held", says: "type the code" },
+      { index: 1, item: null, says: "save" },
+    ],
+  };
+
+  const card = runCard({ run });
+
+  assert.deepEqual(card.kids.filter((kid) => kid.className === "thing"), []);
+});
+
+test("a finished run says which records it made", () => {
+  // Nothing in this system can take a warehouse record back. The guards in
+  // front of a run stop wrong records being made and do nothing about one that
+  // was, so a run says what it made in the warehouse's own words and a person
+  // can go and look.
+  const run = {
+    id: "run_1",
+    source: "rig",
+    status: "held",
+    items: [{ code: "8SITDWN2" }, { code: "8STANDUP2" }],
+    steps: [
+      { index: 0, item: 0, outcome: "held", says: "Click Save.", made: { equipmentTypeId: "4471" } },
+      { index: 1, item: 1, outcome: "held", says: "Click Save.", made: { equipmentTypeId: "4472" } },
+    ],
+  };
+
+  const card = runCard({ run });
+
+  assert.match(words(card), /made 2 records: 4471, 4472/);
+  assert.match(words(card), /Nothing here can take them back/, (
+    "an operator who has just watched two records be made has to know the"
+    + " taking-back is theirs to do"
+  ));
+});
+
+test("where a job of theirs takes the records back, the card says so", () => {
+  const run = {
+    id: "run_3",
+    source: "rig",
+    status: "held",
+    undo: "wfl_delete",
+    steps: [{ index: 0, outcome: "held", says: "Click Save.", made: { id: "4471" } }],
+  };
+
+  const said = words(runCard({ run }));
+
+  assert.match(said, /A job you have done before takes these back/);
+  // Said, not drawn as a button: what an undo has to do is address each record
+  // by whatever the warehouse called it, and a wrong mapping deletes the wrong
+  // record.
+  assert.ok(!of(runCard({ run }), "button").some((one) => /undo/i.test(one.textContent)));
+});
+
+test("a run that made nothing says nothing about records", () => {
+  const run = {
+    id: "run_2",
+    source: "rig",
+    status: "held",
+    steps: [{ index: 0, outcome: "held", says: "open the form", made: {} }],
+  };
+
+  assert.ok(!words(runCard({ run })).includes("made"));
+});
+
+test("a run that stopped to ask still says what it asked", () => {
+  // Twelve runs in one day, every one ending `stopped`, and every one drew
+  // this row as a bare pause glyph with no question on it -- the sentence was
+  // in the record and rendered only inside the branch that also holds the
+  // Approve, which a stopped run is not live enough to get.
+  const run = {
+    id: "run_1",
+    source: "rig",
+    status: "stopped",
+    steps: [
+      {
+        index: 0,
+        outcome: "awaiting",
+        says: "Click Save.",
+        reason: "the first of 3 is done — 8SITDWN2. Approve to do the other 2",
+      },
+    ],
+  };
+
+  const card = runCard({ run });
+
+  assert.match(words(card), /the first of 3 is done/, "the question was not drawn");
+  // The buttons stay with the live run: an awaiting row on a run that has
+  // ended is a record, and pressing Approve on it would approve nothing.
+  assert.deepEqual(of(card, "button").map((one) => one.textContent), []);
+});
+
+test("a live run still gets the two answers beside the question", () => {
+  const run = {
+    id: "run_2",
+    source: "rig",
+    status: "running",
+    steps: [
+      { index: 0, outcome: "awaiting", says: "save", sent: { kind: "ui.perform", payload: { action: "click" } } },
+    ],
+  };
+
+  // `stop: false`, so the card-level "Stop this run" is not also drawn: what
+  // is under test is the two answers on the ROW.
+  const card = runCard({ run }, { onPress: () => {}, stop: false });
+
+  assert.deepEqual(of(card, "button").map((one) => one.textContent), ["Approve", "Stop"]);
+});
+
 let failed = 0;
 for (const [name, fn] of tests) {
   try {

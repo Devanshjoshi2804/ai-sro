@@ -31014,6 +31014,21 @@
             "type": "integer",
             "title": "Order"
           },
+          "of_step": {
+            "type": "integer",
+            "title": "Of Step"
+          },
+          "item": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Item"
+          },
           "says": {
             "type": "string",
             "title": "Says"
@@ -31082,6 +31097,8 @@
         "type": "object",
         "required": [
           "order",
+          "of_step",
+          "item",
           "says",
           "verdict",
           "verdict_by",
@@ -31527,6 +31544,16 @@
             "type": "object",
             "title": "Values"
           },
+          "items": {
+            "items": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Items"
+          },
           "missing": {
             "items": {
               "type": "string"
@@ -31570,6 +31597,7 @@
         "required": [
           "workflow_id",
           "values",
+          "items",
           "missing",
           "error",
           "in_tokens",
@@ -35734,6 +35762,16 @@
             "type": "object",
             "title": "Values"
           },
+          "items": {
+            "items": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Items"
+          },
           "live": {
             "type": "boolean",
             "title": "Live",
@@ -37298,6 +37336,16 @@
             "type": "object",
             "title": "Values"
           },
+          "items": {
+            "items": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Items"
+          },
           "started_by": {
             "type": "string",
             "title": "Started By"
@@ -37367,6 +37415,17 @@
           "unpriced": {
             "type": "boolean",
             "title": "Unpriced"
+          },
+          "undo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Undo"
           }
         },
         "type": "object",
@@ -37376,6 +37435,7 @@
           "workflow_id",
           "device_id",
           "values",
+          "items",
           "started_by",
           "live",
           "allow_focus",
@@ -37399,6 +37459,28 @@
           "order": {
             "type": "integer",
             "title": "Order"
+          },
+          "of_step": {
+            "type": "integer",
+            "title": "Of Step"
+          },
+          "item": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Item"
+          },
+          "made": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Made"
           },
           "says": {
             "type": "string",
@@ -37512,6 +37594,9 @@
         "type": "object",
         "required": [
           "order",
+          "of_step",
+          "item",
+          "made",
           "says",
           "verdict",
           "verdict_by",

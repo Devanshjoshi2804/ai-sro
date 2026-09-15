@@ -71,12 +71,14 @@ import pytest
 
 from sro.application.ports.repositories import UnitOfWork
 from sro.domain.chat.reading import ChatReading
+from sro.domain.execution.run import Run, RunId
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
 from sro.domain.observation.gesture import Action, Gesture, GestureBatch, Intent
 from sro.domain.observation.mining import MiningPass
 from sro.domain.observation.pool import K_POOL_AGE, RETIRED_PASSES
 from sro.domain.shared.errors import Conflict
-from sro.domain.shared.identifiers import DeviceId, TenantId
+from sro.domain.shared.identifiers import DeviceId, PrincipalId, SkillId, TenantId
+from sro.domain.skill import PromotionStage
 from sro.domain.skill.offers import Offer
 from sro.domain.skill.workflow import Step, Workflow
 from sro.infrastructure.db.repositories import SqlUnitOfWork
@@ -118,6 +120,13 @@ def store(request: pytest.FixtureRequest) -> UnitOfWork:
             pytrace=False,
         )
     return SqlUnitOfWork(factory)
+
+
+def _when(hour: int, *, minute: int = 0) -> datetime:
+    """An aware instant, which is what `tool_calls.remember` takes -- the
+    ledger compares it against a `timestamptz` and a naive one would be read
+    in the server's zone on one side of the comparison and not the other."""
+    return datetime(2026, 9, 6, hour, minute, tzinfo=UTC)
 
 
 def _at(hour: int, *, minute: int = 0, offset: str = "+00:00") -> str:
@@ -227,6 +236,24 @@ def _chat(chat_id: str, *, tenant: TenantId = TENANT, **over: Any) -> ChatReadin
     fields: dict[str, Any] = {"id": chat_id, "tenant": tenant.value, "at": _at(10)}
     fields.update(over)
     return ChatReading(**fields)
+
+
+def _skill_run(run_id: str, **overrides: Any) -> Run:
+    """One run of the older, skill path -- the table `runs`, not
+    `workflow_runs`."""
+    fields: dict[str, Any] = {
+        "id": RunId(run_id),
+        "tenant_id": TENANT,
+        "skill_id": SkillId("skl_1"),
+        "skill_version": 1,
+        "stage": PromotionStage.SHADOW,
+        "parameters": {},
+        "requested_by": PrincipalId("operator"),
+        "started_at": _when(10),
+        "device_id": DEVICE,
+    }
+    fields.update(overrides)
+    return Run(**fields)
 
 
 class TestWorkflows:
@@ -1407,3 +1434,140 @@ class TestTenantScoping:
             assert await work.pool.retired(TENANT) == ()
 
             assert (await work.spend.today(TENANT, now=datetime.now(tz=UTC))).cost_usd == 0.0
+
+
+class TestToolCalls:
+    """The ledger that stops one job writing the same thing twice.
+
+    Untested against Postgres until now, on either half. `remember` is one
+    statement with two shapes -- `ON CONFLICT DO NOTHING`, and with a window
+    `ON CONFLICT DO UPDATE ... WHERE claimed_at < at - stale_after RETURNING` --
+    and every rule it keeps is expressed in SQL the fake re-states in Python.
+    A lost `RETURNING`, a flipped comparison, or `DO NOTHING` where `DO UPDATE`
+    belongs was caught by nothing: the fake would keep answering correctly
+    while the deployment let a second warehouse record through, or refused the
+    same job forever.
+    """
+
+    async def test_the_first_claim_is_the_one_that_writes(self, store: UnitOfWork) -> None:
+        async with store as work:
+            first = await work.tool_calls.remember(TENANT, "wfl_1:1:abc", tool="save", at=_when(9))
+            second = await work.tool_calls.remember(TENANT, "wfl_1:1:abc", tool="save", at=_when(9))
+            await work.commit()
+
+        assert (first, second) == (True, False)
+
+    async def test_another_key_is_another_write(self, store: UnitOfWork) -> None:
+        # The values are in the key, so the same job and step with a different
+        # client code is a different record and must not be refused.
+        async with store as work:
+            assert await work.tool_calls.remember(TENANT, "wfl_1:1:abc", tool="s", at=_when(9))
+            assert await work.tool_calls.remember(TENANT, "wfl_1:1:xyz", tool="s", at=_when(9))
+            await work.commit()
+
+    async def test_another_tenant_holding_the_same_key_is_not_this_one(
+        self, store: UnitOfWork
+    ) -> None:
+        async with store as work:
+            assert await work.tool_calls.remember(TENANT, "wfl_1:1:abc", tool="s", at=_when(9))
+            assert await work.tool_calls.remember(
+                OTHER_TENANT, "wfl_1:1:abc", tool="s", at=_when(9)
+            )
+            await work.commit()
+
+    async def test_a_claim_inside_the_window_still_refuses(self, store: UnitOfWork) -> None:
+        window = timedelta(minutes=30)
+        async with store as work:
+            assert await work.tool_calls.remember(
+                TENANT, "wfl_1:1:abc", tool="s", at=_when(9), stale_after=window
+            )
+            assert not await work.tool_calls.remember(
+                TENANT, "wfl_1:1:abc", tool="s", at=_when(9, minute=20), stale_after=window
+            )
+            await work.commit()
+
+    async def test_a_claim_older_than_the_window_is_taken_over(self, store: UnitOfWork) -> None:
+        """What lets the same job be done again tomorrow with the same values,
+        and the half `RETURNING` carries: the row is updated in place and the
+        update is the answer."""
+        window = timedelta(minutes=30)
+        async with store as work:
+            assert await work.tool_calls.remember(
+                TENANT, "wfl_1:1:abc", tool="s", at=_when(9), stale_after=window
+            )
+            assert await work.tool_calls.remember(
+                TENANT, "wfl_1:1:abc", tool="s", at=_when(10), stale_after=window
+            )
+            await work.commit()
+
+    async def test_the_window_moves_with_the_claim_that_took_it_over(
+        self, store: UnitOfWork
+    ) -> None:
+        """A taken-over claim is a new claim, so the next one is measured from
+        it. Without this the key would be free forever once it had aged once."""
+        window = timedelta(minutes=30)
+        async with store as work:
+            await work.tool_calls.remember(
+                TENANT, "wfl_1:1:abc", tool="s", at=_when(9), stale_after=window
+            )
+            await work.tool_calls.remember(
+                TENANT, "wfl_1:1:abc", tool="s", at=_when(10), stale_after=window
+            )
+            assert not await work.tool_calls.remember(
+                TENANT, "wfl_1:1:abc", tool="s", at=_when(10, minute=20), stale_after=window
+            )
+            await work.commit()
+
+    async def test_no_window_means_the_key_is_claimed_for_good(self, store: UnitOfWork) -> None:
+        # `stale_after=None` is the caller saying this write must never be made
+        # twice, and a day later is still twice.
+        async with store as work:
+            assert await work.tool_calls.remember(TENANT, "wfl_1:1:abc", tool="s", at=_when(9))
+            assert not await work.tool_calls.remember(
+                TENANT, "wfl_1:1:abc", tool="s", at=_when(9) + timedelta(days=1)
+            )
+            await work.commit()
+
+
+class TestSkillRunsInFlight:
+    """`runs.in_flight`, on both stores, because the fake and the SQL answer it
+    from different shapes: a `DeviceId` against a `DeviceId` in Python, and a
+    column against `device_id.value` in SQL. The first version of the fake
+    compared the identifier to the string and answered `None` for a browser
+    that really was busy -- green, and the guard switched off."""
+
+    async def test_the_run_driving_this_browser_is_named(self, store: UnitOfWork) -> None:
+        async with store as work:
+            await work.runs.add(_skill_run("run_now"))
+            await work.commit()
+
+        async with store as work:
+            assert await work.runs.in_flight(TENANT, DEVICE) == "run_now"
+
+    async def test_a_finished_run_is_not_driving_anything(self, store: UnitOfWork) -> None:
+        async with store as work:
+            await work.runs.add(_skill_run("run_done", ended_at=_when(11)))
+            await work.commit()
+
+        async with store as work:
+            assert await work.runs.in_flight(TENANT, DEVICE) is None
+
+    async def test_another_browser_and_another_tenant_are_not_this_one(
+        self, store: UnitOfWork
+    ) -> None:
+        async with store as work:
+            await work.runs.add(_skill_run("run_theirs", device_id=OTHER_DEVICE))
+            await work.runs.add(_skill_run("run_other_tenant", tenant_id=OTHER_TENANT))
+            await work.commit()
+
+        async with store as work:
+            assert await work.runs.in_flight(TENANT, DEVICE) is None
+            assert await work.runs.in_flight(TENANT, OTHER_DEVICE) == "run_theirs"
+
+    async def test_a_run_in_a_browser_of_ours_names_no_device(self, store: UnitOfWork) -> None:
+        async with store as work:
+            await work.runs.add(_skill_run("run_steel", device_id=None))
+            await work.commit()
+
+        async with store as work:
+            assert await work.runs.in_flight(TENANT, DEVICE) is None

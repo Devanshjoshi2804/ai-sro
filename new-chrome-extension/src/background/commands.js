@@ -120,6 +120,108 @@ export function abort(runId) {
   return true;
 }
 
+let seq = 0;
+const CALLS_KEPT = 60;
+const driven = new Map();
+
+/** What the page called while this run was driving it.
+ *
+ * The evidence plane drops these deliberately -- a replay's own traffic mined
+ * as though a person had done it is the system learning a task from a robot
+ * imitating one -- and that is right and stays. This is a different thing with
+ * a different life: a handful of calls, in memory, for the length of a run,
+ * so the run can be told whether the write it just made came back 201 or 409.
+ *
+ * Before it existed, every step of every run was judged by photographing the
+ * screen and asking a model what it saw -- `verdict_by = screen` on all 67
+ * steps this deployment has ever performed, the weakest and slowest rung of
+ * the three the verifier documents. A status code is both cheaper and better
+ * evidence: 84.24% against 70.04% over the 643 tasks of the WebVoyager
+ * benchmark (arXiv:2410.00689, Table 1). The numbers here read 86.9/78.8
+ * until 2026-09-15 and are in no version of that paper -- the backend's copy
+ * of the same sentence was corrected a day earlier and this one was missed,
+ * which is what a number copied into two languages does.
+ *
+ * Bounded per tab, and never written anywhere: this map is the whole of it.
+ */
+export function noteDriven(tabId, request) {
+  if (tabId === null || tabId === undefined || !request) return;
+  const kept = driven.get(tabId) || [];
+  kept.push({
+    method: request.method || "",
+    url: request.url || "",
+    status: request.status ?? null,
+    started_at: request.started_at ?? Date.now() / 1000,
+    // Which side of the command this call is on, and the only thing
+    // `callsSince` compares. See `marks`.
+    seq: ++seq,
+    // What the warehouse answered a CREATE with, and only a create.
+    //
+    // A run that made three records has to be able to say which three, or
+    // nobody can go and look at them -- and an undo, the day one exists, has
+    // to address them by whatever the system called them. The identifier is
+    // in the 201's own body and nowhere else this browser can see.
+    //
+    // Only 201, only the first `CREATED_BODY` characters, and already
+    // redacted by the recorder that produced it. A page's ordinary 200s are
+    // not kept: their bodies are lists, screens and customer data, and
+    // nothing here needs them.
+    body: request.status === 201 ? asText(request.response_body).slice(0, CREATED_BODY) : null,
+  });
+  driven.set(tabId, kept.slice(-CALLS_KEPT));
+}
+
+const CREATED_BODY = 400;
+
+/** A captured body as the text it was, or "" for one this browser never saw.
+ *
+ * The recorder wraps a body with what it did to it -- truncated, uninspectable,
+ * redacted -- so the text is a field rather than the value itself, and a
+ * caller reading it as a string gets `[object Object]` into a run record. */
+function asText(body) {
+  if (typeof body === "string") return body;
+  const text = body?.text ?? body?.value ?? "";
+  return typeof text === "string" ? text : "";
+}
+
+/** Where each run's counter stood when its last acting command went out.
+ *
+ * Not a clock. The backend sends `since` as the server's own epoch seconds
+ * (`run_workflow.py`'s `sent_at`) and this browser's calls carry the
+ * recorder's ISO strings, so the comparison that used to be here --
+ * `"2026-09-14T19:41:09.469Z" >= 1789414869.469` -- is `false` for every call
+ * ever made. `calls.since` therefore always answered `{calls: []}`, the
+ * status rung never once fired in this deployment's 91 recorded steps, and
+ * every step paid for a screenshot and a vision call on the rung the verifier
+ * calls the weakest. `RunStep.made` is filled from the same answer, so a run
+ * could not say which records it created either.
+ *
+ * Parsing the ISO string would fix the types and leave the worse half: two
+ * clocks. A browser a few minutes fast would pass calls from before the
+ * command was sent, and the verifier takes the first method-and-shape match
+ * walking backwards -- on a repeating job, item 2 would be held by item 1's
+ * 201 and would report item 1's identifier as what it made. A counter this
+ * worker increments has one owner and no clock at all.
+ */
+const marks = new Map();
+
+/** Commands that make the page do something, so the calls after one are the
+ * calls it made because of it. `calls.since` and `screenshot` are the run
+ * looking, and must not move the mark they are about to read. */
+const ACTS = new Set(["ui.perform", "ui.perform_at", "http.send", "navigate", "tab.open"]);
+
+/** The calls this run's tab made since its last acting command, newest last. */
+function callsSince(runId) {
+  const tabId = runId && latest?.runId === runId ? latest.tabId : undefined;
+  if (tabId === undefined) return { ok: true, result: { calls: [] } };
+  const after = marks.get(runId) ?? 0;
+  const calls = (driven.get(tabId) || []).filter(
+    (call) => call.seq > after && call.status !== null,
+  );
+  return { ok: true, result: { calls } };
+}
+
+
 export function isDriving(tabId) {
   const until = driving.get(tabId);
   if (until === undefined) return false;
@@ -230,6 +332,7 @@ async function uiPerform(payload, runId) {
       ? await inPage(tab.id, performInPage, [payload])
       : await inFrame(tab.id, frameId, performInPage, [payload]);
   hold(tab.id);
+  if (answer?.ok) await reacted(tab.id, payload.action);
   return answer || failure("not_actionable", "the page did not answer");
 }
 
@@ -339,6 +442,77 @@ function settled(tabId) {
   });
 }
 
+const REACTS_WITHIN_MS = 900;
+const LOADS_WITHIN_MS = 8_000;
+/** How long a single-page application is given to draw what it just routed to.
+ * The route change is the decision, not the render. */
+const PAINTS_WITHIN_MS = 300;
+
+/** Let the page finish reacting before anybody looks at it.
+ *
+ * A click on Sign In is a form submit: the command returns the instant the
+ * click dispatches, and the run then photographs a page that has not started
+ * navigating yet. That is what happened on a real login -- username typed,
+ * password typed from the vault, Sign In pressed, and the verifier reported
+ * "the browser remains on the Keycloak login page with the sign-in form still
+ * visible", because it was looking at the page as it had been a moment before.
+ * The run stopped on a step that had in fact worked.
+ *
+ * Bounded twice. If nothing starts loading within `REACTS_WITHIN_MS` this
+ * returns: a click that opens a menu navigates nowhere, and waiting on it
+ * would add a second to every step of every run. Once something IS loading it
+ * waits for complete, up to `LOADS_WITHIN_MS` -- a page held open by a
+ * third-party script is still worth looking at, and the verifier says what it
+ * sees either way.
+ *
+ * Not for typing. A keystroke does not submit anything, and a run that fills
+ * six fields would pay the wait six times over for nothing.
+ */
+function reacted(tabId, action) {
+  if (action === "type") return Promise.resolve();
+  return new Promise((resolve) => {
+    let loading = false;
+    const done = () => {
+      chrome.tabs.onUpdated.removeListener(watch);
+      chrome.webNavigation?.onHistoryStateUpdated?.removeListener(routed);
+      clearTimeout(quiet);
+      clearTimeout(cap);
+      clearTimeout(painting);
+      resolve();
+    };
+    const watch = (id, change) => {
+      if (id !== tabId) return;
+      if (change.status === "loading") loading = true;
+      else if (change.status === "complete" && loading) done();
+    };
+    // The screen changed without the browser navigating.
+    //
+    // A single-page application routes with `history.pushState`, and a tab
+    // that never leaves its document never reports `loading` -- so on a
+    // client-routed screen, which is most of a modern WMS, the wait above
+    // sees nothing at all and the run photographs the page mid-render. This
+    // is the same event the browser raises for the url in its own address
+    // bar, so it costs no injection and no page-realm code.
+    //
+    // Then a short pause, because a route change is the application deciding
+    // what to draw and not the drawing: resolving on the event itself would
+    // move the "too early" problem rather than fix it.
+    let painting = null;
+    const routed = (details) => {
+      if (details.tabId !== tabId || details.frameId !== 0) return;
+      loading = true;
+      clearTimeout(painting);
+      painting = setTimeout(done, PAINTS_WITHIN_MS);
+    };
+    const quiet = setTimeout(() => {
+      if (!loading) done();
+    }, REACTS_WITHIN_MS);
+    const cap = setTimeout(done, LOADS_WITHIN_MS);
+    chrome.tabs.onUpdated.addListener(watch);
+    chrome.webNavigation?.onHistoryStateUpdated?.addListener(routed);
+  });
+}
+
 /** Which frame of the page holds this control.
  *
  * The recorder registers with `allFrames: true`, so a demonstration on a screen
@@ -399,6 +573,7 @@ async function uiPerformAt(payload) {
   hold(tab.id);
   const answer = await inPage(tab.id, performAtInPage, [payload]);
   hold(tab.id);
+  if (answer?.ok) await reacted(tab.id, payload.action);
   return answer || failure("not_actionable", "the page did not answer");
 }
 
@@ -648,8 +823,17 @@ export async function perform(command, source = "backend") {
     // this one is performing right now -- confusing even though neither fact
     // is wrong, and cheaper to clear here than to wait out however long this
     // run takes to finish on its own.
-    if (isNewRun) void state.setFinishedRun(null);
+    if (isNewRun) {
+      void state.setFinishedRun(null);
+      // One run drives at a time, so the marks of the runs before it are
+      // nobody's to read.
+      marks.clear();
+    }
   }
+
+  // Before the page is touched, so every call it makes because of this
+  // command counts and none of the ones it had already made do.
+  if (command.run_id && ACTS.has(command.kind)) marks.set(command.run_id, seq);
 
   try {
     switch (command.kind) {
@@ -665,6 +849,8 @@ export async function perform(command, source = "backend") {
         return await navigate(command.payload || {});
       case "tab.open":
         return await openTab(command.payload || {});
+      case "calls.since":
+        return callsSince(command.run_id);
       case "http.send":
         return await httpSend(command.payload || {});
       case "abort":

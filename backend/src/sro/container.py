@@ -13,7 +13,7 @@ from typing import Any
 
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, AsyncSession, async_sessionmaker
 
 from sro.application.analytics.audit import ReadAudit
 from sro.application.analytics.summary import ReadSummary
@@ -192,6 +192,12 @@ from sro.infrastructure.transcription.null import NullTranscriber
 from sro.infrastructure.vault.file_vault import FileCredentialVault
 from sro.infrastructure.vault.secret_manager import SecretManagerVault
 
+RUNS_LOCK = 5721966
+"""The advisory lock one API process holds while it owns the runs.
+
+Any constant would do; this one is arbitrary and only has to differ from
+whatever else ever takes an advisory lock on this database."""
+
 
 @dataclass
 class Container:
@@ -301,8 +307,62 @@ class Container:
     """Set by ``build_container``: the supervisor is built from the container's
     own use-case factories, so it cannot be a constructor argument."""
 
+    driving_runs: AsyncConnection | None = None
+    """The connection holding the lock that says this process owns the runs.
+
+    Set by `claim_the_runs`, held open for the life of the process, and
+    released when `lifespan` disposes the engine. One connection out of the
+    pool, permanently, which is the price of the guarantee."""
+
     def unit_of_work(self) -> UnitOfWork:
         return SqlUnitOfWork(self.session_factory)
+
+    async def claim_the_runs(self) -> bool:
+        """Whether this process is the one that owns every run.
+
+        Everything about runs in this codebase is true only because there is
+        exactly one API process: the approval register is an `asyncio.Event`,
+        the device sockets are a dict, and the startup sweep marks EVERY
+        tenant's `running` rows failed on the reasoning that a row still
+        running belongs to a process that died. `Dockerfile` pins
+        `--workers 1` and nothing else enforced it, so a rolling deploy, a
+        `--scale backend=2` or a restarted pod had a second process sweep the
+        first one's live, in-flight runs to `failed` -- which also clears the
+        partial unique index on running runs and frees the browser for a
+        second run to claim while the first is still driving it.
+
+        A Postgres session advisory lock, because it is the one piece of
+        shared state both processes already have and it is released by the
+        connection dying -- a process that is SIGKILLed releases it, which a
+        row in a table would not.
+
+        `True` for a container with no engine of its own: a test brings its
+        own store and is alone in it.
+        """
+        if self.engine is None:
+            return True
+        # AUTOCOMMIT, and this is not a style choice. A session advisory lock
+        # is held until it is released or the SESSION ends -- a commit does not
+        # drop it -- so nothing here needs a transaction. Without this the
+        # connection sits `idle in transaction` for the entire life of the
+        # process, and that is not merely untidy: it holds back the xmin
+        # horizon, so `VACUUM` cannot reclaim a dead row anywhere in the
+        # database, and it blocks `CREATE INDEX CONCURRENTLY`, which waits for
+        # every transaction older than itself to finish.
+        #
+        # Watched happening: a concurrent index build on this deployment's own
+        # store sat on `wait_event = virtualxid` behind exactly this session
+        # and never finished.
+        connection = await self.engine.connect()
+        await connection.execution_options(isolation_level="AUTOCOMMIT")
+        held = (
+            await connection.execute(text("SELECT pg_try_advisory_lock(:key)"), {"key": RUNS_LOCK})
+        ).scalar()
+        if not held:
+            await connection.close()
+            return False
+        self.driving_runs = connection
+        return True
 
     async def readiness(self) -> dict[str, bool]:
         """Both halves of "can this process serve", on ONE connection.
@@ -934,6 +994,10 @@ class Container:
             self.ask_the_system(),
             self.ask_about(),
             self.suggest_next(),
+            # The rig's jobs, asked before the taught skills. An operator
+            # typing at a browser whose rig holds the job they mean was being
+            # answered out of a skills library that does not.
+            self.read_chat(),
         )
 
     def read_threads(self) -> ReadThreads:

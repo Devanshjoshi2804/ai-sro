@@ -28,8 +28,8 @@ question already answered.
 Dropped rather than left empty. A column nothing writes and four things read is
 the shape of this defect, and leaving it would leave the trap.
 
-Revision ID: 0048
-Revises: 0047
+Revision ID: 0051
+Revises: 0050
 """
 
 from __future__ import annotations
@@ -38,8 +38,8 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
 
-revision = "0048"
-down_revision = "0047"
+revision = "0051"
+down_revision = "0050"
 branch_labels = None
 depends_on = None
 

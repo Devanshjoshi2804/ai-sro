@@ -679,6 +679,7 @@ async def test_a_run_claimed_at_step_four_is_driven_from_step_four() -> None:
         approvals=Approvals(),
         run_id=claimed.id,
         from_step=4,
+        cap_usd=-1.0,
     )
     # The four the operator did, and a fifth that was attempted rather than
     # assumed. Which verdict the fake's plan earns for it is `test_runner.py`'s
@@ -709,6 +710,7 @@ async def test_a_re_press_that_moves_the_step_is_refused_by_the_loop() -> None:
             started_by=claimed.started_by,
             stops=Stops(),
             approvals=Approvals(),
+            cap_usd=-1.0,
             run_id=claimed.id,
             from_step=3,
         )

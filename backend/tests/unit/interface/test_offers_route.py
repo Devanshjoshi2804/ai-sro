@@ -344,11 +344,16 @@ async def test_the_tenants_own_credential_records_no_offer(
 async def test_a_secret_with_no_browser_named_records_no_offer(
     client: httpx.AsyncClient,
 ) -> None:
-    """Half a pair is a refusal and never a downgrade to the tenant. 404, and
-    it is `asking_device`'s, reached before this route's own rule."""
+    """A secret that names no browser names nobody, so this is the tenant --
+    and an offer is a browser's, so the route's own rule refuses it. 403 and
+    not 404: the difference is which rule said no, and both say no.
+
+    It was `asking_device`'s 404 until an operator's panel went dark: the
+    extension sends `X-Device-Secret` on every call, so every tenant door it
+    asked answered "device  was not found"."""
     answered = await client.post("/v1/offers", json=_offered(), headers={"X-Device-Secret": HERS})
 
-    assert answered.status_code == 404, answered.text
+    assert answered.status_code == 403, answered.text
     assert await _offers(client) == []
 
 

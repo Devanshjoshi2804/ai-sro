@@ -22,6 +22,11 @@ PRICES: dict[str, tuple[float, float]] = {
     "gemini-3.1-pro-preview": (2.00, 12.00),
     "gemini-3-flash-preview": (0.50, 3.00),
     "gemini-3.8-flash-preview": (0.75, 3.75),
+    # An embedding model bills input only, and this table's shape is (in, out).
+    # Zero for output is the truth here rather than a missing row: a name
+    # absent from this table records the whole call as unpriced, and the
+    # embedder runs on every reading of the knowledge store.
+    "gemini-embedding-001": (0.15, 0.00),
 }
 
 LONG_PROMPT_TOKENS = 200_000

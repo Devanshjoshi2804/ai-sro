@@ -1,12 +1,19 @@
 """A14: verify against state, and only then against a picture -- and D2: when a
 job has earned the right to write without being asked.
 
-A state-grounded verifier scored 86.9% against 78.8% for one reading
-screenshots, with human agreement at 94%. Most completions leave their proof
-off-screen -- artifact verification was 192 of 321 tasks. So: the response the
+Measured over the 643 tasks of the WebVoyager benchmark, a validator reading
+the run's own text -- what the calls returned -- scored 84.24% against 70.04%
+for one reading screenshots, with over 84% agreement with human annotators; a
+screenshot read beside the agent's final answer still only reached 83.00%. So: the response the
 command itself returned first, a confirming read the cited evidence shows the
 page performs second, and the screenshot last and least. A green toast is the
 weakest of the three and the easiest to be wrong about.
+
+arXiv:2410.00689, Tables 1 and 2. Corrected twice: the figures that stood here
+first (86.9/78.8, 94%, "192 of 321") are in no version of that paper, and the
+first correction then misattributed the denominator -- 322 is the subset used
+for the self-validation experiment, not for these tables. `verify.py` carries
+the whole account.
 
 The earning rule reads the same order from the other end. Autonomy is earned by
 verified effect, not by counting runs: a write counts only when the verifier
@@ -22,8 +29,8 @@ the picture -- is the application's, and asks these questions.
 from __future__ import annotations
 
 import json
-from collections.abc import Iterator, Mapping, Sequence
-from dataclasses import dataclass
+from collections.abc import Callable, Iterator, Mapping, Sequence
+from dataclasses import dataclass, field
 
 from sro.domain.execution.evidence import READ_METHODS, recorded_call
 from sro.domain.observation.gesture import Call, Gesture
@@ -68,6 +75,14 @@ class StepVerdict:
     by: str  # status | read | screen | none
     reason: str
     answer: Answer | None = None
+
+    made: Mapping[str, str] = field(default_factory=dict)
+    """What the warehouse called the record this step created, where it made
+    one and said so. Empty for every step that created nothing, which is most
+    of them -- and for a create whose answer named nothing this can read.
+
+    A run that made three records has to be able to say which three, or nobody
+    can go and look at them."""
 
 
 def expected_statuses(step: Step, by_id: Mapping[str, Gesture]) -> set[int]:
@@ -172,13 +187,44 @@ def mentions(body: str, values: Mapping[str, str]) -> bool:
     either -- this tenant's real work-area codes are two characters. Substring
     is kept only for a body that is not JSON, where there are no leaves to
     compare.
+
+    ANY value, because this is asked AFTER the write: the read is being shown
+    the record that was just made, and one value of it coming back is the
+    record coming back. `carries_every` is the same question asked before the
+    write, where any is the wrong quantifier and the difference is a write
+    that never happens.
     """
+    return _carried(body, values, quantifier=any)
+
+
+def carries_every(body: str, values: Mapping[str, str]) -> bool:
+    """Whether the read shows ALL of what this run would write.
+
+    The precondition's rule, and it has to be every one of them. A job carries
+    values that change from run to run and values that do not -- an order's
+    reference, a facility, a site -- and `any` reads a record whose UNCHANGED
+    half matches as the record this run was going to create.
+
+    Measured end to end, live, on 2026-09-15: four runs of a three-step job
+    that types a new client code and the same reference each time. The
+    confirming read answered the PREVIOUS record, its `reference` matched, and
+    every one of the four skipped its write and reported `held` -- 0 writes
+    reached the page across four runs that each said they had done the job.
+    Nothing in 3000 unit tests saw it, because nothing asked what happens when
+    one of the values is the same as last time.
+    """
+    return _carried(body, values, quantifier=all)
+
+
+def _carried(
+    body: str, values: Mapping[str, str], *, quantifier: Callable[[Iterator[bool]], bool]
+) -> bool:
     try:
         parsed = json.loads(body)
     except ValueError:
-        return any(value and value in body for value in values.values())
+        return quantifier(bool(value) and value in body for value in values.values())
     leaves = set(_leaves(parsed))
-    return any(value and value in leaves for value in values.values())
+    return quantifier(bool(value) and value in leaves for value in values.values())
 
 
 @dataclass(frozen=True, slots=True)

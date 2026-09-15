@@ -57,6 +57,8 @@ from sro.domain.skill.checks import (
 )
 from sro.domain.skill.learned import LearnedParameter, parameters_across
 from sro.domain.skill.passwords import with_passwords
+from sro.domain.skill.presses import with_the_press
+from sro.domain.skill.repeats import detect as repeated_block
 from sro.domain.skill.shape import in_time_order
 from sro.domain.skill.umbrella import (
     K_EFFORT,
@@ -538,6 +540,29 @@ async def _one_pass(
                     proposal.title,
                     typed,
                 )
+            # And the opposite failure: a gesture the model could see and
+            # passed over. A step that cites the login card rather than the
+            # Sign In button inside it runs, answers ok, and signs nobody in.
+            pressed = with_the_press(proposal, by_id)
+            if pressed:
+                logger.info(
+                    "%s: %s step(s) repointed at the control the operator pressed",
+                    proposal.title,
+                    pressed,
+                )
+            # And whether the operator did this block more than once in the
+            # sitting it was read from. A job the model summarised as "add an
+            # equipment type" whose evidence shows three added in a row is a
+            # job that can be asked for three at a time -- and until somebody
+            # asks for three, it runs exactly as it always did.
+            proposal.repeat = repeated_block(proposal, by_id)
+            if proposal.repeat is not None:
+                logger.info(
+                    "%s: steps %s-%s are done once per thing",
+                    proposal.title,
+                    proposal.repeat.first_step,
+                    proposal.repeat.last_step,
+                )
             rejection = validate(proposal, evidence) or work_only(proposal, by_id, ours=ours)
             if rejection is not None:
                 result.rejections.append(rejection)
@@ -746,11 +771,25 @@ async def fill_in_passwords(uow: UnitOfWork, *, tenant_id: TenantId) -> int:
         by_id = {gesture.id: gesture for gesture in await uow.gestures.gestures_for(tenant_id)}
         if any(cited not in by_id for cited in wanted):
             continue
-        if not with_passwords(workflow, by_id):
+        # Three healings, and any one of them is a reason to save.
+        # `with_passwords` adds the step a model cannot see; `with_the_press`
+        # repoints a step a model aimed at the page instead of the button on
+        # it; and the repeat is what the evidence says about how many times the
+        # block was done.
+        found = repeated_block(workflow, by_id)
+        changed_here = with_passwords(workflow, by_id) + with_the_press(workflow, by_id)
+        # Set and cleared. A job whose repeat no longer holds -- re-mined,
+        # its evidence aged out, the doing it was read from gone -- goes back
+        # to a job that does one thing once rather than keeping a block nothing
+        # supports.
+        if workflow.repeat != found:
+            workflow.repeat = found
+            changed_here += 1
+        if not changed_here:
             continue
         await uow.workflows.save(workflow)
         changed += 1
-        logger.info("%s: added the credential step no model could cite", workflow.title)
+        logger.info("%s: healed the steps no model got right", workflow.title)
     return changed
 
 

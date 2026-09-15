@@ -17,6 +17,8 @@ import logging
 from collections.abc import Sequence
 from dataclasses import replace
 
+from sro.application.chat.read_chat import ReadChat
+from sro.application.chat.understand import Understood
 from sro.application.context import RequestContext
 from sro.application.execution.derived_read import Asked, AskTheSystem
 from sro.application.execution.execute_skill import ExecuteSkill, ExecutionRequest
@@ -67,9 +69,11 @@ class Converse:
         ask: AskTheSystem | None = None,
         questions: AskAbout | None = None,
         suggest: SuggestNext | None = None,
+        reads_jobs: ReadChat | None = None,
     ) -> None:
         self._uow = uow
         self._resolver = resolver
+        self._reads_jobs = reads_jobs
         self._clock = clock
         self._ids = ids
         self._execute = execute
@@ -110,6 +114,22 @@ class Converse:
     ) -> Thread:
         if run_id is not None:
             return await self._said_to_a_run(ctx, thread_id=thread_id, text=text, run_id=run_id)
+        # The rig's jobs first, and where they place the sentence, only them.
+        #
+        # An operator typed "lets create warehouse equipment type" at a browser
+        # whose rig holds exactly that job, and was answered "Create a customer
+        # type does that. I still need long_description." The resolver below
+        # ranks the tenant's taught SKILLS -- seven of them, none about
+        # equipment types -- so it answered with the nearest thing it had. The
+        # right job was in the rig all along and this door never asked it.
+        #
+        # One model call and not two: the reading that answers here is the
+        # reading the panel's offer is built from, rather than this door
+        # spending one on the skills library and the browser spending another
+        # on the jobs.
+        placed = await self._placed_by_the_rig(ctx, text)
+        if placed is not None:
+            return await self._say_the_job(ctx, thread_id=thread_id, text=text, placed=placed)
         async with self._uow as uow:
             thread = await uow.threads.get(ctx.tenant_id, thread_id)
 
@@ -173,6 +193,139 @@ class Converse:
                         narrowed,
                         await self._next_steps(ctx, resolution, run, narrowed),
                     ),
+                )
+            )
+            await uow.threads.save(thread)
+            await uow.commit()
+        return thread
+
+    async def _placed_by_the_rig(self, ctx: RequestContext, text: str) -> Understood | None:
+        """Which mined job this sentence is about, or None to ask the skills.
+
+        None on every refusal as well as on a sentence the rig cannot place:
+        no model configured, the day's cap spent, a door that raised. The
+        conversation still happens -- it happens the way it did before this
+        existed, which is the behaviour the console has always had.
+        """
+        if self._reads_jobs is None:
+            return None
+        try:
+            placed = await self._reads_jobs.execute(ctx, utterance=text)
+        except Exception:
+            logger.info("the rig could not place %r; asking the skills instead", text[:40])
+            return None
+        return placed if placed.workflow_id else None
+
+    async def _say_the_job(
+        self, ctx: RequestContext, *, thread_id: ThreadId, text: str, placed: Understood
+    ) -> Thread:
+        """The rig's answer, in the thread, with what a press would need."""
+        async with self._uow as uow:
+            known = {one.id: one for one in await uow.workflows.known(ctx.tenant_id)}
+            title = known[placed.workflow_id].title if placed.workflow_id in known else "That job"
+            things = len(placed.items)
+            # Not sure which job: ask, rather than start one.
+            #
+            # The reading is still the best one it had, and it is offered
+            # first -- but as a question with the others beside it, and with no
+            # `workflow_id` for a press to act on. A guess that creates one
+            # wrong record is a nuisance; the same guess against a list of
+            # twenty is twenty wrong records in a warehouse, and the cost of
+            # asking is one sentence.
+            if not placed.sure:
+                titles = [title, *[known[one].title for one in placed.also if one in known]]
+                said = f"Did you mean {' or '.join(titles)}? Say which and I will set it up."
+                return await self._ask_which(
+                    ctx,
+                    thread_id=thread_id,
+                    text=text,
+                    said=said,
+                    choices=[placed.workflow_id, *placed.also],
+                    titles=titles,
+                )
+            if placed.missing:
+                said = (
+                    f"{title} does that. I still need {', '.join(placed.missing)}"
+                    " — give me that and I will run it."
+                )
+            elif things > 1:
+                said = f"{title}, for {things} things — say the word and I will do them."
+            else:
+                said = f"{title} does that — say the word and I will run it."
+            thread = await uow.threads.get(ctx.tenant_id, thread_id)
+            now = self._clock.now()
+            thread.say(
+                Message(
+                    id=self._ids.new_message_id(),
+                    speaker=Speaker.OPERATOR,
+                    text=text,
+                    said_at=now,
+                )
+            )
+            thread.say(
+                Message(
+                    id=self._ids.new_message_id(),
+                    speaker=Speaker.ASSISTANT,
+                    text=said,
+                    said_at=self._clock.now(),
+                    # The structured half, which is what a press is built from:
+                    # the browser makes its offer out of this rather than
+                    # spending a second reading of the same sentence.
+                    decision={
+                        "kind": "job",
+                        "workflow_id": placed.workflow_id,
+                        "title": title,
+                        "values": dict(placed.values),
+                        "items": [dict(one) for one in placed.items],
+                        "missing": list(placed.missing),
+                    },
+                )
+            )
+            await uow.threads.save(thread)
+            await uow.commit()
+        return thread
+
+    async def _ask_which(
+        self,
+        ctx: RequestContext,
+        *,
+        thread_id: ThreadId,
+        text: str,
+        said: str,
+        choices: list[str | None],
+        titles: list[str],
+    ) -> Thread:
+        """A question with the jobs it was choosing between, and no press.
+
+        `kind: "which_job"` and deliberately not `"job"`: the browser builds an
+        offer out of a job decision, and a decision it cannot act on must not
+        look like one it can.
+        """
+        async with self._uow as uow:
+            thread = await uow.threads.get(ctx.tenant_id, thread_id)
+            now = self._clock.now()
+            thread.say(
+                Message(
+                    id=self._ids.new_message_id(),
+                    speaker=Speaker.OPERATOR,
+                    text=text,
+                    said_at=now,
+                )
+            )
+            thread.say(
+                Message(
+                    id=self._ids.new_message_id(),
+                    speaker=Speaker.ASSISTANT,
+                    text=said,
+                    said_at=self._clock.now(),
+                    decision={
+                        "kind": "which_job",
+                        "choices": [one for one in choices if one],
+                        # The names, because the question is asked of a person:
+                        # a panel drawing two buttons reading `wfl_c79d02bb`
+                        # asks nobody anything.
+                        "titles": titles,
+                    },
                 )
             )
             await uow.threads.save(thread)

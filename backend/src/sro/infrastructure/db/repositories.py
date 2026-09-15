@@ -8,9 +8,9 @@ that does not exist -- the difference is not something a caller may learn.
 from __future__ import annotations
 
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 
-from sqlalchemy import delete, or_, select
+from sqlalchemy import delete, or_, select, text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -287,6 +287,23 @@ class SqlRunRepository(RunRepository):
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
+    async def in_flight(self, tenant_id: TenantId, device_id: DeviceId) -> str | None:
+        # `ended_at IS NULL` is this table's word for running, and the same
+        # predicate `uq_runs_one_running_per_device` is built on: a read that
+        # disagreed with the index would refuse runs the index allows, or
+        # promise ones it will not.
+        busy: str | None = await self._session.scalar(
+            select(RunRow.id)
+            .where(
+                RunRow.tenant_id == tenant_id.value,
+                RunRow.device_id == device_id.value,
+                RunRow.ended_at.is_(None),
+            )
+            .order_by(RunRow.started_at.desc())
+            .limit(1)
+        )
+        return busy
+
     async def add(self, run: Run) -> None:
         self._session.add(run_to_row(run))
 
@@ -469,6 +486,19 @@ class SqlKnowledgeRepository(KnowledgeRepository):
                 )
             )
         if embedding:
+            # The index is over the vector column and nothing else -- pgvector
+            # indexes one column -- so every other clause here is applied to
+            # what the scan returns. An HNSW scan stops after `ef_search`
+            # candidates, and a tenant with a small share of the table can have
+            # all of its rows filtered out of that set and be answered nothing
+            # at all. `iterative_scan` is pgvector 0.8's answer: the scan keeps
+            # pulling until the filters have let enough rows through.
+            #
+            # `relaxed_order` rather than `strict_order`: strict re-sorts every
+            # batch to guarantee exact distance ordering, and this result is
+            # read by a model choosing which claims to quote, not by anything
+            # that cares whether the fourth and fifth swapped places.
+            await self._session.execute(text("SET LOCAL hnsw.iterative_scan = relaxed_order"))
             query = query.where(KnowledgeRow.embedding.is_not(None)).order_by(
                 KnowledgeRow.embedding.cosine_distance(list(embedding))
             )
@@ -765,6 +795,20 @@ class SqlObservationRepository(ObservationRepository):
         rows = (await self._session.execute(query)).scalars().all()
         return tuple(row_to_batch(row) for row in rows)
 
+    async def received_before(
+        self, tenant_id: TenantId, cutoff: datetime
+    ) -> tuple[ObservationBatch, ...]:
+        query = (
+            select(ObservationBatchRow)
+            .where(
+                ObservationBatchRow.tenant_id == tenant_id.value,
+                ObservationBatchRow.received_at <= cutoff,
+            )
+            .order_by(ObservationBatchRow.received_at)
+        )
+        rows = (await self._session.execute(query)).scalars().all()
+        return tuple(row_to_batch(row) for row in rows)
+
     async def for_recording(
         self, tenant_id: TenantId, recording_id: RecordingId
     ) -> tuple[ObservationBatch, ...]:
@@ -921,18 +965,40 @@ class SqlToolCallRepository(ToolCallRepository):
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def remember(self, tenant_id: TenantId, key: str, *, tool: str, at: datetime) -> bool:
+    async def remember(
+        self,
+        tenant_id: TenantId,
+        key: str,
+        *,
+        tool: str,
+        at: datetime,
+        stale_after: timedelta | None = None,
+    ) -> bool:
         # `ON CONFLICT DO NOTHING` rather than a read followed by a write:
         # between the two of those, the other run inserts.
+        #
+        # With `stale_after` it is DO UPDATE under a WHERE instead, which is
+        # the same statement doing the same job for a key that expires: the
+        # row is taken over only when the claim on it is older than the
+        # window, and the taking-over is what returns the key. Still one
+        # statement, because a read-then-decide here is the race this class
+        # exists to lose.
+        insert = pg_insert(ToolCallRow).values(
+            tenant_id=tenant_id.value,
+            idempotency_key=key,
+            tool=tool,
+            claimed_at=at,
+        )
         claimed = await self._session.execute(
-            pg_insert(ToolCallRow)
-            .values(
-                tenant_id=tenant_id.value,
-                idempotency_key=key,
-                tool=tool,
-                claimed_at=at,
+            (
+                insert.on_conflict_do_nothing(index_elements=["tenant_id", "idempotency_key"])
+                if stale_after is None
+                else insert.on_conflict_do_update(
+                    index_elements=["tenant_id", "idempotency_key"],
+                    set_={"claimed_at": at, "tool": tool},
+                    where=ToolCallRow.claimed_at < at - stale_after,
+                )
             )
-            .on_conflict_do_nothing(index_elements=["tenant_id", "idempotency_key"])
             # What came back rather than how many rows: `rowcount` is the
             # driver's, and asking the statement to return the key it wrote
             # answers the same question in one shape everywhere.
@@ -986,13 +1052,37 @@ class SqlTriggerRepository(TriggerRepository):
 
 class SqlUnitOfWork(UnitOfWork):
     """One session per block. The session opens on entry, not on construction,
-    so a unit of work can be built once and used per request."""
+    so a unit of work can be built once and used per request.
+
+    **Re-entrant, by depth count.** A use case handed this object may open a
+    block inside another block on the same instance -- `run_workflow`'s write
+    claim sits inside `StartWorkflowRun`'s block, and `InduceSkill` runs
+    `AskAbout`'s whole block inside its own. Opening a second session there is
+    what the obvious implementation does, and it is a crash and a leak: the
+    inner `__aexit__` closes the new session and sets `_session` to None, so
+    the outer block's next `commit()` raises "must be used as an async context
+    manager" -- which the panel renders as the run's failure reason -- while
+    the outer session's connection is never returned to the pool. Fifteen of
+    those wedge the API on checkout (`pool_size=5, max_overflow=10`).
+
+    So the inner block reuses the session and the outermost exit closes it.
+    One request is one transaction, which is what the surrounding code already
+    assumed and what `tests.unit.fakes.FakeUnitOfWork` has always modelled --
+    its `_entered` is sticky for this exact reason, which is why 3000 green
+    unit tests never saw the real one's behaviour. An inner `commit()` still
+    commits, as it did before; an exception inside a nested block rolls the
+    whole thing back at the outermost exit rather than half of it.
+    """
 
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
         self._session_factory = session_factory
         self._session: AsyncSession | None = None
+        self._depth = 0
 
     async def __aenter__(self) -> SqlUnitOfWork:
+        self._depth += 1
+        if self._session is not None:
+            return self
         self._session = self._session_factory()
         self.recordings = SqlRecordingRepository(self._session)
         self.skills = SqlSkillRepository(self._session)
@@ -1020,11 +1110,16 @@ class SqlUnitOfWork(UnitOfWork):
 
     async def __aexit__(self, *exc: object) -> None:
         session = self._require_session()
+        self._depth -= 1
+        if exc[0] is not None:
+            # At every depth: an inner block that raised must not leave its
+            # half-written rows for the outer block to commit.
+            await session.rollback()
+        if self._depth > 0:
+            return
         try:
-            if exc[0] is not None:
-                await session.rollback()
-        finally:
             await session.close()
+        finally:
             self._session = None
 
     async def commit(self) -> None:

@@ -42,6 +42,25 @@ class Understood:
     answer: Answer
     values: dict[str, str] = field(default_factory=dict)
     missing: list[str] = field(default_factory=list)
+    sure: bool = True
+    """Whether the sentence plainly named ONE of this tenant's jobs.
+
+    `True` by default so a reading built by anything that predates this -- a
+    test, an older row -- reads as it always did. What `False` means is the
+    caller's: the panel asks a person which job was meant rather than pressing
+    on, because a guess that creates one wrong record is a nuisance and the
+    same guess against a list of twenty is twenty wrong records."""
+
+    also: list[str] = field(default_factory=list)
+    """The other jobs it nearly said, ids only, for the question a person is
+    asked. Filtered to jobs this tenant actually holds, like `workflow_id`."""
+
+    items: list[dict[str, str]] = field(default_factory=list)
+    """The things this job is to be done for, where the operator named several.
+
+    Empty for one thing, which is most sentences -- and a job run for one item
+    performs exactly as a job run for none, so a caller that ignores this is
+    not wrong, only limited to the first thing somebody asked for."""
 
 
 async def understand(
@@ -95,6 +114,7 @@ async def understand(
         if isinstance(p, dict)
     )
     values = {k: v for k, v in pairs if isinstance(k, str) and k in declared and isinstance(v, str)}
+    items = _things(answer.data.get("items"), declared)
     # Read and ignored. `missing` stays in the schema because a model asked to
     # name what is absent picks values more carefully than one that is not --
     # but a parameter it leaves out of `missing` is a parameter the form never
@@ -102,8 +122,67 @@ async def understand(
     # to contain. What is missing is not an opinion: it is `declared` minus what
     # arrived, sorted, because `declared` is a set and a form whose fields
     # reorder between two identical sentences is a form nothing can screenshot.
-    missing = sorted(n for n in declared if isinstance(n, str) and n not in values)
-    return Understood(chosen.id, answer, values, missing)
+    #
+    # With several things named, a parameter is missing when some THING lacks
+    # it: three equipment types of which one has no voice code is a form that
+    # has to ask for the voice code, and a check against the job's shared
+    # values alone would say every parameter was supplied by somebody.
+    # Sure unless the model said otherwise, and never sure where it named
+    # another job it might have meant instead: a reading that offers an
+    # alternative has already said it was choosing.
+    nearly = answer.data.get("also")
+    also = [
+        one
+        for one in (nearly if isinstance(nearly, list) else [])
+        if isinstance(one, str) and one in by_id and one != chosen.id
+    ]
+    sure = bool(answer.data.get("sure", True)) and not also
+    supplied = [{**values, **item} for item in items] or [values]
+    # A thing the filter emptied still counts here. The operator said "these
+    # two", and a run that quietly does one of them is a run that did not do
+    # what was asked -- so the parameters that thing did not name are missing,
+    # the form asks for them, and nothing starts on a guess.
+    items = [item for item in items if item]
+    missing = sorted(
+        name
+        for name in declared
+        if isinstance(name, str) and any(name not in one for one in supplied)
+    )
+    return Understood(chosen.id, answer, values, missing, sure, also, items)
+
+
+def _things(raw: object, declared: set[object]) -> list[dict[str, str]]:
+    """One set of values per thing the operator named, in the order they named
+    them.
+
+    Filtered exactly as `values` is, and for the same reason: a key this job
+    never declared is a value nothing asked for, arriving from a sentence a
+    stranger could have written.
+
+    A thing that survives the filter with nothing left in it is kept HERE and
+    dropped by the caller, which is not a contradiction: it counts for what is
+    missing -- the operator said "these two" and a thing naming nothing leaves
+    every parameter of that thing unanswered -- and it is not something a run
+    can be handed, because the body performed for it would repeat the previous
+    thing's values.
+    """
+    things: list[dict[str, str]] = []
+    for one in raw if isinstance(raw, list) else ():
+        if not isinstance(one, dict):
+            continue
+        said_values = one.get("values")
+        pairs = (
+            (pair.get("name"), pair.get("value"))
+            for pair in (said_values if isinstance(said_values, list) else [])
+            if isinstance(pair, dict)
+        )
+        said = {
+            name: value
+            for name, value in pairs
+            if isinstance(name, str) and name in declared and isinstance(value, str)
+        }
+        things.append(said)
+    return things
 
 
 async def read_utterance(

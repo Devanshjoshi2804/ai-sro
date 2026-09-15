@@ -236,12 +236,15 @@ async def test_the_held_gate_is_per_workflow_and_never_silences_one_that_never_r
         _workflow(by_id, "wfl_2"),
     )
     await _run(uow, "run_1", "wfl_1", "held")
-    await _run(uow, "run_2", "wfl_2", "failed")
+    # Three, because one failure is a slow page and not a broken job -- and
+    # one was enough to take a job off every browser this tenant had.
+    for number in (2, 3, 4):
+        await _run(uow, f"run_{number}", "wfl_2", "failed")
 
     served = await shapes_for(uow, tenant_id=TENANT, now=NOW)
 
     assert [shape.id for shape in served] == ["wfl_3", "wfl_1"], (
-        "wfl_2 has been run and never held; wfl_3 has never been run at all"
+        "wfl_2 has failed three times and never held; wfl_3 has never been run at all"
     )
     assert {shape.id: shape.held_runs for shape in served} == {"wfl_3": 0, "wfl_1": 1}
 
@@ -436,3 +439,49 @@ async def test_the_offers_that_move_one_job_s_threshold_leave_the_others_alone()
     assert len(served["wfl_4"].shape) == 4
     assert served["wfl_4"].offer_after == 3, "past where it diverged, capped at the last but one"
     assert served["wfl_1"].offer_after == K_OFFER_AFTER, "nobody has diverged on this one"
+
+
+# --- what counts as a job failing --------------------------------------------
+
+
+async def test_a_job_that_stopped_to_ask_is_still_offered() -> None:
+    """The rule that emptied this deployment's panel.
+
+    Twelve runs of the sign-in job, eleven of them `stopped` -- the job asking
+    for a password it did not have -- and the job disappeared from the browser
+    that was trying to finish it. Every job an operator actually does was in
+    that state, and the rule feeds itself: a job that is not served is never
+    offered, is never run, and can never hold.
+    """
+    uow = FakeUnitOfWork()
+    by_id = _evidence()
+    await _plant(uow, by_id, _workflow(by_id))
+    for number in range(11):
+        await _run(uow, f"run_{number}", "wfl_1", "stopped")
+
+    assert [shape.id for shape in await shapes_for(uow, tenant_id=TENANT, now=NOW)] == ["wfl_1"]
+
+
+async def test_a_job_a_person_stopped_is_still_offered() -> None:
+    """Somebody changing their mind says nothing about the job."""
+    uow = FakeUnitOfWork()
+    by_id = _evidence()
+    await _plant(uow, by_id, _workflow(by_id))
+    for number in range(4):
+        await _run(uow, f"run_{number}", "wfl_1", "aborted")
+
+    assert [shape.id for shape in await shapes_for(uow, tenant_id=TENANT, now=NOW)] == ["wfl_1"]
+
+
+async def test_two_failures_are_a_bad_night_and_three_are_a_pattern() -> None:
+    uow = FakeUnitOfWork()
+    by_id = _evidence()
+    await _plant(uow, by_id, _workflow(by_id))
+    await _run(uow, "run_1", "wfl_1", "failed")
+    await _run(uow, "run_2", "wfl_1", "failed")
+
+    assert [shape.id for shape in await shapes_for(uow, tenant_id=TENANT, now=NOW)] == ["wfl_1"]
+
+    await _run(uow, "run_3", "wfl_1", "failed")
+
+    assert await shapes_for(uow, tenant_id=TENANT, now=NOW) == []

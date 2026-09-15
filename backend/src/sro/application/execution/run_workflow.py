@@ -38,15 +38,28 @@ because a release says only that the wait ended and a stop releases it too.
 from __future__ import annotations
 
 import base64
-from collections.abc import Mapping
+import hashlib
+import json
+from collections.abc import Mapping, Sequence
 from contextlib import suppress
-from datetime import UTC, datetime
+from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 
 from sro.application.execution.approvals import K_APPROVAL_WAIT_S, Approvals
 from sro.application.execution.effects import earned, forget_effects, record_effect
 from sro.application.execution.plan_step import SecretFor, plan_by_sight, plan_step
 from sro.application.execution.stops import Stops
-from sro.application.execution.verify import verify
+from sro.application.execution.verify import (
+    # `already_done` is taken in this module: the steps an operator did
+    # themselves before the run picked it up. Two true meanings of one name,
+    # and mypy caught the collision the moment the import landed.
+    already_done as effect_already_holds,
+)
+from sro.application.execution.verify import (
+    by_what_the_page_called,
+    verify,
+)
+from sro.application.intent.spend import over_cap
 from sro.application.ports.agent import DeviceUnreachable
 from sro.application.ports.channel import Channel, Reply
 from sro.application.ports.model import Asker
@@ -67,7 +80,45 @@ from sro.domain.observation.gesture import Gesture
 from sro.domain.shared.hosts import system_of
 from sro.domain.shared.identifiers import DeviceId, TenantId
 from sro.domain.shared.prices import Answer
+from sro.domain.skill.repeats import K_MOST_ITEMS, Repeat
 from sro.domain.skill.workflow import Step, Workflow
+
+K_SAME_WRITE_WINDOW = timedelta(minutes=30)
+"""How long one job's write stays claimed against a second run making it again.
+
+Not forever, which is right for a connector call keyed by run and step and
+wrong here: this key is the JOB, the step and the values, so a claim that never
+expired would mean a tenant could create one supplier with a given code, ever.
+Long enough to cover the case this exists for -- a rule that fires twice, two
+browsers taking one job, a card answered while another run of it is still
+going -- and short enough that "do that again" after lunch just works."""
+
+
+def write_key(workflow_id: str, step: Step, values: Mapping[str, str]) -> str:
+    """What makes two writes the same write.
+
+    The job, the step within it, and the values the run was given -- not the
+    run id, because two runs are exactly what this is about. The values are
+    hashed rather than spelled: they are a customer's data and this key is
+    stored, and a row in `tool_calls` is not a place to keep a supplier's name.
+    """
+    said = json.dumps(dict(sorted(values.items())), separators=(",", ":"))
+    return f"{workflow_id}:{step.order}:{hashlib.sha256(said.encode()).hexdigest()[:16]}"
+
+
+K_CAP_EVERY = 10
+"""How many legs a run may perform between two readings of the day's bill.
+
+The cap was read once, at the press, and never again -- `over_cap` appears
+nowhere in this module's history. One press on a 25-item list is about a
+hundred legs, and at this deployment's measured $0.0118 a step that is $1.20
+against a $5 day, spent after a check that saw $0. Ten is small enough that
+the overspend is a rounding error and large enough that a four-step job pays
+for no extra query at all: the day's bill is a sum over four tables.
+
+A new thing on the list is always a reading, whatever this says. That is where
+a run can still be stopped having done whole records rather than half of one.
+"""
 
 K_STEP_SLACK = 3
 """Attempts a run may make beyond its step count before it stops. A model
@@ -77,6 +128,71 @@ K_LEAVES = ("http.send", "navigate")
 """The two kinds whose target the model chooses, and so the only two ways a
 plan can leave the system the evidence was recorded on. For everything else the
 origin comes off the evidence."""
+
+
+@dataclass(frozen=True, slots=True)
+class _Leg:
+    """One step of a run, and which thing on the list it is being done for."""
+
+    step: Step
+    values: Mapping[str, str]
+    item: int | None = None
+
+
+def _itinerary(
+    ordered: Sequence[Step],
+    repeat: Repeat | None,
+    values: Mapping[str, str],
+    items: Sequence[Mapping[str, str]],
+) -> list[_Leg]:
+    """The steps this run will actually perform, in the order it will do them.
+
+    A job that does one thing once answers with its own steps and nothing else
+    -- and so does a repeating job handed no items, or one item, which is what
+    keeps every other rule in this loop from having to learn about repeats.
+
+    Where there is a list, the body is laid out once per thing on it, with that
+    thing's values over the run's own. The item's values win: a run carrying a
+    `facility` for the whole job and an item carrying its own is a run where
+    the item is the more specific answer.
+
+    Nothing is interleaved. The body is done for the first thing and then for
+    the second, because that is the order an operator does them in and the
+    order a half-finished run has to be readable in: three records made and two
+    not, rather than five records each missing their last field.
+    """
+    if repeat is None or len(items) <= 1:
+        only = dict(items[0]) if items else {}
+        return [_Leg(step, {**values, **only}) for step in ordered]
+    legs: list[_Leg] = []
+    for step in ordered:
+        if not repeat.covers(step.order):
+            legs.append(_Leg(step, values))
+            continue
+        if step.order != repeat.first_step:
+            continue
+        for index, item in enumerate(items):
+            for inner in ordered:
+                if repeat.covers(inner.order):
+                    legs.append(_Leg(inner, {**values, **item}, index))
+    return legs
+
+
+def _worth_asking(position: int, leg: _Leg, itinerary: Sequence[_Leg]) -> bool:
+    """Whether the day's bill is worth a query before this leg.
+
+    Never at the first: the press just asked, and a run refused on its own
+    opening leg would be a 429 wearing a run's clothes.
+
+    Otherwise at the start of each new thing on the list -- the one boundary
+    where stopping leaves whole records rather than half of one -- and every
+    `K_CAP_EVERY` legs for a job that is long without being a list.
+    """
+    if position == 0:
+        return False
+    if leg.item is not None and leg.item != itinerary[position - 1].item:
+        return True
+    return position % K_CAP_EVERY == 0
 
 
 def _now() -> str:
@@ -132,6 +248,26 @@ def _target_origin(planned: Planned) -> str | None:
         return system_of(str(planned.payload.get("url")))
     origin = planned.payload.get("origin")
     return origin if isinstance(origin, str) else None
+
+
+async def _where(
+    channel: Channel,
+    tenant_id: TenantId,
+    device_id: DeviceId,
+    run_id: str,
+    origin: str | None,
+) -> Look:
+    """Where the browser is, and no picture.
+
+    For the step a status already settled. The record still says where the
+    step left the browser -- that is what `after_url` is -- and asking for it
+    costs a message rather than a screenshot, an upload and a vision call.
+    """
+    where = await channel.send(
+        tenant_id, device_id, kind="ui.url", run_id=run_id, payload={"origin": origin}
+    )
+    url = str(where.result.get("url")) if where.ok and where.result.get("url") else None
+    return Look(url=url, screenshot=None, digest="")
 
 
 async def _look(
@@ -301,8 +437,10 @@ async def run_workflow(
     approvals: Approvals,
     run_id: str | None = None,
     from_step: int = 0,
+    items: Sequence[Mapping[str, str]] = (),
     verified_writes: tuple[VerifiedWrite, ...] = (),
     secret_for: SecretFor | None = None,
+    cap_usd: float,
 ) -> WorkflowRun:
     # A run the caller already claimed. `POST /v1/runs` writes the `running` row
     # itself, before it answers, so a second press for the same browser is
@@ -360,6 +498,7 @@ async def run_workflow(
         # compares a re-press against, and a row that does not carry it would
         # refuse every resume as a disagreement with zero.
         from_step=from_step,
+        items=[dict(item) for item in items],
     )
     values, live, allow_focus = run.values, run.live, run.allow_focus
     device_id = DeviceId(run.device_id)
@@ -367,10 +506,51 @@ async def run_workflow(
     by_id = await _gestures_for(uow, tenant_id, workflow)
     allowed = allowlist(workflow, by_id)
     ordered = sorted(workflow.steps, key=lambda s: s.order)
+    # A list longer than one press can mean.
+    #
+    # Refused before anything is sent and before the first record is made: an
+    # operator pressing yes on "add these" has read a mail with a handful of
+    # rows in it, and two hundred is either a mistake or a decision they have
+    # not made. Whoever wants the two hundred can say so twice.
+    if len(run.items) > K_MOST_ITEMS:
+        run.outcome = "refused"
+        run.steps.append(
+            RunStep(
+                order=0,
+                of_step=0,
+                says=ordered[0].says if ordered else "",
+                verdict="refused",
+                verdict_by="none",
+                reason=(
+                    f"this asks for the job to be done {len(run.items)} times, and one press "
+                    f"may mean at most {K_MOST_ITEMS}. Ask again for the rest"
+                ),
+            )
+        )
+        run.finished_at = _now()
+        await _save(uow, run)
+        return run
+    itinerary = _itinerary(ordered, workflow.repeat, values, run.items)
     # The steps the operator already did cost nothing and are not attempted, so
     # they buy no slack either: the budget is what is left to perform.
+    # Which writes this run has claimed the right to make, so a rescue of a
+    # refused write is not stopped by its own first attempt.
+    #
+    # Write keys, not step numbers. A repeating job performs one step.order
+    # once per thing on its list, so a set of step numbers claimed the first
+    # item and let every other one past `tool_calls.remember` entirely -- two
+    # runs whose lists overlap then created the overlap twice, which is the
+    # accident the ledger exists to stop. The key already carries the values,
+    # so a retry of the same leg still finds its own claim and is still let
+    # through.
+    claimed_here: set[str] = set()
+    # Which steps a person has already approved for this list. One tap answers
+    # for every thing on it: they read the rows and pressed once.
+    approved_for_the_list: set[int] = set()
+    # Whether the person has seen the first thing done and said to do the rest.
+    proved_the_first = False
     already_done = [step for step in ordered if step.order < from_step]
-    budget = len(ordered) - len(already_done) + K_STEP_SLACK
+    budget = len(itinerary) - len(already_done) + K_STEP_SLACK
     attempts = 0
     starts_on = None
     # The page this run begins on, which is the page of the step it begins at
@@ -386,14 +566,25 @@ async def run_workflow(
     # than a fabricated one whose order can collide on (run_id, ord).
     in_flight: RunStep | None = None
     try:
-        for step in ordered:
-            if step.order < from_step:
+        for position, leg in enumerate(itinerary):
+            step, values = leg.step, leg.values
+            if step.order < from_step and leg.item in (None, 0):
                 # The operator did this one before the offer was made. Recorded
                 # so the run reads whole, cited so a reviewer can see what it
                 # was, and never sent: the job is being finished, not redone.
+                #
+                # `leg.item in (None, 0)`, because what they did, they did
+                # once. A repeating job performs this same step.order again for
+                # every other thing on the list, and skipping those was the
+                # run filling the form for the first item and then pressing
+                # Save for the second and the third against whatever was left
+                # on the screen -- reported `held`, with the fill steps marked
+                # "performed by the operator" for items nobody had touched.
                 run.steps.append(
                     RunStep(
-                        order=step.order,
+                        order=position,
+                        of_step=step.order,
+                        item=leg.item,
                         says=step.says,
                         verdict="done_by_operator",
                         verdict_by="none",
@@ -409,13 +600,102 @@ async def run_workflow(
                 )
                 run.outcome = "aborted"
                 break
+            # The day's bill, again. Read at the press and then never, a run
+            # that passed the check at $0 could spend the rest of the tenant's
+            # day inside one press -- and the longer the list, the more it
+            # spends before anything asks. Asked at the start of each new thing
+            # on the list, and otherwise every `K_CAP_EVERY` legs.
+            if _worth_asking(position, leg, itinerary) and (
+                why := await over_cap(uow, tenant_id, now=datetime.now(tz=UTC), cap_usd=cap_usd)
+            ):
+                run.steps.append(
+                    RunStep(
+                        order=position,
+                        of_step=step.order,
+                        item=leg.item,
+                        says=step.says,
+                        verdict="failed",
+                        verdict_by="none",
+                        reason=why,
+                    )
+                )
+                run.outcome = "stopped"
+                await _save(uow, run)
+                break
             cited = [by_id[c] for c in step.cites if c in by_id]
             primary = primary_gesture(step, by_id)
-            record = RunStep(order=step.order, says=step.says, verdict="skipped")
+            record = RunStep(
+                order=position,
+                of_step=step.order,
+                item=leg.item,
+                says=step.says,
+                verdict="skipped",
+            )
             in_flight = record
             run.steps.append(record)
             origin = origin_of(primary) if primary is not None else None
             mutates = writes(step, by_id)
+
+            # The first thing is the proof.
+            #
+            # A tap on "add these twenty" is one decision made before anything
+            # happened. It is a good decision about a job that does what the
+            # person thinks it does -- and the way to find out is to do one and
+            # show them. A job read out of a sentence can be the wrong job: an
+            # operator asking for a warehouse equipment type was once answered
+            # with a customer type, and the same guess against a list is a list
+            # of wrong records.
+            #
+            # So the run stops once, before the second thing, with the first
+            # one's result in front of them. Two taps for a list of any length,
+            # and the second one is informed by something real.
+            #
+            # Asked even of a job that has earned the right to write unasked,
+            # which is the one place this system does not let earning through.
+            # Earning says the job's writes have been watched to hold over
+            # runs; it says nothing about whether this is the right job for
+            # what somebody just asked for, and that is the question a list
+            # makes expensive. A job cannot earn its way out of being the wrong
+            # job twenty times.
+            if live and leg.item == 1 and not proved_the_first:
+                proved_the_first = True
+                did = ", ".join(str(one) for one in run.items[0].values()) or "the first one"
+                rest = len(run.items) - 1
+                record.verdict, record.verdict_by = "awaiting", "none"
+                record.reason = (
+                    f"the first of {len(run.items)} is done — {did}. Approve to do the other {rest}"
+                )
+                approvals.register(run.id)
+                await _save(uow, run)
+                if not await approvals.wait_for(run.id, K_APPROVAL_WAIT_S):
+                    waited = f"{K_APPROVAL_WAIT_S / 60:.0f} minutes"
+                    record.verdict, record.verdict_by = "failed", "none"
+                    record.reason = f"nobody said whether to do the rest within {waited}"
+                    run.outcome = "stopped"
+                    await _save(uow, run)
+                    break
+                if stops.asked(run.id):
+                    record.verdict, record.verdict_by = "failed", "none"
+                    record.reason = "stopped after the first one"
+                    run.outcome = "aborted"
+                    await _save(uow, run)
+                    with suppress(DeviceUnreachable):
+                        await channel.send(
+                            tenant_id,
+                            device_id,
+                            kind="abort",
+                            run_id=run.id,
+                            payload={"run_id": run.id},
+                        )
+                    break
+                # Said yes to the rest, so the write gate is not asked again
+                # for them either: they answered about this list twice already.
+                record.verdict, record.verdict_by = "skipped", "none"
+                record.reason = ""
+                if workflow.repeat is not None:
+                    approved_for_the_list.update(
+                        range(workflow.repeat.first_step, workflow.repeat.last_step + 1)
+                    )
             if primary is None:
                 # A step with nothing actionable cited gets no model call at
                 # all: it is recorded skipped and the run stops below rather
@@ -570,7 +850,17 @@ async def run_workflow(
                         navigated = True
 
                 if planned is None and run.outcome == "running":
+                    # A refusal that carries STRUCTURE is kept, because it is
+                    # not "no command" -- it is the one thing a person can act
+                    # on. `needs_secret` names the system and field a step
+                    # wanted a password for, and the panel draws a box from it;
+                    # rolling it back to the previous rung's command left the
+                    # operator with a step marked ✗ and nothing to do about it,
+                    # which is the whole defect this payload exists to fix.
+                    refusal = record.sent if (record.sent or {}).get("payload") else None
                     record.planned_by, record.sent, record.result = previously
+                    if refusal and refusal.get("kind") == "none":
+                        record.sent = refusal
                     # The sight rung's answer, when it had none: the record
                     # keeps the last command that went out, and says beside it
                     # what the picture said -- "not on this screen" is the fact
@@ -616,14 +906,127 @@ async def run_workflow(
                     )
                 )
 
+                # Already true, so there is nothing to do.
+                #
+                # Before the approval gate on purpose: a person asked to
+                # approve a write that has already happened is a person being
+                # asked to make a duplicate. The run that made this worth
+                # writing signed an operator in who was already signed in, and
+                # the class behind it is wider -- a rule that fires twice, two
+                # browsers on one job, a card answered a day late -- and every
+                # one of those ends in a second record a warehouse wanted one
+                # of.
+                #
+                # Only where the step's own evidence shows the page reading its
+                # effect back and this run carries the value to look for. None
+                # of the run's other steps are touched: a step that opens a
+                # form or picks a row has no read and is done the way it always
+                # was.
+                if live and may_write:
+                    settled_already = await effect_already_holds(
+                        step=step,
+                        cited=cited,
+                        values=values,
+                        channel=channel,
+                        tenant_id=tenant_id,
+                        device_id=device_id,
+                        run_id=run.id,
+                    )
+                    if settled_already is not None:
+                        record.verdict, record.verdict_by = "held", "read"
+                        record.reason = settled_already
+                        # Not a write this run made. `record_effect` is what
+                        # earns a job the right to write unasked, and a step
+                        # that sent nothing has not demonstrated anything about
+                        # this job's ability to write correctly.
+                        record.result = {"skipped": True, "already": True}
+                        verdict = StepVerdict("held", "read", settled_already)
+                        break
+
+                # And the same write, claimed before it is sent.
+                #
+                # `already_done` above asks the warehouse whether the record is
+                # there; this asks our own store whether we are already making
+                # it. They catch different halves: a read cannot see a write
+                # that is in flight in another run right now, and a claim
+                # cannot see a record somebody made by hand.
+                #
+                # Claimed and kept, never released on failure -- the reason
+                # `tool_calls` gives for connector calls holds here word for
+                # word: a timeout is the one case where the send may well have
+                # landed, and releasing the key would retry it into a second
+                # write.
+                # `mutates` and not `may_write`, which is the wider of the
+                # two on purpose. `may_write` includes a click whose evidence
+                # recorded no traffic at all -- a Sign In that submits a form
+                # the recorder cannot see is one -- and there the evidence says
+                # nothing was created, so refusing a second attempt would stop
+                # an operator retrying a login that failed. A step whose
+                # evidence carries a real mutating call is the one that can
+                # leave a second record behind.
+                key = write_key(workflow.id, step, values) if live and mutates else ""
+                if live and mutates and key not in claimed_here:
+                    async with uow:
+                        # Not `first`: that name is a gesture in this function.
+                        claimed = await uow.tool_calls.remember(
+                            tenant_id,
+                            key,
+                            tool=f"{planned.kind} {step.says}"[:200],
+                            at=datetime.now(tz=UTC),
+                            stale_after=K_SAME_WRITE_WINDOW,
+                        )
+                        await uow.commit()
+                    # Once per step per run, not once per attempt. A write the
+                    # server itself refused is the one write this loop is
+                    # allowed to plan again, and a claim made by the first
+                    # attempt must not refuse the second -- that is this run
+                    # colliding with itself.
+                    claimed_here.add(key)
+                    if not claimed:
+                        record.verdict, record.verdict_by = "failed", "none"
+                        record.reason = (
+                            "another run of this job made this write with these values in the "
+                            "last half hour, and it may have landed. Nothing is sent twice on a "
+                            "guess -- start a new run if it did not"
+                        )
+                        verdict = StepVerdict("failed", "none", record.reason)
+                        break
+
                 # A live write, on a job that has not yet earned the right to
                 # write unasked: shown in the panel with what would go out, and
                 # held until somebody taps. `live` is checked here rather than
                 # inherited from the block above, whose narrower `mutates` lets
                 # a dry run walk past it: a dry run withholds, never waits.
-                if live and may_write and not await earned(uow.workflows, tenant_id, workflow.id):
+                # Once for the list, not once per thing.
+                #
+                # A person answering "add these three" read three rows and
+                # pressed one button. Asking them again for the second and the
+                # third is asking them to authorise what they have already
+                # authorised -- and a card per thing on a list of ten is a
+                # panel nobody reads by the fourth. So the tap on one step
+                # covers that step for the rest of the list, and only for the
+                # rest of THIS list: a second run asks again, because a second
+                # press is a second decision.
+                #
+                # Not the same as earning the right to write unasked. That is
+                # a job proving itself over runs, and this is one person
+                # answering about one list they have in front of them.
+                approved_here = leg.item is not None and step.order in approved_for_the_list
+                if (
+                    live
+                    and may_write
+                    and not approved_here
+                    and not await earned(uow.workflows, tenant_id, workflow.id)
+                ):
                     record.verdict, record.verdict_by = "awaiting", "none"
-                    record.reason = "waiting for a person to approve the write"
+                    record.reason = (
+                        "waiting for a person to approve the write"
+                        if not run.items
+                        else (
+                            "waiting for a person to approve the write, for this and the "
+                            f"{len(run.items) - 1} other thing(s) on the list"
+                        )
+                    )
                     # `without_secrets`: this row is read by the panel, by an
                     # operator reviewing what happened, and by the model asked
                     # to rescue a failed step. A password typed from the vault
@@ -680,11 +1083,21 @@ async def run_workflow(
                                 payload={"run_id": run.id},
                             )
                         break
+                    # Answered yes, and the answer stands for the rest of the
+                    # list. Recorded after both refusals above, so a wait that
+                    # timed out or a Stop cannot be mistaken for a tap.
+                    if leg.item is not None:
+                        approved_for_the_list.add(step.order)
 
                 # `before` and `planned` are set by the same pass of the while
                 # above: a command to send is a command something was looked at
                 # before planning.
                 assert before is not None  # noqa: S101 -- see the comment above
+                # The moment the command went out, so the calls the page makes
+                # because of it can be told from the ones it was already
+                # making. Taken here and not after the reply: a form submit
+                # posts before the click's own answer comes back.
+                sent_at = datetime.now(tz=UTC).timestamp()
                 reply = await channel.send(
                     tenant_id, device_id, kind=planned.kind, run_id=run.id, payload=planned.payload
                 )
@@ -695,13 +1108,41 @@ async def run_workflow(
                     record.result["matched_by"] = "sight"
                 matched = record.result["matched_by"]
                 record.matched_by = matched if reply.ok and isinstance(matched, str) else None
-                after = await _look(channel, tenant_id, device_id, run.id, origin, allow_focus)
+                # The cheap rung first, and the picture only if it cannot
+                # answer. A step whose demonstrated endpoint has just answered
+                # 201 is done, and photographing the screen to ask a model
+                # whether it looks done costs a screenshot, a vision call and
+                # most of the step's wall clock to reach a worse answer -- the
+                # verifier's own docstring puts the status first and the screen
+                # "last and least", and until the browser could be asked what
+                # it called, a UI step could never reach the first rung.
+                settled = (
+                    await by_what_the_page_called(
+                        step=step,
+                        cited=cited,
+                        since=sent_at,
+                        channel=channel,
+                        tenant_id=tenant_id,
+                        device_id=device_id,
+                        run_id=run.id,
+                    )
+                    if reply.ok
+                    else None
+                )
+                # Where the status settled it, the url is still wanted -- the
+                # record says where the step left the browser -- and that is a
+                # question the browser answers without a camera.
+                after = (
+                    await _where(channel, tenant_id, device_id, run.id, origin)
+                    if settled is not None
+                    else await _look(channel, tenant_id, device_id, run.id, origin, allow_focus)
+                )
                 record.after_url = after.url
                 # Kept for the rescue: if this attempt does not hold, the next
                 # rung is shown the page it left behind beside the page as it
                 # is when it plans.
                 after_failed = after
-                verdict = await verify(
+                verdict = settled or await verify(
                     step=step,
                     sent_kind=planned.kind,
                     answer=reply,
@@ -720,6 +1161,12 @@ async def run_workflow(
                 _bill(record, verdict.answer)
                 record.verdict, record.verdict_by = verdict.state, verdict.by
                 record.reason = verdict.reason
+                if verdict.made:
+                    # What the warehouse called the record this step made. On
+                    # the row because it is the only place it exists: the panel
+                    # says which records a run created, and an undo -- the day
+                    # the evidence for one exists -- addresses them by it.
+                    record.made = dict(verdict.made)
                 if verdict.state == "held":
                     # Found by sight, or by the last locator: the page moved
                     # under the job, and the job is flagged before it breaks.

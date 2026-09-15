@@ -165,3 +165,60 @@ def test_what_the_run_writes_down_is_the_mark_and_not_the_value() -> None:
 
 def test_a_payload_with_no_value_is_left_exactly_as_it_is() -> None:
     assert without_secrets({"action": "click"}) == {"action": "click"}
+
+
+def test_a_command_that_types_nothing_is_not_said_to_have_typed_a_password() -> None:
+    """A click carries `value: None` -- the planner fills the field for every
+    command shape -- and marking it put "«from the vault»" on the Sign In click
+    of a real run, which reads as a password typed by a step that typed
+    nothing."""
+    assert without_secrets({"action": "click", "value": None})["value"] is None
+
+
+# -- the fallback chain in the key, which nothing walked ----------------------
+#
+# `secret_key_for` reads `origin_of(url) or origin_of(system) or "unknown"`.
+# Every test above hands it a gesture with a url, so only the first branch was
+# ever taken and the other two could say anything at all: a mutation sweep
+# found twelve survivors on that one line and on `_as_key`'s trailing strip.
+#
+# The branches are not decoration. The key is where a password LIVES, and the
+# operator storing one and the run asking for it have to spell it the same way
+# -- so a fallback that quietly produced a different system, or an empty
+# segment, would hide the value from the only thing that needs it, and hide it
+# silently, as a login that submits blank.
+
+
+def test_a_gesture_with_no_url_falls_back_to_the_system_it_happened_on() -> None:
+    """Some gestures carry no url of their own -- a keypress inside a frame,
+    an event the recorder saw without a navigation. The system is still known,
+    and it is the half of the key that has to stay stable."""
+    without_url = _typed(url="")
+
+    assert secret_key_for("new", without_url) == f"new/{_origin(KEYCLOAK)}/password"
+
+
+def test_a_gesture_with_neither_is_keyed_somewhere_a_person_can_still_find() -> None:
+    """Never blank. A key with an empty segment reads as `new//password`,
+    which an operator cannot type and cannot recognise; `unknown` is at least
+    a word, and a step that refused will print the key it wanted."""
+    nowhere = _typed(url="")
+    nowhere.system = None
+
+    assert secret_key_for("new", nowhere) == "new/unknown/password"
+
+
+def test_the_field_name_keeps_no_dash_at_either_end() -> None:
+    """`_as_key` replaces every run of other characters with a dash, so a
+    label that starts or ends with punctuation would key as `-password` or
+    `password-`. The operator types what they read on screen; they do not type
+    the dash the substitution left behind."""
+    assert field_of(_typed(name="Password:")) == "password"
+    assert field_of(_typed(name="* Password *")) == "password"
+    assert field_of(_typed(name="Your password!")) == "your-password"
+
+
+def _origin(url: str) -> str:
+    from sro.domain.shared.hosts import origin_of
+
+    return origin_of(url) or ""

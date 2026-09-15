@@ -7,6 +7,7 @@ changing a warehouse, so most of what an executor must get right is refusing.
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 
 import pytest
 
@@ -16,7 +17,8 @@ from sro.application.induction.assertions import extract
 from sro.domain.execution.run import RunStatus, StepDisposition
 from sro.domain.execution.verdict import Verdict, judge
 from sro.domain.recording.sensitivity import Sensitivity
-from sro.domain.shared.identifiers import SkillId
+from sro.domain.shared.errors import Conflict
+from sro.domain.shared.identifiers import DeviceId, SkillId
 from sro.domain.skill.assertion import Assertion, AssertionKind
 from sro.domain.skill.parameter import Parameter, ParameterKind
 from sro.domain.skill.plan import HeaderPlan
@@ -570,3 +572,67 @@ async def test_a_url_the_skill_rendered_wrong_is_the_skill_being_wrong() -> None
     assert not run.steps[0].unreachable
     assert judge(run) is Verdict.FAILED
     assert "may have arrived" not in (run.steps[0].detail or ""), "nothing was sent"
+
+
+async def test_a_browser_already_running_a_skill_is_refused_the_second_one() -> None:
+    """The guard the skill path never had, in the words a person can act on.
+
+    The rig refuses a second press for one browser -- `in_flight` names the run
+    that has it, and `uq_workflow_runs_one_running_per_device` catches the race
+    the read cannot see. This path had neither, so two triggers firing two
+    skills at one device in the same minute both started and interleaved their
+    clicks in one window: the corrupted form against a live warehouse that
+    migration 0043 is about. Migration 0049 gives `runs` the same index; this
+    is the read in front of it.
+    """
+    uow, http, vault = FakeUnitOfWork(), FakeHttpCaller(), FakeCredentialVault()
+    await vault.store(SCOPED, "session=live")
+    await _skill(uow, f.skill_version(steps=(_write_step(),)), PromotionStage.SHADOW)
+    laptop = DeviceId("dev_1")
+
+    first = await _executor(uow, http, vault).execute(
+        CTX,
+        ExecutionRequest(
+            skill_id=SkillId("skill-1"),
+            parameters={"shipment_id": "555"},
+            device_id=laptop,
+            authorized_by="supervisor",
+        ),
+    )
+    # Still driving: nothing has ended it. (`execute` runs to completion here,
+    # so the row is reopened -- what is under test is the guard, not how long a
+    # real run takes.)
+    where = next(key for key, run in uow.runs.rows.items() if str(run.id) == str(first.id))
+    uow.runs.rows[where] = replace(uow.runs.rows[where], ended_at=None)
+    assert uow.runs.rows[where].ended_at is None
+
+    with pytest.raises(Conflict) as refused:
+        await _executor(uow, http, vault).execute(
+            CTX,
+            ExecutionRequest(
+                skill_id=SkillId("skill-1"),
+                parameters={"shipment_id": "666"},
+                device_id=laptop,
+                authorized_by="supervisor",
+            ),
+        )
+
+    assert str(first.id) in str(refused.value)
+
+
+async def test_a_browser_whose_skill_run_has_ended_may_start_another() -> None:
+    uow, http, vault = FakeUnitOfWork(), FakeHttpCaller(), FakeCredentialVault()
+    await vault.store(SCOPED, "session=live")
+    await _skill(uow, f.skill_version(steps=(_write_step(),)), PromotionStage.SHADOW)
+    laptop = DeviceId("dev_1")
+
+    for shipment in ("555", "666"):
+        await _executor(uow, http, vault).execute(
+            CTX,
+            ExecutionRequest(
+                skill_id=SkillId("skill-1"),
+                parameters={"shipment_id": shipment},
+                device_id=laptop,
+                authorized_by="supervisor",
+            ),
+        )

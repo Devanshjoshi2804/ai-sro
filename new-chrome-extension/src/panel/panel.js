@@ -210,8 +210,25 @@ function render(status) {
   // opens onto. The rest -- a run, what it made, what is wrong -- stay where
   // they are, above the day.
   const [state, ...rest] = cards;
-  $("expanded").replaceChildren(state);
-  $("cards").replaceChildren(...rest);
+  // Never while somebody is typing a password into one of these cards.
+  //
+  // This redraw runs on the two-second poll and replaces every card with a
+  // freshly built one, which takes the box with it: an operator typing their
+  // password into the card that asked for it watched it empty itself every
+  // two seconds. The thread has held this rule since the composer was built
+  // -- a redraw that lands on somebody mid-sentence throws away what they
+  // typed -- and the cards column had no equivalent because nothing in it was
+  // ever typed into.
+  //
+  // Narrow on purpose: only a password box, because that is the one control
+  // here whose value cannot be recovered from anywhere (a parameter field is
+  // redrawn from `run.parameters`, which the worker holds). Everything else
+  // keeps updating, and the moment they press Save or click away the next
+  // poll draws normally.
+  if (document.activeElement?.type !== "password") {
+    $("expanded").replaceChildren(state);
+    $("cards").replaceChildren(...rest);
+  }
 
   // While a demonstration is being recorded the panel is about that and
   // nothing else, and none of it applies to a browser that is not connected.
@@ -604,11 +621,36 @@ function performing(status) {
             }
             await refresh();
           },
+          onSecret: keepSecret,
         },
       ),
     );
   }
   return holder;
+}
+
+/** One password, on its way to the vault and gone.
+ *
+ * The panel is the only screen the person who knows it is looking at, and it
+ * is the one place that must not keep it: this reads the field, hands it to
+ * the worker, and returns what the worker said. Nothing is stored on this
+ * side -- not in `chrome.storage`, not in a variable that outlives the call.
+ */
+async function keepSecret({ system, field, value }) {
+  // Caught rather than thrown on: `ask` turns a worker's `error` into an
+  // exception, and an exception inside the Save listener would leave the
+  // person who just typed their password looking at a row that said nothing.
+  try {
+    const kept = await ask({ kind: "keep-secret", system, field, value });
+    // Said under the cards as well as on the row. The row's own line is drawn
+    // inside a card the next poll rebuilds -- the guard above only holds it
+    // while the box has the cursor -- so an operator who presses Save and
+    // looks away would otherwise have nothing left saying it worked.
+    if (kept?.ok) said("password kept — press Yes again and it will sign in");
+    return kept;
+  } catch (error) {
+    return { ok: false, error: error.message };
+  }
 }
 
 /** What the rig's own outcomes are, said in a sentence. Its vocabulary is not
@@ -622,6 +664,19 @@ const RIG_ENDINGS = {
   aborted: "The run was stopped.",
   failed: "The run failed.",
 };
+
+/** One item's values, in a sentence: `name: value, name: value`.
+ *
+ * All that survives of the sentence-to-skill box, which went with the mining
+ * offers that opened it. The undo line still needs it: what a reversal is
+ * about to delete has to be readable before the press, and this is the only
+ * place those identifiers appear.
+ */
+function describeItem(item) {
+  return Object.entries(item)
+    .map(([name, value]) => `${name}: ${value}`)
+    .join(", ");
+}
 
 /** What the last run made, and how to take it back.
  *
@@ -649,11 +704,10 @@ function finished(status) {
   // card a backend run is drawn in; what changes is which list it draws and
   // which buttons it puts under it.
   if (run.source === "rig") {
-    return runCard({
-      run,
-      skill: null,
-      message: { text: RIG_ENDINGS[run.status] || "The run ended." },
-    });
+    return runCard(
+      { run, skill: null, message: { text: RIG_ENDINGS[run.status] || "The run ended." } },
+      { onSecret: keepSecret },
+    );
   }
   const ok = run.status === "succeeded";
   const made = ok ? Object.entries(run.derived || {}) : [];
@@ -934,10 +988,15 @@ async function stopTeaching(button, { discard = false } = {}) {
     said(error.message);
   }
   await refresh();
-  await here();
 }
 
-/** A sentence under the cards, for what just happened. */
+/** A sentence under the cards, for what just happened.
+ *
+ * `#candidates-note` by name still, which is a leftover: it was the foot of
+ * the candidate list, and when that list went with the rest of the older
+ * pipeline's offers this line stayed, because a line saying what just
+ * happened is worth having wherever it sits.
+ */
 function said(words) {
   $("candidates-note").textContent = words;
 }
@@ -949,27 +1008,59 @@ async function refresh() {
   // far through it is and which rung it is allowed to be on.
   if (status.performing) {
     try {
-      const run = await ask({ kind: "run", runId: status.performing.runId });
-      const skill = await ask({ kind: "skill", skillId: run.skill_id });
-      const version = (skill.versions || []).find((each) => each.version === run.skill_version);
-      status.performing = {
-        ...status.performing,
-        skill: skill.name || null,
-        stage: run.stage || null,
-        step: Array.isArray(run.steps) ? run.steps.length : null,
-        // How many steps the version has, which is what makes "step 3 of 6"
-        // answerable. A looping skill performs more positions than it has
-        // steps, so this is a floor rather than a promise -- and the card says
-        // "step 3" without the total when they disagree.
-        of: version?.steps?.length ?? null,
-        because: run.requested_by ? `Started by ${run.requested_by}` : null,
-      };
+      // The door that holds this kind of run. A mined job's run lives at
+      // `/v1/workflow-runs` and a skill's at `/v1/runs`, and asking the second
+      // about the first is a 404 every time -- which is what the card showing
+      // "A run is performing here" and no job name was, all evening, on every
+      // run this browser drove.
+      const rig = status.performing.source === "rig";
+      const run = await ask({
+        kind: "run",
+        runId: status.performing.runId,
+        source: status.performing.source,
+      });
+      status.performing = rig
+        ? {
+            ...status.performing,
+            // The rig plans one step at a time, so there is no total to count
+            // towards and the card says "step 3" rather than "step 3 of 7".
+            // `rigRun` maps the row; `steps` is what it has done so far.
+            skill: null,
+            step: Array.isArray(run.steps) ? run.steps.length : null,
+            of: null,
+            because: null,
+          }
+        : await _aboutTheSkill(status.performing, run);
     } catch {
       // A run the panel cannot read is still a run the panel can stop.
     }
   }
   void sayTheDay(status);
   return render(status);
+}
+
+/** What a SKILL run is, as the performing card draws it: the skill's name, the
+ * rung it is allowed to be on, and how many steps its version has.
+ *
+ * Only for a skill run. A mined job's run has no version to count towards --
+ * the rig plans one step at a time -- so asking these questions about one is
+ * asking a door that does not hold it.
+ */
+async function _aboutTheSkill(performing, run) {
+  const skill = await ask({ kind: "skill", skillId: run.skill_id });
+  const version = (skill.versions || []).find((each) => each.version === run.skill_version);
+  return {
+    ...performing,
+    skill: skill.name || null,
+    stage: run.stage || null,
+    step: Array.isArray(run.steps) ? run.steps.length : null,
+    // How many steps the version has, which is what makes "step 3 of 6"
+    // answerable. A looping skill performs more positions than it has steps,
+    // so this is a floor rather than a promise -- and the card says "step 3"
+    // without the total when they disagree.
+    of: version?.steps?.length ?? null,
+    because: run.requested_by ? `Started by ${run.requested_by}` : null,
+  };
 }
 
 /** The three numbers over the ledger, fetched beside the redraw rather than in
@@ -996,8 +1087,6 @@ async function sayTheDay(status) {
  * Without this the list is whatever was in front when the panel opened, which
  * reads as "nothing noticed on this system" while the line above it names a
  * different system entirely. */
-let showing = null;
-
 /** The tab this panel is docked beside -- the one every card is about. */
 let tabHere = { tabId: null, host: "", url: "" };
 
@@ -1012,13 +1101,14 @@ let openOffers = 0;
 
 async function whereWeAre() {
   const tab = await beside();
-  const host = hostOf(tab?.url || "");
-  tabHere = { tabId: tab?.id ?? null, host, url: tab?.url || "" };
-  if (host !== showing) {
-    showing = host;
-    await here();
-    await refresh();
-  }
+  const was = tabHere;
+  tabHere = { tabId: tab?.id ?? null, host: hostOf(tab?.url || ""), url: tab?.url || "" };
+  // The tab's id and not its host alone. Whether this tab is being watched is
+  // answered by looking for `tabHere.tabId` in the watch list, so two tabs on
+  // one warehouse are two different answers -- and a host comparison left the
+  // panel saying "Watching this tab" beside a second tab nothing was
+  // recording.
+  if (tabHere.host !== was.host || tabHere.tabId !== was.tabId) await refresh();
 }
 
 function openConsole(path = "/console") {
@@ -1053,7 +1143,6 @@ async function purge() {
     $("purged").textContent =
       `deleted ${gone.events} events in ${gone.batches} batches, ` +
       `and ${gone.artifacts ?? 0} screenshots`;
-    await here();
   } catch (error) {
     $("purged").textContent = `nothing was deleted: ${error.message}`;
   }
@@ -1113,10 +1202,18 @@ function show(thread, { asked = false } = {}) {
   // An answer to a question is drawn from the same local half, and changes
   // without the thread changing -- the same defect the nudges above were found
   // to have: every poll computed the same signature and returned.
-  const answered = `${lastStatus?.answer?.askedAt || ""}:${(lastStatus?.answer?.answers || []).length}`;
+  // NOT `answered`: that is the press handler this function hands to the
+  // ledger twenty lines down, and a local of the same name shadowed it -- so
+  // `onPress` was a string, and every press in the thread threw
+  // "onPress is not a function" into a click listener nobody was watching.
+  // The panel drew the cards and answered none of them. Found by an operator
+  // pressing "Yes, do it" on a rule that had fired and getting nothing.
+  // `said` is taken too -- it is how this panel writes a line back to the
+  // operator -- so this name belongs to neither.
+  const answerSeen = `${lastStatus?.answer?.askedAt || ""}:${(lastStatus?.answer?.answers || []).length}`;
   const missed = (lastStatus?.nearMisses || []).map((one) => `${one.triggerId}:${one.at}`).join(",");
   const asking = (lastStatus?.waiting || []).map((one) => one.id).join(",");
-  const now = `${thread.id}:${(thread.messages || []).map((message) => message.id).join(",")}|${mine}|${answered}|${missed}|${asking}|${hostOf(tabHere.url || "")}`;
+  const now = `${thread.id}:${(thread.messages || []).map((message) => message.id).join(",")}|${mine}|${answerSeen}|${missed}|${asking}|${hostOf(tabHere.url || "")}`;
   if (now === drawn) return;
   if (!asked && drawn !== null && document.activeElement?.tagName === "INPUT") return;
   drawn = now;
@@ -1178,18 +1275,16 @@ async function say(text) {
   }
 }
 
-/** An offer in the thread, answered.
+/** Something in the thread, answered.
  *
- * The message is a thing that was said; this press is the authorisation, and
- * it goes through the same call the candidate rows have always made -- so an
- * assisted run started from the conversation records the operator's press
- * exactly as one started from a row does. Nothing here runs because a message
- * asked for it.
+ * The message is a thing that was said; this press is the authorisation.
+ * Nothing here runs because a message asked for it.
  *
- * The decision is spread into the candidate rather than picked apart, because
- * the fields `beginOffer` reads beyond the id -- a model's title, a signature
- * -- are the backend's to add to an offer later, and a panel that copied three
- * named fields across would silently drop them.
+ * Every path below is the rig's. The mining pipeline's own offer -- "you've
+ * done this 4 times, want me to do the next one?" -- is gone: it offered to
+ * teach a SKILL from recordings, which is not the system this browser drives,
+ * and the rig already holds that work as a job with steps. The ledger no
+ * longer draws those messages at all.
  */
 async function answered(answer, message, where, button, values) {
   // An offer the rig made about the job in front of somebody. Its two answers
@@ -1205,6 +1300,13 @@ async function answered(answer, message, where, button, values) {
   // reports an offer's FATE, and making a rule is not one of the three -- the
   // offer in front of them is still theirs to answer either way.
   if (answer === "do-this-here") return madeARule(message, button);
+  // Which of the two jobs they meant. Said back into the conversation as the
+  // job's own name rather than started here: the door then reads a sentence
+  // with no ambiguity left in it, and the offer it makes is the ordinary one.
+  if (answer === "which-job") {
+    button.disabled = true;
+    return say(values?.title || button.textContent || "");
+  }
   // A rule that fired and stopped to ask, answered from where the operator is
   // rather than only in the console.
   if (answer === "waiting-approve" || answer === "waiting-decline") {
@@ -1215,19 +1317,6 @@ async function answered(answer, message, where, button, values) {
   // typed into the card are what the run must use -- so they go up on the press
   // rather than the ones the mail happened to fill.
   if (decision.kind === "mail_match") return firedFromMail(decision, answer, button, values);
-
-  const candidate = { ...decision, id: decision.candidate_id };
-  if (!candidate.id) return;
-  button.disabled = true;
-  if (answer === "do") return beginOffer(candidate, where, button);
-  try {
-    await ask({ kind: "dismiss-candidate", id: candidate.id, reason: "not worth automating" });
-  } catch (error) {
-    $("thread-note").textContent = error.message;
-    button.disabled = false;
-    return;
-  }
-  await conversation();
 }
 
 /** The rig's offer, answered.
@@ -1346,259 +1435,6 @@ async function firedFromMail(decision, answer, button, values) {
 
 // -- tasks you keep doing here ----------------------------------------------
 
-async function here() {
-  const tab = await beside();
-  const host = hostOf(tab?.url || "");
-  if (!host) {
-    $("candidates").replaceChildren();
-    $("candidates-note").textContent = "open the system you work in to see its tasks";
-    return;
-  }
-
-  let candidates;
-  try {
-    candidates = await ask({ kind: "candidates", host });
-  } catch (error) {
-    $("candidates-note").textContent = error.message;
-    return;
-  }
-
-  // Only what is still a question. The endpoint answers with every status --
-  // dismissed and taught included, because the miner reads them all so it does
-  // not re-offer what somebody said no to -- and a panel that offered "Teach"
-  // on a dismissed one would be offering a button the backend refuses.
-  //
-  // And not what the conversation is already carrying. A task worth offering
-  // is said out loud in the thread, with the same two buttons; drawing it here
-  // as well is the panel asking twice and then disagreeing with itself about
-  // whether it was answered -- dismissing one left the other live. So this
-  // list is what is building up and has not been offered yet, and the thread
-  // owns every real offer.
-  const offerable = candidates.filter(
-    (candidate) => candidate.status === "new" && !candidate.offered_at,
-  );
-
-  $("candidates-note").textContent = offerable.length
-    ? ""
-    : `nothing new noticed on ${host} — it takes a few doings of the same task`;
-  $("candidates").replaceChildren(...offerable.map(row));
-}
-
-/** The noun for this task, off the signature's own path.
- *
- * Used only where no model has named the task, so this never depends on one
- * being configured and a raw signature never reaches an operator. A numeric
- * or otherwise substituted segment (`workOperations/*`, an update-by-id call)
- * carries no word, so this walks back past it and any other empty segment
- * looking for one that actually is one; `null` says none was found, which is
- * true of some signatures and is a case the caller has to word around rather
- * than one this can paper over with a placeholder.
- */
-function noun(candidate) {
-  const path = (candidate.signature || "").split(" ")[1] || "";
-  const word = path
-    .split("/")
-    .filter(Boolean)
-    .reverse()
-    .find((segment) => segment !== "*");
-  if (!word) return null;
-  // `workOperations` is two words to everybody except a URL. Left exactly as
-  // the path spelled it -- plural or not -- so `counted` below is the one
-  // place that decides which of those an operator actually reads.
-  return word.replace(/([a-z0-9])([A-Z])/g, "$1 $2").toLowerCase();
-}
-
-/** `word` at `count`: singular at one, plural otherwise -- "operation" once,
- * "operations" any other time. Naive (`s`-only) on purpose: everything `noun`
- * hands this came off a REST path (`workOperations`, `receipts`, a
- * `shortShip`), and that is English's regular case throughout.
- */
-function counted(word, count) {
-  const plural = word.endsWith("s");
-  if (count === 1) return plural ? word.slice(0, -1) : word;
-  return plural ? word : `${word}s`;
-}
-
-/** The offer, in one sentence a warehouse operator would recognise as
- * ordinary English -- and a second thanking them for the offer's own
- * meaning: what they repeat, and that we will do the next one.
- *
- * A model writes a title -- a full sentence, conjugated as one -- where the
- * deployment has one and the propose pass has run; that can only be said back
- * as itself, never spliced into a noun's slot the way it was before ("You've
- * created 3 Adjust an LPN after a short ship here"). Where there is no title,
- * the noun taken from the signature's path *is* built to go in that slot, so
- * the two are two different sentences, not one template serving both.
- */
-export function plainly(candidate) {
-  const said = Math.round(candidate.median_duration_ms / 1000);
-  // "1 times" is not a sentence, and a candidate sitting at `times_seen: 1`
-  // is not theoretical -- the panel offers everything `status === "new"`
-  // regardless of how many times it's been seen, and this is what a fresh
-  // one looks like.
-  const times = candidate.times_seen === 1 ? "once" : `${candidate.times_seen} times`;
-  if (candidate.named_by_model && candidate.title) {
-    return `${candidate.title} — you've done this ${times}, about ${said}s each. Want me to do the next one?`;
-  }
-  const what = noun(candidate);
-  // No word survived the signature's path (every segment was `*` or blank).
-  // Vaguer is better than visibly broken: "this" reads as ordinary English no
-  // matter what the endpoint looked like, where a placeholder noun would not.
-  if (!what) return `You've done this ${times} here — about ${said}s each.`;
-  const count = candidate.times_seen === 1 ? "one" : candidate.times_seen;
-  return `You've created ${count} ${counted(what, candidate.times_seen)} here — about ${said}s each.`;
-}
-
-function row(candidate) {
-  const item = document.createElement("li");
-
-  const said = document.createElement("p");
-  said.className = "title";
-  said.textContent = plainly(candidate);
-  if (candidate.named_by_model && candidate.title) {
-    // Said out loud: a sentence a model wrote is not a fact about the task.
-    // Dropped by the round-1 rewrite of this row and caught by the browser
-    // suite, not either unit-test gate -- `plainly()` says the title
-    // verbatim under the same condition, and only the DOM this builds around
-    // it can mark whose words they are.
-    const mark = document.createElement("span");
-    mark.className = "by-model";
-    mark.textContent = " — named by a model";
-    said.append(mark);
-  }
-
-  item.append(said);
-
-  for (const join of candidate.joins || []) item.append(suggestion(candidate, join));
-
-  const actions = document.createElement("div");
-  actions.className = "row";
-
-  const offer = document.createElement("button");
-  offer.type = "button";
-  offer.textContent = "Do the next one";
-  offer.addEventListener("click", () => {
-    offer.disabled = true;
-    return beginOffer(candidate, item, offer);
-  });
-
-  const no = document.createElement("button");
-  no.type = "button";
-  no.className = "quiet";
-  no.textContent = "No thanks";
-  no.addEventListener("click", async () => {
-    try {
-      await ask({ kind: "dismiss-candidate", id: candidate.id, reason: "not worth automating" });
-      await here();
-    } catch (error) {
-      // Said on the row rather than thrown into nothing: a click that does
-      // nothing and explains nothing is how somebody decides the panel is
-      // broken.
-      said.textContent = error.message;
-    }
-  });
-
-  actions.append(offer, no);
-  item.append(actions);
-  return item;
-}
-
-/** How much to show before running, and what still needs asking.
- *
- * Tied to the rung, not to the press. A preview on every press forever is the
- * thing that makes people stop reading previews -- and the ladder already says
- * when a version has earned the benefit of the doubt, on evidence rather than
- * on somebody's patience. This is not a preference: an operator cannot switch it
- * off, because it is the version that earned it and not them.
- *
- * `version` here is the flat shape this file builds in `preview()` below
- * (`{stage, clean_streak, starts_on}`), not the wire's `SkillVersionModel` --
- * the streak lives two levels down there, under `track_record`, and a function
- * that reached through that nesting itself would be a second place to keep in
- * step with the shape the API happens to use today.
- *
- * `startsOn` is handed back beside the steps because it is one of the three
- * things ADR 014's closed list says an operator reads before pressing: the
- * step intents, the resolved value of each parameter, and the tab the run will
- * act in. The run genuinely navigates there before it does anything, so a
- * preview that named the steps and not the screen was describing a different
- * run from the one about to happen -- and the residual-risk argument that
- * decision rests on depends on that list being exhaustive.
- */
-export function previewOf(version, steps) {
-  const missing = steps.filter((step) => step.missing).map((step) => step.label || step.missing);
-  const show =
-    version.stage === "autonomous"
-      ? "nothing"
-      : version.stage === "recorded" || !version.clean_streak
-        ? "every-step"
-        : "one-line";
-  return { show, steps, missing, startsOn: version.starts_on || null };
-}
-
-/** The steps `previewOf` needs, from a skill version's own steps, what
- * `resolve-intent` said is still missing, and what it already read out of the
- * sentence for the rest.
- *
- * A step is a place data was typed only where a declared *input* parameter's
- * `source_step_index` names it -- `kind === "input"` is checked deliberately,
- * because a derived or iterated parameter also carries a `source_step_index`
- * and is never prompted for (see `ParameterKind` in the domain); matching on
- * the index alone once asked a step nobody types into for a value and sent
- * `""` under its name. "Press Save." matches no input parameter and carries
- * `value: null` forever, which is correct: it is a gesture, not a question.
- * A step that does match one keeps its parameter's name on it either way,
- * missing or not -- `renderReady` below decides what to *send* for it, but
- * losing the name here is how a value the sentence supplied stopped being
- * sendable at all.
- */
-function preview(skillVersion, missingParameters, known = {}) {
-  const steps = (skillVersion.steps || []).flatMap((step) => {
-    // Every input parameter this step is the source of, not the first one.
-    // `.find()` here meant a step that takes two typed values -- a code and a
-    // quantity in the same dialog, say -- showed one of them and sent one of
-    // them, and the other was never on the screen the operator read and never
-    // in `parameters` at the press. A line each: the step's intent is repeated
-    // beside each value, which reads a little redundantly and is the honest
-    // shape, because what the operator has to check is the values.
-    const found = (skillVersion.parameters || []).filter(
-      (candidate) => candidate.kind === "input" && candidate.source_step_index === step.index,
-    );
-    if (!found.length) return [{ intent: step.intent, value: null }];
-    return found.map((parameter) => {
-    if (missingParameters.includes(parameter.name)) {
-      return {
-        intent: step.intent,
-        value: null,
-        name: parameter.name,
-        missing: parameter.name,
-        label: parameter.description || parameter.name,
-      };
-    }
-    // Read out of the sentence, not invented: `known` is `resolution.items`,
-    // the parser's own extraction, and a name absent from it (no parser
-    // configured, or this one just was not said) is shown blank rather than
-    // guessed at. Trimmed, and an empty result treated the same as absent --
-    // a value the parser read as whitespace is not a value it read, and the
-    // rule against sending a key with no value is the same rule whether the
-    // gap is a missing name or one that resolved to "".
-    return {
-      intent: step.intent,
-      value: (known[parameter.name] ?? "").trim() || null,
-      name: parameter.name,
-    };
-    });
-  });
-  return previewOf(
-    {
-      stage: skillVersion.stage,
-      clean_streak: skillVersion.track_record?.clean_streak ?? 0,
-      starts_on: skillVersion.starts_on,
-    },
-    steps,
-  );
-}
-
 /** The press. Promotes the version the preview just showed and starts it in
  * this browser -- `POST /skills/{id}/runs/from-preview`, never the ordinary
  * run endpoint, because that call does both at once and only this browser is
@@ -1622,519 +1458,6 @@ async function runIt(skillId, parameters, intent, version) {
   // thing that could go stale while the operator was still typing.
   const { deviceId } = await ask({ kind: "status" });
   return ask({ kind: "run-skill", skillId, parameters, deviceId, intent, version });
-}
-
-/** One item's values, said plainly rather than dumped as a raw object --
- * "sku: A1, qty: 4" reads as English; `{"sku":"A1","qty":"4"}` reads as a
- * bug report. */
-function describeItem(item) {
-  return Object.entries(item)
-    .map(([name, value]) => `${name}: ${value}`)
-    .join(", ");
-}
-
-/** A note appended into `box`, ahead of whatever is about to draw there.
- * A helper only because `box` is cleared at the top of every render step
- * between here and the press (`renderPreview`, then `renderReady`), so
- * anything said before the preview has to be re-said by each of them rather
- * than appended once and lost the moment the next one clears its own box. */
-function noteLine(box, text) {
-  if (!text) return;
-  const line = document.createElement("p");
-  line.className = "note";
-  line.textContent = text;
-  box.append(line);
-}
-
-/** Fetches the version, builds its preview, and hands it to `renderPreview`
- * -- the one path both a straight match and a confirmed hedge take, so they
- * cannot drift into asking the press for different things.
- *
- * `items` is `resolution.items`: one parameter set per thing the sentence
- * named -- "these six SKUs" is six. Only the first is ever acted on here,
- * because nothing in this panel runs more than one thing per press; where
- * there was more than one, that is said before the preview rather than
- * silently discarded -- five things a person asked for going unmentioned is
- * worse than the panel admitting it can only start the first.
- */
-async function startPreview(candidate, missingParameters, items, box, utterance) {
-  const note =
-    items && items.length > 1
-      ? `This named ${items.length} things; only the first will run now` +
-        ` (${describeItem(items[0])}). Ask again, one at a time, for the rest.`
-      : null;
-  await renderPreview(
-    preview(await fetchVersion(candidate), missingParameters, (items && items[0]) || {}),
-    candidate,
-    box,
-    utterance,
-    note,
-  );
-}
-
-/** What a sentence resolved to, drawn into `box`: one skill and its preview,
- * a hedge about the one it found, a question between a few, or nothing
- * taught at all.
- *
- * `resolve-intent` is never asked about one skill in particular -- see
- * `askBox` below for why -- so every one of these is a real outcome, not an
- * edge case. Two candidates too close to separate, and one candidate that
- * does not account for the whole sentence, are the same failure with
- * different shapes: a naive reading runs the best-scoring guess either way,
- * and that is a warehouse write on a coin toss. `ResolveIntent` already
- * refuses to guess and hands back a question in the operator's own words --
- * discarding that here, at the last surface before a live write, would spend
- * the one thing this whole branch is built on. So both ask, with a name on
- * the screen, and wait.
- */
-async function renderResolution(resolution, box, utterance) {
-  box.replaceChildren();
-
-  if (resolution.matched && resolution.confident) {
-    await startPreview(
-      resolution.matched,
-      resolution.missing_parameters || [],
-      resolution.items,
-      box,
-      utterance,
-    );
-    return;
-  }
-
-  const said_ = document.createElement("p");
-  said_.className = "note";
-
-  if (resolution.matched) {
-    // Exactly one skill scored best, but it does not account for the whole
-    // sentence -- `resolve-intent` says so itself, in `question`, which is
-    // rendered rather than recomposed: a second version of "did you mean X?"
-    // written here is a second sentence to keep in step with resolve.py's.
-    said_.textContent = resolution.question || `Did you mean “${resolution.matched.name}”?`;
-    box.append(said_);
-    const yes = document.createElement("button");
-    yes.type = "button";
-    yes.textContent = `Yes, ${resolution.matched.name}`;
-    yes.addEventListener("click", async () => {
-      yes.disabled = true;
-      await startPreview(
-        resolution.matched,
-        resolution.missing_parameters || [],
-        resolution.items,
-        box,
-        utterance,
-      );
-    });
-    box.append(yes);
-    return;
-  }
-
-  if (resolution.choices?.length) {
-    said_.textContent =
-      resolution.question ||
-      `Which one did you mean: ${resolution.choices.map((choice) => choice.name).join(" or ")}?`;
-    box.append(said_);
-    for (const choice of resolution.choices) {
-      const pick = document.createElement("button");
-      pick.type = "button";
-      pick.className = "quiet";
-      pick.textContent = choice.name;
-      pick.addEventListener("click", async () => {
-        pick.disabled = true;
-        // `resolve-intent` gives no missing-parameter list, and no extracted
-        // values, for a choice that was not the match -- only for the one it
-        // settled on. So a picked choice is previewed with nothing marked
-        // missing and nothing known either, which is not the same thing as
-        // previewing it with nothing required: every input parameter this
-        // version declares is simply absent from `parameters` at the press
-        // (see `renderReady` -- a value nobody supplied and the parser never
-        // read is not sent as `""`), and `ensure_runnable` refuses it by name
-        // if any of them was required. A second `resolve-intent` pinned to
-        // this choice, asking what it still needs, is the fix if that
-        // refusal is ever felt; nothing taught needs it yet.
-        await startPreview(choice, [], null, box, utterance);
-      });
-      box.append(pick);
-    }
-    return;
-  }
-
-  said_.textContent = resolution.question || "Nothing taught matches that.";
-  box.append(said_);
-}
-
-/** The skill version a candidate names, fetched fresh. Held nowhere between
- * asks: the panel already reads it this way to say what a run in progress is
- * doing (`refresh()`, above), and a second cache here is a second place it
- * could disagree with the skill's own record. */
-async function fetchVersion(candidate) {
-  const skill = await ask({ kind: "skill", skillId: candidate.skill_id });
-  const found = (skill.versions || []).find((each) => each.version === candidate.version);
-  return found || { stage: candidate.stage, steps: [], parameters: [], track_record: null };
-}
-
-/** What is still missing, asked for by the screen's own name -- never the
- * signature's -- and then the preview `built.show` actually calls for.
- *
- * An empty box is not an answer. A field left blank and continued through
- * would send `""` as the value, and `""` is a value: the run is not refused
- * for missing it, it is sent, and it writes an empty field into a warehouse
- * record. So a blank here is treated exactly like one never typed at all --
- * it stays asked for -- rather than accepted as a deliberate empty string.
- * Trimmed before that check, not after: three spaces is not a value either,
- * and typing them is not meaningfully different from typing nothing.
- */
-async function renderPreview(built, candidate, box, utterance, note) {
-  box.replaceChildren();
-  noteLine(box, note);
-  const need = built.steps.filter((step) => step.missing);
-  if (need.length) {
-    const fields = new Map();
-    for (const step of need) {
-      const line = document.createElement("label");
-      line.textContent = `${step.label}: `;
-      const field = document.createElement("input");
-      field.type = "text";
-      line.append(field);
-      box.append(line);
-      fields.set(step, field);
-    }
-    const warn = document.createElement("p");
-    warn.className = "note";
-    const go = document.createElement("button");
-    go.type = "button";
-    go.textContent = "Continue";
-    go.addEventListener("click", async () => {
-      const blank = [...fields].filter(([, field]) => !field.value.trim());
-      if (blank.length) {
-        warn.textContent = `${blank.map(([step]) => step.label).join(", ")} cannot be left blank.`;
-        return;
-      }
-      for (const [step, field] of fields) step.value = field.value.trim();
-      await renderReady(built, candidate, box, utterance, note);
-    });
-    box.append(warn, go);
-    return;
-  }
-  await renderReady(built, candidate, box, utterance, note);
-}
-
-/** Every value is in hand. Now it is only `built.show` deciding what an
- * operator sees before the press -- every step and its value, one line, or
- * nothing at all -- never how many times they have pressed it before.
- *
- * "Nothing at all" means no step-by-step account, earned by a track record
- * good enough that reading one is not worth an operator's time -- it has
- * never meant the operator should not know which task just ran. A sentence
- * could once only mean the one task a row offered; now it is ranked across
- * everything taught, so which task a press just started is no longer implied
- * by which button was on the screen, and it is said here instead.
- *
- * A step with no known value is left out of `parameters` -- never sent as
- * `""`. `ensure_runnable` on the backend refuses a required parameter that
- * is genuinely absent ("no value supplied for X"); it does not, and must
- * not have to, refuse one that arrived as an empty string, because an empty
- * string is a value and this panel does not get to invent one just to fill
- * a slot. Every step still on `built.steps` with `.missing` set was already
- * required to be filled before this function is reached (`renderPreview`
- * refuses to advance on a blank field) -- so the only steps skipped here are
- * ones nothing ever supplied a value for, which is exactly the case the
- * backend's own refusal exists to catch honestly, on its own terms, rather
- * than never seeing the gap at all.
- */
-async function renderReady(built, candidate, box, utterance, note) {
-  box.replaceChildren();
-  noteLine(box, note);
-  const parameters = {};
-  for (const step of built.steps) {
-    const name = step.missing || step.name;
-    if (name && step.value !== null && step.value !== undefined) parameters[name] = step.value;
-  }
-
-  // Two presses must not be two runs. There is no second guard once this
-  // fires -- `box` is not cleared here the way it once was, because the line
-  // naming which task is running has to survive whatever the press goes on
-  // to say -- so the button disabling itself, and staying disabled, is the
-  // only thing standing between one click and two warehouse writes.
-  let pressed = false;
-  const press = async () => {
-    if (pressed) return;
-    pressed = true;
-    const said_ = document.createElement("p");
-    said_.className = "note";
-    box.append(said_);
-    try {
-      await runIt(candidate.skill_id, parameters, utterance, candidate.version);
-      said_.textContent = "started";
-    } catch (error) {
-      // The button stays disabled after this and must: it is the only guard
-      // against a second click turning one refused write into two attempts.
-      // But a dead control with no explanation reads as a broken panel, not
-      // a safe one, so the way back is said here -- type the sentence again,
-      // which opens a fresh press with its own guard rather than reusing
-      // this one.
-      said_.textContent = `${error.message} — type the sentence again to try once more.`;
-    }
-  };
-
-  if (built.show === "nothing") {
-    // Named on its own line, kept rather than overwritten by whatever the
-    // press turns out to say: a refusal is still a refusal of the task named
-    // here, and an operator reading it needs both, not one replacing the
-    // other.
-    const named = document.createElement("p");
-    named.className = "note";
-    named.textContent = `Running “${candidate.name}”…`;
-    box.append(named);
-    await press();
-    return;
-  }
-
-  if (built.show === "one-line") {
-    const said_ = document.createElement("p");
-    said_.textContent = `${candidate.name} — do it?`;
-    box.append(said_);
-    // The steps behind a disclosure, per the design's own table: a version
-    // with a streak has earned the one-line ask, but "earned a shorter
-    // question" is not "may no longer be asked what it is about to do".
-    // Closed by default and one click from open, which is the difference
-    // between not making somebody read it and not letting them.
-    const more = document.createElement("details");
-    const summary = document.createElement("summary");
-    summary.textContent = "What it will do";
-    more.append(summary);
-    detail(more, built);
-    box.append(more);
-  } else {
-    const said_ = document.createElement("p");
-    said_.textContent = candidate.name;
-    box.append(said_);
-    detail(box, built);
-  }
-
-  const go = document.createElement("button");
-  go.type = "button";
-  go.textContent = "Do it";
-  go.addEventListener("click", () => {
-    go.disabled = true;
-    return press();
-  });
-  box.append(go);
-}
-
-/** Every step and its value, and the tab the run opens before any of them.
- *
- * The whole of what ADR 014 says an operator reads before pressing, in one
- * place, so the full preview and the disclosure behind the one-line ask cannot
- * drift into showing different things. The screen goes first because it is
- * what the run does first -- `starts_on` is navigated to before step one, so a
- * preview that listed the steps and left it out described the same clicks
- * happening somewhere else entirely.
- */
-function detail(box, built) {
-  if (built.startsOn) {
-    const where = document.createElement("p");
-    where.className = "metrics";
-    where.textContent = `In ${built.startsOn}`;
-    box.append(where);
-  }
-  for (const step of built.steps) {
-    const line = document.createElement("p");
-    line.className = "metrics";
-    line.textContent = step.value === null ? step.intent : `${step.intent} — ${step.value}`;
-    box.append(line);
-  }
-}
-
-/** The one input that turns a sentence into a run: opened here pre-filled
- * with a sentence naming the candidate that offered it, but never restricted
- * to that candidate once opened.
- *
- * `resolve-intent` carries no field to pin it to one skill -- there is
- * nothing to send -- and that absence is deliberate rather than a gap this
- * file works around: a sentence typed in here that names some other taught
- * task is answered about that task, exactly as if it had been typed into a
- * blank box, because the offer that opened this one was a suggestion for
- * what to type, not a restriction on what can be asked.
- */
-function askBox(holder, prefill) {
-  const row_ = document.createElement("div");
-  row_.className = "row";
-  const input = document.createElement("input");
-  input.type = "text";
-  input.value = prefill;
-  const go = document.createElement("button");
-  go.type = "button";
-  go.textContent = "Ask";
-  row_.append(input, go);
-
-  const said_ = document.createElement("p");
-  said_.className = "note";
-  const box = document.createElement("div");
-
-  go.addEventListener("click", async () => {
-    go.disabled = true;
-    said_.textContent = "";
-    try {
-      const resolution = await ask({ kind: "resolve-intent", utterance: input.value });
-      await renderResolution(resolution, box, input.value);
-    } catch (error) {
-      said_.textContent = error.message;
-    }
-    go.disabled = false;
-  });
-
-  holder.append(row_, said_, box);
-}
-
-/** The sentence the box in `beginOffer` opens with -- a suggestion for what
- * to type, never a restriction on it (see `askBox`).
- *
- * A model's own title is a full sentence and is used as one; failing that,
- * the noun `plainly()` already reads off the candidate's signature makes an
- * ordinary instruction ("Do the next work operation"). Where neither exists
- * this is left blank rather than filled with words about the button that
- * opened it -- "Do the next one" names no task, and typing nothing into the
- * box is a truer starting point than typing a sentence that ranks nothing
- * because it asks for nothing.
- */
-function suggestedSentence(candidate) {
-  if (candidate.named_by_model && candidate.title) return candidate.title;
-  const what = noun(candidate);
-  return what ? `Do the next ${counted(what, 1)}` : "";
-}
-
-/** Starts the offer this row just made: doing the operator's next occurrence
- * of the task.
- *
- * Teaches the candidate first -- silently, because the operator asked for a
- * task done, not a lesson on how the system learns tasks -- then opens the
- * same box every sentence goes through. A refusal here is not an error to
- * report and move past: passive capture cannot always induce a task from
- * what it saw, and the honest answer is to say so and ask for one more
- * ordinary doing of it, which is what the sentence below says.
- */
-async function beginOffer(candidate, item, offerButton) {
-  const note = document.createElement("p");
-  note.className = "note";
-  note.textContent = "one moment…";
-  item.append(note);
-
-  let taught;
-  try {
-    taught = await ask({ kind: "teach-candidate", id: candidate.id });
-  } catch (error) {
-    note.textContent = error.message;
-    if (offerButton) offerButton.disabled = false;
-    return;
-  }
-
-  if (taught.needs_demonstration) {
-    // `taught.because` is `str(InductionFailed)` -- a recording id, an
-    // objective-key slug, a JSON pointer diffing two demonstrations. None of
-    // that is written for an operator to read, so the sentence here is fixed
-    // rather than passed through; `taught.because` stays in the console's own
-    // review screen, where a person who wants the raw reason already is one.
-    note.textContent =
-      "I've watched this a few times but the doings differ too much for me to be sure" +
-      " — do one more and I'll try again.";
-    if (offerButton) offerButton.disabled = false;
-    return;
-  }
-
-  // Cleared rather than removed: `card()` and the rest of this file never
-  // reach for a node's own `.remove()`, because nothing here tracks a node's
-  // parent to make it meaningful, and reaching for it once here would be a
-  // second way to take a node out of the page for no reason worth a second
-  // way.
-  note.textContent = "";
-  askBox(item, suggestedSentence(candidate));
-}
-
-/** What a model noticed about this candidate, and the two words a person can
- * answer it with.
- *
- * The answer is the point. A suggestion nobody can answer accumulates on a
- * screen until the screen is ignored, and every sweep re-asks it -- so until
- * somebody says, it is a question, and once they have, it is a fact with their
- * name on it and the miner stops asking.
- */
-function suggestion(candidate, join) {
-  const holder = document.createElement("div");
-  holder.className = "joined";
-
-  const said_ = document.createElement("p");
-  said_.className = "note";
-  const what =
-    join.kind === "workflow"
-      ? "looks like half of one job with another task"
-      : "looks like the same task as another";
-  said_.textContent = join.answered
-    ? `${join.answered === "same" ? "one job with another task" : "a different task"} — ` +
-      `${join.answered_by} said so`
-    : `${what} — ${join.because}`;
-  holder.append(said_);
-
-  const actions = document.createElement("div");
-  actions.className = "row";
-
-  if (join.answered) {
-    // The only answer anything can act on. `same` about a workflow means the
-    // two are one job done in two systems -- which no single candidate can
-    // represent, so until this button existed the answer changed nothing.
-    if (join.kind === "workflow" && join.answered === "same") {
-      const merge = document.createElement("button");
-      merge.type = "button";
-      merge.textContent = "Teach as one";
-      merge.addEventListener("click", async () => {
-        merge.disabled = true;
-        try {
-          const answer = await ask({
-            kind: "teach-together",
-            id: candidate.id,
-            otherId: join.other_id,
-          });
-          said_.textContent = answer.needs_demonstration
-            ? answer.because || "the evidence for the two halves was too thin"
-            : "learned as one skill";
-          await here();
-        } catch (error) {
-          said_.textContent = error.message;
-          merge.disabled = false;
-        }
-      });
-      actions.append(merge);
-      holder.append(actions);
-    }
-    return holder;
-  }
-
-  for (const [label, answer] of [
-    ["Same task", "same"],
-    ["Different", "different"],
-  ]) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "quiet";
-    button.textContent = label;
-    button.addEventListener("click", async () => {
-      try {
-        await ask({
-          kind: "answer-join",
-          id: candidate.id,
-          otherId: join.other_id,
-          // `kind` is taken by the message itself, and a join has one too.
-          joinKind: join.kind,
-          answer,
-        });
-        await here();
-      } catch (error) {
-        said_.textContent = error.message;
-      }
-    });
-    actions.append(button);
-  }
-  holder.append(actions);
-  return holder;
 }
 
 // -- the console -------------------------------------------------------------
@@ -2234,14 +1557,88 @@ function refused(consoleUrl) {
   $("console-note").textContent = "";
 }
 
-// ponytail: polled while the panel is open rather than pushed from the worker.
-// A few storage reads a second is cheap and has no lifecycle edge cases; make
-// it a broadcast if it is ever felt.
+// The worker pushes the state; this only asks when it has not heard.
+//
+// It used to poll every two seconds, which is two redraws a second of work
+// nobody did and, worse, a state change waiting up to two seconds to appear:
+// a rule fires, a run starts, an offer arrives, and the panel sits on the old
+// picture. A named port lets the worker say so the moment it knows.
+//
+// The port is opened lazily and never retried in a loop -- a service worker
+// is evicted whenever Chrome feels like it, taking every port with it, and an
+// eager reconnect turns each eviction into a storm. The slow beat below
+// reopens it on its own schedule, and doubles as the safety net for a push
+// that was never delivered.
+let toWorker = null;
+
+function listen() {
+  if (toWorker) return;
+  try {
+    toWorker = chrome.runtime.connect({ name: "panel" });
+  } catch {
+    // No worker to connect to this instant. The beat tries again.
+    toWorker = null;
+    return;
+  }
+  toWorker.onDisconnect.addListener(() => {
+    toWorker = null;
+  });
+  toWorker.onMessage.addListener((message) => {
+    if (message?.kind !== "status" || document.visibilityState !== "visible") return;
+    void drawPushed(message.status);
+  });
+}
+
+/** A status the worker sent, drawn the same way a fetched one is.
+ *
+ * `refresh()` is what knows how to finish a status -- the performing card needs
+ * the run and the skill behind it, which are the backend's and not the
+ * worker's -- so a push that carries a run takes that path rather than growing
+ * a second one that would drift from it.
+ */
+async function drawPushed(pushed) {
+  if (pushed?.performing) return refresh();
+  void sayTheDay(pushed);
+  render(pushed);
+}
+
+// How the panel learns it is beside a different tab.
+//
+// One side panel serves the whole window, so switching tabs does not reload
+// this document and nothing about it changes by itself. When the worker's
+// push replaced the two-second poll, the beat below went to twenty seconds --
+// and `whereWeAre` went with it, having been a passenger on that poll. It got
+// nothing in return: the push carries the WORKER's status, fired by
+// `chrome.storage.onChanged`, and which tab an operator is looking at is not
+// worker state and never reaches storage. So a tab switch was noticed only by
+// the twenty-second net.
+//
+// Every card here is about "this tab". For that whole stretch the state line,
+// the watch button and what is offerable all belonged to the tab the operator
+// had just left -- which is the five to seven seconds they reported, and
+// twenty if they switched at the wrong moment.
+//
+// Events rather than a faster beat: a tab switch is a thing Chrome tells us
+// about, and the beat stays where it is, as the safety net it already was.
+chrome.tabs.onActivated?.addListener(() => void whereWeAre());
+// The same tab navigating. A warehouse screen that routes without a page load
+// still changes what this panel should say, and `beside()` reads the url.
+chrome.tabs.onUpdated?.addListener((_tabId, changeInfo) => {
+  if (changeInfo.url) void whereWeAre();
+});
+// Switching WINDOWS activates no tab -- the one being focused was already
+// active in its own window -- so `onActivated` never fires and this is the only
+// thing that says the panel is now beside something else.
+chrome.windows?.onFocusChanged?.addListener(() => void whereWeAre());
+
 setInterval(() => {
   if (document.visibilityState !== "visible") return;
-  void refresh();
+  listen();
   void whereWeAre();
-}, 2000);
+  // The safety net, at a tenth of the old rate: a push that never arrived, a
+  // worker evicted between one and the next, a port that closed quietly.
+  void refresh();
+}, 20000);
 
 // ponytail: the thread is polled too, on its own slower tick -- it is a call to
 // the API rather than a read of the worker's own state, and nothing in a
@@ -2252,6 +1649,7 @@ setInterval(() => {
   void conversation();
 }, 5000);
 
+listen();
 void refresh();
 void whereWeAre();
 void conversation();

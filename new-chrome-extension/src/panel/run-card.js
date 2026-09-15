@@ -77,7 +77,10 @@ export function glyphFor(outcome) {
  * `notes` are what they have said to this run, each carrying the step index it
  * arrived during.
  */
-export function runCard({ run, skill, message, notes = [] }, { onPress, onChange, stop = true } = {}) {
+export function runCard(
+  { run, skill, message, notes = [] },
+  { onPress, onChange, onSecret, stop = true } = {},
+) {
   const card = document.createElement("div");
   card.className = "run";
   card.dataset.status = run.status;
@@ -107,7 +110,25 @@ export function runCard({ run, skill, message, notes = [] }, { onPress, onChange
   const plan = rig
     ? (run.steps || []).map((step) => ({ ...step, intent: step.says }))
     : skill?.latest?.steps || [];
+  // A job done once per thing on a list, drawn one thing at a time.
+  //
+  // Nineteen rows of "Click Save." with nothing saying which record each
+  // belongs to is a run nobody can read -- and the question somebody watching
+  // actually has is not which step it is on, it is how many of the three are
+  // done. So a line goes in front of each thing's rows, naming it and counting
+  // it, and the rows underneath are the rows they always were.
+  const things = run.items || [];
+  let drawing = null;
   for (const step of plan) {
+    const thing = step.item ?? null;
+    if (thing !== null && thing !== drawing) {
+      drawing = thing;
+      const heading = document.createElement("p");
+      heading.className = "thing";
+      const said = Object.values(things[thing] || {}).join(" ");
+      heading.textContent = `${thing + 1} of ${things.length || thing + 1}${said ? ` — ${said}` : ""}`;
+      card.append(heading);
+    }
     card.append(
       stepRow({
         step,
@@ -117,9 +138,36 @@ export function runCard({ run, skill, message, notes = [] }, { onPress, onChange
         run,
         notes,
         onPress,
+        onSecret,
         onChange: rig ? undefined : onChange,
       }),
     );
+  }
+
+  // What this run made, named.
+  //
+  // Nothing in this system can take a warehouse record back: the guards in
+  // front of a run -- a door that says when it is unsure, a list that proves
+  // the first thing before doing the rest -- stop wrong records being made and
+  // do nothing about one that was. So a run that made records says which, in
+  // the words the warehouse used, and a person can go and look at them.
+  const made = (run.steps || []).map((step) => step.made || {}).filter((one) => Object.keys(one).length);
+  if (rig && !live && made.length) {
+    const line = document.createElement("p");
+    line.className = "note";
+    const named = made.map((one) => Object.values(one).join(" ")).join(", ");
+    // And whether anything can take them back. Said in words and not drawn as
+    // a button: what an undo would have to do is address each record by
+    // whatever the warehouse called it, and a wrong mapping deletes the wrong
+    // record. Where nothing can, saying so is the honest half -- an operator
+    // who has just watched three records be made needs to know that the
+    // taking-back is theirs to do.
+    line.textContent =
+      `made ${made.length} record${made.length === 1 ? "" : "s"}: ${named}. ` +
+      (run.undo
+        ? "A job you have done before takes these back — open it in the console."
+        : "Nothing here can take them back.");
+    card.append(line);
   }
 
   // What a dry run held back. There is no other screen it could be said on --
@@ -173,7 +221,7 @@ function wordsFor(sent) {
   return `${p.action || "act"}${p.value ? ` "${p.value}"` : ""} ${where}`.trim();
 }
 
-function stepRow({ step, outcome, live, inFlight, run, notes, onPress, onChange }) {
+function stepRow({ step, outcome, live, inFlight, run, notes, onPress, onSecret, onChange }) {
   const row = document.createElement("div");
   row.className = "step";
   row.dataset.index = String(step.index);
@@ -206,16 +254,30 @@ function stepRow({ step, outcome, live, inFlight, run, notes, onPress, onChange 
     row.append(said);
   }
 
-  // The rig has stopped here to ask. What it would send is drawn in words --
-  // this is the one moment somebody can read a write before it happens -- and
-  // the two answers go on this row rather than under the card, because "yes"
-  // means yes to *this* step and a button anywhere else would not say which.
-  // Only while the run is live: an `awaiting` row on a run that has since
-  // ended is a record, and pressing Approve on it would approve nothing.
-  if (outcome === "awaiting" && live) {
+  // The rig has stopped here to ask.
+  //
+  // The WORDS whether or not the run is still going, the BUTTONS only while it
+  // is. Those were one condition, and an operator paid for it all evening:
+  // twelve runs in one day, every one of them ending `stopped`, and every one
+  // drew this row as a bare ⏸ with no question on it -- because a stopped run
+  // is not live, and the sentence saying what it had asked for was rendered
+  // inside the same branch as the Approve.
+  //
+  // The buttons really do belong to a live run: an `awaiting` row on a run
+  // that has ended is a record, and pressing Approve on it would approve
+  // nothing. But a question nobody can read is worse than a question nobody
+  // can answer -- "The run stopped to ask" with nothing saying what it asked
+  // is the panel shrugging.
+  if (outcome === "awaiting") {
     const words = document.createElement("span");
     words.className = "planned";
-    words.textContent = wordsFor(step.sent);
+    // What would go out, or -- where the run stopped for a reason rather than
+    // a write -- what it is asking. A list stops once after the first thing
+    // with that thing's result in the sentence.
+    words.textContent = wordsFor(step.sent) || step.reason || "";
+    row.append(words);
+  }
+  if (outcome === "awaiting" && live) {
     const approve = document.createElement("button");
     approve.type = "button";
     approve.textContent = "Approve";
@@ -225,7 +287,50 @@ function stepRow({ step, outcome, live, inFlight, run, notes, onPress, onChange 
     stop.className = "quiet";
     stop.textContent = "Stop";
     stop.addEventListener("click", () => onPress?.("stop", run, row, stop));
-    row.append(words, approve, stop);
+    row.append(approve, stop);
+  }
+
+  // The step wanted a password and the vault had none.
+  //
+  // The refusal used to be a sentence naming a vault key, which is a sentence
+  // for whoever deploys this system and not for the person it stopped: they
+  // are standing in a warehouse with this panel open, and they have no
+  // console, no shell, and no way to look up what a vault key is. A refusal
+  // only a developer can act on is a refusal nobody acts on -- so the step
+  // that wants a password asks for it here, where the person who knows it is.
+  //
+  // The field is never read back, never defaulted, and never written to
+  // `chrome.storage`: it goes to the worker, which puts it in the vault, and
+  // is cleared on the way. Drawn for a finished run as well as a live one --
+  // this refusal ENDS the run, so the row somebody sees it on is always a
+  // record by the time they read it.
+  const wants = step.sent?.payload?.needs_secret;
+  if (wants && onSecret) {
+    const asking = document.createElement("p");
+    asking.className = "note";
+    asking.textContent = `This job needs your ${(wants.field || "password").replace("-", " ")} for ${wants.system || "this system"}.`;
+    const field = document.createElement("input");
+    field.type = "password";
+    // Not `current-password`: a manager offering to fill this would be
+    // offering the credential for the PANEL's own origin, which is not the
+    // system being signed into.
+    field.autocomplete = "off";
+    field.placeholder = wants.field || "password";
+    const save = document.createElement("button");
+    save.type = "button";
+    save.textContent = "Save for this job";
+    save.addEventListener("click", async () => {
+      const value = field.value;
+      field.value = "";
+      if (!value) return;
+      save.disabled = true;
+      const kept = await onSecret({ system: wants.system, field: wants.field, value }, save);
+      save.disabled = false;
+      asking.textContent = kept?.ok
+        ? "Kept. Run this job again and it will sign in."
+        : `That could not be kept: ${kept?.error || "the vault did not answer"}`;
+    });
+    row.append(asking, field, save);
   }
 
   // Only a step that is still to come, and only one that has values of its own.

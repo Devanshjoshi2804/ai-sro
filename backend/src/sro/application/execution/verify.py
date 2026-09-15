@@ -11,14 +11,30 @@ ported from `new_agent_arch/src/rig/verify.py`. The pure half of that one, the
 belts that need no wire and no model, is `sro.domain.execution.belts`; this is
 the half that sends a probe and asks a model to look at a picture.
 
-The belt order is the product. A state-grounded verifier scored 86.9% against
-78.8% for one reading screenshots, with human agreement at 94%, and most
-completions leave their proof off-screen -- artifact verification was 192 of 321
-tasks. So: the response the command itself returned first, a confirming read the
-cited evidence shows the page performs second, and the screenshot last and
-least. A green toast is the weakest of the three and the easiest to be wrong
-about, and `state_verified` -- which is what a job's earned autonomy counts --
-never counts it.
+The belt order is the product. Measured over the 643 tasks of the WebVoyager
+benchmark, a validator reading the run's own text -- what the calls returned --
+scored 84.24% against 70.04% for one reading screenshots, with over 84%
+agreement with human annotators; a screenshot read beside the agent's final
+answer still only reached 83.00%. So: the response the command itself returned
+first, a confirming read the cited evidence shows the page performs second, and
+the screenshot last and least.
+
+A green toast is the weakest of the three and the
+easiest to be wrong about, and `state_verified` -- which is what a job's earned
+autonomy counts -- never counts it.
+
+Corrected twice, which is the point of writing it down. What stood here first
+-- "86.9% against 78.8%, human agreement at 94%, artifact verification 192 of
+321 tasks" -- appears in no version of that paper and nowhere else that could
+be found. The correction on 2026-09-14 then said "measured on 322 WebVoyager
+tasks", which is also wrong: 322 is the even-`task_id` subset used for the
+SELF-VALIDATION experiment in Tables 3 and 4, while Tables 1 and 2 -- the
+84.24/70.04/83.00 figures above -- are over the benchmark's 643 tasks. A
+replaced number is not a checked number, and the note claiming it had been
+checked made the second error harder to see than the first.
+
+Source: *Multimodal Auto Validation for Self-Refinement in Web Agents*,
+arXiv:2410.00689, Tables 1 and 2, read from the paper.
 """
 
 from __future__ import annotations
@@ -36,14 +52,16 @@ from sro.domain.execution.belts import (
     SCREEN_INSTRUCTIONS,
     SCREEN_SCHEMA,
     StepVerdict,
+    carries_every,
     confirming_read,
     expected_statuses,
     mentions,
     status_of,
 )
-from sro.domain.execution.evidence import writes
+from sro.domain.execution.evidence import recorded_call, writes
 from sro.domain.execution.planning import Look
-from sro.domain.observation.gesture import Gesture
+from sro.domain.observation.gesture import Call, Gesture
+from sro.domain.observation.trim import path_shape
 from sro.domain.shared.hosts import REDACTED
 from sro.domain.shared.identifiers import DeviceId, TenantId
 from sro.domain.skill.assertion import Assertion, AssertionKind
@@ -205,6 +223,239 @@ def _has(document: JsonValue, pointer: str) -> bool:
     return True
 
 
+async def already_done(
+    *,
+    step: Step,
+    cited: list[Gesture],
+    values: Mapping[str, str],
+    channel: Channel,
+    tenant_id: TenantId,
+    device_id: DeviceId,
+    run_id: str,
+) -> str | None:
+    """Whether this write's effect is already true, said in a sentence.
+
+    The verifier's second rung, asked BEFORE the write instead of after. It is
+    the same question in both places -- does the system already show the value
+    this run would supply -- and the answer means something different on each
+    side of the send: after, the write worked; before, there is nothing to do.
+
+    The run that made this worth writing signed an operator in who was already
+    signed in, and there is a whole class behind it: a rule fires twice, two
+    browsers fire the same job, somebody presses Yes on a card they pressed
+    yesterday. Every one of those is a second record in a warehouse that wanted
+    one, and no amount of care in the runner can take a duplicate back.
+
+    Narrow in the same three ways the after-the-fact rung is narrow: only a
+    step whose evidence shows the page performing a read after its write, only
+    when this run actually carries values for the read to show, and only when
+    the read comes back 2xx -- a 404 or a 503 says nothing about the state and
+    must never be read as "already there", which would skip a write that never
+    happened.
+
+    Returns the sentence to record, or None to go ahead and do the step. None
+    is the safe answer and the common one: a step with no probe, a read that
+    could not be made, a body that does not carry the value.
+    """
+    by_id = {gesture.id: gesture for gesture in cited}
+    probe = confirming_read(step, by_id)
+    if probe is None or not values or REDACTED in probe.url:
+        return None
+    # Only values that say WHICH record. A run carries its context as well as
+    # its content -- a facility, a site, a warehouse -- and those appear in the
+    # probe's own url because they are what the page is scoped to. They also
+    # appear in every row it returns, so a list read would match on them and
+    # skip a write for a record nobody has created yet. Asked after the write
+    # this does not matter; asked before it, it is the difference between
+    # "already there" and "this is the right screen".
+    distinctive = {
+        name: value for name, value in values.items() if value and value not in probe.url
+    }
+    if not distinctive:
+        return None
+    got = await _read_back(probe, channel, tenant_id, device_id, run_id)
+    # EVERY distinctive value, not any of them. A job carries values that
+    # change from run to run beside values that do not, and `mentions` -- the
+    # right rule after the write, where one value coming back is the record
+    # coming back -- reads a record whose unchanged half matches as the record
+    # this run was about to create. Four live runs of a three-step job proved
+    # it on 2026-09-15: a new client code each time, the same reference, and
+    # all four skipped the write on the PREVIOUS record's reference and
+    # reported `held` with nothing sent.
+    if got is None or not carries_every(got, distinctive):
+        return None
+    return (
+        f"a read of {probe.url} already shows the value this run would supply, "
+        "so the step was not performed again"
+    )
+
+
+async def _read_back(
+    probe: Call,
+    channel: Channel,
+    tenant_id: TenantId,
+    device_id: DeviceId,
+    run_id: str,
+) -> str | None:
+    """The confirming read, made, or None where it answers nothing.
+
+    One function for the two callers -- the rung that judges a write and the
+    precondition that decides whether to make one -- because a read that counts
+    as evidence in one of them and not in the other is two rules for one fact.
+    """
+    got = await channel.send(
+        tenant_id,
+        device_id,
+        kind="http.send",
+        run_id=run_id,
+        payload={
+            "method": "GET",
+            "url": probe.url,
+            "headers": headers_without_markers(probe.request_headers),
+            "body": None,
+        },
+    )
+    # The read has to have come back 2xx before its body means anything. A 404
+    # or a 503 answers ok=True with a body that matches nothing.
+    status = status_of(got.result) if got.ok else None
+    if status is None or not (200 <= status < 300):
+        return None
+    return str(got.result.get("body") or "")
+
+
+async def by_what_the_page_called(
+    *,
+    step: Step,
+    cited: list[Gesture],
+    since: float,
+    channel: Channel,
+    tenant_id: TenantId,
+    device_id: DeviceId,
+    run_id: str,
+) -> StepVerdict | None:
+    """The status the warehouse answered this step with, or None to look.
+
+    Rung 1 of the ladder, for a step performed in a browser rather than
+    replayed over http. The verifier's own docstring puts the response the
+    command returned first and the screenshot last and least -- and until this
+    existed, a UI step could never reach the first rung, because a click's
+    reply says "I found the control and clicked it" and nothing about what the
+    server said. So every step of every run this deployment has performed was
+    judged by photographing the screen and asking a model: `verdict_by =
+    screen`, 67 times out of 67, the slowest and weakest rung there is.
+
+    The browser keeps the calls its own driven tab made for the length of the
+    run -- out of the evidence plane, which still drops them, and in a bounded
+    map it can be asked about. This asks, and decides only when the step's own
+    demonstrated endpoint is among them:
+
+    **Only a step whose evidence recorded a write.** A step that changes
+    nothing has no status to be held by, and 2xx on a page's keep-alive is not
+    a step being done.
+
+    **Only that endpoint.** Matched by method and path shape, so an id in the
+    path is not a mismatch and a telemetry beacon on the same host is not a
+    match. This is `expected_statuses`' rule, which the same beacons taught it.
+
+    **None means look.** No call, no status, or an endpoint nobody recognises
+    is not evidence the step failed -- it is the absence of evidence, and the
+    ladder goes on to the read and the screen.
+    """
+    by_id = {gesture.id: gesture for gesture in cited}
+    replayed = recorded_call(step, by_id)
+    if replayed is None or not writes(step, by_id):
+        return None
+
+    # `since` is sent and the browser does not compare against it. It cannot:
+    # this is the server's clock and the calls are the browser's, and while
+    # that comparison stood -- an ISO string against a float -- it was false
+    # for every call ever made and this rung never once fired. The extension
+    # marks its own counter when a command goes out and answers with what came
+    # after it (`commands.js`'s `marks`), which has one clock and no skew. The
+    # value stays on the wire because it is what an older extension reads.
+    got = await channel.send(
+        tenant_id, device_id, kind="calls.since", run_id=run_id, payload={"since": since}
+    )
+    if not got.ok:
+        return None
+
+    wanted = expected_statuses(step, by_id)
+    method, shape = replayed.method.upper(), path_shape(replayed.url)
+    made = got.result.get("calls") if isinstance(got.result, dict) else None
+    for call in reversed(made if isinstance(made, list) else []):
+        if not isinstance(call, dict):
+            continue
+        status = call.get("status")
+        if not isinstance(status, int):
+            continue
+        if str(call.get("method", "")).upper() != method:
+            continue
+        if path_shape(str(call.get("url", ""))) != shape:
+            continue
+        if status >= 400:
+            return StepVerdict("failed", "status", f"{method} {shape} returned {status}")
+        if status in wanted or (not wanted and 200 <= status < 300):
+            return StepVerdict(
+                "held",
+                "status",
+                f"{method} {shape} returned {status}",
+                made=made_by(call),
+            )
+        # The endpoint answered something the demonstration never saw. Not a
+        # failure and not a hold: exactly the case the rest of the ladder is
+        # for.
+        return None
+    return None
+
+
+K_IDENTIFIES = ("id", "code", "name", "number", "key")
+"""Which fields of a create's answer say WHICH record it made.
+
+Read by suffix and case-insensitively, because a warehouse names them its own
+way: `equipmentTypeId`, `workAreaCode`, `supplierNumber`. Nothing else of the
+body is kept -- a created record's answer is a row of somebody's data, and what
+a person needs in order to go and look at it is what it is called."""
+
+K_NAMED = 6
+"""How many of those fields are kept. A record is identified by one or two of
+them; a body with a dozen matching names is a list, not a record."""
+
+
+def made_by(call: Mapping[str, object]) -> dict[str, str]:
+    """What the warehouse called the record this create made.
+
+    A run that made three records has to be able to say which three, or nobody
+    can go and look at them -- and an undo, the day the evidence for one
+    exists, has to address them by whatever the system called them.
+
+    Never the whole body. A create's answer is a row of a customer's data, and
+    this is stored on the run for as long as the tenant keeps it: what is kept
+    is the handful of fields that NAME the row, and only where their values are
+    short enough to be an identifier rather than a paragraph.
+    """
+    text = call.get("body")
+    if not isinstance(text, str) or not text.strip():
+        return {}
+    try:
+        parsed = json.loads(text)
+    except ValueError:
+        return {}
+    if not isinstance(parsed, dict):
+        return {}
+    named: dict[str, str] = {}
+    for key, value in parsed.items():
+        if not isinstance(key, str) or not isinstance(value, str | int):
+            continue
+        if not key.lower().endswith(K_IDENTIFIES):
+            continue
+        said = str(value).strip()
+        if said and len(said) <= 64:
+            named[key] = said
+        if len(named) == K_NAMED:
+            break
+    return named
+
+
 async def verify(
     *,
     step: Step,
@@ -252,24 +503,9 @@ async def verify(
     # A probe whose url carries a struck-out credential would ask with the
     # marker's text in the query string; that answers nothing about the state.
     if probe is not None and values and REDACTED not in probe.url:
-        got = await channel.send(
-            tenant_id,
-            device_id,
-            kind="http.send",
-            run_id=run_id,
-            payload={
-                "method": "GET",
-                "url": probe.url,
-                "headers": headers_without_markers(probe.request_headers),
-                "body": None,
-            },
-        )
-        # The read has to have come back 2xx before its body means anything. A
-        # 404 or a 503 answers ok=True with a body that matches nothing, and
-        # deciding off `ok` alone marked a correct write failed.
-        read_status = status_of(got.result) if got.ok else None
-        if read_status is not None and 200 <= read_status < 300:
-            if mentions(str(got.result.get("body") or ""), values):
+        body = await _read_back(probe, channel, tenant_id, device_id, run_id)
+        if body is not None:
+            if mentions(body, values):
                 return StepVerdict(
                     "held", "read", f"a read of {probe.url} shows the value this run supplied"
                 )

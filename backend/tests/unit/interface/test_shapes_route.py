@@ -366,25 +366,30 @@ async def test_naming_no_browser_at_all_is_the_tenant_and_not_a_refusal(
     assert blank.json() == spaces.json() == plain.json()
 
 
-async def test_a_blank_browser_with_a_secret_is_still_refused(
+async def test_a_blank_browser_with_a_secret_is_the_tenant(
     client: httpx.AsyncClient, proven: Workflow
 ) -> None:
     """The other half of the normalisation: blank is "no browser named", and a
-    secret with no browser named is half a pair, which is a 404 and not the
-    tenant.
+    secret that names no browser names nobody -- so this is the tenant asking,
+    with or without the header.
+
+    It was a 404 until an operator's panel went dark: the extension sends
+    `X-Device-Secret` on every call by design, so every tenant-only door it
+    asked answered "device  was not found".
 
     Asked twice off the same blank id, the header the only difference, so what
-    is being read is the header rather than a route that answers 404 to
-    everything -- including one that was never registered.
+    is being read is the header rather than a route that answers the same thing
+    to everything.
     """
     answered = await client.get(
         "/v1/shapes", params={"device_id": " "}, headers={"X-Device-Secret": HERS}
     )
     without = await client.get("/v1/shapes", params={"device_id": " "})
 
-    assert answered.status_code == 404
+    assert answered.status_code == 200
+    assert answered.json() == without.json()
     assert without.status_code == 200
-    assert without.json()["shapes"], "the blank id is refused with a secret and served without one"
+    assert without.json()["shapes"], "a blank id served nothing at all"
 
 
 # --- whose list it is -----------------------------------------------------

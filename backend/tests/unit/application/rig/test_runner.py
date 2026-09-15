@@ -24,14 +24,17 @@ tasks that found them could not pin them at their own layer:
 import asyncio
 import base64
 import json
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
+from contextlib import suppress
 from dataclasses import replace
+from datetime import UTC, datetime
 
 import pytest
 
 from sro.application.execution import run_workflow as runner_module
 from sro.application.execution.approvals import K_APPROVAL_WAIT_S, Approvals
 from sro.application.execution.run_workflow import (
+    K_SAME_WRITE_WINDOW,
     K_STEP_SLACK,
     _bill,
     _fell_over,
@@ -43,22 +46,26 @@ from sro.application.execution.run_workflow import (
     _withheld,
     fail_orphans,
     run_workflow,
+    write_key,
 )
 from sro.application.execution.stops import Stops
 from sro.application.ports.agent import DeviceUnreachable
 from sro.application.ports.channel import Reply
+from sro.domain.chat.reading import ChatReading
 from sro.domain.execution.belts import K_EARNED_RUNS, SCREEN_SCHEMA
 from sro.domain.execution.planning import PLAN_SCHEMA, Look, Planned
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
 from sro.domain.observation.gesture import Call, Gesture
 from sro.domain.shared.identifiers import DeviceId, TenantId
 from sro.domain.shared.prices import Answer
+from sro.domain.skill.repeats import K_MOST_ITEMS, Repeat
 from sro.domain.skill.workflow import Step, Workflow
 from tests.unit.domain.rig.conftest import gestures as _gestures
 from tests.unit.fakes import (
     FakeAsker,
     FakeChannel,
     FakeGestureRepository,
+    FakeToolCallRepository,
     FakeUnitOfWork,
     FakeWorkflowRepository,
     FakeWorkflowRunRepository,
@@ -715,10 +722,12 @@ async def _ran(
     stops: Stops | None = None,
     approvals: Approvals | None = None,
     run_id: str | None = None,
+    items: Sequence[Mapping[str, str]] = (),
     plan_model: str = "flash",
     rescue_model: str = "pro",
     earned: bool = False,
     from_step: int = 0,
+    cap_usd: float = -1.0,
 ) -> WorkflowRun:
     """One run, with the arguments no test varies spelled once.
 
@@ -748,6 +757,11 @@ async def _ran(
             approvals=approvals or Approvals(),
             run_id=run_id,
             from_step=from_step,
+            items=items,
+            # No cap unless a test is about the cap: `over_cap` answers a
+            # negative one before it touches the repository, so every other
+            # test here pays nothing and asserts nothing about money.
+            cap_usd=cap_usd,
         ),
         timeout=5,
     )
@@ -1234,9 +1248,14 @@ def _only_run(uow: FakeUnitOfWork) -> WorkflowRun:
 
 
 async def test_a_browser_that_goes_away_mid_step_fails_that_step() -> None:
-    """The step in flight is the one that failed -- with the order the workflow
-    gave it and the tokens its plan already cost -- not a fabricated one whose
-    order collides with a real step's."""
+    """The step in flight is the one that failed -- with the step of the job it
+    was on and the tokens its plan already cost -- not a fabricated one whose
+    place in the run collides with a real step's.
+
+    `order` is where in the RUN a row sits and `of_step` is which step of the
+    job it is. They are the same number for a job whose steps are numbered from
+    zero, which is every mined job; this fixture numbers from one on purpose,
+    which is what makes the two visible apart."""
     uow = await _fixture()
     typed = _ids(uow)[0]
     workflow = Workflow(
@@ -1264,7 +1283,8 @@ async def test_a_browser_that_goes_away_mid_step_fails_that_step() -> None:
     run = await _ran(uow, workflow, channel=channel, asker=asker)
 
     assert run.outcome == "failed"
-    assert [s.order for s in run.steps] == [1, 2], "the step in flight kept its own order"
+    assert [s.of_step for s in run.steps] == [1, 2], "the step in flight lost which step it was"
+    assert [s.order for s in run.steps] == [0, 1], "two rows of one run collided on their place"
     assert run.steps[1].verdict == "failed" and "dev_test" in run.steps[1].reason
     assert run.steps[1].in_tokens == 11, "the plan it already paid for is still billed"
     saved = await uow.workflow_runs.get(TENANT, run.id)
@@ -1614,7 +1634,13 @@ async def test_the_effect_is_filed_against_the_step_that_wrote_it() -> None:
         {
             **_looks(4),
             "ui.perform": [_performed()],
-            "http.send": [Reply(ok=True, result={"status": 200, "body": "{}", "headers": {}})],
+            "http.send": [
+                # The precondition read: is the write's effect already true?
+                # The record does not exist yet, so the page's own read of it
+                # 404s and the write goes ahead.
+                Reply(ok=True, result={"status": 404, "body": "{}", "headers": {}}),
+                Reply(ok=True, result={"status": 200, "body": "{}", "headers": {}}),
+            ],
         }
     )
     # A plan per step: the read is typed, and the write is the recorded call
@@ -1654,7 +1680,10 @@ async def test_a_failed_write_forgets_the_effects_the_workflow_had_earned() -> N
             # Two rungs: a write the server itself refused is the one write
             # that is safe to plan again, so the rescue goes out and fails too.
             **_looks(8),
-            "http.send": [Reply(ok=True, result={"status": 500, "body": "", "headers": {}})] * 2,
+            # Doubled again for the precondition read each write now makes:
+            # a 500 answers nothing about the state, so the write goes ahead
+            # and fails the way this test is about.
+            "http.send": [Reply(ok=True, result={"status": 500, "body": "", "headers": {}})] * 4,
         }
     )
     asker = _PerSchemaAsker(plan=_replay(), verdict=Answer(data={"held": True, "why": "ok"}))
@@ -2080,8 +2109,14 @@ async def test_the_verifier_is_asked_about_the_step_being_performed() -> None:
         {
             **_looks(4),
             "http.send": [
+                # Each write is now preceded by its own step's confirming read,
+                # asked as a precondition: is this already true? The record
+                # does not exist yet, so the page's own read of it 404s, which
+                # is what a read of a record nobody has created answers.
+                Reply(ok=True, result={"status": 404, "body": "{}"}),
                 # Step zero's write: a status step zero's own evidence showed.
                 Reply(ok=True, result={"status": 302, "body": "{}"}),
+                Reply(ok=True, result={"status": 404, "body": "{}"}),
                 # Step one's write: the same status, which step ONE's evidence
                 # never showed. Not 2xx either, so nothing falls back to it.
                 Reply(ok=True, result={"status": 302, "body": "{}"}),
@@ -2108,11 +2143,21 @@ async def test_the_verifier_is_asked_about_the_step_being_performed() -> None:
         " belt passes it on rather than reading step zero's evidence"
     )
     sent = [_payload(s) for s in channel.sent if s["kind"] == "http.send"]
+    # Each write is preceded by its own step's confirming read, asked as a
+    # precondition -- "is this already true" -- and then the write, and then
+    # the same read again where the status did not settle it. What this test
+    # is about is the LAST one: the read that confirmed step one is step one's,
+    # not step zero's.
     assert [s["url"] for s in sent] == [
+        "http://127.0.0.1:63319/api/alpha/1",
         "http://127.0.0.1:63319/api/alpha",
+        "http://127.0.0.1:63319/api/beta/1",
         "http://127.0.0.1:63319/api/beta",
         "http://127.0.0.1:63319/api/beta/1",
     ], "and the read that confirmed step one is the one step one's page performs"
+    assert sent[0]["method"] == "GET" and sent[1]["method"] == "POST", (
+        "the precondition read goes out before the write it might make unnecessary"
+    )
 
 
 async def test_every_command_a_run_sends_names_the_caller_the_browser_and_the_run() -> None:
@@ -2219,11 +2264,16 @@ async def test_a_stale_step_is_recorded_once_per_step_not_once_per_run() -> None
     workflow = await _workflow(uow)
     asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True}))
 
-    for _ in range(2):
+    # A different code each morning, which is what a job done every morning
+    # looks like: the same values twice inside half an hour is a duplicate
+    # write and the loop now refuses the second one.
+    for code in ("MONDAY-1", "TUESDAY-1"):
         channel = FakeChannel(
             {**_looks(4), "ui.perform": [_performed("component"), _performed("css_path")]}
         )
-        run = await _ran(uow, workflow, channel=channel, asker=asker, earned=True)
+        run = await _ran(
+            uow, workflow, channel=channel, asker=asker, values={"clientCode": code}, earned=True
+        )
         assert run.steps[1].stale is True
 
     assert list(_stale(uow)) == [("wfl_1", 1)], "one row, not one per run"
@@ -3623,3 +3673,900 @@ async def test_a_click_that_was_asked_for_nothing_is_performed_as_before() -> No
     )
 
     assert run.outcome == "held", "a click nobody asked to carry a value is just a click"
+
+
+async def test_a_step_that_wants_a_password_keeps_saying_so_after_the_rung_gives_up() -> None:
+    """The refusal has to survive the rung that produced it.
+
+    A step that types a credential with nothing in the vault plans `none`, and
+    the payload it plans names the system and the field so the panel can draw a
+    box and ask the person watching for it. Then the loop reached
+    `planned is None` and handed the record back to the previous rung -- which
+    put `sent` back to `None`, and the operator got a step marked ✗ with
+    nothing on it to act on. Found on a real login: three runs in the store
+    whose password step carried no payload at all.
+    """
+    uow = await _fixture()
+    typed = next(g for g in _evidence(uow) if g.action.kind == "type")
+    assert typed.action.target is not None
+    secret = replace(
+        typed,
+        id="ges_secret",
+        action=replace(typed.action, target=replace(typed.action.target, secret=True), value=None),
+    )
+    await uow.gestures.add_gestures((secret,))
+    workflow = Workflow(
+        id="wfl_password",
+        tenant=ELSEWHERE,
+        title="sign in",
+        narrative="n",
+        systems=["http://127.0.0.1:63319"],
+        steps=[Step(order=0, says="Type the password.", system=None, cites=["ges_secret"])],
+        parameters=[],
+    )
+    run = await asyncio.wait_for(
+        run_workflow(
+            uow,
+            workflow,
+            tenant_id=TENANT,
+            values={},
+            channel=FakeChannel(_looks(4)),
+            device_id=DEVICE,
+            # The model is asked first and plans the typing; the refusal comes
+            # after, from the vault having nothing under the key.
+            asker=FakeAsker(_plan("type", "x")),
+            plan_model="flash",
+            rescue_model="pro",
+            live=True,
+            allow_focus=True,
+            started_by="form",
+            stops=Stops(),
+            approvals=Approvals(),
+            cap_usd=-1.0,
+            # The vault this deployment has, holding nothing for this key.
+            secret_for=lambda _key: _nothing_stored(),
+        ),
+        timeout=5,
+    )
+
+    step = run.steps[0]
+    assert step.verdict == "failed"
+    assert step.sent is not None, "the refusal was rolled back and left nothing to act on"
+    wants = step.sent["payload"]["needs_secret"]
+    assert wants["field"] and wants["system"], "a card cannot ask for a password it cannot name"
+    assert "value" not in step.sent["payload"]
+
+
+async def _nothing_stored() -> str | None:
+    """A vault that holds no password for the key it was asked about.
+
+    Absence and not a failure: the port says callers decide what absence means,
+    and this one decides it means "ask the person watching".
+    """
+    return None
+
+
+# --- the status a UI step can finally be held by -----------------------------
+
+
+def _called(status: int, url: str = "http://127.0.0.1:63319/api/orders") -> Reply:
+    return Reply(
+        ok=True,
+        result={"calls": [{"method": "POST", "url": url, "status": status, "started_at": 1.0}]},
+    )
+
+
+async def test_a_write_the_server_answered_is_held_by_its_status_and_never_photographed() -> None:
+    """The lever this exists for.
+
+    Every step of every run this deployment has performed was judged `screen`:
+    a screenshot, an upload and a vision call, per step, to reach the weakest
+    of the three rungs the verifier documents. A click cannot reach rung 1 on
+    its own -- its reply says the control was found and clicked -- so the
+    browser is asked what the page called while it was being driven, and the
+    step's own demonstrated endpoint answering 200 settles it with no picture.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel(
+        {
+            **_looks(4),
+            "ui.perform": [_performed(), _performed()],
+            "calls.since": [_called(200), _called(200)],
+        }
+    )
+    asker = FakeAsker(
+        _plan("type", "THIRD"), Answer(data={"held": True, "why": ""}), _plan("click")
+    )
+
+    run = await _ran(
+        uow, workflow, channel=channel, asker=asker, values={"clientCode": "THIRD"}, earned=True
+    )
+
+    saving = run.steps[1]
+    assert (saving.verdict, saving.verdict_by) == ("held", "status"), saving.reason
+    assert "200" in saving.reason
+    # The step still says where it left the browser -- that is what `after_url`
+    # is -- and it costs a message rather than a camera.
+    assert saving.after_url
+    # Three, not four: each step is looked at before it is planned, and only
+    # the first step is looked at again to judge it.
+    shots = [one for one in channel.sent if one["kind"] == "screenshot"]
+    assert len(shots) == 3, "the saving step was photographed to reach a worse answer"
+
+
+async def test_a_write_the_server_refused_fails_on_the_status_rather_than_on_a_picture() -> None:
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel(
+        {
+            **_looks(4),
+            "ui.perform": [_performed(), _performed()],
+            "calls.since": [_called(409), _called(409)],
+        }
+    )
+    asker = FakeAsker(
+        _plan("type", "THIRD"), Answer(data={"held": True, "why": ""}), _plan("click")
+    )
+
+    run = await _ran(
+        uow, workflow, channel=channel, asker=asker, values={"clientCode": "THIRD"}, earned=True
+    )
+
+    saving = run.steps[1]
+    assert (saving.verdict, saving.verdict_by) == ("failed", "status")
+    assert "409" in saving.reason
+
+
+async def test_a_page_that_called_nothing_this_run_recognises_is_still_looked_at() -> None:
+    """Absence of evidence, which the ladder is for. A beacon on the same host
+    is not this step's endpoint, and a step nobody can place by status is
+    judged the way it always was."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    beacon = _called(200, "http://127.0.0.1:63319/telemetry/batch")
+    channel = FakeChannel(
+        {
+            **_looks(4),
+            "ui.perform": [_performed(), _performed()],
+            "calls.since": [beacon, beacon],
+        }
+    )
+    asker = FakeAsker(
+        _plan("type", "THIRD"),
+        Answer(data={"held": True, "why": ""}),
+        _plan("click"),
+        Answer(data={"held": True, "why": "the order is on the screen"}),
+    )
+
+    run = await _ran(
+        uow, workflow, channel=channel, asker=asker, values={"clientCode": "THIRD"}, earned=True
+    )
+
+    saving = run.steps[1]
+    assert (saving.verdict, saving.verdict_by) == ("held", "screen")
+    assert len([one for one in channel.sent if one["kind"] == "screenshot"]) == 4
+
+
+# --- a write that would only make a second copy ------------------------------
+
+
+async def test_a_write_whose_effect_is_already_true_is_not_made_again() -> None:
+    """The run that made this worth writing signed in an operator who was
+    already signed in. The class behind it is wider -- a rule fires twice, two
+    browsers take one job, a card is answered a day late -- and every one of
+    them ends with a second record in a warehouse that wanted one.
+
+    The verifier's second rung, asked before the write instead of after: the
+    page's own read already shows the value this run would supply, so there is
+    nothing to do.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel(
+        {
+            **_looks(4),
+            "ui.perform": [_performed()],
+            "http.send": [
+                # The precondition read, answering with the record already
+                # there under the code this run was going to create.
+                Reply(ok=True, result={"status": 200, "body": '{"clientCode": "THIRD"}'}),
+            ],
+        }
+    )
+    asker = _ByRungAsker(
+        plans=[_plan("type", "THIRD"), _replay()],
+        sights=[],
+        verdict=Answer(data={"held": True, "why": "ok"}),
+    )
+
+    run = await _ran(
+        uow, workflow, channel=channel, asker=asker, values={"clientCode": "THIRD"}, earned=True
+    )
+
+    saving = run.steps[1]
+    assert (saving.verdict, saving.verdict_by) == ("held", "read")
+    assert saving.result == {"skipped": True, "already": True}
+    assert "already shows the value" in (saving.reason or "")
+    posts = [one for one in channel.sent if _payload(one).get("method") == "POST"]
+    assert posts == [], "the warehouse was given a second copy of a record it already had"
+    # Not a write this run made: what earns a job the right to write unasked is
+    # a write that was watched to hold, and this one never went.
+    assert [key for key in _effects(uow) if key[1] == run.id] == []
+
+
+async def test_a_record_that_only_matches_on_the_unchanged_half_is_not_this_one() -> None:
+    """The defect four live runs found, which every test here missed by
+    carrying exactly one value.
+
+    A job carries values that change from run to run beside values that do
+    not -- an order's reference, a facility, a site. Asked with `any`, the
+    precondition reads the PREVIOUS record, sees the unchanged half match, and
+    skips the write. On 2026-09-15 that was four live runs of a three-step job
+    against a real page: a new client code each time, the same reference, all
+    four reported `held`, and the page received nothing.
+
+    Every value, or it is not this record.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel(
+        {
+            **_looks(4),
+            "ui.perform": [_performed()],
+            "http.send": [
+                # The record BEFORE this one: same reference, different code.
+                Reply(
+                    ok=True,
+                    result={
+                        "status": 200,
+                        "body": '{"clientCode": "FIRST", "reference": "PO-88213"}',
+                    },
+                ),
+                Reply(ok=True, result={"status": 201, "body": "{}"}),
+            ],
+            "calls.since": [Reply(ok=True, result={"calls": []})] * 4,
+        }
+    )
+    asker = _ByRungAsker(
+        plans=[_plan("type", "SECOND"), _replay()],
+        sights=[],
+        verdict=Answer(data={"held": True, "why": "ok"}),
+    )
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        values={"clientCode": "SECOND", "reference": "PO-88213"},
+        earned=True,
+    )
+
+    saving = run.steps[1]
+    assert "already shows the value" not in (saving.reason or "")
+    posts = [one for one in channel.sent if _payload(one).get("method") == "POST"]
+    assert posts, "the write was skipped on the previous record's reference"
+
+
+async def test_a_value_the_page_is_merely_scoped_to_does_not_skip_a_write() -> None:
+    """The false positive worth being strict about.
+
+    A run carries its context as well as its content -- a facility, a site, a
+    screen -- and the page's read is addressed to it, so that value is in the
+    probe's own url AND in everything it returns. Matching on it would skip a
+    write for a record nobody has created. Here the run's only value is the
+    one the read is addressed to (`/api/stream`), so the read proves nothing
+    and the write goes.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel(
+        {
+            **_looks(4),
+            "ui.perform": [_performed()],
+            "http.send": [
+                Reply(ok=True, result={"status": 200, "body": '{"scope": "stream"}'}),
+                Reply(ok=True, result={"status": 200, "body": "{}", "headers": {}}),
+            ],
+        }
+    )
+    asker = _ByRungAsker(
+        plans=[_plan("type", "stream"), _replay()],
+        sights=[],
+        verdict=Answer(data={"held": True, "why": "ok"}),
+    )
+
+    run = await _ran(
+        uow, workflow, channel=channel, asker=asker, values={"scope": "stream"}, earned=True
+    )
+
+    posts = [one for one in channel.sent if _payload(one).get("method") == "POST"]
+    assert posts, "the write was skipped over a value that only says which screen this is"
+    assert run.steps[1].verdict == "held"
+
+
+async def test_two_runs_of_one_job_with_one_set_of_values_write_once() -> None:
+    """The double fire, from the panel's side: a rule fires twice, two browsers
+    take one job, a card is answered while another run of it is still going.
+    The warehouse gets one record.
+
+    Keyed by the job, the step and the values -- never the run id, because two
+    runs are the whole point -- and claimed before the send and kept whatever
+    it answers: a timeout is the one case where the write may well have landed.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    values = {"clientCode": "ONCE-9"}
+
+    async def _go() -> WorkflowRun:
+        channel = FakeChannel(
+            {
+                **_looks(4),
+                "ui.perform": [_performed(), _performed()],
+                "http.send": [Reply(ok=True, result={"status": 404, "body": "{}"})] * 2,
+                "calls.since": [Reply(ok=True, result={"calls": []})] * 2,
+            }
+        )
+        asker = _ByRungAsker(
+            plans=[_plan("type", "ONCE-9"), _plan("click")],
+            sights=[],
+            verdict=Answer(data={"held": True, "why": "ok"}),
+        )
+        return await _ran(uow, workflow, channel=channel, asker=asker, values=values, earned=True)
+
+    first, second = await _go(), await _go()
+
+    assert first.steps[1].verdict == "held"
+    assert second.steps[1].verdict == "failed"
+    assert "may have landed" in (second.steps[1].reason or "")
+
+
+async def test_the_same_job_with_different_values_is_a_different_write() -> None:
+    """A job done every morning is done every morning. What makes two writes
+    one write is the values, and a new supplier is a new supplier."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+
+    async def _go(code: str) -> WorkflowRun:
+        channel = FakeChannel(
+            {
+                **_looks(4),
+                "ui.perform": [_performed(), _performed()],
+                "http.send": [Reply(ok=True, result={"status": 404, "body": "{}"})] * 2,
+                "calls.since": [Reply(ok=True, result={"calls": []})] * 2,
+            }
+        )
+        asker = _ByRungAsker(
+            plans=[_plan("type", code), _plan("click")],
+            sights=[],
+            verdict=Answer(data={"held": True, "why": "ok"}),
+        )
+        return await _ran(
+            uow, workflow, channel=channel, asker=asker, values={"clientCode": code}, earned=True
+        )
+
+    assert (await _go("MON-1")).steps[1].verdict == "held"
+    assert (await _go("TUE-1")).steps[1].verdict == "held"
+
+
+async def test_a_claim_older_than_the_window_does_not_stop_tomorrows_run() -> None:
+    """A key that never expired would mean a tenant could create one supplier
+    with a given code, ever. `remember` takes over a claim older than the
+    window, which is the difference between this key and a connector call's."""
+    uow = await _fixture()
+    assert isinstance(uow.tool_calls, FakeToolCallRepository)
+    at = datetime(2026, 9, 14, 9, 0, tzinfo=UTC)
+
+    assert await uow.tool_calls.remember(TENANT, "k", tool="t", at=at)
+    assert not await uow.tool_calls.remember(
+        TENANT, "k", tool="t", at=at + K_SAME_WRITE_WINDOW / 2, stale_after=K_SAME_WRITE_WINDOW
+    )
+    assert await uow.tool_calls.remember(
+        TENANT,
+        "k",
+        tool="t",
+        at=at + K_SAME_WRITE_WINDOW * 2,
+        stale_after=K_SAME_WRITE_WINDOW,
+    )
+
+
+# --- a job done once per thing on a list -------------------------------------
+
+
+def _adding_three() -> tuple[Repeat, list[dict[str, str]]]:
+    """The mail that prompted this: three equipment types in one message."""
+    return Repeat(first_step=0, last_step=1), [
+        {"clientCode": "8SITDOWN"},
+        {"clientCode": "8STANDUP"},
+        {"clientCode": "8REACHT"},
+    ]
+
+
+class _SaysYes(Approvals):
+    """Somebody at the panel who answers every time the run stops to ask.
+
+    A subclass rather than a task polling beside the run: the run parks by
+    awaiting this register, so answering from inside it is the one place that
+    cannot race the park it is answering.
+    """
+
+    async def wait_for(
+        self,
+        run_id: str,
+        timeout: float = K_APPROVAL_WAIT_S,  # noqa: ASYNC109 - the wait IS the timeout
+    ) -> bool:
+        self.approve(run_id)
+        return await super().wait_for(run_id, timeout)
+
+
+async def test_the_body_is_done_once_for_each_thing_on_the_list() -> None:
+    """A mail carrying three rows produced a run that created the first, and an
+    operator did the other two by hand while watching a browser that had just
+    proved it could do them."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    repeat, items = _adding_three()
+    workflow.repeat = repeat
+    channel = FakeChannel(
+        {
+            **_looks(12),
+            "ui.perform": [_performed()] * 6,
+            "http.send": [Reply(ok=True, result={"status": 404, "body": "{}"})] * 3,
+            "calls.since": [Reply(ok=True, result={"calls": []})] * 6,
+        }
+    )
+    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True}))
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        items=items,
+        earned=True,
+        # A list of more than one thing stops once after the first, to
+        # show somebody what it made before it makes the rest.
+        approvals=_SaysYes(),
+    )
+
+    assert [step.of_step for step in run.steps] == [0, 1, 0, 1, 0, 1]
+    assert [step.item for step in run.steps] == [0, 0, 1, 1, 2, 2]
+    assert [step.order for step in run.steps] == [0, 1, 2, 3, 4, 5], (
+        "two rows of one run collided on their place, which is the table's own key"
+    )
+    assert run.outcome == "held"
+
+
+async def test_each_thing_is_finished_before_the_next_is_started() -> None:
+    """Three records made and two not is a half-finished run somebody can read.
+    Five records each missing their last field is not."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    workflow.repeat, items = _adding_three()
+    channel = FakeChannel(
+        {
+            **_looks(12),
+            "ui.perform": [_performed()] * 6,
+            "http.send": [Reply(ok=True, result={"status": 404, "body": "{}"})] * 3,
+            "calls.since": [Reply(ok=True, result={"calls": []})] * 6,
+        }
+    )
+    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True}))
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        items=items,
+        earned=True,
+        # A list of more than one thing stops once after the first, to
+        # show somebody what it made before it makes the rest.
+        approvals=_SaysYes(),
+    )
+
+    done = [(step.item, step.of_step) for step in run.steps]
+    assert done == sorted(done), "the run wandered between things rather than finishing each"
+
+
+async def test_one_thing_on_the_list_is_the_job_it_always_was() -> None:
+    """The property everything else in the loop depends on: a repeating job
+    given one item performs exactly like a job with no repeat, so nothing else
+    had to learn about repeats."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    workflow.repeat = Repeat(first_step=0, last_step=1)
+    channel = FakeChannel(
+        {
+            **_looks(4),
+            "ui.perform": [_performed(), _performed()],
+            "http.send": [Reply(ok=True, result={"status": 404, "body": "{}"})],
+            "calls.since": [Reply(ok=True, result={"calls": []})] * 2,
+        }
+    )
+    asker = _PerSchemaAsker(plan=_plan("type", "ONE"), verdict=Answer(data={"held": True}))
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        items=[{"clientCode": "ONE"}],
+        earned=True,
+    )
+
+    assert [step.item for step in run.steps] == [None, None]
+    assert [step.order for step in run.steps] == [0, 1]
+
+
+async def test_each_thing_gets_its_own_write_claim() -> None:
+    """The bug this would have been without it: the ledger keys a write by the
+    job, the step and the VALUES, so the second thing on the list would have
+    been refused as a duplicate of the first."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    workflow.repeat, items = _adding_three()
+    channel = FakeChannel(
+        {
+            **_looks(12),
+            "ui.perform": [_performed()] * 6,
+            "http.send": [Reply(ok=True, result={"status": 404, "body": "{}"})] * 3,
+            "calls.since": [Reply(ok=True, result={"calls": []})] * 6,
+        }
+    )
+    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True}))
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        items=items,
+        earned=True,
+        # A list of more than one thing stops once after the first, to
+        # show somebody what it made before it makes the rest.
+        approvals=_SaysYes(),
+    )
+
+    assert [step.verdict for step in run.steps] == ["held"] * 6
+    assert not any("may have landed" in (step.reason or "") for step in run.steps)
+
+    # And the half that not being refused does not prove: that a claim was
+    # made for every thing on the list. `claimed_here` used to hold step
+    # numbers, and a repeating job performs one step number once per item, so
+    # items 2..N never reached the ledger at all -- nothing refused them
+    # because nothing had claimed them, and a second run carrying an
+    # overlapping list created the overlap twice.
+    writing = [step for step in workflow.steps if step.order == 1]
+    keys = {write_key(workflow.id, writing[0], {**item}) for item in items}
+    assert len(keys) == 3, "the fixture's three items do not write three different things"
+    assert {key for _, key in uow.tool_calls.claimed} == keys
+
+
+async def test_what_the_operator_already_did_was_done_once_not_once_per_thing() -> None:
+    """`from_step` is about the operator's own progress, and they made progress
+    on one thing.
+
+    A run entered at `from_step=1` after the operator filled the form for the
+    first item used to mark step 0 `done_by_operator` for every OTHER item
+    too -- so the second and third things on the list never had their fields
+    filled, and the run pressed Save against whatever the first one had left
+    on the screen. It reported `held`, with rows claiming a person had
+    performed steps nobody had touched.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    workflow.repeat, items = _adding_three()
+    channel = FakeChannel(
+        {
+            **_looks(12),
+            "ui.perform": [_performed()] * 6,
+            "http.send": [Reply(ok=True, result={"status": 404, "body": "{}"})] * 3,
+            "calls.since": [Reply(ok=True, result={"calls": []})] * 6,
+        }
+    )
+    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True}))
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        items=items,
+        earned=True,
+        approvals=_SaysYes(),
+        from_step=1,
+    )
+
+    done = [(step.of_step, step.item) for step in run.steps if step.verdict == "done_by_operator"]
+    assert done == [(0, 0)], "a step the operator did once was skipped for things they never saw"
+    assert [step.item for step in run.steps if step.of_step == 0] == [0, 1, 2]
+
+
+async def test_a_long_list_reads_the_days_bill_again_and_stops_when_it_is_spent() -> None:
+    """The cap was read at the press and never again.
+
+    `over_cap` is asked by `StartWorkflowRun` before the run row exists, and
+    appeared nowhere in the loop. A press that passed that check at $0 could
+    then spend the rest of the tenant's day inside one run: 25 items of a
+    four-step body is about a hundred legs, and at this deployment's measured
+    $0.0118 a step that is $1.20 against a $5 day, with nothing asking.
+
+    The bill is planted mid-run by a chat row landing after the first thing on
+    the list, which is what a mining pass or another browser does while a long
+    run is going.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    workflow.repeat, items = _adding_three()
+    channel = FakeChannel(
+        {
+            **_looks(12),
+            "ui.perform": [_performed()] * 6,
+            "http.send": [Reply(ok=True, result={"status": 404, "body": "{}"})] * 3,
+            "calls.since": [Reply(ok=True, result={"calls": []})] * 6,
+        }
+    )
+
+    class _SpendsWhileItRuns(_PerSchemaAsker):
+        """Somebody else's bill arriving mid-run."""
+
+        def __init__(self) -> None:
+            super().__init__(plan=_plan("type", "x"), verdict=Answer(data={"held": True}))
+            # Not `asked`: the parent keeps the calls it was given under that
+            # name, and shadowing it turns a list into a counter three frames
+            # from here.
+            self.times = 0
+
+        async def ask(self, *args: object, **kwargs: object) -> Answer:
+            self.times += 1
+            if self.times == 2:
+                await uow.chats.record(
+                    ChatReading(
+                        id="cha_someone_else",
+                        tenant=TENANT.value,
+                        at=datetime.now(tz=UTC).isoformat(),
+                        cost_usd=9.99,
+                    )
+                )
+            return await super().ask(*args, **kwargs)
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=_SpendsWhileItRuns(),
+        items=items,
+        earned=True,
+        approvals=_SaysYes(),
+        cap_usd=5.0,
+    )
+
+    assert run.outcome == "stopped"
+    assert "daily cap reached" in (run.steps[-1].reason or "")
+    # Stopped at a boundary between two things on the list, so what it did is
+    # whole records rather than half of one.
+    assert run.steps[-1].item is not None and run.steps[-1].item > 0
+
+
+async def test_a_list_longer_than_one_press_can_mean_is_refused_before_anything_is_sent() -> None:
+    """An operator pressing yes on "add these" has read a mail with a handful of
+    rows in it. Two hundred is either a mistake or a decision they have not
+    made, and the run that would make two hundred records is not the one they
+    authorised."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    workflow.repeat = Repeat(first_step=0, last_step=1)
+    channel = FakeChannel(_looks(4))
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=FakeAsker(),
+        items=[{"clientCode": f"C{n}"} for n in range(K_MOST_ITEMS + 1)],
+        earned=True,
+    )
+
+    assert run.outcome == "refused"
+    assert f"at most {K_MOST_ITEMS}" in run.steps[0].reason
+    assert channel.sent == [], "a refused list still reached the browser"
+
+
+class _CountsTheAsks(Approvals):
+    """The register, counting how many times a run stopped to ask.
+
+    The run's own rows cannot answer that: a step parked on a person is
+    recorded `awaiting` and then rewritten with the verdict on the write that
+    followed, so by the time anybody reads the run there is no trace of the
+    waiting left in it.
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.asked = 0
+
+    async def wait_for(
+        self,
+        run_id: str,
+        timeout: float = K_APPROVAL_WAIT_S,  # noqa: ASYNC109 - the wait IS the timeout
+    ) -> bool:
+        self.asked += 1
+        return await super().wait_for(run_id, timeout)
+
+
+async def test_one_tap_answers_for_the_whole_list() -> None:
+    """A person answering "add these three" read three rows and pressed one
+    button. Asking again for the second and the third is asking them to
+    authorise what they have already authorised, and a card per thing on a list
+    of ten is a panel nobody reads by the fourth."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    workflow.repeat, items = _adding_three()
+    channel = FakeChannel(
+        {
+            **_looks(12),
+            "ui.perform": [_performed()] * 6,
+            "http.send": [Reply(ok=True, result={"status": 404, "body": "{}"})] * 3,
+            "calls.since": [Reply(ok=True, result={"calls": []})] * 6,
+        }
+    )
+    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True}))
+    approvals = _CountsTheAsks()
+    answering = True
+
+    read: list[str] = []
+
+    async def _tap() -> None:
+        """Somebody at the panel, answering whenever the run stops to ask.
+
+        What the card SAID is read here and not off the finished run: a parked
+        step is recorded `awaiting` with its question and then rewritten with
+        the verdict on what followed, so by the time the run is over there is
+        no trace of either.
+        """
+        while answering:
+            with suppress(TimeoutError):
+                run_id = await _parked(approvals)
+                saved = await uow.workflow_runs.get(TENANT, run_id)
+                if saved is not None:
+                    read.append(saved.steps[-1].reason)
+                approvals.approve(run_id)
+            await asyncio.sleep(0.01)
+
+    tapping = asyncio.create_task(_tap())
+    run = await _ran(uow, workflow, channel=channel, asker=asker, items=items, approvals=approvals)
+    answering = False
+    await tapping
+
+    assert run.outcome == "held", [step.reason for step in run.steps]
+    # Two, for a list of any length: the write gate once for the whole list,
+    # and once more before the second thing with the first one's result in
+    # front of them. Not one per thing, which for ten things is a panel nobody
+    # reads by the fourth.
+    assert approvals.asked == 2, [step.reason for step in run.steps]
+    assert any("the first of 3 is done" in one for one in read), (
+        f"the second tap was asked for without saying what the first one made: {read}"
+    )
+    # Three writes went out, which is the point: two answers, three records.
+    assert [one["kind"] for one in channel.sent].count("ui.perform") == 6
+
+
+async def test_a_second_run_of_the_same_list_asks_again(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(runner_module, "K_APPROVAL_WAIT_S", 0.05)
+    """The tap answers for this list, not for the job. A second press is a
+    second decision, and a run that inherited the first one's yes would be a
+    write nobody authorised."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    workflow.repeat, items = _adding_three()
+    channel = FakeChannel(
+        {
+            **_looks(12),
+            "ui.perform": [_performed()] * 6,
+            "http.send": [Reply(ok=True, result={"status": 404, "body": "{}"})] * 3,
+            "calls.since": [Reply(ok=True, result={"calls": []})] * 6,
+        }
+    )
+    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True}))
+
+    # Nobody taps. The first write parks and the run fails waiting, which is
+    # what a fresh list does with no answer -- the previous test's yes is not
+    # in this run.
+    run = await asyncio.wait_for(
+        run_workflow(
+            uow,
+            workflow,
+            tenant_id=TENANT,
+            values={},
+            channel=channel,
+            device_id=DEVICE,
+            asker=asker,
+            plan_model="flash",
+            rescue_model="pro",
+            live=True,
+            allow_focus=True,
+            started_by="form",
+            stops=Stops(),
+            approvals=Approvals(),
+            cap_usd=-1.0,
+            items=items,
+            run_id="run_second_list",
+        ),
+        timeout=5,
+    )
+
+    assert any(step.verdict == "failed" for step in run.steps)
+    assert not any(step.result and step.result.get("wrote") for step in run.steps)
+
+
+async def test_a_wrong_list_costs_one_record_and_not_twenty(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The protection this exists for.
+
+    A tap on "add these twenty" is one decision made before anything happened.
+    The job read out of a sentence can be the wrong job -- an operator asking
+    for a warehouse equipment type was once answered with a customer type --
+    and the way to find that out is to do one and show them. Nobody says yes to
+    the rest, so the rest is not done.
+    """
+    monkeypatch.setattr(runner_module, "K_APPROVAL_WAIT_S", 0.05)
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    workflow.repeat, items = _adding_three()
+    channel = FakeChannel(
+        {
+            **_looks(12),
+            "ui.perform": [_performed()] * 6,
+            "http.send": [Reply(ok=True, result={"status": 404, "body": "{}"})] * 3,
+            "calls.since": [Reply(ok=True, result={"calls": []})] * 6,
+        }
+    )
+    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True}))
+
+    # Earned, so the write gate does not ask: what is under test is the gate
+    # AFTER the first thing, which asks whether a job that can write unasked
+    # should go on writing.
+    run = await _ran(uow, workflow, channel=channel, asker=asker, items=items, earned=True)
+
+    done = [step for step in run.steps if step.item == 0 and step.verdict == "held"]
+    assert len(done) == 2, "the first thing was not finished before the run stopped"
+    assert not any(step.item == 2 for step in run.steps), "the third thing was done anyway"
+    assert run.outcome == "stopped"
+    assert "within" in (run.steps[-1].reason or "")
+
+
+async def test_even_a_job_that_has_earned_its_autonomy_is_asked_after_the_first(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The one place this system does not let earning through.
+
+    Earning says a job's writes have been watched to hold over runs. It says
+    nothing about whether this is the right job for what somebody just asked
+    for, and that is the question a list makes expensive: a job cannot earn its
+    way out of being the wrong job twenty times.
+    """
+    monkeypatch.setattr(runner_module, "K_APPROVAL_WAIT_S", 0.05)
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    workflow.repeat, items = _adding_three()
+    await _earn(uow, workflow)
+    channel = FakeChannel(
+        {
+            **_looks(12),
+            "ui.perform": [_performed()] * 6,
+            "http.send": [Reply(ok=True, result={"status": 404, "body": "{}"})] * 3,
+            "calls.since": [Reply(ok=True, result={"calls": []})] * 6,
+        }
+    )
+    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True}))
+    approvals = _CountsTheAsks()
+
+    run = await _ran(uow, workflow, channel=channel, asker=asker, items=items, approvals=approvals)
+
+    assert approvals.asked == 1, "an earned job wrote the whole list without being asked once"
+    # Nobody answered, so the rest was not done -- and the first one was.
+    assert len([step for step in run.steps if step.item == 0 and step.verdict == "held"]) == 2
+    assert not any(step.item == 2 for step in run.steps)

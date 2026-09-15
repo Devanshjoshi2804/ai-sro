@@ -32,6 +32,29 @@ class RejectedEvent:
             raise InvariantViolation("a rejection with no reason cannot be fixed")
 
 
+def check_times(started_at: datetime, ended_at: datetime, received_at: datetime) -> None:
+    """The two rules about a batch's clock, asked before the evidence is
+    written as well as when the row is built.
+
+    `ObservationBatch.__post_init__` is the authority and it runs LAST: ingest
+    writes the NDJSON object first and constructs the row after it, so an
+    upload whose envelope carried an offset-less time answered 422 with the
+    object already in the store. The transaction rolls back; the object does
+    not, and no row points at it -- so neither a purge nor the retention sweep
+    will ever reach it. Asked here too, before the write, so the refusal costs
+    nothing but the refusal.
+    """
+    for name, at in (
+        ("started_at", started_at),
+        ("ended_at", ended_at),
+        ("received_at", received_at),
+    ):
+        if at.tzinfo is None:
+            raise InvariantViolation(f"{name} must be timezone-aware")
+    if ended_at < started_at:
+        raise InvariantViolation("a batch cannot end before it started")
+
+
 @dataclass(frozen=True, slots=True)
 class ObservationBatch:
     """The row. The events themselves are one object in the blob store.
@@ -68,15 +91,7 @@ class ObservationBatch:
     opposite mistake -- ordinary work filed as a deliberate demonstration."""
 
     def __post_init__(self) -> None:
-        for name, at in (
-            ("started_at", self.started_at),
-            ("ended_at", self.ended_at),
-            ("received_at", self.received_at),
-        ):
-            if at.tzinfo is None:
-                raise InvariantViolation(f"{name} must be timezone-aware")
-        if self.ended_at < self.started_at:
-            raise InvariantViolation("a batch cannot end before it started")
+        check_times(self.started_at, self.ended_at, self.received_at)
         if not self.uri.strip():
             raise InvariantViolation("a batch whose evidence has no address is not evidence")
         if self.mode is CaptureMode.TEACHING and self.recording_id is None:

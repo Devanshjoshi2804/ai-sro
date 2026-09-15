@@ -383,6 +383,26 @@ async def test_the_steps_are_not_what_two_of_the_doings_happened_to_share() -> N
     assert len(version.steps) == 4
 
 
+async def test_each_step_says_how_many_of_the_doings_made_it() -> None:
+    """The counts already decide things -- `standing_of` reads them to tell a
+    branch from a fumble -- and until now a reviewer could only find them in a
+    log line. A step three of four doings made is a different thing to look at
+    than one all four made, and the skill never said which it was.
+
+    Conformance checking has shipped exactly this as a graded fitness score
+    since 2010 while this gate stayed binary: kept, or the whole induction
+    refused.
+    """
+    version = await _four_carrier_cross_references()
+
+    counted = [(step.seen_in, step.of_doings) for step in version.steps]
+
+    assert counted == [(4, 4), (4, 4), (1, 4), (4, 4)], (
+        "the address lookup only one of the four doings made is the case this is for:"
+        " kept, and said to be rare, rather than kept silently"
+    )
+
+
 async def test_the_lookup_survives_the_reference_being_neither_run_of_the_pair() -> None:
     """A guard on the fixture above, not a rule of its own.
 

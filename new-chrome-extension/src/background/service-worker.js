@@ -5,7 +5,7 @@
 
 import { api, ApiError } from "./api.js";
 import * as channel from "./channel.js";
-import { abort, isDriving, performing, RUN_QUIET_MS } from "./commands.js";
+import { abort, isDriving, noteDriven, performing, RUN_QUIET_MS } from "./commands.js";
 import * as queue from "./queue.js";
 import { redactUrl } from "../content/sensitivity.module.js";
 import {
@@ -131,19 +131,19 @@ const CANDIDATES_FRESH_MS = 300_000;
 const knownHere = new Map();
 
 async function candidatesFor(host) {
+  // The rig's jobs, and nothing else.
+  //
+  // This used to be the rig's jobs plus the mining pipeline's candidates,
+  // which offered to TEACH a skill from recordings. That is not the system
+  // this browser drives: an operator pressed one of those offers for work the
+  // rig already held as a seven-step job and got "the doings differ too much
+  // for me to be sure". Dropped where it is read, so the backend goes on
+  // mining candidates and the console goes on reviewing them.
   const held = knownHere.get(host);
   if (held && Date.now() - held.at < CANDIDATES_FRESH_MS) return held.list;
   const proven = rigArrivals(await shapesFor(), host);
-  try {
-    const list = [...(await api.candidates(host)), ...proven];
-    knownHere.set(host, { at: Date.now(), list });
-    return list;
-  } catch {
-    // Offline, or no credential. The rig is a different server and may well be
-    // up, so what it has proved still stands. Not cached: the backend should be
-    // asked again on the next navigation, not in five minutes.
-    return proven;
-  }
+  knownHere.set(host, { at: Date.now(), list: proven });
+  return proven;
 }
 
 /** The rig's jobs that start on this host, as arrival candidates.
@@ -278,7 +278,17 @@ async function considerArrival(tabId, url, visit) {
     // standing rule looks, from the operator's side, like their browser
     // deciding to do something -- and the one thing that must never be true is
     // that they cannot see why.
-    await state.setActiveRun({ runId: started.run_id, at: Date.now(), source: "rig" });
+    //
+    // Only where a run actually started. A fire that stopped to ask answers
+    // with a `confirmation_id` and a NULL run id, and one the backend skipped
+    // answers with neither -- and this wrote the null straight into the active
+    // run, where `pollRigRun` then asked the backend about a run called "null"
+    // once a second, forever: 191 of those 404s are in one evening's log. The
+    // card the operator should have seen is the confirmation, which
+    // `waitingOnSomebody` already fetches.
+    if (started?.run_id) {
+      await state.setActiveRun({ runId: started.run_id, at: Date.now(), source: "rig" });
+    }
   } catch (error) {
     // A tab that closed mid-navigation, a rule the backend has since disabled,
     // a browser with no credential. Said out loud rather than swallowed: a
@@ -425,6 +435,50 @@ function originOf(url) {
  * making somebody press a button before they are told what the answer is would
  * be a card that says "shall I go and look?" and nothing else.
  */
+/** The job the thread's own reply placed this sentence as, if it placed one.
+ *
+ * The last thing the assistant said, and only the last: a thread is a
+ * conversation, and the offer on screen is about the sentence just typed.
+ */
+function jobInTheReply(thread) {
+  const messages = thread?.messages || [];
+  for (const message of [...messages].reverse()) {
+    if (message.speaker !== "assistant") continue;
+    const decision = message.decision || {};
+    return decision.kind === "job" && decision.workflow_id ? decision : null;
+  }
+  return null;
+}
+
+/** The offer, from a reading somebody else already paid for. */
+async function offerFromJob(placed, tabId) {
+  if (tabId === null) return;
+  const shape = (await shapesFor()).find((one) => one.id === placed.workflow_id);
+  const made = fire(
+    {
+      id: placed.workflow_id,
+      title: placed.title || shape?.title || placed.workflow_id,
+      starts_on: shape?.starts_on || "",
+      source: "rig",
+      workflow_id: placed.workflow_id,
+      k: 0,
+      values: placed.values || {},
+      items: Array.isArray(placed.items) ? placed.items : [],
+      missing: placed.missing || [],
+      parameters: (shape?.parameters || []).map((one) => one.name),
+    },
+    Date.now(),
+  );
+  await serially(async () => {
+    const held = await state.nudges();
+    // One open offer at a time: a sentence supersedes whatever was offered.
+    const rest = held.map((one) =>
+      one.state === "open" ? { ...one, state: "expired", endedAt: Date.now() } : one,
+    );
+    await state.setNudges([{ ...made, tabId }, ...rest].slice(0, MAX_NUDGES));
+  });
+}
+
 async function offerFromWords(text, tabId) {
   if (!text || tabId === null) return;
   try {
@@ -449,6 +503,10 @@ async function offerFromWords(text, tabId) {
         workflow_id: read.workflow_id,
         k: 0,
         values: read.values || {},
+        // Several things in one sentence: "add these three equipment types" is
+        // one job done three times. The card says how many before anybody
+        // presses it, and the press carries them.
+        items: Array.isArray(read.items) ? read.items : [],
         missing: read.missing || [],
         parameters: (shape?.parameters || []).map((one) => one.name),
       },
@@ -463,9 +521,22 @@ async function offerFromWords(text, tabId) {
       );
       await state.setNudges([{ ...made, tabId }, ...rest].slice(0, MAX_NUDGES));
     });
-  } catch {
-    // No model configured, over the day's cap, a sentence about nothing. The
-    // thread still has what they said, and this line adds nothing to it.
+  } catch (error) {
+    // Said out loud, not swallowed.
+    //
+    // A sentence about nothing is the ordinary case and says nothing back --
+    // the thread already has what they said. A door that REFUSED is a
+    // different thing, and this catch hid one for a whole evening: every
+    // sentence an operator typed got a 404 from `/v1/ask`, the panel offered
+    // nothing, and there was no way from the panel to tell "I did not
+    // understand you" from "I could not ask".
+    //
+    // `lastError` is what the strip already draws when something is wrong, so
+    // this needs no new surface: the operator sees that the door refused and
+    // the log says which.
+    if (error instanceof ApiError) {
+      await state.setLastError(`the panel could not ask about that: ${error.message}`);
+    }
   }
 }
 
@@ -941,6 +1012,11 @@ async function handle(message, sender) {
       // system learning a task from a robot imitating a person -- and then
       // offering it back as something worth automating.
       if (isDriving(sender?.tab?.id ?? null)) {
+        // Dropped from the evidence plane, and kept for the length of the run
+        // in a bounded map the run can ask about: a step that just posted a
+        // form is verified by what the server answered rather than by
+        // photographing the page and asking a model what it looks like.
+        if (message.kind === "request") noteDriven(sender?.tab?.id ?? null, message.request);
         return { ok: false, dropped: "this browser is performing a run" };
       }
       // Somebody is working in here. Said out loud on the channel so a command
@@ -1202,7 +1278,16 @@ async function handle(message, sender) {
     case "run":
       // The panel says what a run driving this browser is doing. The worker
       // holds the credential, so it does the asking.
-      return api.run(message.runId);
+      //
+      // Two doors, because there are two kinds of run and their ids live in
+      // different tables: a skill run at `/v1/runs`, a mined job's run at
+      // `/v1/workflow-runs`. The panel asked the first about both, so every
+      // rig run 404'd -- 308 of those in one evening across eleven run ids --
+      // and the card an operator watches while their own browser is being
+      // driven never learned the job's name or how far through it was. The
+      // panel says which kind it is asking about; it is the only thing that
+      // knows, because it is what the worker told it.
+      return message.source === "rig" ? api.rigRun(message.runId) : api.run(message.runId);
     case "skill":
       return api.skill(message.skillId);
     case "summary":
@@ -1236,6 +1321,21 @@ async function handle(message, sender) {
         if (was.state === "open") void report(was, "dismissed");
       }
       return { ok: true, nudge: was || null };
+    }
+    case "keep-secret": {
+      // Straight through to the backend and gone. Not held here even for the
+      // length of this function longer than it takes to send: a worker that
+      // kept a password in a variable is a worker whose crash dump has one.
+      try {
+        const kept = await api.keepSecret({
+          system: message.system,
+          field: message.field,
+          value: message.value,
+        });
+        return { ok: true, key: kept.key };
+      } catch (error) {
+        return { ok: false, error: error.problem?.detail || error.message };
+      }
     }
     case "answer-waiting": {
       // The press on a card a rule left waiting. Here rather than in the panel
@@ -1317,13 +1417,19 @@ async function handle(message, sender) {
       // What the operator typed into the panel wins over what the prefix read
       // off the page: they are looking at both, and the panel is the later word.
       const values = { ...(nudge.values || {}), ...(message.values || {}) };
+      // The things the sentence named, as they were read. What the operator
+      // typed into the card fills the gaps in the job's shared values, not in
+      // one thing's -- there is one box per parameter on the card and three
+      // things behind it, so a typed value that overwrote each thing's own
+      // would make three identical records.
+      const items = Array.isArray(nudge.items) ? nudge.items : [];
       let started;
       try {
         // No `started_by`. The backend reads who authorised the press off the
         // credential it arrived on; a body field saying so is a signature
         // nobody checked, written into the row an audit reads first.
         started = await api.rigStart({
-          workflow_id: nudge.workflowId, values, device_id: await state.deviceId(),
+          workflow_id: nudge.workflowId, values, items, device_id: await state.deviceId(),
           live: true, allow_focus: true, from_step: nudge.k || 0,
         });
       } catch (error) {
@@ -1384,30 +1490,24 @@ async function handle(message, sender) {
       return api.reviseRun(message.runId, message.values);
     case "say-to-run":
       return api.sayToRun(message.threadId, message.runId, message.text);
-    case "candidates":
-      // Read here rather than in the panel so the credential stays in the
-      // worker: an extension page holding a token is one more place it can be
-      // read from, and the panel has no need of it.
-      return api.candidates(message.host);
-    case "teach-candidate":
-      return api.teachCandidate(message.id);
-    case "teach-together":
-      return api.teachTogether(message.id, message.otherId);
-    case "answer-join":
-      return api.answerJoin(message.id, message.otherId, message.joinKind, message.answer);
-    case "dismiss-candidate":
-      return api.dismissCandidate(message.id, message.reason);
-    case "resolve-intent":
-      return api.resolveIntent(message.utterance);
+    // `candidates`, `teach-candidate`, `teach-together`, `answer-join`,
+    // `dismiss-candidate` and `resolve-intent` were here, and are not any
+    // more: every one of them served the mining pipeline's offer -- a card
+    // that proposed teaching a skill from recordings, and a box that resolved
+    // a sentence against the skills it had taught. This deployment runs the
+    // rig, whose jobs come with their steps already. The routes still exist on
+    // the backend for the console.
     case "thread":
       return api.currentThread();
     case "thread-say": {
       const said = await api.say(message.threadId, message.text);
-      // And the same sentence, read the other way: is it asking for a job this
-      // tenant has been seen doing? Never awaited into the answer -- saying
-      // something must not wait on a model call, and a reading that fails is a
-      // sentence that was still said.
-      void offerFromWords(message.text, message.tabId ?? null);
+      // The reply already read the sentence against this tenant's jobs, so the
+      // offer is built from what came back rather than from a second reading
+      // of the same words. That second reading was a second model call per
+      // sentence, and the two could disagree.
+      const placed = jobInTheReply(said);
+      if (placed) void offerFromJob(placed, message.tabId ?? null);
+      else void offerFromWords(message.text, message.tabId ?? null);
       return said;
     }
     case "run-skill":
@@ -1679,10 +1779,76 @@ async function handle(message, sender) {
     }
     case "status":
       return status(sender);
+    case "panel-open":
+      // The panel saying it is there, for a worker that was evicted while it
+      // was open. Answered with the status like any poll -- what this changes
+      // is that the push below knows somebody is listening.
+      return status(null);
     default:
       return { error: `no such message: ${message?.kind}` };
   }
 }
+
+// -- pushing the state, rather than being asked for it every two seconds -----
+
+/** The panels connected to this worker right now.
+ *
+ * A `Set` and not one port: two windows can each have the panel open, and both
+ * are looking at the same browser.
+ */
+const watching = new Set();
+
+/** How long to wait before pushing, so a burst of writes is one redraw.
+ *
+ * Every state change goes through `chrome.storage`, and a single gesture can
+ * write three keys. Pushing per key would redraw the panel three times and
+ * take the cursor out of whatever somebody was typing twice for nothing.
+ */
+const SETTLE_PUSH_MS = 120;
+let pushing = null;
+
+// `?.` for the same reason `chrome.sidePanel?.` above has it: this module is
+// loaded by node in the self-checks, where `chrome` is whatever the test
+// needed and nothing more.
+chrome.runtime.onConnect?.addListener((port) => {
+  if (port.name !== "panel") return;
+  watching.add(port);
+  // Lazily, the way the reconnect guidance says: nothing here retries, and a
+  // port that has gone is simply dropped. The panel reopens it on its own next
+  // beat, which is also what happens after this worker is evicted -- the
+  // connection dies with it and the panel notices.
+  port.onDisconnect.addListener(() => watching.delete(port));
+  void pushStatus();
+});
+
+/** Every panel told what this worker now knows.
+ *
+ * `postMessage` on a port whose other end has gone throws SYNCHRONOUSLY rather
+ * than reporting through `onDisconnect`, which is the one sharp edge of this
+ * API -- so every send is guarded and a port that throws is dropped.
+ */
+async function pushStatus() {
+  if (!watching.size) return;
+  const now = await status(null);
+  for (const port of [...watching]) {
+    try {
+      port.postMessage({ kind: "status", status: now });
+    } catch {
+      watching.delete(port);
+    }
+  }
+}
+
+// What "something changed" means, without a call site having to remember to
+// say so. Everything the panel draws is mirrored into `chrome.storage` --
+// deliberately, because this worker is evicted between commands -- so the
+// storage event is the one signal that cannot be forgotten when a new piece of
+// state is added next month.
+chrome.storage.onChanged?.addListener(() => {
+  if (!watching.size) return;
+  clearTimeout(pushing);
+  pushing = setTimeout(() => void pushStatus(), SETTLE_PUSH_MS);
+});
 
 /** How many offers this browser holds: enough that the morning's mail is still
  * there after lunch, few enough that a watch somebody wrote badly cannot fill
@@ -2135,11 +2301,34 @@ async function status(sender = null) {
  */
 async function waitingOnSomebody() {
   if (!(await state.token())) return [];
+  let cards;
   try {
-    return await api.waiting();
+    cards = await api.waiting();
   } catch {
     return [];
   }
+  // Whether the page each card is about is still open somewhere in this
+  // browser.
+  //
+  // An operator signed in, the job's own run took the tab off the login page,
+  // and the card that fired on arriving there was still sitting in the panel.
+  // Pressing it started a run that had nowhere to go: "no tab is open on
+  // keycloak-...", a red cross, and eighteen seconds of a model working it
+  // out. The card was asking about a page nobody is on any more.
+  //
+  // Matched by the rule that made it -- the card carries `trigger_id` and this
+  // browser already holds every arrival rule and the page it watches -- so no
+  // card grows a field the backend has to learn to send.
+  const rules = await state.arrivals();
+  const open = new Set(
+    (await chrome.tabs.query({})).map((tab) => rulePage(tab.url || "")).filter(Boolean),
+  );
+  return (cards || []).map((card) => {
+    const page = rules.find((rule) => rule.id === card.trigger_id)?.page || "";
+    // A card from anything but an arrival rule has no page to be away from,
+    // and is answerable wherever its operator happens to be.
+    return { ...card, page, still_there: !page || open.has(page) };
+  });
 }
 
 /** Guards `checkFinishing()` against running twice at once within this

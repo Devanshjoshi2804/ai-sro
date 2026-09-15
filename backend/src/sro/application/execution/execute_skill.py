@@ -69,7 +69,8 @@ from sro.domain.execution.safety import (
     assess,
 )
 from sro.domain.execution.verdict import apply_verdict
-from sro.domain.shared.errors import DomainError
+from sro.domain.execution.workflow_run import already_running
+from sro.domain.shared.errors import Conflict, DomainError
 from sro.domain.shared.identifiers import DeviceId, PrincipalId, SkillId
 from sro.domain.shared.objective import ObjectiveKey
 from sro.domain.skill.assertion import AssertionKind
@@ -243,6 +244,22 @@ class StartRun:
         skill = await uow.skills.get(ctx.tenant_id, request.skill_id)
         version = _version_of(skill, request.version)
         await ensure_runnable(uow, ctx, skill, version, request, now)
+        # One run per browser, which the rig has had since migration 0043 and
+        # this path had in no form at all -- not the index, not even the read.
+        # Two triggers firing two skills at one device in the same minute both
+        # started, and their clicks interleaved in one window: the corrupted
+        # form against a live warehouse that 0043 was written about.
+        #
+        # The read names the run that has the browser, which is what a person
+        # can act on. `uq_runs_one_running_per_device` is the guard: there are
+        # awaits between here and the commit, and a read alone loses that race
+        # -- demonstrated against real Postgres on the rig's own path.
+        if request.device_id is not None:
+            busy = await uow.runs.in_flight(ctx.tenant_id, request.device_id)
+            # `!= request.run_id`: a caller that minted the id and is
+            # re-entering its own run is not a second press.
+            if busy is not None and busy != str(request.run_id or ""):
+                raise Conflict(already_running(request.device_id.value, busy))
         return skill, version
 
     async def execute(self, ctx: RequestContext, request: ExecutionRequest) -> Run:

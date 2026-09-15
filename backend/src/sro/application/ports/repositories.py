@@ -8,7 +8,7 @@ instead of returning ``None``.
 from __future__ import annotations
 
 from collections.abc import Mapping
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Protocol
 
 from sro.domain.chat.reading import ChatReading
@@ -124,6 +124,20 @@ class RunRepository(Protocol):
     async def add(self, run: Run) -> None: ...
 
     async def get(self, tenant_id: TenantId, run_id: RunId) -> Run: ...
+
+    async def in_flight(self, tenant_id: TenantId, device_id: DeviceId) -> str | None:
+        """The skill run already driving this browser, if one is.
+
+        The same question `WorkflowRunRepository.in_flight` answers for the rig,
+        and the skill path had neither this nor the index behind it: two
+        triggers firing at one device in the same minute both started, and
+        their clicks interleaved in one window.
+
+        The read names the run so a person can be told which one has the
+        browser. `uq_runs_one_running_per_device` is what actually refuses the
+        second claim -- there are awaits between this and the commit.
+        """
+        ...
 
     async def save(self, run: Run) -> None:
         """Overwrite the record of a run in progress.
@@ -379,6 +393,21 @@ class ObservationRepository(Protocol):
         what a purge counts."""
         ...
 
+    async def received_before(
+        self, tenant_id: TenantId, cutoff: datetime
+    ) -> tuple[ObservationBatch, ...]:
+        """Batches this deployment RECEIVED before an instant, oldest first.
+
+        What retention is counted on, and the reason it is not `between`: the
+        window a tenant declares is "how long we keep what you send us", and
+        the only clock that can answer it is the one that took delivery.
+        `started_at` is the browser's, and on this store it runs up to 23 hours
+        from `received_at` -- an offline extension flushing a queue, or simply
+        a machine whose clock is wrong. Counted on that, a batch that arrived
+        this morning can be a day old on arrival and be swept the same day.
+        """
+        ...
+
     async def for_recording(
         self, tenant_id: TenantId, recording_id: RecordingId
     ) -> tuple[ObservationBatch, ...]:
@@ -496,7 +525,15 @@ class ToolCallRepository(Protocol):
     message becoming two, and there is no taking it back.
     """
 
-    async def remember(self, tenant_id: TenantId, key: str, *, tool: str, at: datetime) -> bool:
+    async def remember(
+        self,
+        tenant_id: TenantId,
+        key: str,
+        *,
+        tool: str,
+        at: datetime,
+        stale_after: timedelta | None = None,
+    ) -> bool:
         """Claim this key. ``False`` when somebody already claimed it.
 
         Written *before* the call, and kept whatever the call answers. A key
@@ -504,6 +541,14 @@ class ToolCallRepository(Protocol):
         may well have landed -- be retried into a second send, which is the
         exact thing this exists to prevent. So a retry is refused and somebody
         is told the call may already have happened, which is the truth.
+
+        `stale_after` is for a key that is not unique to one attempt. A
+        connector call is keyed by run and step and is claimed forever; a rig
+        step's write is keyed by the JOB, the step and the values, so that two
+        runs of one job started three minutes apart cannot both create the
+        record -- and a key like that must expire, or a job could never be done
+        twice with the same values for the rest of the tenant's life. A claim
+        older than `stale_after` is taken over rather than refused.
         """
         ...
 
@@ -716,6 +761,18 @@ class WorkflowRunRepository(Protocol):
 
         Total, reversed, and for ``for_workflow``'s reason -- ``(started_at,
         id)`` descending, so a page boundary falls in the same place twice.
+        """
+        ...
+
+    async def failures(self, tenant_id: TenantId) -> Mapping[str, int]:
+        """How many runs of each job ended in the job's OWN failure.
+
+        `failed` and `refused` only. A run that stopped to ask a person did not
+        fail -- it asked -- and one a person aborted is a person changing their
+        mind. Counting either as a failure silenced every job this deployment
+        has: twelve runs of the sign-in job, eleven of them stopped on a
+        password it was waiting for, and the job vanished from the browser that
+        was trying to finish it.
         """
         ...
 

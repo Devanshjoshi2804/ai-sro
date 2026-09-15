@@ -117,6 +117,18 @@ function inputs(el) {
  * an object made in there has a different `Object.prototype`, which
  * `deepStrictEqual` calls a difference. This is also exactly what
  * `chrome.runtime.sendMessage` serialises. */
+/** Let what a listener started finish.
+ *
+ * The tab listeners are `() => void whereWeAre()`: Chrome does not await a
+ * listener, so neither do they, and firing one returns before the tab has been
+ * looked up. A handful of turns is enough -- `beside()` is one await over a
+ * fake `chrome.tabs.query` -- and this is not a timer, so it cannot pass by
+ * waiting longer than the thing it is waiting for.
+ */
+async function settled() {
+  for (let turn = 0; turn < 8; turn += 1) await Promise.resolve();
+}
+
 function sentOf(sent, kind) {
   return JSON.parse(JSON.stringify(sent.filter((message) => message.kind === kind)));
 }
@@ -131,10 +143,19 @@ function panel(status, here = null, replies = {}) {
   // operator -- and which URL that is, is the whole of what a "details" link
   // gets right or wrong.
   const opened = [];
+  // The panel opens a port to the worker at load and draws whatever it pushes.
+  const ports = [];
+  // What the panel asked Chrome to tell it about. Held so a test can fire one
+  // the way the browser would.
+  const watchers = { activated: [], updated: [], focused: [] };
   const sandbox = {
     document: {
       getElementById: (id) => (ids[id] ??= node("div")),
       createElement: (tag) => node(tag),
+      // The panel does nothing while it is not on screen. Unset, every push
+      // and every beat would be skipped and every test here would be about a
+      // hidden panel.
+      visibilityState: "visible",
     },
     setInterval: () => 0,
     setTimeout: () => 0,
@@ -142,6 +163,18 @@ function panel(status, here = null, replies = {}) {
     chrome: {
       runtime: {
         id: "test",
+        connect: ({ name }) => {
+          const port = {
+            name,
+            listeners: { message: [], disconnect: [] },
+            onMessage: { addListener: (fn) => port.listeners.message.push(fn) },
+            onDisconnect: { addListener: (fn) => port.listeners.disconnect.push(fn) },
+            postMessage: () => {},
+            disconnect: () => {},
+          };
+          ports.push(port);
+          return port;
+        },
         sendMessage: async (message) => {
           sent.push(message);
           // The status the panel reads for itself on its own two-second poll.
@@ -167,10 +200,20 @@ function panel(status, here = null, replies = {}) {
       // draws the not-watching card whatever else the status says -- which is
       // how two tests here passed while asserting on cards that were never
       // drawn.
+      // The events that tell a side panel it is beside something else. One
+      // panel serves the whole window, so nothing about this document changes
+      // on a tab switch and these are the only notice it gets -- the beat is
+      // twenty seconds, and for that whole stretch every card would be about
+      // the tab the operator had just left.
       tabs: {
         query: async () => (here ? [here] : []),
         reload: async () => {},
         create: async ({ url }) => opened.push(url),
+        onActivated: { addListener: (fn) => watchers.activated.push(fn) },
+        onUpdated: { addListener: (fn) => watchers.updated.push(fn) },
+      },
+      windows: {
+        onFocusChanged: { addListener: (fn) => watchers.focused.push(fn) },
       },
     },
   };
@@ -208,13 +251,21 @@ function panel(status, here = null, replies = {}) {
     opened,
     cards,
     ids,
-    renderCandidates: sandbox.here,
+    ports,
+    watchers,
+    // What the browser does when the operator switches tabs: a different tab
+    // is the active one, and then Chrome says so.
+    switchTo: (tab) => {
+      here = tab;
+    },
+    // Which tab the panel believes it is beside, read out of the sandbox
+    // rather than off a card: what a tab switch has to change is this, and
+    // every card is drawn from it.
+    where: () => vm.runInContext("JSON.stringify(tabHere)", sandbox),
     // Exposed so a test can simulate the panel's own two-second poll --
     // `refresh()` calling `render(status)` again with nothing changed --
     // separately from whatever else a click already triggered.
     render: sandbox.render,
-    plainly: sandbox.plainly,
-    previewOf: sandbox.previewOf,
     // The nudge and offer press path, as the ledger calls it. Reached here
     // rather than through a rendered card because the thread is drawn from a
     // separate fetch: what is under test is which message a press sends, and
@@ -232,6 +283,15 @@ function panel(status, here = null, replies = {}) {
     // status, `conversation()` calls `show` with whatever thread it fetched.
     offerLocally: (nudges, thread) => {
       vm.runInContext(`lastStatus = ${JSON.stringify({ nudges })}`, sandbox);
+      sandbox.show(thread);
+    },
+    // The same half, for whatever else lives in it. `offerLocally` names the
+    // one field it sets; this draws the thread from the whole local status,
+    // which is how a press in the ledger is actually reached -- the handler
+    // the ledger gets is chosen inside `show`, and calling the exported
+    // `answered` directly cannot tell whether it did.
+    locally: (status, thread) => {
+      vm.runInContext(`lastStatus = ${JSON.stringify(status)}`, sandbox);
       sandbox.show(thread);
     },
   };
@@ -438,6 +498,98 @@ test("the collapsed row has a chevron, and pressing it reveals the actions", asy
   );
 });
 
+test("switching tabs is noticed when it happens, not on the twenty-second beat", async () => {
+  // One side panel serves the whole window, so a tab switch does not reload
+  // this document and nothing about it changes by itself. `whereWeAre` used to
+  // be a passenger on the two-second poll; when the worker's push replaced
+  // that poll the beat went to twenty seconds and took `whereWeAre` with it --
+  // and the push gave nothing back, because it carries the WORKER's status and
+  // which tab an operator is looking at is not worker state.
+  //
+  // Every card is about "this tab". Until this fired, the state line, the
+  // watch button and what was offerable all belonged to the tab they had left.
+  const status = { deviceId: "dev-1", capturing: true, watched: [] };
+  const panelHere = panel(status, { id: 7, host: "wms.example", url: "https://wms.example/portal" });
+
+  assert.ok(panelHere.watchers.activated.length, "nothing asked Chrome about a tab switch");
+
+  panelHere.switchTo({ id: 9, host: "mail.example", url: "https://mail.example/inbox" });
+  panelHere.watchers.activated.forEach((fn) => fn({ tabId: 9 }));
+  await settled();
+
+  assert.deepEqual(JSON.parse(panelHere.where()), {
+    tabId: 9,
+    host: "mail.example",
+    url: "https://mail.example/inbox",
+  });
+});
+
+test("a second tab on the same host is redrawn, not assumed to be the first", async () => {
+  // The watch list is keyed by tab id, so "is this tab being watched" has two
+  // different answers for two tabs of one warehouse. What decided whether to
+  // redraw was the HOST, so moving between them updated the tab underneath and
+  // left every card as it was -- the panel saying "Watching this tab" beside a
+  // tab nothing was recording, until the twenty-second beat.
+  //
+  // The redraw is what is asserted, not `tabHere`: the tab was always assigned.
+  const status = { deviceId: "dev-1", capturing: true, watched: [] };
+  const panelHere = panel(status, { id: 7, host: "wms.example", url: "https://wms.example/portal" });
+  const before = sentOf(panelHere.sent, "status").length;
+
+  panelHere.switchTo({ id: 8, host: "wms.example", url: "https://wms.example/orders" });
+  panelHere.watchers.activated.forEach((fn) => fn({ tabId: 8 }));
+  await settled();
+
+  assert.equal(JSON.parse(panelHere.where()).tabId, 8, "the panel still believes it is on tab 7");
+  assert.ok(
+    sentOf(panelHere.sent, "status").length > before,
+    "the tab changed under the panel and nothing was redrawn",
+  );
+});
+
+test("the tab navigating under the panel counts as arriving somewhere else", async () => {
+  // A warehouse screen that routes without a page load, and a sign-in that
+  // lands somewhere afterwards. `onActivated` never fires for either.
+  const status = { deviceId: "dev-1", capturing: true, watched: [] };
+  const panelHere = panel(status, { id: 7, host: "wms.example", url: "https://wms.example/portal" });
+
+  assert.ok(panelHere.watchers.updated.length, "nothing asked Chrome about a navigation");
+
+  panelHere.switchTo({ id: 7, host: "mail.example", url: "https://mail.example/inbox" });
+  panelHere.watchers.updated.forEach((fn) => fn(7, { url: "https://mail.example/inbox" }));
+  await settled();
+
+  assert.equal(JSON.parse(panelHere.where()).host, "mail.example");
+});
+
+test("a tab reporting anything other than a new address is left alone", async () => {
+  // `onUpdated` fires for a favicon, a title, a loading state. Re-resolving on
+  // every one of them would be the two-second poll back under another name.
+  const status = { deviceId: "dev-1", capturing: true, watched: [] };
+  const panelHere = panel(status, { id: 7, host: "wms.example", url: "https://wms.example/portal" });
+
+  panelHere.switchTo({ id: 9, host: "mail.example", url: "https://mail.example/inbox" });
+  panelHere.watchers.updated.forEach((fn) => fn(7, { status: "complete", title: "Orders" }));
+  await settled();
+
+  assert.equal(JSON.parse(panelHere.where()).tabId, 7);
+});
+
+test("moving to another window is noticed, and it activates no tab", async () => {
+  // The tab being focused was already the active one in its own window, so
+  // `onActivated` does not fire and this is the only notice there is.
+  const status = { deviceId: "dev-1", capturing: true, watched: [] };
+  const panelHere = panel(status, { id: 7, host: "wms.example", url: "https://wms.example/portal" });
+
+  assert.ok(panelHere.watchers.focused.length, "nothing asked Chrome about a window change");
+
+  panelHere.switchTo({ id: 11, host: "mail.example", url: "https://mail.example/inbox" });
+  panelHere.watchers.focused.forEach((fn) => fn(2));
+  await settled();
+
+  assert.equal(JSON.parse(panelHere.where()).tabId, 11);
+});
+
 test("a manual expansion survives a redraw", async () => {
   // The panel polls `status` every couple of seconds and redraws from it --
   // `refresh()` calling `render(status)` again with nothing about the state
@@ -524,710 +676,7 @@ test("the collapsed row still says whether this tab is evidence", async () => {
   assert.match(said, /wms\.example/);
 });
 
-test("the offer is about their work, not about our system", async () => {
-  // What it said before: "Create workOperations on bf56-kms-wms-web-np2
-  // .jdadelivers.com / Seen 3 times / [Teach it] [Not worth it]". The title is
-  // an API endpoint, the count is telemetry about the person reading it, and
-  // both buttons ask them to work for us or to judge us. Nobody presses that.
-  const { ids, renderCandidates } = panel(
-    {
-      deviceId: "dev-1",
-      capturing: true,
-      watched: [{ tabId: 7, host: "wms.example", since: new Date().toISOString() }],
-    },
-    { id: 7, host: "wms.example", url: "https://wms.example/portal" },
-    {
-      candidates: [
-        {
-          id: "cnd-1",
-          title: "Create workOperations on wms.example",
-          signature: "POST data/WM/wm/workOperations",
-          status: "new",
-          times_seen: 3,
-          median_duration_ms: 40000,
-          minutes_so_far: 5,
-          episodes: [],
-          joins: [],
-        },
-      ],
-    },
-  );
-  // The one card `render` never draws on its own: this is the same fetch a
-  // real load makes from `whereWeAre`, awaited here instead of raced.
-  await renderCandidates();
 
-  const said = words(ids["candidates"]);
-  assert.ok(/work operations/i.test(said), `no plain noun in: ${said.slice(0, 200)}`);
-  assert.ok(/do the next one/i.test(said), "it never offers to do anything");
-  assert.ok(!/teach/i.test(said), "the panel still asks to be taught");
-  assert.ok(!/workOperations/.test(said), "an endpoint name reached the operator");
-  assert.ok(!/seen 3 times/i.test(said), "telemetry about the operator is still shown");
-});
-
-test("a model's title is said as its own sentence, not spliced into the count's", async () => {
-  // Round 1 regression: the count template ("You've created 3 ___ here") was
-  // reused for a model's title too, which is a full sentence rather than a
-  // noun -- "You've created 3 Adjust an LPN after a short ship here — about
-  // 40s each." A model writes a title; only a noun goes in that slot.
-  const { plainly } = panel({ deviceId: "dev-1" });
-  const said = plainly({
-    id: "cnd-2",
-    title: "Adjust an LPN after a short ship",
-    signature: "POST data/WM/wm/lpnAdjustments",
-    named_by_model: true,
-    status: "new",
-    times_seen: 3,
-    median_duration_ms: 40000,
-    minutes_so_far: 5,
-  });
-  assert.ok(
-    said.startsWith("Adjust an LPN after a short ship"),
-    `the title was not said as a title: ${said}`,
-  );
-  assert.ok(!/created 3 Adjust/i.test(said), `the title was spliced into the noun's slot: ${said}`);
-  assert.match(said, /you've done this 3 times, about 40s each/i);
-  assert.match(said, /next one/i, "the offer's own meaning -- doing the next one -- was dropped");
-});
-
-test("a wildcarded id in the path is not offered as the noun, and nothing left is not either", async () => {
-  // A real, plausible shape the count-noun path didn't cover: an update-by-id
-  // endpoint like `PUT .../workOperations/*` popped the id's own `*` as the
-  // noun -- "You've created 3 *s here."
-  const { plainly } = panel({ deviceId: "dev-1" });
-  const withId = plainly({
-    signature: "PUT data/WM/wm/workOperations/*",
-    status: "new",
-    times_seen: 4,
-    median_duration_ms: 20000,
-  });
-  assert.ok(/work operations/i.test(withId), `no plain noun in: ${withId}`);
-  assert.ok(!/\*/.test(withId), `a wildcard reached the operator: ${withId}`);
-
-  // And where no real word survives the path at all, a vaguer sentence beats
-  // a visibly broken one -- never a bare placeholder standing in for a noun.
-  const noNoun = plainly({ signature: "", status: "new", times_seen: 4, median_duration_ms: 20000 });
-  assert.ok(!/\*/.test(noNoun), `a wildcard reached the operator: ${noNoun}`);
-  assert.match(noNoun, /you've done this 4 times/i);
-});
-
-test("both offer shapes read correctly at a count of one, not '1 times'", async () => {
-  // Round 2 review: unchanged, pre-existing wording, but reachable in
-  // practice -- the panel offers everything `status === "new"` regardless of
-  // `times_seen`, and a fresh candidate really does sit at 1.
-  const { plainly } = panel({ deviceId: "dev-1" });
-
-  const titled = plainly({
-    title: "Adjust an LPN after a short ship",
-    signature: "POST data/WM/wm/lpnAdjustments",
-    named_by_model: true,
-    times_seen: 1,
-    median_duration_ms: 40000,
-  });
-  assert.match(titled, /you've done this once/i, `"1 times" survived: ${titled}`);
-  assert.ok(!/\b1 times\b/.test(titled), `"1 times" survived: ${titled}`);
-
-  const counted = plainly({
-    signature: "POST data/WM/wm/workOperations",
-    times_seen: 1,
-    median_duration_ms: 40000,
-  });
-  assert.match(counted, /created one work operation here/i, `noun stayed plural: ${counted}`);
-  assert.ok(!/\bwork operations\b/i.test(counted), `noun stayed plural: ${counted}`);
-});
-
-test("the preview shrinks as the version earns it", async () => {
-  // Requiring approval for every action an agent takes defeats the point of
-  // automating it. The rungs already say when a version has earned the
-  // benefit of the doubt; until now nothing read them for this.
-  //
-  // `panel()` rather than `await import("./panel.js")`: the module's own
-  // bottom lines wire real listeners against a real `document` the moment it
-  // loads, and a plain Node import hits those with no `document` to find --
-  // the same reason every other export here is read off the vm sandbox
-  // `panel()` already built instead of a second, incompatible way to load
-  // the same file.
-  const { previewOf } = panel({ deviceId: "dev-1" });
-  const steps = [
-    { intent: "Type the Operation code.", value: "NDPCK" },
-    { intent: "Press Save.", value: null },
-  ];
-
-  const first = previewOf({ stage: "recorded", clean_streak: 0 }, steps);
-  assert.equal(first.show, "every-step", "a first press hid what it would do");
-
-  const trusted = previewOf({ stage: "assisted", clean_streak: 4 }, steps);
-  assert.equal(trusted.show, "one-line", "a version with a streak still asked in full");
-
-  const earned = previewOf({ stage: "autonomous", clean_streak: 10 }, steps);
-  assert.equal(earned.show, "nothing", "an autonomous version still asked first");
-});
-
-test("what it could not work out, it asks for by the screen's own name", async () => {
-  const { previewOf } = panel({ deviceId: "dev-1" });
-
-  const asked = previewOf({ stage: "recorded", clean_streak: 0 }, [
-    { intent: "Type the Operation code.", value: "NDPCK" },
-    { intent: "Enter the Voice Code.", value: null, missing: "voice_code", label: "Voice Code" },
-  ]);
-
-  assert.deepEqual(asked.missing, ["Voice Code"]);
-});
-
-/** A candidate `here()` can offer, minus whatever one test cares about
- * itself -- so a change to a field none of these tests read does not become
- * a change to every fixture that builds one. */
-function offerableCandidate(overrides = {}) {
-  return {
-    id: "cnd-1",
-    signature: "POST data/WM/wm/workOperations",
-    status: "new",
-    times_seen: 3,
-    median_duration_ms: 40000,
-    minutes_so_far: 5,
-    episodes: [],
-    joins: [],
-    ...overrides,
-  };
-}
-
-/** Drives a candidate row all the way to "Do the next one" being pressed and
- * the box it always opens with waiting for a sentence -- teaching succeeds,
- * which is the same for both tests below; what happens once a sentence is
- * typed into that box and asked is what each of them is actually about.
- * `replies` is folded in under the fixtures this needs to get there, so a
- * test only has to name the reply it cares about. */
-async function openedOffer(replies) {
-  const { sent, ids, renderCandidates } = panel(
-    {
-      deviceId: "dev-1",
-      capturing: true,
-      watched: [{ tabId: 7, host: "wms.example", since: new Date().toISOString() }],
-    },
-    { id: 7, host: "wms.example", url: "https://wms.example/portal" },
-    {
-      candidates: [offerableCandidate()],
-      "teach-candidate": { skill_id: "skl-offered", needs_demonstration: false },
-      ...replies,
-    },
-  );
-  await renderCandidates();
-  const row = ids["candidates"].kids[0];
-  const [doNext] = buttons(row);
-  await doNext.listeners[0]();
-  return { sent, row };
-}
-
-test("the box a candidate's offer opens still runs a sentence naming a different task", async () => {
-  // Spec §6: a sentence that names no offered task still resolves, across the
-  // whole library, and the offer is a pre-filled message into the same box --
-  // not a restriction on what that box can be asked. `resolve-intent` carries
-  // no field to pin it to the offered skill in the first place, which is
-  // most of the proof: there is nothing here to restrict it with. The rest is
-  // that a sentence naming a wholly different, unoffered skill still runs
-  // that skill rather than the one the row was about.
-  const { sent, row } = await openedOffer({
-    "resolve-intent": {
-      matched: { skill_id: "skl-9", name: "Create a work area", version: 1, stage: "autonomous" },
-      confident: true,
-      choices: [],
-      missing_parameters: [],
-    },
-    skill: {
-      id: "skl-9",
-      name: "Create a work area",
-      versions: [
-        { version: 1, stage: "autonomous", track_record: { clean_streak: 12 }, steps: [], parameters: [] },
-      ],
-    },
-  });
-
-  const [ask] = buttons(row).filter((button) => button.textContent === "Ask");
-  const [utterance] = inputs(row);
-  utterance.value = "make a work area for receiving";
-  await ask.listeners[0]();
-
-  const asked = sent.filter((message) => message.kind === "resolve-intent");
-  assert.equal(asked.length, 1);
-  assert.ok(!("skillId" in asked[0]), "the box only ever asks about the offered skill");
-
-  // Autonomous, with a streak: `previewOf` says nothing to show, and the
-  // press happens on its own -- for the task the sentence named, "skl-9",
-  // never "skl-offered", the one the row was about.
-  const ran = sent.filter((message) => message.kind === "run-skill");
-  assert.equal(ran.length, 1);
-  assert.equal(ran[0].skillId, "skl-9");
-});
-
-test("a sentence it is unsure about is not resolved by picking the top match", async () => {
-  // `ResolveIntent` already refuses rather than guess between two close
-  // skills. What must not happen on this side is the panel taking the first
-  // of several and running it -- a warehouse write on a coin toss.
-  const { sent, row } = await openedOffer({
-    "resolve-intent": {
-      matched: null,
-      choices: [
-        { skill_id: "skl-1", name: "Create a work area", version: 1, stage: "assisted" },
-        { skill_id: "skl-2", name: "Create a work operation", version: 1, stage: "assisted" },
-      ],
-      missing_parameters: [],
-      question:
-        "More than one taught skill fits that. Which did you mean: Create a work area or Create a work operation?",
-    },
-  });
-
-  const [ask] = buttons(row).filter((button) => button.textContent === "Ask");
-  const [utterance] = inputs(row);
-  utterance.value = "create a work thing";
-  await ask.listeners[0]();
-
-  const said = words(row);
-  assert.ok(/Create a work area/.test(said) && /Create a work operation/.test(said));
-  assert.ok(/which/i.test(said), "it did not ask which one was meant");
-  assert.ok(
-    !sent.some((message) => message.kind === "run-skill"),
-    "a run started before anyone said which one was meant",
-  );
-});
-
-test("the row's box is prefilled with a sentence that names the task, never UI chrome", async () => {
-  // Round 1 fix: with no model title -- the common case -- the box was
-  // prefilled with the literal string "Do the next one", which names no
-  // task, and pressing Ask ranked that across the whole library.
-  const { row } = await openedOffer({});
-  const [utterance] = inputs(row);
-  assert.notEqual(utterance.value, "Do the next one", `still UI chrome: ${utterance.value}`);
-  assert.match(utterance.value, /work operation/i, `no task named in: ${utterance.value}`);
-});
-
-test("a match the reading is not confident about is asked about, never previewed straight through", async () => {
-  // Round 1 fix: `renderResolution` read only `matched`/`choices` and threw
-  // away `confident` and the hedge in `question`. An unconfident match on an
-  // autonomous version reached `renderReady` with `show: "nothing"` and
-  // pressed on its own -- a skill the operator never saw named, chosen by a
-  // ranker that said out loud it was not sure.
-  const { sent, row } = await openedOffer({
-    "resolve-intent": {
-      matched: { skill_id: "skl-9", name: "Create a work area", version: 1, stage: "autonomous" },
-      confident: false,
-      question: "Did you mean “Create a work area”? Nothing it does accounts for “urgently”.",
-      choices: [],
-      missing_parameters: [],
-    },
-  });
-
-  const [ask] = buttons(row).filter((button) => button.textContent === "Ask");
-  const [utterance] = inputs(row);
-  utterance.value = "create a work area urgently";
-  await ask.listeners[0]();
-
-  assert.ok(
-    !sent.some((message) => message.kind === "run-skill"),
-    "an unconfident match ran without being confirmed",
-  );
-  const said = words(row);
-  assert.match(said, /urgently/, "the backend's own hedge was not shown");
-
-  // Confirming it is what actually runs it -- the operator, not the ranker,
-  // said yes.
-  const [yes] = buttons(row).filter((button) => button.textContent.startsWith("Yes"));
-  await yes.listeners[0]();
-  assert.ok(sent.some((message) => message.kind === "run-skill" && message.skillId === "skl-9"));
-});
-
-test("an autonomous press still says which task it started", async () => {
-  // The second half of the same finding: "nothing beforehand" was earned for
-  // a step-by-step account, never for the operator not knowing which task a
-  // one-press run just started -- and that stopped being implied by which
-  // row's button was clicked the moment a sentence could name any taught
-  // skill, not only the one offered. The name has to survive whatever the
-  // press itself goes on to say, refusal included, so this makes the press
-  // fail and checks the name is still there rather than overwritten by it.
-  const { row } = await openedOffer({
-    "resolve-intent": {
-      matched: { skill_id: "skl-9", name: "Create a work area", version: 1, stage: "autonomous" },
-      confident: true,
-      choices: [],
-      missing_parameters: [],
-    },
-    "run-skill": { error: "a looped skill cannot be run this way" },
-  });
-
-  const [ask] = buttons(row).filter((button) => button.textContent === "Ask");
-  const [utterance] = inputs(row);
-  utterance.value = "make a work area";
-  await ask.listeners[0]();
-
-  assert.match(words(row), /Create a work area/, "the task that just ran, unattended, was never named");
-  assert.match(words(row), /looped skill cannot be run/, "the refusal itself was swallowed");
-});
-
-test("a value the sentence supplied is sent, and a blank left in a form is asked for again rather than sent as one", async () => {
-  const skillWithParameters = (stage) => ({
-    id: "skl-2",
-    name: "Adjust an LPN",
-    versions: [
-      {
-        version: 1,
-        stage,
-        track_record: { clean_streak: 0 },
-        steps: [
-          { index: 0, intent: "Type the Operation code." },
-          { index: 1, intent: "Enter the Voice Code." },
-          { index: 2, intent: "Press Save." },
-        ],
-        parameters: [
-          { name: "operation_code", kind: "input", source_step_index: 0, description: "Operation code" },
-          { name: "voice_code", kind: "input", source_step_index: 1, description: "Voice Code" },
-        ],
-      },
-    ],
-  });
-
-  // First half: the parser read `operation_code` out of the sentence, so it
-  // is not in `missing_parameters` -- and it must still reach the press.
-  const { sent, row } = await openedOffer({
-    "resolve-intent": {
-      matched: { skill_id: "skl-2", name: "Adjust an LPN", version: 1, stage: "recorded" },
-      confident: true,
-      choices: [],
-      missing_parameters: ["voice_code"],
-      items: [{ operation_code: "NDPCK" }],
-    },
-    skill: skillWithParameters("recorded"),
-  });
-
-  const [ask] = buttons(row).filter((button) => button.textContent === "Ask");
-  const [utterance] = inputs(row);
-  utterance.value = "adjust the LPN, operation NDPCK";
-  await ask.listeners[0]();
-
-  // Second half: the box for the still-missing `voice_code` is on the page.
-  // Leaving it blank and continuing must not be accepted as an answer.
-  const [voiceCode] = inputs(row).filter((field) => field !== utterance);
-  voiceCode.value = "";
-  const [go] = buttons(row).filter((button) => button.textContent === "Continue");
-  await go.listeners[0]();
-
-  assert.ok(
-    !sent.some((message) => message.kind === "run-skill"),
-    "a blank field was accepted as an answer and the run started anyway",
-  );
-  assert.match(words(row), /cannot be left blank/i, "a blank field was silently accepted");
-
-  // Filled in properly, it is accepted -- a `recorded` skill previews every
-  // step before the press, so what carries both values is that press.
-  voiceCode.value = "VC-7";
-  await go.listeners[0]();
-  const [doIt] = buttons(row).filter((button) => button.textContent === "Do it");
-  await doIt.listeners[0]();
-
-  const ran = sent.filter((message) => message.kind === "run-skill");
-  assert.equal(ran.length, 1);
-  assert.deepEqual(ran[0].parameters, { operation_code: "NDPCK", voice_code: "VC-7" });
-});
-
-test("why teaching needs one more demonstration is said in an operator's own words, not the induction failure's", async () => {
-  // `taught.because` is `str(InductionFailed)`: a recording id, an
-  // objective-key slug, a JSON pointer diffing two demonstrations -- the one
-  // place a skill id or a pointer would otherwise reach an operator's screen.
-  const { ids, renderCandidates } = panel(
-    {
-      deviceId: "dev-1",
-      capturing: true,
-      watched: [{ tabId: 7, host: "wms.example", since: new Date().toISOString() }],
-    },
-    { id: 7, host: "wms.example", url: "https://wms.example/portal" },
-    {
-      candidates: [offerableCandidate()],
-      "teach-candidate": {
-        needs_demonstration: true,
-        because: "recording rec-8f2c is draft; only sealed recordings can be induced",
-      },
-    },
-  );
-  await renderCandidates();
-  const row = ids["candidates"].kids[0];
-  const [doNext] = buttons(row);
-  await doNext.listeners[0]();
-
-  const said = words(row);
-  assert.ok(!/rec-8f2c/.test(said), `a recording id reached the operator: ${said}`);
-  assert.match(said, /I've watched this a few times/i, "no operator-facing sentence was shown");
-});
-
-test("a row that could not be taught is not left dead -- 'Do the next one' works again", async () => {
-  const { ids, renderCandidates } = panel(
-    {
-      deviceId: "dev-1",
-      capturing: true,
-      watched: [{ tabId: 7, host: "wms.example", since: new Date().toISOString() }],
-    },
-    { id: 7, host: "wms.example", url: "https://wms.example/portal" },
-    { candidates: [offerableCandidate()], "teach-candidate": { error: "the server is unreachable" } },
-  );
-  await renderCandidates();
-  const row = ids["candidates"].kids[0];
-  const [doNext] = buttons(row);
-  await doNext.listeners[0]();
-
-  assert.strictEqual(doNext.disabled, false, "a failed teach left the row permanently disabled");
-});
-
-
-test("a picked ambiguous choice sends no value for a parameter nobody supplied one for -- never an empty string", async () => {
-  // The regression this round found: picking a choice off the ambiguous list
-  // called `preview(version, [])` with nothing known, every input-bearing
-  // step still got a name, and the old parameter-building sent `""` under
-  // it. `ensure_runnable` counts a present key as supplied and skips shape
-  // checks on a falsy value, so a run that used to be refused for a missing
-  // value started instead and wrote a blank field -- one click on a
-  // disambiguation button, live, if the picked skill was autonomous.
-  const { sent, row } = await openedOffer({
-    "resolve-intent": {
-      matched: null,
-      choices: [
-        { skill_id: "skl-1", name: "Create a work area", version: 1, stage: "autonomous" },
-        { skill_id: "skl-2", name: "Create a work operation", version: 1, stage: "autonomous" },
-      ],
-      missing_parameters: [],
-    },
-    skill: {
-      id: "skl-1",
-      name: "Create a work area",
-      versions: [
-        {
-          version: 1,
-          stage: "autonomous",
-          track_record: { clean_streak: 12 },
-          steps: [
-            { index: 0, intent: "Type the Area code." },
-            { index: 1, intent: "Press Save." },
-          ],
-          parameters: [{ name: "area_code", kind: "input", source_step_index: 0, description: "Area code" }],
-        },
-      ],
-    },
-  });
-
-  const [ask] = buttons(row).filter((button) => button.textContent === "Ask");
-  const [utterance] = inputs(row);
-  utterance.value = "create a work thing";
-  await ask.listeners[0]();
-
-  const [pick] = buttons(row).filter((button) => button.textContent === "Create a work area");
-  await pick.listeners[0]();
-
-  const ran = sent.filter((message) => message.kind === "run-skill");
-  assert.equal(ran.length, 1, "picking a choice did not run it");
-  assert.deepEqual(
-    ran[0].parameters,
-    {},
-    "a parameter nobody supplied a value for was sent -- as \"\", the exact refusal this closes",
-  );
-});
-
-test("two presses on 'Do it' are not two runs", async () => {
-  const { sent, row } = await openedOffer({
-    "resolve-intent": {
-      matched: { skill_id: "skl-4", name: "Log a shortage", version: 1, stage: "recorded" },
-      confident: true,
-      choices: [],
-      missing_parameters: [],
-    },
-    skill: {
-      id: "skl-4",
-      name: "Log a shortage",
-      versions: [
-        { version: 1, stage: "recorded", track_record: { clean_streak: 0 }, steps: [], parameters: [] },
-      ],
-    },
-  });
-
-  const [ask] = buttons(row).filter((button) => button.textContent === "Ask");
-  const [utterance] = inputs(row);
-  utterance.value = "log a shortage";
-  await ask.listeners[0]();
-
-  const [doIt] = buttons(row).filter((button) => button.textContent === "Do it");
-  assert.ok(doIt, "no 'Do it' button was offered for a version that has not earned silence");
-  const first = doIt.listeners[0]();
-  const second = doIt.listeners[0]();
-  await Promise.all([first, second]);
-
-  assert.equal(
-    sent.filter((message) => message.kind === "run-skill").length,
-    1,
-    "a second click on 'Do it' started a second run",
-  );
-  assert.strictEqual(doIt.disabled, true, "the button was left pressable after the first click");
-});
-
-test("a sentence naming several things says so, and runs only the first of them", async () => {
-  // "Evidence, never inference" governs what the panel runs; it governs what
-  // it tells somebody it is running just as much. Silently discarding five
-  // of six things a person asked for is the worst version of that rule
-  // broken.
-  const { row } = await openedOffer({
-    "resolve-intent": {
-      matched: { skill_id: "skl-9", name: "Create a work area", version: 1, stage: "autonomous" },
-      confident: true,
-      choices: [],
-      missing_parameters: [],
-      items: [{ area_code: "A1" }, { area_code: "A2" }, { area_code: "A3" }],
-    },
-    skill: {
-      id: "skl-9",
-      name: "Create a work area",
-      versions: [
-        { version: 1, stage: "autonomous", track_record: { clean_streak: 12 }, steps: [], parameters: [] },
-      ],
-    },
-  });
-
-  const [ask] = buttons(row).filter((button) => button.textContent === "Ask");
-  const [utterance] = inputs(row);
-  utterance.value = "create work areas A1, A2 and A3";
-  await ask.listeners[0]();
-
-  const said = words(row);
-  assert.match(said, /3 things/, "how many things the sentence named was never said");
-  assert.match(said, /area_code: A1/, "which one will actually run was never said");
-});
-
-test("a derived value is never sent as a parameter, even when the parser read something under its name", async () => {
-  // Minor from round 2: `preview()` matched a step's parameter by
-  // `source_step_index` alone, so a `derived` parameter -- "never prompted
-  // for", produced by an earlier step's response -- was named exactly like
-  // an operator-supplied one. Proven with a value present in `known` under
-  // that same name, so this fails if the fix were merely "nothing was known"
-  // rather than "derived is never eligible at all".
-  const { sent, row } = await openedOffer({
-    "resolve-intent": {
-      matched: { skill_id: "skl-5", name: "Scan a case", version: 1, stage: "recorded" },
-      confident: true,
-      choices: [],
-      missing_parameters: [],
-      items: [{ barcode: "should-not-be-sent" }],
-    },
-    skill: {
-      id: "skl-5",
-      name: "Scan a case",
-      versions: [
-        {
-          version: 1,
-          stage: "recorded",
-          track_record: { clean_streak: 0 },
-          steps: [
-            { index: 0, intent: "Scan the case barcode." },
-            { index: 1, intent: "Press Save." },
-          ],
-          parameters: [{ name: "barcode", kind: "derived", source_step_index: 0, description: "Barcode" }],
-        },
-      ],
-    },
-  });
-
-  const [ask] = buttons(row).filter((button) => button.textContent === "Ask");
-  const [utterance] = inputs(row);
-  utterance.value = "scan a case";
-  await ask.listeners[0]();
-
-  const [doIt] = buttons(row).filter((button) => button.textContent === "Do it");
-  await doIt.listeners[0]();
-
-  const ran = sent.filter((message) => message.kind === "run-skill");
-  assert.equal(ran.length, 1);
-  assert.deepEqual(ran[0].parameters, {}, "a derived value was sent as though an operator supplied it");
-});
-
-
-test("a whitespace-only field is not an answer either", async () => {
-  // Same rule as the blank-field test above, applied to the gap it missed:
-  // `!field.value` let "   " straight through, because three spaces is
-  // truthy. Sent, it is a value the operator never actually gave.
-  const { sent, row } = await openedOffer({
-    "resolve-intent": {
-      matched: { skill_id: "skl-6", name: "Adjust an LPN", version: 1, stage: "recorded" },
-      confident: true,
-      choices: [],
-      missing_parameters: ["voice_code"],
-    },
-    skill: {
-      id: "skl-6",
-      name: "Adjust an LPN",
-      versions: [
-        {
-          version: 1,
-          stage: "recorded",
-          track_record: { clean_streak: 0 },
-          steps: [{ index: 0, intent: "Enter the Voice Code." }],
-          parameters: [{ name: "voice_code", kind: "input", source_step_index: 0, description: "Voice Code" }],
-        },
-      ],
-    },
-  });
-
-  const [ask] = buttons(row).filter((button) => button.textContent === "Ask");
-  const [utterance] = inputs(row);
-  utterance.value = "adjust the LPN";
-  await ask.listeners[0]();
-
-  const [voiceCode] = inputs(row).filter((field) => field !== utterance);
-  voiceCode.value = "   ";
-  const [go] = buttons(row).filter((button) => button.textContent === "Continue");
-  await go.listeners[0]();
-
-  assert.ok(
-    !sent.some((message) => message.kind === "run-skill"),
-    "a whitespace-only field was accepted as an answer and the run started anyway",
-  );
-  assert.match(words(row), /cannot be left blank/i, "a whitespace-only field was silently accepted");
-});
-
-test("a value the parser read as empty is not sent as one", async () => {
-  // Same rule again, at the other entry point: `resolution.items` carrying
-  // `""` (or whitespace) under a parameter's name is not the parser having
-  // read something -- it is the parser having read nothing -- and the old
-  // `known[name] ?? null` kept an empty string as though it were a value.
-  const { sent, row } = await openedOffer({
-    "resolve-intent": {
-      matched: { skill_id: "skl-7", name: "Adjust an LPN", version: 1, stage: "recorded" },
-      confident: true,
-      choices: [],
-      missing_parameters: [],
-      items: [{ voice_code: "   " }],
-    },
-    skill: {
-      id: "skl-7",
-      name: "Adjust an LPN",
-      versions: [
-        {
-          version: 1,
-          stage: "recorded",
-          track_record: { clean_streak: 0 },
-          steps: [{ index: 0, intent: "Enter the Voice Code." }],
-          parameters: [{ name: "voice_code", kind: "input", source_step_index: 0, description: "Voice Code" }],
-        },
-      ],
-    },
-  });
-
-  const [ask] = buttons(row).filter((button) => button.textContent === "Ask");
-  const [utterance] = inputs(row);
-  utterance.value = "adjust the LPN, voice code  ";
-  await ask.listeners[0]();
-
-  const [doIt] = buttons(row).filter((button) => button.textContent === "Do it");
-  await doIt.listeners[0]();
-
-  const ran = sent.filter((message) => message.kind === "run-skill");
-  assert.equal(ran.length, 1);
-  assert.deepEqual(
-    ran[0].parameters,
-    {},
-    "an empty value the parser read was sent as a real one",
-  );
-});
 
 
 test("it shows what it made and offers to take it back", async () => {
@@ -1507,110 +956,6 @@ function previewableVersion(overrides = {}) {
   };
 }
 
-/** Drives a sentence all the way to a rendered preview: the offer row, the box
- * it opens, and one `resolve-intent` answered by `version`. What each test
- * below does from there is press, or read what is on the screen before
- * pressing. */
-async function previewOf_(version, resolution = {}) {
-  const { sent, row } = await openedOffer({
-    "resolve-intent": {
-      matched: {
-        skill_id: "skl-9",
-        name: "Create a work operation",
-        version: version.version,
-        stage: version.stage,
-      },
-      confident: true,
-      choices: [],
-      missing_parameters: [],
-      items: [{ operation_code: "NDPCK", priority: "5" }],
-      ...resolution,
-    },
-    skill: { id: "skl-9", name: "Create a work operation", versions: [version] },
-  });
-  const [ask] = buttons(row).filter((button) => button.textContent === "Ask");
-  const [utterance] = inputs(row);
-  utterance.value = "create work operation NDPCK, priority 5";
-  await ask.listeners[0]();
-  return { sent, row };
-}
-
-test("the press names the version the preview was drawn from", async () => {
-  // The whole of ADR 014. `resolve-intent` matches on `skill.runnable or
-  // skill.latest`, and the preview is built from *that* version -- but the
-  // press sent no version at all, so the backend took `skill.latest`. Any
-  // skill with a newer RECORDED version (re-teaching, a drift repair, or
-  // either of the two console screens that reset a version for review) had
-  // the operator reading v1 while v2 wrote, with v1's parameters, and an
-  // unreviewed version promoted to assisted by a press that never showed it.
-  //
-  // Nothing here can prove what the backend does with the number. What it can
-  // prove is the half that lives in this file: the number the operator's
-  // preview was built from is the number the press carries.
-  const { sent, row } = await previewOf_(previewableVersion());
-
-  const [go] = buttons(row).filter((button) => button.textContent === "Do it");
-  assert.ok(go, "no press was offered at all");
-  await go.listeners[0]();
-
-  const [ran] = sentOf(sent, "run-skill");
-  assert.strictEqual(ran.version, 3, "the press could not name which version it read");
-  assert.strictEqual(ran.skillId, "skl-9");
-});
-
-test("the preview names the tab the run will act in", async () => {
-  // Design line 144 and ADR 014's closed list both say it does, and the run
-  // genuinely uses it: `starts_on` is navigated to before step one. A preview
-  // that listed the steps and left the screen out was describing the same
-  // clicks happening somewhere else, and the residual-risk argument that
-  // decision rests on depends on that list being exhaustive.
-  const { row } = await previewOf_(previewableVersion());
-
-  assert.match(
-    words(row),
-    /In https:\/\/wms\.example\/portal\/workOperations/,
-    "the preview never said which screen the run would act on",
-  );
-});
-
-test("a step that takes two typed values shows and sends both", async () => {
-  // `preview()` matched one parameter per step with `.find()`, so a step that
-  // is the source of two -- a code and a priority in the same dialog -- showed
-  // one of them and sent one of them. The other was never on the screen the
-  // operator read and never in `parameters` at the press, which means a
-  // required value silently missing and a preview that was not what ran.
-  const { sent, row } = await previewOf_(previewableVersion());
-
-  const said = words(row);
-  assert.match(said, /NDPCK/, "the first value was not shown");
-  assert.match(said, /\b5\b/, "the second value on the same step was never shown");
-
-  const [go] = buttons(row).filter((button) => button.textContent === "Do it");
-  await go.listeners[0]();
-
-  const [ran] = sentOf(sent, "run-skill");
-  assert.deepStrictEqual(
-    ran.parameters,
-    { operation_code: "NDPCK", priority: "5" },
-    "a value on the same step as another was never sent",
-  );
-});
-
-test("the one-line ask still keeps the steps one click away", async () => {
-  // Design line 154. A version with a streak has earned the shorter question
-  // -- that is the point of tying the ceremony to the rung -- but "earned a
-  // shorter question" is not "may no longer be asked what it is about to do".
-  const { row } = await previewOf_(
-    previewableVersion({ stage: "assisted", track_record: { clean_streak: 4 } }),
-  );
-
-  assert.match(words(row), /do it\?/i, "the one-line ask was not drawn");
-  const [more] = tagged(row, "details");
-  assert.ok(more, "the steps behind a disclosure were not offered at all");
-  assert.match(words(more), /Type the Operation code/, "the disclosure held no steps");
-  assert.match(words(more), /workOperations/, "the disclosure did not name the screen either");
-});
-
 test("undo says what it is about to delete, and pins the version it was offered", async () => {
   // "Undo that" routes through the same press as any other run, and the
   // reversal skill's steps and values are rendered nowhere -- this button is
@@ -1677,54 +1022,6 @@ test("sending with Enter paints the answer, with the cursor still in the box", a
     /make a work area for receiving/,
     "what the operator sent was never painted",
   );
-});
-
-test("a task the conversation already carries is not drawn as a row as well", async () => {
-  // The offer is a message in the thread now, with the same two buttons. Drawn
-  // here as well, the panel asks twice and then disagrees with itself: `here()`
-  // only re-runs on a host change, so dismissing in the ledger left the row
-  // live indefinitely, and dismissing on the row left the message live.
-  const { ids, renderCandidates } = panel(
-    {
-      deviceId: "dev-1",
-      capturing: true,
-      watched: [{ tabId: 7, host: "wms.example", since: new Date().toISOString() }],
-    },
-    { id: 7, host: "wms.example", url: "https://wms.example/portal" },
-    {
-      candidates: [
-        {
-          id: "cnd-said",
-          title: "Create a supplier",
-          signature: "POST data/WM/wm/suppliers",
-          status: "new",
-          times_seen: 4,
-          median_duration_ms: 40000,
-          minutes_so_far: 5,
-          offered_at: "2026-09-02T11:10:08Z",
-          episodes: [],
-          joins: [],
-        },
-        {
-          id: "cnd-building",
-          title: "Create a work area",
-          signature: "POST data/WM/wm/workAreas",
-          status: "new",
-          times_seen: 2,
-          median_duration_ms: 20000,
-          minutes_so_far: 1,
-          offered_at: null,
-          episodes: [],
-          joins: [],
-        },
-      ],
-    },
-  );
-  await renderCandidates();
-
-  const said = words(ids["candidates"]);
-  assert.ok(!/supplier/i.test(said), `the offered task was drawn twice: ${said.slice(0, 200)}`);
-  assert.ok(/work area/i.test(said), "a task still building up stopped being shown");
 });
 
 
@@ -1819,6 +1116,117 @@ test("the same thread and the same offers are not redrawn", async () => {
   offerLocally(nudges, thread);
 
   assert.strictEqual(ids["said"].kids[0], first, "nothing changed and it was redrawn anyway");
+});
+
+test("the poll does not empty the box somebody is typing their password into", async () => {
+  // The card asked for the password, the operator started typing it, and the
+  // two-second poll rebuilt every card from scratch -- taking the box and what
+  // was in it. The thread has held this rule since the composer was built; the
+  // cards column had nothing typed into it until this card existed.
+  const status = {
+    deviceId: "dev-1",
+    finished: {
+      id: "run_1",
+      source: "rig",
+      status: "stopped",
+      steps: [
+        {
+          index: 0,
+          outcome: "failed",
+          says: "Type the password.",
+          sent: {
+            kind: "none",
+            payload: { needs_secret: { system: "keycloak.test", field: "password" } },
+          },
+        },
+      ],
+    },
+  };
+  const made = panel(status);
+  const box = inputs(made.ids["cards"]).find((one) => one.type === "password");
+  assert.ok(box, "the card that asked for a password drew no box");
+
+  box.value = "half-ty";
+  made.focus(box);
+  made.render(status);
+
+  assert.strictEqual(
+    inputs(made.ids["cards"]).find((one) => one.type === "password"),
+    box,
+    "the poll replaced the box somebody was typing into",
+  );
+  assert.equal(box.value, "half-ty", "what they had typed was thrown away");
+});
+
+test("the worker pushes the state and the panel draws it without asking", async () => {
+  // It used to poll every two seconds: two redraws a second of work nobody
+  // did, and a state change waiting up to two seconds to appear. A rule fires,
+  // a run starts, an offer lands -- and the panel sat on the old picture.
+  const made = panel({ deviceId: "dev-1" });
+  const [port] = made.ports;
+  assert.ok(port, "the panel never opened a port to the worker");
+  assert.equal(port.name, "panel");
+
+  // The panel's own load-time fetch first, so what is on screen when the push
+  // lands is what the worker last answered rather than a half-built page.
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  const before = made.sent.filter((message) => message.kind === "status").length;
+  port.listeners.message[0]({
+    kind: "status",
+    status: { deviceId: "dev-1", teaching: { startedAt: new Date().toISOString() } },
+  });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  const drawn = `${words(made.ids["expanded"])} ${words(made.ids["cards"])}`;
+  assert.match(drawn, /[Rr]ecording/, "a pushed status was not drawn");
+  assert.equal(
+    made.sent.filter((message) => message.kind === "status").length,
+    before,
+    "the panel asked for a status it had just been given",
+  );
+});
+
+test("a port that dies is dropped rather than retried into a storm", async () => {
+  const made = panel({ deviceId: "dev-1" });
+  const [port] = made.ports;
+
+  port.listeners.disconnect[0]();
+
+  assert.equal(made.ports.length, 1, "the panel reconnected the instant it was disconnected");
+});
+
+test("pressing Yes on a rule that fired actually answers it", async () => {
+  // A rule fired, the panel drew "Log In - an arrival trigger fired. Shall I?",
+  // the operator pressed Yes twice thirteen minutes apart, and both
+  // confirmations were still `waiting` in the database: no POST had ever
+  // reached the backend.
+  //
+  // `show` had grown a local named `answered`, which shadowed the press
+  // handler of the same name it hands to the ledger -- so `onPress` was a
+  // signature string, and every press in the thread threw "onPress is not a
+  // function" inside a click listener with nobody watching.
+  //
+  // This presses the button that is actually drawn rather than calling the
+  // exported handler, because what broke was the wiring between the two.
+  const made = panel({ deviceId: "dev-1" }, null, {
+    "answer-waiting": { ok: true, run_id: "run_9" },
+  });
+  made.locally(
+    {
+      waiting: [
+        { id: "cnf_1", skill_name: "Log In", because: "an arrival trigger fired", asked_at: 1000 },
+      ],
+    },
+    { id: "thr_1", messages: [] },
+  );
+
+  const yes = buttons(made.ids["said"]).find((one) => one.textContent === "Yes, do it");
+  assert.ok(yes, "the card a rule left waiting drew no way to say yes");
+  await yes.listeners[0]();
+
+  assert.deepEqual(sentOf(made.sent, "answer-waiting"), [
+    { kind: "answer-waiting", confirmationId: "cnf_1", answer: "approve" },
+  ]);
 });
 
 for (const [name, fn] of tests) {

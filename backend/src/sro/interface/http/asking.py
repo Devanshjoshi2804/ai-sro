@@ -62,9 +62,26 @@ async def asking_device(
     # `dev-1`. There is no caller that needs that and no test that wanted it.
     if not (device_id or "").strip():
         device_id = ""
-    if not device_id and not x_device_secret:
+    if not device_id:
+        # No browser named, so no browser is asking -- whether or not a secret
+        # came along. This is the tenant, and it is not a downgrade: there is
+        # nothing to downgrade FROM, because a secret on its own names nobody.
+        #
+        # It used to be a 404, and that cost this deployment every tenant door
+        # the extension has. The browser sends `X-Device-Secret` on every call
+        # by design -- it goes to the same backend either way, and a list of
+        # which endpoints may see it is a list that goes stale -- so every
+        # tenant-only door it asked answered "device  was not found": `/v1/ask`
+        # on every sentence an operator typed into the panel, and `/v1/chat`,
+        # `/v1/mine` and `/v1/spend` behind it. The panel looked broken because
+        # it was, and the worker's own `catch` read the 404 as "nothing to
+        # offer".
+        #
+        # The rule the 404 exists for is the other half-pair: a caller naming a
+        # browser without proving it. That one still refuses, because it is a
+        # caller asking whether a browser exists.
         return None
-    if not device_id or not x_device_secret:
+    if not x_device_secret:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"device {device_id} was not found",

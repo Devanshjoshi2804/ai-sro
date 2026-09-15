@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from sro.application.chat.converse import Converse, StartThread
+from sro.application.chat.read_chat import ReadChat
+from sro.application.chat.understand import Understood
 from sro.application.context import RequestContext
 from sro.application.intent.plan_task import PlanTask
 from sro.application.intent.resolve import ResolveIntent
@@ -10,8 +12,10 @@ from sro.application.knowledge.retrieve import Retrieve
 from sro.domain.chat.thread import Speaker
 from sro.domain.execution.run import RunId
 from sro.domain.shared.identifiers import SkillId
+from sro.domain.shared.prices import Answer
 from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.template import Template
+from sro.domain.skill.workflow import Step, Workflow
 from tests import factories as f
 from tests.unit.fakes import FakeClock, FakeEmbedder, FakeIdFactory, FakeUnitOfWork
 
@@ -181,3 +185,167 @@ async def test_a_note_to_a_run_is_kept_and_resolves_nothing() -> None:
     assert only.speaker is Speaker.OPERATOR
     assert only.text == "use the north yard address"
     assert only.decision == {"kind": "note", "run_id": "run-1"}
+
+
+# --- the rig's jobs, asked before the taught skills ---------------------------
+
+
+class _PlacesTheJob(ReadChat):
+    """The rig's reader, answering about one job and never spending a model.
+
+    A subclass rather than a fake handed in: what is under test is that
+    `Converse` asks THIS door first and, where it answers, stops -- and a
+    stand-in of a different type would pass even if the wiring had it the wrong
+    way round.
+    """
+
+    def __init__(self, placed: Understood | None, *, raises: bool = False) -> None:
+        self.placed = placed
+        self.raises = raises
+        self.asked: list[str] = []
+
+    async def execute(self, ctx: RequestContext, *, utterance: str) -> Understood:
+        self.asked.append(utterance)
+        if self.raises:
+            raise RuntimeError("no model configured")
+        assert self.placed is not None
+        return self.placed
+
+
+def _understood(
+    workflow_id: str | None,
+    *,
+    values: dict[str, str] | None = None,
+    missing: list[str] | None = None,
+    items: list[dict[str, str]] | None = None,
+    sure: bool = True,
+    also: list[str] | None = None,
+) -> Understood:
+    return Understood(
+        workflow_id=workflow_id,
+        answer=Answer(data={}),
+        values=dict(values or {}),
+        missing=list(missing or []),
+        sure=sure,
+        also=list(also or []),
+        items=[dict(one) for one in (items or [])],
+    )
+
+
+async def _with_a_job(
+    uow: FakeUnitOfWork, placed: Understood | None, *, raises: bool = False
+) -> Converse:
+    await uow.workflows.save(
+        Workflow(
+            id="wfl_1",
+            tenant=f.TENANT.value,
+            title="Create a Warehouse Equipment Type",
+            narrative="n",
+            steps=[Step(order=0, says="s", system=None, cites=["g"])],
+        )
+    )
+    ids, clock = FakeIdFactory(), FakeClock()
+    resolver = ResolveIntent(uow, PlanTask(Retrieve(uow, FakeEmbedder())))
+    reads = _PlacesTheJob(placed, raises=raises)
+    return Converse(uow, resolver, clock, ids, reads_jobs=reads)
+
+
+async def test_a_sentence_about_a_mined_job_is_answered_by_the_rig() -> None:
+    """The wrong answer this exists to end.
+
+    An operator typed "lets create warehouse equipment type" at a browser whose
+    rig holds exactly that job, and was told "Create a customer type does that.
+    I still need long_description." The resolver ranks the tenant's taught
+    SKILLS -- seven of them, none about equipment types -- so it answered with
+    the nearest thing it had, and the right job was in the rig all along.
+    """
+    uow = FakeUnitOfWork()
+    await _taught(uow)
+    converse = await _with_a_job(uow, _understood("wfl_1", missing=["Voice Code"]))
+    thread = await StartThread(uow, FakeClock(), FakeIdFactory()).execute(CTX)
+
+    said = await converse.execute(CTX, thread_id=thread.id, text="create equipment type")
+
+    last = said.messages[-1]
+    assert "Create a Warehouse Equipment Type" in last.text
+    assert "Voice Code" in last.text, "what it still needs is what the operator has to answer"
+    assert last.decision is not None
+    assert last.decision["kind"] == "job" and last.decision["workflow_id"] == "wfl_1"
+
+
+async def test_what_a_press_needs_is_in_the_decision() -> None:
+    """The browser builds its offer from this rather than reading the sentence
+    a second time: two readings are two model calls and two chances to
+    disagree."""
+    uow = FakeUnitOfWork()
+    converse = await _with_a_job(
+        uow,
+        _understood("wfl_1", values={"site": "SG"}, items=[{"code": "A"}, {"code": "B"}]),
+    )
+    thread = await StartThread(uow, FakeClock(), FakeIdFactory()).execute(CTX)
+
+    said = await converse.execute(CTX, thread_id=thread.id, text="add these two")
+
+    decision = said.messages[-1].decision
+    assert decision is not None
+    assert decision["values"] == {"site": "SG"}
+    assert decision["items"] == [{"code": "A"}, {"code": "B"}]
+    assert "for 2 things" in said.messages[-1].text
+
+
+async def test_a_sentence_the_rig_cannot_place_still_reaches_the_skills() -> None:
+    """The conversation the console has always had. A job the rig does not hold
+    is not a sentence nobody can answer."""
+    uow = FakeUnitOfWork()
+    await _taught(uow)
+    converse = await _with_a_job(uow, _understood(None))
+    thread = await StartThread(uow, FakeClock(), FakeIdFactory()).execute(CTX)
+
+    said = await converse.execute(CTX, thread_id=thread.id, text="adjust inventory at SG")
+
+    assert said.messages[-1].decision is not None
+    assert "kind" not in said.messages[-1].decision, "the skills' own decision, not the rig's"
+
+
+async def test_a_rig_that_refuses_is_not_a_conversation_that_stops() -> None:
+    """No model configured, the day's cap spent, a door that raised. The
+    conversation happens the way it did before the rig was asked at all."""
+    uow = FakeUnitOfWork()
+    await _taught(uow)
+    converse = await _with_a_job(uow, None, raises=True)
+    thread = await StartThread(uow, FakeClock(), FakeIdFactory()).execute(CTX)
+
+    said = await converse.execute(CTX, thread_id=thread.id, text="adjust inventory at SG")
+
+    assert said.messages[-1].speaker is Speaker.ASSISTANT
+    assert said.messages[-1].text
+
+
+async def test_a_reading_that_is_not_sure_asks_which_job_rather_than_starting_one() -> None:
+    """One wrong record is a nuisance; the same guess against a list of twenty
+    is twenty wrong records in a warehouse, and the cost of asking is one
+    sentence."""
+    uow = FakeUnitOfWork()
+    await uow.workflows.save(
+        Workflow(
+            id="wfl_2",
+            tenant=f.TENANT.value,
+            title="Create a Customer Type",
+            narrative="n",
+            steps=[Step(order=0, says="s", system=None, cites=["g"])],
+        )
+    )
+    converse = await _with_a_job(uow, _understood("wfl_1", sure=False, also=["wfl_2"]))
+    thread = await StartThread(uow, FakeClock(), FakeIdFactory()).execute(CTX)
+
+    said = await converse.execute(CTX, thread_id=thread.id, text="make one of those")
+
+    last = said.messages[-1]
+    assert "Did you mean" in last.text
+    assert "Create a Warehouse Equipment Type" in last.text
+    assert "Create a Customer Type" in last.text, "the other one it was choosing between"
+    assert last.decision is not None
+    assert last.decision["kind"] == "which_job", (
+        "a decision the browser cannot act on must not look like one it can"
+    )
+    assert "workflow_id" not in last.decision, "there is nothing here to press"

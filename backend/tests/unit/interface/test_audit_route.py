@@ -327,6 +327,11 @@ async def test_a_run_row_says_what_happened(client: httpx.AsyncClient, uow: Fake
         "steps": [
             {
                 "order": 0,
+                # Where in the run, which step of the job, and which thing on
+                # the list -- the last two being the same step and no list at
+                # all for a job that does one thing once.
+                "of_step": 0,
+                "item": None,
                 "says": "save",
                 "verdict": "failed",
                 "verdict_by": "model",

@@ -307,6 +307,77 @@ def _evidential(frame: ActionFrame) -> bool:
     )
 
 
+FILLS = frozenset({"type", "select", "upload"})
+"""The gestures that put a value in one place, where doing it twice before
+anything is sent means the second one is what the field held.
+
+The same three `verify._PUTS_A_VALUE` names for the same reason, and kept as
+their own constant rather than imported across the layer: a gesture that can be
+corrected and a gesture that can be wrong in a way nothing else on the page
+would show are two different questions that happen to have one answer today."""
+
+
+def settled(run: tuple[ActionFrame, ...]) -> tuple[ActionFrame, ...]:
+    """A run with the operator's corrections taken out.
+
+    People mistype. They type a code, look at it, clear it and type it again --
+    two `type` frames on one control, one value that was ever really submitted.
+    `align` pairs one of them and then finds the other unpaired, carrying a
+    value, and refuses the whole pair: "the second run did something the other
+    did not: type on Warehouse Equipment Type".
+
+    That refusal is what an operator sees as *"I've watched this a few times
+    but the doings differ too much"*. On this deployment it was every pair of
+    four doings of one task -- 0 and 1, 0 and 2, 0 and 3, 1 and 2, 1 and 3, 2
+    and 3 -- so a task done four times taught nothing, and doing it a fifth
+    time would have refused the same way.
+
+    Only what was superseded before anything was sent. A later typing on the
+    same control with no write in between replaces the earlier one, because
+    the field only ever held the last of them by the time the form went. A
+    typing on either side of a write is two different things being submitted
+    -- a row added twice, a search run again -- and both are kept.
+
+    Never a credential. A password re-typed is still one password, but it
+    carries no value to be superseded BY, and the run that types it twice is
+    a run that failed to sign in once; `domain/skill/passwords` makes that
+    judgement with the evidence to make it.
+
+    The same for a dropdown and a file. Picking the wrong option and picking
+    again, or attaching the wrong document and attaching the right one, is one
+    field filled once by the time the form goes -- and a run that replayed both
+    picks would do the work of the mistake before the work of the correction.
+    A click is deliberately not in this set: two clicks on one control are two
+    presses of a button, which `_evidential` already lets through as
+    exploration when they changed nothing and which really are two actions
+    when they did.
+    """
+    dropped: set[int] = set()
+    latest: dict[str, int] = {}
+    for position, frame in enumerate(run):
+        if _wrote_something(frame):
+            # A write settles everything typed before it. What comes after is
+            # a fresh fill of the same form, not a correction of the old one.
+            latest.clear()
+            continue
+        if frame.action.kind not in FILLS or frame.action.secret or not frame.action.value:
+            continue
+        control = _control(frame)
+        if control in latest:
+            dropped.add(latest[control])
+        latest[control] = position
+    return tuple(frame for position, frame in enumerate(run) if position not in dropped)
+
+
+def _wrote_something(frame: ActionFrame) -> bool:
+    """Whether this step sent a mutation the application acted on. Background
+    traffic is not one -- a keep-alive that lands between two typings would
+    otherwise make a correction look like a second submission."""
+    return any(
+        request.is_mutation and not is_background_traffic(request.url) for request in frame.requests
+    )
+
+
 def align(
     run_a: tuple[ActionFrame, ...], run_b: tuple[ActionFrame, ...]
 ) -> tuple[tuple[ActionFrame, ActionFrame], ...]:

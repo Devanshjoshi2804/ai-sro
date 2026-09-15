@@ -8,7 +8,7 @@ get to erase another's day, and nothing here reaches across tenants at all.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sro.application.context import RequestContext
 from sro.application.observation.artifacts import artifact_prefixes
@@ -41,9 +41,17 @@ class ForgetObservations:
         self._clock = clock
 
     async def execute(self, ctx: RequestContext, *, since: datetime) -> Forgotten:
+        # A naive `since` is UTC, which is the rule `_bound` keeps for the
+        # audit read and `codec.when` keeps on the storage edge. Without it
+        # asyncpg hands the bare datetime to Postgres and it comes back as the
+        # API HOST's local time: an operator on a +05:30 machine asking to
+        # forget everything since 09:00 deleted from 03:30Z -- five and a half
+        # extra hours of their own day, rows and screenshots, answered 200. It
+        # is the one read that cannot be run again to check.
+        bound = since if since.tzinfo else since.replace(tzinfo=UTC)
         async with self._uow as uow:
             doomed = await uow.observations.between(
-                ctx.tenant_id, since=since, principal_id=ctx.principal_id
+                ctx.tenant_id, since=bound, principal_id=ctx.principal_id
             )
             if not doomed:
                 return Forgotten(batches=0, events=0, artifacts=0)

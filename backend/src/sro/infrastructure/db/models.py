@@ -213,6 +213,24 @@ class RunRow(Base):
         Index("ix_runs_tenant_started", "tenant_id", "started_at"),
         # The breaker's question: how has this system behaved lately.
         Index("ix_runs_system_ended", "tenant_id", "target_system", "ended_at"),
+        # One unfinished run per browser, the same rule
+        # `uq_workflow_runs_one_running_per_device` keeps for the rig -- and
+        # the skill path had none of any kind. Two triggers firing two skills
+        # at one device in the same minute interleaved their clicks into one
+        # window, which is exactly the corrupted form against a live warehouse
+        # that migration 0043 was written about.
+        #
+        # `ended_at IS NULL` is this table's word for running. And a run with
+        # no `device_id` is a Steel run in a browser of its own: Postgres does
+        # not collide NULLs in a unique index, which is the answer wanted here
+        # rather than an exception to write down.
+        Index(
+            "uq_runs_one_running_per_device",
+            "tenant_id",
+            "device_id",
+            unique=True,
+            postgresql_where=text("ended_at IS NULL"),
+        ),
     )
 
 
@@ -252,6 +270,20 @@ class KnowledgeRow(Base):
             postgresql_where=text("superseded_by IS NULL"),
         ),
         Index("ix_knowledge_tenant_kind", "tenant_id", "kind"),
+        # The only vector index in the schema, and for a long time there was
+        # none: every semantic lookup read every one of the tenant's rows and
+        # computed an exact 768-dimension distance on each. Measured on this
+        # store, one tenant, 3,485 rows: 139 ms without it and 4.9 ms with,
+        # 20 of 20 recall against the exact answer. Migration 0050 carries the
+        # reasoning for HNSW over IVFFlat and for the partial predicate.
+        Index(
+            "ix_knowledge_embedding_hnsw",
+            "embedding",
+            postgresql_using="hnsw",
+            postgresql_with={"m": 16, "ef_construction": 64},
+            postgresql_ops={"embedding": "vector_cosine_ops"},
+            postgresql_where=text("superseded_by IS NULL"),
+        ),
     )
 
 
@@ -798,6 +830,12 @@ class WorkflowRunRow(Base):
     """What this run is performed with. The press is the only source of them:
     nothing a chat door understood is carried across on its own."""
 
+    items: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list, server_default="[]")
+    """What this run was asked to do the repeated block for: one set of values
+    per thing on the list. Empty for every run of a job that does one thing
+    once, which is most of them, and for every run made before repeats
+    existed."""
+
     started_by: Mapped[str] = mapped_column(Text, nullable=False, default="")
     live: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     allow_focus: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
@@ -866,6 +904,18 @@ class WorkflowRunStepRow(Base):
     ord: Mapped[int] = mapped_column(Integer, primary_key=True)
 
     says: Mapped[str] = mapped_column(Text, nullable=False, default="")
+
+    made: Mapped[Any] = mapped_column(JSONB, nullable=False, default=dict, server_default="{}")
+    """What the warehouse called the record this step created, where it made
+    one. `{}` for every step that created nothing, which is most of them."""
+
+    of_step: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    """Which step of the JOB this row is. `ord` is where in the RUN it happened,
+    and the two are the same number until a job repeats its middle."""
+
+    item: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    """Which thing on the list it was done for, or NULL for a step done once."""
+
     planned_by: Mapped[str | None] = mapped_column(Text)
     sent: Mapped[Any | None] = mapped_column(JSONB(none_as_null=True), nullable=True)
     """The command envelope's kind and payload, NULL for a step that sent
@@ -942,6 +992,13 @@ class WorkflowRow(Base):
     place by ``rekey`` when the rule that makes a key changes, because keys
     mined before the change no longer match keys mined after and a job already
     held could then be proposed again as a new one."""
+
+    repeat: Mapped[Any] = mapped_column(JSONB, nullable=True)
+    """The steps this job does once per thing on a list, as `{first_step,
+    last_step}`, or NULL for a job that does one thing once -- which is most of
+    them and every job mined before repeats existed. JSONB rather than two
+    integer columns because the pair is one fact and a row with one of them set
+    is a row that means nothing."""
 
     same_as: Mapped[str | None] = mapped_column(String(64))
     """The model's opinion about whether this is one it has proposed before. It

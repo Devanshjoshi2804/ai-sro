@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from dataclasses import replace
+from datetime import UTC, datetime, timedelta
 from typing import cast
 
 import pytest
 
 from sro.application.context import RequestContext
+from sro.application.observation.artifacts import StoreObservationArtifact, artifact_prefixes
 from sro.application.observation.forget import ForgetObservations
 from sro.application.observation.ingest import Ingested, IngestObservation, ObservationRefused
 from sro.application.observation.policy import SetObservationPolicy
@@ -16,8 +18,9 @@ from sro.application.observation.retain import SweepRetention
 from sro.domain.observation.batch import CaptureMode
 from sro.domain.observation.device import AgentDevice
 from sro.domain.observation.policy import ObservationPolicy
+from sro.domain.recording.artifact import ArtifactKind
 from sro.domain.recording.sensitivity import REDACTED
-from sro.domain.shared.errors import Conflict
+from sro.domain.shared.errors import Conflict, InvariantViolation
 from sro.domain.shared.identifiers import BatchId, DeviceId, PrincipalId, TenantId
 from tests import factories as f
 from tests.unit.fakes import (
@@ -273,6 +276,64 @@ async def test_an_operator_purging_their_own_hour_does_not_touch_a_colleagues() 
     assert set(uow.observations.rows) == {"bat_theirs"}
     assert [key for key in blobs.objects if str(f.OPERATOR) in key] == []
     assert [key for key in blobs.objects if "priya" in key] != []
+
+
+async def test_a_time_with_no_offset_is_read_as_utc_and_not_as_the_hosts_clock() -> None:
+    """The one read that cannot be run again to check.
+
+    `DELETE /v1/observations?since=` takes the query string's datetime as it
+    comes, and a browser that sends `2026-03-01T09:00:00` with no offset used
+    to reach asyncpg bare -- where Postgres reads it in the API HOST's zone.
+    On a +05:30 machine that deletes from 03:30Z: five and a half extra hours
+    of the operator's own evidence, rows and screenshots, answered 200. The
+    audit READ normalises (`analytics/audit.py`'s `_bound`, whose docstring
+    names this exact bug) and the destructive write did not.
+    """
+    uow, blobs = FakeUnitOfWork(), FakeBlobStore()
+    await _switch_observation_on(uow, ACME)
+    device_id = await _register(uow, ACME)
+    await _ingest(uow, blobs, device_id, batch_id="bat_mine")
+
+    forgotten = await ForgetObservations(uow, blobs, FakeClock()).execute(
+        # The one call that MEANS to be naive: a query string with no offset
+        # in it, which is what the route really receives.
+        ACME,
+        since=datetime(2026, 3, 1, 0, 0),  # noqa: DTZ001
+    )
+
+    assert forgotten.batches == 1
+
+
+async def test_retention_is_counted_from_when_it_arrived_not_from_the_browsers_clock() -> None:
+    """A tenant's window is how long this deployment keeps what it was sent.
+
+    `started_at` is the device's clock, and on this store it runs up to 23
+    hours from `received_at` -- an extension flushing a queue it held while
+    offline, or a machine whose clock is wrong. Swept on the browser's time, a
+    batch that lands already older than the window is deleted the day it
+    arrives; a device reading early is never swept at all. Either way the
+    declared window is not what happens.
+    """
+    uow, blobs = FakeUnitOfWork(), FakeBlobStore()
+    clock = FakeClock()
+    await SetObservationPolicy(uow).execute(
+        ACME, policy=ObservationPolicy(retention_days=1).enabled()
+    )
+    device_id = await _register(uow, ACME)
+    await _ingest(uow, blobs, device_id, batch_id="bat_stale")
+    # Two days back on the device's clock, and received a moment ago.
+    stale = uow.observations.rows["bat_stale"]
+    uow.observations.rows["bat_stale"] = replace(
+        stale,
+        started_at=clock.now() - timedelta(days=2),
+        ended_at=clock.now() - timedelta(days=2),
+        received_at=clock.now(),
+    )
+
+    swept = await SweepRetention(uow, blobs, clock).execute()
+
+    assert swept[str(ACME.tenant_id)].batches == 0, "evidence was swept the day it arrived"
+    assert set(uow.observations.rows) == {"bat_stale"}
 
 
 async def test_a_sweep_removes_evidence_past_its_own_tenants_window() -> None:
@@ -588,3 +649,75 @@ async def test_a_batch_of_pictures_says_so_on_the_way_out() -> None:
     ingested = await _ingest(uow, blobs, device_id, ctx=ctx, events=[GESTURE, SNAPSHOT, SNAPSHOT])
 
     assert ingested.snapshots_ignored == 2
+
+
+async def test_a_picture_is_filed_where_the_purge_will_look_for_it() -> None:
+    """One clock writes the key and one clock sweeps it, or the pictures stay.
+
+    The key carried the day this SERVER was having when the screenshot was
+    uploaded; `artifact_prefixes` builds its prefixes from the BATCH's days,
+    which are the browser's. On the real store those run up to 23 hours apart,
+    so an operator asking to forget their evidence got the rows deleted, a
+    `forget_prefix` that matched nothing, and `artifacts: 0` in the answer --
+    which reads as "there were none" rather than "they are still there".
+    """
+    uow, blobs = FakeUnitOfWork(), FakeBlobStore()
+    clock = FakeClock()
+    await _switch_observation_on(uow, ACME)
+    device_id = await _register(uow, ACME)
+    await _ingest(uow, blobs, device_id, batch_id="bat_shot")
+    # The browser's day, two days behind this server's.
+    was = uow.observations.rows["bat_shot"]
+    uow.observations.rows["bat_shot"] = replace(
+        was,
+        started_at=clock.now() - timedelta(days=2),
+        ended_at=clock.now() - timedelta(days=2),
+        received_at=clock.now(),
+    )
+
+    stored = await StoreObservationArtifact(uow, blobs, clock).execute(
+        ACME,
+        device_id=DeviceId(device_id),
+        secret=uow.devices.rows[device_id].secret,
+        batch_id=BatchId("bat_shot"),
+        kind=ArtifactKind.SCREENSHOT,
+        data=b"png-bytes",
+        content_type="image/png",
+        frame_index=1,
+    )
+
+    swept = set()
+    for prefix in artifact_prefixes(uow.observations.rows["bat_shot"]):
+        swept |= {key for key in blobs.objects if key.startswith(prefix)}
+    assert stored.uri
+    assert swept, "the picture was filed under a day nothing will ever sweep"
+
+
+async def test_a_batch_refused_over_its_clock_leaves_no_object_behind() -> None:
+    """The refusal used to cost a blob nobody could ever delete.
+
+    `ObservationBatch` asks whether the times carry an offset, and it is built
+    AFTER the NDJSON is written -- the object needs an address before the row
+    can name it. So an envelope with an offset-less `started_at` answered 422
+    with the evidence already in the store: the transaction rolls back, the
+    object does not, and no row points at it, so neither `ForgetObservations`
+    nor `SweepRetention` will ever reach it.
+    """
+    uow, blobs = FakeUnitOfWork(), FakeBlobStore()
+    await _switch_observation_on(uow, ACME)
+    device_id = await _register(uow, ACME)
+
+    with pytest.raises(InvariantViolation):
+        await IngestObservation(uow, blobs, FakeClock()).execute(
+            ACME,
+            device_id=DeviceId(device_id),
+            secret=uow.devices.rows[device_id].secret,
+            batch_id=BatchId("bat_naive"),
+            # As a browser that left the offset off really sends it.
+            started_at=datetime(2026, 3, 1, 9, 0),  # noqa: DTZ001
+            ended_at=datetime(2026, 3, 1, 9, 5),  # noqa: DTZ001
+            mode=CaptureMode.PASSIVE,
+            events=[SNAPSHOT],
+        )
+
+    assert blobs.objects == {}, "the refusal left evidence nothing can ever delete"

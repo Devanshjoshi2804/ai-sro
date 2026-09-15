@@ -71,7 +71,7 @@ a run, and this one releases it to let the write out. Both reach the register
 from __future__ import annotations
 
 import logging
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from datetime import datetime
 
 from sro.application.context import RequestContext
@@ -96,6 +96,7 @@ from sro.domain.execution.workflow_run import (
 )
 from sro.domain.shared.errors import Conflict, DomainError, NotFound
 from sro.domain.shared.identifiers import DeviceId
+from sro.domain.skill.reversals import undoes
 from sro.domain.skill.workflow import cited_ids
 
 __all__ = [
@@ -182,6 +183,7 @@ class StartWorkflowRun:
         live: bool,
         allow_focus: bool,
         from_step: int = 0,
+        items: Sequence[Mapping[str, str]] = (),
         run_id: str | None = None,
     ) -> WorkflowRun:
         """The claimed row, or the refusal that stopped it being claimed."""
@@ -208,15 +210,35 @@ class StartWorkflowRun:
             # than refused here so the check below sees it as the absent value
             # it is.
             given = {name: value.strip() for name, value in values.items() if value.strip()}
+            # The things this job is to be done for, trimmed the same way and
+            # with the run's own values under each. A job with no repeat is
+            # handed none of them: performing its steps once per thing would do
+            # the whole job three times over, which is not what "add these
+            # three" means for a job that adds one thing per run.
+            things = (
+                [
+                    {name: value.strip() for name, value in item.items() if value.strip()}
+                    for item in items
+                ]
+                if workflow.repeat is not None
+                else []
+            )
             # Every parameter the workflow declares must arrive with one. The
             # planner falls back to the value the recording happened to contain
             # when a step has none -- right for a step nobody parameterised, and
             # for a declared parameter left blank it would quietly perform the
             # job with somebody else's client code. Named, never echoed.
+            # Every declared parameter must arrive for every thing this run
+            # will do. With no things that is the run's own values, as it
+            # always was; with three, a parameter two of them named and the
+            # third did not is a run that would perform the third with
+            # somebody else's code.
+            supplied = [{**given, **thing} for thing in things] or [given]
             absent = sorted(
                 str(declared["name"])
                 for declared in workflow.parameters
-                if declared.get("name") and str(declared["name"]) not in given
+                if declared.get("name")
+                and any(str(declared["name"]) not in one for one in supplied)
             )
             if absent:
                 raise RunRefused(f"this job needs a value for: {', '.join(absent)}")
@@ -259,6 +281,7 @@ class StartWorkflowRun:
                 allow_focus=allow_focus,
                 started_at=now.isoformat(),
                 from_step=from_step,
+                items=things,
             )
             # Raises `Conflict` -- the same one the read above gives, in the
             # same words -- where the unique partial index refuses a second
@@ -339,6 +362,10 @@ class StartWorkflowRun:
                 await run_workflow(
                     uow,
                     workflow,
+                    # The same cap the press was judged against, so the run can
+                    # keep asking. Read once and never again, one press on a
+                    # long list could spend the rest of the tenant's day.
+                    cap_usd=self._cap_usd,
                     tenant_id=ctx.tenant_id,
                     values=run.values,
                     channel=self._channel,
@@ -353,6 +380,7 @@ class StartWorkflowRun:
                     approvals=self._approvals,
                     run_id=run.id,
                     from_step=run.from_step,
+                    items=run.items,
                     verified_writes=self._verified_writes,
                     secret_for=self._secret_for,
                 )
@@ -491,6 +519,30 @@ class GetWorkflowRun:
             if run is None:
                 raise NotFound("no such run")
             return run
+
+    async def undo_for(self, ctx: RequestContext, run: WorkflowRun) -> str | None:
+        """Which of this tenant's jobs takes back what this run made, if any.
+
+        Asked only of a run that is over and made something: a run still going
+        may make more, and a run that made nothing has nothing to take back --
+        and this is a read of every job's evidence, on a door the panel polls.
+
+        Answers an id and never starts anything. What a press would have to do
+        -- address each created record by whatever the warehouse called it --
+        is a mapping this has no evidence for, and a wrong mapping deletes the
+        wrong record.
+        """
+        if run.outcome == "running" or not any(step.made for step in run.steps):
+            return None
+        async with self._uow as uow:
+            known = list(await uow.workflows.known(ctx.tenant_id))
+            made = next((one for one in known if one.id == run.workflow_id), None)
+            if made is None:
+                return None
+            gestures = {
+                gesture.id: gesture for gesture in await uow.gestures.gestures_for(ctx.tenant_id)
+            }
+            return undoes(made, gestures, known)
 
 
 class AbortWorkflowRun:

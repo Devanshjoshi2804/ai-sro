@@ -80,6 +80,7 @@ async def _verify(
     look_after: Look | None = None,
     origin: str | None = "http://127.0.0.1:63319",
     model: str = "m",
+    rewrote: bool = False,
 ) -> StepVerdict:
     """One step verified. The helper is the rig's own `_verified`, widened so
     the tests that varied a look, an asker or a model do not have to spell the
@@ -95,6 +96,7 @@ async def _verify(
         channel=channel,
         tenant_id=_TENANT,
         device_id=_DEVICE,
+        rewrote=rewrote,
         run_id="run_1",
         origin=origin,
         asker=asker or FakeAsker(),
@@ -206,7 +208,13 @@ async def test_the_probe_never_carries_a_header_the_boundary_struck_out() -> Non
 
 async def test_a_status_that_already_decided_is_not_second_guessed_by_a_read() -> None:
     """Belt order, not belt availability: the read would have confirmed too,
-    and it is never sent."""
+    and it is never sent.
+
+    True of bytes replayed VERBATIM, which is what this asserts. The endpoint
+    answered the demonstration the same way, so its answer means the
+    demonstrated effect. A body this run RE-AIMED does not get this -- see
+    `test_a_body_this_run_re_aimed_is_not_held_on_its_status_alone`.
+    """
     channel = _read('{"workArea":"THIRD"}')
 
     verdict = await _verify(
@@ -734,3 +742,116 @@ async def test_evidence_that_was_never_watched_is_not_evidence_of_no_write() -> 
     verdict = await _verify(unwatched, channel=FakeChannel(), values={}, origin=None)
 
     assert verdict.state == "unclear"
+
+
+# -- a body this run re-aimed is not the body that was demonstrated ------------
+
+
+async def test_a_body_this_run_re_aimed_is_not_held_on_its_status_alone() -> None:
+    """The case that makes running without asking defensible.
+
+    A 201 says something was created. It does not say the thing carries the
+    values this run was given, and the ledger's own note is the instance:
+    `csttyp truncates at 4 chars`, so a create asking for five characters is
+    answered with the status the demonstration got and the record is four, with
+    nobody told. (The fixture's own save answered 200, so that is what a replay
+    of it comes back with -- `expected_statuses` is narrowed to what this
+    endpoint was actually seen to answer.)
+
+    So a re-aimed write falls past the status to the read-back, and the
+    read-back is what notices.
+    """
+    channel = _read('{"workArea":"WAS-TRUNCATED"}')
+
+    verdict = await _verify(
+        _saver(),
+        channel=channel,
+        values={"workArea": "THIRD"},
+        sent_kind="http.send",
+        answer=Reply(ok=True, result={"status": 200, "body": "{}"}),
+        rewrote=True,
+    )
+
+    assert (verdict.state, verdict.by) == ("failed", "read")
+    assert channel.sent, "the status was allowed to settle a body this run changed"
+
+
+async def test_a_re_aimed_write_the_read_back_confirms_is_held_by_the_read() -> None:
+    channel = _read('{"workArea":"THIRD"}')
+
+    verdict = await _verify(
+        _saver(),
+        channel=channel,
+        values={"workArea": "THIRD"},
+        sent_kind="http.send",
+        answer=Reply(ok=True, result={"status": 200, "body": "{}"}),
+        rewrote=True,
+    )
+
+    assert (verdict.state, verdict.by) == ("held", "read")
+
+
+async def test_the_read_back_after_a_re_aimed_write_wants_every_value_not_any() -> None:
+    """`mentions` is `any`, and a truncated record is exactly the shape that
+    defeats it: the description still matches and the code does not. Measured
+    live on 2026-09-15, four runs of a job typing a new code and the same
+    reference each time all skipped their write and reported held on `any`.
+    """
+    unchanged = '{"workArea":"WAS-TRUNCATED","reference":"SAME"}'
+
+    onany = await _verify(
+        _saver(),
+        channel=_read(unchanged),
+        values={"workArea": "THIRD", "reference": "SAME"},
+        sent_kind="http.send",
+        answer=Reply(ok=True, result={"status": 200, "body": "{}"}),
+        rewrote=False,
+    )
+    onevery = await _verify(
+        _saver(),
+        channel=_read(unchanged),
+        values={"workArea": "THIRD", "reference": "SAME"},
+        sent_kind="http.send",
+        answer=Reply(ok=True, result={"status": 200, "body": "{}"}),
+        rewrote=True,
+    )
+
+    assert onany.by == "status", "a verbatim replay is settled before the read"
+    assert (onevery.state, onevery.by) == ("failed", "read"), (
+        "the half that did not change matched, and the half that did was not looked at"
+    )
+
+
+async def test_with_no_read_to_make_a_re_aimed_write_still_holds_on_its_status() -> None:
+    """Belt availability, decided rather than assumed. A job whose evidence
+    carries no confirming read has nothing but its status, and the status is
+    real -- falling to the screen for it would photograph a page to ask a model
+    about a record the warehouse already answered for."""
+    verdict = await _verify(
+        _saver(),
+        channel=FakeChannel(),
+        values={},
+        sent_kind="http.send",
+        answer=Reply(ok=True, result={"status": 200, "body": "{}"}),
+        rewrote=True,
+    )
+
+    assert (verdict.state, verdict.by) == ("held", "status")
+    assert "no read to confirm it by" in verdict.reason
+
+
+async def test_a_replayed_create_says_what_the_warehouse_called_the_record() -> None:
+    """`made` is what an undo would address, and it was empty on every run this
+    system has ever recorded -- the `http.send` rung never called `made_by`."""
+    created = '{"@type":"ResponseBodyWrapper","data":{"resourceId":"GGD"}}'
+
+    verdict = await _verify(
+        _saver(),
+        channel=FakeChannel(),
+        values={},
+        sent_kind="http.send",
+        answer=Reply(ok=True, result={"status": 200, "body": created}),
+    )
+
+    assert (verdict.state, verdict.by) == ("held", "status")
+    assert verdict.made == {"resourceId": "GGD"}

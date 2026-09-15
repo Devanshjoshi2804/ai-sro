@@ -275,7 +275,7 @@ async def plan_step(
                 ]
                 if live:
                     payload["live_headers"] = live
-            return Planned("http.send", payload, why, answer)
+            return Planned("http.send", payload, why, answer, rewrote=aimed is not None)
 
     # Both the plan the model asked for and the one it gets when its http.send
     # cannot be replayed. One path, so the downgrade cannot drift from the plan

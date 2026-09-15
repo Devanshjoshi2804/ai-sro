@@ -491,6 +491,7 @@ async def verify(
     origin: str | None,
     asker: Asker,
     model: str,
+    rewrote: bool = False,
 ) -> StepVerdict:
     """Did this step actually happen: state first, and a picture only last."""
     if not answer.ok:
@@ -508,7 +509,26 @@ async def verify(
                 return StepVerdict("failed", "status", f"the call returned {status}")
             wanted = expected_statuses(step, by_id)
             if status in wanted or (not wanted and 200 <= status < 300):
-                return StepVerdict("held", "status", f"the call returned {status}")
+                # Belt ORDER, not belt availability -- but only for bytes sent
+                # as they were recorded. `test_a_status_that_already_decided_
+                # is_not_second_guessed_by_a_read` is the rule, and it holds
+                # because the endpoint answered the demonstration the same way,
+                # so its answer means the demonstrated effect.
+                #
+                # A body this run RE-AIMED breaks that. The status then says
+                # something was created; it does not say the thing carries the
+                # values this run was given. The ledger's own note is the
+                # instance -- `csttyp truncates at 4 chars`, so a create asking
+                # for five characters is answered 201 and the record is four,
+                # with nobody told. So a re-aimed write falls through to the
+                # read-back below, which is the belt that can tell.
+                if not rewrote:
+                    return StepVerdict(
+                        "held",
+                        "status",
+                        f"the call returned {status}",
+                        made=made_by(answer.result),
+                    )
 
     # 2. Hidden state: a read the cited evidence shows this page performs.
     probe = confirming_read(step, by_id)
@@ -519,12 +539,36 @@ async def verify(
     if probe is not None and values and REDACTED not in probe.url:
         body = await _read_back(probe, channel, tenant_id, device_id, run_id)
         if body is not None:
-            if mentions(body, values):
+            # `carries_every` for a body this run re-aimed, `mentions` for the
+            # rest, and the difference is the whole point of reaching here at
+            # all. `mentions` is `any`, so a record whose UNCHANGED half matches
+            # reads as the record this run meant to create -- which is exactly
+            # what a truncated code looks like: the description still matches
+            # and the code does not. Measured live on 2026-09-15, four runs of
+            # a job that types a new code and the same reference each time all
+            # skipped their write and reported held on `any`.
+            shown = carries_every(body, values) if rewrote else mentions(body, values)
+            if shown:
                 return StepVerdict(
                     "held", "read", f"a read of {probe.url} shows the value this run supplied"
                 )
             return StepVerdict(
                 "failed", "read", f"a read of {probe.url} does not show the value this run supplied"
+            )
+    if rewrote:
+        # Belt AVAILABILITY, and this is where it is decided rather than
+        # assumed. A re-aimed write whose evidence carries no confirming read --
+        # or a run with no values for one to confirm -- has nothing but its
+        # status, and the status is real. Falling to the screen for it would
+        # photograph a page to ask a model about a record the warehouse already
+        # answered for.
+        status = status_of(answer.result)
+        if status is not None and 200 <= status < 300:
+            return StepVerdict(
+                "held",
+                "status",
+                f"the call returned {status}, and this job records no read to confirm it by",
+                made=made_by(answer.result),
             )
 
     # 3. Visible state: last, and least.

@@ -1259,6 +1259,7 @@ async def run_workflow(
                 verdict = settled or await verify(
                     step=step,
                     sent_kind=planned.kind,
+                    rewrote=planned.rewrote,
                     answer=reply,
                     cited=cited,
                     values=values,

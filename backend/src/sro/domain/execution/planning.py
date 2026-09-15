@@ -149,6 +149,20 @@ class Planned:
 
     Set for the first half of a pick from a dropdown. See `plan_step`."""
 
+    rewrote: bool = False
+    """The recorded body was re-aimed at this run's values rather than replayed
+    as it was sent.
+
+    What `verify` reads it for. A 2xx on bytes replayed VERBATIM means the
+    demonstrated effect, because the endpoint answered the demonstration the
+    same way -- so rung 1 settles the step and rung 2 is never reached. That
+    reasoning does not survive a body this run changed: the status then proves
+    something was created, not that it carries the values this run was given.
+
+    The instance is in the ledger's own notes. `csttyp truncates at 4 chars`, so
+    a create asking for a five-character code is answered **201** and the record
+    is four characters long, with nobody told."""
+
 
 def value_for(
     step: Step, gesture: Gesture, values: Mapping[str, str], said: str | None

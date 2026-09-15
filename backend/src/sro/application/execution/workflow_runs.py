@@ -362,6 +362,10 @@ class StartWorkflowRun:
                 await run_workflow(
                     uow,
                     workflow,
+                    # The same cap the press was judged against, so the run can
+                    # keep asking. Read once and never again, one press on a
+                    # long list could spend the rest of the tenant's day.
+                    cap_usd=self._cap_usd,
                     tenant_id=ctx.tenant_id,
                     values=run.values,
                     channel=self._channel,

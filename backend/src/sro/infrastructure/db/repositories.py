@@ -287,6 +287,23 @@ class SqlRunRepository(RunRepository):
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
+    async def in_flight(self, tenant_id: TenantId, device_id: DeviceId) -> str | None:
+        # `ended_at IS NULL` is this table's word for running, and the same
+        # predicate `uq_runs_one_running_per_device` is built on: a read that
+        # disagreed with the index would refuse runs the index allows, or
+        # promise ones it will not.
+        busy: str | None = await self._session.scalar(
+            select(RunRow.id)
+            .where(
+                RunRow.tenant_id == tenant_id.value,
+                RunRow.device_id == device_id.value,
+                RunRow.ended_at.is_(None),
+            )
+            .order_by(RunRow.started_at.desc())
+            .limit(1)
+        )
+        return busy
+
     async def add(self, run: Run) -> None:
         self._session.add(run_to_row(run))
 

@@ -213,6 +213,24 @@ class RunRow(Base):
         Index("ix_runs_tenant_started", "tenant_id", "started_at"),
         # The breaker's question: how has this system behaved lately.
         Index("ix_runs_system_ended", "tenant_id", "target_system", "ended_at"),
+        # One unfinished run per browser, the same rule
+        # `uq_workflow_runs_one_running_per_device` keeps for the rig -- and
+        # the skill path had none of any kind. Two triggers firing two skills
+        # at one device in the same minute interleaved their clicks into one
+        # window, which is exactly the corrupted form against a live warehouse
+        # that migration 0043 was written about.
+        #
+        # `ended_at IS NULL` is this table's word for running. And a run with
+        # no `device_id` is a Steel run in a browser of its own: Postgres does
+        # not collide NULLs in a unique index, which is the answer wanted here
+        # rather than an exception to write down.
+        Index(
+            "uq_runs_one_running_per_device",
+            "tenant_id",
+            "device_id",
+            unique=True,
+            postgresql_where=text("ended_at IS NULL"),
+        ),
     )
 
 

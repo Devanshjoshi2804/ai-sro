@@ -125,6 +125,20 @@ class RunRepository(Protocol):
 
     async def get(self, tenant_id: TenantId, run_id: RunId) -> Run: ...
 
+    async def in_flight(self, tenant_id: TenantId, device_id: DeviceId) -> str | None:
+        """The skill run already driving this browser, if one is.
+
+        The same question `WorkflowRunRepository.in_flight` answers for the rig,
+        and the skill path had neither this nor the index behind it: two
+        triggers firing at one device in the same minute both started, and
+        their clicks interleaved in one window.
+
+        The read names the run so a person can be told which one has the
+        browser. `uq_runs_one_running_per_device` is what actually refuses the
+        second claim -- there are awaits between this and the commit.
+        """
+        ...
+
     async def save(self, run: Run) -> None:
         """Overwrite the record of a run in progress.
 

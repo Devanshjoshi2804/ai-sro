@@ -552,6 +552,17 @@ class FakeRunRepository:
     def __init__(self) -> None:
         self.rows: dict[tuple[str, str], Run] = {}
 
+    async def in_flight(self, tenant_id: TenantId, device_id: DeviceId) -> str | None:
+        running = [
+            run
+            for run in self.rows.values()
+            if run.tenant_id == tenant_id and run.device_id == device_id and run.ended_at is None
+        ]
+        newest = max(running, key=lambda run: run.started_at, default=None)
+        # `str`, as the port says and as the SQL answers: a `RunId` here reads
+        # the same in a print and compares unequal to everything the caller has.
+        return None if newest is None else str(newest.id)
+
     async def add(self, run: Run) -> None:
         self.rows[(str(run.tenant_id), str(run.id))] = run
 

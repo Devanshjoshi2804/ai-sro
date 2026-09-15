@@ -51,6 +51,7 @@ from sro.application.execution.run_workflow import (
 from sro.application.execution.stops import Stops
 from sro.application.ports.agent import DeviceUnreachable
 from sro.application.ports.channel import Reply
+from sro.domain.chat.reading import ChatReading
 from sro.domain.execution.belts import K_EARNED_RUNS, SCREEN_SCHEMA
 from sro.domain.execution.planning import PLAN_SCHEMA, Look, Planned
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
@@ -726,6 +727,7 @@ async def _ran(
     rescue_model: str = "pro",
     earned: bool = False,
     from_step: int = 0,
+    cap_usd: float = -1.0,
 ) -> WorkflowRun:
     """One run, with the arguments no test varies spelled once.
 
@@ -756,6 +758,10 @@ async def _ran(
             run_id=run_id,
             from_step=from_step,
             items=items,
+            # No cap unless a test is about the cap: `over_cap` answers a
+            # negative one before it touches the repository, so every other
+            # test here pays nothing and asserts nothing about money.
+            cap_usd=cap_usd,
         ),
         timeout=5,
     )
@@ -3716,6 +3722,7 @@ async def test_a_step_that_wants_a_password_keeps_saying_so_after_the_rung_gives
             started_by="form",
             stops=Stops(),
             approvals=Approvals(),
+            cap_usd=-1.0,
             # The vault this deployment has, holding nothing for this key.
             secret_for=lambda _key: _nothing_stored(),
         ),
@@ -4277,6 +4284,72 @@ async def test_what_the_operator_already_did_was_done_once_not_once_per_thing() 
     assert [step.item for step in run.steps if step.of_step == 0] == [0, 1, 2]
 
 
+async def test_a_long_list_reads_the_days_bill_again_and_stops_when_it_is_spent() -> None:
+    """The cap was read at the press and never again.
+
+    `over_cap` is asked by `StartWorkflowRun` before the run row exists, and
+    appeared nowhere in the loop. A press that passed that check at $0 could
+    then spend the rest of the tenant's day inside one run: 25 items of a
+    four-step body is about a hundred legs, and at this deployment's measured
+    $0.0118 a step that is $1.20 against a $5 day, with nothing asking.
+
+    The bill is planted mid-run by a chat row landing after the first thing on
+    the list, which is what a mining pass or another browser does while a long
+    run is going.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    workflow.repeat, items = _adding_three()
+    channel = FakeChannel(
+        {
+            **_looks(12),
+            "ui.perform": [_performed()] * 6,
+            "http.send": [Reply(ok=True, result={"status": 404, "body": "{}"})] * 3,
+            "calls.since": [Reply(ok=True, result={"calls": []})] * 6,
+        }
+    )
+
+    class _SpendsWhileItRuns(_PerSchemaAsker):
+        """Somebody else's bill arriving mid-run."""
+
+        def __init__(self) -> None:
+            super().__init__(plan=_plan("type", "x"), verdict=Answer(data={"held": True}))
+            # Not `asked`: the parent keeps the calls it was given under that
+            # name, and shadowing it turns a list into a counter three frames
+            # from here.
+            self.times = 0
+
+        async def ask(self, *args: object, **kwargs: object) -> Answer:
+            self.times += 1
+            if self.times == 2:
+                await uow.chats.record(
+                    ChatReading(
+                        id="cha_someone_else",
+                        tenant=TENANT.value,
+                        at=datetime.now(tz=UTC).isoformat(),
+                        cost_usd=9.99,
+                    )
+                )
+            return await super().ask(*args, **kwargs)  # type: ignore[arg-type]
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=_SpendsWhileItRuns(),
+        items=items,
+        earned=True,
+        approvals=_SaysYes(),
+        cap_usd=5.0,
+    )
+
+    assert run.outcome == "stopped"
+    assert "daily cap reached" in (run.steps[-1].reason or "")
+    # Stopped at a boundary between two things on the list, so what it did is
+    # whole records rather than half of one.
+    assert run.steps[-1].item is not None and run.steps[-1].item > 0
+
+
 async def test_a_list_longer_than_one_press_can_mean_is_refused_before_anything_is_sent() -> None:
     """An operator pressing yes on "add these" has read a mail with a handful of
     rows in it. Two hundred is either a mistake or a decision they have not
@@ -4417,6 +4490,7 @@ async def test_a_second_run_of_the_same_list_asks_again(monkeypatch: pytest.Monk
             started_by="form",
             stops=Stops(),
             approvals=Approvals(),
+            cap_usd=-1.0,
             items=items,
             run_id="run_second_list",
         ),

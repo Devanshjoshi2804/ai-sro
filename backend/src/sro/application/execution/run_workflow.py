@@ -59,6 +59,7 @@ from sro.application.execution.verify import (
     by_what_the_page_called,
     verify,
 )
+from sro.application.intent.spend import over_cap
 from sro.application.ports.agent import DeviceUnreachable
 from sro.application.ports.channel import Channel, Reply
 from sro.application.ports.model import Asker
@@ -104,6 +105,20 @@ def write_key(workflow_id: str, step: Step, values: Mapping[str, str]) -> str:
     said = json.dumps(dict(sorted(values.items())), separators=(",", ":"))
     return f"{workflow_id}:{step.order}:{hashlib.sha256(said.encode()).hexdigest()[:16]}"
 
+
+K_CAP_EVERY = 10
+"""How many legs a run may perform between two readings of the day's bill.
+
+The cap was read once, at the press, and never again -- `over_cap` appears
+nowhere in this module's history. One press on a 25-item list is about a
+hundred legs, and at this deployment's measured $0.0118 a step that is $1.20
+against a $5 day, spent after a check that saw $0. Ten is small enough that
+the overspend is a rounding error and large enough that a four-step job pays
+for no extra query at all: the day's bill is a sum over four tables.
+
+A new thing on the list is always a reading, whatever this says. That is where
+a run can still be stopped having done whole records rather than half of one.
+"""
 
 K_STEP_SLACK = 3
 """Attempts a run may make beyond its step count before it stops. A model
@@ -161,6 +176,23 @@ def _itinerary(
                 if repeat.covers(inner.order):
                     legs.append(_Leg(inner, {**values, **item}, index))
     return legs
+
+
+def _worth_asking(position: int, leg: _Leg, itinerary: Sequence[_Leg]) -> bool:
+    """Whether the day's bill is worth a query before this leg.
+
+    Never at the first: the press just asked, and a run refused on its own
+    opening leg would be a 429 wearing a run's clothes.
+
+    Otherwise at the start of each new thing on the list -- the one boundary
+    where stopping leaves whole records rather than half of one -- and every
+    `K_CAP_EVERY` legs for a job that is long without being a list.
+    """
+    if position == 0:
+        return False
+    if leg.item is not None and leg.item != itinerary[position - 1].item:
+        return True
+    return position % K_CAP_EVERY == 0
 
 
 def _now() -> str:
@@ -408,6 +440,7 @@ async def run_workflow(
     items: Sequence[Mapping[str, str]] = (),
     verified_writes: tuple[VerifiedWrite, ...] = (),
     secret_for: SecretFor | None = None,
+    cap_usd: float,
 ) -> WorkflowRun:
     # A run the caller already claimed. `POST /v1/runs` writes the `running` row
     # itself, before it answers, so a second press for the same browser is
@@ -566,6 +599,28 @@ async def run_workflow(
                     tenant_id, device_id, kind="abort", run_id=run.id, payload={"run_id": run.id}
                 )
                 run.outcome = "aborted"
+                break
+            # The day's bill, again. Read at the press and then never, a run
+            # that passed the check at $0 could spend the rest of the tenant's
+            # day inside one press -- and the longer the list, the more it
+            # spends before anything asks. Asked at the start of each new thing
+            # on the list, and otherwise every `K_CAP_EVERY` legs.
+            if _worth_asking(position, leg, itinerary) and (
+                why := await over_cap(uow, tenant_id, now=datetime.now(tz=UTC), cap_usd=cap_usd)
+            ):
+                run.steps.append(
+                    RunStep(
+                        order=position,
+                        of_step=step.order,
+                        item=leg.item,
+                        says=step.says,
+                        verdict="failed",
+                        verdict_by="none",
+                        reason=why,
+                    )
+                )
+                run.outcome = "stopped"
+                await _save(uow, run)
                 break
             cited = [by_id[c] for c in step.cites if c in by_id]
             primary = primary_gesture(step, by_id)

@@ -10,13 +10,19 @@ was a storage rule and renamed where the route half is plan 4's.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import event, select
+import pytest
+from sqlalchemy import event, select, text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
+from sro.domain.execution.run import Run, RunId
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun, new_run_id
-from sro.domain.shared.identifiers import DeviceId, TenantId
+from sro.domain.shared.errors import Conflict
+from sro.domain.shared.identifiers import DeviceId, PrincipalId, SkillId, TenantId
+from sro.domain.skill import PromotionStage
 from sro.infrastructure.db.models import WorkflowRunStepRow
 from sro.infrastructure.db.repositories import SqlUnitOfWork
 
@@ -38,6 +44,23 @@ def _run(**overrides: Any) -> WorkflowRun:
     }
     fields.update(overrides)
     return WorkflowRun(**fields)
+
+
+def _skill_run(run_id: str, **overrides: Any) -> Run:
+    """One skill run, the older path's kind, with the fields its index reads."""
+    fields: dict[str, Any] = {
+        "id": RunId(run_id),
+        "tenant_id": TENANT,
+        "skill_id": SkillId("skl_1"),
+        "skill_version": 1,
+        "stage": PromotionStage.SHADOW,
+        "parameters": {},
+        "requested_by": PrincipalId("operator"),
+        "started_at": datetime(2026, 9, 5, 10, tzinfo=UTC),
+        "device_id": DeviceId("dev_1"),
+    }
+    fields.update(overrides)
+    return Run(**fields)
 
 
 class TestWorkflowRuns:
@@ -475,3 +498,147 @@ class TestApprovals:
             waiting = await uow.workflow_runs.awaiting(TENANT)
 
         assert waiting == ((parked.id, 1, "save the work area"),)
+
+
+class TestOneRunningRunPerBrowser:
+    """The index itself, asked of the database rather than of a race.
+
+    `test_two_presses_at_once_do_not_both_get_the_browser` is the behaviour
+    this backs, and its own docstring says what it cannot do: gathered presses
+    are two coroutines on one loop, and whether the second one yields before
+    the first commits is a scheduling question. Run inside the directory the
+    caches are warm, press one finishes first, and `in_flight` answers on its
+    own -- so `make check` stayed green with
+    `uq_workflow_runs_one_running_per_device` deleted from the models.
+
+    Two tests, because the index has two halves and losing either is silent:
+    that Postgres refuses the second row, and that the object refusing it is
+    UNIQUE and scoped to `outcome = 'running'`. An index that lost its
+    predicate would refuse a browser its SECOND run ever; one that lost
+    `unique` would refuse nothing and still pass a test that only checks the
+    name.
+    """
+
+    async def test_postgres_refuses_a_second_running_row_for_one_browser(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflow_runs.save(_run(id="run_first", outcome="running"))
+            await uow.commit()
+
+        with pytest.raises(Conflict) as refused:
+            async with SqlUnitOfWork(session_factory) as uow:
+                await uow.workflow_runs.save(_run(id="run_second", outcome="running"))
+                await uow.commit()
+
+        # The sentence a person reads, not just the violation: the repository
+        # turns the index's refusal into the same answer the busy check gives,
+        # naming the run that holds the browser.
+        assert "run_first" in str(refused.value)
+
+    async def test_a_browser_whose_run_has_ended_may_start_another(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """The other half of the predicate, and the reason it is partial: a
+        browser is free the moment its run is not `running`, and an index that
+        forgot the `WHERE` would let a browser do one job, ever."""
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflow_runs.save(_run(id="run_done", outcome="held"))
+            await uow.workflow_runs.save(_run(id="run_also_done", outcome="failed"))
+            await uow.workflow_runs.save(_run(id="run_now", outcome="running"))
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            assert await uow.workflow_runs.in_flight(TENANT, DeviceId("dev_1")) == "run_now"
+
+    async def test_another_browser_and_another_tenant_are_not_this_browser(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflow_runs.save(_run(id="run_mine", outcome="running"))
+            await uow.workflow_runs.save(
+                _run(id="run_other_device", device_id="dev_2", outcome="running")
+            )
+            await uow.workflow_runs.save(
+                _run(id="run_other_tenant", tenant=OTHER_TENANT.value, outcome="running")
+            )
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            assert await uow.workflow_runs.in_flight(TENANT, DeviceId("dev_1")) == "run_mine"
+            assert (
+                await uow.workflow_runs.in_flight(TENANT, DeviceId("dev_2")) == "run_other_device"
+            )
+
+    async def test_the_index_is_unique_and_only_over_running_rows(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """What the object actually is, read back out of Postgres.
+
+        `test_the_migrations_run` asserts this index's NAME. A name is not a
+        constraint: an index that arrived without `unique`, or without the
+        predicate, carries the same name and answers the same assertion.
+        """
+        async with session_factory() as session:
+            said = (
+                await session.execute(
+                    text(
+                        "select indexdef from pg_indexes "
+                        "where indexname = 'uq_workflow_runs_one_running_per_device'"
+                    )
+                )
+            ).scalar_one()
+
+        assert "CREATE UNIQUE INDEX" in said, said
+        assert "tenant_id" in said and "device_id" in said, said
+        assert "outcome" in said and "'running'" in said and "WHERE" in said, said
+
+
+class TestOneSkillRunPerBrowser:
+    """The same rule for the older path, which had none of it.
+
+    `workflow_runs` has had `uq_workflow_runs_one_running_per_device` since
+    0043; `runs` had `runs_pkey` and two plain indexes. Two triggers firing two
+    skills at one browser in the same minute both started, and their clicks
+    interleaved in one window -- the corrupted form against a live warehouse
+    that 0043's own docstring is about.
+    """
+
+    async def test_postgres_refuses_a_second_unfinished_skill_run(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.runs.add(_skill_run("run_first"))
+            await uow.commit()
+
+        with pytest.raises(IntegrityError):
+            async with SqlUnitOfWork(session_factory) as uow:
+                await uow.runs.add(_skill_run("run_second"))
+                await uow.commit()
+
+    async def test_a_browser_whose_skill_run_has_ended_may_start_another(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.runs.add(
+                _skill_run("run_done", ended_at=datetime(2026, 9, 5, 11, tzinfo=UTC))
+            )
+            await uow.runs.add(_skill_run("run_now"))
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            assert await uow.runs.in_flight(TENANT, DeviceId("dev_1")) == "run_now"
+
+    async def test_a_run_in_a_browser_of_ours_names_no_device_and_never_collides(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """A Steel run has its own browser. Postgres does not collide NULLs in
+        a unique index, which is the answer wanted rather than an exception to
+        write down -- and is why the index is on `device_id` as it stands."""
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.runs.add(_skill_run("run_steel_1", device_id=None))
+            await uow.runs.add(_skill_run("run_steel_2", device_id=None))
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            assert await uow.runs.in_flight(TENANT, DeviceId("dev_1")) is None

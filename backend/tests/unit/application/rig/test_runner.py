@@ -4322,6 +4322,66 @@ async def test_the_steps_that_only_opened_a_form_are_not_done_when_the_write_is_
     assert not asker.asked, "and no model was asked about any of it"
 
 
+async def test_a_replay_names_its_own_screen_even_when_it_is_not_the_first_command() -> None:
+    """Measured on the deployment's own row, 2026-09-16.
+
+    `Create a Customer Type` step 1 is "Open an email" and carries 15 writes --
+    Gmail's own -- so it is not scaffolding and it is performed. Steps 2 to 5
+    collapse. The replay is therefore the SECOND command, by which time the
+    run's first-command `starts_on` has been spent on the mail, and the call
+    wants a Blue Yonder tab to read `CSRF-ENCRYPT-TOKEN` off while the browser
+    is in Gmail. It failed `no_tab_for_origin` for an operator who had not left
+    a warehouse tab open.
+
+    So the page is taken from THIS step's own demonstrations, which name its
+    own system by construction -- and `opensFor` still refuses a `starts_on`
+    whose origin is not the command's, so it can only open the page the call
+    is going to. That is the distinction the 2026-09-15 failure turned on: what
+    dragged a cross-system job back to its first system was sending every step
+    the page the RUN began on.
+    """
+    uow = await _fixture()
+    mail = _demonstrated("m1", {"threadId": "t1"})
+    mail.url = "https://mail.example/mail/u/0/#inbox/t1"
+    mail.system = "https://mail.example"
+    mail.requests[0] = replace(mail.requests[0], url="https://mail.example/sync")
+    await uow.gestures.add_gestures((mail,))
+    workflow = await _demonstrated_twice(uow)
+    workflow.steps.insert(
+        0, Step(order=-1, says="Open the email", system=None, cites=["m1"], parameters=[])
+    )
+    await uow.workflows.save(workflow)
+    channel = FakeChannel(
+        {
+            **_looks(4),
+            "ui.perform": [_performed()],
+            "http.send": [Reply(ok=True, result={"status": 201, "body": "{}"})] * 3,
+        }
+    )
+    asker = FakeAsker(_plan("click"), Answer(data={"held": True, "why": "opened"}))
+
+    await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        values={_CODE: "GPDP", _DESCRIPTION: "type 03"},
+        earned=True,
+        verified_writes=(VerifiedWrite(method="POST", path_pattern="/api/orders"),),
+    )
+
+    call = next(
+        one
+        for one in channel.sent
+        if one["kind"] == "http.send" and _payload(one)["method"] == "POST"
+    )
+    opens = _payload(call).get("starts_on")
+    assert opens is not None, "the second command had no page to open a tab at"
+    assert str(opens).startswith("http://127.0.0.1:63319"), (
+        "and it names the system the call is going to, not the mail the run began in"
+    )
+
+
 async def test_a_collapsed_first_step_does_not_get_to_say_where_the_run_opens() -> None:
     """`starts_on` is the page the extension OPENS a tab at when the operator's
     own is somewhere else, and it is taken from the step the run begins at.

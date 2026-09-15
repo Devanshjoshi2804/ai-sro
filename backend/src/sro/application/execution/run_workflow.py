@@ -648,6 +648,7 @@ async def run_workflow(
     # Whether any command has gone out yet, which is what makes the next one
     # the run's first: `starts_on` belongs to that one alone.
     sent_nothing_yet = True
+
     # The page this run begins on, which is the page of the step it begins at
     # -- not the job's first page. The extension opens a tab at `starts_on`
     # when the operator's own tab is elsewhere, and aiming a run that starts at
@@ -693,19 +694,24 @@ async def run_workflow(
     # the browser is never driven into the wrong system -- but the tab is then
     # never opened either, and a run whose operator has no warehouse tab open
     # fails instead of opening one.
-    step_here = next((one for one in ordered[from_step:] if one.order not in collapsed), None)
-    first = primary_gesture(step_here, by_id) if step_here is not None else None
-    if first is not None and step_here is not None:
-        starts_on = screen_of(
+    def _screen_of(step: Step | None) -> str | None:
+        """The screen this step's own demonstrations agree on."""
+        anchor = primary_gesture(step, by_id) if step is not None else None
+        if anchor is None or step is None:
+            return None
+        return screen_of(
             [
-                first.page_url or first.url,
+                anchor.page_url or anchor.url,
                 *(
                     by_id[cited].page_url or by_id[cited].url
-                    for cited in step_here.cites
+                    for cited in step.cites
                     if cited in by_id
                 ),
             ]
         )
+
+    step_here = next((one for one in ordered[from_step:] if one.order not in collapsed), None)
+    starts_on = _screen_of(step_here)
 
     # The step being worked on, so a browser that goes away mid-step fails THAT
     # step -- with the tokens its plan already cost, and its own order -- rather
@@ -887,11 +893,27 @@ async def run_workflow(
                     values=values,
                     verified_writes=verified_writes,
                     seen=observed,
-                    # Only for the first command this run sends, which for a
-                    # job whose write is a call is usually this one: the steps
-                    # that walked the browser to the form are collapsed, so
-                    # nothing before it has put a tab on the origin.
-                    starts_on=starts_on if sent_nothing_yet else None,
+                    # THIS step's own screen, not the run's, and not only for
+                    # the run's first command.
+                    #
+                    # Measured on the deployment's own row, 2026-09-16. `Create
+                    # a Customer Type` step 1 is "Open an email" and carries 15
+                    # writes -- Gmail's own -- so it is not scaffolding and is
+                    # performed; steps 2 to 5 collapse; and the replay is the
+                    # SECOND command, by which time `sent_nothing_yet` is false
+                    # and the run-level `starts_on` has been spent on Gmail.
+                    # The call then wants a Blue Yonder tab to read
+                    # `CSRF-ENCRYPT-TOKEN` off, the browser is in the mail, and
+                    # the step fails `no_tab_for_origin`.
+                    #
+                    # Safe where the run-level one was not, and the 2026-09-15
+                    # failure says exactly why: what dragged a cross-system job
+                    # back to its first system was sending every step the page
+                    # the RUN began on. A step's own screen names its own
+                    # system by construction, and `opensFor` refuses a
+                    # `starts_on` whose origin is not the command's, so this
+                    # can only ever open the page the call is going to.
+                    starts_on=_screen_of(step),
                 )
                 if primary is not None
                 else None

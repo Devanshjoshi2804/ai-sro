@@ -114,8 +114,12 @@ $C exec caddy caddy validate --config /etc/caddy/Caddyfile
 ## After every deploy
 
 ```bash
-make smoke at=http://10.11.9.25:8088        # env=infra/.env.prod for the other one
+make smoke at=http://10.11.9.25:8088 DOCKER="sudo docker"
 ```
+
+`DOCKER="sudo docker"` because nobody on that host is in the `docker` group,
+and adding somebody to it grants root on a machine three other teams share.
+`env=infra/.env.prod` picks the other environment.
 
 It asks the one question a test suite cannot: whether the urls this system
 hands to a browser name anything a browser can reach. It runs inside the API

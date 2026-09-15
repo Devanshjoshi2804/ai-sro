@@ -4,7 +4,11 @@
 # typing a long command twice, it belongs in this file.
 
 COMPOSE := docker compose -f infra/docker-compose.yml
-DEPLOY := docker compose -f infra/docker-compose.deploy.yml --env-file $(or $(env),infra/.env.qa)
+
+# `DOCKER="sudo docker"` on a host where you are not in the `docker` group --
+# which is most shared machines, because that group is root by another name.
+DOCKER ?= docker
+DEPLOY := $(DOCKER) compose -f infra/docker-compose.deploy.yml --env-file $(or $(env),infra/.env.qa)
 BACKEND := cd backend &&
 FRONTEND := cd frontend &&
 
@@ -257,7 +261,7 @@ test-extension: ## The extension's own self-checks, in plain node
 	@# shapes request. Neither survives a fresh process per file.
 	cd new-chrome-extension && node --test "**/*.test.?(c|m)js"
 
-smoke: ## Does a DEPLOYMENT work from outside itself: make smoke at=http://10.11.9.25:8088
+smoke: ## Does a DEPLOYMENT work from outside itself: make smoke at=http://host:8088 [DOCKER="sudo docker"]
 	@# Run after every deploy. Not a substitute for the suite -- it asks the
 	@# one question a suite cannot: whether the urls this system hands to a
 	@# browser name anything a browser can reach. Every defect on the first day

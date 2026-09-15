@@ -1,0 +1,45 @@
+# Deployment collector: accept OTLP, keep traces where somebody can read them.
+#
+# The development file next to this one prints to stdout, which is a fine
+# default for a laptop and useless on a host: `docker logs otel-collector` is
+# not a place anybody finds a slow request. Traces go to Jaeger here, and the
+# `debug` exporter stays on so a collector that cannot reach Jaeger still
+# leaves a trail rather than dropping spans in silence.
+#
+# Metrics and logs still only print. Jaeger stores traces and nothing else, and
+# a metrics backend is a bigger decision than this file -- see
+# docs/18-deployment.md.
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch:
+
+exporters:
+  debug:
+    verbosity: normal
+  otlp/jaeger:
+    endpoint: jaeger:4317
+    tls:
+      insecure: true
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlp/jaeger, debug]
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [debug]
+    logs:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [debug]

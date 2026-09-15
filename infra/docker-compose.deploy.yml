@@ -81,6 +81,10 @@ services:
       MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:?set S3_SECRET_KEY}
     volumes:
       - minio-data:/data
+    ports:
+      # The console only, on loopback. The S3 API stays on the compose network:
+      # the only thing that speaks to it is the backend.
+      - "127.0.0.1:${MINIO_CONSOLE_BIND_PORT:-9001}:9001"
     healthcheck:
       test: ["CMD", "mc", "ready", "local"]
       interval: 10s
@@ -157,7 +161,44 @@ services:
     restart: unless-stopped
     command: ["--config=/etc/otel-collector.yaml"]
     volumes:
-      - ./otel-collector.yaml:/etc/otel-collector.yaml:ro
+      - ./otel-collector.deploy.yaml:/etc/otel-collector.yaml:ro
+
+  # ---------------------------------------------------------------------------
+  # What somebody on call looks at. All three bind to 127.0.0.1 and are reached
+  # over an SSH tunnel, because this host is shared with other teams and none
+  # of them asks who you are:
+  #
+  #   ssh -L 8080:localhost:8080 -L 9001:localhost:9001 -L 16686:localhost:16686 \
+  #       <user>@10.11.9.25
+  #
+  # Then http://localhost:8080 (runs), :9001 (artifacts), :16686 (traces).
+  # ---------------------------------------------------------------------------
+
+  # Runs, retries, and the reason a workflow is stuck. The question the
+  # worker's healthcheck could not answer.
+  temporal-ui:
+    image: temporalio/ui:2.31.2
+    restart: unless-stopped
+    depends_on:
+      temporal:
+        condition: service_healthy
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+      TEMPORAL_CORS_ORIGINS: http://localhost:8080
+    ports:
+      - "127.0.0.1:${TEMPORAL_UI_BIND_PORT:-8080}:8080"
+
+  # Traces, with no second storage system to run: Jaeger speaks OTLP itself
+  # and keeps spans in memory. In memory is the point and the limit -- a
+  # restart loses them, which is the right trade for a QA box and the wrong
+  # one for anything anybody has to investigate a week later.
+  jaeger:
+    image: jaegertracing/all-in-one:1.62.0
+    restart: unless-stopped
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "127.0.0.1:${JAEGER_UI_BIND_PORT:-16686}:16686"
 
   # ---------------------------------------------------------------------------
   # The schema, before anything serves it. Runs to completion and exits; the

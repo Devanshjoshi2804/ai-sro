@@ -138,14 +138,65 @@ ship knowing its deployment — either a generated default beside
 use) or a single pasted connect string carrying url and token together. This is
 not done.
 
+## Looking at it
+
+Logs, the database and the worker's liveness, over SSH:
+
+```bash
+cd ~/ai-sro
+C="sudo docker compose -f infra/docker-compose.deploy.yml --env-file infra/.env.qa"
+
+$C logs -f api worker                       # live
+$C logs --since 1h api | grep -iE "error|exception|traceback"
+$C ps                                       # what is up
+$C exec postgres psql -U sro -d sro         # the database
+```
+
+**Whether the worker is working** is not answered by its container status --
+one image serves the API and the worker, and the worker serves no HTTP, so its
+inherited healthcheck is disabled. Ask Temporal instead:
+
+```bash
+$C exec temporal temporal --address temporal:7233 \
+  task-queue describe --task-queue default
+```
+
+Pollers listed means alive, and each identity carries the revision it is
+running, so a worker left behind by a deploy is visible rather than inferred.
+
+### The three UIs, over a tunnel
+
+They bind to `127.0.0.1` on the host on purpose. This box is shared with other
+teams and none of these asks who you are, so they are reached by forwarding
+rather than by publishing:
+
+```bash
+ssh -L 8080:localhost:8080 -L 9001:localhost:9001 -L 16686:localhost:16686 \
+    <your-os-login-user>@10.11.9.25
+```
+
+| | | |
+|---|---|---|
+| http://localhost:8080 | Temporal | runs, retries, why a workflow is stuck |
+| http://localhost:9001 | MinIO | the artifacts: event streams, screencasts |
+| http://localhost:16686 | Jaeger | traces |
+
+Jaeger keeps spans **in memory**: a restart loses them. That is the right
+trade for a QA box and the wrong one for anything that has to be investigated
+a week later.
+
 ## Not done, named rather than implied
 
 - **TLS.** The stack serves plain HTTP. Fine on a private network for QA;
   terminate TLS in front of it before anything crosses one.
 - **Backups.** `postgres-data`, `minio-data` and `vault-data` hold the
   evidence, the artifacts and the system credentials. Nothing backs them up.
-- **Monitoring.** The collector prints to stdout. Point its exporter somewhere
-  real in `infra/otel-collector.yaml`.
+- **Alerting.** Nothing tells anybody when something breaks; somebody has to
+  go and look. It needs a destination before it needs a tool -- an inbox, a
+  Slack channel, an on-call rota -- and that is a decision, not a container.
+- **Metrics and logs have no backend.** Traces reach Jaeger; metrics and logs
+  still only print. A metrics store is a bigger decision than the collector
+  config, and this deployment has not needed one yet.
 - **A registry**, so promotion is a tag move rather than a rebuild.
 - **Steel's own reachability.** `STEEL_DOMAIN` must be an address a person's
   browser can dial, or the live view sits on "Session connecting..." forever.

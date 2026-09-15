@@ -57,3 +57,34 @@ def test_it_keeps_the_path_steel_chose() -> None:
 def test_one_address_is_still_one_address() -> None:
     """A laptop, where Steel is reached by the same name either way."""
     assert urlsplit(_viewer_url(None)).netloc == "steel:3000"
+
+
+# -- the CDP endpoint Chrome will actually answer ------------------------------
+
+
+async def test_the_cdp_authority_is_an_address_because_chrome_refuses_a_name() -> None:
+    """Chrome answers every `/json/*` request and every devtools websocket
+    whose Host is a name with
+
+        500 Host header is specified and is not an IP address or localhost.
+
+    It is a DNS-rebinding guard. On a compose network the host IS a name, so
+    this deployment could reach Chrome's port and could not use it -- and
+    nothing noticed until the first browser session was opened, because
+    `localhost:9223` on a laptop has an IP for a host and walks past the check.
+    """
+    steel = SteelClient(INSIDE, "http://localhost:9223")
+
+    authority = await steel._cdp_origin()
+
+    host, _, port = authority.rpartition(":")
+    assert host == "127.0.0.1", "a name here is a 500 from Chrome"
+    assert port == "9223", "the port is not Chrome's to choose"
+
+
+async def test_a_host_that_does_not_resolve_is_left_as_it_was_written() -> None:
+    """The connection that follows fails on its own and names what it could
+    not reach, which is a better error than one about DNS."""
+    steel = SteelClient(INSIDE, "http://nothing.invalid:9223")
+
+    assert await steel._cdp_origin() == "nothing.invalid:9223"

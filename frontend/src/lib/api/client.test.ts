@@ -24,7 +24,11 @@ describe("ApiError", () => {
   it("renders a framework's list of validation objects as words", async () => {
     answering(422, {
       detail: [
-        { type: "model_attributes_type", loc: ["body", "objective_key"], msg: "Input should be a valid dictionary" },
+        {
+          type: "model_attributes_type",
+          loc: ["body", "objective_key"],
+          msg: "Input should be a valid dictionary",
+        },
       ],
     });
 

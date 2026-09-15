@@ -136,9 +136,7 @@ export function TeachPanel({
   const url = liveView.data?.live_view_url;
 
   return (
-    <div
-      style={{ display: "flex", flexDirection: "column", height: "100%", background: ink.page }}
-    >
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", background: ink.page }}>
       <header
         style={{
           display: "flex",

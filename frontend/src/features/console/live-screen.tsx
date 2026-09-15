@@ -19,9 +19,7 @@ import { ink, mono } from "@/features/console/theme";
  */
 export function LiveScreen({ sessionId, height = 420 }: { sessionId: string; height?: number }) {
   const image = useRef<HTMLImageElement>(null);
-  const [state, setState] = useState<"connecting" | "live" | "ended" | "unreachable">(
-    "connecting",
-  );
+  const [state, setState] = useState<"connecting" | "live" | "ended" | "unreachable">("connecting");
 
   // Back to "connecting" the moment the session changes, and the last frame
   // cleared with it. Neither happened before, so browser B opened showing the

@@ -52,15 +52,19 @@ export function KnowledgePage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">What we know</h1>
         <p className="text-muted-foreground text-sm">
-          Everything on this page is shared. One person teaches a task and the whole tenant has
-          it; every verified run adds to what is known here.
+          Everything on this page is shared. One person teaches a task and the whole tenant has it;
+          every verified run adds to what is known here.
         </p>
       </div>
 
       <OpenQuestions />
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <Figure label="claims" value={known} hint={Object.keys(summary.data.system_counts).join(", ")} />
+        <Figure
+          label="claims"
+          value={known}
+          hint={Object.keys(summary.data.system_counts).join(", ")}
+        />
         <Figure
           label="proved by our own runs"
           value={summary.data.learned_from_runs}
@@ -125,7 +129,9 @@ export function KnowledgePage() {
           onChange={(event) => setQuery(event.target.value)}
           placeholder="a screen, an endpoint, a field — “carrier”, “adjust”, “count”"
         />
-        {results.data?.map((entry) => <Entry key={entry.id} entry={entry} />)}
+        {results.data?.map((entry) => (
+          <Entry key={entry.id} entry={entry} />
+        ))}
         {query.trim().length > 2 && results.data?.length === 0 && (
           <p className="text-muted-foreground text-sm">Nothing known about that yet.</p>
         )}

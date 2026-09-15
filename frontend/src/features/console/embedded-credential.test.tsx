@@ -65,10 +65,7 @@ describe("a console inside the extension's panel", () => {
     const replies = arrive(PANEL, { kind: "sro.credential", token: TOKEN });
 
     expect(credential()).toBe(TOKEN);
-    expect(replies).toHaveBeenCalledWith(
-      { kind: "sro.credential.ok" },
-      { targetOrigin: PANEL },
-    );
+    expect(replies).toHaveBeenCalledWith({ kind: "sro.credential.ok" }, { targetOrigin: PANEL });
   });
 
   it("ignores a credential from any other origin, without saying so", () => {

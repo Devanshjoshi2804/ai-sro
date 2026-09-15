@@ -178,8 +178,8 @@ export function WorkflowDetail({ workflowId }: { workflowId: string }) {
           {evidence.data && (
             <>
               <p className="text-muted-foreground">
-                {Object.keys(gestures).length} gestures · {Object.keys(calls).length} carrying
-                calls · {Object.keys(shots).length} photographed · {recordings.length}{" "}
+                {Object.keys(gestures).length} gestures · {Object.keys(calls).length} carrying calls
+                · {Object.keys(shots).length} photographed · {recordings.length}{" "}
                 {recordings.length === 1 ? "recording" : "recordings"}
               </p>
               {recordings.length > 0 && (

@@ -64,8 +64,10 @@ describe("AwaitingBadge", () => {
   });
 
   it("shows the count when a browser is holding a write open", async () => {
-    vi.spyOn(workflowApi, "listAwaitingRuns")
-      .mockResolvedValue([parked, { ...parked, id: "wrun_b" }] as never);
+    vi.spyOn(workflowApi, "listAwaitingRuns").mockResolvedValue([
+      parked,
+      { ...parked, id: "wrun_b" },
+    ] as never);
     renderWithQuery(<AwaitingBadge />);
     expect(await screen.findByText("2")).toBeInTheDocument();
   });

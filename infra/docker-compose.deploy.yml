@@ -279,6 +279,20 @@ services:
     environment: *backend-env
     volumes:
       - vault-data:/var/lib/sro
+      # The ledger of writes somebody watched succeed, which is what decides
+      # whether a mined job may send its recorded call instead of clicking
+      # through the form. Read-only, and mounted rather than baked into the
+      # image: it is a research artifact edited by hand between sessions, and
+      # a new row should not need a rebuild.
+      #
+      # At `/knowledge-base` because that is where the loader looks. It
+      # resolves its root five parents up from its own file, which is the
+      # repository root on a laptop and `/` in this image -- so without this
+      # mount `load_verified_writes` returns nothing, every replay falls back
+      # to driving the form, and the only sign is one warning line. Found
+      # exactly that way on QA, 2026-09-16: `ledger rows: 0`. `scripts/smoke.py`
+      # now asks after it, so a deployment cannot go quiet about it again.
+      - ../knowledge-base:/knowledge-base:ro
     # No published port: the proxy reaches it on this network, and an API
     # published beside a proxy is a second front door with its own CORS rules.
 
@@ -296,6 +310,8 @@ services:
     environment: *backend-env
     volumes:
       - vault-data:/var/lib/sro
+      # Same ledger, same reason: induction and the mining sweeps run here.
+      - ../knowledge-base:/knowledge-base:ro
     command: ["python", "-m", "sro.infrastructure.temporal.worker"]
     # The image's healthcheck curls the API's port, and this container serves
     # no HTTP -- so it reported `unhealthy` from the moment it started while

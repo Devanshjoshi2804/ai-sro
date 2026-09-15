@@ -255,6 +255,38 @@ async def check_worker(container: object) -> None:
         bad("worker", f"{type(exc).__name__}: {str(exc)[:90]}")
 
 
+def check_ledger() -> None:
+    """Whether this deployment can tell a watched write from an unwatched one.
+
+    The one question that decides whether a mined job replays its recorded call
+    or drives the form: `verified_write_for` is membership in this ledger, and
+    an empty ledger is a deployment where nothing is verified, every replay
+    falls back to clicking, and `live_headers` is never asked for.
+
+    It belongs here rather than in the suite for this module's whole reason. On
+    a laptop the loader resolves its root five parents up from its own file and
+    finds the repository's `knowledge-base/`; in the image those five parents
+    are `/`, so it looks in `/knowledge-base` and finds nothing unless the
+    compose file mounts it there. Every test passes either way. Measured on QA
+    2026-09-16, after a clean deploy and a green suite: `ledger rows: 0`.
+    """
+    try:
+        from sro.infrastructure.knowledge.write_endpoints import load_verified_writes
+
+        rows = load_verified_writes()
+    except Exception as exc:
+        bad("write ledger", f"{type(exc).__name__}: {str(exc)[:90]}")
+        return
+    if rows:
+        ok("write ledger", f"{len(rows)} verified endpoint(s)")
+    else:
+        bad(
+            "write ledger",
+            "no verified writes — mount knowledge-base at /knowledge-base, "
+            "or every mined job will click through the form instead of replaying its call",
+        )
+
+
 async def main() -> int:
     if len(sys.argv) < 2:
         print(__doc__)
@@ -269,6 +301,7 @@ async def main() -> int:
     await check_artifact(container, public)
     await check_browser(container, public)
     await check_worker(container)
+    check_ledger()
 
     print()
     if _failures:

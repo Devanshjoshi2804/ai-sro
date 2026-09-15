@@ -44,7 +44,10 @@
 	# the root namespace with a third party is the cost of folding it in, and
 	# anything Steel serves under `/v1` in a future version lands here without
 	# being asked for.
-	handle /ui/* {
+	# `/ui*`, not `/ui/*`: Steel serves the bare path too, and a matcher that
+	# wants a following segment sends `/ui` to the console, which 404s it. The
+	# trailing slash is not something an operator types.
+	handle /ui* {
 		reverse_proxy steel:3000
 	}
 	handle /v1/sessions* {

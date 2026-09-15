@@ -97,6 +97,7 @@ from sro.domain.execution.workflow_run import (
 from sro.domain.shared.errors import Conflict, DomainError, NotFound
 from sro.domain.shared.identifiers import DeviceId
 from sro.domain.skill.reversals import undoes
+from sro.domain.skill.shape import resumes_at
 from sro.domain.skill.workflow import cited_ids
 
 __all__ = [
@@ -183,6 +184,7 @@ class StartWorkflowRun:
         live: bool,
         allow_focus: bool,
         from_step: int = 0,
+        matched: int | None = None,
         items: Sequence[Mapping[str, str]] = (),
         run_id: str | None = None,
     ) -> WorkflowRun:
@@ -244,14 +246,37 @@ class StartWorkflowRun:
                 raise RunRefused(f"this job needs a value for: {', '.join(absent)}")
             if not workflow.steps:
                 raise RunRefused("this job has no steps")
+            # What a browser matched is GESTURES, and what this field means is
+            # STEPS. A shape entry is one cited gesture, so a step of four
+            # gestures is four entries, and `recognise.match` answers with how
+            # many entries the tail matched -- 19 and 6 on this deployment's own
+            # job. The extension sent that straight in as `from_step` and every
+            # step under it was recorded done-by-the-operator and never
+            # performed: at k=5 on a six-step job, the step that types the code
+            # was skipped and the run went on to the description. Over the step
+            # count it was refused outright, which is the same mistake wearing
+            # the more obvious face.
+            #
+            # Converted here, where the evidence is, rather than asked of a
+            # browser that has the shape but not the steps behind it.
+            cited = await uow.gestures.gestures_for(
+                ctx.tenant_id, ids=tuple(sorted(cited_ids(workflow)))
+            )
+            by_id = {gesture.id: gesture for gesture in cited}
+            if matched is not None:
+                from_step = resumes_at(workflow, by_id, matched)
             # A bool is not a step number, and `isinstance(True, int)` is why it
             # has to be said. `StartWorkflowRunRequest` refuses `true` at the
             # wire, where the coercion it would otherwise survive happens; this
             # is the same rule for a caller that is not a request body.
-            if isinstance(from_step, bool) or not 0 <= from_step < len(workflow.steps):
-                raise RunRefused(
-                    f"from_step must be a step of this job (0..{len(workflow.steps) - 1})"
-                )
+            #
+            # The bound is the job's own highest order and not `len(steps) - 1`:
+            # a model numbers its own steps and keeps that numbering, so a job
+            # whose steps run 1..6 has a last step nothing could resume at while
+            # this counted positions.
+            last = max(step.order for step in workflow.steps)
+            if isinstance(from_step, bool) or not 0 <= from_step <= last:
+                raise RunRefused(f"from_step must be a step of this job (0..{last})")
             # After `from_step`, because which steps have to be performable is
             # what the press just decided. The runner asks this same question
             # of one step at a time, mid-run, once a browser is open and the
@@ -260,12 +285,7 @@ class StartWorkflowRun:
             # It is a stored row going bad rather than a bad row being stored:
             # the workflow outlives the gestures it cites, and no check at mine
             # time can see that coming.
-            cited = await uow.gestures.gestures_for(
-                ctx.tenant_id, ids=tuple(sorted(cited_ids(workflow)))
-            )
-            undoable = unperformable(
-                workflow, {gesture.id: gesture for gesture in cited}, from_step=from_step
-            )
+            undoable = unperformable(workflow, by_id, from_step=from_step)
             if undoable is not None:
                 raise RunRefused(
                     f"step {undoable.order} has no evidence a browser can act on: {undoable.says}"

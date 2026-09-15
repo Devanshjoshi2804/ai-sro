@@ -11,7 +11,14 @@ from dataclasses import replace
 
 from sro.domain.observation.gesture import Action, Component, Gesture, Target
 from sro.domain.skill.offers import K_OFFER_AFTER, Counsel
-from sro.domain.skill.shape import Shape, cited_pairs, put_by, shape_of
+from sro.domain.skill.shape import (
+    Shape,
+    cited_pairs,
+    put_by,
+    resumes_at,
+    shape_of,
+    walkable,
+)
 from sro.domain.skill.workflow import Step, Workflow
 from tests.unit.domain.rig.conftest import gestures as _gestures
 
@@ -195,6 +202,81 @@ def test_the_hosts_a_job_names_are_where_somebody_stood() -> None:
 
     assert shape is not None
     assert shape.hosts == [HOST]
+
+
+# -- a shape entry is a gesture; from_step is a step ---------------------------
+#
+# `recognise.match` answers with how many SHAPE ENTRIES the operator's tail
+# matched, and an entry is one cited gesture: a step of four gestures is four of
+# them. The panel sent that number in as `from_step`, which the run reads as how
+# many STEPS the operator finished. On the first real job this system mined they
+# are 19 and 6.
+#
+# Under the step count it was silent -- every step below the number recorded
+# `done_by_operator` and never sent, so at k=5 on a six-step job the step that
+# types the code was skipped and the run went on to the description. At or above
+# it the press was refused outright.
+
+
+def _demonstrated_twice(by_id: dict[str, Gesture]) -> Workflow:
+    """A job whose first step cites two gestures, which is what any job
+    demonstrated more than once looks like -- and what the fixture, at one
+    gesture per step, cannot be. Every step of the deployment's own `Create a
+    Customer Type` cites two or more."""
+    workflow = _workflow(by_id)
+    first, *rest = sorted(workflow.steps, key=lambda step: step.order)
+    spare = next(one for one in by_id if one not in first.cites)
+    workflow.steps = [replace(first, cites=[*first.cites, spare]), *rest]
+    return workflow
+
+
+def test_the_step_a_browser_is_in_is_the_one_its_last_match_belongs_to() -> None:
+    by_id = _evidence()
+    workflow = _demonstrated_twice(by_id)
+    walk = walkable(cited_pairs(workflow, by_id))
+    assert len(walk) > len(workflow.steps), "this test is about the two counts differing"
+
+    for matched, (_, step) in enumerate(walk, start=1):
+        assert resumes_at(workflow, by_id, matched) == step.order
+
+
+def test_a_step_half_matched_is_resumed_at_and_never_counted_done() -> None:
+    """The conservative end, deliberately. A step marked done that was only
+    half done is never sent and nothing notices; a step performed again that
+    the operator had finished is caught -- `already_done` asks the warehouse
+    whether the record is there before any live write goes out."""
+    by_id = _evidence()
+    workflow = _demonstrated_twice(by_id)
+    first = min(workflow.steps, key=lambda step: step.order)
+    assert len(first.cites) == 2
+
+    assert resumes_at(workflow, by_id, 1) == first.order, "one of its two gestures is not done"
+
+
+def test_a_tail_that_matched_nothing_starts_from_the_top() -> None:
+    by_id = _evidence()
+    workflow = _workflow(by_id)
+
+    assert resumes_at(workflow, by_id, 0) == 0
+    assert resumes_at(workflow, by_id, -1) == 0
+
+
+def test_more_matches_than_there_are_entries_is_clamped_rather_than_believed() -> None:
+    """`match` scans k down from `len(shape) - 1` so it cannot overrun, but this
+    is a number off the wire and the cost of believing a bad one is an
+    IndexError in the middle of somebody's press."""
+    by_id = _evidence()
+    workflow = _workflow(by_id)
+    walk = walkable(cited_pairs(workflow, by_id))
+
+    assert resumes_at(workflow, by_id, 9_999) == walk[-1][1].order
+
+
+def test_a_job_whose_evidence_is_gone_resumes_from_the_top() -> None:
+    by_id = _evidence()
+    workflow = _workflow(by_id)
+
+    assert resumes_at(workflow, {}, 3) == 0
 
 
 def test_a_parameter_no_cited_gesture_typed_has_no_index() -> None:

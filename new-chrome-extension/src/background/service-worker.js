@@ -1430,7 +1430,14 @@ async function handle(message, sender) {
         // nobody checked, written into the row an audit reads first.
         started = await api.rigStart({
           workflow_id: nudge.workflowId, values, items, device_id: await state.deviceId(),
-          live: true, allow_focus: true, from_step: nudge.k || 0,
+          // `matched`, not `from_step`. `k` is how many SHAPE ENTRIES the tail
+          // matched and an entry is one cited gesture, so a step of four
+          // gestures is four of them -- 19 entries over 6 steps on the first
+          // real job this system mined. Sent as `from_step` it marked steps
+          // done that nobody had done, and above the step count the press came
+          // back refused. The backend has the steps behind the shape and does
+          // the conversion there.
+          live: true, allow_focus: true, matched: nudge.k || 0,
         });
       } catch (error) {
         // No run was started, so nothing was accepted. The offer goes back to

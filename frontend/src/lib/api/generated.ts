@@ -4759,6 +4759,8 @@ export interface components {
              * @default 0
              */
             from_step: number;
+            /** Matched */
+            matched?: number | null;
         };
         /** StepModel */
         StepModel: {

@@ -19,6 +19,7 @@ any wall clock this runs against, so a use case that reached for
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -37,7 +38,13 @@ from sro.domain.observation.gesture import Action, Gesture
 from sro.domain.shared.errors import Conflict, NotFound
 from sro.domain.shared.identifiers import DeviceId, PrincipalId, TenantId
 from sro.domain.skill.workflow import Step, Workflow
-from tests.unit.fakes import FakeAsker, FakeChannel, FakeClock, FakeUnitOfWork
+from tests.unit.fakes import (
+    FakeAsker,
+    FakeChannel,
+    FakeClock,
+    FakeGestureRepository,
+    FakeUnitOfWork,
+)
 
 TENANT = TenantId("acme")
 RIVAL = TenantId("rival")
@@ -186,15 +193,19 @@ async def _press(
     live: bool = False,
     allow_focus: bool = True,
     from_step: int = 0,
+    matched: int | None = None,
+    run_id: str | None = None,
 ) -> WorkflowRun:
     return await starter.execute(
         ctx or _ctx(),
+        run_id=run_id,
         workflow_id=workflow_id,
         device_id=device_id,
         values={"clientCode": "NEWTESTS"} if values is None else values,
         live=live,
         allow_focus=allow_focus,
         from_step=from_step,
+        matched=matched,
     )
 
 
@@ -474,6 +485,66 @@ async def test_a_step_that_is_not_a_step_of_this_job_is_refused(asked: int) -> N
 
     assert "0..4" in str(refused.value)
     assert uow.workflow_runs.rows == {}
+
+
+async def _demonstrated_twice() -> FakeUnitOfWork:
+    """A three-step job whose FIRST step cites two gestures -- what any job
+    demonstrated more than once looks like. Four shape entries, three steps."""
+    job = _workflow(steps=3)
+    first, *rest = job.steps
+    job.steps = [replace(first, cites=[*first.cites, "ges-spare"]), *rest]
+    uow = await _held(job)  # plants a gesture for every cite, the spare included
+    # The walk is time order, and the fixture gives every gesture one clock
+    # reading -- so without this the order is `_when`'s tie-break on the id and
+    # the story is an accident. One doing, its repeat, then the rest.
+    assert isinstance(uow.gestures, FakeGestureRepository)
+    for tick, gesture_id in enumerate(("ges-0", "ges-spare", "ges-1", "ges-2")):
+        uow.gestures.rows[gesture_id] = replace(uow.gestures.rows[gesture_id], at=1_000.0 + tick)
+    return uow
+
+
+async def test_what_a_browser_matched_is_gestures_and_is_converted_to_a_step() -> None:
+    """The panel answers in SHAPE ENTRIES -- one per cited gesture -- and this
+    field is a step. On the first real job this system mined they are 19 and 6.
+
+    Sent straight in as `from_step` it was silent under the step count: every
+    step below the number was recorded `done_by_operator` and never performed,
+    so at five on a six-step job the step that types the code was skipped and
+    the run went on to the description. At or above it the press was refused.
+    """
+    # Four entries matched, and four is not a step of a three-step job -- which
+    # is the press that used to come back refused. The fourth belongs to the
+    # last step, so that is where the run resumes.
+    claimed = await _press(_starter(await _demonstrated_twice()), matched=4)
+
+    assert claimed.from_step == 2, "a gesture count reached the row as a step count"
+
+
+async def test_a_step_demonstrated_twice_is_not_counted_done_off_one_of_them() -> None:
+    """The conservative end. A step marked done that was half done is never
+    sent and nothing notices; a step performed again that the operator had
+    finished is caught -- `already_done` asks the warehouse whether the record
+    is there before any live write goes out."""
+    claimed = await _press(_starter(await _demonstrated_twice()), matched=1)
+
+    assert claimed.from_step == 0
+
+
+async def test_a_browser_that_matched_nothing_runs_from_the_top() -> None:
+    uow = await _held()
+
+    assert (await _press(_starter(uow), matched=0)).from_step == 0
+
+
+async def test_a_step_a_model_numbered_itself_can_still_be_resumed_at() -> None:
+    """The bound was `len(steps) - 1`, which is a position and not an order. A
+    model numbers its own steps and `umbrella` keeps that numbering, so a job
+    whose steps run 1..5 had a last step nothing could resume at."""
+    job = _workflow(steps=5)
+    job.steps = [replace(step, order=step.order + 1) for step in job.steps]
+    uow = await _held(job)
+
+    assert (await _press(_starter(uow), from_step=5)).from_step == 5
 
 
 async def test_from_step_true_does_not_become_step_one() -> None:

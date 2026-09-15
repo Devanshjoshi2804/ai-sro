@@ -172,6 +172,36 @@ def walkable(cited: list[tuple[Gesture, Step]]) -> list[tuple[Gesture, Step]]:
     return [pair for pair in cited if target_identity(pair[0]) != "anon|scroll"]
 
 
+def resumes_at(workflow: Workflow, by_id: Mapping[str, Gesture], matched: int) -> int:
+    """Which step a browser that matched `matched` shape entries is in.
+
+    A shape entry is one GESTURE, not one step: `shape_of` walks the cited
+    pairs, and a step of four gestures is four entries. `recognise.match`
+    answers with how many entries the operator's tail matched, and the run
+    start wants how many STEPS they finished -- two different numbers that were
+    the same field. On this deployment's own job they are 19 and 6.
+
+    So the answer is the step the LAST matched entry belongs to, and a run
+    resumes there rather than after it. That is deliberately the conservative
+    end: a step marked done that was only half done is never sent and nothing
+    notices, while a step performed again that the operator had finished is
+    caught -- `already_done` asks the warehouse whether the record is there
+    before any live write goes out. Skipping is what nothing catches.
+
+    Zero for a tail that matched nothing, which is a run from the top.
+    """
+    if matched <= 0:
+        return 0
+    walk = walkable(cited_pairs(workflow, by_id))
+    if not walk:
+        return 0
+    # Clamped rather than trusted. `match` scans k down from `len(shape) - 1`
+    # so it cannot overrun, but this is a number off the wire and the cost of
+    # believing a bad one is an IndexError in the middle of a press.
+    _, step = walk[min(matched, len(walk)) - 1]
+    return step.order
+
+
 def shape_of(
     workflow: Workflow, cited: list[tuple[Gesture, Step]], *, held: int, advice: Counsel
 ) -> Shape | None:

@@ -128,6 +128,7 @@ async def start_workflow_run(
         live=body.live,
         allow_focus=body.allow_focus,
         from_step=body.from_step,
+        matched=body.matched,
     )
     container.pursuits.spawn(starter.perform(ctx, claimed))
     return WorkflowRunModel.of(claimed)

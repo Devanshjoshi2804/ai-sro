@@ -420,7 +420,12 @@ test("yes starts the run, and marks the offer accepted on the list as it is then
   );
   const started = JSON.parse(press.body);
   assert.equal(started.workflow_id, "wfl_wa");
-  assert.equal(started.from_step, 2);
+  // `matched`, and NOT `from_step`. `k` counts shape entries -- one per cited
+  // gesture -- and `from_step` is a step, which on a job of 19 entries over 6
+  // steps is a different number. The backend has the steps behind the shape
+  // and converts; sending `from_step` marked steps done that nobody did.
+  assert.equal(started.matched, 2);
+  assert.equal(started.from_step, undefined, "a gesture count went out as a step count");
   assert.equal(started.live, true);
   assert.equal(started.allow_focus, true);
   // Which browser to drive is a body field here and not the query, unlike

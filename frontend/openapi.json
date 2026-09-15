@@ -35786,6 +35786,18 @@
             "type": "integer",
             "title": "From Step",
             "default": 0
+          },
+          "matched": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Matched"
           }
         },
         "type": "object",

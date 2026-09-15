@@ -3255,6 +3255,21 @@ class StartWorkflowRunRequest(BaseModel):
     live: bool = False
     allow_focus: bool = True
     from_step: StrictInt = 0
+    matched: StrictInt | None = Field(default=None, ge=0)
+    """How many shape entries the browser's tail matched, when a browser is
+    what pressed.
+
+    A shape entry is one cited GESTURE and `from_step` is a step, and those are
+    not the same number: this deployment's `Create a Customer Type` is 19
+    entries over 6 steps. `recognise.match` answers in entries and the panel
+    used to send that straight in as `from_step`, so every step under it was
+    recorded done-by-the-operator and never performed -- and over the step
+    count the press was refused outright.
+
+    A separate field rather than a changed meaning, because the console's
+    `from_step` really is a step: somebody reading a run and resuming it names
+    one. Two callers, two honest numbers. Given both, this one wins, because
+    only a browser sends it and only a browser knows what it matched."""
 
 
 class WorkflowRunStepModel(BaseModel):

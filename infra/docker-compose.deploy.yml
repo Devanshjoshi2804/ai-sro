@@ -84,14 +84,9 @@ services:
     ports:
       # The console on loopback, for whoever is on call.
       - "127.0.0.1:${MINIO_CONSOLE_BIND_PORT:-9001}:9001"
-      # The S3 API, reachable by an operator's browser. Not for browsing: it
-      # is where a presigned url points, and the console draws every
-      # screenshot and screencast from one. Unpublished, those urls name
-      # `minio:9000`, which resolves on the compose network and nowhere a
-      # person is sitting -- every artifact is then a broken image. Anonymous
-      # requests are refused; the signature in the url is the credential, and
-      # it expires.
-      - "${S3_BIND:-0.0.0.0:9000}:9000"
+      # The S3 API is not published. Presigned urls point at the proxy,
+      # which forwards `/sro-artifacts/*` here with the path and the Host
+      # intact -- a signature covers both, so neither may be rewritten.
     healthcheck:
       test: ["CMD", "mc", "ready", "local"]
       interval: 10s
@@ -281,8 +276,8 @@ services:
     environment: *backend-env
     volumes:
       - vault-data:/var/lib/sro
-    ports:
-      - "${API_BIND:-0.0.0.0:8000}:8000"
+    # No published port: the proxy reaches it on this network, and an API
+    # published beside a proxy is a second front door with its own CORS rules.
 
   # One worker. Two on one task queue must share data or one accepts work it
   # cannot find (`CONTEXT.md` §8), and the API's in-process run ownership
@@ -314,8 +309,20 @@ services:
     restart: unless-stopped
     depends_on:
       - api
+
+  # The only thing a person's browser talks to. See infra/Caddyfile for what
+  # a single origin buys and what it does not (it is not TLS).
+  caddy:
+    image: caddy:2.8-alpine
+    restart: unless-stopped
+    depends_on:
+      - api
+      - web
+      - minio
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
     ports:
-      - "${WEB_BIND:-0.0.0.0:3000}:3000"
+      - "${PUBLIC_BIND:-0.0.0.0:8088}:8080"
 
 volumes:
   postgres-data:

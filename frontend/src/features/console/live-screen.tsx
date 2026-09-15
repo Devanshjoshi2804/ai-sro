@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { credential } from "@/lib/api/credential";
-import { env } from "@/lib/env";
+import { apiWebsocketBase } from "@/lib/api/base";
 import { ink, mono } from "@/features/console/theme";
 
 /**
@@ -41,10 +41,10 @@ export function LiveScreen({ sessionId, height = 420 }: { sessionId: string; hei
 
     // A websocket cannot carry an Authorization header and a token in the query
     // string is a token in every access log; the subprotocol list can hold it.
-    const socket = new WebSocket(
-      `${env.NEXT_PUBLIC_API_URL.replace(/^http/, "ws")}/v1/browser/${sessionId}/live`,
-      ["bearer", token],
-    );
+    const socket = new WebSocket(`${apiWebsocketBase()}/v1/browser/${sessionId}/live`, [
+      "bearer",
+      token,
+    ]);
     socket.binaryType = "blob";
 
     let showing: string | null = null;

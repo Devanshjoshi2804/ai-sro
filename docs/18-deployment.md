@@ -48,15 +48,15 @@ docker build -t ai-sro-web:$REV \
 which a container cannot do. A deployment that cannot name its own commit is
 one nobody can debug, and `/health` is where somebody looks first.
 
-**The web image's two build args are baked in and cannot be changed at run
-time.** Next inlines `NEXT_PUBLIC_*` where it appears verbatim, and
-`next.config.ts` reads the extension origins inside `headers()`, which runs
-during the build. So one web image does not serve two environments. Either
-build it twice — which breaks "promote the same tag", and is the honest cost
-of `NEXT_PUBLIC_*` — or put the console behind a proxy so `NEXT_PUBLIC_API_URL`
-can be a same-origin path and the image stops caring. **For QA-to-production
-promotion, do the second.** Until then, rebuild the web image per environment
-and promote only the backend tag.
+**`NEXT_PUBLIC_*` is baked in at build time and cannot be changed at run
+time**, so an absolute API url in the bundle is a hostname promised to one
+environment. That is why `infra/Caddyfile` exists: behind it the console is
+built with `NEXT_PUBLIC_API_URL=/api`, which promises nothing, and **one web
+image promotes from QA to production unchanged.**
+
+`NEXT_PUBLIC_EXTENSION_ORIGINS` is still per-build, because it is read in
+`headers()` during the build. It is the extension's id, which is the same
+everywhere, so it does not divide environments the way a hostname would.
 
 ## The VM
 

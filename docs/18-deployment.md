@@ -48,15 +48,15 @@ docker build -t ai-sro-web:$REV \
 which a container cannot do. A deployment that cannot name its own commit is
 one nobody can debug, and `/health` is where somebody looks first.
 
-**The web image's two build args are baked in and cannot be changed at run
-time.** Next inlines `NEXT_PUBLIC_*` where it appears verbatim, and
-`next.config.ts` reads the extension origins inside `headers()`, which runs
-during the build. So one web image does not serve two environments. Either
-build it twice — which breaks "promote the same tag", and is the honest cost
-of `NEXT_PUBLIC_*` — or put the console behind a proxy so `NEXT_PUBLIC_API_URL`
-can be a same-origin path and the image stops caring. **For QA-to-production
-promotion, do the second.** Until then, rebuild the web image per environment
-and promote only the backend tag.
+**`NEXT_PUBLIC_*` is baked in at build time and cannot be changed at run
+time**, so an absolute API url in the bundle is a hostname promised to one
+environment. That is why `infra/Caddyfile` exists: behind it the console is
+built with `NEXT_PUBLIC_API_URL=/api`, which promises nothing, and **one web
+image promotes from QA to production unchanged.**
+
+`NEXT_PUBLIC_EXTENSION_ORIGINS` is still per-build, because it is read in
+`headers()` during the build. It is the extension's id, which is the same
+everywhere, so it does not divide environments the way a hostname would.
 
 ## The VM
 
@@ -93,6 +93,47 @@ environment exists.
 `up -d` is the whole deploy: `migrate` runs to completion first, then `api` and
 `worker` start together from the same image.
 
+## Changing the proxy's config
+
+`infra/Caddyfile` is mounted from a directory, not as a single file, and the
+reason is worth keeping: a single-file bind mount binds an inode, `git pull`
+replaces the file rather than writing through it, and the container goes on
+serving the config it started with. `compose up -d` will not notice, because
+the service definition has not changed. After editing it:
+
+```bash
+$C up -d --force-recreate caddy    # or `$C restart caddy` for a live reload
+```
+
+Check what is actually loaded rather than what is on disk:
+
+```bash
+$C exec caddy caddy validate --config /etc/caddy/Caddyfile
+```
+
+## After every deploy
+
+```bash
+make smoke at=http://10.11.9.25:8088 DOCKER="sudo docker"
+```
+
+`DOCKER="sudo docker"` because nobody on that host is in the `docker` group,
+and adding somebody to it grants root on a machine three other teams share.
+`env=infra/.env.prod` picks the other environment.
+
+It asks the one question a test suite cannot: whether the urls this system
+hands to a browser name anything a browser can reach. It runs inside the API
+container, because it needs the app's own adapters to mint those urls, and
+then it uses them over the public address the way a page would -- fetching a
+presigned artifact, opening a real browser session, loading its live view and
+reading a frame off the screencast socket. Exit 1 and the name of what is
+wrong, or exit 0.
+
+Every defect found on the first day of deploying was on one of those edges,
+and every one looked correct in the code and worked on a laptop. Read the
+docstring in `backend/scripts/smoke.py` for the list; it is the argument for
+the script.
+
 ## Five things that are quiet when wrong
 
 1. **`SRO_API_URL` and `SRO_CONSOLE_URL` default to localhost.** They are not
@@ -128,15 +169,74 @@ make token tenant=<tenant> principal=<who it is for>
 sides, so two names for one human splits their work from itself permanently.
 One token per person, and the same name each time.
 
-**Known friction, and the POC's most likely failure.** The extension's options
-page asks each operator to type an API url, a console url, and paste a token —
-three fields, with `localhost` placeholders. On a client machine the
-placeholders are wrong, and getting the url wrong presents as "cannot reach the
-deployment" rather than as a typo. Before a client POC, the extension should
-ship knowing its deployment — either a generated default beside
-`shape.generated.js` (the pattern `make gen-recorder` and `make tokens` already
-use) or a single pasted connect string carrying url and token together. This is
-not done.
+**Point the extension at this deployment before handing it to anybody:**
+
+```bash
+make gen-deployment api=http://10.11.9.25:8088/api console=http://10.11.9.25:8088
+```
+
+It writes `new-chrome-extension/src/background/deployment.generated.js`, and
+the operator then pastes a credential and nothing else — the addresses are
+filled in and folded away behind *Addresses*. They used to be two empty fields
+with `localhost` placeholders, which are wrong on every machine but a
+developer's, and getting one wrong presents as "cannot reach the deployment"
+rather than as a typo.
+
+The extension has no build step, so **what is in the tree is what gets
+loaded**: a QA build and a production build differ by that one generated file,
+and whichever was generated last is what a `git pull` gives the next person.
+Regenerate after switching environments. The suite reads the constant rather
+than hardcoding an address, so it passes whichever deployment the file names.
+
+It remains a default and not a lock: sign-in still takes whatever url is
+typed, so one build can be pointed elsewhere without regenerating.
+
+## Looking at it
+
+Logs, the database and the worker's liveness, over SSH:
+
+```bash
+cd ~/ai-sro
+C="sudo docker compose -f infra/docker-compose.deploy.yml --env-file infra/.env.qa"
+
+$C logs -f api worker                       # live
+$C logs --since 1h api | grep -iE "error|exception|traceback"
+$C ps                                       # what is up
+$C exec postgres psql -U sro -d sro         # the database
+```
+
+**Whether the worker is working** is not answered by its container status --
+one image serves the API and the worker, and the worker serves no HTTP, so its
+inherited healthcheck is disabled. Ask Temporal instead:
+
+```bash
+$C exec temporal temporal --address temporal:7233 \
+  task-queue describe --task-queue default
+```
+
+Pollers listed means alive, and each identity carries the revision it is
+running, so a worker left behind by a deploy is visible rather than inferred.
+
+### The three UIs, over a tunnel
+
+They bind to `127.0.0.1` on the host on purpose. This box is shared with other
+teams and none of these asks who you are, so they are reached by forwarding
+rather than by publishing:
+
+```bash
+ssh -L 8080:localhost:8080 -L 9001:localhost:9001 -L 16686:localhost:16686 \
+    <your-os-login-user>@10.11.9.25
+```
+
+| | | |
+|---|---|---|
+| http://localhost:8080 | Temporal | runs, retries, why a workflow is stuck |
+| http://localhost:9001 | MinIO | the artifacts: event streams, screencasts |
+| http://localhost:16686 | Jaeger | traces |
+
+Jaeger keeps spans **in memory**: a restart loses them. That is the right
+trade for a QA box and the wrong one for anything that has to be investigated
+a week later.
 
 ## Not done, named rather than implied
 
@@ -144,8 +244,12 @@ not done.
   terminate TLS in front of it before anything crosses one.
 - **Backups.** `postgres-data`, `minio-data` and `vault-data` hold the
   evidence, the artifacts and the system credentials. Nothing backs them up.
-- **Monitoring.** The collector prints to stdout. Point its exporter somewhere
-  real in `infra/otel-collector.yaml`.
+- **Alerting.** Nothing tells anybody when something breaks; somebody has to
+  go and look. It needs a destination before it needs a tool -- an inbox, a
+  Slack channel, an on-call rota -- and that is a decision, not a container.
+- **Metrics and logs have no backend.** Traces reach Jaeger; metrics and logs
+  still only print. A metrics store is a bigger decision than the collector
+  config, and this deployment has not needed one yet.
 - **A registry**, so promotion is a tag move rather than a rebuild.
 - **Steel's own reachability.** `STEEL_DOMAIN` must be an address a person's
   browser can dial, or the live view sits on "Session connecting..." forever.

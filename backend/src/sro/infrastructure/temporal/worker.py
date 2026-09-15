@@ -30,7 +30,13 @@ from sro.infrastructure.temporal.workflows import (
 )
 from sro.observability import configure_logging
 
-logger = logging.getLogger(__name__)
+# Not `__name__`. This module is started as `python -m`, which names it
+# `__main__` -- outside the `sro` hierarchy, so it inherits the root level
+# `configure_logging` sets, which is WARNING. Every `logger.info` below was
+# being dropped: the worker ran with a zero-byte log while polling Temporal
+# perfectly well, and "silent" and "dead" looked identical from outside.
+# Errors still came through, which is what made it so quiet a failure.
+logger = logging.getLogger("sro.infrastructure.temporal.worker")
 
 
 def identity(settings: Settings) -> str:

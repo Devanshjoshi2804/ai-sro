@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
@@ -183,7 +184,7 @@ from sro.infrastructure.steel.sign_in import PlaywrightSignIn
 from sro.infrastructure.steel.supervisor import CaptureSupervisor
 from sro.infrastructure.steel.ui_driver import PlaywrightUiDriver
 from sro.infrastructure.system import SystemClock, UuidFactory
-from sro.infrastructure.telemetry.otel import configure_tracing
+from sro.infrastructure.telemetry.otel import configure_tracing, watch_queries, watch_requests
 from sro.infrastructure.temporal.durable import TemporalDurableExecution
 from sro.infrastructure.temporal.schedules import TemporalScheduler
 from sro.infrastructure.transcription.gemini import GeminiTranscriber
@@ -1214,6 +1215,20 @@ class _UnavailableVault:
         raise VaultUnavailable(self.reason)
 
 
+def instrument(app: Any) -> None:
+    """Make the API's requests produce spans.
+
+    Here rather than in `interface`, which may not reach an adapter: the
+    dependency rule is the one gate that fails on architecture rather than on
+    code, and `interface -> infrastructure` is exactly what it exists to
+    refuse. This module is the composition root and is allowed to bind one.
+
+    Guarded on the endpoint by the caller, so a deployment that has not asked
+    for telemetry installs nothing.
+    """
+    watch_requests(app)
+
+
 def build_container(settings: Settings | None = None) -> Container:
     settings = settings or get_settings()
     configure_tracing(
@@ -1223,6 +1238,8 @@ def build_container(settings: Settings | None = None) -> Container:
     )
 
     engine = create_engine(settings.database_url, echo=settings.debug)
+    if settings.otlp_endpoint:
+        watch_queries(engine)
     credentials = SignedTokens(settings.auth_secret)
 
     container = Container(
@@ -1235,10 +1252,12 @@ def build_container(settings: Settings | None = None) -> Container:
             secret_key=settings.s3_secret_key,
             bucket=settings.s3_bucket,
             region=settings.s3_region,
+            public_endpoint_url=settings.s3_public_endpoint_url,
         ),
         browser=SteelClient(
             settings.steel_base_url,
             settings.steel_cdp_url,
+            public_base_url=settings.steel_public_base_url,
             session_timeout_seconds=settings.steel_session_timeout_seconds,
             dimensions=(settings.browser_width, settings.browser_height),
         ),

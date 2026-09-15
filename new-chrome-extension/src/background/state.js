@@ -5,6 +5,17 @@
 // because `session` is cleared when Chrome restarts, and an operator who has to
 // paste a credential every morning is an operator who turns the extension off.
 
+// Which deployment this build belongs to. `make gen-deployment` writes that
+// file; the default in the tree is a developer's own stack. A default, not a
+// lock -- `sign-in` still takes whatever url was typed, so one build can be
+// pointed elsewhere without regenerating anything.
+//
+// Imported as well as re-exported: `export ... from` would not bind the names
+// here, and `apiUrl()` and `consoleUrl()` below read them.
+import { DEFAULT_API_URL, DEFAULT_CONSOLE_URL } from "./deployment.generated.js";
+
+export { DEFAULT_API_URL, DEFAULT_CONSOLE_URL };
+
 const KEYS = {
   token: "sro.token",
   deviceId: "sro.deviceId",
@@ -36,7 +47,11 @@ const KEYS = {
   nearMisses: "sro.nearMisses",
 };
 
-export const DEFAULT_API_URL = "http://localhost:8000";
+// Whichever deployment this build belongs to. `make gen-deployment` writes it;
+// the default in the tree is a developer's own stack. It is a *default*, not a
+// lock: `sign-in` still takes whatever url was typed, so one build can be
+// pointed somewhere else without regenerating anything.
+
 
 /** Keys this extension used to write and no longer does.
  *
@@ -88,7 +103,7 @@ export const state = {
    * backend and not derivable from it -- one is an API, the other is a site,
    * and a deployment may put them anywhere. Empty means the panel shows only
    * what it can do itself, which is most of why it exists. */
-  consoleUrl: () => read(KEYS.consoleUrl, ""),
+  consoleUrl: () => read(KEYS.consoleUrl, DEFAULT_CONSOLE_URL),
   setConsoleUrl: (url) => write(KEYS.consoleUrl, url.replace(/\/+$/, "")),
 
   /** The tabs the operator asked to be watched, newest first. Each is

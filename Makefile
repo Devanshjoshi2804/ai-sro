@@ -4,6 +4,11 @@
 # typing a long command twice, it belongs in this file.
 
 COMPOSE := docker compose -f infra/docker-compose.yml
+
+# `DOCKER="sudo docker"` on a host where you are not in the `docker` group --
+# which is most shared machines, because that group is root by another name.
+DOCKER ?= docker
+DEPLOY := $(DOCKER) compose -f infra/docker-compose.deploy.yml --env-file $(or $(env),infra/.env.qa)
 BACKEND := cd backend &&
 FRONTEND := cd frontend &&
 
@@ -11,7 +16,7 @@ FRONTEND := cd frontend &&
 .PHONY: help up down ps logs reset install migrate revision api worker status web vault-key one-whole-run \
         lint lint-backend lint-frontend format test test-unit test-integration \
         test-contract test-browser types check ingest-kb seed-skills gen-recorder \
-        mutants-backend open-joins two-miners images
+        mutants-backend open-joins two-miners images smoke gen-deployment
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -119,6 +124,13 @@ images: ## Build both deployment images, tagged with this commit: make images [a
 types: ## Regenerate frontend API types from the backend OpenAPI document
 	$(BACKEND) uv run python -m sro.interface.http.export_openapi > ../frontend/openapi.json
 	$(FRONTEND) npm run generate:types
+
+gen-deployment: ## Tell the extension which deployment it is for: make gen-deployment api=http://host:8088/api console=http://host:8088
+	@# The extension has no build step, so what is in the tree is what gets
+	@# loaded: a QA build and a production build differ by the generated file
+	@# this writes. An operator then pastes a credential and nothing else.
+	@test -n "$(api)" || { echo "api= is required, e.g. api=http://10.11.9.25:8088/api"; exit 2; }
+	$(BACKEND) uv run python scripts/write_deployment.py --api $(api) --console $(or $(console),)
 
 gen-recorder: ## Regenerate the extension's copy of the page recorder, secrets baked in
 	$(BACKEND) uv run python -m sro.infrastructure.steel.generate_extension_recorder
@@ -255,5 +267,13 @@ test-extension: ## The extension's own self-checks, in plain node
 	@# module-scope cache meant only the first test in the process could pin a
 	@# shapes request. Neither survives a fresh process per file.
 	cd new-chrome-extension && node --test "**/*.test.?(c|m)js"
+
+smoke: ## Does a DEPLOYMENT work from outside itself: make smoke at=http://host:8088 [DOCKER="sudo docker"]
+	@# Run after every deploy. Not a substitute for the suite -- it asks the
+	@# one question a suite cannot: whether the urls this system hands to a
+	@# browser name anything a browser can reach. Every defect on the first day
+	@# of deploying was on one of those edges. See backend/scripts/smoke.py.
+	@test -n "$(at)" || { echo "at= is required: make smoke at=http://<host>:<port>"; exit 2; }
+	@$(DEPLOY) exec -T api python scripts/smoke.py $(at)
 
 check: lint test test-contract test-frontend test-extension test-browser ## What CI runs

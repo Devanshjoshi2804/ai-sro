@@ -40,6 +40,12 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 COPY src ./src
 COPY migrations ./migrations
 COPY alembic.ini ./
+# The operational scripts travel with the image that runs them. `smoke.py`
+# has to execute where the app's own adapters are, and a deployment that
+# cannot run its own post-deploy check because the check lives in a checkout
+# somebody forgot to pull is a check that does not exist. `measure.py` and
+# `open_joins.py` are here for the same reason.
+COPY scripts ./scripts
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --extra gcp
 
@@ -59,6 +65,7 @@ COPY --from=build --chown=sro:sro /app/.venv ./.venv
 COPY --from=build --chown=sro:sro /app/src ./src
 COPY --from=build --chown=sro:sro /app/migrations ./migrations
 COPY --from=build --chown=sro:sro /app/alembic.ini ./
+COPY --from=build --chown=sro:sro /app/scripts ./scripts
 
 ARG REVISION=unknown
 ENV PATH="/app/.venv/bin:$PATH" \

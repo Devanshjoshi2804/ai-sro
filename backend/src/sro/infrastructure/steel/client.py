@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import socket
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from types import TracebackType
@@ -56,9 +57,13 @@ class SteelClient:
         session_timeout_seconds: int = 3600,
         dimensions: tuple[int, int] = (1600, 1000),
         client: httpx.AsyncClient | None = None,
+        public_base_url: str | None = None,
     ) -> None:
         self._base_url = base_url.rstrip("/")
         self._cdp_url = cdp_url.rstrip("/")
+        # Everything this client does itself goes to `_base_url`. The one
+        # string it builds for somebody else's browser uses this.
+        self._viewer_base = (public_base_url or base_url).rstrip("/")
         self._timeout_seconds = session_timeout_seconds
         self._dimensions = dimensions
         self._client = client or httpx.AsyncClient(timeout=30.0)
@@ -171,6 +176,50 @@ class SteelClient:
             if str(session.get("status", "")).lower() in {"live", "idle"}
         ]
 
+    async def _cdp_origin(self) -> str:
+        """The CDP endpoint with its host resolved to an address.
+
+        Chrome refuses every `/json/*` request and every devtools websocket
+        whose Host header is a name:
+
+            500 Host header is specified and is not an IP address or localhost.
+
+        It is a DNS-rebinding guard, and on a compose network the host IS a
+        name -- `steel`. So this deployment could reach Chrome's port and could
+        not use it, and nothing noticed until a browser session was opened for
+        the first time. `localhost:9223` on a laptop has an IP for a host and
+        walks straight past the check.
+
+        Resolved rather than overridden with a `Host: localhost` header,
+        because the header would have to be right on the websocket dial too --
+        and that dial belongs to Playwright, which takes a url and not headers.
+        An address in the url is the one thing both halves obey.
+
+        `*.localhost` does not work either: the C library answers it from
+        RFC 6761 before Docker's DNS is asked, so the name resolves to
+        127.0.0.1 and the connection is refused by nothing at all.
+
+        Re-resolved per call, not cached: a restarted Steel comes back on a
+        different address, and a cached one turns that into a connection
+        refused that outlives the restart.
+
+        A host that does not resolve is handed back as it was written. The
+        connection that follows fails on its own and says what it could not
+        reach, which is a better error than one about DNS -- and it keeps a
+        made-up hostname in a test from depending on a resolver.
+        """
+        parts = urlsplit(self._cdp_url)
+        host, port = parts.hostname or "localhost", parts.port or 9223
+        try:
+            found = await asyncio.get_running_loop().getaddrinfo(
+                host, port, family=socket.AF_INET, type=socket.SOCK_STREAM
+            )
+        except OSError:
+            return parts.netloc
+        # `sockaddr[0]` for AF_INET is the dotted address. `str()` rather than
+        # a cast because the annotation admits shapes this family never has.
+        return f"{found[0][4][0]!s}:{port}"
+
     async def _websocket_debugger_url(self) -> str:
         """Chrome's own websocket endpoint, with the host put back.
 
@@ -179,13 +228,13 @@ class SteelClient:
         Following that verbatim dials port 80. The path is right; the authority
         has to come from configuration.
         """
+        authority = await self._cdp_origin()
         try:
-            response = await self._client.get(f"{self._cdp_url}/json/version")
+            response = await self._client.get(f"http://{authority}/json/version")
             response.raise_for_status()
         except httpx.HTTPError as exc:
             raise BrowserUnavailable(f"could not reach the CDP endpoint: {exc}") from exc
 
-        authority = urlsplit(self._cdp_url).netloc
         path = _path_of(response.json().get("webSocketDebuggerUrl"))
         return f"ws://{authority}{path}"
 
@@ -369,7 +418,7 @@ class SteelClient:
         recording that we would never hear about. `debugUrl` is the same
         screencast with none of it.
         """
-        return self._base_url + _path_of(body.get("debugUrl") or body.get("sessionViewerUrl"))
+        return self._viewer_base + _path_of(body.get("debugUrl") or body.get("sessionViewerUrl"))
 
     async def health(self) -> bool:
         try:

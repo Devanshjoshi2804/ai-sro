@@ -1,0 +1,80 @@
+# One origin in front of the console, the API and the artifacts.
+#
+# Not for TLS -- that is still owed -- but for what a single origin fixes:
+#
+#   * **One console image serves every environment.** Next inlines
+#     `NEXT_PUBLIC_API_URL` at build time, so an absolute url bakes a hostname
+#     into the bundle and QA and production need separately built images,
+#     which breaks promoting the tag that QA passed. Behind this, the console
+#     is built with `/api` and the promise is about nothing.
+#   * **One published port for the application**, on a host shared with three
+#     other teams, where the console, the API and the object store were three.
+#     Steel's session viewer is still on its own: it is a whole UI with its
+#     own websockets and its own absolute paths, and folding it in here is a
+#     separate piece of work.
+#   * **CORS stops being load-bearing for the console.** It is same-origin
+#     now; the extension's `chrome-extension://` origin is still cross-origin
+#     and still has to be allowed.
+#
+# Caddy passes the original `Host` through by default, which the artifact
+# route below depends on.
+
+{
+	admin off
+	auto_https off
+}
+
+:8080 {
+	# --- artifacts -----------------------------------------------------------
+	# The bucket's own path, not a prefix of our invention, and nothing is
+	# stripped. A presigned url signs the host AND the path: rewrite either and
+	# MinIO answers 403. So the url the backend signs is
+	# `http://<this host>/sro-artifacts/<key>`, and it arrives here unchanged.
+	handle /sro-artifacts/* {
+		reverse_proxy minio:9000
+	}
+
+	# --- Steel's session viewer ----------------------------------------------
+	# Its own UI, on the same origin. Three routes because Steel spreads itself
+	# across three places and none of them may be rewritten: its bundle is
+	# built with an empty API base, so every call it makes is same-origin and
+	# relative, and its live screencast socket is at the ROOT path.
+	#
+	# `/v1/*` here is Steel's, not ours -- ours is under `/api/v1/*`. Sharing
+	# the root namespace with a third party is the cost of folding it in, and
+	# anything Steel serves under `/v1` in a future version lands here without
+	# being asked for.
+	# `/ui*`, not `/ui/*`: Steel serves the bare path too, and a matcher that
+	# wants a following segment sends `/ui` to the console, which 404s it. The
+	# trailing slash is not something an operator types.
+	handle /ui* {
+		reverse_proxy steel:3000
+	}
+	handle /v1/sessions* {
+		reverse_proxy steel:3000
+	}
+	# Matched on the upgrade header so the console keeps `/` for its own pages.
+	# Every socket this system opens for itself is under `/api`.
+	@steel_socket {
+		path /
+		header Connection *Upgrade*
+		header Upgrade websocket
+	}
+	handle @steel_socket {
+		reverse_proxy steel:3000
+	}
+
+	# --- the API -------------------------------------------------------------
+	# `/api/v1/...` here is `/v1/...` there. Websockets included: the
+	# extension's command channel and the console's live view are both
+	# upgrades through this same route, and Caddy passes them through without
+	# being told to.
+	handle_path /api/* {
+		reverse_proxy api:8000
+	}
+
+	# --- the console ---------------------------------------------------------
+	handle {
+		reverse_proxy web:3000
+	}
+}

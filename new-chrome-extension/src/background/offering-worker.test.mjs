@@ -16,6 +16,7 @@
 //
 // Run with `node src/background/offering-worker.test.mjs`.
 
+import { DEFAULT_API_URL } from "./deployment.generated.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -96,8 +97,11 @@ globalThis.chrome = {
 // -- the rig, as far as this browser can tell --------------------------------
 
 const RIG = "http://rig.test";
-/** `DEFAULT_API_URL` in `state.js`, which is what `ready()` leaves in place. */
-const BACKEND = "http://localhost:8000";
+/** What `ready()` leaves in place: whichever deployment this build was
+ * generated for. Read rather than written down, because `make gen-deployment`
+ * changes it -- a suite that hardcodes one address fails the moment somebody
+ * points the extension at a real deployment, which is not a defect. */
+const BACKEND = DEFAULT_API_URL;
 const H = "https://wms.example";
 const PAGE = `${H}/wa`;
 const TAB = 1;

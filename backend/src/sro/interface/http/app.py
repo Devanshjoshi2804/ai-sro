@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from sro.application.execution.run_workflow import fail_orphans
 from sro.config import Settings, get_settings
-from sro.container import Container, build_container
+from sro.container import Container, build_container, instrument
 from sro.domain.shared.prices import PRICES
 from sro.interface.http.errors import install_error_handlers
 from sro.interface.http.schemas import PROBLEMS
@@ -193,6 +193,9 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    if settings.otlp_endpoint:
+        instrument(app)
 
     install_error_handlers(app)
     app.include_router(health.router)

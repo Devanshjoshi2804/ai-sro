@@ -249,6 +249,15 @@ services:
     volumes:
       - vault-data:/var/lib/sro
     command: ["python", "-m", "sro.infrastructure.temporal.worker"]
+    # The image's healthcheck curls the API's port, and this container serves
+    # no HTTP -- so it reported `unhealthy` from the moment it started while
+    # polling Temporal correctly. A check that is always red is worse than no
+    # check: it trains whoever is on call to ignore the column. Whether this
+    # worker is working is answered by asking Temporal for its pollers:
+    #   docker compose exec temporal \
+    #     temporal --address temporal:7233 task-queue describe --task-queue default
+    healthcheck:
+      disable: true
 
   web:
     image: ${WEB_IMAGE:?set WEB_IMAGE, e.g. ai-sro-web:8b27470}

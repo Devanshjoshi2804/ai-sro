@@ -316,6 +316,48 @@ def test_the_envelope_is_removed_before_the_record_is_read() -> None:
     )
 
 
+def test_a_read_that_answers_with_the_whole_collection_still_settles_it() -> None:
+    """A confirming read is whatever GET the page made after its write, and on
+    the real system that is the COLLECTION.
+
+    Measured live 2026-09-16: the read after `POST /wm/customerTypes` is
+    `GET /wm/customerTypes?siteId=SG&…`, a list of every customer type. A rule
+    that could only read one record called a 201'd create failed, because it
+    looked for `customerType` on the envelope of a list.
+    """
+    page = (
+        '{"@type":"ResponseBodyWrapper","data":['
+        '{"customerType":"GGD","longDescription":"the demonstration"},'
+        '{"customerType":"ZQ43","longDescription":"this run"}]}'
+    )
+
+    assert carries_in_slot(page, {"customerType": "ZQ43", "longDescription": "this run"})
+    assert not carries_in_slot(page, {"customerType": "ZQ43", "longDescription": "not sent"})
+
+
+def test_one_row_must_carry_every_slot_not_the_page_between_them() -> None:
+    """`any` over records and `all` over slots, and the pairing is the point.
+
+    A page where one row matches the code and another matches the description
+    shows neither record. The whole-body search this replaced flattened the
+    page to a set of leaves and could not tell that from a match -- so a
+    collection confirmed a write whenever the values existed anywhere in it,
+    including across two rows and including in the row the demonstration made.
+    """
+    split = (
+        '{"data":[{"customerType":"ZQ43","longDescription":"the demonstration"},'
+        '{"customerType":"GGD","longDescription":"this run"}]}'
+    )
+
+    assert not carries_in_slot(split, {"customerType": "ZQ43", "longDescription": "this run"})
+
+
+def test_a_bare_list_is_read_the_same_way_as_a_wrapped_one() -> None:
+    """Two of the 114 recorded writes answer with a list under `data`, and
+    nothing promises an envelope on every endpoint."""
+    assert carries_in_slot('[{"customerType":"ZQ43"}]', {"customerType": "ZQ43"})
+
+
 def test_nothing_to_check_is_not_something_shown() -> None:
     """An empty `confirm` means no slot survived the demonstration's own
     answer, so the read settles nothing. `verify` does not even make the read

@@ -243,12 +243,46 @@ def carries_in_slot(body: str, wanted: Mapping[str, str]) -> bool:
         parsed = json.loads(body)
     except ValueError:
         return False
-    if not isinstance(parsed, dict):
-        return False
-    # The envelope, before the record -- the same one `verify.made_by` removes.
-    inner = parsed.get("data")
-    record = inner if isinstance(inner, dict) else parsed
-    return all(record.get(slot) == value for slot, value in wanted.items())
+    return any(
+        all(record.get(slot) == value for slot, value in wanted.items())
+        for record in _records(parsed)
+    )
+
+
+def _records(parsed: object) -> Iterator[dict[str, object]]:
+    """The records an answer holds, whether it is one or a page of them.
+
+    A confirming read is whatever GET the page made after its write, and on the
+    system this was built for that is the COLLECTION, not the created row:
+    measured live 2026-09-16, the read after `POST /wm/customerTypes` is
+    `GET /wm/customerTypes?siteId=SG&…`, a list of every customer type. A rule
+    that could only read a single record called a 201'd create failed because
+    it was looking for `customerType` on the envelope of a list.
+
+    So: the document itself, what is inside its `data` envelope -- the shape
+    112 of the 114 recorded successful writes carry -- and, where that is a
+    list, each row of it.
+
+    `any` over records and `all` over slots, and the pairing is the point. A
+    record that carries EVERY slot this run filled is the record this run
+    created; a list in which one row matches the code and another matches the
+    description shows neither. The whole-body search this replaced could not
+    tell those apart -- it flattened the page to a set of leaves, so a
+    collection confirmed a write as long as the values existed anywhere in it,
+    including in two different rows and including in the row the demonstration
+    made.
+    """
+    if isinstance(parsed, dict):
+        yield parsed
+        inner = parsed.get("data")
+    elif isinstance(parsed, list):
+        inner = parsed
+    else:
+        return
+    if isinstance(inner, dict):
+        yield inner
+    elif isinstance(inner, list):
+        yield from (row for row in inner if isinstance(row, dict))
 
 
 def _carried(

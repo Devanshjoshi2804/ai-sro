@@ -20,11 +20,7 @@ function Section({ heading, children }: { heading: string; children: React.React
   return (
     <section className="space-y-1">
       <h3 className="text-sm font-medium">{heading}</h3>
-      {children.length ? (
-        children
-      ) : (
-        <p className="text-muted-foreground text-sm italic">none</p>
-      )}
+      {children.length ? children : <p className="text-muted-foreground text-sm italic">none</p>}
     </section>
   );
 }
@@ -149,9 +145,7 @@ export function AuditWalk() {
               {a.devices.map((d) => (
                 <div key={d.device_id} className="flex flex-wrap items-center gap-2 text-sm">
                   <span className="text-brand font-mono">{when(d.registered_at)}</span>
-                  <span>
-                    browser {d.device_id} registered
-                  </span>
+                  <span>browser {d.device_id} registered</span>
                   {d.revoked_at && (
                     <span className="text-destructive">{`revoked ${when(d.revoked_at)}`}</span>
                   )}

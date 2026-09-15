@@ -14,15 +14,25 @@ const push = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
 
 const workflow = {
-  id: "wfl_1", title: "Create a Work Area", narrative: "", systems: [], pass_id: "p",
-  unproven: [], steps: [], runs: { total: 0, held: 0, stale: 0, earned: false },
+  id: "wfl_1",
+  title: "Create a Work Area",
+  narrative: "",
+  systems: [],
+  pass_id: "p",
+  unproven: [],
+  steps: [],
+  runs: { total: 0, held: 0, stale: 0, earned: false },
   parameters: [{ name: "workArea", seen_values: ["Three TE", "NEWTESTS", "twoTEST"] }],
 };
 
 const browser = {
-  device_id: "dev_a", principal_id: "devansh", label: "Macintosh · Chrome",
-  registered_at: "2026-08-26T05:56:55+00:00", last_seen_at: "2026-09-10T10:28:28+00:00",
-  revoked_at: null, online: true,
+  device_id: "dev_a",
+  principal_id: "devansh",
+  label: "Macintosh · Chrome",
+  registered_at: "2026-08-26T05:56:55+00:00",
+  last_seen_at: "2026-09-10T10:28:28+00:00",
+  revoked_at: null,
+  online: true,
 };
 
 describe("RunForm", () => {
@@ -38,7 +48,8 @@ describe("RunForm", () => {
   });
 
   it("is dry unless a person ticks it", async () => {
-    const start = vi.spyOn(workflowApi, "startWorkflowRun")
+    const start = vi
+      .spyOn(workflowApi, "startWorkflowRun")
       .mockResolvedValue({ id: "wrun_a" } as never);
     renderWithQuery(<RunForm workflow={workflow as never} />);
     await userEvent.click(await screen.findByRole("button", { name: /start/i }));
@@ -47,7 +58,8 @@ describe("RunForm", () => {
   });
 
   it("sends the writes only when the box is ticked", async () => {
-    const start = vi.spyOn(workflowApi, "startWorkflowRun")
+    const start = vi
+      .spyOn(workflowApi, "startWorkflowRun")
       .mockResolvedValue({ id: "wrun_a" } as never);
     renderWithQuery(<RunForm workflow={workflow as never} />);
     await screen.findByLabelText("workArea");
@@ -68,7 +80,8 @@ describe("RunForm", () => {
   });
 
   it("trims a value pasted with a trailing space", async () => {
-    const start = vi.spyOn(workflowApi, "startWorkflowRun")
+    const start = vi
+      .spyOn(workflowApi, "startWorkflowRun")
       .mockResolvedValue({ id: "wrun_a" } as never);
     renderWithQuery(<RunForm workflow={workflow as never} />);
     const field = await screen.findByLabelText("workArea");
@@ -86,8 +99,9 @@ describe("RunForm", () => {
   });
 
   it("will not offer a revoked browser as one that could drive a run", async () => {
-    vi.spyOn(workflowApi, "listBrowsers")
-      .mockResolvedValue([{ ...browser, revoked_at: "2026-09-01T00:00:00+00:00" }] as never);
+    vi.spyOn(workflowApi, "listBrowsers").mockResolvedValue([
+      { ...browser, revoked_at: "2026-09-01T00:00:00+00:00" },
+    ] as never);
     renderWithQuery(<RunForm workflow={workflow as never} />);
     expect(await screen.findByText(/no browser is connected/i)).toBeInTheDocument();
   });
@@ -100,8 +114,9 @@ describe("RunForm", () => {
   });
 
   it("says why the route refused rather than looking like it worked", async () => {
-    vi.spyOn(workflowApi, "startWorkflowRun")
-      .mockRejectedValue(new Error("that browser is already driving a run"));
+    vi.spyOn(workflowApi, "startWorkflowRun").mockRejectedValue(
+      new Error("that browser is already driving a run"),
+    );
     renderWithQuery(<RunForm workflow={workflow as never} />);
     await userEvent.click(await screen.findByRole("button", { name: /start/i }));
     expect(await screen.findByText(/that browser is already driving a run/)).toBeInTheDocument();

@@ -64,10 +64,7 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
         setEntries((current) =>
           current.filter(
             (entry) =>
-              !(
-                (entry.kind === "sealed" || entry.kind === "session") &&
-                entry.run === run
-              ),
+              !((entry.kind === "sealed" || entry.kind === "session") && entry.run === run),
           ),
         ),
       sealedRecordings: entries

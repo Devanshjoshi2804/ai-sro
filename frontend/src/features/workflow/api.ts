@@ -39,9 +39,7 @@ export const listWorkflows = () =>
  * thing on this page that gets louder rather than quieter over time.
  */
 export const readEvidence = (workflowId: string) =>
-  api.get<EvidenceResponse>(
-    `/v1/workflows/${encodeURIComponent(workflowId)}/evidence`,
-  );
+  api.get<EvidenceResponse>(`/v1/workflows/${encodeURIComponent(workflowId)}/evidence`);
 
 /** The parked runs, whichever browser is driving them. */
 export const listAwaitingRuns = () =>

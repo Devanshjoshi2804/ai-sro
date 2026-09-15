@@ -131,8 +131,8 @@ export function BatchCard({
             {go.isPending ? "Running…" : `Run ${items.length}`}
           </button>
           <span style={{ fontSize: 11.5, color: ink.textSoft }}>
-            Each item is its own run, verified on its own. Confirming this table is what the
-            run records as its authorisation.
+            Each item is its own run, verified on its own. Confirming this table is what the run
+            records as its authorisation.
           </span>
         </div>
       )}

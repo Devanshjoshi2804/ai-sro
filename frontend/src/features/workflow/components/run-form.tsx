@@ -93,9 +93,7 @@ export function RunForm({ workflow }: { workflow: WorkflowModel }) {
             list={`${workflow.id}-${p.name}-seen`}
             required
             value={values[p.name] ?? ""}
-            onChange={(event) =>
-              setValues((prev) => ({ ...prev, [p.name]: event.target.value }))
-            }
+            onChange={(event) => setValues((prev) => ({ ...prev, [p.name]: event.target.value }))}
           />
           {/* The values a recording actually carried, so an operator can pick
               one they have used before instead of retyping it. */}
@@ -147,9 +145,7 @@ export function RunForm({ workflow }: { workflow: WorkflowModel }) {
       {refusal && <p className="text-destructive text-sm">{refusal}</p>}
       {/* Said, not swallowed: a refused start that looks like a started one is
           an operator waiting on a run that does not exist. */}
-      {start.error && (
-        <p className="text-destructive text-sm">{(start.error as Error).message}</p>
-      )}
+      {start.error && <p className="text-destructive text-sm">{(start.error as Error).message}</p>}
     </form>
   );
 }

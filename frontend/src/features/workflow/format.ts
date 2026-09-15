@@ -36,11 +36,10 @@ export function became(runs: {
  * an unpriced day is over the cap however small its total reads: a day whose
  * cost cannot be established is not a cheap day.
  */
-export function spendLine(s: {
-  cost_usd: number;
-  unpriced: number;
-  cap_usd: number;
-}): { text: string; overCap: boolean } {
+export function spendLine(s: { cost_usd: number; unpriced: number; cap_usd: number }): {
+  text: string;
+  overCap: boolean;
+} {
   // A negative cap is how this deployment says "no cap"; `>= cap` would then
   // be true for every day and paint a green deployment permanently red.
   const capped = s.cap_usd >= 0;
@@ -58,7 +57,9 @@ export function spendLine(s: {
  * spent on a space. Deliberately not localised — this is what the row says.
  */
 export function when(t: string | null | undefined): string {
-  return String(t ?? "").slice(0, 19).replace("T", " ");
+  return String(t ?? "")
+    .slice(0, 19)
+    .replace("T", " ");
 }
 
 /** Midnight today in the reader's OWN zone, shaped for `<input type="datetime-local">`. */

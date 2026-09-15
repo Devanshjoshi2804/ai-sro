@@ -9,5 +9,4 @@ export const summaryKeys = {
 };
 
 /** A week by default, because a week is the unit a shift pattern repeats in. */
-export const getSummary = (days = 7) =>
-  api.get<SummaryModel>(`/v1/analytics/summary?days=${days}`);
+export const getSummary = (days = 7) => api.get<SummaryModel>(`/v1/analytics/summary?days=${days}`);

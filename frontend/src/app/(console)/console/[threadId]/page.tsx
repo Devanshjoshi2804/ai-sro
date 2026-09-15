@@ -9,11 +9,7 @@ import { ThreadProvider } from "@/features/console/thread-store";
  * a thread could not be sent to a colleague. For a tool whose whole point is
  * that one person's teaching is the team's, that last one is not a small thing.
  */
-export default async function ThreadPage({
-  params,
-}: {
-  params: Promise<{ threadId: string }>;
-}) {
+export default async function ThreadPage({ params }: { params: Promise<{ threadId: string }> }) {
   const { threadId } = await params;
   return (
     <ThreadProvider>

@@ -15,9 +15,17 @@ describe("AuditWalk", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     vi.spyOn(workflowApi, "listWorkflows").mockResolvedValue([
-      { id: "wfl_1", title: "Create a Work Area", narrative: "", systems: [], pass_id: "p",
-        parameters: [], unproven: [], steps: [],
-        runs: { total: 0, held: 0, stale: 0, earned: false } },
+      {
+        id: "wfl_1",
+        title: "Create a Work Area",
+        narrative: "",
+        systems: [],
+        pass_id: "p",
+        parameters: [],
+        unproven: [],
+        steps: [],
+        runs: { total: 0, held: 0, stale: 0, earned: false },
+      },
     ] as never);
   });
 
@@ -32,8 +40,9 @@ describe("AuditWalk", () => {
   it("keeps a row in the record's own UTC", async () => {
     vi.spyOn(workflowApi, "readAudit").mockResolvedValue({
       ...empty,
-      devices: [{ device_id: "dev_a", registered_at: "2026-09-10T14:32:07+00:00",
-                  revoked_at: null }],
+      devices: [
+        { device_id: "dev_a", registered_at: "2026-09-10T14:32:07+00:00", revoked_at: null },
+      ],
     } as never);
     renderWithQuery(<AuditWalk />);
     expect(await screen.findByText(/2026-09-10 14:32:07/)).toBeInTheDocument();
@@ -42,23 +51,59 @@ describe("AuditWalk", () => {
   it("names who let a write out, and says so plainly when nobody was named", async () => {
     vi.spyOn(workflowApi, "readAudit").mockResolvedValue({
       ...empty,
-      runs: [{ id: "wrun_a", workflow_id: "wfl_1", device_id: "dev_a", started_by: "devansh",
-        live: true, started_at: "2026-09-10T10:00:00+00:00", finished_at: null,
-        outcome: "completed", cost_usd: 0.5, unpriced: false,
-        steps: [{ order: 1, says: "Save", verdict: "held", verdict_by: "state", reason: "",
-          sent: null, matched_by: null, stale: false,
-          approved_at: "2026-09-10T10:01:00+00:00", approved_by: null }] }],
+      runs: [
+        {
+          id: "wrun_a",
+          workflow_id: "wfl_1",
+          device_id: "dev_a",
+          started_by: "devansh",
+          live: true,
+          started_at: "2026-09-10T10:00:00+00:00",
+          finished_at: null,
+          outcome: "completed",
+          cost_usd: 0.5,
+          unpriced: false,
+          steps: [
+            {
+              order: 1,
+              says: "Save",
+              verdict: "held",
+              verdict_by: "state",
+              reason: "",
+              sent: null,
+              matched_by: null,
+              stale: false,
+              approved_at: "2026-09-10T10:01:00+00:00",
+              approved_by: null,
+            },
+          ],
+        },
+      ],
     } as never);
     renderWithQuery(<AuditWalk />);
-    expect(await screen.findByText(/approved 2026-09-10 10:01:00 by the tenant/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/approved 2026-09-10 10:01:00 by the tenant/),
+    ).toBeInTheDocument();
   });
 
   it("marks a dry run as dry so nobody reads it as a write", async () => {
     vi.spyOn(workflowApi, "readAudit").mockResolvedValue({
       ...empty,
-      runs: [{ id: "wrun_a", workflow_id: "wfl_1", device_id: "dev_a", started_by: "devansh",
-        live: false, started_at: "2026-09-10T10:00:00+00:00", finished_at: null,
-        outcome: "completed", cost_usd: 0, unpriced: false, steps: [] }],
+      runs: [
+        {
+          id: "wrun_a",
+          workflow_id: "wfl_1",
+          device_id: "dev_a",
+          started_by: "devansh",
+          live: false,
+          started_at: "2026-09-10T10:00:00+00:00",
+          finished_at: null,
+          outcome: "completed",
+          cost_usd: 0,
+          unpriced: false,
+          steps: [],
+        },
+      ],
     } as never);
     renderWithQuery(<AuditWalk />);
     expect(await screen.findByText(/completed \(dry\)/)).toBeInTheDocument();

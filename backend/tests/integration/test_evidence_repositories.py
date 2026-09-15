@@ -179,6 +179,48 @@ class TestGestures:
             assert await uow.gestures.batch_owner("bat_1") == "dev_1"
             assert await uow.gestures.batch_owner("bat_never") is None
 
+    async def test_an_empty_heartbeat_does_not_make_a_tenant_look_busy(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """The bug this exists for, and it stopped the product doing its job.
+
+        A watching extension uploads on its timer whether or not anybody did
+        anything, so an idle browser posts an empty batch a minute forever.
+        `MineLately` reads `tenants_since` to ask "is this tenant mid-task"
+        and skips one that is -- sensibly, so somebody halfway through
+        creating a supplier is not mined at two fields filled.
+
+        An empty heartbeat answered yes. So a tenant read as `still working;
+        leaving this one to settle` for as long as the browser stayed
+        connected, and mining never ran *while the product was in use*. Seen
+        on the QA deployment: fifty-four gestures captured, five empty batches
+        after them, nothing mined five minutes later.
+        """
+        since = datetime(2026, 9, 3, 9, 0, tzinfo=UTC)
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.gestures.add_batch(_batch("bat_worked"))
+            await uow.gestures.add_gestures((_gesture("ges_1", batch_id="bat_worked"),))
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            busy = await uow.gestures.tenants_since(since)
+        assert TENANT in busy, "a batch that carried work says the tenant is working"
+
+        # The heartbeats that follow, after the operator has stopped.
+        async with SqlUnitOfWork(session_factory) as uow:
+            for number in range(3):
+                await uow.gestures.add_batch(
+                    _batch(f"bat_idle_{number}", received_at="2026-09-03T11:00:00+00:00")
+                )
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            later = await uow.gestures.tenants_since(datetime(2026, 9, 3, 10, 30, tzinfo=UTC))
+
+        assert TENANT not in later, (
+            "an idle browser's heartbeat kept the tenant mid-task, and mining never ran"
+        )
+
     async def test_another_tenants_gestures_are_not_returned(
         self, session_factory: async_sessionmaker[AsyncSession]
     ) -> None:

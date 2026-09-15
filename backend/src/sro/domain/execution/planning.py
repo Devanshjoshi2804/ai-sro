@@ -163,6 +163,15 @@ class Planned:
     a create asking for a five-character code is answered **201** and the record
     is four characters long, with nobody told."""
 
+    by: str = ""
+    """Who planned it, where that is not the model the runner was about to ask.
+
+    A replay the evidence decides on its own asks nobody, and `planned_by` is
+    the one field a reviewer reads to know who to blame for a step. Recording
+    a model that was never called there is a lie about the audit trail, and it
+    is the kind that survives: the row looks exactly like a step the model got
+    right. Empty means the model named at the call site planned it."""
+
 
 def value_for(
     step: Step, gesture: Gesture, values: Mapping[str, str], said: str | None

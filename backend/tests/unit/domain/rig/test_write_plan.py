@@ -280,14 +280,19 @@ def test_one_demonstration_names_no_parameters_and_so_replays_nothing() -> None:
     assert write_plan_for(_step("g1"), once, {CODE: "GPDP"}, LEDGER, SEEN) is None
 
 
-def test_a_body_this_run_changes_nothing_in_is_still_a_plan() -> None:
-    """A job with no parameters at all replays byte for byte, which is what it
-    has always done and what the majority of calls still are."""
-    plan = write_plan_for(_step("g1", "g2"), _twice(), {}, LEDGER, {})
+def test_a_body_this_run_changes_nothing_in_gets_no_plan_at_all() -> None:
+    """A job with no parameters replays byte for byte, and a plan cannot do
+    that -- so the honest answer is to decline and let the recorded bytes go.
 
-    assert plan is not None
-    assert json.loads(plan.body or "{}") == CREATED
-    assert plan.filled == {}
+    This test used to assert the opposite, and it passed, and it was wrong
+    twice. `json.loads(plan.body) == CREATED` compares DOCUMENTS, so it agreed
+    while the plan re-serialised `{"a":1}` into `{"a": 1}` -- different bytes,
+    for nothing, and wrong outright for a body anything signs. And a plan sets
+    `rewrote`, which `verify` reads as "the status no longer proves the
+    demonstrated effect": a job nobody parameterised would have started
+    demanding a read-back to confirm a body nobody rewrote.
+    """
+    assert write_plan_for(_step("g1", "g2"), _twice(), {}, LEDGER, {}) is None
 
 
 def test_an_endpoint_the_ledger_has_not_watched_succeed_gets_no_plan() -> None:

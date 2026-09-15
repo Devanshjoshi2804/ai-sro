@@ -55,6 +55,7 @@ from sro.application.ports.channel import Reply
 from sro.domain.chat.reading import ChatReading
 from sro.domain.execution.belts import K_EARNED_RUNS, SCREEN_SCHEMA
 from sro.domain.execution.planning import PLAN_SCHEMA, Look, Planned
+from sro.domain.execution.verified_writes import VerifiedWrite
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
 from sro.domain.observation.gesture import Call, Gesture
 from sro.domain.shared.identifiers import DeviceId, TenantId
@@ -777,6 +778,7 @@ async def _ran(
     earned: bool = False,
     from_step: int = 0,
     cap_usd: float = -1.0,
+    verified_writes: tuple[VerifiedWrite, ...] = (),
 ) -> WorkflowRun:
     """One run, with the arguments no test varies spelled once.
 
@@ -807,6 +809,7 @@ async def _ran(
             run_id=run_id,
             from_step=from_step,
             items=items,
+            verified_writes=verified_writes,
             # No cap unless a test is about the cap: `over_cap` answers a
             # negative one before it touches the repository, so every other
             # test here pays nothing and asserts nothing about money.
@@ -4047,6 +4050,104 @@ async def test_a_replay_is_not_judged_by_what_the_page_called() -> None:
     assert not [one for one in channel.sent if one["kind"] == "calls.since"], (
         "the browser was asked what it called about a call the browser did not make"
     )
+
+    # And no picture of the page it did not move. A `fetch` repaints nothing,
+    # so the "after" screen is the before screen: the only shot is the one the
+    # planner was given.
+    assert len([one for one in channel.sent if one["kind"] == "screenshot"]) == 1, (
+        "a replay was photographed to judge a page it never touched"
+    )
+
+
+async def test_a_write_the_ledger_has_watched_is_planned_without_asking_anybody() -> None:
+    """The evidence settles this step, so nothing is asked.
+
+    The cited gesture says which call the step made, the ledger says this
+    deployment has already watched that `(method, path)` succeed, and there is
+    nothing left for a model to decide. Asking one anyway costs a screenshot, an
+    upload and a vision call -- and buys a coin flip: a step planned by a model
+    is planned from scratch every run, so the same job replays the call on
+    Tuesday and clicks Save on Wednesday. The one step that changes warehouse
+    state is exactly where that must not be true.
+    """
+    uow = await _fixture()
+    workflow = await _one_step(uow, _ids(uow)[-1], parameters=[])
+    channel = FakeChannel(
+        {
+            "ui.url": [Reply(ok=True, result={"url": "http://127.0.0.1:63319/form"})] * 2,
+            "screenshot": [Reply(ok=True, result={"image_base64": "aVBORw0=", "text_digest": "s"})],
+            "http.send": [Reply(ok=True, result={"status": 200, "body": "{}"})],
+        }
+    )
+    asker = FakeAsker()
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        values={},
+        earned=True,
+        verified_writes=(VerifiedWrite(method="POST", path_pattern="/api/orders"),),
+    )
+
+    assert run.outcome == "held"
+    assert not asker.asked, "a model was asked about a step the evidence decides"
+    assert run.steps[0].planned_by == "evidence", "the row names who planned it"
+    assert not [one for one in channel.sent if one["kind"] == "screenshot"]
+    sent = [_payload(one) for one in channel.sent if one["kind"] == "http.send"]
+    assert len(sent) == 1
+    # Byte for byte. A job with no parameters has nothing to re-aim, and
+    # re-serialising it would change the bytes for nothing.
+    assert sent[0]["body"] == '{"clientCode":"ACME-4471","dock":"D3"}'
+
+
+async def test_a_call_the_ledger_has_not_watched_is_still_the_models_to_plan() -> None:
+    """Narrow on purpose. The ledger is the only thing that makes replaying
+    recorded bytes safe -- a write outside it carries a struck-out
+    `CSRF-ENCRYPT-TOKEN` and is refused before it is routed -- so every call
+    this does not cover keeps the standing preference for driving the
+    interface, and keeps the model that decides it."""
+    uow = await _fixture()
+    workflow = await _one_step(uow, _ids(uow)[-1], parameters=[])
+    channel = FakeChannel({**_looks(2), "ui.perform": [_performed()]})
+    asker = FakeAsker(_plan("click"), Answer(data={"held": True, "why": "saved"}))
+
+    run = await _ran(uow, workflow, channel=channel, asker=asker, values={}, earned=True)
+
+    assert run.steps[0].planned_by == "flash", "the plan model planned it"
+    assert asker.asked, "and it was actually asked"
+
+
+async def test_a_replay_that_comes_back_refused_still_falls_to_the_model() -> None:
+    """First rather than instead. A replay the endpoint refused is precisely
+    when clicking Save is the right next move, so the deterministic rung sits
+    in front of the ladder rather than in place of it."""
+    uow = await _fixture()
+    workflow = await _one_step(uow, _ids(uow)[-1], parameters=[])
+    channel = FakeChannel(
+        {
+            **_looks(2),
+            "ui.url": [Reply(ok=True, result={"url": "http://127.0.0.1:63319/form"})] * 3,
+            "http.send": [Reply(ok=True, result={"status": 409, "body": "{}"})],
+            "ui.perform": [_performed()],
+        }
+    )
+    asker = FakeAsker(_plan("click"), Answer(data={"held": True, "why": "saved"}))
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        values={},
+        earned=True,
+        verified_writes=(VerifiedWrite(method="POST", path_pattern="/api/orders"),),
+    )
+
+    assert [one["kind"] for one in channel.sent].count("http.send") == 1, "the replay went out"
+    assert run.steps[0].planned_by == "flash", "and the click that followed was the model's"
+    assert run.outcome == "held"
 
 
 # --- a write that would only make a second copy ------------------------------

@@ -48,7 +48,12 @@ from datetime import UTC, datetime, timedelta
 
 from sro.application.execution.approvals import K_APPROVAL_WAIT_S, Approvals
 from sro.application.execution.effects import earned, forget_effects, record_effect
-from sro.application.execution.plan_step import SecretFor, plan_by_sight, plan_step
+from sro.application.execution.plan_step import (
+    SecretFor,
+    plan_by_sight,
+    plan_step,
+    replay_without_asking,
+)
 from sro.application.execution.stops import Stops
 from sro.application.execution.verify import (
     # `already_done` is taken in this module: the steps an operator did
@@ -797,15 +802,36 @@ async def run_workflow(
                 # than doing its later steps on an assumption nobody checked.
                 record.reason = "no cited gesture can be acted on"
 
-            # The plan model, then the rescue model once, then -- only when
-            # both missed the control by every recorded identity -- the rescue
-            # model once more, by sight. A step with nothing actionable cited
-            # gets none of them: it is recorded skipped and the run stops below.
+            # A replay the evidence decides on its own, where there is one,
+            # then the plan model, then the rescue model once, then -- only
+            # when both missed the control by every recorded identity -- the
+            # rescue model once more, by sight. A step with nothing actionable
+            # cited gets none of them: it is recorded skipped and the run stops
+            # below.
+            #
+            # First rather than instead. `replay_without_asking` covers exactly
+            # the step the evidence fully determines -- a call in the ledger
+            # whose body this run's values fit -- and a replay that comes back
+            # refused is precisely when clicking Save is the right next move,
+            # which is what the rungs behind it are.
+            replay = (
+                replay_without_asking(
+                    step=step,
+                    cited=cited,
+                    values=values,
+                    verified_writes=verified_writes,
+                    seen=observed,
+                )
+                if primary is not None
+                else None
+            )
             rungs = (
                 (("evidence", plan_model), ("evidence", rescue_model), ("sight", rescue_model))
                 if primary is not None
                 else ()
             )
+            if replay is not None:
+                rungs = (("replay", ""), *rungs)
             verdict: StepVerdict | None = None
             after_failed: Look | None = None
             for how, model in rungs:
@@ -844,8 +870,16 @@ async def run_workflow(
                         run.outcome = "refused"
                         break
                     attempts += 1
-                    before = await _look(channel, tenant_id, device_id, run.id, origin, allow_focus)
-                    if how == "sight":
+                    if replay is not None and how == "replay":
+                        # No picture: nobody is being shown one. The url is
+                        # still wanted -- `before_url` is on the record -- and
+                        # that is a message rather than a camera.
+                        before = await _where(channel, tenant_id, device_id, run.id, origin)
+                        proposal = replay
+                    elif how == "sight":
+                        before = await _look(
+                            channel, tenant_id, device_id, run.id, origin, allow_focus
+                        )
                         proposal = await plan_by_sight(
                             step=step,
                             cited=cited,
@@ -857,6 +891,9 @@ async def run_workflow(
                             failure=verdict.reason if verdict else None,
                         )
                     else:
+                        before = await _look(
+                            channel, tenant_id, device_id, run.id, origin, allow_focus
+                        )
                         proposal = await plan_step(
                             step=step,
                             cited=cited,
@@ -899,7 +936,11 @@ async def run_workflow(
                             secret_for=secret_for,
                             opened=opened,
                         )
-                    record.planned_by = model
+                    # Who actually planned it. A replay asks nobody, and
+                    # writing a model's name beside a step it never saw is a
+                    # lie in the one field a reviewer reads to know who to
+                    # blame.
+                    record.planned_by = proposal.by or model
                     record.before_url = before.url
                     _bill(record, proposal.answer)
                     record.sent = {
@@ -1272,9 +1313,20 @@ async def run_workflow(
                 # Where the status settled it, the url is still wanted -- the
                 # record says where the step left the browser -- and that is a
                 # question the browser answers without a camera.
+                #
+                # And for a replay, where there was never a picture to take. An
+                # `http.send` is a `fetch`: no click, no navigation, no repaint,
+                # so the "after" screen IS the before screen and the screen rung
+                # would ask a model whether an unchanged page proves a record
+                # was created. That is not a weak answer, it is a meaningless
+                # one -- and it can come back `held`. Without a picture the
+                # rung refuses instead: a step that writes cannot reach the
+                # "changes nothing" hold, so an odd status ends `unclear` and
+                # stops the run, which is the honest end for a write nothing
+                # could confirm.
                 after = (
                     await _where(channel, tenant_id, device_id, run.id, origin)
-                    if settled is not None
+                    if settled is not None or planned.kind == "http.send"
                     else await _look(channel, tenant_id, device_id, run.id, origin, allow_focus)
                 )
                 record.after_url = after.url

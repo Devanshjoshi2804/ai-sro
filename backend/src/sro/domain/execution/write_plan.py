@@ -257,6 +257,18 @@ def write_plan_for(
     claimed = _assigned(slots, bodies, values, seen)
     if claimed is None:
         return None
+    if not claimed:
+        # Nothing to aim, which is not the same as a plan that changes nothing.
+        # A job with no parameters -- or a write carrying none of them -- has to
+        # replay BYTE FOR BYTE, and a plan built here would re-serialise the
+        # body instead: `{"a":1}` recorded goes out as `{"a": 1}`, different
+        # bytes for no reason and wrong outright for a body anything signs.
+        #
+        # Worse than the bytes, it would set `rewrote`. `verify` reads that as
+        # "the status no longer proves the demonstrated effect" and demands a
+        # read-back -- so a job nobody parameterised would stop asking for
+        # evidence it was never going to have, for a body nobody rewrote.
+        return None
 
     aimed = dict(bodies[0])
     for slot, parameter in claimed.items():

@@ -96,6 +96,122 @@ VALUED = ("type", "select", "upload", "press")
 """The actions that carry a value. A click types nothing."""
 
 
+def _replay_of(
+    step: Step,
+    by_id: Mapping[str, Gesture],
+    values: Mapping[str, str],
+    verified_writes: tuple[VerifiedWrite, ...],
+    seen: Mapping[str, frozenset[str]],
+) -> tuple[dict[str, object], bool] | None:
+    """The recorded call as a payload, re-aimed at this run's values, and
+    whether it was re-aimed. `None` where it must not go out as it stands.
+
+    Two refusals, and they are different failures. A call is `unreplayable`
+    when its recorded bytes cannot be sent at all. A call is un-AIMABLE when
+    this run was given values, the call is one the ledger has watched succeed,
+    and `write_plan_for` could not work out which of its fields the values
+    belong in -- sending it then would send the DEMONSTRATION's values, so the
+    operator asks for `GPDP` and the warehouse is told `GGD` and answers 201
+    for it.
+
+    Gated on the LEDGER, and that is what makes the second refusal narrow
+    enough to be right. A run holds its values for the whole job, so "this run
+    has values" says nothing about whether a given call carries any of them,
+    and refusing on that alone turned every replay into a click. It also
+    catches what inspecting the body cannot: the ledger's own gotcha is
+    `csttyp truncates at 4 chars`, so the operator typed `ZV9680`, the body
+    went out as `ZV96`, and no value in the body equals anything anybody was
+    seen typing.
+
+    Both callers are here -- the model's `http.send` and the replay the
+    evidence decides on its own -- so what goes on the wire cannot differ by
+    who asked for it.
+    """
+    call = recorded_call(step, by_id)
+    if call is None or unreplayable(call):
+        return None
+    verified = verified_write_for(call, verified_writes) is not None
+    aimed = write_plan_for(step, by_id, values, verified_writes, seen)
+    if aimed is None and values and verified:
+        return None
+    # `aimed` where there is one, and the recorded bytes where there is nothing
+    # to aim -- a job with no parameters replays exactly as it was
+    # demonstrated, which is what it has always done and what most calls still
+    # are.
+    recorded = call.request_body.text if call.request_body else None
+    payload: dict[str, object] = {
+        "method": call.method.upper(),
+        "url": call.url,
+        "headers": headers_without_markers(call.request_headers),
+        "body": aimed.body if aimed is not None else (recorded or None),
+    }
+    # A struck-out header is not sent as its marker -- that much holds for
+    # every call. For a call this deployment has individually watched succeed,
+    # a header the extension itself knows a live source for is asked for
+    # instead of being left off: dropping `CSRF-ENCRYPT-TOKEN` sends a Blue
+    # Yonder write the app will refuse before routing it, the third 404 shape
+    # `knowledge-base/KNOWLEDGE-BASE.md` names. Named, not sent: the extension
+    # fetches the value itself, off the page it is already in, and it never
+    # reaches the backend at all.
+    if verified:
+        live = [
+            name
+            for name, value in call.request_headers.items()
+            if REDACTED in value and name.lower() in LIVE_FETCHABLE_HEADERS
+        ]
+        if live:
+            payload["live_headers"] = live
+    return payload, aimed is not None
+
+
+def replay_without_asking(
+    *,
+    step: Step,
+    cited: list[Gesture],
+    values: Mapping[str, str],
+    verified_writes: tuple[VerifiedWrite, ...],
+    seen: Mapping[str, frozenset[str]] = MappingProxyType({}),
+) -> Planned | None:
+    """The one command a step can be planned without asking anybody.
+
+    The evidence says which call the step made, `write_plan_for` says where
+    this run's values go in it, and the ledger says this deployment has already
+    watched that `(method, path)` succeed. Nothing is left for a model to
+    decide, so nothing is asked -- and that is worth more than the vision call
+    it saves. A step planned by a model is planned again from scratch every
+    run: the same job sends `http.send` on Tuesday and clicks Save on
+    Wednesday, and the one step that changes warehouse state is the one where
+    that matters. Deterministic where the evidence is complete, a model only
+    where it is not.
+
+    Narrow on purpose. Only a call already in the ledger, which is the same
+    gate `live_headers` sits behind -- and the same reason: an unverified write
+    replayed from a recording sends a struck-out `CSRF-ENCRYPT-TOKEN` and is
+    refused, so the module's standing preference for driving the interface is
+    exactly right for every call this does not cover.
+
+    The rescue still asks. A replay that failed by status is precisely when
+    clicking Save is the right next move, and `run_workflow` puts this first in
+    the ladder rather than in place of it.
+    """
+    by_id = {gesture.id: gesture for gesture in cited}
+    call = recorded_call(step, by_id)
+    if call is None or verified_write_for(call, verified_writes) is None:
+        return None
+    sending = _replay_of(step, by_id, values, verified_writes, seen)
+    if sending is None:
+        return None
+    payload, rewrote = sending
+    return Planned(
+        "http.send",
+        payload,
+        "the evidence records this call and the ledger has watched it succeed",
+        Answer(),
+        rewrote=rewrote,
+        by="evidence",
+    )
+
+
 def _primary(step: Step, cited: list[Gesture]) -> Gesture | None:
     """The gesture this step is planned from.
 
@@ -205,24 +321,22 @@ async def plan_step(
         )
 
     if kind == "http.send":
-        call = recorded_call(step, {gesture.id: gesture for gesture in cited})
+        by_id = {gesture.id: gesture for gesture in cited}
+        call = recorded_call(step, by_id)
         if call is None:
             return Planned(
                 "none", {}, "http.send planned for a step whose evidence carries no call", answer
             )
-        aimed = write_plan_for(
-            step,
-            {gesture.id: gesture for gesture in cited},
-            values,
-            verified_writes,
-            seen,
-        )
+        sending = _replay_of(step, by_id, values, verified_writes, seen)
+        if sending is not None:
+            payload, rewrote = sending
+            return Planned("http.send", payload, why, answer, rewrote=rewrote)
         if unreplayable(call):
             # Falls through to the ui.perform below rather than returning
             # "none": a step the operator performed by clicking Save is still
             # performable by clicking Save, and planning nothing burns it.
             why = f"recorded call is not replayable; {why}"
-        elif aimed is None and values and verified_write_for(call, verified_writes) is not None:
+        elif values and verified_write_for(call, verified_writes) is not None:
             # The run was given values and nothing could work out where they go.
             # Sending the recorded body would send the DEMONSTRATION's values --
             # the operator asks for `GPDP` and the warehouse is told `GGD`, and
@@ -245,37 +359,6 @@ async def plan_step(
             # the demonstrated value inside the bytes would find nothing and
             # send the truncation.
             why = f"the recorded body cannot be re-aimed at this run's values; {why}"
-        else:
-            # `aimed` where there is one, and the recorded bytes where there is
-            # nothing to aim -- a job with no parameters replays exactly as it
-            # was demonstrated, which is what it has always done and what most
-            # calls still are.
-            recorded = call.request_body.text if call.request_body else None
-            body = aimed.body if aimed is not None else (recorded or None)
-            payload: dict[str, object] = {
-                "method": call.method.upper(),
-                "url": call.url,
-                "headers": headers_without_markers(call.request_headers),
-                "body": body,
-            }
-            # A struck-out header is not sent as its marker -- that much holds
-            # for every call. For a call this deployment has individually
-            # watched succeed (`verified_write_for`), a header the extension
-            # itself knows a live source for is asked for instead of being
-            # left off: dropping `CSRF-ENCRYPT-TOKEN` sends a Blue Yonder
-            # write the app will refuse before routing it, the third 404 shape
-            # `knowledge-base/KNOWLEDGE-BASE.md` names. Named, not sent: the
-            # extension fetches the value itself, off the page it is already
-            # in, and it never reaches the backend at all.
-            if verified_write_for(call, verified_writes) is not None:
-                live = [
-                    name
-                    for name, value in call.request_headers.items()
-                    if REDACTED in value and name.lower() in LIVE_FETCHABLE_HEADERS
-                ]
-                if live:
-                    payload["live_headers"] = live
-            return Planned("http.send", payload, why, answer, rewrote=aimed is not None)
 
     # Both the plan the model asked for and the one it gets when its http.send
     # cannot be replayed. One path, so the downgrade cannot drift from the plan

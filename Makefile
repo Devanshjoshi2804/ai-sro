@@ -4,6 +4,7 @@
 # typing a long command twice, it belongs in this file.
 
 COMPOSE := docker compose -f infra/docker-compose.yml
+DEPLOY := docker compose -f infra/docker-compose.deploy.yml --env-file $(or $(env),infra/.env.qa)
 BACKEND := cd backend &&
 FRONTEND := cd frontend &&
 
@@ -11,7 +12,7 @@ FRONTEND := cd frontend &&
 .PHONY: help up down ps logs reset install migrate revision api worker status web vault-key one-whole-run \
         lint lint-backend lint-frontend format test test-unit test-integration \
         test-contract test-browser types check ingest-kb seed-skills gen-recorder \
-        mutants-backend open-joins two-miners images
+        mutants-backend open-joins two-miners images smoke
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -255,5 +256,13 @@ test-extension: ## The extension's own self-checks, in plain node
 	@# module-scope cache meant only the first test in the process could pin a
 	@# shapes request. Neither survives a fresh process per file.
 	cd new-chrome-extension && node --test "**/*.test.?(c|m)js"
+
+smoke: ## Does a DEPLOYMENT work from outside itself: make smoke at=http://10.11.9.25:8088
+	@# Run after every deploy. Not a substitute for the suite -- it asks the
+	@# one question a suite cannot: whether the urls this system hands to a
+	@# browser name anything a browser can reach. Every defect on the first day
+	@# of deploying was on one of those edges. See backend/scripts/smoke.py.
+	@test -n "$(at)" || { echo "at= is required: make smoke at=http://<host>:<port>"; exit 2; }
+	@$(DEPLOY) exec -T api python scripts/smoke.py $(at)
 
 check: lint test test-contract test-frontend test-extension test-browser ## What CI runs

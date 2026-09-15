@@ -111,6 +111,25 @@ Check what is actually loaded rather than what is on disk:
 $C exec caddy caddy validate --config /etc/caddy/Caddyfile
 ```
 
+## After every deploy
+
+```bash
+make smoke at=http://10.11.9.25:8088        # env=infra/.env.prod for the other one
+```
+
+It asks the one question a test suite cannot: whether the urls this system
+hands to a browser name anything a browser can reach. It runs inside the API
+container, because it needs the app's own adapters to mint those urls, and
+then it uses them over the public address the way a page would -- fetching a
+presigned artifact, opening a real browser session, loading its live view and
+reading a frame off the screencast socket. Exit 1 and the name of what is
+wrong, or exit 0.
+
+Every defect found on the first day of deploying was on one of those edges,
+and every one looked correct in the code and worked on a laptop. Read the
+docstring in `backend/scripts/smoke.py` for the list; it is the argument for
+the script.
+
 ## Five things that are quiet when wrong
 
 1. **`SRO_API_URL` and `SRO_CONSOLE_URL` default to localhost.** They are not

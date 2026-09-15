@@ -59,8 +59,13 @@ services:
       timeout: 5s
       retries: 20
 
+  # quay.io, not Docker Hub: `minio/minio` and `minio/mc` there now answer
+  # "pull access denied ... or may require 'docker login'" for anyone who does
+  # not already hold the layers. A machine that has run this before cannot
+  # notice, which is why it surfaced on the first deployment to a fresh host
+  # and not on any laptop.
   minio:
-    image: minio/minio:latest
+    image: quay.io/minio/minio:latest
     restart: unless-stopped
     command: ["server", "/data", "--console-address", ":9001"]
     environment:
@@ -75,7 +80,7 @@ services:
       retries: 20
 
   minio-init:
-    image: minio/mc:latest
+    image: quay.io/minio/mc:latest
     depends_on:
       minio:
         condition: service_healthy

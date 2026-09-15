@@ -295,6 +295,36 @@ async function tabOnOrigin(url) {
   return tabs.find((tab) => /^https?:/.test(tab.url || "")) || null;
 }
 
+/** Run one of the page-realm functions in EVERY frame, and take the first
+ * frame that answered with something.
+ *
+ * For the live headers, and measured on the real system 2026-09-16. Blue
+ * Yonder's portal is a shell that hosts the application in an iframe
+ * (`/portal/page?libraryContext=…`), and BOTH have an `Ext`. The shell's
+ * `Ext.Ajax.defaultHeaders` carries only `Accept`; the iframe's carries
+ * `CSRF-ENCRYPT-TOKEN`, 88 characters of it. Reading the top frame alone
+ * therefore finds an Ext, finds no token, and answers `unreachable:
+ * CSRF-ENCRYPT-TOKEN is not on this page` -- which failed every replay of
+ * every Blue Yonder write, with the token sitting one frame down.
+ *
+ * First non-null and not a merge: a header has one value, and two frames that
+ * disagree are two sessions, not one to pick a winner from by rule. Frames
+ * come back in the order Chrome enumerates them, top first, so a page that
+ * does put it on the shell keeps behaving exactly as it did.
+ */
+async function inEveryFrame(tabId, func, args, world = "MAIN") {
+  const answers = await chrome.scripting.executeScript({
+    target: { tabId, allFrames: true },
+    world,
+    func,
+    args,
+  });
+  for (const answer of answers) {
+    if (answer?.result !== null && answer?.result !== undefined) return answer.result;
+  }
+  return null;
+}
+
 /** Run one of the page-realm functions and hand back what it answered. */
 async function inPage(tabId, func, args, world = "MAIN") {
   const [answer] = await chrome.scripting.executeScript({
@@ -825,9 +855,11 @@ async function httpSend(payload) {
     if (!source) {
       return failure("unreachable", `no live source for header ${name}`);
     }
-    const value = await inPage(tab.id, source, [], "MAIN");
+    // Every frame, not just the top one: on the system this was built for the
+    // token lives in the application's iframe and the shell has none.
+    const value = await inEveryFrame(tab.id, source, [], "MAIN");
     if (!value) {
-      return failure("unreachable", `${name} is not on this page`);
+      return failure("unreachable", `${name} is not on this page or any frame of it`);
     }
     headers[name] = value;
   }

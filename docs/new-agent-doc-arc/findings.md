@@ -1712,17 +1712,41 @@ That is the whole chain — mine, store, serve, recognise, offer — proven on r
 evidence rather than a fixture, and the left-hand column is what the deployment
 did for the operator who asked why nothing appeared.
 
-### What this does not settle
+### The two things in that same payload, since fixed
 
-Two things are visibly wrong in that same payload and are left as they are,
-recorded rather than changed on a hunch:
+Both were recorded here before they were understood, which is why the record is
+worth keeping: the obvious fix for one of them was wrong.
 
-- `starts_on` is the whole URL of the original mail, message id and all. The
-  extension normalises it to `host/path` before anything compares it, so it
-  does not block an offer — but the backend serves the id, and `commands.js`
-  navigates to `starts_on` when a run begins.
-- `hosts` carries `https://play.google.com`, which no gesture happened on.
-  `allowlist` adds the origin of every REQUEST a cited gesture made, and a
-  Gmail page calls Google's own infrastructure. Those origins belong there for
-  the verifier's sake — `by_what_the_page_called` matches against them — so
-  narrowing this is a security decision with weight on both sides, not a typo.
+**`hosts` carried `https://play.google.com`**, which no gesture happened on.
+`allowlist` adds the origin of every REQUEST a cited gesture made, and a Gmail
+page calls Google's own infrastructure. The same set decided where a planned
+command could go — so a telemetry beacon made Google Play somewhere a planner
+could navigate an operator's browser, on a job about warehouse customer types.
+
+Those origins are real evidence and stay: a demonstrated write can go to an API
+origin the page itself never was, and `http.send` replays that call. What was
+wrong was one set answering two questions. `stood_on` is where somebody was —
+navigation, and `Shape.hosts` — and `allowlist` is that plus request origins,
+for `http.send` alone.
+
+**`starts_on` carried the message id of one mail.** The served copy is narrowed
+to scheme, host and path, which is what every consumer already reduced it to.
+
+**And the obvious fix for the navigating copy would have broken the
+warehouse.** `run_workflow` sends its own `starts_on`, and a run opens it.
+Stripping the fragment there looks like the same fix and is not. The captured
+urls say why:
+
+    https://bf56-…/portal?siteId=SG#wm.config/wm.config.partners.customers.types////
+    https://mail.google.com/mail/u/0/?tab=rm&ogbl#inbox/FMfcgzQhWLST…
+
+The warehouse addresses its SCREENS by fragment; Gmail puts its message id in
+the same place. One system's screen is the other's particular, in the same
+component. And the `libraryContext=<64 hex>` in the warehouse url is a session
+token sitting in the query, beside `menu=wm.config`, which is a screen.
+
+So no component of a url can be called particular or general on its face, and
+nothing in a SINGLE demonstration distinguishes them. The navigating copy keeps
+the whole url, and the limitation is written where the value is computed:
+telling a screen from a visit needs two demonstrations that differ, which is a
+change to what is mined rather than to what is read.

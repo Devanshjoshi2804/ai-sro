@@ -365,7 +365,7 @@ async function tabForRun(payload, runId) {
   }
 
   let tab = await drivenTab(payload.origin);
-  const wanted = payload.starts_on;
+  const wanted = opensFor(payload);
   if (wanted && (!tab || !samePage(tab.url, wanted))) {
     const opened = await openAt(wanted);
     if (opened) tab = opened;
@@ -373,6 +373,27 @@ async function tabForRun(payload, runId) {
 
   if (tab && runId && latest?.runId === runId) latest = { ...latest, tabId: tab.id };
   return tab;
+}
+
+/** The page this step may open a tab at, or null.
+ *
+ * `starts_on` only ever speaks for the step's OWN system. A job that crosses
+ * from one to another used to send every step the page the run BEGAN on, so a
+ * step whose origin was the warehouse arrived carrying the operator's mail --
+ * and the caller found their warehouse tab, threw it away because it was not
+ * on that page, opened the mail, and clicked a warehouse control there. The
+ * step failed `not_actionable: the page did not answer`, on the real
+ * deployment, 2026-09-15.
+ *
+ * The backend now sends it for the first step alone. This is the same rule
+ * said again where the tab is actually chosen, because a stale build of either
+ * side must not be able to drive somebody's browser into the wrong system.
+ */
+export function opensFor(payload) {
+  const wanted = payload?.starts_on;
+  if (!wanted) return null;
+  if (payload.origin && originOf(wanted) !== payload.origin) return null;
+  return wanted;
 }
 
 function originOf(url) {

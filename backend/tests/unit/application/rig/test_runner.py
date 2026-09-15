@@ -3356,6 +3356,37 @@ async def test_a_run_started_mid_job_records_the_operators_steps_and_performs_th
     )
 
 
+async def test_only_the_first_step_a_run_performs_may_open_a_tab() -> None:
+    """`starts_on` is where a tab is OPENED when the operator's own is
+    elsewhere. It is a fact about BEGINNING the run -- and it was computed once
+    and then attached to every step, which dragged a job that crosses systems
+    back to the first one on every leg.
+
+    Measured on the deployment, 2026-09-15: step 2 of `Create a Customer Type`
+    went out with `origin` naming the warehouse and `starts_on` naming the
+    operator's mail. The extension found their warehouse tab, threw it away
+    because it was not on that page, opened the mail, and clicked a warehouse
+    control there -- `not_actionable: the page did not answer`.
+
+    After the first command a tab is pinned to the run and `commands.js` keeps
+    it while it is on the step's own origin, which is all the later steps need.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    _demonstrated_on(uow, workflow.steps[1].cites[0], K_SECOND_SCREEN)
+    channel = FakeChannel({**_looks(4), "ui.perform": [_performed(), _performed()]})
+    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True, "why": ""}))
+
+    await _ran(uow, workflow, channel=channel, asker=asker, earned=True)
+
+    performed = [_payload(one) for one in channel.sent if one["kind"] == "ui.perform"]
+    assert len(performed) >= 2, "this is about the steps after the first"
+    assert performed[0].get("starts_on"), "the run could not open a tab to begin"
+    assert all("starts_on" not in one for one in performed[1:]), (
+        "a later step carried the page the run began on"
+    )
+
+
 async def test_a_run_started_mid_job_starts_on_the_page_of_the_step_it_starts_at() -> None:
     """`starts_on` is what the extension opens a tab at when the operator's own
     tab is elsewhere. Aimed at step 0 for a run that starts at step 1, it would
@@ -3449,7 +3480,13 @@ async def test_a_run_that_starts_at_the_top_starts_on_the_first_steps_page() -> 
     await _ran(uow, workflow, channel=channel, asker=asker, earned=True)
 
     starts = [_payload(s).get("starts_on") for s in channel.sent if s["kind"] == "ui.perform"]
-    assert starts == ["http://127.0.0.1:63319/"] * 2, "both steps are aimed at where the run began"
+    # The first one, which is the only one that carries it: `starts_on` opens a
+    # tab to BEGIN the run, and sending it again on the second step aimed a
+    # cross-system job back at the first system. `test_only_the_first_step_a_
+    # run_performs_may_open_a_tab` holds that half; this one holds WHICH page
+    # the first step is given, which is where the job starts and not the second
+    # screen.
+    assert starts[0] == "http://127.0.0.1:63319/"
 
 
 async def test_the_steps_the_operator_did_buy_no_budget() -> None:

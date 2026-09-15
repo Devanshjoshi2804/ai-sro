@@ -592,6 +592,9 @@ async def run_workflow(
     budget = len(itinerary) - len(already_done) + K_STEP_SLACK
     attempts = 0
     starts_on = None
+    # Whether any command has gone out yet, which is what makes the next one
+    # the run's first: `starts_on` belongs to that one alone.
+    sent_nothing_yet = True
     # The page this run begins on, which is the page of the step it begins at
     # -- not the job's first page. The extension opens a tab at `starts_on`
     # when the operator's own tab is elsewhere, and aiming a run that starts at
@@ -847,7 +850,27 @@ async def run_workflow(
                             values=values,
                             look=before,
                             origin=origin,
-                            starts_on=starts_on,
+                            # Only for the first step this run performs.
+                            #
+                            # `starts_on` is where a tab is OPENED when the
+                            # operator's own is elsewhere, and it is a fact
+                            # about beginning the run -- which is what the
+                            # comment where it is computed has always said.
+                            # Attached to every step instead, it dragged a
+                            # cross-system job back to the first system on
+                            # every leg: measured 2026-09-15, step 2 of `Create
+                            # a Customer Type` went out with `origin` naming the
+                            # warehouse and `starts_on` naming the operator's
+                            # mail, so the extension found their warehouse tab,
+                            # threw it away because it was not on that page, and
+                            # clicked a warehouse control in Gmail. The step
+                            # failed `not_actionable: the page did not answer`.
+                            #
+                            # After the first, the run has a tab pinned to it
+                            # and `commands.js` keeps it while it is on the
+                            # step's own origin, which is the whole of what the
+                            # later steps need.
+                            starts_on=starts_on if sent_nothing_yet else None,
                             allow_focus=allow_focus,
                             asker=asker,
                             model=model,
@@ -1181,6 +1204,10 @@ async def run_workflow(
                 reply = await channel.send(
                     tenant_id, device_id, kind=planned.kind, run_id=run.id, payload=planned.payload
                 )
+                # Whatever came back, a command has now gone out and a tab is
+                # pinned to this run: `starts_on` has done its one job and the
+                # next step is driven by its own origin.
+                sent_nothing_yet = False
                 record.result = _result(reply, wrote=may_write)
                 # A point has no locator: the record says the control was found
                 # by sight, in both places a reader looks.

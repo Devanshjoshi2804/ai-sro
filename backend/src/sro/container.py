@@ -1173,6 +1173,7 @@ def build_container(settings: Settings | None = None) -> Container:
             secret_key=settings.s3_secret_key,
             bucket=settings.s3_bucket,
             region=settings.s3_region,
+            public_endpoint_url=settings.s3_public_endpoint_url,
         ),
         browser=SteelClient(
             settings.steel_base_url,

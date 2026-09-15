@@ -27,16 +27,28 @@ class MinioBlobStore(BlobStore):
         secret_key: str,
         bucket: str,
         region: str = "us-east-1",
+        public_endpoint_url: str | None = None,
     ) -> None:
         self._bucket = bucket
-        self._client: Any = boto3.client(
-            "s3",
-            endpoint_url=endpoint_url,
-            aws_access_key_id=access_key,
-            aws_secret_access_key=secret_key,
-            region_name=region,
-            config=Config(signature_version="s3v4", retries={"max_attempts": 3}),
-        )
+
+        def client(where: str) -> Any:
+            return boto3.client(
+                "s3",
+                endpoint_url=where,
+                aws_access_key_id=access_key,
+                aws_secret_access_key=secret_key,
+                region_name=region,
+                config=Config(signature_version="s3v4", retries={"max_attempts": 3}),
+            )
+
+        self._client: Any = client(endpoint_url)
+        # A presigned url is the one thing here that leaves the deployment: it
+        # is handed to a browser, which has never heard of `minio`. Signed
+        # against the address that browser can reach, when they differ --
+        # deployed, the store is on a compose network and the operator is not.
+        # The signature covers the host, so this cannot be a string rewrite
+        # afterwards; it has to be signed by a client that knows the address.
+        self._signer: Any = client(public_endpoint_url) if public_endpoint_url else self._client
 
     async def put(self, key: str, data: bytes, *, content_type: str) -> str:
         await asyncio.to_thread(
@@ -50,7 +62,7 @@ class MinioBlobStore(BlobStore):
 
     async def presigned_url(self, key: str, *, expires_in: timedelta) -> str:
         url: str = await asyncio.to_thread(
-            self._client.generate_presigned_url,
+            self._signer.generate_presigned_url,
             "get_object",
             Params={"Bucket": self._bucket, "Key": key},
             ExpiresIn=int(expires_in.total_seconds()),

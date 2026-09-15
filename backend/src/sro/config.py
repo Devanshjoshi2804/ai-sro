@@ -98,6 +98,17 @@ class Settings(BaseSettings):
     s3_access_key: str = "sro"
     s3_secret_key: str = "sro-secret"  # noqa: S105 - local MinIO default, overridden by SRO_S3_SECRET_KEY
     s3_bucket: str = "sro-artifacts"
+
+    s3_public_endpoint_url: str | None = None
+    """Where a *browser* reaches object storage, when that is not where this
+    process reaches it.
+
+    Deployed, the store sits on a private network as `minio:9000` and the
+    operator's browser has never heard of that name -- so every presigned url
+    the console draws a screenshot or a screencast from pointed at a host that
+    does not resolve, and each one failed as a broken image rather than as an
+    error anybody saw. Unset means the two are the same address, which is true
+    on a laptop and was the only case ever exercised."""
     s3_region: str = "us-east-1"
 
     cors_origins: tuple[str, ...] = ()

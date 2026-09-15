@@ -82,9 +82,16 @@ services:
     volumes:
       - minio-data:/data
     ports:
-      # The console only, on loopback. The S3 API stays on the compose network:
-      # the only thing that speaks to it is the backend.
+      # The console on loopback, for whoever is on call.
       - "127.0.0.1:${MINIO_CONSOLE_BIND_PORT:-9001}:9001"
+      # The S3 API, reachable by an operator's browser. Not for browsing: it
+      # is where a presigned url points, and the console draws every
+      # screenshot and screencast from one. Unpublished, those urls name
+      # `minio:9000`, which resolves on the compose network and nowhere a
+      # person is sitting -- every artifact is then a broken image. Anonymous
+      # requests are refused; the signature in the url is the credential, and
+      # it expires.
+      - "${S3_BIND:-0.0.0.0:9000}:9000"
     healthcheck:
       test: ["CMD", "mc", "ready", "local"]
       interval: 10s
@@ -218,6 +225,8 @@ services:
       SRO_DEBUG: "false"
       SRO_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-sro}
       SRO_S3_ENDPOINT_URL: http://minio:9000
+      # Where a browser reaches it, which is not where this process does.
+      SRO_S3_PUBLIC_ENDPOINT_URL: ${SRO_S3_PUBLIC_ENDPOINT_URL:?set SRO_S3_PUBLIC_ENDPOINT_URL, e.g. http://10.11.9.25:9000}
       SRO_S3_ACCESS_KEY: ${S3_ACCESS_KEY}
       SRO_S3_SECRET_KEY: ${S3_SECRET_KEY}
       SRO_S3_BUCKET: ${S3_BUCKET:-sro-artifacts}

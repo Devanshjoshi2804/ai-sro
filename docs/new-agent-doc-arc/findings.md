@@ -1643,3 +1643,86 @@ will not answer it by asserting it. `two_miners.py` prints both lists in full
 for exactly that reason, and it reads by default — the rule-based miner writes
 candidates as it runs, and the model pass costs a 150K-token call, so each has
 to be asked for by name.
+
+## The first offer this system ever earned (2026-09-15)
+
+An operator demonstrated a real cross-system job on the QA deployment: read the
+mail saying which customer type to create, went to the warehouse, created it.
+55 gestures, 55 readings, one mining pass, one workflow kept — `Create a
+Customer Type`, six steps spanning `mail.google.com` and
+`bf56-kms-wms-web-np2.jdadelivers.com`.
+
+Nothing was ever offered. This records why, because the three reasons are
+different and only the last one is about the model.
+
+### 1. The window's leftovers were read as a verdict on the job
+
+`shapes_for` skipped any workflow with a non-empty `unproven`, and so did the
+trigger's create, its fire, and the console's job picker. The prompt asks for
+what the pass could not place ONCE, about the window; the schema asked for it
+per workflow, so the model hung the day's residue on whichever job it emitted.
+
+Measured on the row: **36 unplaced ids**, about a third of them gestures
+supporting this job's own steps — the model cites roughly one gesture per step
+and calls the rest unplaced. A real day always leaves residue, so the field was
+non-empty by construction and the whole downstream was dead code. Doing the job
+more cleanly would never have emptied it.
+
+### 2. The shape was keyed on the words of one email
+
+With the gate gone, `shapes_for` served the job. The shape it served began:
+
+    ['https://mail.google.com',
+     'name|a customer type :- GGD\ndescription :- leaning new SRO type 01',
+     'click']
+
+The operator clicked the body of the mail, and Chrome's accessible name for
+that div is the whole instruction. `target_identity` already had the rule that
+says a paragraph is not a control's name — no newline, at most forty
+characters — and applied it to `innerText` alone.
+
+Two consequences, and the second is the one that matters here. A shape keyed on
+one mail's words can never match the next mail, so the job could not have been
+recognised however many times it was done. And `shape.py` opens by promising
+that a shape carries no typed value; `/v1/shapes` was handing an operator's own
+mail to every browser in the tenant.
+
+### 3. What it takes to be offered, run against the real thing
+
+The fix is one rule applied to the name branches as well, in the generator the
+extension's copy is built from so the two cannot disagree. After it, the same
+deployment serves:
+
+    ['https://mail.google.com', 'anon|click', 'click']
+    ['https://bf56-kms-wms-web-np2.jdadelivers.com', 'tabItem', 'click']
+    ['https://bf56-kms-wms-web-np2.jdadelivers.com', 'addButton', 'click']
+    ...
+    parameters: [{'Customer Type', at 5}, {'Customer Type Description', at 7}]
+
+The shape pulled from the live API and run through the extension's own
+`recognise.match`, on a tail of two gestures — a click in *some other* mail,
+then the warehouse tab:
+
+| tail | shape as served this morning | shape as served now |
+|---|---|---|
+| mail click | null | null (k=1, under `offer_after`) |
+| + WMS tab click | **null** | **offer: `Create a Customer Type`, k=2, missing both parameters** |
+
+That is the whole chain — mine, store, serve, recognise, offer — proven on real
+evidence rather than a fixture, and the left-hand column is what the deployment
+did for the operator who asked why nothing appeared.
+
+### What this does not settle
+
+Two things are visibly wrong in that same payload and are left as they are,
+recorded rather than changed on a hunch:
+
+- `starts_on` is the whole URL of the original mail, message id and all. The
+  extension normalises it to `host/path` before anything compares it, so it
+  does not block an offer — but the backend serves the id, and `commands.js`
+  navigates to `starts_on` when a run begins.
+- `hosts` carries `https://play.google.com`, which no gesture happened on.
+  `allowlist` adds the origin of every REQUEST a cited gesture made, and a
+  Gmail page calls Google's own infrastructure. Those origins belong there for
+  the verifier's sake — `by_what_the_page_called` matches against them — so
+  narrowing this is a security decision with weight on both sides, not a typo.

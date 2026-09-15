@@ -69,7 +69,6 @@ INTENT_SCHEMA: dict[str, object] = {
         "why": {"type": "string", "description": "one sentence, naming the evidence"},
         "act": {"type": "string", "description": "what the person did, in their words"},
         "object": {"type": "string", "description": "the thing they were working on"},
-        "system": {"type": "string"},
         "page": {"type": "string"},
         "values_seen": {
             "type": "array",
@@ -91,7 +90,6 @@ INTENT_SCHEMA: dict[str, object] = {
         "why",
         "act",
         "object",
-        "system",
         "page",
         "values_seen",
         "continues",
@@ -147,7 +145,6 @@ def intent_from(
 
     intent.act = _string_field(data, "act")
     intent.object = _string_field(data, "object")
-    intent.system = _string_field(data, "system")
     intent.page = _string_field(data, "page")
     # `or None`: the schema says "empty unless it continues the last doing", so
     # "" is what a model returns for most gestures. Stored verbatim it is

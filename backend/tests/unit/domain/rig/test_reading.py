@@ -94,6 +94,45 @@ def test_the_reason_is_asked_for_before_the_act_and_the_confidence_last() -> Non
     assert list(properties)[-1] == "confidence", "confidence was set before the answer existed"
 
 
+def test_every_field_asked_of_the_reading_is_a_field_something_reads() -> None:
+    """This schema is the most expensive prompt in the system by volume -- one
+    call per gesture, fifty-five of them for an afternoon's work -- so a field
+    here is paid for on every one of them.
+
+    `system` was in it until 2026-09-15, with no description saying what it was
+    for, and nothing anywhere read the column it was stored in. It was found
+    because it was visibly wrong: one warehouse host came back as `Blue
+    Yonder`, `BlueYonder`, `JDA WMS`, `WMS` and `WM` across one day's readings.
+    Nothing had told the model what to write, and nothing checked what it did.
+
+    The miner never wanted it. `as_evidence` shows a gesture's own `system` --
+    the origin the browser recorded, one name per host by construction -- and
+    the tail a reading is given is `one_line`, which is `act` and `object`.
+
+    Each name below carries the reader it is paid for. `continues` is the one
+    exception and is marked as such: nothing consumes it, and it stays because
+    `gemini_read_tail`'s docstring keeps the tail knob open FOR it after
+    measuring what that tail costs. That is a decision somebody made with
+    numbers, not an oversight -- which is exactly the difference this test is
+    here to make visible. Adding a field means naming its reader in the same
+    commit, or saying plainly that it has none and why.
+    """
+    properties = _in_schema("properties")
+    assert isinstance(properties, dict)
+
+    assert set(properties) == {
+        "why",  # the reasoning the order exists to force
+        "act",  # one_line, and the whole window
+        "object",  # one_line, and the whole window
+        "page",  # as_evidence
+        "values_seen",  # typed_values, values.crossings, learn_parameters
+        # No reader. Kept deliberately: `gemini_read_tail` exists for it, and
+        # that knob's docstring is a measured argument rather than a hope.
+        "continues",
+        "confidence",  # read before a reading is trusted
+    }
+
+
 def test_the_words_ask_for_the_order_the_schema_imposes() -> None:
     """A prompt that asks for one order while the schema imposes another is a
     prompt arguing with itself, which is what shipped once already."""

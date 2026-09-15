@@ -153,7 +153,6 @@ class Intent:
     tenant: str
     act: str | None = None
     object: str | None = None
-    system: str | None = None
     page: str | None = None
     values_seen: list[ValueSeen] = field(default_factory=list)
     continues: str | None = None

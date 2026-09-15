@@ -671,7 +671,6 @@ class IntentRow(Base):
 
     act: Mapped[str | None] = mapped_column(Text)
     object_: Mapped[str | None] = mapped_column("object", Text)
-    system: Mapped[str | None] = mapped_column(Text)
     page: Mapped[str | None] = mapped_column(Text)
     values_seen: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list)
     continues: Mapped[str | None] = mapped_column(Text)

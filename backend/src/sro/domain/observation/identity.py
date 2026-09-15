@@ -19,6 +19,19 @@ from sro.domain.skill.workflow import Workflow, cited_ids
 ShapeKey = tuple[tuple[str, str, str], ...]
 
 
+K_TEXT_IDENTITY_MAX = 40
+"""The longest free text that can stand as a control's identity.
+
+A button says "Save"; a paragraph of page copy says nothing about which control
+was touched, changes with the page, and would be served to every browser as a
+shape.
+"""
+
+
+def _names_a_control(text: str) -> bool:
+    return "\n" not in text and len(text) <= K_TEXT_IDENTITY_MAX
+
+
 def target_identity(gesture: Gesture) -> str:
     """What to call the control this gesture touched, stably across occurrences."""
     target = gesture.action.target
@@ -32,25 +45,35 @@ def target_identity(gesture: Gesture) -> str:
             return component.item_id
         if component.query:
             return component.query
-    if target.role and target.name:
+    # The same rule on the name as on the text below it, and for the same
+    # reason. An accessible name is free text off the page, not an identifier a
+    # developer assigned -- `item_id`, `query` and `test_id` are those -- and it
+    # is at least as likely to be a paragraph as `innerText` is. It was the one
+    # branch the rule was not applied to.
+    #
+    # Measured on this deployment, 2026-09-15: an operator clicked the body of
+    # the mail telling them what to create, and Chrome's accessible name for
+    # that div was the whole instruction -- so `Create a Customer Type` was
+    # shaped on
+    #
+    #     name|a customer type :- GGD\ndescription :- leaning new SRO type 01
+    #
+    # A shape keyed on the words of ONE mail cannot match the next one, so the
+    # job could never be recognised again; and `shape.py` promises in its first
+    # paragraph that nothing here carries a typed value, while this served an
+    # operator's own mail to every browser in the tenant asking for shapes.
+    if target.role and target.name and _names_a_control(target.name):
         return f"{target.role}|{target.name}"
-    if target.name:
+    if target.name and _names_a_control(target.name):
         return f"name|{target.name}"
     if target.test_id:
         return f"test|{target.test_id}"
     if target.text and _names_a_control(target.text):
         return f"text|{target.text}"
+    # Honest rather than precise. "A click on mail.google.com we cannot name"
+    # is what actually happened, and the rest of the shape is what tells this
+    # job from another.
     return f"anon|{gesture.action.kind}"
-
-
-K_TEXT_IDENTITY_MAX = 40
-"""The longest innerText that can stand as a control's identity. A button says
-"Save"; a paragraph of page copy says nothing about which control was touched,
-changes with the page, and would be served to every browser as a shape."""
-
-
-def _names_a_control(text: str) -> bool:
-    return "\n" not in text and len(text) <= K_TEXT_IDENTITY_MAX
 
 
 def shape_key(gestures: list[Gesture]) -> ShapeKey:

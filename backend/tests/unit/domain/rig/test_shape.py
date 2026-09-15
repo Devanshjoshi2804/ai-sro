@@ -27,6 +27,87 @@ def test_a_plain_control_falls_back_to_its_name() -> None:
     assert target_identity(select) == "name|Dock"
 
 
+# -- an accessible name is free text off the page, not an identifier ----------
+#
+# Measured on the deployment, 2026-09-15. An operator read the mail telling them
+# what to create, clicked in it, and went and created it: the first real
+# cross-system job this system ever mined. Chrome's accessible name for that div
+# is the whole instruction, and it went into the shape whole --
+#
+#     name|a customer type :- GGD\ndescription :- leaning new SRO type 01
+#
+# -- which is two defects at once. A shape keyed on the words of ONE mail cannot
+# match the next one, so the job could never be recognised again however many
+# times it was done. And `shape.py` opens by promising that nothing in a shape
+# carries a typed value, while `/v1/shapes` served an operator's own mail to
+# every browser in the tenant.
+#
+# The rule already existed and already said why -- `_names_a_control`, no
+# newline and at most forty characters -- and was applied to `innerText` alone.
+
+
+def _clicked(
+    *,
+    name: str | None = None,
+    role: str | None = None,
+    text: str | None = None,
+    test_id: str | None = None,
+) -> Gesture:
+    """A click on something with no developer-assigned identity on it: no
+    component, which is how every ordinary web page arrives."""
+    one = copy.deepcopy(_gestures()[0])
+    one.action = replace(
+        one.action,
+        kind="click",
+        target=Target(tag="div", name=name, role=role, text=text, test_id=test_id),
+    )
+    return one
+
+
+MAIL = "a customer type :- GGD\ndescription :- leaning new SRO type 01"
+
+
+def test_the_words_of_one_mail_are_not_what_a_control_is_called() -> None:
+    assert target_identity(_clicked(name=MAIL)) == "anon|click"
+
+
+def test_a_role_does_not_rescue_a_paragraph() -> None:
+    """`role|<paragraph>` is as unmatchable as `name|<paragraph>`, and carries
+    the same words to the same browsers."""
+    assert target_identity(_clicked(name=MAIL, role="textbox")) == "anon|click"
+
+
+def test_a_long_single_line_name_is_a_sentence_too() -> None:
+    """Forty characters, the same forty the innerText rule uses. A control is
+    called `Save`; forty-one characters of prose is what a page says, not what
+    a control is named."""
+    assert target_identity(_clicked(name="x" * 40)) == "name|" + "x" * 40
+    assert target_identity(_clicked(name="x" * 41)) == "anon|click"
+
+
+def test_a_real_control_name_still_names_it() -> None:
+    """The whole value of this branch. `name` is the best identity a plain page
+    offers, and the guard is only meant to refuse the ones that are not names."""
+    assert target_identity(_clicked(name="Save")) == "name|Save"
+    assert (
+        target_identity(_clicked(name="Customer Type", role="textbox")) == "textbox|Customer Type"
+    )
+
+
+def test_what_is_left_when_the_name_is_a_paragraph_is_still_tried() -> None:
+    """Refusing the name falls THROUGH to what is left rather than giving up:
+    a `data-testid` is a developer-assigned identifier and is exactly what this
+    case wants."""
+    assert target_identity(_clicked(name=MAIL, test_id="compose-body")) == "test|compose-body"
+
+
+def test_a_paragraph_is_refused_by_both_doors() -> None:
+    """The mail arrives as `name` AND as `text` -- Chrome computes the same
+    string for both -- so guarding one and not the other would have changed
+    nothing at all on the gesture that found this."""
+    assert target_identity(_clicked(name=MAIL, text=MAIL)) == "anon|click"
+
+
 def test_a_scroll_has_no_target_and_is_named_anyway() -> None:
     """A scroll carries no target at all. It must still key.
 

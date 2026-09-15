@@ -81,6 +81,7 @@ async def _verify(
     origin: str | None = "http://127.0.0.1:63319",
     model: str = "m",
     rewrote: bool = False,
+    confirm: Mapping[str, str] | None = None,
 ) -> StepVerdict:
     """One step verified. The helper is the rig's own `_verified`, widened so
     the tests that varied a look, an asker or a model do not have to spell the
@@ -97,6 +98,11 @@ async def _verify(
         tenant_id=_TENANT,
         device_id=_DEVICE,
         rewrote=rewrote,
+        # What a re-aimed write is checked against: the slot the plan put each
+        # value in. `WritePlan.confirm` is where a run gets it; the tests that
+        # re-aim by hand say it by hand, because `rewrote` with nothing to
+        # confirm now means "there is no read that could settle this".
+        confirm=confirm or {},
         run_id="run_1",
         origin=origin,
         asker=asker or FakeAsker(),
@@ -770,6 +776,7 @@ async def test_a_body_this_run_re_aimed_is_not_held_on_its_status_alone() -> Non
         sent_kind="http.send",
         answer=Reply(ok=True, result={"status": 200, "body": "{}"}),
         rewrote=True,
+        confirm={"workArea": "THIRD"},
     )
 
     assert (verdict.state, verdict.by) == ("failed", "read")
@@ -786,6 +793,7 @@ async def test_a_re_aimed_write_the_read_back_confirms_is_held_by_the_read() -> 
         sent_kind="http.send",
         answer=Reply(ok=True, result={"status": 200, "body": "{}"}),
         rewrote=True,
+        confirm={"workArea": "THIRD"},
     )
 
     assert (verdict.state, verdict.by) == ("held", "read")
@@ -814,12 +822,63 @@ async def test_the_read_back_after_a_re_aimed_write_wants_every_value_not_any() 
         sent_kind="http.send",
         answer=Reply(ok=True, result={"status": 200, "body": "{}"}),
         rewrote=True,
+        confirm={"workArea": "THIRD", "reference": "SAME"},
     )
 
     assert onany.by == "status", "a verbatim replay is settled before the read"
     assert (onevery.state, onevery.by) == ("failed", "read"), (
         "the half that did not change matched, and the half that did was not looked at"
     )
+
+
+async def test_a_record_the_server_worded_its_own_way_is_not_a_failed_write() -> None:
+    """The defect this replaced, and it un-earned jobs for being right.
+
+    Measured over the 94 recorded creates whose request and response are both
+    JSON objects: 16 send a value that appears nowhere in the answer, every one
+    a `…Description` key where the form posts the code and the server stores
+    the label it resolves to. Searching the whole record for `ZV9054` finds
+    nothing, so a correct create was marked `failed` -- which stops the run and
+    empties the job's register of verified effects.
+
+    `confirm` is `WritePlan.confirm`, already narrowed to the slots the
+    demonstration's own answer handed back unchanged, so the rewritten one is
+    never asked about and the record is judged on the slot that can be judged.
+    """
+    channel = _read('{"workArea":"THIRD","summary":"Any handling unit for pallet movement"}')
+
+    verdict = await _verify(
+        _saver(),
+        channel=channel,
+        values={"workArea": "THIRD", "summary": "ZV9054"},
+        sent_kind="http.send",
+        answer=Reply(ok=True, result={"status": 200, "body": "{}"}),
+        rewrote=True,
+        confirm={"workArea": "THIRD"},
+    )
+
+    assert (verdict.state, verdict.by) == ("held", "read")
+
+
+async def test_a_re_aimed_write_with_no_slot_a_read_could_settle_never_makes_the_read() -> None:
+    """Every field this run wrote is one the demonstration shows the server
+    rewriting, so there is no proposition a read could confirm. Asking anyway
+    spends a round trip to be told the record does not hold what was posted
+    into it -- which is true of the demonstration's own record too."""
+    channel = _read('{"summary":"Any handling unit for pallet movement"}')
+
+    verdict = await _verify(
+        _saver(),
+        channel=channel,
+        values={"summary": "ZV9054"},
+        sent_kind="http.send",
+        answer=Reply(ok=True, result={"status": 200, "body": "{}"}),
+        rewrote=True,
+        confirm={},
+    )
+
+    assert (verdict.state, verdict.by) == ("held", "status")
+    assert not channel.sent, "a read was made for a record it could not settle"
 
 
 async def test_with_no_read_to_make_a_re_aimed_write_still_holds_on_its_status() -> None:

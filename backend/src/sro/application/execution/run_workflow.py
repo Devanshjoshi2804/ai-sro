@@ -1409,6 +1409,7 @@ async def run_workflow(
                     step=step,
                     sent_kind=planned.kind,
                     rewrote=planned.rewrote,
+                    confirm=planned.confirm,
                     answer=reply,
                     cited=cited,
                     values=values,

@@ -216,6 +216,41 @@ def carries_every(body: str, values: Mapping[str, str]) -> bool:
     return _carried(body, values, quantifier=all)
 
 
+def carries_in_slot(body: str, wanted: Mapping[str, str]) -> bool:
+    """Whether the read shows each value in the KEY the plan put it in.
+
+    What `carries_every` above cannot ask. It searches the whole record for the
+    value, so a job that fills two fields is confirmed by a record that carries
+    the right code in the wrong place -- and it is confirmed just as happily by
+    a record that carries the code somewhere the plan never wrote.
+
+    Measured over the 94 recorded creates whose request and response are both
+    JSON objects: **16 send a value that appears nowhere in the answer**, every
+    one of them a `…Description` key where the form posts the code and the
+    server stores the resolved label. `carries_every` fails those records, and
+    they are correct records -- a failed write stops the run and empties the
+    job's register of verified effects. `wanted` is `WritePlan.confirm`, which
+    is already narrowed to the slots the demonstration's own answer echoed
+    back unchanged, so a slot the server rewrites is never asked about.
+
+    Empty `wanted` is False: nothing was checked, so nothing was shown. The
+    caller decides what to do with a belt that could not run -- `verify` does
+    not reach here at all for an empty one, and holds on the status instead.
+    """
+    if not wanted:
+        return False
+    try:
+        parsed = json.loads(body)
+    except ValueError:
+        return False
+    if not isinstance(parsed, dict):
+        return False
+    # The envelope, before the record -- the same one `verify.made_by` removes.
+    inner = parsed.get("data")
+    record = inner if isinstance(inner, dict) else parsed
+    return all(record.get(slot) == value for slot, value in wanted.items())
+
+
 def _carried(
     body: str, values: Mapping[str, str], *, quantifier: Callable[[Iterator[bool]], bool]
 ) -> bool:

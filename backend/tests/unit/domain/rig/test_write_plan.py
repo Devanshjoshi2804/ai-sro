@@ -102,6 +102,23 @@ def _call(body: dict[str, object] | None, *, method: str = "POST", url: str = ""
     )
 
 
+def _answered(
+    gesture_id: str, body: dict[str, object] | None, answer: dict[str, object]
+) -> Gesture:
+    """One doing of the save whose reply the recorder also kept.
+
+    The real capture keeps response bodies -- 4 of the 4 writes in the
+    extension's own `fixtures/batch-teaching.json` carry one -- and they are
+    what says which slots the server hands back unchanged.
+    """
+    gesture = _saving(gesture_id, body)
+    text = json.dumps(answer, ensure_ascii=False)
+    gesture.requests[0] = replace(
+        gesture.requests[0], response_body=Body(text=text, size_bytes=len(text))
+    )
+    return gesture
+
+
 def _saving(gesture_id: str, body: dict[str, object] | None, **kw: str) -> Gesture:
     """One doing of the save: a click that produced the create."""
     return Gesture(
@@ -569,3 +586,74 @@ def test_a_constant_that_happens_to_equal_a_typed_value_is_still_a_constant() ->
     assert sent["customerType"] == "GPDP"
     assert sent["manufacturerId"] == twin, "a constant equal to a typed value was substituted"
     assert plan.filled == {"customerType": CODE}
+
+
+# -- what a read can actually be checked against -------------------------------
+
+
+def test_a_slot_the_server_rewrites_is_not_one_a_read_can_confirm() -> None:
+    """The display twin, measured rather than guessed.
+
+    Over the 94 recorded creates whose request and response are both JSON
+    objects, 16 send a value that appears nowhere in the answer -- every one of
+    them a `…Description` key where the form posts the CODE and the server
+    stores the LABEL it resolves to. `allocationAssetGroupDescription` sent
+    `ZV9054` and came back `Any Handling unit for pallet movement`.
+
+    A read-back looking for `ZV9054` there finds nothing and calls a correct
+    record failed, which stops the run and empties the job's register of
+    verified effects. So the slot is filled and simply never asked about.
+    """
+    first = {**CREATED, "longDescription": "ZV9054"}
+    second = {**CREATED, "customerType": "GKB", "longDescription": "ZV8811"}
+    twice = {
+        # Both doings answer, and both show the same thing: the code went into
+        # `longDescription` and the label came back.
+        "g1": _answered("g1", first, {**first, "longDescription": "Any handling unit"}),
+        "g2": _answered("g2", second, {**second, "longDescription": "Inventory"}),
+    }
+    seen = {CODE: frozenset({"GGD", "GKB"}), DESCRIPTION: frozenset({"ZV9054", "ZV8811"})}
+
+    plan = write_plan_for(
+        _step("g1", "g2"), twice, {CODE: "GPDP", DESCRIPTION: "ZV7000"}, LEDGER, seen
+    )
+
+    assert plan is not None
+    assert plan.filled == {"customerType": CODE, "longDescription": DESCRIPTION}, "both were sent"
+    assert json.loads(plan.body or "{}")["longDescription"] == "ZV7000", "and both went out"
+    assert plan.confirm == {"customerType": "GPDP"}, "only the slot the server gives back"
+
+
+def test_a_demonstration_that_never_answered_says_nothing_about_any_slot() -> None:
+    """Absence of evidence about a slot is not evidence about the slot.
+
+    A capture with no response body does not show the server rewriting
+    anything, so every slot stays checkable -- which is no weaker than the
+    whole-body search this replaced, and keeps the belt that catches the
+    ledger's own `csttyp truncates at 4 chars`.
+    """
+    plan = write_plan_for(
+        _step("g1", "g2"), _twice(), {CODE: "GPDP", DESCRIPTION: "new"}, LEDGER, SEEN
+    )
+
+    assert plan is not None
+    assert plan.confirm == {"customerType": "GPDP", "longDescription": "new"}
+
+
+def test_one_doing_that_echoed_a_slot_does_not_answer_for_one_that_rewrote_it() -> None:
+    """`all`, not `any`. A server that resolves a code only when it recognises
+    it rewrites the slot sometimes, and a slot rewritten sometimes is one no
+    read can be checked against."""
+    first = {**CREATED, "longDescription": "ZV9054"}
+    second = {**CREATED, "customerType": "GKB", "longDescription": "ZV8811"}
+    twice = {
+        "g1": _answered("g1", first, first),
+        "g2": _answered("g2", second, {**second, "longDescription": "Inventory"}),
+    }
+    seen = {CODE: frozenset({"GGD", "GKB"}), DESCRIPTION: frozenset({"ZV9054", "ZV8811"})}
+
+    plan = write_plan_for(
+        _step("g1", "g2"), twice, {CODE: "GPDP", DESCRIPTION: "ZV7000"}, LEDGER, seen
+    )
+
+    assert plan is not None and plan.confirm == {"customerType": "GPDP"}

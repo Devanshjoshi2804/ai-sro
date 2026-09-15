@@ -3,6 +3,7 @@ from dataclasses import replace
 from sro.domain.execution.belts import (
     K_EARNED_RUNS,
     RunProof,
+    carries_in_slot,
     confirming_read,
     earned_from,
     expected_statuses,
@@ -278,3 +279,46 @@ def test_a_method_the_browser_recorded_in_lower_case_is_still_a_read() -> None:
     saver.requests = [_get(method="get", request_id="lower", status=200)]
 
     assert expected_statuses(_step(saver), {saver.id: saver}) == set()
+
+
+# -- the value in the key the plan put it in ----------------------------------
+
+
+def test_a_value_in_the_wrong_key_is_not_the_record_this_run_asked_for() -> None:
+    """What the whole-body search cannot ask.
+
+    `carries_every` looks for the value anywhere in the record, so a record
+    carrying the right code in a key the plan never wrote reads as confirmed.
+    That is not a hypothetical shape: a create's answer echoes the request's
+    own fields back, and a job that fills two of them is confirmed by one.
+    """
+    assert carries_in_slot('{"customerType":"GPDP"}', {"customerType": "GPDP"})
+    assert not carries_in_slot('{"shotDescription":"GPDP"}', {"customerType": "GPDP"})
+
+
+def test_every_slot_or_none_of_them() -> None:
+    """One slot right and one wrong is a record that is not the one asked for,
+    and the truncation this belt exists for looks exactly like that: the
+    description still matches and the code does not."""
+    record = '{"customerType":"GPDP","longDescription":"WAS TRUNCATED"}'
+
+    assert not carries_in_slot(record, {"customerType": "GPDP", "longDescription": "asked for"})
+    assert carries_in_slot(record, {"customerType": "GPDP"})
+
+
+def test_the_envelope_is_removed_before_the_record_is_read() -> None:
+    """Blue Yonder answers with `{"@type": …, "data": {…}}` -- 112 of the 114
+    successful writes in the recorded exchanges -- and read at the top level
+    that record has none of its own fields in it."""
+    assert carries_in_slot(
+        '{"@type":"ResponseBodyWrapper","data":{"customerType":"GPDP"}}',
+        {"customerType": "GPDP"},
+    )
+
+
+def test_nothing_to_check_is_not_something_shown() -> None:
+    """An empty `confirm` means no slot survived the demonstration's own
+    answer, so the read settles nothing. `verify` does not even make the read
+    for one; this says what the belt answers if anybody does."""
+    assert not carries_in_slot('{"customerType":"GPDP"}', {})
+    assert not carries_in_slot("not json", {"customerType": "GPDP"})

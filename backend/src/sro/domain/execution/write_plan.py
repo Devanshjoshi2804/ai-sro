@@ -93,6 +93,33 @@ class WritePlan:
     whatever the warehouse echoed back in them rather than what was sent.
     """
 
+    confirm: Mapping[str, str]
+    """Body key -> the value this run put there, for the keys a read can settle.
+
+    `filled` narrowed to the slots the demonstration's OWN answer gave back
+    unchanged, which is the only honest set to check a read against.
+
+    Measured over the 94 recorded creates whose request and response are both
+    JSON objects (`knowledge-base/http/exchanges/*.jsonl`): **16 of them send a
+    value that appears nowhere in the answer**, and they are one pattern. The
+    form posts the CODE into a `…Description` key and the server stores the
+    resolved LABEL -- `allocationAssetGroupDescription` sent `ZV9054` and came
+    back `Any Handling unit for pallet movement`; `holdTypeDescription` sent
+    `ZV86092` and came back `QA Hold`. The record is right; the field simply
+    does not hold what was posted into it.
+
+    A read-back that looked for `ZV9054` in such a record would find nothing and
+    call a perfectly good create failed -- which stops the run and empties the
+    job's register of verified effects. So a slot is compared only where the
+    demonstration proves it is comparable.
+
+    No name rule anywhere in this, deliberately. Matching `…Description` by its
+    spelling is the same suffix heuristic the module docstring rejects for
+    binding, and it is wrong for the same reason: `palletBuildingConsolidateBy`
+    and `displayedPalletBuildingConsolidateBy` are the page's vocabulary, not a
+    contract. The demonstration already shows which slots the server rewrites.
+    """
+
     entry: VerifiedWrite
     """The ledger row this call is proven under. Kept so a reader of the run can
     see which watched endpoint authorised sending bytes instead of clicking."""
@@ -160,6 +187,63 @@ def _bodies_of(step: Step, by_id: Mapping[str, Gesture], like: Call) -> list[dic
             if isinstance(document, dict):
                 found.append(document)
     return found
+
+
+def _record(text: str | None) -> dict[str, object] | None:
+    """One recorded body as the record it describes, envelope removed.
+
+    Blue Yonder answers a create with `{"@type": "ResponseBodyWrapper",
+    "data": {…}}`, which `verify.made_by` unwraps for the same reason: read at
+    the top level the answer has no fields of the record in it at all.
+    """
+    if text is None:
+        return None
+    try:
+        document = json.loads(text)
+    except ValueError:
+        return None
+    if not isinstance(document, dict):
+        return None
+    inner = document.get("data")
+    return inner if isinstance(inner, dict) else document
+
+
+def _echoed(step: Step, by_id: Mapping[str, Gesture], like: Call) -> frozenset[str] | None:
+    """The keys the server gave back exactly as they were sent, every time.
+
+    Asked of the demonstrations' own answers, which is the only place the
+    question can be settled without a rule about names. A key the server
+    rewrites -- a `…Description` that stores the label for the code posted into
+    it -- is one no later read can be checked against, because the record will
+    never hold what was sent however correct it is.
+
+    `all`, not `any`, and over the demonstrations that answered at all: one
+    doing that echoed a key proves nothing if another rewrote it.
+
+    `None` where NO demonstration answered, and that distinction is the whole
+    care of this function. A capture with no response body is not evidence that
+    the server rewrites anything -- absence of evidence about a slot is not
+    evidence about the slot -- so the caller then checks every slot it filled,
+    which is no weaker than the whole-body search this replaced and keeps the
+    belt that catches a truncated code. An empty SET is a different fact: the
+    demonstrations answered and agreed on nothing, so there is nothing a read
+    could settle.
+    """
+    echoed: set[str] | None = None
+    for cited in step.cites:
+        gesture = by_id.get(cited)
+        if gesture is None:
+            continue
+        for call in gesture.requests:
+            if not _same_endpoint(call, like) or unreplayable(call):
+                continue
+            sent = _record(call.request_body.text if call.request_body else None)
+            back = _record(call.response_body.text if call.response_body else None)
+            if sent is None or back is None:
+                continue
+            agreed = {key for key, value in sent.items() if key in back and back[key] == value}
+            echoed = agreed if echoed is None else (echoed & agreed)
+    return None if echoed is None else frozenset(echoed)
 
 
 def _slots(bodies: list[dict[str, object]]) -> frozenset[str]:
@@ -273,11 +357,17 @@ def write_plan_for(
     aimed = dict(bodies[0])
     for slot, parameter in claimed.items():
         aimed[slot] = values[parameter]
+    echoed = _echoed(step, by_id, call)
     return WritePlan(
         method=call.method.upper(),
         url=call.url,
         body=json.dumps(aimed, ensure_ascii=False),
         filled=dict(claimed),
+        confirm={
+            slot: values[parameter]
+            for slot, parameter in claimed.items()
+            if echoed is None or slot in echoed
+        },
         entry=entry,
     )
 

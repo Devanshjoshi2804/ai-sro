@@ -41,6 +41,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping
+from types import MappingProxyType
 
 from sro.application.capture.rig_wire import headers_without_markers
 from sro.application.induction import jsonutil
@@ -53,6 +54,7 @@ from sro.domain.execution.belts import (
     SCREEN_SCHEMA,
     StepVerdict,
     carries_every,
+    carries_in_slot,
     confirming_read,
     expected_statuses,
     mentions,
@@ -492,6 +494,7 @@ async def verify(
     asker: Asker,
     model: str,
     rewrote: bool = False,
+    confirm: Mapping[str, str] = MappingProxyType({}),
 ) -> StepVerdict:
     """Did this step actually happen: state first, and a picture only last."""
     if not answer.ok:
@@ -535,10 +538,17 @@ async def verify(
     # nothing, and "nothing was found" is not evidence the step failed.
     # A probe whose url carries a struck-out credential would ask with the
     # marker's text in the query string; that answers nothing about the state.
-    if probe is not None and values and REDACTED not in probe.url:
+    # A re-aimed write is asked about the SLOTS it filled, and a plan that can
+    # name none of them has no proposition for a read to settle -- so it does
+    # not make one. Falling through to the status below is not a weaker answer
+    # there, it is the only true one: every field this run wrote is a field the
+    # demonstration shows the server rewriting, so the record will never hold
+    # what was posted into it however right the record is.
+    askable = bool(confirm) if rewrote else bool(values)
+    if probe is not None and askable and REDACTED not in probe.url:
         body = await _read_back(probe, channel, tenant_id, device_id, run_id)
         if body is not None:
-            # `carries_every` for a body this run re-aimed, `mentions` for the
+            # `carries_in_slot` for a body this run re-aimed, `mentions` for the
             # rest, and the difference is the whole point of reaching here at
             # all. `mentions` is `any`, so a record whose UNCHANGED half matches
             # reads as the record this run meant to create -- which is exactly
@@ -546,7 +556,19 @@ async def verify(
             # and the code does not. Measured live on 2026-09-15, four runs of
             # a job that types a new code and the same reference each time all
             # skipped their write and reported held on `any`.
-            shown = carries_every(body, values) if rewrote else mentions(body, values)
+            #
+            # And `carries_every` is not the answer either, which is the fix
+            # this replaced. It searches the whole record, so it holds on a
+            # value sitting in a key the plan never wrote -- and it FAILS a
+            # correct record whenever the server stores something else in a
+            # slot this run filled. Measured over the 94 recorded creates whose
+            # request and response are both JSON objects: 16 send a value that
+            # appears nowhere in the answer, every one of them a `…Description`
+            # key holding the label its code resolved to. A failed write stops
+            # the run and empties the job's register of verified effects, so
+            # that is roughly one create in six un-earning a job for being
+            # right.
+            shown = carries_in_slot(body, confirm) if rewrote else mentions(body, values)
             if shown:
                 return StepVerdict(
                     "held", "read", f"a read of {probe.url} shows the value this run supplied"

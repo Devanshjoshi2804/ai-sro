@@ -31,6 +31,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
+from types import MappingProxyType
 
 from sro.domain.observation.gesture import Call, Gesture
 from sro.domain.observation.trim import is_secret
@@ -162,6 +163,16 @@ class Planned:
     The instance is in the ledger's own notes. `csttyp truncates at 4 chars`, so
     a create asking for a five-character code is answered **201** and the record
     is four characters long, with nobody told."""
+
+    confirm: Mapping[str, str] = MappingProxyType({})
+    """Body key -> the value this run put there, for the keys a read can settle.
+
+    `WritePlan.confirm`, carried to `verify` so rung 2 can ask whether the
+    record holds each value in the slot the plan wrote it to, rather than
+    whether the value appears anywhere in the record at all. Empty where the
+    plan is not a re-aimed write, and empty where the demonstration shows the
+    server rewrites every slot this run filled -- in which case there is
+    nothing a read could settle and the status is the whole of the evidence."""
 
     by: str = ""
     """Who planned it, where that is not the model the runner was about to ask.

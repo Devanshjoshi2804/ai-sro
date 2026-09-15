@@ -70,7 +70,7 @@ from sro.domain.execution.planning import (
 )
 from sro.domain.execution.secrets import field_of, needs_a_secret, secret_key_for
 from sro.domain.execution.verified_writes import VerifiedWrite, verified_write_for
-from sro.domain.execution.write_plan import write_plan_for
+from sro.domain.execution.write_plan import WritePlan, write_plan_for
 from sro.domain.observation.gesture import Gesture, Kind
 from sro.domain.observation.trim import trim
 from sro.domain.shared.hosts import REDACTED, origin_of
@@ -102,9 +102,9 @@ def _replay_of(
     values: Mapping[str, str],
     verified_writes: tuple[VerifiedWrite, ...],
     seen: Mapping[str, frozenset[str]],
-) -> tuple[dict[str, object], bool] | None:
-    """The recorded call as a payload, re-aimed at this run's values, and
-    whether it was re-aimed. `None` where it must not go out as it stands.
+) -> tuple[dict[str, object], WritePlan | None] | None:
+    """The recorded call as a payload, re-aimed at this run's values, and the
+    plan that aimed it. `None` where it must not go out as it stands.
 
     Two refusals, and they are different failures. A call is `unreplayable`
     when its recorded bytes cannot be sent at all. A call is un-AIMABLE when
@@ -161,7 +161,7 @@ def _replay_of(
         ]
         if live:
             payload["live_headers"] = live
-    return payload, aimed is not None
+    return payload, aimed
 
 
 def replay_without_asking(
@@ -202,7 +202,7 @@ def replay_without_asking(
     sending = _replay_of(step, by_id, values, verified_writes, seen)
     if sending is None:
         return None
-    payload, rewrote = sending
+    payload, aimed = sending
     if starts_on:
         # The page this call may open a tab at, and only ever for the run's
         # first command -- `run_workflow` passes it for that one alone.
@@ -220,7 +220,8 @@ def replay_without_asking(
         payload,
         "the evidence records this call and the ledger has watched it succeed",
         Answer(),
-        rewrote=rewrote,
+        rewrote=aimed is not None,
+        confirm=dict(aimed.confirm) if aimed is not None else {},
         by="evidence",
     )
 
@@ -342,7 +343,7 @@ async def plan_step(
             )
         sending = _replay_of(step, by_id, values, verified_writes, seen)
         if sending is not None:
-            payload, rewrote = sending
+            payload, aimed = sending
             if starts_on:
                 # Same as the deterministic replay below, and for the same
                 # reason. `run_workflow` passes this for the run's FIRST
@@ -351,7 +352,14 @@ async def plan_step(
                 # lands on one of those, and without this it answers
                 # `no_tab_for_origin` to an operator who has no tab there.
                 payload["starts_on"] = starts_on
-            return Planned("http.send", payload, why, answer, rewrote=rewrote)
+            return Planned(
+                "http.send",
+                payload,
+                why,
+                answer,
+                rewrote=aimed is not None,
+                confirm=dict(aimed.confirm) if aimed is not None else {},
+            )
         if unreplayable(call):
             # Falls through to the ui.perform below rather than returning
             # "none": a step the operator performed by clicking Save is still

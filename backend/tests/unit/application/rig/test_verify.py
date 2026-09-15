@@ -860,6 +860,34 @@ async def test_a_record_the_server_worded_its_own_way_is_not_a_failed_write() ->
     assert (verdict.state, verdict.by) == ("held", "read")
 
 
+async def test_a_held_read_names_the_record_the_run_made() -> None:
+    """The card has to say WHICH record, and on this endpoint `made_by` cannot.
+
+    Its suffix rule wants a key ending in `id`/`code`/`name`/`number`/`key`,
+    and the identifier for a customer type is `customerType`. Measured on the
+    live create, 2026-09-16: 201, the record created, `made` empty -- so a run
+    could say it had made something and not which.
+
+    The plan already knows which keys this job varies, so the row those keys
+    found is the row to name, read back from the warehouse rather than echoed
+    from what was sent.
+    """
+    channel = _read('{"data":[{"workArea":"THIRD","summary":"as the warehouse kept it"}]}')
+
+    verdict = await _verify(
+        _saver(),
+        channel=channel,
+        values={"workArea": "THIRD"},
+        sent_kind="http.send",
+        answer=Reply(ok=True, result={"status": 200, "body": "{}"}),
+        rewrote=True,
+        confirm={"workArea": "THIRD"},
+    )
+
+    assert (verdict.state, verdict.by) == ("held", "read")
+    assert dict(verdict.made) == {"workArea": "THIRD"}
+
+
 async def test_a_re_aimed_write_with_no_slot_a_read_could_settle_never_makes_the_read() -> None:
     """Every field this run wrote is one the demonstration shows the server
     rewriting, so there is no proposition a read could confirm. Asking anyway

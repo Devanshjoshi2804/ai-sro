@@ -54,10 +54,10 @@ from sro.domain.execution.belts import (
     SCREEN_SCHEMA,
     StepVerdict,
     carries_every,
-    carries_in_slot,
     confirming_read,
     expected_statuses,
     mentions,
+    record_carrying,
     status_of,
 )
 from sro.domain.execution.evidence import recorded_call, writes
@@ -472,6 +472,23 @@ def made_by(call: Mapping[str, object]) -> dict[str, str]:
     return named
 
 
+def _named(record: Mapping[str, object] | None, wanted: Mapping[str, str]) -> dict[str, str]:
+    """The slots this run filled, as the warehouse now holds them.
+
+    Same discipline as `made_by`: short values only. This is stored on the run
+    for as long as the tenant keeps it, and a description field can be a
+    paragraph -- what is kept is what NAMES the row.
+    """
+    if record is None:
+        return {}
+    named: dict[str, str] = {}
+    for slot in wanted:
+        value = record.get(slot)
+        if isinstance(value, str | int) and (said := str(value).strip()) and len(said) <= 64:
+            named[slot] = said
+    return named
+
+
 async def verify(
     *,
     step: Step,
@@ -568,10 +585,29 @@ async def verify(
             # the run and empties the job's register of verified effects, so
             # that is roughly one create in six un-earning a job for being
             # right.
-            shown = carries_in_slot(body, confirm) if rewrote else mentions(body, values)
+            found = record_carrying(body, confirm) if rewrote else None
+            shown = found is not None if rewrote else mentions(body, values)
             if shown:
                 return StepVerdict(
-                    "held", "read", f"a read of {probe.url} shows the value this run supplied"
+                    "held",
+                    "read",
+                    f"a read of {probe.url} shows the value this run supplied",
+                    # What the warehouse called the record this step made, off
+                    # the read-back rather than off the create's own answer.
+                    #
+                    # `made_by` cannot name this one and the plan said so before
+                    # it was built: its suffix rule wants a key ending in
+                    # `id`/`code`/`name`/`number`/`key` and the identifier here
+                    # is `customerType`. Measured on the live create,
+                    # 2026-09-16: 201, record created, `made` empty -- so the
+                    # run could say it had made something and not which.
+                    #
+                    # The plan knows which keys this job varies, and the record
+                    # those keys found is the record this run created. Both
+                    # halves are read: the key the operator was shown filling,
+                    # with whatever the warehouse kept in it, which is not
+                    # always what was sent.
+                    made=_named(found, confirm),
                 )
             return StepVerdict(
                 "failed", "read", f"a read of {probe.url} does not show the value this run supplied"

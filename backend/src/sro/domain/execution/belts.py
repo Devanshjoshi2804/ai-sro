@@ -239,14 +239,28 @@ def carries_in_slot(body: str, wanted: Mapping[str, str]) -> bool:
     """
     if not wanted:
         return False
+    return record_carrying(body, wanted) is not None
+
+
+def record_carrying(body: str, wanted: Mapping[str, str]) -> dict[str, object] | None:
+    """The record in this answer that carries every one of these values, or None.
+
+    What `carries_in_slot` asks, and what the result card reads. A run that
+    made a record has to be able to say WHICH record, and on this endpoint
+    `made_by`'s suffix rule cannot: the identifier is `customerType`, which
+    ends in none of `id`/`code`/`name`/`number`/`key`. The plan already knows
+    which keys this job varies, so the row those keys found is the row to show.
+    """
+    if not wanted:
+        return None
     try:
         parsed = json.loads(body)
     except ValueError:
-        return False
-    return any(
-        all(record.get(slot) == value for slot, value in wanted.items())
-        for record in _records(parsed)
-    )
+        return None
+    for record in _records(parsed):
+        if all(record.get(slot) == value for slot, value in wanted.items()):
+            return record
+    return None
 
 
 def _records(parsed: object) -> Iterator[dict[str, object]]:

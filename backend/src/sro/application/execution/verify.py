@@ -442,6 +442,20 @@ def made_by(call: Mapping[str, object]) -> dict[str, str]:
         return {}
     if not isinstance(parsed, dict):
         return {}
+    # The envelope, before the record. Blue Yonder answers a create with
+    # `{"@type": "ResponseBodyWrapper", "data": {…}}` -- 112 of the 114
+    # successful writes in `knowledge-base/http/exchanges/*.jsonl`, and the live
+    # deployment's own create of `GGD` is one of them. Read at the top level
+    # that is `@type`, which names nothing, and `data`, which is a dict and
+    # skipped: every real create would have said it made nothing at all.
+    #
+    # A `data` holding a LIST is left alone. That is `waves.jsonl`, the two
+    # exceptions, and a list is not a record for the same reason `K_NAMED`
+    # stops at a handful -- a body with a dozen identifying names is a
+    # collection, and naming it as one row would be a lie on the run.
+    inner = parsed.get("data")
+    if isinstance(inner, dict):
+        parsed = inner
     named: dict[str, str] = {}
     for key, value in parsed.items():
         if not isinstance(key, str) or not isinstance(value, str | int):

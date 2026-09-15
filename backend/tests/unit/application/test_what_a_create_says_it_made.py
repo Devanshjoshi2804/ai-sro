@@ -113,3 +113,72 @@ def test_a_value_that_is_neither_text_nor_a_number_is_skipped() -> None:
     """A nested object under an identifying name is not an identifier, and
     `str()` of it would store a dict's repr on the run."""
     assert made_by(_answered({"ownerId": {"nested": "thing"}, "lineId": "L9"})) == {"lineId": "L9"}
+
+
+# -- the envelope a real warehouse answers in ---------------------------------
+
+
+def test_the_record_inside_the_answer_envelope_is_the_record() -> None:
+    """Blue Yonder wraps every create's answer:
+    `{"@type": "ResponseBodyWrapper", "data": {…}}`. 112 of the 114 successful
+    writes in `knowledge-base/http/exchanges/*.jsonl` are this shape, and so is
+    the live deployment's own create of `GGD`.
+
+    Read at the top level that is `@type` -- which ends in none of
+    `id`/`code`/`name`/`number`/`key` -- and `data`, which is a dict and
+    skipped. So before this, every real create on this system said it had made
+    nothing.
+    """
+    named = made_by(_answered({"@type": "ResponseBodyWrapper", "data": {"equipmentTypeId": "DDD"}}))
+
+    assert named == {"equipmentTypeId": "DDD"}
+
+
+def test_the_real_create_is_named_by_what_the_warehouse_called_it() -> None:
+    """The shape the live deployment answered with, 2026-09-16. The record the
+    operator asked for is `customerType`, which ends in none of the identifying
+    suffixes -- but the warehouse also echoes `resourceId`, which is its own
+    name for the row, and that is the better answer anyway: it is what an undo
+    would have to address.
+
+    The other identifying-suffix keys in that answer -- `departmentNumber`,
+    `freshnessDateCode`, `manufacturerId`, `shipmentModificationRuleCode` --
+    all came back empty and are dropped, so the run records exactly one name.
+    """
+    answer = {
+        "@type": "ResponseBodyWrapper",
+        "data": {
+            "customerType": "GGD",
+            "longDescription": "leaning new SRO type 01",
+            "departmentNumber": None,
+            "freshnessDateCode": None,
+            "manufacturerId": None,
+            "resourceId": "GGD",
+            "shipmentModificationRuleCode": None,
+        },
+    }
+
+    assert made_by(_answered(answer)) == {"resourceId": "GGD"}
+
+
+def test_a_collection_in_the_envelope_names_no_single_record() -> None:
+    """`waves.jsonl` is the exception: `data` holding a list. A list is not a
+    record, for the reason `K_NAMED` stops at a handful."""
+    assert made_by(_answered({"@type": "ResponseBodyWrapper", "data": [{"id": "A1"}]})) == {}
+
+
+def test_an_unwrapped_answer_is_still_read_where_the_system_sends_one() -> None:
+    """The unwrap is a fallback, not a requirement. Nothing says every system
+    wraps, and the fixtures this suite was built on do not."""
+    assert made_by(_answered({"workAreaCode": "SG"})) == {"workAreaCode": "SG"}
+
+
+def test_a_field_that_identifies_nothing_does_not_stop_the_search() -> None:
+    """The loop skips what cannot name a record and keeps looking. Stopping at
+    the first unusable key would read a body whose identifier happens to sit
+    after its description as a body with no identifier -- and the real answer
+    above is forty-six keys in alphabetical order, so the identifier is rarely
+    first."""
+    named = made_by(_answered({"description": "a long prose field", "qty": 12, "lineId": "L9"}))
+
+    assert named == {"lineId": "L9"}

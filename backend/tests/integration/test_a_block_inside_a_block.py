@@ -20,7 +20,7 @@ own on the same instance.
 from __future__ import annotations
 
 import pytest
-from sqlalchemy import NullPool
+from sqlalchemy import NullPool, text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -140,3 +140,49 @@ def _container(engine: AsyncEngine) -> Container:
     made.engine = engine
     made.driving_runs = None
     return made
+
+
+async def test_the_runs_lock_does_not_sit_in_a_transaction(postgres_url: str) -> None:
+    """A lock held for the life of the process, on a connection that is idle.
+
+    A session advisory lock survives a commit -- it is released by `unlock` or
+    by the session ending -- so this connection needs no transaction at all.
+    Left in one it reports `idle in transaction` forever, which holds back the
+    xmin horizon so `VACUUM` can reclaim nothing anywhere in the database, and
+    blocks `CREATE INDEX CONCURRENTLY`, which waits out every transaction older
+    than itself.
+
+    Not a hypothetical: a concurrent index build on this deployment's own store
+    was found waiting on `virtualxid` behind this exact session, with a `DROP
+    INDEX` queued behind that.
+    """
+    engine = create_async_engine(postgres_url, poolclass=NullPool)
+    watcher = create_async_engine(postgres_url, poolclass=NullPool)
+    made = Container.__new__(Container)
+    try:
+        made.engine = engine
+        made.driving_runs = None
+
+        assert await made.claim_the_runs() is True
+
+        async with watcher.connect() as looking:
+            states = (
+                (
+                    await looking.execute(
+                        text(
+                            "SELECT state FROM pg_stat_activity "
+                            "WHERE query LIKE '%pg_try_advisory_lock%' AND pid <> pg_backend_pid()"
+                        )
+                    )
+                )
+                .scalars()
+                .all()
+            )
+
+        assert states, "the lock session was not found at all"
+        assert "idle in transaction" not in states, states
+    finally:
+        if made.driving_runs is not None:
+            await made.driving_runs.close()
+        await engine.dispose()
+        await watcher.dispose()

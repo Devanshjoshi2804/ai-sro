@@ -270,6 +270,20 @@ class KnowledgeRow(Base):
             postgresql_where=text("superseded_by IS NULL"),
         ),
         Index("ix_knowledge_tenant_kind", "tenant_id", "kind"),
+        # The only vector index in the schema, and for a long time there was
+        # none: every semantic lookup read every one of the tenant's rows and
+        # computed an exact 768-dimension distance on each. Measured on this
+        # store, one tenant, 3,485 rows: 139 ms without it and 4.9 ms with,
+        # 20 of 20 recall against the exact answer. Migration 0050 carries the
+        # reasoning for HNSW over IVFFlat and for the partial predicate.
+        Index(
+            "ix_knowledge_embedding_hnsw",
+            "embedding",
+            postgresql_using="hnsw",
+            postgresql_with={"m": 16, "ef_construction": 64},
+            postgresql_ops={"embedding": "vector_cosine_ops"},
+            postgresql_where=text("superseded_by IS NULL"),
+        ),
     )
 
 

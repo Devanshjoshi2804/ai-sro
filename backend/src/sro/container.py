@@ -340,7 +340,20 @@ class Container:
         """
         if self.engine is None:
             return True
+        # AUTOCOMMIT, and this is not a style choice. A session advisory lock
+        # is held until it is released or the SESSION ends -- a commit does not
+        # drop it -- so nothing here needs a transaction. Without this the
+        # connection sits `idle in transaction` for the entire life of the
+        # process, and that is not merely untidy: it holds back the xmin
+        # horizon, so `VACUUM` cannot reclaim a dead row anywhere in the
+        # database, and it blocks `CREATE INDEX CONCURRENTLY`, which waits for
+        # every transaction older than itself to finish.
+        #
+        # Watched happening: a concurrent index build on this deployment's own
+        # store sat on `wait_event = virtualxid` behind exactly this session
+        # and never finished.
         connection = await self.engine.connect()
+        await connection.execution_options(isolation_level="AUTOCOMMIT")
         held = (
             await connection.execute(text("SELECT pg_try_advisory_lock(:key)"), {"key": RUNS_LOCK})
         ).scalar()

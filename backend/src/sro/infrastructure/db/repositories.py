@@ -10,7 +10,7 @@ from __future__ import annotations
 import re
 from datetime import datetime, timedelta
 
-from sqlalchemy import delete, or_, select
+from sqlalchemy import delete, or_, select, text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -486,6 +486,19 @@ class SqlKnowledgeRepository(KnowledgeRepository):
                 )
             )
         if embedding:
+            # The index is over the vector column and nothing else -- pgvector
+            # indexes one column -- so every other clause here is applied to
+            # what the scan returns. An HNSW scan stops after `ef_search`
+            # candidates, and a tenant with a small share of the table can have
+            # all of its rows filtered out of that set and be answered nothing
+            # at all. `iterative_scan` is pgvector 0.8's answer: the scan keeps
+            # pulling until the filters have let enough rows through.
+            #
+            # `relaxed_order` rather than `strict_order`: strict re-sorts every
+            # batch to guarantee exact distance ordering, and this result is
+            # read by a model choosing which claims to quote, not by anything
+            # that cares whether the fourth and fifth swapped places.
+            await self._session.execute(text("SET LOCAL hnsw.iterative_scan = relaxed_order"))
             query = query.where(KnowledgeRow.embedding.is_not(None)).order_by(
                 KnowledgeRow.embedding.cosine_distance(list(embedding))
             )

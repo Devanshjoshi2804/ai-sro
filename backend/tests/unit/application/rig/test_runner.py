@@ -4330,7 +4330,7 @@ async def test_a_long_list_reads_the_days_bill_again_and_stops_when_it_is_spent(
                         cost_usd=9.99,
                     )
                 )
-            return await super().ask(*args, **kwargs)  # type: ignore[arg-type]
+            return await super().ask(*args, **kwargs)
 
     run = await _ran(
         uow,

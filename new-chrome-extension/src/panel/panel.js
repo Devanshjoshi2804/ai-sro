@@ -1087,8 +1087,6 @@ async function sayTheDay(status) {
  * Without this the list is whatever was in front when the panel opened, which
  * reads as "nothing noticed on this system" while the line above it names a
  * different system entirely. */
-let showing = null;
-
 /** The tab this panel is docked beside -- the one every card is about. */
 let tabHere = { tabId: null, host: "", url: "" };
 
@@ -1103,12 +1101,14 @@ let openOffers = 0;
 
 async function whereWeAre() {
   const tab = await beside();
-  const host = hostOf(tab?.url || "");
-  tabHere = { tabId: tab?.id ?? null, host, url: tab?.url || "" };
-  if (host !== showing) {
-    showing = host;
-    await refresh();
-  }
+  const was = tabHere;
+  tabHere = { tabId: tab?.id ?? null, host: hostOf(tab?.url || ""), url: tab?.url || "" };
+  // The tab's id and not its host alone. Whether this tab is being watched is
+  // answered by looking for `tabHere.tabId` in the watch list, so two tabs on
+  // one warehouse are two different answers -- and a host comparison left the
+  // panel saying "Watching this tab" beside a second tab nothing was
+  // recording.
+  if (tabHere.host !== was.host || tabHere.tabId !== was.tabId) await refresh();
 }
 
 function openConsole(path = "/console") {
@@ -1601,6 +1601,35 @@ async function drawPushed(pushed) {
   void sayTheDay(pushed);
   render(pushed);
 }
+
+// How the panel learns it is beside a different tab.
+//
+// One side panel serves the whole window, so switching tabs does not reload
+// this document and nothing about it changes by itself. When the worker's
+// push replaced the two-second poll, the beat below went to twenty seconds --
+// and `whereWeAre` went with it, having been a passenger on that poll. It got
+// nothing in return: the push carries the WORKER's status, fired by
+// `chrome.storage.onChanged`, and which tab an operator is looking at is not
+// worker state and never reaches storage. So a tab switch was noticed only by
+// the twenty-second net.
+//
+// Every card here is about "this tab". For that whole stretch the state line,
+// the watch button and what is offerable all belonged to the tab the operator
+// had just left -- which is the five to seven seconds they reported, and
+// twenty if they switched at the wrong moment.
+//
+// Events rather than a faster beat: a tab switch is a thing Chrome tells us
+// about, and the beat stays where it is, as the safety net it already was.
+chrome.tabs.onActivated?.addListener(() => void whereWeAre());
+// The same tab navigating. A warehouse screen that routes without a page load
+// still changes what this panel should say, and `beside()` reads the url.
+chrome.tabs.onUpdated?.addListener((_tabId, changeInfo) => {
+  if (changeInfo.url) void whereWeAre();
+});
+// Switching WINDOWS activates no tab -- the one being focused was already
+// active in its own window -- so `onActivated` never fires and this is the only
+// thing that says the panel is now beside something else.
+chrome.windows?.onFocusChanged?.addListener(() => void whereWeAre());
 
 setInterval(() => {
   if (document.visibilityState !== "visible") return;

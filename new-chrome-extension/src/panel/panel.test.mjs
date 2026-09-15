@@ -117,6 +117,18 @@ function inputs(el) {
  * an object made in there has a different `Object.prototype`, which
  * `deepStrictEqual` calls a difference. This is also exactly what
  * `chrome.runtime.sendMessage` serialises. */
+/** Let what a listener started finish.
+ *
+ * The tab listeners are `() => void whereWeAre()`: Chrome does not await a
+ * listener, so neither do they, and firing one returns before the tab has been
+ * looked up. A handful of turns is enough -- `beside()` is one await over a
+ * fake `chrome.tabs.query` -- and this is not a timer, so it cannot pass by
+ * waiting longer than the thing it is waiting for.
+ */
+async function settled() {
+  for (let turn = 0; turn < 8; turn += 1) await Promise.resolve();
+}
+
 function sentOf(sent, kind) {
   return JSON.parse(JSON.stringify(sent.filter((message) => message.kind === kind)));
 }
@@ -133,6 +145,9 @@ function panel(status, here = null, replies = {}) {
   const opened = [];
   // The panel opens a port to the worker at load and draws whatever it pushes.
   const ports = [];
+  // What the panel asked Chrome to tell it about. Held so a test can fire one
+  // the way the browser would.
+  const watchers = { activated: [], updated: [], focused: [] };
   const sandbox = {
     document: {
       getElementById: (id) => (ids[id] ??= node("div")),
@@ -185,10 +200,20 @@ function panel(status, here = null, replies = {}) {
       // draws the not-watching card whatever else the status says -- which is
       // how two tests here passed while asserting on cards that were never
       // drawn.
+      // The events that tell a side panel it is beside something else. One
+      // panel serves the whole window, so nothing about this document changes
+      // on a tab switch and these are the only notice it gets -- the beat is
+      // twenty seconds, and for that whole stretch every card would be about
+      // the tab the operator had just left.
       tabs: {
         query: async () => (here ? [here] : []),
         reload: async () => {},
         create: async ({ url }) => opened.push(url),
+        onActivated: { addListener: (fn) => watchers.activated.push(fn) },
+        onUpdated: { addListener: (fn) => watchers.updated.push(fn) },
+      },
+      windows: {
+        onFocusChanged: { addListener: (fn) => watchers.focused.push(fn) },
       },
     },
   };
@@ -227,6 +252,16 @@ function panel(status, here = null, replies = {}) {
     cards,
     ids,
     ports,
+    watchers,
+    // What the browser does when the operator switches tabs: a different tab
+    // is the active one, and then Chrome says so.
+    switchTo: (tab) => {
+      here = tab;
+    },
+    // Which tab the panel believes it is beside, read out of the sandbox
+    // rather than off a card: what a tab switch has to change is this, and
+    // every card is drawn from it.
+    where: () => vm.runInContext("JSON.stringify(tabHere)", sandbox),
     // Exposed so a test can simulate the panel's own two-second poll --
     // `refresh()` calling `render(status)` again with nothing changed --
     // separately from whatever else a click already triggered.
@@ -461,6 +496,98 @@ test("the collapsed row has a chevron, and pressing it reveals the actions", asy
     buttons(opened).some((b) => b.textContent === "Start teaching"),
     "pressing the chip did not reveal the actions",
   );
+});
+
+test("switching tabs is noticed when it happens, not on the twenty-second beat", async () => {
+  // One side panel serves the whole window, so a tab switch does not reload
+  // this document and nothing about it changes by itself. `whereWeAre` used to
+  // be a passenger on the two-second poll; when the worker's push replaced
+  // that poll the beat went to twenty seconds and took `whereWeAre` with it --
+  // and the push gave nothing back, because it carries the WORKER's status and
+  // which tab an operator is looking at is not worker state.
+  //
+  // Every card is about "this tab". Until this fired, the state line, the
+  // watch button and what was offerable all belonged to the tab they had left.
+  const status = { deviceId: "dev-1", capturing: true, watched: [] };
+  const panelHere = panel(status, { id: 7, host: "wms.example", url: "https://wms.example/portal" });
+
+  assert.ok(panelHere.watchers.activated.length, "nothing asked Chrome about a tab switch");
+
+  panelHere.switchTo({ id: 9, host: "mail.example", url: "https://mail.example/inbox" });
+  panelHere.watchers.activated.forEach((fn) => fn({ tabId: 9 }));
+  await settled();
+
+  assert.deepEqual(JSON.parse(panelHere.where()), {
+    tabId: 9,
+    host: "mail.example",
+    url: "https://mail.example/inbox",
+  });
+});
+
+test("a second tab on the same host is redrawn, not assumed to be the first", async () => {
+  // The watch list is keyed by tab id, so "is this tab being watched" has two
+  // different answers for two tabs of one warehouse. What decided whether to
+  // redraw was the HOST, so moving between them updated the tab underneath and
+  // left every card as it was -- the panel saying "Watching this tab" beside a
+  // tab nothing was recording, until the twenty-second beat.
+  //
+  // The redraw is what is asserted, not `tabHere`: the tab was always assigned.
+  const status = { deviceId: "dev-1", capturing: true, watched: [] };
+  const panelHere = panel(status, { id: 7, host: "wms.example", url: "https://wms.example/portal" });
+  const before = sentOf(panelHere.sent, "status").length;
+
+  panelHere.switchTo({ id: 8, host: "wms.example", url: "https://wms.example/orders" });
+  panelHere.watchers.activated.forEach((fn) => fn({ tabId: 8 }));
+  await settled();
+
+  assert.equal(JSON.parse(panelHere.where()).tabId, 8, "the panel still believes it is on tab 7");
+  assert.ok(
+    sentOf(panelHere.sent, "status").length > before,
+    "the tab changed under the panel and nothing was redrawn",
+  );
+});
+
+test("the tab navigating under the panel counts as arriving somewhere else", async () => {
+  // A warehouse screen that routes without a page load, and a sign-in that
+  // lands somewhere afterwards. `onActivated` never fires for either.
+  const status = { deviceId: "dev-1", capturing: true, watched: [] };
+  const panelHere = panel(status, { id: 7, host: "wms.example", url: "https://wms.example/portal" });
+
+  assert.ok(panelHere.watchers.updated.length, "nothing asked Chrome about a navigation");
+
+  panelHere.switchTo({ id: 7, host: "mail.example", url: "https://mail.example/inbox" });
+  panelHere.watchers.updated.forEach((fn) => fn(7, { url: "https://mail.example/inbox" }));
+  await settled();
+
+  assert.equal(JSON.parse(panelHere.where()).host, "mail.example");
+});
+
+test("a tab reporting anything other than a new address is left alone", async () => {
+  // `onUpdated` fires for a favicon, a title, a loading state. Re-resolving on
+  // every one of them would be the two-second poll back under another name.
+  const status = { deviceId: "dev-1", capturing: true, watched: [] };
+  const panelHere = panel(status, { id: 7, host: "wms.example", url: "https://wms.example/portal" });
+
+  panelHere.switchTo({ id: 9, host: "mail.example", url: "https://mail.example/inbox" });
+  panelHere.watchers.updated.forEach((fn) => fn(7, { status: "complete", title: "Orders" }));
+  await settled();
+
+  assert.equal(JSON.parse(panelHere.where()).tabId, 7);
+});
+
+test("moving to another window is noticed, and it activates no tab", async () => {
+  // The tab being focused was already the active one in its own window, so
+  // `onActivated` does not fire and this is the only notice there is.
+  const status = { deviceId: "dev-1", capturing: true, watched: [] };
+  const panelHere = panel(status, { id: 7, host: "wms.example", url: "https://wms.example/portal" });
+
+  assert.ok(panelHere.watchers.focused.length, "nothing asked Chrome about a window change");
+
+  panelHere.switchTo({ id: 11, host: "mail.example", url: "https://mail.example/inbox" });
+  panelHere.watchers.focused.forEach((fn) => fn(2));
+  await settled();
+
+  assert.equal(JSON.parse(panelHere.where()).tabId, 11);
 });
 
 test("a manual expansion survives a redraw", async () => {

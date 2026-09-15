@@ -323,7 +323,13 @@ services:
       - web
       - minio
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # The directory, not the file. A single-file bind mount binds an inode,
+      # and `git pull` replaces the file rather than writing through it -- so
+      # the container went on serving the config it started with while the one
+      # on disk said something else, and `compose up -d` had no reason to
+      # recreate it because the service definition had not changed. Three
+      # routes appeared to be broken that were never loaded.
+      - ./:/etc/caddy/:ro
     ports:
       - "${PUBLIC_BIND:-0.0.0.0:8088}:8080"
 

@@ -93,6 +93,24 @@ environment exists.
 `up -d` is the whole deploy: `migrate` runs to completion first, then `api` and
 `worker` start together from the same image.
 
+## Changing the proxy's config
+
+`infra/Caddyfile` is mounted from a directory, not as a single file, and the
+reason is worth keeping: a single-file bind mount binds an inode, `git pull`
+replaces the file rather than writing through it, and the container goes on
+serving the config it started with. `compose up -d` will not notice, because
+the service definition has not changed. After editing it:
+
+```bash
+$C up -d --force-recreate caddy    # or `$C restart caddy` for a live reload
+```
+
+Check what is actually loaded rather than what is on disk:
+
+```bash
+$C exec caddy caddy validate --config /etc/caddy/Caddyfile
+```
+
 ## Five things that are quiet when wrong
 
 1. **`SRO_API_URL` and `SRO_CONSOLE_URL` default to localhost.** They are not

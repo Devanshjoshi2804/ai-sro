@@ -508,27 +508,26 @@ async def verify(
             if status >= 400:
                 return StepVerdict("failed", "status", f"the call returned {status}")
             wanted = expected_statuses(step, by_id)
-            if status in wanted or (not wanted and 200 <= status < 300):
-                # Belt ORDER, not belt availability -- but only for bytes sent
-                # as they were recorded. `test_a_status_that_already_decided_
-                # is_not_second_guessed_by_a_read` is the rule, and it holds
-                # because the endpoint answered the demonstration the same way,
-                # so its answer means the demonstrated effect.
-                #
-                # A body this run RE-AIMED breaks that. The status then says
-                # something was created; it does not say the thing carries the
-                # values this run was given. The ledger's own note is the
-                # instance -- `csttyp truncates at 4 chars`, so a create asking
-                # for five characters is answered 201 and the record is four,
-                # with nobody told. So a re-aimed write falls through to the
-                # read-back below, which is the belt that can tell.
-                if not rewrote:
-                    return StepVerdict(
-                        "held",
-                        "status",
-                        f"the call returned {status}",
-                        made=made_by(answer.result),
-                    )
+            # Belt ORDER, not belt availability -- but only for bytes sent as
+            # they were recorded. `test_a_status_that_already_decided_is_not_
+            # second_guessed_by_a_read` is the rule, and it holds because the
+            # endpoint answered the demonstration the same way, so its answer
+            # means the demonstrated effect.
+            #
+            # A body this run RE-AIMED breaks that. The status then says
+            # something was created; it does not say the thing carries the
+            # values this run was given. The ledger's own note is the instance
+            # -- `csttyp truncates at 4 chars`, so a create asking for five
+            # characters is answered 201 and the record is four, with nobody
+            # told. So a re-aimed write falls through to the read-back below,
+            # which is the belt that can tell.
+            if not rewrote and (status in wanted or (not wanted and 200 <= status < 300)):
+                return StepVerdict(
+                    "held",
+                    "status",
+                    f"the call returned {status}",
+                    made=made_by(answer.result),
+                )
 
     # 2. Hidden state: a read the cited evidence shows this page performs.
     probe = confirming_read(step, by_id)

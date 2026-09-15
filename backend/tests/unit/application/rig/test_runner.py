@@ -2838,6 +2838,30 @@ def test_what_a_dry_run_withholds_is_the_write_in_full() -> None:
     assert quiet == {"step": 0, "planned": {"kind": "ui.perform", "payload": {"action": "click"}}}
 
 
+def test_a_withheld_replay_shows_the_body_this_run_would_send() -> None:
+    """The card is read to decide whether to press through, so it has to name
+    what would go out. A replay's body is re-aimed at this run's values, so
+    showing the demonstration's bytes would show the code the operator typed
+    on the day and send a different one the moment the person said yes."""
+    by_id = {gesture.id: gesture for gesture in _gestures()}
+    saver = next(g for g in by_id.values() if g.requests)
+    post = next(r for r in saver.requests if r.method == "POST")
+    step = Step(order=1, says="save", system=None, cites=[saver.id])
+    planned = Planned(
+        "http.send",
+        {"method": "POST", "url": post.url, "headers": {}, "body": '{"clientCode": "THIRD"}'},
+        "w",
+        Answer(),
+        rewrote=True,
+    )
+
+    shown = _withheld(step, planned, by_id)
+
+    assert shown["body"] == '{"clientCode": "THIRD"}'
+    assert shown["body"] != (post.request_body.text if post.request_body else None)
+    assert (shown["method"], shown["url"]) == ("POST", post.url)
+
+
 async def test_a_dry_run_records_no_effect_even_for_a_click_it_does_send() -> None:
     """`writes()` is False for a Save whose call the recorder never saw, so a
     dry run performs it -- and a dry run's evidence earns nothing."""

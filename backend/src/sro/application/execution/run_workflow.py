@@ -421,11 +421,22 @@ def _fell_over(run: WorkflowRun, in_flight: RunStep | None, reason: str) -> None
 def _withheld(step: Step, planned: Planned, by_id: Mapping[str, Gesture]) -> dict[str, object]:
     """The write a dry run did not send, in full: what a person reads before
     pressing through to live."""
-    call = recorded_call(step, by_id)
     shown: dict[str, object] = {
         "step": step.order,
         "planned": {"kind": planned.kind, "payload": planned.payload},
     }
+    if planned.kind == "http.send":
+        # The plan IS the write here, and it is not always the write the
+        # demonstration made. `write_plan_for` re-aims the recorded body at
+        # this run's values, so reading the recorded bytes would show a person
+        # the code the operator typed on the day and have them press through
+        # into a run that sends a different one. A dry run whose card cannot
+        # be trusted to name what will go out is worse than no dry run.
+        shown.update({key: planned.payload.get(key) for key in ("method", "url", "body")})
+        return shown
+    # A click, withheld because the evidence behind it writes. There is no
+    # planned call to show, so the demonstration's is the only answer.
+    call = recorded_call(step, by_id)
     if call is not None:
         shown.update(
             method=call.method.upper(),

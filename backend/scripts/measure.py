@@ -228,25 +228,25 @@ def _when(stamp: object) -> str:
 async def mining(db: AsyncConnection, tenant: str | None) -> Section:
     into = Section(
         "2. Mining",
-        "What the model read out of that evidence, and what refused it. `unproven` is the"
-        " number that matters: a step citing nothing is the failure `validate` exists to stop.",
+        "What the model read out of that evidence, and what refused it. The uncited steps"
+        " are the number that matters: a step citing nothing is the failure `validate`"
+        " exists to stop.",
     )
     passes = await _rows(
         db,
         "select count(*), coalesce(sum(cost_usd),0), coalesce(sum(proposed),0),"
-        f" coalesce(sum(kept),0), coalesce(sum(rejected),0) from mining_passes where {MINE}",
+        " coalesce(sum(kept),0), coalesce(sum(rejected),0),"
+        f" coalesce(sum(unplaced),0) from mining_passes where {MINE}",
         tenant=tenant,
     )
-    count, cost, proposed, kept, rejected = passes[0] if passes else (0, 0, 0, 0, 0)
+    count, cost, proposed, kept, rejected, unplaced = passes[0] if passes else (0, 0, 0, 0, 0, 0)
     failed = await _one(
         db,
         f"select count(*) from mining_passes where error is not null and {MINE}",
         tenant=tenant,
     )
 
-    workflows = await _rows(
-        db, f"select id, unproven, shape_key from workflows where {MINE}", tenant=tenant
-    )
+    workflows = await _rows(db, f"select id from workflows where {MINE}", tenant=tenant)
     mine = f"workflow_id in (select id from workflows where {MINE})"
     steps = await _one(db, f"select count(*) from workflow_steps where {mine}", tenant=tenant)
     uncited = await _one(
@@ -255,8 +255,6 @@ async def mining(db: AsyncConnection, tenant: str | None) -> Section:
         f" (cites is null or jsonb_array_length(cites) = 0) and {mine}",
         tenant=tenant,
     )
-    unproven = [row for row in workflows if row[1]]
-
     into.add(
         Line("mining passes run", count, standing="recorded"),
         Line("passes that failed outright", failed, count, "recorded"),
@@ -266,11 +264,10 @@ async def mining(db: AsyncConnection, tenant: str | None) -> Section:
         Line("rejected by validate", rejected, proposed or None, "recorded"),
         Line("workflows now stored", len(workflows), standing="recorded"),
         Line(
-            "…carrying an unproven step",
-            len(unproven),
-            len(workflows) or None,
-            "recorded",
-            note="a job that may be offered but not trusted",
+            "gestures the passes could not place",
+            unplaced,
+            standing="recorded",
+            note="the model's own claim about its window, not about any job",
         ),
         Line("steps stored", steps, standing="recorded"),
         Line(

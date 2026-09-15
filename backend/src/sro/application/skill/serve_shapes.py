@@ -108,8 +108,6 @@ async def shapes_for(
     tallied = await uow.workflow_runs.tallies(tenant_id)
     served: list[Shape] = []
     for workflow in await uow.workflows.known(tenant_id):
-        if workflow.unproven:
-            continue
         # Absent means never run, which is not the same as run and never
         # held: the first is served and the second is the gate below.
         ran, held = tallied.get(workflow.id, (0, 0))

@@ -63,10 +63,12 @@ class KnownWorkflow:
     """One workflow with what has become of it.
 
     The workflow whole, rather than the handful of its fields a card draws:
-    `parameters` and `unproven` are the pass's own model output and exist
-    nowhere else a reader can reach, and `unproven` in particular is what the
-    pass could not place -- the one thing a reader most needs and the field a
-    route emitting its siblings is likeliest to drop.
+    `parameters` is the pass's own model output and exists nowhere else a
+    reader can reach, so a route emitting its siblings is likeliest to drop it.
+
+    What the pass could not place is no longer here. It was a fact about the
+    window that arrived attached to whichever job the model happened to emit,
+    and four readers took it for a property of that job.
     """
 
     workflow: Workflow

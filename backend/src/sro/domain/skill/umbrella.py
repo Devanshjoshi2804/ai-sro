@@ -93,7 +93,7 @@ afterwards and say that is what I did. Looking something up is a STEP of a job
 and not a job: somebody who searches for the record they just created is
 finishing one, and somebody who types a query into their own mailbox and reads
 what comes back has not started one. A stretch that only looked at things goes
-under `unproven`.
+under `unplaced`.
 
 Name the job, not the one doing of it you are reading. The title is what every
 doing of that job has in common, so keep the particular values this operator
@@ -103,8 +103,12 @@ typed -- codes, names, quantities -- out of it: "Create a Customer Type", never
 For every step of every job, cite the ids of the gestures that prove it. Cite
 before you describe. A step you cannot cite is a step you should not report.
 
-List anything you could not place under `unproven` rather than forcing it into a
-job. Say which values look like the same thing appearing in two systems.
+List anything you could not place under `unplaced`, once, at the top level
+beside `workflows`. It is what is left of the WINDOW when every job in it has
+been described -- not something belonging to any one job you found. Do not
+force it into a job.
+
+Say which values look like the same thing appearing in two systems.
 
 Do not invent a system that the evidence you cited does not touch."""
 
@@ -161,11 +165,19 @@ WORKFLOW_SCHEMA: dict[str, object] = {
                         },
                     },
                     "same_as": {"type": "string"},
-                    "unproven": {"type": "array", "items": {"type": "string"}},
                 },
                 "required": ["title", "steps"],
             },
-        }
+        },
+        # Beside `workflows`, not inside one. It is a fact about the WINDOW --
+        # what was left over when every job in it had been described -- and it
+        # was asked for per workflow, so the model attached the window's
+        # leftovers to whichever job it happened to emit. Four readers then
+        # took it for a property of that job and refused to serve, schedule or
+        # fire it: on the first real cross-tab evidence this system ever mined,
+        # a correct six-step job carried thirty-six unplaced ids, a third of
+        # which were gestures supporting its own steps, and was never offered.
+        "unplaced": {"type": "array", "items": {"type": "string"}},
     },
     "required": ["workflows"],
 }
@@ -359,9 +371,6 @@ def workflow_from(raw: object, tenant: str) -> Workflow | None:
         if isinstance(raw.get("parameters"), list)
         else [],
         same_as=raw["same_as"] if isinstance(raw.get("same_as"), str) else None,
-        unproven=[u for u in raw.get("unproven", []) if isinstance(u, str)]
-        if isinstance(raw.get("unproven"), list)
-        else [],
         # No cost here. The call that proposed this workflow proposed all of
         # them, so its price belongs to the pass -- the mining pass stamps
         # `pass_id` on what it keeps. Copying `answer.cost_usd` onto each

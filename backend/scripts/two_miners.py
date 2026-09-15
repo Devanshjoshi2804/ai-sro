@@ -68,9 +68,7 @@ async def _report(tenant: str, *, hours: int, run_rules: bool, run_model: bool) 
 
     print(f"\n-- the model path named {len(workflows)} job(s)")
     for workflow in workflows:
-        steps = len(workflow.steps)
-        unproven = f"  UNPROVEN: {'; '.join(workflow.unproven)}" if workflow.unproven else ""
-        print(f"   {steps:3} steps  {workflow.title}{unproven}")
+        print(f"   {len(workflow.steps):3} steps  {workflow.title}")
 
     print(
         "\nWhat a person still has to say: which of each list is work worth "

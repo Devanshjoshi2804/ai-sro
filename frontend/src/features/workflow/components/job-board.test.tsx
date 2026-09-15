@@ -19,7 +19,6 @@ const workflow = {
   narrative: "An operator opens the work areas grid and adds one.",
   systems: ["blue-yonder", "sap"],
   pass_id: "pass_7f2",
-  unproven: [],
   parameters: [{ name: "workArea", seen_values: ["Three TE", "twoTEST"] }],
   steps: [
     {

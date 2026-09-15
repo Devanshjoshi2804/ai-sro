@@ -105,7 +105,6 @@ def _proposal(cites: list[str], **over: object) -> dict[str, object]:
         ],
         "parameters": [],
         "same_as": None,
-        "unproven": [],
     }
     return {**base, **over}
 
@@ -1191,7 +1190,6 @@ def _answer(**over: object) -> Answer:
                 ],
                 "parameters": [{"name": "code", "seen_values": ["ACME"]}],
                 "same_as": None,
-                "unproven": ["ges_2"],
             }
         ]
     }
@@ -1213,7 +1211,6 @@ async def test_a_proposal_becomes_a_workflow() -> None:
     assert len(workflows) == 1
     assert workflows[0].title == "create a supplier"
     assert workflows[0].steps[0].cites == ["ges_1"]
-    assert workflows[0].unproven == ["ges_2"]
     assert answer.cost_usd == 0.004
 
 

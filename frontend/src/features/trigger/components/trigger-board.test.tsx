@@ -359,24 +359,27 @@ describe("a mined job on a clock", () => {
     systems: ["blue_yonder"],
     pass_id: "pass-1",
     parameters: [{ name: "clientCode" }],
-    unproven: [],
     steps: [],
     runs: { total: 0, held: 0, earned: false },
   } as unknown as workflowApi.WorkflowModel;
 
-  it("offers the proven jobs and not the ones an offer would never be made for", async () => {
+  it("offers every stored job, because a stored job is one the pass kept", async () => {
+    // This list used to filter on `unproven` -- the leftovers of the window
+    // the pass read, attached to whichever job the model happened to emit. A
+    // real window always has leftovers, so the optgroup was empty whenever
+    // mining worked at all.
     vi.spyOn(triggerApi, "listTriggers").mockResolvedValue([]);
     vi.spyOn(triggerApi, "listDevices").mockResolvedValue([DEVICE]);
     vi.spyOn(skillApi, "listSkills").mockResolvedValue([] as never);
     vi.spyOn(workflowApi, "listWorkflows").mockResolvedValue([
       JOB,
-      { ...JOB, id: "wfl_2", title: "Half a job", unproven: ["step 1 cites nothing"] },
+      { ...JOB, id: "wfl_2", title: "Create a customer type" },
     ]);
 
     show();
 
     expect(await screen.findByRole("option", { name: "Create a work area" })).toBeInTheDocument();
-    expect(screen.queryByRole("option", { name: "Half a job" })).not.toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Create a customer type" })).toBeInTheDocument();
   });
 
   it("will not schedule one without a browser and a name behind it", async () => {

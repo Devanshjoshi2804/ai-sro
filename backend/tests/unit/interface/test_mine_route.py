@@ -95,7 +95,6 @@ def _proposal(cites: list[str], **over: object) -> dict[str, object]:
         ],
         "parameters": [],
         "same_as": None,
-        "unproven": [],
     }
     return {**base, **over}
 

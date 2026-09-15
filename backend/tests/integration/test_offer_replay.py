@@ -13,8 +13,9 @@ The script is the newest caller of both.
 
 What is planted is one job that can be served and one that cannot, because the
 two halves of the file are gathered by different reads: `shapes` is every
-PROVEN workflow and `jobs` is every workflow at all, and a replay that quietly
-dropped the unproven ones would report "8 of 8" over a corpus of nine.
+SERVABLE workflow and `jobs` is every workflow at all, and a replay that
+quietly dropped the unservable ones would report "8 of 8" over a corpus of
+nine.
 """
 
 from __future__ import annotations
@@ -89,7 +90,7 @@ def _click(gesture_id: str, name: str, *, at: float) -> Gesture:
 
 def _corpus() -> tuple[list[Gesture], list[Workflow]]:
     """One proven job of four gestures -- a click, a scroll, a typed
-    parameter, a click -- and one unproven job sharing its evidence.
+    parameter, a click -- and one job citing evidence the store does not hold.
 
     ``at`` runs BACKWARDS against the citation order, so the two orders are
     never accidentally the same and a test cannot pass by reading the wrong
@@ -131,16 +132,18 @@ def _corpus() -> tuple[list[Gesture], list[Workflow]]:
         ],
         parameters=[{"name": "workArea", "seen_values": [TYPED_VALUE]}],
     )
-    unproven = Workflow(
-        id="wfl_unproven",
+    # Cites a gesture no longer in the store -- re-mined away, or aged out from
+    # under it. `serve_shapes` cannot build a shape it has no evidence for, so
+    # this is a stored job that is never offered.
+    unservable = Workflow(
+        id="wfl_unservable",
         tenant=TENANT.value,
-        title="Something the miner is unsure of",
-        narrative="cites the same evidence and has not been proven",
+        title="Something whose evidence is gone",
+        narrative="cites a gesture the store no longer holds",
         systems=[SYSTEM],
-        steps=[Step(order=0, says="open", system=SYSTEM, cites=["ges_1"], parameters=[])],
-        unproven=["ges_9"],
+        steps=[Step(order=0, says="open", system=SYSTEM, cites=["ges_9"], parameters=[])],
     )
-    return gestures, [proven, unproven]
+    return gestures, [proven, unservable]
 
 
 async def _planted(session_factory: async_sessionmaker[AsyncSession]) -> dict[str, Any]:
@@ -199,12 +202,12 @@ async def test_a_served_shape_carries_every_key_the_matcher_reads(
 async def test_every_workflow_is_a_job_even_the_one_no_shape_is_served_for(
     session_factory: async_sessionmaker[AsyncSession],
 ) -> None:
-    """`shapes` is the proven half; `jobs` is all of it. The unproven job is
-    the case the matcher must answer "never offered" to, and it can only answer
-    that about a job it was given."""
+    """`shapes` is the servable half; `jobs` is all of it. The job whose
+    evidence is gone is the case the matcher must answer "never offered" to,
+    and it can only answer that about a job it was given."""
     written = await _planted(session_factory)
 
-    assert [job["id"] for job in written["jobs"]] == ["wfl_proven", "wfl_unproven"]
+    assert [job["id"] for job in written["jobs"]] == ["wfl_proven", "wfl_unservable"]
     assert [shape["id"] for shape in written["shapes"]] == ["wfl_proven"]
 
 

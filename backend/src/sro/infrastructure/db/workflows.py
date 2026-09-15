@@ -68,7 +68,6 @@ def _workflow_values(workflow: Workflow) -> dict[str, Any]:
         "parameters": list(workflow.parameters),
         "shape_key": [list(entry) for entry in workflow.shape_key],
         "same_as": workflow.same_as,
-        "unproven": list(workflow.unproven),
         "created_at": datetime.now(tz=UTC),
     }
 
@@ -105,7 +104,6 @@ def _row_to_workflow(row: WorkflowRow, steps: list[Step]) -> Workflow:
         parameters=list(row.parameters),
         shape_key=[list(entry) for entry in row.shape_key],
         same_as=row.same_as,
-        unproven=list(row.unproven),
         pass_id=row.pass_id,
     )
 
@@ -129,6 +127,7 @@ def _row_to_pass(row: MiningPassRow) -> MiningPass:
         lopsided=row.lopsided,
         window_size=row.window_size,
         left_out=row.left_out,
+        unplaced=row.unplaced,
         error=row.error,
     )
 
@@ -231,6 +230,7 @@ class SqlWorkflowRepository(WorkflowRepository):
                     lopsided=mining_pass.lopsided,
                     window_size=mining_pass.window_size,
                     left_out=mining_pass.left_out,
+                    unplaced=mining_pass.unplaced,
                     error=mining_pass.error,
                 )
             )

@@ -82,7 +82,6 @@ def _proposal(cites: list[str]) -> dict[str, object]:
         ],
         "parameters": [],
         "same_as": None,
-        "unproven": [],
     }
 
 

@@ -37249,13 +37249,6 @@
             "type": "array",
             "title": "Parameters"
           },
-          "unproven": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Unproven"
-          },
           "steps": {
             "items": {
               "$ref": "#/components/schemas/WorkflowStepModel"
@@ -37275,7 +37268,6 @@
           "systems",
           "pass_id",
           "parameters",
-          "unproven",
           "steps",
           "runs"
         ],

@@ -236,13 +236,11 @@ class FireTrigger:
             await uow.commit()
             return Fired(trigger.id, skipped=trigger.disabled_reason)
 
-        workflow = await uow.workflows.get(ctx.tenant_id, str(trigger.workflow_id))
-        if workflow.unproven:
-            # Mined and not yet trusted. An offer is never made for one, so a
-            # schedule must not be the way round that.
-            return Fired(
-                trigger.id, skipped="this job is not proven: " + "; ".join(workflow.unproven)
-            )
+        # Read for its existence and nothing else: a trigger whose job has
+        # been deleted since must not become a card asking somebody to approve
+        # a run of it, and the confirmation path returns before anything else
+        # would look. `start_job_for` reads it again for what it contains.
+        await uow.workflows.get(ctx.tenant_id, str(trigger.workflow_id))
 
         if trigger.requires_confirmation:
             asked = await self._ask_a_person(uow, trigger, now=now, values=values, message=message)

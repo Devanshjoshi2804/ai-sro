@@ -949,7 +949,6 @@ class WorkflowRow(Base):
     is recorded and it decides nothing: a model re-judging its own earlier
     verdict disagrees with itself at roughly 90%."""
 
-    unproven: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     __table_args__ = (Index("ix_workflows_tenant_created", "tenant_id", "created_at"),)
@@ -1050,6 +1049,7 @@ class MiningPassRow(Base):
 
     window_size: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     left_out: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    unplaced: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     """How much evidence this pass was shown, and how much the budget dropped.
     What the scheduled sweep reads to tell a tenant with more to say from one
     whose window already held everything. See `MiningPass`."""

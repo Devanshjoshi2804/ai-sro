@@ -19,7 +19,6 @@ const workflow = {
   narrative: "",
   systems: [],
   pass_id: "p",
-  unproven: [],
   steps: [],
   runs: { total: 0, held: 0, stale: 0, earned: false },
   parameters: [{ name: "workArea", seen_values: ["Three TE", "NEWTESTS", "twoTEST"] }],

@@ -22,7 +22,6 @@ describe("AuditWalk", () => {
         systems: [],
         pass_id: "p",
         parameters: [],
-        unproven: [],
         steps: [],
         runs: { total: 0, held: 0, stale: 0, earned: false },
       },

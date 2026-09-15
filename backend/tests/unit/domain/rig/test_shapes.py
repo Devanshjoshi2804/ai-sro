@@ -378,7 +378,7 @@ def test_a_parameter_learned_across_doings_is_placed_by_the_control_that_typed_i
 
 
 # Left for plan 3, where the loop, its queries and rekeying live:
-#   test_an_unproven_workflow_is_not_served
+#   test_a_stored_workflow_is_served_because_storing_it_is_what_proved_it
 #   test_the_held_gate_is_per_workflow_and_never_silences_one_that_never_ran
 #   test_a_workflow_that_cannot_be_served_never_withdraws_the_ones_behind_it
 #   test_a_stored_key_from_an_older_rule_is_recomputed_once

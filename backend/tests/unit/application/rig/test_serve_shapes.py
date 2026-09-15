@@ -207,14 +207,18 @@ async def _served(uow: FakeUnitOfWork, device: DeviceId | None = None) -> list[s
 # the loop and its gates
 
 
-async def test_an_unproven_workflow_is_not_served() -> None:
+async def test_a_stored_workflow_is_served_because_storing_it_is_what_proved_it() -> None:
+    """This gate used to be `if workflow.unproven: continue`, and what it read
+    was the leftovers of the WINDOW the pass mined -- attached to whichever job
+    the model emitted, never a fact about the job. A real day always leaves
+    some, so no offer was ever made once mining worked. What proves a job is
+    that `validate` kept it: no uncited step, no unknown gesture, no wordless
+    one."""
     uow = FakeUnitOfWork()
     by_id = _evidence()
-    workflow = _workflow(by_id)
-    workflow.unproven = ["the save was never confirmed"]
-    await _plant(uow, by_id, workflow)
+    await _plant(uow, by_id, _workflow(by_id))
 
-    assert await shapes_for(uow, tenant_id=TENANT, now=NOW) == []
+    assert await _served(uow) == ["wfl_1"]
 
 
 async def test_the_held_gate_is_per_workflow_and_never_silences_one_that_never_ran() -> None:
@@ -286,13 +290,11 @@ async def test_the_held_gate_counts_only_this_tenant_s_runs() -> None:
 
 
 async def test_a_workflow_that_cannot_be_served_never_withdraws_the_ones_behind_it() -> None:
-    """Three reasons to skip one job, and a fourth job that is fine. Each skip
-    is that job's alone: a tenant's whole offer list must not end at the first
-    workflow that is unproven, unevidenced, or starts somewhere unproven."""
+    """Two reasons to skip one job, and a third job that is fine. Each skip is
+    that job's alone: a tenant's whole offer list must not end at the first
+    workflow that is unevidenced or starts somewhere unproven."""
     uow = FakeUnitOfWork()
     by_id = _evidence()
-    unproven = _workflow(by_id, "wfl_unproven")
-    unproven.unproven = ["the save was never confirmed"]
     uncited = Workflow(
         id="wfl_uncited",
         tenant=TENANT.value,
@@ -305,7 +307,7 @@ async def test_a_workflow_that_cannot_be_served_never_withdraws_the_ones_behind_
     # The tab was on one origin while the frame that recorded the gesture was
     # on another. `wfl_fine` starts on the save, which is untouched.
     _typed(by_id).page_url = "https://other.example/x"
-    await _plant(uow, by_id, unproven, uncited, elsewhere, fine)
+    await _plant(uow, by_id, uncited, elsewhere, fine)
 
     assert await _served(uow) == ["wfl_fine"]
 

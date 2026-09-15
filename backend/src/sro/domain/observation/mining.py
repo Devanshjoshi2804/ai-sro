@@ -57,6 +57,18 @@ class MiningPass:
     everything there was; one that left evidence out has more to say about
     evidence that has not changed, which is what the scheduled sweep reads to
     decide whether to pay for another pass."""
+    unplaced: int = 0
+    """How many gestures of its window the pass said it could not place.
+
+    Beside `coverage` and `left_out`, which are the other two figures about
+    the READING rather than about what it found. This one lived on `Workflow`
+    until 2026-09-15, where four readers took the window's leftovers for a
+    property of whichever job the model had attached them to and refused to
+    serve, schedule or fire it.
+
+    The model's own claim, unverified and high by construction: it cites about
+    one gesture per step and calls the rest unplaced."""
+
     error: str | None = None
     """Why it found nothing, when it found nothing for a reason the API gave.
     An honest zero and a refused call are the same row without this."""

@@ -133,6 +133,23 @@ class MineResult:
     # K_MAX_SKEW, whichever it failed. Long-context citation bias is real and
     # model-specific, and this is the pass saying it happened.
     lopsided: bool = False
+    unplaced: int = 0
+    """How many of the window's gestures the pass said it could not place.
+
+    A count and not the ids: the ids are gesture rows this pass has just been
+    shown and the console can reach either way, and a list of thirty-six
+    strings per pass is a paragraph of noise on a row of figures.
+
+    Beside `coverage` and not inside any workflow. It is what was left of the
+    WINDOW when every job in it had been described, which is a fact about the
+    reading -- it lived on `Workflow` until 2026-09-15, where four readers took
+    it for a property of the job it happened to be attached to and refused to
+    serve, schedule or fire it.
+
+    The model's own claim, unverified. It cites roughly one gesture per step
+    and calls the rest unplaced, so this runs high: on the first real cross-tab
+    evidence this system mined, a third of the thirty-six named were gestures
+    supporting the emitted job's own steps."""
 
 
 async def propose(
@@ -461,6 +478,11 @@ async def _one_pass(
         window, crossings, summary, kb, asker=asker, model=model, tenant=tenant_id.value
     )
 
+    # The schema is advisory, like `workflows` one function up, and this is a
+    # figure on a billing row rather than anything a reader gates on -- so a
+    # model that answers with a string leaves a zero and costs the pass nothing.
+    residue = (answer.data or {}).get("unplaced")
+
     result = MineResult(
         pass_id=pass_id,
         proposed=len(proposals),
@@ -472,6 +494,7 @@ async def _one_pass(
         error=answer.error,
         window_size=len(window.items),
         left_out=len(window.left_out),
+        unplaced=len(residue) if isinstance(residue, list) else 0,
         lost_pool=lost,
     )
 
@@ -684,6 +707,7 @@ def _billed(pass_id: str, tenant_id: TenantId, started_at: str, result: MineResu
         lopsided=result.lopsided,
         window_size=result.window_size,
         left_out=result.left_out,
+        unplaced=result.unplaced,
         error=result.error,
     )
 

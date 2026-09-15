@@ -349,18 +349,19 @@ function NewTrigger({
                 </option>
               ))}
             </optgroup>
-            {/* Only the proven ones. An offer is never made for an unproven
-                job, so a schedule must not be the way round that -- and the
-                backend refuses it, which is a refusal after the press rather
-                than a list that never offered it. */}
+            {/* Every stored job. A workflow the mining pass KEPT is the
+                proven one -- validate refuses an uncited step, an unknown
+                gesture or a wordless one before a row is ever written -- and
+                this list filtered on `unproven`, which was the window's
+                leftovers attached to whichever job the model emitted. A real
+                window always has leftovers, so this optgroup was empty by
+                construction. */}
             <optgroup label="Mined jobs">
-              {jobs
-                .filter((job) => job.unproven.length === 0)
-                .map((job) => (
-                  <option key={job.id} value={`job:${job.id}`}>
-                    {job.title}
-                  </option>
-                ))}
+              {jobs.map((job) => (
+                <option key={job.id} value={`job:${job.id}`}>
+                  {job.title}
+                </option>
+              ))}
             </optgroup>
           </select>
           {jobId ? (

@@ -66,7 +66,6 @@ def _workflow(**overrides: Any) -> Workflow:
         "parameters": [{"name": "supplier_name", "seen_values": ["TestYonder2"]}],
         "shape_key": [["https://wms.example", "clientCode", "type"]],
         "same_as": None,
-        "unproven": ["ges_9"],
         "pass_id": "pas_1",
     }
     fields.update(overrides)

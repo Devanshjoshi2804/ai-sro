@@ -85,7 +85,7 @@ def test_the_prompt_the_model_is_given_is_the_one_the_rig_measured() -> None:
     And it says what the "Jobs already proven" block is FOR, which the prompt
     handed the model with no guidance at all. Left to infer, the model treated
     it as a list of things not to report: an acme pass over 247 gestures
-    proposed ONE job and filed **226 gestures under `unproven`**, 160 of them
+    proposed ONE job and filed **226 gestures under `unplaced`**, 160 of them
     on the warehouse host, its own readings of them saying "save new equipment
     type", "create work operation", "create activity code". That is the work,
     declined because a job of that name was already stored -- and a second
@@ -96,10 +96,11 @@ def test_the_prompt_the_model_is_given_is_the_one_the_rig_measured() -> None:
     hash in the same commit and say why the model should read something else."""
     assert (
         hashlib.sha256(INSTRUCTIONS.encode()).hexdigest()
-        == "11a2435bd4d0604851d4e7b4661e3cbe660391efc1d79923c86049531dcd3195"
+        == "9f381f4e57479495f76045256a307d8d2c39b09d2666376ee440e7807320fa84"
     )
     assert '"Create a Customer Type", never' in INSTRUCTIONS
-    assert "A stretch that only looked at things goes\nunder `unproven`." in INSTRUCTIONS
+    assert "A stretch that only looked at things goes\nunder `unplaced`." in INSTRUCTIONS
+    assert "once, at the top level\nbeside `workflows`" in INSTRUCTIONS
     assert "That is ONE job done four times." in INSTRUCTIONS
     assert "so you can RECOGNISE work, not so\nyou can skip it" in INSTRUCTIONS
 
@@ -130,6 +131,32 @@ def test_the_schema_asks_for_the_parameter_shape_the_rest_of_the_code_reads() ->
     assert parameters["items"]["properties"].keys() == {"name", "seen_values"}
     assert parameters["items"]["required"] == ["name", "seen_values"]
     assert parameters["items"]["properties"]["seen_values"]["type"] == "array"
+
+
+def test_what_the_pass_could_not_place_is_asked_for_once_beside_the_jobs() -> None:
+    """The prompt asks for the leftovers of the WINDOW -- "list anything you
+    could not place" -- and the schema used to ask for them per workflow. So
+    the model attached the day's residue to whichever job it happened to emit,
+    and four readers took that for a property of the job and refused to serve,
+    schedule or fire it. A real day always leaves residue, so no offer was ever
+    made once mining worked at all: the first cross-tab job this system mined
+    from a real deployment carried thirty-six unplaced ids, a third of them
+    gestures supporting its own steps.
+
+    The prompt and the schema asking for the same thing at two different levels
+    is the defect, so both ends are asserted here.
+    """
+    shape = WORKFLOW_SCHEMA["properties"]
+    assert isinstance(shape, dict)
+    workflows = shape["workflows"]
+    assert isinstance(workflows, dict)
+    item = workflows["items"]
+    assert isinstance(item, dict)
+
+    assert "unplaced" in shape, "beside `workflows`, which is whose fact it is"
+    assert "unplaced" not in item["properties"], "never a property of one job"
+    assert "unproven" not in item["properties"], "nor under its old name"
+    assert shape["unplaced"] == {"type": "array", "items": {"type": "string"}}
 
 
 def test_the_task_is_stated_at_both_ends_of_the_prompt() -> None:
@@ -313,10 +340,10 @@ def test_a_crossing_too_big_to_fit_does_not_take_the_smaller_ones_with_it() -> N
 
 
 def test_a_proposal_missing_its_optional_fields_is_still_a_workflow() -> None:
-    """Everything here came off the model. `systems`, `parameters`, `unproven`
-    and `same_as` are all optional in practice -- a model that returned only
-    the required fields would have crashed the parse on a missing key rather
-    than being read as a workflow with none of them."""
+    """Everything here came off the model. `systems`, `parameters` and
+    `same_as` are all optional in practice -- a model that returned only the
+    required fields would have crashed the parse on a missing key rather than
+    being read as a workflow with none of them."""
     bare = {
         "title": "a job",
         "narrative": "what happened",
@@ -327,7 +354,7 @@ def test_a_proposal_missing_its_optional_fields_is_still_a_workflow() -> None:
 
     assert workflow is not None
     assert workflow.title == "a job"
-    assert (workflow.systems, workflow.parameters, workflow.unproven) == ([], [], [])
+    assert (workflow.systems, workflow.parameters) == ([], [])
     assert workflow.same_as is None
     assert workflow.steps[0].parameters == []
 
@@ -371,7 +398,6 @@ def _one(**over: object) -> dict[str, object]:
         ],
         "parameters": [{"name": "code", "seen_values": ["ACME"]}],
         "same_as": None,
-        "unproven": ["ges_2"],
     }
     return {**base, **over}
 
@@ -429,23 +455,19 @@ def test_a_junk_field_inside_a_step_falls_back_to_nothing() -> None:
 
 
 def test_a_junk_field_beside_the_steps_falls_back_to_nothing() -> None:
-    """title, narrative, systems, unproven and same_as."""
-    workflow = workflow_from(
-        _one(title=7, narrative=7, systems="wms", unproven="ges_2", same_as=7), tenant="acme"
-    )
+    """title, narrative, systems and same_as."""
+    workflow = workflow_from(_one(title=7, narrative=7, systems="wms", same_as=7), tenant="acme")
     assert workflow is not None
 
     assert workflow.title == ""
     assert workflow.narrative == ""
     assert workflow.systems == []
-    assert workflow.unproven == []
     assert workflow.same_as is None
 
-    also = workflow_from(_one(systems=["a", 7], unproven=["ges_2", None]), tenant="acme")
+    also = workflow_from(_one(systems=["a", 7]), tenant="acme")
     assert also is not None
 
     assert also.systems == ["a"]
-    assert also.unproven == ["ges_2"]
 
 
 def test_steps_the_model_numbered_itself_keep_their_numbering() -> None:

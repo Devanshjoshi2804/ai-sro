@@ -84,7 +84,7 @@ class _Closed(FakeChannel):
         return ()
 
 
-def _job(*, workflow_id: str = "wfl_1", unproven: list[str] | None = None) -> Workflow:
+def _job(*, workflow_id: str = "wfl_1") -> Workflow:
     return Workflow(
         id=workflow_id,
         tenant=f.TENANT.value,
@@ -92,7 +92,6 @@ def _job(*, workflow_id: str = "wfl_1", unproven: list[str] | None = None) -> Wo
         narrative="the operator created a work area",
         steps=[Step(order=n, says=f"step {n}", system=None, cites=[f"ges-{n}"]) for n in range(2)],
         parameters=[{"name": "clientCode", "seen_values": ["NEWTESTS"]}],
-        unproven=list(unproven or []),
     )
 
 
@@ -184,18 +183,6 @@ async def test_a_proven_job_on_a_weekday_morning_is_a_write_with_a_name_on_it() 
     assert trigger.authorized_by == f.OPERATOR
     assert trigger.requires_confirmation is True
     assert scheduler.scheduled == {trigger.id.value: EVERY_WEEKDAY}
-
-
-async def test_a_job_that_is_not_proven_cannot_be_put_on_a_clock() -> None:
-    # An offer is never made for an unproven job, so a schedule must not be the
-    # way round that.
-    uow, scheduler = await _held(_job(unproven=["step 1 cites nothing"])), FakeScheduler()
-
-    with pytest.raises(TriggerRefused, match="not proven"):
-        await _create(uow, scheduler).execute(CTX, _new())
-
-    assert scheduler.scheduled == {}
-    assert uow.triggers.rows == {}
 
 
 async def test_a_job_with_no_browser_named_is_refused_rather_than_run_headless() -> None:
@@ -319,23 +306,6 @@ async def test_approving_the_card_starts_the_run_under_the_name_that_pressed_it(
     assert run.device_id == LAPTOP.value
     assert run.started_by == "supervisor-9"
     assert uow.triggers.rows[trigger.id.value].last_run_id == answered.run_id
-
-
-async def test_a_job_that_stopped_being_proven_is_skipped_and_the_trigger_lives() -> None:
-    """Not disabled. A job goes unproven when the evidence it cites ages out
-    from under it, which a later pass can put back -- and a trigger switched
-    off by a sweep is one somebody has to notice and switch on again."""
-    uow, scheduler = await _held(), FakeScheduler()
-    trigger = await _create(uow, scheduler).execute(CTX, _new(auto_approve=True))
-    stale = await uow.workflows.get(f.TENANT, "wfl_1")
-    stale.unproven = ["step 0 cites evidence that is gone"]
-    await uow.workflows.save(stale)
-
-    fired = await _fire(uow, starter=_starter(uow), pursuits=_Dropped()).execute(trigger.id)
-
-    assert fired.run_id is None
-    assert "not proven" in (fired.skipped or "")
-    assert uow.triggers.rows[trigger.id.value].enabled is True
 
 
 async def test_a_process_with_no_way_to_drive_a_browser_skips_rather_than_crashes() -> None:
@@ -498,9 +468,9 @@ def _asking() -> NewTrigger:
     )
 
 
-async def test_a_watch_that_asks_needs_no_job_to_have_been_proven() -> None:
-    """None of the job checks apply, because there is no job. What is left is
-    the browser that reads the mail and the question it reads."""
+async def test_a_watch_that_asks_is_held_to_none_of_the_job_checks() -> None:
+    """There is no job. What is left is the browser that reads the mail and
+    the question it reads."""
     uow, scheduler = FakeUnitOfWork(), FakeScheduler()
 
     trigger = await _create(uow, scheduler).execute(CTX, _asking())

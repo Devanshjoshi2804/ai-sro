@@ -750,9 +750,15 @@ picker offers both under one field because a trigger runs exactly one thing. A
 job insists on two things a skill does not: a browser, because a workflow is a
 recording of somebody's own window and there is no headless way to replay one,
 and a name behind it, because a standing authority to drive a real browser
-through real work is a write however the recording is shaped. Only proven jobs
-are offered — an offer is never made for an unproven one, so a schedule must not
-be the way round that.
+through real work is a write however the recording is shaped.
+
+Every stored job is offered, because a job the mining pass KEPT is the proven
+one: `validate` refuses a workflow with an uncited step, an unknown gesture or a
+wordless one before a row is ever written. This screen filtered on a field named
+`unproven` until 2026-09-15, and what that field actually held was the leftovers
+of the WINDOW the pass read, attached to whichever job the model happened to
+emit. A real day always leaves some, so the picker was empty whenever mining
+worked at all.
 
 What a scheduled job may send unattended is not the trigger's decision. The run
 is dry until somebody presses through to live, a live write parks for a person

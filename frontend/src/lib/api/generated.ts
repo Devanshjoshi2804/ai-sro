@@ -5296,8 +5296,6 @@ export interface components {
             parameters: {
                 [key: string]: unknown;
             }[];
-            /** Unproven */
-            unproven: string[];
             /** Steps */
             steps: components["schemas"]["WorkflowStepModel"][];
             runs: components["schemas"]["WorkflowHistoryModel"];

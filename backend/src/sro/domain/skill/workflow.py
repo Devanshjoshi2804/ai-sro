@@ -50,7 +50,6 @@ class Workflow:
     # recorded and it decides nothing: a model re-judging its own earlier verdict
     # disagrees with itself at roughly 90%. identity.py decides.
     same_as: str | None = None
-    unproven: list[str] = field(default_factory=list)
     # The pass that found it. A workflow has no cost of its own -- one model
     # call proposes all of them -- so it names the row that does rather than
     # carrying a copy of the bill that three workflows would then sum to three

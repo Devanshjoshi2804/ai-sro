@@ -2041,7 +2041,6 @@ class WorkflowModel(BaseModel):
     sums to the bill times the number of jobs found."""
 
     parameters: list[dict[str, Any]]
-    unproven: list[str]
     """What the pass could not place. It exists nowhere else a reader can
     reach, and it is the field a route emitting its siblings is likeliest to
     drop."""
@@ -2059,7 +2058,6 @@ class WorkflowModel(BaseModel):
             systems=list(workflow.systems),
             pass_id=workflow.pass_id,
             parameters=[dict(entry) for entry in workflow.parameters],
-            unproven=list(workflow.unproven),
             # Sorted here, because `Workflow.steps` is a list nothing promises
             # is ordered -- `ordered_cites` sorts it for the same reason. A
             # step list served in storage order is a job served in the wrong

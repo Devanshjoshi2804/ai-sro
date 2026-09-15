@@ -232,8 +232,8 @@ class CreateTrigger:
         """A trigger on a mined job.
 
         The checks are the ones this moment knows and a later one cannot. The
-        job exists and is proven -- an offer is never made for an unproven one,
-        so a schedule must not be the way round that. It runs in a browser,
+        job exists -- a schedule for one this tenant does not have is refused
+        here rather than at 3am. It runs in a browser,
         because a workflow is a recording of somebody's own window and there is
         no headless path for one. And every parameter it declares has a value,
         from the trigger or from whatever fires it: `StartWorkflowRun` refuses
@@ -248,9 +248,9 @@ class CreateTrigger:
         runs whose every write a state belt verified, checked per run.
         """
         async with self._uow as uow:
+            # `get` raising is the existence check: a schedule for a job this
+            # tenant does not have is refused here rather than at 3am.
             workflow = await uow.workflows.get(ctx.tenant_id, str(request.workflow_id))
-            if workflow.unproven:
-                raise TriggerRefused("this job is not proven yet: " + "; ".join(workflow.unproven))
             if request.kind is TriggerKind.ARRIVAL and request.arrival is None:
                 # The kind and the rule are one decision. A row with the kind
                 # and no page would be refused by `Trigger` as a 500 out of a

@@ -215,7 +215,6 @@ def _workflow(
         parameters=[{"name": "clientCode", "evidence": "proven"}],
         shape_key=[["wms.test", "clientCode", "type"]],
         same_as=None,
-        unproven=["the approval nobody could place"],
         pass_id="pas_7",  # noqa: S106 -- the mining pass that found it, not a password
     )
 
@@ -414,9 +413,9 @@ async def test_a_mined_job_reaches_the_wire_whole(
 
     Blanking the content of a response model has survived a full suite more
     than once, so this compares the row entire rather than checking that a row
-    exists. `unproven` and `parameters` are in it deliberately: they are the
-    pass's own model output, they exist nowhere else a reader can reach, and
-    they are what a route emitting their siblings drops.
+    exists. `parameters` is in it deliberately: it is the pass's own model
+    output, it exists nowhere else a reader can reach, and it is what a route
+    emitting its siblings drops.
     """
     row = next(row for row in (await _listed(client)).json()["workflows"] if row["id"] == JOB)
 
@@ -427,7 +426,6 @@ async def test_a_mined_job_reaches_the_wire_whole(
         "systems": ["wms.test", "billing.test"],
         "pass_id": "pas_7",
         "parameters": [{"name": "clientCode", "evidence": "proven"}],
-        "unproven": ["the approval nobody could place"],
         "steps": [
             {
                 "order": 0,
@@ -487,23 +485,6 @@ async def test_the_jobs_come_back_oldest_first(
     assert listed != sorted(listed)
     assert listed != sorted(listed, reverse=True)
     assert listed != listed[::-1]
-
-
-async def test_a_job_the_pass_could_not_place_is_still_on_the_menu(
-    client: httpx.AsyncClient, uow: FakeUnitOfWork, mined: list[Gesture]
-) -> None:
-    """This is the console's list, not the extension's.
-
-    `/v1/shapes` skips an unproven workflow, because it is offering a job to
-    run. This route is answering "what did the pass find", and the jobs it
-    could not place are the ones somebody most needs to see. A route that
-    copied `serve_shapes`' gate would drop every one of them, and every
-    workflow this file plants carries `unproven`.
-    """
-    listed = (await _listed(client)).json()["workflows"]
-
-    assert len(listed) == 3
-    assert all(row["unproven"] for row in listed)
 
 
 # --- what has become of the job ---------------------------------------------

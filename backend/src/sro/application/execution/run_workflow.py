@@ -41,6 +41,7 @@ import base64
 import hashlib
 import json
 from collections.abc import Mapping, Sequence
+from collections.abc import Set as AbstractSet
 from contextlib import suppress
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -70,6 +71,7 @@ from sro.domain.execution.evidence import (
     origin_of,
     primary_gesture,
     recorded_call,
+    stood_on,
     writes,
 )
 from sro.domain.execution.planning import Look, Planned
@@ -248,6 +250,38 @@ def _target_origin(planned: Planned) -> str | None:
         return system_of(str(planned.payload.get("url")))
     origin = planned.payload.get("origin")
     return origin if isinstance(origin, str) else None
+
+
+def _refused_origin(
+    kind: str, off: str | None, *, standing: AbstractSet[str], replayable: AbstractSet[str]
+) -> bool:
+    """Whether a planned command's target is one this job's evidence forbids.
+
+    Two sets, because a plan can reach somewhere two different ways. `standing`
+    is where the operator actually was, and it is what may take the BROWSER
+    somewhere. `replayable` adds the origins their pages' own requests named,
+    which `http.send` needs: a step's demonstrated call can be to an API origin
+    the page itself never was, and refusing those refuses the step its own
+    write.
+
+    The difference is not hypothetical. A page calls whoever it likes -- a
+    Gmail page calls Google's own infrastructure -- so one set for both
+    questions made `https://play.google.com` somewhere a planner could have
+    navigated an operator's browser to, on the evidence of a telemetry beacon,
+    for a job about warehouse customer types.
+
+    Named no origin at all -- `about:blank`, `file:`, a bare path -- is a
+    refusal for the two kinds that choose their own target, and not for the
+    rest: there `None` means the recorder saw no url, which the extension
+    resolves itself.
+
+    Lifted out of the run loop because that is the only way anything can ask
+    it. Inside, it was three lines nothing could reach without driving a whole
+    run, and the sets it compares had just been merged into one.
+    """
+    if off is None:
+        return kind in K_LEAVES
+    return off not in (replayable if kind == "http.send" else standing)
 
 
 async def _where(
@@ -504,7 +538,12 @@ async def run_workflow(
     device_id = DeviceId(run.device_id)
     await _save(uow, run)
     by_id = await _gestures_for(uow, tenant_id, workflow)
-    allowed = allowlist(workflow, by_id)
+    # Two sets, because they answer two questions. `standing` is where the
+    # operator actually was and is where a plan may SEND the browser;
+    # `replayable` adds the origins their page's own requests named, which is
+    # what `http.send` replays a demonstrated call to.
+    standing = stood_on(workflow, by_id)
+    replayable = allowlist(workflow, by_id)
     ordered = sorted(workflow.steps, key=lambda s: s.order)
     # A list longer than one press can mean.
     #
@@ -557,6 +596,22 @@ async def run_workflow(
     # -- not the job's first page. The extension opens a tab at `starts_on`
     # when the operator's own tab is elsewhere, and aiming a run that starts at
     # step k there would abandon the progress the offer was made on.
+    #
+    # The WHOLE url, and not `page_of` the way `Shape.starts_on` is narrowed.
+    # A warehouse addresses its screens by fragment --
+    # `…/portal?siteId=SG#wm.config/wm.config.partners.customers.types////` --
+    # so a run opening the path alone lands on the portal root and plans every
+    # step against the wrong page. The served shape is compared; this is
+    # navigated to, and the two want different things from one url.
+    #
+    # What it costs is honest and not fixed here: this is one gesture of ONE
+    # demonstration, so a job whose first screen was a particular mail will
+    # send a run to that mail. Nothing in a single demonstration distinguishes
+    # the part of a url that names the screen from the part that names the
+    # visit -- measured 2026-09-15, where the warehouse put its screen in the
+    # fragment and Gmail put its message id in the same place. Telling them
+    # apart needs two demonstrations that differ, which is a change to what is
+    # mined rather than to what is read here.
     first = primary_gesture(ordered[from_step], by_id) if from_step < len(ordered) else None
     if first is not None:
         starts_on = first.page_url or first.url
@@ -796,8 +851,9 @@ async def run_workflow(
                     # path -- is a refusal, not permission. `ui.perform` keeps
                     # its origin from the evidence and None there means the
                     # recorder saw no url, which the extension resolves itself.
-                    leaves = proposal.kind in K_LEAVES
-                    if (off is None and leaves) or (off is not None and off not in allowed):
+                    if _refused_origin(
+                        proposal.kind, off, standing=standing, replayable=replayable
+                    ):
                         record.verdict = "refused"
                         record.reason = (
                             f"{off} is not a system this job's evidence names"

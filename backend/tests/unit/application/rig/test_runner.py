@@ -40,6 +40,7 @@ from sro.application.execution.run_workflow import (
     _fell_over,
     _look,
     _now,
+    _refused_origin,
     _result,
     _saw_nothing,
     _target_origin,
@@ -182,6 +183,54 @@ def test_the_origin_a_plan_would_reach_is_the_urls_for_the_two_kinds_that_leave(
     ), "ui.perform keeps the origin the evidence gave it"
     assert _target_origin(_p("ui.perform", {})) is None
     assert _target_origin(_p("ui.perform", {"origin": 7})) is None
+
+
+STOOD = frozenset({"https://wms.example", "https://mail.example"})
+CALLED = STOOD | {"https://api.wms.example", "https://play.google.com"}
+
+
+def test_only_a_replay_may_reach_an_origin_nobody_stood_on() -> None:
+    """The two sets are not interchangeable, and this is the difference.
+
+    `http.send` replays a call this job's evidence already made, and a
+    demonstrated write can be to an API origin the page itself never was --
+    `wms.example` posting to `api.wms.example`. Refusing that refuses the step
+    its own write.
+
+    A NAVIGATE is a different act: it drives somebody's browser somewhere. A
+    page calls whoever it likes, so allowing it everywhere the evidence's
+    requests reached meant `https://play.google.com` -- a Gmail telemetry
+    beacon -- was somewhere a planner could send an operator, on a job about
+    warehouse customer types.
+    """
+    assert not _refused_origin(
+        "http.send", "https://api.wms.example", standing=STOOD, replayable=CALLED
+    )
+    assert _refused_origin(
+        "navigate", "https://api.wms.example", standing=STOOD, replayable=CALLED
+    ), "a navigate reached an origin nobody ever stood on"
+    assert _refused_origin(
+        "navigate", "https://play.google.com", standing=STOOD, replayable=CALLED
+    ), "a telemetry beacon is not a destination"
+
+
+def test_an_origin_the_operator_stood_on_is_allowed_to_both() -> None:
+    for kind in ("http.send", "navigate", "ui.perform"):
+        assert not _refused_origin(kind, "https://wms.example", standing=STOOD, replayable=CALLED)
+
+
+def test_a_kind_that_chooses_its_own_target_may_not_choose_nowhere() -> None:
+    """`about:blank`, `file:`, a bare path. For the two kinds whose target the
+    model picks that is a refusal; for the rest `None` means the recorder saw
+    no url and the extension resolves it."""
+    assert _refused_origin("navigate", None, standing=STOOD, replayable=CALLED)
+    assert _refused_origin("http.send", None, standing=STOOD, replayable=CALLED)
+    assert not _refused_origin("ui.perform", None, standing=STOOD, replayable=CALLED)
+
+
+def test_an_origin_in_neither_set_is_refused_however_it_is_reached() -> None:
+    for kind in ("http.send", "navigate", "ui.perform"):
+        assert _refused_origin(kind, "https://evil.example", standing=STOOD, replayable=CALLED)
 
 
 # --------------------------------------------------------------------------

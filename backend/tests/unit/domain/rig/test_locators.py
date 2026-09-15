@@ -9,6 +9,7 @@ from sro.domain.execution.evidence import (
     origin_of,
     primary_gesture,
     recorded_call,
+    stood_on,
     writes,
 )
 from sro.domain.observation.gesture import Call
@@ -151,6 +152,41 @@ def test_the_allowlist_is_every_system_the_evidence_names_and_nothing_else() -> 
         "http://127.0.0.1:1",
         "https://wms.example",
     }
+
+
+def test_where_a_browser_may_be_sent_is_narrower_than_where_a_call_may_be_replayed() -> None:
+    """Two sets, because they answer two questions about one job.
+
+    `allowlist` carries the origin of every REQUEST a cited gesture produced,
+    and it has to: `recorded_call` can name a call to an API origin the page
+    itself never was, and `http.send` replays exactly that call.
+
+    But a page calls whoever it likes. Measured on the deployment, 2026-09-15:
+    `Create a Customer Type` cites a click in Gmail, a Gmail page calls
+    Google's own infrastructure, and so `https://play.google.com` was an origin
+    a planner could have NAVIGATED an operator's browser to -- on the evidence
+    of a telemetry beacon, for a job about warehouse customer types. Nobody
+    ever stood there.
+    """
+    gestures = _gestures()
+    by_id = {g.id: g for g in gestures}
+    beacon = next(g for g in gestures if g.requests)
+    beacon.requests[0] = replace(beacon.requests[0], url="https://play.google.com/log?id=1")
+    wf = Workflow(
+        id="wfl_1",
+        tenant="acme",
+        title="t",
+        narrative="n",
+        steps=[Step(order=0, says="s", system=None, cites=[g.id for g in gestures])],
+    )
+
+    standing = stood_on(wf, by_id)
+    replayable = allowlist(wf, by_id)
+
+    assert "https://play.google.com" not in standing, "a beacon is not a place somebody was"
+    assert "https://play.google.com" in replayable, "and a demonstrated call is still replayable"
+    assert standing < replayable, "the narrow one is the wide one without the request origins"
+    assert standing == {"http://127.0.0.1:63319"}
 
 
 def test_a_step_writes_when_any_cited_gesture_caused_a_mutation() -> None:

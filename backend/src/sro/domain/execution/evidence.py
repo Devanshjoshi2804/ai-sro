@@ -279,9 +279,21 @@ def writes(step: Step, by_id: Mapping[str, Gesture]) -> bool:
     return call is not None and call.method.upper() not in READ_METHODS
 
 
-def allowlist(workflow: Workflow, by_id: Mapping[str, Gesture]) -> set[str]:
-    """Every system the workflow's own cited evidence names. A planned command
-    to any other origin is refused before it leaves the process."""
+def stood_on(workflow: Workflow, by_id: Mapping[str, Gesture]) -> set[str]:
+    """Every system the operator was actually ON while doing this job.
+
+    The tab's origin and the frame's, and nothing else. This is where a plan
+    may SEND the browser, and it is the narrower of the two sets on purpose:
+    driving somebody's browser somewhere is a different act from replaying a
+    call their own click already made.
+
+    `allowlist` is the wider one, and the difference is not hypothetical.
+    Measured on this deployment, 2026-09-15: `Create a Customer Type` cites a
+    click in Gmail, a Gmail page calls Google's own infrastructure, and so
+    `https://play.google.com` was an origin a planner could have navigated an
+    operator's browser to -- on the evidence of a telemetry beacon, for a job
+    about warehouse customer types. No gesture ever happened there.
+    """
     named: set[str] = set()
     for step in workflow.steps:
         for cited in step.cites:
@@ -291,6 +303,28 @@ def allowlist(workflow: Workflow, by_id: Mapping[str, Gesture]) -> set[str]:
             for candidate in (gesture.system, system_of(gesture.url)):
                 if candidate:
                     named.add(candidate)
+    return named
+
+
+def allowlist(workflow: Workflow, by_id: Mapping[str, Gesture]) -> set[str]:
+    """Where a call this job's evidence already made may be replayed to.
+
+    `stood_on` plus the origin of every request a cited gesture produced. Those
+    origins are here for `recorded_call`: a step's evidence can be a call to an
+    API origin the page itself never was -- a form on `wms.example` posting to
+    `api.wms.example` -- and `http.send` replays exactly that call. Refusing
+    them would refuse the step its own demonstrated write.
+
+    So this is the set for `http.send` alone. What may take the browser
+    somewhere is `stood_on`, which is the same question asked about a person
+    rather than about a request their page made.
+    """
+    named = stood_on(workflow, by_id)
+    for step in workflow.steps:
+        for cited in step.cites:
+            gesture = by_id.get(cited)
+            if gesture is None:
+                continue
             for request in gesture.requests:
                 system = system_of(request.url)
                 if system:

@@ -20,10 +20,10 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 
-from sro.domain.execution.evidence import allowlist, primary_gesture
+from sro.domain.execution.evidence import primary_gesture, stood_on
 from sro.domain.observation.gesture import Gesture
 from sro.domain.observation.identity import shape_key, target_identity
-from sro.domain.shared.hosts import system_of
+from sro.domain.shared.hosts import page_of, system_of
 from sro.domain.skill.learned import control_name
 from sro.domain.skill.offers import K_OFFER_AFTER, Counsel
 from sro.domain.skill.workflow import Step, Workflow, ordered_cites
@@ -184,8 +184,25 @@ def shape_of(
     by_id = {g.id: g for g in gestures}
     first_step = min(workflow.steps, key=lambda s: s.order)
     first = primary_gesture(first_step, by_id) or gestures[0]
-    starts_on = first.page_url or first.url
-    hosts = sorted(allowlist(workflow, by_id))
+    # The screen, not the visit. What was served here was the whole url of the
+    # first gesture of ONE demonstration, so `Create a Customer Type` carried
+    # the message id of the mail that operator happened to read, and a WMS job
+    # would carry a `libraryContext` session token -- to every browser in the
+    # tenant that asks for shapes.
+    #
+    # Nothing loses anything. Every consumer of this field reduces it to host
+    # and path before comparing: `nudge.page` on the way in, `rigArrivals` on
+    # what that produced, and `nudge.js` says so in its own docstring -- "the
+    # same shape the miner records `starts_on` in", which was not true until
+    # now. What NAVIGATES is a different `starts_on` computed in
+    # `run_workflow`, and that one still carries the whole url because a
+    # warehouse addresses its screens by fragment.
+    starts_on = page_of(first.page_url or first.url)
+    # Where the operator stood, not everywhere their pages called. `hosts`
+    # says which systems this job is done on, and a Gmail page's telemetry
+    # beacon is not one of them -- it put `https://play.google.com` on a
+    # warehouse job's shape, served to every browser in the tenant.
+    hosts = sorted(stood_on(workflow, by_id))
     # `starts_on` is the tab's origin; `hosts` is what the evidence names,
     # which is the frame's. When they disagree the extension would be sent
     # to open an origin no cited gesture ever proved -- so it is not sent.

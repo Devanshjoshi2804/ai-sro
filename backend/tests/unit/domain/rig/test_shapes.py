@@ -158,6 +158,45 @@ def test_the_steps_are_read_in_their_own_order_and_not_the_order_they_arrived_in
     assert shape.parameters == [{"name": "clientCode", "at": 0}], "indexed into the sorted walk"
 
 
+def test_the_page_a_job_begins_on_is_a_screen_and_not_one_visit_to_it() -> None:
+    """What was served was the whole url of the first gesture of ONE
+    demonstration. On the deployment, 2026-09-15, that put the message id of
+    the mail an operator happened to read onto a job served to every browser in
+    the tenant -- and on a warehouse job it would be a `libraryContext` session
+    token, stale by the time anybody read it.
+
+    Nothing loses anything: every consumer reduces this to host and path before
+    comparing it, and `nudge.js` already documents it as "the same shape the
+    miner records `starts_on` in" -- a sentence that was not true until now.
+    """
+    by_id = _evidence()
+    workflow = _workflow(by_id)
+    _typed(by_id).page_url = f"{HOST}/mail/u/0/?tab=rm&ogbl#inbox/FMfcgzQhWLSTRpPPfBFF"
+
+    shape = shape_of(workflow, cited_pairs(workflow, by_id), held=0, advice=QUIET)
+
+    assert shape is not None
+    assert shape.starts_on == f"{HOST}/mail/u/0/"
+    assert "FMfcg" not in (shape.starts_on or ""), "a message id is not a screen"
+
+
+def test_the_hosts_a_job_names_are_where_somebody_stood() -> None:
+    """Not everywhere their pages called. `hosts` came off `allowlist`, which
+    carries the origin of every request a cited gesture made -- so a Gmail
+    page's telemetry beacon put `https://play.google.com` on a warehouse job's
+    shape. Those request origins are real evidence and `http.send` still needs
+    them; they are just not answers to "which systems is this job done on"."""
+    by_id = _evidence()
+    workflow = _workflow(by_id)
+    saver = _saver(by_id)
+    saver.requests = [replace(saver.requests[0], url="https://play.google.com/log?id=1")]
+
+    shape = shape_of(workflow, cited_pairs(workflow, by_id), held=0, advice=QUIET)
+
+    assert shape is not None
+    assert shape.hosts == [HOST]
+
+
 def test_a_parameter_no_cited_gesture_typed_has_no_index() -> None:
     by_id = _evidence()
     workflow = _workflow(by_id)

@@ -183,7 +183,7 @@ from sro.infrastructure.steel.sign_in import PlaywrightSignIn
 from sro.infrastructure.steel.supervisor import CaptureSupervisor
 from sro.infrastructure.steel.ui_driver import PlaywrightUiDriver
 from sro.infrastructure.system import SystemClock, UuidFactory
-from sro.infrastructure.telemetry.otel import configure_tracing
+from sro.infrastructure.telemetry.otel import configure_tracing, watch_queries
 from sro.infrastructure.temporal.durable import TemporalDurableExecution
 from sro.infrastructure.temporal.schedules import TemporalScheduler
 from sro.infrastructure.transcription.gemini import GeminiTranscriber
@@ -1159,6 +1159,8 @@ def build_container(settings: Settings | None = None) -> Container:
     )
 
     engine = create_engine(settings.database_url, echo=settings.debug)
+    if settings.otlp_endpoint:
+        watch_queries(engine)
     credentials = SignedTokens(settings.auth_secret)
 
     container = Container(

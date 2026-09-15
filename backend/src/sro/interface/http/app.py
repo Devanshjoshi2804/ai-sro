@@ -12,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sro.application.execution.run_workflow import fail_orphans
 from sro.config import get_settings
 from sro.container import Container, build_container
+from sro.infrastructure.telemetry.otel import watch_requests
 from sro.interface.http.errors import install_error_handlers
 from sro.interface.http.schemas import PROBLEMS
 from sro.interface.http.v1.routers import (
@@ -133,6 +134,9 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    if settings.otlp_endpoint:
+        watch_requests(app)
 
     install_error_handlers(app)
     app.include_router(health.router)

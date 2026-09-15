@@ -62,10 +62,9 @@ def _twice_over(*, sent: str, then: str) -> tuple[Gesture, Gesture]:
         one = copy.deepcopy(_saver())
         one.id = gesture_id
         keep = next(r for r in one.requests if r.method == "POST" and "orders" in r.url)
+        assert keep.request_body is not None, "the fixture's save posts a body"
         text = json.dumps({"clientCode": code, "dock": "D3"})
-        one.requests = [
-            replace(keep, request_body=replace(keep.request_body, text=text))  # type: ignore[arg-type]
-        ]
+        one.requests = [replace(keep, request_body=replace(keep.request_body, text=text))]
         return one
 
     return _doing("doing-1", sent), _doing("doing-2", then)

@@ -259,6 +259,58 @@ async def test_a_verified_call_names_its_struck_header_for_a_live_fetch_instead(
     )
 
 
+async def test_a_struck_header_nothing_can_fetch_live_is_not_named_for_a_live_fetch() -> None:
+    """`LIVE_FETCHABLE_HEADERS` is a fixed menu the extension owns, and this is
+    the half of the rule the happy path cannot show.
+
+    A recording carries a marker wherever a header was struck out, and only two
+    of those names have a live source -- both read off `Ext.Ajax.defaultHeaders`
+    on a Blue Yonder page. Naming any other one asks the extension to run JS it
+    does not have for a value nobody can supply, so the write goes out short of
+    the header either way and the plan has lied about which.
+    """
+    saver = _saver()
+    post = next(r for r in saver.requests if r.method == "POST")
+    struck = replace(
+        post,
+        request_headers={
+            "Content-Type": "application/json",
+            "CSRF-ENCRYPT-TOKEN": REDACTED,
+            # Struck out at the boundary like the one above, and with nothing
+            # on the page that could read it back.
+            "Authorization": REDACTED,
+        },
+    )
+    saver.requests[saver.requests.index(post)] = struck
+    asker = FakeAsker(
+        Answer(
+            data={
+                "kind": "http.send",
+                "action": None,
+                "value": None,
+                "url": None,
+                "why": "no ui target",
+            }
+        )
+    )
+
+    planned = await plan_step(
+        step=Step(order=0, says="save", system=None, cites=[saver.id]),
+        cited=[saver],
+        values={},
+        look=Look(None, None, ""),
+        origin=None,
+        starts_on=None,
+        allow_focus=False,
+        asker=asker,
+        model="m",
+        verified_writes=(VerifiedWrite(method="POST", path_pattern=urlsplit(post.url).path),),
+    )
+
+    assert planned.payload["live_headers"] == ["CSRF-ENCRYPT-TOKEN"]
+    assert "Authorization" not in planned.payload["headers"], "and it is still not on the wire"
+
+
 async def test_a_call_that_matches_no_verified_write_still_drops_the_header() -> None:
     """Verification is per call, not a switch this deployment flips once: a
     ledger naming some other path leaves this one exactly as unverified as an

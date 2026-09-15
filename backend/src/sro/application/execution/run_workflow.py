@@ -682,7 +682,18 @@ async def run_workflow(
     # they reached for the menu, neither of them this step's. A run resuming
     # there opened whichever one `primary_gesture` picked. They agree on
     # `/portal?siteId=SG`, which is where that step actually starts.
-    step_here = ordered[from_step] if from_step < len(ordered) else None
+    #
+    # The first step the run will PERFORM, not the first one it has. A job
+    # whose write goes out as a call collapses the steps that only opened the
+    # form for it, and those are the ones at the front -- `Create a Customer
+    # Type` collapses "Open an email" and "Navigate to the Customer Types
+    # screen", so taking `starts_on` off the first step names the operator's
+    # mail for a run whose only command is a warehouse call. `opensFor` in
+    # `commands.js` drops a `starts_on` whose origin is not the command's, so
+    # the browser is never driven into the wrong system -- but the tab is then
+    # never opened either, and a run whose operator has no warehouse tab open
+    # fails instead of opening one.
+    step_here = next((one for one in ordered[from_step:] if one.order not in collapsed), None)
     first = primary_gesture(step_here, by_id) if step_here is not None else None
     if first is not None and step_here is not None:
         starts_on = screen_of(
@@ -876,6 +887,11 @@ async def run_workflow(
                     values=values,
                     verified_writes=verified_writes,
                     seen=observed,
+                    # Only for the first command this run sends, which for a
+                    # job whose write is a call is usually this one: the steps
+                    # that walked the browser to the form are collapsed, so
+                    # nothing before it has put a tab on the origin.
+                    starts_on=starts_on if sent_nothing_yet else None,
                 )
                 if primary is not None
                 else None

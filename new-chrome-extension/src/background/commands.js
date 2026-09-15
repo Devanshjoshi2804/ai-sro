@@ -774,7 +774,16 @@ const LIVE_HEADER_SOURCES = {
 };
 
 async function httpSend(payload) {
-  const tab = await tabOnOrigin(payload?.url || "");
+  let tab = await tabOnOrigin(payload?.url || "");
+  // The one case where a call may open its own page, and it is the first
+  // command of a run. A job whose write goes out as a call performs none of
+  // the steps that used to walk the browser to the form -- there is no form --
+  // so nothing before this has put a tab on the origin, and the session this
+  // call needs lives in that origin's cookies. `opensFor` still refuses a
+  // `starts_on` that names a different system, so this can only ever open the
+  // page the call is going to.
+  const wanted = tab ? null : opensFor({ ...payload, origin: originOf(payload?.url || "") });
+  if (wanted) tab = await openAt(wanted);
   if (!tab) {
     return failure("no_tab_for_origin", `no tab is open on ${payload?.url || "that origin"}`);
   }

@@ -57,7 +57,7 @@ from sro.domain.execution.belts import K_EARNED_RUNS, SCREEN_SCHEMA
 from sro.domain.execution.planning import PLAN_SCHEMA, Look, Planned
 from sro.domain.execution.verified_writes import VerifiedWrite
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
-from sro.domain.observation.gesture import Call, Gesture
+from sro.domain.observation.gesture import Action, Body, Call, Gesture, Target
 from sro.domain.shared.identifiers import DeviceId, TenantId
 from sro.domain.shared.prices import Answer
 from sro.domain.skill.repeats import K_MOST_ITEMS, Repeat
@@ -4059,6 +4059,137 @@ async def test_a_replay_is_not_judged_by_what_the_page_called() -> None:
     )
 
 
+_FIRST = {"customerType": "GGD", "longDescription": "type 01", "crossDockFlag": -1}
+_SECOND = {"customerType": "GKB", "longDescription": "type 02", "crossDockFlag": -1}
+_CODE = "customertype-customerType"
+_DESCRIPTION = "customertype-longDescription"
+
+
+def _demonstrated(gesture_id: str, body: dict[str, object]) -> Gesture:
+    """One doing of the save, carrying the create it produced."""
+    text = json.dumps(body, ensure_ascii=False)
+    return Gesture(
+        id=gesture_id,
+        # The run's tenant, not the workflow row's: `Workflow.tenant` in these
+        # fixtures is a deliberate plant, and the evidence is looked up by the
+        # tenant the run is performed for.
+        tenant=TENANT.value,
+        stream_id="str-1",
+        batch_id="bat-1",
+        at=1_000.0,
+        url="http://127.0.0.1:63319/portal?siteId=SG",
+        system="http://127.0.0.1:63319",
+        tab_id=1,
+        frame_url=None,
+        action=Action(kind="click", at=1_000.0, target=Target(tag="button", name="Save")),
+        requests=[
+            Call(
+                method="POST",
+                url="http://127.0.0.1:63319/api/orders?siteId=SG",
+                started_at=1_000.0,
+                request_body=Body(text=text, size_bytes=len(text)),
+                status=201,
+            ),
+            # The read the page performs to show what it just made. This is
+            # what `confirming_read` finds, and it is the belt that can tell a
+            # truncated record from the record this run asked for.
+            Call(
+                method="GET",
+                url="http://127.0.0.1:63319/api/orders?siteId=SG",
+                started_at=1_001.0,
+                request_body=None,
+                status=200,
+            ),
+        ],
+    )
+
+
+async def _demonstrated_twice(uow: FakeUnitOfWork) -> Workflow:
+    """The job as it is actually stored: one step citing both doings of the
+    write, and the two parameters with what each was seen taking."""
+    await uow.gestures.add_gestures((_demonstrated("g1", _FIRST), _demonstrated("g2", _SECOND)))
+    workflow = Workflow(
+        id="wfl_twice",
+        tenant=ELSEWHERE,
+        title="create a customer type",
+        narrative="n",
+        systems=["http://127.0.0.1:63319"],
+        steps=[
+            Step(
+                order=0,
+                says="Click the Save button",
+                system=None,
+                cites=["g1", "g2"],
+                parameters=[_CODE, _DESCRIPTION],
+            )
+        ],
+        parameters=[
+            {"name": _CODE, "seen_values": ["GGD", "GKB"]},
+            {"name": _DESCRIPTION, "seen_values": ["type 01", "type 02"]},
+        ],
+    )
+    await uow.workflows.save(workflow)
+    return workflow
+
+
+async def test_a_replay_sends_the_values_this_run_was_given_and_is_read_back() -> None:
+    """The whole point, end to end and with no model in it.
+
+    Two demonstrations of one write differing in the two fields the operator
+    typed. The run supplies a third pair, the diff says which keys those are,
+    the values go in, and everything else goes out exactly as the form sent it.
+
+    And the status alone does not settle it. `csttyp truncates at 4 chars`: a
+    create asking for five characters is answered 201 and the record is four,
+    with nobody told -- so a body this run re-aimed is held only by a read that
+    shows the value back, never by the number the endpoint returned.
+    """
+    uow = await _fixture()
+    workflow = await _demonstrated_twice(uow)
+    channel = FakeChannel(
+        {
+            "ui.url": [Reply(ok=True, result={"url": "http://127.0.0.1:63319/portal"})] * 2,
+            "http.send": [
+                # The same read, asked three times over one step. First to see
+                # whether the record is already there -- it is not, so the run
+                # goes on -- then the write, then the read that confirms it.
+                Reply(ok=True, result={"status": 200, "body": "[]"}),
+                Reply(ok=True, result={"status": 201, "body": "{}"}),
+                Reply(
+                    ok=True,
+                    result={
+                        "status": 200,
+                        "body": '{"customerType": "GPDP", "longDescription": "type 03"}',
+                    },
+                ),
+            ],
+        }
+    )
+    asker = FakeAsker()
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        values={_CODE: "GPDP", _DESCRIPTION: "type 03"},
+        earned=True,
+        verified_writes=(VerifiedWrite(method="POST", path_pattern="/api/orders"),),
+    )
+
+    sent = [_payload(one) for one in channel.sent if one["kind"] == "http.send"]
+    writes = [one for one in sent if one["method"] == "POST"]
+    assert len(writes) == 1, "one call, and it is the job"
+    body = json.loads(str(writes[0]["body"]))
+    assert body["customerType"] == "GPDP", "the value this run was given, not the demonstration's"
+    assert body["longDescription"] == "type 03"
+    assert body["crossDockFlag"] == -1, "and the field nobody varied went out as it was sent"
+    assert not asker.asked, "with no model anywhere in it"
+    assert (run.steps[0].verdict, run.steps[0].verdict_by) == ("held", "read"), (
+        "a re-aimed body held by its status is the truncation nobody is told about"
+    )
+
+
 async def test_a_write_the_ledger_has_watched_is_planned_without_asking_anybody() -> None:
     """The evidence settles this step, so nothing is asked.
 
@@ -4189,6 +4320,46 @@ async def test_the_steps_that_only_opened_a_form_are_not_done_when_the_write_is_
     assert not [one for one in channel.sent if one["kind"] == "ui.perform"], "nothing was typed"
     assert [one["kind"] for one in channel.sent].count("http.send") == 1
     assert not asker.asked, "and no model was asked about any of it"
+
+
+async def test_a_collapsed_first_step_does_not_get_to_say_where_the_run_opens() -> None:
+    """`starts_on` is the page the extension OPENS a tab at when the operator's
+    own is somewhere else, and it is taken from the step the run begins at.
+
+    Collapse the steps that only opened the form and the step it is taken from
+    is one the run never performs -- on a cross-system job that is "Open an
+    email", so a run whose one command is a warehouse call would name the
+    operator's mail. `opensFor` in `commands.js` drops a `starts_on` whose
+    origin is not the command's, so nothing is ever driven into the wrong
+    system; but then no tab is opened either, and a run whose operator has no
+    warehouse tab open fails instead of opening one.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel(
+        {
+            "ui.url": [Reply(ok=True, result={"url": "http://127.0.0.1:63319/portal"})] * 2,
+            "http.send": [Reply(ok=True, result={"status": 200, "body": "{}"})],
+        }
+    )
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=FakeAsker(),
+        values={},
+        earned=True,
+        verified_writes=(VerifiedWrite(method="POST", path_pattern="/api/orders"),),
+    )
+
+    assert run.steps[0].verdict == "not_needed"
+    call = next(one for one in channel.sent if one["kind"] == "http.send")
+    opens = _payload(call).get("starts_on")
+    assert opens is not None, "the run could not open a tab to begin"
+    assert opens.startswith("http://127.0.0.1:63319"), (
+        "and it names the system the call is going to, not the one a skipped step sat on"
+    )
 
 
 async def test_a_form_step_is_still_done_when_the_write_is_not_a_call() -> None:

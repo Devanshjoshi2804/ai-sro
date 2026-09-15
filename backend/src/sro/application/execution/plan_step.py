@@ -171,6 +171,7 @@ def replay_without_asking(
     values: Mapping[str, str],
     verified_writes: tuple[VerifiedWrite, ...],
     seen: Mapping[str, frozenset[str]] = MappingProxyType({}),
+    starts_on: str | None = None,
 ) -> Planned | None:
     """The one command a step can be planned without asking anybody.
 
@@ -202,6 +203,18 @@ def replay_without_asking(
     if sending is None:
         return None
     payload, rewrote = sending
+    if starts_on:
+        # The page this call may open a tab at, and only ever for the run's
+        # first command -- `run_workflow` passes it for that one alone.
+        #
+        # An `http.send` never carried this before because it never needed to:
+        # the steps that walked the browser to the form ran first and left a
+        # tab on the origin. A job whose write goes out as a call performs none
+        # of them, so this IS the first command, and the session it needs lives
+        # in that origin's cookies. `opensFor` in `commands.js` still refuses a
+        # `starts_on` naming another system, so this can only open the page the
+        # call is going to.
+        payload["starts_on"] = starts_on
     return Planned(
         "http.send",
         payload,

@@ -70,6 +70,7 @@ class Converse:
         questions: AskAbout | None = None,
         suggest: SuggestNext | None = None,
         reads_jobs: ReadChat | None = None,
+        can_gather: bool = False,
     ) -> None:
         self._uow = uow
         self._resolver = resolver
@@ -81,6 +82,14 @@ class Converse:
         self._ask = ask
         self._questions = questions
         self._suggest = suggest
+        # Whether a run of a mined job can go and find a value nobody typed.
+        #
+        # What the card asks for, and it is the difference between a person
+        # being asked to type a code out of a mail they have open and a run
+        # reading it themselves. Told to the panel rather than decided there:
+        # the connector is a deployment's, and a browser cannot know whether
+        # this one has a mailbox it may read.
+        self._can_gather = can_gather
 
     async def note(self, ctx: RequestContext, *, thread_id: ThreadId, text: str) -> None:
         """Write something into the thread that nobody asked a question for.
@@ -243,7 +252,18 @@ class Converse:
                     choices=[placed.workflow_id, *placed.also],
                     titles=titles,
                 )
-            if placed.missing:
+            if placed.missing and self._can_gather:
+                # The run goes and looks. Said as what will happen rather than
+                # as a demand, because the demand was the old behaviour and it
+                # put a person in front of four boxes -- two of them the body
+                # keys a form posts, which nobody has ever typed -- for values
+                # sitting in the mail that asked for the job.
+                said = (
+                    f"{title} does that. I will look in your mail for "
+                    f"{', '.join(placed.missing)} — say the word and I will run it,"
+                    " or type them here to say which."
+                )
+            elif placed.missing:
                 said = (
                     f"{title} does that. I still need {', '.join(placed.missing)}"
                     " — give me that and I will run it."
@@ -278,6 +298,12 @@ class Converse:
                         "values": dict(placed.values),
                         "items": [dict(one) for one in placed.items],
                         "missing": list(placed.missing),
+                        # Whether the missing ones are a demand or a plan. The
+                        # panel draws its boxes off this: required where
+                        # nothing can go and look, optional where something
+                        # can, and a blank that reaches the door is refused as
+                        # a typed blank either way.
+                        "can_find": self._can_gather,
                     },
                 )
             )

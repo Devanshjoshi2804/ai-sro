@@ -233,7 +233,11 @@ def _understood(
 
 
 async def _with_a_job(
-    uow: FakeUnitOfWork, placed: Understood | None, *, raises: bool = False
+    uow: FakeUnitOfWork,
+    placed: Understood | None,
+    *,
+    raises: bool = False,
+    can_gather: bool = False,
 ) -> Converse:
     await uow.workflows.save(
         Workflow(
@@ -247,7 +251,7 @@ async def _with_a_job(
     ids, clock = FakeIdFactory(), FakeClock()
     resolver = ResolveIntent(uow, PlanTask(Retrieve(uow, FakeEmbedder())))
     reads = _PlacesTheJob(placed, raises=raises)
-    return Converse(uow, resolver, clock, ids, reads_jobs=reads)
+    return Converse(uow, resolver, clock, ids, reads_jobs=reads, can_gather=can_gather)
 
 
 async def test_a_sentence_about_a_mined_job_is_answered_by_the_rig() -> None:
@@ -349,3 +353,43 @@ async def test_a_reading_that_is_not_sure_asks_which_job_rather_than_starting_on
         "a decision the browser cannot act on must not look like one it can"
     )
     assert "workflow_id" not in last.decision, "there is nothing here to press"
+
+
+async def test_a_value_nobody_typed_is_offered_as_a_look_rather_than_a_demand() -> None:
+    """What the card says when the run can go and find it.
+
+    Seen on the deployment 2026-09-16: the panel offered `Create a Customer
+    Type` with four empty boxes -- two of them `customertype-customerType` and
+    `customertype-longDescription`, the body keys a form posts, which nobody
+    has ever typed -- for values sitting in the mail that asked for the job.
+    The run could read that mail by then; the sentence in front of the person
+    still demanded they type it.
+    """
+    uow = FakeUnitOfWork()
+    converse = await _with_a_job(
+        uow, _understood("wfl_1", missing=["Customer Type"]), can_gather=True
+    )
+    thread = await StartThread(uow, FakeClock(), FakeIdFactory()).execute(CTX)
+
+    said = await converse.execute(CTX, thread_id=thread.id, text="create a customer type")
+
+    last = said.messages[-1]
+    assert "look in your mail for Customer Type" in last.text
+    # Still sayable: a person who types one has said what they want, and the
+    # run merges what it finds UNDER what it was given.
+    assert "type them here" in last.text
+    assert last.decision is not None and last.decision["can_find"] is True
+
+
+async def test_a_deployment_that_cannot_look_still_asks_for_the_value() -> None:
+    """The promise is only made where it can be kept. A deployment with no
+    connector -- or no model -- would otherwise say it will read a mailbox it
+    cannot reach, and the run would refuse a step later with nobody watching."""
+    uow = FakeUnitOfWork()
+    converse = await _with_a_job(uow, _understood("wfl_1", missing=["Customer Type"]))
+    thread = await StartThread(uow, FakeClock(), FakeIdFactory()).execute(CTX)
+
+    said = await converse.execute(CTX, thread_id=thread.id, text="create a customer type")
+
+    assert "I still need Customer Type" in said.messages[-1].text
+    assert said.messages[-1].decision["can_find"] is False

@@ -1000,6 +1000,11 @@ class Container:
             # typing at a browser whose rig holds the job they mean was being
             # answered out of a skills library that does not.
             self.read_chat(),
+            # The same two things `start_workflow_run` builds its gather out
+            # of. Asked here so the card a person reads says what the run will
+            # actually do: a deployment with no connector still demands the
+            # values, because on that one nothing can go and find them.
+            can_gather=self.tools.available and self.asker is not None,
         )
 
     def read_threads(self) -> ReadThreads:

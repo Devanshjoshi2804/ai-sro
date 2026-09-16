@@ -472,13 +472,31 @@ function offeringToFinish(nudge, onPress) {
     item.append(listed);
   }
 
+  // The values nobody has typed.
+  //
+  // A box each, and whether they have to be filled is the backend's answer
+  // rather than this panel's: a deployment that can read the operator's
+  // mailbox sends `canFind`, and the run goes and looks for whatever is left
+  // blank. Seen on the deployment 2026-09-16 -- four required boxes, two of
+  // them `customertype-customerType` and `customertype-longDescription`, the
+  // body keys a form posts, which nobody has ever typed -- for values sitting
+  // in the mail that asked for the job.
+  //
+  // Still typeable where it can look: what a person types is merged OVER what
+  // the mailbox holds, so this is how somebody says which one they meant.
   const fields = new Map();
   for (const name of nudge.missing || []) {
     const field = document.createElement("input");
     field.type = "text";
-    field.placeholder = name;
+    field.placeholder = nudge.canFind ? `${name} \u2014 or leave it to me` : name;
     fields.set(name, field);
     item.append(field);
+  }
+  if (nudge.canFind && fields.size) {
+    const looking = document.createElement("p");
+    looking.className = "detail";
+    looking.textContent = "Left blank, I read them out of the mail that asked for this.";
+    item.append(looking);
   }
 
   const yes = document.createElement("button");
@@ -490,8 +508,10 @@ function offeringToFinish(nudge, onPress) {
   no.textContent = "No thanks";
 
   // Blank is blank after trimming: a field of spaces is not an answer to a
-  // question the run is going to ask the system on the other side.
-  const ready = () => [...fields.values()].every((field) => String(field.value || "").trim());
+  // question the run is going to ask the system on the other side. Where the
+  // run can go and look, an unanswered box is not an unanswered question.
+  const ready = () =>
+    nudge.canFind || [...fields.values()].every((field) => String(field.value || "").trim());
   // One press ends the card. The ledger does not redraw when an offer is
   // answered, so without this the buttons of a refused offer are still live
   // under the operator's cursor -- and "No thanks" then "Yes" is a run started
@@ -507,8 +527,14 @@ function offeringToFinish(nudge, onPress) {
   for (const field of fields.values()) field.addEventListener("input", settle);
   yes.addEventListener("click", () => {
     if (ended) return;
+    // Only what was actually typed. A blank sent as "" is a TYPED blank at
+    // the door -- refused there whatever else is configured, and rightly: a
+    // person who typed a space has said something and a mailbox must not
+    // overrule them. A box nobody touched has said nothing.
     const values = Object.fromEntries(
-      [...fields].map(([name, field]) => [name, String(field.value || "").trim()]),
+      [...fields]
+        .map(([name, field]) => [name, String(field.value || "").trim()])
+        .filter(([, value]) => value),
     );
     ended = true;
     settle();

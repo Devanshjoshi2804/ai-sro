@@ -95,6 +95,10 @@ export function fire(candidate, now, { tabId = null, visit = "" } = {}) {
     k: candidate.k || 0,
     values: candidate.values || {},
     missing: candidate.missing || [],
+    // Whether a run can go and find what nobody typed. The deployment's
+    // answer, not this browser's: the connector is a deployment's and a panel
+    // cannot know whether this one has a mailbox it may read.
+    canFind: Boolean(candidate.can_find),
     parameters: candidate.parameters || [],
   };
 }

@@ -465,6 +465,7 @@ async function offerFromJob(placed, tabId) {
       values: placed.values || {},
       items: Array.isArray(placed.items) ? placed.items : [],
       missing: placed.missing || [],
+      can_find: Boolean(placed.can_find),
       parameters: (shape?.parameters || []).map((one) => one.name),
     },
     Date.now(),

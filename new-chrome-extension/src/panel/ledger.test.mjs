@@ -471,6 +471,29 @@ test("a rig offer asks for what is missing and cannot start until it has it", ()
   assert.equal(yes.disabled, true, "a field of spaces started a run");
 });
 
+test("a card the run can gather for starts without the boxes being filled", () => {
+  // Seen on the deployment 2026-09-16: `Create a Customer Type` was offered
+  // with four required boxes -- two of them `customertype-customerType` and
+  // `customertype-longDescription`, the body keys a form posts, which nobody
+  // has ever typed -- for values sitting in the mail that asked for the job.
+  const pressed = [];
+  const nudge = { id: "n_7", source: "rig", state: "open", title: "Create a Customer Type", k: 0,
+    values: {}, canFind: true, missing: ["Customer Type", "customertype-customerType"],
+    parameters: ["Customer Type", "customertype-customerType"], tabId: 1 };
+  const item = renderNudge(nudge, (...args) => pressed.push(args));
+
+  const yes = labelled(item, /Yes, do it/);
+  assert.equal(yes.disabled, false, "a run that can go and look still demanded the values");
+  // One of them said, the other left. What a person types is merged over what
+  // the mailbox holds, so typing is how they say which one they meant.
+  typing(named(item, "Customer Type \u2014 or leave it to me"), "GPP");
+  press(yes);
+
+  // And the untouched box is NOT sent as "": a typed blank is refused at the
+  // door whatever else is configured, which would 400 every press of this card.
+  assert.deepEqual(pressed[0][4], { values: { "Customer Type": "GPP" } });
+});
+
 test("a rig arrival nudge offers to do it from the start", () => {
   const nudge = { id: "n_2", source: "rig", state: "open", title: "Create Work Area", k: 0,
     values: {}, missing: ["workArea"], parameters: ["workArea"], tabId: 1 };

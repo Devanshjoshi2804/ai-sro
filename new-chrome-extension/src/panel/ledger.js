@@ -391,7 +391,7 @@ export function alreadyAnswered(messages) {
   return done;
 }
 
-function nudging(nudge, onPress) {
+export function nudging(nudge, onPress) {
   if (nudge.source === "rig" && nudge.state === "open") return offeringToFinish(nudge, onPress);
   const item = document.createElement("li");
   item.className = "message";

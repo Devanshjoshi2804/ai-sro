@@ -76,7 +76,10 @@ export function waiting(missed, { open = false, onToggle, card } = {}) {
   box.append(head);
 
   if (open && card) {
-    const list = document.createElement("div");
+    // A list, because it is one: `nudging` builds an `<li>`, and a screen
+    // reader told "list, 3 items" knows how much is here before reading any of
+    // it.
+    const list = document.createElement("ul");
     list.className = "waiting-list";
     list.id = "waiting-list";
     // Newest first: the request that came in ten minutes ago is the one they

@@ -12,7 +12,7 @@
 // while one is running the panel is about that and nothing else.
 
 import { hostMatches } from "../background/scripts.js";
-import { alreadyAnswered, composer, ledger, renderNudge } from "./ledger.js";
+import { alreadyAnswered, composer, ledger, nudging } from "./ledger.js";
 import { runCard } from "./run-card.js";
 import { needsAPress, strip } from "./strip.js";
 import { today } from "./today.js";
@@ -1246,7 +1246,7 @@ function paintWaiting() {
       waitingOpen = open;
       paintWaiting();
     },
-    card: (one) => renderNudge(one, answered),
+    card: (one) => nudging(one, answered),
   });
   $("waiting").replaceChildren(...(banner ? [banner] : []));
   $("waiting").hidden = !banner;

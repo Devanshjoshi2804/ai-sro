@@ -4641,7 +4641,7 @@ async def test_the_step_that_opens_the_mail_is_not_performed_once_the_mail_is_re
     )
 
     assert run.steps[0].verdict == "not_needed", run.steps[0]
-    assert "read out of your mail" in run.steps[0].reason
+    assert "only opened the request" in run.steps[0].reason
     # And nothing was driven at the mailbox. The old failure was a click sent
     # there naming a message from the recording.
     assert not [
@@ -4652,10 +4652,20 @@ async def test_the_step_that_opens_the_mail_is_not_performed_once_the_mail_is_re
     assert [one.verdict for one in run.steps[1:]] == ["held", "held"], run.steps
 
 
-async def test_a_mail_step_is_still_performed_when_nothing_was_gathered() -> None:
-    """The rule is "the mail has already been read", not "mail steps are
-    pointless". A run working from values a person typed never looked in a
-    mailbox, and the step that opens the request is a step like any other."""
+async def test_the_mail_step_is_skipped_even_when_the_run_gathered_nothing() -> None:
+    """The version of this rule that asked whether the GATHER read the mail,
+    and the press that got past it.
+
+    Measured on the deployment, 2026-09-16 at 21:11: the panel's own look had
+    already pulled the code out of the message, so the press carried every
+    value and the run gathered nothing -- `gathered` empty, the rule silent,
+    and step 0 failed exactly as it had before the rule existed.
+
+    `gathered` says which of the two things read the mail. This step does not
+    care: by the time a run exists the request has been read, because a run
+    cannot start without its values. And opening that mail could never work
+    anyway -- the link the plan clicks names the message from the recording.
+    """
     uow = await _fixture()
     # The job first, then the mail gesture: `_workflow` cites whatever evidence
     # the unit of work holds when it is called, so a gesture added before it
@@ -4691,7 +4701,10 @@ async def test_a_mail_step_is_still_performed_when_nothing_was_gathered() -> Non
         watched=True,
     )
 
-    assert run.steps[0].verdict == "held", run.steps[0]
+    assert run.steps[0].verdict == "not_needed", run.steps[0]
+    # And the rest of the job is performed, which is what keeps this rule about
+    # one step rather than about mail-shaped jobs.
+    assert [one.verdict for one in run.steps[1:]] == ["held", "held"], run.steps
 
 
 async def test_a_replay_names_its_own_screen_even_when_it_is_not_the_first_command() -> None:

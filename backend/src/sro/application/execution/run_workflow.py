@@ -865,12 +865,23 @@ async def run_workflow(
     # merely unnecessary. A person watching wants to see the form fill; nobody
     # wants to watch their own mailbox be clicked.
     #
-    # Only where the gather actually found something. With no `gathered` the
-    # run is working from values a person typed, the mail was never read, and a
-    # step about it is a step like any other.
-    already_read: set[int] = set()
-    if run.gathered:
-        already_read = {step.order for step in workflow.steps if only_reads_the_mail(step, by_id)}
+    # Whatever read it, and this was got wrong once.
+    #
+    # The first version of this rule asked whether the GATHER had read the mail
+    # -- `run.gathered` -- and on 2026-09-16 at 21:11 a press failed anyway:
+    # the panel's own look had already pulled the code out of the message and
+    # the press carried it, so the run held every value it needed and had
+    # gathered nothing. `gathered` says which of the two things read the mail,
+    # and this step does not care. By the time a run exists the request has
+    # been read -- by the gather, by a look, or by the person who typed the
+    # values into the card -- because a run cannot start without its values.
+    #
+    # There is no state of this system in which opening that mail achieves
+    # anything: the link the plan clicks names the message from the recording,
+    # and that message will not be on the screen again.
+    already_read: set[int] = {
+        step.order for step in workflow.steps if only_reads_the_mail(step, by_id)
+    }
     # The steps the operator already did cost nothing and are not attempted, so
     # they buy no slack either: the budget is what is left to perform.
     # Which writes this run has claimed the right to make, so a rescue of a
@@ -1046,8 +1057,8 @@ async def run_workflow(
                         verdict="not_needed",
                         verdict_by="none",
                         reason=(
-                            "the request this step went to read was read out of "
-                            "your mail before the run began; cites " + ", ".join(step.cites)
+                            "this step only opened the request, which was read "
+                            "before the run began; cites " + ", ".join(step.cites)
                             if step.order in already_read
                             else "this step put the form on the screen for a write "
                             "this run sends as a call; cites " + ", ".join(step.cites)

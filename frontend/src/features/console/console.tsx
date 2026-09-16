@@ -7,7 +7,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { PursuitCard } from "@/features/console/pursuit-card";
 import { listSkills, skillKeys } from "@/features/skill/api";
-import { listWorkflows, workflowKeys } from "@/features/workflow/api";
 import { ApiError } from "@/lib/api/client";
 import { ink, mono } from "@/features/console/theme";
 import { BatchCard } from "@/features/console/batch-card";
@@ -218,9 +217,7 @@ export function Console({ threadId: fromUrl }: { threadId?: string } = {}) {
                 gap: 20,
               }}
             >
-              {(conversation.data?.messages ?? []).length === 0 && !inFlight ? (
-                <Empty onPick={setDraft} />
-              ) : null}
+              {(conversation.data?.messages ?? []).length === 0 && !inFlight ? <Empty /> : null}
 
               {(conversation.data?.messages ?? []).map((message, index, all) => (
                 <ChatTurn
@@ -254,6 +251,10 @@ export function Console({ threadId: fromUrl }: { threadId?: string } = {}) {
               )}
 
               <form
+                // Its focus is drawn on the whole box by globals.css
+                // (`[data-console="composer"]`). The input's own ring drew a
+                // second rounded box inside the first.
+                data-console="composer"
                 onSubmit={(event) => {
                   event.preventDefault();
                   send();
@@ -313,35 +314,21 @@ export function Console({ threadId: fromUrl }: { threadId?: string } = {}) {
 /**
  * The first screen of a conversation.
  *
- * It used to open with a paragraph about taught skills and a form for teaching
- * in a browser on the server, above a composer whose placeholder said "or teach
- * one with +". None of that is how work is learned any more: the rig mines it
- * from what operators already do. What is left worth saying is what to type.
+ * One line, and no suggestions. It offered the tenant's job titles as buttons
+ * for a while, and that was worse than nothing: the first one on the deployed
+ * console was "Delete a Customer Type", a job that removes records, offered to
+ * somebody who had not asked for anything -- and pressing any of them only
+ * pasted a title with none of the values a job needs, so the one thing it
+ * taught was that the console suggests things it cannot do. What a tenant can
+ * do is on What we know, where each job is shown with what it takes.
  */
-function Empty({ onPick }: { onPick: (text: string) => void }) {
-  const jobs = useQuery({ queryKey: workflowKeys.all, queryFn: listWorkflows });
-  // A handful of the tenant's own jobs, as things somebody could ask for. Real
-  // titles rather than invented examples: an example for a job this tenant
-  // does not have is a question with no answer.
-  const examples = Array.from(new Set((jobs.data ?? []).map((job) => job.title))).slice(0, 4);
-
+function Empty() {
   return (
     <div style={{ display: "flex", gap: 12 }}>
       <Avatar />
-      <div style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 0 }}>
-        <div style={{ fontSize: 15, lineHeight: 1.6 }}>
-          Ask for a task in your own words. I will find the job that does it, say what it still
-          needs, and run it when you say so.
-        </div>
-        {examples.length > 0 && (
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {examples.map((title) => (
-              <Choice key={title} onClick={() => onPick(title)}>
-                {title}
-              </Choice>
-            ))}
-          </div>
-        )}
+      <div style={{ fontSize: 15, lineHeight: 1.6 }}>
+        Ask for a task in your own words — what to do and the values to use. I will find the job
+        that does it and say what it still needs. Nothing runs until you press Run.
       </div>
     </div>
   );
@@ -363,40 +350,6 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       </div>
       {children}
     </div>
-  );
-}
-
-/** One of the two answers a finished run asks for. */
-function Choice({
-  children,
-  onClick,
-  primary = false,
-  pending = false,
-}: {
-  children: React.ReactNode;
-  onClick: () => void;
-  primary?: boolean;
-  pending?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={pending}
-      style={{
-        padding: "10px 16px",
-        borderRadius: 8,
-        background: primary ? ink.accent : "transparent",
-        color: primary ? "#fff" : ink.textSoft,
-        border: primary ? "none" : `1px solid ${ink.line}`,
-        fontSize: 13,
-        fontWeight: 700,
-        cursor: pending ? "default" : "pointer",
-        opacity: pending ? 0.6 : 1,
-      }}
-    >
-      {children}
-    </button>
   );
 }
 

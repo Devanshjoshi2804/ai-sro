@@ -46,6 +46,7 @@ COPY alembic.ini ./
 # somebody forgot to pull is a check that does not exist. `measure.py` and
 # `open_joins.py` are here for the same reason.
 COPY scripts ./scripts
+COPY gmail-connector ./gmail-connector
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --extra gcp
 
@@ -71,7 +72,12 @@ RUN apt-get update \
 # Created here rather than chowned at start-up, because a fresh volume takes
 # its ownership from the image's directory. A volume that already exists keeps
 # whatever it has and needs the one-off chown by hand -- `docs/18-deployment.md`.
-RUN install -d -o sro -g sro -m 0700 /var/lib/sro
+RUN install -d -o sro -g sro -m 0700 /var/lib/sro \
+    # The connector's grants, for the same reason and learned the same day: a
+    # named volume mounted where the image has no directory arrives root-owned
+    # and this user cannot write it. One Google refresh token per operator
+    # lives here.
+    && install -d -o sro -g sro -m 0700 /app/.gmail-grants
 
 WORKDIR /app
 
@@ -80,6 +86,9 @@ COPY --from=build --chown=sro:sro /app/src ./src
 COPY --from=build --chown=sro:sro /app/migrations ./migrations
 COPY --from=build --chown=sro:sro /app/alembic.ini ./
 COPY --from=build --chown=sro:sro /app/scripts ./scripts
+# The Gmail connector, served as its own process from this same image: one
+# image, one revision, no second thing to keep in step.
+COPY --from=build --chown=sro:sro /app/gmail-connector ./gmail-connector
 
 ARG REVISION=unknown
 ENV PATH="/app/.venv/bin:$PATH" \

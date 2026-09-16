@@ -203,6 +203,33 @@ services:
       - "127.0.0.1:${JAEGER_UI_BIND_PORT:-16686}:16686"
 
   # ---------------------------------------------------------------------------
+  # Gmail, as a connector a step can call rather than click.
+  #
+  # The same image as the api and the worker: one build, one revision, and no
+  # second artefact to keep in step with the code that calls it.
+  #
+  # **No published port.** It binds 0.0.0.0 inside the container because
+  # loopback in a container is reachable by nothing, and what can then reach it
+  # is exactly this compose network. A bearer is still required from every
+  # caller on it -- the network is not the gate, the grant is.
+  #
+  # One Google refresh token per operator lives on `gmail-grants`, written by
+  # `--authorize <tenant> <operator>`. The OAuth client comes from the
+  # environment rather than the `client_secret*.json` beside the script, so no
+  # credential is baked into an image.
+  # ---------------------------------------------------------------------------
+  gmail-connector:
+    image: ${BACKEND_IMAGE:?set BACKEND_IMAGE, e.g. ai-sro-backend:8b27470}
+    restart: unless-stopped
+    environment:
+      GMAIL_CLIENT_ID: ${GMAIL_CLIENT_ID:?set GMAIL_CLIENT_ID, from the Google Cloud console}
+      GMAIL_CLIENT_SECRET: ${GMAIL_CLIENT_SECRET:?set GMAIL_CLIENT_SECRET}
+      GMAIL_CONNECTOR_HOST: 0.0.0.0
+    volumes:
+      - gmail-grants:/app/.gmail-grants
+    command: ["python", "gmail-connector/server.py", "8932"]
+
+  # ---------------------------------------------------------------------------
   # The schema, before anything serves it. Runs to completion and exits; the
   # API will not start unless it exited 0.
   # ---------------------------------------------------------------------------
@@ -259,6 +286,9 @@ services:
       SRO_TRANSCRIPTION_ENABLED: ${SRO_TRANSCRIPTION_ENABLED:-false}
       SRO_VISION_ENABLED: ${SRO_VISION_ENABLED:-false}
       SRO_KNOWLEDGE_EMBEDDINGS_ENABLED: ${SRO_KNOWLEDGE_EMBEDDINGS_ENABLED:-false}
+      # Where the connectors are. The URL is deployment config; the credential
+      # is per operator and lives in the vault, never here.
+      SRO_MCP_SERVERS: ${SRO_MCP_SERVERS:-}
     volumes:
       - vault-data:/var/lib/sro
     command: ["alembic", "upgrade", "head"]
@@ -350,6 +380,11 @@ services:
       - "${PUBLIC_BIND:-0.0.0.0:8088}:8080"
 
 volumes:
+  # One Google refresh token per operator, each named by the sha256 of the
+  # bearer that reaches it. Its own volume rather than a bind mount: these are
+  # credentials, and they should not sit in a checkout somebody rsyncs.
+  gmail-grants:
+
   postgres-data:
   minio-data:
   vault-data:

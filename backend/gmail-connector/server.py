@@ -60,6 +60,15 @@ TOKEN_FILE = HERE.parent / ".gmail-token.json"
 """The single-tenant grant this connector used to keep. Read only to adopt it
 into the per-tenant store below; nothing serves from it."""
 
+HOST = os.environ.get("GMAIL_CONNECTOR_HOST", "127.0.0.1")
+"""What to bind. Loopback by default, because on a laptop this is a local tool
+and a connector on 0.0.0.0 is a mailbox on the office network.
+
+A container is the other case and is why this is settable: inside one, loopback
+is reachable by nothing, so the compose service sets `0.0.0.0` and publishes no
+port. What can reach it is then exactly the compose network -- the API and the
+worker -- and a bearer is still required from every one of them."""
+
 GRANTS = HERE.parent / ".gmail-grants"
 """One grant per tenant, each named by the sha256 of the bearer that reaches it.
 
@@ -607,14 +616,14 @@ if __name__ == "__main__":
         )
 
     try:
-        server = ThreadingHTTPServer(("127.0.0.1", port), Connector)
+        server = ThreadingHTTPServer((HOST, port), Connector)
     except OSError as taken:
         print(f"port {port} is already in use ({taken.strerror}).")
         print(f"  what has it:  lsof -ti :{port}")
         print(f"  free it:      lsof -ti :{port} | xargs kill")
         raise SystemExit(1) from taken
 
-    print(f"gmail connector on http://localhost:{port}/mcp")
+    print(f"gmail connector on http://{HOST}:{port}/mcp")
     print("point the system at it with, in backend/.env:")
     print(f"  SRO_MCP_SERVERS=gmail=http://localhost:{port}/mcp")
     try:

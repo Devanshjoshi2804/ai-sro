@@ -17,7 +17,16 @@ import {
   injectIntoWatched,
   unregister,
 } from "./scripts.js";
-import { LIFETIME_MS, fire, mute, onCall, page as pageOf, shouldFire, sweep } from "../panel/nudge.js";
+import {
+  LIFETIME_MS,
+  endOfDay,
+  fire,
+  mute,
+  onCall,
+  page as pageOf,
+  shouldFire,
+  sweep,
+} from "../panel/nudge.js";
 import { decideOffer } from "./offering.js";
 import { chosen, resting, tailWith } from "./recognise.js";
 import { tripleOf } from "./shape.generated.js";
@@ -448,6 +457,48 @@ function jobInTheReply(thread) {
     return decision.kind === "job" && decision.workflow_id ? decision : null;
   }
   return null;
+}
+
+/** A card for a job a mail asked for.
+ *
+ * Held here and never said into the thread, which is the rule this surface
+ * already keeps: the thread is the record of what was DECIDED, and a prompt
+ * nobody answered decided nothing. A conversation that filled up with "a mail
+ * asks for X" would be the panel keeping history of questions instead of
+ * answers -- and history is what the console is for.
+ *
+ * So it ends the way every other offer here ends: they press it, they do the
+ * job themselves (the first write on that host says so), they dismiss it, or
+ * their day does. What it does NOT end on is leaving a page -- it was never
+ * about a page they were standing on.
+ */
+async function offerFromMail(offer) {
+  const shape = (await shapesFor()).find((one) => one.id === offer.workflow_id);
+  const now = Date.now();
+  const made = fire(
+    {
+      // The message, so two looks that somehow saw the same mail are one card.
+      id: `mail_${offer.message}`,
+      title: offer.title || shape?.title || offer.workflow_id,
+      starts_on: shape?.starts_on || "",
+      source: "rig",
+      workflow_id: offer.workflow_id,
+      k: 0,
+      values: offer.values || {},
+      items: [],
+      missing: offer.missing || [],
+      can_find: true,
+      parameters: (shape?.parameters || []).map((one) => one.name),
+      expires_at: endOfDay(now),
+      leaving: false,
+    },
+    now,
+  );
+  await serially(async () => {
+    const held = await state.nudges();
+    if (held.some((one) => one.candidateId === made.candidateId)) return;
+    await state.setNudges([made, ...held].slice(0, MAX_NUDGES));
+  });
 }
 
 /** The offer, from a reading somebody else already paid for. */
@@ -1907,6 +1958,7 @@ async function lookInTheMail() {
       at: Date.now(),
       reached: !String(looked?.why || "").includes("could not be reached"),
     });
+    for (const offer of looked?.offered || []) await offerFromMail(offer);
     return { ok: true, offered: (looked?.offered || []).length, read: looked?.read || 0 };
   } catch (error) {
     // A door that is not there yet, a backend being restarted, a browser with

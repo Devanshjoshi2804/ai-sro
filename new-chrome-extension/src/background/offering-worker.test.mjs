@@ -1341,6 +1341,42 @@ test("the panel's tick reads the mailbox, and not on every tick", async () => {
   assert.deepEqual(mailLooks, ["POST"], "the mailbox was read twice in five seconds");
 });
 
+test("a mail becomes a card that ends, not a line in the conversation", async () => {
+  // The rule this surface already keeps: the thread is the record of what was
+  // DECIDED, and a prompt nobody answered decided nothing. So the offer is
+  // held here, it can be pressed or dropped like any other, and it stops
+  // asking at the end of the day rather than sitting in a conversation.
+  ready();
+  mailLooked = {
+    offered: [
+      {
+        message: "m-7",
+        workflow_id: "wfl_1",
+        title: "Create a Customer Type",
+        values: { "Customer Type": "GPX" },
+        missing: ["Customer Type Description"],
+      },
+    ],
+    read: 4,
+    why: "offered Create a Customer Type",
+  };
+
+  await send({ kind: "look-in-the-mail" });
+
+  const [card] = held.get("sro.nudges") || [];
+  assert.ok(card, "a mail that asked for a job produced no card");
+  assert.equal(card.workflowId, "wfl_1");
+  assert.equal(card.state, "open");
+  assert.deepEqual(card.values, { "Customer Type": "GPX" });
+  // It ends with the day rather than in ninety seconds -- a mail arrives while
+  // the operator is on the floor -- and walking off a page does not end it,
+  // because it was never about a page they were standing on.
+  assert.ok(card.expiresAt > Date.now(), "the card was born expired");
+  assert.equal(card.leaving, false);
+  // And nothing was said into the thread.
+  assert.equal(calls.filter((call) => call.path.startsWith("/v1/threads")).length, 0);
+});
+
 test("a browser with no mailbox behind it stops asking rather than calling all day", async () => {
   // Most browsers have no connector at all. The backend answers that as a
   // sentence rather than an error, and a look that took it as "try again in a

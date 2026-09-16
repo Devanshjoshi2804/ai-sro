@@ -16,9 +16,17 @@ job looks like is a thing the demonstrations recorded.
 
 **It offers, and it never runs.** A fuzzy reading that started a run would be
 an autonomous system nobody opted into, on the strength of a model's opinion
-about somebody's mail. What it writes is the same offer an operator gets for
-typing the request themselves -- the panel's existing card, its existing press,
-its existing approval ladder underneath -- and a person still taps.
+about somebody's mail. What comes back is an offer the browser turns into the
+card it already draws, with its existing press and the approval ladder
+underneath, and a person still taps.
+
+**And it writes nothing into the conversation.** The card is browser-held and
+transient, which is the rule the panel already keeps: an offer ends when it is
+pressed, when the operator does the job themselves, when they dismiss it, or
+when their day does -- and the thread is the record of what was DECIDED. A
+conversation that filled up with "a mail asks for X" would be a surface keeping
+history of questions instead of answers, which is exactly the stillness the
+panel is being split to end.
 
 **Silence beats a wrong card.** A reading that is not `sure` writes nothing. A
 mail nobody was asking about is the common case in any mailbox: a card per
@@ -42,7 +50,6 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
-from sro.application.chat.converse import Converse
 from sro.application.chat.understand import understand
 from sro.application.context import RequestContext
 from sro.application.ports.model import Asker, asker_or_refuse
@@ -119,14 +126,12 @@ class FromTheMail:
         uow: UnitOfWork,
         tools: ToolCaller,
         asker: Asker | None,
-        converse: Converse,
         *,
         model: str,
     ) -> None:
         self._uow = uow
         self._tools = tools
         self._asker = asker
-        self._converse = converse
         self._model = model
 
     async def execute(self, ctx: RequestContext, *, limit: int = K_LOOK) -> LookedInTheMail:
@@ -192,15 +197,6 @@ class FromTheMail:
                     values=dict(got.values),
                     missing=list(got.missing),
                 )
-            )
-        for one in offered:
-            await self._converse.from_the_mail(
-                ctx,
-                message=one.message,
-                workflow_id=one.workflow_id,
-                title=one.title,
-                values=one.values,
-                missing=one.missing,
             )
         return LookedInTheMail(
             offered=tuple(offered), read=read, why=_sentence(offered, read), spent=spent

@@ -1028,7 +1028,6 @@ class Container:
             self.unit_of_work(),
             self.tools,
             self.asker,
-            self.converse(),
             model=self.settings.gemini_plan_model,
         )
 

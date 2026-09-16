@@ -12,18 +12,14 @@ import json
 from collections.abc import Mapping
 from typing import Any
 
-from sro.application.chat.converse import Converse
 from sro.application.chat.from_the_mail import FromTheMail
 from sro.application.context import RequestContext
-from sro.application.intent.plan_task import PlanTask
-from sro.application.intent.resolve import ResolveIntent
-from sro.application.knowledge.retrieve import Retrieve
 from sro.application.ports.tools import ToolResult, ToolsUnavailable
 from sro.domain.shared.identifiers import PrincipalId, TenantId
 from sro.domain.shared.prices import Answer
 from sro.domain.skill.workflow import Step, Workflow
 from tests import factories as f
-from tests.unit.fakes import FakeClock, FakeEmbedder, FakeIdFactory, FakeUnitOfWork
+from tests.unit.fakes import FakeUnitOfWork
 
 CTX = RequestContext(tenant_id=f.TENANT, principal_id=PrincipalId("devansh"))
 JOB = "wfl_1"
@@ -107,15 +103,7 @@ async def _held() -> FakeUnitOfWork:
 
 
 def _look(uow: FakeUnitOfWork, mailbox: _Mailbox, reads: _Reads) -> FromTheMail:
-    ids, clock = FakeIdFactory(), FakeClock()
-    converse = Converse(
-        uow,
-        ResolveIntent(uow, PlanTask(Retrieve(uow, FakeEmbedder()))),
-        clock,
-        ids,
-        can_gather=True,
-    )
-    return FromTheMail(uow, mailbox, reads, converse, model="m")
+    return FromTheMail(uow, mailbox, reads, model="m")
 
 
 async def _thread(uow: FakeUnitOfWork) -> Any:
@@ -134,19 +122,18 @@ async def test_a_mail_that_asks_for_a_job_becomes_the_same_offer_a_typed_request
 
     looked = await _look(uow, mailbox, reads).execute(CTX)
 
-    assert [one.title for one in looked.offered] == ["Create a Customer Type"]
-    assert looked.offered[0].values == {"Customer Type": "GPX"}
-    said = (await _thread(uow)).messages[-1]
-    assert said.decision is not None
-    assert said.decision["kind"] == "job" and said.decision["workflow_id"] == JOB
+    (one,) = looked.offered
+    assert one.title == "Create a Customer Type"
+    assert one.values == {"Customer Type": "GPX"}
+    assert one.missing == ["Customer Type Description"]
     # Which mail, so a person can open it and check the reading. The id, never
     # the words.
-    assert said.decision["from_message"] == "m-1"
-    assert "please add" not in said.text
-    # And what it is missing is a plan rather than a demand, because this
-    # deployment can go and look.
-    assert said.decision["can_find"] is True
-    assert "Customer Type Description" in said.text
+    assert one.message == "m-1"
+    # And nothing is said into the conversation. The card the browser draws
+    # from this ends when it is pressed, when the operator does the job
+    # themselves, or when their day does -- a thread line would outlive all
+    # three and be history of a question nobody answered.
+    assert await _thread(uow) is None
 
 
 async def test_a_mail_is_offered_once_however_often_the_mailbox_is_read() -> None:
@@ -163,7 +150,6 @@ async def test_a_mail_is_offered_once_however_often_the_mailbox_is_read() -> Non
     assert len(first.offered) == 1
     assert second.offered == ()
     assert second.read == 0, "the second look read the mail again to decide it was the same one"
-    assert len((await _thread(uow)).messages) == 1
 
 
 async def test_a_reading_that_is_not_sure_says_nothing() -> None:
@@ -178,7 +164,6 @@ async def test_a_reading_that_is_not_sure_says_nothing() -> None:
 
     assert looked.offered == ()
     assert looked.read == 1, "it read the mail and decided, rather than never looking"
-    assert await _thread(uow) is None, "an unsure reading started a conversation about nothing"
 
 
 async def test_a_mail_that_asks_for_nothing_this_tenant_does_is_not_forced_onto_a_job() -> None:

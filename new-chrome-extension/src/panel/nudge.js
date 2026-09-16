@@ -30,6 +30,24 @@
  */
 export const LIFETIME_MS = 90_000;
 
+/** When an offer that came from a mail stops asking: the end of their day.
+ *
+ * The ninety seconds above are the arrival rule, and they are right for it --
+ * it fires the moment somebody lands on the page, so the work is either
+ * happening now or it is not. A mail is the opposite: it arrives while they
+ * are on the floor, and a card that expired before they next looked at the
+ * panel would be a request nobody ever sees.
+ *
+ * A day rather than for ever, for `mute`'s reason: what is still on the panel
+ * tomorrow morning is history, and history is not what this surface is. The
+ * mail is still in their mailbox either way.
+ */
+export function endOfDay(now) {
+  const midnight = new Date(now);
+  midnight.setHours(24, 0, 0, 0);
+  return midnight.getTime();
+}
+
 /** Host and path, no query -- the same shape the miner records `starts_on` in.
  *
  * Without the query, because that is where a warehouse system puts session ids
@@ -78,6 +96,14 @@ export function shouldFire({ url, visit, candidates, nudges, muted, performing, 
 export function fire(candidate, now, { tabId = null, visit = "" } = {}) {
   return {
     id: `n_${now}_${candidate.id}`,
+    // When this one stops asking, where the ninety seconds are the wrong
+    // clock, and whether walking off the page ends it. Both are about an
+    // offer that did NOT come from an arrival: a mail arrives while the
+    // operator is on the floor, so it was never tied to a page they were
+    // standing on and there is no page for them to leave. Absent -- every
+    // arrival nudge -- and the rules below are exactly what they were.
+    expiresAt: candidate.expires_at || null,
+    leaving: candidate.leaving !== false,
     at: new Date(now).toISOString(),
     candidateId: candidate.id,
     skillId: candidate.skill_id || null,
@@ -134,13 +160,19 @@ export function sweep(nudges, { url, now, tabId }) {
   const here = url === null || url === undefined ? null : page(url);
   return nudges.map((nudge) => {
     if (nudge.state !== "open") return nudge;
-    const old = now - Date.parse(nudge.at) >= LIFETIME_MS;
+    const old = nudge.expiresAt
+      ? now >= nudge.expiresAt
+      : now - Date.parse(nudge.at) >= LIFETIME_MS;
     // Leaving the page is a fact about one tab. A navigation in tab B says
     // nothing about the offer open in tab A, so when the caller names the tab
     // only that tab's nudges can have left; a caller without one (the older
     // shape) keeps the whole-list reading.
     const thisTab = tabId === undefined || nudge.tabId == null || nudge.tabId === tabId;
-    const left = here !== null && thisTab && here !== nudge.startsOn;
+    // `leaving: false` is an offer that was never about where they are. A mail
+    // card read as "they walked away" would end the moment the operator looked
+    // at anything but the job's own page -- which is every moment before they
+    // press it.
+    const left = nudge.leaving !== false && here !== null && thisTab && here !== nudge.startsOn;
     return old || left ? { ...nudge, state: "expired", endedAt: now } : nudge;
   });
 }

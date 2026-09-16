@@ -53,6 +53,34 @@ const RIG = {
 const tests = [];
 const test = (name, fn) => tests.push([name, fn]);
 
+test("the step that is happening is marked as happening", () => {
+  // A run in flight and a run that stopped on a live step draw the identical
+  // dot. "Still going" is the question somebody watching actually has, so the
+  // live one is marked and the stylesheet makes it breathe -- and stops, for
+  // anybody who asked for less movement.
+  const running = runCard({
+    // A backend run, whose rows come from the skill it is performing. A rig
+    // run plans one step at a time, so its rows ARE its record and an
+    // unrecorded step has nothing to draw.
+    run: { id: "r1", status: "running", steps: [], items: [] },
+    skill: {
+      latest: { steps: [{ index: 0, intent: "type the code" }, { index: 1, intent: "save" }] },
+    },
+    message: null,
+  });
+  const stopped = runCard({
+    run: { id: "r2", status: "stopped", steps: [], items: [] },
+    skill: { latest: { steps: [{ index: 0, intent: "type the code" }] } },
+    message: null,
+  });
+
+  const lit = (card) =>
+    of(card, "span").filter((one) => one.dataset.live === "true").length;
+
+  assert.equal(lit(running), 1, "nothing said which step was happening");
+  assert.equal(lit(stopped), 0, "a stopped run had a step marked live");
+});
+
 test("a value nobody typed says where it was read", () => {
   // Recorded since the gather existed and shown by nothing: the run carries
   // the message id and the words a value was quoted from, and the person

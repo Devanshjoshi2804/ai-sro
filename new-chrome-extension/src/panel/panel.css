@@ -268,6 +268,36 @@ body {
   background: var(--warn-wash);
 }
 
+/* A step that is happening, rather than one that has.
+ *
+ * The glyph is a character and says the right thing at a glance -- ○ waiting,
+ * ● now, ✓ held -- but a run in flight and a run that stopped on a live step
+ * draw the identical dot. A slow pulse is the difference, and it is the one
+ * thing on this panel that should move: it means "still going", which is the
+ * question somebody watching actually has.
+ */
+.run[data-status="running"] .step .glyph[data-live="true"] {
+  animation: pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* Somebody who has asked for less movement gets less movement. The dot still
+   says which step is live; it simply stops breathing. */
+@media (prefers-reduced-motion: reduce) {
+  .run[data-status="running"] .step .glyph[data-live="true"] {
+    animation: none;
+  }
+}
+
 /* What a lookup came back with.
  *
  * The count is the answer and is sized as one; the table under it is what
@@ -280,8 +310,11 @@ body {
   color: var(--ink);
 }
 
+/* The eyebrow: what this is about, above what it says. 10.5/700/.08em,
+   uppercase, muted -- the label idiom the console's cards use, so a person
+   moving between the two surfaces is reading the same shape. */
 .result .where {
-  font: 600 10.5px/1.4 inherit;
+  font: 700 10.5px/1.4 inherit;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--ink-mute);

@@ -258,7 +258,13 @@ function stepRow({ step, outcome, live, inFlight, run, notes, onPress, onSecret,
 
   const glyph = document.createElement("span");
   glyph.className = "glyph";
-  glyph.textContent = outcome ? glyphFor(outcome) : live && step.index === inFlight ? "●" : "○";
+  const now = !outcome && live && step.index === inFlight;
+  glyph.textContent = outcome ? glyphFor(outcome) : now ? "●" : "○";
+  // The one thing on this panel that should move. A run in flight and a run
+  // that stopped on a live step draw the identical dot otherwise, and "still
+  // going" is the question somebody watching actually has. The stylesheet
+  // decides what moving means, and stops it for anybody who asked for less.
+  if (now) glyph.dataset.live = "true";
   const intent = document.createElement("span");
   intent.className = "intent";
   intent.textContent = step.intent || "";

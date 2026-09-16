@@ -149,3 +149,59 @@ def test_a_field_the_form_requires_and_the_write_carries_says_nothing() -> None:
         )
         == ()
     )
+
+
+# The four a mutation sweep found, each a real behaviour nothing pinned
+
+
+def test_one_field_with_nothing_known_does_not_silence_the_next() -> None:
+    """`continue`, not `break`. The claims come back by key and a write fills
+    several: a body key the dictionary has never heard of must skip its own
+    line rather than end the reading of every field after it."""
+    said = notes_on(
+        {"aaaUnknown": "x", "customerType": "NEWSROTEST"},
+        {"customerType": FROM_THE_FORM},
+    )
+
+    assert len(said) == 1, "a key with no claim behind it took the next field's note with it"
+
+
+def test_a_field_already_sent_does_not_silence_a_required_one_after_it() -> None:
+    """The same rule in the second loop: a required field is looked for across
+    every claim, and the ones the write DOES carry are skipped one at a time."""
+    said = notes_on(
+        {"customerType": "GPP"},
+        {
+            "customerType": FROM_THE_FORM,
+            "longDescription": {"labels": ["Customer Type Description"], "required": True},
+        },
+    )
+
+    assert said == (
+        "Customer Type Description is required on this form and this run sends nothing",
+    )
+
+
+def test_which_source_the_limit_came_from_is_the_end_of_the_sentence() -> None:
+    """Asserted exactly, because the two sources disagree and the phrase is
+    what tells a person which one they are reading."""
+    (said,) = notes_on({"customerType": "NEWSROTEST"}, {"customerType": FROM_THE_FORM})
+
+    assert said.endswith("supplies 10 (what the form itself says)")
+
+
+def test_a_required_field_with_no_label_is_named_by_its_body_key() -> None:
+    """A claim the form captured without a label still has to be sayable. The
+    body key is what the API calls it, which is worse than the screen's word
+    and far better than nothing."""
+    said = notes_on({}, {"longDescription": {"required": True, "observed": True}})
+
+    assert said == ("longDescription is required on this form and this run sends nothing",)
+
+
+def test_a_field_that_holds_one_character_is_a_field_like_any_other() -> None:
+    """`> 0`, not `> 1`. A one-character flag column is real -- this base has
+    several -- and a value of two characters does not fit in it."""
+    assert notes_on({"flag": "YN"}, {"flag": {"labels": ["Flag"], "max_length": 1}}) == (
+        "Flag holds 1 characters and this run supplies 2",
+    )

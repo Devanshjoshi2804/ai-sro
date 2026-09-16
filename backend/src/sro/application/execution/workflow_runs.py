@@ -76,8 +76,9 @@ from datetime import datetime
 
 from sro.application.context import RequestContext
 from sro.application.execution.approvals import Approvals
+from sro.application.execution.gather import GatherContext
 from sro.application.execution.read_runs import NOT_IN_A_BROWSER_HERE, CannotStop
-from sro.application.execution.run_workflow import KnownFields, run_workflow
+from sro.application.execution.run_workflow import GatherValues, KnownFields, run_workflow
 from sro.application.execution.stops import Stops
 from sro.application.intent.spend import over_cap
 from sro.application.knowledge.retrieve import Question, Retrieve
@@ -88,6 +89,7 @@ from sro.application.ports.system import Clock
 from sro.application.ports.vault import CredentialVault, VaultUnavailable
 from sro.application.shared.refusals import OverCap
 from sro.domain.execution.evidence import unperformable
+from sro.domain.execution.gathering import Gathered
 from sro.domain.execution.verified_writes import VerifiedWrite
 from sro.domain.execution.workflow_run import (
     RunStep,
@@ -95,6 +97,7 @@ from sro.domain.execution.workflow_run import (
     already_running,
     new_run_id,
 )
+from sro.domain.execution.write_plan import seen_values
 from sro.domain.knowledge.entry import EntryKind
 from sro.domain.shared.errors import Conflict, DomainError, NotFound
 from sro.domain.shared.identifiers import DeviceId
@@ -156,6 +159,7 @@ class StartWorkflowRun:
         verified_writes: tuple[VerifiedWrite, ...] = (),
         vault: CredentialVault | None = None,
         retrieve: Retrieve | None = None,
+        gather: GatherContext | None = None,
     ) -> None:
         self._uow = uow
         # Where a password comes from when a step types one. `None` is a
@@ -168,6 +172,10 @@ class StartWorkflowRun:
         # says nothing about its fields, exactly as every run did before the
         # claims were ingested.
         self._retrieve = retrieve
+        # Where a value comes from when nobody typed one. `None` is a
+        # deployment with no connector, and a run with missing values then
+        # refuses exactly as it always did.
+        self._gather = gather
         self._channel = channel
         # `Asker | None` rather than through `asker_or_refuse` in the container,
         # for `ReadChat`'s reason: a factory that raised would make the factory
@@ -412,10 +420,35 @@ class StartWorkflowRun:
                     verified_writes=self._verified_writes,
                     secret_for=self._secret_for,
                     known_fields=None if self._retrieve is None else self._known_fields(ctx),
+                    gather_values=(
+                        None
+                        if self._gather is None
+                        else self._gathering(ctx, workflow.title, seen_values(workflow))
+                    ),
                 )
         except Exception as error:
             logger.exception("a run in an operator's browser could not be finished")
             await self._close(ctx, run.id, f"{type(error).__name__}: {error}")
+
+    def _gathering(
+        self, ctx: RequestContext, job: str, seen: Mapping[str, frozenset[str]]
+    ) -> GatherValues:
+        """Bound to this request's own tenant and operator.
+
+        A closure for `_known_fields`' reason -- `run_workflow` has no
+        `RequestContext` -- and for one more that matters here: a mailbox is
+        reached as ONE person, and the person is the one this run is for.
+        """
+
+        async def look(wanted: Sequence[str]) -> Gathered:
+            return await self._gather.execute(  # type: ignore[union-attr]
+                ctx,
+                job=job,
+                wanted=wanted,
+                seen={name: tuple(sorted(values)) for name, values in seen.items()},
+            )
+
+        return look
 
     def _known_fields(self, ctx: RequestContext) -> KnownFields:
         """What the dictionary says about these body keys, by key.

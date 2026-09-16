@@ -3389,6 +3389,14 @@ class WorkflowRunModel(BaseModel):
     cost_usd: float
     unpriced: bool
 
+    gathered: dict[str, dict[str, str]] = {}
+    """Parameter -> where its value was read, for values nobody typed.
+
+    On the wire because the card showing a write a person is asked to approve
+    has to say where its values came from: a value read out of a mailbox is
+    only as good as the message it came from. Empty for a run whose values a
+    person typed."""
+
     wrong_because: str | None = None
     """What the operator said was wrong with what this run made, where anybody
     has said anything.
@@ -3433,6 +3441,7 @@ class WorkflowRunModel(BaseModel):
             thought_tokens=run.thought_tokens,
             cost_usd=run.cost_usd,
             unpriced=run.unpriced,
+            gathered={k: dict(v) for k, v in run.gathered.items()},
             wrong_because=run.wrong_because,
             undo=undo,
         )

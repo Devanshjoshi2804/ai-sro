@@ -176,6 +176,18 @@ class WorkflowRun:
     cost_usd: float = 0.0
     unpriced: bool = False
 
+    gathered: dict[str, dict[str, str]] = field(default_factory=dict)
+    """Parameter -> where its value was read, for values nobody typed.
+
+    A value the operator typed into the press needs no provenance: they are
+    standing there and they meant it. A value read out of a mailbox is only as
+    good as the message it came from, and both the person approving the write
+    and an audit a month later have to be able to go and look -- so the message
+    id and the span it was quoted from are kept beside the run.
+
+    Empty for every run whose values came from a person, which is most of them
+    and all of them before 2026-09-16."""
+
     wrong_because: str | None = None
     """What the operator said was wrong with what this run made.
 

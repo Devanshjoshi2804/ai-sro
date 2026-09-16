@@ -49,6 +49,7 @@ from sro.application.execution.execute_skill import (
     FinishRun,
     StartRun,
 )
+from sro.application.execution.gather import GatherContext
 from sro.application.execution.pursue_goal import PursueGoal
 from sro.application.execution.pursuits import Pursuits
 from sro.application.execution.read_runs import GetRun, ListRuns, StopRun
@@ -1073,6 +1074,13 @@ class Container:
             # so the person who taps Approve is shown it. Built here and not
             # in the runner, which never learns what a vector store is.
             retrieve=self.retrieve_knowledge(),
+            # Where a value comes from when nobody typed one: the operator's
+            # own mailbox, reached as them.
+            gather=GatherContext(
+                tools=self.tools, asker=self.asker, model=self.settings.gemini_plan_model
+            )
+            if self.asker is not None
+            else None,
         )
 
     def list_workflow_runs(self) -> ListWorkflowRuns:

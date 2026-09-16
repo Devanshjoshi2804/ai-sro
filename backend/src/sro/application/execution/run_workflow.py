@@ -80,6 +80,7 @@ from sro.domain.execution.evidence import (
     writes,
 )
 from sro.domain.execution.field_notes import notes_on
+from sro.domain.execution.gathering import Gathered
 from sro.domain.execution.planning import Look, Planned
 from sro.domain.execution.secrets import without_secrets
 from sro.domain.execution.verified_writes import VerifiedWrite
@@ -142,6 +143,14 @@ a run can still be stopped having done whole records rather than half of one.
 K_STEP_SLACK = 3
 """Attempts a run may make beyond its step count before it stops. A model
 looping on a form is money spent and a warehouse confused."""
+
+GatherValues = Callable[[Sequence[str]], Awaitable[Gathered]]
+"""Go and find the values this run was not given, or say which are missing.
+
+A callable rather than `GatherContext` itself, for `SecretFor`'s reason: this
+module drives a run and does not learn what a mailbox is. A deployment with no
+connector passes nothing, and a run with missing values refuses exactly as it
+always did."""
 
 K_NEVER_SENT = frozenset(
     {"no_tab_for_system", "no_tab_for_origin", "focus_not_permitted", "aborted"}
@@ -438,6 +447,24 @@ def _saw_nothing(step: Step, by_id: Mapping[str, Gesture]) -> bool:
     return True
 
 
+def _not_given(workflow: Workflow, values: Mapping[str, str]) -> tuple[str, ...]:
+    """The parameters this job declares that this run has no value for.
+
+    Read off the JOB rather than off the steps: `Step.parameters` is what one
+    step types, and a value typed by one step can be wanted by the body another
+    sends. The job's own declaration is the whole set, in its own order.
+
+    A blank counts as missing, for `typed_values`' reason: a parameter answered
+    with an empty string is a parameter nobody answered.
+    """
+    declared = [
+        str(name)
+        for parameter in workflow.parameters
+        if isinstance(name := parameter.get("name"), str) and name
+    ]
+    return tuple(name for name in declared if not values.get(name, "").strip())
+
+
 def _fell_over(run: WorkflowRun, in_flight: RunStep | None, reason: str) -> None:
     """The run died. Whatever it was doing when it died is the step that
     failed, so the record says which one and why rather than stopping at
@@ -521,6 +548,7 @@ async def run_workflow(
     verified_writes: tuple[VerifiedWrite, ...] = (),
     secret_for: SecretFor | None = None,
     known_fields: KnownFields | None = None,
+    gather_values: GatherValues | None = None,
     cap_usd: float,
 ) -> WorkflowRun:
     # A run the caller already claimed. `POST /v1/runs` writes the `running` row
@@ -584,6 +612,32 @@ async def run_workflow(
     values, live, allow_focus = run.values, run.live, run.allow_focus
     device_id = DeviceId(run.device_id)
     await _save(uow, run)
+    # The values nobody typed, found before anything is planned.
+    #
+    # A press carries what the person filled in. A job fired by a rule, or one
+    # whose request arrived as a mail, has a parameter and no value -- and
+    # until now that was the end of it. The live failure that named this was
+    # step 1 of `Create a Customer Type` refusing with "the open email is for
+    # customer type GPDP rather than the requested ZQ41": the mailbox held a
+    # request and the run had no way to read it.
+    #
+    # Before the loop and once, not per step: a value is a fact about the run,
+    # and a gather per step would read the same mailbox repeatedly and could
+    # answer differently each time.
+    #
+    # What it finds is merged UNDER what the run was given. A person who typed
+    # a value has said what they want and a mailbox does not overrule them --
+    # the gather is only asked about what is missing, and this ordering says
+    # the same thing a second time so the two cannot disagree.
+    if gather_values is not None and (short := _not_given(workflow, values)):
+        got = await gather_values(short)
+        values = {**{name: f.value for name, f in got.values.items()}, **values}
+        run.gathered = {
+            name: {"value": f.value, "from_message": f.from_message, "quoting": f.quoting}
+            for name, f in got.values.items()
+        }
+        await _save(uow, run)
+
     by_id = await _gestures_for(uow, tenant_id, workflow)
     # Two sets, because they answer two questions. `standing` is where the
     # operator actually was and is where a plan may SEND the browser;

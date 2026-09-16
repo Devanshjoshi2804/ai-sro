@@ -36,6 +36,7 @@ from sro.application.execution.approvals import K_APPROVAL_WAIT_S, Approvals
 from sro.application.execution.run_workflow import (
     K_SAME_WRITE_WINDOW,
     K_STEP_SLACK,
+    GatherValues,
     KnownFields,
     _bill,
     _fell_over,
@@ -55,6 +56,7 @@ from sro.application.ports.agent import DeviceUnreachable
 from sro.application.ports.channel import Reply
 from sro.domain.chat.reading import ChatReading
 from sro.domain.execution.belts import K_EARNED_RUNS, SCREEN_SCHEMA
+from sro.domain.execution.gathering import Found, Gathered
 from sro.domain.execution.planning import PLAN_SCHEMA, Look, Planned
 from sro.domain.execution.verified_writes import VerifiedWrite
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
@@ -781,6 +783,7 @@ async def _ran(
     cap_usd: float = -1.0,
     verified_writes: tuple[VerifiedWrite, ...] = (),
     known_fields: KnownFields | None = None,
+    gather_values: GatherValues | None = None,
 ) -> WorkflowRun:
     """One run, with the arguments no test varies spelled once.
 
@@ -813,6 +816,7 @@ async def _ran(
             items=items,
             verified_writes=verified_writes,
             known_fields=known_fields,
+            gather_values=gather_values,
             # No cap unless a test is about the cap: `over_cap` answers a
             # negative one before it touches the repository, so every other
             # test here pays nothing and asserts nothing about money.
@@ -4422,6 +4426,78 @@ async def test_a_write_that_timed_out_keeps_its_claim() -> None:
 
     assert isinstance(uow.tool_calls, FakeToolCallRepository)
     assert uow.tool_calls.claimed, "a write that may have landed gave its claim back"
+
+
+async def test_a_run_with_no_value_for_a_parameter_goes_and_finds_one() -> None:
+    """The gap the live deployment named. A press carries what somebody typed;
+    a job fired by a rule, or one whose request arrived as a mail, has a
+    parameter and no value -- and that used to be the end of it."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel({**_looks(4), "ui.perform": [_performed(), _performed()]})
+    asker = FakeAsker(
+        _plan("type", "FROMMAIL"),
+        Answer(data={"held": True, "why": ""}),
+        _plan("click"),
+        Answer(data={"held": True, "why": ""}),
+    )
+    asked: list[tuple[str, ...]] = []
+
+    async def _gather(wanted: Sequence[str]) -> Gathered:
+        asked.append(tuple(wanted))
+        return Gathered(
+            values={
+                "clientCode": Found(
+                    value="FROMMAIL", from_message="m-9", quoting="the code is FROMMAIL"
+                )
+            }
+        )
+
+    run = await _ran(
+        uow, workflow, channel=channel, asker=asker, values={}, earned=True, gather_values=_gather
+    )
+
+    assert asked == [("clientCode",)], "it asked for exactly what it was missing"
+    assert run.outcome == "held"
+    typed = _payload(next(s for s in channel.sent if s["kind"] == "ui.perform"))
+    assert typed["value"] == "FROMMAIL", "the gathered value never reached the page"
+    # Where it came from, on the row: a value nobody typed is only as good as
+    # the message it was read out of.
+    assert run.gathered["clientCode"]["from_message"] == "m-9"
+
+
+async def test_a_value_the_person_typed_is_not_overruled_by_the_mailbox() -> None:
+    """The gather is asked only about what is missing, and what it finds is
+    merged UNDER what the run was given. Said twice on purpose: a person who
+    typed a value has said what they want."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel({**_looks(4), "ui.perform": [_performed(), _performed()]})
+    asker = FakeAsker(
+        _plan("type", "TYPED"),
+        Answer(data={"held": True, "why": ""}),
+        _plan("click"),
+        Answer(data={"held": True, "why": ""}),
+    )
+    asked: list[tuple[str, ...]] = []
+
+    async def _gather(wanted: Sequence[str]) -> Gathered:
+        asked.append(tuple(wanted))
+        return Gathered(values={"clientCode": Found(value="FROMMAIL", from_message="m-9")})
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        values={"clientCode": "TYPED"},
+        earned=True,
+        gather_values=_gather,
+    )
+
+    assert asked == [], "the mailbox was read about a value the person had already given"
+    assert run.gathered == {}
+    assert run.outcome == "held"
 
 
 async def test_what_the_dictionary_knows_reaches_the_card_a_person_approves() -> None:

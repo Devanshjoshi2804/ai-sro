@@ -708,6 +708,9 @@ def test_a_finished_run_reaches_the_wire_whole() -> None:
         # Nothing this tenant has been seen doing takes back what this run
         # made -- which is every tenant until somebody deletes one of these in
         # front of the recorder.
+        # Empty because a person typed these values. Filled only for a value
+        # nobody typed, with the message it was read out of.
+        "gathered": {},
         # Null because nobody has reported this run. The card that reports one
         # reads this to stop offering to report it twice.
         "wrong_because": None,

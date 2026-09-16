@@ -264,6 +264,47 @@ def _slots(bodies: list[dict[str, object]]) -> frozenset[str]:
     )
 
 
+def wanted_by(
+    step: Step,
+    by_id: Mapping[str, Gesture],
+    seen: Mapping[str, frozenset[str]],
+) -> frozenset[str]:
+    """The parameters whose values this step's own body carries.
+
+    Asked WITHOUT the run's values, which is the whole point of it: the
+    question "does this call need a value from this run" has to be answerable
+    before anybody knows whether the run has one. `_assigned` answers a
+    narrower question -- which parameter owns which slot, given what this run
+    was given -- and it cannot see a parameter the run is missing, because a
+    parameter with no value never appears in `values` to be matched.
+
+    That blind spot is what let a run with NO values replay a demonstration
+    byte for byte: every guard downstream asked "were we given values we could
+    not place", and a run given nothing has none to fail to place.
+
+    Empty for a call that carries no parameter at all -- most calls -- which is
+    what keeps this from turning every replay into a click.
+    """
+    call = recorded_call(step, by_id)
+    if call is None or call.method.upper() in READ_METHODS or unreplayable(call):
+        return frozenset()
+    bodies = _bodies_of(step, by_id, call)
+    if not bodies:
+        return frozenset()
+    owners: set[str] = set()
+    for slot in sorted(_slots(bodies)):
+        taken = {body[slot] for body in bodies if isinstance(body.get(slot), str)}
+        if not taken:
+            continue
+        # The same claim `_assigned` makes, minus the run's values: a parameter
+        # owns a slot when every value that slot was seen taking is one the
+        # operator was seen typing into that parameter's control.
+        claiming = [name for name, observed in seen.items() if taken <= observed]
+        if len(claiming) == 1:
+            owners.add(claiming[0])
+    return frozenset(owners)
+
+
 def _assigned(
     slots: frozenset[str],
     bodies: list[dict[str, object]],
@@ -278,22 +319,57 @@ def _assigned(
     claim, and a parameter claiming two slots.
     """
     claimed: dict[str, str] = {}
+    # Every parameter that turned out to have somewhere to go, which is not the
+    # same list as `claimed.values()` once two of them name one slot.
+    placed: set[str] = set()
     for slot in sorted(slots):
         taken = {body[slot] for body in bodies if isinstance(body.get(slot), str)}
         if not taken:
             continue
         owners = [name for name, observed in seen.items() if name in values and taken <= observed]
-        if len(owners) > 1:
+        # Two parameters claiming one slot is a refusal only when they
+        # DISAGREE.
+        #
+        # This job declares four parameters for two values: `Customer Type` and
+        # `customertype-customerType` are the same thing under the label the
+        # operator reads and the key the form posts, and mining named both.
+        # Both then claim `customerType`, and refusing on the count alone made
+        # the write unreplayable for every run that supplied them -- which is
+        # every run the gather fills, because it answers for each parameter the
+        # job declares. Measured on the deployment 2026-09-16: the replay was
+        # refused, the ladder fell to a model, and the model pressed Save on a
+        # form that run had never filled.
+        #
+        # Two names for one value is not ambiguity. Two values for one slot is,
+        # and it still refuses: there is no way to tell which the operator
+        # meant, and a warehouse record is the wrong place to guess.
+        if len({values[name] for name in owners}) > 1:
             return None
         if owners:
             claimed[slot] = owners[0]
+            placed.update(owners)
     if len(set(claimed.values())) != len(claimed):
         return None
     # Every value this run was given must have somewhere to go. A parameter the
     # operator supplied that no key carries is the transformed-value case, and
     # sending the body without it would send the demonstration's value in its
     # place -- silently, because the endpoint answers 201 either way.
-    if any(name not in claimed.values() for name in values):
+    #
+    # Unless it is the SAME value that already went somewhere. Measured on the
+    # deployment 2026-09-16: mining declared this job's two fields four times
+    # -- `Customer Type`, the label an operator reads, beside
+    # `customertype-customerType`, the key the form posts -- and the gather
+    # answers for every parameter a job declares, so a run arrives holding four
+    # values for two slots. Two of them are placed and two are the same strings
+    # under another name, and refusing on that made the write unreplayable for
+    # every gathered run: the ladder then fell to a model, and the model
+    # pressed Save on a form that run had never filled.
+    #
+    # A value that equals one already in the body is carried, whatever it is
+    # called. A DIFFERENT value with nowhere to go is still the transformed
+    # case and still refuses -- that is the one this rule was written for.
+    carried = {values[name] for name in placed}
+    if any(name not in placed and values[name] not in carried for name in values):
         return None
     return claimed
 

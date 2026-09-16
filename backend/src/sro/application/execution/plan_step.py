@@ -70,7 +70,7 @@ from sro.domain.execution.planning import (
 )
 from sro.domain.execution.secrets import field_of, needs_a_secret, secret_key_for
 from sro.domain.execution.verified_writes import VerifiedWrite, verified_write_for
-from sro.domain.execution.write_plan import WritePlan, write_plan_for
+from sro.domain.execution.write_plan import WritePlan, wanted_by, write_plan_for
 from sro.domain.observation.gesture import Gesture, Kind
 from sro.domain.observation.trim import trim
 from sro.domain.shared.hosts import REDACTED, origin_of
@@ -133,6 +133,22 @@ def _replay_of(
     verified = verified_write_for(call, verified_writes) is not None
     aimed = write_plan_for(step, by_id, values, verified_writes, seen)
     if aimed is None and values and verified:
+        return None
+    # And the same refusal for a run that was given NOTHING.
+    #
+    # The guard above asks "were we handed values we could not place", which a
+    # run holding none can never fail -- so the one case where replaying the
+    # recording is most certainly wrong was the one case it let through.
+    # Measured on the deployment 2026-09-16: an operator pressed a card, the
+    # gather came back empty because the model answered one round with a 5xx,
+    # and the run replayed the demonstration's own body -- the code somebody
+    # typed days ago, into a warehouse, as if it had been asked for today.
+    #
+    # `wanted_by` asks the question without the values: which parameters does
+    # THIS call's body carry. A call that carries none still replays exactly as
+    # it was demonstrated, which is what most calls are and what they have
+    # always done.
+    if verified and any(not values.get(name, "").strip() for name in wanted_by(step, by_id, seen)):
         return None
     # `aimed` where there is one, and the recorded bytes where there is nothing
     # to aim -- a job with no parameters replays exactly as it was

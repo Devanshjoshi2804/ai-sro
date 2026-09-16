@@ -5501,3 +5501,87 @@ async def test_a_run_nobody_comes_back_to_says_nobody_signed_in() -> None:
     # asks the same question three times is a panel arguing with the person
     # who just answered it.
     assert [s["kind"] for s in channel.sent].count("ui.perform") == 1
+
+
+async def test_a_collapsed_write_that_will_not_go_does_not_press_the_button_instead() -> None:
+    """The two halves of the design, fitted together into nonsense.
+
+    Measured on the deployment 2026-09-16, and it is the reason this test
+    exists. A run whose write goes out as a CALL collapses the steps that only
+    put the form on the screen -- steps 0 to 4 recorded `not_needed`, "this run
+    sends as a call". The call then failed. The ladder's next rung is a model
+    planning from the evidence, and what the evidence says is "click Save", so
+    the run pressed Save on a form an operator had half filled an HOUR earlier.
+    The warehouse refused it for an empty required field, which is the only
+    reason that is a failed run rather than a wrong record.
+
+    Individually both decisions are right. Together they are a run that skipped
+    the typing because it was going to post, and then posted nothing and
+    pressed the button as if it had typed.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel(
+        {
+            **_looks(8),
+            # The call goes out and the warehouse refuses it.
+            "http.send": [Reply(ok=True, result={"status": 422, "body": '{"errors":[]}'})] * 3,
+            "ui.perform": [_performed()] * 3,
+        }
+    )
+    asker = _PerSchemaAsker(
+        plan=_plan("click"), verdict=Answer(data={"held": False, "why": "not saved"})
+    )
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        values={},
+        earned=True,
+        verified_writes=(VerifiedWrite(method="POST", path_pattern="/api/orders"),),
+    )
+
+    assert run.outcome == "stopped"
+    # The call was tried. The button was not.
+    assert [one["kind"] for one in channel.sent].count("http.send") == 1
+    assert not [one for one in channel.sent if one["kind"] == "ui.perform"], (
+        "it pressed Save on a form this run never filled"
+    )
+    assert "the form was never filled" in run.steps[-1].reason, run.steps[-1].reason
+
+
+async def test_a_gather_that_found_nothing_stops_the_run_rather_than_licensing_it() -> None:
+    """The door lets a run start with a parameter unanswered ONLY because
+    something can go and look for it. Until this, a look that came back with
+    nothing was read as permission to carry on.
+
+    Measured on the deployment 2026-09-16: the gather lost a round to a 5xx
+    from the model, came back empty, and the run went on to press Save on a
+    form somebody else had half filled an hour earlier.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel({**_looks(4), "ui.perform": [_performed()] * 3})
+    asker = FakeAsker()
+
+    async def _found_nothing(wanted: Sequence[str]) -> Gathered:
+        return Gathered(missing=tuple(wanted), why="the mailbox holds none of the values")
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        values={},
+        earned=True,
+        gather_values=_found_nothing,
+    )
+
+    assert run.outcome == "stopped"
+    assert channel.sent == [], "it drove a browser for a job it had no values for"
+    assert "nobody gave a value for clientCode" in run.steps[-1].reason
+    # And what the looking said, so the sentence is about this mailbox rather
+    # than about the idea of one.
+    assert "the mailbox holds none of the values" in run.steps[-1].reason

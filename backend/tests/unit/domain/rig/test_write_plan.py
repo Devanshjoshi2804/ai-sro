@@ -22,6 +22,7 @@ from sro.domain.execution.verified_writes import VerifiedWrite
 from sro.domain.execution.write_plan import (
     scaffolding_for,
     seen_values,
+    wanted_by,
     write_plan_for,
 )
 from sro.domain.observation.gesture import Action, Body, Call, Gesture, Target
@@ -274,10 +275,37 @@ def test_a_parameter_this_run_supplied_that_the_body_does_not_carry_refuses() ->
     assert plan is None
 
 
-def test_one_value_two_parameters_could_claim_refuses_the_plan() -> None:
+def test_two_parameters_that_disagree_about_one_slot_refuse_the_plan() -> None:
     """A constant of the job that happens to equal some parameter's value turns
-    into a slot the runner would substitute. With one body there is no way to
-    tell, so neither claims it."""
+    into a slot the runner would substitute. Where two parameters claim one
+    slot and say DIFFERENT things, there is no way to tell which the operator
+    meant, and a warehouse record is the wrong place to guess."""
+    plan = write_plan_for(
+        _step("g1", "g2"),
+        _twice(),
+        {CODE: "GPDP", "other": "SOMETHING ELSE"},
+        LEDGER,
+        {CODE: SEEN[CODE], "other": SEEN[CODE]},
+    )
+
+    assert plan is None
+
+
+def test_two_names_for_one_value_is_not_ambiguity() -> None:
+    """The rule above used to refuse on the COUNT of claimants, and that broke
+    the one job this deployment runs.
+
+    Mining named the same value twice -- `Customer Type`, the label an operator
+    reads, and `customertype-customerType`, the key the form posts -- so both
+    claim the one slot. Refusing on the count made the write unreplayable for
+    every run that supplied them, which is every run the gather fills, because
+    it answers for each parameter the job declares. Measured on the deployment
+    2026-09-16: the replay was refused, the ladder fell to a model, and the
+    model pressed Save on a form that run had never filled.
+
+    Two names for one value is not ambiguity. Two values for one slot is, and
+    the test above still holds it.
+    """
     plan = write_plan_for(
         _step("g1", "g2"),
         _twice(),
@@ -286,7 +314,8 @@ def test_one_value_two_parameters_could_claim_refuses_the_plan() -> None:
         {CODE: SEEN[CODE], "other": SEEN[CODE]},
     )
 
-    assert plan is None
+    assert plan is not None
+    assert '"GPDP"' in plan.body
 
 
 def test_one_demonstration_names_no_parameters_and_so_replays_nothing() -> None:
@@ -761,3 +790,63 @@ def test_a_body_that_cannot_be_replayed_is_not_evidence_about_any_slot() -> None
     assert plan.confirm == {"customerType": "GPDP", "longDescription": "new"}, (
         "a doing nothing may replay is not a doing that says what the server keeps"
     )
+
+
+def test_a_call_says_which_parameters_its_body_carries_without_being_given_any() -> None:
+    """`wanted_by` is asked BEFORE anybody knows what the run holds, which is
+    the whole point of it.
+
+    Every guard downstream asked "were we given values we could not place", and
+    a run given nothing has none to fail to place -- so the one case where
+    replaying a recording is most certainly wrong was the one case they let
+    through. Measured on the deployment 2026-09-16: a run whose gather came
+    back empty replayed the demonstration's own body.
+    """
+    # Both fields this job varies, named without a single value being supplied.
+    assert wanted_by(_step("g1", "g2"), _twice(), SEEN) == frozenset({CODE, DESCRIPTION})
+    # A call whose body carries no parameter at all still replays exactly as it
+    # was demonstrated, which is what most calls are.
+    assert wanted_by(_step("g1"), {"g1": _saving("g1", CREATED)}, SEEN) == frozenset()
+
+
+def test_the_same_value_under_two_names_is_carried_rather_than_refused() -> None:
+    """The rule this narrows exists for the transformed-value case: a value the
+    operator supplied that no key carries means the body would go out with the
+    demonstration's value in its place, silently, because the endpoint answers
+    201 either way.
+
+    A value that equals one already IN the body is not that. Measured on the
+    deployment 2026-09-16: mining declared this job's two fields four times --
+    `Customer Type`, the label an operator reads, beside
+    `customertype-customerType`, the key the form posts -- and the gather
+    answers for every parameter a job declares, so every gathered run arrived
+    holding four values for two slots. Two were placed, two were the same
+    strings under another name, and the plan refused: the ladder fell to a
+    model, and the model pressed Save on a form that run had never filled.
+    """
+    plan = write_plan_for(
+        _step("g1", "g2"),
+        _twice(),
+        {CODE: "GPDP", DESCRIPTION: DESCRIBED, "Customer Type": "GPDP"},
+        LEDGER,
+        SEEN,
+    )
+
+    assert plan is not None
+    assert json.loads(plan.body)["customerType"] == "GPDP"
+
+
+def test_a_different_value_with_nowhere_to_go_still_refuses() -> None:
+    """The half of that rule which must not move. A value the body does not
+    carry, and which is not something the body carries under another name, is
+    the transformed case -- and sending the body without it sends the
+    demonstration's value instead."""
+    plan = write_plan_for(
+        _step("g1", "g2"),
+        _twice(),
+        {CODE: "GPDP", DESCRIPTION: DESCRIBED, "site": "SG"},
+        LEDGER,
+        SEEN,
+    )
+
+    assert plan is None

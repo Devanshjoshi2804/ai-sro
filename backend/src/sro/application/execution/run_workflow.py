@@ -717,6 +717,40 @@ async def run_workflow(
         }
         await _save(uow, run)
 
+        # A value nobody typed and nobody could find is not a value.
+        #
+        # The door lets a run start with a parameter unanswered ONLY because
+        # something can go and look for it, and until this a look that came
+        # back with nothing was read as permission to carry on. Measured on the
+        # deployment 2026-09-16: the gather lost a round to a 5xx, came back
+        # empty, and the run went on to press Save on a form somebody else had
+        # half filled an hour earlier.
+        #
+        # Here rather than at the door, because the door cannot know what the
+        # looking will find; and here rather than at the step, because the
+        # answer is the same for every step and a person reading the row should
+        # find one sentence rather than a verdict per step. Only on this path:
+        # a deployment with no gather was refused at the door, as it always
+        # was.
+        if still := _not_given(workflow, values):
+            run.outcome = "stopped"
+            run.steps.append(
+                RunStep(
+                    order=0,
+                    says=workflow.steps[0].says if workflow.steps else "",
+                    verdict="failed",
+                    verdict_by="none",
+                    reason=(
+                        "nobody gave a value for "
+                        + ", ".join(still)
+                        + ", and your mail does not say either — "
+                        + got.why
+                    ),
+                )
+            )
+            await _save(uow, run)
+            return run
+
     by_id = await _gestures_for(uow, tenant_id, workflow)
     # Two sets, because they answer two questions. `standing` is where the
     # operator actually was and is where a plan may SEND the browser;
@@ -1086,8 +1120,33 @@ async def run_workflow(
                 if primary is not None
                 else ()
             )
+            # The form this write would have been typed into was never filled.
+            #
+            # A run whose write goes out as a CALL collapses the steps that
+            # only put the form on the screen -- that is the whole point of
+            # replaying it. The ladder's next rung after a failed replay is a
+            # model planning from the evidence, and what the evidence says is
+            # "click Save": right when the five steps before it were performed,
+            # nonsense when this run skipped them on purpose.
+            #
+            # Measured on the deployment 2026-09-16: steps 0-4 `not_needed`
+            # "this run sends as a call", then step 5 sent `ui.perform` click
+            # on `toolbar button#saveButton`, against a form an operator had
+            # half filled an hour earlier. The warehouse refused it for an
+            # empty required field, which is the only reason it is not a wrong
+            # record instead of a failed one.
+            #
+            # So a collapsed write has one rung. If the call will not go, the
+            # step stops and says why -- and the job is still there to be run
+            # again with the form filled, which is a decision for a person
+            # rather than a fallback for a ladder.
+            never_filled = bool(
+                replay is not None
+                and collapsed
+                and set(scaffolding_for(workflow, by_id, write_step=step.order)) & collapsed
+            )
             if replay is not None:
-                rungs = (("replay", ""), *rungs)
+                rungs = (("replay", ""),) if never_filled else (("replay", ""), *rungs)
             verdict: StepVerdict | None = None
             after_failed: Look | None = None
             # Once per step. A session that ages out again three steps later is
@@ -1775,6 +1834,17 @@ async def run_workflow(
                 ):
                     record.reason = f"state unknown after a write; not retried: {record.reason}"
                     break
+
+            # Said once the rungs are spent, because it explains what was NOT
+            # tried: the interface. A person reading "the call would not go"
+            # would otherwise reasonably ask why it did not just press the
+            # button, and the answer is that this run never filled the form.
+            if never_filled and record.verdict not in ("held", "withheld", "awaiting"):
+                record.reason = (
+                    record.reason
+                    + " — and the form was never filled for this run, so the button was not"
+                    " pressed either; run it again to have it typed in front of you"
+                ).strip()
 
             # A rung that never reached a command -- an unplannable step, a
             # navigate that would not go -- left its reason on the local verdict

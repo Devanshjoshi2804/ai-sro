@@ -70,13 +70,21 @@ cards at once is a panel nobody reads past the third -- not because of what the
 readings cost. Eight covers a morning's arrivals between looks.
 """
 
-K_RECENT = "newer_than:2d -in:sent -in:chats"
+K_RECENT = "in:inbox newer_than:2d -in:chats"
 """What counts as an arrival worth reading.
 
 Two days rather than an hour: a look runs when somebody asks for one, and a
-request that arrived over the weekend is still a request. Their own sent mail
-is not a request TO them, and reading it back would offer the job they asked
-somebody else to do.
+request that arrived over the weekend is still a request.
+
+`in:inbox` rather than `-in:sent`, and the difference is a whole afternoon.
+`-in:sent` was meant to say "their own outgoing mail is not a request TO them",
+and on Gmail a message sent to yourself is in BOTH -- so it dropped every mail
+an operator addresses to themselves, which is how every test request on this
+deployment was written and how a person forwards themselves something to deal
+with later. Measured 2026-09-16: a request sent at 20:34 was still invisible at
+20:40, and the mail beside it that had been FORWARDED from another account was
+read fine. The inbox is the honest reading of "what arrived": a message that
+was only ever sent is not in it.
 """
 
 K_REMEMBER = timedelta(days=30)

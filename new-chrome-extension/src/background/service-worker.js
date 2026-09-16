@@ -673,10 +673,24 @@ async function considerOffer(tabId, gesture) {
         void hideNudge(n.tabId);
         return [{ ...n, state: "expired", endedAt: now }];
       });
-      await state.setNudges([made, ...rest].slice(0, MAX_NUDGES));
+      // Kept offers first, and outside the trim. A request read out of a mail
+      // is waiting on a person; the prefix offers this path makes are what
+      // somebody is doing right now, and twenty of those must not be able to
+      // push a request off the end of the list. Nothing is lost by a busy
+      // morning.
+      const waiting = [made, ...rest].filter((n) => n.keeps && n.state === "open");
+      const others = [made, ...rest].filter((n) => !(n.keeps && n.state === "open"));
+      await state.setNudges([...waiting, ...others.slice(0, MAX_NUDGES)]);
       // The title alone: `paintNudge` wraps whatever it is given in "do ...?",
       // so a sentence renders as a question about a question.
-      await showNudge(tabId, made.title);
+      //
+      // And only when the panel is not already up. The pill does one thing --
+      // open the panel -- so beside an open one it is a button that cannot do
+      // anything, which is what it looked like: pressed, and nothing happened.
+      // `watching` is the panel's own port, so this is a fact rather than a
+      // guess. One window is assumed: a panel open in another window still
+      // suppresses the pill here, which is the rarer wrong answer of the two.
+      if (!watching.size) await showNudge(tabId, made.title);
     });
   } catch {
     // A tab that closed, a rig that is down. Nothing offered is the quiet

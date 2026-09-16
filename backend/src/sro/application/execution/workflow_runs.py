@@ -258,7 +258,49 @@ class StartWorkflowRun:
                 if declared.get("name")
                 and any(str(declared["name"]) not in one for one in supplied)
             )
-            if absent:
+            # Refused only where nothing could go and find them.
+            #
+            # A person pressing start with a field empty should be told, and
+            # that is what this has always done. A deployment that can read the
+            # operator's mailbox has a second answer: the run goes and looks,
+            # and refuses at the step if the mailbox does not hold it either.
+            # Held here rather than downstream so the refusal still arrives at
+            # the press, in front of the person who can fix it, for every
+            # deployment that cannot gather.
+            #
+            # A list is a different matter and keeps the old rule whatever is
+            # configured: "add these three" where the third names no code is a
+            # run that would perform it with somebody else's, and a gather
+            # cannot tell which of three rows a mailbox meant.
+            # A parameter somebody TYPED blank is refused whatever else is
+            # configured. `given` strips an empty value out, so by here " " and
+            # "never mentioned" look identical -- and they are not the same
+            # fact. A person who typed a space has said something, and reading
+            # their mailbox instead would overrule them; a person who said
+            # nothing has left the question open for somebody to answer.
+            blank = sorted(
+                name
+                for one in ([values, *items] if workflow.repeat is not None else [values])
+                for name, value in one.items()
+                if not value.strip() and any(d.get("name") == name for d in workflow.parameters)
+            )
+            if blank:
+                raise RunRefused(f"this job needs a value for: {', '.join(blank)}")
+            # Refused only where nothing could go and find them.
+            #
+            # A person pressing start with a field absent should be told, and
+            # that is what this has always done. A deployment that can read the
+            # operator's mailbox has a second answer: the run goes and looks,
+            # and refuses at the step if the mailbox does not hold it either.
+            # Held here rather than downstream so the refusal still arrives at
+            # the press, in front of the person who can fix it, for every
+            # deployment that cannot gather.
+            #
+            # A list keeps the old rule whatever is configured: "add these
+            # three" where the third names no code is a run that would perform
+            # it with somebody else's, and a gather cannot tell which of three
+            # rows a mailbox meant.
+            if absent and (self._gather is None or things):
                 raise RunRefused(f"this job needs a value for: {', '.join(absent)}")
             if not workflow.steps:
                 raise RunRefused("this job has no steps")

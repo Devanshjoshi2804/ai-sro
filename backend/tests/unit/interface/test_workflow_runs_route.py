@@ -497,6 +497,25 @@ async def test_a_job_this_tenant_does_not_have_answers_404(
     assert spawned.handed_over == 1
 
 
+async def test_a_value_nobody_mentioned_is_gone_and_looked_for_rather_than_refused(
+    client: httpx.AsyncClient, held: Workflow, spawned: _Spawned
+) -> None:
+    """The press is not the only place a value can come from.
+
+    A deployment that can read the operator's mailbox answers a missing value
+    by going to look, and refuses at the step if the mailbox does not hold it
+    either. A deployment that cannot still refuses here, in front of the person
+    who could fix it -- which is every test above this one.
+
+    Blank is the other half and keeps its 400: see the test below. A person who
+    typed a space has said something.
+    """
+    landed = await client.post("/v1/workflow-runs", json=_body(values={}))
+
+    assert landed.status_code == 201, landed.json()
+    assert spawned.handed_over == 1, "the run was claimed but nobody was given it to perform"
+
+
 async def test_a_declared_value_that_is_only_whitespace_answers_400(
     client: httpx.AsyncClient, held: Workflow, spawned: _Spawned
 ) -> None:

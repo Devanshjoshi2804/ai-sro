@@ -124,7 +124,10 @@ async def test_a_value_the_triggering_message_does_not_carry_is_still_found() ->
     # The provenance, and it is the point: the value came from the earlier
     # message, not the one that triggered the job.
     assert got.values[CODE].from_message == "m-1"
+    # The opening search on the job's own name comes first and finds nothing;
+    # everything after it is the model's.
     assert got.looked == (
+        "search 'Create a Customer Type'",
         "search 'customer type request'",
         "read m-2",
         "search 'customer type Monday'",
@@ -181,7 +184,8 @@ async def test_the_mailbox_is_asked_as_the_operator_and_no_one_else() -> None:
 
     await _gather(mailbox, asker).execute(CTX, job="a job", wanted=[CODE])
 
-    assert [who for who, _, _ in mailbox.asked] == ["devansh"]
+    assert set(who for who, _, _ in mailbox.asked) == {"devansh"}
+    assert len(mailbox.asked) == 2, "the opening search and the one the model chose"
 
 
 async def test_it_stops_looking_rather_than_spending_the_whole_budget() -> None:
@@ -248,5 +252,44 @@ async def test_the_history_shown_to_the_model_is_notes_rather_than_mail() -> Non
     await _gather(mailbox, asker).execute(CTX, job="a job", wanted=[CODE])
 
     second = json.loads(asker.saw[1])
-    assert len(second["already_looked_at"]) == 1
-    assert len(second["already_looked_at"][0]) < 400, "the whole mail went into the prompt"
+    assert len(second["already_looked_at"]) == 2, "the opening search, then the model's"
+    assert all(len(one) < 400 for one in second["already_looked_at"]), (
+        "the whole mail went into the prompt"
+    )
+
+
+async def test_the_mailbox_is_always_looked_in_before_anything_is_concluded() -> None:
+    """A `done` on round one is a refusal to look, not a conclusion.
+
+    Measured on the deployment 2026-09-16: a run with no values asked the model
+    first, the model answered `done` with nothing, and the connector logged no
+    request at all. "The mailbox does not hold this" has to be a statement
+    about the mailbox.
+
+    So the job's own name is the opening query, and the model's first decision
+    is made with results in front of it.
+    """
+    mailbox = _Mailbox({"Create a Customer Type": json.dumps({"messages": []})})
+    asker = _Steps({"action": "done", "values": [], "why": "I have nothing to go on"})
+
+    got = await _gather(mailbox, asker).execute(CTX, job="Create a Customer Type", wanted=[CODE])
+
+    assert [tool for _, tool, _ in mailbox.asked] == ["search_threads"]
+    assert got.looked == ("search 'Create a Customer Type'",)
+    assert got.missing == (CODE,)
+    # And the model was asked with that search already in its history.
+    assert "Create a Customer Type" in json.loads(asker.saw[0])["already_looked_at"][0]
+
+
+async def test_the_reason_the_run_was_started_beats_the_job_name_as_an_opening() -> None:
+    """Where something said why the run exists -- a mail that fired it, a
+    sentence somebody typed -- that is a better query than the job's title,
+    which every run of the job would share."""
+    mailbox = _Mailbox({"ZQ50 please": json.dumps({"messages": []})})
+    asker = _Steps({"action": "done", "values": [], "why": "nothing"})
+
+    got = await _gather(mailbox, asker).execute(
+        CTX, job="Create a Customer Type", wanted=[CODE], because="ZQ50 please"
+    )
+
+    assert got.looked[0] == "search 'ZQ50 please'"

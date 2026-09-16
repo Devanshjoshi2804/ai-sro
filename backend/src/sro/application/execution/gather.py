@@ -135,6 +135,24 @@ class GatherContext:
         history: list[str] = []
         spent = Answer()
 
+        # The first look is not the model's to choose.
+        #
+        # Asked to find values with nothing to start from, it answered `done`
+        # with no values on round one and never touched the mailbox -- a
+        # refusal to look wearing the face of a conclusion. Measured on the
+        # deployment 2026-09-16: a run with no values gathered nothing and the
+        # connector logged no request at all.
+        #
+        # So the job's own name is the first query, deterministically, and the
+        # model's first decision is made with results in front of it. Cheaper
+        # by a call, and it means "the mailbox does not hold this" is always a
+        # statement about the mailbox rather than about the prompt.
+        opening = because.strip() or job.strip()
+        if opening:
+            asked, said = await self._search(ctx, opening)
+            looked.append(asked)
+            history.append(note(asked, said))
+
         for _ in range(rounds):
             missing = still_wanted(wanted, found)
             if not missing:
@@ -205,9 +223,8 @@ class GatherContext:
             query = str(said.get("query") or "").strip()
             if not query:
                 return "", ""
-            asked = f"search {query!r}"
-            tool, arguments = "search_threads", {"query": query, "limit": "5"}
-        elif action == "read":
+            return await self._search(ctx, query)
+        if action == "read":
             message = str(said.get("message_id") or "").strip()
             if not message:
                 return "", ""
@@ -222,9 +239,26 @@ class GatherContext:
         else:
             return "", ""
 
+        return await self._ask_the_mailbox(ctx, asked, tool, arguments)
+
+    async def _search(self, ctx: RequestContext, query: str) -> tuple[str, str]:
+        """One search, by whatever words were chosen for it."""
+        return await self._ask_the_mailbox(
+            ctx, f"search {query!r}", "search_threads", {"query": query, "limit": "5"}
+        )
+
+    async def _ask_the_mailbox(
+        self, ctx: RequestContext, asked: str, tool: str, arguments: Mapping[str, str]
+    ) -> tuple[str, str]:
+        """One call, as this operator. What was asked, and what came back.
+
+        A connector that refuses is an observation the next round is told
+        about, not an exception: the loop then has a chance to try a different
+        query rather than the whole gather failing on one bad call.
+        """
         try:
             answered = await self._tools.call(
-                ctx.tenant_id, ctx.principal_id, SERVER, tool, arguments
+                ctx.tenant_id, ctx.principal_id, SERVER, tool, dict(arguments)
             )
         except ToolsUnavailable as gone:
             return asked, f"the mailbox could not be reached: {gone}"

@@ -64,7 +64,11 @@ const KINDS = {
   ],
   result: [
     { answer: "undo", label: "Undo that", quiet: false },
-    { answer: "wrong", label: "It\u2019s wrong \u2014 I\u2019ll fix it", quiet: true },
+    {
+      answer: "wrong",
+      label: "It\u2019s wrong \u2014 I\u2019ll fix it",
+      quiet: true,
+    },
   ],
 };
 
@@ -79,7 +83,6 @@ const NEXT = {
   ask: "Ask me",
   open: "Open the page",
 };
-
 
 // The one thing this file reaches for. It has been import-free -- everything
 // it needs is either handed to it or built here -- and a lookup's answer is
@@ -105,7 +108,9 @@ export function ledger(thread, local = {}, { onPress, runs } = {}) {
   // listener nobody was watching: the panel drew cards, the operator pressed
   // them, and nothing happened, for thirteen minutes, twice.
   if (onPress !== undefined && typeof onPress !== "function") {
-    throw new TypeError("ledger was given something to press with that cannot be called");
+    throw new TypeError(
+      "ledger was given something to press with that cannot be called",
+    );
   }
   const root = document.createElement("div");
   root.className = "thread";
@@ -136,15 +141,24 @@ export function ledger(thread, local = {}, { onPress, runs } = {}) {
       .filter((message) => message.decision?.kind !== "offer")
       .map((message) => ({ at: message.said_at, message })),
     ...(local?.nudges || []).map((nudge) => ({ at: nudge.at, nudge })),
-    ...(local?.answer ? [{ at: at(local.answer.askedAt), answer: local.answer }] : []),
+    ...(local?.answer
+      ? [{ at: at(local.answer.askedAt), answer: local.answer }]
+      : []),
     ...(local?.nearMisses || []).map((miss) => ({ at: at(miss.at), miss })),
-    ...(local?.waiting || []).map((card) => ({ at: card.asked_at, waiting: card })),
+    ...(local?.waiting || []).map((card) => ({
+      at: card.asked_at,
+      waiting: card,
+    })),
   ].sort((a, b) => String(a.at || "").localeCompare(String(b.at || "")));
 
   let lastMinute = "";
   for (const entry of entries) {
     const item = entry.message
-      ? saying(entry.message, onPress, spent, { offers, runs, here: local?.here || "" })
+      ? saying(entry.message, onPress, spent, {
+          offers,
+          runs,
+          here: local?.here || "",
+        })
       : entry.answer
         ? answering(entry.answer)
         : entry.miss
@@ -282,12 +296,27 @@ function waitingOnYou(card, onPress) {
 
   const typed = Object.entries(card.values || {});
   if (typed.length) {
-    const said = document.createElement("p");
-    said.className = "detail";
     // What it would run with, before it runs: the one moment somebody can read
     // a write's values and still stop it.
-    said.textContent = typed.map(([name, value]) => `${name}: ${value}`).join(" \u00b7 ");
-    item.append(said);
+    //
+    // Behind a disclosure rather than in front of the buttons. Twelve values
+    // in a 360-pixel column push the two controls this card exists for below
+    // the fold, and a person who cannot see the buttons cannot answer -- but a
+    // write whose values are unreadable is one nobody should be answering
+    // either. `<details>` is the platform's answer to exactly that and costs
+    // no script: shut by default, one press to read, and the browser handles
+    // the keyboard and the screen reader.
+    const shown = document.createElement("details");
+    shown.className = "request";
+    const summary = document.createElement("summary");
+    summary.textContent = `what it would use (${typed.length})`;
+    const said = document.createElement("p");
+    said.className = "detail";
+    said.textContent = typed
+      .map(([name, value]) => `${name}: ${value}`)
+      .join(" \u00b7 ");
+    shown.append(summary, said);
+    item.append(shown);
   }
 
   // The page this card is about is not open any more.
@@ -318,24 +347,61 @@ function waitingOnYou(card, onPress) {
     yes.disabled = ended;
     no.disabled = ended;
   };
-  yes.addEventListener("click", () => {
+  // One answer, however it arrives -- the press and the key are the same
+  // decision and must not be two paths that can both be taken.
+  const answer = (which, button) => {
     if (ended) return;
     ended = true;
     settle();
-    onPress?.("waiting-approve", card, item, yes);
-  });
-  no.addEventListener("click", () => {
-    if (ended) return;
-    ended = true;
-    settle();
-    onPress?.("waiting-decline", card, item, no);
-  });
+    onPress?.(which, card, item, button);
+  };
+  yes.addEventListener("click", () => answer("waiting-approve", yes));
+  no.addEventListener("click", () => answer("waiting-decline", no));
 
-  const row = document.createElement("div");
-  row.className = "row";
-  row.append(yes, no);
-  item.append(row);
+  item.append(actions(yes, no));
+  // The keys, while this card has the focus.
+  //
+  // Not on the document. A panel that took Esc globally would throw away what
+  // somebody was typing in the composer, and one that took Cmd-Enter globally
+  // would approve a write while they were reading something else -- the
+  // shortcut for a decision has to belong to the thing being decided.
+  item.addEventListener("keydown", (event) => {
+    if (ended) return;
+    if (event.key === "Escape") answer("waiting-decline", no);
+    else if (event.key === "Enter" && (event.metaKey || event.ctrlKey))
+      answer("waiting-approve", yes);
+  });
   return item;
+}
+
+/** The band under a card that is asking for a decision.
+ *
+ * The primary press last, on the right, which is where every platform this
+ * panel sits beside puts it -- and the way out first, because a person who has
+ * decided against something should not have to read past the button that does
+ * it. The keys are named ON the buttons rather than in a line of prose nobody
+ * reads twice.
+ */
+function actions(yes, no) {
+  const row = document.createElement("div");
+  row.className = "row actions";
+  hint(no, "Esc");
+  // `typeof` because this file is built and tested without a browser around
+  // it, and a panel that threw here would draw no card rather than the wrong
+  // symbol on one.
+  const mac =
+    typeof navigator !== "undefined" &&
+    /mac/i.test(navigator.platform || navigator.userAgent || "");
+  hint(yes, mac ? "\u2318\u23ce" : "Ctrl \u23ce");
+  row.append(no, yes);
+  return row;
+}
+
+/** Name the key on the button it presses. */
+function hint(button, keys) {
+  const said = document.createElement("kbd");
+  said.textContent = keys;
+  button.append(said);
 }
 
 /** Whether this offer is about somewhere the operator is not.
@@ -387,7 +453,8 @@ export function alreadyAnswered(messages) {
 }
 
 export function nudging(nudge, onPress) {
-  if (nudge.source === "rig" && nudge.state === "open") return offeringToFinish(nudge, onPress);
+  if (nudge.source === "rig" && nudge.state === "open")
+    return offeringToFinish(nudge, onPress);
   const item = document.createElement("li");
   item.className = "message";
   item.dataset.speaker = "system";
@@ -485,7 +552,9 @@ function offeringToFinish(nudge, onPress) {
   for (const name of nudge.missing || []) {
     const field = document.createElement("input");
     field.type = "text";
-    field.placeholder = nudge.canFind ? `${name} \u2014 or leave it to me` : name;
+    field.placeholder = nudge.canFind
+      ? `${name} \u2014 or leave it to me`
+      : name;
     fields.set(name, field);
     boxes.append(field);
   }
@@ -506,7 +575,8 @@ function offeringToFinish(nudge, onPress) {
     boxes.hidden = true;
     const looking = document.createElement("p");
     looking.className = "detail";
-    looking.textContent = "I read what this needs out of the mail that asked for it.";
+    looking.textContent =
+      "I read what this needs out of the mail that asked for it.";
     const mine = document.createElement("button");
     mine.type = "button";
     mine.className = "quiet";
@@ -533,7 +603,8 @@ function offeringToFinish(nudge, onPress) {
   // question the run is going to ask the system on the other side. Where the
   // run can go and look, an unanswered box is not an unanswered question.
   const ready = () =>
-    nudge.canFind || [...fields.values()].every((field) => String(field.value || "").trim());
+    nudge.canFind ||
+    [...fields.values()].every((field) => String(field.value || "").trim());
   // One press ends the card. The ledger does not redraw when an offer is
   // answered, so without this the buttons of a refused offer are still live
   // under the operator's cursor -- and "No thanks" then "Yes" is a run started
@@ -595,7 +666,12 @@ function offeringToFinish(nudge, onPress) {
   return item;
 }
 
-function saying(message, onPress, spent = new Map(), { offers = [], runs, here = "" } = {}) {
+function saying(
+  message,
+  onPress,
+  spent = new Map(),
+  { offers = [], runs, here = "" } = {},
+) {
   const item = document.createElement("li");
   item.className = "message";
   item.dataset.speaker = message.speaker || "system";
@@ -650,7 +726,9 @@ function saying(message, onPress, spent = new Map(), { offers = [], runs, here =
       const one = document.createElement("button");
       one.type = "button";
       one.textContent = title;
-      one.addEventListener("click", () => onPress?.("which-job", message, item, one, { title }));
+      one.addEventListener("click", () =>
+        onPress?.("which-job", message, item, one, { title }),
+      );
       choosing.append(one);
     }
     item.append(choosing);
@@ -660,7 +738,12 @@ function saying(message, onPress, spent = new Map(), { offers = [], runs, here =
     const label = NEXT[message.decision.next];
     if (label) {
       item.append(
-        pressing([{ answer: message.decision.next, label, quiet: false }], message, item, onPress),
+        pressing(
+          [{ answer: message.decision.next, label, quiet: false }],
+          message,
+          item,
+          onPress,
+        ),
       );
     }
   } else if (kind === "result") {
@@ -751,7 +834,9 @@ function matched(item, message, offers, onPress) {
 
   item.append(
     pressing(KINDS.mail_match, message, item, onPress, () =>
-      Object.fromEntries([...fields].map(([name, field]) => [name, field.value])),
+      Object.fromEntries(
+        [...fields].map(([name, field]) => [name, field.value]),
+      ),
     ),
   );
 }
@@ -770,7 +855,9 @@ function asking(item, message, onPress) {
     const button = document.createElement("button");
     button.type = "button";
     button.textContent = choice;
-    button.addEventListener("click", () => onPress?.(`choice:${choice}`, message, item, button));
+    button.addEventListener("click", () =>
+      onPress?.(`choice:${choice}`, message, item, button),
+    );
     row.append(button);
   }
   item.append(row);
@@ -780,7 +867,8 @@ function asking(item, message, onPress) {
   typed.placeholder = "or type an answer";
   typed.addEventListener("keydown", (event) => {
     const value = String(typed.value || "").trim();
-    if (event.key === "Enter" && value) onPress?.(`choice:${value}`, message, item, typed);
+    if (event.key === "Enter" && value)
+      onPress?.(`choice:${value}`, message, item, typed);
   });
   item.append(typed);
 }
@@ -800,16 +888,37 @@ function asking(item, message, onPress) {
  * push the one control that must always be reachable off the bottom.
  */
 export function composer(onSay) {
+  // The box is the control, and the control lives inside it.
+  //
+  // It was an input with a Send button beside it, which spends a third of a
+  // 360-pixel row on a word for something the Enter key already does -- and
+  // reads as a form rather than as somewhere to say something. So the border
+  // moves to the box, the field inside it is bare, and the one press that is
+  // not the Enter key sits in the corner of it as an arrow.
+  //
+  // One composer, and it is always there. It used to be hidden on Home, so an
+  // operator who thought of something while looking at their cards had to find
+  // the other tab before they could say it -- and now that questions from a
+  // run arrive in the conversation, the box they answer in must be under their
+  // hand wherever they are standing.
   const row = document.createElement("div");
-  row.className = "row composer";
+  row.className = "composer";
 
   const input = document.createElement("input");
   input.type = "text";
   input.placeholder = ASKING;
 
+  const tools = document.createElement("div");
+  tools.className = "tools";
+
   const send = document.createElement("button");
   send.type = "button";
-  send.textContent = "Send";
+  send.className = "send";
+  // An arrow, and a name for anything that cannot see it. The word "Send" was
+  // the button; now the shape is, and a screen reader must still be told what
+  // it does.
+  send.textContent = "\u2191";
+  send.setAttribute("aria-label", "Send");
 
   const say = () => {
     const text = String(input.value || "").trim();
@@ -823,6 +932,7 @@ export function composer(onSay) {
     if (event.key === "Enter") say();
   });
 
-  row.append(input, send);
+  tools.append(send);
+  row.append(input, tools);
   return row;
 }

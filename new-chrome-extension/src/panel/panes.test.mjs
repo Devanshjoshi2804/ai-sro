@@ -13,7 +13,7 @@ import { install, words } from "./test-support/fake-document.mjs";
 
 install();
 
-const { PANES, BELONGS, panes } = await import("./panes.js");
+const { PANES, panes } = await import("./panes.js");
 
 const tests = [];
 let failed = 0;
@@ -21,10 +21,41 @@ const test = (name, fn) => tests.push([name, fn]);
 
 const tabs = (row) => row.kids.filter((kid) => kid.tag === "button");
 
-test("two halves, in the order they are read", () => {
+test("two halves and two things to do, in the order they are read", () => {
   assert.deepEqual(PANES, ["home", "chat"]);
   const row = panes("home");
-  assert.deepEqual(tabs(row).map((tab) => tab.dataset.pane), ["home", "chat"]);
+  assert.deepEqual(tabs(row).map((tab) => tab.dataset.pane), [
+    "home",
+    "chat",
+    "history",
+    "new",
+  ]);
+});
+
+test("a glyph is not a name, so every one of them carries the word", () => {
+  // Four unlabelled shapes is what an icon cluster is when nobody says what
+  // the icons are -- to the pointer on hover, and to a reader always.
+  for (const tab of tabs(panes("home"))) {
+    assert.ok(tab.title, `${tab.dataset.pane} had no tooltip`);
+    assert.ok(tab.getAttribute("aria-label"), `${tab.dataset.pane} had no name`);
+  }
+});
+
+test("only the halves are tabs; the other two are things to do", () => {
+  // History is an overlay you close and come back from, and a new conversation
+  // is an action. Marking either as a tab would have a screen reader announce
+  // "4 of 4, not selected" for a button that selects nothing.
+  const [, , recent, made] = tabs(panes("home"));
+  assert.equal(recent.getAttribute("role"), null);
+  assert.equal(made.getAttribute("aria-selected"), null);
+});
+
+test("history and a new conversation each say which was pressed", () => {
+  const picked = [];
+  const row = panes("home", { onPick: (what) => picked.push(what) });
+  tabs(row)[2].listeners.click[0]();
+  tabs(row)[3].listeners.click[0]();
+  assert.deepEqual(picked, ["history", "new"]);
 });
 
 test("the one you are on says so, to a screen reader as well as to an eye", () => {
@@ -65,13 +96,7 @@ test("picking the other half says which", () => {
   assert.deepEqual(picked, ["chat"]);
 });
 
-test("the composer belongs to the conversation, and that is the arguable half", () => {
-  // Said here rather than in the markup because it is a decision: a box you
-  // type into, pinned under a column of cards about what is happening now, is
-  // what made the old panel one long thing.
-  assert.deepEqual(BELONGS.home, ["today", "waiting", "cards"]);
-  assert.deepEqual(BELONGS.chat, ["thread", "here", "ask-bar"]);
-});
+
 
 for (const [name, fn] of tests) {
   try {

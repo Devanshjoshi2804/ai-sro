@@ -14,8 +14,9 @@
 import { hostMatches } from "../background/scripts.js";
 import { alreadyAnswered, composer, ledger, nudging } from "./ledger.js";
 import { runCard } from "./run-card.js";
-import { needsAPress, strip } from "./strip.js";
+import { history } from "./history.js";
 import { panes } from "./panes.js";
+import { needsAPress, strip } from "./strip.js";
 import { today } from "./today.js";
 import { waiting } from "./waiting.js";
 
@@ -127,7 +128,27 @@ function card({
   }
   if (says) {
     const line = document.createElement("p");
-    line.textContent = says;
+    // A run in flight says so the way every other surface says it: something
+    // turning, beside the words. A card that reads "looking in your mail for
+    // Customer Type…" and never moves is indistinguishable from one that hung
+    // -- and on 2026-09-16 that is exactly what an operator was looking at for
+    // three and a half minutes while the gather retried a 5xx. The ellipsis
+    // was doing this job and an ellipsis does not move.
+    //
+    // CSS only, and off under `prefers-reduced-motion`. A timer per card is a
+    // panel that keeps a phone's radio awake to draw a dot.
+    if (tone === "live") {
+      const turning = document.createElement("span");
+      turning.className = "spinner";
+      // It says nothing a screen reader needs: the line beside it already
+      // says what is happening, and the elapsed time says it is still going.
+      turning.setAttribute("aria-hidden", "true");
+      const words = document.createElement("span");
+      words.textContent = says;
+      line.append(turning, words);
+    } else {
+      line.textContent = says;
+    }
     holder.append(line);
   }
   if (metrics) {
@@ -186,7 +207,14 @@ function render(status) {
   // to it -- as one line. What used to be a card headed "Not watching this tab"
   // on every tab an operator switched to.
   $("strip").replaceChildren(
-    strip(status, tabHere, { onMenu: menu, onToggle: toggleExpanded }),
+    strip(status, tabHere, {
+      onMenu: menu,
+      onToggle: toggleExpanded,
+      // The panel's own element, handed over rather than rebuilt: this redraw
+      // runs every couple of seconds and the buttons in it must not be
+      // replaced under the cursor that is about to press one.
+      nav: theNav(),
+    }),
   );
   const why = needsAPress(status, tabHere);
   // Open when there is something only the operator can fix, or when they asked
@@ -1378,8 +1406,20 @@ async function conversation() {
  */
 let pane = "home";
 
-/** What the tabs were last drawn from, so an unchanged pair is left alone. */
+/** What the cluster was last drawn from, so an unchanged one is left alone. */
 let panesDrawn = null;
+
+/** The element the navigation lives in, made once.
+ *
+ * The strip is rebuilt from the worker's status every couple of seconds. The
+ * navigation is not: it is handed to the strip as this element, so redrawing
+ * the line around it cannot replace the button somebody is reaching for.
+ */
+let navSlot = null;
+function theNav() {
+  if (!navSlot) navSlot = document.createElement("div");
+  return navSlot;
+}
 
 /** Draw the two tabs and hide whichever half is not showing.
  *
@@ -1403,10 +1443,16 @@ function paintPanes() {
     return;
   }
   panesDrawn = now;
-  $("panes").replaceChildren(
+  theNav().replaceChildren(
     panes(pane, {
       waiting: missed,
       onPick: (picked) => {
+        // Two of the four are places and two are things to do. History is an
+        // overlay you close and come back from -- a third pane is somewhere a
+        // person can be left, and coming back tomorrow to find the panel
+        // showing last week is how a surface stops being about now.
+        if (picked === "history") return void openHistory();
+        if (picked === "new") return void freshThread();
         if (picked === pane) return;
         pane = picked;
         paintPanes();
@@ -1423,6 +1469,64 @@ function paintPanes() {
     }),
   );
   showPane();
+}
+
+/** What this browser has done lately, over the top of what you were doing.
+ *
+ * Fetched on the press rather than kept fresh in the background: it is a
+ * glance, and a panel that polled a list nobody has open would be spending a
+ * request every two seconds on a screen that is not on screen.
+ *
+ * A failure is said in the overlay itself. The alternative -- opening an empty
+ * one -- reports "nothing has happened" when what is true is "this browser
+ * could not ask", and those are different facts.
+ */
+async function openHistory() {
+  const over = $("history");
+  over.hidden = false;
+  over.replaceChildren();
+  let runs = [];
+  try {
+    runs = (await ask({ kind: "recent-runs", limit: K_HISTORY })) || [];
+  } catch (error) {
+    const said = document.createElement("p");
+    said.className = "detail";
+    said.textContent = error.message;
+    over.append(said);
+    return;
+  }
+  over.replaceChildren(
+    history(runs, {
+      onClose: () => {
+        over.hidden = true;
+        over.replaceChildren();
+      },
+    }),
+  );
+}
+
+/** How many runs the overlay asks for. The console is where a log is read. */
+const K_HISTORY = 12;
+
+/** A conversation somebody deliberately started.
+ *
+ * The thread is otherwise one continuous conversation per operator, which is
+ * the right default -- a question about a run this morning belongs with the
+ * run. This is for when they have finished with that and are starting
+ * something else, and it puts them on it: a new thread drawn behind the pane
+ * they are not looking at is a press that appears to do nothing.
+ */
+async function freshThread() {
+  try {
+    const made = await ask({ kind: "new-thread" });
+    if (made?.id) threadId = made.id;
+  } catch (error) {
+    $("thread-note").textContent = error.message;
+  }
+  pane = "chat";
+  paintPanes();
+  drawn = null;
+  await conversation();
 }
 
 /** How close to the bottom still counts as reading the newest.
@@ -1464,8 +1568,12 @@ function showPane() {
     if (id !== "waiting") $(id).hidden = pane !== "home";
   }
   $("waiting").hidden = pane !== "home" || !$("waiting").childElementCount;
-  for (const id of ["thread", "here", "ask-bar"])
-    $(id).hidden = pane !== "chat";
+  // The composer is not in this list. One box, always there: an operator who
+  // thinks of something while looking at their cards should not have to find
+  // the other tab before they can say it -- and a question from a run arrives
+  // in the conversation, so the box they answer in belongs under their hand
+  // wherever they are standing.
+  for (const id of ["thread", "here"]) $(id).hidden = pane !== "chat";
 }
 
 /** Whether the waiting banner is open, in THIS window of the panel.
@@ -1612,6 +1720,13 @@ function show(thread, { asked = false } = {}) {
  */
 async function say(text) {
   if (!threadId) return conversation();
+  // Said from Home, read in the conversation. The box is under their hand on
+  // both panes; the answer to what they said is only in one of them, and a
+  // reply nobody is shown is a reply nobody reads.
+  if (pane !== "chat") {
+    pane = "chat";
+    paintPanes();
+  }
   try {
     // `tabId` so an offer the sentence turns into is drawn beside the tab the
     // operator is working in -- `show` only draws an OPEN nudge for this tab.

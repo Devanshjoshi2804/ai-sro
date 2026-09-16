@@ -9,14 +9,21 @@ export class ApiError extends Error {
   // the dozen calls this extension makes had failed, so not whether the
   // recording, the run, or the registration was the thing that broke.
   constructor(status, problem, where = "") {
-    super(problem?.detail || problem?.title || `HTTP ${status}${where ? ` from ${where}` : ""}`);
+    super(
+      problem?.detail ||
+        problem?.title ||
+        `HTTP ${status}${where ? ` from ${where}` : ""}`,
+    );
     this.status = status;
     this.problem = problem;
     this.where = where;
   }
 }
 
-async function call(path, { method = "GET", body, form, signal, asDevice = true } = {}) {
+async function call(
+  path,
+  { method = "GET", body, form, signal, asDevice = true } = {},
+) {
   const [base, token, secret] = await Promise.all([
     state.apiUrl(),
     state.token(),
@@ -44,7 +51,12 @@ async function call(path, { method = "GET", body, form, signal, asDevice = true 
       ...(secret && asDevice ? { "X-Device-Secret": secret } : {}),
       ...(body === undefined ? {} : { "Content-Type": "application/json" }),
     },
-    body: form !== undefined ? form : body === undefined ? undefined : JSON.stringify(body),
+    body:
+      form !== undefined
+        ? form
+        : body === undefined
+          ? undefined
+          : JSON.stringify(body),
   });
 
   if (response.status === 401) {
@@ -55,7 +67,11 @@ async function call(path, { method = "GET", body, form, signal, asDevice = true 
     throw new ApiError(401, { detail: "that credential was not accepted" });
   }
   if (!response.ok) {
-    throw new ApiError(response.status, await response.json().catch(() => null), `${method} ${path}`);
+    throw new ApiError(
+      response.status,
+      await response.json().catch(() => null),
+      `${method} ${path}`,
+    );
   }
   return response.status === 204 ? null : response.json();
 }
@@ -86,12 +102,14 @@ export const api = {
       { method: "DELETE" },
     ),
 
-  observations: (batch) => call("/v1/observations", { method: "POST", body: batch }),
+  observations: (batch) =>
+    call("/v1/observations", { method: "POST", body: batch }),
 
   /** A screenshot or an oversized body, uploaded beside the batch it
    * illustrates. `form` carries device_id, batch_id, kind, file and the
    * frame_index that says which gesture it followed. */
-  artifact: (form) => call("/v1/observations/artifacts", { method: "POST", form }),
+  artifact: (form) =>
+    call("/v1/observations/artifacts", { method: "POST", form }),
 
   policy: () => call("/v1/agents/policy"),
 
@@ -107,7 +125,8 @@ export const api = {
    * because a watch is evaluated in the browser that has the mailbox open and
    * nowhere else -- no mail is ever sent to the backend, so the rule comes
    * the other way. */
-  watches: (deviceId) => call(`/v1/agents/${encodeURIComponent(deviceId)}/watches`),
+  watches: (deviceId) =>
+    call(`/v1/agents/${encodeURIComponent(deviceId)}/watches`),
 
   /** A mail was recognised. The body is the values the operator marked and
    * nothing else -- not the subject, not the sender, not why. What comes back
@@ -131,7 +150,10 @@ export const api = {
   /** Start a demonstration this browser will fill. Nothing is opened on the
    * server: the operator is already in front of the system. */
   startRecording: (deviceId, label) =>
-    call("/v1/recordings", { method: "POST", body: { device_id: deviceId, label } }),
+    call("/v1/recordings", {
+      method: "POST",
+      body: { device_id: deviceId, label },
+    }),
 
   /** Seal it. The backend assembles the frames from what this browser
    * uploaded, so everything must have gone up before this is called. */
@@ -234,7 +256,9 @@ export const api = {
    * left unused, so nothing reads a browser id for a call that cannot carry
    * one. */
   rigAbort: (runId) =>
-    call(`/v1/workflow-runs/${encodeURIComponent(runId)}/abort`, { method: "POST" }),
+    call(`/v1/workflow-runs/${encodeURIComponent(runId)}/abort`, {
+      method: "POST",
+    }),
 
   /** Every job this tenant has proved, with the shape each one has. Read on a
    * five-minute cache by the worker: a shape changes when a job is mined, not
@@ -254,12 +278,17 @@ export const api = {
    * reason it is not a bare `call`. */
   shapes: async (deviceId) => {
     try {
-      const query = deviceId ? `?device_id=${encodeURIComponent(deviceId)}` : "";
+      const query = deviceId
+        ? `?device_id=${encodeURIComponent(deviceId)}`
+        : "";
       const answered = await call(`/v1/shapes${query}`);
       // `can_find` rides along: whether a run can go and find a value nobody
       // typed is a fact about the deployment, and a browser building an offer
       // out of these shapes cannot know it any other way.
-      return { shapes: answered.shapes || [], canFind: Boolean(answered.can_find) };
+      return {
+        shapes: answered.shapes || [],
+        canFind: Boolean(answered.can_find),
+      };
     } catch {
       return { shapes: [], canFind: false };
     }
@@ -298,10 +327,13 @@ export const api = {
     // happened, and which part of the wire each field rides on is this file's
     // business.
     try {
-      await call(`/v1/offers${deviceId ? `?device_id=${encodeURIComponent(deviceId)}` : ""}`, {
-        method: "POST",
-        body: rest,
-      });
+      await call(
+        `/v1/offers${deviceId ? `?device_id=${encodeURIComponent(deviceId)}` : ""}`,
+        {
+          method: "POST",
+          body: rest,
+        },
+      );
       return true;
     } catch {
       // The offer already happened; losing the record must not break the path
@@ -327,6 +359,18 @@ export const api = {
    * No `started_by`: the backend reads who authorised it off the credential,
    * and a request that says who authorised it is a signature nobody checked. */
   rigStart: (body) => call("/v1/workflow-runs", { method: "POST", body }),
+
+  /** The most recent runs, newest first, whole rows.
+   *
+   * What the panel's history overlay is drawn from. `limit` rather than every
+   * run there has ever been: this is a glance at what happened lately, and the
+   * console is where somebody reads a log.
+   */
+  rigRuns: (limit = 12) =>
+    call(`/v1/workflow-runs?limit=${encodeURIComponent(limit)}`),
+
+  /** A fresh conversation, when somebody asks for one. */
+  newThread: () => call("/v1/threads", { method: "POST" }),
 
   /** They said yes: let the withheld write out.
    *
@@ -370,7 +414,10 @@ export const api = {
    * which is why it can be trusted the way a survey answer could not be. See
    * `panel.js`'s `undoRun` and `wasWrong`. */
   runWrong: (runId, because) =>
-    call(`/v1/runs/${encodeURIComponent(runId)}/wrong`, { method: "POST", body: { because } }),
+    call(`/v1/runs/${encodeURIComponent(runId)}/wrong`, {
+      method: "POST",
+      body: { because },
+    }),
 
   // The mining pipeline's six calls were here -- the candidate list, the two
   // teach routes, the join answer, the dismissal and the sentence resolver.
@@ -392,7 +439,8 @@ export const api = {
    * read an utterance over the tenant's taught SKILLS; it went with the rest
    * of the mining pipeline's offers.
    */
-  readChat: (utterance) => call("/v1/chat", { method: "POST", body: { utterance } }),
+  readChat: (utterance) =>
+    call("/v1/chat", { method: "POST", body: { utterance } }),
 
   /** One sentence, through the one door that decides what kind it is.
    *
@@ -415,7 +463,11 @@ export const api = {
    * and what comes back is the key it was stored under, never the value.
    */
   keepSecret: ({ system, field, value }) =>
-    call("/v1/secrets", { method: "PUT", body: { system, field, value }, asDevice: false }),
+    call("/v1/secrets", {
+      method: "PUT",
+      body: { system, field, value },
+      asDevice: false,
+    }),
 
   /** Fires waiting on a person: a rule went off and asked before it ran.
    *
@@ -429,10 +481,14 @@ export const api = {
   /** Yes, on one of those. The run starts with THIS person's name on it, not
    * the name of whoever made the rule. */
   approveWaiting: (confirmationId) =>
-    call(`/v1/confirmations/${encodeURIComponent(confirmationId)}/approve`, { method: "POST" }),
+    call(`/v1/confirmations/${encodeURIComponent(confirmationId)}/approve`, {
+      method: "POST",
+    }),
 
   declineWaiting: (confirmationId) =>
-    call(`/v1/confirmations/${encodeURIComponent(confirmationId)}/decline`, { method: "POST" }),
+    call(`/v1/confirmations/${encodeURIComponent(confirmationId)}/decline`, {
+      method: "POST",
+    }),
 
   /** The pages this browser starts a job on.
    *
@@ -440,7 +496,8 @@ export const api = {
    * rules", because the browser does two different things with them: a watch
    * is matched against a mail and OFFERS what it found, an arrival is matched
    * against the page in front of somebody and STARTS something. */
-  arrivals: (deviceId) => call(`/v1/agents/${encodeURIComponent(deviceId)}/arrivals`),
+  arrivals: (deviceId) =>
+    call(`/v1/agents/${encodeURIComponent(deviceId)}/arrivals`),
 
   /** "Do this here": the rule itself, written down.
    *
@@ -478,7 +535,8 @@ export const api = {
    * where the sentence is already known to be a question -- a watch that asks
    * read it out of a mail -- and running the deciding rule over it again could
    * only disagree with the trigger the operator set up. */
-  lookup: (question) => call("/v1/lookups", { method: "POST", body: { question } }),
+  lookup: (question) =>
+    call("/v1/lookups", { method: "POST", body: { question } }),
 
   /** Say something into it. Answers with the whole thread, which is why the
    * panel re-renders from the reply rather than appending locally. */
@@ -529,7 +587,9 @@ export const api = {
    * chrome listeners the moment it loads and cannot be exercised in a test. */
   stopRun: async (runId) => {
     try {
-      return await call(`/v1/runs/${encodeURIComponent(runId)}/stop`, { method: "POST" });
+      return await call(`/v1/runs/${encodeURIComponent(runId)}/stop`, {
+        method: "POST",
+      });
     } catch (error) {
       if (error.status === 409) return null;
       throw error;
@@ -571,5 +631,7 @@ export const api = {
   /** The operator deleting their own evidence, from their own devices, for the
    * tenant on their credential. Answers with what went. */
   forget: (since) =>
-    call(`/v1/observations?since=${encodeURIComponent(since)}`, { method: "DELETE" }),
+    call(`/v1/observations?since=${encodeURIComponent(since)}`, {
+      method: "DELETE",
+    }),
 };

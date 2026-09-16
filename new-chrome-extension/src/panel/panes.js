@@ -1,4 +1,4 @@
-// Two halves of this panel, and the control that says which one you are on.
+// Where you can go in this panel, as a cluster of icons rather than a row.
 //
 // It has been one scrolling column: the strip, the day, the cards, the whole
 // conversation, and the composer pinned under all of it. That column is what
@@ -7,19 +7,25 @@
 // between two sentences somebody typed an hour ago.
 //
 // So: **Home** is what is true right now -- the day, what is waiting, the
-// cards, the run. **Chat** is what was said -- the conversation and the box you
-// type into. Two panes, one at a time, with one control between them.
+// cards, the run. **Chat** is what was said -- the conversation, and the box
+// you type into is under both of them.
+//
+// **Icons, in the strip, not a row of their own.** Two word-tabs across the
+// top spent a whole row of a 360-pixel panel saying where you are, above a
+// second row saying which tab you are docked beside. A panel beside a
+// warehouse screen has about six rows of usable height. The cluster sits in
+// the strip that was already there, each control named to anything that cannot
+// see a glyph -- `title` for the pointer, `aria-label` for the reader.
 //
 // **Home is where it opens.** Somebody opening this panel is looking for what
 // the system is doing or wants from them, which is a glance; a conversation is
-// something you go to. Opening on Chat would put a text box in front of a
-// person whose actual question is "did it work".
+// something you go to.
 //
-// **The control says what is waiting, and only that.** A count on Home while
-// you are reading Chat is the one thing a person on the wrong pane needs to
-// know. Nothing counts on Chat: a message that arrived is in a conversation
-// that is not going anywhere, and a badge for it is a notification about
-// something nobody has to act on.
+// **The count says what is waiting, and only that.** A count on Home while you
+// are reading Chat is the one thing a person on the wrong pane needs to know.
+// Nothing counts on Chat: a message that arrived is in a conversation that is
+// not going anywhere, and a badge for it is a notification about something
+// nobody has to act on.
 //
 // Pure over what it is given. Which pane is showing lives in the panel, which
 // is where a fact about one window of it belongs.
@@ -27,53 +33,65 @@
 /** The two halves, in the order they are read. */
 export const PANES = ["home", "chat"];
 
+/** Every control in the cluster, in order.
+ *
+ * `pane` is set on the two that switch halves, so the tablist semantics stay
+ * on exactly those two; the other two are ordinary buttons that do a thing.
+ * History and New are buttons and not panes on purpose -- history is an
+ * overlay you close and come back from, and a new conversation is an action,
+ * not a place.
+ */
+const CONTROLS = [
+  { key: "home", pane: true, glyph: "⌂", says: "Home" },
+  { key: "chat", pane: true, glyph: "☷", says: "Chat" },
+  { key: "history", glyph: "⏱", says: "Recent tasks" },
+  { key: "new", glyph: "＋", says: "New conversation" },
+];
+
 /**
- * The control, as a pair of buttons.
+ * The cluster.
  *
  * `waiting` is how many requests nobody has answered; it draws on Home and
  * only while Home is not the pane you are on -- a count beside the thing you
  * are already looking at is a number describing the screen to itself.
+ *
+ * `onPick` is told which control was pressed: `home`, `chat`, `history`, `new`.
  */
 export function panes(showing, { waiting = 0, onPick } = {}) {
   const row = document.createElement("div");
   row.className = "panes";
   row.setAttribute("role", "tablist");
 
-  for (const pane of PANES) {
+  for (const { key, pane, glyph, says } of CONTROLS) {
     const tab = document.createElement("button");
     tab.type = "button";
     tab.className = "pane-tab";
-    tab.dataset.pane = pane;
-    // `aria-selected` and `role=tab` rather than a pressed button: a screen
-    // reader then says "Home, tab, 1 of 2, selected", which is the whole
-    // control in one sentence.
-    tab.setAttribute("role", "tab");
-    tab.setAttribute("aria-selected", String(pane === showing));
-    tab.textContent = pane === "home" ? "Home" : "Chat";
-    if (pane === "home" && waiting > 0 && showing !== "home") {
+    tab.dataset.pane = key;
+    tab.textContent = glyph;
+    // A glyph is not a name. The pointer gets the word on hover and anything
+    // that reads the page gets it always -- without which this is four
+    // unlabelled shapes, which is what an icon row is when nobody says what
+    // the icons are.
+    tab.title = says;
+    tab.setAttribute("aria-label", says);
+    if (pane) {
+      // `aria-selected` and `role=tab` rather than a pressed button: a screen
+      // reader then says "Home, tab, 1 of 2, selected", which is the whole
+      // control in one sentence.
+      tab.setAttribute("role", "tab");
+      tab.setAttribute("aria-selected", String(key === showing));
+    }
+    if (key === "home" && waiting > 0 && showing !== "home") {
       const count = document.createElement("span");
       count.className = "pane-count";
       count.textContent = String(waiting);
-      // Said as well as shown. "Home 3" reads as a heading with a number after
-      // it; this is what it means.
+      // Said as well as shown. A number sitting on a glyph reads as a badge
+      // and nothing else; this is what it means.
       tab.setAttribute("aria-label", `Home, ${waiting} waiting`);
       tab.append(count);
     }
-    tab.addEventListener("click", () => onPick?.(pane));
+    tab.addEventListener("click", () => onPick?.(key));
     row.append(tab);
   }
   return row;
 }
-
-/**
- * Which pane a thing belongs to, so the panel has one answer rather than a
- * condition per element.
- *
- * Named here rather than in the markup because it is a decision: the composer
- * goes with the conversation, not with the cards, and that is the half of this
- * split somebody will want to argue with.
- */
-export const BELONGS = {
-  home: ["today", "waiting", "cards"],
-  chat: ["thread", "here", "ask-bar"],
-};

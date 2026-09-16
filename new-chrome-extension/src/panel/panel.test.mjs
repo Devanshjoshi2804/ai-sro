@@ -141,6 +141,23 @@ function sentOf(sent, kind) {
 
 /** The panel, drawn once from one status. `sent` is every message it sent the
  * worker, which is the only thing it can do to the world. */
+/** One control of the navigation cluster.
+ *
+ * It lives in the strip now rather than on a row of its own -- a 360-pixel
+ * panel has about six rows of usable height and two of them were being spent
+ * saying where you are -- so a test reaches it by walking the strip rather
+ * than by the id of a row that no longer exists.
+ */
+const navTab = (ids, which) => {
+  const found = [];
+  const walk = (el) => {
+    if (el?.dataset?.pane === which) found.push(el);
+    for (const kid of el?.kids || []) walk(kid);
+  };
+  walk(ids["strip"]);
+  return found[0];
+};
+
 function panel(status, here = null, replies = {}) {
   const sent = [];
   const ids = {};
@@ -353,7 +370,7 @@ test("arriving on the conversation arrives at the end of it", async () => {
   // place the panel did not put you.
   const { ids } = panel({ deviceId: "dev-1", nudges: [] });
   const tab = (which) =>
-    ids["panes"].kids[0].kids.find((one) => one.dataset.pane === which).listeners[0];
+    navTab(ids, which).listeners[0];
   // Once, to make the scroller: this fake document builds an element the first
   // time somebody asks for it by id.
   tab("chat")();
@@ -372,7 +389,7 @@ test("a status landing does not move the view out from under them", async () => 
   // Somebody who has scrolled up is reading something, and the worker pushes a
   // status every couple of seconds.
   const { ids, render } = panel({ deviceId: "dev-1", nudges: [] });
-  ids["panes"].kids[0].kids.find((one) => one.dataset.pane === "chat").listeners[0]();
+  navTab(ids, "chat").listeners[0]();
   const scroll = ids["scroll"];
   scroll.scrollHeight = 2400;
   scroll.clientHeight = 600;
@@ -414,17 +431,21 @@ test("it opens on Home, with the conversation one tap away", async () => {
 
   assert.equal(ids["cards"].hidden, false);
   assert.equal(ids["thread"].hidden, true, "the conversation was in front of them");
-  assert.equal(ids["ask-bar"].hidden, true, "the composer came with it");
+  // The composer stays. It used to go with the conversation, so somebody who
+  // thought of something while looking at their cards had to find the other
+  // tab before they could say it -- and a run's question arrives in the
+  // conversation, so the box they answer in belongs under their hand on both.
+  assert.ok(!ids["ask-bar"]?.hidden, "the panel hid the one box it is typed into");
 });
 
 test("the other half hides the cards and brings the composer", async () => {
   const { ids } = panel({ deviceId: "dev-1", nudges: [] });
-  const chat = ids["panes"].kids[0].kids.find((tab) => tab.dataset.pane === "chat");
+  const chat = navTab(ids, "chat");
 
   chat.listeners[0]();
 
   assert.equal(ids["thread"].hidden, false);
-  assert.equal(ids["ask-bar"].hidden, false);
+  assert.ok(!ids["ask-bar"]?.hidden);
   assert.equal(ids["cards"].hidden, true);
   assert.equal(ids["today"].hidden, true);
 });
@@ -441,12 +462,16 @@ test("a request waiting is not drawn while the conversation is showing", async (
       },
     ],
   });
-  const chat = ids["panes"].kids[0].kids.find((tab) => tab.dataset.pane === "chat");
+  const chat = navTab(ids, "chat");
 
   chat.listeners[0]();
 
   assert.equal(ids["waiting"].hidden, true);
-  assert.match(words(ids["panes"]), /1/, "nothing on Chat said a request was waiting");
+  assert.match(
+    words(navTab(ids, "home")),
+    /1/,
+    "nothing on Chat said a request was waiting",
+  );
 });
 
 test("a request that waited is in the banner and nowhere else", async () => {

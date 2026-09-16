@@ -19,10 +19,11 @@
          it already lives, in panel.js. -->
     <div id="expanded" hidden></div>
 
-    <!-- Which half of this panel you are on. Built in panes.js, above the
-         scroll so it never moves: Home is what is true right now, Chat is what
-         was said. -->
-    <div id="panes"></div>
+    <!-- What this browser has done lately, over the top of whatever is on
+         screen. An overlay and not a pane: history is something you glance at
+         and leave, and a pane is somewhere a person can be left. Built in
+         history.js, filled on the press that opens it. -->
+    <div id="history" hidden></div>
 
     <!-- Three numbers, each measured. Absent on a day with nothing in it. -->
     <div id="today"></div>

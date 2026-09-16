@@ -8,7 +8,11 @@
    * changed is that they are no longer a second, slightly-wrong copy of the
    * console's colours. */
   color-scheme: dark;
-  font-family: var(--font-body, system-ui), -apple-system, "Segoe UI", sans-serif;
+  font-family:
+    var(--font-body, system-ui),
+    -apple-system,
+    "Segoe UI",
+    sans-serif;
   font-size: 13px;
 
   --ground: var(--brand-ground);
@@ -26,7 +30,6 @@
   --mono: var(--font-mono-face, ui-monospace), SFMono-Regular, Menlo, monospace;
 }
 
-
 /* Every surface here is toggled by the `hidden` attribute rather than by a
    class, and a bare `.menu { display: flex }` outranks the user-agent's
    `[hidden] { display: none }`. Without this the profile menu and the console
@@ -39,6 +42,10 @@ body {
   margin: 0;
   display: flex;
   flex-direction: column;
+  /* What the history overlay is positioned against. Without it the overlay
+     anchors to the viewport, which is the same rectangle today and is not the
+     thing it is meant to sit over. */
+  position: relative;
   /* Exactly the viewport, not at least it: the panel is a fixed frame, and the
      composer is pinned to its bottom rather than to the end of the page. */
   height: 100vh;
@@ -331,7 +338,11 @@ body {
 
 .rows table {
   border-collapse: collapse;
-  font: 400 11.5px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+  font:
+    400 11.5px/1.5 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
 }
 
 .rows th {
@@ -367,7 +378,11 @@ body {
   padding: 10px 14px 2px;
 }
 
+/* In the strip, pushed to its right: the name is on the left and this is the
+   other end of the same line. `margin-left: auto` rather than a spacer, so the
+   profile disc after it stays where it has always been. */
 .panes {
+  margin-left: auto;
   display: inline-flex;
   gap: 2px;
   padding: 2px;
@@ -376,11 +391,19 @@ body {
   background: var(--brand-surface-2);
 }
 
+/* A square for a glyph, not a pill for a word. Four of these and the profile
+   disc fit in the strip beside the name, which is the row this cluster moved
+   into so the panel stopped spending one of its six on navigation. */
 .pane-tab {
+  position: relative;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 24px;
   gap: 6px;
-  padding: 4px 13px;
+  padding: 0;
+  font-size: 13px;
   border: 0;
   border-radius: 999px;
   background: none;
@@ -499,6 +522,39 @@ body {
 
 .card[data-tone="live"] {
   border-left: 3px solid var(--accent);
+}
+
+/* Something turning, while something is happening.
+
+   The live card already said what it was doing and how long it had been doing
+   it, and both of those are text that sits still. A person glancing at a panel
+   reads movement before they read words: no movement is a run that has hung,
+   whatever the words say. */
+.spinner {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 7px;
+  vertical-align: -1px;
+  border: 1.5px solid var(--accent);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Somebody who has asked their browser to stop moving things has asked this
+   too. The ring stays -- it is the marker that this card is the live one --
+   and only the turning goes. */
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
 }
 
 .card h3 {
@@ -817,22 +873,64 @@ button.danger:hover:not(:disabled) {
   overflow-wrap: anywhere;
 }
 
+/* The box is the control. The border belongs to it rather than to the field
+   inside it, so the one press that is not the Enter key can sit in its corner
+   instead of spending a third of a 360-pixel row on the word "Send". */
+.composer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 4px 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+}
+
+/* The field, bare: the box around it is already drawing the border, and two
+   borders one inside the other is what a form looks like. */
 .composer input {
   flex: 1;
   min-width: 0;
-  padding: 7px 10px;
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  background: var(--card);
+  padding: 6px 0;
+  border: 0;
+  background: transparent;
   color: var(--ink);
   font: inherit;
   font-size: 12.5px;
 }
 
+.composer input:focus-visible {
+  outline: none;
+}
+
+/* The focus ring moves to the box, because the box is what somebody sees. A
+   field with no ring and no border is a field nobody can tell is focused. */
+.composer:focus-within {
+  border-color: var(--accent);
+}
+
+.composer .tools {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.composer .send {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+
 .composer input::placeholder {
   color: var(--ink-mute);
 }
-
 
 /* -- the time rail ---------------------------------------------------------- */
 
@@ -867,6 +965,38 @@ button.danger:hover:not(:disabled) {
 .message[data-kind="nudge"][data-state="open"] {
   border-left: 2px solid var(--accent);
   padding-left: 10px;
+}
+
+/* The band under a card that is asking for a decision, and the keys named on
+   its buttons. The way out first and the primary press last, which is the
+   order of every dialog this panel sits beside. */
+.message .actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.message .actions kbd {
+  margin-left: 6px;
+  padding: 1px 4px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  font: inherit;
+  font-size: 10.5px;
+  color: var(--ink-mute);
+  opacity: 0.85;
+}
+
+/* What a write would use, shut by default. Twelve values in a 360-pixel column
+   push the two controls the card exists for below the fold. */
+.message .request summary {
+  cursor: pointer;
+  font-size: 11.5px;
+  color: var(--ink-mute);
+}
+
+.message .request[open] summary {
+  margin-bottom: 4px;
 }
 
 /* The boxes, when somebody asks for them. A message is a flex ROW, so four
@@ -986,4 +1116,74 @@ a:focus-visible {
   .run .glyph {
     transition: none;
   }
+}
+
+/* -- what happened lately, over the top of it ------------------------------- */
+
+/* An overlay and not a pane. History is something you glance at and leave; a
+   pane is somewhere a person can be left, and coming back tomorrow to find the
+   panel showing last week is how a surface stops being about now.
+
+   Over the scroll rather than over the whole panel: the strip stays readable,
+   so somebody can see which tab they are docked beside while they read what
+   was done to it. */
+#history {
+  position: absolute;
+  z-index: 3;
+  left: 8px;
+  right: 8px;
+  top: 52px;
+  max-height: 62vh;
+  overflow-y: auto;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+  box-shadow: 0 10px 30px rgb(0 0 0 / 35%);
+}
+
+.history-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.history-head h3 {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.history-list {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.history-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12px;
+}
+
+/* The title takes the room and the two facts after it keep theirs: a long job
+   name must push neither the outcome nor the time off the line. */
+.history-list .what {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-list .detail,
+.history-list .when {
+  flex: 0 0 auto;
+  color: var(--ink-mute);
+  font-size: 11px;
 }

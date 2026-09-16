@@ -718,6 +718,56 @@ test("a rule that fired and stopped to ask is drawn where the operator is", () =
   assert.deepEqual(pressed, ["waiting-approve"]);
 });
 
+test("the card asking for a decision reads like one", () => {
+  // The shape borrowed from the tool-call block a person already answers
+  // elsewhere: what it wants, the request behind a disclosure, and a band of
+  // two controls with their keys named on them.
+  const pressed = [];
+  const item = messages(
+    ledger(
+      { id: "thr-1", messages: [] },
+      {
+        waiting: [
+          {
+            id: "cnf-1",
+            skill_name: "Log In",
+            because: "a page rule fired",
+            asked_at: WHEN,
+            values: { site: "SG", user: "ops" },
+          },
+        ],
+      },
+      { onPress: (answer) => pressed.push(answer) },
+    ),
+  )[0];
+
+  // Shut, and counted, so a write with twelve values cannot push the two
+  // controls this card exists for below the fold.
+  const request = of(item, "details")[0];
+  assert.ok(request, "the values were not behind a disclosure");
+  assert.match(words(request), /what it would use \(2\)/);
+  assert.match(words(request), /site: SG/);
+
+  // The keys, named where they are pressed.
+  // The way out first and the primary press last, which is the order of every
+  // dialog this panel sits beside. The modifier is whichever this machine
+  // uses -- a Mac told to press Ctrl is a Mac told the wrong thing.
+  const keys = of(item, "kbd").map((one) => one.textContent);
+  assert.equal(keys[0], "Esc");
+  assert.match(keys[1], /\u23ce$/, keys.join());
+
+  // And they work, while this card has the focus. Not on the document: Esc
+  // taken globally throws away what somebody is typing in the composer.
+  const keydown = item.listeners.keydown[0];
+  keydown({ key: "Escape" });
+  assert.deepEqual(pressed, ["waiting-decline"]);
+  // One answer however it arrives -- the key and the press are the same
+  // decision, not two paths that can both be taken.
+  keydown({ key: "Enter", metaKey: true });
+  press(labelled(item, /Yes, do it/));
+  assert.deepEqual(pressed, ["waiting-decline"]);
+});
+
 test("one press settles it: the buttons do not stay live under the cursor", () => {
   const pressed = [];
   const item = messages(

@@ -1790,6 +1790,23 @@ async function handle(message, sender) {
     // the backend for the console.
     case "thread":
       return api.currentThread();
+    case "new-thread":
+      // A conversation somebody deliberately started. `current` answers with
+      // the newest, so nothing else has to be told which one to draw.
+      return api.newThread();
+    case "recent-runs": {
+      // The rows, with each job's own title put back on them. The backend
+      // answers `workflow_id` and this browser is already holding the shapes
+      // -- a list reading "wfl_3f2a — done" tells nobody what was done.
+      const runs = await api.rigRuns(message.limit || 12);
+      const titles = new Map(
+        (await shapesFor()).map((shape) => [shape.id, shape.title]),
+      );
+      return runs.map((run) => ({
+        ...run,
+        title: titles.get(run.workflow_id) || run.workflow_id,
+      }));
+    }
     case "look-in-the-mail":
       return lookInTheMail();
     case "thread-say": {

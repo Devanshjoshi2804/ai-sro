@@ -74,6 +74,7 @@ import logging
 from collections.abc import Mapping, Sequence
 from datetime import datetime
 
+from sro.application.chat.announce import SayWhatHappened
 from sro.application.context import RequestContext
 from sro.application.execution.approvals import Approvals
 from sro.application.execution.gather import GatherContext
@@ -85,9 +86,10 @@ from sro.application.knowledge.retrieve import Question, Retrieve
 from sro.application.ports.channel import Channel
 from sro.application.ports.model import Asker, asker_or_refuse
 from sro.application.ports.repositories import UnitOfWork
-from sro.application.ports.system import Clock
+from sro.application.ports.system import Clock, IdFactory
 from sro.application.ports.vault import CredentialVault, VaultUnavailable
 from sro.application.shared.refusals import OverCap
+from sro.domain.chat.asking import NEEDS, Pending, question
 from sro.domain.execution.evidence import unperformable
 from sro.domain.execution.gathering import Gathered
 from sro.domain.execution.verified_writes import VerifiedWrite
@@ -100,7 +102,7 @@ from sro.domain.execution.workflow_run import (
 from sro.domain.execution.write_plan import seen_values
 from sro.domain.knowledge.entry import EntryKind
 from sro.domain.shared.errors import Conflict, DomainError, NotFound
-from sro.domain.shared.identifiers import DeviceId
+from sro.domain.shared.identifiers import DeviceId, PrincipalId
 from sro.domain.skill.reversals import undoes
 from sro.domain.skill.shape import resumes_at
 from sro.domain.skill.workflow import cited_ids
@@ -172,6 +174,7 @@ class StartWorkflowRun:
         vault: CredentialVault | None = None,
         retrieve: Retrieve | None = None,
         gather: GatherContext | None = None,
+        ids: IdFactory | None = None,
     ) -> None:
         self._uow = uow
         # Where a password comes from when a step types one. `None` is a
@@ -188,6 +191,10 @@ class StartWorkflowRun:
         # deployment with no connector, and a run with missing values then
         # refuses exactly as it always did.
         self._gather = gather
+        # What names a message when a run that came up short asks for what it
+        # could not find. `None` is a deployment that has not wired it: the run
+        # still stops with its sentence, and nobody is asked.
+        self._ids = ids
         self._channel = channel
         # `Asker | None` rather than through `asker_or_refuse` in the container,
         # for `ReadChat`'s reason: a factory that raised would make the factory
@@ -454,7 +461,8 @@ class StartWorkflowRun:
             asker = asker_or_refuse(self._asker)
             async with self._uow as uow:
                 workflow = await uow.workflows.get(ctx.tenant_id, run.workflow_id)
-                await run_workflow(
+                title = workflow.title
+                done = await run_workflow(
                     uow,
                     workflow,
                     # The same cap the press was judged against, so the run can
@@ -489,6 +497,60 @@ class StartWorkflowRun:
         except Exception as error:
             logger.exception("a run in an operator's browser could not be finished")
             await self._close(ctx, run.id, f"{type(error).__name__}: {error}")
+        else:
+            # Outside the unit of work, because asking opens its own: the run
+            # is over and its row is written, and a question that shared the
+            # run's transaction would be a question that vanishes with it.
+            await self._ask_for_values(ctx, done, title)
+
+    async def _ask_for_values(self, ctx: RequestContext, run: WorkflowRun, title: str) -> None:
+        """Turn a run that came up short into a question somebody can answer.
+
+        The alternative, and what this replaces, is a row reading "nobody gave
+        a value for Customer Type, and your mail does not say either" -- true,
+        and the end of it. The operator had already said yes; what they get for
+        it is a dead card and a job to start again from the beginning.
+
+        One question, for one value, in their own conversation. What is
+        established so far rides on the decision, so the answer is readable off
+        the thread rather than out of a session nothing survives, and the last
+        answer starts the job on the yes they already gave.
+
+        `ids` is optional for the same reason the rest of this object's
+        collaborators are: a deployment that has not wired it runs exactly as
+        it did before, stopping with the sentence and asking nobody.
+        """
+        if not run.needs or self._ids is None:
+            return
+        pending = Pending(
+            workflow_id=run.workflow_id,
+            title=title,
+            values=dict(run.values),
+            missing=tuple(run.needs),
+            items=tuple(dict(one) for one in run.items),
+            watched=run.watched,
+        )
+        await SayWhatHappened(self._uow, self._clock, self._ids).execute(
+            ctx,
+            # The person this run was for, not whoever is at the door: a
+            # question in the wrong conversation is worse than none.
+            for_operator=PrincipalId(run.started_by) if run.started_by else ctx.principal_id,
+            text=f"I could not find {', '.join(run.needs)} for {title}. " + question(pending),
+            decision={
+                "kind": NEEDS,
+                "workflow_id": pending.workflow_id,
+                "title": pending.title,
+                "values": dict(pending.values),
+                "missing": list(pending.missing),
+                "items": [dict(one) for one in pending.items],
+                # Which way the job will be done when it runs. The person is
+                # in the panel answering questions, so they are watching -- but
+                # it is carried rather than assumed, because a run started by a
+                # trigger that asked and was answered hours later is not.
+                "watched": pending.watched,
+                "from_run": run.id,
+            },
+        )
 
     def _gathering(
         self, ctx: RequestContext, job: str, seen: Mapping[str, frozenset[str]]

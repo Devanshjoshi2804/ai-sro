@@ -982,6 +982,35 @@ test("a run the rig drove shows its own steps and offers nothing the rig cannot 
   assert.ok(/not sent/.test(said), "a dry run did not say what it withheld");
 });
 
+test("a run that came up short takes the operator to the question", async () => {
+  // The dead end this replaces: the run went looking for a value nobody typed,
+  // could not find it, and the panel drew "The run stopped" on the Home tab
+  // while the question about that value sat unread behind the other one.
+  const { cards, ids } = panel(
+    {
+      deviceId: "dev-1",
+      capturing: true,
+      watched: [{ tabId: 7, host: "wms.example", since: new Date().toISOString() }],
+      finished: {
+        id: "run_short",
+        source: "rig",
+        status: "stopped",
+        steps: [],
+        needs: ["Customer Type"],
+      },
+    },
+    { id: 7, host: "wms.example", url: "https://wms.example/portal" },
+  );
+
+  const said = cards.map(words).join(" ");
+  assert.match(said, /could not find Customer Type/);
+  assert.ok(!/The run stopped/.test(said), "it reported the dead end instead of the way out");
+  // And the conversation is what is on screen, because that is where the
+  // question is. A question behind the other tab is a question nobody answers.
+  assert.equal(ids["thread"].hidden, false, "the panel stayed on Home with a question waiting");
+  assert.equal(ids["cards"].hidden, true);
+});
+
 test("undo records the ask and starts the reversal skill, nothing else", async () => {
   // The two things "Undo that" means: the record that the operator asked for
   // a reversal, and the reversal run itself -- and nothing besides those two

@@ -1126,6 +1126,9 @@ class Container:
             )
             if self.asker is not None
             else None,
+            # What names the message a run writes when it comes up short and
+            # asks the operator for what it could not find.
+            ids=self.ids,
         )
 
     def list_workflow_runs(self) -> ListWorkflowRuns:

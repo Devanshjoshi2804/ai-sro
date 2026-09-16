@@ -220,6 +220,22 @@ class WorkflowRun:
     Empty for every run whose values came from a person, which is most of them
     and all of them before 2026-09-16."""
 
+    needs: list[str] = field(default_factory=list)
+    """What this run could not find a value for, and stopped to ask about.
+
+    The run goes and looks for whatever nobody typed. When the looking comes
+    back short the run ends -- it must, because a write with a blank in it is a
+    wrong record -- and until now that was the end of the whole thing: the
+    operator read "nobody gave a value for X, and your mail does not say
+    either" and started over.
+
+    So the names are kept, and what happens next is a question in their own
+    conversation rather than a dead row. One question per value, in words; the
+    answers come back as an ordinary sentence and the job runs with the full
+    set on the yes they already gave.
+
+    Empty for every run that found everything, which is nearly all of them."""
+
     wrong_because: str | None = None
     """What the operator said was wrong with what this run made.
 

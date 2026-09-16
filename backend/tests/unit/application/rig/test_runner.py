@@ -5674,3 +5674,8 @@ async def test_a_gather_that_found_nothing_stops_the_run_rather_than_licensing_i
     # And what the looking said, so the sentence is about this mailbox rather
     # than about the idea of one.
     assert "the mailbox holds none of the values" in run.steps[-1].reason
+    # And the names, machine-readably, beside the sentence: the question the
+    # operator is about to be asked is built from these, one at a time, and a
+    # name parsed back out of an English sentence breaks the first time the
+    # sentence is reworded.
+    assert run.needs == ["clientCode"]

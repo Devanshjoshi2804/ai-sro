@@ -64,6 +64,13 @@ export async function noteFinished(active) {
       // backend refuses to hear it about a second time, and `undoRun` sent a
       // `run-wrong` guaranteed to fail.
       wrongBecause: run.wrong_because || null,
+      // What it went looking for and could not find. The question about each
+      // of these is already in the operator's thread -- the backend wrote it
+      // as the run closed -- and this is what tells the panel to take them
+      // there rather than leave them reading "The run stopped".
+      needs: run.needs || [],
+      gathered: run.gathered || {},
+      watched: Boolean(run.watched),
       at: Date.now(),
     });
   } catch (error) {

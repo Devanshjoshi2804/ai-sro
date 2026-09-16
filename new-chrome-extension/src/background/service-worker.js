@@ -522,6 +522,50 @@ function jobInTheReply(thread) {
   return null;
 }
 
+/** Start a job that was already said yes to, as soon as the last answer lands.
+ *
+ * The run went looking for values nobody typed, came back short of one, and
+ * ended -- and what it could not find became a question in the operator's own
+ * thread. They answered it. The alternative to this function is drawing them
+ * another card with another "Yes, do it" on it, for the job they already
+ * pressed yes on and have just spent three answers finishing.
+ *
+ * `resume` is the door's word for that, and it is the door's to give: this
+ * browser must not decide that a press was implied. `watched` rides along
+ * because the two ways of doing the job are not interchangeable -- somebody
+ * sitting in the panel answering questions is somebody watching, and a run
+ * that replayed the call in front of them would finish with the page never
+ * having moved.
+ */
+async function resumeTheJob(placed) {
+  try {
+    const started = await api.rigStart({
+      workflow_id: placed.workflow_id,
+      values: placed.values || {},
+      items: Array.isArray(placed.items) ? placed.items : [],
+      device_id: await state.deviceId(),
+      live: true,
+      allow_focus: true,
+      matched: 0,
+      watched: placed.watched !== false,
+    });
+    await state.setActiveRun({
+      runId: started.id,
+      at: Date.now(),
+      source: "rig",
+    });
+    void pollRigRun();
+    return started.id;
+  } catch (error) {
+    // Said in the console and nowhere else on purpose. The thread already
+    // says the job is running; a second card apologising for it is the panel
+    // narrating its own plumbing, and the run's own row is where a failure to
+    // start shows up.
+    console.warn("[sro] the answered job could not be started", error);
+    return null;
+  }
+}
+
 /** A card for a job a mail asked for.
  *
  * Held here and never said into the thread, which is the rule this surface
@@ -1755,7 +1799,11 @@ async function handle(message, sender) {
       // of the same words. That second reading was a second model call per
       // sentence, and the two could disagree.
       const placed = jobInTheReply(said);
-      if (placed) void offerFromJob(placed, message.tabId ?? null);
+      // The last answer to a question this job asked starts it. They pressed
+      // yes before any of the questions; asking for the same permission a
+      // second time is how a panel teaches somebody to stop reading it.
+      if (placed?.resume) void resumeTheJob(placed);
+      else if (placed) void offerFromJob(placed, message.tabId ?? null);
       else void offerFromWords(message.text, message.tabId ?? null);
       return said;
     }

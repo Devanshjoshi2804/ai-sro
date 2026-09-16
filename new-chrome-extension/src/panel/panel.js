@@ -61,7 +61,10 @@ async function ask(message) {
  */
 async function beside() {
   const ordinary = (tab) => /^https?:/.test(tab?.url || "");
-  const [active] = await chrome.tabs.query({ active: true, currentWindow: true });
+  const [active] = await chrome.tabs.query({
+    active: true,
+    currentWindow: true,
+  });
   if (ordinary(active)) return active;
   const inThisWindow = await chrome.tabs.query({ currentWindow: true });
   return (
@@ -81,7 +84,9 @@ function hostOf(url) {
 
 function clock(since) {
   const seconds = Math.max(0, Math.round((Date.now() - since) / 1000));
-  return seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+  return seconds < 60
+    ? `${seconds}s`
+    : `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
 }
 
 // -- building a card ---------------------------------------------------------
@@ -92,7 +97,17 @@ function clock(since) {
  * reading, so a card that has an action carries it; one that does not says why
  * in a sentence somebody can act on elsewhere.
  */
-function card({ title, says, metrics, notes, stage, progress, tone, actions = [], toggle }) {
+function card({
+  title,
+  says,
+  metrics,
+  notes,
+  stage,
+  progress,
+  tone,
+  actions = [],
+  toggle,
+}) {
   const holder = document.createElement("section");
   holder.className = "card";
   if (tone) holder.dataset.tone = tone;
@@ -183,10 +198,16 @@ function render(status) {
       card({
         title: "Not connected",
         says:
-          "This browser has no credential. Nothing is recorded and no task can be "
-          + "taught until it is connected to your deployment.",
+          "This browser has no credential. Nothing is recorded and no task can be " +
+          "taught until it is connected to your deployment.",
         tone: "attention",
-        actions: [{ label: "Connect", primary: true, act: () => chrome.runtime.openOptionsPage() }],
+        actions: [
+          {
+            label: "Connect",
+            primary: true,
+            act: () => chrome.runtime.openOptionsPage(),
+          },
+        ],
       }),
     );
   } else if (status.teaching) {
@@ -198,7 +219,8 @@ function render(status) {
   // Before the run and after the state card: it is the only thing here waiting
   // on the person. Not while teaching, because then the panel is about the
   // demonstration and nothing else -- the offer keeps.
-  if (!status.teaching) for (const offer of status.offers || []) cards.push(offering(offer));
+  if (!status.teaching)
+    for (const offer of status.offers || []) cards.push(offering(offer));
 
   // The jobs this browser is offering to do, HERE rather than in the
   // conversation.
@@ -259,6 +281,7 @@ function render(status) {
   $("here").hidden = Boolean(status.teaching) || !status.deviceId;
   $("thread").hidden = Boolean(status.teaching) || !status.deviceId;
   lastStatus = status;
+  toTheQuestion(status.finished);
   paintPanes();
   // What arrived while nobody was looking, above everything. Painted from the
   // worker's status rather than from the thread, because that is what it is
@@ -266,6 +289,35 @@ function render(status) {
   // conversation -- and after `lastStatus` is set, which is what it reads.
   paintWaiting();
   return status;
+}
+
+/** The run that has already been taken to its question, so the panel moves
+ * somebody once and not on every poll. */
+let askedAbout = null;
+
+/** A run that came up short asks, and the asking is in the conversation.
+ *
+ * The run went looking for values nobody typed and could not find one. It
+ * ends -- it has to, a write with a blank in it is a wrong record -- and what
+ * it could not find is already a question in this operator's own thread,
+ * written by the backend as the run closed.
+ *
+ * What is left is putting them in front of it. A question waiting behind the
+ * other tab, under a card reading "The run stopped", is a question nobody
+ * answers: the panel showed the dead end and hid the way out of it.
+ *
+ * Once per run. The status lands every couple of seconds and a pane that
+ * re-asserted itself on each one is a panel somebody cannot leave -- they are
+ * allowed to go back to Home and look at something else.
+ */
+function toTheQuestion(run) {
+  if (!run || run.source !== "rig" || !(run.needs || []).length) return;
+  if (run.id === askedAbout) return;
+  askedAbout = run.id;
+  pane = "chat";
+  void conversation();
+  // At the end of it, which is where the question is.
+  toTheNewest(true);
 }
 
 /** What the profile menu's items mean here.
@@ -294,7 +346,11 @@ async function menu(action) {
     case "purge":
       return purge();
     case "never":
-      await ask({ kind: "unwatch-tab", tabId: tabHere.tabId, url: tabHere.url });
+      await ask({
+        kind: "unwatch-tab",
+        tabId: tabHere.tabId,
+        url: tabHere.url,
+      });
       return refresh();
     case "settings":
       return chrome.runtime.openOptionsPage();
@@ -326,8 +382,15 @@ function recording(status) {
     metrics: `${clock(since)} · ${seen} thing${seen === 1 ? "" : "s"} seen`,
     tone: "live",
     actions: [
-      { label: "Stop and save", primary: true, act: (button) => stopTeaching(button) },
-      { label: "Discard", act: (button) => stopTeaching(button, { discard: true }) },
+      {
+        label: "Stop and save",
+        primary: true,
+        act: (button) => stopTeaching(button),
+      },
+      {
+        label: "Discard",
+        act: (button) => stopTeaching(button, { discard: true }),
+      },
     ],
   });
 }
@@ -373,7 +436,9 @@ function watching(status) {
     // consent nobody gave.
     const excluded = excludedByDefault(status);
     return watchCard(status, true, null, {
-      title: excluded ? `${tabHere.host} is not normally recorded` : "Not watching this tab",
+      title: excluded
+        ? `${tabHere.host} is not normally recorded`
+        : "Not watching this tab",
       says: excluded
         ? `${tabHere.host} is excluded for everyone in this tenant by default.` +
           " You can watch it anyway, for this tab: everything in it becomes evidence" +
@@ -423,7 +488,11 @@ function watching(status) {
         " and teaching is refused here until it is fixed. Reloading the page" +
         " fixes it.",
       actions: [
-        { label: "Reload this page", primary: true, act: (button) => reloadWatched(button) },
+        {
+          label: "Reload this page",
+          primary: true,
+          act: (button) => reloadWatched(button),
+        },
         { label: "Stop watching", act: (button) => setWatch(button, false) },
       ],
     });
@@ -449,7 +518,9 @@ function watching(status) {
       // panel says.
       metrics:
         `since ${clock(mine.since)}` +
-        (status.policy?.capture_snapshots ? " · reading this page's structure too" : ""),
+        (status.policy?.capture_snapshots
+          ? " · reading this page's structure too"
+          : ""),
       actions: [
         {
           label: "Start teaching",
@@ -476,7 +547,9 @@ function watching(status) {
       elsewhere,
     metrics:
       `since ${clock(mine.since)}` +
-      (status.policy?.capture_snapshots ? " · reading this page's structure too" : ""),
+      (status.policy?.capture_snapshots
+        ? " · reading this page's structure too"
+        : ""),
     actions: [
       {
         label: "Start teaching",
@@ -560,7 +633,11 @@ async function reloadWatched(button) {
 async function setWatch(button, on) {
   button.disabled = true;
   try {
-    await ask({ kind: on ? "watch-tab" : "unwatch-tab", tabId: tabHere.tabId, url: tabHere.url });
+    await ask({
+      kind: on ? "watch-tab" : "unwatch-tab",
+      tabId: tabHere.tabId,
+      url: tabHere.url,
+    });
   } catch (error) {
     said(error.message);
   }
@@ -596,7 +673,11 @@ function performing(status) {
     says: run.doing
       ? `${run.doing}…`
       : (run.because || "Started elsewhere") +
-        (done === null ? "." : total ? `. Step ${done} of ${total}.` : `. Step ${done}.`),
+        (done === null
+          ? "."
+          : total
+            ? `. Step ${done} of ${total}.`
+            : `. Step ${done}.`),
     metrics: `${run.kind} · ${clock(run.since)}`,
     stage: run.stage || null,
     progress: total ? { done, of: total } : null,
@@ -628,7 +709,11 @@ function performing(status) {
       {
         label: "Details in console",
         act: () =>
-          openConsole(run.source === "rig" ? `/jobs/runs/${run.runId}` : `/runs/${run.runId}`),
+          openConsole(
+            run.source === "rig"
+              ? `/jobs/runs/${run.runId}`
+              : `/runs/${run.runId}`,
+          ),
       },
     ],
   });
@@ -652,7 +737,10 @@ function performing(status) {
               // The panel never holds the rig's bearer. The press goes to the
               // worker, which is where it lives -- the same path the offer's
               // "yes" takes.
-              const got = await ask({ kind: "approve-rig-run", runId: drawn.id });
+              const got = await ask({
+                kind: "approve-rig-run",
+                runId: drawn.id,
+              });
               if (got?.error) said(got.error);
               // Said, because the row cannot say it yet. The backend stops
               // marking the step `awaiting` as soon as the tap lands, but the
@@ -750,8 +838,20 @@ function finished(status) {
   // card a backend run is drawn in; what changes is which list it draws and
   // which buttons it puts under it.
   if (run.source === "rig") {
+    // A run that stopped for want of a value says what it is waiting on, not
+    // that it stopped. "The run stopped" is true and useless: the operator
+    // pressed yes, something went looking on their behalf and came back one
+    // word short, and the question about that word is in the conversation this
+    // panel has just moved them to.
+    const short = (run.needs || []).length
+      ? `I could not find ${run.needs.join(", ")} — I have asked in the conversation.`
+      : "";
     return runCard(
-      { run, skill: null, message: { text: RIG_ENDINGS[run.status] || "The run ended." } },
+      {
+        run,
+        skill: null,
+        message: { text: short || RIG_ENDINGS[run.status] || "The run ended." },
+      },
       { onSecret: keepSecret },
     );
   }
@@ -760,7 +860,11 @@ function finished(status) {
   const actions = [];
   const notes = [];
   if (ok && run.reversal) {
-    actions.push({ label: "Undo that", primary: true, act: (button) => undoRun(button, run) });
+    actions.push({
+      label: "Undo that",
+      primary: true,
+      act: (button) => undoRun(button, run),
+    });
     // What the press is about to delete, named before it is pressed.
     //
     // One press is the design and stays one press. But the reversal is a
@@ -783,7 +887,10 @@ function finished(status) {
   // wrong only once), so a card that has already recorded one must not go on
   // offering a press guaranteed to fail.
   if (ok && !run.wrongBecause) {
-    actions.push({ label: "It's wrong — I'll fix it", act: (button) => wasWrong(button, run) });
+    actions.push({
+      label: "It's wrong — I'll fix it",
+      act: (button) => wasWrong(button, run),
+    });
   }
   return card({
     title: ok
@@ -856,7 +963,11 @@ async function undoRun(button, run) {
 async function wasWrong(button, run) {
   button.disabled = true;
   try {
-    await ask({ kind: "run-wrong", runId: run.id, because: "the operator said this was wrong" });
+    await ask({
+      kind: "run-wrong",
+      runId: run.id,
+      because: "the operator said this was wrong",
+    });
     said("Fix it the way you meant. I'm watching, and I'll learn from that.");
   } catch (error) {
     said(error.message);
@@ -950,8 +1061,19 @@ function offering(offer) {
  */
 function troubles(status) {
   const cards = [];
-  if (status.deviceId && !status.capturing && !status.paused && !status.serverPaused) {
-    cards.push(card({ title: "Not observing", says: `${status.because}.`, tone: "attention" }));
+  if (
+    status.deviceId &&
+    !status.capturing &&
+    !status.paused &&
+    !status.serverPaused
+  ) {
+    cards.push(
+      card({
+        title: "Not observing",
+        says: `${status.because}.`,
+        tone: "attention",
+      }),
+    );
   }
   if (status.deviceId && status.channel !== "open") {
     cards.push(
@@ -960,9 +1082,9 @@ function troubles(status) {
         says:
           (status.channelWhy
             ? `Not dialling: ${status.channelWhy}. `
-            : `The command channel is ${status.channel}. `)
-          + "A run started from the console or a schedule cannot act here until it "
-          + "opens; nothing already captured is lost.",
+            : `The command channel is ${status.channel}. `) +
+          "A run started from the console or a schedule cannot act here until it " +
+          "opens; nothing already captured is lost.",
         tone: "attention",
         // It redials on the minute alarm by itself. This is for the operator
         // watching the card right now, who otherwise has nothing to press and
@@ -1012,7 +1134,8 @@ async function startTeaching(button) {
   button.disabled = true;
   try {
     const tab = await beside();
-    if (!tab) throw new Error("open the system you want to teach in this tab first");
+    if (!tab)
+      throw new Error("open the system you want to teach in this tab first");
     // Named, not guessed: this panel is docked beside the tab being taught,
     // which is the one thing the options page could never say.
     await ask({ kind: "teach-start", tabId: tab.id, label: tab.title });
@@ -1030,7 +1153,9 @@ async function stopTeaching(button, { discard = false } = {}) {
       said("discarded — nothing was kept");
     } else {
       const steps = stopped.summary?.frame_count ?? 0;
-      said(`saved — ${steps} step${steps === 1 ? "" : "s"}. Teach it once more to prove what varies.`);
+      said(
+        `saved — ${steps} step${steps === 1 ? "" : "s"}. Teach it once more to prove what varies.`,
+      );
     }
   } catch (error) {
     said(error.message);
@@ -1096,7 +1221,9 @@ async function refresh() {
  */
 async function _aboutTheSkill(performing, run) {
   const skill = await ask({ kind: "skill", skillId: run.skill_id });
-  const version = (skill.versions || []).find((each) => each.version === run.skill_version);
+  const version = (skill.versions || []).find(
+    (each) => each.version === run.skill_version,
+  );
   return {
     ...performing,
     skill: skill.name || null,
@@ -1120,7 +1247,10 @@ async function sayTheDay(status) {
   try {
     const midnight = new Date();
     midnight.setHours(0, 0, 0, 0);
-    const summary = await ask({ kind: "summary", since: midnight.toISOString() });
+    const summary = await ask({
+      kind: "summary",
+      since: midnight.toISOString(),
+    });
     const line = today(summary, openOffers);
     $("today").replaceChildren(...(line ? [line] : []));
   } catch {
@@ -1150,7 +1280,11 @@ let openOffers = 0;
 async function whereWeAre() {
   const tab = await beside();
   const was = tabHere;
-  tabHere = { tabId: tab?.id ?? null, host: hostOf(tab?.url || ""), url: tab?.url || "" };
+  tabHere = {
+    tabId: tab?.id ?? null,
+    host: hostOf(tab?.url || ""),
+    url: tab?.url || "",
+  };
   // The tab's id and not its host alone. Whether this tab is being watched is
   // answered by looking for `tabHere.tabId` in the watch list, so two tabs on
   // one warehouse are two different answers -- and a host comparison left the
@@ -1173,7 +1307,6 @@ function openConsole(path = "/console") {
     chrome.runtime.openOptionsPage();
   });
 }
-
 
 /** Deleting the operator's own last hour.
  *
@@ -1331,7 +1464,8 @@ function showPane() {
     if (id !== "waiting") $(id).hidden = pane !== "home";
   }
   $("waiting").hidden = pane !== "home" || !$("waiting").childElementCount;
-  for (const id of ["thread", "here", "ask-bar"]) $(id).hidden = pane !== "chat";
+  for (const id of ["thread", "here", "ask-bar"])
+    $(id).hidden = pane !== "chat";
 }
 
 /** Whether the waiting banner is open, in THIS window of the panel.
@@ -1391,7 +1525,10 @@ function show(thread, { asked = false } = {}) {
   // something unrelated changed the thread. Found on 2026-09-14 by a browser
   // that made an offer the panel never showed.
   const mine = (lastStatus?.nudges || [])
-    .map((nudge) => `${nudge.id}:${nudge.state}:${nudge.missed ? "m" : ""}:${nudge.k ?? ""}`)
+    .map(
+      (nudge) =>
+        `${nudge.id}:${nudge.state}:${nudge.missed ? "m" : ""}:${nudge.k ?? ""}`,
+    )
     .join(",");
   // An answer to a question is drawn from the same local half, and changes
   // without the thread changing -- the same defect the nudges above were found
@@ -1405,11 +1542,14 @@ function show(thread, { asked = false } = {}) {
   // `said` is taken too -- it is how this panel writes a line back to the
   // operator -- so this name belongs to neither.
   const answerSeen = `${lastStatus?.answer?.askedAt || ""}:${(lastStatus?.answer?.answers || []).length}`;
-  const missed = (lastStatus?.nearMisses || []).map((one) => `${one.triggerId}:${one.at}`).join(",");
+  const missed = (lastStatus?.nearMisses || [])
+    .map((one) => `${one.triggerId}:${one.at}`)
+    .join(",");
   const asking = (lastStatus?.waiting || []).map((one) => one.id).join(",");
   const now = `${thread.id}:${(thread.messages || []).map((message) => message.id).join(",")}|${mine}|${answerSeen}|${missed}|${asking}|${hostOf(tabHere.url || "")}`;
   if (now === drawn) return;
-  if (!asked && drawn !== null && document.activeElement?.tagName === "INPUT") return;
+  if (!asked && drawn !== null && document.activeElement?.tagName === "INPUT")
+    return;
   drawn = now;
   // What only this browser knows, beside what the server holds: the mails it
   // recognised and the prompts it made on the page in front of somebody.
@@ -1438,7 +1578,9 @@ function show(thread, { asked = false } = {}) {
     // who just watched it go can see that it went rather than wonder where the
     // panel put it.
     nudges: (lastStatus?.nudges || []).filter(
-      (nudge) => nudge.state !== "open" && Date.now() - (nudge.endedAt || 0) < JUST_ENDED_MS,
+      (nudge) =>
+        nudge.state !== "open" &&
+        Date.now() - (nudge.endedAt || 0) < JUST_ENDED_MS,
     ),
     answer: lastStatus?.answer || null,
     nearMisses: lastStatus?.nearMisses || [],
@@ -1448,8 +1590,9 @@ function show(thread, { asked = false } = {}) {
     here: hostOf(tabHere.url || ""),
   };
   openOffers = (thread.messages || []).filter(
-    (message) => ["offer", "mail_match"].includes(message.decision?.kind || "")
-      && !alreadyAnswered(thread.messages).has(message.decision.candidate_id),
+    (message) =>
+      ["offer", "mail_match"].includes(message.decision?.kind || "") &&
+      !alreadyAnswered(thread.messages).has(message.decision.candidate_id),
   ).length;
   $("said").replaceChildren(ledger(thread, local, { onPress: answered }));
   // After the words are in, because the height it scrolls to is the height
@@ -1472,9 +1615,12 @@ async function say(text) {
   try {
     // `tabId` so an offer the sentence turns into is drawn beside the tab the
     // operator is working in -- `show` only draws an OPEN nudge for this tab.
-    show(await ask({ kind: "thread-say", threadId, text, tabId: tabHere.tabId }), {
-      asked: true,
-    });
+    show(
+      await ask({ kind: "thread-say", threadId, text, tabId: tabHere.tabId }),
+      {
+        asked: true,
+      },
+    );
   } catch (error) {
     $("thread-note").textContent = error.message;
   }
@@ -1521,7 +1667,8 @@ async function answered(answer, message, where, button, values) {
   // A matched mail: the values are the browser's, and the ones the operator
   // typed into the card are what the run must use -- so they go up on the press
   // rather than the ones the mail happened to fill.
-  if (decision.kind === "mail_match") return firedFromMail(decision, answer, button, values);
+  if (decision.kind === "mail_match")
+    return firedFromMail(decision, answer, button, values);
 }
 
 /** The rig's offer, answered.
@@ -1549,7 +1696,11 @@ async function answeredOffer(answer, nudge, button, values) {
         nudgeId: nudge.id,
         values: values?.values || {},
       });
-      said(got.ok ? "started \u2014 watching it below" : got.error || "nothing started");
+      said(
+        got.ok
+          ? "started \u2014 watching it below"
+          : got.error || "nothing started",
+      );
     }
   } catch (error) {
     said(error.message);
@@ -1558,7 +1709,6 @@ async function answeredOffer(answer, nudge, button, values) {
   drawn = null;
   await conversation();
 }
-
 
 /** A fire waiting on somebody, answered from the panel.
  *
@@ -1578,7 +1728,11 @@ async function answeredWaiting(answer, card, button) {
       said(got.error || "nothing happened");
       return;
     }
-    said(got.run_id ? "started \u2014 watching it below" : "declined \u2014 nothing ran");
+    said(
+      got.run_id
+        ? "started \u2014 watching it below"
+        : "declined \u2014 nothing ran",
+    );
   } catch (error) {
     button.disabled = false;
     said(error.message);
@@ -1587,7 +1741,6 @@ async function answeredWaiting(answer, card, button) {
   drawn = null;
   await conversation();
 }
-
 
 /** "Do this here", answered from the ledger.
  *
@@ -1614,7 +1767,6 @@ async function madeARule(nudge, button) {
   }
 }
 
-
 /** A matched mail, answered from the ledger.
  *
  * `watch-fire` is the same call the offer card has always made; what is new is
@@ -1629,7 +1781,11 @@ async function firedFromMail(decision, answer, button, values) {
     return refresh();
   }
   try {
-    const fired = await ask({ kind: "watch-fire", offerId: decision.offer_id, values });
+    const fired = await ask({
+      kind: "watch-fire",
+      offerId: decision.offer_id,
+      values,
+    });
     said(fired.run_id ? "started" : `nothing started: ${fired.skipped}`);
   } catch (error) {
     said(error.message);
@@ -1662,7 +1818,14 @@ async function runIt(skillId, parameters, intent, version) {
   // not before, because a device id fixed earlier in the flow is one more
   // thing that could go stale while the operator was still typing.
   const { deviceId } = await ask({ kind: "status" });
-  return ask({ kind: "run-skill", skillId, parameters, deviceId, intent, version });
+  return ask({
+    kind: "run-skill",
+    skillId,
+    parameters,
+    deviceId,
+    intent,
+    version,
+  });
 }
 
 // -- the console -------------------------------------------------------------
@@ -1687,10 +1850,14 @@ async function frameTheConsole() {
     if (event.data?.kind === "sro.ready") {
       // Addressed to the console's own origin, never "*": a wildcard hands the
       // credential to whatever the frame has navigated to.
-      frame.contentWindow?.postMessage({ kind: "sro.credential", token }, origin);
+      frame.contentWindow?.postMessage(
+        { kind: "sro.credential", token },
+        origin,
+      );
       return;
     }
-    if (event.data?.kind === "sro.credential.ok") $("console-note").textContent = "";
+    if (event.data?.kind === "sro.credential.ok")
+      $("console-note").textContent = "";
   });
 
   $("console-note").textContent = "opening the console…";
@@ -1734,7 +1901,8 @@ function refused(consoleUrl) {
 
   const where = document.createElement("p");
   where.className = "note";
-  where.textContent = "Put that in the console's environment (frontend/.env.local) and restart it.";
+  where.textContent =
+    "Put that in the console's environment (frontend/.env.local) and restart it.";
 
   const copy = document.createElement("button");
   copy.type = "button";
@@ -1789,7 +1957,8 @@ function listen() {
     toWorker = null;
   });
   toWorker.onMessage.addListener((message) => {
-    if (message?.kind !== "status" || document.visibilityState !== "visible") return;
+    if (message?.kind !== "status" || document.visibilityState !== "visible")
+      return;
     void drawPushed(message.status);
   });
 }

@@ -9,7 +9,8 @@ from sro.application.context import RequestContext
 from sro.application.intent.plan_task import PlanTask
 from sro.application.intent.resolve import ResolveIntent
 from sro.application.knowledge.retrieve import Retrieve
-from sro.domain.chat.thread import Speaker
+from sro.domain.chat.asking import NEEDS
+from sro.domain.chat.thread import Message, MessageId, Speaker, ThreadId
 from sro.domain.execution.run import RunId
 from sro.domain.shared.identifiers import SkillId
 from sro.domain.shared.prices import Answer
@@ -393,3 +394,94 @@ async def test_a_deployment_that_cannot_look_still_asks_for_the_value() -> None:
 
     assert "I still need Customer Type" in said.messages[-1].text
     assert said.messages[-1].decision["can_find"] is False
+
+
+# --- a run that came up short asks, and the answer is the next thing said -----
+
+
+async def _asked(uow: FakeUnitOfWork, missing: list[str]) -> tuple[Converse, ThreadId]:
+    """A thread where a run has asked for what it could not find.
+
+    Written the way `StartWorkflowRun._ask_for_values` writes it -- the run is
+    over by then, and what it left behind is this message.
+    """
+    converse = await _with_a_job(uow, None)
+    thread = await StartThread(uow, FakeClock(), FakeIdFactory()).execute(CTX)
+    thread.say(
+        Message(
+            id=MessageId("msg_asked"),
+            speaker=Speaker.ASSISTANT,
+            text="I could not find them. What should Customer Type be?",
+            said_at=FakeClock().now(),
+            decision={
+                "kind": NEEDS,
+                "workflow_id": "wfl_1",
+                "title": "Create a Customer Type",
+                "values": {},
+                "missing": missing,
+                "items": [],
+                "watched": True,
+            },
+        )
+    )
+    await uow.threads.save(thread)
+    return converse, thread.id
+
+
+async def test_the_answer_to_a_question_is_taken_as_the_answer() -> None:
+    """ "GPP" placed against the jobs is a sentence about nothing. Against the
+    question that was actually asked it is the value, and reading it any other
+    way is a system that asks somebody something and then ignores what they
+    say."""
+    uow = FakeUnitOfWork()
+    await _taught(uow)
+    converse, thread_id = await _asked(uow, ["Customer Type", "longDescription"])
+
+    said = await converse.execute(CTX, thread_id=thread_id, text="GPP")
+
+    last = said.messages[-1]
+    assert last.text == "What should longDescription be?", "it did not ask the next question"
+    assert last.decision == {
+        "kind": NEEDS,
+        "workflow_id": "wfl_1",
+        "title": "Create a Customer Type",
+        # What is established so far rides along, so the answer survives a
+        # restart and a second browser reading the thread sees the same state.
+        "values": {"Customer Type": "GPP"},
+        "items": [],
+        "missing": ["longDescription"],
+        "watched": True,
+    }
+
+
+async def test_the_last_answer_runs_the_job_without_asking_again() -> None:
+    """They pressed yes before any of this. Asking for the same permission a
+    second time is how a system teaches somebody to stop reading what it
+    asks."""
+    uow = FakeUnitOfWork()
+    await _taught(uow)
+    converse, thread_id = await _asked(uow, ["Customer Type"])
+
+    said = await converse.execute(CTX, thread_id=thread_id, text="GPP")
+
+    last = said.messages[-1]
+    assert last.decision is not None
+    assert last.decision["kind"] == "job", last.decision
+    assert last.decision["missing"] == []
+    assert last.decision["values"] == {"Customer Type": "GPP"}
+    assert last.decision["resume"] is True, "the panel would have asked for a second press"
+
+
+async def test_calling_it_off_is_not_a_value() -> None:
+    """Without this, "no" becomes the customer type."""
+    uow = FakeUnitOfWork()
+    await _taught(uow)
+    converse, thread_id = await _asked(uow, ["Customer Type"])
+
+    said = await converse.execute(CTX, thread_id=thread_id, text="no")
+
+    last = said.messages[-1]
+    assert "Dropped" in last.text
+    assert last.decision is not None and last.decision["kind"] != NEEDS, (
+        "the conversation went on waiting for a value it had been told to forget"
+    )

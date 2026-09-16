@@ -3437,6 +3437,9 @@ class WorkflowRunModel(BaseModel):
     almost always."""
 
     gathered: dict[str, dict[str, str]] = {}
+    needs: list[str] = []
+    """What it could not find a value for. The panel takes the conversation
+    from here: the question is already in the operator's thread."""
     """Parameter -> where its value was read, for values nobody typed.
 
     On the wire because the card showing a write a person is asked to approve
@@ -3491,6 +3494,7 @@ class WorkflowRunModel(BaseModel):
             watched=run.watched,
             doing=run.doing,
             gathered={k: dict(v) for k, v in run.gathered.items()},
+            needs=list(run.needs),
             wrong_because=run.wrong_because,
             undo=undo,
         )

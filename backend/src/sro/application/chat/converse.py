@@ -30,6 +30,14 @@ from sro.application.knowledge.open_questions import Ambiguity, AskAbout
 from sro.application.ports.http import TargetUnreachable
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
+from sro.domain.chat.asking import (
+    NEEDS,
+    Pending,
+    answered,
+    let_go,
+    pending_job,
+    question,
+)
 from sro.domain.chat.thread import Message, Said, Speaker, Thread, ThreadId
 from sro.domain.execution.run import Run, RunId, RunStatus, StepDisposition
 from sro.domain.shared.errors import DomainError
@@ -123,6 +131,22 @@ class Converse:
     ) -> Thread:
         if run_id is not None:
             return await self._said_to_a_run(ctx, thread_id=thread_id, text=text, run_id=run_id)
+        # A question this conversation asked is answered by the next thing
+        # said in it, before anything tries to read that sentence as a fresh
+        # request.
+        #
+        # "GPP" placed against the jobs is a sentence about nothing. Against
+        # the question that was actually asked -- *what should Customer Type
+        # be?* -- it is the answer, and reading it any other way is how a
+        # system asks somebody a question and then ignores what they say. It
+        # also saves the model call: the reading that matters already happened
+        # when the job was placed.
+        async with self._uow as uow:
+            waiting = pending_job((await uow.threads.get(ctx.tenant_id, thread_id)).messages)
+        if waiting is not None:
+            return await self._answer_the_question(
+                ctx, thread_id=thread_id, text=text, pending=waiting
+            )
         # The rig's jobs first, and where they place the sentence, only them.
         #
         # An operator typed "lets create warehouse equipment type" at a browser
@@ -202,6 +226,92 @@ class Converse:
                         narrowed,
                         await self._next_steps(ctx, resolution, run, narrowed),
                     ),
+                )
+            )
+            await uow.threads.save(thread)
+            await uow.commit()
+        return thread
+
+    async def _answer_the_question(
+        self, ctx: RequestContext, *, thread_id: ThreadId, text: str, pending: Pending
+    ) -> Thread:
+        """Take that sentence as the value it was asked for, and go on.
+
+        Three ends, and the whole state of it lives on the decision each one
+        writes -- not in a session, not on a row. An operator answering two
+        questions over five minutes does not depend on a process staying up,
+        and a second browser reading the thread sees the same thing.
+
+        **Called off.** "No", "never mind": said whole, never by substring, so
+        a description reading "leave it in receiving" is a description.
+
+        **One down, more to go.** The answer goes in, the next question comes
+        out, and the decision carries what is established so far.
+
+        **The last one.** No more questions: the job is said back as a `job`
+        decision with nothing missing and `resume`, which is the panel's cue to
+        start it without asking again. They already said yes; asking twice for
+        the same permission is how a system teaches somebody to stop reading
+        what it asks.
+        """
+        async with self._uow as uow:
+            thread = await uow.threads.get(ctx.tenant_id, thread_id)
+            now = self._clock.now()
+            thread.say(
+                Message(
+                    id=self._ids.new_message_id(),
+                    speaker=Speaker.OPERATOR,
+                    text=text,
+                    said_at=now,
+                )
+            )
+            said: str
+            decision: dict[str, object]
+            if let_go(text):
+                said, decision = (
+                    f"Dropped {pending.title}.",
+                    {"kind": Said.NOTE, "workflow_id": pending.workflow_id},
+                )
+            else:
+                filled = answered(pending, text)
+                said, decision = (
+                    (
+                        f"Running {filled.title} now.",
+                        {
+                            "kind": "job",
+                            "workflow_id": filled.workflow_id,
+                            "title": filled.title,
+                            "values": dict(filled.values),
+                            "items": [dict(one) for one in filled.items],
+                            "missing": [],
+                            "can_find": self._can_gather,
+                            # They already pressed yes. This is the same press
+                            # arriving late, not a second one to ask for.
+                            "resume": True,
+                            "watched": filled.watched,
+                        },
+                    )
+                    if filled.ready
+                    else (
+                        question(filled),
+                        {
+                            "kind": NEEDS,
+                            "workflow_id": filled.workflow_id,
+                            "title": filled.title,
+                            "values": dict(filled.values),
+                            "items": [dict(one) for one in filled.items],
+                            "missing": list(filled.missing),
+                            "watched": filled.watched,
+                        },
+                    )
+                )
+            thread.say(
+                Message(
+                    id=self._ids.new_message_id(),
+                    speaker=Speaker.ASSISTANT,
+                    text=said,
+                    said_at=self._clock.now(),
+                    decision=decision,
                 )
             )
             await uow.threads.save(thread)

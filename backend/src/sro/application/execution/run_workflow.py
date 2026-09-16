@@ -741,6 +741,12 @@ async def run_workflow(
         # was.
         if still := _not_given(workflow, values):
             run.outcome = "stopped"
+            # And WHICH ones, machine-readably, beside the sentence. The
+            # sentence is for the person reading the row; these are what the
+            # question in their conversation is built from, one at a time, and
+            # a name parsed back out of an English sentence is a name that
+            # breaks the first time the sentence is reworded.
+            run.needs = list(still)
             run.steps.append(
                 RunStep(
                     order=0,

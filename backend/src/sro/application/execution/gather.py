@@ -212,7 +212,13 @@ class GatherContext:
             if not message:
                 return "", ""
             asked = f"read {message}"
-            tool, arguments = "get_message", {"message_id": message}
+            # `id`, which is what the connector declares. It was `message_id`
+            # for one afternoon and every read asked for an empty id, so the
+            # loop searched six times against bodies that were never fetched --
+            # and refused, correctly, on nothing. An argument name is a
+            # contract between two programs;
+            # `test_the_gather_asks_for_what_the_connector_declares` holds it.
+            tool, arguments = "get_message", {"id": message}
         else:
             return "", ""
 

@@ -47,7 +47,7 @@ class _Mailbox:
         arguments: Mapping[str, str],
     ) -> ToolResult:
         self.asked.append((principal_id.value, tool, dict(arguments)))
-        key = arguments.get("query") or arguments.get("message_id") or ""
+        key = arguments.get("query") or arguments.get("id") or ""
         if key not in self._answers:
             return ToolResult(text=json.dumps({"messages": []}))
         return ToolResult(text=self._answers[key])

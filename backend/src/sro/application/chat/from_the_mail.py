@@ -70,21 +70,32 @@ cards at once is a panel nobody reads past the third -- not because of what the
 readings cost. Eight covers a morning's arrivals between looks.
 """
 
-K_RECENT = "in:inbox newer_than:2d -in:chats"
+K_RECENT = "newer_than:2d -in:chats"
 """What counts as an arrival worth reading.
 
 Two days rather than an hour: a look runs when somebody asks for one, and a
 request that arrived over the weekend is still a request.
 
-`in:inbox` rather than `-in:sent`, and the difference is a whole afternoon.
-`-in:sent` was meant to say "their own outgoing mail is not a request TO them",
-and on Gmail a message sent to yourself is in BOTH -- so it dropped every mail
-an operator addresses to themselves, which is how every test request on this
-deployment was written and how a person forwards themselves something to deal
-with later. Measured 2026-09-16: a request sent at 20:34 was still invisible at
-20:40, and the mail beside it that had been FORWARDED from another account was
-read fine. The inbox is the honest reading of "what arrived": a message that
-was only ever sent is not in it.
+**No label filter, and three tries to get there.** The intent was "their own
+outgoing mail is not a request TO them", and every way Gmail offers to say that
+excludes exactly the mail an operator sends themselves -- which is how a person
+forwards themselves something to deal with later, and how every test request on
+this deployment is written. Measured against the real mailbox, 2026-09-16, on a
+self-addressed request sent at 20:34:
+
+    -in:sent -in:chats          does not find it
+    in:inbox -in:chats          does not find it -- Gmail files it under Sent,
+                                and the thread only APPEARS in the inbox view
+    {to:me cc:me}               does not find it -- `to:me` does not match it
+    newer_than:2d -in:chats     finds it, first row
+
+So the filter is gone. What it was protecting against remains true and is
+smaller than it looked: a mail the operator sent asking somebody ELSE to do the
+work can now produce a card. That card is an offer a person presses, so the
+cost of being wrong is a card they say no to -- and the same write claim that
+stops two runs making one record still stands behind it.
+
+Chats stay out. A chat message is not a request in any sense this reads.
 """
 
 K_REMEMBER = timedelta(days=30)

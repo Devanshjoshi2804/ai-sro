@@ -389,15 +389,57 @@ async function uiPerform(payload, runId) {
   // two read identically on a run card, and on 2026-09-16 three runs failed
   // this way while an operator and I read it as "the locator did not match"
   // and went looking at the wrong thing. So the tab says who it was.
-  return answer || failure("not_actionable", didNotAnswer(tab, frameId));
+  return answer || failure("not_actionable", await didNotAnswer(tab, frameId));
 }
 
 /** The page the command was performed against, for a failure that has to be
- * read by somebody who cannot see it. */
-function didNotAnswer(tab, frameId) {
+ * read by somebody who cannot see it -- and whether anything can be run in it
+ * at all.
+ *
+ * "The page did not answer" has two causes that want two different people to
+ * do two different things, and they are indistinguishable from the run's side:
+ * the command ran and produced nothing, or nothing ran. A page whose own
+ * content-security policy refuses injected script gives the second, silently
+ * and with no error, and on this deployment every UI step ever attempted on
+ * the warehouse host has failed while the ones on the mailbox held.
+ *
+ * So the failure asks. One trivial function in each world -- the page's own
+ * (`MAIN`, where the application's `Ext` lives and where a locator by
+ * component has to run) and the extension's (`ISOLATED`, which a page's policy
+ * cannot touch) -- and the answer says which of them will run anything.
+ *
+ * Only on the failure path, so an ordinary step pays nothing for it.
+ */
+async function didNotAnswer(tab, frameId) {
   const where = String(tab.url || "").slice(0, 120);
   const frame = frameId === undefined ? "the page" : `frame ${frameId}`;
-  return `${frame} at ${where} did not answer (status ${tab.status || "unknown"})`;
+  const [main, isolated] = await Promise.all([
+    canRun(tab.id, "MAIN"),
+    canRun(tab.id, "ISOLATED"),
+  ]);
+  const worlds =
+    main && isolated
+      ? "script runs in it"
+      : isolated
+        ? "nothing runs in the page's own world -- its content-security policy refuses injected script"
+        : main
+          ? "only the page's own world runs script"
+          : "no script runs in it at all";
+  return `${frame} at ${where} did not answer (status ${tab.status || "unknown"}; ${worlds})`;
+}
+
+/** Whether a trivial function runs in this tab, in that world. */
+async function canRun(tabId, world) {
+  try {
+    const [answer] = await chrome.scripting.executeScript({
+      target: { tabId },
+      world,
+      func: () => true,
+    });
+    return answer?.result === true;
+  } catch {
+    return false;
+  }
 }
 
 /** A tab that can be injected into, waking it first if Chrome has put it away.

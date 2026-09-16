@@ -15,6 +15,7 @@ let created = [];
 let reloaded = [];
 let injectedInto = [];
 let result = undefined;
+let blockMain = false;
 let listeners = [];
 
 globalThis.chrome = {
@@ -45,8 +46,13 @@ globalThis.chrome = {
     },
   },
   scripting: {
-    executeScript: async ({ target }) => {
+    executeScript: async ({ target, func, world }) => {
       injectedInto.push(target.tabId);
+      // The trivial probe the failure path runs in each world answers for
+      // itself; everything else gets whatever the test set up.
+      if (func && func.length === 0 && func() === true) {
+        return world === "MAIN" && blockMain ? [] : [{ result: true }];
+      }
       return [{ result }];
     },
   },
@@ -98,6 +104,12 @@ test("a page that still says nothing is named, with its status", async () => {
   assert.equal(answer.error.kind, "not_actionable");
   assert.match(answer.error.detail, /wms\.example\/portal/, answer.error.detail);
   assert.match(answer.error.detail, /status loading/, answer.error.detail);
+  // And whether anything can be run in it at all. "The page did not answer"
+  // has two causes that want two different people to do two different things:
+  // the command ran and produced nothing, or nothing ran. A page whose own
+  // content-security policy refuses injected script gives the second, silently
+  // and with no error.
+  assert.match(answer.error.detail, /script runs in it/, answer.error.detail);
   assert.deepEqual(reloaded, [], "a tab that is awake is not reloaded under the operator");
 });
 
@@ -143,4 +155,18 @@ test("a navigate does not open somewhere the command is not for", async () => {
   assert.equal(answer.ok, false);
   assert.equal(answer.error.kind, "no_tab_for_system");
   assert.deepEqual(created, []);
+});
+
+test("a page whose policy refuses injected script says so", () => {
+  // The case this instrument exists for: every UI step ever attempted on the
+  // warehouse host failed while the ones on the mailbox held, and the run's
+  // side could not tell "ran and produced nothing" from "nothing ran".
+  openTabs = [{ id: 7, url: "https://wms.example/portal", status: "complete" }];
+  blockMain = true;
+  result = undefined;
+
+  return click().then((answer) => {
+    blockMain = false;
+    assert.match(answer.error.detail, /content-security policy refuses/, answer.error.detail);
+  });
 });

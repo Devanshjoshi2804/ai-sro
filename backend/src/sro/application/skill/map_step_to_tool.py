@@ -22,7 +22,7 @@ from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock
 from sro.application.ports.tools import ToolCaller, ToolsUnavailable
 from sro.domain.shared.errors import InvariantViolation, NotFound
-from sro.domain.shared.identifiers import SkillId, TenantId
+from sro.domain.shared.identifiers import PrincipalId, SkillId, TenantId
 from sro.domain.skill.plan import ToolPlan
 from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.skill import SkillVersion
@@ -65,7 +65,7 @@ class MapStepToTool:
     ) -> Mapped:
         now = self._clock.now()
 
-        await self._refuse_unless_offered(ctx.tenant_id, server, tool)
+        await self._refuse_unless_offered(ctx.tenant_id, ctx.principal_id, server, tool)
 
         async with self._uow as uow:
             skill = await uow.skills.get(ctx.tenant_id, skill_id)
@@ -120,7 +120,9 @@ class MapStepToTool:
 
         return Mapped(skill_id=skill_id, version=fresh.version, step_index=step_index)
 
-    async def _refuse_unless_offered(self, tenant_id: TenantId, server: str, tool: str) -> None:
+    async def _refuse_unless_offered(
+        self, tenant_id: TenantId, principal_id: PrincipalId, server: str, tool: str
+    ) -> None:
         """The connector has to say it has this tool.
 
         Asked before the version is written rather than at the first run: a
@@ -128,16 +130,16 @@ class MapStepToTool:
         like a working one until somebody fires it, and by then the click it
         replaced has been mapped away.
 
-        Asked as THIS tenant, because that is the only tenant whose connector
-        this is: a mapping checked against somebody else's grant would pass
-        here and fail at the first run.
+        Asked as THIS operator, because that is the only person whose grant
+        this is: a mapping checked against somebody else's would pass here and
+        fail at the first run.
         """
         if self._tools is None or not self._tools.available:
             raise InvariantViolation(
                 "no connector is configured, so there is no tool to map this step onto"
             )
         try:
-            offered = await self._tools.list_tools(tenant_id, server)
+            offered = await self._tools.list_tools(tenant_id, principal_id, server)
         except ToolsUnavailable as gone:
             raise InvariantViolation(str(gone)) from gone
         if tool not in {each.name for each in offered}:

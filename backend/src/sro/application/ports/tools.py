@@ -12,7 +12,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Protocol
 
-from sro.domain.shared.identifiers import TenantId
+from sro.domain.shared.identifiers import PrincipalId, TenantId
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,7 +56,7 @@ class ToolsUnavailable(Exception):
 
 
 class NotConnected(ToolsUnavailable):
-    """This tenant has not connected this server.
+    """This operator has not connected this server.
 
     A subclass rather than a bare `ToolsUnavailable` so a console can tell "you
     have not connected Gmail yet" -- which a person can fix in one click --
@@ -70,10 +70,15 @@ class NotConnected(ToolsUnavailable):
 class ToolCaller(Protocol):
     """Somebody else's tools, called with THIS tenant's credential.
 
-    Every method takes the tenant, and that is the whole of the security
-    property: a connector is reached with a bearer read from the vault under
-    `tenant/server/mcp_token`, so a tenant with no grant cannot reach one and a
-    tenant with a grant reaches only their own.
+    Every method takes the tenant AND the operator, and that is the whole of
+    the security property: a connector is reached with a bearer read from the
+    vault under `connector_key`, so an operator with no grant cannot reach one
+    and an operator with a grant reaches only their own mailbox.
+
+    Per operator rather than per tenant because each reads their own mail. A
+    key without the person in it would have one operator's inbox answering for
+    everybody in the tenant -- the same bug one scope smaller, and worth saying
+    because the first version of this change had exactly that.
 
     It was not always so. Until 2026-09-16 neither the port nor the adapter had
     a tenant on it and the bearer was one string in deployment config, so a
@@ -92,18 +97,25 @@ class ToolCaller(Protocol):
         invited to map a step onto a connector nobody set up."""
         ...
 
-    async def list_tools(self, tenant_id: TenantId, server: str) -> Sequence[ToolOffered]:
-        """What this connector offers this tenant, now. Raises `ToolsUnavailable`.
+    async def list_tools(
+        self, tenant_id: TenantId, principal_id: PrincipalId, server: str
+    ) -> Sequence[ToolOffered]:
+        """What this connector offers this operator, now. Raises `ToolsUnavailable`.
 
-        Tenant first, and on every method, because a connector is reached with
-        a credential and a credential belongs to one tenant. The port carried
-        none until 2026-09-16 and neither did the adapter, so every tenant's
-        step reached the same mailbox with the same grant -- see `ToolCaller`.
+        Who first, and on every method, because a connector is reached with a
+        credential and a credential belongs to one person. The port carried
+        neither until 2026-09-16 and neither did the adapter, so every step of
+        every tenant reached the same mailbox with the same grant.
         """
         ...
 
     async def call(
-        self, tenant_id: TenantId, server: str, tool: str, arguments: Mapping[str, str]
+        self,
+        tenant_id: TenantId,
+        principal_id: PrincipalId,
+        server: str,
+        tool: str,
+        arguments: Mapping[str, str],
     ) -> ToolResult:
         """Call it and return what it said. Raises `ToolsUnavailable`.
 

@@ -1336,10 +1336,14 @@ class ExecuteStep:
                 )
 
         try:
-            # The RUN's tenant, not a context passed down: the row is the
-            # authority on whose run this is, and a connector is reached with
-            # that tenant's own grant or not at all.
-            answered = await self._tools.call(run.tenant_id, plan.server, plan.tool, arguments)
+            # The RUN's own tenant and requester, not a context passed down:
+            # the row is the authority on whose run this is, and a connector is
+            # reached with that operator's own grant or not at all. Each reads
+            # their own mail, so a run performed for one person must not reach
+            # another's mailbox.
+            answered = await self._tools.call(
+                run.tenant_id, run.requested_by, plan.server, plan.tool, arguments
+            )
         except ToolsUnavailable as gone:
             return self._failed(step, key, str(gone), medium=Medium.TOOL, unreachable=True)
 

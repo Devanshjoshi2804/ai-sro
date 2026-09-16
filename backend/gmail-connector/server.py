@@ -9,8 +9,8 @@ call is clean-eligible, and can climb.
 Streamable-HTTP MCP, because that is what this system's connector speaks. Most
 Gmail MCP servers are stdio and cannot be reached by it at all.
 
-    # once per tenant, in a browser that tenant's operator is signed into:
-    uv run python backend/gmail-connector/server.py --authorize <tenant>
+    # once per operator, in a browser that operator is signed into:
+    uv run python backend/gmail-connector/server.py --authorize <tenant> <operator>
 
     # then, to serve:
     uv run python backend/gmail-connector/server.py 8932
@@ -26,11 +26,15 @@ sha256 of the bearer that reaches it -- so what is on disk cannot be read back
 into a credential. Nothing about the mailbox is stored: this reads and sends,
 and keeps no copy.
 
-**One grant per tenant, and a call with no grant behind its bearer reaches
-nothing.** It was one grant for everybody until 2026-09-16, and this checked no
-credential at all: it listens on localhost, so whatever ran on the box got
-whichever mailbox it had. The backend now sends each tenant's own bearer, read
-from the vault under `tenant/gmail/mcp-token`.
+**One grant per OPERATOR, and a call with no grant behind its bearer reaches
+nothing.** Each operator reads their own mail, so the grant belongs to a person
+and not to a company: a connector keyed by tenant would have one operator's
+inbox answering for everybody in it.
+
+It was one grant for everybody until 2026-09-16, and this checked no credential
+at all: it listens on localhost, so whatever ran on the box got whichever
+mailbox it had. The backend now sends that operator's own bearer, read from the
+vault under `secrets.connector_key`.
 """
 
 from __future__ import annotations
@@ -209,8 +213,8 @@ def _access_token(grant: dict[str, str]) -> str:
     return str(answer.json()["access_token"])
 
 
-def _keep(tenant: str, refresh_token: str) -> None:
-    """Write one tenant's grant, and print the bearer that reaches it once.
+def _keep(tenant: str, operator: str, refresh_token: str) -> None:
+    """Write one operator's grant, and print the bearer that reaches it once.
 
     The bearer is minted here rather than chosen, and printed rather than
     stored: what goes on disk is its sha256, so this directory cannot be read
@@ -221,25 +225,44 @@ def _keep(tenant: str, refresh_token: str) -> None:
     bearer = secrets.token_urlsafe(32)
     GRANTS.mkdir(mode=0o700, exist_ok=True)
     named = GRANTS / f"{hashlib.sha256(bearer.encode()).hexdigest()}.json"
-    named.write_text(json.dumps({"tenant": tenant, "refresh_token": refresh_token}, indent=1))
+    named.write_text(
+        json.dumps(
+            {"tenant": tenant, "operator": operator, "refresh_token": refresh_token}, indent=1
+        )
+    )
     named.chmod(0o600)
-    print(f"\ngrant stored for {tenant}. It is gitignored and holds no mail.")
-    print("Put this in the vault as this tenant's connector credential:")
+    print(f"\ngrant stored for {operator} of {tenant}. Gitignored, and holds no mail.")
+    print("Put this in the vault as this operator's connector credential:")
     print(f"\n  {bearer}\n")
-    print(f"  key: {tenant}/gmail/mcp-token")
+    # Printed because the key hashes the operator in and nobody can derive it
+    # by eye -- see `secrets.connector_key` for why it has to.
+    print(f"  key: {_vault_key(tenant, operator)}")
     print("It is shown once. Losing it costs a re-authorize, not the mailbox.")
 
 
-def authorize(tenant: str) -> None:
+def _vault_key(tenant: str, operator: str) -> str:
+    """The same key the backend asks the vault for.
+
+    Spelled here rather than imported: this script runs on its own, outside the
+    package, and a second spelling is how a grant gets stored where nothing
+    looks for it. Held to the original by
+    `test_the_connector_and_the_backend_agree_on_where_a_grant_lives`.
+    """
+    named = hashlib.sha256(operator.encode()).hexdigest()[:32]
+    return f"{tenant}/gmail/mcp-token-{named}"
+
+
+def authorize(tenant: str, operator: str) -> None:
     """The one step nobody can take on the operator's behalf.
 
     Their Google account, their consent screen, their decision about what this
     may read and send. All this does is open the page and catch the code Google
     sends back.
 
-    Per TENANT, because a grant belongs to one. A connector holding a single
-    grant and checking no credential hands whichever mailbox it has to whoever
-    reaches it -- and it listens on localhost, so that is anything on the box.
+    Per OPERATOR, because a grant belongs to one person: each reads their own
+    mail. A connector holding a single grant and checking no credential hands
+    whichever mailbox it has to whoever reaches it -- and it listens on
+    localhost, so that is anything on the box.
 
     Adopts the old single-tenant `.gmail-token.json` where one is still there,
     so a deployment that authorized before this existed does not have to send
@@ -250,9 +273,9 @@ def authorize(tenant: str) -> None:
     if TOKEN_FILE.exists():
         kept = json.loads(TOKEN_FILE.read_text())
         if kept.get("refresh_token"):
-            print(f"adopting the grant already in {TOKEN_FILE.name} for {tenant}.")
+            print(f"adopting the grant already in {TOKEN_FILE.name} for {operator}.")
             print(f"  nothing was sent to Google. You may delete {TOKEN_FILE.name} when done.")
-            _keep(tenant, str(kept["refresh_token"]))
+            _keep(tenant, operator, str(kept["refresh_token"]))
             return
     ident, secret = _client()
     got: dict[str, str] = {}
@@ -316,7 +339,7 @@ def authorize(tenant: str) -> None:
             "already granted this client: revoke it at "
             "https://myaccount.google.com/permissions and run --authorize again."
         )
-    _keep(tenant, str(granted["refresh_token"]))
+    _keep(tenant, operator, str(granted["refresh_token"]))
 
 
 def _headers_of(payload: dict[str, Any]) -> dict[str, str]:
@@ -565,20 +588,23 @@ class Connector(BaseHTTPRequestHandler):
 if __name__ == "__main__":
     if "--authorize" in sys.argv:
         named = [one for one in sys.argv[1:] if not one.startswith("-") and not one.isdigit()]
-        if not named:
+        if len(named) < 2:
             raise SystemExit(
-                "which tenant is this grant for?\n"
-                f"  {sys.argv[0]} --authorize <tenant>\n"
-                "A grant belongs to one tenant: a connector holding one grant for "
-                "everybody hands whichever mailbox it has to whoever reaches it."
+                "who is this grant for?\n"
+                f"  {sys.argv[0]} --authorize <tenant> <operator>\n"
+                "A grant belongs to one person: each operator reads their own mail, "
+                "and a connector holding one grant for everybody hands whichever "
+                "mailbox it has to whoever reaches it."
             )
-        authorize(named[0])
+        authorize(named[0], named[1])
         raise SystemExit(0)
 
     port = int(next((one for one in sys.argv[1:] if one.isdigit()), "8932"))
     _client()  # fail now, with a sentence, rather than on the first call
     if not GRANTS.is_dir() or not any(GRANTS.glob("*.json")):
-        raise SystemExit(f"no grant yet: run `{sys.argv[0]} --authorize <tenant>` first")
+        raise SystemExit(
+            f"no grant yet: run `{sys.argv[0]} --authorize <tenant> <operator>` first"
+        )
 
     try:
         server = ThreadingHTTPServer(("127.0.0.1", port), Connector)

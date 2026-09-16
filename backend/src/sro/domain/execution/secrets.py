@@ -29,6 +29,7 @@ operator can see they never stored one.
 
 from __future__ import annotations
 
+import hashlib
 import re
 from collections.abc import Mapping
 
@@ -102,6 +103,29 @@ def secret_key_of(tenant_id: str, system: str, field: str) -> str:
     invisible to the only thing that needs it.
     """
     return f"{tenant_id}/{origin_of(system) or system.strip().lower()}/{_as_key(field)}"
+
+
+def connector_key(tenant_id: str, server: str, principal_id: str) -> str:
+    """Where ONE operator's grant for one connector lives.
+
+    Per operator and not per tenant, because each reads their own mail: a key
+    without the person in it would have one operator's mailbox answering for
+    everybody in the tenant, which is the same bug one scope smaller.
+
+    The principal is HASHED into the field rather than spelled, and that is the
+    whole care of this function. `_as_key` collapses every run of punctuation
+    to a single dash, so `devansh.j` and `devansh_j` and `devansh j` are one
+    key -- and `PrincipalId` constrains nothing but blankness, so all three are
+    ids somebody can be issued. A collision here is one operator reading
+    another's mail, which is precisely what `secret_manager`'s own docstring
+    warns about one segment to the left.
+
+    Hex, so `_as_key` passes it through untouched and there is still exactly
+    one function shaping vault keys. Unreadable on purpose, and answered by the
+    connector printing the key beside the bearer it mints.
+    """
+    named = hashlib.sha256(principal_id.encode()).hexdigest()[:32]
+    return secret_key_of(tenant_id, server, f"mcp-token-{named}")
 
 
 def needs_a_secret(gesture: Gesture) -> bool:

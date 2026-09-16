@@ -36,8 +36,8 @@ from sro.application.ports.tools import (
     ToolsUnavailable,
 )
 from sro.application.ports.vault import CredentialVault, VaultUnavailable
-from sro.domain.execution.secrets import secret_key_of
-from sro.domain.shared.identifiers import TenantId
+from sro.domain.execution.secrets import connector_key
+from sro.domain.shared.identifiers import PrincipalId, TenantId
 
 CALL_TIMEOUT = 30.0
 """Long enough for a mail to be sent, short enough that a hung connector is a
@@ -79,8 +79,8 @@ class McpToolCaller(ToolCaller):
     def available(self) -> bool:
         return bool(self._servers)
 
-    async def _bearer(self, tenant_id: TenantId, server: str) -> str:
-        """This tenant's grant for this connector, or a refusal naming both.
+    async def _bearer(self, tenant_id: TenantId, principal_id: PrincipalId, server: str) -> str:
+        """This OPERATOR's grant for this connector, or a refusal naming both.
 
         The whole security property of this adapter. `secret_key_of` is the
         vault's own `tenant/system/field` shape rather than a second spelling,
@@ -97,13 +97,11 @@ class McpToolCaller(ToolCaller):
             raise NotConnected(
                 f"{server} needs a per-tenant grant and this deployment has no vault to keep it in"
             )
-        # `secret_key_of` on both sides, never a hand-spelled key. Its own
-        # docstring is the reason: it normalises the field -- `mcp_token`
-        # becomes `mcp-token` -- so a key built by hand here and by the helper
-        # at the console would not be the same key, and the grant would be
-        # invisible to the one thing that needs it. Caught exactly that way
-        # writing this.
-        key = secret_key_of(tenant_id.value, server, "mcp_token")
+        # `connector_key` on both sides, never a hand-spelled key. It hashes
+        # the principal in, because `_as_key` collapses punctuation and
+        # `devansh.j` and `devansh_j` would otherwise be one key -- which is
+        # one operator reading another's mail.
+        key = connector_key(tenant_id.value, server, principal_id.value)
         try:
             kept = await self._vault.get(key)
         except VaultUnavailable as down:
@@ -113,10 +111,12 @@ class McpToolCaller(ToolCaller):
             raise ToolsUnavailable(f"the vault holding {server}'s grant is unreachable") from down
         if kept:
             return kept
-        raise NotConnected(f"{tenant_id.value} has not connected {server}")
+        raise NotConnected(f"{principal_id.value} has not connected {server}")
 
-    async def list_tools(self, tenant_id: TenantId, server: str) -> tuple[ToolOffered, ...]:
-        answer = await self._rpc(tenant_id, server, "tools/list", {})
+    async def list_tools(
+        self, tenant_id: TenantId, principal_id: PrincipalId, server: str
+    ) -> tuple[ToolOffered, ...]:
+        answer = await self._rpc(tenant_id, principal_id, server, "tools/list", {})
         offered = answer.get("tools")
         if not isinstance(offered, list):
             return ()
@@ -131,10 +131,19 @@ class McpToolCaller(ToolCaller):
         )
 
     async def call(
-        self, tenant_id: TenantId, server: str, tool: str, arguments: Mapping[str, str]
+        self,
+        tenant_id: TenantId,
+        principal_id: PrincipalId,
+        server: str,
+        tool: str,
+        arguments: Mapping[str, str],
     ) -> ToolResult:
         answer = await self._rpc(
-            tenant_id, server, "tools/call", {"name": tool, "arguments": dict(arguments)}
+            tenant_id,
+            principal_id,
+            server,
+            "tools/call",
+            {"name": tool, "arguments": dict(arguments)},
         )
         # `isError` is the tool saying no, which is an answer. Reported as a
         # failed result rather than raised, because the escalation table treats
@@ -147,7 +156,12 @@ class McpToolCaller(ToolCaller):
         )
 
     async def _rpc(
-        self, tenant_id: TenantId, server: str, method: str, params: dict[str, object]
+        self,
+        tenant_id: TenantId,
+        principal_id: PrincipalId,
+        server: str,
+        method: str,
+        params: dict[str, object],
     ) -> dict[str, object]:
         known = self._servers.get(server)
         if known is None:
@@ -157,7 +171,7 @@ class McpToolCaller(ToolCaller):
             "Content-Type": "application/json",
             "Accept": "application/json, text/event-stream",
         }
-        headers["Authorization"] = f"Bearer {await self._bearer(tenant_id, server)}"
+        headers["Authorization"] = f"Bearer {await self._bearer(tenant_id, principal_id, server)}"
 
         try:
             async with httpx.AsyncClient(timeout=CALL_TIMEOUT) as client:

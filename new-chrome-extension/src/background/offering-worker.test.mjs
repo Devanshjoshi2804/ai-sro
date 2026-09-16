@@ -63,7 +63,16 @@ globalThis.chrome = {
     getManifest: () => ({ version: "0.0.0-test" }),
     sendMessage: () => {},
   },
-  alarms: { create: () => {}, onAlarm: { addListener: () => {} } },
+  // The beat is held rather than dropped: what the worker does when nobody is
+  // watching is exactly what a panel-driven test cannot see.
+  alarms: {
+    create: () => {},
+    onAlarm: {
+      addListener: (fn) => {
+        globalThis.__beat = fn;
+      },
+    },
+  },
   webNavigation: {
     onCommitted: { addListener: () => {} },
     onCompleted: { addListener: () => {} },
@@ -1383,6 +1392,21 @@ test("a mail becomes a card that waits, not a line in the conversation", async (
   assert.equal(card.tabId, null, "a mail card tied to a tab is one the panel never draws");
   // And nothing was said into the thread.
   assert.equal(calls.filter((call) => call.path.startsWith("/v1/threads")).length, 0);
+});
+
+test("the mailbox is read on the beat, not only while somebody is watching", async () => {
+  // A request that arrived while the panel was closed is exactly the one
+  // somebody needs to find waiting when they open it, and a look that runs
+  // only on the panel's own tick cannot produce one.
+  ready();
+  mailLooked = { offered: [], read: 2, why: "read 2, and none of them asks for a job" };
+
+  await globalThis.__beat({ name: "sro-heartbeat" });
+  // The alarm's work is fired and not awaited -- nothing is waiting on it --
+  // so the call lands on the next turn.
+  await new Promise((resolve) => setTimeout(resolve, 20));
+
+  assert.deepEqual(mailLooks, ["POST"], "the beat did not read the mailbox");
 });
 
 test("the icon counts what is waiting, and recording still wins it", async () => {

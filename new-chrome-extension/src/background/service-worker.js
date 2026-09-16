@@ -97,6 +97,15 @@ chrome.alarms.onAlarm.addListener((alarm) => {
     // between events, and a `setTimeout` for ninety seconds is one the platform
     // is free to never run.
     void sweepNudges();
+    // And the mailbox, for the jobs it is asking for.
+    //
+    // Here rather than on the panel's own tick, which is where it started: a
+    // request that arrived while the panel was closed is exactly the one
+    // somebody needs to find waiting when they open it, and a look that only
+    // runs while somebody is watching cannot produce one. The beat is a minute
+    // and so is the look's own throttle, so this asks about as often as it
+    // acts.
+    void lookInTheMail();
   }
   if (alarm.name === FLUSH) void flushQueue();
   // Every wake-up re-dials. Chrome evicts this worker while it is idle and the

@@ -1231,6 +1231,10 @@ function paintPanes() {
         if (picked === pane) return;
         pane = picked;
         paintPanes();
+        // Read it now rather than up to five seconds from now: the poll below
+        // runs only while Chat is showing, so arriving on it is exactly when
+        // the thread is most likely to be stale.
+        if (pane === "chat") void conversation();
       },
     }),
   );
@@ -1754,16 +1758,22 @@ setInterval(() => {
 // the API rather than a read of the worker's own state, and nothing in a
 // conversation arrives fast enough to be worth the two-second one. Make it a
 // push from the worker if an offer ever needs to land sooner than this.
+// The conversation, polled only while somebody is reading it.
+//
+// It was polled every five seconds whatever was on screen, which on a panel
+// that is now two halves is a call about a pane nobody is looking at. Home
+// draws no thread at all, and what Home DOES draw -- the cards, the run, what
+// is waiting -- arrives on the worker's own port the moment it changes.
+//
+// ponytail: a push would make even this one unnecessary, and the plan asks for
+// one -- a `thread.changed` command relayed to the panel. It is not built,
+// because the thing that needed to land sooner than five seconds was the mail
+// offer, and that is a card now rather than a line in the conversation: it
+// comes over the port already. Build the push the day a SENTENCE has to land
+// faster than a person can read the one above it.
 setInterval(() => {
-  if (document.visibilityState !== "visible") return;
+  if (document.visibilityState !== "visible" || pane !== "chat") return;
   void conversation();
-  // And ask the worker to read the mailbox for the jobs it asks for. Asked on
-  // this tick rather than given a timer of its own because it IS this tick's
-  // question -- "has anything been said to me" -- and a mail asking for a job
-  // is the system being asked something. The worker throttles it; what a look
-  // produces is a message in this same thread, so the card lands on the next
-  // turn of this poll with nothing here to draw it.
-  void ask({ kind: "look-in-the-mail" }).catch(() => {});
 }, 5000);
 
 listen();

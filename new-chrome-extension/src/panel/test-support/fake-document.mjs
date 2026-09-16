@@ -30,6 +30,12 @@ export function node(tag) {
     disabled: false,
     hidden: false,
     textContent: "",
+    // What a scroller has. Numbers rather than absent, so the code that keeps
+    // a conversation at its newest line can be read by a test rather than
+    // guarded against a fake that does not have them.
+    scrollTop: 0,
+    scrollHeight: 0,
+    clientHeight: 0,
     kids: [],
     listeners: {},
     set innerHTML(value) {

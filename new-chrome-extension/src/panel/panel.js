@@ -1215,6 +1215,9 @@ async function conversation() {
  */
 let pane = "home";
 
+/** What the tabs were last drawn from, so an unchanged pair is left alone. */
+let panesDrawn = null;
+
 /** Draw the two tabs and hide whichever half is not showing.
  *
  * Its own painter, called from `render` and from the tabs themselves, because
@@ -1224,6 +1227,19 @@ function paintPanes() {
   const missed = (lastStatus?.nudges || []).filter(
     (one) => one.state === "open" && one.missed,
   ).length;
+  // Only when it would say something different. This runs on every push from
+  // the worker -- a status lands every couple of seconds -- and rebuilding two
+  // buttons that often is how a control comes to flicker under the cursor
+  // that is about to press it.
+  const now = `${pane}:${missed}`;
+  if (now === panesDrawn) {
+    // The tabs are what is unchanged. Which half is on screen is asserted
+    // every time: it is one property write per element, and an early return
+    // that skipped it would leave a pane hidden after anything else touched it.
+    showPane();
+    return;
+  }
+  panesDrawn = now;
   $("panes").replaceChildren(
     panes(pane, {
       waiting: missed,
@@ -1234,10 +1250,50 @@ function paintPanes() {
         // Read it now rather than up to five seconds from now: the poll below
         // runs only while Chat is showing, so arriving on it is exactly when
         // the thread is most likely to be stale.
-        if (pane === "chat") void conversation();
+        if (pane === "chat") {
+          void conversation();
+          // Their own press, so the view is theirs to move: arriving on the
+          // conversation means arriving at the end of it.
+          toTheNewest(true);
+        }
       },
     }),
   );
+  showPane();
+}
+
+/** How close to the bottom still counts as reading the newest.
+ *
+ * A few pixels of slack rather than zero: a thread that has just grown by a
+ * line is a thread somebody is still at the bottom of, and an exact comparison
+ * makes every redraw a coin toss between sticking and not. */
+const K_AT_THE_BOTTOM = 48;
+
+/** Keep the newest thing in sight, the way a conversation is read.
+ *
+ * Nothing in this panel has ever scrolled, so arriving on Chat showed the
+ * OLDEST message with the newest below the fold, and every redraw left it
+ * there. That is most of what "it is not smooth" means: the thing you came to
+ * read is the one place the panel does not put you.
+ *
+ * It sticks rather than jumps. Somebody who has scrolled up is reading
+ * something, and a view that yanks itself down while they read is worse than
+ * one that never moved -- so this only acts when they were already at the
+ * bottom, or when `force` says the moment is theirs: they switched to this
+ * pane, or they just sent something.
+ */
+function toTheNewest(force = false) {
+  if (pane !== "chat") return;
+  const scroll = $("scroll");
+  const height = Number(scroll.scrollHeight) || 0;
+  const seen = Number(scroll.clientHeight) || 0;
+  const at = Number(scroll.scrollTop) || 0;
+  if (force || height - at - seen < K_AT_THE_BOTTOM) scroll.scrollTop = height;
+}
+
+/** Which half is on screen. Separate from drawing the tabs, because the tabs
+ * change when the count does and the panes change when the pane does. */
+function showPane() {
   // The composer belongs to the conversation, which is the half of this split
   // worth arguing with: a box you type into, pinned under a column of cards
   // about what is happening now, is what made the old panel one long thing.
@@ -1365,6 +1421,10 @@ function show(thread, { asked = false } = {}) {
       && !alreadyAnswered(thread.messages).has(message.decision.candidate_id),
   ).length;
   $("said").replaceChildren(ledger(thread, local, { onPress: answered }));
+  // After the words are in, because the height it scrolls to is the height
+  // they made. `asked` is the operator's own send, which is always theirs to
+  // move the view for.
+  toTheNewest(asked);
   // Drawn once and left alone: rebuilding it on every poll would take the
   // cursor out of a half-typed sentence.
   if (!$("ask-bar").childElementCount) $("ask-bar").append(composer(say));

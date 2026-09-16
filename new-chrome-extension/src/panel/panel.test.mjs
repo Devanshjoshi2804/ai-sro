@@ -81,6 +81,9 @@ function node(tag) {
     hidden: false,
     disabled: false,
     textContent: "",
+    scrollTop: 0,
+    scrollHeight: 0,
+    clientHeight: 0,
     kids: [],
     listeners: [],
     get childElementCount() {
@@ -338,6 +341,42 @@ test("a mail that matched is a card naming the task and what it read", async () 
   // themselves -- those were compared in the frame and forgotten there.
   assert.match(said, /sender contains “dispatch@supplier\.test”/);
   assert.match(said, /subject contains “Short ship”/);
+});
+
+test("arriving on the conversation arrives at the end of it", async () => {
+  // Nothing in this panel has ever scrolled, so Chat showed the OLDEST message
+  // with the newest below the fold. The thing you came to read was the one
+  // place the panel did not put you.
+  const { ids } = panel({ deviceId: "dev-1", nudges: [] });
+  const tab = (which) =>
+    ids["panes"].kids[0].kids.find((one) => one.dataset.pane === which).listeners[0];
+  // Once, to make the scroller: this fake document builds an element the first
+  // time somebody asks for it by id.
+  tab("chat")();
+  const scroll = ids["scroll"];
+  scroll.scrollHeight = 2400;
+  scroll.clientHeight = 600;
+  scroll.scrollTop = 0;
+
+  tab("home")();
+  tab("chat")();
+
+  assert.equal(scroll.scrollTop, 2400, "it left them at the top of the conversation");
+});
+
+test("a status landing does not move the view out from under them", async () => {
+  // Somebody who has scrolled up is reading something, and the worker pushes a
+  // status every couple of seconds.
+  const { ids, render } = panel({ deviceId: "dev-1", nudges: [] });
+  ids["panes"].kids[0].kids.find((one) => one.dataset.pane === "chat").listeners[0]();
+  const scroll = ids["scroll"];
+  scroll.scrollHeight = 2400;
+  scroll.clientHeight = 600;
+  scroll.scrollTop = 300;
+
+  render({ deviceId: "dev-1", nudges: [] });
+
+  assert.equal(scroll.scrollTop, 300);
 });
 
 test("it opens on Home, with the conversation one tap away", async () => {

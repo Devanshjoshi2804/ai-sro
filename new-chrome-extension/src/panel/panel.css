@@ -353,34 +353,91 @@ body {
 
 /* Which half of the panel you are on.
  *
- * Above the scroll and never moving: the control that says where you are must
- * not itself be somewhere you have to look for. Two tabs, because there are
- * two halves and a third would be a menu.
+ * ONE control, not two buttons standing near each other: a segmented switch in
+ * a single rounded well, which is the idiom the rest of this product's chrome
+ * uses and the thing the first version got wrong -- `display:flex` on each tab
+ * made every tab a block, and they stacked one above the other like two stray
+ * boxes.
+ *
+ * Above the scroll and never moving, because the control that says where you
+ * are must not itself be somewhere you have to look for.
  */
 #panes {
   flex: 0 0 auto;
-  display: flex;
-  gap: 4px;
-  padding: 8px 14px 0;
+  padding: 10px 14px 2px;
+}
+
+.panes {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--line-soft);
+  border-radius: 999px;
+  background: var(--brand-surface-2);
 }
 
 .pane-tab {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 12px;
-  border: 1px solid transparent;
+  padding: 4px 13px;
+  border: 0;
   border-radius: 999px;
   background: none;
   color: var(--ink-mute);
-  font: 600 12px/1.3 inherit;
+  font: 600 12px/1.4 inherit;
   cursor: pointer;
+  /* The one transition on this control. A segment that snaps is a segment
+     somebody presses twice to see whether it worked. */
+  transition:
+    background-color 140ms ease,
+    color 140ms ease;
+}
+
+.pane-tab:hover {
+  color: var(--ink-soft);
 }
 
 .pane-tab[aria-selected="true"] {
-  border-color: var(--line);
-  background: var(--card);
+  background: var(--brand-raised);
   color: var(--ink);
+}
+
+/* Somebody who asked for less movement gets none of this one either. */
+@media (prefers-reduced-motion: reduce) {
+  .pane-tab {
+    transition: none;
+  }
+}
+
+/* Arriving on a pane, rather than appearing on it.
+ *
+ * `hidden` snaps: the cards are gone and the conversation is simply there, and
+ * on a 400-pixel column that reads as a flicker rather than as a move. A short
+ * fade is the whole difference between a switch and a jump -- and it runs on
+ * showing only, so nothing is ever waiting on an animation to leave.
+ */
+#cards:not([hidden]),
+#thread:not([hidden]) {
+  animation: pane-in 140ms ease-out;
+}
+
+@keyframes pane-in {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #cards:not([hidden]),
+  #thread:not([hidden]) {
+    animation: none;
+  }
 }
 
 /* The one number a person on the wrong pane needs. Toned, never accented:

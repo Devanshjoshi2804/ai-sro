@@ -268,6 +268,50 @@ body {
   background: var(--warn-wash);
 }
 
+/* Which half of the panel you are on.
+ *
+ * Above the scroll and never moving: the control that says where you are must
+ * not itself be somewhere you have to look for. Two tabs, because there are
+ * two halves and a third would be a menu.
+ */
+#panes {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 4px;
+  padding: 8px 14px 0;
+}
+
+.pane-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: none;
+  color: var(--muted);
+  font: 600 12px/1.3 inherit;
+  cursor: pointer;
+}
+
+.pane-tab[aria-selected="true"] {
+  border-color: var(--line);
+  background: var(--card);
+  color: var(--text);
+}
+
+/* The one number a person on the wrong pane needs. Toned, never accented:
+ * `brand.css` says state colours are not the accent, and this is a state. */
+.pane-count {
+  min-width: 17px;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: var(--warn);
+  color: var(--card);
+  font: 700 10.5px/1.5 inherit;
+  text-align: center;
+}
+
 /* What arrived while nobody was looking.
  *
  * Pinned above the scroll, so a request nobody has answered is never something

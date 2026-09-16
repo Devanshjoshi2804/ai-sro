@@ -47,6 +47,7 @@ const SOURCE = [
   readFileSync(path.join(here, "today.js"), "utf-8"),
   readFileSync(path.join(here, "run-card.js"), "utf-8"),
   readFileSync(path.join(here, "waiting.js"), "utf-8"),
+  readFileSync(path.join(here, "panes.js"), "utf-8"),
   readFileSync(path.join(here, "panel.js"), "utf-8"),
 ]
   .join("\n")
@@ -336,6 +337,50 @@ test("a mail that matched is a card naming the task and what it read", async () 
   // themselves -- those were compared in the frame and forgotten there.
   assert.match(said, /sender contains “dispatch@supplier\.test”/);
   assert.match(said, /subject contains “Short ship”/);
+});
+
+test("it opens on Home, with the conversation one tap away", async () => {
+  // Somebody opening this panel is looking for what the system is doing or
+  // wants from them, which is a glance. A conversation is something you go to,
+  // and opening on it puts a text box in front of a person whose actual
+  // question is "did it work".
+  const { ids } = panel({ deviceId: "dev-1", nudges: [] });
+
+  assert.equal(ids["cards"].hidden, false);
+  assert.equal(ids["thread"].hidden, true, "the conversation was in front of them");
+  assert.equal(ids["ask-bar"].hidden, true, "the composer came with it");
+});
+
+test("the other half hides the cards and brings the composer", async () => {
+  const { ids } = panel({ deviceId: "dev-1", nudges: [] });
+  const chat = ids["panes"].kids[0].kids.find((tab) => tab.dataset.pane === "chat");
+
+  chat.listeners[0]();
+
+  assert.equal(ids["thread"].hidden, false);
+  assert.equal(ids["ask-bar"].hidden, false);
+  assert.equal(ids["cards"].hidden, true);
+  assert.equal(ids["today"].hidden, true);
+});
+
+test("a request waiting is not drawn while the conversation is showing", async () => {
+  // The banner is Home's. On Chat what says so is the count on the tab.
+  const { ids } = panel({
+    deviceId: "dev-1",
+    nudges: [
+      {
+        id: "n_mail", source: "rig", state: "open", missed: true, tabId: null,
+        title: "Create a Customer Type", workflowId: "wfl_1", k: 0,
+        values: {}, missing: [], parameters: [], at: new Date().toISOString(),
+      },
+    ],
+  });
+  const chat = ids["panes"].kids[0].kids.find((tab) => tab.dataset.pane === "chat");
+
+  chat.listeners[0]();
+
+  assert.equal(ids["waiting"].hidden, true);
+  assert.match(words(ids["panes"]), /1/, "nothing on Chat said a request was waiting");
 });
 
 test("a request that waited is in the banner and nowhere else", async () => {

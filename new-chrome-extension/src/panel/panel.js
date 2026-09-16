@@ -15,6 +15,7 @@ import { hostMatches } from "../background/scripts.js";
 import { alreadyAnswered, composer, ledger, nudging } from "./ledger.js";
 import { runCard } from "./run-card.js";
 import { needsAPress, strip } from "./strip.js";
+import { panes } from "./panes.js";
 import { today } from "./today.js";
 import { waiting } from "./waiting.js";
 
@@ -236,6 +237,7 @@ function render(status) {
   $("here").hidden = Boolean(status.teaching) || !status.deviceId;
   $("thread").hidden = Boolean(status.teaching) || !status.deviceId;
   lastStatus = status;
+  paintPanes();
   // What arrived while nobody was looking, above everything. Painted from the
   // worker's status rather than from the thread, because that is what it is
   // about -- a request waiting is a fact about this browser, not a line in a
@@ -1204,6 +1206,44 @@ async function conversation() {
  * on somebody mid-sentence is what the guard is for; their own press is not
  * that.
  */
+/** Which half of the panel is showing, in THIS window of it.
+ *
+ * Home, because somebody opening this panel is looking for what the system is
+ * doing or wants from them, which is a glance. A conversation is something you
+ * go to. Not stored, for the waiting banner's reason: it is a fact about a
+ * person looking at a panel right now.
+ */
+let pane = "home";
+
+/** Draw the two tabs and hide whichever half is not showing.
+ *
+ * Its own painter, called from `render` and from the tabs themselves, because
+ * switching pane changes nothing `show()`'s signature can see.
+ */
+function paintPanes() {
+  const missed = (lastStatus?.nudges || []).filter(
+    (one) => one.state === "open" && one.missed,
+  ).length;
+  $("panes").replaceChildren(
+    panes(pane, {
+      waiting: missed,
+      onPick: (picked) => {
+        if (picked === pane) return;
+        pane = picked;
+        paintPanes();
+      },
+    }),
+  );
+  // The composer belongs to the conversation, which is the half of this split
+  // worth arguing with: a box you type into, pinned under a column of cards
+  // about what is happening now, is what made the old panel one long thing.
+  for (const id of ["today", "waiting", "cards"]) {
+    if (id !== "waiting") $(id).hidden = pane !== "home";
+  }
+  $("waiting").hidden = pane !== "home" || !$("waiting").childElementCount;
+  for (const id of ["thread", "here", "ask-bar"]) $(id).hidden = pane !== "chat";
+}
+
 /** Whether the waiting banner is open, in THIS window of the panel.
  *
  * Not stored: it is a fact about a person looking at a panel right now, not
@@ -1249,7 +1289,7 @@ function paintWaiting() {
     card: (one) => nudging(one, answered),
   });
   $("waiting").replaceChildren(...(banner ? [banner] : []));
-  $("waiting").hidden = !banner;
+  $("waiting").hidden = !banner || pane !== "home";
 }
 
 function show(thread, { asked = false } = {}) {

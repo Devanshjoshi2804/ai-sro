@@ -11,6 +11,7 @@ import assert from "node:assert";
 import { test } from "node:test";
 
 let openTabs = [];
+let created = [];
 let reloaded = [];
 let injectedInto = [];
 let result = undefined;
@@ -21,7 +22,12 @@ globalThis.chrome = {
     query: async ({ url }) =>
       url ? openTabs.filter((tab) => tab.url.startsWith(url.replace("/*", ""))) : openTabs,
     get: async (id) => openTabs.find((tab) => tab.id === id) || null,
-    create: async (options) => ({ id: 99, ...options }),
+    create: async (options) => {
+      created.push(options);
+      const made = { id: 99, status: "complete", ...options };
+      openTabs.push(made);
+      return made;
+    },
     update: async () => ({}),
     reload: async (id) => {
       reloaded.push(id);
@@ -93,4 +99,48 @@ test("a page that still says nothing is named, with its status", async () => {
   assert.match(answer.error.detail, /wms\.example\/portal/, answer.error.detail);
   assert.match(answer.error.detail, /status loading/, answer.error.detail);
   assert.deepEqual(reloaded, [], "a tab that is awake is not reloaded under the operator");
+});
+
+const go = (payload) =>
+  perform({ command_id: "cmd-2", kind: "navigate", payload });
+
+test("a navigate opens the page when nothing is open on that system", async () => {
+  // Refusing here was refusing to do the one thing a navigate is. `ui.perform`
+  // opens a tab through `starts_on` when the operator's browser is elsewhere;
+  // a navigate, which carries the url by definition, would not -- so a run
+  // whose first warehouse step is "go to the Customer Types screen" died
+  // `no_tab_for_system` in front of an operator with that system open in
+  // another window. Measured on the deployment, 2026-09-17.
+  openTabs = [{ id: 3, url: "https://mail.example/inbox", status: "complete" }];
+  created = [];
+
+  const answer = await go({
+    url: "https://wms.example/portal/page?menu=wm.config",
+    origin: "https://wms.example",
+    allow_focus: true,
+  });
+
+  assert.equal(answer.ok, true, JSON.stringify(answer));
+  assert.equal(answer.result.opened, true);
+  assert.equal(created.length, 1, "it should open exactly one tab");
+  assert.equal(created[0].url, "https://wms.example/portal/page?menu=wm.config");
+  assert.equal(created[0].active, false, "opening a page is not taking somebody's screen");
+});
+
+test("a navigate does not open somewhere the command is not for", async () => {
+  // The same rule `opensFor` holds for a perform: a url whose origin is not
+  // the command's is not this system's page, and opening it would be driving
+  // the browser somewhere nobody asked for.
+  openTabs = [];
+  created = [];
+
+  const answer = await go({
+    url: "https://evil.example/portal",
+    origin: "https://wms.example",
+    allow_focus: true,
+  });
+
+  assert.equal(answer.ok, false);
+  assert.equal(answer.error.kind, "no_tab_for_system");
+  assert.deepEqual(created, []);
 });

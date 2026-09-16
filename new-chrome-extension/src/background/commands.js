@@ -470,6 +470,20 @@ async function tabForRun(payload, runId) {
   return tab;
 }
 
+/** The page a navigate may open a tab at, or null.
+ *
+ * `opensFor` says the same thing for a perform, about `starts_on`. This one is
+ * about the url the navigate itself carries: http or https, and on the origin
+ * the command names. A navigate to a `chrome://` page or to another system is
+ * not this run's business.
+ */
+export function openFor(payload) {
+  const wanted = payload?.url;
+  if (!wanted || !/^https?:/.test(wanted)) return null;
+  if (payload.origin && originOf(wanted) !== payload.origin) return null;
+  return wanted;
+}
+
 /** The page this step may open a tab at, or null.
  *
  * `starts_on` only ever speaks for the step's OWN system. A job that crosses
@@ -540,11 +554,15 @@ const OPENS_WITHIN_MS = 20_000;
 
 function settled(tabId) {
   return new Promise((resolve) => {
+    let settledAlready = false;
     const done = (tab) => {
+      if (settledAlready) return;
+      settledAlready = true;
       chrome.tabs.onUpdated.removeListener(watch);
       clearTimeout(timer);
       resolve(tab);
     };
+    const ignore = () => {};
     const watch = (id, change) => {
       if (id === tabId && change.status === "complete") {
         chrome.tabs.get(tabId).then(done, () => done(null));
@@ -555,6 +573,13 @@ function settled(tabId) {
     // that failed because a third-party script kept a request open.
     const timer = setTimeout(() => done(null), OPENS_WITHIN_MS);
     chrome.tabs.onUpdated.addListener(watch);
+    // And a tab that is ALREADY loaded answers now. Waiting for an `onUpdated`
+    // that has already fired is how a page served from cache costs a step its
+    // whole twenty seconds -- the listener above can only ever see what
+    // happens after it is attached. Last, so `done` and `ignore` both exist.
+    chrome.tabs.get(tabId).then((tab) => {
+      if (tab?.status === "complete") done(tab);
+    }, ignore);
   });
 }
 
@@ -857,8 +882,28 @@ async function openTab(payload) {
 
 async function navigate(payload) {
   if (!payload?.url) return failure("not_actionable", "navigate with no url");
-  const tab = await drivenTab(payload.origin);
-  if (!tab) return failure("no_tab_for_system", noPage(payload.origin));
+  let tab = await drivenTab(payload.origin);
+  if (!tab) {
+    // Nothing open on that system, and this command names the page it wants.
+    //
+    // Refusing here is refusing to do the one thing a navigate is: `ui.perform`
+    // opens a tab through `starts_on` when the operator's browser is elsewhere,
+    // and a navigate -- which carries a url by definition -- would not. So a
+    // run whose first warehouse step is "go to the Customer Types screen" died
+    // `no_tab_for_system` in front of an operator who had that system open in
+    // another window. Measured on the deployment, 2026-09-17.
+    //
+    // Only the page this command is for. `openFor` is the same rule `opensFor`
+    // holds for a perform: a url whose origin is not the command's is not this
+    // system's page, and opening it would be driving the browser somewhere
+    // nobody asked for.
+    const wanted = openFor(payload);
+    tab = wanted ? await openAt(wanted) : null;
+    if (!tab) return failure("no_tab_for_system", noPage(payload.origin));
+    // Opened AT the page, which is the whole of what this command asked for.
+    hold(tab.id, 8000);
+    return { ok: true, result: { navigated: true, opened: true } };
+  }
 
   const [inFront] = await chrome.tabs.query({
     active: true,

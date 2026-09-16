@@ -12,10 +12,11 @@
 // while one is running the panel is about that and nothing else.
 
 import { hostMatches } from "../background/scripts.js";
-import { alreadyAnswered, composer, ledger } from "./ledger.js";
+import { alreadyAnswered, composer, ledger, renderNudge } from "./ledger.js";
 import { runCard } from "./run-card.js";
 import { needsAPress, strip } from "./strip.js";
 import { today } from "./today.js";
+import { waiting } from "./waiting.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -235,6 +236,11 @@ function render(status) {
   $("here").hidden = Boolean(status.teaching) || !status.deviceId;
   $("thread").hidden = Boolean(status.teaching) || !status.deviceId;
   lastStatus = status;
+  // What arrived while nobody was looking, above everything. Painted from the
+  // worker's status rather than from the thread, because that is what it is
+  // about -- a request waiting is a fact about this browser, not a line in a
+  // conversation -- and after `lastStatus` is set, which is what it reads.
+  paintWaiting();
   return status;
 }
 
@@ -1198,6 +1204,38 @@ async function conversation() {
  * on somebody mid-sentence is what the guard is for; their own press is not
  * that.
  */
+/** Whether the waiting banner is open, in THIS window of the panel.
+ *
+ * Not stored: it is a fact about a person looking at a panel right now, not
+ * about the browser. A second window of the panel is a second pair of eyes and
+ * gets its own answer, and both are folded again next time it opens -- which is
+ * the state somebody coming back to the panel should find.
+ */
+let waitingOpen = false;
+
+/** Redraw the banner, and nothing else.
+ *
+ * Its own painter rather than part of `show()` because opening it changes
+ * nothing `show()`'s signature can see: the thread is the same, the cards are
+ * the same, and the guard there would return before drawing a thing. The
+ * toggle calls this directly.
+ */
+function paintWaiting() {
+  const missed = (lastStatus?.nudges || []).filter(
+    (nudge) => nudge.state === "open" && nudge.missed,
+  );
+  const banner = waiting(missed, {
+    open: waitingOpen,
+    onToggle: (open) => {
+      waitingOpen = open;
+      paintWaiting();
+    },
+    card: (one) => renderNudge(one, answered),
+  });
+  $("waiting").replaceChildren(...(banner ? [banner] : []));
+  $("waiting").hidden = !banner;
+}
+
 function show(thread, { asked = false } = {}) {
   // The local half belongs in the signature, not only in the draw below it.
   // It was built from the thread alone, and a rig offer writes nothing to the
@@ -1248,9 +1286,11 @@ function show(thread, { asked = false } = {}) {
     // the operator was somewhere else entirely -- filtered to the tab in front
     // of them it would never be drawn at all, which is how the first version
     // of this lost every request it recognised.
+    // Not the ones that are waiting: those are in the banner above, and a card
+    // drawn in both places is one an operator answers twice.
     nudges: (lastStatus?.nudges || []).filter((nudge) =>
       nudge.state === "open"
-        ? nudge.tabId == null || nudge.tabId === tabHere.tabId
+        ? !nudge.missed && (nudge.tabId == null || nudge.tabId === tabHere.tabId)
         : Date.now() - (nudge.endedAt || 0) < JUST_ENDED_MS,
     ),
     answer: lastStatus?.answer || null,

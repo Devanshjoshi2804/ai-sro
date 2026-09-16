@@ -155,19 +155,6 @@ export function ledger(thread, local = {}, { onPress, runs } = {}) {
     item.prepend(when);
     said.append(item);
   }
-  // "Three arrived while you were away."
-  //
-  // Said above the cards rather than on each of them: the cards themselves say
-  // what each request is, and what a person coming back to the panel needs
-  // first is the number. One is not a summary -- the card says it better -- so
-  // this appears from two.
-  const waited = (local?.nudges || []).filter((nudge) => nudge.missed && nudge.state === "open");
-  if (waited.length > 1) {
-    const many = document.createElement("p");
-    many.className = "what";
-    many.textContent = `${waited.length} requests arrived by mail while you were away.`;
-    root.prepend(many);
-  }
   root.append(said);
 
   return root;
@@ -504,12 +491,6 @@ function offeringToFinish(nudge, onPress) {
     field.placeholder = nudge.canFind ? `${name} \u2014 or leave it to me` : name;
     fields.set(name, field);
     item.append(field);
-  }
-  if (nudge.missed) {
-    const when = document.createElement("p");
-    when.className = "detail";
-    when.textContent = "Arrived while you were away.";
-    item.append(when);
   }
   if (nudge.canFind && fields.size) {
     const looking = document.createElement("p");

@@ -50,6 +50,17 @@ export function node(tag) {
     addEventListener(kind, fn) {
       (this.listeners[kind] ??= []).push(fn);
     },
+    // Attributes the platform has and a plain object does not. Only what a
+    // panel module actually sets -- `aria-expanded` on a control that folds --
+    // rather than a general attribute bag: this fake exists to be simple
+    // enough that it cannot itself be the thing that is wrong.
+    attributes: {},
+    setAttribute(name, value) {
+      this.attributes[name] = String(value);
+    },
+    getAttribute(name) {
+      return Object.hasOwn(this.attributes, name) ? this.attributes[name] : null;
+    },
     querySelectorAll(selector) {
       const all = [];
       const walk = (el) => {

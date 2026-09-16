@@ -22,6 +22,13 @@
     <!-- Three numbers, each measured. Absent on a day with nothing in it. -->
     <div id="today"></div>
 
+    <!-- What arrived while nobody was looking, folded into one line with the
+         number on it. Pinned above the scroll rather than inside it: a request
+         nobody has answered is not something to find by scrolling, and it is
+         the first thing somebody coming back to the panel should see. Built in
+         waiting.js. Absent -- not empty -- when nothing is waiting. -->
+    <div id="waiting" hidden></div>
+
     <!-- One card per thing that is true, in the order somebody should deal with
          it. Everything here is built in panel.js from the worker's status,
          because every one of these states is a fact about this browser rather

@@ -46,6 +46,7 @@ const SOURCE = [
   readFileSync(path.join(here, "strip.js"), "utf-8"),
   readFileSync(path.join(here, "today.js"), "utf-8"),
   readFileSync(path.join(here, "run-card.js"), "utf-8"),
+  readFileSync(path.join(here, "waiting.js"), "utf-8"),
   readFileSync(path.join(here, "panel.js"), "utf-8"),
 ]
   .join("\n")
@@ -335,6 +336,32 @@ test("a mail that matched is a card naming the task and what it read", async () 
   // themselves -- those were compared in the frame and forgotten there.
   assert.match(said, /sender contains “dispatch@supplier\.test”/);
   assert.match(said, /subject contains “Short ship”/);
+});
+
+test("a request that waited is in the banner and nowhere else", async () => {
+  // Two places is one an operator answers twice. The banner holds what arrived
+  // while nobody was looking; the stream below holds what is true right now.
+  const { ids } = panel({
+    deviceId: "dev-1",
+    nudges: [
+      {
+        id: "n_mail", source: "rig", state: "open", missed: true, tabId: null,
+        title: "Create a Customer Type", workflowId: "wfl_1", k: 0,
+        values: { "Customer Type": "GPX" }, missing: [], parameters: [],
+        at: new Date().toISOString(),
+      },
+    ],
+  });
+
+  assert.equal(ids["waiting"].hidden, false, "nothing said anything was waiting");
+  assert.match(words(ids["waiting"]), /1 request arrived while you were away/);
+  assert.doesNotMatch(words(ids["cards"]), /Create a Customer Type/, "drawn in both places");
+});
+
+test("nothing waiting leaves no banner behind", async () => {
+  const { ids } = panel({ deviceId: "dev-1", nudges: [] });
+
+  assert.equal(ids["waiting"].hidden, true);
 });
 
 test("a match that is short of a required value says so, and cannot be run", async () => {

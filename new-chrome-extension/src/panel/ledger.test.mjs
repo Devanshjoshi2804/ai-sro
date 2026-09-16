@@ -494,40 +494,6 @@ test("a card the run can gather for starts without the boxes being filled", () =
   assert.deepEqual(pressed[0][4], { values: { "Customer Type": "GPP" } });
 });
 
-test("what arrived while nobody was looking is counted, once, above the cards", () => {
-  // A person coming back to the panel needs the number first: three mails
-  // asked for three jobs while they were on the floor. The cards themselves
-  // say what each request is, so one of them is not a summary -- this appears
-  // from two.
-  const waiting = (n) => ({
-    id: `n_${n}`, source: "rig", state: "open", title: `Create a Customer Type ${n}`,
-    k: 0, values: {}, missing: [], parameters: [], tabId: null, missed: true,
-    at: new Date(Date.now() - 60_000).toISOString(),
-  });
-  const root = ledger({ id: "thr-1", messages: [] }, { nudges: [waiting(1), waiting(2), waiting(3)] }, {});
-
-  assert.match(words(root), /3 requests arrived by mail while you were away/);
-  // And each card says it for itself, for the operator who only looks at one.
-  assert.match(words(root), /Arrived while you were away/);
-});
-
-test("one request waiting is a card and not a headline", () => {
-  const root = ledger(
-    { id: "thr-1", messages: [] },
-    {
-      nudges: [{
-        id: "n_1", source: "rig", state: "open", title: "Create a Customer Type", k: 0,
-        values: {}, missing: [], parameters: [], tabId: null, missed: true,
-        at: new Date(Date.now() - 60_000).toISOString(),
-      }],
-    },
-    {},
-  );
-
-  assert.doesNotMatch(words(root), /requests arrived by mail/);
-  assert.match(words(root), /Arrived while you were away/);
-});
-
 test("a rig arrival nudge offers to do it from the start", () => {
   const nudge = { id: "n_2", source: "rig", state: "open", title: "Create Work Area", k: 0,
     values: {}, missing: ["workArea"], parameters: ["workArea"], tabId: 1 };

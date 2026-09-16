@@ -867,6 +867,7 @@ class WorkflowRunRow(Base):
     """A run that cost nothing and a run whose cost could not be established
     are the same row without this."""
 
+    doing: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
     gathered: Mapped[Any] = mapped_column(JSONB, nullable=False, default=dict, server_default="{}")
     """Where each value came from, for values nobody typed. Empty for a run
     whose values came from a person."""

@@ -40,6 +40,26 @@ query was wrong -- and small enough that a loop going nowhere costs a handful
 of calls rather than an afternoon.
 """
 
+K_PATIENCE_S = 45.0
+"""How long a gather may take in total, however many rounds that buys.
+
+`K_ROUNDS` bounds the number of looks and not the time they take, and those are
+different bounds: measured on the deployment 2026-09-16, a run sat at "Step 0"
+for three and a half minutes because Google answered one round with a 5xx and
+the asker did what it should -- three attempts, two-second backoff, a
+two-minute ceiling each. Six rounds of that is half an hour of a card saying
+nothing while a person watches it.
+
+So the loop has a clock as well as a counter. What it has found when the clock
+runs out is what it comes back with, which is the same answer it gives for a
+mailbox that holds nothing: the run then asks a person, and asking is what this
+was always going to do about a value it could not find.
+
+Forty-five seconds because a person watching a card is the measure here, not
+the model: past about a minute they go and do the job themselves, and a gather
+that finishes after they have is a gather that wasted its own answer.
+"""
+
 K_NOTE = 240
 """How much of what a search or a read answered is kept as history.
 

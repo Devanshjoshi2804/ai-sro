@@ -9,6 +9,7 @@ EARLIER message -- so that is the first test here, not the last.
 
 from __future__ import annotations
 
+import asyncio
 import json
 from collections.abc import Mapping
 from typing import Any
@@ -293,3 +294,50 @@ async def test_the_reason_the_run_was_started_beats_the_job_name_as_an_opening()
     )
 
     assert got.looked[0] == "search 'ZQ50 please'"
+
+
+async def test_a_look_that_outlasts_a_person_watching_stops_and_says_so() -> None:
+    """Measured on the deployment 2026-09-16: a run sat at "Step 0" for three
+    and a half minutes because Google answered one round with a 5xx and the
+    asker did what it should -- three attempts, a two-second backoff, a
+    two-minute ceiling each. `K_ROUNDS` bounds how many times this looks and
+    not how long looking takes, and six rounds of that is half an hour of a
+    card saying nothing while somebody watches it.
+    """
+
+    class _Slow:
+        """A model that takes one look and then stops answering."""
+
+        def __init__(self) -> None:
+            self.asked = 0
+
+        async def ask(self, **_: object) -> Answer:
+            self.asked += 1
+            if self.asked > 1:
+                await asyncio.sleep(30)
+            return Answer(data={"action": "search", "query": "customer type", "why": "look"})
+
+    mailbox = _Mailbox({"customer type": json.dumps({"messages": []})})
+    asker = _Slow()
+
+    began = asyncio.get_running_loop().time()
+    got = await _gather(mailbox, asker).execute(CTX, job="a job", wanted=[CODE], patience=0.2)
+    took = asyncio.get_running_loop().time() - began
+
+    assert took < 5, "the gather waited on a model that was never going to answer"
+    assert asker.asked == 2, "it gave up before the round that actually hung"
+    assert got.missing == (CODE,)
+    assert "ran out of time" in got.why
+    # And what it DID look at is still the record of where it got to.
+    assert got.looked == ("search 'a job'", "search 'customer type'")
+
+
+async def test_a_gather_with_no_time_left_asks_nothing_at_all() -> None:
+    """The budget is checked before the call, not after it: a round begun with
+    nothing left is a model call nobody is waiting for any more."""
+    asker = _Steps({"action": "search", "query": "x", "why": "look"})
+
+    got = await _gather(_Mailbox({}), asker).execute(CTX, job="a job", wanted=[CODE], patience=-1.0)
+
+    assert asker.saw == [], "it asked a model after its own deadline"
+    assert got.missing == (CODE,)

@@ -31,7 +31,9 @@ passes them down.
 
 from __future__ import annotations
 
+import asyncio
 import json
+import time
 from collections.abc import Mapping, Sequence
 from types import MappingProxyType
 
@@ -39,6 +41,7 @@ from sro.application.context import RequestContext
 from sro.application.ports.model import Asker
 from sro.application.ports.tools import ToolCaller, ToolsUnavailable
 from sro.domain.execution.gathering import (
+    K_PATIENCE_S,
     K_ROUNDS,
     Found,
     Gathered,
@@ -120,6 +123,7 @@ class GatherContext:
         seen: Mapping[str, Sequence[str]] = MappingProxyType({}),
         because: str = "",
         rounds: int = K_ROUNDS,
+        patience: float = K_PATIENCE_S,
     ) -> Gathered:
         """Look, up to `rounds` times, and come back with what was found.
 
@@ -134,6 +138,10 @@ class GatherContext:
         looked: list[str] = []
         history: list[str] = []
         spent = Answer()
+        # A clock as well as a counter. See `K_PATIENCE_S`: rounds bound how
+        # many times this looks, and on the day the model answers a round with
+        # a 5xx the retry that follows is measured in minutes.
+        until = time.monotonic() + patience
 
         # The first look is not the model's to choose.
         #
@@ -157,23 +165,50 @@ class GatherContext:
             missing = still_wanted(wanted, found)
             if not missing:
                 break
-            answer = await self._asker.ask(
-                model=self._model,
-                instructions=INSTRUCTIONS,
-                evidence=json.dumps(
-                    {
-                        "job": job,
-                        "asked_for": because,
-                        "still_needed": list(missing),
-                        "seen_before": {name: list(seen.get(name, ())) for name in missing},
-                        "already_looked_at": history,
-                    },
-                    indent=2,
-                    ensure_ascii=False,
-                ),
-                schema=STEP_SCHEMA,
-                effort=None,
-            )
+            # What is left of the budget, and never more. `K_ROUNDS` bounds
+            # how many times this looks; this bounds how long looking may
+            # take, which on the day the model answers with a 5xx is a
+            # different number by two orders of magnitude.
+            left = until - time.monotonic()
+            if left <= 0:
+                return Gathered(
+                    values=found,
+                    missing=missing,
+                    looked=tuple(looked),
+                    why=_ran_out(found, missing),
+                )
+            try:
+                answer = await asyncio.wait_for(
+                    self._asker.ask(
+                        model=self._model,
+                        instructions=INSTRUCTIONS,
+                        evidence=json.dumps(
+                            {
+                                "job": job,
+                                "asked_for": because,
+                                "still_needed": list(missing),
+                                "seen_before": {name: list(seen.get(name, ())) for name in missing},
+                                "already_looked_at": history,
+                            },
+                            indent=2,
+                            ensure_ascii=False,
+                        ),
+                        schema=STEP_SCHEMA,
+                        effort=None,
+                    ),
+                    left,
+                )
+            except TimeoutError:
+                # The same answer as a mailbox that holds nothing, because to
+                # the run it is the same fact: nobody found the value, so a
+                # person is asked. What WAS found is kept -- a code read in the
+                # first round is not less true for the second round being slow.
+                return Gathered(
+                    values=found,
+                    missing=still_wanted(wanted, found),
+                    looked=tuple(looked),
+                    why=_ran_out(found, still_wanted(wanted, found)),
+                )
             spent = _also(spent, answer)
             if answer.data is None:
                 return Gathered(
@@ -289,6 +324,17 @@ def _values_in(said: Mapping[str, object]) -> dict[str, Found]:
             quoting=quoting if isinstance(quoting, str) else "",
         )
     return found
+
+
+def _ran_out(found: Mapping[str, Found], missing: Sequence[str]) -> str:
+    """What happened when the clock beat the mailbox.
+
+    Said as what it is rather than as a failure: the run's next move for a
+    value nobody found is to ask a person, and that is the same move it makes
+    for a mailbox that genuinely does not hold one.
+    """
+    had = "found " + ", ".join(sorted(found)) + ", then " if found else ""
+    return f"{had}ran out of time looking for " + ", ".join(missing)
 
 
 def _sentence(found: Mapping[str, Found], missing: Sequence[str]) -> str:

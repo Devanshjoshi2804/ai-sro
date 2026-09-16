@@ -2451,6 +2451,11 @@ async function status(sender = null) {
       // steps come from its skill, and a picture left over from the previous
       // rig run would draw somebody else's writes under this one's title.
       run: rigRunShown?.id === shown.runId ? rigRunShown : undefined,
+      // What the run says it is doing when it has no step to show for it --
+      // reading the mailbox for the values nobody typed. Off the row rather
+      // than mirrored here: the browser cannot know it, and "Step 0" is what
+      // the card said instead for three and a half minutes.
+      doing: rigRunShown?.id === shown.runId ? rigRunShown?.doing || "" : "",
     },
     // What the last run this browser finished made, and how to take it back --
     // held long past this run itself, unlike `performing` above, because an

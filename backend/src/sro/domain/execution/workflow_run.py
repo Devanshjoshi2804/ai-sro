@@ -176,6 +176,20 @@ class WorkflowRun:
     cost_usd: float = 0.0
     unpriced: bool = False
 
+    doing: str = ""
+    """What this run is doing when it has no step to show for it.
+
+    Everything a run does is a step, with one exception: the gather runs BEFORE
+    the first step, because a value nobody typed has to be found before
+    anything can be planned with it. Measured on the deployment 2026-09-16 --
+    an operator pressed "Yes, do it" and the card said "Step 0" for three and a
+    half minutes while the run read their mailbox and the model retried a 5xx.
+    The run was working the whole time and nothing anywhere said so.
+
+    One line, in the words somebody watching would use, written before the
+    looking starts and cleared when it ends. Empty for every run that only ever
+    did its steps, which is what a run normally is."""
+
     gathered: dict[str, dict[str, str]] = field(default_factory=dict)
     """Parameter -> where its value was read, for values nobody typed.
 

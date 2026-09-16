@@ -586,9 +586,17 @@ function performing(status) {
   const total = run.of && done !== null && done <= run.of ? run.of : null;
   const holder = card({
     title: run.skill ? `“${run.skill}” is running` : "A run is performing here",
-    says:
-      (run.because || "Started elsewhere") +
-      (done === null ? "." : total ? `. Step ${done} of ${total}.` : `. Step ${done}.`),
+    // What it is doing beats which step it is on, when it says anything.
+    //
+    // A run reading a mailbox for the values nobody typed has not reached its
+    // first step yet, so "Step 0" is true and useless -- and on the deployment
+    // 2026-09-16 it sat there for three and a half minutes while the model
+    // retried a 5xx, which reads exactly like a run that has hung. Everything
+    // a run does is a step except this one thing, so this one thing says so.
+    says: run.doing
+      ? `${run.doing}…`
+      : (run.because || "Started elsewhere") +
+        (done === null ? "." : total ? `. Step ${done} of ${total}.` : `. Step ${done}.`),
     metrics: `${run.kind} · ${clock(run.since)}`,
     stage: run.stage || null,
     progress: total ? { done, of: total } : null,

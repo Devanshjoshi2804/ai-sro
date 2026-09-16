@@ -729,6 +729,9 @@ def test_a_finished_run_reaches_the_wire_whole() -> None:
         # front of the recorder.
         # Empty because a person typed these values. Filled only for a value
         # nobody typed, with the message it was read out of.
+        # What a run is doing when it has no step to show for it: reading a
+        # mailbox. Empty here, and empty for a finished run always.
+        "doing": "",
         "gathered": {},
         # Null because nobody has reported this run. The card that reports one
         # reads this to stop offering to report it twice.

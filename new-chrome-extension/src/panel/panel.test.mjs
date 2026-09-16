@@ -383,6 +383,28 @@ test("a status landing does not move the view out from under them", async () => 
   assert.equal(scroll.scrollTop, 300);
 });
 
+test("a run reading the mailbox says so, rather than saying Step 0", async () => {
+  // Everything a run does is a step except this one thing: the gather runs
+  // before the first step, because a value nobody typed has to be found before
+  // anything can be planned with it. On the deployment 2026-09-16 the card
+  // said "Step 0" for three and a half minutes while the mailbox was read and
+  // the model retried a 5xx, which reads exactly like a run that has hung.
+  const { cards } = panel({
+    deviceId: "dev-1",
+    performing: {
+      runId: "run-9",
+      kind: "rig",
+      since: new Date().toISOString(),
+      step: 0,
+      doing: "looking in your mail for Customer Type",
+    },
+  });
+
+  const card = cards.find((one) => words(one).includes("is performing here"));
+  assert.match(words(card), /looking in your mail for Customer Type/);
+  assert.doesNotMatch(words(card), /Step 0/, "it said which step it was on instead");
+});
+
 test("it opens on Home, with the conversation one tap away", async () => {
   // Somebody opening this panel is looking for what the system is doing or
   // wants from them, which is a glance. A conversation is something you go to,

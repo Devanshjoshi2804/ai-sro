@@ -696,7 +696,14 @@ async def run_workflow(
     # the gather is only asked about what is missing, and this ordering says
     # the same thing a second time so the two cannot disagree.
     if gather_values is not None and (short := _not_given(workflow, values)):
+        # Said on the row before it starts, because this is the one thing a run
+        # does with no step to show for it -- and a card reading "Step 0" for
+        # three and a half minutes while the mailbox is read is a run somebody
+        # reasonably believes has hung.
+        run.doing = "looking in your mail for " + ", ".join(short)
+        await _save(uow, run)
         got = await gather_values(short)
+        run.doing = ""
         values = {**{name: f.value for name, f in got.values.items()}, **values}
         # On the ROW and not only in this frame. `perform` re-reads the row and
         # hands its values back down, so a gather kept in a local is a gather

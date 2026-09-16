@@ -3417,6 +3417,11 @@ class WorkflowRunModel(BaseModel):
     cost_usd: float
     unpriced: bool
 
+    doing: str = ""
+    """What this run is doing when it has no step to show for it -- reading a
+    mailbox for the values nobody typed. Empty the rest of the time, which is
+    almost always."""
+
     gathered: dict[str, dict[str, str]] = {}
     """Parameter -> where its value was read, for values nobody typed.
 
@@ -3469,6 +3474,7 @@ class WorkflowRunModel(BaseModel):
             thought_tokens=run.thought_tokens,
             cost_usd=run.cost_usd,
             unpriced=run.unpriced,
+            doing=run.doing,
             gathered={k: dict(v) for k, v in run.gathered.items()},
             wrong_because=run.wrong_because,
             undo=undo,

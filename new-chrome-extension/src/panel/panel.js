@@ -200,6 +200,28 @@ function render(status) {
   // demonstration and nothing else -- the offer keeps.
   if (!status.teaching) for (const offer of status.offers || []) cards.push(offering(offer));
 
+  // The jobs this browser is offering to do, HERE rather than in the
+  // conversation.
+  //
+  // They were drawn in the thread, interleaved with what was said, which was
+  // right when the panel was one column and wrong the moment it became two:
+  // Home is what is true right now and an offer is the truest thing on it, so
+  // splitting the panel left Home empty and put the card a person was waiting
+  // to press behind the other tab. Seen on the deployment 2026-09-16 --
+  // "Create a Customer Type — GDY, so far" sitting in Chat with nothing at all
+  // on Home.
+  //
+  // Not the ones that are waiting: those are in the banner above, and a card
+  // drawn twice is a card somebody answers twice. Not another tab's, either --
+  // an offer about a page nobody is looking at is words without buttons.
+  if (!status.teaching) {
+    for (const nudge of lastStatus?.nudges || status.nudges || []) {
+      if (nudge.state !== "open" || nudge.missed) continue;
+      if (nudge.tabId != null && nudge.tabId !== tabHere.tabId) continue;
+      cards.push(nudging(nudge, answered));
+    }
+  }
+
   if (status.performing) cards.push(performing(status));
   // Not while teaching, same rule as the offers above: a demonstration in
   // progress is the only thing the panel is about. Placed after the run that
@@ -1402,12 +1424,13 @@ function show(thread, { asked = false } = {}) {
     // the operator was somewhere else entirely -- filtered to the tab in front
     // of them it would never be drawn at all, which is how the first version
     // of this lost every request it recognised.
-    // Not the ones that are waiting: those are in the banner above, and a card
-    // drawn in both places is one an operator answers twice.
-    nudges: (lastStatus?.nudges || []).filter((nudge) =>
-      nudge.state === "open"
-        ? !nudge.missed && (nudge.tabId == null || nudge.tabId === tabHere.tabId)
-        : Date.now() - (nudge.endedAt || 0) < JUST_ENDED_MS,
+    // Only the ones that have just ENDED. An open offer is a thing to press
+    // and belongs on Home with everything else that is true right now; what
+    // the conversation keeps is the brief tail of one that closed, so somebody
+    // who just watched it go can see that it went rather than wonder where the
+    // panel put it.
+    nudges: (lastStatus?.nudges || []).filter(
+      (nudge) => nudge.state !== "open" && Date.now() - (nudge.endedAt || 0) < JUST_ENDED_MS,
     ),
     answer: lastStatus?.answer || null,
     nearMisses: lastStatus?.nearMisses || [],

@@ -654,7 +654,7 @@ class Container:
             self.scheduler,
             # The same pair `start_workflow_run` builds its gather out of, so
             # this door and the run door agree about what a job needs typed.
-            can_gather=self.tools.available and self.asker is not None,
+            can_gather=self.can_gather,
         )
 
     def read_triggers(self) -> ReadTriggers:
@@ -1013,7 +1013,7 @@ class Container:
             # of. Asked here so the card a person reads says what the run will
             # actually do: a deployment with no connector still demands the
             # values, because on that one nothing can go and find them.
-            can_gather=self.tools.available and self.asker is not None,
+            can_gather=self.can_gather,
         )
 
     def from_the_mail(self) -> FromTheMail:
@@ -1030,6 +1030,22 @@ class Container:
             self.asker,
             model=self.settings.gemini_plan_model,
         )
+
+    @property
+    def can_gather(self) -> bool:
+        """Whether a run of a mined job can go and find a value nobody typed.
+
+        One place, because four now ask: the chat door (so the card says "I
+        will look in your mail" rather than demanding), the trigger door (so a
+        watch on a job may be made at all), the mail look itself, and
+        `/v1/shapes` (so the OFFER a browser draws from a prefix match says the
+        same thing as the one it draws from a sentence).
+
+        The same pair `start_workflow_run` builds its gather out of: a mailbox
+        to read and a model to read it with. A deployment missing either still
+        asks for the values, because on that one nothing can go and find them.
+        """
+        return self.tools.available and self.asker is not None
 
     def read_threads(self) -> ReadThreads:
         return ReadThreads(self.unit_of_work())

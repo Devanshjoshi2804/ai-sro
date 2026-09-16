@@ -409,8 +409,12 @@ async function shapesFor() {
   // outside its own try).
   // Named, so the rig can mark the jobs this browser has been refusing.
   const answered = await api.shapes(await state.deviceId());
-  const usable = Array.isArray(answered)
-    ? answered.filter((shape) => shape && Array.isArray(shape.shape) && shape.id)
+  // The older shape of this answer was a bare list. Both are read, so a worker
+  // that has not been restarted after a backend deploy keeps offering.
+  const served = Array.isArray(answered) ? answered : answered?.shapes;
+  canFind = Array.isArray(answered) ? canFind : Boolean(answered?.canFind);
+  const usable = Array.isArray(served)
+    ? served.filter((shape) => shape && Array.isArray(shape.shape) && shape.id)
     : [];
   const list = usable.map((shape) => ({
     ...shape,
@@ -427,6 +431,16 @@ async function shapesFor() {
   shapesHeld = { at: list.length ? Date.now() : 0, list };
   return list;
 }
+
+/** Whether a run can go and find a value nobody typed, as this deployment last
+ * said. Held beside the shapes because it arrives with them, and read by both
+ * card paths -- the one a sentence makes and the one a prefix match makes.
+ *
+ * False until the first answer, which is the safe way round: a card that asks
+ * for a value the run could have found costs a person ten seconds, and one
+ * that promises to find a value on a deployment with no mailbox costs them a
+ * run that stops at the first step. */
+let canFind = false;
 
 function originOf(url) {
   try {
@@ -532,7 +546,10 @@ async function offerFromJob(placed, tabId) {
       values: placed.values || {},
       items: Array.isArray(placed.items) ? placed.items : [],
       missing: placed.missing || [],
-      can_find: Boolean(placed.can_find),
+      // What the door said, where it said anything; what the deployment last
+      // told this browser otherwise. The two agree -- both are the same
+      // container property -- and the fallback is for an older backend.
+      can_find: placed.can_find === undefined ? canFind : Boolean(placed.can_find),
       parameters: (shape?.parameters || []).map((one) => one.name),
     },
     Date.now(),
@@ -667,8 +684,8 @@ async function considerOffer(tabId, gesture) {
       // dismissal every time the operator typed the next field.
       const made =
         open && open.source === "rig" && open.state === "open"
-          ? { ...open, ...replace, id: open.id, at: open.at, tabId }
-          : { ...replace, tabId };
+          ? { ...open, ...replace, id: open.id, at: open.at, tabId, canFind }
+          : { ...replace, tabId, canFind };
       // The one it supersedes stops being open: two open at once is the queue
       // this design exists to not be. On an upgrade that is the same record,
       // and `made` puts it straight back with what it has just learned. A

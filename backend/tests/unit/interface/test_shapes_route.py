@@ -241,7 +241,10 @@ async def test_every_proven_job_comes_back_and_in_the_order_it_was_served(
 async def test_a_tenant_with_nothing_proven_is_answered_with_an_empty_list(
     client: httpx.AsyncClient,
 ) -> None:
-    assert (await client.get("/v1/shapes")).json() == {"shapes": []}
+    # `can_find` rides along on every answer: it is a fact about the
+    # deployment rather than about a job, and the browser needs it to draw an
+    # offer it builds itself. False here -- this container has no connector.
+    assert (await client.get("/v1/shapes")).json() == {"shapes": [], "can_find": False}
 
 
 async def test_no_credential_is_refused_before_anything_is_read(
@@ -411,4 +414,6 @@ async def test_another_tenants_credential_is_served_its_own_nothing(
         answered = await rival.get("/v1/shapes")
 
     assert answered.status_code == 200
-    assert answered.json() == {"shapes": []}, "another tenant's proven job was served"
+    assert answered.json() == {"shapes": [], "can_find": False}, (
+        "another tenant's proven job was served"
+    )

@@ -35,4 +35,9 @@ async def shapes(
 ) -> ShapesResponse:
     """Every proven workflow of this tenant, as the extension needs it."""
     served = await container.serve_shapes().execute(ctx, device_id=asking)
-    return ShapesResponse(shapes=[shape.as_json() for shape in served])
+    # And whether a run can go and find what nobody typed, which the browser
+    # cannot know: a card it builds from a prefix match would otherwise demand
+    # values the run is able to read out of the operator's own mail.
+    return ShapesResponse(
+        shapes=[shape.as_json() for shape in served], can_find=container.can_gather
+    )

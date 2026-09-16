@@ -287,8 +287,12 @@ function panel(status, here = null, replies = {}) {
     // The ledger's LOCAL half: the offers this browser made, which live in no
     // thread. Set and redrawn the way a poll does it -- `refresh()` stores the
     // status, `conversation()` calls `show` with whatever thread it fetched.
+    // An offer arriving, as the worker actually delivers one: a status push
+    // carrying the nudges, and then whatever the thread happens to say. Both,
+    // because an open offer is drawn on HOME -- it is a thing to press, not a
+    // thing that was said -- and the thread is what `show` draws.
     offerLocally: (nudges, thread) => {
-      vm.runInContext(`lastStatus = ${JSON.stringify({ nudges })}`, sandbox);
+      sandbox.render({ ...status, nudges });
       sandbox.show(thread);
     },
     // The same half, for whatever else lives in it. `offerLocally` names the
@@ -1258,12 +1262,17 @@ test("an offer made while the thread is quiet is still drawn", async () => {
     thread,
   );
 
+  // On HOME, which is where a thing to press belongs. It used to be drawn in
+  // the conversation, interleaved with what was said -- right when the panel
+  // was one column, wrong the moment it became two: splitting it left Home
+  // empty and put the card a person was waiting to press behind the other tab.
   assert.match(
-    words(ids["said"]),
+    words(ids["cards"]),
     /Create a Work Area/,
     "the offer was never drawn: the thread had not changed",
   );
-  assert.match(words(ids["said"]), /finish it/i, "drawn, but not as something to answer");
+  assert.match(words(ids["cards"]), /finish it/i, "drawn, but not as something to answer");
+  assert.doesNotMatch(words(ids["said"]), /Create a Work Area/, "drawn in both places");
 });
 
 test("the same thread and the same offers are not redrawn", async () => {

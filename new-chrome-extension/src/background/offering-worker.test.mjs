@@ -144,6 +144,7 @@ let rigRunServed = { id: "run-9", outcome: "held", steps: [] };
 /** A rig that cannot be reached, for the tick that has to be retried. */
 let rigRunFails = false;
 let shapesServed = [SHAPE];
+let shapesCanFind = false;
 /** How the backend answers the approve door, for the test that a refusal is
  * one. `null` is the door letting the write out. */
 let approveRefusal = null;
@@ -190,7 +191,7 @@ const rigServer = async (url, options = {}) => {
       ? json({ detail: approveRefusal.detail }, approveRefusal.status)
       : json({ order: 0, first: true });
   }
-  if (path === "/v1/shapes") return json({ shapes: shapesServed });
+  if (path === "/v1/shapes") return json({ shapes: shapesServed, can_find: shapesCanFind });
   if (path === "/v1/threads/thr-1/messages") return json({ id: "thr-1", messages: [] });
   if (path === "/v1/chat") return chatRead ? json(chatRead) : json({ detail: "no model" }, 503);
   if (path === "/v1/chat/from-the-mail") {
@@ -282,6 +283,7 @@ function ready() {
   calls = [];
   painted.length = 0;
   shapesServed = [SHAPE];
+  shapesCanFind = false;
   rigRunServed = { id: "run-9", outcome: "held", steps: [] };
   rigRunFails = false;
   approveRefusal = null;
@@ -356,6 +358,18 @@ test("an empty answer is not cached, and the shapes asked for are this browser's
   // would still be what this browser matched against -- and this is also the
   // successful request the refusal above is measured against.
   shapesServed = [SHAPE];
+  // And this deployment can go and find a value nobody typed. It rides in with
+  // the shapes because a browser cannot know it any other way, and the card
+  // built HERE -- out of a prefix match rather than out of a sentence the chat
+  // door read -- has to say the same thing that one does. Without it the same
+  // job offered two ways disagreed about whether it needs you to type: the
+  // mail card said "leave it to me" and this one demanded four values and left
+  // its own button disabled.
+  //
+  // Asserted in this test because this is the one place the suite forces the
+  // shapes to be read again: the worker holds them for five minutes, and the
+  // whole file runs in two seconds.
+  shapesCanFind = true;
   await gesture("a", "NEW");
   await gesture("b", "north");
   await until(() => openOnes().length === 1, "a backend that had answered [] once was never asked again");
@@ -363,6 +377,7 @@ test("an empty answer is not cached, and the shapes asked for are this browser's
     calls.filter((call) => call.path === "/v1/shapes").length > askedWhileEmpty,
     "the empty answer was cached",
   );
+  assert.equal(openOnes()[0].canFind, true, "the prefix card asked for what the run can find");
 });
 
 test("two gestures into a proven job become one offer, and a third upgrades it", async () => {
@@ -1002,7 +1017,14 @@ test("the shapes read are the ones the named browser is served, and a refusal is
     return json({ shapes: [SHAPE] });
   };
 
-  assert.deepEqual(await api.shapes("dev-other-6b90"), [SHAPE], "a served list came back as nothing");
+  // `{shapes, canFind}` rather than a bare list: whether a run can go and find
+  // a value nobody typed rides along with them, because a browser building an
+  // offer out of these shapes cannot know it any other way.
+  assert.deepEqual(
+    await api.shapes("dev-other-6b90"),
+    { shapes: [SHAPE], canFind: false },
+    "a served list came back as nothing",
+  );
   assert.equal(
     new URLSearchParams(asked.at(-1).split("?")[1] || "").get("device_id"),
     "dev-other-6b90",
@@ -1011,7 +1033,11 @@ test("the shapes read are the ones the named browser is served, and a refusal is
   assert.ok(asked.at(-1).startsWith(`${BACKEND}/v1/shapes`), `shapes were read from ${asked.at(-1)}`);
 
   globalThis.fetch = async () => json({ detail: "device was not found" }, 404);
-  assert.deepEqual(await api.shapes("dev-other-6b90"), [], "a refused read threw on the gesture path");
+  assert.deepEqual(
+    await api.shapes("dev-other-6b90"),
+    { shapes: [], canFind: false },
+    "a refused read threw on the gesture path",
+  );
   globalThis.fetch = rigServer;
 });
 

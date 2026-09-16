@@ -255,9 +255,13 @@ export const api = {
   shapes: async (deviceId) => {
     try {
       const query = deviceId ? `?device_id=${encodeURIComponent(deviceId)}` : "";
-      return (await call(`/v1/shapes${query}`)).shapes || [];
+      const answered = await call(`/v1/shapes${query}`);
+      // `can_find` rides along: whether a run can go and find a value nobody
+      // typed is a fact about the deployment, and a browser building an offer
+      // out of these shapes cannot know it any other way.
+      return { shapes: answered.shapes || [], canFind: Boolean(answered.can_find) };
     } catch {
-      return [];
+      return { shapes: [], canFind: false };
     }
   },
 

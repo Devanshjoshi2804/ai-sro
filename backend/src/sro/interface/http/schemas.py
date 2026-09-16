@@ -1669,6 +1669,20 @@ class ShapesResponse(BaseModel):
     gains one.
     """
 
+    can_find: bool = False
+    """Whether a run of one of these can go and find a value nobody typed.
+
+    Here, on the response rather than on each shape, because it is a fact about
+    the DEPLOYMENT and not about a job: the same mailbox and the same model
+    serve every one of them.
+
+    The browser needs it to draw an offer honestly. A card built from a
+    sentence already says "I will look in your mail for the rest" -- that
+    answer came back from the chat door, which knows. A card built from a
+    PREFIX MATCH is built in the browser out of shapes, and without this it
+    demanded every missing value and left its own button disabled: the same
+    job, offered two ways, disagreeing about whether it needs you to type."""
+
 
 class RecordOfferRequest(BaseModel):
     """What a browser showed, and what became of it.

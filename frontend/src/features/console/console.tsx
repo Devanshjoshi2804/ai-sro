@@ -5,31 +5,16 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Watching } from "@/features/console/watching";
 import { PursuitCard } from "@/features/console/pursuit-card";
-import {
-  recordingKeys,
-  startRecording,
-  type ObjectiveKey,
-  type StartRecordingRequest,
-} from "@/features/recording/api";
-import { induceSkill, listSkills, skillKeys } from "@/features/skill/api";
-import { listDevices } from "@/features/trigger/api";
+import { listSkills, skillKeys } from "@/features/skill/api";
+import { listWorkflows, workflowKeys } from "@/features/workflow/api";
 import { ApiError } from "@/lib/api/client";
 import { ink, mono } from "@/features/console/theme";
 import { BatchCard } from "@/features/console/batch-card";
 import { SkillCard } from "@/features/console/skill-card";
 import { OpenQuestions } from "@/features/knowledge/components/open-questions";
-import { TeachPanel } from "@/features/console/teach-panel";
-import { useThread } from "@/features/console/thread-store";
 import { TopBar, BarLink } from "@/features/console/top-bar";
-import {
-  ConnectPanel,
-  SessionState,
-  checkSessions,
-  connectionKeys,
-  listConnections,
-} from "@/features/console/connect-panel";
+import { connectionKeys, listConnections } from "@/features/console/connect-panel";
 import {
   getThread,
   listThreads,
@@ -39,36 +24,8 @@ import {
   type ChatMessage,
 } from "@/features/console/chat-api";
 
-/**
- * A teaching session is started by naming a URL and nothing else.
- *
- * What the task *is* — its objective key — is read off the evidence when the
- * run is sealed: the call the demonstration ended on names the entity and the
- * verb, the parameter every call carried names the facility. Asking the
- * operator to type all five up front produced pairs that never matched, because
- * two people describe one task two ways and the diff needs exact equality.
- *
- * Run 2 is then started under run 1's derived name, so the pair is guaranteed
- * to pair.
- */
-type Teaching = {
-  start_url: string;
-  objective_key: ObjectiveKey | null;
-};
-
 export function Console({ threadId: fromUrl }: { threadId?: string } = {}) {
   const queryClient = useQueryClient();
-  const thread = useThread();
-
-  const [tab, setTab] = useState<"chat" | "teach">("chat");
-  const [plusOpen, setPlusOpen] = useState(false);
-  const [teachingAt, setTeachingAt] = useState<Teaching | null>(null);
-  const [active, setActive] = useState<{ recordingId: string; run: number } | null>(null);
-  // What the operator is being asked after a run seals. A demonstration ends
-  // with a decision -- carry on, or do that one again -- because the operator
-  // is the only one who knows whether what they just did was the task.
-  const [pending, setPending] = useState<"after-one" | "after-two" | null>(null);
-  const [connecting, setConnecting] = useState<true | { base_url: string } | null>(null);
   const router = useRouter();
   // The URL is the thread. Held in state as well only so a conversation
   // started in this tab can begin before the route has caught up.
@@ -82,18 +39,6 @@ export function Console({ threadId: fromUrl }: { threadId?: string } = {}) {
   const [inFlight, setInFlight] = useState<string | null>(null);
 
   const connections = useQuery({ queryKey: connectionKeys.all, queryFn: listConnections });
-  // Whether this tenant has a browser of its own. It decides which way of
-  // teaching is offered first, and the answer is different for every operator.
-  const devices = useQuery({ queryKey: ["devices"], queryFn: listDevices });
-  // Asked of the systems themselves, and asked again while the console is open:
-  // a session dies on the system's schedule, not on ours, and the whole point is
-  // to say so before a demonstration walks into a login page.
-  const health = useQuery({
-    queryKey: connectionKeys.health,
-    queryFn: checkSessions,
-    refetchInterval: 60_000,
-    enabled: (connections.data ?? []).length > 0,
-  });
   // Every conversation this tenant has had, so one can be returned to. They
   // were always stored; only the way back was missing.
   const threads = useQuery({ queryKey: threadKeys.all, queryFn: listThreads });
@@ -136,122 +81,6 @@ export function Console({ threadId: fromUrl }: { threadId?: string } = {}) {
     onSettled: () => setInFlight(null),
   });
 
-  const start = useMutation({
-    mutationFn: ({ form, run }: { form: Teaching; run: number }) => {
-      const body: StartRecordingRequest = {
-        objective_key: form.objective_key,
-        start_url: form.start_url.trim() || null,
-        label: `run ${run}`,
-      };
-      return startRecording(body);
-    },
-    onSuccess: (started, variables) => {
-      thread.add({
-        kind: "session",
-        recordingId: started.recording_id,
-        run: variables.run,
-        label: variables.form.objective_key?.objective_type ?? variables.form.start_url,
-      });
-      setActive({ recordingId: started.recording_id, run: variables.run });
-      setTab("teach");
-      void queryClient.invalidateQueries({ queryKey: recordingKeys.all });
-    },
-    onError: (error) => {
-      const detail = error instanceof ApiError ? error.problem.detail : String(error);
-      // The one-session hint is only true when the browser is what refused.
-      // Appending it to every failure sent an operator looking at Steel while
-      // the actual answer — a request the API would not accept — was on screen.
-      const busy = error instanceof ApiError && error.problem.status === 503;
-      thread.add({
-        kind: "system",
-        text:
-          `Could not open a browser session: ${detail}` +
-          (busy
-            ? ". The browser may already be in use — a self-hosted Steel runs one session at a time."
-            : ""),
-      });
-      toast.error("Could not open a browser session", { description: detail });
-    },
-  });
-
-  const induce = useMutation({
-    mutationFn: ([first, second]: [string, string | null]) => induceSkill(first, second),
-    onSuccess: (result) => {
-      thread.add({ kind: "skill", skillId: result.skill_id, version: result.version });
-      void queryClient.invalidateQueries({ queryKey: skillKeys.all });
-    },
-    onError: (error) => {
-      const detail = error instanceof ApiError ? error.problem.detail : String(error);
-      thread.add({ kind: "system", text: `Induction refused: ${detail}` });
-      toast.error("Induction refused", { description: detail });
-    },
-  });
-
-  const beginTeaching = (startUrl: string) => {
-    const form: Teaching = { start_url: startUrl, objective_key: null };
-    setTeachingAt(form);
-    thread.add({ kind: "operator", text: `Teach a workflow at ${startUrl}` });
-    start.mutate({ form, run: 1 });
-  };
-
-  const onSealed = (frames: number, objectiveKey: ObjectiveKey | null) => {
-    if (!active) return;
-    thread.add({ kind: "sealed", recordingId: active.recordingId, run: active.run, frames });
-    setActive(null);
-    setTab("chat");
-
-    // Run 1's derived name becomes run 2's, so the pair pairs.
-    if (teachingAt && objectiveKey) setTeachingAt({ ...teachingAt, objective_key: objectiveKey });
-
-    // Run 2 is where the pair completes, and induction is offered rather than
-    // fired: run 1 ends with a choice, so run 2 ends with one too -- the
-    // operator who knows they fumbled the second demonstration should not have
-    // to watch it be induced before they can say so.
-    setPending(active.run === 1 ? "after-one" : "after-two");
-  };
-
-  const redo = (run: number) => {
-    if (!teachingAt) return;
-    thread.forgetRun(run);
-    setPending(null);
-    thread.add({ kind: "system", text: `Run ${run} discarded. Doing it again.` });
-    start.mutate({ form: teachingAt, run });
-  };
-
-  const carryOn = () => {
-    if (!teachingAt) return;
-    setPending(null);
-    start.mutate({ form: teachingAt, run: 2 });
-  };
-
-  const induceThePair = () => {
-    const pair = thread.sealedRecordings.slice(0, 2);
-    if (pair.length < 2) return;
-    setPending(null);
-    induce.mutate([pair[0], pair[1]]);
-  };
-
-  /** One demonstration is the whole task, exactly as it was done. */
-  const induceFromRunOne = () => {
-    const [first] = thread.sealedRecordings;
-    if (!first) return;
-    setPending(null);
-    induce.mutate([first, null]);
-  };
-
-  // Nothing taught, nothing proposed, nothing running: the only state where an
-  // invitation to teach is the most useful thing on screen.
-  const lastDecision = (conversation.data?.messages ?? [])
-    .filter((message) => message.decision)
-    .at(-1)?.decision as { matched_skill_id?: string | null; choices?: string[] } | undefined;
-  // Not while there is a choice on the table. Asking "which did you mean?" and
-  // printing a teach form underneath it tells the operator both that the task
-  // exists twice and that it does not exist at all.
-  const offeredAChoice = (lastDecision?.choices ?? []).length > 0;
-  const showTeach =
-    (conversation.data?.messages ?? []).length === 0 ||
-    (lastDecision?.matched_skill_id == null && !offeredAChoice);
-
   // What this conversation is about, taken from the last thing that matched.
   // `why` is the matcher's own account of the hit -- "entity: client" -- which
   // is the same word the question's key is addressed by.
@@ -263,8 +92,9 @@ export function Console({ threadId: fromUrl }: { threadId?: string } = {}) {
       .at(-1) ?? ""
   ).replace("entity: ", "");
 
-  const runsSoFar = thread.sealedRecordings.length;
-  const teaching = active !== null;
+  const send = () => {
+    if (draft.trim() && !ask.isPending) ask.mutate(draft.trim());
+  };
 
   return (
     <div
@@ -278,699 +108,229 @@ export function Console({ threadId: fromUrl }: { threadId?: string } = {}) {
         overflow: "hidden",
       }}
     >
+      {/* The same four places the rest of the console has. Teaching, the
+          browser on the server and the pages that went with them -- Recordings,
+          Skills, Runs -- are gone: the rig learns from what operators already
+          do in their own browser, and `/skills` had been a 404 for weeks. */}
       <TopBar>
-        <div style={{ display: "flex", alignItems: "flex-end", gap: 4 }}>
-          <Tab active={tab === "chat"} onClick={() => setTab("chat")} dot={ink.textMuted}>
-            Threads
-          </Tab>
-          {teaching && (
-            <Tab active={tab === "teach"} onClick={() => setTab("teach")} dot={ink.danger} pulse>
-              Teaching session
-            </Tab>
-          )}
-        </div>
-        {/* The console had no way out of itself: every other surface carries
-            these, and an operator who wanted to look at a skill had to know the
-            URL. */}
-        <BarLink href="/recordings">Recordings</BarLink>
-        <BarLink href="/skills">Skills</BarLink>
-        <BarLink href="/runs">Runs</BarLink>
-        <BarLink href="/knowledge">What we know</BarLink>
+        <BarLink href="/console">Threads</BarLink>
+        <BarLink href="/knowledge" also={["/jobs"]}>
+          What we know
+        </BarLink>
+        <BarLink href="/triggers">Triggers</BarLink>
+        <BarLink href="/overview">Overview</BarLink>
       </TopBar>
 
-      {connecting ? (
-        <div style={{ flex: 1, minHeight: 0 }}>
-          <ConnectPanel
-            onDone={() => setConnecting(null)}
-            reconnect={connecting === true ? undefined : connecting}
-          />
-        </div>
-      ) : tab === "teach" && active ? (
-        <div style={{ flex: 1, minHeight: 0 }}>
-          <TeachPanel
-            recordingId={active.recordingId}
-            run={active.run}
-            objectiveKey={teachingAt?.objective_key}
-            onSealed={onSealed}
-            onDiscarded={() => {
-              setActive(null);
-              setTab("chat");
-              thread.add({ kind: "system", text: "Run discarded. Nothing was learned from it." });
-            }}
-          />
-        </div>
-      ) : (
-        <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
-          <aside
-            // Hidden in the panel by globals.css: 236px of thread list out of
-            // 400 leaves no room for the conversation it is a list of.
-            data-console="rail"
-            style={{
-              width: 236,
-              flex: "0 0 236px",
-              borderRight: `1px solid ${ink.line}`,
-              background: ink.panel,
-              padding: "16px 12px",
-              display: "flex",
-              flexDirection: "column",
-              gap: 22,
-              overflow: "auto",
-            }}
-          >
-            {/* What this rail is for: the things that are true *now*, in this
-                conversation. A browser being driven, the systems it is driving,
-                and the conversations themselves. Everything with a page of its
-                own -- skills, recordings, runs -- is a link in the bar above,
-                and the questions moved to where they are actually answerable:
-                beside the skill that raised them. */}
-            <Watching />
-
-            <Section title="SYSTEMS">
-              {(connections.data ?? []).map((connection) => (
-                <div
-                  key={connection.id}
-                  style={{
-                    padding: "9px 10px",
-                    border: `1px solid ${ink.line}`,
-                    borderRadius: 8,
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 4,
-                  }}
-                >
-                  <span style={{ fontSize: 12.5, fontWeight: 600 }}>{connection.name}</span>
-                  <SessionState
-                    check={(health.data ?? []).find((c) => c.connection_id === connection.id)}
-                    status={connection.status}
-                    connection={connection}
-                    onReconnect={() => setConnecting({ base_url: connection.base_url })}
-                  />
-                </div>
-              ))}
-              {(connections.data ?? []).length === 0 && (
-                <button
-                  onClick={() => setConnecting(true)}
-                  style={{
-                    padding: "9px 10px",
-                    fontSize: 12.5,
-                    color: ink.textMuted,
-                    background: "transparent",
-                    border: `1px dashed ${ink.line}`,
-                    borderRadius: 8,
-                    cursor: "pointer",
-                    textAlign: "left",
-                  }}
-                >
-                  None connected — add one
-                </button>
-              )}
-            </Section>
-
-            <Section title="CONVERSATIONS">
+      <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
+        <aside
+          // Hidden in the panel by globals.css: 236px of thread list out of
+          // 400 leaves no room for the conversation it is a list of.
+          data-console="rail"
+          style={{
+            width: 236,
+            flex: "0 0 236px",
+            borderRight: `1px solid ${ink.line}`,
+            background: ink.panel,
+            padding: "16px 12px",
+            display: "flex",
+            flexDirection: "column",
+            gap: 22,
+            overflow: "auto",
+          }}
+        >
+          <Section title="CONVERSATIONS">
+            <Link
+              href="/console"
+              style={{
+                padding: "8px 10px",
+                borderRadius: 8,
+                fontSize: 12.5,
+                fontWeight: 600,
+                color: ink.accent,
+                border: `1px dashed ${ink.line}`,
+              }}
+            >
+              New conversation
+            </Link>
+            {(threads.data ?? []).slice(0, 12).map((thread) => (
               <Link
-                href="/console"
+                key={thread.id}
+                href={`/console/${thread.id}`}
                 style={{
                   padding: "8px 10px",
                   borderRadius: 8,
                   fontSize: 12.5,
-                  fontWeight: 600,
-                  color: ink.accent,
-                  border: `1px dashed ${ink.line}`,
-                }}
-              >
-                New conversation
-              </Link>
-              {(threads.data ?? []).slice(0, 8).map((thread) => (
-                <Link
-                  key={thread.id}
-                  href={`/console/${thread.id}`}
-                  style={{
-                    padding: "8px 10px",
-                    borderRadius: 8,
-                    fontSize: 12.5,
-                    display: "flex",
-                    gap: 7,
-                    alignItems: "baseline",
-                    // The one you are in, marked. Without the URL there was no
-                    // "the one you are in".
-                    background: thread.id === threadId ? ink.infoWash : "transparent",
-                    color: thread.id === threadId ? ink.text : ink.textSoft,
-                    fontWeight: thread.id === threadId ? 600 : 400,
-                  }}
-                >
-                  <span
-                    style={{
-                      flex: 1,
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {thread.title}
-                  </span>
-                  <span style={{ color: ink.textMuted, fontSize: 11 }}>{thread.message_count}</span>
-                </Link>
-              ))}
-            </Section>
-
-            <span style={{ flex: 1 }} />
-            <div
-              style={{
-                borderTop: `1px solid ${ink.lineSoft}`,
-                padding: "12px 8px 0",
-                fontSize: 11,
-                lineHeight: 1.6,
-                color: ink.textMuted,
-              }}
-            >
-              Capture stays inside your infrastructure. Secrets are stored as vault references only.
-            </div>
-          </aside>
-
-          <main
-            style={{
-              flex: 1,
-              display: "flex",
-              flexDirection: "column",
-              minWidth: 0,
-              minHeight: 0,
-            }}
-          >
-            <div style={{ flex: 1, overflow: "auto", padding: "34px 0 20px" }}>
-              <div
-                data-console="column"
-                style={{
-                  maxWidth: 772,
-                  margin: "0 auto",
-                  padding: "0 28px",
                   display: "flex",
-                  flexDirection: "column",
-                  gap: 20,
+                  gap: 7,
+                  alignItems: "baseline",
+                  background: thread.id === threadId ? ink.infoWash : "transparent",
+                  color: thread.id === threadId ? ink.text : ink.textSoft,
+                  fontWeight: thread.id === threadId ? 600 : 400,
                 }}
               >
-                <Assistant>
-                  Ask me for a task and I will tell you which taught skill does it, and what it
-                  still needs. If nothing has been taught for it, I will say what the knowledge base
-                  knows — and you can teach me by doing it twice.
-                </Assistant>
-
-                {(conversation.data?.messages ?? []).map((message, index, all) => (
-                  <ChatTurn
-                    key={message.id}
-                    message={message}
-                    onAsk={setDraft}
-                    threadId={threadId ?? undefined}
-                    system={(connections.data ?? [])[0]?.target_system}
-                    askedFor={askedBefore(conversation.data?.messages ?? [], message.id)}
-                    latest={index === all.length - 1}
-                  />
-                ))}
-
-                {inFlight && (
-                  <>
-                    <Operator>{inFlight}</Operator>
-                    <Thinking />
-                  </>
-                )}
-
-                {thread.entries.map((entry) => {
-                  switch (entry.kind) {
-                    case "operator":
-                      return <Operator key={entry.id}>{entry.text}</Operator>;
-                    case "system":
-                      return <Assistant key={entry.id}>{entry.text}</Assistant>;
-                    case "session":
-                      return (
-                        <Assistant key={entry.id}>
-                          Run {entry.run} open. Do the task exactly as you normally would — every
-                          gesture, call and accessibility tree is being captured.
-                        </Assistant>
-                      );
-                    case "sealed":
-                      return (
-                        <Assistant key={entry.id}>
-                          {/* What comes next is the choice underneath, not a
-                              sentence here: this line is the receipt. */}
-                          Run {entry.run} sealed with {entry.frames} step
-                          {entry.frames === 1 ? "" : "s"}.
-                        </Assistant>
-                      );
-                    case "skill":
-                      return (
-                        <div key={entry.id} style={{ display: "flex", gap: 12 }}>
-                          <Avatar />
-                          <div
-                            style={{
-                              flex: 1,
-                              minWidth: 0,
-                              display: "flex",
-                              flexDirection: "column",
-                              gap: 12,
-                            }}
-                          >
-                            <div style={{ fontSize: 15, lineHeight: 1.6 }}>
-                              Two demonstrations aligned and diffed. What changed became a
-                              parameter, what held stayed literal. No model was asked what the
-                              parameters are.
-                            </div>
-                            <SkillCard skillId={entry.skillId} />
-                          </div>
-                        </div>
-                      );
-                  }
-                })}
-
-                {induce.isPending && (
-                  <Assistant>Aligning the two runs and diffing the replayable values…</Assistant>
-                )}
-
-                {/* A run ends with a decision, not with a button that only
-                    goes forward. The operator is the only one who knows whether
-                    what they just demonstrated was the task -- a wrong turn, a
-                    validation error, the wrong client picked -- and before this
-                    the only way to say so was to teach the whole thing again
-                    from the beginning and hope the right two runs paired. */}
-                {pending && teachingAt && !teaching && (
-                  <div style={{ display: "flex", gap: 12 }}>
-                    <Avatar />
-                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                      <div style={{ fontSize: 15, lineHeight: 1.6 }}>
-                        {pending === "after-one"
-                          ? "Run 1 captured. Do it once more with different values — the two runs are diffed, and what changes between them becomes the parameters. Or take run 1 on its own: it will replay exactly what you just did, with no parameters to fill in."
-                          : "Both runs captured. Induce the skill, or do run 2 again if that one went wrong."}
-                      </div>
-                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                        <Choice
-                          primary
-                          pending={start.isPending || induce.isPending}
-                          onClick={pending === "after-one" ? carryOn : induceThePair}
-                        >
-                          {pending === "after-one" ? "Continue to run 2" : "Induce the skill"}
-                        </Choice>
-                        {/* A second demonstration is not always worth what it
-                            costs -- a task done once a quarter, a screen already
-                            walked through twice. One run makes a skill that
-                            replays exactly what was done, and the card says so
-                            rather than implying parameters it does not have. */}
-                        {pending === "after-one" && (
-                          <Choice
-                            pending={start.isPending || induce.isPending}
-                            onClick={induceFromRunOne}
-                          >
-                            Use run 1 on its own
-                          </Choice>
-                        )}
-                        <Choice
-                          pending={start.isPending || induce.isPending}
-                          onClick={() => redo(pending === "after-one" ? 1 : 2)}
-                        >
-                          {pending === "after-one" ? "Redo run 1" : "Redo run 2"}
-                        </Choice>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Opening a session can fail on its own -- a browser already in
-                    use, most often -- and that is not a decision, it is a
-                    retry. */}
-                {teachingAt && !teaching && !pending && runsSoFar === 0 && (
-                  <div style={{ display: "flex", gap: 12 }}>
-                    <Avatar />
-                    <Choice primary pending={start.isPending} onClick={() => redo(1)}>
-                      Try opening a session again
-                    </Choice>
-                  </div>
-                )}
-
-                {/* Only when there is nothing to answer with. Offering to be
-                    taught underneath every reply — including replies that found
-                    the right skill and ran it — reads as though nothing worked.
-                    Teaching is always available from the + button. */}
-                {teachingAt === null && showTeach && (
-                  <TeachForm
-                    onStart={beginTeaching}
-                    pending={start.isPending}
-                    systems={(connections.data ?? []).map((connection) => ({
-                      name: connection.name,
-                      base_url: connection.base_url,
-                    }))}
-                    // A browser of the operator's own changes which offer is
-                    // the right one: it already holds the session, the second
-                    // factor and the screens, and a browser opened on the
-                    // server holds none of them.
-                    devices={(devices.data ?? []).length}
-                  />
-                )}
-              </div>
-            </div>
-
-            <div style={{ flex: "0 0 auto", padding: "0 28px 24px" }}>
-              <div
-                data-console="column"
-                style={{ maxWidth: 772, margin: "0 auto", position: "relative" }}
-              >
-                {/* One question, about what this conversation is on, directly
-                    above where the operator is already looking. Rendered per
-                    skill card it appeared under every card in the transcript --
-                    the same two questions four times down one thread, which is
-                    worse than the rail it replaced. */}
-                {subjectOfThread && (
-                  <div style={{ paddingBottom: 12 }}>
-                    <OpenQuestions
-                      compact
-                      about={subjectOfThread}
-                      title="I COULD NOT DECIDE THIS FROM THE DEMONSTRATIONS"
-                    />
-                  </div>
-                )}
-                {plusOpen && (
-                  <div
-                    style={{
-                      position: "absolute",
-                      bottom: 74,
-                      left: 0,
-                      width: 288,
-                      background: ink.panel,
-                      border: `1px solid ${ink.line}`,
-                      borderRadius: 12,
-                      boxShadow: "0 12px 32px rgba(20,20,20,.13)",
-                      padding: 6,
-                      zIndex: 5,
-                    }}
-                  >
-                    <PlusItem
-                      icon="◉"
-                      title="Teach a workflow"
-                      subtitle="Opens a recorded browser session"
-                      onClick={() => {
-                        setPlusOpen(false);
-                        setTeachingAt(null);
-                        document
-                          .getElementById("teach-form")
-                          ?.scrollIntoView({ behavior: "smooth" });
-                      }}
-                    />
-                    <PlusItem
-                      icon="▤"
-                      title="Attach knowledge base"
-                      subtitle="Not built yet — phase 4"
-                      disabled
-                    />
-                    <PlusItem
-                      icon="⌗"
-                      title="Connect a system"
-                      subtitle="You sign in there; the session is kept encrypted"
-                      onClick={() => {
-                        setPlusOpen(false);
-                        setConnecting(true);
-                      }}
-                    />
-                  </div>
-                )}
-
-                <div
+                <span
                   style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
-                    background: ink.panel,
-                    border: `1px solid ${ink.line}`,
-                    borderRadius: 14,
-                    padding: "9px 12px 9px 10px",
+                    flex: 1,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
                   }}
                 >
-                  <button
-                    onClick={() => setPlusOpen((value) => !value)}
-                    style={{
-                      width: 32,
-                      height: 32,
-                      flex: "0 0 32px",
-                      borderRadius: 9,
-                      background: ink.page,
-                      border: "none",
-                      display: "grid",
-                      placeItems: "center",
-                      fontSize: 19,
-                      color: ink.textSoft,
-                      cursor: "pointer",
-                    }}
-                  >
-                    +
-                  </button>
-                  <input
-                    value={draft}
-                    onChange={(event) => setDraft(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" && draft.trim() && !ask.isPending) {
-                        ask.mutate(draft.trim());
-                      }
-                    }}
-                    placeholder="Ask for a task — or teach one with +"
-                    style={{
-                      flex: 1,
-                      border: "none",
-                      fontSize: 14.5,
-                      background: "transparent",
-                      color: ink.text,
-                    }}
-                  />
+                  {thread.title}
+                </span>
+                <span style={{ color: ink.textMuted, fontSize: 11 }}>{thread.message_count}</span>
+              </Link>
+            ))}
+          </Section>
+        </aside>
+
+        <main
+          style={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            minWidth: 0,
+            minHeight: 0,
+          }}
+        >
+          <div style={{ flex: 1, overflow: "auto", padding: "34px 0 20px" }}>
+            <div
+              data-console="column"
+              style={{
+                maxWidth: 772,
+                margin: "0 auto",
+                padding: "0 28px",
+                display: "flex",
+                flexDirection: "column",
+                gap: 20,
+              }}
+            >
+              {(conversation.data?.messages ?? []).length === 0 && !inFlight ? (
+                <Empty onPick={setDraft} />
+              ) : null}
+
+              {(conversation.data?.messages ?? []).map((message, index, all) => (
+                <ChatTurn
+                  key={message.id}
+                  message={message}
+                  onAsk={setDraft}
+                  threadId={threadId ?? undefined}
+                  system={(connections.data ?? [])[0]?.target_system}
+                  askedFor={askedBefore(conversation.data?.messages ?? [], message.id)}
+                  latest={index === all.length - 1}
+                />
+              ))}
+
+              {inFlight && (
+                <>
+                  <Operator>{inFlight}</Operator>
+                  <Thinking />
+                </>
+              )}
+            </div>
+          </div>
+
+          <div style={{ flex: "0 0 auto", padding: "0 28px 24px" }}>
+            <div data-console="column" style={{ maxWidth: 772, margin: "0 auto" }}>
+              {/* One question, about what this conversation is on, directly
+                  above where the operator is already looking. */}
+              {subjectOfThread && (
+                <div style={{ paddingBottom: 12 }}>
+                  <OpenQuestions compact about={subjectOfThread} title="NEEDS AN ANSWER" />
                 </div>
-                <div style={{ padding: "9px 4px 0", fontSize: 11, color: ink.textMuted }}>
-                  Asking finds a taught skill and says what it still needs. Running it is a separate
-                  click — that confirmation is what an assisted run records as its authorisation.
-                </div>
+              )}
+
+              <form
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  send();
+                }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  background: ink.panel,
+                  border: `1px solid ${ink.line}`,
+                  borderRadius: 14,
+                  padding: "9px 9px 9px 16px",
+                }}
+              >
+                <input
+                  aria-label="Ask for a task"
+                  value={draft}
+                  onChange={(event) => setDraft(event.target.value)}
+                  placeholder="Ask for a task — “create supplier ACME-4471 at SG”"
+                  style={{
+                    flex: 1,
+                    border: "none",
+                    fontSize: 14.5,
+                    background: "transparent",
+                    color: ink.text,
+                  }}
+                />
+                <button
+                  type="submit"
+                  disabled={!draft.trim() || ask.isPending}
+                  style={{
+                    padding: "8px 14px",
+                    borderRadius: 9,
+                    border: "none",
+                    fontSize: 13,
+                    fontWeight: 700,
+                    background: draft.trim() && !ask.isPending ? ink.accent : ink.disabled,
+                    color: draft.trim() && !ask.isPending ? "#fff" : ink.textMuted,
+                    cursor: draft.trim() && !ask.isPending ? "pointer" : "not-allowed",
+                  }}
+                >
+                  {ask.isPending ? "Asking…" : "Ask"}
+                </button>
+              </form>
+              <div style={{ padding: "9px 4px 0", fontSize: 11, color: ink.textMuted }}>
+                Asking finds the job that does it and says what it still needs. Nothing runs until
+                you press Run — that press is what the run records as its authorisation.
               </div>
             </div>
-          </main>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function TeachForm({
-  onStart,
-  devices = 0,
-  pending,
-  systems,
-}: {
-  onStart: (startUrl: string) => void;
-  /** How many browsers this tenant has connected through the extension. */
-  devices?: number;
-  pending: boolean;
-  /** The systems already connected, with the address each was connected at. */
-  systems: { name: string; base_url: string }[];
-}) {
-  const [url, setUrl] = useState("");
-  const [typing, setTyping] = useState(false);
-
-  return (
-    <div id="teach-form" style={{ display: "flex", gap: 12 }}>
-      <Avatar />
-      <div
-        style={{
-          flex: 1,
-          border: `1px solid ${ink.line}`,
-          borderRadius: 12,
-          background: ink.panel,
-          padding: 16,
-          display: "flex",
-          flexDirection: "column",
-          gap: 12,
-        }}
-      >
-        <div style={{ fontSize: 14, fontWeight: 700 }}>
-          {devices > 0 ? "Teach it in your own browser" : "Where does this task start?"}
-        </div>
-        <div style={{ fontSize: 12.5, color: ink.textSoft, lineHeight: 1.6 }}>
-          {systems.length > 0
-            ? "The system you connected already said where it lives. Start there and navigate to the screen yourself — capture begins with the browser."
-            : "Paste the screen you would open to do it, or leave it blank and navigate there yourself — capture starts with the browser either way."}{" "}
-          Nothing else is asked: what the task is gets read off what it does — the call it ends on
-          names the entity and the action.
-        </div>
-
-        {/* A connected system already carries its address; asking for it again
-            is asking the operator to fetch something the system has. The same
-            button in Connect a system opens that address, and this is the same
-            act with a recorder attached. */}
-        {/* Inside the extension's side panel this offer is the wrong one: it
-            opens a browser somewhere else, while the operator is sitting in
-            the browser the task would be taught in, with a button for it at
-            the top of the same panel. Two ways to start one thing, one of
-            which quietly means a different thing, is how somebody ends up
-            demonstrating into a window they cannot see. */}
-        <div data-teach="in-panel" style={{ fontSize: 12.5, lineHeight: 1.6 }}>
-          You are already in a browser. Use <strong>Start teaching</strong> at the top of this panel
-          — it records the tab beside it, with your own session, and nothing opens anywhere else.
-        </div>
-
-        {/* Not embedded, but a browser of this operator's own is connected. It
-            holds the session, the second factor and the screens as they really
-            are; a browser opened on the server holds none of that and has to be
-            signed into again before anything can be demonstrated. */}
-        {devices > 0 && (
-          <div data-teach="own-browser" style={{ fontSize: 12.5, lineHeight: 1.6 }}>
-            Open the system in the browser you have connected, then press{" "}
-            <strong>Start teaching</strong> in the AI-SRO side panel. It records what you do in your
-            own session — the screens as you actually see them.
           </div>
-        )}
-
-        {/* Laid out in the stylesheet rather than here: an inline `display`
-            wins over the rule that hides this inside the panel. */}
-        {devices > 0 && (
-          <div style={{ fontSize: 11.5, color: ink.textMuted }}>
-            Or teach it in a browser on the server, which has to be signed in separately:
-          </div>
-        )}
-
-        <div data-teach="hosted">
-          {systems.map((system) => (
-            <button
-              key={system.base_url}
-              onClick={() => onStart(system.base_url)}
-              disabled={pending}
-              style={{
-                padding: "10px 16px",
-                borderRadius: 8,
-                border: "none",
-                background: pending ? ink.disabled : ink.accent,
-                color: pending ? ink.textMuted : "#fff",
-                fontSize: 13,
-                fontWeight: 700,
-                cursor: pending ? "not-allowed" : "pointer",
-              }}
-            >
-              {pending ? "Opening a browser…" : `Teach on ${system.name}`}
-            </button>
-          ))}
-
-          {(systems.length === 0 || typing) && (
-            <button
-              onClick={() => onStart(url.trim())}
-              disabled={pending}
-              style={{
-                padding: "10px 16px",
-                borderRadius: 8,
-                border: systems.length === 0 ? "none" : `1px solid ${ink.line}`,
-                background:
-                  systems.length === 0 ? (pending ? ink.disabled : ink.accent) : "transparent",
-                color: systems.length === 0 ? (pending ? ink.textMuted : "#fff") : ink.textSoft,
-                fontSize: 13,
-                fontWeight: 700,
-                cursor: pending ? "not-allowed" : "pointer",
-              }}
-            >
-              {pending ? "Opening a browser…" : "Open a session and start run 1"}
-            </button>
-          )}
-
-          {systems.length > 0 && !typing && (
-            <button
-              onClick={() => setTyping(true)}
-              style={{
-                padding: "10px 14px",
-                borderRadius: 8,
-                border: `1px solid ${ink.line}`,
-                background: "transparent",
-                color: ink.textSoft,
-                fontSize: 12.5,
-                fontWeight: 700,
-                cursor: "pointer",
-              }}
-            >
-              Somewhere else
-            </button>
-          )}
-        </div>
-
-        {(systems.length === 0 || typing) && (
-          <Field
-            label="Start URL — optional"
-            placeholder="https://wms.acme-dc.internal/inventory"
-            value={url}
-            onChange={setUrl}
-          />
-        )}
+        </main>
       </div>
     </div>
   );
 }
 
-function Field({
-  label,
-  placeholder,
-  value,
-  onChange,
-}: {
-  label: string;
-  placeholder: string;
-  value: string;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <label style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-      <span style={{ fontSize: 11, fontWeight: 700, color: ink.textMuted }}>{label}</span>
-      <input
-        value={value}
-        placeholder={placeholder}
-        onChange={(event) => onChange(event.target.value)}
-        style={{
-          border: `1px solid ${ink.line}`,
-          borderRadius: 8,
-          padding: "8px 10px",
-          fontSize: 13,
-          fontFamily: mono,
-        }}
-      />
-    </label>
-  );
-}
+/**
+ * The first screen of a conversation.
+ *
+ * It used to open with a paragraph about taught skills and a form for teaching
+ * in a browser on the server, above a composer whose placeholder said "or teach
+ * one with +". None of that is how work is learned any more: the rig mines it
+ * from what operators already do. What is left worth saying is what to type.
+ */
+function Empty({ onPick }: { onPick: (text: string) => void }) {
+  const jobs = useQuery({ queryKey: workflowKeys.all, queryFn: listWorkflows });
+  // A handful of the tenant's own jobs, as things somebody could ask for. Real
+  // titles rather than invented examples: an example for a job this tenant
+  // does not have is a question with no answer.
+  const examples = Array.from(new Set((jobs.data ?? []).map((job) => job.title))).slice(0, 4);
 
-function Tab({
-  children,
-  active,
-  onClick,
-  dot,
-  pulse,
-}: {
-  children: React.ReactNode;
-  active: boolean;
-  onClick: () => void;
-  dot: string;
-  pulse?: boolean;
-}) {
   return (
-    <button
-      onClick={onClick}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-        padding: "0 16px",
-        height: 34,
-        borderRadius: "8px 8px 0 0",
-        border: "none",
-        fontSize: 12.5,
-        fontWeight: 600,
-        cursor: "pointer",
-        background: active ? ink.page : "transparent",
-        color: active ? ink.text : ink.textMuted,
-      }}
-    >
-      <span
-        style={{
-          width: 6,
-          height: 6,
-          borderRadius: "50%",
-          background: dot,
-          animation: pulse ? "recpulse 1.4s infinite" : undefined,
-        }}
-      />
-      {children}
-    </button>
+    <div style={{ display: "flex", gap: 12 }}>
+      <Avatar />
+      <div style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 0 }}>
+        <div style={{ fontSize: 15, lineHeight: 1.6 }}>
+          Ask for a task in your own words. I will find the job that does it, say what it still
+          needs, and run it when you say so.
+        </div>
+        {examples.length > 0 && (
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {examples.map((title) => (
+              <Choice key={title} onClick={() => onPick(title)}>
+                {title}
+              </Choice>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -1048,17 +408,6 @@ function Avatar() {
   );
 }
 
-function Assistant({ children }: { children: React.ReactNode }) {
-  return (
-    <div style={{ display: "flex", gap: 12 }}>
-      <Avatar />
-      <div style={{ paddingTop: 3, fontSize: 15, lineHeight: 1.6, maxWidth: "56ch" }}>
-        {children}
-      </div>
-    </div>
-  );
-}
-
 function Operator({ children }: { children: React.ReactNode }) {
   return (
     <div
@@ -1127,63 +476,6 @@ function Dots() {
         @media (prefers-reduced-motion: reduce) { span { animation: none !important } }
       `}</style>
     </span>
-  );
-}
-
-function PlusItem({
-  icon,
-  title,
-  subtitle,
-  onClick,
-  disabled,
-}: {
-  icon: string;
-  title: string;
-  subtitle: string;
-  onClick?: () => void;
-  disabled?: boolean;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      style={{
-        display: "flex",
-        gap: 11,
-        alignItems: "flex-start",
-        padding: "10px 11px",
-        borderRadius: 8,
-        border: "none",
-        background: "transparent",
-        width: "100%",
-        textAlign: "left",
-        cursor: disabled ? "default" : "pointer",
-        opacity: disabled ? 0.45 : 1,
-      }}
-    >
-      <span
-        style={{
-          width: 24,
-          height: 24,
-          flex: "0 0 24px",
-          borderRadius: 6,
-          background: disabled ? ink.disabled : ink.accentWash,
-          color: disabled ? ink.textSoft : ink.accentDeep,
-          display: "grid",
-          placeItems: "center",
-          fontSize: 13,
-          fontWeight: 800,
-        }}
-      >
-        {icon}
-      </span>
-      <span>
-        <span style={{ display: "block", fontSize: 13, fontWeight: 700 }}>{title}</span>
-        <span style={{ display: "block", fontSize: 11.5, color: ink.textMuted, lineHeight: 1.5 }}>
-          {subtitle}
-        </span>
-      </span>
-    </button>
   );
 }
 

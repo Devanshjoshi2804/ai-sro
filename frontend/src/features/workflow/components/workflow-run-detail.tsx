@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -85,6 +86,25 @@ export function WorkflowRunDetail({ runId }: { runId: string }) {
     <div className="space-y-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div className="space-y-1">
+          {/* A run is read in terms of the job it was a run of, and this page
+              was a dead end: the only way back was the browser's. */}
+          <nav aria-label="Breadcrumb" className="text-muted-foreground text-xs">
+            <Link
+              href="/knowledge"
+              className="hover:text-foreground underline-offset-4 hover:underline"
+            >
+              What we know
+            </Link>
+            <span aria-hidden> / </span>
+            <Link
+              href={`/jobs/${it.workflow_id}`}
+              className="hover:text-foreground underline-offset-4 hover:underline"
+            >
+              The job
+            </Link>
+            <span aria-hidden> / </span>
+            <span>Run</span>
+          </nav>
           <h1 className="text-2xl font-semibold tracking-tight">{outcomeLabel(it)}</h1>
           <p className="text-muted-foreground font-mono text-xs">
             {it.id} · started {when(it.started_at)}

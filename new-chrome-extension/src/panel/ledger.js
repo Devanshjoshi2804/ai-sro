@@ -480,18 +480,45 @@ function offeringToFinish(nudge, onPress) {
   // Still typeable where it can look: what a person types is merged OVER what
   // the mailbox holds, so this is how somebody says which one they meant.
   const fields = new Map();
+  const boxes = document.createElement("div");
+  boxes.className = "fields";
   for (const name of nudge.missing || []) {
     const field = document.createElement("input");
     field.type = "text";
     field.placeholder = nudge.canFind ? `${name} \u2014 or leave it to me` : name;
     fields.set(name, field);
-    item.append(field);
+    boxes.append(field);
   }
   if (nudge.canFind && fields.size) {
+    // Boxes for values nobody has to supply are a question dressed as a form.
+    //
+    // Where the run can read the mailbox, every one of these is answered by
+    // the mail that asked for the job -- and the card was still putting a row
+    // of empty inputs in front of somebody whose whole answer is "yes". Worse
+    // than noise: a job declaring one field under two names (a label and the
+    // body key a form posts) draws TWO boxes for one value, so the form is not
+    // only unnecessary, it is wrong about how many things there are.
+    //
+    // So the offer asks for a decision and nothing else, and says where the
+    // values come from. Typing stays available because a person who means a
+    // different value than the mail said has no other way to say so: what they
+    // type is merged OVER what the mailbox holds.
+    boxes.hidden = true;
     const looking = document.createElement("p");
     looking.className = "detail";
-    looking.textContent = "Left blank, I read them out of the mail that asked for this.";
-    item.append(looking);
+    looking.textContent = "I read what this needs out of the mail that asked for it.";
+    const mine = document.createElement("button");
+    mine.type = "button";
+    mine.className = "quiet";
+    mine.textContent = "I'll type them";
+    mine.addEventListener("click", () => {
+      boxes.hidden = false;
+      mine.remove();
+      [...fields.values()][0]?.focus?.();
+    });
+    item.append(looking, mine, boxes);
+  } else {
+    item.append(boxes);
   }
 
   const yes = document.createElement("button");

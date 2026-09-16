@@ -484,8 +484,18 @@ test("a card the run can gather for starts without the boxes being filled", () =
 
   const yes = labelled(item, /Yes, do it/);
   assert.equal(yes.disabled, false, "a run that can go and look still demanded the values");
-  // One of them said, the other left. What a person types is merged over what
-  // the mailbox holds, so typing is how they say which one they meant.
+  // And does not ASK for them either. Four empty boxes in front of somebody
+  // whose whole answer is "yes" is a question dressed as a form -- and two of
+  // those four are the same field under its body key, so the form is wrong
+  // about how many things there are as well as unnecessary.
+  const boxes = of(item, "div").find((one) => one.className === "fields");
+  assert.ok(boxes && boxes.hidden, "the card put boxes in front of somebody with nothing to type");
+  assert.equal(of(boxes, "input").length, 2, "and the boxes are still there to reveal");
+
+  // Typing is still reachable, because a person who means a different value
+  // than the mail said has no other way to say so. One of them said, the other
+  // left: what they type is merged over what the mailbox holds.
+  press(labelled(item, /I'll type them/));
   typing(named(item, "Customer Type \u2014 or leave it to me"), "GPP");
   press(yes);
 

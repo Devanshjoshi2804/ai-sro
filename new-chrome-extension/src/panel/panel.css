@@ -869,6 +869,17 @@ button.danger:hover:not(:disabled) {
   padding-left: 10px;
 }
 
+/* The boxes, when somebody asks for them. A message is a flex ROW, so four
+   inputs appended straight into it share one 360-pixel line and hold three
+   characters each -- which is what the offer card looked like on 2026-09-16.
+   One per line, and only from the press that reveals them. */
+.message .fields {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
 /* Once it has ended it is a line about something that happened, like the rest.
    A prompt still coloured after it stopped asking is one that teaches somebody
    to stop reading the colour. */

@@ -42,33 +42,120 @@ class LearnedParameter:
     doings, and the two must not be mistaken for each other."""
 
     name: str
-    """The control it was typed into: an ExtJS itemId where there is one, the
-    field's own label otherwise. Named after the form rather than after the
-    value, because `activityCode` says what it is and `TEST1` says what it was
-    once."""
+    """The control it was typed into, in the name a person would use: the
+    field's own label where the page gives one, its ExtJS itemId otherwise.
+    Named after the form rather than after the value, because `activityCode`
+    says what it is and `TEST1` says what it was once."""
 
     seen: tuple[str, ...]
     """Every value observed, in the order the occurrences were seen. Two
     different values is the evidence that this varies at all."""
 
+    key: str = ""
+    """The page's own name for the control -- its ExtJS itemId -- where the
+    recordings carried one. It is what two doings are matched on when both have
+    it, because two fields can share a label and two fields cannot share an
+    itemId. Empty where no recording of this control carried one."""
 
-def control_name(gesture: Gesture) -> str | None:
-    """The name a parameter takes from the control it was typed into: an
-    ExtJS itemId where there is one, the field's label, else the target's
-    name. One rule, used by the learning that names a parameter and by the
-    shape that has to find it again."""
+    names: tuple[str, ...] = ()
+    """Every name this one control answers to, `name` included.
+
+    A control has as many names as the page gives it -- `Customer Type` on the
+    label, `customertype-customerType` on the input -- and which of them a
+    recording carries is a fact about that recording, not about the job. The
+    real `Create a Customer Type` was captured both ways, so its two doings
+    named the same two fields four different things and the job came to declare
+    four parameters for two fields: two boxes on the offer card per value, and
+    a run asked for values nobody has ever typed.
+
+    So a parameter carries all of them, and two doings that named one control
+    differently are still one control. Empty on every parameter learnt before
+    this, which is why the matching that uses it still falls back to the value
+    evidence."""
+
+
+def control_names(gesture: Gesture) -> tuple[str, ...]:
+    """Every name this control answers to, the readable one first.
+
+    The label before the itemId, and that order is the whole of what a person
+    ever sees: a parameter called `Customer Type` is one somebody can answer,
+    and `customertype-customerType` is the same field wearing the name the form
+    posts it under. Both are kept, because a recording carries whichever of
+    them the page gave it and a later doing has to be able to find this control
+    by either.
+    """
     target = gesture.action.target
     component = target.component if target else None
-    return (
-        (component.item_id if component else None)
-        or (component.field_label if component else None)
-        or (target.name if target else None)
-    )
+    found = [
+        (component.field_label if component else None),
+        (component.item_id if component else None),
+        (target.name if target else None),
+    ]
+    named: list[str] = []
+    for one in found:
+        said = str(one).strip() if one else ""
+        if said and said not in named:
+            named.append(said)
+    return tuple(named)
+
+
+def control_name(gesture: Gesture) -> str | None:
+    """What one control is called, where one name is wanted. The first of
+    `control_names`, which is the readable one."""
+    named = control_names(gesture)
+    return named[0] if named else None
+
+
+def control_key(gesture: Gesture) -> str:
+    """The page's own name for this control -- its ExtJS itemId -- or "".
+
+    Kept apart from the rest of its names because it is the only one that
+    answers "which control is this" rather than "what is it called". Two
+    fields can share a label; two fields do not share an itemId.
+    """
+    target = gesture.action.target
+    component = target.component if target else None
+    said = component.item_id if component else None
+    return str(said).strip() if said else ""
+
+
+def same_control(
+    one: Iterable[str], other: Iterable[str], *, key: str = "", theirs: str = ""
+) -> bool:
+    """Whether these name one control.
+
+    **Where both recordings carried the page's own name, that decides.** Two
+    fields on one form can share a label -- a Description in each of two
+    sections -- and merging those would be one parameter where the job has two.
+
+    **Otherwise any name in common.** A recording that carries no itemId is the
+    case this exists for: `Create a Customer Type` was captured once with
+    labels and once with input names, its two doings agreed on nothing, and the
+    job came to declare four parameters for two fields -- four boxes on the
+    offer card, two of them asking for a name nobody has ever typed.
+
+    Deliberately not a comparison of values. `_same_control` in the mining pass
+    does that, for parameters stored before any of this was recorded, and it
+    merges two controls that happened to vary over one set.
+    """
+    if key and theirs:
+        return key == theirs
+    return bool({*one} & {*other})
+
+
+@dataclass(frozen=True, slots=True)
+class _Put:
+    """One value a doing put into one control, with every name that control
+    had in THAT recording."""
+
+    names: tuple[str, ...]
+    key: str
+    value: str
 
 
 def _by_control(
     workflow: Workflow, gestures: Mapping[str, Gesture], intents: Mapping[str, Intent]
-) -> dict[str, str]:
+) -> list[_Put]:
     """What this doing put into each control it typed into.
 
     Keyed by the control rather than by the step, because two doings of one job
@@ -90,7 +177,7 @@ def _by_control(
             acted.append((cited, gesture))
     acted.sort(key=lambda pair: (pair[1].at, pair[0]))
 
-    found: dict[str, str] = {}
+    found: list[_Put] = []
     for cited, gesture in acted:
         values = typed_values(gesture, intents.get(cited))
         if not values:
@@ -98,14 +185,12 @@ def _by_control(
             # gesture when it is secret, so this is where that refusal keeps a
             # password out of a skill's parameters.
             continue
-        target = gesture.action.target
-        component = target.component if target else None
-        name = (
-            (component.item_id if component else None)
-            or (component.field_label if component else None)
-            or (target.name if target else None)
-            or cited
-        )
+        # Every name the page gave this control, not the first one that was
+        # present. Which names a recording carries varies between recordings of
+        # the same form, and a control keyed on one of them is a control the
+        # next doing cannot recognise.
+        names = control_names(gesture) or (cited,)
+        key = control_key(gesture)
         # What the OPERATOR typed, where that is known. typed_values merges the
         # operator's own value with the model's `values_seen` echo into one set
         # and provenance is gone by the time it returns -- so a doing where the
@@ -119,7 +204,13 @@ def _by_control(
         # `values_seen` is populated on 110 of 387 intents, so the mechanism is
         # armed.
         typed = str(gesture.action.value).strip() if gesture.action.value else ""
-        found[name] = typed if typed in values else min(values)
+        put = _Put(names=names, key=key, value=typed if typed in values else min(values))
+        # Last wins, as it did when this was a dict: a control typed twice in
+        # one doing keeps the latest value.
+        found = [
+            one for one in found if not same_control(one.names, names, key=one.key, theirs=key)
+        ]
+        found.append(put)
     return found
 
 
@@ -141,16 +232,64 @@ def parameters_across(
     if len(doings) < K_MIN_OCCURRENCES:
         return ()
 
-    # Only controls every doing reached. One that appears in a single doing is
-    # a difference between the recordings, not a value the job takes -- the
-    # operator may simply have taken a different route that time.
-    shared = set(doings[0])
-    for doing in doings[1:]:
-        shared &= set(doing)
-
     found = []
-    for name in sorted(shared):
-        seen = tuple(doing[name] for doing in doings)
-        if len(set(seen)) > 1:
-            found.append(LearnedParameter(name=name, seen=seen))
-    return tuple(found)
+    for first in doings[0]:
+        # The same control in every other doing, by any of the names it had.
+        #
+        # This used to be a set intersection of one name each, which is only
+        # right while every recording of a form names its fields the same way.
+        # The real `Create a Customer Type` was recorded once with labels and
+        # once with input names, so the intersection was empty, both doings
+        # contributed their own pair, and the job ended up declaring four
+        # parameters for two fields.
+        # In order, label first, because the order is what `same_control`
+        # reads to tell a label from the name the page knows a control by.
+        names = list(first.names)
+        key = first.key
+        values = [first.value]
+        for doing in doings[1:]:
+            also = next(
+                (one for one in doing if same_control(one.names, names, key=one.key, theirs=key)),
+                None,
+            )
+            if also is None:
+                break
+            names += [one for one in also.names if one not in names]
+            key = key or also.key
+            values.append(also.value)
+        else:
+            # Only controls every doing reached. One that appears in a single
+            # doing is a difference between the recordings, not a value the job
+            # takes -- the operator may simply have taken a different route.
+            if len(set(values)) > 1:
+                found.append(
+                    LearnedParameter(
+                        # The readable name, and every name beside it. `names`
+                        # is what the next doing is matched on, so a control
+                        # recorded either way is recognised either way.
+                        name=names[0],
+                        seen=tuple(values),
+                        names=tuple(names),
+                        key=key,
+                    )
+                )
+    return _told_apart(found)
+
+
+def _told_apart(found: list[LearnedParameter]) -> tuple[LearnedParameter, ...]:
+    """Two controls that share a label are called by the names that differ.
+
+    A form can have a Description in each of two sections. They are two
+    parameters -- `same_control` kept them apart on the page's own name for
+    each -- and calling both of them "Description" would put two questions
+    with one wording in front of somebody, which is worse than one ugly name.
+    So where a label is not unique, every control that shares it falls back to
+    the name the page knows it by.
+    """
+    labels = [one.name for one in found]
+    return tuple(
+        one
+        if labels.count(one.name) == 1 or len(one.names) < 2
+        else LearnedParameter(name=one.names[1], seen=one.seen, names=one.names)
+        for one in found
+    )

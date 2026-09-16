@@ -165,9 +165,12 @@ def answered(pending: Pending, said: str) -> Pending:
     parameters, and asking twice for one word is the form this conversation
     exists to replace.
 
-    ponytail: the twin rule is a suffix match on the normalised names, which is
-    a patch over a mining defect -- the job should declare each field once. When
-    mining stops writing both, delete `_twins` and this paragraph.
+    ponytail: the twin rule is a suffix match on the normalised names, and the
+    defect behind it is fixed -- mining records every name a control answers to
+    and folds the entries a job already has (`domain/skill/learned.py`). This
+    stays for the jobs whose fold has not happened yet: a job is repaired by
+    the next pass that recognises it, and until then its offer still carries
+    two names for one field. Delete it once no stored job has a pair.
     """
     value = said.strip()[:K_SAID]
     if not value or not pending.missing:

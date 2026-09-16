@@ -126,10 +126,18 @@ def _rows(uow: FakeUnitOfWork) -> dict[str, Gesture]:
 
 
 def _seen(parameters: list[dict[str, object]], name: str) -> list[str]:
-    """Every value one stored parameter has been given, as strings. The
-    workflow's `parameters` came off a model answer and are typed `object`."""
+    """Every value one stored parameter has been given, as strings.
+
+    By ANY of the control's names. A field is `Client Code` on its label and
+    `clientCode` on the input, and which of those a parameter is called is a
+    fact about the recording it was learnt from -- looking it up by one name
+    only is how a test would go on passing while the job grew a second entry
+    for the same field.
+    """
     for parameter in parameters:
-        if parameter.get("name") == name:
+        listed = parameter.get("names")
+        known = {str(one) for one in listed} if isinstance(listed, list) else set()
+        if parameter.get("name") == name or name in known:
             values = parameter.get("seen_values")
             return [str(value) for value in values] if isinstance(values, list) else []
     return []
@@ -1055,6 +1063,82 @@ async def test_a_control_the_model_already_named_does_not_gain_a_second_paramete
     assert names == ["Client Code"], f"one control, one parameter; got {names}"
     assert "clientCode" not in names, "not the same field again under its item_id"
     assert second.learned_parameters == 0, "recognising a control is not learning a new one"
+
+
+async def test_a_job_already_holding_two_entries_for_one_field_is_folded() -> None:
+    """The repair, for the jobs this defect has already been written into.
+
+    The deployment's `Create a Customer Type` carried four parameters for two
+    fields -- `Customer Type` beside `customertype-customerType`, and the same
+    again for the description -- because the page names a field twice and its
+    two recordings carried different names. The fix above stops a second entry
+    being written; this is what clears the ones already stored, on the next
+    pass that touches the job.
+
+    Both entries' values survive the fold. `seen_values` promises every value
+    observed and the two halves observed different doings, so throwing one
+    away would narrow a parameter to make a list tidy.
+    """
+    uow, ids = await _day()
+    original = [_rows(uow)[gesture_id] for gesture_id in ids]
+    await _mine(uow, FakeAsker(_found(_proposal(ids))))
+
+    # The job as the defect left it: one control, two entries, one of them
+    # under the name the form posts it by.
+    stored = (await uow.workflows.known(TENANT))[0]
+    stored.parameters = [
+        {"name": "Client Code", "seen_values": ["ACME-4471"]},
+        {"name": "clientCode", "seen_values": ["FROM-THE-OTHER-ENTRY"]},
+    ]
+    await uow.workflows.save(stored)
+
+    again = _redone(original, "SOMETHING-ELSE", "again", 10_000.0)
+    await uow.gestures.add_gestures(tuple(again))
+    await _mine(uow, FakeAsker(_found(_proposal([g.id for g in again]))))
+
+    stored = (await uow.workflows.known(TENANT))[0]
+    names = [parameter.get("name") for parameter in stored.parameters]
+    assert names == ["Client Code"], f"one control, one parameter; got {names}"
+    seen = _seen(stored.parameters, "clientCode")
+    assert "FROM-THE-OTHER-ENTRY" in seen, "the folded entry's values were thrown away"
+    assert "SOMETHING-ELSE" in seen, "and this doing still widened it"
+
+
+async def test_a_pass_that_learns_nothing_still_folds_what_is_already_wrong() -> None:
+    """The repair must not depend on the job being done differently again.
+
+    A job whose values have settled -- the same customer type every time --
+    learns nothing on any further pass, and under a fold that ran only on the
+    learning path it would carry its duplicate parameters forever. The
+    operator's four boxes are not waiting for a new value.
+
+    It reports nothing learnt, because nothing was: noticing that two of a
+    job's parameters were always one is not a value it did not have before.
+    """
+    uow, ids = await _day()
+    original = [_rows(uow)[gesture_id] for gesture_id in ids]
+    await _mine(uow, FakeAsker(_found(_proposal(ids))))
+
+    settled = _redone(original, "SOMETHING-ELSE", "again", 10_000.0)
+    await uow.gestures.add_gestures(tuple(settled))
+    await _mine(uow, FakeAsker(_found(_proposal([g.id for g in settled]))))
+
+    # The job as the defect left it, and a doing that teaches nothing new.
+    stored = (await uow.workflows.known(TENANT))[0]
+    stored.parameters = [
+        {"name": "Client Code", "seen_values": ["ACME-4471", "SOMETHING-ELSE"]},
+        {"name": "clientCode", "seen_values": ["ACME-4471", "SOMETHING-ELSE"]},
+    ]
+    await uow.workflows.save(stored)
+
+    same = _redone(original, "SOMETHING-ELSE", "thrice", 20_000.0)
+    await uow.gestures.add_gestures(tuple(same))
+    pass_ = await _mine(uow, FakeAsker(_found(_proposal([g.id for g in same]))))
+
+    assert pass_.learned_parameters == 0, "a fold is not something learnt"
+    stored = (await uow.workflows.known(TENANT))[0]
+    names = [parameter.get("name") for parameter in stored.parameters]
+    assert names == ["Client Code"], f"one control, one parameter; got {names}"
 
 
 def _redone_both(rows: list[Gesture], value: str, suffix: str, offset: float) -> list[Gesture]:

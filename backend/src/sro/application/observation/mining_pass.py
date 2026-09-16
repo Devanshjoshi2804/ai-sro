@@ -55,7 +55,7 @@ from sro.domain.skill.checks import (
     validate,
     work_only,
 )
-from sro.domain.skill.learned import LearnedParameter, parameters_across
+from sro.domain.skill.learned import LearnedParameter, parameters_across, same_control
 from sro.domain.skill.passwords import with_passwords
 from sro.domain.skill.presses import with_the_press
 from sro.domain.skill.repeats import detect as repeated_block
@@ -295,8 +295,24 @@ async def learn_parameters(
         stored = await uow.workflows.get(tenant_id, known_id)
     except NotFound:
         return 0
+    # The repair first, and whatever else this pass does or does not learn.
+    #
+    # A job mined before a control's names were recorded holds one entry per
+    # name -- the deployment's `Create a Customer Type` had four for two fields
+    # -- and the operator meets that as four boxes on an offer card. Folding it
+    # here rather than only on the path that learns something means a job is
+    # repaired by any pass that recognises it, not only by one that happens to
+    # see a new value.
+    folded = _folded(stored.parameters)
+    repaired = len(folded) != len(stored.parameters)
+    stored.parameters = folded
+
     found = parameters_across([(stored, by_id, intents), (proposal, by_id, intents)])
     if not found:
+        if repaired:
+            await uow.workflows.save(stored)
+        # Nothing was LEARNT. A fold is not learning -- it is this pass
+        # noticing that two of the job's parameters were always one.
         return 0
     # A third doing widens what an existing parameter has been given rather
     # than being discarded. This always diffs the STORED steps -- doing #1 --
@@ -308,20 +324,49 @@ async def learn_parameters(
     by_name = {str(p["name"]): p for p in stored.parameters if "name" in p}
     fresh: list[dict[str, object]] = []
     widened = 0
+    named = False
     for parameter in found:
-        existing = by_name.get(parameter.name) or _same_control(parameter, stored.parameters)
+        existing = (
+            by_name.get(parameter.name)
+            or _known_by(parameter, stored.parameters)
+            or _same_control(parameter, stored.parameters)
+        )
         if existing is None:
-            fresh.append({"name": parameter.name, "seen_values": list(parameter.seen)})
+            fresh.append(
+                {
+                    "name": parameter.name,
+                    # Every name this control answers to, so the doing after
+                    # this one recognises it however the page named it then.
+                    "names": list(parameter.names),
+                    # The page's own name for the control, where a recording
+                    # carried one: two fields can share a label and two fields
+                    # cannot share an itemId.
+                    "key": parameter.key,
+                    "seen_values": list(parameter.seen),
+                }
+            )
             continue
+        # The names widen the same way the values do. A parameter first learnt
+        # from a recording that carried only a label is how a job came to hold
+        # two entries for one field; a stored parameter that has since been
+        # seen under the page's own name will not do it again.
+        known = _names_of(existing)
+        existing["names"] = [*known, *[one for one in parameter.names if one not in known]]
+        existing["key"] = str(existing.get("key") or "") or parameter.key
+        # Writing the names down is worth a save even when no value changed.
+        # It is what lets the fold below see that this entry and the one under
+        # the page's own name for the same control are one -- a job stored
+        # before any of this has nothing else to recognise itself by.
+        named = named or existing["names"] != known
         was = existing.get("seen_values")
         seen = [str(value) for value in was] if isinstance(was, list) else []
         added = [value for value in parameter.seen if value not in seen]
         if added:
             existing["seen_values"] = [*seen, *added]
             widened += 1
-    if not fresh and not widened:
+    if not fresh and not widened and not repaired and not named:
         return 0
-    stored.parameters = [*stored.parameters, *fresh]
+    stored.parameters = _folded([*stored.parameters, *fresh])
     # And the name stops describing the first doing. A title is minted from one
     # occurrence, values and all, and this is the only moment the system finds
     # out that one of those values varies -- so the job is renamed where it is
@@ -330,6 +375,78 @@ async def learn_parameters(
     stored.generalise_title()
     await uow.workflows.save(stored)
     return len(fresh) + widened
+
+
+def _names_of(parameter: dict[str, object]) -> list[str]:
+    """Every name a stored parameter answers to, its own included.
+
+    `names` is absent on everything learnt before it existed, and those entries
+    answer to exactly the one name they were written with.
+    """
+    listed = parameter.get("names")
+    known = [str(one) for one in listed] if isinstance(listed, list) else []
+    said = str(parameter.get("name") or "")
+    return known if said in known or not said else [said, *known]
+
+
+def _known_by(
+    parameter: LearnedParameter, stored: list[dict[str, object]]
+) -> dict[str, object] | None:
+    """The stored parameter that is this control under another of its names.
+
+    The page names one field twice -- `Customer Type` on the label,
+    `customertype-customerType` on the input -- and which of them a recording
+    carries is a fact about the recording. The real `Create a Customer Type`
+    was captured both ways and came to declare four parameters for two fields:
+    four boxes on the offer card, two of them asking for values nobody has ever
+    typed.
+    """
+    for candidate in stored:
+        if same_control(
+            _names_of(candidate),
+            list(parameter.names),
+            key=str(candidate.get("key") or ""),
+            theirs=parameter.key,
+        ):
+            return candidate
+    return None
+
+
+def _folded(parameters: list[dict[str, object]]) -> list[dict[str, object]]:
+    """One entry per control, for a job that already has two.
+
+    The fix above stops a second entry being written; this is what clears the
+    ones already stored. A job mined before it keeps both entries until the
+    next pass touches it, and that pass is where the two are recognised as one
+    -- the values of each are kept, because `seen_values` promises every value
+    observed and the entries being folded observed different doings.
+
+    The surviving name is the first one, which is the entry that has been on
+    this job longest.
+    """
+    kept: list[dict[str, object]] = []
+    for parameter in parameters:
+        names = _names_of(parameter)
+        key = str(parameter.get("key") or "")
+        already = next(
+            (
+                one
+                for one in kept
+                if same_control(_names_of(one), names, key=str(one.get("key") or ""), theirs=key)
+            ),
+            None,
+        )
+        if already is None:
+            kept.append(parameter)
+            continue
+        known = _names_of(already)
+        already["names"] = [*known, *[one for one in names if one not in known]]
+        already["key"] = str(already.get("key") or "") or key
+        was, theirs = already.get("seen_values"), parameter.get("seen_values")
+        seen = [str(value) for value in was] if isinstance(was, list) else []
+        more = [str(value) for value in theirs] if isinstance(theirs, list) else []
+        already["seen_values"] = [*seen, *[one for one in more if one not in seen]]
+    return kept
 
 
 def _same_control(

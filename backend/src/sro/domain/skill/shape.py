@@ -24,7 +24,7 @@ from sro.domain.execution.evidence import primary_gesture, stood_on
 from sro.domain.observation.gesture import Gesture
 from sro.domain.observation.identity import shape_key, target_identity
 from sro.domain.shared.hosts import page_of, system_of
-from sro.domain.skill.learned import control_name
+from sro.domain.skill.learned import control_names
 from sro.domain.skill.offers import K_OFFER_AFTER, Counsel
 from sro.domain.skill.workflow import Step, Workflow, ordered_cites
 
@@ -155,7 +155,7 @@ def typed_at(cited: list[tuple[Gesture, Step]], parameter: dict[str, object]) ->
     # `workArea` -- and without it every learned parameter had no index and
     # no offer could lift its value from a tail.
     for index, (gesture, _) in enumerate(cited):
-        if control_name(gesture) == name and seen & put_by(gesture):
+        if name in control_names(gesture) and seen & put_by(gesture):
             return index
     return None
 

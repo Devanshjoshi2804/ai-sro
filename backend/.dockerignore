@@ -46,6 +46,12 @@ htmlcov/
 # a passing suite -- CI runs the suite, and it runs it from the tree.
 tests/
 mock-connector/
-gmail-connector/
+
+# `gmail-connector/` used to be here, under that same heading, and it was true:
+# it was a script somebody ran on a laptop. It is now a compose service built
+# from this image, so it has to be IN the context -- and the credential rules
+# above are what keep it safe to ship. The `client_secret*.json` beside it is
+# denied by pattern, and the OAuth client reaches the container through the
+# environment instead.
 
 .DS_Store

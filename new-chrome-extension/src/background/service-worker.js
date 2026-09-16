@@ -467,10 +467,11 @@ function jobInTheReply(thread) {
  * asks for X" would be the panel keeping history of questions instead of
  * answers -- and history is what the console is for.
  *
- * So it ends the way every other offer here ends: they press it, they do the
- * job themselves (the first write on that host says so), they dismiss it, or
- * their day does. What it does NOT end on is leaving a page -- it was never
- * about a page they were standing on.
+ * It ends three ways: they press it, they do the job themselves (the first
+ * write on that host says so), or they dismiss it. What it does NOT end on is
+ * time or a page -- it was never about a page they were standing on, and a
+ * request nobody has answered has not stopped being a request. At the end of
+ * the day it goes quiet instead, counted among the ones they missed.
  */
 async function offerFromMail(offer) {
   const shape = (await shapesFor()).find((one) => one.id === offer.workflow_id);
@@ -490,7 +491,7 @@ async function offerFromMail(offer) {
       can_find: true,
       parameters: (shape?.parameters || []).map((one) => one.name),
       expires_at: endOfDay(now),
-      leaving: false,
+      keeps: true,
     },
     now,
   );

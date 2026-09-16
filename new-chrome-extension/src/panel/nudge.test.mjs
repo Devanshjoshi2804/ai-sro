@@ -14,7 +14,7 @@
 
 import assert from "node:assert";
 
-const { LIFETIME_MS, fire, mute, onCall, shouldFire, sweep } = await import("./nudge.js");
+const { LIFETIME_MS, endOfDay, fire, mute, onCall, shouldFire, sweep } = await import("./nudge.js");
 
 const T0 = Date.parse("2026-09-03T12:00:00Z");
 const PAGE = "https://wms.example/ui/suppliers/new";
@@ -196,6 +196,54 @@ test("a navigation in another tab does not end an offer open in this one", () =>
   assert.equal(other[0].state, "open", "tab 9 left a page; tab 7's offer stands");
   const same = sweep([one], { url: "https://wms.example/ui/orders", now: T0 + 1000, tabId: 7 });
   assert.equal(same[0].state, "expired");
+});
+
+test("an offer that was never about a page goes quiet rather than ending", () => {
+  // A mail arrives while the operator is on the floor. Swept by the arrival
+  // rules it would end twice over -- ninety seconds, and the first moment they
+  // looked at anything but the job's own screen -- and a request nobody has
+  // answered has not stopped being a request.
+  const card = fire(
+    { id: "mail_m-7", title: "Create a Customer Type", starts_on: "wms.example/ui/customer-types",
+      source: "rig", workflow_id: "wfl_1", keeps: true, expires_at: endOfDay(T0) },
+    T0,
+  );
+
+  const later = sweep([card], { url: "https://mail.google.com/mail/u/0", now: T0 + LIFETIME_MS * 4 });
+
+  assert.strictEqual(later[0].state, "open", "a request was swept away unanswered");
+  assert.strictEqual(later[0].missed, undefined, "quiet before its day was over");
+
+  const tomorrow = sweep(later, { url: null, now: endOfDay(T0) + 1 });
+
+  assert.strictEqual(tomorrow[0].state, "open", "still askable");
+  assert.strictEqual(tomorrow[0].missed, true, "nothing said it had been missed");
+});
+
+test("an arrival offer is swept exactly as it always was", () => {
+  // The two rules above are a second shape, not a replacement. An offer that
+  // sets neither keeps ninety seconds and leaving the page.
+  const nudge = fire(TAUGHT, T0, { tabId: 1, visit: "v1" });
+
+  assert.strictEqual(sweep([nudge], { url: PAGE, now: T0 + LIFETIME_MS })[0].state, "expired");
+  assert.strictEqual(
+    sweep([nudge], { url: "https://wms.example/ui/home", now: T0 + 1000 })[0].state,
+    "expired",
+  );
+});
+
+test("the operator doing it themselves ends a kept offer like any other", () => {
+  // The rule that matters is not when it fires but when it stops. A request
+  // they went and did by hand is not one to keep asking about.
+  const card = fire(
+    { id: "mail_m-7", title: "Create a Customer Type", starts_on: "wms.example/ui/customer-types",
+      source: "rig", workflow_id: "wfl_1", keeps: true, expires_at: endOfDay(T0) },
+    T0,
+  );
+
+  const after = onCall([card], { url: "https://wms.example/ui/customer-types", method: "POST" }, T0 + 60);
+
+  assert.strictEqual(after[0].state, "by-hand");
 });
 
 for (const [name, fn] of tests) {

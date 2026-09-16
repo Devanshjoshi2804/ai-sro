@@ -1341,7 +1341,7 @@ test("the panel's tick reads the mailbox, and not on every tick", async () => {
   assert.deepEqual(mailLooks, ["POST"], "the mailbox was read twice in five seconds");
 });
 
-test("a mail becomes a card that ends, not a line in the conversation", async () => {
+test("a mail becomes a card that waits, not a line in the conversation", async () => {
   // The rule this surface already keeps: the thread is the record of what was
   // DECIDED, and a prompt nobody answered decided nothing. So the offer is
   // held here, it can be pressed or dropped like any other, and it stops
@@ -1368,11 +1368,13 @@ test("a mail becomes a card that ends, not a line in the conversation", async ()
   assert.equal(card.workflowId, "wfl_1");
   assert.equal(card.state, "open");
   assert.deepEqual(card.values, { "Customer Type": "GPX" });
-  // It ends with the day rather than in ninety seconds -- a mail arrives while
-  // the operator is on the floor -- and walking off a page does not end it,
-  // because it was never about a page they were standing on.
-  assert.ok(card.expiresAt > Date.now(), "the card was born expired");
-  assert.equal(card.leaving, false);
+  // It does not end on time or on a page -- a mail arrives while the operator
+  // is on the floor, and a request nobody has answered has not stopped being
+  // one. At the end of their day it goes quiet instead, counted among the ones
+  // they missed.
+  assert.ok(card.expiresAt > Date.now(), "the card was born quiet");
+  assert.equal(card.keeps, true);
+  assert.equal(card.tabId, null, "a mail card tied to a tab is one the panel never draws");
   // And nothing was said into the thread.
   assert.equal(calls.filter((call) => call.path.startsWith("/v1/threads")).length, 0);
 });

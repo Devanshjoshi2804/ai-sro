@@ -1207,7 +1207,7 @@ function show(thread, { asked = false } = {}) {
   // something unrelated changed the thread. Found on 2026-09-14 by a browser
   // that made an offer the panel never showed.
   const mine = (lastStatus?.nudges || [])
-    .map((nudge) => `${nudge.id}:${nudge.state}:${nudge.k ?? ""}`)
+    .map((nudge) => `${nudge.id}:${nudge.state}:${nudge.missed ? "m" : ""}:${nudge.k ?? ""}`)
     .join(",");
   // An answer to a question is drawn from the same local half, and changes
   // without the thread changing -- the same defect the nudges above were found
@@ -1244,9 +1244,13 @@ function show(thread, { asked = false } = {}) {
     // The brief tail is deliberate rather than zero: an offer that vanishes
     // the instant it expires looks, to somebody who just watched it appear,
     // like the panel losing it. Four seconds is long enough to see it go.
+    // A card with no tab behind it is not about a tab. A mail arrived while
+    // the operator was somewhere else entirely -- filtered to the tab in front
+    // of them it would never be drawn at all, which is how the first version
+    // of this lost every request it recognised.
     nudges: (lastStatus?.nudges || []).filter((nudge) =>
       nudge.state === "open"
-        ? nudge.tabId === tabHere.tabId
+        ? nudge.tabId == null || nudge.tabId === tabHere.tabId
         : Date.now() - (nudge.endedAt || 0) < JUST_ENDED_MS,
     ),
     answer: lastStatus?.answer || null,

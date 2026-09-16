@@ -32,7 +32,7 @@ TENANT, DEVICE, RUN = TenantId("acme"), DeviceId("dev-1"), "run_1"
 ENDPOINT = "https://wms.acme.test/api/equipmentTypes"
 
 
-def _gesture(*, method: str = "POST", url: str = ENDPOINT, status: int = 201) -> Gesture:
+def _gesture(*, method: str = "POST", url: str = ENDPOINT, status: int | None = 201) -> Gesture:
     """A demonstrated write: the call the operator's own click produced."""
     return Gesture(
         id="ges-1",
@@ -251,3 +251,86 @@ async def test_the_browser_is_asked_for_calls_since_the_command_went_out() -> No
     assert len(asked) == 1
     assert asked[0]["payload"] == {"since": 1.0}
     assert asked[0]["run_id"] == RUN
+
+
+# -- the branches a whole-run test cannot reach --------------------------------
+#
+# Sixteen survivors sat in this one function, and they were written off once in
+# this session as "about equivalent mutants" on a memory of what they were.
+# Read rather than remembered, not one of them is equivalent: every one names a
+# branch that decides whether a warehouse write is settled, and every one is
+# killable by a test that calls this function with the entry it is about.
+
+
+async def test_a_reported_call_missing_its_method_or_url_is_not_this_step_s_write() -> None:
+    """What the browser reports is a list this process did not build.
+
+    `calls.since` is answered by the extension out of a per-tab ring buffer,
+    and every field of every entry is whatever that buffer held -- a beacon
+    noted before its status arrived, an entry the ring truncated, a key an
+    older build never wrote. A step settled by STATUS on an entry whose method
+    or url is missing is a step settled on a call nobody can identify.
+
+    Both defaults are empty strings and both have to stay. `str(None)` is
+    `"None"`, and `path_shape("None")` is a shape that matches nothing -- so a
+    missing url is refused either way, but by luck of spelling rather than by
+    rule. This pins the answer instead of the luck.
+    """
+    for call in (
+        {"url": ENDPOINT, "status": 201},
+        {"method": "POST", "status": 201},
+        {"status": 201},
+    ):
+        assert await _asked(_answered([call])) is None, call
+
+
+async def test_a_four_hundred_is_a_refusal_and_not_a_status_to_hold_on() -> None:
+    """The boundary is the whole of the rule: 400 is the first status that
+    means the write did not happen, and a rung that read it as anything else
+    would settle a step on the warehouse saying no."""
+    refused = await _asked(_answered([{"method": "POST", "url": ENDPOINT, "status": 400}]))
+
+    assert refused is not None
+    assert (refused.state, refused.by) == ("failed", "status")
+
+
+async def test_with_no_demonstrated_status_the_fallback_is_exactly_the_2xx_range() -> None:
+    """A step whose evidence recorded no completed write has no status of its
+    own to compare against, so plain 2xx is what is left -- and both ends of
+    that range are the rule. 199 and 300 are not success; 200 and 299 are."""
+    # `status=None` and not 0: a call the recorder never saw complete is what
+    # `expected_statuses` skips, and a zero would be a status it counted.
+    nothing_seen = _gesture(status=None)
+
+    for status, holds in ((200, True), (299, True), (300, False), (199, False)):
+        verdict = await _asked(
+            _answered([{"method": "POST", "url": ENDPOINT, "status": status}]), nothing_seen
+        )
+        if holds:
+            assert verdict is not None and verdict.state == "held", status
+        else:
+            assert verdict is None or verdict.state != "held", status
+
+
+async def test_the_status_that_settles_a_step_also_names_what_it_created() -> None:
+    """The same question `made_by` answers for a call this run sent itself.
+
+    A step held here is one whose record nothing else can name: the reply the
+    run holds is the browser's "I found the control and clicked it", and the
+    create's own body is in the buffer this rung has just read.
+    """
+    verdict = await _asked(
+        _answered(
+            [
+                {
+                    "method": "POST",
+                    "url": ENDPOINT,
+                    "status": 201,
+                    "body": '{"equipmentTypeId": "ZV-1"}',
+                }
+            ]
+        )
+    )
+
+    assert verdict is not None and verdict.state == "held"
+    assert dict(verdict.made) == {"equipmentTypeId": "ZV-1"}

@@ -9,8 +9,8 @@ call is clean-eligible, and can climb.
 Streamable-HTTP MCP, because that is what this system's connector speaks. Most
 Gmail MCP servers are stdio and cannot be reached by it at all.
 
-    # once, in a browser you are signed into:
-    uv run python backend/gmail-connector/server.py --authorize
+    # once per tenant, in a browser that tenant's operator is signed into:
+    uv run python backend/gmail-connector/server.py --authorize <tenant>
 
     # then, to serve:
     uv run python backend/gmail-connector/server.py 8932
@@ -21,16 +21,25 @@ the shell history and in `ps`:
     GMAIL_CLIENT_ID=...     # the OAuth client, from Google Cloud
     GMAIL_CLIENT_SECRET=... # put it in backend/.env; it is not printed here
 
-The refresh token it obtains is written to `backend/.gmail-token.json`, which is
-gitignored. Nothing about the mailbox is stored: this reads and sends, and keeps
-no copy.
+Each grant is written to `backend/.gmail-grants/`, gitignored, named by the
+sha256 of the bearer that reaches it -- so what is on disk cannot be read back
+into a credential. Nothing about the mailbox is stored: this reads and sends,
+and keeps no copy.
+
+**One grant per tenant, and a call with no grant behind its bearer reaches
+nothing.** It was one grant for everybody until 2026-09-16, and this checked no
+credential at all: it listens on localhost, so whatever ran on the box got
+whichever mailbox it had. The backend now sends each tenant's own bearer, read
+from the vault under `tenant/gmail/mcp-token`.
 """
 
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
 import os
+import secrets
 import sys
 import urllib.parse
 import uuid
@@ -44,6 +53,34 @@ import httpx
 
 HERE = Path(__file__).resolve().parent
 TOKEN_FILE = HERE.parent / ".gmail-token.json"
+"""The single-tenant grant this connector used to keep. Read only to adopt it
+into the per-tenant store below; nothing serves from it."""
+
+GRANTS = HERE.parent / ".gmail-grants"
+"""One grant per tenant, each named by the sha256 of the bearer that reaches it.
+
+A connector holding ONE Google grant and checking no credential is a connector
+that hands whoever reaches it whichever mailbox it has -- and it listens on
+localhost, so "whoever reaches it" is anything on the box. Every tenant's step
+went to the same inbox.
+
+Keyed by the hash of the bearer rather than by the tenant's name, so this
+directory is a lookup and not a mapping table: a request either carries a
+bearer we have a grant for or it does not, and the answer needs no second file
+to be kept in step. The bearer itself is never written down -- what is on disk
+cannot be replayed against this server.
+"""
+
+
+def _grant_of(bearer: str) -> dict[str, str] | None:
+    """The grant this bearer reaches, or None. The whole of the gate."""
+    if not bearer:
+        return None
+    named = GRANTS / f"{hashlib.sha256(bearer.encode()).hexdigest()}.json"
+    if not named.is_file():
+        return None
+    kept = json.loads(named.read_text())
+    return kept if isinstance(kept, dict) else None
 
 REDIRECT = "http://localhost:8933/oauth/callback"
 """Where Google sends the operator back. Must be listed in the OAuth client's
@@ -141,16 +178,18 @@ def _client() -> tuple[str, str]:
     return str(web["client_id"]), str(web["client_secret"])
 
 
-def _access_token() -> str:
-    """A live access token, refreshed from the stored grant.
+def _access_token(grant: dict[str, str]) -> str:
+    """A live access token, refreshed from THIS tenant's grant.
 
     Refreshed on every call rather than cached with an expiry: this serves one
     request at a time, minutes apart, and a token that expired between two of
     them is a failure nobody could explain from the logs.
+
+    The grant is passed in rather than read from a module global, because which
+    grant to use is a fact about the request: it is whichever one the caller's
+    bearer reached.
     """
-    if not TOKEN_FILE.exists():
-        raise SystemExit(f"no grant yet: run `{sys.argv[0]} --authorize` first")
-    stored = json.loads(TOKEN_FILE.read_text())
+    stored = grant
     ident, secret = _client()
     answer = httpx.post(
         "https://oauth2.googleapis.com/token",
@@ -170,13 +209,51 @@ def _access_token() -> str:
     return str(answer.json()["access_token"])
 
 
-def authorize() -> None:
+def _keep(tenant: str, refresh_token: str) -> None:
+    """Write one tenant's grant, and print the bearer that reaches it once.
+
+    The bearer is minted here rather than chosen, and printed rather than
+    stored: what goes on disk is its sha256, so this directory cannot be read
+    back into a credential that reaches this server. Whoever runs this puts the
+    printed value in the vault under `tenant/gmail/mcp-token` and it is never
+    seen again.
+    """
+    bearer = secrets.token_urlsafe(32)
+    GRANTS.mkdir(mode=0o700, exist_ok=True)
+    named = GRANTS / f"{hashlib.sha256(bearer.encode()).hexdigest()}.json"
+    named.write_text(json.dumps({"tenant": tenant, "refresh_token": refresh_token}, indent=1))
+    named.chmod(0o600)
+    print(f"\ngrant stored for {tenant}. It is gitignored and holds no mail.")
+    print("Put this in the vault as this tenant's connector credential:")
+    print(f"\n  {bearer}\n")
+    print(f"  key: {tenant}/gmail/mcp-token")
+    print("It is shown once. Losing it costs a re-authorize, not the mailbox.")
+
+
+def authorize(tenant: str) -> None:
     """The one step nobody can take on the operator's behalf.
 
     Their Google account, their consent screen, their decision about what this
     may read and send. All this does is open the page and catch the code Google
     sends back.
+
+    Per TENANT, because a grant belongs to one. A connector holding a single
+    grant and checking no credential hands whichever mailbox it has to whoever
+    reaches it -- and it listens on localhost, so that is anything on the box.
+
+    Adopts the old single-tenant `.gmail-token.json` where one is still there,
+    so a deployment that authorized before this existed does not have to send
+    somebody back to Google. The old file is left alone rather than deleted: it
+    is a credential, and deleting somebody's credential is not this script's
+    decision to make.
     """
+    if TOKEN_FILE.exists():
+        kept = json.loads(TOKEN_FILE.read_text())
+        if kept.get("refresh_token"):
+            print(f"adopting the grant already in {TOKEN_FILE.name} for {tenant}.")
+            print(f"  nothing was sent to Google. You may delete {TOKEN_FILE.name} when done.")
+            _keep(tenant, str(kept["refresh_token"]))
+            return
     ident, secret = _client()
     got: dict[str, str] = {}
 
@@ -239,9 +316,7 @@ def authorize() -> None:
             "already granted this client: revoke it at "
             "https://myaccount.google.com/permissions and run --authorize again."
         )
-    TOKEN_FILE.write_text(json.dumps({"refresh_token": granted["refresh_token"]}, indent=1))
-    TOKEN_FILE.chmod(0o600)
-    print(f"grant stored in {TOKEN_FILE.name}. It is gitignored, and holds no mail.")
+    _keep(tenant, str(granted["refresh_token"]))
 
 
 def _headers_of(payload: dict[str, Any]) -> dict[str, str]:
@@ -409,10 +484,27 @@ class Connector(BaseHTTPRequestHandler):
             self._reply(200, self._envelope(request.get("id"), {"tools": TOOLS}))
             return
         if method == "tools/call":
+            # The gate, and it is here rather than at `initialize` on purpose:
+            # a handshake tells a caller nothing about a mailbox, and a call
+            # is the first thing that would. An unknown bearer reaches no
+            # grant, so it reaches no mail.
+            bearer = self.headers.get("Authorization", "").removeprefix("Bearer ").strip()
+            grant = _grant_of(bearer)
+            if grant is None:
+                print("  ! a call with no grant behind its bearer")
+                self._reply(
+                    200,
+                    self._error(
+                        request.get("id"),
+                        -32001,
+                        "no grant for that credential: connect this tenant first",
+                    ),
+                )
+                return
             params = request.get("params", {})
             name, arguments = params.get("name", ""), params.get("arguments", {})
             try:
-                token = _access_token()
+                token = _access_token(grant)
                 if name == "search_threads":
                     text = _search(token, arguments)
                 elif name == "get_message":
@@ -472,13 +564,21 @@ class Connector(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     if "--authorize" in sys.argv:
-        authorize()
+        named = [one for one in sys.argv[1:] if not one.startswith("-") and not one.isdigit()]
+        if not named:
+            raise SystemExit(
+                "which tenant is this grant for?\n"
+                f"  {sys.argv[0]} --authorize <tenant>\n"
+                "A grant belongs to one tenant: a connector holding one grant for "
+                "everybody hands whichever mailbox it has to whoever reaches it."
+            )
+        authorize(named[0])
         raise SystemExit(0)
 
     port = int(next((one for one in sys.argv[1:] if one.isdigit()), "8932"))
     _client()  # fail now, with a sentence, rather than on the first call
-    if not TOKEN_FILE.exists():
-        raise SystemExit(f"no grant yet: run `{sys.argv[0]} --authorize` first")
+    if not GRANTS.is_dir() or not any(GRANTS.glob("*.json")):
+        raise SystemExit(f"no grant yet: run `{sys.argv[0]} --authorize <tenant>` first")
 
     try:
         server = ThreadingHTTPServer(("127.0.0.1", port), Connector)

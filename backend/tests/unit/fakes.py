@@ -2369,19 +2369,27 @@ class FakeToolCaller:
         self._offers = offers or {}
         self._available = available
         self.calls: list[tuple[str, str, dict[str, str]]] = []
+        self.asked_as: list[str] = []
+        """Which tenant each call went out as. The double records it because
+        the port's whole point is that a connector is reached with one
+        tenant's credential and no other."""
 
     @property
     def available(self) -> bool:
         return self._available
 
-    async def list_tools(self, server: str) -> tuple[ToolOffered, ...]:
+    async def list_tools(self, tenant_id: TenantId, server: str) -> tuple[ToolOffered, ...]:
+        self.asked_as.append(tenant_id.value)
         if server not in self._offers:
             raise ToolsUnavailable(f"no connector called {server}")
         return self._offers[server]
 
-    async def call(self, server: str, tool: str, arguments: Mapping[str, str]) -> ToolResult:
+    async def call(
+        self, tenant_id: TenantId, server: str, tool: str, arguments: Mapping[str, str]
+    ) -> ToolResult:
         if not self._available:
             raise ToolsUnavailable("no connectors are configured")
+        self.asked_as.append(tenant_id.value)
         self.calls.append((server, tool, dict(arguments)))
         answer = self._answers.get(tool)
         if answer is None:

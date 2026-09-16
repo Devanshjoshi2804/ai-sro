@@ -5,10 +5,18 @@ agent; this one lets a step be performed by calling a connector the tenant
 configured -- which is what makes a mail step a call rather than a click, and a
 click is the one thing that can never be clean.
 
-Configured rather than discovered. A server is named in settings with its URL
-and, where it needs one, a bearer token; nothing here goes looking for
-connectors, because a system that found one and used it would be making the
-tenant's integration decisions for them.
+Configured rather than discovered. A server is named in settings with its URL;
+nothing here goes looking for connectors, because a system that found one and
+used it would be making the tenant's integration decisions for them.
+
+**The URL is deployment config and the credential never is.** Settings used to
+carry `name=url#token`, one bearer for the whole deployment, and every tenant's
+step went out holding it -- so a skill run for any tenant reached the same
+connector and the same person's Google grant. The token now comes from the
+vault under `tenant/server/mcp_token`, per tenant, and a tenant with no grant
+gets `NotConnected` rather than somebody else's mailbox. The `#token` form is
+gone rather than deprecated: left in, it is a working shared-credential path
+that nothing would stop a deployment using.
 """
 
 from __future__ import annotations
@@ -20,7 +28,16 @@ from dataclasses import dataclass
 
 import httpx
 
-from sro.application.ports.tools import ToolCaller, ToolOffered, ToolResult, ToolsUnavailable
+from sro.application.ports.tools import (
+    NotConnected,
+    ToolCaller,
+    ToolOffered,
+    ToolResult,
+    ToolsUnavailable,
+)
+from sro.application.ports.vault import CredentialVault, VaultUnavailable
+from sro.domain.execution.secrets import secret_key_of
+from sro.domain.shared.identifiers import TenantId
 
 CALL_TIMEOUT = 30.0
 """Long enough for a mail to be sent, short enough that a hung connector is a
@@ -36,9 +53,11 @@ may refuse over, and a refusal that names a version is one somebody can act on.
 
 @dataclass(frozen=True, slots=True)
 class McpServer:
+    """Where a connector is. Deliberately no credential on it -- see the module
+    docstring: a bearer here is a bearer every tenant shares."""
+
     name: str
     url: str
-    token: str = ""
 
 
 class McpToolCaller(ToolCaller):
@@ -50,15 +69,54 @@ class McpToolCaller(ToolCaller):
     needs, and it fails in ways this code can report rather than in the SDK's.
     """
 
-    def __init__(self, servers: Sequence[McpServer] = ()) -> None:
+    def __init__(
+        self, servers: Sequence[McpServer] = (), vault: CredentialVault | None = None
+    ) -> None:
         self._servers = {server.name: server for server in servers}
+        self._vault = vault
 
     @property
     def available(self) -> bool:
         return bool(self._servers)
 
-    async def list_tools(self, server: str) -> tuple[ToolOffered, ...]:
-        answer = await self._rpc(server, "tools/list", {})
+    async def _bearer(self, tenant_id: TenantId, server: str) -> str:
+        """This tenant's grant for this connector, or a refusal naming both.
+
+        The whole security property of this adapter. `secret_key_of` is the
+        vault's own `tenant/system/field` shape rather than a second spelling,
+        so a connector's grant sits beside the passwords a step types and is
+        revoked the same way.
+
+        A deployment with no vault configured cannot hold a per-tenant grant,
+        so it gets the refusal too. That is stricter than before -- it used to
+        call with no credential at all -- and it is the point: a connector
+        reached without a tenant's grant is a connector reached on somebody
+        else's behalf.
+        """
+        if self._vault is None:
+            raise NotConnected(
+                f"{server} needs a per-tenant grant and this deployment has no vault to keep it in"
+            )
+        # `secret_key_of` on both sides, never a hand-spelled key. Its own
+        # docstring is the reason: it normalises the field -- `mcp_token`
+        # becomes `mcp-token` -- so a key built by hand here and by the helper
+        # at the console would not be the same key, and the grant would be
+        # invisible to the one thing that needs it. Caught exactly that way
+        # writing this.
+        key = secret_key_of(tenant_id.value, server, "mcp_token")
+        try:
+            kept = await self._vault.get(key)
+        except VaultUnavailable as down:
+            # A different fact from "not connected", and the caller tells them
+            # apart: one is a console saying "connect Gmail", the other is a
+            # deployment problem no operator can act on.
+            raise ToolsUnavailable(f"the vault holding {server}'s grant is unreachable") from down
+        if kept:
+            return kept
+        raise NotConnected(f"{tenant_id.value} has not connected {server}")
+
+    async def list_tools(self, tenant_id: TenantId, server: str) -> tuple[ToolOffered, ...]:
+        answer = await self._rpc(tenant_id, server, "tools/list", {})
         offered = answer.get("tools")
         if not isinstance(offered, list):
             return ()
@@ -72,8 +130,12 @@ class McpToolCaller(ToolCaller):
             if isinstance(tool, dict) and tool.get("name")
         )
 
-    async def call(self, server: str, tool: str, arguments: Mapping[str, str]) -> ToolResult:
-        answer = await self._rpc(server, "tools/call", {"name": tool, "arguments": dict(arguments)})
+    async def call(
+        self, tenant_id: TenantId, server: str, tool: str, arguments: Mapping[str, str]
+    ) -> ToolResult:
+        answer = await self._rpc(
+            tenant_id, server, "tools/call", {"name": tool, "arguments": dict(arguments)}
+        )
         # `isError` is the tool saying no, which is an answer. Reported as a
         # failed result rather than raised, because the escalation table treats
         # "it refused" and "there was nothing to ask" differently and both
@@ -84,7 +146,9 @@ class McpToolCaller(ToolCaller):
             detail=_text_of(answer) if answer.get("isError") else "",
         )
 
-    async def _rpc(self, server: str, method: str, params: dict[str, object]) -> dict[str, object]:
+    async def _rpc(
+        self, tenant_id: TenantId, server: str, method: str, params: dict[str, object]
+    ) -> dict[str, object]:
         known = self._servers.get(server)
         if known is None:
             raise ToolsUnavailable(f"no connector called {server} is configured")
@@ -93,8 +157,7 @@ class McpToolCaller(ToolCaller):
             "Content-Type": "application/json",
             "Accept": "application/json, text/event-stream",
         }
-        if known.token:
-            headers["Authorization"] = f"Bearer {known.token}"
+        headers["Authorization"] = f"Bearer {await self._bearer(tenant_id, server)}"
 
         try:
             async with httpx.AsyncClient(timeout=CALL_TIMEOUT) as client:

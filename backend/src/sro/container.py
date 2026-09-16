@@ -1277,7 +1277,10 @@ def build_container(settings: Settings | None = None) -> Container:
         intent_parser=_build_intent_parser(settings),
         vault=(built_vault := _build_vault(settings)),
         http=HttpxCaller(),
-        tools=McpToolCaller(_servers(settings.mcp_servers)),
+        # The vault, because a connector's bearer is per tenant and lives
+        # there. Without it `McpToolCaller` refuses rather than calling with
+        # no credential.
+        tools=McpToolCaller(_servers(settings.mcp_servers), vault=built_vault),
         ui=PlaywrightUiDriver(settings.ui_debugger_url),
         sign_in_driver=PlaywrightSignIn(),
         tokens=(
@@ -1318,18 +1321,27 @@ def build_container(settings: Settings | None = None) -> Container:
 
 
 def _servers(configured: str) -> tuple[McpServer, ...]:
-    """`name=url#token, name=url` into connectors.
+    """`name=url, name=url` into connectors.
 
     A malformed entry is skipped rather than raising: one typo in a
     comma-separated setting must not stop a deployment whose other connectors
     are fine, and a connector that is absent is already an answer this system
     knows how to give.
+
+    **No `#token` any more.** The form used to be `name=url#token`, and that
+    token was one bearer for the whole deployment: every tenant's step went out
+    holding it, so a run for any tenant reached the same connector and the same
+    person's grant. Credentials are per tenant, in the vault, under
+    `tenant/server/mcp_token`. Anything after a `#` is dropped rather than
+    honoured -- a setting that silently kept working would be a shared
+    credential nobody meant to still have.
     """
     found: list[McpServer] = []
     for entry in configured.split(","):
         name, sep, rest = entry.strip().partition("=")
         if not sep or not name.strip() or not rest.strip():
             continue
-        url, _, token = rest.partition("#")
-        found.append(McpServer(name=name.strip(), url=url.strip(), token=token.strip()))
+        url, _, _dropped = rest.partition("#")
+        if url.strip():
+            found.append(McpServer(name=name.strip(), url=url.strip()))
     return tuple(found)

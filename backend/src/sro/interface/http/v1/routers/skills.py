@@ -157,7 +157,7 @@ async def offered_tools(
     if not tools.available:
         raise NotFound("no connector is configured")
     try:
-        offered = await tools.list_tools(server)
+        offered = await tools.list_tools(ctx.tenant_id, server)
     except ToolsUnavailable as gone:
         raise NotFound(str(gone)) from gone
     return [

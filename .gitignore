@@ -45,6 +45,9 @@ backend/worker.log
 # to rename it is a secret already halfway into git.
 client_secret*.json
 .gmail-token.json
+# One Google grant per tenant, each named by the sha256 of the bearer that
+# reaches it. Refresh tokens: never committed.
+backend/.gmail-grants/
 
 # ...and the same shapes after somebody renames one. The two patterns above
 # were already here, with the comment above them, and three real credential

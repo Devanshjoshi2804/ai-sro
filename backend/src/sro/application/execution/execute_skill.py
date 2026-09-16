@@ -1336,7 +1336,10 @@ class ExecuteStep:
                 )
 
         try:
-            answered = await self._tools.call(plan.server, plan.tool, arguments)
+            # The RUN's tenant, not a context passed down: the row is the
+            # authority on whose run this is, and a connector is reached with
+            # that tenant's own grant or not at all.
+            answered = await self._tools.call(run.tenant_id, plan.server, plan.tool, arguments)
         except ToolsUnavailable as gone:
             return self._failed(step, key, str(gone), medium=Medium.TOOL, unreachable=True)
 

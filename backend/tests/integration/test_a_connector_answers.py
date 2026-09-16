@@ -15,10 +15,37 @@ from typing import Any
 
 import pytest
 
-from sro.application.ports.tools import ToolsUnavailable
+from sro.application.ports.tools import NotConnected, ToolsUnavailable
+from sro.domain.execution.secrets import secret_key_of
+from sro.domain.shared.identifiers import TenantId
 from sro.infrastructure.mcp.client import McpServer, McpToolCaller
 
-TOKEN = "a-token"  # noqa: S105 -- what this stub asks for, not a credential
+ACME, OTHER = TenantId("acme"), TenantId("other")
+
+GRANTS = {
+    # Built with `secret_key_of` and never spelled by hand. It normalises the
+    # field -- `mcp_token` becomes `mcp-token` -- so a key typed out here would
+    # pass review and miss every lookup, which is how this test first failed.
+    secret_key_of(ACME.value, "mail", "mcp_token"): "acme-grant",
+    secret_key_of(OTHER.value, "mail", "mcp_token"): "other-grant",
+}
+
+
+class _Vault:
+    """Holds what the console would have written when a tenant connected."""
+
+    def __init__(self, grants: dict[str, str]) -> None:
+        self._grants = grants
+
+    async def store(self, key: str, value: str) -> None:
+        self._grants[key] = value
+
+    async def get(self, key: str) -> str | None:
+        return self._grants.get(key)
+
+    async def delete(self, key: str) -> None:
+        self._grants.pop(key, None)
+
 
 TOOLS = {
     "tools": [
@@ -121,13 +148,15 @@ def connector() -> Any:
     # `server_address` types as `str | bytes` -- the AF_UNIX arm -- and a bytes
     # host would silently build `http://b'127.0.0.1':.../mcp`.
     port = server.server_address[1]
-    yield McpToolCaller([McpServer(name="mail", url=f"http://127.0.0.1:{port}/mcp", token=TOKEN)])
+    yield McpToolCaller(
+        [McpServer(name="mail", url=f"http://127.0.0.1:{port}/mcp")], vault=_Vault(dict(GRANTS))
+    )
     server.shutdown()
     server.server_close()
 
 
 async def test_a_connector_says_what_it_offers(connector: McpToolCaller) -> None:
-    offered = await connector.list_tools("mail")
+    offered = await connector.list_tools(ACME, "mail")
 
     assert [tool.name for tool in offered] == ["send_message"]
     assert set(offered[0].arguments) == {"to", "body"}
@@ -136,11 +165,11 @@ async def test_a_connector_says_what_it_offers(connector: McpToolCaller) -> None
 async def test_calling_one_sends_the_arguments_and_the_credential(
     connector: McpToolCaller,
 ) -> None:
-    answered = await connector.call("mail", "send_message", {"to": "a@b.test", "body": "hi"})
+    answered = await connector.call(ACME, "mail", "send_message", {"to": "a@b.test", "body": "hi"})
 
     assert json.loads(answered.text) == {"status": "sent", "to": "a@b.test", "body": "hi"}
     assert answered.failed is False
-    assert _Server.seen[-1]["authorization"] == f"Bearer {TOKEN}"
+    assert _Server.seen[-1]["authorization"] == "Bearer acme-grant"
 
 
 async def test_an_answer_that_arrives_as_an_event_stream_reads_the_same(
@@ -148,7 +177,7 @@ async def test_an_answer_that_arrives_as_an_event_stream_reads_the_same(
 ) -> None:
     _Server.mode = "sse"
 
-    answered = await connector.call("mail", "send_message", {"to": "a@b.test", "body": "hi"})
+    answered = await connector.call(ACME, "mail", "send_message", {"to": "a@b.test", "body": "hi"})
 
     assert json.loads(answered.text)["status"] == "sent"
 
@@ -160,7 +189,7 @@ async def test_a_tool_that_refuses_is_an_answer_rather_than_an_exception(
     differently, and both arriving as an exception would collapse them."""
     _Server.mode = "refuses"
 
-    answered = await connector.call("mail", "send_message", {"to": "a@b.test"})
+    answered = await connector.call(ACME, "mail", "send_message", {"to": "a@b.test"})
 
     assert answered.failed is True
     assert "no mailbox" in answered.detail
@@ -172,14 +201,14 @@ async def test_a_connector_that_answers_rubbish_is_unavailable_rather_than_a_cra
     _Server.mode = "broken"
 
     with pytest.raises(ToolsUnavailable):
-        await connector.call("mail", "send_message", {"to": "a@b.test"})
+        await connector.call(ACME, "mail", "send_message", {"to": "a@b.test"})
 
 
 async def test_a_server_nobody_configured_is_refused_before_a_socket_is_opened(
     connector: McpToolCaller,
 ) -> None:
     with pytest.raises(ToolsUnavailable, match="no connector called erp"):
-        await connector.call("erp", "anything", {})
+        await connector.call(ACME, "erp", "anything", {})
 
     assert _Server.seen == []
 
@@ -195,7 +224,7 @@ async def test_a_connector_that_needs_a_session_is_greeted_first(
     """
     _Server.mode = "session"
 
-    offered = await connector.list_tools("mail")
+    offered = await connector.list_tools(ACME, "mail")
 
     assert [tool.name for tool in offered] == ["send_message"]
     greeted = [request["method"] for request in _Server.seen]
@@ -210,7 +239,60 @@ async def test_the_session_is_carried_on_the_call_itself(connector: McpToolCalle
     the one moment the step cannot be retried."""
     _Server.mode = "session"
 
-    result = await connector.call("mail", "send_message", {"to": "rudy", "body": "hello"})
+    result = await connector.call(ACME, "mail", "send_message", {"to": "rudy", "body": "hello"})
 
     assert not result.failed, result.detail
     assert "sent" in result.text
+
+
+# -- one tenant's grant, and no other ------------------------------------------
+
+
+async def test_two_tenants_reach_the_connector_with_their_own_grant(
+    connector: McpToolCaller,
+) -> None:
+    """The property this adapter exists for, and it did not hold until
+    2026-09-16: the bearer was one string in deployment config, so every
+    tenant's step reached the same connector holding the same person's grant.
+
+    Nothing had noticed because nothing had called it -- MCP was unreachable
+    from a mined-workflow run, and the one path that did use it ran on a
+    single-tenant deployment. This is the door shut before anything leaned on
+    it.
+    """
+    await connector.call(ACME, "mail", "send_message", {"to": "a@b.test", "body": "hi"})
+    assert _Server.seen[-1]["authorization"] == "Bearer acme-grant"
+
+    await connector.call(OTHER, "mail", "send_message", {"to": "c@d.test", "body": "hi"})
+    assert _Server.seen[-1]["authorization"] == "Bearer other-grant"
+
+
+async def test_a_tenant_who_has_not_connected_reaches_nothing_at_all(
+    connector: McpToolCaller,
+) -> None:
+    """Refused before a socket is opened, and refused as `NotConnected` rather
+    than a bare `ToolsUnavailable` -- a console can turn the first into "connect
+    Gmail", which a person can act on, and cannot act on the second.
+
+    Refusing is the point. The old adapter called with whatever credential the
+    deployment held, so a tenant who had connected nothing still reached
+    somebody's mailbox.
+    """
+    before = len(_Server.seen)
+
+    with pytest.raises(NotConnected):
+        await connector.call(TenantId("a-third"), "mail", "send_message", {"to": "x@y.test"})
+
+    assert len(_Server.seen) == before, "a request went out for a tenant with no grant"
+
+
+async def test_a_deployment_with_no_vault_cannot_reach_a_connector_at_all(
+    connector: McpToolCaller,
+) -> None:
+    """Stricter than before on purpose. With no vault there is nowhere for a
+    per-tenant grant to live, so there is no way to call as one tenant rather
+    than as all of them -- and calling anyway is what this change removed."""
+    vaultless = McpToolCaller([McpServer(name="mail", url="http://127.0.0.1:1/mcp")])
+
+    with pytest.raises(NotConnected):
+        await vaultless.list_tools(ACME, "mail")

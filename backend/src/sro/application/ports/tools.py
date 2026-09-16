@@ -1,4 +1,4 @@
-"""Connectors this tenant configured, and the tools they offer.
+"""Connectors a tenant has connected, and the tools they offer.
 
 The other half of `infrastructure/mcp/server.py`. That one hands this system's
 skills to somebody else's agent; this one calls somebody else's tools from a
@@ -11,6 +11,8 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Protocol
+
+from sro.domain.shared.identifiers import TenantId
 
 
 @dataclass(frozen=True, slots=True)
@@ -53,7 +55,35 @@ class ToolsUnavailable(Exception):
     code = "tools_unavailable"
 
 
+class NotConnected(ToolsUnavailable):
+    """This tenant has not connected this server.
+
+    A subclass rather than a bare `ToolsUnavailable` so a console can tell "you
+    have not connected Gmail yet" -- which a person can fix in one click --
+    from "the connector is down", which they cannot. Both are still "there was
+    nothing to ask", which is why the escalation table needs no new entry.
+    """
+
+    code = "not_connected"
+
+
 class ToolCaller(Protocol):
+    """Somebody else's tools, called with THIS tenant's credential.
+
+    Every method takes the tenant, and that is the whole of the security
+    property: a connector is reached with a bearer read from the vault under
+    `tenant/server/mcp_token`, so a tenant with no grant cannot reach one and a
+    tenant with a grant reaches only their own.
+
+    It was not always so. Until 2026-09-16 neither the port nor the adapter had
+    a tenant on it and the bearer was one string in deployment config, so a
+    skill run for any tenant reached the same connector holding the same
+    person's Google grant. Nothing had noticed because nothing had called it:
+    MCP was unreachable from a mined-workflow run, and the one path that did
+    use it was a single-tenant deployment. This is the door shut before
+    anything leaned on it.
+    """
+
     @property
     def available(self) -> bool:
         """Whether this deployment has connectors configured at all.
@@ -62,11 +92,19 @@ class ToolCaller(Protocol):
         invited to map a step onto a connector nobody set up."""
         ...
 
-    async def list_tools(self, server: str) -> Sequence[ToolOffered]:
-        """What this connector offers, now. Raises `ToolsUnavailable`."""
+    async def list_tools(self, tenant_id: TenantId, server: str) -> Sequence[ToolOffered]:
+        """What this connector offers this tenant, now. Raises `ToolsUnavailable`.
+
+        Tenant first, and on every method, because a connector is reached with
+        a credential and a credential belongs to one tenant. The port carried
+        none until 2026-09-16 and neither did the adapter, so every tenant's
+        step reached the same mailbox with the same grant -- see `ToolCaller`.
+        """
         ...
 
-    async def call(self, server: str, tool: str, arguments: Mapping[str, str]) -> ToolResult:
+    async def call(
+        self, tenant_id: TenantId, server: str, tool: str, arguments: Mapping[str, str]
+    ) -> ToolResult:
         """Call it and return what it said. Raises `ToolsUnavailable`.
 
         No idempotency key here, deliberately. Whether this call may happen at

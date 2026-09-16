@@ -239,7 +239,14 @@ source_paths = [
 # to the backend root, and the copy's root is `mutants/`: without it a test
 # asserting this repository has exactly one head fails for the copy rather than
 # for any mutant, and one failure ends stats collection for the whole sweep.
-also_copy = ["tests", "src/sro", "migrations"]
+# `gmail-connector` because `test_the_gather_speaks_the_connectors_language`
+# loads the connector's own `server.py` by path to read the argument names it
+# declares -- the contract that broke once already, when the gather asked for
+# `message_id` and the connector declares `id`. Without it that test fails for
+# the copy rather than for any mutant, and one failure ends stats collection
+# for the whole sweep. Copied rather than deselected: a contract nothing checks
+# during a sweep is a contract that can rot between sweeps.
+also_copy = ["tests", "src/sro", "migrations", "gmail-connector"]
 # The whole unit suite, not just the bridge's own tests. Narrowing it to
 # `tests/unit/application/skill` made every OTHER module in the package read
 # 100%, because their real tests live elsewhere and never ran -- a number that

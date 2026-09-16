@@ -4879,6 +4879,79 @@ async def test_a_watched_run_does_the_job_on_the_screen() -> None:
     ], "a watched run filled the form and posted the call as well"
 
 
+async def test_a_watched_run_falls_back_to_the_call_when_the_screen_will_not_take_it() -> None:
+    """Watching must not mean "and if the page cannot be driven, do not do it".
+
+    Measured on the deployment, 2026-09-16 and into the 17th: every UI step
+    ever attempted on the warehouse host failed -- a loaded page that answered
+    nothing at all -- while the same write went through as a call on the first
+    try. The operator had pressed yes. A system that answers "I could not click
+    it" while holding a call it knows works is refusing for the wrong reason.
+
+    The screen is tried first and fully -- plan from the evidence, plan again,
+    look at a picture -- and the call is what happens instead of stopping.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel(
+        {
+            **_looks(12),
+            # The form fills. Then the button the write is behind answers the
+            # way that host answers: nothing ran, so nothing can be said about
+            # a control.
+            "ui.perform": [
+                _performed(),
+                *[
+                    Reply(
+                        ok=False,
+                        error_kind="not_actionable",
+                        error_detail="the page did not answer",
+                    )
+                ]
+                * 3,
+            ],
+            "http.send": [Reply(ok=True, result={"status": 201, "body": "{}"})] * 3,
+        }
+    )
+    asker = FakeAsker(
+        _plan("type", "WATCHED"),
+        Answer(data={"held": True, "why": ""}),
+        _plan("click"),
+        Answer(data={"held": False, "why": "nothing happened on the screen"}),
+        _plan("click"),
+        Answer(data={"held": False, "why": "nothing happened on the screen"}),
+    )
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        values={},
+        earned=True,
+        verified_writes=(VerifiedWrite(method="POST", path_pattern="/api/orders"),),
+        watched=True,
+    )
+
+    sent = [one["kind"] for one in channel.sent]
+    assert "ui.perform" in sent, "it went to the call without trying the screen"
+    assert "http.send" in sent, "the screen refused it and the run stopped anyway"
+    assert sent.index("ui.perform") < sent.index("http.send"), (
+        "the call came before the screen a person was watching"
+    )
+    # The write itself, not the read the runner does first to see whether the
+    # record is already there. Whether this fixture's read-back can then
+    # confirm the effect is `verify`'s business and has its own tests; what is
+    # under test here is that the run reached for the call at all instead of
+    # stopping on a page that would not answer.
+    wrote = [
+        one
+        for one in channel.sent
+        if one["kind"] == "http.send" and _payload(one).get("method") == "POST"
+    ]
+    assert wrote, ("|".join(sent), [(one.verdict, one.reason) for one in run.steps])
+
+
 async def test_an_unwatched_run_replays_the_call() -> None:
     """The other half, and the same job.
 

@@ -1223,6 +1223,32 @@ async def run_workflow(
             )
             if replay is not None and not run.watched:
                 rungs = (("replay", ""),) if never_filled else (("replay", ""), *rungs)
+            elif replay is not None:
+                # Watched, and the screen would not take it.
+                #
+                # A watched run performs the job where somebody can see it, and
+                # that is the whole of what `watched` buys. It must not also
+                # mean "and if the page cannot be driven, do not do the job":
+                # measured on the deployment 2026-09-16, every UI step ever
+                # attempted on the warehouse host failed while the same write
+                # went through as a call on the first try. The operator pressed
+                # yes; a system that answers "I could not click it" while
+                # holding a call it knows works is refusing for the wrong
+                # reason.
+                #
+                # LAST, and that ordering is the decision. The screen is tried
+                # first and fully -- plan from the evidence, plan again, then
+                # look at a picture -- so a run somebody is watching is still a
+                # run they watch whenever watching is possible. The call is
+                # what happens instead of stopping.
+                #
+                # It cannot write twice. The step claims its write in
+                # `tool_calls` before it goes out, keyed on the job, the step
+                # and the values, so a click that actually landed leaves a
+                # claim the replay then finds taken -- and a click that failed
+                # left none. The safety here is the ledger's, not this
+                # ordering's, which is why the fallback can be unconditional.
+                rungs = (*rungs, ("replay", ""))
             verdict: StepVerdict | None = None
             after_failed: Look | None = None
             # Once per step. A session that ages out again three steps later is
@@ -1237,7 +1263,14 @@ async def run_workflow(
                     how == "sight"
                     and (record.result or {}).get("error_kind") != "control_not_found"
                 ):
-                    break
+                    # `continue`, not `break`. Skipping the picture is right --
+                    # it answers a control the browser could not find and
+                    # nothing else -- but it must not skip what is behind it:
+                    # on a watched run the rung after sight is the call, and a
+                    # page that refuses to be driven at all is exactly when
+                    # that call is the answer. With `break` the run stopped
+                    # holding a write it knew how to make.
+                    continue
                 # One rung of the ladder: plan, and plan again once if getting
                 # to the right page was all the model asked for. Getting there
                 # is not doing the step, so a navigate must not spend the one

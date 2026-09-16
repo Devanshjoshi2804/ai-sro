@@ -586,7 +586,12 @@ test("a finished run says which records it made", () => {
 
   const card = runCard({ run });
 
-  assert.match(words(card), /made 2 records: 4471, 4472/);
+  assert.match(words(card), /Made 2 records/);
+  // In the warehouse's own field names, and whatever fields it sent. This was
+  // the values alone -- "made 2 records: 4471, 4472" -- which drops the half
+  // that says what each value is, one line before somebody reads it.
+  assert.match(words(card), /equipmentTypeId: 4471/);
+  assert.match(words(card), /equipmentTypeId: 4472/);
   assert.match(words(card), /Nothing here can take them back/, (
     "an operator who has just watched two records be made has to know the"
     + " taking-back is theirs to do"
@@ -716,6 +721,33 @@ test("not_needed is a dash: a tick would say it happened", () => {
   assert.equal(glyphFor("awaiting"), "⏸");
 });
 
+
+test("a record is drawn in whatever fields the system sent back", () => {
+  // Nothing here knows which fields a system will answer with: a customer type
+  // comes back named `customerType`, an order with an id and a status. The
+  // backend picks the fields that name the row out of the create's own answer;
+  // this draws what arrived rather than a shape it was taught.
+  const card = runCard({
+    run: {
+      id: "run_2",
+      source: "rig",
+      status: "held",
+      items: [],
+      steps: [
+        {
+          index: 0,
+          outcome: "held",
+          says: "Click Save.",
+          made: { customerType: "GQV", longDescription: "leaning new SRO type 006" },
+        },
+      ],
+    },
+  });
+
+  const said = words(card);
+  assert.match(said, /customerType: GQV/);
+  assert.match(said, /longDescription: leaning new SRO type 006/);
+});
 
 test("a run nobody watched says it replayed the call", () => {
   // The run finishes, the record is in the warehouse, and the page in front of

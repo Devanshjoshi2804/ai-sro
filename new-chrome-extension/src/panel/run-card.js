@@ -215,7 +215,6 @@ export function runCard(
   if (rig && !live && made.length) {
     const line = document.createElement("p");
     line.className = "note";
-    const named = made.map((one) => Object.values(one).join(" ")).join(", ");
     // And whether anything can take them back. Said in words and not drawn as
     // a button: what an undo would have to do is address each record by
     // whatever the warehouse called it, and a wrong mapping deletes the wrong
@@ -223,11 +222,31 @@ export function runCard(
     // who has just watched three records be made needs to know that the
     // taking-back is theirs to do.
     line.textContent =
-      `made ${made.length} record${made.length === 1 ? "" : "s"}: ${named}. ` +
+      `Made ${made.length} record${made.length === 1 ? "" : "s"}. ` +
       (run.undo
         ? "A job you have done before takes these back — open it in the console."
         : "Nothing here can take them back.");
     card.append(line);
+
+    // The record itself, in the warehouse's own field names.
+    //
+    // This was `Object.values(...).join(" ")` -- "made 1 record: GQV leaning
+    // new SRO type 006" -- which drops the half that says what each value IS.
+    // The backend already picks the fields that name the row out of whatever
+    // the system answered (`made_by`), so the names are there and were being
+    // thrown away one line before a person read them.
+    //
+    // Nothing here knows which fields a system will send: a customer type
+    // comes back with `customerType`, an order with an id and a status, and
+    // this draws whatever arrived rather than a shape it was taught.
+    for (const record of made) {
+      const said = document.createElement("p");
+      said.className = "detail";
+      said.textContent = Object.entries(record)
+        .map(([name, value]) => `${name}: ${value}`)
+        .join(" \u00b7 ");
+      card.append(said);
+    }
   }
 
   // What a dry run held back. There is no other screen it could be said on --

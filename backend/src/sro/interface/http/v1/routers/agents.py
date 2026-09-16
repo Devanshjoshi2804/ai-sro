@@ -288,11 +288,28 @@ async def watch_matched(
         container, ctx, device_id=device_id, trigger_id=trigger_id, secret=x_device_secret
     )
     running_with = watch.values_from(values)
-    # `_watch_of` has already refused a watch with no skill behind it.
-    assert watch.skill_id is not None  # noqa: S101
-    skill = await container.get_skill().execute(ctx, skill_id=watch.skill_id)
-    version = skill.runnable
-    missing = [] if version is None else blank_inputs(version, running_with)
+    # A skill or a mined job. Both answer the same two questions -- what is this
+    # called, and what did the mail not say -- out of different places: a
+    # skill's runnable version declares its inputs, a job declares its
+    # parameters. `_watch_of` has already refused a watch that names neither.
+    if watch.workflow_id is not None:
+        job = await container.read_workflows().one(ctx, workflow_id=str(watch.workflow_id))
+        named = job.title
+        missing = sorted(
+            str(declared["name"])
+            for declared in job.parameters
+            if declared.get("name") and not running_with.get(str(declared["name"]), "").strip()
+        )
+    else:
+        assert watch.skill_id is not None  # noqa: S101
+        skill = await container.get_skill().execute(ctx, skill_id=watch.skill_id)
+        version = skill.runnable
+        named = skill.name
+        # A skill with no runnable version is not a shortage of values, and
+        # saying "nothing said shipment_id" about one would send somebody
+        # looking in the mail for a value that was never the problem. The press
+        # answers that one, with the trigger's own words.
+        missing = [] if version is None else blank_inputs(version, running_with)
     if offer:
         # Said into the conversation as well as answered here, so the operator
         # sees it somewhere that survives the panel closing. Names only: the
@@ -309,19 +326,24 @@ async def watch_matched(
             thread_id=thread.id,
             offer_id=offer,
             trigger_id=watch.id.value,
-            skill=skill,
+            named=named,
+            skill_id="" if watch.skill_id is None else watch.skill_id.value,
+            workflow_id="" if watch.workflow_id is None else str(watch.workflow_id),
             read=sorted(running_with),
             missing=missing,
         )
     return WatchMatchModel(
         trigger_id=watch.id.value,
-        skill_id=watch.skill_id.value,
+        skill_id=None if watch.skill_id is None else watch.skill_id.value,
+        workflow_id=None if watch.workflow_id is None else str(watch.workflow_id),
+        title=named,
         values=running_with,
-        # A skill with no runnable version is not a shortage of values, and
-        # saying "nothing said shipment_id" about one would send somebody
-        # looking in the mail for a value that was never the problem. The press
-        # answers that one, with the trigger's own words.
-        missing=[] if version is None else blank_inputs(version, running_with),
+        missing=missing,
+        # Whether what the mail did not say stops the press. A deployment that
+        # can read the operator's mailbox answers a missing value by going and
+        # looking for it, and a card that refused to start would be the panel
+        # asking for what the run already knows how to find.
+        can_find=container.tools.available and container.asker is not None,
     )
 
 
@@ -378,12 +400,10 @@ async def _watch_of(
     watch = next((trigger for trigger in watches if trigger.id == TriggerId(trigger_id)), None)
     if watch is None:
         raise NotFound("no such watch")
-    if watch.skill_id is None:
-        # `CreateTrigger` refuses a watch on a mined job, because this path
-        # reads a skill's inputs to say what the mail did not name. A row
-        # written before that check existed would reach the two calls below
-        # with nothing to read, so it is the same `NotFound` everything else
-        # here answers rather than a 500 about a field.
+    if watch.skill_id is None and watch.workflow_id is None:
+        # A watch that asks a question runs nothing, and the two calls below
+        # would reach it with nothing to describe. The same `NotFound`
+        # everything else here answers, rather than a 500 about a field.
         raise NotFound("no such watch")
     return watch
 

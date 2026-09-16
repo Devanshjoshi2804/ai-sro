@@ -365,11 +365,19 @@ class Converse:
         thread_id: ThreadId,
         offer_id: str,
         trigger_id: str,
-        skill: Skill,
+        named: str,
+        skill_id: str = "",
+        workflow_id: str = "",
         read: Sequence[str],
         missing: Sequence[str],
     ) -> None:
         """A watched mailbox recognised a task. Said once, by name.
+
+        A skill or a mined job: `named` is what the person reads and the two
+        ids say which kind it was, because the press that follows goes to a
+        different door for each. One method rather than two -- the sentence,
+        the once-per-offer rule and the "names, never values" rule are the same
+        for both, and a second copy of them is two that drift.
 
         The operator has to see this somewhere that survives the panel closing,
         which is the thread. What must not follow it there are the values: they
@@ -394,16 +402,24 @@ class Converse:
                 Message(
                     id=self._ids.new_message_id(),
                     speaker=Speaker.SYSTEM,
-                    text=f"A mail matched {skill.name}",
+                    text=f"A mail matched {named}",
                     said_at=self._clock.now(),
                     decision={
                         "kind": Said.MAIL_MATCH,
                         "offer_id": offer_id,
                         "trigger_id": trigger_id,
-                        "skill_id": skill.id.value,
-                        "skill_name": skill.name,
+                        "skill_id": skill_id,
+                        "workflow_id": workflow_id,
+                        "skill_name": named,
                         "read": list(read),
+                        # Where nothing can go and look, this is what the card
+                        # says it cannot run without. Where something can, the
+                        # names are still said -- a person reading the thread
+                        # should know which values the mail did not carry --
+                        # and `can_find` is what decides whether the button is
+                        # a demand or a plan.
                         "missing": list(missing),
+                        "can_find": self._can_gather,
                     },
                 )
             )

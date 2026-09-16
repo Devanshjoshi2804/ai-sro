@@ -351,6 +351,33 @@ test("a match that is short of a required value says so, and cannot be run", asy
   assert.deepStrictEqual(sentOf(sent, "watch-fire"), []);
 });
 
+test("a match on a job the run can gather for is offered rather than refused", async () => {
+  // The same card, on a deployment that can read the operator's mailbox. What
+  // the mail did not say is what the run goes and finds, so refusing to start
+  // would be the panel asking for what the run already knows how to get.
+  const { cards } = panel({
+    deviceId: "dev-1",
+    offers: [
+      {
+        ...OFFER,
+        skillId: null,
+        workflowId: "wfl_watched",
+        skill: "Create a Customer Type",
+        read: {},
+        values: {},
+        missing: ["Customer Type"],
+        canFind: true,
+      },
+    ],
+  });
+
+  const card = cards.find((c) => words(c).includes("A mail matched"));
+  assert.match(words(card), /Create a Customer Type/);
+  assert.match(words(card), /I read those out of the mail when it runs/);
+  const [run] = buttons(card);
+  assert.strictEqual(run.disabled, false, "a value the run can find stopped the press");
+});
+
 test("the press sends the press and nothing else", async () => {
   const { cards, sent } = panel({ deviceId: "dev-1", offers: [OFFER] });
   const card = cards.find((c) => words(c).includes("A mail matched"));

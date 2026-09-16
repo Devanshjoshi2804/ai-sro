@@ -2532,9 +2532,22 @@ class WatchMatchModel(BaseModel):
     """
 
     trigger_id: str
-    skill_id: str
+    skill_id: str | None = None
+    workflow_id: str | None = None
+    """One of the two, because a watch may name a skill or a mined job and the
+    press goes to a different door for each."""
+
+    title: str = ""
+    """What the thing is called, so a card can say what matched without a
+    second call to look the name up."""
+
     values: dict[str, str]
     missing: list[str]
+    can_find: bool = False
+    """Whether a missing value stops the press. A deployment that can read the
+    operator's mailbox answers one by going and looking, so the card offers the
+    run and says what it will look for; one that cannot keeps the old rule and
+    says what it needs."""
 
 
 class EpisodeModel(BaseModel):

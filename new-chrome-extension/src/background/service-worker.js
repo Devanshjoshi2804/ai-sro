@@ -1891,7 +1891,10 @@ async function sameOfferAs(watch, read) {
 async function hold(watch, read, offer, offerId) {
   const held = await state.offers();
   if (await sameOfferAs(watch, read)) return;
-  const skill = await api.skill(offer.skill_id).catch(() => null);
+  // The name comes back with the offer now, because a watch may name a mined
+  // job and there is no `/v1/skills/{id}` for one. The fetch stays as the
+  // fallback for a backend that predates the field.
+  const named = offer.title || (await api.skill(offer.skill_id).catch(() => null))?.name || "";
   await state.setOffers(
     [
       {
@@ -1899,7 +1902,8 @@ async function hold(watch, read, offer, offerId) {
         at: Date.now(),
         triggerId: watch.id,
         skillId: offer.skill_id,
-        skill: skill?.name || "",
+        workflowId: offer.workflow_id || null,
+        skill: named,
         host: watch.host,
         terms: watch.terms || [],
         // What this browser read out of the mail, and what the task would run
@@ -1908,6 +1912,11 @@ async function hold(watch, read, offer, offerId) {
         read,
         values: offer.values || {},
         missing: offer.missing || [],
+        // Whether what the mail did not say stops the press. The deployment's
+        // answer: a run that can read the operator's mailbox goes and looks
+        // for the rest, and a card that refused to start would be asking for
+        // what the run already knows how to find.
+        canFind: Boolean(offer.can_find),
       },
       ...held,
     ].slice(0, MAX_OFFERS),

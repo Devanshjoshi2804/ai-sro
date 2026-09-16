@@ -866,15 +866,17 @@ function offering(offer) {
     // Said before the press rather than after it. The same names the fire
     // itself would skip on, so a card that cannot run says so instead of
     // starting a run that stops a moment later where nobody is looking.
-    stage: missing.length
-      ? `Nothing said ${missing.join(", ")}, so this one cannot run.`
-      : offer.skipped || null,
-    tone: missing.length ? "attention" : null,
+    stage: !missing.length
+      ? offer.skipped || null
+      : offer.canFind
+        ? `Nothing said ${missing.join(", ")} — I read those out of the mail when it runs.`
+        : `Nothing said ${missing.join(", ")}, so this one cannot run.`,
+    tone: missing.length && !offer.canFind ? "attention" : null,
     actions: [
       {
         label: "Run it",
         primary: true,
-        disabled: Boolean(missing.length),
+        disabled: Boolean(missing.length) && !offer.canFind,
         act: async (button) => {
           button.disabled = true;
           try {

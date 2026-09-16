@@ -646,7 +646,15 @@ class Container:
         return DismissCandidate(self.unit_of_work(), self.clock, self.ids)
 
     def create_trigger(self) -> CreateTrigger:
-        return CreateTrigger(self.unit_of_work(), self.clock, self.ids, self.scheduler)
+        return CreateTrigger(
+            self.unit_of_work(),
+            self.clock,
+            self.ids,
+            self.scheduler,
+            # The same pair `start_workflow_run` builds its gather out of, so
+            # this door and the run door agree about what a job needs typed.
+            can_gather=self.tools.available and self.asker is not None,
+        )
 
     def read_triggers(self) -> ReadTriggers:
         return ReadTriggers(self.unit_of_work())

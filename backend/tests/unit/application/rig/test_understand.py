@@ -14,11 +14,13 @@ the door work, the job the model named, the order the form's fields come back
 in, and the row that carries the bill and never the sentence.
 """
 
+import json
 from dataclasses import asdict
 from datetime import UTC, datetime
 
 from sro.application.chat.understand import read_utterance, understand
 from sro.domain.chat.reading import INSTRUCTIONS, UNDERSTAND_SCHEMA, ChatReading
+from sro.domain.observation.gesture import Action, Gesture, Target
 from sro.domain.shared.identifiers import TenantId
 from sro.domain.shared.prices import Answer
 from sro.domain.skill.workflow import Step, Workflow
@@ -541,3 +543,81 @@ async def test_a_plain_reading_is_sure_and_says_nothing_else() -> None:
     )
 
     assert got.sure is True and got.also == []
+
+
+async def test_the_mails_a_job_was_asked_for_by_reach_the_model() -> None:
+    """The one signal this door was never shown.
+
+    A watch is a substring somebody typed once and will miss "please set up a
+    new client category" forever. What says what a REQUEST for a job looks like
+    is the mails the operator acted on before doing it -- already in the store,
+    cited by the job itself -- and the decision about which job a piece of text
+    means is made here.
+    """
+    asker = FakeAsker(_answer("wfl_1", []))
+
+    await understand(
+        "a customer type please",
+        WFS,
+        asker,
+        "m",
+        {"wfl_1": ["a customer type :- GKB description :- leaning new SRO type 002"]},
+    )
+
+    (job,) = json.loads(str(asker.asked[0]["evidence"]))["jobs"]
+    assert job["asked_by"] == ["a customer type :- GKB description :- leaning new SRO type 002"]
+    # And the prompt says what to do with them. A model that answered with a
+    # code out of an old request would create that record a second time.
+    assert "Never take a value out of one" in INSTRUCTIONS
+
+
+async def test_a_job_nobody_mailed_about_carries_no_empty_list_to_argue_with() -> None:
+    """An `asked_by: []` invites "this job is never asked for by mail", which
+    is a claim about the tenant's history rather than about the job."""
+    asker = FakeAsker(_answer("wfl_1", []))
+
+    await understand("a customer type please", WFS, asker, "m")
+
+    (job,) = json.loads(str(asker.asked[0]["evidence"]))["jobs"]
+    assert "asked_by" not in job
+
+
+async def test_the_examples_are_read_off_the_gestures_the_jobs_cite() -> None:
+    """End to end through the door an operator actually reaches: the mails are
+    not passed in by a caller, they are read out of the evidence."""
+    uow = FakeUnitOfWork()
+    await uow.workflows.save(WFS[0])
+    await uow.gestures.add_gestures(
+        (
+            Gesture(
+                id="g",
+                tenant=TENANT.value,
+                stream_id="str-1",
+                batch_id="bat-1",
+                at=10.0,
+                url="https://mail.google.com/mail/u/0/#inbox/abc",
+                system="https://mail.google.com",
+                tab_id=7,
+                frame_url=None,
+                action=Action(
+                    kind="click",
+                    at=10.0,
+                    url="https://mail.google.com",
+                    target=Target(name="please create a client for the Coventry dock"),
+                ),
+            ),
+        )
+    )
+    asker = FakeAsker(_answer("wfl_1", []))
+
+    await read_utterance(
+        uow,
+        tenant_id=TENANT,
+        utterance="new client for Coventry",
+        asker=asker,
+        model="m",
+        now=NOW,
+    )
+
+    (job,) = json.loads(str(asker.asked[0]["evidence"]))["jobs"]
+    assert job["asked_by"] == ["please create a client for the Coventry dock"]

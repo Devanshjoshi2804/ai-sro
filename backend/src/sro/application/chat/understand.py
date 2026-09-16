@@ -17,11 +17,14 @@ already paid for the call it stops.
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
+from types import MappingProxyType
 
 from sro.application.ports.model import Asker
 from sro.application.ports.repositories import UnitOfWork
+from sro.domain.chat.asked_by import mails_behind, texts
 from sro.domain.chat.reading import INSTRUCTIONS, UNDERSTAND_SCHEMA, ChatReading, new_chat_id
 from sro.domain.shared.identifiers import TenantId
 from sro.domain.shared.prices import Answer
@@ -64,9 +67,20 @@ class Understood:
 
 
 async def understand(
-    utterance: str, workflows: list[Workflow], asker: Asker, model: str
+    utterance: str,
+    workflows: list[Workflow],
+    asker: Asker,
+    model: str,
+    asked_by: Mapping[str, Sequence[str]] = MappingProxyType({}),
 ) -> Understood:
-    """Which of these jobs the operator meant, with what values, missing what."""
+    """Which of these jobs the operator meant, with what values, missing what.
+
+    `asked_by` is the mails each job was asked for by, where the demonstration
+    recorded any -- see `domain.chat.asked_by`. It is the one thing this door
+    was never shown and the one thing that says what a REQUEST for a job looks
+    like, as opposed to what the job is called. A job with none is matched on
+    its title and narrative exactly as it always was.
+    """
     held = [
         {
             "id": w.id,
@@ -77,6 +91,10 @@ async def understand(
                 for p in w.parameters
                 if isinstance(p, dict)
             ],
+            # Omitted rather than empty where there are none: a field reading
+            # `[]` invites "this job is never asked for by mail", which is a
+            # claim about the tenant's history and not about the job.
+            **({"asked_by": list(said)} if (said := asked_by.get(w.id)) else {}),
         }
         for w in workflows
     ]
@@ -205,7 +223,19 @@ async def read_utterance(
     money and returned nothing. `now` is the caller's clock rather than one
     read here, so a test can move it.
     """
-    got = await understand(utterance, list(await uow.workflows.known(tenant_id)), asker, model)
+    workflows = list(await uow.workflows.known(tenant_id))
+    # The mails behind each job, read off the gestures they cite. One query for
+    # every job the tenant holds, before the model call rather than per job:
+    # the alternative is a round trip per workflow on the door an operator
+    # waits at.
+    cited = await uow.gestures.gestures_for(
+        tenant_id, ids=tuple(sorted({one for w in workflows for s in w.steps for one in s.cites}))
+    )
+    by_id = {gesture.id: gesture for gesture in cited}
+    asked_by = {w.id: texts(mails_behind(w, by_id)) for w in workflows}
+    got = await understand(
+        utterance, workflows, asker, model, {w: said for w, said in asked_by.items() if said}
+    )
     answer = got.answer
     await uow.chats.record(
         ChatReading(

@@ -53,6 +53,43 @@ const RIG = {
 const tests = [];
 const test = (name, fn) => tests.push([name, fn]);
 
+test("a value nobody typed says where it was read", () => {
+  // Recorded since the gather existed and shown by nothing: the run carries
+  // the message id and the words a value was quoted from, and the person
+  // deciding whether it did the right thing could not see either.
+  const card = runCard({
+    run: {
+      id: "run-1", status: "running", source: "rig", steps: [], items: [],
+      gathered: {
+        "Customer Type": {
+          value: "GPP",
+          from_message: "1a0a987fc91c3203",
+          quoting: "a customer type :- GPP",
+        },
+      },
+    },
+    skill: null,
+    message: { text: "Create a Customer Type" },
+  });
+
+  assert.match(words(card), /Customer Type: GPP — read from your mail/);
+  // The span they check the reading against, not the mail: that is in their
+  // mailbox where it already was.
+  assert.match(words(card), /a customer type :- GPP/);
+});
+
+test("a run whose values were all typed says nothing about provenance", () => {
+  // "They typed it and they meant it" is not news, and a line per value is a
+  // card nobody reads.
+  const card = runCard({
+    run: { id: "run-2", status: "running", source: "rig", steps: [], items: [] },
+    skill: null,
+    message: { text: "Create a Customer Type" },
+  });
+
+  assert.doesNotMatch(words(card), /read from your mail/);
+});
+
 test("a step says what happened to it, and confirmed is not the same as done", () => {
   // The distinction the whole ladder rests on. A step that went out and came
   // back 200 has been performed; a step whose effect something read back has

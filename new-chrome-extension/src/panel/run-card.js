@@ -99,6 +99,28 @@ export function runCard(
   title.textContent = message?.text || `Running ${skill?.name || ""}`.trim();
   card.append(title);
 
+  // What nobody typed.
+  //
+  // A value an operator filled in needs no provenance: they were standing
+  // there and they meant it. A value read out of their mailbox is only as good
+  // as the message it came from, and the run has recorded which one since the
+  // gather existed -- the id and the few words it was quoted from -- while no
+  // surface has ever shown it. Recorded and invisible is the same as not
+  // recorded to the person deciding whether the run did the right thing.
+  //
+  // The span, not the whole mail. It is what somebody checks the reading
+  // against without opening anything, and the mail itself is in their mailbox
+  // where it already was.
+  for (const [name, found] of Object.entries(run.gathered || {})) {
+    const said = document.createElement("p");
+    said.className = "detail";
+    const quoting = String(found?.quoting || "").trim();
+    said.textContent =
+      `${name}: ${found?.value ?? ""} — read from your mail`
+      + (quoting ? ` (“${quoting}”)` : "");
+    card.append(said);
+  }
+
   // Who drove it, and so what there is to draw and to press. A record with no
   // `source` is a backend run -- older rows have none, and reading a missing
   // field as "rig" would send a backend run's Stop somewhere it has never been

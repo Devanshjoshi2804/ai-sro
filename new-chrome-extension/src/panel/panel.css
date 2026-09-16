@@ -277,14 +277,14 @@ body {
 .result .count {
   margin: 2px 0 6px;
   font: 700 15px/1.2 inherit;
-  color: var(--text);
+  color: var(--ink);
 }
 
 .result .where {
   font: 600 10.5px/1.4 inherit;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--ink-mute);
 }
 
 .result[data-ok="false"] .detail {
@@ -304,7 +304,7 @@ body {
 .rows th {
   padding: 3px 10px 3px 0;
   border-bottom: 1px solid var(--line);
-  color: var(--muted);
+  color: var(--ink-mute);
   font-weight: 600;
   font-size: 10px;
   letter-spacing: 0.06em;
@@ -339,7 +339,7 @@ body {
   border: 1px solid transparent;
   border-radius: 999px;
   background: none;
-  color: var(--muted);
+  color: var(--ink-mute);
   font: 600 12px/1.3 inherit;
   cursor: pointer;
 }
@@ -347,7 +347,7 @@ body {
 .pane-tab[aria-selected="true"] {
   border-color: var(--line);
   background: var(--card);
-  color: var(--text);
+  color: var(--ink);
 }
 
 /* The one number a person on the wrong pane needs. Toned, never accented:

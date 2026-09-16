@@ -4464,6 +4464,11 @@ async def test_a_run_with_no_value_for_a_parameter_goes_and_finds_one() -> None:
     # Where it came from, on the row: a value nobody typed is only as good as
     # the message it was read out of.
     assert run.gathered["clientCode"]["from_message"] == "m-9"
+    # And the VALUE on the row, not only in the frame that found it: `perform`
+    # re-reads the row and hands its values back down, so a gather kept in a
+    # local is a gather every resume does again -- against a mailbox that may
+    # answer differently the second time.
+    assert run.values["clientCode"] == "FROMMAIL"
 
 
 async def test_a_value_the_person_typed_is_not_overruled_by_the_mailbox() -> None:

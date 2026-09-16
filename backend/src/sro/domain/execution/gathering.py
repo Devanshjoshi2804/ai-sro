@@ -26,6 +26,7 @@ what counts as done, what counts as progress, and what a round may ask for next.
 
 from __future__ import annotations
 
+import json
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 
@@ -48,6 +49,31 @@ on accumulated history instead of re-reading the question -- and the mitigation
 every account of them agrees on is structured note-taking rather than raw
 accumulation. What the next round needs is "this search found three messages
 and here are their subjects", not four screens of somebody's mail.
+"""
+
+
+K_HIT = 160
+"""How much of ONE row of a search result is kept.
+
+A search answers with a list, and a list trimmed by length is one row. Measured
+on the deployment 2026-09-16: `search_threads` came back with five threads and
+`K_NOTE` cut the whole answer after the first, mid-snippet -- so four message
+ids the next round could have read were never shown to it, and it answered
+`done` with nothing. "The mailbox does not hold this" said about a prompt
+again, which is the exact failure the deterministic opening search was added to
+end.
+
+Per row, so every hit's id survives and no hit's body arrives whole.
+"""
+
+K_BODY = 1200
+"""How much of a message a read is allowed to show the next round.
+
+`K_NOTE` is the cap for an answer nothing is being read out of. A read is the
+opposite: it is the one call whose whole point is the text a value is quoted
+from, and 240 characters of it cannot hold a request that opens with a greeting
+and a line of context. Still bounded -- six rounds of this is the ceiling --
+but bounded at the size of a mail rather than of a snippet.
 """
 
 
@@ -117,9 +143,52 @@ def note(what: str, answered: str) -> str:
     """One line of history: what was asked, and a trimmed sight of the answer.
 
     Trimmed here rather than at the call site so every round is the same size
-    in the prompt, whatever the mailbox handed back.
+    in the prompt, whatever the mailbox handed back -- and trimmed by the SHAPE
+    of what came back, because the three shapes a mailbox answers in do not
+    survive the same cut. A list of hits is trimmed row by row so every id
+    reaches the round that could read it; a message is given room for its body,
+    which is the text the value gets quoted from; anything else is a snippet.
     """
-    said = " ".join(answered.split())
-    if len(said) > K_NOTE:
-        said = said[:K_NOTE] + "…"
-    return f"{what} -> {said}"
+    rows = _messages(answered)
+    if rows is not None:
+        return f"{what} -> " + (" | ".join(_row(row) for row in rows) if rows else "no messages")
+    return f"{what} -> {_trimmed(answered, K_BODY if _is_a_message(answered) else K_NOTE)}"
+
+
+def _messages(answered: str) -> list[dict[str, object]] | None:
+    """The hits in a search answer, or `None` if this was not one."""
+    try:
+        said = json.loads(answered)
+    except ValueError:
+        return None
+    if not isinstance(said, dict) or not isinstance(rows := said.get("messages"), list):
+        return None
+    return [row for row in rows if isinstance(row, dict)]
+
+
+def _is_a_message(answered: str) -> bool:
+    """One message, read whole. The answer a value is quoted out of."""
+    try:
+        said = json.loads(answered)
+    except ValueError:
+        return False
+    return isinstance(said, dict) and "body" in said
+
+
+def _row(row: Mapping[str, object]) -> str:
+    """One hit, short enough that five of them are still a note.
+
+    The id first and never trimmed away: it is the only part of a hit the next
+    round can act on, and a row whose id was cut is a message nobody can ask
+    for.
+    """
+    said = " ".join(
+        str(row.get(part) or "").strip() for part in ("id", "subject", "snippet", "body")
+    )
+    return _trimmed(said, K_HIT)
+
+
+def _trimmed(said: str, cap: int) -> str:
+    """One line, at most `cap` characters of it."""
+    said = " ".join(said.split())
+    return said if len(said) <= cap else said[:cap] + "…"

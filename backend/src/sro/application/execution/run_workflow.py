@@ -38,7 +38,6 @@ because a release says only that the wait ended and a stop releases it too.
 from __future__ import annotations
 
 import base64
-import logging
 import hashlib
 import json
 from collections.abc import Awaitable, Callable, Mapping, Sequence
@@ -103,8 +102,6 @@ empty knowledge base passes nothing and every step says nothing, which is what
 happened before the claims were ever ingested -- 2,076 of them, and the store
 on QA held none until 2026-09-16.
 """
-
-logger = logging.getLogger(__name__)
 
 K_SAME_WRITE_WINDOW = timedelta(minutes=30)
 """How long one job's write stays claimed against a second run making it again.
@@ -632,16 +629,15 @@ async def run_workflow(
     # a value has said what they want and a mailbox does not overrule them --
     # the gather is only asked about what is missing, and this ordering says
     # the same thing a second time so the two cannot disagree.
-    logger.warning(
-        "gather check: have_gather=%s values=%s declared=%s short=%s",
-        gather_values is not None,
-        sorted(values),
-        [p.get("name") for p in workflow.parameters],
-        _not_given(workflow, values),
-    )
     if gather_values is not None and (short := _not_given(workflow, values)):
         got = await gather_values(short)
         values = {**{name: f.value for name, f in got.values.items()}, **values}
+        # On the ROW and not only in this frame. `perform` re-reads the row and
+        # hands its values back down, so a gather kept in a local is a gather
+        # every resume does again -- against a mailbox that may answer
+        # differently the second time -- and a console showing a run that typed
+        # GPP into a form would show it running with no values at all.
+        run.values = dict(values)
         run.gathered = {
             name: {"value": f.value, "from_message": f.from_message, "quoting": f.quoting}
             for name, f in got.values.items()

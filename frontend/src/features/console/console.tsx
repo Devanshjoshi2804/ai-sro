@@ -41,7 +41,17 @@ export function Console({ threadId: fromUrl }: { threadId?: string } = {}) {
   const connections = useQuery({ queryKey: connectionKeys.all, queryFn: listConnections });
   // Every conversation this tenant has had, so one can be returned to. They
   // were always stored; only the way back was missing.
-  const threads = useQuery({ queryKey: threadKeys.all, queryFn: listThreads });
+  //
+  // Polled, because the extension's panel writes into the same threads. The
+  // panel already reads this store every five seconds; the console read it once
+  // and never again, so a sentence typed in the panel appeared here only after
+  // a reload -- the two surfaces agreed about the data and not about what was
+  // on screen. React Query stops polling while this tab is in the background.
+  const threads = useQuery({
+    queryKey: threadKeys.all,
+    queryFn: listThreads,
+    refetchInterval: 15_000,
+  });
 
   // The conversation lives server-side: a reload used to lose it, and what was
   // asked and what the system decided are half of the audit trail.
@@ -49,6 +59,9 @@ export function Console({ threadId: fromUrl }: { threadId?: string } = {}) {
     queryKey: threadKeys.detail(threadId ?? ""),
     queryFn: () => getThread(threadId as string),
     enabled: threadId !== null,
+    // The panel's own rate, so a reply said in one surface is on the other
+    // within the same few seconds whichever way round it went.
+    refetchInterval: 5_000,
   });
 
   const ask = useMutation({

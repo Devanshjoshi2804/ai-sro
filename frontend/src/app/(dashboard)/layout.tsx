@@ -1,5 +1,4 @@
 import { TopBar, BarLink } from "@/features/console/top-bar";
-import { SpendLine } from "@/features/workflow/components/spend-line";
 
 /**
  * Everything that is not the conversation. Same chrome as the console, and the
@@ -16,8 +15,8 @@ import { SpendLine } from "@/features/workflow/components/spend-line";
  *   the browser actually holding the write open. A card here was a second place
  *   to answer one question, and the one further from the screen it was about.
  * - Recordings, Runs and Browsers went with teaching in a browser on the server.
- * - Audit and Spend. The day's running total stays on the right of this bar,
- *   because keeping track of it is the point.
+ * - Audit and Spend, and the day's running total that sat on the right of
+ *   this bar.
  *
  * `next.config.ts` redirects every removed address, so a bookmark lands
  * somewhere that answers what it used to.
@@ -25,13 +24,7 @@ import { SpendLine } from "@/features/workflow/components/spend-line";
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="bg-background flex min-h-screen flex-col">
-      <TopBar
-        right={
-          <span style={{ display: "flex", alignItems: "center", paddingLeft: 18 }}>
-            <SpendLine />
-          </span>
-        }
-      >
+      <TopBar>
         <BarLink href="/console">Threads</BarLink>
         <BarLink href="/knowledge" also={["/jobs"]}>
           What we know

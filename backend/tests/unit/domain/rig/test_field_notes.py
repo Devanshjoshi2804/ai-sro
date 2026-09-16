@@ -78,3 +78,74 @@ def test_every_field_that_will_not_fit_is_said_in_one_stable_order() -> None:
         "a holds 2 characters and this run supplies 3",
         "b holds 2 characters and this run supplies 3",
     )
+
+
+# What the form itself says, where it disagrees with the manual
+
+
+FROM_THE_FORM = {
+    "labels": ["Customer Type"],
+    "max_length": 4,
+    "required": True,
+    "observed": True,
+}
+
+
+def test_the_form_s_own_limit_is_the_one_a_person_is_shown() -> None:
+    """Measured on QA 2026-09-16, and the disagreement is the whole point.
+
+    The dictionary says `customerType` holds 60 characters. The Customer Types
+    create form -- captured from the real form an operator uses -- says 4. The
+    ledger's own gotcha, somebody's measurement, says `csttyp truncates at 4
+    chars`. Two of the three agree and the card was reading the third, so a
+    request for `NEWSROTEST` would have been sent, truncated to `NEWS`,
+    answered 201, and read back as the record the system actually made.
+    """
+    said = notes_on({"customerType": "NEWSROTEST"}, {"customerType": FROM_THE_FORM})
+
+    assert len(said) == 1
+    assert "holds 4 characters and this run supplies 10" in said[0]
+    # And which of the two sources they are reading, because they disagree.
+    assert "what the form itself says" in said[0]
+
+
+def test_a_value_the_manual_would_have_passed_is_still_a_note() -> None:
+    """`Z` * 10 fits the documented 60 and does not fit the real 4. A card that
+    read only the manual said nothing at all about it."""
+    documented = {"labels": ["Customer Type"], "max_length": 60}
+
+    assert notes_on({"customerType": "Z" * 10}, {"customerType": documented}) == ()
+    assert len(notes_on({"customerType": "Z" * 10}, {"customerType": FROM_THE_FORM})) == 1
+
+
+def test_a_field_the_form_requires_and_the_write_omits_earns_a_line() -> None:
+    """On a replay that is a demonstration which did not fill it. A note and
+    not a refusal, for the module's own reason: the demonstration DID land, so
+    the person approving is owed the fact rather than a blocked run."""
+    said = notes_on(
+        {"customerType": "GPP"},
+        {
+            "customerType": FROM_THE_FORM,
+            "longDescription": {
+                "labels": ["Customer Type Description"],
+                "required": True,
+                "observed": True,
+            },
+        },
+    )
+
+    assert said == (
+        "Customer Type Description is required on this form and this run sends nothing",
+    )
+
+
+def test_a_field_the_form_requires_and_the_write_carries_says_nothing() -> None:
+    """ "This field is required and you supplied it" is not news, and a note
+    beside every field is a card nobody reads."""
+    assert (
+        notes_on(
+            {"customerType": "GPP"},
+            {"customerType": FROM_THE_FORM},
+        )
+        == ()
+    )

@@ -506,6 +506,21 @@ class StartWorkflowRun:
         rather than a search, and nothing here asks a vector store a question
         it cannot answer without embeddings. Measured on QA 2026-09-16: 404
         field claims, 0 embeddings, and the lookup answers.
+
+        **And the FORM, which disagrees with the dictionary and is right.** The
+        dictionary is what the vendor DOCUMENTS; a form model was captured from
+        the real form an operator uses, which is why its claims are `OBSERVED`
+        and the dictionary's are `ASSERTED`. Measured on QA 2026-09-16: the
+        dictionary says `customerType` holds 60 characters, the Customer Types
+        create form says 4, and the ledger's own gotcha -- somebody's
+        measurement -- says `csttyp truncates at 4 chars`. Two of the three
+        agree, and the card was reading the third: a request for `NEWSROTEST`
+        would have been sent, truncated to `NEWS`, answered 201, and read back
+        as the record the system actually made, with nothing to say so.
+
+        So the form's numbers win where it has one, and what it says is
+        REQUIRED comes back too -- a field the form marks required and the
+        write does not carry is the other fact worth a line.
         """
 
         async def look(keys: tuple[str, ...]) -> Mapping[str, Mapping[str, object]]:
@@ -519,13 +534,63 @@ class StartWorkflowRun:
             # keys asked about. `search` is an OR over the terms, so a lookup
             # for two fields answers with claims for either -- and a claim for
             # a field this write does not fill must not be read as one it does.
-            return {
-                entry.key: entry.body
+            known: dict[str, dict[str, object]] = {
+                entry.key: dict(entry.body)
                 for entry in found
                 if entry.key in keys and isinstance(entry.body, Mapping)
             }
+            for slot, seen in (await self._forms(ctx, keys)).items():
+                known.setdefault(slot, {}).update(seen)
+            return known
 
         return look
+
+    async def _forms(
+        self, ctx: RequestContext, keys: tuple[str, ...]
+    ) -> Mapping[str, Mapping[str, object]]:
+        """What the real create forms say about these fields, by body key.
+
+        Asked by the same keys as the dictionary lookup. A form model lists
+        every field it posts, each with its own label, `required` and
+        `maxLength` as the FORM has them -- so the fields a write does not
+        carry come back too, which is how "required and absent" can be said at
+        all.
+
+        Merged over the dictionary by the caller, never under it: this is the
+        page the operator is looking at.
+        """
+        found = await self._retrieve.execute(  # type: ignore[union-attr]
+            ctx,
+            Question(text=" ".join(keys), kinds=(EntryKind.FORM,), limit=len(keys) * 4),
+        )
+        seen: dict[str, dict[str, object]] = {}
+        for entry in found:
+            fields = (entry.body or {}).get("fields")
+            if not isinstance(fields, list):
+                continue
+            # Only a form that actually posts one of these keys. `search` is an
+            # OR over the terms and every create form in the base mentions
+            # something -- a form for another screen must not lend its own
+            # `required` to this write.
+            if not any(isinstance(one, Mapping) and one.get("field") in keys for one in fields):
+                continue
+            for one in fields:
+                if not isinstance(one, Mapping):
+                    continue
+                slot = one.get("field")
+                if not isinstance(slot, str):
+                    continue
+                said: dict[str, object] = {"observed": True}
+                if isinstance(one.get("label"), str):
+                    said["labels"] = [one["label"]]
+                if isinstance(one.get("maxLength"), int) and not isinstance(
+                    one.get("maxLength"), bool
+                ):
+                    said["max_length"] = one["maxLength"]
+                if one.get("required") is True:
+                    said["required"] = True
+                seen.setdefault(slot, {}).update(said)
+        return seen
 
     async def _close(self, ctx: RequestContext, run_id: str, reason: str) -> None:
         """Mark a row nobody is driving any more, on a session of its own.

@@ -556,7 +556,7 @@ class Settings(BaseSettings):
     the kind of failure that passes every test and corrupts a connection in
     production."""
 
-    daily_usd_cap: float = 5.0
+    daily_usd_cap: float = -1.0
     """What one day of model calls may cost before the rig stops asking:
     readings, mining passes, runs and the chat door, summed.
 
@@ -578,8 +578,15 @@ class Settings(BaseSettings):
     `/v1/chat`, a run is `POST /v1/skills/{skill_id}/runs`, and
     `POST /v1/candidates/mine` DOES exist and is candidate mining, an
     unrelated thing that the first name greps straight into. Zero disables the
-    asking entirely; a negative value means no cap, which is what a deliberate
-    one-off measurement wants. A run already going finishes on its own budget."""
+    asking entirely; a negative value means no cap. A run already going
+    finishes on its own budget.
+
+    **The default is no cap, by the owner's instruction (2026-09-16).** It was
+    $5, and a day that reached it stopped every reading, every mining pass and
+    every run for that tenant -- a warehouse whose jobs stop at four in the
+    afternoon because a number in a config file ran out. The machinery is kept
+    and works: a deployment that wants a ceiling sets one, and `over_cap` still
+    says how much of what. What is gone is a ceiling nobody chose."""
 
     gemini_transcription_model: str = "gemini-3.8-flash"
     gemini_embedding_model: str = "gemini-embedding-2"

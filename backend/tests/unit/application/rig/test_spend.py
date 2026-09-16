@@ -190,17 +190,26 @@ class TestTheSettingEveryPaidLoopReadsTheCapFrom:
     are tied together.
     """
 
-    async def test_the_default_is_a_real_cap_and_the_rule_reads_it(self) -> None:
-        """Five dollars, as the rig's was. Not zero -- a default of zero would
-        ship a deployment whose model calls are all refused -- and not
-        negative, which would ship one with no ceiling at all."""
-        cap = Settings(_env_file=None).daily_usd_cap
-        under = await _billed(_chat("cha_1", cost_usd=4.99))
-        at_it = await _billed(_chat("cha_1", cost_usd=5.0))
+    async def test_the_default_is_no_cap_and_a_ceiling_is_a_deployment_s_to_set(self) -> None:
+        """No ceiling by default, by the owner's instruction (2026-09-16).
 
-        assert cap == 5.0
-        assert await over_cap(under, TENANT, now=NOW, cap_usd=cap) is None
-        assert await over_cap(at_it, TENANT, now=NOW, cap_usd=cap) is not None
+        It was five dollars, and the day a tenant reached it every reading,
+        every mining pass and every run stopped -- a warehouse whose jobs stop
+        at four in the afternoon because a number in a config file ran out. Not
+        zero, which refuses every model call there is; negative, which `over_cap`
+        already reads as "no cap".
+
+        The machinery is not deleted and the test below still pins that a set
+        cap stops a day: what shipped as a ceiling nobody chose is now a
+        ceiling a deployment chooses.
+        """
+        cap = Settings(_env_file=None).daily_usd_cap
+        spent = await _billed(_chat("cha_1", cost_usd=500.0, unpriced=True))
+
+        assert cap == -1.0
+        assert await over_cap(spent, TENANT, now=NOW, cap_usd=cap) is None
+        # And a deployment that sets one still gets one.
+        assert await over_cap(spent, TENANT, now=NOW, cap_usd=5.0) is not None
 
     async def test_a_negative_value_survives_the_setting_and_means_no_cap(
         self, monkeypatch: pytest.MonkeyPatch

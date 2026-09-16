@@ -19,6 +19,7 @@ from sro.application.analytics.audit import ReadAudit
 from sro.application.analytics.summary import ReadSummary
 from sro.application.capture.devices import ReadRoster, RestoreDevice, RevokeDevice
 from sro.application.chat.converse import Converse, StartThread
+from sro.application.chat.from_the_mail import FromTheMail
 from sro.application.chat.read_chat import ReadChat
 from sro.application.chat.read_threads import ReadThreads
 from sro.application.connection.browsers import Browsers
@@ -1013,6 +1014,22 @@ class Container:
             # actually do: a deployment with no connector still demands the
             # values, because on that one nothing can go and find them.
             can_gather=self.tools.available and self.asker is not None,
+        )
+
+    def from_the_mail(self) -> FromTheMail:
+        """The rung that reads an arriving mail for what it asks.
+
+        `Asker | None` rather than through `asker_or_refuse` here, for the
+        reason every other factory gives: a container that raised would be
+        unbuildable on a deployment with no key, instead of refusing at the one
+        call that needs a model. The guard is in `FromTheMail.execute`.
+        """
+        return FromTheMail(
+            self.unit_of_work(),
+            self.tools,
+            self.asker,
+            self.converse(),
+            model=self.settings.gemini_plan_model,
         )
 
     def read_threads(self) -> ReadThreads:

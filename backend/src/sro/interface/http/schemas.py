@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field, StrictInt, StringConstraints
 from sro.application.analytics.audit import Audit, AuditedRun
 from sro.application.analytics.summary import Summary
 from sro.application.capture.devices import DeviceLine
+from sro.application.chat.from_the_mail import LookedInTheMail
 from sro.application.chat.understand import Understood
 from sro.application.execution.pursuits import PursuitProgress
 from sro.application.execution.reversal import Reversal
@@ -3499,3 +3500,49 @@ class WorkflowStepApprovedModel(BaseModel):
     Not a refusal. The row naming who let the write out is committed either
     way, and answering 409 would be claiming the authorisation did not happen.
     What this says is narrower and truer: nobody was listening."""
+
+
+class MailOfferModel(BaseModel):
+    """One mail, and the job it turned out to ask for.
+
+    The message id and never the words. A caller that wants to check the
+    reading opens the mail in their own mailbox, where it already is -- an
+    excerpt echoed back here would be mail content crossing a boundary to say
+    something the id already says.
+    """
+
+    message: str
+    workflow_id: str
+    title: str
+    values: dict[str, str]
+    missing: list[str]
+
+
+class FromTheMailResponse(BaseModel):
+    """What one look through the mailbox came to.
+
+    `read` and `offered` are different numbers on purpose: a look that read six
+    mails and offered none is working correctly, and a caller told only
+    "offered: []" cannot tell that from a mailbox nothing was reached in.
+    """
+
+    offered: list[MailOfferModel]
+    read: int
+    why: str
+
+    @classmethod
+    def of(cls, looked: LookedInTheMail) -> FromTheMailResponse:
+        return cls(
+            offered=[
+                MailOfferModel(
+                    message=one.message,
+                    workflow_id=one.workflow_id,
+                    title=one.title,
+                    values=dict(one.values),
+                    missing=list(one.missing),
+                )
+                for one in looked.offered
+            ],
+            read=looked.read,
+            why=looked.why,
+        )

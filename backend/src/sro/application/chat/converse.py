@@ -14,7 +14,7 @@ the authorisation an assisted run records.
 from __future__ import annotations
 
 import logging
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import replace
 
 from sro.application.chat.read_chat import ReadChat
@@ -357,6 +357,76 @@ class Converse:
             await uow.threads.save(thread)
             await uow.commit()
         return thread
+
+    async def from_the_mail(
+        self,
+        ctx: RequestContext,
+        *,
+        message: str,
+        workflow_id: str,
+        title: str,
+        values: Mapping[str, str],
+        missing: Sequence[str],
+    ) -> None:
+        """A mail asked for a job. Said in the thread, as an offer.
+
+        The same decision `_say_the_job` writes for a sentence somebody typed,
+        and deliberately the same: the panel already draws a card from
+        `kind: "job"`, the press already starts the run, and the write gate
+        underneath is already the one that asks a person. A second card shape
+        for "this came from a mail" would be a second press to keep working.
+
+        What it does NOT carry is the mail. The words were read out of
+        somebody's mailbox to decide one thing; the offer says which job, which
+        values, and the message id a person can open to check it -- the same
+        rule `matched` below keeps, and the same one `run.gathered` keeps for a
+        value nobody typed.
+
+        Into this operator's current thread, opening one if they have none: an
+        offer nobody can see is an offer that did not happen.
+        """
+        async with self._uow as uow:
+            mine = await uow.threads.list_for_tenant(
+                ctx.tenant_id, opened_by=ctx.principal_id, limit=1
+            )
+            thread = mine[0] if mine else None
+            if thread is None:
+                thread = Thread(
+                    id=self._ids.new_thread_id(),
+                    tenant_id=ctx.tenant_id,
+                    opened_by=ctx.principal_id,
+                    opened_at=self._clock.now(),
+                )
+                await uow.threads.add(thread)
+            said = (
+                f"A mail asks for {title}."
+                if not missing
+                else f"A mail asks for {title}. I still need {', '.join(missing)}"
+                + (" — I will look in your mail for it." if self._can_gather else ".")
+            )
+            thread.say(
+                Message(
+                    id=self._ids.new_message_id(),
+                    speaker=Speaker.ASSISTANT,
+                    text=said,
+                    said_at=self._clock.now(),
+                    decision={
+                        "kind": "job",
+                        "workflow_id": workflow_id,
+                        "title": title,
+                        "values": dict(values),
+                        "items": [],
+                        "missing": list(missing),
+                        "can_find": self._can_gather,
+                        # Which mail, so the person tapping can open it. The id
+                        # and never the words: this row is read by the panel,
+                        # by the console and by whoever reads the thread next.
+                        "from_message": message,
+                    },
+                )
+            )
+            await uow.threads.save(thread)
+            await uow.commit()
 
     async def matched(
         self,

@@ -61,12 +61,14 @@ async def test_a_command_and_its_answer_are_matched_by_the_id_we_minted() -> Non
 
 
 async def test_a_browser_that_is_not_connected_is_not_a_browser_that_refuses() -> None:
+    # `redial_s=0`: this is about a browser that is not there, and the wait for
+    # one that is coming back has its own test below.
     with pytest.raises(DeviceUnreachable):
-        await DeviceSockets().send(ACME, LAPTOP, kind="ui.url", payload={})
+        await DeviceSockets(redial_s=0).send(ACME, LAPTOP, kind="ui.url", payload={})
 
 
 async def test_another_tenants_device_is_not_there_rather_than_forbidden() -> None:
-    sockets = DeviceSockets()
+    sockets = DeviceSockets(redial_s=0)
     sockets.attach(ACME, LAPTOP, FakeSocket())
 
     with pytest.raises(DeviceUnreachable):
@@ -284,3 +286,35 @@ async def test_a_browser_that_disconnects_is_not_still_busy() -> None:
     assert asyncio.get_running_loop().time() - started < 0.2, (
         "a browser that had gone away was still being waited on"
     )
+
+
+async def test_a_browser_dialling_back_in_gets_the_command_rather_than_a_failure() -> None:
+    """Chrome stops an extension's service worker after thirty seconds without
+    an event and takes the socket with it; the extension dials again as soon as
+    anything wakes it. Measured on the deployment, 2026-09-16: the ordinary gap
+    is one or two seconds, and a command that landed inside one failed its step
+    -- `not_actionable`, `no_tab_for_origin` -- against a browser that was there
+    before and after it.
+
+    Nothing here wakes the browser and nothing can: a stopped service worker is
+    not reachable from this side. What this stops is treating "not this instant"
+    as "not at all".
+    """
+    sockets, socket = DeviceSockets(redial_s=2.0), FakeSocket()
+
+    async def _dials_back() -> None:
+        await asyncio.sleep(0.4)
+        sockets.attach(ACME, LAPTOP, socket)
+
+    dialling = asyncio.create_task(_dials_back())
+    sending = asyncio.create_task(sockets.send(ACME, LAPTOP, kind="ui.url", payload={}))
+    # Bounded, because the failure this guards against is a wait that never
+    # happens: without the wait the send raises at once, nothing is ever put on
+    # the socket, and a helper watching for a command would sit here forever. A
+    # check that hangs when the code is wrong is a check nobody can read.
+    await asyncio.wait_for(_answer(sockets, socket, ok=True, result={"url": "u"}), timeout=5)
+    reply = await sending
+    await dialling
+
+    assert reply.ok, "a browser that came back two ticks later was called unreachable"
+    assert socket.sent, "the command never went down the new socket"

@@ -17,8 +17,20 @@ const VERSION = chrome.runtime.getManifest().version;
 /** Chrome closes an idle service worker after 30 seconds, and takes the socket
  * with it. Since Chrome 116 traffic on a WebSocket resets that timer, so this
  * is what keeps the channel open between commands -- comfortably inside the
- * window, because a tick that lands late is a channel that has already gone. */
-const KEEPALIVE_MS = 20_000;
+ * window, because a tick that lands late is a channel that has already gone.
+ *
+ * Fifteen and not twenty. Measured on the deployment, 2026-09-16: over half an
+ * hour of ordinary use the channel dropped and redialled five times, once for
+ * four and a half minutes. Two ticks fit inside the window at fifteen, so a
+ * single late or throttled one no longer costs the socket -- and a browser
+ * that is dropping every forty seconds is one whose runs fail at whichever
+ * step lands in the gap.
+ *
+ * It does not fix eviction and cannot: a worker Chrome has stopped runs no
+ * timers at all. That case is covered from the other end -- the backend waits
+ * a few seconds for a browser that is dialling back in (`K_REDIAL` in
+ * `sockets.py`) -- and by the minute alarm that wakes this worker to redial. */
+const KEEPALIVE_MS = 15_000;
 
 /** After a drop. The first retry is quick because most drops are a laptop lid
  * or a wifi hop; the ceiling is there so a backend that is down does not have

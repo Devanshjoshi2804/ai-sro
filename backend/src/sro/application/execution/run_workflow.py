@@ -70,6 +70,7 @@ from sro.application.ports.agent import DeviceUnreachable
 from sro.application.ports.channel import Channel, Reply
 from sro.application.ports.model import Asker
 from sro.application.ports.repositories import UnitOfWork
+from sro.domain.chat.asked_by import only_reads_the_mail
 from sro.domain.execution.belts import K_WEAK_LOCATORS, StepVerdict
 from sro.domain.execution.evidence import (
     allowlist,
@@ -845,6 +846,31 @@ async def run_workflow(
             is not None
         ):
             collapsed.update(scaffolding_for(workflow, by_id, write_step=leg.step.order))
+
+    # The step that opens the mail, once the mail has been read.
+    #
+    # A job that starts in somebody's mailbox cites the gestures of them
+    # finding that afternoon's message, so the plan clicks a link whose text is
+    # that message: "a customer type :- GGD, description :- leaning new SRO
+    # type 01". A job is asked for by a NEW mail every time. That link is not
+    # on the screen and will not be again, and on 2026-09-16 a watched run
+    # stopped at step 0 holding it -- `not_actionable: the page did not answer`
+    # -- for a job whose values this same run had already read out of the right
+    # mail, server-side, a second earlier.
+    #
+    # So it is not performed, in EITHER mode. This is not the collapse above:
+    # that one is about a form whose write is going out as a call, and it is
+    # off for a watched run on purpose. This is a step whose whole content was
+    # done before the run began, and performing it is impossible rather than
+    # merely unnecessary. A person watching wants to see the form fill; nobody
+    # wants to watch their own mailbox be clicked.
+    #
+    # Only where the gather actually found something. With no `gathered` the
+    # run is working from values a person typed, the mail was never read, and a
+    # step about it is a step like any other.
+    already_read: set[int] = set()
+    if run.gathered:
+        already_read = {step.order for step in workflow.steps if only_reads_the_mail(step, by_id)}
     # The steps the operator already did cost nothing and are not attempted, so
     # they buy no slack either: the budget is what is left to perform.
     # Which writes this run has claimed the right to make, so a rescue of a
@@ -932,7 +958,18 @@ async def run_workflow(
             ]
         )
 
-    step_here = next((one for one in ordered[from_step:] if one.order not in collapsed), None)
+    # And `already_read` beside `collapsed`, for the same reason: the page this
+    # run opens at is taken from the first step it will actually perform. A run
+    # whose mail step is skipped would otherwise open the browser at the
+    # mailbox and then send its first command to the warehouse.
+    step_here = next(
+        (
+            one
+            for one in ordered[from_step:]
+            if one.order not in collapsed and one.order not in already_read
+        ),
+        None,
+    )
     starts_on = _screen_of(step_here)
 
     # The step being worked on, so a browser that goes away mid-step fails THAT
@@ -996,7 +1033,7 @@ async def run_workflow(
                 run.outcome = "stopped"
                 await _save(uow, run)
                 break
-            if step.order in collapsed:
+            if step.order in collapsed or step.order in already_read:
                 # Recorded rather than dropped: the per-step audit trail is
                 # what a reviewer reads, and a job that silently performed four
                 # of its six steps would read as a job that lost two.
@@ -1009,7 +1046,10 @@ async def run_workflow(
                         verdict="not_needed",
                         verdict_by="none",
                         reason=(
-                            "this step put the form on the screen for a write "
+                            "the request this step went to read was read out of "
+                            "your mail before the run began; cites " + ", ".join(step.cites)
+                            if step.order in already_read
+                            else "this step put the form on the screen for a write "
                             "this run sends as a call; cites " + ", ".join(step.cites)
                         ),
                     )

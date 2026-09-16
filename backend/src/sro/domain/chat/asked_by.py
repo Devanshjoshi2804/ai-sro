@@ -32,7 +32,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
 from sro.domain.observation.gesture import Gesture
-from sro.domain.skill.workflow import Workflow
+from sro.domain.skill.workflow import Step, Workflow
 
 K_EXAMPLES = 5
 """How many of a job's mails reach a prompt.
@@ -95,7 +95,7 @@ def mails_behind(workflow: Workflow, by_id: Mapping[str, Gesture]) -> tuple[Aske
     for step in sorted(workflow.steps, key=lambda one: one.order):
         for cited in step.cites:
             gesture = by_id.get(cited)
-            if gesture is None or not _from_a_mailbox(gesture):
+            if gesture is None or not from_a_mailbox(gesture):
                 continue
             said = _said(gesture)
             if said is None:
@@ -113,10 +113,32 @@ def texts(mails: Sequence[AskedBy]) -> list[str]:
     return [one.text for one in mails]
 
 
-def _from_a_mailbox(gesture: Gesture) -> bool:
+def from_a_mailbox(gesture: Gesture) -> bool:
     """Whether this gesture happened where requests arrive."""
     where = f"{gesture.system or ''} {gesture.url or ''}"
     return any(host in where for host in K_MAILBOXES)
+
+
+def only_reads_the_mail(step: Step, by_id: Mapping[str, Gesture]) -> bool:
+    """Whether this step is somebody opening the request and nothing else.
+
+    Every gesture it cites happened in a mailbox, and a step in a mailbox reads
+    -- the request is already written, and what the operator did there was find
+    it and look at it. Nothing about the warehouse is decided in it.
+
+    It matters because such a step cannot be PERFORMED twice. What the recorder
+    kept is the mail from that afternoon -- "a customer type :- GGD" -- so the
+    plan clicks a link naming a message that will never be on the screen again,
+    and on 2026-09-16 a run watching somebody's screen stopped at step 0 for
+    exactly that. A job is asked for by a new mail every time; only the reading
+    repeats, and the reading is done by the gather before the first step.
+
+    A step with no citations is not one of these. An uncited step is a step
+    nothing proves, and reading "all of nothing is in a mailbox" as "this is a
+    mail step" would collapse it on the strength of the empty set.
+    """
+    cited = [by_id[one] for one in step.cites if one in by_id]
+    return bool(cited) and all(from_a_mailbox(gesture) for gesture in cited)
 
 
 def _said(gesture: Gesture) -> str | None:

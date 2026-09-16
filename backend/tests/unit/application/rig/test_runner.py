@@ -4577,6 +4577,123 @@ async def test_what_the_dictionary_knows_reaches_the_card_a_person_approves() ->
     )
 
 
+async def test_the_step_that_opens_the_mail_is_not_performed_once_the_mail_is_read() -> None:
+    """Measured on the deployment, 2026-09-16, on a run watching a screen.
+
+    `Create a Customer Type` begins in a mailbox, and what the recorder kept is
+    the operator finding THAT afternoon's message. So the plan clicks a link
+    whose text is that message -- "a customer type :- GGD, description :-
+    leaning new SRO type 01" -- and a job asked for by a new mail every time
+    has no such link on the screen. The run stopped at step 0 with
+    `not_actionable: the page did not answer`, holding a value it had read out
+    of the right mail, server-side, a second earlier.
+
+    It is skipped in EITHER mode, which is what separates it from the collapse:
+    that one is about a form whose write goes out as a call, and it is off for
+    a watched run on purpose. This step's whole content happened before the run
+    began. A person watching wants to see the form fill; nobody wants to watch
+    their own mailbox being clicked.
+    """
+    uow = await _fixture()
+    # The job first, then the mail gesture: `_workflow` cites whatever evidence
+    # the unit of work holds when it is called, so a gesture added before it
+    # becomes the Save step's own citation and makes that step a mail step too.
+    workflow = await _workflow(uow)
+    mail = _demonstrated("mail-1", {"threadId": "t1"})
+    mail.url = "https://mail.google.com/mail/u/0/#inbox/t1"
+    mail.system = "https://mail.google.com"
+    await uow.gestures.add_gestures((mail,))
+    # Numbered from zero, with the rest moved along: a step at order -1 is one
+    # the press says the operator already did, which is a different rule and
+    # not the one under test.
+    for step in workflow.steps:
+        step.order += 1
+    workflow.steps.insert(
+        0, Step(order=0, says="Open the email", system=None, cites=["mail-1"], parameters=[])
+    )
+    await uow.workflows.save(workflow)
+    channel = FakeChannel({**_looks(4), "ui.perform": [_performed(), _performed()]})
+    asker = FakeAsker(
+        _plan("type", "FROMMAIL"),
+        Answer(data={"held": True, "why": ""}),
+        _plan("click"),
+        Answer(data={"held": True, "why": ""}),
+    )
+
+    async def _gather(wanted: Sequence[str]) -> Gathered:
+        return Gathered(
+            values={
+                "clientCode": Found(
+                    value="FROMMAIL", from_message="m-9", quoting="the code is FROMMAIL"
+                )
+            }
+        )
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        values={},
+        earned=True,
+        watched=True,
+        gather_values=_gather,
+    )
+
+    assert run.steps[0].verdict == "not_needed", run.steps[0]
+    assert "read out of your mail" in run.steps[0].reason
+    # And nothing was driven at the mailbox. The old failure was a click sent
+    # there naming a message from the recording.
+    assert not [
+        one for one in channel.sent if "mail.google.com" in json.dumps(one.get("payload") or {})
+    ], "it drove the operator's mailbox"
+    # The rest of the job is performed as normal: this rule is about one step,
+    # not about watched runs.
+    assert [one.verdict for one in run.steps[1:]] == ["held", "held"], run.steps
+
+
+async def test_a_mail_step_is_still_performed_when_nothing_was_gathered() -> None:
+    """The rule is "the mail has already been read", not "mail steps are
+    pointless". A run working from values a person typed never looked in a
+    mailbox, and the step that opens the request is a step like any other."""
+    uow = await _fixture()
+    # The job first, then the mail gesture: `_workflow` cites whatever evidence
+    # the unit of work holds when it is called, so a gesture added before it
+    # becomes the Save step's own citation and makes that step a mail step too.
+    workflow = await _workflow(uow)
+    mail = _demonstrated("mail-1", {"threadId": "t1"})
+    mail.url = "https://mail.google.com/mail/u/0/#inbox/t1"
+    mail.system = "https://mail.google.com"
+    await uow.gestures.add_gestures((mail,))
+    for step in workflow.steps:
+        step.order += 1
+    workflow.steps.insert(
+        0, Step(order=0, says="Open the email", system=None, cites=["mail-1"], parameters=[])
+    )
+    await uow.workflows.save(workflow)
+    channel = FakeChannel({**_looks(6), "ui.perform": [_performed()] * 3})
+    asker = FakeAsker(
+        _plan("click"),
+        Answer(data={"held": True, "why": ""}),
+        _plan("type", "TYPED"),
+        Answer(data={"held": True, "why": ""}),
+        _plan("click"),
+        Answer(data={"held": True, "why": ""}),
+    )
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        values={"clientCode": "TYPED"},
+        earned=True,
+        watched=True,
+    )
+
+    assert run.steps[0].verdict == "held", run.steps[0]
+
+
 async def test_a_replay_names_its_own_screen_even_when_it_is_not_the_first_command() -> None:
     """Measured on the deployment's own row, 2026-09-16.
 

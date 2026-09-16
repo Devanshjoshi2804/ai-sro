@@ -134,6 +134,18 @@ class RunRefused(Exception):
     code = "run_refused"
 
 
+K_EVERY_FORM = 400
+"""How many create forms one lookup asks for.
+
+Every one, rather than a search: `search` matches terms against a claim's title
+and key, and a form's key is its route -- so a lookup for `customerType` finds
+nothing at all, which is how this was first built and why it said nothing.
+Measured on QA 2026-09-16: 88 forms, 756 fields, 0.09 seconds for the lot.
+Four hundred is room for a base four times that size before a write stops
+seeing the screen it is writing to.
+"""
+
+
 class StartWorkflowRun:
     """Claim the row for one press, then drive it.
 
@@ -523,7 +535,9 @@ class StartWorkflowRun:
         write does not carry is the other fact worth a line.
         """
 
-        async def look(keys: tuple[str, ...]) -> Mapping[str, Mapping[str, object]]:
+        async def look(
+            keys: tuple[str, ...], screen: str = ""
+        ) -> Mapping[str, Mapping[str, object]]:
             if not keys:
                 return {}
             found = await self._retrieve.execute(  # type: ignore[union-attr]
@@ -539,40 +553,47 @@ class StartWorkflowRun:
                 for entry in found
                 if entry.key in keys and isinstance(entry.body, Mapping)
             }
-            for slot, seen in (await self._forms(ctx, keys)).items():
+            for slot, seen in (await self._forms(ctx, screen)).items():
                 known.setdefault(slot, {}).update(seen)
             return known
 
         return look
 
-    async def _forms(
-        self, ctx: RequestContext, keys: tuple[str, ...]
-    ) -> Mapping[str, Mapping[str, object]]:
-        """What the real create forms say about these fields, by body key.
+    async def _forms(self, ctx: RequestContext, screen: str) -> Mapping[str, Mapping[str, object]]:
+        """What the real create form for THIS screen says about its fields.
 
-        Asked by the same keys as the dictionary lookup. A form model lists
-        every field it posts, each with its own label, `required` and
-        `maxLength` as the FORM has them -- so the fields a write does not
-        carry come back too, which is how "required and absent" can be said at
-        all.
+        By the screen and never by the body key. A key does not name a form:
+        measured on QA 2026-09-16, `customerType` is posted by two of them --
+        Customer Types and Existing Customers -- so a lookup by key would lend
+        one screen's required fields to another screen's write and say that a
+        customer number nobody asked for was missing.
 
-        Merged over the dictionary by the caller, never under it: this is the
-        page the operator is looking at.
+        A form claim's key IS its route, `#wm.config/wm.config.partners.customers.types////`,
+        and the step's own screen is the url the demonstrations agree on. One
+        contains the other, which is the whole join.
+
+        Every form, once, rather than a search: `search` matches terms against
+        a claim's title and key, and neither carries the body keys -- a lookup
+        for `customerType` finds nothing at all. Measured: 88 forms, 756
+        fields, 0.09s for the lot, which is cheaper than being wrong.
+
+        Silent where the screen matches no form. A write whose screen nothing
+        documents is one the dictionary still describes field by field, and a
+        guess between two forms is how this would start inventing missing
+        fields.
         """
+        if not screen.strip():
+            return {}
         found = await self._retrieve.execute(  # type: ignore[union-attr]
-            ctx,
-            Question(text=" ".join(keys), kinds=(EntryKind.FORM,), limit=len(keys) * 4),
+            ctx, Question(text="", kinds=(EntryKind.FORM,), limit=K_EVERY_FORM)
         )
         seen: dict[str, dict[str, object]] = {}
         for entry in found:
+            route = (entry.key or "").rstrip("/")
+            if not route or route not in screen:
+                continue
             fields = (entry.body or {}).get("fields")
             if not isinstance(fields, list):
-                continue
-            # Only a form that actually posts one of these keys. `search` is an
-            # OR over the terms and every create form in the base mentions
-            # something -- a form for another screen must not lend its own
-            # `required` to this write.
-            if not any(isinstance(one, Mapping) and one.get("field") in keys for one in fields):
                 continue
             for one in fields:
                 if not isinstance(one, Mapping):

@@ -93,7 +93,7 @@ from sro.domain.shared.prices import Answer
 from sro.domain.skill.repeats import K_MOST_ITEMS, Repeat
 from sro.domain.skill.workflow import Step, Workflow
 
-KnownFields = Callable[[tuple[str, ...]], Awaitable[Mapping[str, Mapping[str, object]]]]
+KnownFields = Callable[[tuple[str, ...], str], Awaitable[Mapping[str, Mapping[str, object]]]]
 """What the knowledge base says about these body keys, by key.
 
 A callable rather than `Retrieve` itself, for `SecretFor`'s reason: this module
@@ -1432,8 +1432,18 @@ async def run_workflow(
                         for slot, name in planned.filled.items()
                         if name in values
                     }
+                    # The screen as well as the keys. A body key does not name
+                    # a form -- `customerType` is posted by both Customer Types
+                    # and Existing Customers on this deployment -- so a lookup
+                    # by key alone would lend one screen's required fields to
+                    # another screen's write.
                     record.notes = list(
-                        notes_on(writing, await known_fields(tuple(sorted(writing))))
+                        notes_on(
+                            writing,
+                            await known_fields(
+                                tuple(sorted(writing)), _screen_of(step) or origin or ""
+                            ),
+                        )
                     )
 
                 # A live write, on a job that has not yet earned the right to

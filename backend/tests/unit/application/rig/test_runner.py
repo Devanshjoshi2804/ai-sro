@@ -4538,9 +4538,15 @@ async def test_what_the_dictionary_knows_reaches_the_card_a_person_approves() ->
         }
     )
     asked: list[tuple[str, ...]] = []
+    screens: list[str] = []
 
-    async def _known(keys: tuple[str, ...]) -> Mapping[str, Mapping[str, object]]:
+    async def _known(keys: tuple[str, ...], screen: str) -> Mapping[str, Mapping[str, object]]:
         asked.append(keys)
+        # The screen as well as the keys: a body key does not name a form --
+        # `customerType` is posted by two of them on the real base -- so the
+        # lookup that reads a form's required set has to be told which screen
+        # this write is going to.
+        screens.append(screen)
         # The ledger's own gotcha for this endpoint, as a claim: `csttyp
         # truncates at 4 chars`, and this run asks for five.
         return {"customerType": {"labels": ["Customer Type"], "max_length": 4}}
@@ -4557,6 +4563,9 @@ async def test_what_the_dictionary_knows_reaches_the_card_a_person_approves() ->
     )
 
     assert asked == [("customerType", "longDescription")], "asked once, about what it fills"
+    # And told where the write is going, so the form for THAT screen is the one
+    # whose required fields apply.
+    assert screens and screens[0], "the lookup was given no screen to match a form against"
     # The whole chain: the plan says which body key each value went into, the
     # dictionary says how much that key holds, and the run says so on the row a
     # person reads. Without it the write goes out, the warehouse answers 201,

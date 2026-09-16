@@ -80,6 +80,14 @@ const NEXT = {
   open: "Open the page",
 };
 
+
+// The one thing this file reaches for. It has been import-free -- everything
+// it needs is either handed to it or built here -- and a lookup's answer is
+// the exception worth making: five states with a table in one of them is its
+// own module, and inlining it here would put a row-shape heuristic in the
+// middle of a thread renderer.
+import { result } from "./result.js";
+
 /** A thread as DOM: what was said, oldest first, and the box to say more in.
  *
  * `onSay(text)` is called with a non-empty sentence the operator typed.
@@ -236,17 +244,11 @@ function answering(answer) {
   for (const one of answer.answers || []) {
     const line = document.createElement("li");
     line.dataset.ok = String(Boolean(one.ok));
-    const where = document.createElement("span");
-    where.className = "where";
-    where.textContent = `${one.system} · ${one.target}`;
-    const said = document.createElement("span");
-    said.className = "said";
-    // The body as it came back, cut to a line: the panel is a column beside a
-    // warehouse screen, and a thousand rows of JSON in it is a card nobody can
-    // read past. What was read in full is one request away -- `target` above
-    // names it.
-    said.textContent = one.ok ? preview(one) : one.detail;
-    line.append(where, said);
+    // What came back, read rather than previewed. This was 240 characters of
+    // raw JSON per system -- `{"data":[{"supplierNumber":"100012","supplier`
+    // -- which answers "how many suppliers are at SG" with a person counting
+    // nothing. `result.js` has the five ends a lookup has and the count first.
+    line.append(result(one));
     found.append(line);
   }
   item.append(found);
@@ -254,13 +256,6 @@ function answering(answer) {
 }
 
 /** One lookup's answer, short enough to read in a column. */
-function preview(one) {
-  if (one.body) return one.body.replace(/\s+/g, " ").slice(0, 240);
-  const seen = one.seen || {};
-  if (seen.text_digest) return String(seen.text_digest).slice(0, 240);
-  return one.status ? `answered ${one.status}` : "answered";
-}
-
 /** A rule that fired and stopped to ask.
  *
  * The card an operator could not see. A page rule went off on the page in

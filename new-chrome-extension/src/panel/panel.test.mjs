@@ -42,6 +42,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 // The strip is global (`gm`, not `m`): with two import lines a first-only
 // replace leaves the second, and `vm.runInContext` throws on it.
 const SOURCE = [
+  readFileSync(path.join(here, "result.js"), "utf-8"),
   readFileSync(path.join(here, "ledger.js"), "utf-8"),
   readFileSync(path.join(here, "strip.js"), "utf-8"),
   readFileSync(path.join(here, "today.js"), "utf-8"),

@@ -1006,6 +1006,16 @@ class SqlToolCallRepository(ToolCallRepository):
         )
         return claimed.scalar_one_or_none() is not None
 
+    async def forget(self, tenant_id: TenantId, key: str) -> None:
+        """Delete the claim. Tenant-scoped, unlike the session sweep next door:
+        this is somebody's run giving back its own key, not crash recovery."""
+        await self._session.execute(
+            delete(ToolCallRow).where(
+                ToolCallRow.tenant_id == tenant_id.value,
+                ToolCallRow.idempotency_key == key,
+            )
+        )
+
 
 class SqlTriggerRepository(TriggerRepository):
     def __init__(self, session: AsyncSession) -> None:

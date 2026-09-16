@@ -143,6 +143,24 @@ K_STEP_SLACK = 3
 """Attempts a run may make beyond its step count before it stops. A model
 looping on a form is money spent and a warehouse confused."""
 
+K_NEVER_SENT = frozenset(
+    {"no_tab_for_system", "no_tab_for_origin", "focus_not_permitted", "aborted"}
+)
+"""Refusals that mean the extension never reached the wire, so a write claimed
+for this step can be given back.
+
+`drivers._NO_BROWSER` is the same list with `timeout` in it, and the difference
+is the whole of this constant. A timeout is the one case where the send may
+well have landed -- it is the case `ToolCallRepository.remember` is written
+around -- so it keeps its claim. These four are the extension refusing BEFORE
+it acted: no tab on the system, no tab on the origin, focus it was not given,
+a run already aborted. None of them touched the warehouse.
+
+Found on the live deployment 2026-09-16: a run failed `no_tab_for_system`
+because the operator's Blue Yonder session had expired, and every later run of
+the same job with the same values was refused for half an hour on the grounds
+that the first one might have landed. It could not have."""
+
 K_LEAVES = ("http.send", "navigate")
 """The two kinds whose target the model chooses, and so the only two ways a
 plan can leave the system the evidence was recorded on. For everything else the
@@ -1426,6 +1444,14 @@ async def run_workflow(
                 # next step is driven by its own origin.
                 sent_nothing_yet = False
                 record.result = _result(reply, wrote=may_write)
+                # A write whose command never left the browser gives its claim
+                # back. Kept for everything else, including a timeout: see
+                # `K_NEVER_SENT`.
+                if key and not reply.ok and reply.error_kind in K_NEVER_SENT:
+                    async with uow:
+                        await uow.tool_calls.forget(tenant_id, key)
+                        await uow.commit()
+                    claimed_here.discard(key)
                 # A point has no locator: the record says the control was found
                 # by sight, in both places a reader looks.
                 if reply.ok and planned.kind == "ui.perform_at":

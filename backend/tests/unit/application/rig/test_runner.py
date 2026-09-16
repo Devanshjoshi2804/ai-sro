@@ -4373,6 +4373,57 @@ async def test_the_steps_that_only_opened_a_form_are_not_done_when_the_write_is_
     assert not asker.asked, "and no model was asked about any of it"
 
 
+async def test_a_write_the_browser_never_sent_gives_its_claim_back() -> None:
+    """The claim is taken before the call and kept whatever the call answers,
+    because a timeout may well have landed. That reasoning is about the wire,
+    and a command the extension refused never reached it.
+
+    Live, 2026-09-16: a run failed `no_tab_for_system` because the operator's
+    warehouse session had expired, and every later run of the same job with the
+    same values was refused for half an hour on the grounds that the first
+    might have landed. It could not have.
+    """
+    uow = await _fixture()
+    workflow = await _one_step(uow, _ids(uow)[-1], parameters=[])
+    channel = FakeChannel(
+        {
+            **_looks(8),
+            # Every attempt, not one: the ladder plans again after a failure,
+            # and a fake that runs out answers `not_actionable` -- a different
+            # kind, which would keep the claim and pass this test for the
+            # wrong reason.
+            "ui.perform": [Reply(ok=False, error_kind="no_tab_for_system", error_detail="no tab")]
+            * 4,
+        }
+    )
+    asker = _PerSchemaAsker(plan=_plan("click"), verdict=Answer(data={"held": True, "why": "ok"}))
+
+    await _ran(uow, workflow, channel=channel, asker=asker, values={}, earned=True)
+
+    assert isinstance(uow.tool_calls, FakeToolCallRepository)
+    assert not uow.tool_calls.claimed, "the claim was held for a command that never went out"
+
+
+async def test_a_write_that_timed_out_keeps_its_claim() -> None:
+    """The case the claim exists for, and the line this change must not cross:
+    a timeout is the one failure where the send may well have landed, so the
+    key stays held and a person is told it may already have happened."""
+    uow = await _fixture()
+    workflow = await _one_step(uow, _ids(uow)[-1], parameters=[])
+    channel = FakeChannel(
+        {
+            **_looks(8),
+            "ui.perform": [Reply(ok=False, error_kind="timeout", error_detail="no answer")] * 4,
+        }
+    )
+    asker = _PerSchemaAsker(plan=_plan("click"), verdict=Answer(data={"held": True, "why": "ok"}))
+
+    await _ran(uow, workflow, channel=channel, asker=asker, values={}, earned=True)
+
+    assert isinstance(uow.tool_calls, FakeToolCallRepository)
+    assert uow.tool_calls.claimed, "a write that may have landed gave its claim back"
+
+
 async def test_what_the_dictionary_knows_reaches_the_card_a_person_approves() -> None:
     """The one failure the ladder cannot see, answered before the write.
 

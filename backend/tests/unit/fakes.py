@@ -1398,6 +1398,11 @@ class FakeToolCallRepository:
         self.when[where] = at
         return True
 
+    async def forget(self, tenant_id: TenantId, key: str) -> None:
+        where = (tenant_id.value, key)
+        self.claimed.pop(where, None)
+        self.when.pop(where, None)
+
 
 class FakeGestureRepository:
     """The evidence plane in three dicts.

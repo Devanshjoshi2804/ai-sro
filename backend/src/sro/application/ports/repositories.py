@@ -552,6 +552,30 @@ class ToolCallRepository(Protocol):
         """
         ...
 
+    async def forget(self, tenant_id: TenantId, key: str) -> None:
+        """Give a claim back, for the one case where nothing was sent.
+
+        The rule above is that a claim is KEPT whatever the call answers, and
+        it names the reason: a timeout may well have landed, and releasing it
+        would retry a write into a second one. That reasoning is about the
+        wire. It does not cover a browser that never reached the wire -- a
+        command the extension refused because no tab was open on the system,
+        or because the run was aborted, never touched the warehouse, and
+        holding its key for half an hour blocks a retry that is entirely safe.
+
+        Found on the live deployment 2026-09-16: a run failed
+        `no_tab_for_system` because the operator's Blue Yonder session had
+        expired, and every later run of the same job with the same values was
+        refused for half an hour on the grounds that the first `may have
+        landed`. It could not have.
+
+        Narrow on purpose, and the caller decides: only the kinds that mean the
+        extension refused BEFORE acting, never `timeout` and never a failure
+        the page itself answered. Idempotent -- a key nobody claimed is a
+        no-op, not an error.
+        """
+        ...
+
 
 class GestureRepository(Protocol):
     """The evidence plane: what a browser sent, what was read out of it."""

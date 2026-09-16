@@ -166,7 +166,10 @@ export function noteDriven(tabId, request) {
     // redacted by the recorder that produced it. A page's ordinary 200s are
     // not kept: their bodies are lists, screens and customer data, and
     // nothing here needs them.
-    body: request.status === 201 ? asText(request.response_body).slice(0, CREATED_BODY) : null,
+    body:
+      request.status === 201
+        ? asText(request.response_body).slice(0, CREATED_BODY)
+        : null,
   });
   driven.set(tabId, kept.slice(-CALLS_KEPT));
 }
@@ -208,7 +211,13 @@ const marks = new Map();
 /** Commands that make the page do something, so the calls after one are the
  * calls it made because of it. `calls.since` and `screenshot` are the run
  * looking, and must not move the mark they are about to read. */
-const ACTS = new Set(["ui.perform", "ui.perform_at", "http.send", "navigate", "tab.open"]);
+const ACTS = new Set([
+  "ui.perform",
+  "ui.perform_at",
+  "http.send",
+  "navigate",
+  "tab.open",
+]);
 
 /** The calls this run's tab made since its last acting command, newest last. */
 function callsSince(runId) {
@@ -220,7 +229,6 @@ function callsSince(runId) {
   );
   return { ok: true, result: { calls } };
 }
-
 
 export function isDriving(tabId) {
   const until = driving.get(tabId);
@@ -266,20 +274,29 @@ async function drivenTab(origin) {
   const usable = (tab) => tab?.url && /^https?:/.test(tab.url);
 
   if (origin) {
-    const onIt = (await chrome.tabs.query({ url: `${origin}/*` })).filter(usable);
+    const onIt = (await chrome.tabs.query({ url: `${origin}/*` })).filter(
+      usable,
+    );
     if (!onIt.length) return null;
     // The visible one first: a run drives what the operator can see going on,
     // and a background tab cannot be photographed for the rung that looks.
     return onIt.find((tab) => tab.active) || onIt[0];
   }
 
-  const inFront = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+  const inFront = await chrome.tabs.query({
+    active: true,
+    lastFocusedWindow: true,
+  });
   if (usable(inFront[0])) return inFront[0];
 
   // Any ordinary tab rather than none at all: the operator may be looking at a
   // settings page while the system sits in the next tab.
   const all = await chrome.tabs.query({ windowType: "normal" });
-  return all.filter(usable).sort((a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0))[0] || null;
+  return (
+    all
+      .filter(usable)
+      .sort((a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0))[0] || null
+  );
 }
 
 /** A tab already on this origin, because the point of sending from the browser
@@ -320,7 +337,8 @@ async function inEveryFrame(tabId, func, args, world = "MAIN") {
     args,
   });
   for (const answer of answers) {
-    if (answer?.result !== null && answer?.result !== undefined) return answer.result;
+    if (answer?.result !== null && answer?.result !== undefined)
+      return answer.result;
   }
   return null;
 }
@@ -353,7 +371,7 @@ function bytesOf(dataUrl) {
 }
 
 async function uiPerform(payload, runId) {
-  const tab = await tabForRun(payload, runId);
+  const tab = await awake(await tabForRun(payload, runId));
   if (!tab) return failure("no_tab_for_system", noPage(payload.origin));
   hold(tab.id);
   const frameId = await frameHolding(tab.id, payload);
@@ -363,7 +381,52 @@ async function uiPerform(payload, runId) {
       : await inFrame(tab.id, frameId, performInPage, [payload]);
   hold(tab.id);
   if (answer?.ok) await reacted(tab.id, payload.action);
-  return answer || failure("not_actionable", "the page did not answer");
+  // What "the page did not answer" actually means, said where it is known.
+  //
+  // It means the injection produced no result: the frame is gone, the tab was
+  // asleep, the page went somewhere else mid-command. It does NOT mean the
+  // control was missing -- `performInPage` answers that itself, by name. The
+  // two read identically on a run card, and on 2026-09-16 three runs failed
+  // this way while an operator and I read it as "the locator did not match"
+  // and went looking at the wrong thing. So the tab says who it was.
+  return answer || failure("not_actionable", didNotAnswer(tab, frameId));
+}
+
+/** The page the command was performed against, for a failure that has to be
+ * read by somebody who cannot see it. */
+function didNotAnswer(tab, frameId) {
+  const where = String(tab.url || "").slice(0, 120);
+  const frame = frameId === undefined ? "the page" : `frame ${frameId}`;
+  return `${frame} at ${where} did not answer (status ${tab.status || "unknown"})`;
+}
+
+/** A tab that can be injected into, waking it first if Chrome has put it away.
+ *
+ * Chrome discards background tabs under memory pressure -- Memory Saver does
+ * it on a timer -- and a discarded tab is still in `chrome.tabs.query` with
+ * its url and title. Injecting into one returns NOTHING: no error, no result,
+ * which arrives at the run as "the page did not answer" and reads like a
+ * missing control. An operator whose warehouse tab has been sitting behind
+ * their mail for an hour has exactly this tab.
+ *
+ * Reloaded and waited for rather than skipped, because it is the right tab:
+ * the alternative is opening a second one at the same origin, which leaves the
+ * operator with two and loses whatever was on the screen in the first.
+ */
+async function awake(tab) {
+  if (!tab || !tab.discarded) return tab;
+  // Listening BEFORE the reload, not after it. A tab that comes back quickly
+  // reports itself complete while the reload call is still being awaited, and
+  // a watcher registered afterwards waits out its whole timeout for an event
+  // that has already happened -- twenty seconds added to a step for a tab that
+  // was ready in one.
+  const ready = settled(tab.id);
+  try {
+    await chrome.tabs.reload(tab.id);
+  } catch {
+    return tab;
+  }
+  return (await ready) || (await chrome.tabs.get(tab.id).catch(() => tab));
 }
 
 /** The tab this run acts in, opening the screen it was taught on if need be.
@@ -391,7 +454,8 @@ async function tabForRun(payload, runId) {
     // names. A job that crosses from one system to another names the second
     // origin on its later steps, and performing those in the first system's
     // tab is the cross-application hand-off failure the origin exists to stop.
-    if (known && (!payload.origin || originOf(known.url) === payload.origin)) return known;
+    if (known && (!payload.origin || originOf(known.url) === payload.origin))
+      return known;
   }
 
   let tab = await drivenTab(payload.origin);
@@ -401,7 +465,8 @@ async function tabForRun(payload, runId) {
     if (opened) tab = opened;
   }
 
-  if (tab && runId && latest?.runId === runId) latest = { ...latest, tabId: tab.id };
+  if (tab && runId && latest?.runId === runId)
+    latest = { ...latest, tabId: tab.id };
   return tab;
 }
 
@@ -657,7 +722,9 @@ async function screenshot(payload) {
   // for this and is watching. Without it the command is refused, because
   // taking somebody's screen while they are working in it is worse than a run
   // that did not finish.
-  const visible = tab.active ? tab : await bringForward(tab, payload.allow_focus);
+  const visible = tab.active
+    ? tab
+    : await bringForward(tab, payload.allow_focus);
   if (!visible) {
     return failure(
       "focus_not_permitted",
@@ -674,15 +741,21 @@ async function screenshot(payload) {
 
   let dataUrl;
   try {
-    dataUrl = await chrome.tabs.captureVisibleTab(visible.windowId, { format: "png" });
+    dataUrl = await chrome.tabs.captureVisibleTab(visible.windowId, {
+      format: "png",
+    });
   } catch (error) {
     // A tab that is not the visible one cannot be photographed, and Chrome
     // refuses on its own pages. Both mean there is no screen to look at.
-    return failure("no_tab_for_system", `this browser would not be photographed: ${error}`);
+    return failure(
+      "no_tab_for_system",
+      `this browser would not be photographed: ${error}`,
+    );
   }
 
   const bytes = bytesOf(dataUrl);
-  if (!isPng(bytes)) return failure("no_tab_for_system", "the capture was not an image");
+  if (!isPng(bytes))
+    return failure("no_tab_for_system", "the capture was not an image");
 
   return {
     ok: true,
@@ -751,12 +824,18 @@ async function openTab(payload) {
   try {
     origin = new URL(payload.url).origin;
   } catch {
-    return failure("not_actionable", `tab.open with an unreadable url: ${payload.url}`);
+    return failure(
+      "not_actionable",
+      `tab.open with an unreadable url: ${payload.url}`,
+    );
   }
   if (!/^https?:$/.test(new URL(payload.url).protocol)) {
     // A `chrome://` or `file://` url is not a system with a session, and
     // opening one is the extension reaching outside the job it has.
-    return failure("not_actionable", "tab.open only opens http and https pages");
+    return failure(
+      "not_actionable",
+      "tab.open only opens http and https pages",
+    );
   }
 
   const open = (await chrome.tabs.query({ url: `${origin}/*` })).filter(
@@ -781,7 +860,10 @@ async function navigate(payload) {
   const tab = await drivenTab(payload.origin);
   if (!tab) return failure("no_tab_for_system", noPage(payload.origin));
 
-  const [inFront] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+  const [inFront] = await chrome.tabs.query({
+    active: true,
+    lastFocusedWindow: true,
+  });
   if (!payload.allow_focus && inFront?.id === tab.id) {
     return failure(
       "focus_not_permitted",
@@ -811,7 +893,9 @@ async function httpSend(payload) {
   // so nothing before this has put a tab on the origin. `opensFor` still
   // refuses a `starts_on` that names a different system, so this can only ever
   // open the page the call is going to.
-  const wanted = tab ? null : opensFor({ ...payload, origin: originOf(payload?.url || "") });
+  const wanted = tab
+    ? null
+    : opensFor({ ...payload, origin: originOf(payload?.url || "") });
   if (wanted) tab = await openAt(wanted);
   if (!tab) {
     // No tab, and no page to open one at -- and for a call that needs nothing
@@ -839,9 +923,15 @@ async function httpSend(payload) {
       // The same function the page runs, run here instead: same request, same
       // answer shape, and no page realm at all -- so it is no more visible to
       // the recorder's MAIN-world patch than the isolated-world send is.
-      return (await sendInPage(payload)) || failure("unreachable", "the call went nowhere");
+      return (
+        (await sendInPage(payload)) ||
+        failure("unreachable", "the call went nowhere")
+      );
     }
-    return failure("no_tab_for_origin", `no tab is open on ${payload?.url || "that origin"}`);
+    return failure(
+      "no_tab_for_origin",
+      `no tab is open on ${payload?.url || "that origin"}`,
+    );
   }
   const headers = { ...(payload.headers || {}) };
   for (const name of payload.live_headers || []) {
@@ -851,7 +941,9 @@ async function httpSend(payload) {
     // value that is not a header source -- `hasOwn` is the only way to ask
     // "is this actually in the menu" instead of "does this exist somewhere
     // on the object", which a name like that would still pass.
-    const source = Object.hasOwn(LIVE_HEADER_SOURCES, key) ? LIVE_HEADER_SOURCES[key] : undefined;
+    const source = Object.hasOwn(LIVE_HEADER_SOURCES, key)
+      ? LIVE_HEADER_SOURCES[key]
+      : undefined;
     if (!source) {
       return failure("unreachable", `no live source for header ${name}`);
     }
@@ -859,13 +951,21 @@ async function httpSend(payload) {
     // token lives in the application's iframe and the shell has none.
     const value = await inEveryFrame(tab.id, source, [], "MAIN");
     if (!value) {
-      return failure("unreachable", `${name} is not on this page or any frame of it`);
+      return failure(
+        "unreachable",
+        `${name} is not on this page or any frame of it`,
+      );
     }
     headers[name] = value;
   }
   // The isolated world: same origin and the same cookies, but not the page's
   // patched fetch, so a replayed call is not captured as the operator's own.
-  const answer = await inPage(tab.id, sendInPage, [{ ...payload, headers }], "ISOLATED");
+  const answer = await inPage(
+    tab.id,
+    sendInPage,
+    [{ ...payload, headers }],
+    "ISOLATED",
+  );
   return answer || failure("unreachable", "the page did not answer");
 }
 
@@ -886,7 +986,14 @@ export async function perform(command, source = "backend") {
     const now = Date.now();
     const isNewRun = latest?.runId !== command.run_id;
     latest = isNewRun
-      ? { runId: command.run_id, kind: command.kind, source, since: now, at: now, ...told(command) }
+      ? {
+          runId: command.run_id,
+          kind: command.kind,
+          source,
+          since: now,
+          at: now,
+          ...told(command),
+        }
       : { ...latest, kind: command.kind, at: now, ...told(command) };
     // The page says so itself while it is being driven. The panel already
     // does, and the panel is not where somebody is looking: they are watching
@@ -945,11 +1052,17 @@ export async function perform(command, source = "backend") {
         if (command.payload?.run_id) aborted.add(command.payload.run_id);
         return { ok: true, result: { aborted: true } };
       default:
-        return failure("not_actionable", `this extension has no ${command.kind}`);
+        return failure(
+          "not_actionable",
+          `this extension has no ${command.kind}`,
+        );
     }
   } catch (error) {
     // Including a page that closed mid-command, which `executeScript` reports
     // by rejecting. An answer saying so is worth more than none.
-    return failure("not_actionable", `the command failed in the browser: ${error}`);
+    return failure(
+      "not_actionable",
+      `the command failed in the browser: ${error}`,
+    );
   }
 }

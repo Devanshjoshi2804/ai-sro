@@ -83,6 +83,17 @@ test("the whole line is the control, and it says which way it goes", () => {
   assert.deepEqual(flipped, [true]);
 });
 
+test("the control and the thing it controls are a pair", () => {
+  // Without it a screen reader reads a button whose press appears to do
+  // nothing: the cards land below it, outside the reading order it was in.
+  const open = waiting([one(1)], { open: true, card });
+  const head = open.kids.find((kid) => kid.tag === "button");
+  const list = open.kids.find((kid) => kid.className === "waiting-list");
+
+  assert.equal(head.getAttribute("aria-expanded"), "true");
+  assert.equal(head.getAttribute("aria-controls"), list.id);
+});
+
 test("it is a state, so it is toned and never accented", () => {
   // `brand.css`: state colours are not the accent. It reuses the enum the
   // cards already have rather than inventing a class of its own.

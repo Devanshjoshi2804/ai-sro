@@ -358,6 +358,31 @@ test("a request that waited is in the banner and nowhere else", async () => {
   assert.doesNotMatch(words(ids["cards"]), /Create a Customer Type/, "drawn in both places");
 });
 
+test("an unchanged banner is left alone, with whatever was typed into it", async () => {
+  // The panel repaints on every push from the worker. Rebuilding these cards
+  // each time takes the half-typed value in one of them with it -- the defect
+  // the ledger's own redraw guard exists for, in a place with boxes to type
+  // into -- and replaces identical children under a live region, which is a
+  // screen reader saying "1 request arrived" all afternoon.
+  const status = {
+    deviceId: "dev-1",
+    nudges: [
+      {
+        id: "n_mail", source: "rig", state: "open", missed: true, tabId: null,
+        title: "Create a Customer Type", workflowId: "wfl_1", k: 0,
+        values: {}, missing: ["Customer Type"], parameters: [],
+        at: new Date().toISOString(),
+      },
+    ],
+  };
+  const { ids, render } = panel(status);
+  const drawn = ids["waiting"].kids[0];
+
+  render(status);
+
+  assert.strictEqual(ids["waiting"].kids[0], drawn, "the banner was rebuilt for nothing");
+});
+
 test("nothing waiting leaves no banner behind", async () => {
   const { ids } = panel({ deviceId: "dev-1", nudges: [] });
 

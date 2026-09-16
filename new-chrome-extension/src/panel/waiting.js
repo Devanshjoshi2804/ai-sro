@@ -56,7 +56,12 @@ export function waiting(missed, { open = false, onToggle, card } = {}) {
   const head = document.createElement("button");
   head.type = "button";
   head.className = "waiting-head";
+  // The disclosure pattern as the platform defines it: the control says
+  // whether the thing it controls is open, and names it. Without the pair, a
+  // screen reader reads a button whose press appears to do nothing -- the
+  // cards land below it, out of the reading order it was in.
   head.setAttribute("aria-expanded", String(open));
+  head.setAttribute("aria-controls", "waiting-list");
   const said = document.createElement("span");
   said.className = "what";
   said.textContent =
@@ -73,6 +78,7 @@ export function waiting(missed, { open = false, onToggle, card } = {}) {
   if (open && card) {
     const list = document.createElement("div");
     list.className = "waiting-list";
+    list.id = "waiting-list";
     // Newest first: the request that came in ten minutes ago is the one they
     // are most likely to have been told about by the person who sent it.
     for (const one of [...missed].sort((a, b) => String(b.at || "").localeCompare(String(a.at || "")))) {

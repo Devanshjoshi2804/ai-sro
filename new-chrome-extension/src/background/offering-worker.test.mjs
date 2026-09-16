@@ -25,6 +25,8 @@ import { fakeIndexedDB } from "./test-support/fake-indexeddb.mjs";
 globalThis.indexedDB = fakeIndexedDB();
 
 const held = new Map();
+const badges = [];
+const titles = [];
 /** Every script the worker painted into a page: the nudge pill, mostly. */
 const painted = [];
 
@@ -86,10 +88,12 @@ globalThis.chrome = {
     registerContentScripts: async () => {},
   },
   permissions: { getAll: async () => ({ origins: [] }), contains: async () => false },
+  // Held rather than dropped: four characters have to say the most important
+  // true thing, and which one they say is a rule worth a test.
   action: {
-    setBadgeText: async () => {},
+    setBadgeText: async (what) => void badges.push(what),
     setBadgeBackgroundColor: async () => {},
-    setTitle: async () => {},
+    setTitle: async (what) => void titles.push(what.title),
   },
   sidePanel: { open: async () => {}, setPanelBehavior: async () => {} },
 };
@@ -277,6 +281,8 @@ function ready() {
   lookupRead = null;
   mailLooked = null;
   mailLooks.length = 0;
+  badges.length = 0;
+  titles.length = 0;
   lookedUp = [];
   globalThis.fetch = rigServer;
   // Distinctive on purpose. `dev-1` was the literal that a mutation of
@@ -1377,6 +1383,37 @@ test("a mail becomes a card that waits, not a line in the conversation", async (
   assert.equal(card.tabId, null, "a mail card tied to a tab is one the panel never draws");
   // And nothing was said into the thread.
   assert.equal(calls.filter((call) => call.path.startsWith("/v1/threads")).length, 0);
+});
+
+test("the icon counts what is waiting, and recording still wins it", async () => {
+  // Two facts want four characters. Recording is one the operator cannot
+  // discover any other way and may want to stop this second; requests waiting
+  // is one they can find by opening the panel. A badge that flipped between
+  // REC and 3 would say neither reliably -- so the count never takes the
+  // badge, and never becomes invisible either: it is in the title both ways.
+  ready();
+  mailLooked = {
+    offered: [
+      { message: "m-7", workflow_id: "wfl_1", title: "Create a Customer Type", values: {}, missing: [] },
+    ],
+    read: 1,
+    why: "offered Create a Customer Type",
+  };
+
+  await send({ kind: "look-in-the-mail" });
+
+  // Observing, so the badge stays REC -- and the count is still not invisible.
+  assert.equal(badges.at(-1).text, "REC");
+  assert.match(titles.at(-1), /observing · 1 request waiting/);
+
+  // Paused, and the icon has four characters free to say the other thing.
+  // Through the message an operator actually presses: `settle()` repaints the
+  // badge on the way out of it, which is what makes this a rule the product
+  // keeps rather than one this test arranges.
+  await send({ kind: "set-paused", paused: true });
+
+  assert.equal(badges.at(-1).text, "1", "nothing on the icon said a request was waiting");
+  assert.match(titles.at(-1), /1 request waiting/);
 });
 
 test("a browser with no mailbox behind it stops asking rather than calling all day", async () => {

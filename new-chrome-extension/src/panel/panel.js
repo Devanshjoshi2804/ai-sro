@@ -1213,6 +1213,11 @@ async function conversation() {
  */
 let waitingOpen = false;
 
+/** What the banner was last drawn from, so an unchanged one is left alone --
+ * with whatever somebody has typed into it, and without a live region
+ * repeating itself every two seconds. */
+let waitingDrawn = null;
+
 /** Redraw the banner, and nothing else.
  *
  * Its own painter rather than part of `show()` because opening it changes
@@ -1224,6 +1229,17 @@ function paintWaiting() {
   const missed = (lastStatus?.nudges || []).filter(
     (nudge) => nudge.state === "open" && nudge.missed,
   );
+  // Only when it would say something different. The panel repaints on every
+  // push from the worker, and rebuilding these cards each time would take the
+  // half-typed value in one of them with it -- the defect the ledger's own
+  // redraw guard exists for, in a place that has boxes to type into.
+  //
+  // It is also what keeps the live region quiet: `#waiting` announces what
+  // changes inside it, and replacing identical children every two seconds is a
+  // screen reader saying "3 requests arrived" all afternoon.
+  const now = `${waitingOpen}|${missed.map((one) => `${one.id}:${one.state}`).join(",")}`;
+  if (now === waitingDrawn) return;
+  waitingDrawn = now;
   const banner = waiting(missed, {
     open: waitingOpen,
     onToggle: (open) => {

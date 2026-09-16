@@ -349,6 +349,9 @@ async function sweepNudges() {
     const swept = sweep(held, { url: null, now: Date.now() });
     await state.setNudges(swept);
     reportEndings(held, swept);
+    // A card that has just gone quiet is one more waiting, and the beat is the
+    // only thing that notices the day turning over.
+    await badge();
     for (const nudge of open) {
       if (swept.find((each) => each.id === nudge.id)?.state !== "open") {
         void hideNudge(nudge.tabId);
@@ -500,6 +503,9 @@ async function offerFromMail(offer) {
     if (held.some((one) => one.candidateId === made.candidateId)) return;
     await state.setNudges([made, ...held].slice(0, MAX_NUDGES));
   });
+  // The icon says how many are waiting where the operator is not looking at
+  // the panel, which is most of the day.
+  await badge();
 }
 
 /** The offer, from a reading somebody else already paid for. */
@@ -1517,6 +1523,8 @@ async function handle(message, sender) {
       void pollRigRun();
       void hideNudge(nudge.tabId);
       void report(nudge, "accepted", started.id);
+      // One fewer waiting, on the icon as well as in the panel.
+      void badge();
       return { ok: true, run_id: started.id };
     }
     case "drop-nudge": {
@@ -1535,6 +1543,7 @@ async function handle(message, sender) {
             n.id === nudge.id ? { ...n, state: "dismissed", endedAt: Date.now() } : n,
           ),
         );
+        void badge();
         void hideNudge(nudge.tabId);
         void report(nudge, "dismissed");
         return { ok: true };
@@ -2284,12 +2293,43 @@ async function settle() {
   return status();
 }
 
+/** The icon, which has four characters to say the most important true thing.
+ *
+ * Two facts want it. Recording is one the operator cannot discover any other
+ * way and may want to stop this second; requests waiting is one they can find
+ * by opening the panel, and which loses nothing by being found a minute later.
+ * So recording wins the badge, always, and a count never takes it -- a badge
+ * that flipped between `REC` and `3` would be a badge that says neither
+ * reliably, which is the whole reason this rule is written down rather than
+ * decided twice.
+ *
+ * The count is never invisible, though: it goes in the title either way, which
+ * is what a hover and every screen reader read off an icon.
+ */
 async function badge() {
   const allowed = await capturing();
-  await chrome.action.setBadgeText({ text: allowed.on ? "REC" : "" });
-  await chrome.action.setBadgeBackgroundColor({ color: allowed.on ? "#b91c1c" : "#6b7280" });
+  // Every request still unanswered, not only the ones that have gone quiet.
+  // The icon is read by somebody who is NOT looking at the panel, so the
+  // question it answers is "is there work waiting for me" -- and a mail that
+  // arrived ten minutes ago is as much work as one from yesterday. Which of
+  // them is today's news and which is in the banner is the panel's business,
+  // not the icon's.
+  const waiting = (await state.nudges()).filter(
+    (nudge) => nudge.state === "open" && nudge.keeps,
+  ).length;
+  const counted = waiting ? `${waiting} request${waiting === 1 ? "" : "s"} waiting` : "";
+  await chrome.action.setBadgeText({
+    text: allowed.on ? "REC" : waiting ? String(Math.min(waiting, 99)) : "",
+  });
+  await chrome.action.setBadgeBackgroundColor({
+    // `--warn`, the state colour the waiting banner uses, and never the accent:
+    // `brand.css` says state colours are not the accent, and an icon is the
+    // one place in this product where that rule is hardest to come back from.
+    color: allowed.on ? "#b91c1c" : waiting ? "#b45309" : "#6b7280",
+  });
+  const how = allowed.on ? "observing" : `not observing (${allowed.because})`;
   await chrome.action.setTitle({
-    title: allowed.on ? "AI-SRO — observing" : `AI-SRO — not observing (${allowed.because})`,
+    title: `AI-SRO — ${how}${counted ? ` · ${counted}` : ""}`,
   });
 }
 

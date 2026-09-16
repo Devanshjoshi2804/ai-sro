@@ -111,6 +111,22 @@ Check what is actually loaded rather than what is on disk:
 $C exec caddy caddy validate --config /etc/caddy/Caddyfile
 ```
 
+## The vault's directory, once per volume
+
+Docker creates a missing mount point as root, so `vault-data` arrives
+`root:root` on a deployment whose image did not already have `/var/lib/sro` --
+and the containers run as uid 10001 and cannot become root. Every attempt to
+store a credential then answers `PermissionError: /var/lib/sro/vault.tmp`.
+Nothing notices until the first secret: found on QA 2026-09-16, where the vault
+file had never been written at all.
+
+The image now creates the directory owned by `sro`, which is enough for a
+volume made after that. One that already exists keeps the ownership it has:
+
+```bash
+$C run --rm --user root --entrypoint sh api -c 'chown -R 10001:10001 /var/lib/sro'
+```
+
 ## After every deploy
 
 ```bash

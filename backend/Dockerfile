@@ -59,6 +59,20 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --create-home --uid 10001 sro
 
+# The vault's directory, owned by the user that has to write it.
+#
+# Docker creates a missing mount point as root, so a named volume mounted at a
+# path the image does not have arrives `root:root` and this container -- which
+# runs as uid 10001 and cannot become root, deliberately -- cannot write a
+# thing into it. Every attempt to store a credential answered `PermissionError:
+# /var/lib/sro/vault.tmp`, and nothing had noticed because nothing on that
+# deployment had ever stored one: the vault file did not exist at all.
+#
+# Created here rather than chowned at start-up, because a fresh volume takes
+# its ownership from the image's directory. A volume that already exists keeps
+# whatever it has and needs the one-off chown by hand -- `docs/18-deployment.md`.
+RUN install -d -o sro -g sro -m 0700 /var/lib/sro
+
 WORKDIR /app
 
 COPY --from=build --chown=sro:sro /app/.venv ./.venv

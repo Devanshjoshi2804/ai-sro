@@ -50,12 +50,17 @@ export function glyphFor(outcome) {
   // they went and did it themselves while the rig waited, and that step is as
   // over as one the rig performed.
   //
-  // `not_needed` is a tick too, and that is the whole of what it says: the
-  // step existed to put a form on the screen, the write that form was for went
-  // out as a call, and there was nothing left to do. It was drawn `✓!` for a
-  // day -- the fallback below -- which means the opposite: "it went out and
-  // nothing could say whether it landed". Four rows of that on a run that did
-  // exactly what it meant to.
+  // `not_needed` is a DASH, and this is the second time it has been argued.
+  // It was `✓!` for a day (the fallback below), which reads as "it went out
+  // and nothing could say whether it landed" -- the opposite of the truth. It
+  // was then a tick, on the argument that the step was over and the job whole.
+  //
+  // Measured against a real card, 2026-09-16: five ticks, one cross, above a
+  // line reading "Nobody was watching, so it replayed the call it learned --
+  // the page never moved". An operator read five things done and one failed;
+  // nothing at all had been done on the page. A tick is the mark this panel
+  // uses for "that happened", and the whole meaning of `not_needed` is that it
+  // did not happen and did not need to. The dash says so and nothing else.
   if (typeof outcome === "string") {
     return (
       {
@@ -63,7 +68,7 @@ export function glyphFor(outcome) {
         done_by_operator: "✓",
         withheld: "⏸",
         awaiting: "⏸",
-        not_needed: "✓",
+        not_needed: "–",
         failed: "✗",
         refused: "✗",
         skipped: "○",

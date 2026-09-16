@@ -700,11 +700,18 @@ test("a step the dictionary had nothing to say about draws no note", () => {
   assert.ok(!words(card).includes("holds"), "an empty notes list still drew something");
 });
 
-test("not_needed is a tick, because the step was not skipped -- it was not needed", () => {
-  // It fell through to `✓!` for a day, which means the opposite: "it went out
-  // and nothing could say whether it landed". Four rows of that on every run
-  // whose write goes out as a call.
-  assert.equal(glyphFor("not_needed"), "✓");
+test("not_needed is a dash: a tick would say it happened", () => {
+  // Measured on a real card, 2026-09-16: five ticks and one cross, above a
+  // line reading "the page never moved". The operator read five things done
+  // and one failed; nothing at all had been done on the page. A tick is this
+  // panel's mark for "that happened", and the whole meaning of `not_needed` is
+  // that it did not happen and did not need to.
+  //
+  // It fell through to `✓!` before that, which means a third thing again: "it
+  // went out and nothing could say whether it landed".
+  assert.equal(glyphFor("not_needed"), "–");
+  assert.notEqual(glyphFor("not_needed"), glyphFor("held"));
+  assert.notEqual(glyphFor("not_needed"), glyphFor("skipped"));
   assert.equal(glyphFor("held"), "✓");
   assert.equal(glyphFor("awaiting"), "⏸");
 });

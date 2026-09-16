@@ -821,11 +821,43 @@ async function keepSecret({ system, field, value }) {
  */
 const RIG_ENDINGS = {
   held: "The run finished — every step held.",
-  stopped: "The run stopped to ask.",
+  // "to ask" only when something is actually waiting on somebody; `howItEnded`
+  // below decides. A run that stopped because a step failed was announcing a
+  // question nobody had been asked, on a card whose own rows said a step had
+  // failed -- and the operator went looking for the thing to answer.
+  stopped: "The run stopped.",
   refused: "The run was refused.",
   aborted: "The run was stopped.",
   failed: "The run failed.",
 };
+
+/** How a rig run ended, in the words of the thing that ended it.
+ *
+ * `RIG_ENDINGS` names the outcome and nothing else, which is right for four of
+ * the five and useless for `stopped`: a run stops because a step is waiting on
+ * a person, or because a step failed twice, and those want two different
+ * people to do two different things. The step already knows which -- it was
+ * simply not being read, so every stop announced a question and half of them
+ * had asked nobody anything.
+ *
+ * The failure's own words, not ours: "unreachable: TypeError: Failed to fetch"
+ * says the browser could not reach the system, and "the run stopped" says a
+ * person should go and look at something.
+ */
+function howItEnded(run) {
+  const steps = run.steps || [];
+  if (steps.some((step) => step.outcome === "awaiting"))
+    return "The run stopped to ask.";
+  const failed = [...steps].reverse().find((step) => step.outcome === "failed");
+  const why = String(failed?.reason || "").trim();
+  if (!why) return RIG_ENDINGS[run.status] || "The run ended.";
+  return `The run stopped — ${why.slice(0, K_WHY)}${why.length > K_WHY ? "…" : ""}`;
+}
+
+/** How much of a failure's own words the card carries. Long enough for
+ * "unreachable: TypeError: Failed to fetch", short enough that a stack trace
+ * cannot become the card. */
+const K_WHY = 120;
 
 /** One item's values, in a sentence: `name: value, name: value`.
  *
@@ -873,7 +905,7 @@ function finished(status) {
     // panel has just moved them to.
     const short = (run.needs || []).length
       ? `I could not find ${run.needs.join(", ")} — I have asked in the conversation.`
-      : "";
+      : howItEnded(run);
     return runCard(
       {
         run,

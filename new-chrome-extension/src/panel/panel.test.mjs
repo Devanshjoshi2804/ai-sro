@@ -1007,6 +1007,42 @@ test("a run the rig drove shows its own steps and offers nothing the rig cannot 
   assert.ok(/not sent/.test(said), "a dry run did not say what it withheld");
 });
 
+test("a run that stopped because a step failed does not say it stopped to ask", () => {
+  // Measured on a real card, 2026-09-16: "The run stopped to ask." over a run
+  // whose replay could not reach the warehouse and which had asked nobody
+  // anything. The operator went looking for the question.
+  const { cards } = panel(
+    {
+      deviceId: "dev-1",
+      capturing: true,
+      watched: [{ tabId: 7, host: "wms.example", since: new Date().toISOString() }],
+      finished: {
+        id: "run_stopped",
+        source: "rig",
+        status: "stopped",
+        watched: false,
+        steps: [
+          { index: 0, outcome: "not_needed", says: "open the form" },
+          {
+            index: 1,
+            outcome: "failed",
+            says: "click Save",
+            reason: "unreachable: TypeError: Failed to fetch",
+          },
+        ],
+      },
+    },
+    { id: 7, host: "wms.example", url: "https://wms.example/portal" },
+  );
+
+  const said = cards.map(words).join(" ");
+  assert.match(said, /unreachable: TypeError: Failed to fetch/);
+  assert.ok(!/stopped to ask/.test(said), "it announced a question nobody was asked");
+  // And the collapsed step is not ticked: a tick is this panel's mark for
+  // "that happened", and nothing happened on the page.
+  assert.ok(!/✓ open the form/.test(said), said);
+});
+
 test("a run that came up short takes the operator to the question", async () => {
   // The dead end this replaces: the run went looking for a value nobody typed,
   // could not find it, and the panel drew "The run stopped" on the Home tab

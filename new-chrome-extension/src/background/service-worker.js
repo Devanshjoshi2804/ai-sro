@@ -5,7 +5,13 @@
 
 import { api, ApiError } from "./api.js";
 import * as channel from "./channel.js";
-import { abort, isDriving, noteDriven, performing, RUN_QUIET_MS } from "./commands.js";
+import {
+  abort,
+  isDriving,
+  noteDriven,
+  performing,
+  RUN_QUIET_MS,
+} from "./commands.js";
 import * as queue from "./queue.js";
 import { redactUrl } from "../content/sensitivity.module.js";
 import {
@@ -33,9 +39,21 @@ import { tripleOf } from "./shape.generated.js";
 import { hideNudge, showNudge } from "./showing.js";
 import { capture } from "./shots.js";
 import { noteFinished } from "./finishing.js";
-import { activeRunAge, afterRunWrong, capturing, finishedRun, RETIRED_KEYS, state } from "./state.js";
+import {
+  activeRunAge,
+  afterRunWrong,
+  capturing,
+  finishedRun,
+  RETIRED_KEYS,
+  state,
+} from "./state.js";
 import * as teaching from "./teaching.js";
-import { release as releaseTree, releaseAll, takeTree, takeTreeSoon } from "./trees.js";
+import {
+  release as releaseTree,
+  releaseAll,
+  takeTree,
+  takeTreeSoon,
+} from "./trees.js";
 import { flush } from "./upload.js";
 
 const BEAT = "sro-heartbeat";
@@ -47,7 +65,9 @@ const VERSION = chrome.runtime.getManifest().version;
 // The toolbar button opens the panel rather than a popup: everything this
 // extension has to say is about the tab you are looking at, and a popup closes
 // the moment you look at it.
-void chrome.sidePanel?.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {});
+void chrome.sidePanel
+  ?.setPanelBehavior({ openPanelOnActionClick: true })
+  .catch(() => {});
 
 /** Everything the rig settings wrote, taken off this browser -- one of the
  * three is the tenant's bearer, and a credential nothing can spend any more is
@@ -140,7 +160,6 @@ chrome.webNavigation.onCreatedNavigationTarget.addListener((d) => {
   void popupEvent(d);
 });
 
-
 // -- offering to do the one they are about to do -----------------------------
 
 /** Cached per host, because a navigation happens far more often than a task is
@@ -172,7 +191,10 @@ async function candidatesFor(host) {
  */
 function rigArrivals(shapes, host) {
   return shapes
-    .filter((shape) => shape.starts_on && shape.starts_on.split("/")[0].split(":")[0] === host)
+    .filter(
+      (shape) =>
+        shape.starts_on && shape.starts_on.split("/")[0].split(":")[0] === host,
+    )
     .filter((shape) => !resting(shape))
     .map((shape) => {
       const names = (shape.parameters || []).map((p) => p.name);
@@ -230,7 +252,9 @@ async function considerNudge(tabId, url, visit) {
         await state.setNudges(swept.slice(0, MAX_NUDGES));
         return null;
       }
-      await state.setNudges([fire(fired, now, { tabId, visit }), ...swept].slice(0, MAX_NUDGES));
+      await state.setNudges(
+        [fire(fired, now, { tabId, visit }), ...swept].slice(0, MAX_NUDGES),
+      );
       return fired;
     });
     if (candidate) await showNudge(tabId, candidate.title);
@@ -286,7 +310,9 @@ async function considerArrival(tabId, url, visit) {
       // Written before the call, not after. The call takes a round trip, and a
       // second navigation event for the same commit -- which Chrome does emit
       // -- would otherwise find nothing written and fire again.
-      await state.setArrived([visit, ...already].slice(0, MOST_ARRIVALS_REMEMBERED));
+      await state.setArrived(
+        [visit, ...already].slice(0, MOST_ARRIVALS_REMEMBERED),
+      );
       return rules[0];
     });
     if (!fired) return;
@@ -305,7 +331,11 @@ async function considerArrival(tabId, url, visit) {
     // card the operator should have seen is the confirmation, which
     // `waitingOnSomebody` already fetches.
     if (started?.run_id) {
-      await state.setActiveRun({ runId: started.run_id, at: Date.now(), source: "rig" });
+      await state.setActiveRun({
+        runId: started.run_id,
+        at: Date.now(),
+        source: "rig",
+      });
     }
   } catch (error) {
     // A tab that closed mid-navigation, a rule the backend has since disabled,
@@ -377,12 +407,19 @@ async function didItThemselves(message) {
   return serially(async () => {
     const held = await state.nudges();
     if (!held.some((nudge) => nudge.state === "open")) return;
-    const after = onCall(held, { url: message.url, method: message.method }, Date.now());
+    const after = onCall(
+      held,
+      { url: message.url, method: message.method },
+      Date.now(),
+    );
     if (after === held) return;
     await state.setNudges(after);
     reportEndings(held, after);
     for (const nudge of held) {
-      if (nudge.state === "open" && after.find((each) => each.id === nudge.id)?.state !== "open") {
+      if (
+        nudge.state === "open" &&
+        after.find((each) => each.id === nudge.id)?.state !== "open"
+      ) {
         void hideNudge(nudge.tabId);
       }
     }
@@ -534,7 +571,9 @@ async function offerFromMail(offer) {
 /** The offer, from a reading somebody else already paid for. */
 async function offerFromJob(placed, tabId) {
   if (tabId === null) return;
-  const shape = (await shapesFor()).find((one) => one.id === placed.workflow_id);
+  const shape = (await shapesFor()).find(
+    (one) => one.id === placed.workflow_id,
+  );
   const made = fire(
     {
       id: placed.workflow_id,
@@ -549,7 +588,8 @@ async function offerFromJob(placed, tabId) {
       // What the door said, where it said anything; what the deployment last
       // told this browser otherwise. The two agree -- both are the same
       // container property -- and the fallback is for an older backend.
-      can_find: placed.can_find === undefined ? canFind : Boolean(placed.can_find),
+      can_find:
+        placed.can_find === undefined ? canFind : Boolean(placed.can_find),
       parameters: (shape?.parameters || []).map((one) => one.name),
     },
     Date.now(),
@@ -558,7 +598,9 @@ async function offerFromJob(placed, tabId) {
     const held = await state.nudges();
     // One open offer at a time: a sentence supersedes whatever was offered.
     const rest = held.map((one) =>
-      one.state === "open" ? { ...one, state: "expired", endedAt: Date.now() } : one,
+      one.state === "open"
+        ? { ...one, state: "expired", endedAt: Date.now() }
+        : one,
     );
     await state.setNudges([{ ...made, tabId }, ...rest].slice(0, MAX_NUDGES));
   });
@@ -573,12 +615,19 @@ async function offerFromWords(text, tabId) {
     // the shortcut this was built to avoid -- so what is left is to put the
     // answer where the panel draws it.
     if (said?.kind === "lookup") {
-      await state.setAnswer({ said: text, tabId, askedAt: Date.now(), ...said.lookup });
+      await state.setAnswer({
+        said: text,
+        tabId,
+        askedAt: Date.now(),
+        ...said.lookup,
+      });
       return;
     }
     const read = said?.job;
     if (!read?.workflow_id) return;
-    const shape = (await shapesFor()).find((one) => one.id === read.workflow_id);
+    const shape = (await shapesFor()).find(
+      (one) => one.id === read.workflow_id,
+    );
     const made = fire(
       {
         id: read.workflow_id,
@@ -602,7 +651,9 @@ async function offerFromWords(text, tabId) {
       // One open offer at a time, which is the queue this design exists to not
       // be: a sentence supersedes whatever the browser was offering.
       const rest = held.map((one) =>
-        one.state === "open" ? { ...one, state: "expired", endedAt: Date.now() } : one,
+        one.state === "open"
+          ? { ...one, state: "expired", endedAt: Date.now() }
+          : one,
       );
       await state.setNudges([{ ...made, tabId }, ...rest].slice(0, MAX_NUDGES));
     });
@@ -620,11 +671,12 @@ async function offerFromWords(text, tabId) {
     // this needs no new surface: the operator sees that the door refused and
     // the log says which.
     if (error instanceof ApiError) {
-      await state.setLastError(`the panel could not ask about that: ${error.message}`);
+      await state.setLastError(
+        `the panel could not ask about that: ${error.message}`,
+      );
     }
   }
 }
-
 
 async function considerOffer(tabId, gesture) {
   try {
@@ -645,7 +697,11 @@ async function considerOffer(tabId, gesture) {
     if (!shapes.length) return;
     const tails = await state.tails();
     const tail = tailWith(tails[tabId] || [], {
-      triple: tripleOf({ system: origin, target: gesture.target, kind: gesture.kind }),
+      triple: tripleOf({
+        system: origin,
+        target: gesture.target,
+        kind: gesture.kind,
+      }),
       // A credential field contributes the fact that it was typed and nothing
       // else: the shape still matches, and the offer simply has one more
       // parameter it has to ask for.
@@ -672,7 +728,8 @@ async function considerOffer(tabId, gesture) {
     // told about one offer that no longer existed.
     await serially(async () => {
       const held = await state.nudges();
-      const open = held.find((n) => n.state === "open" && n.tabId === tabId) || null;
+      const open =
+        held.find((n) => n.state === "open" && n.tabId === tabId) || null;
       const { replace, end } = decideOffer({ tail, shapes, open, origin, now });
       if (end && open) return endOffer(open, end, held);
       if (!replace) return;
@@ -704,8 +761,12 @@ async function considerOffer(tabId, gesture) {
       // somebody is doing right now, and twenty of those must not be able to
       // push a request off the end of the list. Nothing is lost by a busy
       // morning.
-      const waiting = [made, ...rest].filter((n) => n.keeps && n.state === "open");
-      const others = [made, ...rest].filter((n) => !(n.keeps && n.state === "open"));
+      const waiting = [made, ...rest].filter(
+        (n) => n.keeps && n.state === "open",
+      );
+      const others = [made, ...rest].filter(
+        (n) => !(n.keeps && n.state === "open"),
+      );
       await state.setNudges([...waiting, ...others.slice(0, MAX_NUDGES)]);
       // The title alone: `paintNudge` wraps whatever it is given in "do ...?",
       // so a sentence renders as a question about a question.
@@ -737,7 +798,9 @@ function forgetTail(tabId) {
 }
 
 async function endOffer(nudge, fate, held) {
-  await state.setNudges(held.map((n) => (n.id === nudge.id ? { ...n, state: fate } : n)));
+  await state.setNudges(
+    held.map((n) => (n.id === nudge.id ? { ...n, state: fate } : n)),
+  );
   void hideNudge(nudge.tabId);
   void report(nudge, fate);
 }
@@ -752,8 +815,12 @@ async function report(nudge, fate, runId = null) {
   if (nudge.source !== "rig" || !nudge.workflowId) return;
   try {
     void api.reportOffer({
-      workflow_id: nudge.workflowId, k: nudge.k || 0, fate, run_id: runId,
-      device_id: await state.deviceId(), at: new Date().toISOString(),
+      workflow_id: nudge.workflowId,
+      k: nudge.k || 0,
+      fate,
+      run_id: runId,
+      device_id: await state.deviceId(),
+      at: new Date().toISOString(),
     });
   } catch {
     // Called with `void` from every ending. A rejection here is an unhandled
@@ -818,7 +885,8 @@ async function watchedTabs() {
   // Tidying is never allowed to fail a capture. Storage can reject -- a full
   // disk, a quota -- and a gesture lost because the housekeeping beside it
   // threw is the same bug as a gesture lost to a failed screenshot.
-  if (kept.length !== watched.length) await state.setWatched(kept).catch(() => {});
+  if (kept.length !== watched.length)
+    await state.setWatched(kept).catch(() => {});
   return kept;
 }
 
@@ -893,7 +961,9 @@ function watch(tabId, url) {
 /** Whether the tenant's policy excludes this host by default. */
 async function isExcluded(host) {
   const policy = await state.policy();
-  return (policy?.exclude_hosts || []).some((pattern) => hostMatches(host, pattern));
+  return (policy?.exclude_hosts || []).some((pattern) =>
+    hostMatches(host, pattern),
+  );
 }
 
 /** Ask the server to watch this host too, and remember what it answered.
@@ -911,7 +981,9 @@ async function grant(host) {
     // Said out loud rather than swallowed: the panel will claim to be watching
     // a tab whose evidence the backend is about to refuse, and the operator
     // has no other way to find that out.
-    await state.setLastError(error instanceof ApiError ? error.message : String(error));
+    await state.setLastError(
+      error instanceof ApiError ? error.message : String(error),
+    );
   }
 }
 
@@ -953,7 +1025,8 @@ function unwatch(tabId) {
       const { [tabId]: _gone, ...kept } = tails;
       await state.setTails(kept);
     }
-    if (leaving?.host && (await isExcluded(leaving.host))) await ungrant(leaving.host);
+    if (leaving?.host && (await isExcluded(leaving.host)))
+      await ungrant(leaving.host);
     return next;
   });
 }
@@ -1030,7 +1103,13 @@ function underPolicy(request, policy) {
 
   const allowed = (body, keep) => {
     if (!body) return body;
-    if (!keep) return { ...body, text: null, size_bytes: 0, redacted_fields: ["«not captured»"] };
+    if (!keep)
+      return {
+        ...body,
+        text: null,
+        size_bytes: 0,
+        redacted_fields: ["«not captured»"],
+      };
     if ((body.size_bytes ?? 0) > limit) {
       return {
         ...body,
@@ -1045,7 +1124,10 @@ function underPolicy(request, policy) {
   return {
     ...request,
     request_body: allowed(request.request_body, true),
-    response_body: allowed(request.response_body, policy?.capture_response_bodies !== false),
+    response_body: allowed(
+      request.response_body,
+      policy?.capture_response_bodies !== false,
+    ),
   };
 }
 
@@ -1059,7 +1141,9 @@ const halfDeaf = new Set();
 
 chrome.runtime.onMessage.addListener((message, sender, respond) => {
   // Returning true keeps the channel open for the async answer.
-  handle(message, sender).then(respond, (error) => respond({ error: String(error) }));
+  handle(message, sender).then(respond, (error) =>
+    respond({ error: String(error) }),
+  );
   return true;
 });
 
@@ -1101,7 +1185,8 @@ async function handle(message, sender) {
       // a watched tab is evidence and nothing outside one is -- no host list
       // decides it, which is why a console polling its own backend all day
       // never became 97% of a day's capture again.
-      if (!watching) return { ok: false, dropped: "this tab is not being watched" };
+      if (!watching)
+        return { ok: false, dropped: "this tab is not being watched" };
       if (!(await admits(frameUrl, policy))) {
         return { ok: false, dropped: "excluded host" };
       }
@@ -1115,7 +1200,8 @@ async function handle(message, sender) {
         // in a bounded map the run can ask about: a step that just posted a
         // form is verified by what the server answered rather than by
         // photographing the page and asking a model what it looks like.
-        if (message.kind === "request") noteDriven(sender?.tab?.id ?? null, message.request);
+        if (message.kind === "request")
+          noteDriven(sender?.tab?.id ?? null, message.request);
         return { ok: false, dropped: "this browser is performing a run" };
       }
       // Somebody is working in here. Said out loud on the channel so a command
@@ -1147,7 +1233,9 @@ async function handle(message, sender) {
       // happened in, and either can be the callback URL with the token in it.
       const demonstrating = await teaching.current();
       const recordingId =
-        demonstrating && demonstrating.tabId === tab_id ? demonstrating.recordingId : null;
+        demonstrating && demonstrating.tabId === tab_id
+          ? demonstrating.recordingId
+          : null;
 
       if (message.kind === "gesture") {
         // Taken before the row is written so the picture and the gesture are
@@ -1165,7 +1253,10 @@ async function handle(message, sender) {
         await queue.enqueue(
           {
             kind: "gesture",
-            gesture: { ...message.gesture, url: redactUrl(message.gesture?.url) },
+            gesture: {
+              ...message.gesture,
+              url: redactUrl(message.gesture?.url),
+            },
             tab_id,
             frame_url: redactUrl(frameUrl),
             page_url,
@@ -1324,7 +1415,10 @@ async function handle(message, sender) {
       // and gets an empty recording learns nothing except not to trust this.
       await watch(tab.id, tab.url);
       await injectHere(tab.id, tab.url);
-      const started = await api.startRecording(deviceId, message.label || tab.title || null);
+      const started = await api.startRecording(
+        deviceId,
+        message.label || tab.title || null,
+      );
       try {
         // Chrome allows one debugger per tab, so passive trees let go before a
         // deliberate demonstration asks for it. That way round because the
@@ -1369,7 +1463,9 @@ async function handle(message, sender) {
       }
       const sent = await drain();
       if (sent.error) {
-        return { error: `not sealed, because the last of it did not upload: ${sent.error}` };
+        return {
+          error: `not sealed, because the last of it did not upload: ${sent.error}`,
+        };
       }
       const summary = await api.finishRecording(was.recordingId);
       return { ok: true, was, summary };
@@ -1386,7 +1482,9 @@ async function handle(message, sender) {
       // driven never learned the job's name or how far through it was. The
       // panel says which kind it is asking about; it is the only thing that
       // knows, because it is what the worker told it.
-      return message.source === "rig" ? api.rigRun(message.runId) : api.run(message.runId);
+      return message.source === "rig"
+        ? api.rigRun(message.runId)
+        : api.run(message.runId);
     case "skill":
       return api.skill(message.skillId);
     case "summary":
@@ -1405,7 +1503,12 @@ async function handle(message, sender) {
         await state.setNudges(
           held.map((nudge) =>
             nudge.id === message.id
-              ? { ...nudge, state: "answered", answer: message.answer, endedAt: Date.now() }
+              ? {
+                  ...nudge,
+                  state: "answered",
+                  answer: message.answer,
+                  endedAt: Date.now(),
+                }
               : nudge,
           ),
         );
@@ -1413,7 +1516,9 @@ async function handle(message, sender) {
       });
       if (was) void hideNudge(was.tabId);
       if (was && message.answer === "not-here") {
-        await state.setMuted(mute(await state.muted(), was.startsOn, Date.now()));
+        await state.setMuted(
+          mute(await state.muted(), was.startsOn, Date.now()),
+        );
         // Only if the answer is what ended it. A nudge already swept or
         // dropped has reported its fate, and an offer with two fates is one
         // the rig cannot count.
@@ -1449,7 +1554,11 @@ async function handle(message, sender) {
         if (answered.run_id) {
           // So the panel draws the run it just started, rather than waiting
           // for the first command to arrive and tell it.
-          await state.setActiveRun({ runId: answered.run_id, at: Date.now(), source: "rig" });
+          await state.setActiveRun({
+            runId: answered.run_id,
+            at: Date.now(),
+            source: "rig",
+          });
         }
         return { ok: true, ...answered };
       } catch (error) {
@@ -1465,8 +1574,11 @@ async function handle(message, sender) {
       // docked beside. The offer is about a page the miner recorded the job
       // starting on, and a rule made about the tab somebody happened to have
       // in front of them is a rule about the wrong page that fires forever.
-      const nudge = (await state.nudges()).find((n) => n.id === message.nudgeId);
-      if (!nudge || !nudge.workflowId) return { ok: false, error: "no such offer" };
+      const nudge = (await state.nudges()).find(
+        (n) => n.id === message.nudgeId,
+      );
+      if (!nudge || !nudge.workflowId)
+        return { ok: false, error: "no such offer" };
       const page = rulePage(`https://${nudge.startsOn || ""}`);
       if (!page) return { ok: false, error: "that offer does not name a page" };
       try {
@@ -1502,12 +1614,17 @@ async function handle(message, sender) {
         const held = await state.nudges();
         const found = held.find((n) => n.id === message.nudgeId);
         if (!found || found.source !== "rig") return { error: "no such offer" };
-        if (found.state !== "open") return { error: "this offer has already ended" };
+        if (found.state !== "open")
+          return { error: "this offer has already ended" };
         // Claimed before the POST, not after. Between the two sits a network
         // call that can take a second, and anything else reading the list
         // meanwhile would find the offer still `open` and end it.
         await state.setNudges(
-          held.map((n) => (n.id === found.id ? { ...n, state: "accepted", endedAt: Date.now() } : n)),
+          held.map((n) =>
+            n.id === found.id
+              ? { ...n, state: "accepted", endedAt: Date.now() }
+              : n,
+          ),
         );
         return { nudge: found };
       });
@@ -1528,7 +1645,10 @@ async function handle(message, sender) {
         // credential it arrived on; a body field saying so is a signature
         // nobody checked, written into the row an audit reads first.
         started = await api.rigStart({
-          workflow_id: nudge.workflowId, values, items, device_id: await state.deviceId(),
+          workflow_id: nudge.workflowId,
+          values,
+          items,
+          device_id: await state.deviceId(),
           // `matched`, not `from_step`. `k` is how many SHAPE ENTRIES the tail
           // matched and an entry is one cited gesture, so a step of four
           // gestures is four of them -- 19 entries over 6 steps on the first
@@ -1536,7 +1656,16 @@ async function handle(message, sender) {
           // done that nobody had done, and above the step count the press came
           // back refused. The backend has the steps behind the shape and does
           // the conversion there.
-          live: true, allow_focus: true, matched: nudge.k || 0,
+          live: true,
+          allow_focus: true,
+          matched: nudge.k || 0,
+          // Somebody is looking at this. The press came from an open panel, so
+          // the run does the job ON THE SCREEN -- it types into the form and
+          // presses Save -- instead of replaying the call the demonstration
+          // made. Both end with one record; only one of them is something the
+          // person watching can see happen. A trigger firing at three in the
+          // morning never comes through here, and is left to replay.
+          watched: true,
         });
       } catch (error) {
         // No run was started, so nothing was accepted. The offer goes back to
@@ -1545,7 +1674,9 @@ async function handle(message, sender) {
         await serially(async () => {
           const now = await state.nudges();
           await state.setNudges(
-            now.map((n) => (n.id === nudge.id ? { ...n, state: "open", endedAt: null } : n)),
+            now.map((n) =>
+              n.id === nudge.id ? { ...n, state: "open", endedAt: null } : n,
+            ),
           );
         });
         return { ok: false, error: error.problem?.detail || error.message };
@@ -1554,7 +1685,11 @@ async function handle(message, sender) {
       // 201 with the whole `WorkflowRunModel`, where the rig answered 202 and
       // `{"run_id": ...}`. Read as `run_id` this is `undefined`, and the panel
       // draws a run with no id it can ever poll or approve.
-      await state.setActiveRun({ runId: started.id, at: Date.now(), source: "rig" });
+      await state.setActiveRun({
+        runId: started.id,
+        at: Date.now(),
+        source: "rig",
+      });
       // From here the panel draws the run itself, a row per step as it lands.
       // Beside the record that says a rig run is active, because that record is
       // the whole of what `pollRigRun` reads. Not awaited: the press answers as
@@ -1580,7 +1715,9 @@ async function handle(message, sender) {
         if (!nudge || nudge.state !== "open") return { ok: true };
         await state.setNudges(
           held.map((n) =>
-            n.id === nudge.id ? { ...n, state: "dismissed", endedAt: Date.now() } : n,
+            n.id === nudge.id
+              ? { ...n, state: "dismissed", endedAt: Date.now() }
+              : n,
           ),
         );
         void badge();
@@ -1593,7 +1730,8 @@ async function handle(message, sender) {
       // From the pill in the page. Opening it is all it does: the offer is in
       // the panel with its two answers, and pressing one there is what
       // authorises anything.
-      if (sender?.tab?.id !== undefined) await chrome.sidePanel.open({ tabId: sender.tab.id });
+      if (sender?.tab?.id !== undefined)
+        await chrome.sidePanel.open({ tabId: sender.tab.id });
       return { ok: true };
     case "revise-run":
       return api.reviseRun(message.runId, message.values);
@@ -1642,7 +1780,10 @@ async function handle(message, sender) {
       // this browser frames cannot see the credential in its own tab, because
       // Chrome partitions storage for framed contexts, so the panel has to hand
       // it across. It goes to the configured origin and nowhere else.
-      return { consoleUrl: await state.consoleUrl(), token: await state.token() };
+      return {
+        consoleUrl: await state.consoleUrl(),
+        token: await state.token(),
+      };
     case "approve-rig-run": {
       // The press on the awaiting row. It comes here rather than going to the
       // rig from the panel for the same reason `start-rig-run` does: the rig's
@@ -1654,7 +1795,10 @@ async function handle(message, sender) {
       // run that has since been superseded -- could otherwise authorise a live
       // write in somebody's warehouse against a run nobody here is watching.
       if (message.runId !== (await state.activeRun())?.runId) {
-        return { ok: false, error: "that run is not the one this browser is driving" };
+        return {
+          ok: false,
+          error: "that run is not the one this browser is driving",
+        };
       }
       try {
         return await api.rigApprove(message.runId, await state.deviceId());
@@ -1769,7 +1913,11 @@ async function handle(message, sender) {
       // in a content script.
       const host = hostOf(sender?.url || "");
       const held = await state.watches();
-      return { watches: host ? held.filter((watch) => hostMatches(host, watch.host)) : [] };
+      return {
+        watches: host
+          ? held.filter((watch) => hostMatches(host, watch.host))
+          : [],
+      };
     }
     case "watch-matched": {
       // The one place a value read out of somebody's mail leaves this
@@ -1779,14 +1927,17 @@ async function handle(message, sender) {
       // nothing else. A page that made this message up gets nowhere.
       const deviceId = await state.deviceId();
       const host = hostOf(sender?.url || "");
-      const watch = (await state.watches()).find((each) => each.id === message.triggerId);
+      const watch = (await state.watches()).find(
+        (each) => each.id === message.triggerId,
+      );
       if (!deviceId || !watch || !hostMatches(host, watch.host)) {
         return { error: "no such watch" };
       }
       const values = {};
       for (const declared of watch.values || []) {
         const given = message.values?.[declared.name];
-        if (typeof given === "string" && given) values[declared.name] = given.slice(0, MAX_VALUE);
+        if (typeof given === "string" && given)
+          values[declared.name] = given.slice(0, MAX_VALUE);
       }
       // One identity per match, found before it is minted. `watch.js` reports
       // per frame, so a mail sitting open reports itself repeatedly; the id is
@@ -1801,7 +1952,10 @@ async function handle(message, sender) {
         // offer to run something. Nothing is held: a question already answered
         // has nothing left to press.
         const question = values[QUESTION];
-        if (!question) return { error: "this mail has no question where the watch says one is" };
+        if (!question)
+          return {
+            error: "this mail has no question where the watch says one is",
+          };
         const answer = await api.lookup(question);
         await state.setAnswer({
           said: question,
@@ -1811,7 +1965,8 @@ async function handle(message, sender) {
         });
         return { ok: true, asked: true };
       }
-      const offerId = (await sameOfferAs(watch, values))?.id || crypto.randomUUID();
+      const offerId =
+        (await sameOfferAs(watch, values))?.id || crypto.randomUUID();
       const offer = await api.watchMatched(deviceId, watch.id, values, offerId);
       await hold(watch, values, offer, offerId);
       return { ok: true, offer };
@@ -1826,13 +1981,20 @@ async function handle(message, sender) {
       // nothing here starts anything -- but a page that made this message up
       // should still get nowhere.
       const host = hostOf(sender?.url || "");
-      const watch = (await state.watches()).find((each) => each.id === message.triggerId);
-      if (!watch || !hostMatches(host, watch.host)) return { error: "no such watch" };
+      const watch = (await state.watches()).find(
+        (each) => each.id === message.triggerId,
+      );
+      if (!watch || !hostMatches(host, watch.host))
+        return { error: "no such watch" };
       // The terms are the watch's own, read from the rule this worker holds
       // rather than from the message: a page that sent a different string
       // would otherwise put its own text on the panel.
-      const mine = new Set((watch.terms || []).map((term) => String(term.contains)));
-      const terms = (message.terms || []).map(String).filter((term) => mine.has(term));
+      const mine = new Set(
+        (watch.terms || []).map((term) => String(term.contains)),
+      );
+      const terms = (message.terms || [])
+        .map(String)
+        .filter((term) => mine.has(term));
       if (!terms.length) return { ok: true };
       await serially(async () => {
         const held = await state.nearMisses();
@@ -1864,7 +2026,8 @@ async function handle(message, sender) {
       // in a panel is not a way to reach a name the watch never declared.
       const chosen = { ...offer.read };
       for (const [name, value] of Object.entries(message.values || {})) {
-        if (name in chosen || (offer.missing || []).includes(name)) chosen[name] = String(value);
+        if (name in chosen || (offer.missing || []).includes(name))
+          chosen[name] = String(value);
       }
       const fired = await api.watchFire(deviceId, offer.triggerId, chosen);
       // Kept when nothing started, so the card can say why. A laptop that was
@@ -1872,7 +2035,9 @@ async function handle(message, sender) {
       await state.setOffers(
         fired.run_id
           ? offers.filter((each) => each.id !== offer.id)
-          : offers.map((each) => (each.id === offer.id ? { ...each, skipped: fired.skipped } : each)),
+          : offers.map((each) =>
+              each.id === offer.id ? { ...each, skipped: fired.skipped } : each,
+            ),
       );
       return fired;
     }
@@ -1885,7 +2050,9 @@ async function handle(message, sender) {
       // apart from a laptop that was asleep. A counter on the trigger and one
       // endpoint, the day somebody reviews watches.
       const offers = await state.offers();
-      await state.setOffers(offers.filter((each) => each.id !== message.offerId));
+      await state.setOffers(
+        offers.filter((each) => each.id !== message.offerId),
+      );
       return { ok: true };
     }
     case "status":
@@ -2009,13 +2176,20 @@ async function lookInTheMail() {
       reached: !String(looked?.why || "").includes("could not be reached"),
     });
     for (const offer of looked?.offered || []) await offerFromMail(offer);
-    return { ok: true, offered: (looked?.offered || []).length, read: looked?.read || 0 };
+    return {
+      ok: true,
+      offered: (looked?.offered || []).length,
+      read: looked?.read || 0,
+    };
   } catch (error) {
     // A door that is not there yet, a backend being restarted, a browser with
     // no credential. None of them is worth a red line in the panel: the look is
     // a background convenience and the operator can always type the request.
     await state.setMailLooked({ at: Date.now(), reached: false });
-    return { ok: true, skipped: error instanceof ApiError ? error.message : String(error) };
+    return {
+      ok: true,
+      skipped: error instanceof ApiError ? error.message : String(error),
+    };
   }
 }
 
@@ -2042,7 +2216,9 @@ const MAX_OFFERS = 20;
 async function sameOfferAs(watch, read) {
   const held = await state.offers();
   return held.find(
-    (each) => each.triggerId === watch.id && JSON.stringify(each.read) === JSON.stringify(read),
+    (each) =>
+      each.triggerId === watch.id &&
+      JSON.stringify(each.read) === JSON.stringify(read),
   );
 }
 
@@ -2052,7 +2228,10 @@ async function hold(watch, read, offer, offerId) {
   // The name comes back with the offer now, because a watch may name a mined
   // job and there is no `/v1/skills/{id}` for one. The fetch stays as the
   // fallback for a backend that predates the field.
-  const named = offer.title || (await api.skill(offer.skill_id).catch(() => null))?.name || "";
+  const named =
+    offer.title ||
+    (await api.skill(offer.skill_id).catch(() => null))?.name ||
+    "";
   await state.setOffers(
     [
       {
@@ -2135,7 +2314,9 @@ export async function refreshArrivals() {
         .map((trigger) => ({ id: trigger.id, page: trigger.arrival.page })),
     );
   } catch (error) {
-    await state.setLastError(error instanceof ApiError ? error.message : String(error));
+    await state.setLastError(
+      error instanceof ApiError ? error.message : String(error),
+    );
   }
 }
 
@@ -2152,10 +2333,16 @@ async function refreshWatches() {
         // where every other one becomes an offer to run something. The flag
         // rides on the watch rather than being looked up per match, so a
         // browser holding a stale list still knows which kind it holds.
-        .map((trigger) => ({ id: trigger.id, asks: Boolean(trigger.asks), ...trigger.watch })),
+        .map((trigger) => ({
+          id: trigger.id,
+          asks: Boolean(trigger.asks),
+          ...trigger.watch,
+        })),
     );
   } catch (error) {
-    await state.setLastError(error instanceof ApiError ? error.message : String(error));
+    await state.setLastError(
+      error instanceof ApiError ? error.message : String(error),
+    );
   }
 }
 
@@ -2203,11 +2390,13 @@ async function drain() {
 async function flushQueue() {
   const deviceId = await state.deviceId();
   const allowed = await capturing();
-  if (!deviceId || !allowed.on) return { uploaded: 0, because: allowed.because || "not registered" };
+  if (!deviceId || !allowed.on)
+    return { uploaded: 0, because: allowed.because || "not registered" };
   try {
     const result = await flush(deviceId);
     if (result.error) await state.setLastError(result.error);
-    else if (result.uploaded || result.screenshots) await state.setLastError("");
+    else if (result.uploaded || result.screenshots)
+      await state.setLastError("");
     return result;
   } catch (error) {
     // A 401 already dropped the token in api.js; settle() reflects that as
@@ -2253,7 +2442,9 @@ async function beat() {
     try {
       await register();
     } catch (error) {
-      await state.setLastError(error instanceof ApiError ? error.message : String(error));
+      await state.setLastError(
+        error instanceof ApiError ? error.message : String(error),
+      );
       return;
     }
   }
@@ -2280,7 +2471,10 @@ async function beat() {
         );
       }
     }
-    const [queuedEvents, queuedBytes] = await Promise.all([queue.count(), queue.totalBytes()]);
+    const [queuedEvents, queuedBytes] = await Promise.all([
+      queue.count(),
+      queue.totalBytes(),
+    ]);
     const answer = await api.heartbeat(deviceId, {
       queued_events: queuedEvents,
       queued_bytes: queuedBytes,
@@ -2293,7 +2487,9 @@ async function beat() {
   } catch (error) {
     // A heartbeat that cannot reach the backend is not a reason to stop
     // capturing -- the queue is what capture is for. It is a reason to say so.
-    await state.setLastError(error instanceof ApiError ? error.message : String(error));
+    await state.setLastError(
+      error instanceof ApiError ? error.message : String(error),
+    );
   }
   // A watch created in the console this morning reaches the browser here. The
   // heartbeat is already the tick that asks what changed, and a mail rule is
@@ -2357,7 +2553,9 @@ async function badge() {
   const waiting = (await state.nudges()).filter(
     (nudge) => nudge.state === "open" && nudge.keeps,
   ).length;
-  const counted = waiting ? `${waiting} request${waiting === 1 ? "" : "s"} waiting` : "";
+  const counted = waiting
+    ? `${waiting} request${waiting === 1 ? "" : "s"} waiting`
+    : "";
   await chrome.action.setBadgeText({
     text: allowed.on ? "REC" : waiting ? String(Math.min(waiting, 99)) : "",
   });
@@ -2392,18 +2590,17 @@ async function status(sender = null) {
     serverPaused,
     lastBeat,
     lastError,
-  ] =
-    await Promise.all([
-      capturing(),
-      state.deviceId(),
-      state.policy(),
-      state.apiUrl(),
-      state.consoleUrl(),
-      state.paused(),
-      state.serverPaused(),
-      state.lastBeat(),
-      state.lastError(),
-    ]);
+  ] = await Promise.all([
+    capturing(),
+    state.deviceId(),
+    state.policy(),
+    state.apiUrl(),
+    state.consoleUrl(),
+    state.paused(),
+    state.serverPaused(),
+    state.lastBeat(),
+    state.lastError(),
+  ]);
   // Not awaited: the panel polls this every two seconds and a card about a run
   // that already finished should not make every one of those polls wait on a
   // network round trip. See `checkFinishing()` -- also run off the heartbeat
@@ -2532,7 +2729,9 @@ async function waitingOnSomebody() {
   // card grows a field the backend has to learn to send.
   const rules = await state.arrivals();
   const open = new Set(
-    (await chrome.tabs.query({})).map((tab) => rulePage(tab.url || "")).filter(Boolean),
+    (await chrome.tabs.query({}))
+      .map((tab) => rulePage(tab.url || ""))
+      .filter(Boolean),
   );
   return (cards || []).map((card) => {
     const page = rules.find((rule) => rule.id === card.trigger_id)?.page || "";
@@ -2617,7 +2816,11 @@ async function pollRigRun() {
     // is then structurally unable to draw the one control the run is waiting
     // on. Asking anyway costs one 404 for a run that is not a workflow run,
     // which the catch below already handles.
-    if (active.source && active.source !== "rig" && rigRunShown?.id !== active.runId) {
+    if (
+      active.source &&
+      active.source !== "rig" &&
+      rigRunShown?.id !== active.runId
+    ) {
       // Still worth asking once. What is not worth doing is asking every two
       // seconds forever about an id that is not a workflow run at all, so a
       // miss is remembered.
@@ -2641,7 +2844,10 @@ async function pollRigRun() {
       // Said out loud, where this used to swallow everything. A panel drawing
       // a run with no steps because the ask failed looks exactly like a run
       // that has no steps, and the operator has nothing to go on.
-      else await state.setLastError(`the run this browser is driving could not be read: ${error}`);
+      else
+        await state.setLastError(
+          `the run this browser is driving could not be read: ${error}`,
+        );
     }
     // Only a successful answer saying the run has ended stops the timer. A
     // failed ask does not: a rig that is briefly unreachable while a run is

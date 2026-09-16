@@ -82,9 +82,7 @@ async def _timeline(tenant: str | None, since: int, limit: int, typed: bool) -> 
     async with engine.connect() as db:
         rows = list(
             (
-                await db.execute(
-                    text(TIMELINE), {"tenant": tenant, "since": since, "limit": limit}
-                )
+                await db.execute(text(TIMELINE), {"tenant": tenant, "since": since, "limit": limit})
             ).all()
         )
     await engine.dispose()

@@ -769,6 +769,7 @@ async def _ran(
     values: Mapping[str, str] | None = None,
     live: bool = True,
     allow_focus: bool = True,
+    watched: bool = False,
     started_by: str = "form",
     tenant_id: TenantId = TENANT,
     device_id: DeviceId = DEVICE,
@@ -808,6 +809,7 @@ async def _ran(
             rescue_model=rescue_model,
             live=live,
             allow_focus=allow_focus,
+            watched=watched,
             started_by=started_by,
             stops=stops or Stops(),
             approvals=approvals or Approvals(),
@@ -4695,6 +4697,93 @@ async def test_a_form_step_is_still_done_when_the_write_is_not_a_call() -> None:
 
     assert [one.verdict for one in run.steps] == ["held", "held"]
     assert len([one for one in channel.sent if one["kind"] == "ui.perform"]) == 2
+
+
+# --- which of the two ways this run does the job -----------------------------
+
+
+async def test_a_watched_run_does_the_job_on_the_screen() -> None:
+    """The mode decision, one half.
+
+    A press in an open panel means *show me*. Somebody is sitting in front of
+    the screen, and a run that answers by posting a call leaves them looking at
+    a form that never moved -- the record appears, the page does not, and the
+    only honest thing they can conclude is that nothing happened. So a watched
+    run performs every step: the field is typed, Save is pressed, and what they
+    see is what was done.
+
+    The evidence here is exactly the evidence that collapses an unwatched run
+    -- a ledger row for `POST /api/orders`, earned standing -- and the run
+    still fills the form. Nothing about the JOB decides this. The person does.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel({**_looks(4), "ui.perform": [_performed(), _performed()]})
+    asker = FakeAsker(
+        _plan("type", "WATCHED"),
+        Answer(data={"held": True, "why": ""}),
+        _plan("click"),
+        Answer(data={"held": True, "why": ""}),
+    )
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        values={"clientCode": "WATCHED"},
+        earned=True,
+        verified_writes=(VerifiedWrite(method="POST", path_pattern="/api/orders"),),
+        watched=True,
+    )
+
+    assert [one.verdict for one in run.steps] == ["held", "held"], run.steps
+    assert len([one for one in channel.sent if one["kind"] == "ui.perform"]) == 2
+    # And the call is not ALSO made. Either the form is filled and Save is
+    # pressed, or the call is replayed and neither happens -- both is two
+    # records in a warehouse that wanted one.
+    assert not [
+        one
+        for one in channel.sent
+        if one["kind"] == "http.send" and _payload(one)["method"] != "GET"
+    ], "a watched run filled the form and posted the call as well"
+
+
+async def test_an_unwatched_run_replays_the_call() -> None:
+    """The other half, and the same job.
+
+    At three in the morning nobody is looking, so the fastest correct thing is
+    the right thing: the call the demonstration already made goes back out and
+    the form-filling steps collapse to `not_needed`. This test exists beside
+    the one above to hold the pair together -- if a change makes both runs do
+    the same thing, one of these two fails.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel(
+        {
+            **_looks(2),
+            "http.send": [Reply(ok=True, result={"status": 201, "body": "{}"})],
+        }
+    )
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=FakeAsker(),
+        # No value: the demonstrated body carries its own, and a run that
+        # supplies one the body never carried is refused a replay rather than
+        # sent with the wrong code in it -- which is `_assigned`'s doing and has
+        # its own tests.
+        values={},
+        earned=True,
+        verified_writes=(VerifiedWrite(method="POST", path_pattern="/api/orders"),),
+    )
+
+    assert run.steps[0].verdict == "not_needed", "the form step was filled anyway"
+    assert [one["kind"] for one in channel.sent].count("http.send") == 1
+    assert not [one for one in channel.sent if one["kind"] == "ui.perform"]
 
 
 # --- a write that would only make a second copy ------------------------------

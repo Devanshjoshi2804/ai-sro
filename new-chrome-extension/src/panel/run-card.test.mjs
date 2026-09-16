@@ -709,6 +709,27 @@ test("not_needed is a tick, because the step was not skipped -- it was not neede
   assert.equal(glyphFor("awaiting"), "⏸");
 });
 
+
+test("a run nobody watched says it replayed the call", () => {
+  // The run finishes, the record is in the warehouse, and the page in front of
+  // the person never moved. With nothing said, that is indistinguishable from
+  // a run that did nothing at all.
+  const replayed = runCard({
+    run: { id: "run-3", status: "done", source: "rig", steps: [], items: [], watched: false },
+    skill: null,
+    message: { text: "Create a Customer Type" },
+  });
+  assert.match(words(replayed), /replayed the call/);
+
+  // And the other way round it is noise: they watched it type into the form.
+  const watched = runCard({
+    run: { id: "run-4", status: "done", source: "rig", steps: [], items: [], watched: true },
+    skill: null,
+    message: { text: "Create a Customer Type" },
+  });
+  assert.doesNotMatch(words(watched), /replayed the call/);
+});
+
 let failed = 0;
 for (const [name, fn] of tests) {
   try {

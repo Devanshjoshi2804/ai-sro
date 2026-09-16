@@ -57,21 +57,24 @@ export function glyphFor(outcome) {
   // nothing could say whether it landed". Four rows of that on a run that did
   // exactly what it meant to.
   if (typeof outcome === "string") {
-    return {
-      held: "✓",
-      done_by_operator: "✓",
-      withheld: "⏸",
-      awaiting: "⏸",
-      not_needed: "✓",
-      failed: "✗",
-      refused: "✗",
-      skipped: "○",
-    }[outcome] || "✓!";
+    return (
+      {
+        held: "✓",
+        done_by_operator: "✓",
+        withheld: "⏸",
+        awaiting: "⏸",
+        not_needed: "✓",
+        failed: "✗",
+        refused: "✗",
+        skipped: "○",
+      }[outcome] || "✓!"
+    );
   }
   if (outcome.disposition === "failed") return "✗";
   if (outcome.disposition === "withheld") return "⏸";
   if (outcome.disposition === "performed") {
-    const checked = outcome.confirmed && !(outcome.assertion_failures || []).length;
+    const checked =
+      outcome.confirmed && !(outcome.assertion_failures || []).length;
     return checked ? "✓" : "✓!";
   }
   return "●";
@@ -116,8 +119,8 @@ export function runCard(
     said.className = "detail";
     const quoting = String(found?.quoting || "").trim();
     said.textContent =
-      `${name}: ${found?.value ?? ""} — read from your mail`
-      + (quoting ? ` (“${quoting}”)` : "");
+      `${name}: ${found?.value ?? ""} — read from your mail` +
+      (quoting ? ` (“${quoting}”)` : "");
     card.append(said);
   }
 
@@ -126,6 +129,26 @@ export function runCard(
   // field as "rig" would send a backend run's Stop somewhere it has never been
   // heard of.
   const rig = run.source === "rig";
+
+  // Why a run can finish having touched nothing on the page.
+  //
+  // A run nobody was watching -- a trigger at three in the morning -- replays
+  // the call the demonstration made instead of filling the form: the record
+  // appears in the warehouse and no screen ever moves. Read afterwards with no
+  // explanation that is indistinguishable from a run that did nothing, so the
+  // card says which of the two ways it did the job.
+  //
+  // Only in that direction. A watched run types into the form and presses Save
+  // in front of the person, and telling them what they are looking at is
+  // noise. `=== false` because a row from before this distinction existed has
+  // no field, and those runs replayed.
+  if (rig && run.watched === false) {
+    const how = document.createElement("p");
+    how.className = "detail";
+    how.textContent =
+      "Nobody was watching, so it replayed the call it learned — the page never moved.";
+    card.append(how);
+  }
   const done = new Map((run.steps || []).map((step) => [step.index, step]));
   const live = run.status === "running";
   // The next position nothing has recorded. Positions rather than a count: a
@@ -181,7 +204,9 @@ export function runCard(
   // the first thing before doing the rest -- stop wrong records being made and
   // do nothing about one that was. So a run that made records says which, in
   // the words the warehouse used, and a person can go and look at them.
-  const made = (run.steps || []).map((step) => step.made || {}).filter((one) => Object.keys(one).length);
+  const made = (run.steps || [])
+    .map((step) => step.made || {})
+    .filter((one) => Object.keys(one).length);
   if (rig && !live && made.length) {
     const line = document.createElement("p");
     line.className = "note";
@@ -208,8 +233,7 @@ export function runCard(
   if (withheld) {
     const line = document.createElement("p");
     line.className = "note";
-    line.textContent =
-      `dry run — ${withheld} write${withheld === 1 ? "" : "s"} shown here, not sent`;
+    line.textContent = `dry run — ${withheld} write${withheld === 1 ? "" : "s"} shown here, not sent`;
     card.append(line);
   }
 
@@ -232,7 +256,9 @@ export function runCard(
       button.type = "button";
       button.className = "quiet";
       button.textContent = label;
-      button.addEventListener("click", () => onPress?.(answer, run, card, button));
+      button.addEventListener("click", () =>
+        onPress?.(answer, run, card, button),
+      );
       row.append(button);
     }
     card.append(row);
@@ -251,7 +277,17 @@ function wordsFor(sent) {
   return `${p.action || "act"}${p.value ? ` "${p.value}"` : ""} ${where}`.trim();
 }
 
-function stepRow({ step, outcome, live, inFlight, run, notes, onPress, onSecret, onChange }) {
+function stepRow({
+  step,
+  outcome,
+  live,
+  inFlight,
+  run,
+  notes,
+  onPress,
+  onSecret,
+  onChange,
+}) {
   const row = document.createElement("div");
   row.className = "step";
   row.dataset.index = String(step.index);
@@ -281,7 +317,11 @@ function stepRow({ step, outcome, live, inFlight, run, notes, onPress, onSecret,
   const meta = [
     step.matched_by === "sight" ? "found by sight" : step.matched_by || null,
     step.stale ? "page moved" : null,
-    step.unpriced ? "unpriced" : step.cost_usd > 0 ? `$${step.cost_usd.toFixed(4)}` : null,
+    step.unpriced
+      ? "unpriced"
+      : step.cost_usd > 0
+        ? `$${step.cost_usd.toFixed(4)}`
+        : null,
   ].filter(Boolean);
   if (meta.length) {
     const said = document.createElement("span");
@@ -328,7 +368,9 @@ function stepRow({ step, outcome, live, inFlight, run, notes, onPress, onSecret,
     const approve = document.createElement("button");
     approve.type = "button";
     approve.textContent = "Approve";
-    approve.addEventListener("click", () => onPress?.("approve", run, row, approve));
+    approve.addEventListener("click", () =>
+      onPress?.("approve", run, row, approve),
+    );
     const stop = document.createElement("button");
     stop.type = "button";
     stop.className = "quiet";
@@ -371,7 +413,10 @@ function stepRow({ step, outcome, live, inFlight, run, notes, onPress, onSecret,
       field.value = "";
       if (!value) return;
       save.disabled = true;
-      const kept = await onSecret({ system: wants.system, field: wants.field, value }, save);
+      const kept = await onSecret(
+        { system: wants.system, field: wants.field, value },
+        save,
+      );
       save.disabled = false;
       asking.textContent = kept?.ok
         ? "Kept. Run this job again and it will sign in."
@@ -397,7 +442,9 @@ function stepRow({ step, outcome, live, inFlight, run, notes, onPress, onSecret,
         field.type = "text";
         field.placeholder = name;
         field.value = run.parameters?.[name] ?? "";
-        field.addEventListener("change", () => onChange?.(run.id, name, field.value));
+        field.addEventListener("change", () =>
+          onChange?.(run.id, name, field.value),
+        );
         row.append(field);
       }
     });

@@ -95,6 +95,7 @@ def _grant_of(bearer: str) -> dict[str, str] | None:
     kept = json.loads(named.read_text())
     return kept if isinstance(kept, dict) else None
 
+
 REDIRECT = "http://localhost:8933/oauth/callback"
 """Where Google sends the operator back. Must be listed in the OAuth client's
 Authorized redirect URIs, exactly as written here."""
@@ -611,9 +612,7 @@ if __name__ == "__main__":
     port = int(next((one for one in sys.argv[1:] if one.isdigit()), "8932"))
     _client()  # fail now, with a sentence, rather than on the first call
     if not GRANTS.is_dir() or not any(GRANTS.glob("*.json")):
-        raise SystemExit(
-            f"no grant yet: run `{sys.argv[0]} --authorize <tenant> <operator>` first"
-        )
+        raise SystemExit(f"no grant yet: run `{sys.argv[0]} --authorize <tenant> <operator>` first")
 
     try:
         server = ThreadingHTTPServer((HOST, port), Connector)

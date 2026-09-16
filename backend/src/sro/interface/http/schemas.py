@@ -3282,6 +3282,16 @@ class StartWorkflowRunRequest(BaseModel):
 
     live: bool = False
     allow_focus: bool = True
+
+    watched: bool = False
+    """Whether somebody is standing in front of this run.
+
+    A press in an open panel sends `true` and gets the job done in front of
+    them -- the fields fill, the button is pressed. Anything that presses
+    without a person there leaves it false and the run replays the call, which
+    is faster, deterministic and invisible. Defaults to false because the
+    callers that do not say are the ones nobody is watching: a trigger, a
+    schedule, a script."""
     from_step: StrictInt = 0
     matched: StrictInt | None = Field(default=None, ge=0)
     """How many shape entries the browser's tail matched, when a browser is
@@ -3417,6 +3427,10 @@ class WorkflowRunModel(BaseModel):
     cost_usd: float
     unpriced: bool
 
+    watched: bool = False
+    """Whether this run is being done in front of somebody: the fields filling
+    and the button pressed, rather than the call replayed."""
+
     doing: str = ""
     """What this run is doing when it has no step to show for it -- reading a
     mailbox for the values nobody typed. Empty the rest of the time, which is
@@ -3474,6 +3488,7 @@ class WorkflowRunModel(BaseModel):
             thought_tokens=run.thought_tokens,
             cost_usd=run.cost_usd,
             unpriced=run.unpriced,
+            watched=run.watched,
             doing=run.doing,
             gathered={k: dict(v) for k, v in run.gathered.items()},
             wrong_because=run.wrong_because,

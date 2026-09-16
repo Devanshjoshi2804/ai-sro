@@ -211,6 +211,7 @@ class StartWorkflowRun:
         values: Mapping[str, str],
         live: bool,
         allow_focus: bool,
+        watched: bool = False,
         from_step: int = 0,
         matched: int | None = None,
         items: Sequence[Mapping[str, str]] = (),
@@ -369,6 +370,10 @@ class StartWorkflowRun:
                 started_by=ctx.principal_id.value,
                 live=live,
                 allow_focus=allow_focus,
+                # Whether somebody is standing in front of it. A press in an open
+                # panel means "show me"; a trigger at three in the morning means
+                # "just do it". See `WorkflowRun.watched`.
+                watched=watched,
                 started_at=now.isoformat(),
                 from_step=from_step,
                 items=things,
@@ -465,6 +470,7 @@ class StartWorkflowRun:
                     rescue_model=self._rescue_model,
                     live=run.live,
                     allow_focus=run.allow_focus,
+                    watched=run.watched,
                     started_by=run.started_by,
                     stops=self._stops,
                     approvals=self._approvals,

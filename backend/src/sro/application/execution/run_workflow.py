@@ -605,6 +605,7 @@ async def run_workflow(
     rescue_model: str,
     live: bool,
     allow_focus: bool,
+    watched: bool = False,
     started_by: str,
     stops: Stops,
     approvals: Approvals,
@@ -668,6 +669,7 @@ async def run_workflow(
         started_by=started_by,
         live=live,
         allow_focus=allow_focus,
+        watched=watched,
         started_at=_now(),
         # On the row, not just in this frame: it is what the check above
         # compares a re-press against, and a row that does not carry it would
@@ -676,6 +678,11 @@ async def run_workflow(
         items=[dict(item) for item in items],
     )
     values, live, allow_focus = run.values, run.live, run.allow_focus
+    # And which of the two ways this run does the job, off the ROW like the
+    # rest: a re-press that disagreed with the row about whether somebody is
+    # watching would be a run that fills the form for one caller and posts for
+    # the next.
+    watched = run.watched
     device_id = DeviceId(run.device_id)
     await _save(uow, run)
     # The values nobody typed, found before anything is planned.
@@ -807,8 +814,20 @@ async def run_workflow(
     # on the shape of the values, never on the values themselves (a slot is
     # claimed by comparing the DEMONSTRATED body against `seen_values`), so
     # every leg of a repeat answers this the same way.
+    # Nothing is collapsed for a run somebody is watching.
+    #
+    # The two ways to do a job are not interchangeable and the choice is the
+    # RUN's, not the step's: replaying the call is fast, deterministic and
+    # invisible, and performing it is the one a person can see happen. A run
+    # that skipped the typing because it was going to post, and then pressed
+    # Save as if it had typed, is what deciding per step looks like.
+    #
+    # So a watched run performs every step: the fields fill, the button is
+    # pressed, and somebody standing at the screen watches their job being
+    # done. It costs a reading per step and the determinism of the replay, and
+    # that is the trade being made on purpose rather than by accident.
     collapsed: set[int] = set()
-    for leg in itinerary:
+    for leg in itinerary if not run.watched else ():
         if (
             replay_without_asking(
                 step=leg.step,
@@ -1145,7 +1164,7 @@ async def run_workflow(
                 and collapsed
                 and set(scaffolding_for(workflow, by_id, write_step=step.order)) & collapsed
             )
-            if replay is not None:
+            if replay is not None and not run.watched:
                 rungs = (("replay", ""),) if never_filled else (("replay", ""), *rungs)
             verdict: StepVerdict | None = None
             after_failed: Look | None = None

@@ -729,6 +729,9 @@ def test_a_finished_run_reaches_the_wire_whole() -> None:
         # front of the recorder.
         # Empty because a person typed these values. Filled only for a value
         # nobody typed, with the message it was read out of.
+        # Which of the two ways this run did the job: replayed the call, or
+        # did it in front of somebody. False is the replay, and the default.
+        "watched": False,
         # What a run is doing when it has no step to show for it: reading a
         # mailbox. Empty here, and empty for a finished run always.
         "doing": "",

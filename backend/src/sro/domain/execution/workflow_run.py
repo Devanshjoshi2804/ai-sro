@@ -176,6 +176,24 @@ class WorkflowRun:
     cost_usd: float = 0.0
     unpriced: bool = False
 
+    watched: bool = False
+    """Whether somebody is standing in front of this run.
+
+    The system has two ways to do the same job and they are not
+    interchangeable. Replaying the call is fast, deterministic and invisible:
+    the steps that only put the form on the screen are skipped, and the record
+    appears without anything moving. Performing it is slower, costs a reading
+    per step, and is the one a person can WATCH -- the fields fill, the button
+    is pressed, and somebody at the screen can see their job being done and
+    stop it.
+
+    Written on the row rather than decided per step, because deciding per step
+    is how a run came to skip the typing (it was going to post) and then press
+    Save as if it had typed. One decision, for the whole run.
+
+    A press in an open panel means "show me". A trigger at three in the morning
+    means "just do it"."""
+
     doing: str = ""
     """What this run is doing when it has no step to show for it.
 

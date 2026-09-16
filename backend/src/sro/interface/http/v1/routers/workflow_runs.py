@@ -128,6 +128,7 @@ async def start_workflow_run(
         items=body.items,
         live=body.live,
         allow_focus=body.allow_focus,
+        watched=body.watched,
         from_step=body.from_step,
         matched=body.matched,
     )

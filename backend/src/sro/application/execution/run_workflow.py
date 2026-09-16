@@ -152,9 +152,20 @@ module drives a run and does not learn what a mailbox is. A deployment with no
 connector passes nothing, and a run with missing values refuses exactly as it
 always did."""
 
-K_NEVER_SENT = frozenset(
-    {"no_tab_for_system", "no_tab_for_origin", "focus_not_permitted", "aborted"}
-)
+K_NOT_HERE = frozenset({"no_tab_for_system", "no_tab_for_origin"})
+"""The two refusals that mean the browser is not where the step needs it.
+
+Not a broken job and not a wrong plan: the tab was closed, or the system signed
+the operator out and took the page with it. The same run would work a second
+later with a person signed in, so the run asks for one rather than failing --
+see `_let_in`.
+
+Both are sent by the extension after looking: `no_tab_for_system` is nothing
+open on the system at all, `no_tab_for_origin` is a tab that has been taken
+somewhere else, which is what an identity provider does on the way to its login
+page."""
+
+K_NEVER_SENT = K_NOT_HERE | frozenset({"focus_not_permitted", "aborted"})
 """Refusals that mean the extension never reached the wire, so a write claimed
 for this step can be given back.
 
@@ -326,6 +337,61 @@ def _refused_origin(
     if off is None:
         return kind in K_LEAVES
     return off not in (replayable if kind == "http.send" else standing)
+
+
+async def _let_in(
+    uow: UnitOfWork,
+    run: WorkflowRun,
+    record: RunStep,
+    *,
+    where: str,
+    approvals: Approvals,
+    stops: Stops,
+) -> bool:
+    """Ask for a browser that is signed in, and wait for somebody to say there
+    is one. True when the step may go again.
+
+    The one refusal this system can do something about by asking. A job whose
+    plan is wrong needs a demonstration and a value nobody typed needs a
+    mailbox, but a session that has aged out needs a person who is already
+    sitting in front of the panel -- and until now the run told them their job
+    had failed on a sentence about a tab.
+
+    The write gate's own machinery, because it is the same question asked in
+    the same place: the record says `awaiting`, the panel draws the button off
+    that, and the tap releases the wait. Nothing new to learn, on either side.
+
+    Not a remedy that signs anybody in. `Remedy.REFRESH_SESSION` exists for the
+    browsers this system owns; this is the operator's own Chrome, where the
+    only thing that may type a password is the person sitting at it.
+    """
+    record.verdict, record.verdict_by = "awaiting", "none"
+    record.reason = f"the browser is not on {where} — open it and sign in, then approve to carry on"
+    # Registered before the save, for the write gate's reason: the save is what
+    # puts this in front of a person, and a tap that lands before the wait
+    # starts must find an event to set rather than a 409.
+    approvals.register(run.id)
+    await _save(uow, run)
+    if not await approvals.wait_for(run.id, K_APPROVAL_WAIT_S):
+        record.verdict, record.verdict_by = "failed", "none"
+        record.reason = f"nobody signed in to {where} within {K_APPROVAL_WAIT_S / 60:.0f} minutes"
+        run.outcome = "stopped"
+        await _save(uow, run)
+        return False
+    if stops.asked(run.id):
+        record.verdict, record.verdict_by = "failed", "none"
+        record.reason = "stopped while waiting for a signed-in browser"
+        run.outcome = "aborted"
+        await _save(uow, run)
+        return False
+    # Back to what an in-flight step already says, for the reason the write
+    # gate gives: a row left `awaiting` through the send is a row that lies for
+    # as long as the step takes, and an operator who tapped Approve watches the
+    # same paused card redraw with the same button.
+    record.verdict, record.verdict_by = "skipped", "none"
+    record.reason = "signed in; sending again"
+    await _save(uow, run)
+    return True
 
 
 async def _where(
@@ -1017,6 +1083,10 @@ async def run_workflow(
                 rungs = (("replay", ""), *rungs)
             verdict: StepVerdict | None = None
             after_failed: Look | None = None
+            # Once per step. A session that ages out again three steps later is
+            # a second question worth asking; the same step asking twice in a
+            # row is a panel arguing with the person who just answered it.
+            asked_for_a_browser = False
             for how, model in rungs:
                 # The sight rung is for a page that moved, not for a plan that
                 # was wrong: a control the browser could not find is the one
@@ -1504,6 +1574,53 @@ async def run_workflow(
                 # next step is driven by its own origin.
                 sent_nothing_yet = False
                 record.result = _result(reply, wrote=may_write)
+                # The browser is not where this step needs it, and that is a
+                # question for a person rather than a verdict about the job.
+                #
+                # Measured on the live deployment 2026-09-16: a run failed
+                # `no_tab_for_system` because the operator's Blue Yonder
+                # session had expired. The job was right, the plan was right,
+                # the values were right, and the run died on a sentence naming
+                # a tab. The system signs people out on its own schedule and
+                # takes the tab to an identity provider when it does, which is
+                # `no_tab_for_origin` -- the same thing with the page still
+                # open.
+                #
+                # So the panel asks, in the one place the operator is already
+                # watching, and the same command goes again when they say they
+                # are back. Live only: an unattended dry run has nobody to ask,
+                # and parking one for half an hour is a hang rather than a
+                # question.
+                #
+                # The claim is not given back before the second send. The
+                # release below reads the FINAL reply, which is what decides
+                # whether anything left the browser.
+                if (
+                    live
+                    and not asked_for_a_browser
+                    and not reply.ok
+                    and reply.error_kind in K_NOT_HERE
+                ):
+                    asked_for_a_browser = True
+                    if not await _let_in(
+                        uow,
+                        run,
+                        record,
+                        where=origin or _screen_of(step) or "the system",
+                        approvals=approvals,
+                        stops=stops,
+                    ):
+                        verdict = StepVerdict("failed", "none", record.reason)
+                        break
+                    sent_at = datetime.now(tz=UTC).timestamp()
+                    reply = await channel.send(
+                        tenant_id,
+                        device_id,
+                        kind=planned.kind,
+                        run_id=run.id,
+                        payload=planned.payload,
+                    )
+                    record.result = _result(reply, wrote=may_write)
                 # A write whose command never left the browser gives its claim
                 # back. Kept for everything else, including a timeout: see
                 # `K_NEVER_SENT`.

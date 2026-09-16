@@ -184,7 +184,7 @@ async def test_the_mailbox_is_asked_as_the_operator_and_no_one_else() -> None:
 
     await _gather(mailbox, asker).execute(CTX, job="a job", wanted=[CODE])
 
-    assert set(who for who, _, _ in mailbox.asked) == {"devansh"}
+    assert {who for who, _, _ in mailbox.asked} == {"devansh"}
     assert len(mailbox.asked) == 2, "the opening search and the one the model chose"
 
 

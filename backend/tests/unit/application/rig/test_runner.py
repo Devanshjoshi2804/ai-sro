@@ -4401,8 +4401,23 @@ async def test_a_write_the_browser_never_sent_gives_its_claim_back() -> None:
         }
     )
     asker = _PerSchemaAsker(plan=_plan("click"), verdict=Answer(data={"held": True, "why": "ok"}))
+    approvals = Approvals()
 
-    await _ran(uow, workflow, channel=channel, asker=asker, values={}, earned=True)
+    # `no_tab_for_system` now asks for a signed-in browser before it is a
+    # failure, so this run parks once on the way to the failure it is about.
+    task = asyncio.create_task(
+        _ran(
+            uow,
+            workflow,
+            channel=channel,
+            asker=asker,
+            values={},
+            earned=True,
+            approvals=approvals,
+        )
+    )
+    approvals.approve(await _parked(approvals))
+    await task
 
     assert isinstance(uow.tool_calls, FakeToolCallRepository)
     assert not uow.tool_calls.claimed, "the claim was held for a command that never went out"
@@ -5395,3 +5410,85 @@ async def test_even_a_job_that_has_earned_its_autonomy_is_asked_after_the_first(
     # Nobody answered, so the rest was not done -- and the first one was.
     assert len([step for step in run.steps if step.item == 0 and step.verdict == "held"]) == 2
     assert not any(step.item == 2 for step in run.steps)
+
+
+async def test_a_browser_that_is_not_on_the_system_is_asked_for_rather_than_failed() -> None:
+    """The failure this system can do something about by asking.
+
+    Measured live 2026-09-16: a run failed `no_tab_for_system` because the
+    operator's warehouse session had expired. The job was right, the plan was
+    right, the values were right, and the run died on a sentence about a tab --
+    while the person who could fix it in four seconds was watching the panel it
+    died in.
+    """
+    uow = await _fixture()
+    workflow = await _one_step(uow, _ids(uow)[-1], parameters=[])
+    channel = FakeChannel(
+        {
+            **_looks(8),
+            "ui.perform": [
+                Reply(ok=False, error_kind="no_tab_for_origin", error_detail="somewhere else"),
+                _performed(),
+            ],
+        }
+    )
+    asker = _PerSchemaAsker(plan=_plan("click"), verdict=Answer(data={"held": True, "why": "ok"}))
+    approvals = Approvals()
+
+    task = asyncio.create_task(
+        _ran(
+            uow,
+            workflow,
+            channel=channel,
+            asker=asker,
+            values={},
+            earned=True,
+            approvals=approvals,
+        )
+    )
+    run_id = await _parked(approvals)
+
+    parked = await uow.workflow_runs.get(TENANT, run_id)
+    assert parked is not None and parked.steps[-1].verdict == "awaiting"
+    assert "sign in" in parked.steps[-1].reason, parked.steps[-1].reason
+
+    approvals.approve(run_id)
+    run = await task
+
+    assert run.outcome == "held"
+    # The same command, sent again. Not a different plan and not a rung up the
+    # ladder: nothing was wrong with the step.
+    assert [s["kind"] for s in channel.sent].count("ui.perform") == 2
+
+
+async def test_a_run_nobody_comes_back_to_says_nobody_signed_in() -> None:
+    """The half of the ask that is not the happy one. A run parked forever is
+    a row that says `running` on a browser nobody is sitting at, so the wait
+    has an end and the end says what was waited for."""
+    uow = await _fixture()
+    workflow = await _one_step(uow, _ids(uow)[-1], parameters=[])
+    channel = FakeChannel(
+        {
+            **_looks(8),
+            "ui.perform": [Reply(ok=False, error_kind="no_tab_for_system", error_detail="none")]
+            * 4,
+        }
+    )
+    asker = _PerSchemaAsker(plan=_plan("click"), verdict=Answer(data={"held": True, "why": "ok"}))
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        values={},
+        earned=True,
+        approvals=_RecordsTheWait(),
+    )
+
+    assert run.outcome == "stopped"
+    assert "nobody signed in" in run.steps[-1].reason, run.steps[-1].reason
+    # And it was asked once, not once per rung of the ladder: a panel that
+    # asks the same question three times is a panel arguing with the person
+    # who just answered it.
+    assert [s["kind"] for s in channel.sent].count("ui.perform") == 1

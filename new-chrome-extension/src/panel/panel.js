@@ -1657,6 +1657,13 @@ setInterval(() => {
 setInterval(() => {
   if (document.visibilityState !== "visible") return;
   void conversation();
+  // And ask the worker to read the mailbox for the jobs it asks for. Asked on
+  // this tick rather than given a timer of its own because it IS this tick's
+  // question -- "has anything been said to me" -- and a mail asking for a job
+  // is the system being asked something. The worker throttles it; what a look
+  // produces is a message in this same thread, so the card lands on the next
+  // turn of this poll with nothing here to draw it.
+  void ask({ kind: "look-in-the-mail" }).catch(() => {});
 }, 5000);
 
 listen();

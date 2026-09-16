@@ -34,6 +34,7 @@ const KEYS = {
   serverPaused: "sro.serverPaused",
   lastBeat: "sro.lastBeat",
   lastError: "sro.lastError",
+  mailLooked: "sro.mailLooked",
   queueEpoch: "sro.queueEpoch",
   pendingBatch: "sro.pendingBatch",
   shotTimes: "sro.shotTimes",
@@ -234,6 +235,13 @@ export const state = {
 
   lastError: () => read(KEYS.lastError, ""),
   setLastError: (message) => write(KEYS.lastError, message),
+
+  /** When the mailbox was last read for the jobs it asks for, and whether it
+   * could be reached. Held here rather than in the panel because the panel is
+   * one of several that may ask and is closed most of the day: the throttle
+   * belongs to the browser, not to a window of it. */
+  mailLooked: () => read(KEYS.mailLooked, null),
+  setMailLooked: (looked) => write(KEYS.mailLooked, looked),
 
   /** Distinguishes one lifetime of the event queue from the next.
    *

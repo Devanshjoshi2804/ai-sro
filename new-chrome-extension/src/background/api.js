@@ -95,6 +95,14 @@ export const api = {
 
   policy: () => call("/v1/agents/policy"),
 
+  /** Read this operator's recent mail for the jobs it asks for.
+   *
+   * POST on a path that reads, because it is not a read: it calls their
+   * connector and writes offers into their thread. What comes back is what
+   * this look found; the offers themselves arrive in the panel the way every
+   * other message does, on the thread poll. */
+  fromTheMail: () => call("/v1/chat/from-the-mail", { method: "POST" }),
+
   /** What this browser is watching its operator's mail for. Asked for here
    * because a watch is evaluated in the browser that has the mailbox open and
    * nowhere else -- no mail is ever sent to the backend, so the rule comes

@@ -180,6 +180,10 @@ const rigServer = async (url, options = {}) => {
   if (path === "/v1/shapes") return json({ shapes: shapesServed });
   if (path === "/v1/threads/thr-1/messages") return json({ id: "thr-1", messages: [] });
   if (path === "/v1/chat") return chatRead ? json(chatRead) : json({ detail: "no model" }, 503);
+  if (path === "/v1/chat/from-the-mail") {
+    mailLooks.push(options.method || "GET");
+    return mailLooked ? json(mailLooked) : json({ detail: "no model" }, 503);
+  }
   // The one door in front of both worlds. The backend decides which a sentence
   // is -- the rule lives there so this side carries no copy of it -- so the
   // fake answers by the same shape the route does.
@@ -215,6 +219,9 @@ function json(body, status = 200) {
     json: async () => body,
   };
 }
+
+let mailLooked = null;
+const mailLooks = [];
 
 const offersSent = () => calls.filter((call) => call.path === "/v1/offers").map((call) => JSON.parse(call.body));
 
@@ -268,6 +275,8 @@ function ready() {
   offerRefusal = null;
   chatRead = null;
   lookupRead = null;
+  mailLooked = null;
+  mailLooks.length = 0;
   lookedUp = [];
   globalThis.fetch = rigServer;
   // Distinctive on purpose. `dev-1` was the literal that a mutation of
@@ -1313,4 +1322,49 @@ test("a sentence about nothing says something and offers nothing", async () => {
   assert.ok(said, "the sentence was not said at all");
   await new Promise((resolve) => setTimeout(resolve, 20));
   assert.deepEqual(openOnes(), []);
+});
+
+
+test("the panel's tick reads the mailbox, and not on every tick", async () => {
+  // The panel asks on the poll it already runs -- "has anything been said to
+  // me" -- and a mail asking for a job is the system being asked something.
+  // The throttle is here rather than in the panel because the panel is closed
+  // most of the day and there may be more than one of them.
+  ready();
+  mailLooked = { offered: [{ message: "m-1", workflow_id: "wfl_1", title: "Create a Customer Type", values: {}, missing: [] }], read: 4, why: "offered Create a Customer Type" };
+
+  const first = await send({ kind: "look-in-the-mail" });
+  const second = await send({ kind: "look-in-the-mail" });
+
+  assert.deepEqual(first, { ok: true, offered: 1, read: 4 });
+  assert.equal(second.skipped, "looked recently");
+  assert.deepEqual(mailLooks, ["POST"], "the mailbox was read twice in five seconds");
+});
+
+test("a browser with no mailbox behind it stops asking rather than calling all day", async () => {
+  // Most browsers have no connector at all. The backend answers that as a
+  // sentence rather than an error, and a look that took it as "try again in a
+  // minute" would be a call every minute forever for an answer that cannot
+  // change until somebody authorises one.
+  ready();
+  mailLooked = { offered: [], read: 0, why: "the mailbox could not be reached: no grant" };
+
+  await send({ kind: "look-in-the-mail" });
+  const again = await send({ kind: "look-in-the-mail" });
+
+  assert.equal(again.skipped, "looked recently");
+  assert.deepEqual(mailLooks, ["POST"]);
+});
+
+test("a look that fails is not a red line in the panel", async () => {
+  // A door that is not there yet, a backend restarting, a browser with no
+  // credential. The look is a background convenience: the operator can always
+  // type the request.
+  ready();
+  mailLooked = null;
+
+  const looked = await send({ kind: "look-in-the-mail" });
+
+  assert.equal(looked.ok, true);
+  assert.match(looked.skipped, /no model/);
 });

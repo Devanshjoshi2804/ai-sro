@@ -1507,6 +1507,8 @@ async function handle(message, sender) {
     // the backend for the console.
     case "thread":
       return api.currentThread();
+    case "look-in-the-mail":
+      return lookInTheMail();
     case "thread-say": {
       const said = await api.say(message.threadId, message.text);
       // The reply already read the sentence against this tenant's jobs, so the
@@ -1861,6 +1863,60 @@ chrome.storage.onChanged?.addListener(() => {
 /** How many offers this browser holds: enough that the morning's mail is still
  * there after lunch, few enough that a watch somebody wrote badly cannot fill
  * the disk with what it read. */
+/** How often the mailbox is read for the jobs it asks for.
+ *
+ * The panel asks on the tick it already runs, and this is what decides whether
+ * the ask becomes a call. A minute rather than the panel's five seconds, and
+ * not because of what a reading costs: a mail that arrived this second is
+ * worth a card within a minute, and a search against somebody's mailbox every
+ * five seconds is a browser hammering a mail provider all day for nothing.
+ *
+ * A message already looked at is skipped by the backend without a reading, so
+ * a repeat look is one search and no more than that. */
+const LOOK_EVERY_MS = 60_000;
+
+/** How long to wait after a look that could not reach the mailbox.
+ *
+ * Most browsers have no connector at all, and for those every look is a call
+ * that can only answer the same thing. Ten minutes rather than never: a grant
+ * authorised while the panel is open should start working without a reload. */
+const LOOK_AGAIN_AFTER_MS = 600_000;
+
+/** Read the operator's recent mail, at most this often.
+ *
+ * The throttle is here and not in the panel: the panel is closed most of the
+ * day and there may be more than one of them, so a window's own timer is not a
+ * statement about how often this browser reads a mailbox.
+ *
+ * Nothing is returned to the panel to draw. What a look produces is an offer in
+ * the operator's own thread, and the panel is already polling that -- so the
+ * card arrives the way every other message does, and this call has no second
+ * path to keep working.
+ */
+async function lookInTheMail() {
+  const last = await state.mailLooked();
+  const since = Date.now() - (last?.at || 0);
+  const wait = last?.reached === false ? LOOK_AGAIN_AFTER_MS : LOOK_EVERY_MS;
+  if (last && since < wait) return { ok: true, skipped: "looked recently" };
+  // Written BEFORE the call, so a look that takes a while does not have four
+  // more started on top of it by the ticks that land while it is out.
+  await state.setMailLooked({ at: Date.now(), reached: true });
+  try {
+    const looked = await api.fromTheMail();
+    await state.setMailLooked({
+      at: Date.now(),
+      reached: !String(looked?.why || "").includes("could not be reached"),
+    });
+    return { ok: true, offered: (looked?.offered || []).length, read: looked?.read || 0 };
+  } catch (error) {
+    // A door that is not there yet, a backend being restarted, a browser with
+    // no credential. None of them is worth a red line in the panel: the look is
+    // a background convenience and the operator can always type the request.
+    await state.setMailLooked({ at: Date.now(), reached: false });
+    return { ok: true, skipped: error instanceof ApiError ? error.message : String(error) };
+  }
+}
+
 const MAX_OFFERS = 20;
 
 /** Keep an offer where the panel can find it.

@@ -627,7 +627,16 @@ async def plan_by_sight(
                 answer,
                 opens=True,
             )
-        return Planned("none", {}, why or "the control is not on this screen", answer)
+        # And whether it named something to open that this rung could not use.
+        # The alternative is reading the same prose twice and not knowing
+        # whether the model refused to point or pointed off the picture.
+        offered = data.get("open_first")
+        refusal = why or "the control is not on this screen"
+        if offered is not None and reveal is None and not opened:
+            refusal = (
+                f"{refusal} (it named {offered!r} to open, which is not on the screen it was shown)"
+            )
+        return Planned("none", {}, refusal, answer)
     x, y = data.get("x"), data.get("y")
     # Inside the picture, or nowhere: a point off the viewport is a guess.
     if not (

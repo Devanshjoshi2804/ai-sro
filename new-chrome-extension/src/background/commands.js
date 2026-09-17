@@ -12,6 +12,7 @@
 // laptop was simply closed is how a working skill gets demoted for somebody
 // going to lunch.
 
+import { pointAt } from "./pointing.js";
 import {
   csrfTokenInPage,
   requestedWithInPage,
@@ -785,6 +786,21 @@ async function uiPerformAt(payload) {
   const tab = await awake(await drivenTab(payload.origin));
   if (!tab) return failure("no_tab_for_system", noPage(payload.origin));
   hold(tab.id);
+  // The browser first. A point is a pixel in the top-level viewport, and only
+  // the browser knows which renderer owns a pixel -- `executeScript` has to be
+  // told which document to run in, which is a question the point does not
+  // answer and which the frame lookup below gets wrong the moment an
+  // application routes inside its own frame. `pointAt` dispatches the event
+  // where a real mouse would arrive and lets Chrome route it.
+  const driven = await pointAt(tab.id, payload);
+  if (driven.ok || driven.error?.kind !== "cannot_drive_tab") {
+    hold(tab.id);
+    if (driven.ok) await reacted(tab.id, payload.action);
+    return driven;
+  }
+  // Chrome allows one debugger per tab and somebody else has it -- DevTools,
+  // almost always. The synthetic path is worse -- untrusted events, and a
+  // frame lookup that is a guess -- and it is not nothing.
   let answer = await inPage(tab.id, performAtInPage, [payload]);
   // The point landed on a frame, so ask the frame.
   //

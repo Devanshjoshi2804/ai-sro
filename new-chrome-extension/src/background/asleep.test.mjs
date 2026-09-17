@@ -174,6 +174,53 @@ test("a page whose policy refuses injected script says so", () => {
 const at = (payload) =>
   perform({ command_id: "cmd-3", kind: "ui.perform_at", payload });
 
+test("the browser drives the point, and no frame is looked up at all", async () => {
+  // A point is a pixel in the top-level viewport, and only the browser knows
+  // which renderer owns a pixel. Everything below this test is the fallback for
+  // a tab whose one debugger slot somebody else has -- this is the path a run
+  // actually takes.
+  openTabs = [{ id: 7, url: "https://wms.example/portal", status: "complete" }];
+  let asked = 0;
+  let frameLookups = 0;
+  globalThis.chrome.webNavigation.getAllFrames = async () => {
+    frameLookups += 1;
+    return [];
+  };
+  globalThis.chrome.scripting.executeScript = async () => {
+    asked += 1;
+    return [{ result: { ok: true, result: { performed: true } } }];
+  };
+  const dispatched = [];
+  globalThis.chrome.debugger = {
+    attach: async () => {},
+    detach: async () => {},
+    sendCommand: async (_target, method, params) => {
+      if (method.startsWith("Input.")) dispatched.push(params);
+      if (method === "DOM.getNodeForLocation") return { backendNodeId: 1 };
+      if (method === "DOM.resolveNode") return { object: { objectId: "o" } };
+      if (method === "Runtime.callFunctionOn")
+        return { result: { value: { tag: "button", name: "Add", item_id: "" } } };
+      return {};
+    },
+  };
+
+  const answer = await at({ origin: "https://wms.example", x: 612, y: 214, action: "click" });
+  delete globalThis.chrome.debugger;
+
+  assert.equal(answer.ok, true, JSON.stringify(answer));
+  assert.equal(answer.result.control.name, "Add");
+  assert.deepEqual(
+    dispatched.map((one) => [one.type, one.x, one.y]),
+    [
+      ["mouseMoved", 612, 214],
+      ["mousePressed", 612, 214],
+      ["mouseReleased", 612, 214],
+    ],
+  );
+  assert.equal(frameLookups, 0, "it worked out which frame owned a pixel the browser knows");
+  assert.equal(asked, 0, "it injected into the page as well as driving the browser");
+});
+
 test("a point that lands on a frame is asked again inside it", async () => {
   // The picture the model is shown is the top document's viewport. A warehouse
   // application inside an iframe puts every control in another document, so

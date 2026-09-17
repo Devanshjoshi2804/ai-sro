@@ -1151,7 +1151,42 @@ async function navigate(payload, runId) {
 
   hold(tab.id, 8000);
   await chrome.tabs.update(tab.id, { url: payload.url });
+  // Answered when the tab has a page, not when the request was made.
+  //
+  // `chrome.tabs.update` resolves as soon as the navigation is STARTED. The
+  // very next command a run sends is `ui.url`, and a tab mid-navigation has no
+  // url to give -- so the run was told "the browser is on None" about a tab
+  // that was on its way to exactly the right place. Measured on the
+  // deployment, 2026-09-17 at 23:55: `run_ec91d2fe` step 2, which then spent
+  // $0.18 and three rungs failing to reach a screen it was already going to.
+  //
+  // It only surfaced once a run started driving one tab: `drivenTab` used to
+  // answer with any loaded tab on the host, so the race was hidden behind a
+  // url belonging to a different tab.
+  await arrived(tab.id);
   return { ok: true, result: { navigated: true } };
+}
+
+/** The tab once it has a page, or whatever it has when the wait runs out.
+ *
+ * Polled rather than watched: `settled` resolves at once for a tab that is
+ * already `complete`, which every tab is in the instant before it starts
+ * navigating -- so a watcher registered around an update answers about the
+ * page being left. What is wanted here is simpler than an event anyway: a url.
+ */
+async function arrived(tabId, ms = LOADS_WITHIN_MS) {
+  const until = Date.now() + ms;
+  let tab = null;
+  while (Date.now() < until) {
+    tab = await chrome.tabs.get(tabId).catch(() => null);
+    if (!tab) return null;
+    if (tab.status === "complete" && /^https?:/.test(tab.url || "")) return tab;
+    await new Promise((wait) => setTimeout(wait, 100));
+  }
+  // A page that never reports complete is still worth acting on, for the same
+  // reason `settled` says so: the locator is a better answer than a run that
+  // failed because a third-party script kept a request open.
+  return tab;
 }
 
 /** The extension's own menu of headers it knows how to read off a live page,

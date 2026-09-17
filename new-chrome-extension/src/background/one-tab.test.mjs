@@ -47,6 +47,16 @@ globalThis.chrome = {
         for (const one of tabs) one.active = one.id === id;
         raised.push(id);
       }
+      if (what?.url) {
+        // What Chrome does: the call resolves when the navigation has STARTED,
+        // and the tab has no url of its own until it commits one.
+        found.status = "loading";
+        found.url = "";
+        setTimeout(() => {
+          found.status = "complete";
+          found.url = what.url;
+        }, 120);
+      }
       return found;
     },
     captureVisibleTab: async () => {
@@ -155,4 +165,24 @@ test("a refused screen says which of the three refusals it was", async () => {
   assert.equal(said.ok, false);
   assert.equal(said.error.kind, "focus_not_permitted");
   assert.match(said.error.detail, /may not bring the page forward/, said.error.detail);
+});
+
+test("a navigate is answered when the tab has a page, not when the request went out", async () => {
+  // `chrome.tabs.update` resolves as soon as the navigation is started, and
+  // the very next command a run sends is `ui.url`. Measured on the deployment,
+  // 2026-09-17 at 23:55: `run_ec91d2fe` step 2 was told "the browser is on
+  // None" about a tab that was on its way to exactly the right place, and then
+  // spent $0.18 and three rungs failing to reach a screen it was already going
+  // to.
+  aPileOfTabs();
+  const went = await run("navigate", {
+    url: `${ORIGIN}/portal#customers`,
+    origin: ORIGIN,
+    allow_focus: true,
+  });
+  assert.equal(went.ok, true, JSON.stringify(went));
+
+  const said = await run("ui.url", { origin: ORIGIN });
+
+  assert.match(said.result.url, /#customers/, JSON.stringify(said));
 });

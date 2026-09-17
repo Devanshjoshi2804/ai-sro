@@ -5,6 +5,7 @@
 
 import { api, ApiError } from "./api.js";
 import { questionIn } from "./asking.js";
+import { waitBeforeLooking } from "./looking.js";
 import * as channel from "./channel.js";
 import {
   abort,
@@ -2206,24 +2207,9 @@ chrome.storage.onChanged?.addListener(() => {
 /** How many offers this browser holds: enough that the morning's mail is still
  * there after lunch, few enough that a watch somebody wrote badly cannot fill
  * the disk with what it read. */
-/** How often the mailbox is read for the jobs it asks for.
- *
- * The panel asks on the tick it already runs, and this is what decides whether
- * the ask becomes a call. A minute rather than the panel's five seconds, and
- * not because of what a reading costs: a mail that arrived this second is
- * worth a card within a minute, and a search against somebody's mailbox every
- * five seconds is a browser hammering a mail provider all day for nothing.
- *
- * A message already looked at is skipped by the backend without a reading, so
- * a repeat look is one search and no more than that. */
-const LOOK_EVERY_MS = 60_000;
-
-/** How long to wait after a look that could not reach the mailbox.
- *
- * Most browsers have no connector at all, and for those every look is a call
- * that can only answer the same thing. Ten minutes rather than never: a grant
- * authorised while the panel is open should start working without a reload. */
-const LOOK_AGAIN_AFTER_MS = 600_000;
+/* How often the mailbox is read, and how long a look that found nothing to
+   read waits, are `looking.js`'s -- the rule needed a test of its own after it
+   parked a browser for ten minutes over a two-second restart. */
 
 /** Read the operator's recent mail, at most this often.
  *
@@ -2239,16 +2225,20 @@ const LOOK_AGAIN_AFTER_MS = 600_000;
 async function lookInTheMail() {
   const last = await state.mailLooked();
   const since = Date.now() - (last?.at || 0);
-  const wait = last?.reached === false ? LOOK_AGAIN_AFTER_MS : LOOK_EVERY_MS;
+  const wait = waitBeforeLooking(last);
   if (last && since < wait) return { ok: true, skipped: "looked recently" };
   // Written BEFORE the call, so a look that takes a while does not have four
   // more started on top of it by the ticks that land while it is out.
-  await state.setMailLooked({ at: Date.now(), reached: true });
+  await state.setMailLooked({ at: Date.now(), reached: true, answered: true });
   try {
     const looked = await api.fromTheMail();
+    // `answered`, beside `reached`: the deployment replied, so whatever it
+    // said about the mailbox is a fact about the mailbox. That is what buys
+    // the long wait -- see `looking.js`.
     await state.setMailLooked({
       at: Date.now(),
       reached: !String(looked?.why || "").includes("could not be reached"),
+      answered: true,
     });
     for (const offer of looked?.offered || []) await offerFromMail(offer);
     return {
@@ -2260,7 +2250,14 @@ async function lookInTheMail() {
     // A door that is not there yet, a backend being restarted, a browser with
     // no credential. None of them is worth a red line in the panel: the look is
     // a background convenience and the operator can always type the request.
-    await state.setMailLooked({ at: Date.now(), reached: false });
+    // Nothing was answered, so nothing is known about the mailbox: a backend
+    // restarting, a wifi hop, a lid shut mid-call. It waits the ordinary
+    // minute rather than the ten a deployment with no connector gets.
+    await state.setMailLooked({
+      at: Date.now(),
+      reached: false,
+      answered: false,
+    });
     return {
       ok: true,
       skipped: error instanceof ApiError ? error.message : String(error),

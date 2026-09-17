@@ -272,6 +272,9 @@ function render(status) {
     }
   }
 
+  // A question nobody has answered, before anything about what is happening
+  // now. It is the one thing on this panel that is waiting on THEM.
+  if (status.question) cards.push(theQuestion(status.question));
   if (status.performing) cards.push(performing(status));
   // Not while teaching, same rule as the offers above: a demonstration in
   // progress is the only thing the panel is about. Placed after the run that
@@ -317,6 +320,43 @@ function render(status) {
   // conversation -- and after `lastStatus` is set, which is what it reads.
   paintWaiting();
   return status;
+}
+
+/** A question this operator has not answered.
+ *
+ * Drawn from the CONVERSATION by way of the worker, not from the run that
+ * asked it. The run is one slot: on 2026-09-17 a question was written at 03:57
+ * and a later run took that slot at 03:59, and the question sat unanswered in
+ * the thread for the rest of the morning with nothing on screen about it.
+ *
+ * A card rather than a line in the waiting banner, and it says the whole
+ * question rather than a count: "3 requests arrived" is a number somebody
+ * opens when they have a minute, and this is a job of theirs that has stopped
+ * a foot from the end.
+ */
+function theQuestion(question) {
+  return card({
+    title: question.title
+      ? `${question.title} — waiting on you`
+      : "Waiting on you",
+    says: question.text,
+    tone: "attention",
+    actions: [
+      {
+        label: "Answer it",
+        primary: true,
+        act: () => {
+          pane = "chat";
+          paintPanes();
+          void conversation();
+          toTheNewest(true);
+          // In the box, so the answer is one keystroke away rather than one
+          // press and then a hunt for where to type it.
+          $("ask-bar").querySelector?.("input")?.focus();
+        },
+      },
+    ],
+  });
 }
 
 /** The run that has already been taken to its question, so the panel moves

@@ -1043,6 +1043,48 @@ test("a run that stopped because a step failed does not say it stopped to ask", 
   assert.ok(!/✓ open the form/.test(said), said);
 });
 
+test("a question nobody answered survives the next run", async () => {
+  // Measured on the deployment, 2026-09-17: a question was written into the
+  // thread at 03:57 and a later run took the finished-run slot at 03:59, so
+  // the one card that carried it was gone ninety seconds later. It sat
+  // unanswered for the rest of the morning.
+  //
+  // This one is drawn from the conversation, by way of the worker, so no
+  // number of later runs can sweep it.
+  const { cards, ids } = panel(
+    {
+      deviceId: "dev-1",
+      capturing: true,
+      watched: [{ tabId: 7, host: "wms.example", since: new Date().toISOString() }],
+      question: {
+        id: "msg_9",
+        title: "Forward an Email",
+        text: "I could not find To recipients for Forward an Email. What should To recipients be?",
+        missing: ["To recipients"],
+      },
+      // A run finished since, which is exactly what used to take the slot.
+      finished: { id: "run_later", source: "rig", status: "held", steps: [] },
+    },
+    { id: 7, host: "wms.example", url: "https://wms.example/portal" },
+  );
+
+  const said = cards.map(words).join(" ");
+  assert.match(said, /What should To recipients be\?/);
+  assert.match(said, /Forward an Email — waiting on you/);
+
+  // And the way to it is a press, not a hunt for the other tab.
+  const buttons = [];
+  const walk = (el) => {
+    if (el?.tag === "button") buttons.push(el);
+    for (const kid of el?.kids || []) walk(kid);
+  };
+  for (const one of cards) walk(one);
+  const answer = buttons.find((one) => /Answer it/.test(one.textContent));
+  assert.ok(answer, said);
+  answer.listeners[0]();
+  assert.equal(ids["thread"].hidden, false, "it did not take them to the conversation");
+});
+
 test("a run that came up short takes the operator to the question", async () => {
   // The dead end this replaces: the run went looking for a value nobody typed,
   // could not find it, and the panel drew "The run stopped" on the Home tab

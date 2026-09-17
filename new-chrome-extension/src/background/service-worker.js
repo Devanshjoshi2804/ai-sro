@@ -4,6 +4,7 @@
 // it is idle and every wake-up starts from storage.
 
 import { api, ApiError } from "./api.js";
+import { questionIn } from "./asking.js";
 import * as channel from "./channel.js";
 import {
   abort,
@@ -117,6 +118,15 @@ chrome.alarms.onAlarm.addListener((alarm) => {
     // between events, and a `setTimeout` for ninety seconds is one the platform
     // is free to never run.
     void sweepNudges();
+    // And the conversation, for a question nobody has answered.
+    //
+    // A run that could not find a value writes one into this operator's own
+    // thread and ends. The panel used to walk them to it off the FINISHED RUN,
+    // which is one slot: on 2026-09-17 a later run took that slot ninety
+    // seconds after the question was written, and the question sat unanswered
+    // for the rest of the morning. The thread cannot be swept, and this is
+    // where it is read -- on the beat, so it is found while the panel is shut.
+    void lookForAQuestion();
     // And the mailbox, for the jobs it is asking for.
     //
     // Here rather than on the panel's own tick, which is where it started: a
@@ -2493,6 +2503,27 @@ async function register(label) {
   return status();
 }
 
+/** Read this operator's conversation for a question waiting on them.
+ *
+ * Kept on the worker rather than computed in `status()`: the panel polls that
+ * twice a second and the thread is a network round trip. Failure is silence --
+ * a browser that cannot reach the backend has nothing to say about questions,
+ * and a banner drawn from a stale read would be worse than none.
+ */
+async function lookForAQuestion() {
+  try {
+    const waiting = questionIn(await api.currentThread());
+    const held = await state.question();
+    // Written only when it changes, because every write wakes the panel's
+    // storage listener and redraws the column.
+    if ((held?.id || null) !== (waiting?.id || null))
+      await state.setQuestion(waiting);
+  } catch {
+    // Offline, or a backend that has no threads. Leave whatever is held: a
+    // question does not stop waiting because a poll failed.
+  }
+}
+
 async function beat() {
   const deviceId = await state.deviceId();
   if (!deviceId) return;
@@ -2699,6 +2730,10 @@ async function status(sender = null) {
     // that is recording everything, and the operator finds out at the end.
     queued: await queue.count(),
     teaching: await state.teaching(),
+    // A question this operator has not answered, off their own conversation.
+    // Drawn in the column that cannot be swept, because that is the whole
+    // point: the run that asked it is long gone and the question is not.
+    question: await state.question(),
     // Which process is driving it, put beside what `commands.js` reports.
     // `latest` there holds the source but `performing()` does not carry it,
     // and this is the same mirrored record the `abort-run` case and

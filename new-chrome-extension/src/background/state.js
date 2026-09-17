@@ -12,7 +12,10 @@
 //
 // Imported as well as re-exported: `export ... from` would not bind the names
 // here, and `apiUrl()` and `consoleUrl()` below read them.
-import { DEFAULT_API_URL, DEFAULT_CONSOLE_URL } from "./deployment.generated.js";
+import {
+  DEFAULT_API_URL,
+  DEFAULT_CONSOLE_URL,
+} from "./deployment.generated.js";
 
 export { DEFAULT_API_URL, DEFAULT_CONSOLE_URL };
 
@@ -41,6 +44,7 @@ const KEYS = {
   treeTimes: "sro.treeTimes",
   teaching: "sro.teaching",
   finishedRun: "sro.finishedRun",
+  question: "sro.question",
   activeRun: "sro.activeRun",
   answer: "sro.answer",
   arrivals: "sro.arrivals",
@@ -52,7 +56,6 @@ const KEYS = {
 // the default in the tree is a developer's own stack. It is a *default*, not a
 // lock: `sign-in` still takes whatever url was typed, so one build can be
 // pointed somewhere else without regenerating anything.
-
 
 /** Keys this extension used to write and no longer does.
  *
@@ -306,6 +309,12 @@ export const state = {
    * while whatever is still left to do (starting a reversal) stays retryable
    * rather than the whole row being deleted the moment the record lands. */
   finishedRun: () => read(KEYS.finishedRun, null),
+
+  /** The question this operator has not answered, read off their own
+   * conversation on the beat. Stored rather than derived on every status: the
+   * panel polls twice a second and the thread is a network round trip. */
+  question: () => read(KEYS.question, null),
+  setQuestion: (question) => write(KEYS.question, question),
   setFinishedRun: (run) => write(KEYS.finishedRun, run),
 
   /** The run this browser is currently -- or was most recently -- being asked
@@ -337,7 +346,8 @@ export async function capturing() {
   if (!deviceId) return { on: false, because: "not registered" };
   if (paused) return { on: false, because: "paused here" };
   if (serverPaused) return { on: false, because: "paused by an administrator" };
-  if (!policy?.capture_enabled) return { on: false, because: "not enabled for this tenant" };
+  if (!policy?.capture_enabled)
+    return { on: false, because: "not enabled for this tenant" };
   return { on: true, because: "" };
 }
 

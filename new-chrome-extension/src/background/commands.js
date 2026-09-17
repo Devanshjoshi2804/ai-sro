@@ -336,6 +336,14 @@ async function inEveryFrame(tabId, func, args, world = "MAIN") {
     func,
     args,
   });
+  // A frame that threw is worth saying out loud even when another frame
+  // answers: a page where the injected code is broken is a page every later
+  // step will fail on, and the first sign of it was three hours of silence.
+  for (const answer of answers) {
+    if (answer?.error) {
+      console.warn("[sro] the injected command threw in a frame", answer.error);
+    }
+  }
   for (const answer of answers) {
     if (answer?.result !== null && answer?.result !== undefined)
       return answer.result;
@@ -351,6 +359,29 @@ async function inPage(tabId, func, args, world = "MAIN") {
     func,
     args,
   });
+  return whatItSaid(answer);
+}
+
+/** One injection's answer, with a throw treated as a throw.
+ *
+ * Since Chrome 117 an injected function that throws does not reject the
+ * promise: it resolves with `{result: undefined, error}`. Reading only
+ * `.result` turns every error inside the page into no answer at all, and "the
+ * page did not answer" is what the run then says -- a sentence that reads like
+ * a page problem for what is a bug in the injected code.
+ *
+ * Measured on the deployment across 2026-09-16 and 17: every UI step ever
+ * attempted on the warehouse host failed that way, for three hours of looking
+ * at pages, tabs and content-security policies. The page was fine. The
+ * injected function was calling a helper that does not exist inside it.
+ */
+function whatItSaid(answer) {
+  const blew = answer?.error;
+  if (blew) {
+    throw new Error(
+      `the injected command threw in the page: ${blew.message || blew}`,
+    );
+  }
   return answer?.result;
 }
 
@@ -747,7 +778,7 @@ async function inFrame(tabId, frameId, func, args, world = "MAIN") {
     func,
     args,
   });
-  return answer?.result;
+  return whatItSaid(answer);
 }
 
 async function uiPerformAt(payload) {

@@ -51,26 +51,36 @@ export function performInPage(payload) {
         // order, so `#ext-gen4443` is a different control after a reload.
         const all = window.Ext?.ComponentQuery?.query(wanted) || [];
         found = all
-          .filter((c) => !locator.visible_only || (c.isVisible && c.isVisible(true)))
+          .filter(
+            (c) => !locator.visible_only || (c.isVisible && c.isVisible(true)),
+          )
           .map((c) => (c.inputEl || c.btnEl || c.el)?.dom)
           .filter(Boolean);
         break;
       }
       case "test_id":
-        found = [...document.querySelectorAll(`[data-testid="${CSS.escape(wanted)}"]`)];
+        found = [
+          ...document.querySelectorAll(`[data-testid="${CSS.escape(wanted)}"]`),
+        ];
         break;
       case "role_and_name": {
         const [role, name] = wanted.split("|");
         found = [
           ...document.querySelectorAll(`[role="${CSS.escape(role)}"]`),
-        ].filter((el) => (el.getAttribute("aria-label") || el.textContent || "").trim() === name);
+        ].filter(
+          (el) =>
+            (el.getAttribute("aria-label") || el.textContent || "").trim() ===
+            name,
+        );
         break;
       }
       case "text":
         // Only elements whose *own* text is the query: without that, every
         // ancestor up to <body> contains the words and the match is the page.
         found = [
-          ...document.querySelectorAll("button, a, label, td, th, li, span, div, option"),
+          ...document.querySelectorAll(
+            "button, a, label, td, th, li, span, div, option",
+          ),
         ].filter((el) => {
           const own = [...el.childNodes]
             .filter((node) => node.nodeType === Node.TEXT_NODE)
@@ -100,8 +110,14 @@ export function performInPage(payload) {
     // Through the prototype's own setter, so a framework that watches the
     // property (React and its imitators do) sees the change it is listening
     // for rather than a value that appeared without one.
-    const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement : HTMLInputElement;
-    const setter = Object.getOwnPropertyDescriptor(proto.prototype, "value")?.set;
+    const proto =
+      el instanceof HTMLTextAreaElement
+        ? HTMLTextAreaElement
+        : HTMLInputElement;
+    const setter = Object.getOwnPropertyDescriptor(
+      proto.prototype,
+      "value",
+    )?.set;
     const put = (next) => (setter ? setter.call(el, next) : (el.value = next));
     put("");
     el.dispatchEvent(new Event("input", { bubbles: true }));
@@ -109,10 +125,14 @@ export function performInPage(payload) {
     // value assigned whole leaves the picker closed and the field unvalidated,
     // which is how a replay silently fills a form nobody accepts.
     for (const character of String(text ?? "")) {
-      el.dispatchEvent(new KeyboardEvent("keydown", { key: character, bubbles: true }));
+      el.dispatchEvent(
+        new KeyboardEvent("keydown", { key: character, bubbles: true }),
+      );
       put(el.value + character);
       el.dispatchEvent(new Event("input", { bubbles: true }));
-      el.dispatchEvent(new KeyboardEvent("keyup", { key: character, bubbles: true }));
+      el.dispatchEvent(
+        new KeyboardEvent("keyup", { key: character, bubbles: true }),
+      );
     }
     el.dispatchEvent(new Event("change", { bubbles: true }));
   };
@@ -158,7 +178,13 @@ export function performInPage(payload) {
       case "press": {
         const key = payload.value || "Enter";
         el.focus();
-        el.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
+        el.dispatchEvent(
+          new KeyboardEvent("keydown", {
+            key,
+            bubbles: true,
+            cancelable: true,
+          }),
+        );
         el.dispatchEvent(new KeyboardEvent("keyup", { key, bubbles: true }));
         return null;
       }
@@ -209,7 +235,12 @@ export function performInPage(payload) {
     if (payload.probe) {
       return {
         ok: true,
-        result: { performed: false, probed: true, matched_by: locator.strategy, candidates: found.length },
+        result: {
+          performed: false,
+          probed: true,
+          matched_by: locator.strategy,
+          candidates: found.length,
+        },
       };
     }
 
@@ -217,7 +248,10 @@ export function performInPage(payload) {
     if (problem) {
       return {
         ok: false,
-        error: { kind: "not_actionable", detail: `found the control but ${problem}` },
+        error: {
+          kind: "not_actionable",
+          detail: `found the control but ${problem}`,
+        },
       };
     }
     return {
@@ -231,6 +265,52 @@ export function performInPage(payload) {
     };
   }
 
+  // Defined HERE, inside the function that is injected, and this is why.
+  //
+  // `chrome.scripting.executeScript({func})` serialises that function and
+  // nothing else: a helper sitting beside it in this module does not exist in
+  // the page. Calling one throws a ReferenceError there, and since Chrome 117
+  // the promise RESOLVES with `{result: undefined, error}` -- so a call that
+  // blew up arrives at the run as no answer at all.
+  //
+  // Measured on the deployment across 2026-09-16 and 17: every UI step ever
+  // attempted on the warehouse host failed with "the page did not answer",
+  // and the only one that ever held was on a mailbox. The difference was not
+  // the page. On the mailbox a locator MATCHED, so this line was never
+  // reached; on the warehouse nothing matched, the near-miss report was asked
+  // for, and the report is what exploded. The step that was meant to explain
+  // the failure was the failure.
+  const nearMisses = (payload_) => {
+    const wanted = (payload_.locators || [])
+      .map((locator) =>
+        String(locator.query || "")
+          .split("|")
+          .pop(),
+      )
+      .filter(Boolean)
+      .map((one) => one.toLowerCase());
+    const seen = [];
+    for (const el of document.querySelectorAll(
+      "button, a[href], input, select, textarea, [role=button], [role=link], [role=tab]",
+    )) {
+      const name = (
+        el.getAttribute("aria-label") ||
+        el.getAttribute("title") ||
+        el.getAttribute("placeholder") ||
+        el.getAttribute("name") ||
+        (el.innerText || "").trim()
+      ).slice(0, 60);
+      if (!name) continue;
+      const said = name.toLowerCase();
+      // A near miss and not a catalogue: something the step's own words are
+      // part of, or that is part of them.
+      if (!wanted.some((one) => said.includes(one) || one.includes(said)))
+        continue;
+      seen.push({ tag: el.tagName.toLowerCase(), name });
+      if (seen.length === 5) break;
+    }
+    return seen;
+  };
   const nearby = nearMisses(payload);
   // Said in the DETAIL as well as the field, because the detail is what
   // travels: the socket adapter keeps a reply's `kind` and `detail` and drops
@@ -262,38 +342,6 @@ export function performInPage(payload) {
   };
 }
 
-/** Controls that look like the one the step wanted, with what they are called.
- *
- * Interactive elements only, and at most a handful: this rides on a failure
- * and its job is to be read, not to be complete.
- */
-function nearMisses(payload) {
-  const wanted = (payload.locators || [])
-    .map((locator) => String(locator.query || "").split("|").pop())
-    .filter(Boolean)
-    .map((one) => one.toLowerCase());
-  const seen = [];
-  for (const el of document.querySelectorAll(
-    "button, a[href], input, select, textarea, [role=button], [role=link], [role=tab]",
-  )) {
-    const name = (
-      el.getAttribute("aria-label") ||
-      el.getAttribute("title") ||
-      el.getAttribute("placeholder") ||
-      el.getAttribute("name") ||
-      (el.innerText || "").trim()
-    ).slice(0, 60);
-    if (!name) continue;
-    const said = name.toLowerCase();
-    // A near miss and not a catalogue: something the step's own words are
-    // part of, or that is part of them.
-    if (!wanted.some((one) => said.includes(one) || one.includes(said))) continue;
-    seen.push({ tag: el.tagName.toLowerCase(), name });
-    if (seen.length === 5) break;
-  }
-  return seen;
-}
-
 /** Act at a point, because the gesture came from pixels rather than from a
  * control the demonstration identified. Coordinates are CSS pixels in the
  * viewport -- the same space `viewportInPage` reports, so the picture the model
@@ -301,7 +349,10 @@ function nearMisses(payload) {
 export function performAtInPage(payload) {
   const el = document.elementFromPoint(payload.x, payload.y);
   if (!el) {
-    return { ok: false, error: { kind: "control_not_found", detail: "nothing at that point" } };
+    return {
+      ok: false,
+      error: { kind: "control_not_found", detail: "nothing at that point" },
+    };
   }
   // A point inside a frame lands on the <iframe> itself from this document:
   // the events below would fire on the frame element and reach nothing, and
@@ -310,7 +361,10 @@ export function performAtInPage(payload) {
   if (el.tagName === "IFRAME" || el.tagName === "FRAME") {
     return {
       ok: false,
-      error: { kind: "control_not_found", detail: "that point is inside a frame" },
+      error: {
+        kind: "control_not_found",
+        detail: "that point is inside a frame",
+      },
     };
   }
   const where = {
@@ -339,22 +393,36 @@ export function performAtInPage(payload) {
       if (typeof el.focus !== "function" || !("value" in el)) {
         return {
           ok: false,
-          error: { kind: "not_actionable", detail: "what is at that point cannot be typed into" },
+          error: {
+            kind: "not_actionable",
+            detail: "what is at that point cannot be typed into",
+          },
         };
       }
       el.focus();
       // Through the prototype's own setter, for the same reason `performInPage`
       // does it: a framework watching the property has to see the change.
-      const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement : HTMLInputElement;
-      const setter = Object.getOwnPropertyDescriptor(proto.prototype, "value")?.set;
-      const put = (next) => (setter ? setter.call(el, next) : (el.value = next));
+      const proto =
+        el instanceof HTMLTextAreaElement
+          ? HTMLTextAreaElement
+          : HTMLInputElement;
+      const setter = Object.getOwnPropertyDescriptor(
+        proto.prototype,
+        "value",
+      )?.set;
+      const put = (next) =>
+        setter ? setter.call(el, next) : (el.value = next);
       put("");
       el.dispatchEvent(new Event("input", { bubbles: true }));
       for (const character of String(payload.value ?? "")) {
-        el.dispatchEvent(new KeyboardEvent("keydown", { key: character, bubbles: true }));
+        el.dispatchEvent(
+          new KeyboardEvent("keydown", { key: character, bubbles: true }),
+        );
         put(el.value + character);
         el.dispatchEvent(new Event("input", { bubbles: true }));
-        el.dispatchEvent(new KeyboardEvent("keyup", { key: character, bubbles: true }));
+        el.dispatchEvent(
+          new KeyboardEvent("keyup", { key: character, bubbles: true }),
+        );
       }
       el.dispatchEvent(new Event("change", { bubbles: true }));
       break;
@@ -364,7 +432,9 @@ export function performAtInPage(payload) {
       // The element at the point, focused first: the same trap as `type`, and
       // an Enter delivered to `<body>` submits nothing.
       el.focus?.();
-      el.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
+      el.dispatchEvent(
+        new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }),
+      );
       el.dispatchEvent(new KeyboardEvent("keyup", { key, bubbles: true }));
       break;
     }
@@ -379,10 +449,16 @@ export function performAtInPage(payload) {
     default:
       return {
         ok: false,
-        error: { kind: "not_actionable", detail: `${payload.action} cannot be done at a point` },
+        error: {
+          kind: "not_actionable",
+          detail: `${payload.action} cannot be done at a point`,
+        },
       };
   }
-  return { ok: true, result: { performed: true, matched_by: null, candidates: 1, detail: null } };
+  return {
+    ok: true,
+    result: { performed: true, matched_by: null, candidates: 1, detail: null },
+  };
 }
 
 /** The visible controls and where they are, plus the size of the space those
@@ -415,7 +491,12 @@ export function viewportInPage() {
       const ny = Math.round(((rect.y + rect.height / 2) / height) * 1000);
       if (label) seen.push(`${label}: ${nx},${ny}`);
     });
-  return { url: location.href, width, height, digest: seen.slice(0, 200).join("\n").slice(0, 8000) };
+  return {
+    url: location.href,
+    width,
+    height,
+    digest: seen.slice(0, 200).join("\n").slice(0, 8000),
+  };
 }
 
 /** The one header this extension knows how to read live: Blue Yonder keeps
@@ -445,7 +526,9 @@ export function csrfTokenInPage() {
  * for, the value is found here.
  */
 export function requestedWithInPage() {
-  return window.Ext?.Ajax?.defaultHeaders?.["X-Requested-With"] ?? "XMLHttpRequest";
+  return (
+    window.Ext?.Ajax?.defaultHeaders?.["X-Requested-With"] ?? "XMLHttpRequest"
+  );
 }
 
 /** Send a request from a tab that is already on that origin, so the operator's

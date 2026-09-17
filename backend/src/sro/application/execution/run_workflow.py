@@ -2143,7 +2143,26 @@ async def run_workflow(
             # failed, unclear, refused, or a step with nothing actionable to
             # cite -- is a step nobody watched succeed, and the rest of the job
             # assumes it did. Nothing runs unattended past one.
-            if record.verdict not in ("held", "withheld") and step.order in in_reserve:
+            # **A step the page TOOK is not a step the page refused.**
+            #
+            # The collapse below exists for one premise -- "the page would not
+            # take this step" -- and when the browser answered `ok` that
+            # premise is false. run_7ebafa8f, the deployment, 2026-09-17 at
+            # 22:17: step 3 typed `GS7` into Customer Type and the browser said
+            # `ok: true, matched_by: component`. It came back `unclear` only
+            # because there was no screen to confirm it against, the reserve
+            # collapsed it as a refusal, and the card told the operator "the
+            # form was never filled for this run" over a form holding GS7.
+            #
+            # That is the worst of both: a half-filled form left in front of
+            # somebody who might press Save on it, and the same write going out
+            # as a call beside it. So a step the page took stops the run
+            # instead, with the form as it is and a reason that matches it --
+            # which is a decision for a person, and the reserve is for the case
+            # where the page did nothing.
+            took_it = bool(isinstance(record.result, dict) and record.result.get("ok"))
+            in_the_reserve = record.verdict not in ("held", "withheld") and step.order in in_reserve
+            if in_the_reserve and not took_it:
                 # Only a step the BROWSER would not do reaches here, and that
                 # is by construction rather than by a check: a step in the
                 # reserve is never parked on a person (see the approval gate),

@@ -5492,6 +5492,59 @@ async def test_a_watched_run_falls_back_to_the_call_when_the_screen_will_not_tak
     assert wrote, ("|".join(sent), [(one.verdict, one.reason) for one in run.steps])
 
 
+async def test_a_step_the_page_took_is_not_collapsed_as_one_it_refused() -> None:
+    """The collapse has one premise and it has to be true.
+
+    run_7ebafa8f, the deployment, 2026-09-17 at 22:17. Step 3 typed `GS7` into
+    Customer Type and the browser answered `ok: true, matched_by: component`:
+    the value went in, and the screenshot beside it was the thing that failed.
+    The step came back unconfirmed, the reserve collapsed it as a refusal, and
+    the card said "the form was never filled for this run" over a form that
+    was sitting there holding GS7.
+
+    That is the worst of both outcomes: a half-filled form in front of somebody
+    who might press Save on it, and the same write going out as a call beside
+    it. A step the page TOOK stops the run with the form as it is.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel(
+        {
+            **_looks(6),
+            # The page took every one of them. Only the confirming failed.
+            "ui.perform": [_performed()] * 4,
+            "http.send": [Reply(ok=True, result={"status": 201, "body": "{}"})] * 3,
+        }
+    )
+    asker = FakeAsker(
+        _plan("type", "GS7"),
+        Answer(data={"held": False, "why": "nothing could be confirmed"}),
+        _plan("click"),
+        Answer(data={"held": False, "why": "nothing could be confirmed"}),
+        _plan("click"),
+        Answer(data={"held": False, "why": "nothing could be confirmed"}),
+    )
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        values={},
+        earned=True,
+        verified_writes=(VerifiedWrite(method="POST", path_pattern="/api/orders"),),
+        watched=True,
+    )
+
+    first = run.steps[0]
+    assert first.verdict != "not_needed", (first.verdict, first.reason)
+    assert "the form is not being filled" not in (first.reason or ""), first.reason
+    # And the run does not go on to tell the operator the form is empty.
+    assert not any("the form was never filled" in (one.reason or "") for one in run.steps), [
+        one.reason for one in run.steps
+    ]
+
+
 async def test_an_unwatched_run_replays_the_call() -> None:
     """The other half, and the same job.
 

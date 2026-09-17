@@ -928,12 +928,26 @@ function howItEnded(run) {
   // never filled and the write went out as a call -- and the card said "every
   // step held" above four dashes. The record was made and the sentence was
   // still false, which is the worse half: an operator reads the sentence.
+  // ...and a run that skipped a step did not necessarily send its write as a
+  // call either. That is the sentence this became, and it was wrong the other
+  // way round: measured on the deployment, 2026-09-18 at 02:20, a run that
+  // pressed every button on the page and made the record by clicking Save --
+  // five ticks, every one `component`, $0.0224 -- was announced as "the write
+  // went out as a call, 1 step on the page skipped". The skipped step was
+  // "Open an email", which is skipped on every single run of this job because
+  // the mail was read before the run began.
+  //
+  // So the two facts are said separately, because they are separate: a step
+  // the run did not do, and a write that did not go through the form. A write
+  // done on the page carries the locator that found its button, which is what
+  // `matched_by` is; a replayed call has none.
   const skipped = steps.filter((step) => step.outcome === "not_needed").length;
-  if (run.status === "held" && skipped)
-    return `The run finished — the write went out as a call, ${skipped} ${
-      skipped === 1 ? "step" : "steps"
-    } on the page skipped.`;
-  return RIG_ENDINGS[run.status] || "The run ended.";
+  if (run.status !== "held" || !skipped) return RIG_ENDINGS[run.status] || "The run ended.";
+  const wrote = [...steps].reverse().find((step) => step.outcome === "held");
+  const many = `${skipped} ${skipped === 1 ? "step" : "steps"}`;
+  return wrote?.matched_by
+    ? `The run finished — ${many} skipped, and the rest done on the page.`
+    : `The run finished — the write went out as a call, ${many} on the page skipped.`;
 }
 
 /** How much of a failure's own words the card carries. Long enough for
@@ -2234,8 +2248,55 @@ chrome.tabs.onUpdated?.addListener((_tabId, changeInfo) => {
 // thing that says the panel is now beside something else.
 chrome.windows?.onFocusChanged?.addListener(() => void whereWeAre());
 
+/** Whether this document still belongs to the extension that is running.
+ *
+ * An extension that reloads -- a developer pressing the button, or Chrome
+ * applying an update -- orphans every page the old one had open. This panel
+ * keeps running the old code and `chrome.runtime.id` goes undefined: the port
+ * cannot be reopened, no message reaches the new worker, and every call fails
+ * with "Extension context invalidated". The panel does not look broken. It
+ * looks like a panel where nothing is happening.
+ *
+ * Measured on 2026-09-17 and 18: four mail offers were made, kept, and
+ * badged, and the operator watched a panel showing two questions from eight
+ * hours earlier. The offers appeared the instant the panel was reopened by
+ * hand. Everything under it worked; the window onto it had been dead since
+ * the first reload.
+ */
+const stillOurs = () => Boolean(chrome.runtime?.id);
+
+/** Say so, and offer the one thing that fixes it.
+ *
+ * Reloaded outright when nobody is mid-sentence, because a panel that cannot
+ * hear the worker has nothing to lose by starting again -- and left to a press
+ * when they are, because what they typed is theirs and a reload eats it.
+ */
+function orphaned() {
+  const typed = $("ask-bar")?.querySelector("textarea, input");
+  if (!typed || !typed.value.trim()) {
+    location.reload();
+    return;
+  }
+  // Its own line, in the place the panel already keeps for "this browser and
+  // this deployment cannot talk to each other".
+  const holder = $("console-refused");
+  if (!holder || !holder.hidden) return;
+  holder.hidden = false;
+  holder.replaceChildren();
+  const note = document.createElement("p");
+  note.className = "note";
+  note.textContent =
+    "AI-SRO was updated and this panel is the old one — nothing here is live any more.";
+  const again = document.createElement("button");
+  again.type = "button";
+  again.textContent = "Reopen it";
+  again.addEventListener("click", () => location.reload());
+  holder.append(note, again);
+}
+
 setInterval(() => {
   if (document.visibilityState !== "visible") return;
+  if (!stillOurs()) return orphaned();
   listen();
   void whereWeAre();
   // The safety net, at a tenth of the old rate: a push that never arrived, a

@@ -1076,6 +1076,40 @@ test("a run that held having skipped steps does not say every step held", () => 
   assert.match(said, /2 steps/, "it did not say how many were skipped");
 });
 
+test("a run that pressed the buttons is not said to have sent a call", async () => {
+  // The other way round, and the one this sentence got wrong in the wild.
+  // Measured on the deployment, 2026-09-18 at 02:20: a run that pressed every
+  // button on the page and made the record by clicking Save -- five ticks,
+  // every one `component` -- was announced as "the write went out as a call,
+  // 1 step on the page skipped". The skipped step was "Open an email", which
+  // is skipped on EVERY run of this job because the mail was read before the
+  // run began, and has nothing to say about how the write went.
+  const { cards } = panel(
+    {
+      deviceId: "dev-1",
+      capturing: true,
+      watched: [],
+      finished: {
+        id: "run_pressed",
+        source: "rig",
+        status: "held",
+        watched: true,
+        steps: [
+          { index: 0, outcome: "not_needed", says: "open the email" },
+          { index: 1, outcome: "held", says: "click Add", matched_by: "component" },
+          { index: 2, outcome: "held", says: "click Save", matched_by: "component" },
+        ],
+      },
+    },
+    null,
+  );
+
+  const said = cards.map(words).join(" ");
+  assert.ok(!/went out as a call/.test(said), said);
+  assert.match(said, /done on the page/, said);
+  assert.match(said, /1 step skipped/, said);
+});
+
 test("a run where every step held says so", () => {
   const { cards } = panel(
     {

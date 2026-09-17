@@ -72,8 +72,21 @@ def _found(*ids: str) -> str:
     return json.dumps({"messages": [{"id": one} for one in ids]})
 
 
-def _mail(said: str) -> str:
-    return json.dumps({"id": "m-1", "subject": "Fwd: new type", "body": said})
+def _mail(said: str, thread: str = "") -> str:
+    return json.dumps({"id": "m-1", "subject": "Fwd: new type", "body": said, "thread_id": thread})
+
+
+def _conversation(*said: str) -> str:
+    """A whole thread, oldest first, as `get_thread` answers it."""
+    return json.dumps(
+        {
+            "id": "t-1",
+            "messages": [
+                {"id": f"m-{n}", "subject": "Customer type", "body": one}
+                for n, one in enumerate(said)
+            ],
+        }
+    )
 
 
 def _reading(
@@ -330,3 +343,50 @@ async def test_a_look_with_no_gather_offers_what_the_mail_itself_said() -> None:
 
     (one,) = looked.offered
     assert one.values == {"Customer Type": "GPX"}
+
+
+async def test_a_request_that_refers_to_an_earlier_mail_reads_the_conversation() -> None:
+    """ "As discussed" was discussed in the mail above it.
+
+    A reply names no values and the mail it replies to holds them, and which
+    mail that is, is a fact Gmail already knows: it is the same thread. The
+    gather searched the whole mailbox for it instead, with a query a model
+    writes, and on a mailbox holding seventeen near-identical threads came back
+    "the mailbox holds none of the values this job needs" about a value sitting
+    one mail away. Measured on the deployment, 2026-09-17 at 21:26.
+    """
+    uow = await _held()
+    mailbox = _Mailbox(
+        search=_found("m-1"),
+        **{
+            "m-1": _mail("please create the customer type in WMS as discussed", thread="t-1"),
+            "t-1": _conversation(
+                'the code is GU5 and the description should read "leaning new SRO type 040"',
+                "please create the customer type in WMS as discussed",
+            ),
+        },
+    )
+    # The request alone says nothing; the conversation says both.
+    reads = _Reads(_reading(JOB, bare=True), _reading(JOB))
+
+    looked = await _look(uow, mailbox, reads).execute(CTX)
+
+    (one,) = looked.offered
+    assert one.values == {"Customer Type": "GPX"}, one.values
+    assert one.missing == ["Customer Type Description"]
+    # The conversation was read, and by id rather than by searching for it.
+    assert [one for one in mailbox.asked if one[1:] == ("get_thread", {"id": "t-1"})], mailbox.asked
+
+
+async def test_a_request_in_no_conversation_does_not_ask_for_one() -> None:
+    """A mail with no thread is a mail with nothing above it. Asking Gmail for
+    thread "" is a call that can only fail."""
+    uow = await _held()
+    mailbox = _Mailbox(
+        search=_found("m-1"),
+        **{"m-1": _mail("please create the customer type in WMS as discussed")},
+    )
+    looked = await _look(uow, mailbox, _Reads(_reading(JOB, bare=True))).execute(CTX)
+
+    assert looked.offered, "it refused to offer at all"
+    assert not [one for one in mailbox.asked if one[1] == "get_thread"], mailbox.asked

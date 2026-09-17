@@ -133,6 +133,19 @@ TOOLS = [
         },
     },
     {
+        "name": "get_thread",
+        "description": (
+            "Every mail in one conversation, oldest first. Use this when a mail"
+            " refers to something said earlier -- 'as discussed', 'the code"
+            " above' -- because what it refers to is in the same conversation."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {"id": {"type": "string", "description": "thread_id"}},
+            "required": ["id"],
+        },
+    },
+    {
         "name": "send_message",
         "description": "Send a mail. The least reversible thing this connector does.",
         "inputSchema": {
@@ -447,12 +460,55 @@ def _get(token: str, arguments: dict[str, Any]) -> str:
     return json.dumps(
         {
             "id": full.get("id", ""),
+            # Which conversation this belongs to.
+            #
+            # A request rarely carries what it is about -- "please create the
+            # customer type as discussed" -- and what it is about is in the
+            # mail before it, in the same thread. Without this the only way to
+            # reach that mail is to search the whole mailbox and hope, which on
+            # a mailbox holding seventeen near-identical threads finds the
+            # wrong one or none. Measured on the deployment, 2026-09-17 at
+            # 21:26: "gathered 0 of 2 ... the mailbox holds none of the values
+            # this job needs", about values sitting one mail away.
+            "thread_id": full.get("threadId", ""),
             "from": head.get("from", ""),
             "subject": head.get("subject", ""),
             "body": _body_of(payload),
         },
         indent=1,
     )
+
+
+def _thread(token: str, arguments: dict[str, Any]) -> str:
+    """Every mail in one conversation, oldest first.
+
+    The conversation and not a search: a reply names no values and the mail it
+    replies to holds them, and which mail that is, is a fact Gmail already
+    knows. Searching for it is guessing at something nobody has to guess at.
+    """
+    whole = _answered(
+        httpx.get(
+            f"{GMAIL}/threads/{arguments.get('id', '')}",
+            params={"format": "full"},
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=20.0,
+        ),
+        "that conversation",
+    )
+    said = []
+    for one in whole.get("messages", []) or []:
+        payload = one.get("payload", {})
+        head = _headers_of(payload)
+        said.append(
+            {
+                "id": one.get("id", ""),
+                "from": head.get("from", ""),
+                "date": head.get("date", ""),
+                "subject": head.get("subject", ""),
+                "body": _body_of(payload),
+            }
+        )
+    return json.dumps({"id": whole.get("id", ""), "messages": said}, indent=1)
 
 
 def _send(token: str, arguments: dict[str, Any]) -> str:
@@ -542,6 +598,8 @@ class Connector(BaseHTTPRequestHandler):
                     text = _search(token, arguments)
                 elif name == "get_message":
                     text = _get(token, arguments)
+                elif name == "get_thread":
+                    text = _thread(token, arguments)
                 elif name == "send_message":
                     text = _send(token, arguments)
                 else:

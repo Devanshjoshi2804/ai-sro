@@ -72,6 +72,10 @@ cards at once is a panel nobody reads past the third -- not because of what the
 readings cost. Eight covers a morning's arrivals between looks.
 """
 
+K_THREAD = 8000
+"""How much of one conversation is read back. Long enough for a thread of a
+dozen short mails, short enough that a forwarded chain is not a prompt."""
+
 K_OFFER_ROUNDS = 3
 """How hard a look tries to find the values for an offer.
 
@@ -220,7 +224,7 @@ class FromTheMail:
             if not await self._first_time(ctx, message, now=now):
                 continue
             try:
-                said = await self._body(ctx, message)
+                said, thread = await self._body(ctx, message)
             except ToolsUnavailable as gone:
                 return LookedInTheMail(
                     offered=tuple(offered), read=read, why=str(gone), spent=spent
@@ -268,6 +272,27 @@ class FromTheMail:
             # moved to where the decision is actually made, so a wrong reading
             # is caught before the record instead of after it.
             values, missing = dict(got.values), list(got.missing)
+            # The conversation first, because that is where the answer is.
+            #
+            # A reply that says "as discussed" was discussed in the mail above
+            # it. Reading the thread is one call and no guessing; the gather
+            # below searches the whole mailbox with a query a model writes, and
+            # on this mailbox that came back empty about a value one mail away.
+            if missing and thread:
+                whole = await self._conversation(ctx, thread)
+                if whole and whole != said:
+                    again = await understand(whole, workflows, asker, self._model, asked_by)
+                    spent = _also(spent, again.answer)
+                    if again.workflow_id == got.workflow_id:
+                        values |= dict(again.values)
+                        missing = [name for name in missing if name not in values]
+                        logger.info(
+                            "%s: read the whole conversation for %s -- %d of %d found",
+                            tenant,
+                            titles.get(got.workflow_id, got.workflow_id),
+                            len(values),
+                            len(values) + len(missing),
+                        )
             if missing and self._gather is not None:
                 found = await self._gather.execute(
                     ctx,
@@ -342,22 +367,56 @@ class FromTheMail:
             if isinstance(row, dict) and isinstance(row.get("id"), str)
         ][:limit]
 
-    async def _body(self, ctx: RequestContext, message: str) -> str:
-        """What one message says, trimmed to the part that states the request."""
+    async def _body(self, ctx: RequestContext, message: str) -> tuple[str, str]:
+        """What one message says, and the conversation it belongs to.
+
+        The thread beside the words because a request rarely carries what it is
+        about: "as discussed" was discussed in the mail above it, and which
+        mail that is, is a fact Gmail already knows.
+        """
         answered = await self._tools.call(
             ctx.tenant_id, ctx.principal_id, SERVER, "get_message", {"id": message}
         )
         try:
             said = json.loads(answered.text)
         except ValueError:
-            return ""
+            return "", ""
         if not isinstance(said, dict):
-            return ""
+            return "", ""
         whole = " ".join(
             str(said.get(part) or "").strip() for part in ("subject", "body", "snippet")
         )
         whole = " ".join(whole.split())
-        return whole[:K_TEXT]
+        return whole[:K_TEXT], str(said.get("thread_id") or "")
+
+    async def _conversation(self, ctx: RequestContext, thread: str) -> str:
+        """Every mail in one conversation, as one piece of text.
+
+        The conversation and not a search. A request names no values -- "please
+        create the customer type as discussed" -- and the values are in the mail
+        it replies to, which Gmail already knows about: it is the same thread.
+        Searching the mailbox for it is guessing at something nobody has to
+        guess at, and on a mailbox holding seventeen near-identical threads the
+        guess came back "the mailbox holds none of the values this job needs"
+        about a value sitting one mail away. Measured on the deployment,
+        2026-09-17 at 21:26.
+        """
+        answered = await self._tools.call(
+            ctx.tenant_id, ctx.principal_id, SERVER, "get_thread", {"id": thread}
+        )
+        try:
+            said = json.loads(answered.text)
+        except ValueError:
+            return ""
+        rows = said.get("messages") if isinstance(said, dict) else None
+        if not isinstance(rows, list):
+            return ""
+        whole = " ".join(
+            " ".join(str(one.get(part) or "") for part in ("subject", "body"))
+            for one in rows
+            if isinstance(one, dict)
+        )
+        return " ".join(whole.split())[:K_THREAD]
 
     async def _first_time(self, ctx: RequestContext, message: str, *, now: datetime) -> bool:
         """Whether this message has been offered before.

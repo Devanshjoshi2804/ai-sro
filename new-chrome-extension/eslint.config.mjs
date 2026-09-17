@@ -46,6 +46,7 @@ const browser = {
   CustomEvent: "readonly",
   Event: "readonly",
   EventTarget: "readonly",
+  FocusEvent: "readonly",
   KeyboardEvent: "readonly",
   MouseEvent: "readonly",
   PointerEvent: "readonly",

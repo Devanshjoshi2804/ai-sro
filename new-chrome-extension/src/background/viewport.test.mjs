@@ -148,3 +148,22 @@ test("a page saying nothing says nothing, rather than an empty line", () => {
 
   assert.equal(viewportInPage().digest, "Save: 60,138");
 });
+
+test("a dialog at the end of a long page is not lost behind the header", () => {
+  // Measured on the deployment, 2026-09-17 at 23:40: the digest for a screen
+  // showing an error dialog was "Search: 865,18 Workstation: 681,18 SG: ..."
+  // -- the application's top bar, and not one word of the dialog the run had
+  // just failed on. A page is written header-first and a dialog is appended to
+  // the body, so reading in order spends the whole budget before reaching what
+  // the screen is actually saying.
+  const measured = { count: 0 };
+  const chrome = Array.from({ length: 3000 }, (_, n) =>
+    cell(`header ${n}`, box(10), measured),
+  );
+  page([...chrome, cell("Customer Type is required", box(300), measured)]);
+
+  const seen = viewportInPage();
+
+  assert.match(seen.digest, /Customer Type is required/, seen.digest);
+  assert.ok(measured.count <= 2000, `it measured ${measured.count} elements`);
+});

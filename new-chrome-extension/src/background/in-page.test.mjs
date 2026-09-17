@@ -18,6 +18,7 @@ globalThis.Event = FakeEvent;
 globalThis.MouseEvent = FakeEvent;
 globalThis.PointerEvent = FakeEvent;
 globalThis.KeyboardEvent = FakeEvent;
+globalThis.FocusEvent = FakeEvent;
 globalThis.window = { scrollBy: () => {} };
 
 // The two input prototypes `type` writes through. A `value` accessor on the
@@ -50,6 +51,10 @@ function element({ tagName = "BUTTON", typeable = false, src, box, name = "" } =
   el.focused = 0;
   el.dispatchEvent = (event) => el.events.push(event.type);
   if (typeable) el.focus = () => (el.focused += 1);
+  // Left as well as entered: a field commits its value to the framework behind
+  // it when it is blurred, and nothing here did that until 2026-09-17.
+  el.blurred = 0;
+  if (typeable) el.blur = () => (el.blurred += 1);
   return el;
 }
 
@@ -136,13 +141,21 @@ test("typing focuses the element at the point and puts the value through its set
   assert.equal(answer.ok, true);
   assert.equal(at.focused, 1, "focused explicitly: a synthetic click moves no focus");
   assert.equal(at.value, "ab");
-  // click, cleared (input), then per character keydown/input/keyup, then change.
+  // click, cleared (input), then per character keydown/input/keyup, then
+  // change -- and then LEFT, which is when a field commits its value to the
+  // framework behind it. Measured on the deployment, 2026-09-17 at 23:40:
+  // `run_6ddc89d5` typed GT2, the screen showed GT2, and the Save came back
+  // "a validation error on Customer Type" because ExtJS still held the empty
+  // value it had never been told to replace. A person never hits this: their
+  // click on the next control blurs the last one, and a synthetic click moves
+  // no focus.
   assert.deepEqual(at.events, [
     "click", "input",
     "keydown", "input", "keyup",
     "keydown", "input", "keyup",
-    "change",
+    "change", "focusout", "blur",
   ]);
+  assert.equal(at.blurred, 1, "it typed into the field and never left it");
 });
 
 test("typing into something that cannot be typed into says so rather than performing", () => {
@@ -203,4 +216,42 @@ test("a page with nothing like it says so with an empty list, not a catalogue", 
   });
 
   assert.deepEqual(answer.error.nearby, []);
+});
+
+test("the locator path leaves the field too, not only the point path", () => {
+  // The path a run actually takes. `run_6ddc89d5`, the deployment,
+  // 2026-09-17 at 23:40, matched `component` -- which is `performInPage`, not
+  // `performAtInPage` -- typed GT2, showed GT2 on the screen, and had the Save
+  // refused with "a validation error on Customer Type". The framework behind
+  // the box keeps its own value and takes the DOM's when the field is LEFT,
+  // and nothing here ever left it.
+  const field = new HTMLInputElement();
+  Object.assign(field, {
+    tagName: "INPUT",
+    innerText: "",
+    id: "customerType",
+    getAttribute: () => null,
+    matches: (selector) => selector.includes("customerType"),
+    events: [],
+    focused: 0,
+    blurred: 0,
+    scrollIntoView: () => {},
+    getBoundingClientRect: () => ({ left: 0, top: 0, width: 80, height: 20 }),
+  });
+  field.dispatchEvent = (event) => field.events.push(event.type);
+  field.focus = () => (field.focused += 1);
+  field.blur = () => (field.blurred += 1);
+  onScreen = [field];
+  globalThis.document.querySelectorAll = () => onScreen;
+
+  const answer = performInPage({
+    action: "type",
+    value: "GT2",
+    locators: [{ strategy: "css_path", query: "#customerType" }],
+  });
+
+  assert.equal(answer.ok, true, JSON.stringify(answer));
+  assert.equal(field.value, "GT2");
+  assert.equal(field.blurred, 1, "it typed into the field and never left it");
+  assert.deepEqual(field.events.slice(-3), ["change", "focusout", "blur"]);
 });

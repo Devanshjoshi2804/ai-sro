@@ -135,6 +135,25 @@ export function performInPage(payload) {
       );
     }
     el.dispatchEvent(new Event("change", { bubbles: true }));
+    // And then LEFT, which is when a field commits.
+    //
+    // A framework keeps its own value and takes the DOM's when the field is
+    // left -- ExtJS does, and it is not alone. Typing without leaving fills
+    // the box on the screen and not the model behind it, so the form looks
+    // right to a person and to a photograph, and the application validates
+    // the empty value it still holds.
+    //
+    // Measured on the deployment, 2026-09-17 at 23:40: `run_6ddc89d5` typed
+    // GT2, the screen showed GT2, and the Save came back "a validation error
+    // on Customer Type". A person never hits this because clicking the next
+    // control blurs the last one; a synthetic click does not move focus, so
+    // nothing here ever left the field.
+    el.blur();
+    // `blur()` fires these natively, and dispatching them costs nothing and
+    // covers a field whose own `blur` has been overridden -- which is a thing
+    // component libraries do.
+    el.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
+    el.dispatchEvent(new FocusEvent("blur"));
   };
 
   const act = (el) => {
@@ -468,6 +487,11 @@ export function performAtInPage(payload) {
         );
       }
       el.dispatchEvent(new Event("change", { bubbles: true }));
+      // And left, so the framework behind the box takes the value. See the
+      // same lines in the locator path's `type`.
+      el.blur();
+      el.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
+      el.dispatchEvent(new FocusEvent("blur"));
       break;
     }
     case "press": {
@@ -593,8 +617,31 @@ export function viewportInPage() {
     if (says) seen.push(`says: ${says.slice(0, 300)}`);
     if (seen.length >= K_NAMED) break;
   }
-  const many = Math.min(all.length, K_LOOKED_AT);
-  for (let n = 0; n < many && seen.length < K_NAMED; n += 1) {
+  // Both ends of the document, not the first two hundred elements of it.
+  //
+  // A page is written header-first, so walking it in order spends the whole
+  // budget on the application's own chrome. Measured on the deployment,
+  // 2026-09-17 at 23:40: the digest for a screen showing an error dialog was
+  // "Search: 865,18 Workstation: 681,18 SG: 625,18 ..." -- the top bar, and
+  // not one word of the dialog the run had just failed on.
+  //
+  // A dialog is appended to the body, so it is at the END. Half the budget
+  // from each end catches both what the screen is FOR and what it is saying,
+  // and neither is reachable by reading the other.
+  // The same budget, taken alternately from each end.
+  //
+  // Not front-then-back: the ANSWER is capped too, and two hundred names of
+  // header controls fill it before the walk ever reaches the other end. Taking
+  // one from each end in turn means a page longer than either budget is still
+  // described from both, which is the whole point.
+  const order = [];
+  for (let front = 0, back = all.length - 1; front <= back; front += 1, back -= 1) {
+    if (order.length >= K_LOOKED_AT) break;
+    order.push(front);
+    if (back !== front && order.length < K_LOOKED_AT) order.push(back);
+  }
+  for (const n of order) {
+    if (seen.length >= K_NAMED) break;
     const el = all[n];
     const rect = el.getBoundingClientRect();
     if (rect.width < 2 || rect.height < 2) continue;

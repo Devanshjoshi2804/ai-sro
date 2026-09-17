@@ -645,13 +645,36 @@ export function requestedWithInPage() {
  * patched `fetch` is not the one called here: a replayed request must not
  * arrive in the evidence plane looking like something the operator did. */
 export async function sendInPage(payload) {
+  // Bounded, and it says how long it took either way.
+  //
+  // `TypeError: Failed to fetch` is what a browser says for every one of: the
+  // host did not resolve, the connection was refused, CORS refused the
+  // response, and the document running this was torn down mid-request. Four
+  // faults, one sentence, and no clue which -- so the one thing that tells
+  // them apart, how long it took to fail, was being thrown away.
+  //
+  // Measured on the deployment, 2026-09-17: `run_e1ff6362` step 6 failed
+  // `unreachable: TypeError: Failed to fetch`, and the only reason anybody
+  // knows it stalled for 54 seconds first is that two log lines on the SERVER
+  // happened to bracket it. An instant failure is a refusal; a long one is a
+  // connection nobody answered. Those want different fixes.
+  //
+  // `timeout_ms` is the command's own where it carries one, because a call has
+  // no business outliving the deadline the run is waiting on.
+  const K_CALL_MS = 15_000;
   const started = Date.now();
+  const control = new AbortController();
+  const giveUp = setTimeout(
+    () => control.abort(),
+    Number(payload?.timeout_ms) || K_CALL_MS,
+  );
   try {
     const response = await fetch(payload.url, {
       method: payload.method || "GET",
       headers: payload.headers || {},
       body: payload.body ?? undefined,
       credentials: "include",
+      signal: control.signal,
     });
     const headers = {};
     response.headers.forEach((value, key) => {
@@ -667,6 +690,29 @@ export async function sendInPage(payload) {
       },
     };
   } catch (error) {
-    return { ok: false, error: { kind: "unreachable", detail: String(error) } };
+    const took = Date.now() - started;
+    if (control.signal.aborted) {
+      return {
+        ok: false,
+        error: {
+          kind: "unreachable",
+          detail: `the system did not answer within ${took}ms`,
+        },
+      };
+    }
+    return {
+      ok: false,
+      error: {
+        kind: "unreachable",
+        // The elapsed time and whether the browser thinks it has a network at
+        // all: the two facts that tell a refusal from a stall, and neither of
+        // them costs anything to collect.
+        detail:
+          `${error} after ${took}ms` +
+          (navigator.onLine === false ? " (this browser is offline)" : ""),
+      },
+    };
+  } finally {
+    clearTimeout(giveUp);
   }
 }

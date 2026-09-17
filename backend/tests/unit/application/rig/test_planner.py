@@ -902,13 +902,19 @@ async def test_a_replayed_call_still_carries_the_answer_that_planned_it() -> Non
     assert planned.answer is not None and planned.answer.cost_usd == 0.002, "the runner bills it"
 
 
-def _seen(width: int = 800, height: int = 600, picture: bytes | None = b"png") -> Look:
+def _seen(
+    width: int = 800,
+    height: int = 600,
+    picture: bytes | None = b"png",
+    refused: str = "",
+) -> Look:
     return Look(
         url="http://127.0.0.1:63319/form",
         screenshot=picture,
         digest="Client Code Save",
         width=width,
         height=height,
+        refused=refused,
     )
 
 
@@ -1009,6 +1015,16 @@ async def test_no_picture_no_size_or_no_answer_is_no_plan() -> None:
     assert blind.kind == "none" and blind.why == "no screen to look at" and not asker.asked
     sizeless, asker = await _by_sight(_sight(), look=_seen(width=0))
     assert sizeless.kind == "none" and sizeless.why == "no screen to look at" and not asker.asked
+    # And with the browser's own reason where it gave one. Measured on the
+    # deployment, 2026-09-17 at 15:20: two runs gave up on the same step saying
+    # "no screen to look at", and nothing anywhere said whether the tab had
+    # refused the screen, was not the visible one, or had answered with a
+    # picture of no size. Three faults, three fixes, told apart by nothing.
+    said, _ = await _by_sight(
+        _sight(),
+        look=_seen(picture=None, refused="focus_not_permitted: not the visible one"),
+    )
+    assert said.why == "no screen to look at: focus_not_permitted: not the visible one"
     refused, _ = await _by_sight(Answer(error="503 UNAVAILABLE", unpriced=True))
     assert refused.kind == "none" and refused.why == "503 UNAVAILABLE"
     assert refused.answer.unpriced is True, "the refused call is still the bill"

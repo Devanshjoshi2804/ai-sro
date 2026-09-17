@@ -463,12 +463,22 @@ async def _look(
                 image = None
         digest = str(shot.result.get("text_digest") or "")
     width, height = shot.result.get("width"), shot.result.get("height")
+    width = width if isinstance(width, int) else 0
+    height = height if isinstance(height, int) else 0
+    # Why there is no picture, kept rather than dropped. A browser that refused
+    # the screen says so in its own words, and a picture that arrived with no
+    # viewport beside it is a different fault again -- both used to reach the
+    # step record as the same four words.
+    refused = shot.detail if not shot.ok else ""
+    if not refused and (image is None or not width or not height):
+        refused = "the browser answered with no picture"
     return Look(
         url=url,
         screenshot=image,
         digest=digest,
-        width=width if isinstance(width, int) else 0,
-        height=height if isinstance(height, int) else 0,
+        width=width,
+        height=height,
+        refused=refused,
     )
 
 

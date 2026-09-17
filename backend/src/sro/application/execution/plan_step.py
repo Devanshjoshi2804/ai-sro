@@ -603,7 +603,12 @@ async def plan_by_sight(
     `role_and_name` missed -- one rung lower down."""
     primary = _primary(step, cited)
     if look.screenshot is None or not look.width or not look.height:
-        return Planned("none", {}, "no screen to look at", Answer())
+        # With the browser's own reason, where it gave one. "no screen to look
+        # at" alone is the same sentence for a refused focus, a tab that went
+        # away and a picture of zero size, and a step that fails for a reason
+        # nobody can read is a step nobody can fix.
+        why = f"no screen to look at: {look.refused}" if look.refused else "no screen to look at"
+        return Planned("none", {}, why, Answer())
     if primary is None:
         return Planned("none", {}, "no evidence to act on", Answer())
     evidence = json.dumps(

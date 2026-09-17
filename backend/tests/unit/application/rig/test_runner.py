@@ -318,7 +318,16 @@ async def test_a_look_is_where_the_browser_is_and_what_is_on_the_screen() -> Non
 
     look = await _look(channel, TENANT, DEVICE, "run_1", "http://127.0.0.1:63319", True)
 
-    assert look == Look("http://127.0.0.1:63319/form", b"png-bytes", "Save")
+    # A picture with no viewport beside it is the third no-picture fault: the
+    # rung that looks answers in CSS pixels, so a photograph whose coordinate
+    # space is unknown is one nothing can act on. Said, rather than silently
+    # becoming the same four words as a refused screen.
+    assert look == Look(
+        "http://127.0.0.1:63319/form",
+        b"png-bytes",
+        "Save",
+        refused="the browser answered with no picture",
+    )
     assert channel.sent == [
         {
             "tenant_id": "acme",
@@ -361,7 +370,9 @@ async def test_a_refused_screenshot_is_no_picture_rather_than_a_failure() -> Non
 
     look = await _look(channel, TENANT, DEVICE, "run_1", None, True)
 
-    assert look == Look("http://127.0.0.1:63319/form", None, "")
+    # The refusal itself is kept, so the step that gives up can say which of
+    # the three no-picture faults this was.
+    assert look == Look("http://127.0.0.1:63319/form", None, "", refused="focus_not_permitted: no")
 
 
 async def test_a_url_the_browser_did_not_actually_answer_is_not_where_it_is() -> None:
@@ -2660,6 +2671,11 @@ async def test_without_a_picture_there_is_no_sight_rung() -> None:
     )
 
     assert run.outcome == "stopped" and "no screen to look at" in run.steps[0].reason
+    # And the browser's own words for WHY, carried through to the step. Two
+    # deployment runs on 2026-09-17 gave up on the same step with the bare
+    # sentence, and a refused focus, a tab that went away and a picture of no
+    # size were indistinguishable from it.
+    assert "focus_not_permitted: no" in run.steps[0].reason, run.steps[0].reason
     assert not _by_sight(asker), "the model was not asked to look at nothing"
     assert not [s for s in channel.sent if s["kind"] == "ui.perform_at"]
 

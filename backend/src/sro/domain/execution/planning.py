@@ -134,6 +134,17 @@ class Look:
     # acts in. Zero when the browser gave no picture.
     width: int = 0
     height: int = 0
+    refused: str = ""
+    """Why there is no picture, in the browser's own words.
+
+    A rung that cannot see says "no screen to look at", and until this that was
+    the whole of what a run recorded about it -- measured on the deployment,
+    2026-09-17 at 15:20, where two runs in a row gave up on the same step with
+    that sentence and nothing anywhere said whether the tab was refused, was
+    not the visible one, or answered with a picture of zero size. Three
+    different faults with three different fixes, told apart by nothing.
+
+    Empty where a picture arrived, and where there was never one asked for."""
 
 
 @dataclass(frozen=True, slots=True)

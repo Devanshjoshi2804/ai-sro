@@ -80,7 +80,11 @@ async def test_shapes_is_answered_by_a_real_session(client: httpx.AsyncClient) -
     directly, and the first line of it reads `uow.workflow_runs`."""
     response = await client.get("/v1/shapes")
     assert response.status_code == 200, response.text
-    assert response.json() == {"shapes": []}
+    # `can_find` arrived with 03dc2ac1, which is what the panel reads to stop
+    # demanding values a run would have gone and found. This assertion is here
+    # to prove the door answers from a real session, so it names the whole
+    # body rather than a subset -- and the whole body grew a field.
+    assert response.json() == {"shapes": [], "can_find": False}
 
 
 async def test_spend_is_answered_by_a_real_session(client: httpx.AsyncClient) -> None:

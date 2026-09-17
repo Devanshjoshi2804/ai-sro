@@ -10,6 +10,8 @@ import logging
 
 import pytest
 
+from sro.application.ports.channel import Reply
+
 pytestmark = pytest.mark.anyio
 
 
@@ -57,3 +59,74 @@ async def test_a_run_says_which_rungs_it_built_and_what_each_one_did(
     # And the values typed into the warehouse are not in it. A log outlives the
     # run; a customer's payload has no business in one.
     assert "SAID" not in said, said
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "Not fixed. The waste is real and measured; the fix is not a patch. "
+        "Declining to re-send costs the rescue rung its send, and thirteen "
+        "tests in test_runner.py are built on fakes that hand the rescue the "
+        "SAME plan as the first rung -- so they model a ladder that sends one "
+        "refused command twice and break when it stops. Those fixtures encode "
+        "an accident rather than the design (the rescue is given "
+        "`previous_attempt_failed` precisely so it plans something else), but "
+        "unpicking thirteen of them is the work, and this test is here so the "
+        "defect is a failing specification instead of a note nobody reads."
+    ),
+)
+async def test_a_rescue_that_repeats_a_refused_command_does_not_send_it_again(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Six cents to be told the same thing twice.
+
+    `run_e1ff6362`, the deployment, 2026-09-17 at 17:32. Step 3 planned
+    `ui.perform click by component,css_path`, the browser answered
+    `control_not_found` naming both locators, and the rescue -- which is given
+    `previous_attempt_failed` and exists to plan something ELSE -- planned the
+    same two locators. $0.0125, then $0.0453, for the same refusal in the same
+    words, and only then did the ladder move down a rung.
+
+    A rule in the runner rather than a sentence in a prompt: a command this
+    page has just refused will be refused again, whatever model proposed it and
+    whatever job it belongs to.
+    """
+    from tests.unit.application.rig.test_runner import (
+        FakeAsker,
+        FakeChannel,
+        _fixture,
+        _looks,
+        _plan,
+        _ran,
+        _workflow,
+    )
+
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel(
+        {
+            **_looks(8),
+            # Every attempt is refused the same way, which is the case the
+            # rescue exists for and the case it was repeating itself in.
+            "ui.perform": [
+                Reply(
+                    ok=False,
+                    error_kind="control_not_found",
+                    error_detail="no control matched",
+                )
+            ]
+            * 6,
+        }
+    )
+    # The plan rung and the rescue rung propose the identical command.
+    # Plans only: a command the browser refused is never verified, so the
+    # asker is asked for the next PLAN rather than for a verdict.
+    asker = FakeAsker(*[_plan("click")] * 6)
+
+    with caplog.at_level(logging.INFO, logger="sro.application.execution.run_workflow"):
+        await _ran(uow, workflow, channel=channel, asker=asker, values={}, earned=True)
+
+    said = "\n".join(one.getMessage() for one in caplog.records)
+    sent = [one for one in channel.sent if one["kind"] == "ui.perform"]
+    assert len(sent) == 1, f"it sent the same refused command {len(sent)} times:\n{said}"
+    assert "already had refused" in said, said

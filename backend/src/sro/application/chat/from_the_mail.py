@@ -278,6 +278,17 @@ class FromTheMail:
             # it. Reading the thread is one call and no guessing; the gather
             # below searches the whole mailbox with a query a model writes, and
             # on this mailbox that came back empty about a value one mail away.
+            if missing and not thread:
+                # The two ways this can come up short are not the same fault:
+                # a request whose conversation was read and did not hold the
+                # values, and a request that arrived with no conversation to
+                # read. The second means the thread id never reached here.
+                logger.info(
+                    "%s: %s is missing %d value(s) and the mail names no conversation",
+                    tenant,
+                    titles.get(got.workflow_id, got.workflow_id),
+                    len(missing),
+                )
             if missing and thread:
                 whole = await self._conversation(ctx, thread)
                 if whole and whole != said:

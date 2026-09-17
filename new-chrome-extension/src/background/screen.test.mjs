@@ -16,6 +16,7 @@ let captured = [];
 let captureDelay = 0;
 let measureDelay = 0;
 let activated = [];
+let raised = [];
 
 const sleep = (ms) => new Promise((go) => setTimeout(go, ms));
 
@@ -40,7 +41,12 @@ globalThis.chrome = {
     },
     onUpdated: { addListener: () => {}, removeListener: () => {} },
   },
-  windows: { update: async () => ({}) },
+  windows: {
+    update: async (windowId, what) => {
+      raised.push([windowId, what]);
+      return {};
+    },
+  },
   scripting: {
     executeScript: async ({ func }) => {
       // The full measure is the slow one; the cheap probe answers at once.
@@ -71,6 +77,7 @@ const shot = (payload = {}) =>
 const fresh = () => {
   captured = [];
   activated = [];
+  raised = [];
   captureDelay = 0;
   measureDelay = 0;
 };
@@ -105,6 +112,28 @@ test("a page that will not be measured still gets photographed", async () => {
   assert.equal(said.result.measured, false);
   assert.match(said.result.slow, /longer than \d+ms to measure/);
   assert.equal(captured.length, 1);
+});
+
+test("a tab that is already active is still raised, because occluded is not visible", async () => {
+  // The fault this cost an afternoon on. A window behind another application
+  // is occluded, its renderer stops producing frames, and `captureVisibleTab`
+  // waits for one that is not coming -- on a tab that is active, on the right
+  // page, with the control plainly on it. Being the active tab inside Chrome
+  // says nothing about whether Chrome is in front of anything else.
+  fresh();
+  await shot({ allow_focus: true });
+
+  assert.deepEqual(raised, [[1, { focused: true }]], "it trusted `tab.active`");
+});
+
+test("a run that may not take the screen does not raise the window", async () => {
+  // Taking somebody's screen while they are working in it is worse than a run
+  // that did not finish, and that judgement is the run's rather than this
+  // browser's.
+  fresh();
+  await shot({ allow_focus: false });
+
+  assert.deepEqual(raised, []);
 });
 
 test("a browser that will not be photographed says so rather than saying nothing", async () => {

@@ -934,9 +934,25 @@ async function screenshot(payload) {
   // for this and is watching. Without it the command is refused, because
   // taking somebody's screen while they are working in it is worse than a run
   // that did not finish.
-  const visible = tab.active
-    ? tab
-    : await bringForward(tab, payload.allow_focus);
+  //
+  // **Active in its window is not the same as on the operator's screen.** A
+  // window behind another application is occluded, and an occluded window's
+  // renderer stops producing frames -- so `captureVisibleTab` sits there
+  // waiting for one that is not coming. Measured on the deployment,
+  // 2026-09-17: `this browser did not answer with a picture within 8000ms` on
+  // a tab that was active, on the right page, with the control the step wanted
+  // plainly on it. The one look that worked all afternoon was the one taken
+  // while somebody was actually looking at the tab.
+  //
+  // So a run that may take the screen takes it every time, rather than only
+  // when the tab is not the active one -- `chrome.windows.update` with
+  // `focused` is what raises the window past whatever is in front of it, and
+  // being already active inside Chrome says nothing about that.
+  const visible = payload.allow_focus
+    ? await bringForward(tab, true)
+    : tab.active
+      ? tab
+      : null;
   if (!visible) {
     return failure(
       "focus_not_permitted",
@@ -976,7 +992,9 @@ async function screenshot(payload) {
     if (!dataUrl)
       return failure(
         "no_tab_for_system",
-        `this browser did not answer with a picture within ${K_CAPTURE_MS}ms`,
+        `this browser did not answer with a picture within ${K_CAPTURE_MS}ms` +
+          " -- a window behind another application stops drawing, and there is" +
+          " no frame to photograph until it is in front",
       );
   } catch (error) {
     // A tab that is not the visible one cannot be photographed, and Chrome

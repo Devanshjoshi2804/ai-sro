@@ -2376,15 +2376,25 @@ async def test_a_failed_step_is_retried_once_with_pro_then_the_run_stops_and_ask
             ],
         }
     )
+    # Pro proposing what Flash already had refused, which is what it did on
+    # the deployment: `run_e1ff6362` step 3, 2026-09-17, planned the identical
+    # two locators it had just been told did not match.
     asker = FakeAsker(_plan("type", "x"), _plan("type", "x"))
 
     run = await _ran(uow, workflow, channel=channel, asker=asker)
 
     assert run.outcome == "stopped"
-    assert run.steps[0].verdict == "failed" and run.steps[0].planned_by == "pro", (
-        "the second attempt was Pro's"
-    )
+    assert run.steps[0].verdict == "failed"
+    # Pro is ASKED -- a failed step gets its stronger second opinion, and that
+    # is what "retried with pro" has always meant here.
     assert [a["model"] for a in asker.asked] == ["flash", "pro"]
+    # And what Pro said is not SENT, because this page has answered that exact
+    # command already. The record names the command that actually went out,
+    # which is Flash's, rather than crediting Pro with a send that never was.
+    assert len([one for one in channel.sent if one["kind"] == "ui.perform"]) == 1, (
+        "it sent a command this page had already refused"
+    )
+    assert run.steps[0].planned_by == "flash", run.steps[0].planned_by
     assert len(run.steps) == 1, "it stopped rather than carrying on to save"
 
 
@@ -2529,8 +2539,16 @@ class _ByRungAsker(FakeAsker):
         assert isinstance(properties, dict)
         if "held" in properties:
             return self.verdict
+        # Named when it runs out, because "pop from empty list" says which
+        # LIST is empty and not which rung asked -- and a fixture that ran dry
+        # because the ladder changed shape is a different failure from a bug.
         if "found" in properties:
+            assert self.sights, "the rung that looks was asked more times than this fake answers"
             return self.sights.pop(0)
+        assert self.plans, (
+            "the planning rungs were asked more times than this fake answers; asked so far: "
+            + repr([sorted(a["schema"]["properties"])[:3] for a in self.asked])
+        )
         return self.plans.pop(0)
 
 
@@ -2561,10 +2579,16 @@ async def _run_by_sight(
     channel = FakeChannel(
         {
             **(looks or _looks_with_size(12)),
-            # Two misses on the first step; the save then matches by evidence.
+            # One miss on the first step; the save then matches by evidence.
+            #
+            # Two, until the runner stopped re-sending a command this page has
+            # just refused. The rescue rung is handed `previous_attempt_failed`
+            # and plans something ELSE, so a fake that answers both rungs with
+            # the same plan is a fake modelling a ladder that no longer exists:
+            # the second identical plan is not taken, and the second miss here
+            # was being spent by the step AFTER this one.
             "ui.perform": performs
             or [
-                Reply(ok=False, error_kind="control_not_found", error_detail="gone"),
                 Reply(ok=False, error_kind="control_not_found", error_detail="gone"),
                 _performed("role_and_name"),
             ],

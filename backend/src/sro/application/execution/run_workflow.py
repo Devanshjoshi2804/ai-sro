@@ -439,6 +439,36 @@ its kind and its shape, for the same reason `_result` keeps a reply to three
 facts: a log outlives the run and a warehouse's payload has no business in it.
 """
 
+K_ACTS = {
+    "ui.perform": ("action", "value", "locators"),
+    "ui.perform_at": ("action", "value", "x", "y"),
+    "http.send": ("method", "url", "body"),
+    "navigate": ("url",),
+}
+"""What identifies a command by WHAT IT DOES, per kind.
+
+Not the whole payload. Two attempts at one step differ in fields that change
+nothing about the page -- `starts_on` is carried by the first command a run
+sends and by none after it -- so comparing payloads whole says two identical
+clicks are different commands.
+"""
+
+
+def _command_key(kind: str, payload: Mapping[str, object]) -> str:
+    """One command, as a string equal for two commands that do the same thing.
+
+    For comparison and never for a log: `value` is what an operator typed, and
+    on a sign-in step it is a password out of the vault. `_said` is the half
+    that is safe to print.
+    """
+    acts = K_ACTS.get(kind)
+    if acts is None:
+        return f"{kind} {json.dumps(payload, sort_keys=True, default=str)}"
+    return f"{kind} " + json.dumps(
+        {part: payload.get(part) for part in acts}, sort_keys=True, default=str
+    )
+
+
 K_SAID = 120
 """How much of a plan's shape one line carries. A url and a method, not a body."""
 
@@ -1391,6 +1421,21 @@ async def run_workflow(
             )
             verdict: StepVerdict | None = None
             after_failed: Look | None = None
+            # Commands this step has already sent and had refused.
+            #
+            # The rescue rung is handed `previous_attempt_failed` and exists to
+            # plan something ELSE. Measured on the deployment, 2026-09-17 at
+            # 17:32: `run_e1ff6362` step 3 planned `ui.perform click by
+            # component,css_path`, was told `control_not_found` naming both
+            # locators, and the rescue planned the same two locators again --
+            # $0.0125 then $0.0453 to be refused twice in the same words,
+            # before the ladder reached the rung that could have helped.
+            #
+            # A rule in the runner rather than a sentence in a prompt, because
+            # a prompt is a request and this is arithmetic: a command this page
+            # has just refused will be refused again, whatever model proposed
+            # it and whatever job it belongs to.
+            refused_already: set[str] = set()
             # Once per step. A session that ages out again three steps later is
             # a second question worth asking; the same step asking twice in a
             # row is a panel arguing with the person who just answered it.
@@ -1598,6 +1643,21 @@ async def run_workflow(
                             )
                             break
                         openings += 1
+                    elif _command_key(proposal.kind, proposal.payload) in refused_already:
+                        # Already sent, already refused. `break`, not a fall
+                        # through: this is inside the loop that lets a rung
+                        # open a menu and ask again, and leaving `planned`
+                        # unset there re-asks THIS rung rather than moving to
+                        # the next one -- which buys the same answer
+                        # `K_OPENINGS` times instead of twice. The rung is
+                        # spent; the ladder has another.
+                        proposal = Planned(
+                            proposal.kind,
+                            proposal.payload,
+                            "the same command this step has already had refused",
+                            proposal.answer,
+                        )
+                        break
                     elif proposal.kind != "navigate" or how == "route":
                         # A navigate is normally the way to the step and not
                         # the step -- except on this rung, where arriving IS
@@ -1985,6 +2045,8 @@ async def run_workflow(
                 # next step is driven by its own origin.
                 sent_nothing_yet = False
                 record.result = _result(reply, wrote=may_write)
+                if not reply.ok:
+                    refused_already.add(_command_key(planned.kind, planned.payload))
                 logger.info(
                     "%s step %d sent %s -> %s",
                     run.id,

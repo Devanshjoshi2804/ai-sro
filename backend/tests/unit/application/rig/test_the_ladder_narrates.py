@@ -61,20 +61,6 @@ async def test_a_run_says_which_rungs_it_built_and_what_each_one_did(
     assert "SAID" not in said, said
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "Not fixed. The waste is real and measured; the fix is not a patch. "
-        "Declining to re-send costs the rescue rung its send, and thirteen "
-        "tests in test_runner.py are built on fakes that hand the rescue the "
-        "SAME plan as the first rung -- so they model a ladder that sends one "
-        "refused command twice and break when it stops. Those fixtures encode "
-        "an accident rather than the design (the rescue is given "
-        "`previous_attempt_failed` precisely so it plans something else), but "
-        "unpicking thirteen of them is the work, and this test is here so the "
-        "defect is a failing specification instead of a note nobody reads."
-    ),
-)
 async def test_a_rescue_that_repeats_a_refused_command_does_not_send_it_again(
     caplog: pytest.LogCaptureFixture,
 ) -> None:

@@ -40,11 +40,13 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import logging
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from collections.abc import Set as AbstractSet
 from contextlib import suppress
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from urllib.parse import urlparse
 
 from sro.application.execution.approvals import K_APPROVAL_WAIT_S, Approvals
 from sro.application.execution.effects import earned, forget_effects, record_effect
@@ -409,6 +411,68 @@ async def _let_in(
     record.reason = "signed in; sending again"
     await _save(uow, run)
     return True
+
+
+logger = logging.getLogger(__name__)
+"""What the ladder did, said out loud.
+
+The mining side has logged its reasoning since it was written -- "1 step(s)
+repointed at the control the operator pressed" -- and the execution side had
+2,251 lines and not one logger. What a run left behind was a truncated
+sentence on a step row, read back through the console, and that sentence is
+everything anybody has had to debug a run with.
+
+Measured over 2026-09-15 to 17: four separate faults in one job (a frame
+lookup that could not work, an unbounded viewport walk, an occluded window
+with no frame to photograph, a step recorded as refused that the page had
+taken) each arrived as the same few words. Every one of them took a
+deploy-and-rerun cycle to tell apart, and three were diagnosed wrongly first.
+
+So the ladder narrates: every rung it built, every rung it tried, what that
+rung planned, what the browser answered, and what it concluded. One line each,
+greppable by run and by step, and about the LADDER rather than about any job
+-- a rule that reads "Customer Type" anywhere is a rule that helps one
+workflow and lies about the rest.
+
+Nothing here carries a value, a body or a header. `_said` keeps a command to
+its kind and its shape, for the same reason `_result` keeps a reply to three
+facts: a log outlives the run and a warehouse's payload has no business in it.
+"""
+
+K_SAID = 120
+"""How much of a plan's shape one line carries. A url and a method, not a body."""
+
+
+def _said(kind: str, payload: Mapping[str, object]) -> str:
+    """One command, in the few facts that identify it and none that reveal it.
+
+    A url's path and nothing after it: the query holds session tokens and the
+    fragment holds the screen, and neither belongs in a log that is kept.
+    """
+    if kind == "http.send":
+        method = str(payload.get("method") or "")
+        where = str(payload.get("url") or "")
+        try:
+            where = urlparse(where).path or where
+        except ValueError:
+            where = ""
+        return f"{method} {where}"[:K_SAID]
+    if kind in ("ui.perform", "ui.perform_at"):
+        action = str(payload.get("action") or "")
+        locators = payload.get("locators")
+        if isinstance(locators, list) and locators:
+            how = ",".join(str(one.get("strategy")) for one in locators if isinstance(one, dict))
+            return f"{action} by {how}"[:K_SAID]
+        at = (payload.get("x"), payload.get("y"))
+        return f"{action} at {at[0]},{at[1]}"[:K_SAID]
+    if kind == "navigate":
+        where = str(payload.get("url") or "")
+        try:
+            place = urlparse(where)
+            return f"{place.netloc}{place.path}"[:K_SAID]
+        except ValueError:
+            return ""
+    return ""
 
 
 async def _where(
@@ -1318,6 +1382,13 @@ async def run_workflow(
                 # left none. The safety here is the ledger's, not this
                 # ordering's, which is why the fallback can be unconditional.
                 rungs = (*rungs, ("replay", ""))
+            logger.info(
+                "%s step %d %r: rungs %s",
+                run.id,
+                step.order,
+                step.says[:80],
+                " then ".join(how for how, _ in rungs) or "none",
+            )
             verdict: StepVerdict | None = None
             after_failed: Look | None = None
             # Once per step. A session that ages out again three steps later is
@@ -1554,6 +1625,28 @@ async def run_workflow(
                             break
                         navigated = True
 
+                if planned is not None:
+                    logger.info(
+                        "%s step %d rung %s planned %s %s",
+                        run.id,
+                        step.order,
+                        how,
+                        planned.kind,
+                        _said(planned.kind, planned.payload),
+                    )
+                elif proposal is not None:
+                    # A rung that answered and was not taken. This is the half
+                    # nothing recorded: the step's reason keeps the LAST rung's
+                    # words, so a rung that proposed something the runner would
+                    # not use left no trace at all.
+                    logger.info(
+                        "%s step %d rung %s proposed %s, not taken: %s",
+                        run.id,
+                        step.order,
+                        how,
+                        proposal.kind,
+                        (proposal.why or "")[:120],
+                    )
                 if planned is None and run.outcome == "running":
                     # A refusal that carries STRUCTURE is kept, because it is
                     # not "no command" -- it is the one thing a person can act
@@ -1892,6 +1985,15 @@ async def run_workflow(
                 # next step is driven by its own origin.
                 sent_nothing_yet = False
                 record.result = _result(reply, wrote=may_write)
+                logger.info(
+                    "%s step %d sent %s -> %s",
+                    run.id,
+                    step.order,
+                    planned.kind,
+                    f"ok matched_by={reply.result.get('matched_by')}"
+                    if reply.ok
+                    else f"FAILED {reply.detail[:120]}",
+                )
                 # The browser is not where this step needs it, and that is a
                 # question for a person rather than a verdict about the job.
                 #
@@ -2056,6 +2158,15 @@ async def run_workflow(
                 _bill(record, verdict.answer)
                 record.verdict, record.verdict_by = verdict.state, verdict.by
                 record.reason = verdict.reason
+                logger.info(
+                    "%s step %d %s by %s (%s): %s",
+                    run.id,
+                    step.order,
+                    verdict.state,
+                    verdict.by,
+                    f"${record.cost_usd:.4f}",
+                    (verdict.reason or "")[:160],
+                )
                 if verdict.made:
                     # What the warehouse called the record this step made. On
                     # the row because it is the only place it exists: the panel
@@ -2186,6 +2297,13 @@ async def run_workflow(
                 # collapsed, exactly as an unwatched run would have had them
                 # from the start, and the write goes out as a call. Once --
                 # `in_reserve` is emptied -- so a job that fails again fails.
+                logger.info(
+                    "%s step %d collapsing the reserve %s: %s",
+                    run.id,
+                    step.order,
+                    sorted(in_reserve),
+                    record.reason[:120],
+                )
                 record.verdict, record.verdict_by = "not_needed", "none"
                 record.reason = (
                     "the page would not take this step, so the form is not being "

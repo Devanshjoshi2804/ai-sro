@@ -1043,6 +1043,58 @@ test("a run that stopped because a step failed does not say it stopped to ask", 
   assert.ok(!/✓ open the form/.test(said), said);
 });
 
+test("a run that held having skipped steps does not say every step held", () => {
+  // The deployment, 2026-09-17 at 14:20. Four of six steps came back
+  // `not_needed`: the page would not take the click, so the form was never
+  // filled and the write went out as a call. The record was made -- the
+  // outcome IS `held` -- and the card still said "every step held" above four
+  // dashes, which is the sentence an operator reads instead of the rows.
+  const { cards } = panel(
+    {
+      deviceId: "dev-1",
+      capturing: true,
+      watched: [],
+      finished: {
+        id: "run_collapsed",
+        source: "rig",
+        status: "held",
+        watched: true,
+        steps: [
+          { index: 0, outcome: "not_needed", says: "open the email" },
+          { index: 1, outcome: "held", says: "go to Customer Types" },
+          { index: 2, outcome: "not_needed", says: "click Add" },
+          { index: 3, outcome: "held", says: "click Save" },
+        ],
+      },
+    },
+    null,
+  );
+
+  const said = cards.map(words).join(" ");
+  assert.ok(!/every step held/.test(said), said);
+  assert.match(said, /went out as a call/);
+  assert.match(said, /2 steps/, "it did not say how many were skipped");
+});
+
+test("a run where every step held says so", () => {
+  const { cards } = panel(
+    {
+      deviceId: "dev-1",
+      capturing: true,
+      watched: [],
+      finished: {
+        id: "run_clean",
+        source: "rig",
+        status: "held",
+        watched: true,
+        steps: [{ index: 0, outcome: "held", says: "click Save" }],
+      },
+    },
+    null,
+  );
+  assert.match(cards.map(words).join(" "), /every step held/);
+});
+
 test("the panel offers to watch the system, not just this tab", async () => {
   // Measured on the deployment, 2026-09-17: a run drove a Blue Yonder tab it
   // had opened itself, with its own banner across the top, while this panel

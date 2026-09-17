@@ -921,8 +921,19 @@ function howItEnded(run) {
     return "The run stopped to ask.";
   const failed = [...steps].reverse().find((step) => step.outcome === "failed");
   const why = String(failed?.reason || "").trim();
-  if (!why) return RIG_ENDINGS[run.status] || "The run ended.";
-  return `The run stopped — ${why.slice(0, K_WHY)}${why.length > K_WHY ? "…" : ""}`;
+  if (why) return `The run stopped — ${why.slice(0, K_WHY)}${why.length > K_WHY ? "…" : ""}`;
+  // A run that held having skipped steps did not do what its rows say it did.
+  // Measured on the deployment, 2026-09-17 at 14:20: four of six steps came
+  // back `not_needed` -- the page would not take the click, so the form was
+  // never filled and the write went out as a call -- and the card said "every
+  // step held" above four dashes. The record was made and the sentence was
+  // still false, which is the worse half: an operator reads the sentence.
+  const skipped = steps.filter((step) => step.outcome === "not_needed").length;
+  if (run.status === "held" && skipped)
+    return `The run finished — the write went out as a call, ${skipped} ${
+      skipped === 1 ? "step" : "steps"
+    } on the page skipped.`;
+  return RIG_ENDINGS[run.status] || "The run ended.";
 }
 
 /** How much of a failure's own words the card carries. Long enough for

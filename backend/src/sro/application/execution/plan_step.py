@@ -55,6 +55,7 @@ from sro.domain.execution.evidence import (
     recorded_call,
     writes,
 )
+from sro.domain.execution.learned_step import LearnedStep
 from sro.domain.execution.planning import (
     KINDS,
     LIVE_FETCHABLE_HEADERS,
@@ -254,6 +255,21 @@ def _primary(step: Step, cited: list[Gesture]) -> Gesture | None:
     return found or (cited[0] if cited else None)
 
 
+def _ladder(primary: Gesture, learned: LearnedStep | None) -> list[Locator]:
+    """The demonstration's ladder, with what a run learned on top.
+
+    Never instead: the recorded identity stays underneath, because a page that
+    is repaired tomorrow should go back to being found the strong way, and a
+    learned locator that has itself gone stale is one rung that misses rather
+    than a step with nothing to try.
+    """
+    rungs = locators_for(primary)
+    if learned is None or not learned.usable:
+        return rungs
+    first = Locator(learned.strategy, learned.query, visible_only=True)
+    return [first, *[rung for rung in rungs if rung.as_payload() != first.as_payload()]]
+
+
 def _clicking(
     ladder: list[Locator], origin: str | None, allow_focus: bool, starts_on: str | None
 ) -> dict[str, object]:
@@ -274,6 +290,7 @@ def _clicking(
 async def plan_step(
     *,
     step: Step,
+    learned: LearnedStep | None = None,
     cited: list[Gesture],
     values: Mapping[str, str],
     look: Look,
@@ -533,7 +550,15 @@ async def plan_step(
         else None,
         # The evidence's ladder, never the model's: the model chooses which
         # control the step means, the demonstration says where that control is.
-        "locators": [rung.as_payload() for rung in locators_for(primary)],
+        #
+        # With what a previous run FOUND at the top of it, where one did. The
+        # demonstration's own identity for this control has already failed at
+        # least once by then -- that is the only way anything gets written
+        # there -- and the locator that worked instead costs a DOM query to
+        # try. Measured on the deployment, 2026-09-17: three runs in one
+        # afternoon each spent two model calls and a screenshot re-deriving
+        # that the control is called "Customer Types".
+        "locators": [rung.as_payload() for rung in _ladder(primary, learned)],
         "origin": origin,
     }
     if allow_focus:

@@ -244,6 +244,26 @@ export function performInPage(payload) {
       };
     }
 
+    // What this control IS, so the job can be told and stop re-deriving it.
+    //
+    // A step whose recorded identity has rotted is found by a rung further
+    // down -- text, a css path, a point on a picture -- and until now that
+    // discovery lived for exactly one command. The next run climbed the same
+    // ladder and paid for the same model calls to reach the same control.
+    // Measured on the deployment, 2026-09-17: the rung that looks at a picture
+    // worked out "Customer Types is under Partners" three times in one
+    // afternoon and the job knew no more at the end of it than at the start.
+    const naming = (el) => ({
+      tag: (el.tagName || "").toLowerCase(),
+      name: (
+        el.getAttribute("aria-label") ||
+        el.getAttribute("title") ||
+        el.getAttribute("name") ||
+        (el.innerText || "").trim()
+      ).slice(0, 80),
+      item_id: (el.getAttribute("data-itemid") || el.id || "").slice(0, 80),
+    });
+
     const problem = act(found[0]);
     if (problem) {
       return {
@@ -261,6 +281,9 @@ export function performInPage(payload) {
         matched_by: locator.strategy,
         candidates: found.length,
         detail: null,
+        // The locator that actually worked, for the job to keep.
+        matched: { strategy: locator.strategy, query: locator.query },
+        control: naming(found[0]),
       },
     };
   }
@@ -477,7 +500,25 @@ export function performAtInPage(payload) {
   }
   return {
     ok: true,
-    result: { performed: true, matched_by: null, candidates: 1, detail: null },
+    result: {
+      performed: true,
+      matched_by: null,
+      candidates: 1,
+      detail: null,
+      // What the point turned out to be. This is the expensive discovery --
+      // a model looked at a picture to find it -- and naming it is what lets
+      // the next run find it with a locator instead.
+      control: {
+        tag: (el.tagName || "").toLowerCase(),
+        name: (
+          el.getAttribute("aria-label") ||
+          el.getAttribute("title") ||
+          el.getAttribute("name") ||
+          (el.innerText || "").trim()
+        ).slice(0, 80),
+        item_id: (el.getAttribute("data-itemid") || el.id || "").slice(0, 80),
+      },
+    },
   };
 }
 

@@ -34,9 +34,14 @@ class HTMLTextAreaElement extends HTMLInputElement {}
 globalThis.HTMLInputElement = HTMLInputElement;
 globalThis.HTMLTextAreaElement = HTMLTextAreaElement;
 
-function element({ tagName = "BUTTON", typeable = false, src, box } = {}) {
+function element({ tagName = "BUTTON", typeable = false, src, box, name = "" } = {}) {
   const el = typeable ? new HTMLInputElement() : {};
   el.tagName = tagName;
+  el.innerText = name;
+  el.id = "";
+  // Every element a page script touches can be asked about its attributes;
+  // the naming a successful command reports back reads three of them.
+  el.getAttribute = () => null;
   if (src !== undefined) el.src = src;
   // Only a frame is measured, and only by the branch that hands its position
   // to the worker.
@@ -98,6 +103,23 @@ test("a point inside a frame says where the frame is, so it can be asked", () =>
     assert.equal(answer.error.frame.top, 80);
     assert.deepEqual(at.events, [], "no event reached the frame element");
   }
+});
+
+test("what worked is named, so the job can keep it", () => {
+  // A step whose recorded identity has rotted is found by a rung further down
+  // -- text, a css path, a point on a picture -- and that discovery used to
+  // live for exactly one command. Measured on the deployment, 2026-09-17: the
+  // rung that looks at a picture worked out "Customer Types is under Partners"
+  // three times in one afternoon, and the job knew no more at the end of it.
+  // Through the point, which is the expensive rung: a model looked at a
+  // picture to find this control, and naming it is what lets the next run
+  // find it with a locator instead of another picture.
+  at = element({ tagName: "BUTTON", name: "Customer Types" });
+  const answer = performAtInPage({ x: 40, y: 30, action: "click" });
+
+  assert.equal(answer.ok, true);
+  assert.equal(answer.result.control.tag, "button");
+  assert.equal(answer.result.control.name, "Customer Types");
 });
 
 test("a click is the whole pointer sequence, on the element at the point", () => {

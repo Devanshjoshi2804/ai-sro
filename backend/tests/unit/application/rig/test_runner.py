@@ -57,6 +57,7 @@ from sro.application.ports.channel import Reply
 from sro.domain.chat.reading import ChatReading
 from sro.domain.execution.belts import K_EARNED_RUNS, SCREEN_SCHEMA
 from sro.domain.execution.gathering import Found, Gathered
+from sro.domain.execution.learned_step import LearnedStep
 from sro.domain.execution.planning import PLAN_SCHEMA, Look, Planned
 from sro.domain.execution.verified_writes import VerifiedWrite
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
@@ -3054,9 +3055,7 @@ async def test_a_step_the_job_would_skip_is_not_a_write_to_ask_about(
     )
     await uow.workflows.save(workflow)
     channel = FakeChannel({**_looks(8), "ui.perform": [_performed()] * 4})
-    asker = _PerSchemaAsker(
-        plan=_plan("click"), verdict=Answer(data={"held": True, "why": "ok"})
-    )
+    asker = _PerSchemaAsker(plan=_plan("click"), verdict=Answer(data={"held": True, "why": "ok"}))
 
     run = await _ran(
         uow,
@@ -4962,6 +4961,125 @@ async def test_a_form_step_is_still_done_when_the_write_is_not_a_call() -> None:
 
     assert [one.verdict for one in run.steps] == ["held", "held"]
     assert len([one for one in channel.sent if one["kind"] == "ui.perform"]) == 2
+
+
+# --- what a run finds out, and what the next one does with it ----------------
+
+
+class _ByRung(FakeAsker):
+    """`FakeAsker` answered by which question was asked.
+
+    The sight rung has a schema of its own, and a positional queue has to be
+    rewritten every time a belt changes how many questions a step asks.
+    """
+
+    def __init__(self, *, plan: Answer, sight: Answer, verdicts: list[Answer]) -> None:
+        super().__init__()
+        self.plan, self.sight, self.verdicts = plan, sight, list(verdicts)
+
+    async def ask(self, **asked: object) -> Answer:
+        await super().ask(**asked)
+        schema = asked["schema"]
+        assert isinstance(schema, dict)
+        fields = schema["properties"]
+        assert isinstance(fields, dict)
+        if "held" in fields:
+            return self.verdicts.pop(0) if self.verdicts else Answer(data={"held": True, "why": ""})
+        return self.sight if "points_at" in fields else self.plan
+
+
+def _last_run(uow: FakeUnitOfWork) -> WorkflowRun:
+    return sorted(uow.workflow_runs.rows.values(), key=lambda one: one.started_at)[-1]
+
+
+async def test_a_run_keeps_the_control_a_picture_found() -> None:
+    """The half that was missing, and the reason this system repeated itself.
+
+    A step whose recorded identity no longer matches is found by a rung further
+    down -- and until now that discovery lived for one command. Measured on the
+    deployment, 2026-09-17: the rung that looks at a picture worked out three
+    times in one afternoon that the control is called "Customer Types", and the
+    job knew no more at the end of it than at the start.
+
+    `mark_stale` already said the step was about to break. This says what
+    worked instead.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel(
+        {
+            **_looks_with_size(6),
+            # The recorded identity misses; the point a picture found does not.
+            "ui.perform": [
+                Reply(ok=False, error_kind="control_not_found", error_detail="nothing matched")
+            ]
+            * 2,
+            "ui.perform_at": [
+                Reply(
+                    ok=True,
+                    result={
+                        "performed": True,
+                        "candidates": 1,
+                        "control": {"tag": "span", "name": "Customer Types"},
+                    },
+                )
+            ],
+        }
+    )
+    # By schema rather than by call order: a run asks a different number of
+    # questions depending on which belt verifies each step, and the sight rung
+    # has a schema of its own.
+    asker = _ByRung(
+        plan=_plan("click"),
+        sight=Answer(
+            data={
+                "found": True,
+                "points_at": "the_control",
+                "x": 40,
+                "y": 50,
+                "action": "click",
+                "why": "there it is",
+            }
+        ),
+        # Only the one: a command the browser refused is never verified, so
+        # the two failed rungs ask nothing and the picture's own answer is the
+        # first verdict there is.
+        verdicts=[Answer(data={"held": True, "why": "it opened"})],
+    )
+
+    await _ran(uow, workflow, channel=channel, asker=asker, values={}, earned=True)
+
+    kept = await uow.workflows.learned_for(workflow.id)
+    assert kept, [(one.verdict, one.matched_by, one.reason[:60]) for one in _last_run(uow).steps]
+    assert (kept[0].strategy, kept[0].query) == ("text", "Customer Types")
+    assert kept[0].found_by == "sight"
+
+
+async def test_the_next_run_tries_what_the_last_one_found_first() -> None:
+    """And it is tried FIRST, above the recorded ladder -- which has already
+    failed at least once, because that is the only way anything gets written
+    there. The recorded identity stays underneath: a page repaired tomorrow
+    goes back to being found the strong way."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    await uow.workflows.remember_locator(
+        workflow.id,
+        LearnedStep(ord=0, strategy="text", query="Customer Types", found_by="sight"),
+    )
+    channel = FakeChannel({**_looks(4), "ui.perform": [_performed("text"), _performed()]})
+    asker = FakeAsker(
+        _plan("click"),
+        Answer(data={"held": True, "why": ""}),
+        _plan("click"),
+        Answer(data={"held": True, "why": ""}),
+    )
+
+    await _ran(uow, workflow, channel=channel, asker=asker, values={}, earned=True)
+
+    sent = _payload(next(one for one in channel.sent if one["kind"] == "ui.perform"))
+    ladder = [(one["strategy"], one["query"]) for one in sent["locators"]]
+    assert ladder[0] == ("text", "Customer Types"), ladder
+    assert len(ladder) > 1, "the demonstration's own ladder was thrown away"
 
 
 # --- which of the two ways this run does the job -----------------------------

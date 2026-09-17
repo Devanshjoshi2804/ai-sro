@@ -1074,6 +1074,30 @@ class WorkflowStaleRow(Base):
     noticed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class WorkflowLearnedRow(Base):
+    """The locator that last worked for a step whose recorded identity did not.
+
+    `WorkflowStaleRow` above is the negative twin: it records that a step is
+    about to break. This records what the run FOUND when it did, so the next
+    run tries that first instead of climbing the same ladder and paying for the
+    same model call to reach the same control.
+
+    One row per step, the last answer winning, and kept apart from the workflow
+    for the stale row's reason: the workflow is what a mining pass writes and
+    this is what a run observed, and one rewriting the other would race a
+    re-mine.
+    """
+
+    __tablename__ = "workflow_learned"
+
+    workflow_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    ord: Mapped[int] = mapped_column(Integer, primary_key=True)
+    strategy: Mapped[str] = mapped_column(Text, nullable=False)
+    query: Mapped[str] = mapped_column(Text, nullable=False)
+    found_by: Mapped[str] = mapped_column(Text, nullable=False)
+    learned_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 class WorkflowEffectRow(Base):
     """One write a live run made and the verifier then saw hold by STATE -- a
     status the server answered, or a read that showed the record.

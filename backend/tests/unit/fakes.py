@@ -75,6 +75,7 @@ from sro.domain.chat.reading import ChatReading
 from sro.domain.chat.thread import MessageId, Thread, ThreadId
 from sro.domain.connection.connection import Connection, ConnectionId, ConnectionStatus
 from sro.domain.execution.belts import RunProof, state_verified
+from sro.domain.execution.learned_step import LearnedStep
 from sro.domain.execution.model_call import ModelCall
 from sro.domain.execution.run import Medium, Run, RunId
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun, already_running
@@ -1832,6 +1833,8 @@ class FakeWorkflowRepository:
         a dead session somewhere else.
         """
         self.stale: dict[tuple[str, int], tuple[str | None, str]] = {}
+        # What runs have found out about steps whose recorded identity missed.
+        self.learned: dict[tuple[str, int], LearnedStep] = {}
         self.effects: dict[tuple[str, str, int], tuple[str, str]] = {}
         self.runs = runs if runs is not None else FakeWorkflowRunRepository()
         self._saved = count()
@@ -1891,6 +1894,14 @@ class FakeWorkflowRepository:
 
     async def clear_stale(self, workflow_id: str, ord_: int) -> None:
         self.stale.pop((workflow_id, ord_), None)
+
+    async def remember_locator(self, workflow_id: str, learned: LearnedStep) -> None:
+        # One row per step, the last answer winning: the locator that worked
+        # most recently is the current answer about that step.
+        self.learned[(workflow_id, learned.ord)] = learned
+
+    async def learned_for(self, workflow_id: str) -> tuple[LearnedStep, ...]:
+        return tuple(one for (workflow, _), one in self.learned.items() if workflow == workflow_id)
 
     async def stale_count(self, workflow_id: str) -> int:
         return sum(1 for workflow, _ in self.stale if workflow == workflow_id)

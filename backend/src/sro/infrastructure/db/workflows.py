@@ -40,6 +40,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from sro.application.ports.repositories import WorkflowRepository
 from sro.domain.execution.belts import RunProof, state_verified
+from sro.domain.execution.learned_step import LearnedStep
 from sro.domain.observation.identity import ShapeKey
 from sro.domain.observation.mining import MiningPass
 from sro.domain.shared.errors import Conflict, NotFound
@@ -50,6 +51,7 @@ from sro.infrastructure.db.codec import when
 from sro.infrastructure.db.models import (
     MiningPassRow,
     WorkflowEffectRow,
+    WorkflowLearnedRow,
     WorkflowRow,
     WorkflowRunRow,
     WorkflowRunStepRow,
@@ -285,6 +287,41 @@ class SqlWorkflowRepository(WorkflowRepository):
                     "noticed_at": statement.excluded.noticed_at,
                 },
             )
+        )
+
+    async def remember_locator(self, workflow_id: str, learned: LearnedStep) -> None:
+        # The stale row's shape, and for its reason: one row per step, the
+        # later notice winning, because the last locator that worked is the
+        # current answer about that step.
+        statement = pg_insert(WorkflowLearnedRow).values(
+            workflow_id=workflow_id,
+            ord=learned.ord,
+            strategy=learned.strategy,
+            query=learned.query,
+            found_by=learned.found_by,
+            learned_at=datetime.now(tz=UTC),
+        )
+        await self._session.execute(
+            statement.on_conflict_do_update(
+                index_elements=["workflow_id", "ord"],
+                set_={
+                    "strategy": statement.excluded.strategy,
+                    "query": statement.excluded.query,
+                    "found_by": statement.excluded.found_by,
+                    "learned_at": statement.excluded.learned_at,
+                },
+            )
+        )
+
+    async def learned_for(self, workflow_id: str) -> tuple[LearnedStep, ...]:
+        rows = (
+            await self._session.execute(
+                select(WorkflowLearnedRow).where(WorkflowLearnedRow.workflow_id == workflow_id)
+            )
+        ).scalars()
+        return tuple(
+            LearnedStep(ord=row.ord, strategy=row.strategy, query=row.query, found_by=row.found_by)
+            for row in rows
         )
 
     async def clear_stale(self, workflow_id: str, ord_: int) -> None:

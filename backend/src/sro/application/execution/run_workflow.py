@@ -82,6 +82,7 @@ from sro.domain.execution.evidence import (
 )
 from sro.domain.execution.field_notes import notes_on
 from sro.domain.execution.gathering import Gathered
+from sro.domain.execution.learned_step import learned_from
 from sro.domain.execution.planning import Look, Planned
 from sro.domain.execution.secrets import without_secrets
 from sro.domain.execution.verified_writes import VerifiedWrite
@@ -766,6 +767,10 @@ async def run_workflow(
             return run
 
     by_id = await _gestures_for(uow, tenant_id, workflow)
+    # What earlier runs found out about this job's steps, by step order. Read
+    # once: it is a handful of rows and every step of the loop would otherwise
+    # ask for the same table.
+    learned = {one.ord: one for one in await uow.workflows.learned_for(workflow.id)}
     # Two sets, because they answer two questions. `standing` is where the
     # operator actually was and is where a plan may SEND the browser;
     # `replayable` adds the origins their page's own requests named, which is
@@ -1336,6 +1341,10 @@ async def run_workflow(
                         )
                         proposal = await plan_step(
                             step=step,
+                            # What a previous run found when this step's own
+                            # recorded identity did not match. Tried first, and
+                            # the recorded ladder still underneath it.
+                            learned=learned.get(step.order),
                             cited=cited,
                             values=values,
                             look=before,
@@ -1950,6 +1959,23 @@ async def run_workflow(
                             matched_by=record.matched_by,
                             noticed_at=_now(),
                         )
+                        # And WHAT it found, which is the half that was
+                        # missing. Marking the step stale says it is about to
+                        # break; this says what worked instead, so the next
+                        # run tries that first rather than climbing the same
+                        # ladder and paying for the same model call to reach
+                        # the same control.
+                        # The REPLY, not the record: `_result` keeps the three
+                        # facts a row needs and the control the browser named
+                        # is not one of them -- it is for the job, not for the
+                        # audit of this run.
+                        found = learned_from(
+                            step.order,
+                            "sight" if planned.kind == "ui.perform_at" else record.matched_by,
+                            reply.result,
+                        )
+                        if found is not None:
+                            await uow.workflows.remember_locator(workflow.id, found)
                     elif planned.kind == "ui.perform":
                         # The step was found the strong way again: a warning
                         # that never clears is a warning nobody reads.

@@ -15,6 +15,7 @@ from sro.domain.chat.reading import ChatReading
 from sro.domain.chat.thread import Thread, ThreadId
 from sro.domain.connection.connection import Connection, ConnectionId
 from sro.domain.execution.belts import RunProof
+from sro.domain.execution.learned_step import LearnedStep
 from sro.domain.execution.model_call import ModelCall
 from sro.domain.execution.run import Run, RunId
 from sro.domain.execution.workflow_run import WorkflowRun
@@ -932,6 +933,20 @@ class WorkflowRepository(Protocol):
         what a mining pass writes and this is what a run learned, and one
         rewriting the other would race a re-mine.
         """
+        ...
+
+    async def remember_locator(self, workflow_id: str, learned: LearnedStep) -> None:
+        """What a run found when the job's own identity for a control did not.
+
+        `mark_stale` above says a step is about to break; this says what the
+        run FOUND, so the next one tries it first rather than climbing the same
+        ladder and paying for the same model call. One row per step, the last
+        answer winning.
+        """
+        ...
+
+    async def learned_for(self, workflow_id: str) -> tuple[LearnedStep, ...]:
+        """Every step of this job that a run has found a working locator for."""
         ...
 
     async def clear_stale(self, workflow_id: str, ord_: int) -> None:

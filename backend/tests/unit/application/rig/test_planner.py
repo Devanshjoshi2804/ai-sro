@@ -1210,6 +1210,37 @@ async def test_an_older_answer_with_no_enum_still_means_what_it_meant() -> None:
     assert refused.kind == "none"
 
 
+async def test_a_dialog_in_the_way_is_dismissed_like_a_menu_is_opened() -> None:
+    """Measured on the deployment, 2026-09-17. The screen rung walked the menu
+    and reached the Customer Types screen -- and a modal sat over the form:
+
+        Exception Occurred
+        Processing completed without exception. (Status: 0)   [ OK ]
+
+    A warehouse system puts one of those in front of a page for things that
+    are not errors at all. Until this, the rung could only clear it by calling
+    an OK button "what reveals it", which the instructions steer against -- so
+    a run reached the right screen and stopped in front of a notice.
+
+    One answer for both shapes: click it, take a new picture, and the step is
+    what you answer then.
+    """
+    planned, _ = await _by_sight(
+        _sight(
+            found=False,
+            points_at="what_is_in_the_way",
+            x=300,
+            y=420,
+            why="a dialog headed Exception Occurred is over the form",
+        )
+    )
+
+    assert planned.kind == "ui.perform_at"
+    assert planned.opens is True, "the runner would have taken this for the step itself"
+    assert planned.payload["x"] == 300
+    assert "clearing what is in the way" in planned.why
+
+
 async def test_a_menu_may_be_opened_again_because_a_screen_has_more_than_one() -> None:
     """A screen is answered with as many clicks as it takes: open the menu, see
     the item, click it. A rung allowed exactly one thing could not reach a

@@ -654,25 +654,29 @@ async def plan_by_sight(
         # bounds how many things one rung may open (`K_OPENINGS`) and refuses
         # the rest; what this rung must not do is keep pointing at the same
         # thing, which the fresh picture it is shown each time is what settles.
-        reveal = (
-            _point_on({"x": data.get("x"), "y": data.get("y")}, look)
-            if points_at == "what_reveals_it"
-            else None
-        )
+        # Two ways a screen is not ready for the step, and one answer to both:
+        # click it and look again. A menu to open is the control being
+        # somewhere else; a dialog to dismiss is something on top of it.
+        clearing = points_at in ("what_reveals_it", "what_is_in_the_way")
+        reveal = _point_on({"x": data.get("x"), "y": data.get("y")}, look) if clearing else None
         if reveal is not None:
             return Planned(
                 "ui.perform_at",
                 {"origin": origin, "x": reveal[0], "y": reveal[1], "action": "click"},
-                f"opening what the control is under: {why}" if why else "opening the menu",
+                (
+                    f"clearing what is in the way: {why}"
+                    if points_at == "what_is_in_the_way"
+                    else f"opening what the control is under: {why}"
+                )
+                if why
+                else "clearing the way to the control",
                 answer,
                 opens=True,
             )
         # And whether it pointed at something this rung could not use. The
         # alternative is reading the same prose twice and not knowing whether
         # the model would not point or pointed off the picture.
-        offered = (
-            {"x": data.get("x"), "y": data.get("y")} if points_at == "what_reveals_it" else None
-        )
+        offered = {"x": data.get("x"), "y": data.get("y")} if clearing else None
         refusal = why or "the control is not on this screen"
         if offered is not None and reveal is None:
             refusal = (

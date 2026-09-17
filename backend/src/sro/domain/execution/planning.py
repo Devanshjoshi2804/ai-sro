@@ -273,7 +273,7 @@ SIGHT_SCHEMA: dict[str, object] = {
         # this rung must always be able to give.
         "points_at": {
             "type": "string",
-            "enum": ["the_control", "what_reveals_it", "nothing"],
+            "enum": ["the_control", "what_reveals_it", "what_is_in_the_way", "nothing"],
         },
         "why": {"type": "string"},
     },
@@ -300,8 +300,18 @@ Every answer carries one point and says what it points at.
    that would reveal it -- the closed menu it lives under, a collapsed section,
    a tab that is not the open one. It will be clicked and you will be asked
    again with a new picture. found: false.
+ - what_is_in_the_way: something is covering the screen and has to be dismissed
+   before anything under it can be used -- a dialog, an alert, a notice with an
+   OK or a Close. Point at the button that dismisses it. Warehouse systems put
+   one of these in front of a page for things that are not errors at all: a
+   dialog headed "Exception Occurred" whose text is "Processing completed
+   without exception" is one this system has met. found: false.
  - nothing: the control is not here and nothing on this screen leads to it.
    found: false, and the point is ignored.
+
+Dismissing a dialog is not doing the step, and neither is opening a menu: in
+both cases you will be asked again with a new picture, and the step is what you
+answer then.
 
 Saying "it is probably under the Partners menu" and pointing at nothing is an
 answer nobody can act on. If you can name the menu you can point at it, and

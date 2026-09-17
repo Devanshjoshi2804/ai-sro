@@ -4963,6 +4963,56 @@ async def test_a_form_step_is_still_done_when_the_write_is_not_a_call() -> None:
     assert len([one for one in channel.sent if one["kind"] == "ui.perform"]) == 2
 
 
+async def test_the_call_is_not_refused_for_a_budget_the_screen_spent() -> None:
+    """Measured on the deployment, 2026-09-17, on the first run with the screen
+    rung live.
+
+    The screen rung spent the run's nine attempts walking a menu and answered
+    honestly that the page had not moved. The run gave up on the screen,
+    collapsed the form-filling steps and reached for the call -- and the call
+    was refused for want of a budget the screen had eaten. The job was one
+    deterministic command from done and stopped holding it.
+
+    The budget bounds what a MODEL is asked to work out. A replay asks nobody
+    anything: the evidence says which call the step made, the ledger says that
+    call is verified, and the claim in `tool_calls` stops it going twice.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel(
+        {
+            **_looks(12),
+            # Every attempt on the page fails, so the whole budget goes.
+            "ui.perform": [
+                Reply(ok=False, error_kind="control_not_found", error_detail="nothing matched")
+            ]
+            * 8,
+            "http.send": [Reply(ok=True, result={"status": 201, "body": "{}"})] * 2,
+        }
+    )
+    asker = _PerSchemaAsker(
+        plan=_plan("click"), verdict=Answer(data={"held": False, "why": "nothing moved"})
+    )
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        values={},
+        earned=True,
+        verified_writes=(VerifiedWrite(method="POST", path_pattern="/api/orders"),),
+        watched=True,
+    )
+
+    wrote = [
+        one
+        for one in channel.sent
+        if one["kind"] == "http.send" and _payload(one).get("method") == "POST"
+    ]
+    assert wrote, [(one.verdict, one.reason[:70]) for one in run.steps]
+
+
 # --- a screen answered with as many clicks as it takes -----------------------
 
 

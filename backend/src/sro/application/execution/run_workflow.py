@@ -1217,7 +1217,7 @@ async def run_workflow(
                 if primary is not None
                 else None
             )
-            rungs = (
+            rungs: tuple[tuple[str, str], ...] = (
                 (("evidence", plan_model), ("evidence", rescue_model), ("sight", rescue_model))
                 if primary is not None
                 else ()
@@ -1249,6 +1249,14 @@ async def run_workflow(
             )
             if replay is not None and not run.watched:
                 rungs = (("replay", ""),) if never_filled else (("replay", ""), *rungs)
+            elif replay is not None and never_filled:
+                # This run has already given up on the screen -- that is what
+                # put this step's scaffolding in `collapsed` -- so the form in
+                # front of the operator was never filled. Walking the screen
+                # again to press its button would be pressing Save on a form
+                # with nothing in it, and would spend the budget finding that
+                # out. One rung: the call.
+                rungs = (("replay", ""),)
             elif replay is not None:
                 # Watched, and the screen would not take it.
                 #

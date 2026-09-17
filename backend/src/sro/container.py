@@ -1029,6 +1029,14 @@ class Container:
             self.tools,
             self.asker,
             model=self.settings.gemini_plan_model,
+            # The same one a run uses. An offer that names the values it is
+            # about is an offer somebody can answer; the run gathers anyway, so
+            # this is the same work moved to where the decision is made.
+            gather=GatherContext(
+                tools=self.tools, asker=self.asker, model=self.settings.gemini_plan_model
+            )
+            if self.asker is not None
+            else None,
         )
 
     @property

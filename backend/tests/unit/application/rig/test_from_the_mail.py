@@ -15,6 +15,7 @@ from typing import Any
 from sro.application.chat.from_the_mail import FromTheMail
 from sro.application.context import RequestContext
 from sro.application.ports.tools import ToolResult, ToolsUnavailable
+from sro.domain.execution.gathering import Found, Gathered
 from sro.domain.shared.identifiers import PrincipalId, TenantId
 from sro.domain.shared.prices import Answer
 from sro.domain.skill.workflow import Step, Workflow
@@ -75,7 +76,25 @@ def _mail(said: str) -> str:
     return json.dumps({"id": "m-1", "subject": "Fwd: new type", "body": said})
 
 
-def _reading(workflow_id: str | None, *, sure: bool = True) -> dict[str, object]:
+def _reading(
+    workflow_id: str | None,
+    *,
+    sure: bool = True,
+    bare: bool = False,
+) -> dict[str, object]:
+    """What the model read out of one mail.
+
+    `bare` is the request that carries no values of its own -- "please create
+    the customer type as discussed" -- which is what most requests actually
+    look like and what the gather exists for.
+    """
+    if bare:
+        return {
+            "workflow_id": workflow_id,
+            "values": [],
+            "missing": ["Customer Type", "Customer Type Description"],
+            "sure": sure,
+        }
     return {
         "workflow_id": workflow_id,
         "values": [{"name": "Customer Type", "value": "GPX"}],
@@ -102,8 +121,25 @@ async def _held() -> FakeUnitOfWork:
     return uow
 
 
-def _look(uow: FakeUnitOfWork, mailbox: _Mailbox, reads: _Reads) -> FromTheMail:
-    return FromTheMail(uow, mailbox, reads, model="m")
+def _look(uow: FakeUnitOfWork, mailbox: _Mailbox, reads: _Reads, gather: Any = None) -> FromTheMail:
+    return FromTheMail(uow, mailbox, reads, model="m", gather=gather)
+
+
+class _Gathers:
+    """A mailbox that has the values the request did not carry."""
+
+    def __init__(self, **values: str) -> None:
+        self.values = values
+        self.asked: list[tuple[str, tuple[str, ...]]] = []
+
+    async def execute(self, _ctx: Any, *, job: str, wanted: Any, **_rest: Any) -> Gathered:
+        self.asked.append((job, tuple(wanted)))
+        found = {
+            name: Found(value=self.values[name], from_message="m-0")
+            for name in wanted
+            if name in self.values
+        }
+        return Gathered(values=found, missing=tuple(n for n in wanted if n not in found))
 
 
 async def _thread(uow: FakeUnitOfWork) -> Any:
@@ -222,3 +258,75 @@ async def test_a_tenant_with_no_mined_jobs_reads_no_mail_at_all() -> None:
 
     assert looked.offered == () and "no mined jobs" in looked.why
     assert mailbox.asked == []
+
+
+async def test_an_offer_names_the_values_it_is_about() -> None:
+    """A request rarely carries them.
+
+    "Please create the customer type as discussed" is the whole of it, and what
+    to create is in the mail before it. So the reading came back with the job
+    and two missing values, and the card said "Create a Customer Type -- want
+    me to do it?" with nothing to tell one from another. Four of them stacked
+    up on the deployment, 2026-09-18, and they were the same sentence four
+    times.
+
+    Nobody can consent to a write they cannot see. The run gathers these
+    anyway, a moment after the press; this is the same work moved to where the
+    decision is actually made.
+    """
+    uow = await _held()
+    mailbox = _Mailbox(
+        search=_found("m-1"),
+        **{"m-1": _mail("please create the customer type in WMS as discussed")},
+    )
+    reads = _Reads(_reading(JOB, bare=True))
+    gather = _Gathers(
+        **{"Customer Type": "GU3", "Customer Type Description": "leaning new SRO type 038"}
+    )
+
+    looked = await _look(uow, mailbox, reads, gather).execute(CTX)
+
+    (one,) = looked.offered
+    assert one.values == {
+        "Customer Type": "GU3",
+        "Customer Type Description": "leaning new SRO type 038",
+    }
+    assert one.missing == [], one.missing
+    # Asked for the job by name and for exactly what was missing.
+    assert gather.asked == [
+        ("Create a Customer Type", ("Customer Type", "Customer Type Description"))
+    ]
+
+
+async def test_an_offer_whose_values_are_not_in_the_mail_still_offers() -> None:
+    """What the gather could not find stays missing, and the card asks for it.
+
+    The alternative -- refusing to offer at all -- would lose a request the
+    operator can answer in two words, which is the whole reason the boxes on
+    the card exist.
+    """
+    uow = await _held()
+    mailbox = _Mailbox(
+        search=_found("m-1"),
+        **{"m-1": _mail("please create the customer type in WMS as discussed")},
+    )
+    reads = _Reads(_reading(JOB, bare=True))
+
+    looked = await _look(uow, mailbox, reads, _Gathers()).execute(CTX)
+
+    (one,) = looked.offered
+    assert one.values == {}
+    assert one.missing == ["Customer Type", "Customer Type Description"]
+
+
+async def test_a_look_with_no_gather_offers_what_the_mail_itself_said() -> None:
+    """A deployment with no connector, or none configured: the offer is still
+    made from the request alone rather than not made."""
+    uow = await _held()
+    mailbox = _Mailbox(search=_found("m-1"), **{"m-1": _mail("please add customer type GPX")})
+    reads = _Reads(_reading(JOB))
+
+    looked = await _look(uow, mailbox, reads).execute(CTX)
+
+    (one,) = looked.offered
+    assert one.values == {"Customer Type": "GPX"}

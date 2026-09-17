@@ -831,6 +831,58 @@ test("a card about the page in front of them is still answerable", () => {
   assert.deepEqual(pressed, ["waiting-approve"]);
 });
 
+test("an offer read out of a mail says what it would create", () => {
+  // Four of these stacked up on the deployment, 2026-09-18, every one of them
+  // "Create a Customer Type — want me to do it?", and there was nothing on any
+  // of them to tell one request from another or to check a reading against.
+  // Nobody can consent to a write they cannot see.
+  const item = messages(
+    ledger({ id: "thr-1", messages: [] }, {
+      nudges: [
+        {
+          id: "n_mail",
+          source: "rig",
+          state: "open",
+          k: 0,
+          title: "Create a Customer Type",
+          values: {
+            "Customer Type": "GU3",
+            "Customer Type Description": "leaning new SRO type 038",
+          },
+          items: [],
+          missing: [],
+          canFind: true,
+        },
+      ],
+    }, { onPress: () => {} }),
+  )[0];
+
+  assert.match(words(item), /GU3/);
+  assert.match(words(item), /leaning new SRO type 038/);
+  assert.match(words(item), /Want me to do it\?/);
+});
+
+test("an offer with nothing read yet still asks plainly", () => {
+  const item = messages(
+    ledger({ id: "thr-1", messages: [] }, {
+      nudges: [
+        {
+          id: "n_bare",
+          source: "rig",
+          state: "open",
+          k: 0,
+          title: "Create a Customer Type",
+          values: {},
+          items: [],
+          missing: ["Customer Type"],
+        },
+      ],
+    }, { onPress: () => {} }),
+  )[0];
+
+  assert.match(words(item), /Create a Customer Type — want me to do it\?/);
+});
+
 for (const [name, fn] of tests) {
   try {
     await fn();

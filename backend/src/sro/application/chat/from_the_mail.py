@@ -53,6 +53,7 @@ from datetime import UTC, datetime, timedelta
 
 from sro.application.chat.understand import understand
 from sro.application.context import RequestContext
+from sro.application.execution.gather import GatherContext
 from sro.application.ports.model import Asker, asker_or_refuse
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.tools import ToolCaller, ToolsUnavailable
@@ -70,6 +71,18 @@ Bounded because a look somebody is waiting on has to end, and because eight
 cards at once is a panel nobody reads past the third -- not because of what the
 readings cost. Eight covers a morning's arrivals between looks.
 """
+
+K_OFFER_ROUNDS = 2
+"""How hard a look tries to find the values for an offer.
+
+Fewer than a run gets. This runs on a beat over every arriving mail, and an
+offer that names most of what it is about is worth far more than one that
+takes a minute to name all of it -- the run looks again anyway, with the
+patience the run is allowed."""
+
+K_BECAUSE = 400
+"""How much of the request the gather is told, so it knows what it is looking
+for. The sentence that asked, not the mailbox."""
 
 K_RECENT = "newer_than:2d -in:chats"
 """What counts as an arrival worth reading.
@@ -151,11 +164,13 @@ class FromTheMail:
         asker: Asker | None,
         *,
         model: str,
+        gather: GatherContext | None = None,
     ) -> None:
         self._uow = uow
         self._tools = tools
         self._asker = asker
         self._model = model
+        self._gather = gather
 
     async def execute(self, ctx: RequestContext, *, limit: int = K_LOOK) -> LookedInTheMail:
         """One look. Nothing runs, and nothing is written down about the mail.
@@ -234,13 +249,38 @@ class FromTheMail:
                     ", ".join(titles.get(one, one) for one in got.also) or "another job",
                 )
                 continue
+            # The values it is about, before it is offered.
+            #
+            # A request rarely carries them: "please create the customer type
+            # as discussed" is the whole of it, and what to create is in the
+            # mail before it. So the reading came back with the job and two
+            # missing values, and the card said "Create a Customer Type -- want
+            # me to do it?" with nothing to tell one from another. Four of them
+            # stacked up on the deployment, 2026-09-18, and they were the same
+            # sentence four times.
+            #
+            # Nobody can consent to a write they cannot see. The run gathers
+            # these anyway, a moment after the press -- this is the same work
+            # moved to where the decision is actually made, so a wrong reading
+            # is caught before the record instead of after it.
+            values, missing = dict(got.values), list(got.missing)
+            if missing and self._gather is not None:
+                found = await self._gather.execute(
+                    ctx,
+                    job=titles.get(got.workflow_id, got.workflow_id),
+                    wanted=missing,
+                    because=said[:K_BECAUSE],
+                    rounds=K_OFFER_ROUNDS,
+                )
+                values |= {name: one.value for name, one in found.values.items()}
+                missing = [name for name in missing if name not in values]
             offered.append(
                 Offered(
                     message=message,
                     workflow_id=got.workflow_id,
                     title=titles.get(got.workflow_id, got.workflow_id),
-                    values=dict(got.values),
-                    missing=list(got.missing),
+                    values=values,
+                    missing=missing,
                 )
             )
         looked = LookedInTheMail(

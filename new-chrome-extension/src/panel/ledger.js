@@ -520,7 +520,17 @@ function offeringToFinish(nudge, onPress) {
       ? `${nudge.title} \u2014 ${typed}, so far. Want me to finish it?`
       : things > 1
         ? `${nudge.title}, for ${things} things \u2014 want me to do them?`
-        : `${nudge.title} \u2014 want me to do it?`;
+        : // What this press would create, where it is known.
+          //
+          // An offer read out of a mail carries the values now -- the look
+          // gathers them before offering, because nobody can consent to a
+          // write they cannot see. Four of these stacked up on the deployment,
+          // 2026-09-18, every one of them "Create a Customer Type -- want me
+          // to do it?", and there was nothing on any of them to tell one
+          // request from another or to check a reading against.
+          typed
+          ? `${nudge.title} \u2014 ${typed}. Want me to do it?`
+          : `${nudge.title} \u2014 want me to do it?`;
   item.append(what);
 
   // And which things, in the order they would be done. What a person is being

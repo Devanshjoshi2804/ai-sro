@@ -17,6 +17,7 @@ import {
   csrfTokenInPage,
   requestedWithInPage,
   performAtInPage,
+  screenSizeInPage,
   performInPage,
   sendInPage,
   viewportInPage,
@@ -896,6 +897,30 @@ async function uiUrl(payload) {
  * stored form of this command -- a run keeps no screens, so there would be
  * nothing to read a stored one back with.
  */
+/** How long the page is given to measure itself, and to be photographed.
+ *
+ * Both well inside the deadline the backend waits, because the point is that
+ * this command ANSWERS. Two budgets rather than one: a page that cannot be
+ * measured can still be photographed, and those are the two halves of a look.
+ */
+const K_MEASURE_MS = 4000;
+const K_CAPTURE_MS = 8000;
+
+/** What the promise gave, or `undefined` if it took too long.
+ *
+ * Deliberately not a rejection: every caller here treats "too slow" as "went
+ * without it", and an exception would have each of them writing the same catch.
+ */
+function within(ms, promise) {
+  let timer;
+  return Promise.race([
+    Promise.resolve(promise).catch(() => undefined),
+    new Promise((settle) => {
+      timer = setTimeout(() => settle(undefined), ms);
+    }),
+  ]).finally(() => clearTimeout(timer));
+}
+
 async function screenshot(payload) {
   const tab = await drivenTab(payload.origin);
   if (!tab) return failure("no_tab_for_system", noPage(payload.origin));
@@ -924,13 +949,35 @@ async function screenshot(payload) {
   // before anything reaches a model can only reason about text. Read from the
   // tab that was photographed, so the picture and the coordinates beside it
   // are the same page.
-  const seen = (await inPage(visible.id, viewportInPage, [], "ISOLATED")) || {};
+  //
+  // Bounded, and with a cheap fallback. A command that does not answer is the
+  // worst answer this browser has: the run waits its whole deadline and is
+  // told "timeout", which names nothing. Measured on the deployment,
+  // 2026-09-17: `no screen to look at: timeout: the browser did not answer
+  // within 20s` on four runs, and a timeout is the one failure that cannot say
+  // which part of itself was slow.
+  //
+  // So the measuring gets a budget, and missing it costs the digest rather
+  // than the picture. `screenSizeInPage` is three property reads -- the
+  // viewport the model answers in, which is the part that is not optional.
+  let seen = await within(K_MEASURE_MS, inPage(visible.id, viewportInPage, [], "ISOLATED"));
+  let slow = "";
+  if (!seen) {
+    slow = `the page took longer than ${K_MEASURE_MS}ms to measure`;
+    seen = (await within(K_MEASURE_MS, inPage(visible.id, screenSizeInPage, [], "ISOLATED"))) || {};
+  }
 
   let dataUrl;
   try {
-    dataUrl = await chrome.tabs.captureVisibleTab(visible.windowId, {
-      format: "png",
-    });
+    dataUrl = await within(
+      K_CAPTURE_MS,
+      chrome.tabs.captureVisibleTab(visible.windowId, { format: "png" }),
+    );
+    if (!dataUrl)
+      return failure(
+        "no_tab_for_system",
+        `this browser did not answer with a picture within ${K_CAPTURE_MS}ms`,
+      );
   } catch (error) {
     // A tab that is not the visible one cannot be photographed, and Chrome
     // refuses on its own pages. Both mean there is no screen to look at.
@@ -953,7 +1000,11 @@ async function screenshot(payload) {
       // coordinates in this space and `ui.perform_at` acts in it.
       width: seen.width || 0,
       height: seen.height || 0,
+      // Empty where the page could not be measured in time. The run still gets
+      // its picture; what it loses is the list of names beside it.
       text_digest: seen.digest || "",
+      measured: !slow,
+      slow,
     },
   };
 }

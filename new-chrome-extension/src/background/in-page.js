@@ -530,6 +530,22 @@ export function performAtInPage(payload) {
  * in. A picture measured in device pixels and a click measured in CSS pixels
  * are out by the display's scale factor, which on any retina screen is a click
  * halfway up the page. */
+/** How big the screen is and where it is, and nothing else.
+ *
+ * The cheap half of `viewportInPage`, for when the whole of it cannot be had:
+ * three property reads, no layout, no selector. The picture is what the rung
+ * that looks actually needs -- the digest beside it is a help, and a help that
+ * costs the command its deadline is not one.
+ */
+export function screenSizeInPage() {
+  return {
+    url: location.href,
+    width: window.innerWidth,
+    height: window.innerHeight,
+    digest: "",
+  };
+}
+
 export function viewportInPage() {
   // Bounded, because this used to walk the whole document and the document is
   // a warehouse grid.

@@ -4967,6 +4967,62 @@ async def test_a_watched_run_does_the_job_on_the_screen() -> None:
     ], "a watched run filled the form and posted the call as well"
 
 
+async def test_a_watched_run_that_cannot_fill_the_form_still_makes_the_write() -> None:
+    """The fallback the write step's own could not reach.
+
+    Measured on the deployment, 2026-09-17 at 10:40. The run stopped on
+    "Navigate to the Customer Types screen" -- a step with no call of its own,
+    two steps before the one that has one. A run stops at its first failed
+    step, so the write it was on its way to was never tried, though the call
+    was sitting there the whole time.
+
+    So a watched run gives up on the SCREEN rather than on the job: the steps
+    that were only scaffolding for the write collapse, exactly as an unwatched
+    run would have had them from the start.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel(
+        {
+            **_looks(10),
+            # The form-filling step is where the page refuses.
+            "ui.perform": [
+                Reply(ok=False, error_kind="not_actionable", error_detail="the page did not answer")
+            ]
+            * 3,
+            "http.send": [Reply(ok=True, result={"status": 201, "body": "{}"})] * 2,
+        }
+    )
+    asker = FakeAsker(
+        _plan("type", "WATCHED"),
+        Answer(data={"held": False, "why": "nothing happened on the screen"}),
+        _plan("type", "WATCHED"),
+        Answer(data={"held": False, "why": "nothing happened on the screen"}),
+    )
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        values={},
+        earned=True,
+        verified_writes=(VerifiedWrite(method="POST", path_pattern="/api/orders"),),
+        watched=True,
+    )
+
+    assert run.steps[0].verdict == "not_needed", run.steps[0]
+    assert "going out as a call" in run.steps[0].reason
+    wrote = [
+        one
+        for one in channel.sent
+        if one["kind"] == "http.send" and _payload(one).get("method") == "POST"
+    ]
+    assert wrote, [(one.verdict, one.reason[:60]) for one in run.steps]
+    # And it tried the screen first, which is what watching is for.
+    assert any(one["kind"] == "ui.perform" for one in channel.sent)
+
+
 async def test_a_watched_run_falls_back_to_the_call_when_the_screen_will_not_take_it() -> None:
     """Watching must not mean "and if the page cannot be driven, do not do it".
 

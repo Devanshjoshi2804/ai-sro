@@ -834,7 +834,13 @@ async def run_workflow(
     # done. It costs a reading per step and the determinism of the replay, and
     # that is the trade being made on purpose rather than by accident.
     collapsed: set[int] = set()
-    for leg in itinerary if not run.watched else ():
+    # What an unwatched run would have collapsed, held in reserve for a watched
+    # one. See `_the_screen_gave_up` at the foot of the step loop: a run
+    # somebody is watching performs the form-filling steps, and when the page
+    # will not take one of them the job is not over -- the write those steps
+    # were filling in is still a call this run knows how to make.
+    in_reserve: set[int] = set()
+    for leg in itinerary:
         if (
             replay_without_asking(
                 step=leg.step,
@@ -845,7 +851,8 @@ async def run_workflow(
             )
             is not None
         ):
-            collapsed.update(scaffolding_for(workflow, by_id, write_step=leg.step.order))
+            marks = scaffolding_for(workflow, by_id, write_step=leg.step.order)
+            (in_reserve if run.watched else collapsed).update(marks)
 
     # The step that opens the mail, once the mail has been read.
     #
@@ -1971,6 +1978,32 @@ async def run_workflow(
             # failed, unclear, refused, or a step with nothing actionable to
             # cite -- is a step nobody watched succeed, and the rest of the job
             # assumes it did. Nothing runs unattended past one.
+            if record.verdict not in ("held", "withheld") and step.order in in_reserve:
+                # The screen would not take it, and the job is not over.
+                #
+                # A watched run performs the steps that put the form on the
+                # screen, and this is one of them. Measured on the deployment,
+                # 2026-09-17 at 10:40: the run stopped on "Navigate to the
+                # Customer Types screen" -- a step with no call of its own --
+                # while the write it was on its way to was a call this run knew
+                # how to make, three steps later and never reached. The
+                # fallback built for the write step could not help, because a
+                # run stops at its first failed step.
+                #
+                # So the run gives up on the SCREEN rather than on the job: the
+                # steps that were only ever scaffolding for the write are
+                # collapsed, exactly as an unwatched run would have had them
+                # from the start, and the write goes out as a call. Once --
+                # `in_reserve` is emptied -- so a job that fails again fails.
+                record.verdict, record.verdict_by = "not_needed", "none"
+                record.reason = (
+                    "the page would not take this step, so the form is not being "
+                    "filled and the write it was for is going out as a call: " + record.reason
+                )
+                collapsed |= in_reserve
+                in_reserve = set()
+                await _save(uow, run)
+                continue
             if record.verdict not in ("held", "withheld"):
                 run.outcome = "stopped"
                 break

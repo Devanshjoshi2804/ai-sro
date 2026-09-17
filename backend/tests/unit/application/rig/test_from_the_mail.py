@@ -164,6 +164,18 @@ async def test_a_reading_that_is_not_sure_says_nothing() -> None:
 
     assert looked.offered == ()
     assert looked.read == 1, "it read the mail and decided, rather than never looking"
+    # Silent to the panel, and NOT silent about why.
+    #
+    # "none of them asks for a job this tenant holds" was what a look said
+    # here, and it is false: one of them asked, and the reading could not tell
+    # which job it meant. Measured on the deployment, 2026-09-17: the tenant
+    # held two workflows called `Create a Customer Type` -- one with six steps
+    # and sixty-one runs, one with two steps and none -- so every mail asking
+    # for one named both, `sure` went false, and the mail path was silent about
+    # a job the rig had otherwise learned to do. A look that reports the wrong
+    # absence is a look nobody investigates.
+    assert "none of them asks for a job" not in looked.why, looked.why
+    assert "more than one" in looked.why, looked.why
 
 
 async def test_a_mail_that_asks_for_nothing_this_tenant_does_is_not_forced_onto_a_job() -> None:

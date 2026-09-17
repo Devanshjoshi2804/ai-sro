@@ -46,6 +46,7 @@ mailbox would be the boundary undone one layer up.
 from __future__ import annotations
 
 import json
+import logging
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
@@ -114,6 +115,9 @@ A request states itself at the top: a greeting, the ask, the values. What
 follows is a quoted thread and a signature block, which is where a model finds
 last week's request and offers the job again for a record that already exists.
 """
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -189,6 +193,10 @@ class FromTheMail:
         offered: list[Offered] = []
         spent = Answer()
         read = 0
+        # Read, asked for a job, and dropped because the reading could not tell
+        # which job. Counted rather than swallowed: see `_sentence`.
+        unsure = 0
+        tenant = ctx.tenant_id.value
         for message in arrivals:
             if not await self._first_time(ctx, message, now=now):
                 continue
@@ -206,7 +214,25 @@ class FromTheMail:
             # Silence where it is not sure, and where it named no job at all.
             # A card about a delivery notice is worse than no card: the person
             # stops reading the ones that matter.
-            if got.workflow_id is None or not got.sure:
+            if got.workflow_id is None:
+                logger.info("%s: read a mail that asks for no job this tenant holds", tenant)
+                continue
+            if not got.sure:
+                # Which other jobs it might have meant, because that is the
+                # whole of why it said nothing. Measured on the deployment,
+                # 2026-09-17: this tenant holds TWO workflows called `Create a
+                # Customer Type` -- one with six steps and sixty-one runs, one
+                # with two steps and none -- so every mail asking for one named
+                # both, `sure` went false, and the mail path was silent about
+                # the job the rig had otherwise learned to do. Nothing anywhere
+                # said so.
+                unsure += 1
+                logger.info(
+                    "%s: read a mail asking for %s but could not tell it from %s",
+                    tenant,
+                    titles.get(got.workflow_id, got.workflow_id),
+                    ", ".join(titles.get(one, one) for one in got.also) or "another job",
+                )
                 continue
             offered.append(
                 Offered(
@@ -218,7 +244,7 @@ class FromTheMail:
                 )
             )
         return LookedInTheMail(
-            offered=tuple(offered), read=read, why=_sentence(offered, read), spent=spent
+            offered=tuple(offered), read=read, why=_sentence(offered, read, unsure), spent=spent
         )
 
     async def _recent(self, ctx: RequestContext, limit: int) -> list[str]:
@@ -286,10 +312,17 @@ class FromTheMail:
         return first
 
 
-def _sentence(offered: Sequence[Offered], read: int) -> str:
+def _sentence(offered: Sequence[Offered], read: int, unsure: int = 0) -> str:
     """What happened, for a person reading the result rather than the code."""
     if not read:
         return "no mail has arrived since the last look"
+    if not offered and unsure:
+        # NOT "none of them asks for a job", which is what this said and which
+        # was false: one of them asked, and the reading could not tell which of
+        # two jobs it meant. A look that reports the wrong absence is a look
+        # nobody investigates -- the tenant had two workflows with one name for
+        # a day, and this sentence is why nobody knew.
+        return f"read {read}, and {unsure} asked for a job this tenant holds more than one of"
     if not offered:
         return f"read {read}, and none of them asks for a job this tenant holds"
     return "offered " + ", ".join(one.title for one in offered)

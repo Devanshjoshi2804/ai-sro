@@ -243,9 +243,24 @@ class FromTheMail:
                     missing=list(got.missing),
                 )
             )
-        return LookedInTheMail(
+        looked = LookedInTheMail(
             offered=tuple(offered), read=read, why=_sentence(offered, read, unsure), spent=spent
         )
+        # What the look CAME TO, not only what it threw away.
+        #
+        # The drops have been logged since the sentence was fixed, and nothing
+        # logged a kept offer -- so "no line for that message" was the only
+        # evidence an offer had been made, and absence of evidence is not it.
+        # Twice on 2026-09-17 that reading sent me looking for a card in a
+        # panel when I had no idea whether one had ever been offered.
+        logger.info(
+            "%s: looked in the mail -- %d read, %d offered (%s)",
+            tenant,
+            read,
+            len(offered),
+            looked.why,
+        )
+        return looked
 
     async def _recent(self, ctx: RequestContext, limit: int) -> list[str]:
         """The newest message ids, as this operator. Ids only: what each one

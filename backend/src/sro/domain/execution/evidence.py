@@ -16,7 +16,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 
 from sro.domain.observation.gesture import Call, Gesture
-from sro.domain.shared.hosts import system_of
+from sro.domain.shared.hosts import same_screen, screen_of, system_of
 from sro.domain.skill.workflow import Step, Workflow
 
 _UNTARGETED = frozenset({"scroll"})
@@ -277,6 +277,66 @@ def writes(step: Step, by_id: Mapping[str, Gesture]) -> bool:
     """Whether performing this step changes something. A dry run withholds it."""
     call = recorded_call(step, by_id)
     return call is not None and call.method.upper() not in READ_METHODS
+
+
+def route_for(step: Step, after: Step | None, by_id: Mapping[str, Gesture]) -> str | None:
+    """Where this step leaves the browser, when leaving it somewhere is all it
+    does -- and there is no other way to know.
+
+    A gesture records the page it happened ON, never the page it led to. The
+    click that opens the Customer Types screen is recorded on the Warehouse
+    screen, so the step's own evidence names where it STARTED. Read as a
+    destination it sends the browser back where it began, which is what the
+    first version of this did and what the suite said about it within a minute.
+
+    The destination is recorded, one step along: the next step was performed
+    somewhere, and that somewhere is where this one arrived. Both doings of
+    `Navigate to the Customer Types screen` are followed by `Click the Add
+    button` on
+
+        .../portal?siteId=SG#wm.config/wm.config.partners.customers.types////
+
+    Measured on the deployment across 2026-09-16 and 17, the alternative cost
+    thirteen cents a run and landed about half the time: a model was shown a
+    picture, worked out that the screen lives under a menu called Partners,
+    clicked one and then the other, and the verifier looked afterwards to see
+    whether any of it had taken.
+
+    Three things make it None, and each is a way of not knowing:
+
+    **This step writes.** Then it does something at a screen rather than being
+    the arrival at one, and going to a page would skip what it was for.
+
+    **Nothing follows it**, so nothing recorded where it arrived.
+
+    **The next step is on the same page**, so this step did not move the
+    browser and a navigate would be a command that changes nothing.
+    """
+    if after is None or writes(step, by_id):
+        return None
+    cited = [by_id[one] for one in step.cites if one in by_id]
+    # Only clicks, and nothing typed into anything.
+    #
+    # "Does not write" is not "only arrives": the step that types a customer
+    # type into a field writes nothing and is emphatically not a navigation.
+    # The suite said so the first time this rule was tried -- a run navigated
+    # instead of filling in the form. A step whose every gesture is a click is
+    # a step made of moving about.
+    if not cited or any(one.action.kind != "click" or one.action.value for one in cited):
+        return None
+    here = _agreed(step, by_id)
+    there = _agreed(after, by_id)
+    if there is None or not there.startswith(("http://", "https://")):
+        return None
+    return None if same_screen(here, there) else there
+
+
+def _agreed(step: Step, by_id: Mapping[str, Gesture]) -> str | None:
+    """The page this step's doings have in common. `screen_of` keeps what every
+    visit agrees on and drops what varies, so a session token or one record's
+    id cannot become the page a run is sent to."""
+    seen = [by_id[one] for one in step.cites if one in by_id]
+    return screen_of([one.page_url or one.url for one in seen]) if seen else None
 
 
 def stood_on(workflow: Workflow, by_id: Mapping[str, Gesture]) -> set[str]:

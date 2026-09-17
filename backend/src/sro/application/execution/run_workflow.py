@@ -77,6 +77,7 @@ from sro.domain.execution.evidence import (
     origin_of,
     primary_gesture,
     recorded_call,
+    route_for,
     stood_on,
     writes,
 )
@@ -89,7 +90,7 @@ from sro.domain.execution.verified_writes import VerifiedWrite
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun, new_run_id
 from sro.domain.execution.write_plan import scaffolding_for, seen_values
 from sro.domain.observation.gesture import Gesture
-from sro.domain.shared.hosts import screen_of, system_of
+from sro.domain.shared.hosts import same_screen, screen_of, system_of
 from sro.domain.shared.identifiers import DeviceId, TenantId
 from sro.domain.shared.prices import Answer
 from sro.domain.skill.repeats import K_MOST_ITEMS, Repeat
@@ -979,6 +980,11 @@ async def run_workflow(
     # the browser is never driven into the wrong system -- but the tab is then
     # never opened either, and a run whose operator has no warehouse tab open
     # fails instead of opening one.
+    def _next_after(steps: list[Step], step: Step) -> Step | None:
+        """The step the job does next, by its own order."""
+        later = [one for one in steps if one.order > step.order]
+        return min(later, key=lambda one: one.order) if later else None
+
     def _screen_of(step: Step | None) -> str | None:
         """The screen this step's own demonstrations agree on."""
         anchor = primary_gesture(step, by_id) if step is not None else None
@@ -1222,6 +1228,25 @@ async def run_workflow(
                 if primary is not None
                 else ()
             )
+            # A step that is only arriving somewhere goes there, first and
+            # without asking anybody.
+            #
+            # The application wrote down how to reach its screens in its own
+            # urls, and the operator's visits recorded it: both demonstrations
+            # of `Navigate to the Customer Types screen` carry the same route.
+            # Measured across 2026-09-16 and 17, the alternative -- a model
+            # shown a picture, working out that the screen is under a menu --
+            # cost thirteen cents a run and landed about half the time.
+            #
+            # First, not instead: a route that no longer exists leaves the
+            # rungs behind it to find the screen the hard way, which is what
+            # they are for.
+            # The step after this one in the job, which is where the evidence
+            # says this one arrives: a gesture records the page it happened on,
+            # never the page it led to.
+            route = route_for(step, _next_after(ordered, step), by_id)
+            if route is not None:
+                rungs = (("route", ""), *rungs)
             # The form this write would have been typed into was never filled.
             #
             # A run whose write goes out as a CALL collapses the steps that
@@ -1343,7 +1368,22 @@ async def run_workflow(
                         run.outcome = "refused"
                         break
                     attempts += 1
-                    if replay is not None and how == "replay":
+                    if how == "route" and route is not None:
+                        # No model, no picture: the evidence says where this
+                        # step ends up and the browser is told to be there.
+                        before = await _where(channel, tenant_id, device_id, run.id, origin)
+                        proposal = Planned(
+                            "navigate",
+                            {
+                                "url": route,
+                                "origin": origin,
+                                "allow_focus": allow_focus,
+                                "starts_on": route,
+                            },
+                            f"going to the page this step's doings agree on: {route}",
+                            Answer(),
+                        )
+                    elif replay is not None and how == "replay":
                         # No picture: nobody is being shown one. The url is
                         # still wanted -- `before_url` is on the record -- and
                         # that is a message rather than a camera.
@@ -1477,7 +1517,10 @@ async def run_workflow(
                             )
                             break
                         openings += 1
-                    elif proposal.kind != "navigate":
+                    elif proposal.kind != "navigate" or how == "route":
+                        # A navigate is normally the way to the step and not
+                        # the step -- except on this rung, where arriving IS
+                        # what the step says it does.
                         planned = proposal
                     elif navigated:
                         verdict = StepVerdict(
@@ -1960,23 +2003,45 @@ async def run_workflow(
                 # rung is shown the page it left behind beside the page as it
                 # is when it plans.
                 after_failed = after
-                verdict = settled or await verify(
-                    step=step,
-                    sent_kind=planned.kind,
-                    rewrote=planned.rewrote,
-                    confirm=planned.confirm,
-                    answer=reply,
-                    cited=cited,
-                    values=values,
-                    look_before=before,
-                    look_after=after,
-                    channel=channel,
-                    tenant_id=tenant_id,
-                    device_id=device_id,
-                    run_id=run.id,
-                    origin=origin,
-                    asker=asker,
-                    model=plan_model,
+                # A step that was only arriving is judged by where the
+                # browser is, which is a fact this side can read: no status to
+                # weigh, no picture to interpret, and nothing for a model to be
+                # confident about. `page_of` drops the query and the fragment's
+                # particulars, so the same screen reached twice compares equal.
+                arrived = (
+                    StepVerdict(
+                        "held" if same_screen(after.url, route) else "failed",
+                        "read",
+                        (
+                            f"the browser is on {after.url}"
+                            if same_screen(after.url, route)
+                            else f"the browser is on {after.url}, not {route}"
+                        ),
+                    )
+                    if how == "route" and route is not None
+                    else None
+                )
+                verdict = (
+                    arrived
+                    or settled
+                    or await verify(
+                        step=step,
+                        sent_kind=planned.kind,
+                        rewrote=planned.rewrote,
+                        confirm=planned.confirm,
+                        answer=reply,
+                        cited=cited,
+                        values=values,
+                        look_before=before,
+                        look_after=after,
+                        channel=channel,
+                        tenant_id=tenant_id,
+                        device_id=device_id,
+                        run_id=run.id,
+                        origin=origin,
+                        asker=asker,
+                        model=plan_model,
+                    )
                 )
                 _bill(record, verdict.answer)
                 record.verdict, record.verdict_by = verdict.state, verdict.by

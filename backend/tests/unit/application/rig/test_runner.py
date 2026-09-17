@@ -58,7 +58,7 @@ from sro.domain.chat.reading import ChatReading
 from sro.domain.execution.belts import K_EARNED_RUNS, SCREEN_SCHEMA
 from sro.domain.execution.gathering import Found, Gathered
 from sro.domain.execution.learned_step import LearnedStep
-from sro.domain.execution.planning import PLAN_SCHEMA, Look, Planned
+from sro.domain.execution.planning import PLAN_SCHEMA, SIGHT_SCHEMA, Look, Planned
 from sro.domain.execution.verified_writes import VerifiedWrite
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
 from sro.domain.observation.gesture import Action, Body, Call, Gesture, Target
@@ -5011,6 +5011,66 @@ async def test_the_call_is_not_refused_for_a_budget_the_screen_spent() -> None:
         if one["kind"] == "http.send" and _payload(one).get("method") == "POST"
     ]
     assert wrote, [(one.verdict, one.reason[:70]) for one in run.steps]
+
+
+async def test_a_step_that_only_arrives_goes_straight_there() -> None:
+    """The coin flip this ends.
+
+    Measured on the deployment across 2026-09-16 and 17: the same step, the
+    same rung, thirteen cents a run, and two different outcomes -- once the
+    screen rung walked the menu and reached Customer Types, once it never left
+    the Warehouse page. The evidence held the deterministic answer the whole
+    time, one step along: the next step was performed on the screen this one
+    arrives at.
+
+    No model, no picture, and judged by where the browser ended up rather than
+    by a model looking at it.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    warehouse = "http://127.0.0.1:63319/portal#wm.config/warehouse////"
+    customers = "http://127.0.0.1:63319/portal#wm.config/customers.types////"
+    # A click on one screen, and the next step performed on another.
+    opening = _demonstrated("nav-1", {"threadId": "t"})
+    opening.url, opening.page_url = warehouse, warehouse
+    opening.requests = []
+    opening.action = replace(opening.action, kind="click", value=None)
+    arrived = _demonstrated("nav-2", {"threadId": "t"})
+    arrived.url, arrived.page_url = customers, customers
+    arrived.requests = []
+    arrived.action = replace(arrived.action, kind="click", value=None)
+    await uow.gestures.add_gestures((opening, arrived))
+    # Two steps and no more: the job is "go there, then click something
+    # there". A third step on a third page would be a second route and this
+    # test is about the first.
+    workflow.steps = [
+        Step(order=0, says="Go to Customer Types", system=None, cites=["nav-1"]),
+        Step(order=1, says="Click Add", system=None, cites=["nav-2"]),
+    ]
+    await uow.workflows.save(workflow)
+    channel = FakeChannel(
+        {
+            "ui.url": [Reply(ok=True, result={"url": warehouse})]
+            + [Reply(ok=True, result={"url": customers})] * 8,
+            "screenshot": [Reply(ok=True, result={"image_base64": "aVBORw0=", "text_digest": "x"})]
+            * 8,
+            "navigate": [Reply(ok=True, result={"navigated": True})],
+            "ui.perform": [_performed()] * 3,
+        }
+    )
+    asker = _PerSchemaAsker(plan=_plan("click"), verdict=Answer(data={"held": True, "why": "ok"}))
+
+    run = await _ran(uow, workflow, channel=channel, asker=asker, values={}, earned=True)
+
+    assert [one["kind"] for one in channel.sent].count("navigate") == 1, (
+        "it did not simply go to the page the evidence names"
+    )
+    assert run.steps[0].verdict == "held", run.steps[0].reason
+    assert run.steps[0].verdict_by == "read", "a navigation was judged by a model"
+    assert customers in run.steps[0].reason
+    # And nothing was asked about it: the first plan a model saw was the step
+    # after this one.
+    assert not [one for one in asker.asked if one["schema"] is SIGHT_SCHEMA]
 
 
 # --- a screen answered with as many clicks as it takes -----------------------

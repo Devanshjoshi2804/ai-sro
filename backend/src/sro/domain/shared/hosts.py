@@ -84,6 +84,35 @@ def page_of(url: str | None) -> str | None:
     return f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
 
 
+def same_screen(one: str | None, other: str | None) -> bool:
+    """Whether two urls are the same screen of the same application.
+
+    Scheme, host, path AND fragment; the query is dropped. `page_of` drops the
+    fragment too, and for an application that keeps its routes there -- which
+    is every ExtJS portal this system has met -- that makes every screen
+    compare equal to every other. Measured on the deployment, 2026-09-17:
+
+        .../portal?siteId=SG#wm.config/wm.config.warehouse.warehouse////
+        .../portal?siteId=SG#wm.config/wm.config.partners.customers.types////
+
+    `page_of` calls those the same page. They are the Warehouse screen and the
+    Customer Types screen, and a rule that cannot tell them apart is a rule
+    that reports arriving somewhere it never went.
+
+    The query stays dropped, for `page_of`'s reason: it is where a session
+    token and one visit's particulars live.
+    """
+    if not one or not other:
+        return False
+    mine, theirs = urlsplit(one), urlsplit(other)
+    return (mine.scheme, mine.netloc, mine.path, mine.fragment) == (
+        theirs.scheme,
+        theirs.netloc,
+        theirs.path,
+        theirs.fragment,
+    )
+
+
 def screen_of(urls: Iterable[str | None]) -> str | None:
     """The screen these visits have in common: what every one of them agrees on.
 

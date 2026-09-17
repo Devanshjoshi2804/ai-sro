@@ -38,10 +38,15 @@ const box = (top, height = 20) => ({
   height,
 });
 
-function page(elements) {
+/** The page's controls, and separately whatever it is SAYING. The real
+ * `querySelectorAll` is asked twice with different selectors; this answers
+ * each with its own list. */
+function page(elements, saying = []) {
   globalThis.window = { innerWidth: 1000, innerHeight: 800 };
   globalThis.location = { href: "https://wms.example/portal" };
-  globalThis.document = { querySelectorAll: () => elements };
+  globalThis.document = {
+    querySelectorAll: (selector) => (selector.includes("role=alert") ? saying : elements),
+  };
 }
 
 const { viewportInPage } = await import("./in-page.js");
@@ -113,4 +118,33 @@ test("it still says where the browser is and how big the screen is", () => {
   assert.equal(seen.width, 1000);
   assert.equal(seen.height, 800);
   assert.equal(seen.digest, "");
+});
+
+test("what the page is saying is in the digest, not only what it is offering", () => {
+  // The fault. `run_21b92747`, the deployment, 2026-09-17 at 23:05: the form
+  // was filled on the page and the Save came back "An exception dialog
+  // appeared and the record has not been created" -- the model's paraphrase,
+  // because the screen text it was handed carried the dialog's OK button and
+  // not one word of its sentence. Whether that dialog said a field was too
+  // long, a session had expired, or a code was already taken is the whole
+  // question.
+  const measured = { count: 0 };
+  page(
+    [cell("OK", box(400), measured)],
+    [{ innerText: "  Customer Type\n  already exists.  " }],
+  );
+
+  const seen = viewportInPage();
+
+  assert.match(seen.digest, /says: Customer Type already exists\./);
+  // First, because a message is the thing a reader wants first.
+  assert.ok(seen.digest.startsWith("says:"), seen.digest);
+  assert.match(seen.digest, /OK/, "it dropped the controls to make room");
+});
+
+test("a page saying nothing says nothing, rather than an empty line", () => {
+  const measured = { count: 0 };
+  page([cell("Save", box(100), measured)], [{ innerText: "   " }]);
+
+  assert.equal(viewportInPage().digest, "Save: 60,138");
 });

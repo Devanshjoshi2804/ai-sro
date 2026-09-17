@@ -2459,7 +2459,11 @@ async def test_a_rescue_is_told_what_the_attempt_before_it_failed_with() -> None
     plans = [a for a in asker.asked if a["schema"] is PLAN_SCHEMA]
     assert _prompt(asker, 0)["previous_attempt_failed"] is None
     assert plans[1] is _seen(asker, 2)
-    assert _prompt(asker, 2)["previous_attempt_failed"] == "the field is still blank"
+    # And the screen's own words ride along with it, which is the rescue's best
+    # reason to plan something other than what was just refused.
+    told = _prompt(asker, 2)["previous_attempt_failed"]
+    assert told.startswith("the field is still blank"), told
+    assert "the screen said:" in told, told
 
 
 async def test_a_rung_that_reached_no_command_leaves_the_previous_rungs_plan_standing() -> None:

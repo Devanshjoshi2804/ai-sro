@@ -476,7 +476,13 @@ async def test_the_screen_verdict_is_the_models_own_word_and_its_own_reason() ->
 
     refused = await _screened({"held": False, "why": "the form still shows the old code"})
     assert (refused.state, refused.by) == ("failed", "screen")
-    assert refused.reason == "the form still shows the old code"
+    # The model's account of the screen, and the screen's own words beside it.
+    # Measured on the deployment, 2026-09-17 at 23:05: a Save refused with "An
+    # exception dialog appeared" -- true, and a paraphrase. Whether that dialog
+    # said a field was too long, a session had expired or a code was taken is
+    # the whole question, and the run kept one sentence of prose about it.
+    assert refused.reason.startswith("the form still shows the old code")
+    assert "the screen said: Saved" in refused.reason, refused.reason
 
     held = await _screened({"held": True, "why": "the saved record is on screen"})
     assert (held.state, held.by) == ("held", "screen")

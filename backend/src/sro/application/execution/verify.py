@@ -225,6 +225,16 @@ def _has(document: JsonValue, pointer: str) -> bool:
     return True
 
 
+K_SCREEN_SAID = 600
+"""How much of the screen's own text a failed step keeps.
+
+Enough for a dialog and the controls around it; short enough that a run record
+cannot become a copy of the page. The digest is names and positions, which is
+what `viewportInPage` collects -- no values, because a form's contents are the
+operator's and a record outlives the run.
+"""
+
+
 async def already_done(
     *,
     step: Step,
@@ -708,6 +718,26 @@ async def verify(
             "unclear", "screen", judged.error or "the model returned nothing", judged
         )
     held = bool(judged.data.get("held"))
+    why = str(judged.data.get("why") or "")
+    if held:
+        return StepVerdict("held", "screen", why, judged)
+    # The screen's OWN words beside the model's account of them.
+    #
+    # Measured on the deployment, 2026-09-17 at 23:05: `run_21b92747` filled
+    # the form on the page -- four steps held by the recorded locator -- and
+    # the Save was refused with "An exception dialog appeared and the record
+    # has not been created". True, and a paraphrase: the model had the picture
+    # and the screen text in front of it and the run kept one sentence of
+    # prose. Whether that dialog said a field was too long, a session had
+    # expired, or a code was already taken is the whole question, and it was
+    # thrown away.
+    #
+    # Only on a failure. A step that held needs no evidence beyond holding, and
+    # a digest on every step would be a run record made mostly of screens.
+    said = " ".join(look_after.digest.split())[:K_SCREEN_SAID]
     return StepVerdict(
-        "held" if held else "failed", "screen", str(judged.data.get("why") or ""), judged
+        "failed",
+        "screen",
+        f"{why} — the screen said: {said}" if said else why,
+        judged,
     )

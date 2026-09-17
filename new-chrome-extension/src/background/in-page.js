@@ -572,6 +572,27 @@ export function viewportInPage() {
   const all = document.querySelectorAll(
     "input, select, textarea, button, a, .x-grid-cell, label",
   );
+  // What the page is SAYING, before what it is offering.
+  //
+  // The digest was names of controls and nothing else, so a page whose whole
+  // message was a dialog produced a digest with the dialog's buttons in it and
+  // not a word of what the dialog said. Measured on the deployment, 2026-09-17
+  // at 23:05: `run_21b92747` filled the form on the page and the Save came
+  // back "An exception dialog appeared and the record has not been created" --
+  // the model's paraphrase, because the screen text it was given had the
+  // dialog's OK button and none of its sentence.
+  //
+  // By ARIA role, which is the web's own way of saying "this is the page
+  // talking to you" and belongs to no vendor. First in the digest because a
+  // message is the thing a reader wants first, and a handful of elements, so
+  // it costs nothing against the budget below.
+  for (const el of document.querySelectorAll(
+    "[role=alert], [role=alertdialog], [role=status], [aria-live=assertive], [aria-live=polite]",
+  )) {
+    const says = (el.innerText || el.textContent || "").trim().replace(/\s+/g, " ");
+    if (says) seen.push(`says: ${says.slice(0, 300)}`);
+    if (seen.length >= K_NAMED) break;
+  }
   const many = Math.min(all.length, K_LOOKED_AT);
   for (let n = 0; n < many && seen.length < K_NAMED; n += 1) {
     const el = all[n];

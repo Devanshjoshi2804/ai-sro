@@ -191,6 +191,8 @@ const rigServer = async (url, options = {}) => {
       ? json({ detail: approveRefusal.detail }, approveRefusal.status)
       : json({ order: 0, first: true });
   }
+  if (path.endsWith("/heartbeat"))
+    return json({ policy_version: 0, policy: null, pause: false });
   if (path === "/v1/shapes") return json({ shapes: shapesServed, can_find: shapesCanFind });
   if (path === "/v1/threads/thr-1/messages") return json({ id: "thr-1", messages: [] });
   if (path === "/v1/chat") return chatRead ? json(chatRead) : json({ detail: "no model" }, 503);
@@ -1542,4 +1544,54 @@ test("a mail offer this browser cannot keep is said out loud, not swallowed", as
     /lost before it could be offered/,
     `the panel was told nothing: ${status.lastError}`,
   );
+});
+
+test("what this browser decided rides out on the next beat", async () => {
+  // The extension had no voice. `run_workflow` narrates every rung it climbs
+  // and the deployment's log reads like a transcript; the browser half of the
+  // same run was a black box whose only voice was a service worker console
+  // nobody can reach from a server, from another machine, or at two in the
+  // morning. Measured over 2026-09-17: four faults in the backend were each
+  // found within one run of being narrated, and the one that lived in here
+  // took four runs and was still not found.
+  ready();
+  // After `ready()`, which resets both: it clears the storage AND sets
+  // `mailLooked` back to null.
+  held.delete("sro.mailLooked");
+  mailLooked = {
+    read: 1,
+    why: "offered Create a Customer Type",
+    offered: [
+      {
+        message: "m-88",
+        workflow_id: "wfl-1",
+        title: "Create a Customer Type",
+        values: { "Customer Type": "GU9" },
+        missing: [],
+      },
+    ],
+  };
+
+  await send({ kind: "look-in-the-mail" });
+  await globalThis.__beat({ name: "sro-heartbeat" });
+  // The alarm's work is fired and not awaited, so the beat lands next turn.
+  await new Promise((resolve) => setTimeout(resolve, 20));
+
+  const beat = calls.filter((call) => call.path.endsWith("/heartbeat")).pop();
+  const said = (JSON.parse(beat.body).said || []).join("\n");
+  assert.match(said, /1 read, 1 offered/, said);
+  assert.match(said, /mail offer mail_m-88 kept for wfl-1/, said);
+  // And the value the operator was sent is not in it. A line about a decision
+  // is not a copy of the request.
+  assert.ok(!said.includes("GU9"), said);
+  // Carried ONCE. A buffer that is not emptied by the beat that carried it
+  // repeats every line for ever, which is a log nobody can read and a browser
+  // shouting the same sentence a minute.
+  await globalThis.__beat({ name: "sro-heartbeat" });
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  const beats = calls
+    .filter((call) => call.path.endsWith("/heartbeat"))
+    .map((call) => (JSON.parse(call.body).said || []).join("\n"))
+    .filter((lines) => lines.includes("m-88"));
+  assert.equal(beats.length, 1, `it said the same line on ${beats.length} beats`);
 });

@@ -619,11 +619,21 @@ async function offerFromMail(offer) {
     },
     now,
   );
-  await serially(async () => {
+  const kept = await serially(async () => {
     const held = await state.nudges();
-    if (held.some((one) => one.candidateId === made.candidateId)) return;
+    if (held.some((one) => one.candidateId === made.candidateId)) return "already held";
     await state.setNudges([made, ...held].slice(0, MAX_NUDGES));
+    return "";
   });
+  // Every way this can end, said out loud -- including the two that end it
+  // quietly. An offer the backend made and this browser did not keep is the
+  // failure nobody could see, and "already held" and "kept" were the same
+  // silence as each other and as a throw.
+  await say(
+    kept
+      ? `mail offer ${made.candidateId} not kept: ${kept}`
+      : `mail offer ${made.candidateId} kept for ${made.workflowId} (${Object.keys(made.values || {}).length} value(s), ${(made.missing || []).length} missing)`,
+  );
   // The icon says how many are waiting where the operator is not looking at
   // the panel, which is most of the day.
   await badge();
@@ -925,6 +935,36 @@ function serially(job) {
     () => {},
   );
   return next;
+}
+
+/** How many lines wait for the next beat. The backend bounds this too; a
+ * browser is not a trusted writer, and a loop in here must not be able to fill
+ * a disk. */
+const MAX_SAID = 50;
+
+/** Say what this browser just decided, for the log on the other end.
+ *
+ * `run_workflow` narrates every rung it climbs and the deployment's log reads
+ * like a transcript. The browser half of the same run said nothing at all --
+ * its only voice was a service worker console that cannot be reached from a
+ * server, from another machine, or by somebody debugging at two in the
+ * morning. Measured over 2026-09-17: four faults in the backend were each
+ * found within one run of being narrated, and the one fault that lived in here
+ * took four runs and was still not found.
+ *
+ * Never throws and never blocks: this is a line about something that already
+ * happened, and a narration that can break the thing it narrates is worse than
+ * silence.
+ */
+async function say(line) {
+  try {
+    await serially(async () => {
+      const held = await state.said();
+      await state.setSaid([...held, String(line).slice(0, 300)].slice(-MAX_SAID));
+    });
+  } catch {
+    // Nothing. See above.
+  }
 }
 
 async function watchedTabs() {
@@ -2304,6 +2344,10 @@ async function lookInTheMail() {
     // Measured on the deployment, 2026-09-17 at 19:38: the backend offered
     // `Create a Customer Type` from a mail, and no card ever appeared.
     let kept = 0;
+    if (looked?.offered?.length || looked?.read)
+      await say(
+        `looked in the mail -- ${looked?.read || 0} read, ${(looked?.offered || []).length} offered`,
+      );
     for (const offer of looked?.offered || []) {
       try {
         await offerFromMail(offer);
@@ -2315,6 +2359,7 @@ async function lookInTheMail() {
         await state.setLastError(
           `a request read from your mail was lost before it could be offered: ${error}`,
         );
+        await say(`mail offer lost: ${error}`);
       }
     }
     return {
@@ -2639,11 +2684,30 @@ async function beat() {
       queue.count(),
       queue.totalBytes(),
     ]);
-    const answer = await api.heartbeat(deviceId, {
-      queued_events: queuedEvents,
-      queued_bytes: queuedBytes,
-      policy_version: policy?.version ?? null,
+    // Taken before the call and put back if it fails, so a beat that does not
+    // land does not eat the lines it was carrying.
+    const said = await serially(async () => {
+      const held = await state.said();
+      if (held.length) await state.setSaid([]);
+      return held;
     });
+    let answer;
+    try {
+      answer = await api.heartbeat(deviceId, {
+        queued_events: queuedEvents,
+        queued_bytes: queuedBytes,
+        policy_version: policy?.version ?? null,
+        said,
+      });
+    } catch (error) {
+      if (said.length) {
+        await serially(async () => {
+          const held = await state.said();
+          await state.setSaid([...said, ...held].slice(-MAX_SAID));
+        });
+      }
+      throw error;
+    }
     if (answer.policy) await state.setPolicy(answer.policy);
     await state.setServerPaused(Boolean(answer.pause));
     await state.setLastBeat(new Date().toISOString());

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import timedelta
 from typing import Annotated
 
@@ -16,6 +17,7 @@ from sro.domain.shared.identifiers import DeviceId, TriggerId
 from sro.domain.trigger.trigger import Trigger
 from sro.interface.http.deps import ContainerDep, ContextDep, DeviceSecretDep
 from sro.interface.http.schemas import (
+    K_SAID_CHARS,
     DeviceModel,
     FiredModel,
     GrantRequest,
@@ -28,6 +30,8 @@ from sro.interface.http.schemas import (
     TriggerModel,
     WatchMatchModel,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/agents", tags=["agents"])
 
@@ -72,6 +76,12 @@ async def heartbeat(
     so it comes back as the same device holding a secret. That is the whole
     migration, and it costs one operator nothing and one heartbeat.
     """
+    # What the browser decided since the last beat, straight into the same log
+    # the ladder narrates into. Trimmed here rather than trusted: a device is
+    # not a trusted writer, and a line long enough to bury a log is a line
+    # somebody would have to grep around.
+    for line in body.said:
+        logger.info("%s said: %s", device_id, line[:K_SAID_CHARS].replace("\n", " "))
     beat = await container.record_heartbeat().execute(
         ctx,
         device_id=DeviceId(device_id),

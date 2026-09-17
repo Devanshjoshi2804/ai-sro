@@ -1551,11 +1551,40 @@ class RegisteredDeviceResponse(BaseModel):
     policy_version: int
 
 
+K_SAID_LINES = 50
+"""How many lines one beat may carry. A beat a minute and fifty lines is more
+than a busy browser produces; a browser that produces more is one whose loudest
+lines are the ones worth having."""
+
+K_SAID_CHARS = 300
+"""How long one of them may be."""
+
+
 class HeartbeatRequest(BaseModel):
     queued_events: int = 0
     queued_bytes: int = 0
     policy_version: int | None = None
     """What the device holds. The policy comes back only when this is behind."""
+
+    said: list[str] = Field(default_factory=list, max_length=K_SAID_LINES)
+    """What the browser decided since the last beat, in its own words.
+
+    The extension had no way to say anything. `run_workflow` narrates every
+    rung it climbs and the deployment's log reads like a transcript; the
+    browser half of the same run was a black box, and the only place its
+    reasoning existed was a service worker console nobody can reach remotely
+    -- not from a server, not from another machine, and not by the person
+    debugging at two in the morning who has already been asked twice.
+
+    Measured over 2026-09-17: four consecutive faults were found from the
+    backend log within one run each, and the one fault that lived in the
+    extension took four runs and was still not found.
+
+    Lines, not events: this is for reading, and a schema would make it a
+    protocol nobody can add a sentence to. Bounded hard on both counts because
+    a browser is not a trusted writer -- a loop in the extension must not be
+    able to fill a disk.
+    """
 
 
 class HeartbeatResponse(BaseModel):

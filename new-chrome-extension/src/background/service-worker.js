@@ -2290,10 +2290,36 @@ async function lookInTheMail() {
       reached: !String(looked?.why || "").includes("could not be reached"),
       answered: true,
     });
-    for (const offer of looked?.offered || []) await offerFromMail(offer);
+    // Kept one at a time, and a failure to keep one is NOT a failure to reach
+    // the mailbox.
+    //
+    // This loop used to sit bare inside the try below, so a throw anywhere in
+    // `offerFromMail` was caught by a handler written for a connector that is
+    // not there: the look reported `ok`, marked the mailbox unreachable, and
+    // said nothing. The offer was gone for good -- the backend claims a
+    // message id BEFORE it reads it, so a mail whose offer is lost here is a
+    // mail nothing will ever read again -- and the operator saw an empty
+    // panel with no error in it.
+    //
+    // Measured on the deployment, 2026-09-17 at 19:38: the backend offered
+    // `Create a Customer Type` from a mail, and no card ever appeared.
+    let kept = 0;
+    for (const offer of looked?.offered || []) {
+      try {
+        await offerFromMail(offer);
+        kept += 1;
+      } catch (error) {
+        // Worth a red line, unlike a mailbox that could not be reached: the
+        // mail WAS read, the job WAS recognised, and the request has now been
+        // dropped by this browser and cannot arrive again.
+        await state.setLastError(
+          `a request read from your mail was lost before it could be offered: ${error}`,
+        );
+      }
+    }
     return {
       ok: true,
-      offered: (looked?.offered || []).length,
+      offered: kept,
       read: looked?.read || 0,
     };
   } catch (error) {

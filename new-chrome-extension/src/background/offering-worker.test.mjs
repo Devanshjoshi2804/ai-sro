@@ -1493,3 +1493,53 @@ test("a look that fails is not a red line in the panel", async () => {
   assert.equal(looked.ok, true);
   assert.match(looked.skipped, /no model/);
 });
+
+test("a mail offer this browser cannot keep is said out loud, not swallowed", async () => {
+  // Measured on the deployment, 2026-09-17 at 19:38: the backend read a mail,
+  // recognised `Create a Customer Type`, and offered it -- and no card ever
+  // appeared in the panel. The loop that keeps an offer sat inside the try
+  // written for a mailbox that could not be REACHED, so anything thrown while
+  // keeping one was caught by a handler that reports `ok`, marks the mailbox
+  // unreachable and says nothing.
+  //
+  // Which is the worst possible silence: the backend claims a message id
+  // BEFORE it reads it, so a mail whose offer is dropped here is a mail
+  // nothing will ever read again. The request is gone and the operator is
+  // looking at an empty panel.
+  mailLooked = {
+    read: 1,
+    why: "offered Create a Customer Type",
+    offered: [
+      {
+        message: "m-77",
+        workflow_id: "wfl-1",
+        title: "Create a Customer Type",
+        values: { "Customer Type": "GT9" },
+        missing: [],
+      },
+    ],
+  };
+  // The look throttles itself to once a minute, and every other test in this
+  // file has already spent that.
+  held.delete("sro.mailLooked");
+  // The one thing between reading an offer and holding it.
+  const set = globalThis.chrome.storage.local.set;
+  globalThis.chrome.storage.local.set = async (pairs) => {
+    if (Object.keys(pairs).some((key) => key.includes("nudges"))) {
+      throw new Error("storage is full");
+    }
+    return set(pairs);
+  };
+
+  const looked = await send({ kind: "look-in-the-mail" });
+  globalThis.chrome.storage.local.set = set;
+
+  assert.equal(looked.skipped, undefined, `the look did not run: ${looked.skipped}`);
+  assert.equal(looked.offered, 0, "it counted an offer it did not keep");
+  const status = await send({ kind: "status" });
+  assert.match(
+    String(status.lastError || ""),
+    /lost before it could be offered/,
+    `the panel was told nothing: ${status.lastError}`,
+  );
+});

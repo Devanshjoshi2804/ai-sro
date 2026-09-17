@@ -818,19 +818,50 @@ async function uiPerformAt(payload) {
   );
 }
 
-/** The id of the frame showing this url, or `undefined`.
+/** The id of the frame the top document pointed at, or `undefined`.
  *
- * By url rather than by position: `webNavigation.getAllFrames` answers with
- * the url each frame is showing, and that is the one thing the top document
- * can see about a frame and name to this side.
+ * Three ways, weakest last, because a frame's `src` ATTRIBUTE is the url it
+ * was created with and not the url it is showing. Measured on the deployment,
+ * 2026-09-17: the point landed on the application's frame, whose `src` still
+ * named `#wm.config.warehouse.warehouse////` while the app had long since
+ * routed to the Customer Types screen inside it. The exact match found
+ * nothing, and a run that had reached the right page reported that it could
+ * not reach the frame in front of it.
+ *
+ *  1. The url as it stands, which is right whenever the frame has not routed.
+ *  2. The same document ignoring the query and the fragment -- a session
+ *     token and an in-app route are exactly what change under a frame that
+ *     has stayed where it is.
+ *  3. The only child frame there is. A page with one frame and a point inside
+ *     it has said which frame that is by arithmetic; a page with several gets
+ *     `undefined` rather than a guess.
  */
 async function frameShowing(tabId, src) {
-  if (!src) return undefined;
-  const frames = await chrome.webNavigation
-    .getAllFrames({ tabId })
-    .catch(() => []);
-  const found = (frames || []).find((one) => one.url === src);
-  return found?.frameId;
+  const frames =
+    (await chrome.webNavigation.getAllFrames({ tabId }).catch(() => [])) || [];
+  const children = frames.filter((one) => one.frameId !== 0);
+  if (src) {
+    const exact = children.find((one) => one.url === src);
+    if (exact) return exact.frameId;
+    const document_ = pageOf(src);
+    const same = children.filter(
+      (one) => document_ && pageOf(one.url) === document_,
+    );
+    if (same.length === 1) return same[0].frameId;
+  }
+  return children.length === 1 ? children[0].frameId : undefined;
+}
+
+/** A url without what identifies one visit to it: scheme, host and path. The
+ * query holds the session token and the fragment holds the in-app route, and
+ * both change under a frame that has not moved. */
+function pageOf(url) {
+  try {
+    const { origin, pathname } = new URL(url);
+    return `${origin}${pathname}`;
+  } catch {
+    return "";
+  }
 }
 
 async function uiUrl(payload) {

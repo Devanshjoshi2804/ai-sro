@@ -241,3 +241,75 @@ test("a frame this browser cannot name is said so, not clicked anyway", async ()
   assert.equal(answer.ok, false);
   assert.match(answer.error.detail, /cannot reach/);
 });
+
+test("a frame that has routed since it loaded is still the frame", async () => {
+  // A frame's `src` ATTRIBUTE is the url it was created with, not the url it
+  // is showing. Measured on the deployment, 2026-09-17: the point landed on
+  // the application's frame, whose src still named the Warehouse route while
+  // the app had long since routed to Customer Types inside it. The exact match
+  // found nothing, and a run that had reached the right page reported that it
+  // could not reach the frame in front of it.
+  openTabs = [{ id: 7, url: "https://wms.example/portal", status: "complete" }];
+  const asked = [];
+  globalThis.chrome.webNavigation.getAllFrames = async () => [
+    { frameId: 0, url: "https://wms.example/portal" },
+    // A second child, so "the only frame there is" cannot answer this and the
+    // match has to be the document itself.
+    { frameId: 4, url: "https://analytics.example/beacon" },
+    // Same document, and it has routed: a different fragment and a fresh
+    // session token in the query.
+    { frameId: 9, url: "https://wms.example/portal/page?libraryContext=b2&siteId=SG#customers" },
+  ];
+  globalThis.chrome.scripting.executeScript = async ({ target, args }) => {
+    asked.push({ frames: target.frameIds, point: args && { x: args[0].x, y: args[0].y } });
+    return target.frameIds
+      ? [{ result: { ok: true, result: { performed: true } } }]
+      : [
+          {
+            result: {
+              ok: false,
+              error: {
+                kind: "point_in_a_frame",
+                detail: "that point is inside a frame",
+                frame: {
+                  src: "https://wms.example/portal/page?libraryContext=a1&siteId=SG#warehouse",
+                  left: 0,
+                  top: 100,
+                },
+              },
+            },
+          },
+        ];
+  };
+
+  const answer = await at({ origin: "https://wms.example", x: 300, y: 220, action: "click" });
+
+  assert.equal(answer.ok, true, JSON.stringify(answer));
+  assert.deepEqual(asked[1], { frames: [9], point: { x: 300, y: 120 } });
+});
+
+test("a page with two frames and no match is not guessed at", async () => {
+  openTabs = [{ id: 7, url: "https://wms.example/portal", status: "complete" }];
+  globalThis.chrome.webNavigation.getAllFrames = async () => [
+    { frameId: 0, url: "https://wms.example/portal" },
+    { frameId: 8, url: "https://elsewhere.example/one" },
+    { frameId: 9, url: "https://elsewhere.example/two" },
+  ];
+  globalThis.chrome.scripting.executeScript = async () => [
+    {
+      result: {
+        ok: false,
+        error: {
+          kind: "point_in_a_frame",
+          detail: "that point is inside a frame",
+          frame: { src: "https://wms.example/portal/app", left: 0, top: 0 },
+        },
+      },
+    },
+  ];
+
+  const answer = await at({ origin: "https://wms.example", x: 10, y: 10, action: "click" });
+
+  assert.equal(answer.ok, false);
+  assert.match(answer.error.detail, /cannot reach/);
+});

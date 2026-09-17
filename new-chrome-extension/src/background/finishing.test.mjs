@@ -425,10 +425,45 @@ async function whoIsAskedHowItEnded() {
   }
 }
 
+/** What the card reads about a run has to survive the mapping.
+ *
+ * `api.rigRun` is a whitelist: a field not named there does not reach the
+ * panel. `watched` and `needs` were added to the row and read by the card
+ * without ever being added in between, so every run drew "Nobody was watching,
+ * so it replayed the call" -- including the ones somebody pressed and watched
+ * -- and a run that stopped to ask carried no names for the panel to notice.
+ * Measured on the deployment, 2026-09-17 at 10:49: `watched=true` on the row,
+ * "nobody was watching" on the card.
+ */
+async function theCardGetsWhatItDraws() {
+  const row = {
+    id: "run_1",
+    outcome: "held",
+    watched: true,
+    needs: ["Customer Type Description"],
+    gathered: { "Customer Type": { value: "GQX" } },
+    doing: "looking in your mail",
+    steps: [],
+  };
+  answer = async () =>
+    new Response(JSON.stringify(row), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+
+  const mapped = await api.rigRun("run_1");
+
+  assert.equal(mapped.watched, true, "every run read as unwatched");
+  assert.deepEqual(mapped.needs, ["Customer Type Description"]);
+  assert.equal(mapped.gathered["Customer Type"].value, "GQX");
+  assert.equal(mapped.doing, "looking in your mail");
+}
+
 await demo();
 await whoIsAskedHowItEnded();
 ageBound();
 keyedOnThePress();
 await stoppingIsNotAnAlarm();
 await theRigsRunInThePanelsWords();
+await theCardGetsWhatItDraws();
 console.log("finishing.test.mjs: ok");

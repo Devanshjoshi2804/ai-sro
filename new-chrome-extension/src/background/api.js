@@ -199,6 +199,21 @@ export const api = {
       id: run.id,
       source: "rig",
       status: run.outcome,
+      // Which of the two ways it did the job, and what it could not find.
+      //
+      // This mapping is a whitelist -- what is not named here does not reach
+      // the panel -- and these two were added to the row and to the card
+      // without ever being added in between. So every run drew "Nobody was
+      // watching, so it replayed the call" including the ones somebody
+      // pressed and watched, and a run that stopped to ask carried no names
+      // for the panel to notice. Measured on the deployment, 2026-09-17 at
+      // 10:49: `watched=true` on the row, "nobody was watching" on the card.
+      watched: Boolean(run.watched),
+      needs: run.needs || [],
+      // What it read out of the mail, so the card can say where a value it
+      // was never given came from.
+      gathered: run.gathered || {},
+      doing: run.doing || "",
       // The things this run was asked to do its repeated block for. The card
       // draws a line per thing so somebody watching knows which of the three
       // records is being made now, and how many are left.

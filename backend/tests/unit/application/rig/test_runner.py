@@ -3057,6 +3057,76 @@ async def test_a_write_nobody_approves_stops_the_run(monkeypatch: pytest.MonkeyP
     )
 
 
+async def test_a_write_nobody_approves_is_not_the_screen_refusing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The fallback must not read silence as a reason to try another way.
+
+    A step that fails because the page would not take it is a reason to do the
+    job by its call. A step nobody approved is a person not answering, and
+    every other way of doing it is the same write they did not approve.
+
+    Measured on the deployment, 2026-09-17: an approval timed out, the run read
+    it as the screen refusing, collapsed the form-filling steps and went to the
+    call. Nothing was written without approval -- the call asks too -- but the
+    run had decided to stop showing somebody the thing they were being asked
+    about, which is the opposite of what a watched run is for.
+    """
+    monkeypatch.setattr(runner_module, "K_APPROVAL_WAIT_S", 0.05)
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    # The step that parks is one of the SCAFFOLDING steps -- "click Add",
+    # whose demonstration shows no traffic, so it may write and asks first.
+    # That is the live shape: the reserve holds this step, and it is the one
+    # nobody answers.
+    for step in workflow.steps:
+        step.order += 1
+    workflow.steps.insert(
+        0,
+        Step(order=0, says="click Add", system=None, cites=[_silent_click(uow)], parameters=[]),
+    )
+    await uow.workflows.save(workflow)
+    channel = FakeChannel({**_looks(6), "ui.perform": [Reply(ok=True, result={"performed": True})]})
+    asker = _PerSchemaAsker(
+        plan=_plan("click"), verdict=Answer(data={"held": True, "why": "ok"})
+    )
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        # No value: the demonstrated body carries its own, which is what lets
+        # the replay bind -- `_assigned` refuses a value the body never had,
+        # and a refused replay is an empty reserve and nothing to fall back to.
+        values={},
+        started_by="offer",
+        # A verified write, so the run HAS a call it could fall back to -- and
+        # no earned standing, so a step that may write still asks a person
+        # first. That pair is the live shape: the reserve is full and the step
+        # that parks is in it.
+        verified_writes=(VerifiedWrite(method="POST", path_pattern="/api/orders"),),
+        watched=True,
+    )
+
+    assert run.outcome == "stopped"
+    assert "nobody approved" in run.steps[-1].reason, [one.reason for one in run.steps]
+    assert run.steps[-1].verdict == "failed", "an unanswered approval was read as a skip"
+    # And it stopped THERE. Without this the run walks past the step somebody
+    # was being asked about, collapses the rest and carries on to ask about
+    # the same write in another form -- which is the person being ignored
+    # politely rather than loudly.
+    assert len(run.steps) == 1, [(one.says, one.verdict, one.reason[:50]) for one in run.steps]
+    assert not any("going out as a call" in one.reason for one in run.steps)
+    # The WRITE, not the reads the verification belt makes: a GET is not the
+    # thing a person declined to approve.
+    assert not [
+        one
+        for one in channel.sent
+        if one["kind"] == "http.send" and _payload(one).get("method") != "GET"
+    ], "it sent the write another way after nobody approved it"
+
+
 async def test_a_stop_pressed_during_the_wait_aborts_the_run() -> None:
     """A released wait is not a yes. The stop button releases it as well as
     setting the flag, and the loop asks which of the two it was before it lets

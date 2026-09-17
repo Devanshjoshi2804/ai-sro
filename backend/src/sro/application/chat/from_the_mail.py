@@ -72,13 +72,17 @@ cards at once is a panel nobody reads past the third -- not because of what the
 readings cost. Eight covers a morning's arrivals between looks.
 """
 
-K_OFFER_ROUNDS = 2
+K_OFFER_ROUNDS = 3
 """How hard a look tries to find the values for an offer.
 
 Fewer than a run gets. This runs on a beat over every arriving mail, and an
 offer that names most of what it is about is worth far more than one that
 takes a minute to name all of it -- the run looks again anyway, with the
-patience the run is allowed."""
+patience the run is allowed.
+
+Three and not two: the first round is not the model's to choose (see
+`GatherContext`), so two rounds is one search the model actually directs, and
+the value is in a sibling mail that has to be found before it can be read."""
 
 K_BECAUSE = 400
 """How much of the request the gather is told, so it knows what it is looking
@@ -274,6 +278,18 @@ class FromTheMail:
                 )
                 values |= {name: one.value for name, one in found.values.items()}
                 missing = [name for name in missing if name not in values]
+                # What the gather came back with, because an offer that names
+                # nothing and an offer that was never gathered for look the
+                # same from outside. Names and counts, never a value: this line
+                # is about whether the mechanism worked.
+                logger.info(
+                    "%s: gathered %d of %d for %s (%s)",
+                    tenant,
+                    len(found.values),
+                    len(found.values) + len(missing),
+                    titles.get(got.workflow_id, got.workflow_id),
+                    found.why or "no reason given",
+                )
             offered.append(
                 Offered(
                     message=message,

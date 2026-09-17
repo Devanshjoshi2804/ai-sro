@@ -34,9 +34,13 @@ class HTMLTextAreaElement extends HTMLInputElement {}
 globalThis.HTMLInputElement = HTMLInputElement;
 globalThis.HTMLTextAreaElement = HTMLTextAreaElement;
 
-function element({ tagName = "BUTTON", typeable = false } = {}) {
+function element({ tagName = "BUTTON", typeable = false, src, box } = {}) {
   const el = typeable ? new HTMLInputElement() : {};
   el.tagName = tagName;
+  if (src !== undefined) el.src = src;
+  // Only a frame is measured, and only by the branch that hands its position
+  // to the worker.
+  el.getBoundingClientRect = () => box || { left: 0, top: 0, width: 0, height: 0 };
   el.events = [];
   el.focused = 0;
   el.dispatchEvent = (event) => el.events.push(event.type);
@@ -71,12 +75,27 @@ test("nothing at the point is a control that was not found", () => {
   assert.equal(answer.error.kind, "control_not_found");
 });
 
-test("a point inside a frame is a control this document did not find", () => {
+test("a point inside a frame says where the frame is, so it can be asked", () => {
+  // The picture the model is shown is the top document's viewport, and a
+  // warehouse application inside an iframe puts every control in another
+  // document: the point is right and the document is wrong. Firing here would
+  // hit the frame element, reach nothing, and report `performed`.
+  //
+  // Measured on the deployment, 2026-09-17: the rung that looks at a picture
+  // finally pointed at a control and got "that point is inside a frame", which
+  // made it useless on the one system it exists for.
   for (const tagName of ["IFRAME", "FRAME"]) {
-    at = element({ tagName });
+    at = element({
+      tagName,
+      src: "https://wms.example/portal/app",
+      box: { left: 12, top: 80, width: 900, height: 600 },
+    });
     const answer = performAtInPage({ x: 5, y: 5, action: "click" });
     assert.equal(answer.ok, false, tagName);
-    assert.equal(answer.error.kind, "control_not_found");
+    assert.equal(answer.error.kind, "point_in_a_frame");
+    assert.equal(answer.error.frame.src, "https://wms.example/portal/app");
+    assert.equal(answer.error.frame.left, 12);
+    assert.equal(answer.error.frame.top, 80);
     assert.deepEqual(at.events, [], "no event reached the frame element");
   }
 });

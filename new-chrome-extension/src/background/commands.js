@@ -782,13 +782,55 @@ async function inFrame(tabId, frameId, func, args, world = "MAIN") {
 }
 
 async function uiPerformAt(payload) {
-  const tab = await drivenTab(payload.origin);
+  const tab = await awake(await drivenTab(payload.origin));
   if (!tab) return failure("no_tab_for_system", noPage(payload.origin));
   hold(tab.id);
-  const answer = await inPage(tab.id, performAtInPage, [payload]);
+  let answer = await inPage(tab.id, performAtInPage, [payload]);
+  // The point landed on a frame, so ask the frame.
+  //
+  // The picture the model was shown is the top document's viewport, and a
+  // warehouse application inside an iframe puts every control in another
+  // document: the point is right and the document is wrong. Rather than
+  // refusing -- which made the rung that looks at a picture useless on the one
+  // system it exists for -- the same question goes to that frame with the
+  // point moved into its coordinates.
+  //
+  // Once. A frame inside a frame is answered by the same reply from the inner
+  // one, and a loop that followed them would be a loop somebody has to bound
+  // anyway; one hop covers an application in a frame, which is what this is.
+  const frame = answer?.error?.frame;
+  if (frame) {
+    const inside = await frameShowing(tab.id, frame.src);
+    if (inside === undefined) {
+      return failure(
+        "control_not_found",
+        `that point is inside a frame this browser cannot reach (${frame.src || "no src"})`,
+      );
+    }
+    answer = await inFrame(tab.id, inside, performAtInPage, [
+      { ...payload, x: payload.x - frame.left, y: payload.y - frame.top },
+    ]);
+  }
   hold(tab.id);
   if (answer?.ok) await reacted(tab.id, payload.action);
-  return answer || failure("not_actionable", "the page did not answer");
+  return (
+    answer || failure("not_actionable", await didNotAnswer(tab, undefined))
+  );
+}
+
+/** The id of the frame showing this url, or `undefined`.
+ *
+ * By url rather than by position: `webNavigation.getAllFrames` answers with
+ * the url each frame is showing, and that is the one thing the top document
+ * can see about a frame and name to this side.
+ */
+async function frameShowing(tabId, src) {
+  if (!src) return undefined;
+  const frames = await chrome.webNavigation
+    .getAllFrames({ tabId })
+    .catch(() => []);
+  const found = (frames || []).find((one) => one.url === src);
+  return found?.frameId;
 }
 
 async function uiUrl(payload) {

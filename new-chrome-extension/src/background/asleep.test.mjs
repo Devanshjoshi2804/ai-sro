@@ -170,3 +170,74 @@ test("a page whose policy refuses injected script says so", () => {
     assert.match(answer.error.detail, /content-security policy refuses/, answer.error.detail);
   });
 });
+
+const at = (payload) =>
+  perform({ command_id: "cmd-3", kind: "ui.perform_at", payload });
+
+test("a point that lands on a frame is asked again inside it", async () => {
+  // The picture the model is shown is the top document's viewport. A warehouse
+  // application inside an iframe puts every control in another document, so
+  // the point is right and the document is wrong -- which made the rung that
+  // looks at a picture useless on the one system it exists for.
+  openTabs = [{ id: 7, url: "https://wms.example/portal", status: "complete" }];
+  const asked = [];
+  globalThis.chrome.webNavigation.getAllFrames = async () => [
+    { frameId: 0, url: "https://wms.example/portal" },
+    { frameId: 9, url: "https://wms.example/portal/app" },
+  ];
+  globalThis.chrome.scripting.executeScript = async ({ target, args }) => {
+    asked.push({ frames: target.frameIds, point: args && { x: args[0].x, y: args[0].y } });
+    // The top document answers "that is a frame, and here it is"; the frame
+    // itself does the click.
+    return target.frameIds
+      ? [{ result: { ok: true, result: { performed: true } } }]
+      : [
+          {
+            result: {
+              ok: false,
+              error: {
+                kind: "point_in_a_frame",
+                detail: "that point is inside a frame",
+                frame: { src: "https://wms.example/portal/app", left: 12, top: 80 },
+              },
+            },
+          },
+        ];
+  };
+
+  const answer = await at({
+    origin: "https://wms.example",
+    x: 300,
+    y: 220,
+    action: "click",
+  });
+
+  assert.equal(answer.ok, true, JSON.stringify(answer));
+  assert.deepEqual(asked[0], { frames: undefined, point: { x: 300, y: 220 } });
+  // Into the frame, with the point moved into its coordinates.
+  assert.deepEqual(asked[1], { frames: [9], point: { x: 288, y: 140 } });
+});
+
+test("a frame this browser cannot name is said so, not clicked anyway", async () => {
+  openTabs = [{ id: 7, url: "https://wms.example/portal", status: "complete" }];
+  globalThis.chrome.webNavigation.getAllFrames = async () => [
+    { frameId: 0, url: "https://wms.example/portal" },
+  ];
+  globalThis.chrome.scripting.executeScript = async () => [
+    {
+      result: {
+        ok: false,
+        error: {
+          kind: "point_in_a_frame",
+          detail: "that point is inside a frame",
+          frame: { src: "https://wms.example/portal/app", left: 12, top: 80 },
+        },
+      },
+    },
+  ];
+
+  const answer = await at({ origin: "https://wms.example", x: 300, y: 220, action: "click" });
+
+  assert.equal(answer.ok, false);
+  assert.match(answer.error.detail, /cannot reach/);
+});

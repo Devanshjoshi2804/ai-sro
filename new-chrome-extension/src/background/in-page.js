@@ -359,11 +359,31 @@ export function performAtInPage(payload) {
   // the answer would still say performed. The control is in a document this
   // script is not running in, which is a control it did not find.
   if (el.tagName === "IFRAME" || el.tagName === "FRAME") {
+    // The control is in a document this script is not running in. Firing the
+    // events here would hit the frame element, reach nothing, and report
+    // `performed` -- so instead this says WHERE, and the worker asks that
+    // frame the same question with the point moved into its coordinates.
+    //
+    // Measured on the deployment, 2026-09-17: the rung that looks at a picture
+    // finally pointed at a control and got "that point is inside a frame". The
+    // warehouse application runs in one, so every point in the picture lands
+    // on the frame element from the top document -- which made the picture
+    // rung useless on the one system it exists for.
+    const box = el.getBoundingClientRect();
     return {
       ok: false,
       error: {
-        kind: "control_not_found",
+        kind: "point_in_a_frame",
         detail: "that point is inside a frame",
+        // What the worker needs to ask the frame itself: where the frame sits
+        // in this document, and what it is showing.
+        frame: {
+          src: el.src || "",
+          left: Math.round(box.left),
+          top: Math.round(box.top),
+          width: Math.round(box.width),
+          height: Math.round(box.height),
+        },
       },
     };
   }

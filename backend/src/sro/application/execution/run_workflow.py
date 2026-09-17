@@ -1975,7 +1975,26 @@ async def run_workflow(
                 run.outcome = "stopped"
                 break
         else:
-            run.outcome = "held"
+            # Every step skipped is not a job done.
+            #
+            # A run whose steps were all `not_needed` performed nothing, sent
+            # nothing and made nothing, and until this it reported `held` --
+            # measured on the deployment 2026-09-17 at 03:59, where a job made
+            # entirely of steps in a mailbox had all five skipped and said it
+            # had worked. A run that claims the job is done and did not do it
+            # is worse than one that fails, because nobody goes looking.
+            #
+            # `not_needed` and not the rest: `withheld` is a dry run, which
+            # deliberately does nothing and says so in its own word, and a run
+            # with no steps at all never reaches here.
+            if run.steps and all(one.verdict == "not_needed" for one in run.steps):
+                run.outcome = "stopped"
+                run.steps[-1].reason = (
+                    "every step of this job was skipped, so nothing was done — "
+                    + run.steps[-1].reason
+                ).strip()
+            else:
+                run.outcome = "held"
     except DeviceUnreachable as gone:
         _fell_over(run, in_flight, str(gone))
     except Exception as broke:

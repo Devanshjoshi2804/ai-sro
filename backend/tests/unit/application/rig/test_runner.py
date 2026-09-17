@@ -4652,6 +4652,94 @@ async def test_the_step_that_opens_the_mail_is_not_performed_once_the_mail_is_re
     assert [one.verdict for one in run.steps[1:]] == ["held", "held"], run.steps
 
 
+async def test_a_step_that_sends_a_mail_is_not_a_step_that_reads_one() -> None:
+    """Measured on the deployment, 2026-09-17 at 03:59.
+
+    The job that answers a request by replying to it happens entirely in a
+    mailbox. The first version of the mail rule read "every gesture is in a
+    mailbox" as "this step only opened the request", skipped all five steps,
+    and reported the run `held` -- a job that sends a mail, having sent none
+    and saying it worked. Nobody goes looking after a success.
+
+    Sending is a WRITE. It happens where the request arrived, which is a fact
+    about mailboxes and not about what the step does.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    # A gesture in the mailbox that POSTs: Gmail's own send.
+    sending = _demonstrated("mail-send", {"threadId": "t1"})
+    sending.url = "https://mail.google.com/mail/u/0/#inbox/t1"
+    sending.system = "https://mail.google.com"
+    sending.requests = [
+        replace(sending.requests[0], url="https://mail.google.com/mail/u/0/sendmessage")
+    ]
+    await uow.gestures.add_gestures((sending,))
+    for step in workflow.steps:
+        step.order += 1
+    workflow.steps.insert(
+        0, Step(order=0, says="Send the reply", system=None, cites=["mail-send"], parameters=[])
+    )
+    await uow.workflows.save(workflow)
+    channel = FakeChannel({**_looks(6), "ui.perform": [_performed()] * 3})
+    asker = FakeAsker(
+        _plan("click"),
+        Answer(data={"held": True, "why": ""}),
+        _plan("type", "TYPED"),
+        Answer(data={"held": True, "why": ""}),
+        _plan("click"),
+        Answer(data={"held": True, "why": ""}),
+    )
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        values={"clientCode": "TYPED"},
+        earned=True,
+        watched=True,
+    )
+
+    assert run.steps[0].verdict == "held", run.steps[0]
+
+
+async def test_a_run_that_skipped_every_step_did_not_do_the_job() -> None:
+    """The belt under the rule above, because the rule will be wrong again.
+
+    A run whose every step is `not_needed` performed nothing, sent nothing and
+    made nothing. It said `held` -- on the deployment, for a real job -- and a
+    run that claims the job is done and did not do it is worse than one that
+    fails.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    mail = _demonstrated("mail-1", {"threadId": "t1"})
+    mail.url = "https://mail.google.com/mail/u/0/#inbox/t1"
+    mail.system = "https://mail.google.com"
+    mail.requests = []
+    await uow.gestures.add_gestures((mail,))
+    # Every step of this job is a reading of the mail, so every step is skipped.
+    workflow.steps = [
+        Step(order=0, says="Open the email", system=None, cites=["mail-1"], parameters=[]),
+        Step(order=1, says="Read the code", system=None, cites=["mail-1"], parameters=[]),
+    ]
+    await uow.workflows.save(workflow)
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=FakeChannel({**_looks(4)}),
+        asker=FakeAsker(),
+        values={},
+        earned=True,
+        watched=True,
+    )
+
+    assert [one.verdict for one in run.steps] == ["not_needed", "not_needed"]
+    assert run.outcome == "stopped", "a run that did nothing at all reported the job done"
+    assert "nothing was done" in run.steps[-1].reason
+
+
 async def test_the_mail_step_is_skipped_even_when_the_run_gathered_nothing() -> None:
     """The version of this rule that asked whether the GATHER read the mail,
     and the press that got past it.

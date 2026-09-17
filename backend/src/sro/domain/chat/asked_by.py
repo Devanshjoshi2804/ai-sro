@@ -31,6 +31,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
+from sro.domain.execution.evidence import writes
 from sro.domain.observation.gesture import Gesture
 from sro.domain.skill.workflow import Step, Workflow
 
@@ -136,9 +137,19 @@ def only_reads_the_mail(step: Step, by_id: Mapping[str, Gesture]) -> bool:
     A step with no citations is not one of these. An uncited step is a step
     nothing proves, and reading "all of nothing is in a mailbox" as "this is a
     mail step" would collapse it on the strength of the empty set.
+
+    **And a step that WRITES in the mailbox is not a reading.** Sending a mail
+    happens in a mailbox and is the job rather than the request for it.
+    Measured on the deployment, 2026-09-17 at 03:59: a job whose every step is
+    in Gmail -- the one that answers a request by replying to it -- had all
+    five steps skipped by the first version of this rule and reported `held`
+    having done nothing at all. A run that says it did the job and sent no mail
+    is worse than one that fails, because nobody goes looking.
     """
     cited = [by_id[one] for one in step.cites if one in by_id]
-    return bool(cited) and all(from_a_mailbox(gesture) for gesture in cited)
+    if not cited or not all(from_a_mailbox(gesture) for gesture in cited):
+        return False
+    return not writes(step, by_id)
 
 
 def _said(gesture: Gesture) -> str | None:

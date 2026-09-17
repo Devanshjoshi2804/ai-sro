@@ -1258,10 +1258,6 @@ async def run_workflow(
                 rungs = (*rungs, ("replay", ""))
             verdict: StepVerdict | None = None
             after_failed: Look | None = None
-            # Whether this step ended because a person did not answer, rather
-            # than because the browser could not do it. The two look the same
-            # on the record and mean opposite things about what to try next.
-            nobody_answered = False
             # Once per step. A session that ages out again three steps later is
             # a second question worth asking; the same step asking twice in a
             # row is a panel arguing with the person who just answered it.
@@ -1657,10 +1653,28 @@ async def run_workflow(
                 # a job proving itself over runs, and this is one person
                 # answering about one list they have in front of them.
                 approved_here = leg.item is not None and step.order in approved_for_the_list
+                # A step this same job would SKIP is not a write to ask about.
+                #
+                # `may_write` is deliberately wide: a click whose demonstration
+                # showed no traffic might be a write, so it asks. But a step in
+                # the reserve is one an unwatched run of this very job does not
+                # perform at all -- it is scaffolding for a write that is in
+                # the ledger, and the ledger's write is the Save at the end of
+                # it. Asking a person to approve doing what the same job would
+                # otherwise not do is incoherent, and it cost three approval
+                # windows on 2026-09-17: every watched run parked on "Click the
+                # Add button", which opens a form.
+                #
+                # The write itself still asks. `in_reserve` never holds the
+                # step that carries the call -- `scaffolding_for` returns what
+                # comes BEFORE it -- so this narrows the question to the one
+                # step that changes the warehouse.
+                opening_the_form = step.order in in_reserve
                 if (
                     live
                     and may_write
                     and not approved_here
+                    and not opening_the_form
                     and not await earned(uow.workflows, tenant_id, workflow.id)
                 ):
                     record.verdict, record.verdict_by = "awaiting", "none"
@@ -1691,20 +1705,6 @@ async def run_workflow(
                         record.verdict, record.verdict_by = "failed", "none"
                         record.reason = f"nobody approved the write within {waited}"
                         verdict = StepVerdict("failed", "none", record.reason)
-                        # Nobody said yes, so nothing else may be tried either.
-                        #
-                        # A step that fails because the page would not take it
-                        # is a reason to do the job another way; a step nobody
-                        # approved is a person not answering, and every other
-                        # way of doing it is the same write they did not
-                        # approve. Measured on the deployment, 2026-09-17: an
-                        # approval timed out and the run read it as the screen
-                        # refusing, collapsed the form-filling steps and went
-                        # to the call -- which asked for approval again, so
-                        # nothing was written without one, but the run had
-                        # decided to stop showing somebody the thing they were
-                        # being asked about.
-                        nobody_answered = True
                         break
                     # A released wait is not a yes. The stop button releases it
                     # as well as setting the flag, so a person who pressed Stop
@@ -2001,11 +2001,14 @@ async def run_workflow(
             # failed, unclear, refused, or a step with nothing actionable to
             # cite -- is a step nobody watched succeed, and the rest of the job
             # assumes it did. Nothing runs unattended past one.
-            if (
-                record.verdict not in ("held", "withheld")
-                and step.order in in_reserve
-                and not nobody_answered
-            ):
+            if record.verdict not in ("held", "withheld") and step.order in in_reserve:
+                # Only a step the BROWSER would not do reaches here, and that
+                # is by construction rather than by a check: a step in the
+                # reserve is never parked on a person (see the approval gate),
+                # and a wait nobody answers ends the run before this. A
+                # timeout read as "the page refused" would collapse the job
+                # and walk past the thing somebody was being asked about,
+                # which is what happened on 2026-09-17 while both were true.
                 # The screen would not take it, and the job is not over.
                 #
                 # A watched run performs the steps that put the form on the

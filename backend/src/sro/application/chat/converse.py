@@ -35,8 +35,10 @@ from sro.domain.chat.asking import (
     Pending,
     answered,
     let_go,
+    offered_job,
     pending_job,
     question,
+    said_yes,
 )
 from sro.domain.chat.thread import Message, Said, Speaker, Thread, ThreadId
 from sro.domain.execution.run import Run, RunId, RunStatus, StepDisposition
@@ -142,11 +144,27 @@ class Converse:
         # also saves the model call: the reading that matters already happened
         # when the job was placed.
         async with self._uow as uow:
-            waiting = pending_job((await uow.threads.get(ctx.tenant_id, thread_id)).messages)
+            said_before = (await uow.threads.get(ctx.tenant_id, thread_id)).messages
+        waiting = pending_job(said_before)
         if waiting is not None:
             return await self._answer_the_question(
                 ctx, thread_id=thread_id, text=text, pending=waiting
             )
+        # And a job this conversation has just offered, agreed to.
+        #
+        # Measured on the deployment, 2026-09-17 at 03:17. The assistant said
+        # "Create a Customer Type does that -- say the word and I will run it",
+        # the operator said "pls do", and the reply was "Nothing has been
+        # taught for that": the sentence went to the resolver below, which
+        # ranks this tenant's taught SKILLS and had never heard of it. Nothing
+        # was holding on to what had just been offered.
+        #
+        # A system that asks for a word and then does not know the word is the
+        # same fault as the boxes on the offer card: it asks, and then ignores
+        # the answer.
+        offered = offered_job(said_before)
+        if offered is not None and said_yes(text):
+            return await self._say_yes_to_it(ctx, thread_id=thread_id, text=text, offered=offered)
         # The rig's jobs first, and where they place the sentence, only them.
         #
         # An operator typed "lets create warehouse equipment type" at a browser
@@ -310,6 +328,58 @@ class Converse:
                     id=self._ids.new_message_id(),
                     speaker=Speaker.ASSISTANT,
                     text=said,
+                    said_at=self._clock.now(),
+                    decision=decision,
+                )
+            )
+            await uow.threads.save(thread)
+            await uow.commit()
+        return thread
+
+    async def _say_yes_to_it(
+        self, ctx: RequestContext, *, thread_id: ThreadId, text: str, offered: Pending
+    ) -> Thread:
+        """Start the job that was just offered, or ask for what it still needs.
+
+        Two ends, and which one is decided by whether anything can go and look.
+        A deployment that can read the operator's mail starts the job and lets
+        the run find the rest -- that is what the card's own Yes does, and a
+        conversation that demanded values the card would not is two answers to
+        one question. A deployment that cannot asks here, one value at a time,
+        and `_answer_the_question` takes it from there.
+        """
+        ready = offered.ready or self._can_gather
+        async with self._uow as uow:
+            thread = await uow.threads.get(ctx.tenant_id, thread_id)
+            thread.say(
+                Message(
+                    id=self._ids.new_message_id(),
+                    speaker=Speaker.OPERATOR,
+                    text=text,
+                    said_at=self._clock.now(),
+                )
+            )
+            decision: dict[str, object] = {
+                "kind": "job",
+                "workflow_id": offered.workflow_id,
+                "title": offered.title,
+                "values": dict(offered.values),
+                "items": [dict(one) for one in offered.items],
+                "missing": [] if ready else list(offered.missing),
+                "can_find": self._can_gather,
+                "watched": offered.watched,
+            }
+            if ready:
+                # The press, arriving as a sentence. `resume` is what tells the
+                # panel this is the yes and not another offer to answer.
+                decision["resume"] = True
+            else:
+                decision["kind"] = NEEDS
+            thread.say(
+                Message(
+                    id=self._ids.new_message_id(),
+                    speaker=Speaker.ASSISTANT,
+                    text=(f"Running {offered.title} now." if ready else question(offered)),
                     said_at=self._clock.now(),
                     decision=decision,
                 )

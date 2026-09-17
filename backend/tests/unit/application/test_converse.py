@@ -485,3 +485,87 @@ async def test_calling_it_off_is_not_a_value() -> None:
     assert last.decision is not None and last.decision["kind"] != NEEDS, (
         "the conversation went on waiting for a value it had been told to forget"
     )
+
+
+# --- "say the word", and the word -------------------------------------------
+
+
+async def _offered(
+    uow: FakeUnitOfWork, *, can_gather: bool, missing: list[str]
+) -> tuple[Converse, ThreadId]:
+    """A thread where the rig has offered a job and said it would run it."""
+    converse = await _with_a_job(uow, None, can_gather=can_gather)
+    thread = await StartThread(uow, FakeClock(), FakeIdFactory()).execute(CTX)
+    thread.say(
+        Message(
+            id=MessageId("msg_offer"),
+            speaker=Speaker.ASSISTANT,
+            text="Create a Customer Type does that — say the word and I will run it.",
+            said_at=FakeClock().now(),
+            decision={
+                "kind": "job",
+                "workflow_id": "wfl_1",
+                "title": "Create a Customer Type",
+                "values": {},
+                "items": [],
+                "missing": missing,
+                "can_find": can_gather,
+            },
+        )
+    )
+    await uow.threads.save(thread)
+    return converse, thread.id
+
+
+async def test_saying_the_word_starts_the_job_that_was_just_offered() -> None:
+    """Measured on the deployment, 2026-09-17 at 03:17.
+
+    The assistant said "say the word and I will run it", the operator said
+    "pls do", and the reply was "Nothing has been taught for that" -- the
+    sentence went to the resolver, which ranks this tenant's taught SKILLS and
+    had never heard of it, because nothing was holding on to what had just been
+    offered. A system that asks for a word and then does not know the word is
+    the same fault as the boxes on the card: it asks, and ignores the answer.
+    """
+    uow = FakeUnitOfWork()
+    await _taught(uow)
+    converse, thread_id = await _offered(uow, can_gather=True, missing=["Customer Type"])
+
+    said = await converse.execute(CTX, thread_id=thread_id, text="pls do")
+
+    last = said.messages[-1]
+    assert last.decision is not None
+    assert last.decision["kind"] == "job", last.decision
+    assert last.decision["resume"] is True, "the panel would have drawn another offer to press"
+    # The run goes and looks, which is what the card's own Yes does. A
+    # conversation that demanded the values the card would not is two answers
+    # to one question.
+    assert last.decision["missing"] == []
+
+
+async def test_a_yes_where_nothing_can_go_looking_asks_for_the_value() -> None:
+    uow = FakeUnitOfWork()
+    await _taught(uow)
+    converse, thread_id = await _offered(uow, can_gather=False, missing=["Customer Type"])
+
+    said = await converse.execute(CTX, thread_id=thread_id, text="go ahead")
+
+    last = said.messages[-1]
+    assert last.decision is not None
+    assert last.decision["kind"] == NEEDS
+    assert last.text == "What should Customer Type be?"
+
+
+async def test_a_sentence_that_is_not_a_yes_is_still_a_sentence() -> None:
+    """ "do it for the red ones instead" is a new request, not agreement. The
+    match is the whole answer, lowercased, the way `let_go` is -- a system that
+    took any sentence containing "do it" as a yes would start the job it was
+    just asked to change."""
+    uow = FakeUnitOfWork()
+    await _taught(uow)
+    converse, thread_id = await _offered(uow, can_gather=True, missing=[])
+
+    said = await converse.execute(CTX, thread_id=thread_id, text="do it for the other site instead")
+
+    last = said.messages[-1]
+    assert not (last.decision or {}).get("resume"), last.decision

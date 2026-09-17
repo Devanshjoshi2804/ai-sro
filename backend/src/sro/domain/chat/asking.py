@@ -45,6 +45,47 @@ NEEDS = "needs_values"
 """The decision kind of a question waiting on a value. Named here because two
 sides read it: the door that writes it and the panel that draws it."""
 
+JOB = "job"
+"""The decision kind of a job this conversation has offered to do. The panel
+builds its card from one; a sentence agreeing with one starts it."""
+
+SAID_YES = frozenset(
+    {
+        "yes",
+        "yes please",
+        "yep",
+        "yeah",
+        "ok",
+        "okay",
+        "sure",
+        "go",
+        "go on",
+        "go ahead",
+        "do it",
+        "do it now",
+        "please do",
+        "pls do",
+        "plz do",
+        "run it",
+        "run it now",
+        "yes do it",
+        "yes run it",
+        "that one",
+    }
+)
+"""Answers that mean "the thing you just offered".
+
+Measured on the deployment, 2026-09-17 at 03:17. The assistant said "Create a
+Customer Type does that -- say the word and I will run it", the operator said
+"pls do", and the reply was "Nothing has been taught for that": the sentence
+went to the skills resolver, which had never heard of it, because nothing was
+holding on to what had just been offered. A system that asks for a word and
+then does not know the word is worse than one that never asked.
+
+Matched whole and lowercased, like `LET_GO`. "do it" is a yes; "do it for the
+red ones instead" is a new sentence and is placed as one.
+"""
+
 K_SAID = 200
 """How much of one answer is taken as a value. A parameter is a customer type
 or a description, and a paragraph pasted into the panel is somebody talking,
@@ -91,6 +132,10 @@ class Pending:
     missing: tuple[str, ...]
     items: tuple[Mapping[str, str], ...] = ()
     watched: bool = True
+    can_find: bool = False
+    """Whether a run of this job can go and look for what is missing. On an
+    offer it decides what a yes means: start it and let the run find them, or
+    ask for the first one here."""
 
     @property
     def asking_for(self) -> str:
@@ -153,7 +198,53 @@ def _strings(said: object) -> dict[str, str]:
 
 def let_go(said: str) -> bool:
     """Whether that answer was somebody calling it off."""
-    return said.strip().strip(".!").lower() in LET_GO
+    return _plainly(said) in LET_GO
+
+
+def said_yes(said: str) -> bool:
+    """Whether that sentence agrees with what was just offered."""
+    return _plainly(said) in SAID_YES
+
+
+def _plainly(said: str) -> str:
+    """One answer, as it is matched: lowercased, without the punctuation
+    somebody types around a short word."""
+    return " ".join(said.strip().strip(".!?,").lower().split())
+
+
+def _items(said: object) -> tuple[Mapping[str, str], ...]:
+    """The things a job would be done for, as strings. A decision is JSON off a
+    row, so its `items` is `object` to anything reading it honestly."""
+    return tuple(_strings(one) for one in said) if isinstance(said, list | tuple) else ()
+
+
+def offered_job(messages: Sequence[Message]) -> Pending | None:
+    """The job this conversation has just offered to do, if it is still the
+    last thing said.
+
+    The same reading as `pending_job` and for the same reason: the newest
+    assistant decision is the whole state, so a job offered twenty minutes ago
+    and talked past cannot claim the next sentence. A question waiting on a
+    value is NOT one of these -- `pending_job` owns that, and a sentence there
+    is the value rather than a yes.
+    """
+    for message in reversed(messages):
+        decision = message.decision
+        if message.speaker is not Speaker.ASSISTANT or not decision:
+            continue
+        if decision.get("kind") != JOB or not decision.get("workflow_id"):
+            return None
+        listed = decision.get("missing")
+        return Pending(
+            workflow_id=str(decision["workflow_id"]),
+            title=str(decision.get("title") or ""),
+            values=_strings(decision.get("values")),
+            missing=tuple(str(one) for one in listed) if isinstance(listed, list | tuple) else (),
+            items=_items(decision.get("items")),
+            watched=bool(decision.get("watched", True)),
+            can_find=bool(decision.get("can_find", False)),
+        )
+    return None
 
 
 def answered(pending: Pending, said: str) -> Pending:

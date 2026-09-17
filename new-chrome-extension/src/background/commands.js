@@ -783,8 +783,8 @@ async function inFrame(tabId, frameId, func, args, world = "MAIN") {
   return whatItSaid(answer);
 }
 
-async function uiPerformAt(payload) {
-  const tab = await awake(await drivenTab(payload.origin));
+async function uiPerformAt(payload, runId) {
+  const tab = await awake(await tabForRun(payload, runId));
   if (!tab) return failure("no_tab_for_system", noPage(payload.origin));
   hold(tab.id);
   // The browser first. A point is a pixel in the top-level viewport, and only
@@ -881,8 +881,8 @@ function pageOf(url) {
   }
 }
 
-async function uiUrl(payload) {
-  const tab = await drivenTab(payload.origin);
+async function uiUrl(payload, runId) {
+  const tab = await tabForRun(payload, runId);
   if (!tab) return failure("no_tab_for_system", noPage(payload.origin));
   return { ok: true, result: { url: tab.url } };
 }
@@ -921,8 +921,8 @@ function within(ms, promise) {
   ]).finally(() => clearTimeout(timer));
 }
 
-async function screenshot(payload) {
-  const tab = await drivenTab(payload.origin);
+async function screenshot(payload, runId) {
+  const tab = await tabForRun(payload, runId);
   if (!tab) return failure("no_tab_for_system", noPage(payload.origin));
   // `captureVisibleTab` photographs whatever is active in the window, not the
   // tab it is handed. For a tab that is not the active one, the picture and
@@ -948,15 +948,14 @@ async function screenshot(payload) {
   // when the tab is not the active one -- `chrome.windows.update` with
   // `focused` is what raises the window past whatever is in front of it, and
   // being already active inside Chrome says nothing about that.
-  const visible = payload.allow_focus
+  const forward = payload.allow_focus
     ? await bringForward(tab, true)
-    : tab.active
-      ? tab
-      : null;
+    : { tab: tab.active ? tab : null, why: "this run may not bring the page forward" };
+  const visible = forward.tab;
   if (!visible) {
     return failure(
       "focus_not_permitted",
-      "the page to be driven is not the visible one, and this run may not bring it forward",
+      `the page to be driven is not the visible one: ${forward.why}`,
     );
   }
 
@@ -1045,13 +1044,16 @@ async function screenshot(payload) {
  * photograph whatever is in front of it.
  */
 async function bringForward(tab, allowFocus) {
-  if (!allowFocus) return null;
+  if (!allowFocus) return { tab: null, why: "this run may not bring the page forward" };
   try {
     await chrome.windows.update(tab.windowId, { focused: true });
-    return await chrome.tabs.update(tab.id, { active: true });
-  } catch {
-    // The window closed while we were asking. There is no screen to take.
-    return null;
+    return { tab: await chrome.tabs.update(tab.id, { active: true }), why: "" };
+  } catch (error) {
+    // The window or the tab went away while we were asking. Which one, and
+    // what Chrome said about it: this used to return `null` for three
+    // different faults -- no permission, a closed window, a tab id that had
+    // gone stale -- and the run recorded the same six words for all of them.
+    return { tab: null, why: `the page could not be brought forward: ${error}` };
   }
 }
 
@@ -1111,9 +1113,9 @@ async function openTab(payload) {
   return { ok: true, result: { opened: true, tab_id: tab.id } };
 }
 
-async function navigate(payload) {
+async function navigate(payload, runId) {
   if (!payload?.url) return failure("not_actionable", "navigate with no url");
-  let tab = await drivenTab(payload.origin);
+  let tab = await tabForRun(payload, runId);
   if (!tab) {
     // Nothing open on that system, and this command names the page it wants.
     //
@@ -1311,13 +1313,13 @@ export async function perform(command, source = "backend") {
       case "ui.perform":
         return await uiPerform(command.payload || {}, command.run_id);
       case "ui.perform_at":
-        return await uiPerformAt(command.payload || {});
+        return await uiPerformAt(command.payload || {}, command.run_id);
       case "ui.url":
-        return await uiUrl(command.payload || {});
+        return await uiUrl(command.payload || {}, command.run_id);
       case "screenshot":
-        return await screenshot(command.payload || {});
+        return await screenshot(command.payload || {}, command.run_id);
       case "navigate":
-        return await navigate(command.payload || {});
+        return await navigate(command.payload || {}, command.run_id);
       case "tab.open":
         return await openTab(command.payload || {});
       case "calls.since":

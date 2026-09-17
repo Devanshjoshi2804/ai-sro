@@ -1210,16 +1210,24 @@ async def test_an_older_answer_with_no_enum_still_means_what_it_meant() -> None:
     assert refused.kind == "none"
 
 
-async def test_a_menu_is_opened_once_and_then_the_step_is_answered() -> None:
-    """`opened` is the runner's guard, and this rung honours it: a planner that
-    only ever opens menus spends its budget rather than looping."""
+async def test_a_menu_may_be_opened_again_because_a_screen_has_more_than_one() -> None:
+    """A screen is answered with as many clicks as it takes: open the menu, see
+    the item, click it. A rung allowed exactly one thing could not reach a
+    control under a menu nobody demonstrated -- measured on the deployment
+    across 2026-09-16 and 17, where that job never once reached its form.
+
+    How many is the RUNNER's to bound (`K_OPENINGS`), and it refuses the rest.
+    What this rung must not do is point at the same thing twice, which the
+    fresh picture it is shown each time is what settles.
+    """
     planned, _ = await _by_sight(
-        _sight(found=False, points_at="what_reveals_it", x=120, y=44, why="still not visible"),
+        _sight(found=False, points_at="what_reveals_it", x=120, y=44, why="under the next one"),
         opened=True,
     )
 
-    assert planned.kind == "none"
-    assert "still not visible" in planned.why
+    assert planned.kind == "ui.perform_at"
+    assert planned.opens is True
+    assert planned.payload["x"] == 120
 
 
 async def test_a_point_to_open_that_is_not_on_the_screen_is_not_taken() -> None:

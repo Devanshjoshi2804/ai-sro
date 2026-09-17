@@ -154,6 +154,20 @@ module drives a run and does not learn what a mailbox is. A deployment with no
 connector passes nothing, and a run with missing values refuses exactly as it
 always did."""
 
+K_OPENINGS = 3
+"""How many things one rung may open before it must answer the step.
+
+A screen is answered with as many clicks as it takes -- open the menu, see the
+item, click it -- and a rung that allowed exactly one was a rung that could not
+reach a control under a menu nobody demonstrated. Measured on the deployment
+across 2026-09-16 and 17: `Create a Customer Type` never once reached its form
+on the screen, and that was why.
+
+Three, because it is the depth a warehouse menu actually has and because a
+planner that only ever opens things has to run out rather than loop. Each
+costs a command and a picture; the step budget above bounds the rest.
+"""
+
 K_NOT_HERE = frozenset({"no_tab_for_system", "no_tab_for_origin"})
 """The two refusals that mean the browser is not where the step needs it.
 
@@ -1293,10 +1307,21 @@ async def run_workflow(
                 navigated = False
                 # A dropdown is answered with two clicks: one to open the list
                 # and one to choose the row. The first is not the step, the
-                # same way a navigate is not the step -- and like a navigate it
-                # is allowed once, so a planner that only ever opens lists runs
-                # out of budget rather than looping.
-                opened = False
+                # same way a navigate is not the step.
+                #
+                # A screen is answered with as many as it takes, and that is
+                # the difference between this and a rung that gives up. The
+                # control for "click Customer Types" lives under a menu nobody
+                # demonstrated: one click opens the menu, a fresh picture shows
+                # it, the next click is the step. Measured on the deployment
+                # across two days -- that job never once reached its form on
+                # the screen, and the reason was a ladder that allowed exactly
+                # one thing to happen before the answer.
+                #
+                # Bounded, because a planner that only ever opens things must
+                # run out rather than loop: `K_OPENINGS` of them per rung, and
+                # the step budget above still bounds the whole step.
+                openings = 0
                 # What the record says was planned and sent, before this rung
                 # touches it. A rung that ends without producing a command has
                 # to give it back: the verdict on the record is still the
@@ -1333,7 +1358,7 @@ async def run_workflow(
                             # opening is allowed per rung, so a planner that
                             # only ever opens menus spends its budget instead
                             # of looping.
-                            opened=opened,
+                            opened=openings > 0,
                         )
                     else:
                         before = await _look(
@@ -1383,7 +1408,7 @@ async def run_workflow(
                             seen=observed,
                             tenant_id=tenant_id.value,
                             secret_for=secret_for,
-                            opened=opened,
+                            opened=openings > 0,
                         )
                     # Who actually planned it. A replay asks nobody, and
                     # writing a model's name beside a step it never saw is a
@@ -1417,12 +1442,20 @@ async def run_workflow(
                         )
                         run.outcome = "refused"
                         break
-                    if proposal.opens and not opened:
+                    if proposal.opens and openings < K_OPENINGS and not mutates:
                         # Sent from here, ahead of the gate that withholds a
-                        # write and parks one on a person. `plan_step` only
-                        # marks a command `opens` for a step that changes
-                        # nothing, which is what makes this the same safe
-                        # position `navigate` sends from.
+                        # write and parks one on a person -- and only for a
+                        # step that changes nothing, which is what makes this
+                        # the same safe position `navigate` sends from.
+                        #
+                        # `not mutates` is said here as well as in the
+                        # planners. A step whose evidence shows a write may
+                        # need a menu opened to reach its button, and reaching
+                        # it is not the writing -- but an opening click is a
+                        # click the model chose, and the gate that parks those
+                        # on a person is BELOW this line. Until that ordering
+                        # is worth rearranging, a write step climbs the ladder
+                        # as it always did.
                         shown = await channel.send(
                             tenant_id,
                             device_id,
@@ -1435,7 +1468,7 @@ async def run_workflow(
                                 "failed", "none", f"could not open the list: {shown.detail}"
                             )
                             break
-                        opened = True
+                        openings += 1
                     elif proposal.kind != "navigate":
                         planned = proposal
                     elif navigated:

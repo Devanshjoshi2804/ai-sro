@@ -650,9 +650,13 @@ async def plan_by_sight(
         # step. `opened` is the runner's guard, so a planner that only ever
         # opens things spends its budget rather than looping.
         # The point it just gave, when it says that point opens the way.
+        # `opened` no longer means "already opened once, so stop". The runner
+        # bounds how many things one rung may open (`K_OPENINGS`) and refuses
+        # the rest; what this rung must not do is keep pointing at the same
+        # thing, which the fresh picture it is shown each time is what settles.
         reveal = (
             _point_on({"x": data.get("x"), "y": data.get("y")}, look)
-            if points_at == "what_reveals_it" and not opened
+            if points_at == "what_reveals_it"
             else None
         )
         if reveal is not None:
@@ -670,7 +674,7 @@ async def plan_by_sight(
             {"x": data.get("x"), "y": data.get("y")} if points_at == "what_reveals_it" else None
         )
         refusal = why or "the control is not on this screen"
-        if offered is not None and reveal is None and not opened:
+        if offered is not None and reveal is None:
             refusal = (
                 f"{refusal} (it named {offered!r} to open, which is not on the screen it was shown)"
             )

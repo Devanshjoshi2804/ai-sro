@@ -4963,6 +4963,103 @@ async def test_a_form_step_is_still_done_when_the_write_is_not_a_call() -> None:
     assert len([one for one in channel.sent if one["kind"] == "ui.perform"]) == 2
 
 
+# --- a screen answered with as many clicks as it takes -----------------------
+
+
+async def test_a_control_under_a_menu_is_reached_by_opening_the_menu() -> None:
+    """The shape that failed for two days.
+
+    `Create a Customer Type` clicks a tab that lives under a menu the operator
+    had already open when they recorded it -- so the menu click is in no
+    evidence anywhere, and every recorded identity for the tab misses.
+
+    One opening per rung was always allowed, and that is worth being exact
+    about: open a menu, click the thing. What was not allowed is a screen that
+    takes more -- a menu, then a section inside it, then the control -- and a
+    warehouse configuration tree is full of those. This asserts the second
+    opening, because the first was never the missing half.
+
+    Bounded by `K_OPENINGS`, so a planner that only ever opens things runs out
+    rather than loops.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel(
+        {
+            **_looks_with_size(8),
+            # Nothing the demonstration recorded matches any more.
+            "ui.perform": [
+                Reply(ok=False, error_kind="control_not_found", error_detail="nothing matched")
+            ]
+            * 2,
+            # The menu opens, then the section inside it, then the control.
+            "ui.perform_at": [
+                Reply(ok=True, result={"opened": True}),
+                Reply(ok=True, result={"opened": True}),
+                Reply(
+                    ok=True,
+                    result={
+                        "performed": True,
+                        "candidates": 1,
+                        "control": {"tag": "span", "name": "Customer Types"},
+                    },
+                ),
+            ],
+        }
+    )
+    asker = _ByRung(
+        plan=_plan("click"),
+        # First it cannot see the control and points at what reveals it; then,
+        # with a new picture, it points at the control.
+        sight=[
+            Answer(
+                data={
+                    "found": False,
+                    "points_at": "what_reveals_it",
+                    "x": 120,
+                    "y": 44,
+                    "action": "click",
+                    "why": "it is under Partners",
+                }
+            ),
+            # A second thing to open, which is where one-per-rung stopped: a
+            # menu two deep could be named and never reached.
+            Answer(
+                data={
+                    "found": False,
+                    "points_at": "what_reveals_it",
+                    "x": 160,
+                    "y": 90,
+                    "action": "click",
+                    "why": "and under Customers within it",
+                }
+            ),
+            Answer(
+                data={
+                    "found": True,
+                    "points_at": "the_control",
+                    "x": 300,
+                    "y": 210,
+                    "action": "click",
+                    "why": "there it is now",
+                }
+            ),
+        ],
+        verdicts=[Answer(data={"held": True, "why": "the screen moved"})],
+    )
+
+    run = await _ran(uow, workflow, channel=channel, asker=asker, values={}, earned=True)
+
+    at = [_payload(one) for one in channel.sent if one["kind"] == "ui.perform_at"]
+    assert [one["x"] for one in at] == [120, 160, 300], (
+        "a screen two menus deep was named and never reached"
+    )
+    assert run.steps[0].verdict == "held", run.steps[0].reason
+    # And what it cost to find out is kept, so the next run clicks it directly.
+    kept = await uow.workflows.learned_for(workflow.id)
+    assert [(one.strategy, one.query) for one in kept] == [("text", "Customer Types")]
+
+
 # --- what a run finds out, and what the next one does with it ----------------
 
 
@@ -4973,9 +5070,15 @@ class _ByRung(FakeAsker):
     rewritten every time a belt changes how many questions a step asks.
     """
 
-    def __init__(self, *, plan: Answer, sight: Answer, verdicts: list[Answer]) -> None:
+    def __init__(
+        self, *, plan: Answer, sight: Answer | list[Answer], verdicts: list[Answer]
+    ) -> None:
         super().__init__()
-        self.plan, self.sight, self.verdicts = plan, sight, list(verdicts)
+        self.plan = plan
+        # A list where the rung is asked more than once: a screen answered with
+        # two clicks asks twice, with a fresh picture the second time.
+        self.sight = list(sight) if isinstance(sight, list) else [sight]
+        self.verdicts = list(verdicts)
 
     async def ask(self, **asked: object) -> Answer:
         await super().ask(**asked)
@@ -4985,7 +5088,9 @@ class _ByRung(FakeAsker):
         assert isinstance(fields, dict)
         if "held" in fields:
             return self.verdicts.pop(0) if self.verdicts else Answer(data={"held": True, "why": ""})
-        return self.sight if "points_at" in fields else self.plan
+        if "points_at" not in fields:
+            return self.plan
+        return self.sight.pop(0) if len(self.sight) > 1 else self.sight[0]
 
 
 def _last_run(uow: FakeUnitOfWork) -> WorkflowRun:

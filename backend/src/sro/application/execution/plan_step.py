@@ -543,6 +543,20 @@ async def plan_step(
     return Planned("ui.perform", payload, why, answer)
 
 
+def _point_on(said: object, look: Look) -> tuple[int, int] | None:
+    """A point the model gave, if it is inside the picture it was shown.
+
+    Off the viewport is a guess, and this rung's whole rule is that it does not
+    guess: the picture IS the viewport, so a point outside it was not seen.
+    """
+    if not isinstance(said, dict) or not look.width or not look.height:
+        return None
+    x, y = said.get("x"), said.get("y")
+    if not (isinstance(x, int) and isinstance(y, int)):
+        return None
+    return (x, y) if 0 <= x < look.width and 0 <= y < look.height else None
+
+
 async def plan_by_sight(
     *,
     step: Step,
@@ -553,6 +567,7 @@ async def plan_by_sight(
     asker: Asker,
     model: str,
     failure: str | None,
+    opened: bool = False,
 ) -> Planned:
     """The rung below the locator ladder: find the control by looking.
 
@@ -590,6 +605,28 @@ async def plan_by_sight(
         return Planned("none", {}, answer.error or "no answer", answer)
     why = str(data.get("why") or "")
     if not data.get("found"):
+        # Not on the screen, and something on the screen would reveal it.
+        #
+        # Measured on the deployment, 2026-09-17: the step clicks the "Customer
+        # Types" tab, and this rung answered "not currently visible ... it is
+        # likely under the 'Partners' menu which needs to be opened first" --
+        # the right answer, as prose, with no way to act on it. The job then
+        # ran by its call, which is the fallback and not the point: a job whose
+        # write has no call would have stopped there holding the fix.
+        #
+        # The same two-click shape a dropdown already uses: this one opens, the
+        # runner plans again with a fresh picture, and the second answers the
+        # step. `opened` is the runner's guard, so a planner that only ever
+        # opens things spends its budget rather than looping.
+        reveal = _point_on(data.get("open_first"), look) if not opened else None
+        if reveal is not None:
+            return Planned(
+                "ui.perform_at",
+                {"origin": origin, "x": reveal[0], "y": reveal[1], "action": "click"},
+                f"opening what the control is under: {why}" if why else "opening the menu",
+                answer,
+                opens=True,
+            )
         return Planned("none", {}, why or "the control is not on this screen", answer)
     x, y = data.get("x"), data.get("y")
     # Inside the picture, or nowhere: a point off the viewport is a guess.

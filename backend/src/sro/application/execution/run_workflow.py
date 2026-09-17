@@ -1324,6 +1324,11 @@ async def run_workflow(
                             asker=asker,
                             model=model,
                             failure=verdict.reason if verdict else None,
+                            # The same guard the dropdown's two clicks use: one
+                            # opening is allowed per rung, so a planner that
+                            # only ever opens menus spends its budget instead
+                            # of looping.
+                            opened=opened,
                         )
                     else:
                         before = await _look(

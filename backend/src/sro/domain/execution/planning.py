@@ -258,10 +258,19 @@ SIGHT_SCHEMA: dict[str, object] = {
         # point, and an action the browser cannot take is a step that stops.
         "action": {"type": "string", "enum": ["click", "type", "press"]},
         "value": {"type": "string", "nullable": True},
+        # What would reveal the control, where it is not on the screen at all.
+        # Answered INSTEAD of a point, and clicked instead of the step: a
+        # closed menu, a collapsed section, a tab that is not the open one.
+        "open_first": {
+            "type": "object",
+            "nullable": True,
+            "properties": {"x": {"type": "integer"}, "y": {"type": "integer"}},
+            "required": ["x", "y"],
+        },
         "why": {"type": "string"},
     },
     "required": ["found", "x", "y", "action", "why"],
-    "propertyOrdering": ["found", "x", "y", "action", "value", "why"],
+    "propertyOrdering": ["found", "x", "y", "action", "value", "open_first", "why"],
 }
 
 SIGHT_ACTIONS = frozenset({"click", "type", "press"})
@@ -275,6 +284,14 @@ was demonstrated, and the values this run was given.
 Find the control for THIS step on the screen. Answer its centre in CSS pixels
 of the viewport whose size you are given -- the picture is that viewport --
 and the action to take there. For type, give the value from this run's values.
-If the control is not on this screen, answer found: false and say why. Never
-guess a point: a click on the wrong control in a warehouse system is worse
-than a step that stops and asks."""
+
+If the control is not on this screen, answer found: false and say why. Where
+something ON the screen would reveal it -- a closed menu it lives under, a
+collapsed section, a tab that is not the open one -- give that thing's centre
+as open_first as well. It will be clicked and you will be asked again, with a
+new picture. Only for something you can SEE and that plainly reveals the
+control: opening a menu is not doing the step, and a click on the wrong thing
+to find out what happens is exactly what this rung must not do.
+
+Never guess a point: a click on the wrong control in a warehouse system is
+worse than a step that stops and asks."""

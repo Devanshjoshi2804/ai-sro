@@ -917,6 +917,7 @@ async def _by_sight(
     look: Look | None = None,
     values: Mapping[str, str] | None = None,
     gesture: Gesture | None = None,
+    opened: bool = False,
 ) -> tuple[Planned, FakeAsker]:
     gesture = gesture or _typed()
     asker = FakeAsker(answer)
@@ -935,6 +936,7 @@ async def _by_sight(
         asker=asker,
         model="pro",
         failure="control_not_found: gone",
+        opened=opened,
     )
     return planned, asker
 
@@ -1165,6 +1167,56 @@ async def test_a_click_nobody_asked_a_value_of_is_planned_as_itself() -> None:
     assert planned.opens is False
     assert planned.payload["action"] == "click"
     assert "opening the list" not in planned.why
+
+
+async def test_the_sight_rung_opens_what_the_control_is_under() -> None:
+    """Measured on the deployment, 2026-09-17.
+
+    The step clicks the "Customer Types" tab, and this rung answered "not
+    currently visible on the screen. It is likely under the 'Partners' menu
+    which needs to be opened first" -- the right answer, as prose, with no way
+    to act on it. The run then did the job by its call, which is the fallback
+    and not the point: a job whose write has no call would have stopped there
+    holding the fix.
+
+    The same two-click shape a dropdown already uses: this one opens, the
+    runner plans again with a fresh picture, and the second answers the step.
+    """
+    planned, _ = await _by_sight(
+        _sight(
+            found=False,
+            why="not visible; it is under the Partners menu",
+            open_first={"x": 120, "y": 44},
+        )
+    )
+
+    assert planned.kind == "ui.perform_at"
+    assert planned.opens is True, "the runner would have taken this for the step itself"
+    assert planned.payload["x"] == 120
+    assert planned.payload["action"] == "click"
+    assert "Partners" in planned.why
+
+
+async def test_a_menu_is_opened_once_and_then_the_step_is_answered() -> None:
+    """`opened` is the runner's guard, and this rung honours it: a planner that
+    only ever opens menus spends its budget rather than looping."""
+    planned, _ = await _by_sight(
+        _sight(found=False, why="still not visible", open_first={"x": 120, "y": 44}),
+        opened=True,
+    )
+
+    assert planned.kind == "none"
+    assert "still not visible" in planned.why
+
+
+async def test_a_point_to_open_that_is_not_on_the_screen_is_not_taken() -> None:
+    """The rung's whole rule is that it does not guess, and the picture IS the
+    viewport: a point outside it was not seen."""
+    planned, _ = await _by_sight(
+        _sight(found=False, why="under a menu", open_first={"x": 4000, "y": 44})
+    )
+
+    assert planned.kind == "none"
 
 
 async def test_the_sight_rung_with_no_picture_costs_nothing_and_says_so() -> None:

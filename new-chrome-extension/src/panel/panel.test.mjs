@@ -1043,6 +1043,36 @@ test("a run that stopped because a step failed does not say it stopped to ask", 
   assert.ok(!/✓ open the form/.test(said), said);
 });
 
+test("the panel offers to watch the system, not just this tab", async () => {
+  // Measured on the deployment, 2026-09-17: a run drove a Blue Yonder tab it
+  // had opened itself, with its own banner across the top, while this panel
+  // said "not watched" beside it. Nothing it did was evidence, so the job
+  // performed and the system learnt nothing from having done it.
+  //
+  // A tab id lives for as long as one tab. The work does not.
+  const { cards, sent } = panel(
+    { deviceId: "dev-1", capturing: true, watched: [] },
+    { id: 7, host: "wms.example", url: "https://wms.example/portal" },
+  );
+
+  const buttons = [];
+  const walk = (el) => {
+    if (el?.tag === "button") buttons.push(el);
+    for (const kid of el?.kids || []) walk(kid);
+  };
+  for (const one of cards) walk(one);
+
+  const always = buttons.find((one) => /Always watch wms\.example/.test(one.textContent));
+  assert.ok(always, buttons.map((one) => one.textContent).join(" | "));
+
+  always.listeners[0]();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.ok(
+    sent.some((one) => one.kind === "always-watch" && one.url === "https://wms.example/portal"),
+    JSON.stringify(sent),
+  );
+});
+
 test("a question nobody answered survives the next run", async () => {
   // Measured on the deployment, 2026-09-17: a question was written into the
   // thread at 03:57 and a later run took the finished-run slot at 03:59, so

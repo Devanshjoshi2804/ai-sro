@@ -4,6 +4,7 @@
 // it is idle and every wake-up starts from storage.
 
 import { api, ApiError } from "./api.js";
+import { alsoWatch, alwaysWatched, hostOf, stopWatching } from "./always.js";
 import { questionIn } from "./asking.js";
 import { waitBeforeLooking } from "./looking.js";
 import * as channel from "./channel.js";
@@ -154,6 +155,11 @@ chrome.webNavigation.onCommitted.addListener((d) => {
   // which is the only moment one can safely happen -- so whatever was wrong
   // with the last document is not wrong with this one.
   halfDeaf.delete(d.tabId);
+  // A system the operator watches everywhere is watched here too, whoever
+  // opened this tab -- them, a link, or a run opening one for itself. On the
+  // deployment, 2026-09-17, a run drove a tab it had opened while the panel
+  // said "not watched", and nothing it did was evidence.
+  void watchIfAlways(d.tabId, d.url);
   void pageEvent("navigated", d.tabId, d.url, d.timeStamp);
   // `navigationId` is not in this event, so the visit is the tab and the moment
   // it committed. Same property either way: one nudge per navigation rather
@@ -1011,6 +1017,22 @@ function watch(tabId, url) {
     await state.setWatched(next);
     return next;
   });
+}
+
+/** Watch this tab, if its system is one the operator watches everywhere.
+ *
+ * The same `watch` a press calls, and the same injection: a tab that is
+ * watched but never injected into is a panel saying "watching" over a page
+ * producing nothing. Silent when the host is not on the list -- that is the
+ * ordinary case and the panel still offers.
+ */
+async function watchIfAlways(tabId, url) {
+  if (!alwaysWatched(url, await state.alwaysWatch())) return false;
+  if (await isWatched(tabId)) return true;
+  await watch(tabId, url);
+  await injectHere(tabId, url);
+  await badge();
+  return true;
 }
 
 /** Whether the tenant's policy excludes this host by default. */
@@ -1977,6 +1999,34 @@ async function handle(message, sender) {
       await injectHere(tabId, url);
       return { watched };
     }
+    case "always-watch": {
+      // "Watch this site, wherever it opens." Said once about a system rather
+      // than once per tab, because a tab id lives for as long as one tab and
+      // the work does not.
+      const tabId = message.tabId ?? sender?.tab?.id ?? null;
+      let url = message.url || "";
+      if (!url && tabId !== null) {
+        url = (await chrome.tabs.get(tabId).catch(() => ({}))).url || "";
+      }
+      const host = hostOf(url);
+      if (!host) return { error: "that is not a page this can watch" };
+      await state.setAlwaysWatch(alsoWatch(host, await state.alwaysWatch()));
+      // And this tab now, not on its next navigation: an operator who says it
+      // while looking at the page means this page.
+      if (tabId !== null) await watchIfAlways(tabId, url);
+      // Every other tab already open on it, for the same reason -- saying it
+      // about a system and having four of its tabs stay blind is the defect
+      // this replaces, one layer along.
+      for (const tab of await chrome.tabs.query({ url: `*://${host}/*` })) {
+        if (tab.id !== tabId) await watchIfAlways(tab.id, tab.url || "");
+      }
+      return { always: await state.alwaysWatch() };
+    }
+    case "never-watch-site": {
+      const host = hostOf(message.url || "") || message.host || "";
+      await state.setAlwaysWatch(stopWatching(host, await state.alwaysWatch()));
+      return { always: await state.alwaysWatch() };
+    }
     case "unwatch-tab": {
       const tabId = message.tabId ?? sender?.tab?.id ?? null;
       if (tabId === null) return { error: "no tab to stop watching" };
@@ -2349,13 +2399,8 @@ const MOST_NEAR_MISSES = 5;
  * name is a mail body that arrived through a sloppy mark. */
 const QUESTION = "question";
 
-function hostOf(url) {
-  try {
-    return new URL(url).hostname;
-  } catch {
-    return "";
-  }
-}
+/* `hostOf` is `always.js`'s: the same question, and that one answers "" for a
+   url that is not a page rather than naming the host of a `chrome://` one. */
 
 /** The mail rules this browser holds, from the backend that keeps them.
  *

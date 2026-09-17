@@ -33,6 +33,7 @@ const KEYS = {
   muted: "sro.muted",
   tails: "sro.tails",
   watched: "sro.watched",
+  alwaysWatch: "sro.alwaysWatch",
   paused: "sro.paused",
   serverPaused: "sro.serverPaused",
   lastBeat: "sro.lastBeat",
@@ -208,6 +209,19 @@ export const state = {
    * operator signs out. */
   watches: () => read(KEYS.watches, []),
   setWatches: (watches) => write(KEYS.watches, watches),
+
+  /** The systems this operator has said to watch wherever they open.
+   *
+   * Hosts, not tabs. A tab id lives for as long as one tab, so a watch keyed
+   * on one is a watch that ends when somebody closes a window, follows a link
+   * into a new tab, or lets a run open its own -- and every one of those is
+   * the same system doing the same work. Measured on the deployment,
+   * 2026-09-17: a run drove a Blue Yonder tab it had opened itself while the
+   * panel said "not watched", so nothing it did was evidence and the job
+   * learnt nothing from having been done.
+   */
+  alwaysWatch: () => read(KEYS.alwaysWatch, []),
+  setAlwaysWatch: (hosts) => write(KEYS.alwaysWatch, hosts),
 
   /** The mails this browser recognised and has not been answered about yet.
    *

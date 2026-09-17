@@ -388,6 +388,23 @@ function toTheQuestion(run) {
   toTheNewest(true);
 }
 
+/** Watch this system wherever it opens, from now on.
+ *
+ * The press says it about the HOST. Every tab already open on it is watched
+ * too -- saying it about a system and leaving four of its tabs blind is the
+ * same defect one layer along.
+ */
+async function alwaysWatch(button) {
+  button.disabled = true;
+  try {
+    await ask({ kind: "always-watch", tabId: tabHere.tabId, url: tabHere.url });
+    said(`watching ${tabHere.host} wherever it opens`);
+  } catch (error) {
+    said(error.message);
+  }
+  await refresh();
+}
+
 /** What the profile menu's items mean here.
  *
  * The strip decides nothing itself: it hands back a word about the deployment,
@@ -530,6 +547,20 @@ function watching(status) {
           primary: true,
           disabled: !status.capturing || !tabHere.tabId,
           act: (button) => setWatch(button, true),
+        },
+        // Once, about the system, rather than once per tab.
+        //
+        // A tab id lives for as long as one tab and the work does not: a link
+        // opened in a new tab, a window reopened after lunch, and the tab a
+        // RUN opens for itself are all the same system doing the same job.
+        // Measured on the deployment, 2026-09-17 -- a run drove a Blue Yonder
+        // tab it had opened, with its own banner across the top of it, while
+        // this panel said "not watched" beside it. Nothing it did was
+        // evidence, so the job performed and the system learnt nothing.
+        {
+          label: `Always watch ${tabHere.host}`,
+          disabled: !status.capturing || !tabHere.host,
+          act: (button) => alwaysWatch(button),
         },
         pauseAction(status),
       ],

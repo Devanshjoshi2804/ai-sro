@@ -531,32 +531,61 @@ export function performAtInPage(payload) {
  * are out by the display's scale factor, which on any retina screen is a click
  * halfway up the page. */
 export function viewportInPage() {
+  // Bounded, because this used to walk the whole document and the document is
+  // a warehouse grid.
+  //
+  // `getBoundingClientRect` forces layout, and it was called on every match of
+  // a selector that includes `.x-grid-cell` -- tens of thousands of cells on a
+  // Blue Yonder grid, each one a synchronous reflow -- and then 200 of the
+  // answers were kept and the rest thrown away. Measured on the deployment,
+  // 2026-09-17 at 17:30: `run_0c3bd2ae` step 2 failed
+  // `no screen to look at: timeout: the browser did not answer within 20s`,
+  // and the same timeout had been read as three different faults across the
+  // afternoon -- a refused screen, a tab that was not visible, my own console
+  // tab stealing focus. None of them. The page simply could not be measured
+  // in the time the run was willing to wait.
+  //
+  // Two limits and they are different limits. `K_LOOKED_AT` bounds the WORK --
+  // how many elements are measured at all, which is what costs the time.
+  // `K_NAMED` bounds the ANSWER, and was the only one here before.
+  const K_LOOKED_AT = 2000;
+  const K_NAMED = 200;
   const width = window.innerWidth;
   const height = window.innerHeight;
   const seen = [];
-  document
-    .querySelectorAll("input, select, textarea, button, a, .x-grid-cell, label")
-    .forEach((el) => {
-      const rect = el.getBoundingClientRect();
-      if (rect.width < 2 || rect.height < 2) return;
-      const label = (
-        el.getAttribute("aria-label") ||
-        el.getAttribute("placeholder") ||
-        el.textContent ||
-        el.name ||
-        ""
-      )
-        .trim()
-        .slice(0, 80);
-      const nx = Math.round(((rect.x + rect.width / 2) / width) * 1000);
-      const ny = Math.round(((rect.y + rect.height / 2) / height) * 1000);
-      if (label) seen.push(`${label}: ${nx},${ny}`);
-    });
+  const all = document.querySelectorAll(
+    "input, select, textarea, button, a, .x-grid-cell, label",
+  );
+  const many = Math.min(all.length, K_LOOKED_AT);
+  for (let n = 0; n < many && seen.length < K_NAMED; n += 1) {
+    const el = all[n];
+    const rect = el.getBoundingClientRect();
+    if (rect.width < 2 || rect.height < 2) continue;
+    // Off the screen entirely. This is what the digest is FOR -- what the
+    // operator is looking at -- and the coordinates beside each name are
+    // fractions of the viewport, so a row scrolled a thousand pixels below it
+    // was being described at `y: 4300` in a space that ends at 1000. Wrong as
+    // well as slow.
+    if (rect.bottom < 0 || rect.top > height || rect.right < 0 || rect.left > width)
+      continue;
+    const label = (
+      el.getAttribute("aria-label") ||
+      el.getAttribute("placeholder") ||
+      el.textContent ||
+      el.name ||
+      ""
+    )
+      .trim()
+      .slice(0, 80);
+    const nx = Math.round(((rect.x + rect.width / 2) / width) * 1000);
+    const ny = Math.round(((rect.y + rect.height / 2) / height) * 1000);
+    if (label) seen.push(`${label}: ${nx},${ny}`);
+  }
   return {
     url: location.href,
     width,
     height,
-    digest: seen.slice(0, 200).join("\n").slice(0, 8000),
+    digest: seen.join("\n").slice(0, 8000),
   };
 }
 

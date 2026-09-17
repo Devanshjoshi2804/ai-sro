@@ -258,19 +258,27 @@ SIGHT_SCHEMA: dict[str, object] = {
         # point, and an action the browser cannot take is a step that stops.
         "action": {"type": "string", "enum": ["click", "type", "press"]},
         "value": {"type": "string", "nullable": True},
-        # What would reveal the control, where it is not on the screen at all.
-        # Answered INSTEAD of a point, and clicked instead of the step: a
-        # closed menu, a collapsed section, a tab that is not the open one.
-        "open_first": {
-            "type": "object",
-            "nullable": True,
-            "properties": {"x": {"type": "integer"}, "y": {"type": "integer"}},
-            "required": ["x", "y"],
+        # WHAT the point is, which is required and so cannot be skipped.
+        #
+        # This was an optional `open_first` object, and it was skipped every
+        # time: the model wrote "it is likely under the 'Partners' menu" in
+        # `why` and left the field null, twice in a row, with the Partners tab
+        # plainly on the screen it was looking at. A model fills what a schema
+        # demands and passes over what it offers.
+        #
+        # So there is one point and one question about it. `the_control` is
+        # the step itself; `what_reveals_it` is a menu to open first, clicked
+        # instead of the step, after which this rung is asked again with a new
+        # picture; `nothing` is nowhere to point, which is the honest refusal
+        # this rung must always be able to give.
+        "points_at": {
+            "type": "string",
+            "enum": ["the_control", "what_reveals_it", "nothing"],
         },
         "why": {"type": "string"},
     },
-    "required": ["found", "x", "y", "action", "why"],
-    "propertyOrdering": ["found", "x", "y", "action", "value", "open_first", "why"],
+    "required": ["found", "x", "y", "action", "points_at", "why"],
+    "propertyOrdering": ["found", "x", "y", "action", "value", "points_at", "why"],
 }
 
 SIGHT_ACTIONS = frozenset({"click", "type", "press"})
@@ -285,18 +293,21 @@ Find the control for THIS step on the screen. Answer its centre in CSS pixels
 of the viewport whose size you are given -- the picture is that viewport --
 and the action to take there. For type, give the value from this run's values.
 
-If the control is not on this screen, answer found: false and say why.
+Every answer carries one point and says what it points at.
 
-Then look again for the thing that would reveal it, and if you can see one,
-GIVE ITS CENTRE AS open_first. Saying "it is probably under the Partners menu"
-and leaving open_first empty is an answer nothing can act on -- if you can name
-the menu you can point at it, and pointing is what moves the job. It will be
-clicked and you will be asked again with a new picture.
+ - the_control: the control for this step. found: true, and the action to take.
+ - what_reveals_it: the control is not on this screen, and THIS is the thing
+   that would reveal it -- the closed menu it lives under, a collapsed section,
+   a tab that is not the open one. It will be clicked and you will be asked
+   again with a new picture. found: false.
+ - nothing: the control is not here and nothing on this screen leads to it.
+   found: false, and the point is ignored.
 
-Only something you can SEE on this screen and that plainly reveals the control:
-a closed menu it lives under, a collapsed section, a tab that is not the open
-one. Opening a menu is not doing the step, and a click on something else to
-find out what happens is exactly what this rung must not do.
+Saying "it is probably under the Partners menu" and pointing at nothing is an
+answer nobody can act on. If you can name the menu you can point at it, and
+pointing is what moves the job. Only point at what you can SEE: opening a menu
+is not doing the step, and a click on something else to find out what happens
+is exactly what this rung must not do.
 
 Never guess a point: a click on the wrong control in a warehouse system is
 worse than a step that stops and asks."""

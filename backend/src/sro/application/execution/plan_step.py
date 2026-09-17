@@ -604,7 +604,13 @@ async def plan_by_sight(
     if data is None:
         return Planned("none", {}, answer.error or "no answer", answer)
     why = str(data.get("why") or "")
-    if not data.get("found"):
+    points_at = str(data.get("points_at") or "")
+    # The enum decides, where the model answered one. `found` is the older
+    # question and still the fallback: a deployment pinned to an earlier model
+    # answers without `points_at` at all, and its answers still mean what they
+    # always did.
+    found = points_at == "the_control" if points_at else bool(data.get("found"))
+    if not found:
         # Not on the screen, and something on the screen would reveal it.
         #
         # Measured on the deployment, 2026-09-17: the step clicks the "Customer
@@ -618,7 +624,12 @@ async def plan_by_sight(
         # runner plans again with a fresh picture, and the second answers the
         # step. `opened` is the runner's guard, so a planner that only ever
         # opens things spends its budget rather than looping.
-        reveal = _point_on(data.get("open_first"), look) if not opened else None
+        # The point it just gave, when it says that point opens the way.
+        reveal = (
+            _point_on({"x": data.get("x"), "y": data.get("y")}, look)
+            if points_at == "what_reveals_it" and not opened
+            else None
+        )
         if reveal is not None:
             return Planned(
                 "ui.perform_at",
@@ -627,10 +638,12 @@ async def plan_by_sight(
                 answer,
                 opens=True,
             )
-        # And whether it named something to open that this rung could not use.
-        # The alternative is reading the same prose twice and not knowing
-        # whether the model refused to point or pointed off the picture.
-        offered = data.get("open_first")
+        # And whether it pointed at something this rung could not use. The
+        # alternative is reading the same prose twice and not knowing whether
+        # the model would not point or pointed off the picture.
+        offered = (
+            {"x": data.get("x"), "y": data.get("y")} if points_at == "what_reveals_it" else None
+        )
         refusal = why or "the control is not on this screen"
         if offered is not None and reveal is None and not opened:
             refusal = (

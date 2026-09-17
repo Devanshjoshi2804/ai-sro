@@ -1185,8 +1185,10 @@ async def test_the_sight_rung_opens_what_the_control_is_under() -> None:
     planned, _ = await _by_sight(
         _sight(
             found=False,
+            points_at="what_reveals_it",
+            x=120,
+            y=44,
             why="not visible; it is under the Partners menu",
-            open_first={"x": 120, "y": 44},
         )
     )
 
@@ -1197,11 +1199,22 @@ async def test_the_sight_rung_opens_what_the_control_is_under() -> None:
     assert "Partners" in planned.why
 
 
+async def test_an_older_answer_with_no_enum_still_means_what_it_meant() -> None:
+    """`points_at` is required, so every current answer carries it -- but a
+    deployment pinned to an earlier model answers with `found` alone, and those
+    answers still mean what they always did."""
+    planned, _ = await _by_sight(_sight(found=True, x=40, y=50, action="click"))
+    assert planned.kind == "ui.perform_at"
+
+    refused, _ = await _by_sight(_sight(found=False, why="not on this screen"))
+    assert refused.kind == "none"
+
+
 async def test_a_menu_is_opened_once_and_then_the_step_is_answered() -> None:
     """`opened` is the runner's guard, and this rung honours it: a planner that
     only ever opens menus spends its budget rather than looping."""
     planned, _ = await _by_sight(
-        _sight(found=False, why="still not visible", open_first={"x": 120, "y": 44}),
+        _sight(found=False, points_at="what_reveals_it", x=120, y=44, why="still not visible"),
         opened=True,
     )
 
@@ -1213,7 +1226,7 @@ async def test_a_point_to_open_that_is_not_on_the_screen_is_not_taken() -> None:
     """The rung's whole rule is that it does not guess, and the picture IS the
     viewport: a point outside it was not seen."""
     planned, _ = await _by_sight(
-        _sight(found=False, why="under a menu", open_first={"x": 4000, "y": 44})
+        _sight(found=False, points_at="what_reveals_it", x=4000, y=44, why="under a menu")
     )
 
     assert planned.kind == "none"

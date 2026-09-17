@@ -421,6 +421,21 @@ async def test_nothing_to_decide_on_is_unclear_and_says_so() -> None:
     assert (verdict.state, verdict.by) == ("unclear", "none")
     assert verdict.reason, "a verdict nobody can read is not a record"
 
+    # And where the browser said WHY there was no screen, that is the record.
+    # A step that types a value has no status and nothing to read back, so the
+    # screen is its only belt: measured on the deployment, 2026-09-17 at 17:05,
+    # a value that WAS typed (`ok: true, matched_by: component`) was collapsed
+    # on four words that named none of the three faults that produce them.
+    saver = _saver()
+    saver.requests = []
+    said = await _verify(
+        saver,
+        channel=FakeChannel(),
+        values={},
+        look_after=Look(None, None, "", refused="focus_not_permitted: not the visible one"),
+    )
+    assert said.reason.endswith("focus_not_permitted: not the visible one"), said.reason
+
 
 async def test_a_model_that_answered_nothing_leaves_the_step_unclear_with_its_error() -> None:
     saver = _saver()

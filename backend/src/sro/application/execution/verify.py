@@ -666,10 +666,18 @@ async def verify(
                 "performed",
                 "this step changes nothing, and the browser performed it",
             )
+        # With the browser's own words for why there was no screen, where it
+        # gave any. A step that types a value has no status and nothing to read
+        # back -- the screen is its only belt -- so "no screen to look at" is
+        # the whole difference between a step that worked and a step recorded
+        # as `unclear`. Measured on the deployment, 2026-09-17 at 17:05: the
+        # value WAS typed (`ok: true, matched_by: component`) and the run
+        # collapsed the form anyway, saying four words about it.
         return StepVerdict(
             "unclear",
             "none",
-            "nothing returned a status, nothing to read, and no screen to look at",
+            "nothing returned a status, nothing to read, and no screen to look at"
+            + (f": {look_after.refused}" if look_after.refused else ""),
         )
     evidence = json.dumps(
         {

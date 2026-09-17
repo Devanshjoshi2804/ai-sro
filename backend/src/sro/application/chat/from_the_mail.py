@@ -278,32 +278,45 @@ class FromTheMail:
             # it. Reading the thread is one call and no guessing; the gather
             # below searches the whole mailbox with a query a model writes, and
             # on this mailbox that came back empty about a value one mail away.
-            if missing and not thread:
-                # The two ways this can come up short are not the same fault:
-                # a request whose conversation was read and did not hold the
-                # values, and a request that arrived with no conversation to
-                # read. The second means the thread id never reached here.
-                logger.info(
-                    "%s: %s is missing %d value(s) and the mail names no conversation",
-                    tenant,
-                    titles.get(got.workflow_id, got.workflow_id),
-                    len(missing),
-                )
-            if missing and thread:
-                whole = await self._conversation(ctx, thread)
-                if whole and whole != said:
-                    again = await understand(whole, workflows, asker, self._model, asked_by)
-                    spent = _also(spent, again.answer)
-                    if again.workflow_id == got.workflow_id:
-                        values |= dict(again.values)
-                        missing = [name for name in missing if name not in values]
-                        logger.info(
-                            "%s: read the whole conversation for %s -- %d of %d found",
-                            tenant,
-                            titles.get(got.workflow_id, got.workflow_id),
-                            len(values),
-                            len(values) + len(missing),
-                        )
+            if missing:
+                # Every way this can end, said. It came up short four times
+                # running on the deployment and each round told me one more
+                # thing, because each round only one branch of this could
+                # speak. A step that can fail five ways and reports one of them
+                # is a step nobody can debug -- which is the lesson the
+                # execution ladder already learned, in the same week.
+                job_ = titles.get(got.workflow_id, got.workflow_id)
+                if not thread:
+                    logger.info("%s: %s -- the mail names no conversation", tenant, job_)
+                else:
+                    whole = await self._conversation(ctx, thread)
+                    if not whole:
+                        logger.info("%s: %s -- the conversation read back empty", tenant, job_)
+                    elif whole == said:
+                        logger.info("%s: %s -- the conversation is only this mail", tenant, job_)
+                    else:
+                        again = await understand(whole, workflows, asker, self._model, asked_by)
+                        spent = _also(spent, again.answer)
+                        if again.workflow_id != got.workflow_id:
+                            # A thread that wandered onto another subject is not
+                            # more evidence about this one.
+                            logger.info(
+                                "%s: %s -- the conversation read as %s instead",
+                                tenant,
+                                job_,
+                                titles.get(again.workflow_id or "", again.workflow_id)
+                                or "no job at all",
+                            )
+                        else:
+                            values |= dict(again.values)
+                            missing = [name for name in missing if name not in values]
+                            logger.info(
+                                "%s: %s -- the conversation gave %d of %d",
+                                tenant,
+                                job_,
+                                len(values),
+                                len(values) + len(missing),
+                            )
             if missing and self._gather is not None:
                 found = await self._gather.execute(
                     ctx,

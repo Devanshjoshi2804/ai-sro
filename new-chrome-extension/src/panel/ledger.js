@@ -516,8 +516,15 @@ function offeringToFinish(nudge, onPress) {
   const what = document.createElement("p");
   what.className = "what";
   what.textContent =
-    nudge.k > 0
+    // A job already under way, and what has gone into it so far -- where
+    // anything has. `k` counts the steps the operator has done, and a run can
+    // have reached its second step without a value being typed into either:
+    // that read "Forward an Email \u2014 , so far. Want me to finish it?" on
+    // the deployment, 2026-09-18, a dangling comma where the values were.
+    nudge.k > 0 && typed
       ? `${nudge.title} \u2014 ${typed}, so far. Want me to finish it?`
+      : nudge.k > 0
+        ? `${nudge.title} \u2014 already started. Want me to finish it?`
       : things > 1
         ? `${nudge.title}, for ${things} things \u2014 want me to do them?`
         : // What this press would create, where it is known.

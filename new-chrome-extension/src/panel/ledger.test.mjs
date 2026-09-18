@@ -831,6 +831,32 @@ test("a card about the page in front of them is still answerable", () => {
   assert.deepEqual(pressed, ["waiting-approve"]);
 });
 
+test("a job already started with nothing typed does not say ', so far'", () => {
+  // "Forward an Email — , so far. Want me to finish it?" on the deployment,
+  // 2026-09-18: a dangling comma where the values were. `k` counts the steps
+  // the operator has done, and a run reaches its second step without a value
+  // having been typed into either.
+  const item = messages(
+    ledger({ id: "thr-1", messages: [] }, {
+      nudges: [
+        {
+          id: "n_started",
+          source: "rig",
+          state: "open",
+          k: 2,
+          title: "Forward an Email",
+          values: {},
+          items: [],
+          missing: ["To recipients"],
+        },
+      ],
+    }, { onPress: () => {} }),
+  )[0];
+
+  assert.doesNotMatch(words(item), /— ,/, words(item));
+  assert.match(words(item), /already started\. Want me to finish it\?/);
+});
+
 test("an offer read out of a mail says what it would create", () => {
   // Four of these stacked up on the deployment, 2026-09-18, every one of them
   // "Create a Customer Type — want me to do it?", and there was nothing on any

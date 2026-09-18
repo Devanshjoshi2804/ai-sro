@@ -87,6 +87,7 @@ export async function noteFinished(active) {
       // to one and not the other once already.
       undo: run.undo || null,
       undoes_by: run.undoes_by || null,
+      undoes_run: run.undoes_run || null,
       gathered: run.gathered || {},
       watched: Boolean(run.watched),
       at: Date.now(),

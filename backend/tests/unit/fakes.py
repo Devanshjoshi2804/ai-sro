@@ -1706,6 +1706,18 @@ class FakeWorkflowRunRepository:
         found.sort(key=lambda run: (when(run.started_at), run.id), reverse=True)
         return tuple(deepcopy(run) for run in found[:limit])
 
+    async def taken_back_by(self, tenant_id: TenantId, run_id: str) -> str | None:
+        return next(
+            (
+                one.id
+                for one in self.rows.values()
+                if one.tenant == tenant_id.value
+                and one.undoes_run == run_id
+                and one.outcome == "held"
+            ),
+            None,
+        )
+
     async def failures(self, tenant_id: TenantId) -> Mapping[str, int]:
         # `failed` and `refused` only: a run that stopped to ask is the job
         # asking, and one a person aborted is a person changing their mind.

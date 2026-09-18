@@ -789,6 +789,21 @@ class WorkflowRunRepository(Protocol):
         """
         ...
 
+    async def taken_back_by(self, tenant_id: TenantId, run_id: str) -> str | None:
+        """The run that took this one back, where one already has.
+
+        An undo pressed twice is a second delete addressed to a record the
+        first one removed, and what a warehouse answers to that is nobody's
+        idea of a good surprise. Asked of the store rather than remembered on
+        the card, because the card is one browser's copy and a second window
+        holds another.
+
+        Only a run that HELD counts as having taken it back. One that failed
+        left the record where it was, and refusing a second attempt because the
+        first did not work is refusing the one attempt that might.
+        """
+        ...
+
     async def failures(self, tenant_id: TenantId) -> Mapping[str, int]:
         """How many runs of each job ended in the job's OWN failure.
 

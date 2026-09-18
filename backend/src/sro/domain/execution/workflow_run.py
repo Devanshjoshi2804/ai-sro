@@ -253,6 +253,19 @@ class WorkflowRun:
 
     Empty for every run that found everything, which is nearly all of them."""
 
+    undoes_run: str | None = None
+    """The run this one takes back, where it is an undo of one.
+
+    The first place two jobs in this system are one piece of work. Pressing
+    `Undo it` starts an ordinary run of an ordinary mined job, which is right --
+    it goes through the same ladder, gate and belts as anything else -- and
+    leaves the two with nothing between them: the delete goes off alone, and if
+    it fails, the card that offered it is gone and nobody knows the record is
+    still there.
+
+    An id and never a status. Whether the undo worked is this run's own
+    outcome, read where every other outcome is read."""
+
     asked_the_asker: bool = False
     """Whether this run has already written to whoever sent the request.
 

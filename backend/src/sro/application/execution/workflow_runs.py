@@ -261,8 +261,15 @@ class StartWorkflowRun:
         items: Sequence[Mapping[str, str]] = (),
         run_id: str | None = None,
         conversation: tuple[str, str] = ("", ""),
+        undoes_run: str = "",
     ) -> WorkflowRun:
         """The claimed row, or the refusal that stopped it being claimed.
+
+        `undoes_run` is the run this one takes back, where a press on a result
+        card started it. Refused where that run has already been taken back by
+        a run that held: an undo pressed twice is a second delete addressed to
+        a record the first one removed, and the warehouse's answer to that is
+        nobody's idea of a good surprise.
 
         `conversation` is the outside thread this run answers to, where it came
         from one -- a request read out of somebody's mail. A run that comes up
@@ -409,6 +416,18 @@ class StartWorkflowRun:
             # It is a stored row going bad rather than a bad row being stored:
             # the workflow outlives the gestures it cites, and no check at mine
             # time can see that coming.
+            # An undo already taken. Refused here rather than reported by the
+            # card, because the card is one browser's copy and a second window
+            # holds another -- and what two presses buy is a second delete
+            # addressed to a record the first one removed.
+            #
+            # Only against a run that HELD. One that failed left the record
+            # where it was, and refusing a second attempt because the first did
+            # not work is refusing the one attempt that might.
+            if undoes_run.strip():
+                already = await uow.workflow_runs.taken_back_by(ctx.tenant_id, undoes_run.strip())
+                if already is not None:
+                    raise RunRefused(f"{undoes_run.strip()} was already taken back by {already}")
             undoable = unperformable(workflow, by_id, from_step=from_step)
             if undoable is not None:
                 raise RunRefused(
@@ -436,6 +455,10 @@ class StartWorkflowRun:
                 # run ends with nothing outstanding: a finished job is not
                 # waiting to hear anything.
                 awaiting=as_said(waiting_on(*conversation, now=now)),
+                # The run this one takes back, where it is an undo of one. An
+                # id and never a status: whether it worked is this run's own
+                # outcome, read where every other outcome is read.
+                undoes_run=undoes_run.strip() or None,
             )
             # Raises `Conflict` -- the same one the read above gives, in the
             # same words -- where the unique partial index refuses a second

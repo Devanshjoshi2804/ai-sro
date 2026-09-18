@@ -2019,6 +2019,9 @@ async function handle(message, sender) {
           values: message.values,
           live: true,
           allow_focus: true,
+          // Which run this takes back. The backend refuses a second undo of
+          // the same run, which is what a double press in two panels is.
+          undoes_run: message.undoesRun || "",
         });
         await say(`taking back what ${message.workflowId} made: run ${run.id}`);
         return { ok: true, run_id: run.id };

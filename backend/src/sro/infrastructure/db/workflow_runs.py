@@ -71,6 +71,7 @@ def _run_values(run: WorkflowRun) -> dict[str, Any]:
         "unasked": list(run.unasked),
         "awaiting": dict(run.awaiting) if run.awaiting else None,
         "asked_the_asker": run.asked_the_asker,
+        "undoes_run": run.undoes_run,
         "unpriced": run.unpriced,
     }
 
@@ -152,6 +153,7 @@ def _row_to_run(row: WorkflowRunRow, steps: list[RunStep]) -> WorkflowRun:
         needs=[str(one) for one in (row.needs or [])],
         unasked=[str(one) for one in (row.unasked or [])],
         asked_the_asker=bool(row.asked_the_asker),
+        undoes_run=row.undoes_run,
         awaiting=(
             {str(key): str(value) for key, value in row.awaiting.items()}
             if isinstance(row.awaiting, dict)
@@ -292,6 +294,19 @@ class SqlWorkflowRunRepository(WorkflowRunRepository):
             )
         ).scalars()
         return await self._with_steps(rows.all())
+
+    async def taken_back_by(self, tenant_id: TenantId, run_id: str) -> str | None:
+        # Only a run that HELD. One that failed left the record where it was,
+        # and refusing a second attempt because the first did not work is
+        # refusing the one attempt that might.
+        found = await self._session.scalar(
+            select(WorkflowRunRow.id).where(
+                WorkflowRunRow.tenant_id == tenant_id.value,
+                WorkflowRunRow.undoes_run == run_id,
+                WorkflowRunRow.outcome == "held",
+            )
+        )
+        return str(found) if found else None
 
     async def failures(self, tenant_id: TenantId) -> Mapping[str, int]:
         # One count for the tenant, beside `tallies` and for the same reason it

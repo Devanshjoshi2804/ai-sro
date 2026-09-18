@@ -269,6 +269,41 @@ class TestWorkflowRuns:
         async with SqlUnitOfWork(session_factory) as uow:
             assert await uow.workflow_runs.in_flight(TENANT, DeviceId("dev_1")) is None
 
+    async def test_which_run_took_this_one_back_survives_the_round_trip(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """Both directions of the mapping, and both answers of the lookup: an
+        undo that held is what refuses a second press, and one that failed left
+        the record exactly where it was."""
+        made = _run()
+        undo = _run(device_id="dev_2", undoes_run=made.id, outcome="held")
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflow_runs.save(made)
+            await uow.workflow_runs.save(undo)
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            read = await uow.workflow_runs.get(TENANT, undo.id)
+            assert read is not None and read.undoes_run == made.id
+            assert (await uow.workflow_runs.get(TENANT, made.id)) is not None
+            assert (await uow.workflow_runs.get(TENANT, made.id)).undoes_run is None
+            assert await uow.workflow_runs.taken_back_by(TENANT, made.id) == undo.id
+            # Scoped, like every other read here.
+            assert await uow.workflow_runs.taken_back_by(OTHER_TENANT, made.id) is None
+            # And nothing has taken back the undo itself.
+            assert await uow.workflow_runs.taken_back_by(TENANT, undo.id) is None
+
+        undo.outcome = "failed"
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflow_runs.save(undo)
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            # An undo that did not work is not a record that is gone, and the
+            # second press is the one that might still remove it.
+            assert await uow.workflow_runs.taken_back_by(TENANT, made.id) is None
+
     async def test_a_run_is_found_again_by_the_conversation_it_answers_to(
         self, session_factory: async_sessionmaker[AsyncSession]
     ) -> None:

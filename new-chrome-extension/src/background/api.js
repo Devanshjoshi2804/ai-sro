@@ -222,6 +222,10 @@ export const api = {
       // silently draws nothing and looks like code nobody changed.
       undo: run.undo || null,
       undoes_by: run.undoes_by || null,
+      // And, the other way round, which run THIS one takes back -- so an undo
+      // that failed reads as the record still being out there rather than as
+      // a job that failed on its own.
+      undoes_run: run.undoes_run || null,
       // What it read out of the mail, so the card can say where a value it
       // was never given came from.
       gathered: run.gathered || {},
@@ -230,11 +234,6 @@ export const api = {
       // draws a line per thing so somebody watching knows which of the three
       // records is being made now, and how many are left.
       items: run.items || [],
-      // The job of this tenant's that takes back what this run made, where one
-      // exists. An id, never a press: what taking it back would have to do --
-      // address each record by whatever the warehouse called it -- is a
-      // mapping nothing here has evidence for.
-      undo: run.undo || null,
       steps: (run.steps || []).map((step) => ({
         index: step.order,
         // Which thing on the list this row was done for, and which step of the

@@ -883,6 +883,9 @@ class WorkflowRunRow(Base):
     ordinary request this job simply cannot take yet. Dropping it is right --
     nothing demonstrated that slot -- and dropping it silently is the fault
     this column exists to end."""
+    undoes_run: Mapped[str | None] = mapped_column(String(64))
+    """The run this one takes back. Null on every run that is not an undo."""
+
     asked_the_asker: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default=text("false")
     )
@@ -910,6 +913,9 @@ class WorkflowRunRow(Base):
 
     __table_args__ = (
         Index("ix_workflow_runs_tenant_workflow", "tenant_id", "workflow_id", "started_at"),
+        # The one question `undoes_run` is asked: has this run been taken back
+        # already. Without it, answering it reads every run of the tenant.
+        Index("ix_workflow_runs_undoes", "undoes_run"),
         # The busy check: whether this browser already has a run in flight.
         # One browser, one hand -- two runs driving the same window interleave
         # their clicks into a form neither of them can then read back.

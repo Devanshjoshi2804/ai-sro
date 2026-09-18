@@ -133,6 +133,7 @@ async def start_workflow_run(
         from_step=body.from_step,
         matched=body.matched,
         conversation=(SERVER, body.mail_thread),
+        undoes_run=body.undoes_run,
     )
     container.pursuits.spawn(starter.perform(ctx, claimed))
     return WorkflowRunModel.of(claimed)

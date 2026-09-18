@@ -81,7 +81,12 @@ export default [
       globals: browser,
     },
     linterOptions: { reportUnusedDisableDirectives: true },
-    rules: { "no-undef": "error" },
+    // `no-dupe-keys` for the same reason `no-undef` is here: the wire
+    // whitelists in `api.js` are long object literals, one key was written
+    // into one of them twice, and the later copy silently won. Nothing said
+    // so, and the field a card draws is exactly the thing nobody notices is
+    // being drawn from the wrong line.
+    rules: { "no-undef": "error", "no-dupe-keys": "error" },
   },
   {
     // The application's own framework, read from the page's realm. Not ours to

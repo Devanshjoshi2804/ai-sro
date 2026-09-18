@@ -441,6 +441,48 @@ test("nothing is offered while this browser is performing a run", async () => {
   abort("run-live");
 });
 
+test("an undo names the run it takes back", async () => {
+  // The panel's press carries `undoesRun`, the body carries `undoes_run`, and
+  // between them is the only thing that stops two open panels pressing two
+  // deletes at one record -- the backend cannot refuse the second press if it
+  // is never told which run the first one took back.
+  ready();
+  held.set("sro.deviceId", "dev-start-a17f");
+  held.set("sro.deviceSecret", "secret-start-33c9");
+  held.set("sro.token", "tok-start-6d20");
+
+  const answer = await send({
+    kind: "undo-rig-run",
+    workflowId: "wfl_delete",
+    values: { customerType: "GGD" },
+    undoesRun: "run_made_it",
+  });
+
+  assert.equal(answer.ok, true);
+  const press = calls.find((call) => call.path === "/v1/workflow-runs");
+  assert.ok(press, "the undo never reached `POST /v1/workflow-runs`");
+  const started = JSON.parse(press.body);
+  assert.equal(started.workflow_id, "wfl_delete");
+  assert.equal(started.undoes_run, "run_made_it");
+  assert.equal(started.live, true, "an undo that does not write takes nothing back");
+});
+
+test("an ordinary press takes nothing back", async () => {
+  ready();
+  held.set("sro.deviceId", "dev-start-a17f");
+  held.set("sro.deviceSecret", "secret-start-33c9");
+  held.set("sro.token", "tok-start-6d20");
+  await gesture("a", "NEW");
+  await gesture("b", "north");
+  await until(() => openOnes().length === 1, "no offer to accept");
+
+  await send({ kind: "start-rig-run", nudgeId: openOnes()[0].id, values: {} });
+
+  const press = calls.find((call) => call.path === "/v1/workflow-runs");
+  const started = JSON.parse(press.body);
+  assert.equal(started.undoes_run, undefined, "an ordinary run claimed to undo something");
+});
+
 test("yes starts the run, and marks the offer accepted on the list as it is then", async () => {
   ready();
   held.set("sro.deviceId", "dev-start-a17f");

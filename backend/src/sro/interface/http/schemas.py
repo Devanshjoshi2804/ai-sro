@@ -3310,6 +3310,14 @@ class StartWorkflowRunRequest(BaseModel):
     one thing, which is most presses, and a job with no repeat is handed none
     of them whatever arrives here."""
 
+    undoes_run: str = ""
+    """The run this one takes back, where a press on a result card started it.
+
+    The first place two jobs in this system are one piece of work. What it buys
+    is that the two can be put side by side, and that a second press can be
+    refused: an undo pressed twice is a second delete addressed to a record the
+    first one removed. Empty for every press that is not an undo."""
+
     mail_thread: str = ""
     """The mail conversation this request came out of, where it came out of one.
 
@@ -3518,6 +3526,14 @@ class WorkflowRunModel(BaseModel):
     none, because somebody presses it, sees the card go quiet, and believes the
     warehouse is back where it started."""
 
+    undoes_run: str | None = None
+    """The run this one takes back, where it is an undo of one.
+
+    The other end of `undo`, and on the wire for the same reason it is in the
+    row: the delete and the thing it deletes are one piece of work, and a
+    failed undo has to be readable as *run_abc is still out there* rather than
+    as a job that failed on its own. Null on every run that is not an undo."""
+
     @classmethod
     def of(cls, run: WorkflowRun, undo: tuple[str, str, str] | None = None) -> WorkflowRunModel:
         return cls(
@@ -3549,6 +3565,7 @@ class WorkflowRunModel(BaseModel):
             wrong_because=run.wrong_because,
             undo=undo[0] if undo else None,
             undoes_by={undo[1]: undo[2]} if undo else None,
+            undoes_run=run.undoes_run,
         )
 
 

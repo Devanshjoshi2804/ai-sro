@@ -198,6 +198,7 @@ async def _press(
     matched: int | None = None,
     run_id: str | None = None,
     conversation: tuple[str, str] = ("", ""),
+    undoes_run: str = "",
 ) -> WorkflowRun:
     return await starter.execute(
         ctx or _ctx(),
@@ -210,6 +211,7 @@ async def _press(
         allow_focus=allow_focus,
         from_step=from_step,
         matched=matched,
+        undoes_run=undoes_run,
     )
 
 
@@ -1018,3 +1020,87 @@ async def test_the_question_says_which_step_the_run_had_reached() -> None:
     # writes until the end.
     assert decision["from_step"] == 0
     assert decision["from_run"] == run.id
+
+
+# --- the undo and the run it takes back --------------------------------------
+
+
+async def _finished(uow: FakeUnitOfWork, run: WorkflowRun, outcome: str) -> WorkflowRun:
+    run.outcome = outcome
+    run.finished_at = NOW.isoformat()
+    await uow.workflow_runs.save(run)
+    return run
+
+
+async def test_a_run_says_which_run_it_takes_back() -> None:
+    """The whole point of the column: two rows that can be put side by side.
+    Without it the delete goes off alone, and a person looking at the failed
+    undo cannot tell which record is still sitting in the warehouse."""
+    uow = await _held()
+    made = await _finished(uow, await _press(_starter(uow)), "held")
+
+    undo = await _press(_starter(uow), undoes_run=made.id)
+
+    assert undo.undoes_run == made.id
+    stored = await uow.workflow_runs.get(TENANT, undo.id)
+    assert stored is not None and stored.undoes_run == made.id
+
+
+async def test_an_ordinary_press_takes_back_nothing() -> None:
+    """NULL and not the empty string. A column that says "" for every run that
+    is not an undo is a column that has to be read twice to mean nothing."""
+    uow = await _held()
+
+    await _finished(uow, await _press(_starter(uow)), "held")
+
+    assert (await _press(_starter(uow), undoes_run="   ")).undoes_run is None
+
+
+async def test_the_same_run_cannot_be_taken_back_twice() -> None:
+    """Two panels showing one card, two presses. The second delete is addressed
+    to a record the first one removed -- at best a 404, at worst somebody
+    else's record that took the id since."""
+    uow = await _held()
+    made = await _finished(uow, await _press(_starter(uow)), "held")
+    await _finished(uow, await _press(_starter(uow), undoes_run=made.id), "held")
+
+    with pytest.raises(RunRefused, match="already taken back"):
+        await _press(_starter(uow), undoes_run=made.id)
+
+
+async def test_an_undo_that_failed_can_be_tried_again() -> None:
+    """The refusal is about a record that is gone, not about having asked. A
+    first attempt that never wrote left the record exactly where it was, and
+    refusing the second is refusing the one press that could still work."""
+    uow = await _held()
+    made = await _finished(uow, await _press(_starter(uow)), "held")
+    await _finished(uow, await _press(_starter(uow), undoes_run=made.id), "failed")
+
+    again = await _press(_starter(uow), undoes_run=made.id)
+
+    assert again.undoes_run == made.id
+
+
+async def test_another_tenants_undo_does_not_block_this_one() -> None:
+    """`taken_back_by` is scoped, like every other read here. Run ids are
+    unguessable, but a lookup that is not scoped is one leak away from one
+    tenant's press refusing another's."""
+    uow = await _held()
+    rival = replace(
+        _workflow(tenant=RIVAL, workflow_id="wfl_rival"),
+        steps=[Step(order=n, says=f"step {n}", system=None, cites=[f"rgs-{n}"]) for n in range(5)],
+    )
+    await uow.workflows.save(rival)
+    await uow.gestures.add_gestures(tuple(_gesture(f"rgs-{n}", tenant=RIVAL) for n in range(5)))
+    made = await _finished(uow, await _press(_starter(uow)), "held")
+    browsers = _Browsers({TENANT.value: (LAPTOP,), RIVAL.value: (DESK,)})
+    theirs = await _press(
+        _starter(uow, channel=browsers),
+        ctx=_ctx(tenant=RIVAL),
+        workflow_id="wfl_rival",
+        device_id=DESK,
+        undoes_run=made.id,
+    )
+    await _finished(uow, theirs, "held")
+
+    assert (await _press(_starter(uow), undoes_run=made.id)).undoes_run == made.id

@@ -2210,6 +2210,30 @@ test("a rig run that can be taken back offers it, and names what it removes", as
   assert.match(words(card), /deletes customerType GGD/);
 });
 
+test("pressing undo says which run it takes back", async () => {
+  // The two runs are one piece of work. Without the id the delete goes off
+  // alone: a second panel showing the same card presses it again, and the
+  // second delete is addressed to a record the first one removed.
+  const { cards, sent } = panel({
+    deviceId: "dev-1",
+    finished: {
+      id: "run_1", source: "rig", status: "held",
+      values: { "Customer Type": "GGD" }, steps: [], needs: [],
+      undo: "wfl_delete",
+      undoes_by: { customerType: "GGD" },
+    },
+  });
+
+  const card = cards.find((one) => pressable(one, "Undo it"));
+  await pressable(card, "Undo it").listeners[0]();
+
+  const press = sent.find((one) => one.kind === "undo-rig-run");
+  assert.ok(press, "the undo told the worker nothing");
+  assert.strictEqual(press.workflowId, "wfl_delete");
+  assert.deepEqual(press.values, { customerType: "GGD" });
+  assert.strictEqual(press.undoesRun, "run_1");
+});
+
 test("a rig run with no undo behind it offers none", async () => {
   const { cards } = panel({
     deviceId: "dev-1",

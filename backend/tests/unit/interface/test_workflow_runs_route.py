@@ -316,6 +316,28 @@ async def test_the_values_come_from_the_body_trimmed(
     assert made.json()["values"] == {"clientCode": "THIRD", "zone": "4"}
 
 
+async def test_which_run_this_press_takes_back_comes_from_the_body(
+    client: httpx.AsyncClient, held: Workflow
+) -> None:
+    """The undo's other half. A route that dropped this claims a run that
+    deletes a record and says nothing about which run made it -- and the
+    refusal of a second press, which is the only thing standing between two
+    open panels and two deletes, never fires."""
+    made = await client.post("/v1/workflow-runs", json=_body(undoes_run="run_earlier"))
+
+    assert made.json()["undoes_run"] == "run_earlier"
+
+
+async def test_a_press_that_takes_nothing_back_says_so(
+    client: httpx.AsyncClient, held: Workflow
+) -> None:
+    """Null, and not absent: a field the panel has to test for two ways is a
+    field somebody will test for one way."""
+    made = await client.post("/v1/workflow-runs", json=_body())
+
+    assert made.json()["undoes_run"] is None
+
+
 async def test_a_live_press_claims_a_live_run(client: httpx.AsyncClient, held: Workflow) -> None:
     """The one field that decides whether a warehouse is written to. A route
     that hardcoded `live=False` looks healthy and never writes anything."""
@@ -661,6 +683,7 @@ def test_a_finished_run_reaches_the_wire_whole() -> None:
             )
         ],
         withheld=[{"step": 2, "planned": {"kind": "http.send"}}],
+        undoes_run="run_before",
         in_tokens=11,
         out_tokens=22,
         thought_tokens=33,
@@ -746,6 +769,10 @@ def test_a_finished_run_reaches_the_wire_whole() -> None:
         # And which record it would address, which is null for the same reason
         # and one more: a run that made nothing has nothing to name.
         "undoes_by": None,
+        # The other direction: which run this one takes back. Carried, not
+        # null, because a field that is null in the one test that reads the
+        # whole wire is a field the mapping can drop without anybody noticing.
+        "undoes_run": "run_before",
     }
 
 

@@ -1146,6 +1146,9 @@ async function undoTheRun(run, [field, names], button) {
       kind: "undo-rig-run",
       workflowId: run.undo,
       values: { [field]: names },
+      // Which run this takes back. Two panels showing one card would otherwise
+      // press two deletes at one record; the backend refuses the second.
+      undoesRun: run.id,
     });
     if (started?.ok === false) {
       button.disabled = false;

@@ -639,6 +639,23 @@ async function offerFromMail(offer) {
     await state.setAwaitingMail(null);
     await say(`no longer waiting on ${awaiting.to}: an offer arrived`);
   }
+  // A run the answer already started. There is nothing here to offer.
+  //
+  // The operator pressed Yes on this request; that press is what sent the mail
+  // asking for what was missing, and the reply filled the one blank the press
+  // could not. A card beside the run that answer started is this panel
+  // offering to do what it is doing.
+  //
+  // AFTER the wait is let go, not before: the answer that started the run is
+  // exactly the answer that ends the waiting, and an early return above would
+  // leave the panel saying it was still waiting for a reply that had arrived
+  // and already been acted on.
+  if (offer.started) {
+    await say(
+      `${offer.title || offer.workflow_id} is running on the answer that came back`,
+    );
+    return;
+  }
   const shape = (await shapesFor()).find((one) => one.id === offer.workflow_id);
   const now = Date.now();
   const made = fire(

@@ -64,7 +64,7 @@ from sro.application.ports.system import Clock, IdFactory
 from sro.application.ports.tools import ToolCaller, ToolsUnavailable
 from sro.domain.chat.asked_by import mails_behind, texts
 from sro.domain.chat.asking import NEEDS, Pending, pending_job, question
-from sro.domain.chat.thread import Said, Speaker
+from sro.domain.chat.thread import Speaker
 from sro.domain.execution.learned_step import limits_for, too_long
 from sro.domain.execution.waiting import read_wait, still_waiting
 from sro.domain.execution.workflow_run import WorkflowRun
@@ -166,6 +166,17 @@ class Offered:
     title: str
     values: Mapping[str, str] = field(default_factory=dict)
     missing: Sequence[str] = ()
+
+    started: bool = False
+    """A run is already going for this one, so there is nothing to offer.
+
+    The operator pressed Yes on the request; that press is what sent the mail,
+    and the reply filled the one blank the press could not. A card beside the
+    run that answer started is the panel offering to do what it is doing.
+
+    Carried on the offer rather than by returning nothing, because the look
+    still counts what it read and the caller still tells a browser what
+    happened -- what changes is that no card is kept."""
 
     subject: str = ""
     """What the request was called, so a conversation about it can say which.
@@ -600,8 +611,12 @@ class FromTheMail:
             len(asked.missing) - len(missing),
             len(asked.missing),
         )
-        await self._the_question_is_answered(ctx, asked, values, missing, said_by=subject)
+        started = await self._the_question_is_answered(ctx, asked, values, missing, said_by=subject)
         return Offered(
+            # Nothing to press where the run is already going. A card beside a
+            # run started by the same answer is the panel offering to do what
+            # it is doing.
+            started=started,
             message=message,
             workflow_id=asked.workflow_id,
             title=asked.title,
@@ -664,8 +679,11 @@ class FromTheMail:
         missing: Sequence[str],
         *,
         said_by: str = "",
-    ) -> None:
+    ) -> bool:
         """Close the standing question, because a reply has answered it.
+
+        True where the answer started the job, which is the case where nothing
+        is left missing.
 
         The card is built and the conversation was left asking. So the panel
         said two things at once -- here is NGSL, press to run it, and also what
@@ -684,11 +702,11 @@ class FromTheMail:
         that answers it.
         """
         if self._clock is None or self._ids is None:
-            return
+            return False
         try:
             found = await ReadThreads(self._uow).current(ctx)
             if found is None:
-                return
+                return False
             filled = {name: values[name] for name in asked.missing if values.get(name)}
             named = ", ".join(f"{name} {value}" for name, value in filled.items())
             about = f" to {said_by}" if said_by.strip() else ""
@@ -704,7 +722,7 @@ class FromTheMail:
                 mail_thread=asked.mail_thread,
             )
             said = f"A reply{about} answered: {named or 'nothing I could use'}." + (
-                f" {question(still)}" if missing else " It is on your Home tab to start."
+                f" {question(still)}" if missing else f" Running {still.title} now."
             )
             await SayWhatHappened(self._uow, self._clock, self._ids).execute(
                 ctx,
@@ -728,11 +746,45 @@ class FromTheMail:
                         "mail_thread": still.mail_thread,
                     }
                     if missing
-                    else {"kind": Said.NOTE, "workflow_id": still.workflow_id}
+                    # Nothing missing, so nothing left to ask -- including the
+                    # asking.
+                    #
+                    # A card here is the same permission twice. The operator
+                    # pressed Yes on this request; that press is what sent the
+                    # mail, and the reply filled the one blank the press could
+                    # not. Putting a second card in front of them says the
+                    # system did not understand what it was already told, and
+                    # it is the same reasoning `_answer_the_question` has kept
+                    # since the chat path was built: "they already said yes;
+                    # asking twice for the same permission is how a system
+                    # teaches somebody to stop reading what it asks."
+                    #
+                    # Which is not the write gate. A live run still parks in
+                    # front of a warehouse write until the JOB has earned it --
+                    # three runs whose writes a state belt verified. That gate
+                    # is about the job's track record and this is about one
+                    # person's consent, and neither stands in for the other.
+                    else {
+                        "kind": "job",
+                        "workflow_id": still.workflow_id,
+                        "title": still.title,
+                        "values": dict(still.values),
+                        "items": [dict(one) for one in still.items],
+                        "missing": [],
+                        "limits": dict(still.limits),
+                        "from_step": still.from_step,
+                        "mail_thread": still.mail_thread,
+                        "watched": still.watched,
+                        # The browser's cue to start without asking again. The
+                        # same field the chat path emits for the same reason.
+                        "resume": True,
+                    }
                 ),
             )
         except Exception:
             logger.exception("the answered question could not be closed")
+            return False
+        return not missing
 
     async def _what_will_not_fit(
         self, ctx: RequestContext, offered: Sequence[Offered], jobs: Sequence[Workflow]

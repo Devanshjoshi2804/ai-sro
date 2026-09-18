@@ -3623,6 +3623,18 @@ class MailOfferModel(BaseModel):
 
     Empty for every job no run has hit a limit on, which is most of them."""
 
+    started: bool = False
+    """A run is already going for this one, so there is nothing to offer.
+
+    The operator pressed Yes on the request; that press is what sent the mail
+    asking for what was missing, and the reply filled the one blank the press
+    could not. A card beside the run that answer started is the panel offering
+    to do what it is doing.
+
+    Sent rather than inferred from an empty `missing`: plenty of offers arrive
+    with nothing missing and every one of them is a card. What makes this one
+    different is that somebody already said yes to it."""
+
 
 class AskAboutOfferRequest(BaseModel):
     """An offer the operator pressed that cannot simply be started.
@@ -3731,6 +3743,7 @@ class FromTheMailResponse(BaseModel):
                     subject=one.subject,
                     thread=one.thread,
                     too_long=dict(one.too_long),
+                    started=one.started,
                 )
                 for one in looked.offered
             ],

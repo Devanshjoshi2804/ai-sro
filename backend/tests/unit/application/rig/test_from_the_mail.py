@@ -927,7 +927,106 @@ async def test_a_question_a_reply_answered_stops_standing() -> None:
     assert pending_job(said.messages) is None, "the question outlived its own answer"
     # It says so, rather than going quiet: the thread is where this started.
     assert "NGSL" in said.messages[-1].text
-    assert "Home" in said.messages[-1].text
+
+
+async def test_an_answer_that_completes_a_request_starts_it_rather_than_asking_again() -> None:
+    """A card here is the same permission twice.
+
+    The operator pressed Yes on this request; that press is what sent the mail
+    asking for what was missing, and the reply filled the one blank the press
+    could not. The chat path has said so since it was built -- "they already
+    said yes; asking twice for the same permission is how a system teaches
+    somebody to stop reading what it asks" -- and the mail path was asking
+    again anyway.
+    """
+    uow = await _held()
+    thread = await StartThread(uow, FakeClock(), FakeIdFactory()).execute(CTX)
+    thread.say(
+        Message(
+            id=MessageId("msg_asked"),
+            speaker=Speaker.ASSISTANT,
+            text="What should Customer Type be?",
+            said_at=FakeClock().now(),
+            decision={
+                "kind": NEEDS,
+                "workflow_id": JOB,
+                "title": "Create a Customer Type",
+                "values": {"Customer Type Description": "Leaning new SRO type 059"},
+                "missing": ["Customer Type"],
+                "items": [],
+                "mail_thread": "t-37",
+                "watched": True,
+            },
+        )
+    )
+    await uow.threads.save(thread)
+    mailbox = _Mailbox(
+        search=_found("m-1"), **{"m-1": _mail("customer type :- NGSL", thread="t-37")}
+    )
+    reads = _Reads(
+        {
+            "workflow_id": JOB,
+            "values": [{"name": "Customer Type", "value": "NGSL"}],
+            "missing": [],
+            "sure": True,
+        }
+    )
+
+    looked = await _look(uow, mailbox, reads, _Gathers()).execute(CTX)
+
+    # The browser is told to start it, and told not to draw a card for it.
+    (one,) = looked.offered
+    assert one.started is True, "it asked for the same permission twice"
+    last = (await _thread(uow)).messages[-1]
+    assert last.decision is not None
+    assert last.decision["kind"] == "job"
+    assert last.decision["resume"] is True, "the browser was given no cue to start"
+    assert last.decision["values"]["Customer Type"] == "NGSL"
+    assert last.decision["missing"] == []
+
+
+async def test_an_answer_that_leaves_something_missing_asks_for_the_rest() -> None:
+    """Half an answer is not consent to run on the other half."""
+    uow = await _held()
+    thread = await StartThread(uow, FakeClock(), FakeIdFactory()).execute(CTX)
+    thread.say(
+        Message(
+            id=MessageId("msg_asked"),
+            speaker=Speaker.ASSISTANT,
+            text="What should Customer Type be?",
+            said_at=FakeClock().now(),
+            decision={
+                "kind": NEEDS,
+                "workflow_id": JOB,
+                "title": "Create a Customer Type",
+                "values": {},
+                "missing": ["Customer Type", "Customer Type Description"],
+                "items": [],
+                "mail_thread": "t-37",
+                "watched": True,
+            },
+        )
+    )
+    await uow.threads.save(thread)
+    mailbox = _Mailbox(
+        search=_found("m-1"), **{"m-1": _mail("customer type :- NGSL", thread="t-37")}
+    )
+    reads = _Reads(
+        {
+            "workflow_id": JOB,
+            "values": [{"name": "Customer Type", "value": "NGSL"}],
+            "missing": [],
+            "sure": True,
+        }
+    )
+
+    looked = await _look(uow, mailbox, reads, _Gathers()).execute(CTX)
+
+    (one,) = looked.offered
+    assert one.started is False
+    last = (await _thread(uow)).messages[-1]
+    assert last.decision is not None and last.decision["kind"] == NEEDS
+    assert pending_job((await _thread(uow)).messages) is not None
 
 
 async def test_a_reply_on_another_conversation_is_not_an_answer_to_this_one() -> None:

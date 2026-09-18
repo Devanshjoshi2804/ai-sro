@@ -160,6 +160,58 @@ def limits_named(
     return limits
 
 
+def keys_named(
+    names: Iterable[str], *sources: Mapping[str, Mapping[str, object]]
+) -> dict[str, str]:
+    """Which body key each of these screen names is posted as.
+
+    The same join `limits_named` makes and the same refusals, answering the
+    other half of it: that one asks how big the box is, this one asks which
+    slot it is. Both exist because a job's parameters are named the way the
+    SCREEN names them -- `Customer Type Description` -- and everything else
+    known about a field is filed under the key the body posts it as,
+    `longDescription`.
+
+    **This is the join `write_plan` refuses to guess, answered rather than
+    guessed.** That module's argument is exact and stands: a body key is not
+    derivable from a label, and a suffix match is ambiguous on the only real
+    body there is -- `palletBuildingConsolidateBy` writes and
+    `displayedPalletBuildingConsolidateBy` does nothing, and a control ending
+    `…ConsolidateBy` matches both. What is different here is the source. The
+    dictionary is a DECLARATION -- somebody wrote down that `longDescription`
+    is labelled `Customer Type Description` -- and reading a declaration is not
+    inferring a correspondence from the shape of two strings.
+
+    **Silent where two keys answer to one label**, exactly as the limits are:
+    `Description` is a label on ten different keys on this deployment, and a
+    guess between them is a value written into a slot nobody chose. 23 of 378
+    labels are ambiguous that way. The screen's own form comes first and
+    settles most of the rest, because it says what THAT screen calls THAT slot.
+
+    **A name that IS a key answers itself.** `limits_named` matches a claim's
+    own slot as well as its labels, and so does this: a request naming
+    `longDescription` outright has named the key.
+    """
+    wanted = {_flat(name): name for name in names if _flat(name)}
+    keys: dict[str, str] = {}
+    for source in sources:
+        seen: dict[str, str | None] = {}
+        for slot, claim in source.items():
+            for label in (*_labels(claim), slot):
+                if (flat := _flat(label)) not in wanted:
+                    continue
+                # Two keys answering to one label, and this is the second: the
+                # label decides nothing here and must not be made to.
+                seen[flat] = None if flat in seen and seen[flat] != slot else slot
+        for flat, key in seen.items():
+            # The first source to answer unambiguously wins, which is the
+            # screen's own form: it says what THIS screen calls THIS slot,
+            # where the dictionary says what the vendor calls it everywhere.
+            if key is not None and wanted[flat] not in keys:
+                keys[wanted[flat]] = key
+    return keys
+
+
 def _labels(claim: Mapping[str, object]) -> tuple[str, ...]:
     """Every name a screen shows for this field, not only the first.
 

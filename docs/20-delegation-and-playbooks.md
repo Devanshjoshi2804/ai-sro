@@ -228,8 +228,8 @@ found.
 | 3.11 | A question about the waiting is answered about the waiting | done `111dae90` |
 | 3.12 | Home keeps one request; the rest go behind a counted tray | done `65aa1784` |
 | 3.13 | An answer that completes a request starts it, without a second card | done `8bb6b2eb` |
-| 3.14 | **The page is not the page this step is about — and what kind of not** | next after 3.15 |
-| 3.15 | **Credentials for any system, entered once, used unattended** | asked for, not planned |
+| 3.14 | **The page is not the page this step is about — and what kind of not** | 3 of 5 |
+| 3.15 | **Credentials for any system, entered once, used unattended** | done `bf4ee957` |
 | 4 | Bind a value for a known field into the write | |
 | 5 | An undemonstrated field must prove it landed | |
 | 6 | The card says what it will write | |
@@ -243,14 +243,32 @@ password field on the page means the session has gone, and the step says so
 instead of blaming a selector. That is one special case, and there are at least
 four more of exactly the same shape:
 
-- **signed in, wrong screen** — a redirect or a half-finished navigation left
-  the browser somewhere else. Seen 2026-09-18: a run reported a missing tab item
-  while the page sat on Warehouse configuration after an operator re-login.
-- **an error dialog** over the form, which every control is behind.
-- **a confirmation popup** the demonstration never met, because the record it
-  was demonstrated on did not already exist.
+- ~~**signed out**~~ — a password box on the page. `f4cfd4c8`, and `bf4ee957`
+  signs back in and carries on.
+- ~~**a dialog** over the form~~, which every control is behind, including the
+  confirmation popup the demonstration never met because the record it was
+  demonstrated on did not already exist. `67b6b46c` carries what it said.
+- ~~**signed in, wrong screen**~~ — a redirect or a half-finished navigation
+  left the browser somewhere else. `a71a5865`.
 - **permission denied** — the operator can reach the screen and not the action,
-  which is a fact about the account and not about the job.
+  which is a fact about the account and not about the job. Not built: structure
+  cannot answer it. The honest signal is the document's own status, 401 or 403,
+  which the extension already records per call.
+- **the page never finished loading** — a spinner where a form should be. Also
+  not built, and the reason to do it next is that it is the one of the five
+  that WAITING fixes, which nothing here currently does.
+
+Each of the three built says what is there and changes no verdict: a run that
+renamed a failure would be a run deciding it knows why a step failed, and what
+it knows is what is on the screen. The original reason is kept beside it,
+because the selector may be broken as well.
+
+**Known gap.** The three readings are unit-tested; the loop handing each one
+the step's own screen is not. A test that drove the whole loop with an
+always-failing control span its rungs, and a hanging test is worse than an
+honest hole. Three of the faults that reached the deployment on 2026-09-18 were
+this exact shape — the logic right, the wire one layer from where the test
+looked — so it is written down rather than left to be rediscovered.
 
 Each has a different answer: sign in and resume, navigate and retry, read the
 dialog and stop with what it said, answer the popup, stop and name the
@@ -272,13 +290,29 @@ operator's own Chrome, which nothing can sign in.
 
 Two halves, and the second is a policy decision rather than a technical one:
 
-1. **Entering them.** A form in the extension's options page that posts to
-   `POST /v1/secrets` and into the vault. Never through a chat, never through a
-   model, never into a transcript — which is the whole reason the vault exists.
-2. **Using them in the operator's browser.** Buildable: the driver protocol,
-   the vault and the keeper are all there. What changes is where the secrets
-   travel — today the backend to a server-side browser, under this to an
-   extension on a laptop. That widening is the org's call to make explicitly.
+1. **Entering them.** Already built, and in the panel rather than a console:
+   a step that types a password and finds the vault empty refuses with
+   `needs_secret`, and the run card draws the field. `fa8dcd76` connects the
+   case that never reached it — a job mined from an already-signed-in session
+   has no login step, so nothing ever asked. Never through a chat and never
+   through a model, which is the whole reason the vault exists.
+2. **Using them in the operator's browser.** `bf4ee957`. The concern raised
+   first — that this widens where secrets travel — was wrong, and worth
+   recording as wrong: the run has always fetched a vaulted password and typed
+   it through the extension for any demonstrated login step, with the record
+   scrubbed by `without_secrets`. What was missing was only that a mined job
+   has no login step to trigger it.
+
+   Both boxes before either submit (Keycloak puts them on one form, and a
+   driver that filled the first it found submitted a password with no username
+   five times running). A second factor is refused and said plainly rather than
+   attempted. Once per step, because a login that did not take is a wrong
+   password or an MFA prompt, and retrying spends an account's lockout budget
+   on a credential that is not going to start working.
+
+   `sign_in` is a COMMAND and not a plan `KIND`: a model that could choose to
+   sign in is a model that can decide to put a credential on a page. What
+   decides it here is a password box on the screen and something in the vault.
 
 ### Proven on the deployment, and not
 

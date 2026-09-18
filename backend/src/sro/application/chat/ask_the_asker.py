@@ -239,6 +239,22 @@ class SendTheDraft:
             logger.info("%s: no draft to send under %s", ctx.tenant_id.value, message_id)
             return ""
 
+        # The press itself, claimed before anything else.
+        #
+        # The run column below is one mail per RUN, and it is the only claim
+        # there was -- so the half with no run behind it had none at all. A
+        # card asks before any run exists (`run_id` is ""), `run` is None, the
+        # check is skipped, and every press sends another mail. Measured on the
+        # live deployment 2026-09-18: two identical mails to one person about
+        # one request, 15:05:34 and 15:09:06, both logged `asked ... about `
+        # with nothing after the `about`.
+        #
+        # Keyed by the DRAFT, which exists on both paths and is unique to the
+        # words somebody actually read.
+        if not await self._claim(ctx, message_id):
+            logger.info("%s: the draft %s has already been sent", ctx.tenant_id.value, message_id)
+            return ""
+
         run_id = str(draft.get("run_id") or "")
         async with self._uow as uow:
             run = await uow.workflow_runs.get(ctx.tenant_id, run_id) if run_id else None
@@ -285,6 +301,7 @@ class SendTheDraft:
                 thread_id,
                 f"I could not reach the mailbox to write to {to}.",
                 run_id,
+                message_id,
                 sent=False,
             )
             return ""
@@ -304,10 +321,33 @@ class SendTheDraft:
         # for it is a second store to keep in step.
         await self._never_read(ctx, answered)
         await self._say(
-            ctx, thread_id, f"Asked {to}. I will carry on when they reply.", run_id, sent=True
+            ctx,
+            thread_id,
+            f"Asked {to}. I will carry on when they reply.",
+            run_id,
+            message_id,
+            sent=True,
         )
         logger.info("%s: asked %s about %s", ctx.tenant_id.value, to, run_id)
         return to
+
+    async def _claim(self, ctx: RequestContext, message_id: str) -> bool:
+        """Take this draft, or say somebody already has it.
+
+        Never given back. A send that timed out may well have landed, and a
+        claim released on failure would retry it into a second mail -- the same
+        rule the connector ledger keeps everywhere else, and for the strongest
+        reason it has: a duplicate mail cannot be deleted afterwards.
+        """
+        async with self._uow as uow:
+            mine = await uow.tool_calls.remember(
+                ctx.tenant_id,
+                f"draft:{ctx.principal_id.value}:{message_id}",
+                tool="a mail drafted for whoever asked, sent once",
+                at=self._clock.now(),
+            )
+            await uow.commit()
+        return mine
 
     async def _never_read(self, ctx: RequestContext, answered: object) -> None:
         """Claim the id of the mail just sent, so no look ever reads it.
@@ -340,6 +380,7 @@ class SendTheDraft:
         thread_id: ThreadId,
         text: str,
         run_id: str = "",
+        draft_id: str = "",
         *,
         sent: bool,
     ) -> None:
@@ -359,9 +400,17 @@ class SendTheDraft:
                     speaker=Speaker.SYSTEM,
                     text=text,
                     said_at=self._clock.now(),
-                    # The run, so the panel can stop offering a press under
-                    # words that have already left.
-                    decision={"kind": SENT, "run_id": run_id, "sent": sent},
+                    # The run AND the draft, so the panel can stop offering a
+                    # press under words that have already left. The run is
+                    # empty on the half that asks before any run exists, and a
+                    # panel keyed only on that went on showing `Send it` under
+                    # a mail already in somebody's inbox.
+                    decision={
+                        "kind": SENT,
+                        "run_id": run_id,
+                        "draft_id": draft_id,
+                        "sent": sent,
+                    },
                 )
             )
             await uow.threads.save(thread)

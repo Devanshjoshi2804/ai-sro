@@ -287,6 +287,26 @@ async def test_one_draft_per_request_before_a_run_exists() -> None:
     assert await drafter.execute(CTX, _pending(), thread=THREAD) is False
 
 
+async def test_one_mail_per_draft_when_no_run_stands_behind_it() -> None:
+    """The half the run column never covered.
+
+    `asked_the_asker` is one mail per RUN, and a card asks before any run
+    exists -- so `run` is None, the check is skipped, and every press sends
+    another mail. Measured on the live deployment 2026-09-18: two identical
+    mails to one person about one request, 15:05:34 and 15:09:06.
+    """
+    uow, mailbox = FakeUnitOfWork(), _Mailbox()
+    await _drafter(uow, mailbox).execute(CTX, _pending(), thread=THREAD)
+    threads = await uow.threads.list_for_tenant(f.TENANT, opened_by=PrincipalId("devansh"), limit=1)
+    drafted = threads[0].messages[-1]
+    sender = SendTheDraft(uow, mailbox, FakeClock(), FakeIdFactory())
+
+    assert await sender.execute(CTX, threads[0].id, drafted.id) == "tanisha@example.com"
+    assert await sender.execute(CTX, threads[0].id, drafted.id) == ""
+
+    assert len(mailbox.sent) == 1, "one card, two mails"
+
+
 async def test_an_offer_naming_no_mail_asks_nobody() -> None:
     uow, mailbox = FakeUnitOfWork(), _Mailbox()
 

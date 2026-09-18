@@ -1021,6 +1021,36 @@ test("a drafted mail is shown whole, with the press under it", () => {
   assert.ok(labelled(item, /ask them myself/), "no way to decline");
 });
 
+test("a mail sent with no run behind it is not offered again", () => {
+  // The half `run_id` never covered. A card asks before any run exists, so the
+  // sent row carries an empty run and the claim keyed on it claimed nothing --
+  // `Send it` stayed live under a mail already in somebody's inbox. Seen on
+  // the deployment 2026-09-18: two identical mails about one request.
+  const item = messages(
+    ledger({
+      id: "thr-1",
+      messages: [
+        {
+          id: "m-draft", speaker: "system", text: "This is what I would send.",
+          said_at: "2026-09-18T13:00:00Z",
+          decision: {
+            kind: "mail_draft", run_id: "", to: "tanisha@example.com",
+            subject: "Re: it", body: "the words",
+          },
+        },
+        {
+          id: "m-sent", speaker: "system", text: "Asked tanisha@example.com.",
+          said_at: "2026-09-18T13:01:00Z",
+          decision: { kind: "mail_sent", run_id: "", draft_id: "m-draft", sent: true },
+        },
+      ],
+    }, {}, { onPress: () => {} }),
+  )[0];
+
+  assert.equal(labelled(item, /Send it/), undefined, "it still offers to send a mail that went");
+  assert.equal(item.dataset.answered, "sent");
+});
+
 test("a mail that has gone is not offered again", () => {
   // The claim is taken before the mailbox is reached, so a second press could
   // send a second mail about one request -- or worse, one nobody can tell went.

@@ -64,7 +64,11 @@ const KINDS = {
   ],
   mail_draft: [
     { answer: "send-draft", label: "Send it", quiet: false },
-    { answer: "drop-draft", label: "No, I\u2019ll ask them myself", quiet: true },
+    {
+      answer: "drop-draft",
+      label: "No, I\u2019ll ask them myself",
+      quiet: true,
+    },
   ],
   result: [
     { answer: "undo", label: "Undo that", quiet: false },
@@ -492,11 +496,14 @@ export function alreadyAnswered(messages) {
     if (decision?.kind === "answered" && decision.candidate_id) {
       done.set(decision.candidate_id, decision.answer || "answered");
     }
-    // A mail that went. Keyed on the run rather than the message, because what
-    // must not be offered twice is asking one person about one request -- and
-    // the backend says so on its own line further down the thread.
-    if (decision?.kind === "mail_sent" && decision.run_id) {
-      done.set(decision.run_id, "sent");
+    // A mail that went. By the run where there is one -- what must not be
+    // offered twice is asking one person about one request -- and by the draft
+    // itself where there is not. A card asks before any run exists, so keyed
+    // only on the run this claimed nothing, and `Send it` stayed live under a
+    // mail already sitting in somebody's inbox.
+    if (decision?.kind === "mail_sent") {
+      if (decision.run_id) done.set(decision.run_id, "sent");
+      if (decision.draft_id) done.set(decision.draft_id, "sent");
     }
   }
   return done;
@@ -588,19 +595,19 @@ function offeringToFinish(nudge, onPress) {
       ? `${nudge.title} \u2014 ${typed}, so far. Want me to finish it?`
       : nudge.k > 0
         ? `${nudge.title} \u2014 already started. Want me to finish it?`
-      : things > 1
-        ? `${nudge.title}, for ${things} things \u2014 want me to do them?`
-        : // What this press would create, where it is known.
-          //
-          // An offer read out of a mail carries the values now -- the look
-          // gathers them before offering, because nobody can consent to a
-          // write they cannot see. Four of these stacked up on the deployment,
-          // 2026-09-18, every one of them "Create a Customer Type -- want me
-          // to do it?", and there was nothing on any of them to tell one
-          // request from another or to check a reading against.
-          typed
-          ? `${nudge.title} \u2014 ${typed}. Want me to do it?`
-          : `${nudge.title} \u2014 want me to do it?`;
+        : things > 1
+          ? `${nudge.title}, for ${things} things \u2014 want me to do them?`
+          : // What this press would create, where it is known.
+            //
+            // An offer read out of a mail carries the values now -- the look
+            // gathers them before offering, because nobody can consent to a
+            // write they cannot see. Four of these stacked up on the deployment,
+            // 2026-09-18, every one of them "Create a Customer Type -- want me
+            // to do it?", and there was nothing on any of them to tell one
+            // request from another or to check a reading against.
+            typed
+            ? `${nudge.title} \u2014 ${typed}. Want me to do it?`
+            : `${nudge.title} \u2014 want me to do it?`;
   item.append(what);
 
   // And which things, in the order they would be done. What a person is being
@@ -684,9 +691,15 @@ function offeringToFinish(nudge, onPress) {
     // knows: a job holding everything it needs runs, and one short of a value
     // -- or carrying one its own box will not take -- becomes a question in
     // the conversation. Both are the same yes.
-    onPress?.(sortItOut ? "ask-about-offer" : "start-rig-run", nudge, item, yes, {
-      values: {},
-    });
+    onPress?.(
+      sortItOut ? "ask-about-offer" : "start-rig-run",
+      nudge,
+      item,
+      yes,
+      {
+        values: {},
+      },
+    );
   });
   no.addEventListener("click", () => {
     if (ended) return;
@@ -813,7 +826,10 @@ function saying(
     //
     // Already sent is not a thing to offer again. `mail_sent` further down the
     // thread is the answer to this one.
-    if (spent.get(message.decision.run_id) !== "sent") {
+    if (
+      spent.get(message.decision.run_id) !== "sent" &&
+      spent.get(message.id) !== "sent"
+    ) {
       // Who and what, on their own lines. A mail is read as a mail -- the
       // recipient, then the subject, then the words -- and one run-on line is
       // the shape of a log entry, not of something somebody is authorising.

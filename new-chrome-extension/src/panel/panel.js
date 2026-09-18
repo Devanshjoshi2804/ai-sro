@@ -1928,6 +1928,43 @@ async function say(text) {
   // about what it is doing, so this runs on that path too.
   sendingNow = null;
   if (answered) show(answered, { asked: true });
+  // And if that answer was the last one, go and watch it.
+  //
+  // The run starts in the worker the moment the reply lands, and the card that
+  // says what it is doing is drawn on Home -- so answering the last question
+  // left the operator sitting in the conversation while the job they had just
+  // finished authorising ran somewhere they were not looking. The outbound
+  // half of this walk was built and the return half was not.
+  if (startedByTheAnswer(answered)) goToTheRun();
+}
+
+/** Whether the reply to that sentence set a job running.
+ *
+ * `resume` is the door's word, and it is the door's to give -- the same field
+ * the worker starts the run on. Read here rather than inferred from the text,
+ * for the reason the worker reads it: this browser must not decide that a
+ * press was implied.
+ */
+function startedByTheAnswer(thread) {
+  for (const message of [...(thread?.messages || [])].reverse()) {
+    if (message.speaker !== "assistant") continue;
+    const decision = message.decision || {};
+    return Boolean(decision.kind === "job" && decision.resume);
+  }
+  return false;
+}
+
+/** Show the half of the panel a run is drawn in.
+ *
+ * The mirror of `goToTheConversation`, and it exists for the same reason: a
+ * transition with only an outbound half leaves somebody somewhere they cannot
+ * see what they just did.
+ */
+function goToTheRun() {
+  pane = "home";
+  paintPanes();
+  drawn = null;
+  void refresh();
 }
 
 /** The sentence just sent, and the fact that an answer is being worked out.

@@ -153,6 +153,7 @@ let approveRefusal = null;
  * `false` and never a throw. `null` is the door recording the fate. */
 let offerRefusal = null;
 let chatRead = null;
+let threadSaid = null;
 let lookupRead = null;
 let lookedUp = [];
 
@@ -194,7 +195,8 @@ const rigServer = async (url, options = {}) => {
   if (path.endsWith("/heartbeat"))
     return json({ policy_version: 0, policy: null, pause: false });
   if (path === "/v1/shapes") return json({ shapes: shapesServed, can_find: shapesCanFind });
-  if (path === "/v1/threads/thr-1/messages") return json({ id: "thr-1", messages: [] });
+  if (path === "/v1/threads/thr-1/messages")
+    return json(threadSaid || { id: "thr-1", messages: [] });
   if (path === "/v1/chat") return chatRead ? json(chatRead) : json({ detail: "no model" }, 503);
   if (path === "/v1/chat/from-the-mail") {
     mailLooks.push(options.method || "GET");
@@ -1212,6 +1214,49 @@ test("a sentence in the panel becomes the same offer a recognised walk makes", a
     [],
     "a sentence started a run without anybody pressing anything",
   );
+});
+
+test("the answer that finishes a job resumes it where it stopped", async () => {
+  // Without this the run starts at step 0 and re-walks everything the first
+  // one performed: on `Create a Customer Type` it re-opens the mail,
+  // re-navigates, presses Add again and re-types both fields, to arrive back
+  // at the box it stopped in front of.
+  ready();
+  threadSaid = {
+    id: "thr-1",
+    messages: [
+      { id: "m1", speaker: "operator", text: "NSRO", said_at: "2026-09-18T10:20:01Z" },
+      {
+        id: "m2",
+        speaker: "assistant",
+        text: "Running Create a Customer Type now.",
+        said_at: "2026-09-18T10:20:02Z",
+        decision: {
+          kind: "job",
+          workflow_id: "wfl_wa",
+          resume: true,
+          from_step: 4,
+          values: { workArea: "NSRO" },
+          watched: true,
+        },
+      },
+    ],
+  };
+
+  await send({ kind: "thread-say", threadId: "thr-1", text: "NSRO", tabId: TAB });
+  await until(
+    () => calls.some((call) => call.path === "/v1/workflow-runs"),
+    "the last answer started nothing",
+  );
+
+  const started = JSON.parse(calls.find((call) => call.path === "/v1/workflow-runs").body);
+  assert.equal(started.workflow_id, "wfl_wa");
+  assert.equal(started.from_step, 4, "it started the job again from the beginning");
+  // `matched` is a GESTURE count and stays 0: sending a step as one is the
+  // defect that marked steps done nobody had done.
+  assert.equal(started.matched, 0);
+  assert.deepEqual(started.values, { workArea: "NSRO" });
+  threadSaid = null;
 });
 
 test("a question is answered rather than turned into an offer", async () => {

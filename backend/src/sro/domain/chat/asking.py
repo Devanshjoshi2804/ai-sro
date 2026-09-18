@@ -137,6 +137,25 @@ class Pending:
     offer it decides what a yes means: start it and let the run find them, or
     ask for the first one here."""
 
+    from_step: int = 0
+    """Which step of the job the run that asked this had reached.
+
+    A run that comes up short ENDS -- it must, because a write with a blank in
+    it is a wrong record -- and the answer starts another one. Starting that
+    one at step 0 re-walks everything the first one did: on `Create a Customer
+    Type` it re-opens the mail, re-navigates, presses Add again and re-types
+    both fields, to reach the box it stopped in front of.
+
+    So the run says where it stopped and the next one begins there. Safe by
+    construction rather than by hope: `run.needs` is set only at the two
+    truncation stops and by a gather that came back short, and all three
+    happen BEFORE the step's command goes out. The step named here is one that
+    did not complete, every step under it did, and every step over it never
+    ran -- which is exactly what `from_step` means.
+
+    Zero for a question asked about an OFFER, which has no run behind it yet
+    and nothing to resume."""
+
     limits: Mapping[str, int] = field(default_factory=dict)
     """What the box behind a name will hold, where anything knows.
 
@@ -293,8 +312,17 @@ def pending_job(messages: Sequence[Message]) -> Pending | None:
             items=tuple(_strings(one) for one in items) if isinstance(items, list | tuple) else (),
             watched=bool(decision.get("watched", True)),
             limits=_numbers(decision.get("limits")),
+            from_step=_step(decision.get("from_step")),
         )
     return None
+
+
+def _step(said: object) -> int:
+    """Which step a stored decision names, or 0. A bool is an int in Python and
+    `from_step: true` would otherwise resume a job at its second step."""
+    if isinstance(said, bool) or not isinstance(said, int) or said < 0:
+        return 0
+    return said
 
 
 def _numbers(said: object) -> dict[str, int]:
@@ -404,6 +432,7 @@ def answered(pending: Pending, said: str) -> Pending:
         items=pending.items,
         watched=pending.watched,
         limits=pending.limits,
+        from_step=pending.from_step,
     )
 
 

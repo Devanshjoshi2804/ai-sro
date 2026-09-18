@@ -309,6 +309,11 @@ class Converse:
                             "items": [dict(one) for one in filled.items],
                             "missing": [],
                             "limits": dict(filled.limits),
+                            # Where the run that asked had got to. Without it
+                            # the answer starts the job from the beginning and
+                            # re-walks every step the first run performed, to
+                            # arrive back at the box it stopped in front of.
+                            "from_step": filled.from_step,
                             "can_find": self._can_gather,
                             # They already pressed yes. This is the same press
                             # arriving late, not a second one to ask for.
@@ -334,6 +339,7 @@ class Converse:
                             "missing": list(filled.missing),
                             "watched": filled.watched,
                             "limits": dict(filled.limits),
+                            "from_step": filled.from_step,
                         },
                     )
                 )
@@ -381,6 +387,7 @@ class Converse:
                 "items": [dict(one) for one in offered.items],
                 "missing": [] if ready else list(offered.missing),
                 "limits": dict(offered.limits),
+                "from_step": offered.from_step,
                 "can_find": self._can_gather,
                 "watched": offered.watched,
             }

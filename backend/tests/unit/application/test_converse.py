@@ -454,6 +454,9 @@ async def test_the_answer_to_a_question_is_taken_as_the_answer() -> None:
         # and an answer that still will not fit can be refused rather than
         # carried into the form. Empty here: nothing has measured these.
         "limits": {},
+        # Where the run that asked had got to. Zero here: this question was
+        # asked before any step ran.
+        "from_step": 0,
         "watched": True,
     }
 

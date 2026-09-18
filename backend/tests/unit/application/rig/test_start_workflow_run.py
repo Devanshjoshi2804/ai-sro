@@ -34,7 +34,7 @@ from sro.application.ports.model import AskerUnavailable
 from sro.application.shared.refusals import OverCap
 from sro.domain.chat.reading import ChatReading
 from sro.domain.execution.waiting import K_PATIENCE, read_wait, still_waiting
-from sro.domain.execution.workflow_run import WorkflowRun
+from sro.domain.execution.workflow_run import RunStep, WorkflowRun
 from sro.domain.observation.gesture import Action, Gesture
 from sro.domain.shared.errors import Conflict, NotFound
 from sro.domain.shared.identifiers import DeviceId, PrincipalId, TenantId
@@ -44,6 +44,7 @@ from tests.unit.fakes import (
     FakeChannel,
     FakeClock,
     FakeGestureRepository,
+    FakeIdFactory,
     FakeUnitOfWork,
 )
 
@@ -969,3 +970,49 @@ async def test_nothing_is_waiting_on_a_conversation_nobody_named() -> None:
     assert await uow.workflow_runs.waiting_on(TENANT, server="gmail", thread="") is None
     assert await uow.workflow_runs.waiting_on(TENANT, server="", thread="t-9") is None
     assert await uow.workflow_runs.waiting_on(RIVAL, server="gmail", thread="t-9") is None
+
+
+async def test_the_question_says_which_step_the_run_had_reached() -> None:
+    """So the answer resumes the job rather than restarting it.
+
+    A run that comes up short ends, and the one the answer starts would
+    otherwise begin at step 0 -- re-opening the mail, re-navigating, pressing
+    Add again and re-typing both fields, to arrive back at the box it stopped
+    in front of.
+    """
+    uow = await _held()
+    run = await _press(_starter(uow))
+    run.steps = [
+        RunStep(order=0, says="open the screen", verdict="held", verdict_by="status"),
+        RunStep(order=4, says="type the code", verdict="failed", verdict_by="read"),
+    ]
+    run.needs = ["Customer Type"]
+    await uow.workflow_runs.save(run)
+
+    starter = StartWorkflowRun(
+        uow,
+        channel=_Browsers(),
+        asker=_A_MODEL,
+        plan_model=PLAN,
+        rescue_model=RESCUE,
+        clock=FakeClock(NOW),
+        cap_usd=CAP,
+        stops=Stops(),
+        approvals=Approvals(),
+        ids=FakeIdFactory(),
+    )
+    await starter._ask_for_values(_ctx(), run, "Create a Customer Type")
+
+    # In the thread of whoever the run was FOR, which the fixture calls `form`
+    # -- a question in the wrong conversation is worse than none.
+    threads = await uow.threads.list_for_tenant(
+        TENANT, opened_by=PrincipalId(run.started_by), limit=1
+    )
+    assert threads, "no question was asked"
+    decision = threads[0].messages[-1].decision
+    assert decision is not None
+    # The step that STOPPED, not the first one and not the one after it: the
+    # steps under it completed, this one did not, and the ones over it never
+    # ran.
+    assert decision["from_step"] == 4
+    assert decision["from_run"] == run.id

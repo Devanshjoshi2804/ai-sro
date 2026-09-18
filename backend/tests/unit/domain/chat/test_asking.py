@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from sro.domain.chat.asking import (
     NEEDS,
     Pending,
+    _step,
     answered,
     let_go,
     pending_job,
@@ -150,3 +151,30 @@ def test_what_is_outstanding_keeps_the_order_it_was_given_in() -> None:
     values = {"Customer Type": "NEWSROTEST", "Description": "north dock"}
 
     assert unusable(values, limits) == ("Customer Type", "Description")
+
+
+def test_where_the_run_stopped_survives_the_answer_and_the_row() -> None:
+    """A run that comes up short ENDS, and the answer starts another one. At
+    step 0 that one re-walks everything the first performed -- re-opens the
+    mail, re-navigates, presses Add again -- to arrive back at the box it
+    stopped in front of."""
+    waiting = Pending(
+        workflow_id="wfl_1",
+        title="Create a Customer Type",
+        values={},
+        missing=("Customer Type", "Description"),
+        from_step=4,
+    )
+
+    # It survives an answer that does not finish the job...
+    assert answered(waiting, "NSRO").from_step == 4
+    # ...and the one that does.
+    assert answered(answered(waiting, "NSRO"), "north dock").from_step == 4
+
+
+def test_a_step_a_row_cannot_be_read_as_is_the_start_of_the_job() -> None:
+    """A bool is an int in Python, so `from_step: true` would otherwise resume
+    a job at its second step -- and a negative is a row nothing wrote."""
+    for said in (None, "4", True, False, -1, {}):
+        assert _step(said) == 0, said
+    assert _step(4) == 4

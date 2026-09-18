@@ -564,6 +564,15 @@ async function resumeTheJob(placed) {
       live: true,
       allow_focus: true,
       matched: 0,
+      // Where the run that asked the question had got to.
+      //
+      // Without it this starts at step 0 and re-walks everything the first run
+      // performed: on `Create a Customer Type` it re-opens the mail,
+      // re-navigates, presses Add again and re-types both fields, to arrive
+      // back at the box it stopped in front of. `matched` stays 0 because that
+      // counts GESTURES a browser tail matched and this is a step, and sending
+      // one as the other is the defect that marked steps done nobody had done.
+      from_step: Number.isInteger(placed.from_step) ? placed.from_step : 0,
       watched: placed.watched !== false,
     });
     await state.setActiveRun({

@@ -621,6 +621,12 @@ class StartWorkflowRun:
             missing=tuple(run.needs),
             items=tuple(dict(one) for one in run.items),
             watched=run.watched,
+            limits=limits,
+            # Where this run got to, so the one the answer starts does not
+            # re-walk it. See `Pending.from_step` for why resuming AT the
+            # stopped step is safe: every way `needs` is set happens before
+            # that step's command goes out.
+            from_step=run.steps[-1].order if run.steps else 0,
         )
         await SayWhatHappened(self._uow, self._clock, self._ids).execute(
             ctx,
@@ -643,6 +649,8 @@ class StartWorkflowRun:
                 # it is carried rather than assumed, because a run started by a
                 # trigger that asked and was answered hours later is not.
                 "watched": pending.watched,
+                "limits": dict(limits),
+                "from_step": pending.from_step,
                 "from_run": run.id,
             },
         )

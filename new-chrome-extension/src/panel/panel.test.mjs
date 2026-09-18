@@ -517,6 +517,132 @@ test("the answer replaces the sentence rather than standing beside it", async ()
   );
 });
 
+test("the last answer takes them to where the run they just started is drawn", async () => {
+  // The run starts in the worker the moment the reply lands, and the card that
+  // says what it is doing is on Home. Without this the operator answers the
+  // last question and sits in the conversation while the job they have just
+  // finished authorising runs somewhere they are not looking.
+  const { ids } = panel({ deviceId: "dev-1", nudges: [] }, null, {
+    thread: { id: "thr_1", messages: [] },
+    "thread-say": {
+      id: "thr_1",
+      messages: [
+        { id: "m1", speaker: "operator", text: "NSRO", said_at: "2026-09-18T10:20:01Z" },
+        {
+          id: "m2", speaker: "assistant", text: "Running Create a Customer Type now.",
+          said_at: "2026-09-18T10:20:02Z",
+          decision: { kind: "job", workflow_id: "wfl_1", resume: true, from_step: 4 },
+        },
+      ],
+    },
+  });
+  navTab(ids, "chat").listeners[0]();
+  await new Promise((done) => setImmediate(done));
+  assert.equal(ids["thread"].hidden, false, "it did not start on Chat");
+
+  const composer = (function find(el) {
+    if (el?.tag === "input") return el;
+    for (const kid of el?.kids || []) {
+      const got = find(kid);
+      if (got) return got;
+    }
+    return null;
+  })(ids["ask-bar"]);
+  composer.value = "NSRO";
+  (function walk(el, out = []) {
+    out.push(el);
+    for (const kid of el?.kids || []) walk(kid, out);
+    return out;
+  })(ids["ask-bar"]).find((el) => el?.textContent === "\u2191").listeners[0]();
+  await new Promise((done) => setImmediate(done));
+  await new Promise((done) => setImmediate(done));
+
+  assert.equal(ids["thread"].hidden, true, "left them in the conversation");
+  assert.equal(ids["cards"].hidden, false, "the run is drawn on Home and Home is hidden");
+});
+
+test("a job offered but not started is not something to go and watch", async () => {
+  // `resume` is the door's word for "a press already happened and this is it
+  // arriving late", and it is what the worker starts a run on. A `job`
+  // decision WITHOUT it is an offer -- a card to press, nothing running -- so
+  // moving them to watch it would be moving them to watch nothing.
+  const { ids } = panel({ deviceId: "dev-1", nudges: [] }, null, {
+    thread: { id: "thr_1", messages: [] },
+    "thread-say": {
+      id: "thr_1",
+      messages: [
+        { id: "m1", speaker: "operator", text: "create a work area", said_at: "2026-09-18T10:20:01Z" },
+        {
+          id: "m2", speaker: "assistant", text: "Create Work Area does that — say the word.",
+          said_at: "2026-09-18T10:20:02Z",
+          decision: { kind: "job", workflow_id: "wfl_1", values: {}, missing: [] },
+        },
+      ],
+    },
+  });
+  navTab(ids, "chat").listeners[0]();
+  await new Promise((done) => setImmediate(done));
+
+  const composer = (function find(el) {
+    if (el?.tag === "input") return el;
+    for (const kid of el?.kids || []) {
+      const got = find(kid);
+      if (got) return got;
+    }
+    return null;
+  })(ids["ask-bar"]);
+  composer.value = "create a work area";
+  (function walk(el, out = []) {
+    out.push(el);
+    for (const kid of el?.kids || []) walk(kid, out);
+    return out;
+  })(ids["ask-bar"]).find((el) => el?.textContent === "\u2191").listeners[0]();
+  await new Promise((done) => setImmediate(done));
+  await new Promise((done) => setImmediate(done));
+
+  assert.equal(ids["thread"].hidden, false, "it moved them to watch a run nobody started");
+});
+
+test("an answer that is not the last one leaves them where they are", async () => {
+  // Only the answer that STARTS something moves them. A conversation that
+  // jumped to Home after every sentence would be unusable.
+  const { ids } = panel({ deviceId: "dev-1", nudges: [] }, null, {
+    thread: { id: "thr_1", messages: [] },
+    "thread-say": {
+      id: "thr_1",
+      messages: [
+        { id: "m1", speaker: "operator", text: "GPP", said_at: "2026-09-18T10:20:01Z" },
+        {
+          id: "m2", speaker: "assistant", text: "What should Description be?",
+          said_at: "2026-09-18T10:20:02Z",
+          decision: { kind: "needs_values", workflow_id: "wfl_1", missing: ["Description"] },
+        },
+      ],
+    },
+  });
+  navTab(ids, "chat").listeners[0]();
+  await new Promise((done) => setImmediate(done));
+
+  const composer = (function find(el) {
+    if (el?.tag === "input") return el;
+    for (const kid of el?.kids || []) {
+      const got = find(kid);
+      if (got) return got;
+    }
+    return null;
+  })(ids["ask-bar"]);
+  composer.value = "GPP";
+  (function walk(el, out = []) {
+    out.push(el);
+    for (const kid of el?.kids || []) walk(kid, out);
+    return out;
+  })(ids["ask-bar"]).find((el) => el?.textContent === "\u2191").listeners[0]();
+  await new Promise((done) => setImmediate(done));
+  await new Promise((done) => setImmediate(done));
+
+  assert.equal(ids["thread"].hidden, false, "it moved them mid-conversation");
+});
+
 test("a status landing does not move the view out from under them", async () => {
   // Somebody who has scrolled up is reading something, and the worker pushes a
   // status every couple of seconds.

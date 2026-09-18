@@ -3637,6 +3637,12 @@ class AskAboutOfferRequest(BaseModel):
     values: dict[str, str] = Field(default_factory=dict)
     missing: list[str] = Field(default_factory=list)
     items: list[dict[str, str]] = Field(default_factory=list)
+    mail_thread: str = ""
+    """The mail conversation this offer was read out of.
+
+    Sent back so the run an answer starts answers to it, exactly as one the
+    press starts does. See `Pending.mail_thread`."""
+
     about: str = ""
     """What the request this offer came from was called.
 

@@ -137,6 +137,16 @@ class Pending:
     offer it decides what a yes means: start it and let the run find them, or
     ask for the first one here."""
 
+    mail_thread: str = ""
+    """The outside conversation this job was asked for in, where there is one.
+
+    Carried so the run an ANSWER starts is findable by a reply to that mail,
+    the same as one a press starts. Without it the two doors disagree about
+    something a person cannot see: press the card and the run answers to the
+    thread, answer the question and it answers to nobody -- and 3.2 exists
+    precisely so the person who knows the missing value, who is usually
+    whoever sent the request, can say it where they are."""
+
     from_step: int = 0
     """Which step of the job the run that asked this had reached.
 
@@ -313,6 +323,7 @@ def pending_job(messages: Sequence[Message]) -> Pending | None:
             watched=bool(decision.get("watched", True)),
             limits=_numbers(decision.get("limits")),
             from_step=_step(decision.get("from_step")),
+            mail_thread=str(decision.get("mail_thread") or ""),
         )
     return None
 
@@ -433,6 +444,7 @@ def answered(pending: Pending, said: str) -> Pending:
         watched=pending.watched,
         limits=pending.limits,
         from_step=pending.from_step,
+        mail_thread=pending.mail_thread,
     )
 
 

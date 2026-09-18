@@ -154,6 +154,7 @@ let approveRefusal = null;
 let offerRefusal = null;
 let chatRead = null;
 let threadSaid = null;
+let askedAbout = null;
 let lookupRead = null;
 let lookedUp = [];
 
@@ -198,6 +199,10 @@ const rigServer = async (url, options = {}) => {
   if (path === "/v1/threads/thr-1/messages")
     return json(threadSaid || { id: "thr-1", messages: [] });
   if (path === "/v1/chat") return chatRead ? json(chatRead) : json({ detail: "no model" }, 503);
+  if (path === "/v1/chat/about-an-offer")
+    return askedAbout
+      ? json(askedAbout, askedAbout.detail ? 503 : 200)
+      : json({ asked: "Customer Type takes 4 characters. What should it be?" });
   if (path === "/v1/chat/from-the-mail") {
     mailLooks.push(options.method || "GET");
     return mailLooked ? json(mailLooked) : json({ detail: "no model" }, 503);
@@ -1539,6 +1544,77 @@ test("a look that fails is not a red line in the panel", async () => {
 
   assert.equal(looked.ok, true);
   assert.match(looked.skipped, /no model/);
+});
+
+test("taking an offer up into the conversation ends the card", async () => {
+  // The first version of this left the card open, reasoning that the offer had
+  // been "taken up" rather than accepted and that the RUN would end it -- and
+  // then nothing ever did. It stayed open and pressable through the question,
+  // the answer and the 201, so each further press stacked another identical
+  // question: three of them for one request, on the deployment 2026-09-18.
+  ready();
+  mailLooked = {
+    read: 1,
+    why: "offered Create a Customer Type",
+    offered: [
+      {
+        message: "m-88",
+        workflow_id: "wfl_wa",
+        title: "Create a Customer Type",
+        values: { "Customer Type": "NEWSROTEST" },
+        missing: [],
+        thread: "t-88",
+        subject: "Customer type for the SRO pilot",
+        too_long: { "Customer Type": 4 },
+      },
+    ],
+  };
+  await send({ kind: "look-in-the-mail" });
+  await until(() => openOnes().length === 1, "the mail made no card");
+  const [card] = openOnes();
+
+  const answer = await send({ kind: "ask-about-offer", nudgeId: card.id });
+  assert.equal(answer.ok, true, answer.error);
+
+  // Ended, so a second press cannot stack a second question.
+  assert.equal(openOnes().length, 0, "the card is still open after being taken up");
+  const again = await send({ kind: "ask-about-offer", nudgeId: card.id });
+  assert.equal(again.ok, false);
+  assert.match(String(again.error), /already ended/);
+
+  // And what went up carried the mail, so the run an answer starts is findable
+  // by a reply to it.
+  const asked = JSON.parse(
+    calls.find((call) => call.path === "/v1/chat/about-an-offer").body,
+  );
+  assert.equal(asked.mail_thread, "t-88");
+  assert.equal(asked.about, "Customer type for the SRO pilot");
+  assert.deepEqual(asked.limits, { "Customer Type": 4 });
+  askedAbout = null;
+});
+
+test("an asking that fails leaves the offer theirs to answer", async () => {
+  ready();
+  mailLooked = {
+    read: 1,
+    why: "offered Create a Customer Type",
+    offered: [
+      {
+        message: "m-89", workflow_id: "wfl_wa", title: "Create a Customer Type",
+        values: {}, missing: ["Customer Type"], thread: "t-89",
+      },
+    ],
+  };
+  await send({ kind: "look-in-the-mail" });
+  await until(() => openOnes().length === 1, "the mail made no card");
+  const [card] = openOnes();
+  askedAbout = { detail: "no model" };
+
+  const answer = await send({ kind: "ask-about-offer", nudgeId: card.id });
+
+  assert.equal(answer.ok, false);
+  assert.equal(openOnes().length, 1, "a failed press ended the offer anyway");
+  askedAbout = null;
 });
 
 test("a mail offer this browser cannot keep is said out loud, not swallowed", async () => {

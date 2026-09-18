@@ -573,6 +573,12 @@ async function resumeTheJob(placed) {
       // counts GESTURES a browser tail matched and this is a step, and sending
       // one as the other is the defect that marked steps done nobody had done.
       from_step: Number.isInteger(placed.from_step) ? placed.from_step : 0,
+      // Which outside conversation this run answers to, carried by the door
+      // through every question. Without it a run started by an ANSWER is
+      // findable by nobody while one started by a PRESS is findable by a
+      // reply -- and which of the two happened is not something the person who
+      // sent the request can see.
+      mail_thread: placed.mail_thread || "",
       watched: placed.watched !== false,
     });
     await state.setActiveRun({
@@ -622,6 +628,7 @@ async function offerFromMail(offer) {
       items: [],
       missing: offer.missing || [],
       thread: offer.thread || "",
+      subject: offer.subject || "",
       too_long: offer.too_long || {},
       can_find: true,
       parameters: (shape?.parameters || []).map((one) => one.name),
@@ -1731,15 +1738,39 @@ async function handle(message, sender) {
       // answering path takes it from there -- one question, one answer, and
       // when the last one lands the job starts on this press.
       //
-      // The offer is NOT claimed. It has not been accepted or dismissed, it
-      // has been taken up, and marking a fate here would close it under
-      // somebody who is halfway through answering. What ends it is the run.
-      const held = await state.nudges();
-      const found = held.find((n) => n.id === message.nudgeId);
-      if (!found || found.source !== "rig")
-        return { ok: false, error: "no such offer" };
-      if (found.state !== "open")
-        return { ok: false, error: "this offer has already ended" };
+      // The press ends the offer, and the first version of this was wrong to
+      // say otherwise.
+      //
+      // It reasoned that the offer had been "taken up" rather than accepted
+      // and that the RUN would end it -- and then nothing ever did. The card
+      // stayed open and pressable through the question, the answer and the
+      // 201, so each further press stacked another identical question in the
+      // thread: three of them on the deployment 2026-09-18, for one request.
+      //
+      // A press is a yes. What it buys is a question rather than a run, and
+      // from that moment the THREAD holds the state -- which is the rule this
+      // whole surface keeps, and the reason nothing is lost by ending the card:
+      // somebody who walks away mid-answer comes back to the question, in
+      // their conversation, with everything established still on it.
+      //
+      // Claimed under the same lock and before the call, for `start-rig-run`'s
+      // reasons: between a check outside it and the POST sits a network call,
+      // and anything reading the list meanwhile would find the offer open and
+      // end it a second time.
+      const claimed = await serially(async () => {
+        const held = await state.nudges();
+        const one = held.find((n) => n.id === message.nudgeId);
+        if (!one || one.source !== "rig") return { error: "no such offer" };
+        if (one.state !== "open") return { error: "this offer has already ended" };
+        await state.setNudges(
+          held.map((n) =>
+            n.id === one.id ? { ...n, state: "accepted", endedAt: Date.now() } : n,
+          ),
+        );
+        return { nudge: one };
+      });
+      if (claimed.error) return { ok: false, error: claimed.error };
+      const found = claimed.nudge;
       try {
         const asked = await api.askAboutOffer({
           workflow_id: found.workflowId,
@@ -1751,6 +1782,12 @@ async function handle(message, sender) {
           // looked up again: a run that learned a limit in between would
           // change the question under somebody already reading it.
           limits: found.tooLong || {},
+          // The mail this was read out of, so the run the ANSWER starts
+          // answers to it -- the same as one this press starts directly. The
+          // two doors disagreeing about that is invisible to a person and
+          // costs them the reply that would have finished the job.
+          mail_thread: found.mailThread || "",
+          about: found.mailSubject || "",
           watched: true,
         });
         await say(
@@ -1758,6 +1795,17 @@ async function handle(message, sender) {
         );
         return { ok: true, asked: asked.asked || "" };
       } catch (error) {
+        // Nothing was asked, so nothing was decided: the offer goes back to
+        // being theirs to answer. The same rule `start-rig-run` keeps when a
+        // run refuses to start -- a failed press is not an ending.
+        await serially(async () => {
+          const now = await state.nudges();
+          await state.setNudges(
+            now.map((n) =>
+              n.id === found.id ? { ...n, state: "open", endedAt: null } : n,
+            ),
+          );
+        });
         return { ok: false, error: error.problem?.detail || error.message };
       }
     }

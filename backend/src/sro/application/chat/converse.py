@@ -314,6 +314,9 @@ class Converse:
                             # re-walks every step the first run performed, to
                             # arrive back at the box it stopped in front of.
                             "from_step": filled.from_step,
+                            # So the run this answer starts answers to the same
+                            # mail a run the card started would have.
+                            "mail_thread": filled.mail_thread,
                             "can_find": self._can_gather,
                             # They already pressed yes. This is the same press
                             # arriving late, not a second one to ask for.
@@ -340,6 +343,7 @@ class Converse:
                             "watched": filled.watched,
                             "limits": dict(filled.limits),
                             "from_step": filled.from_step,
+                            "mail_thread": filled.mail_thread,
                         },
                     )
                 )
@@ -388,6 +392,7 @@ class Converse:
                 "missing": [] if ready else list(offered.missing),
                 "limits": dict(offered.limits),
                 "from_step": offered.from_step,
+                "mail_thread": offered.mail_thread,
                 "can_find": self._can_gather,
                 "watched": offered.watched,
             }

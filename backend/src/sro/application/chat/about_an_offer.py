@@ -105,6 +105,11 @@ class AskAboutTheOffer:
                 # being asked -- and so an answer that still will not fit is
                 # refused rather than carried into the form.
                 "limits": dict(pending.limits),
+                # The mail this was asked for in, so the run the ANSWER starts
+                # is findable by a reply to it -- the same as one the card
+                # starts directly.
+                "mail_thread": pending.mail_thread,
+                "from_step": pending.from_step,
                 "watched": pending.watched,
             },
         )

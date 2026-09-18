@@ -143,6 +143,8 @@ export function fire(candidate, now, { tabId = null, visit = "" } = {}) {
     // of one. Sent back when the job starts, so a run that comes up short can
     // be found again by a reply to that mail.
     mailThread: candidate.thread || "",
+    // What the request was called, so a conversation about it can name which.
+    mailSubject: candidate.subject || "",
     tooLong: candidate.too_long || {},
     parameters: candidate.parameters || [],
   };

@@ -93,6 +93,7 @@ def _step_values(workflow_id: str, step: Step) -> dict[str, Any]:
         "system": step.system,
         "cites": list(step.cites),
         "parameters": list(step.parameters),
+        "uses": list(step.uses),
     }
 
 
@@ -103,6 +104,9 @@ def _row_to_step(row: WorkflowStepRow) -> Step:
         system=row.system,
         cites=list(row.cites),
         parameters=list(row.parameters),
+        # An older row has no `uses` at all, and a job that predates the column
+        # used nothing -- which is what an absent one honestly means.
+        uses=list(row.uses or []),
     )
 
 

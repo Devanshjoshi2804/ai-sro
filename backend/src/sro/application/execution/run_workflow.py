@@ -612,6 +612,30 @@ async def _ask_for_the_password(
     return kept
 
 
+def _what_earlier_steps_made(run: WorkflowRun, uses: Sequence[int]) -> dict[str, str]:
+    """What the named steps created, keyed `step<order>.<field>`.
+
+    Read off the run rather than held in a local, for `run.values`' reason: a
+    resume re-reads the row and hands it back down, and anything kept only in
+    this frame is a thing the second half of a run does not know.
+
+    The LAST attempt of a step that ran more than once, which a repeating job
+    does per item: the record this item is about is the one that step just
+    made, not the one it made for the item before.
+
+    Empty for a step that made nothing, which is most of them, and for one that
+    has not run yet -- which the workflow checks refuse, and this must not
+    depend on them having.
+    """
+    made: dict[str, str] = {}
+    for order in uses:
+        for record in run.steps:
+            if record.of_step != order or not record.made:
+                continue
+            made.update({f"step{order}.{name}": value for name, value in record.made.items()})
+    return made
+
+
 async def _refused_by_the_system(
     *,
     channel: Channel,
@@ -1407,6 +1431,23 @@ async def run_workflow(
     try:
         for position, leg in enumerate(itinerary):
             step, values = leg.step, leg.values
+            # What the steps this one NAMES have made, under their own names.
+            #
+            # `Step.uses` is CrewAI's `Task.context` and its argument: a step
+            # that names the prior steps it depends on can be read, where an
+            # implicit shared map means reading the whole job and guessing. The
+            # binding is the other half of saying it.
+            #
+            # `step<order>.<field>`, never merged flat: a create answering
+            # `{"id": ...}` and a job with a parameter called `id` would
+            # otherwise silently be the same value.
+            #
+            # Under the run's own values, not over them: something a person
+            # supplied or a mail said is what they asked for, and a job whose
+            # wiring quietly replaced it would be doing something nobody could
+            # see in the request.
+            if step.uses:
+                values = {**_what_earlier_steps_made(run, step.uses), **values}
             if step.order < from_step and leg.item in (None, 0):
                 # The operator did this one before the offer was made. Recorded
                 # so the run reads whole, cited so a reviewer can see what it

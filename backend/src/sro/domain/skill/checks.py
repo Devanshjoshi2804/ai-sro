@@ -79,6 +79,26 @@ def validate(workflow: Workflow, evidence: dict[str, str]) -> Rejection | None:
         # however well it is cited -- it reaches an operator as a blank line.
         if not step.says.strip():
             return Rejection(workflow.title, "wordless step", f"step {step.order}")
+        # A step may only use steps that come BEFORE it.
+        #
+        # Forwards is a job that cannot run: the value is not made until later,
+        # and a run reaching step two for step five's record would bind
+        # nothing and type an empty box. Itself is the same fault written
+        # smaller. And a step that does not exist is a model inventing an
+        # edge -- the one thing citation exists to refuse everywhere else here.
+        for used in step.uses:
+            if used >= step.order:
+                return Rejection(
+                    workflow.title,
+                    "step uses a later step",
+                    f"step {step.order} uses step {used}",
+                )
+            if used not in {one.order for one in workflow.steps}:
+                return Rejection(
+                    workflow.title,
+                    "step uses a step that is not there",
+                    f"step {step.order} uses step {used}",
+                )
         # A step naming no system is not checked for one: the umbrella
         # substitutes None for a junk value, so an absent system is a silence
         # rather than a claim.

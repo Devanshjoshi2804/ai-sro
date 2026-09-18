@@ -623,6 +623,41 @@ class TestTheMiningPass:
         assert kept == ()
 
 
+class TestAStepNamesWhatItUses:
+    async def test_the_edge_survives_a_round_trip(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """A declaration nothing stores is a declaration nothing can act on."""
+        workflow = _workflow()
+        workflow.steps[1].uses = [workflow.steps[0].order]
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflows.save(workflow)
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            back = await uow.workflows.get(TENANT, workflow.id)
+
+        assert [step.uses for step in back.steps] == [[], [workflow.steps[0].order]]
+
+    async def test_a_job_that_uses_nothing_reads_back_using_nothing(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """Which is every job mined so far. An older row has no column at all,
+        and a job that predates it used nothing -- what an absent one honestly
+        means."""
+        workflow = _workflow()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflows.save(workflow)
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            back = await uow.workflows.get(TENANT, workflow.id)
+
+        assert all(step.uses == [] for step in back.steps)
+
+
 class TestWhatAJobTaughtItself:
     """The history behind the learning, against the store that overwrites it.
 

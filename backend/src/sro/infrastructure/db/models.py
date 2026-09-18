@@ -1096,6 +1096,11 @@ class WorkflowStepRow(Base):
     system: Mapped[str | None] = mapped_column(Text)
     cites: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list)
     parameters: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list)
+    uses: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list)
+    """The earlier steps whose output this one consumes, by `ord`.
+
+    Empty on every job mined so far and honestly so: nothing emits the edge
+    yet. See `Step.uses`, which carries the argument and the measurement."""
 
 
 class WorkflowStaleRow(Base):

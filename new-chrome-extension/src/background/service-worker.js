@@ -155,6 +155,7 @@ chrome.webNavigation.onCommitted.addListener((d) => {
   // which is the only moment one can safely happen -- so whatever was wrong
   // with the last document is not wrong with this one.
   halfDeaf.delete(d.tabId);
+  repaired.delete(d.tabId);
   // A system the operator watches everywhere is watched here too, whoever
   // opened this tab -- them, a link, or a run opening one for itself. On the
   // deployment, 2026-09-17, a run drove a tab it had opened while the panel
@@ -1181,6 +1182,7 @@ function unwatch(tabId) {
 
 chrome.tabs.onRemoved.addListener((tabId) => {
   halfDeaf.delete(tabId);
+  repaired.delete(tabId);
   void forgetTail(tabId);
   void releaseTree(tabId);
   void unwatch(tabId);
@@ -1287,6 +1289,18 @@ function underPolicy(request, policy) {
  */
 const halfDeaf = new Set();
 
+/** Tabs this worker has already reloaded to repair their recording.
+ *
+ * One attempt each. A reload that did not fix it will not fix it the second
+ * time either, and the page says nothing that distinguishes the two -- so a
+ * worker that kept trying would keep a tab reloading forever, which is what it
+ * did before this existed.
+ *
+ * Forgotten when the tab goes, beside `halfDeaf`, so a tab id Chrome reuses
+ * for something else is not refused a repair it has never had.
+ */
+const repaired = new Set();
+
 chrome.runtime.onMessage.addListener((message, sender, respond) => {
   // Returning true keeps the channel open for the async answer.
   handle(message, sender).then(respond, (error) =>
@@ -1327,7 +1341,22 @@ async function handle(message, sender) {
       // reload the page out from under it mid-step.
       const deafTab = sender?.tab?.id ?? -1;
       const running = Boolean((await state.activeRun())?.runId);
-      if (message.holding === false && deafTab >= 0 && !running) {
+      // Once per tab, ever.
+      //
+      // The reload is a repair and a repair that did not work is not worth
+      // repeating: the fresh page reports the same fault a second later, and
+      // the worker reloads it again. Measured on the deployment 2026-09-18 --
+      // one tab reloaded fourteen times in a row, which is a browser nobody
+      // can use and a page nobody can read.
+      //
+      // Why the second one fails at all is not knowable from here: the patch
+      // installs at `document_start` and whether it won that race is exactly
+      // what the tab is reporting it cannot tell. So this does not try to be
+      // clever about the cause -- it tries once, and if the tab is still deaf
+      // it goes on the card and waits to be asked, which is where it was
+      // before any of this.
+      if (message.holding === false && deafTab >= 0 && !running && !repaired.has(deafTab)) {
+        repaired.add(deafTab);
         try {
           await chrome.tabs.reload(deafTab);
           await say(`tab ${deafTab} was recording half and was reloaded -- nothing typed in it`);

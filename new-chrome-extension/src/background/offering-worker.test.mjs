@@ -81,6 +81,9 @@ globalThis.chrome = {
   tabs: {
     onRemoved: { addListener: () => {} },
     get: async (tabId) => ({ id: tabId, url: PAGE }),
+    reload: async (tabId) => {
+      reloads.push(tabId);
+    },
     captureVisibleTab: async () => {
       throw new Error("no pictures in a test");
     },
@@ -155,6 +158,8 @@ let offerRefusal = null;
 let chatRead = null;
 let threadSaid = null;
 let askedAbout = null;
+/** Every tab the worker reloaded to repair its recording. */
+const reloads = [];
 let lookupRead = null;
 let lookedUp = [];
 
@@ -1577,6 +1582,43 @@ test("the run an answer starts is said into the conversation that authorised it"
   assert.equal(told.run_id, "run-9");
   assert.equal(told.title, "Create a Customer Type");
   threadSaid = null;
+});
+
+test("a tab that records half is repaired once, and only once", async () => {
+  // The reload is a repair, and a repair that did not work is not worth
+  // repeating: the fresh page reports the same fault a second later and the
+  // worker reloads it again. Measured on the deployment 2026-09-18 -- one tab
+  // reloaded fourteen times running, which is a browser nobody can use.
+  ready();
+  reloads.length = 0;
+
+  const deaf = { tab: { id: 4242 } };
+  await globalThis.__handle({ kind: "calls-not-recordable", holding: false }, deaf, () => {});
+  await until(() => reloads.length === 1, "a page with nothing typed in it was not repaired");
+
+  // It is still deaf a second later, because the reload did not take. It is
+  // not reloaded again: it goes on the card and waits to be asked, which is
+  // where it was before any of this.
+  await globalThis.__handle({ kind: "calls-not-recordable", holding: false }, deaf, () => {});
+  await new Promise((done) => setTimeout(done, 20));
+  assert.deepEqual(reloads, [4242], "the worker reloaded the same tab twice");
+});
+
+test("a tab holding something typed is never reloaded", async () => {
+  // A half-filled form is exactly the state this system spends its care
+  // protecting, and throwing it away to repair this system's own plumbing
+  // would be the worst trade it could make.
+  ready();
+  reloads.length = 0;
+
+  await globalThis.__handle(
+    { kind: "calls-not-recordable", holding: true },
+    { tab: { id: 5151 } },
+    () => {},
+  );
+  await new Promise((done) => setTimeout(done, 20));
+
+  assert.deepEqual(reloads, [], "somebody's half-filled form was reloaded away");
 });
 
 test("a finished card ends when the operator says they have read it", async () => {

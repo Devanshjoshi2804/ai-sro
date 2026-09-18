@@ -593,6 +593,20 @@ def _result(reply: Reply, *, wrote: bool = False) -> dict[str, object]:
         "status": status if isinstance(status, int) else None,
         "matched_by": matched if isinstance(matched, str) else None,
     }
+    # What the box would not take, where the browser said so.
+    #
+    # Lengths and a flag, never the value: this is a run record and a log. The
+    # browser truncates silently and BEFORE the request, so a field that stops
+    # at 28 characters puts 28 into the body, the read-back returns 28, and
+    # the photograph shows 28 -- every belt agreeing, because every one of them
+    # compares the record to itself. This is the only fact that disagrees.
+    short = reply.result.get("short")
+    if isinstance(short, dict):
+        shown["short"] = {
+            "asked": short.get("asked"),
+            "kept": short.get("kept"),
+            "truncated": bool(short.get("truncated")),
+        }
     if wrote:
         # The one fact the register of verified writes needs and cannot
         # recompute: SQL cannot ask `writes()`, and the evidence a later reader
@@ -2063,6 +2077,43 @@ async def run_workflow(
                 # next step is driven by its own origin.
                 sent_nothing_yet = False
                 record.result = _result(reply, wrote=may_write)
+                # A field that would not take what it was given stops the run,
+                # here, before the Save.
+                #
+                # The browser truncates silently and BEFORE the request. On
+                # this deployment `Warehouse.Description` stops at about 28
+                # characters with no error and no warning -- so 28 characters
+                # go into the body, 28 come back from the read, and 28 are in
+                # the photograph. Every belt this run has agrees, because every
+                # one of them compares the record to ITSELF, and the record it
+                # makes is not the record the request asked for.
+                #
+                # Stopped rather than noted, and this is the one place in the
+                # ladder that judges a step the page performed perfectly well.
+                # The rule is the same one the blank-value gate is built on: a
+                # write with the wrong thing in it is a wrong record, and a
+                # warehouse record cannot be un-created. Somebody shortening
+                # the description themselves is a minute; a wrong record in a
+                # warehouse is not.
+                #
+                # Only a truncation. A field that trimmed a space or fixed a
+                # case changed what was asked for and did not LOSE any of it,
+                # and stopping for that would stop correct runs on a hundred
+                # ordinary forms.
+                cut = record.result.get("short")
+                if isinstance(cut, dict) and cut.get("truncated"):
+                    verdict = StepVerdict(
+                        "failed",
+                        "read",
+                        f"the field kept {cut.get('kept')} of the "
+                        f"{cut.get('asked')} characters it was given, so the record "
+                        "would not say what was asked for",
+                    )
+                    record.verdict, record.verdict_by = verdict.state, verdict.by
+                    record.reason = verdict.reason
+                    logger.info("%s step %d %s", run.id, step.order, verdict.reason)
+                    await _save(uow, run)
+                    break
                 if not reply.ok:
                     refused_already.add(_command_key(planned.kind, planned.payload))
                 logger.info(

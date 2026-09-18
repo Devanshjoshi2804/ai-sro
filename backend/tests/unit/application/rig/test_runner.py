@@ -5573,6 +5573,88 @@ async def test_a_step_the_page_took_is_not_collapsed_as_one_it_refused() -> None
     ]
 
 
+async def test_a_field_that_would_not_take_the_value_stops_the_run() -> None:
+    """The one failure every belt agrees is a success.
+
+    The browser truncates silently and BEFORE the request. On the deployment
+    `Warehouse.Description` stops at about 28 characters with no error and no
+    warning (`knowledge-base/KNOWLEDGE-BASE.md` §5), so 28 characters go into
+    the body, 28 come back from the read, and 28 are in the photograph. The
+    status is the server's own, the read-back is the record as stored, and a
+    picture of the row looks right to a model with no idea what was asked for.
+    Every check passes and the record is not the one the request asked for.
+
+    So the run stops here, before the Save -- the same rule the blank-value
+    gate is built on. A write with the wrong thing in it is a wrong record, and
+    a warehouse record cannot be un-created; somebody shortening a description
+    themselves is a minute.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel(
+        {
+            **_looks(4),
+            "ui.perform": [
+                Reply(
+                    ok=True,
+                    result={
+                        "performed": True,
+                        "matched_by": "component",
+                        "candidates": 1,
+                        # The box took a prefix and dropped the rest.
+                        "short": {"asked": 60, "kept": 28, "truncated": True},
+                    },
+                )
+            ],
+        }
+    )
+
+    run = await _ran(
+        uow, workflow, channel=channel, asker=FakeAsker(_plan("type", "x")), earned=True
+    )
+
+    assert run.outcome == "stopped", [(one.verdict, one.reason) for one in run.steps]
+    assert run.steps[0].verdict == "failed"
+    assert "28 of the 60" in run.steps[0].reason, run.steps[0].reason
+    # And nothing was pressed after it.
+    assert len([one for one in channel.sent if one["kind"] == "ui.perform"]) == 1
+
+
+async def test_a_field_that_merely_tidied_the_value_does_not_stop_the_run() -> None:
+    """A field that trimmed a space or fixed a case changed what it was given
+    and did not LOSE any of it. Stopping for that would stop correct runs on a
+    hundred ordinary forms -- only a truncation is data gone."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel(
+        {
+            **_looks(6),
+            "ui.perform": [
+                Reply(
+                    ok=True,
+                    result={
+                        "performed": True,
+                        "matched_by": "component",
+                        "candidates": 1,
+                        "short": {"asked": 4, "kept": 4, "truncated": False},
+                    },
+                )
+            ]
+            * 3,
+        }
+    )
+    asker = FakeAsker(
+        _plan("type", "x"),
+        Answer(data={"held": True, "why": ""}),
+        _plan("click"),
+        Answer(data={"held": True, "why": ""}),
+    )
+
+    run = await _ran(uow, workflow, channel=channel, asker=asker, earned=True)
+
+    assert run.steps[0].verdict != "failed", run.steps[0].reason
+
+
 async def test_an_unwatched_run_replays_the_call() -> None:
     """The other half, and the same job.
 

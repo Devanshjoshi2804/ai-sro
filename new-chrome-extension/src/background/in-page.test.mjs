@@ -255,3 +255,78 @@ test("the locator path leaves the field too, not only the point path", () => {
   assert.equal(field.blurred, 1, "it typed into the field and never left it");
   assert.deepEqual(field.events.slice(-3), ["change", "focusout", "blur"]);
 });
+
+test("a box that would not take what it was given says how much it kept", () => {
+  // The browser truncates silently and BEFORE the request. On the deployment
+  // `Warehouse.Description` stops at about 28 characters with no error and no
+  // warning, so the shortened value is what goes into the body, comes back
+  // from the read, and appears in the photograph. Every belt the run has
+  // agrees, because every one of them compares the record to itself. This is
+  // the only moment the difference exists.
+  const field = new HTMLInputElement();
+  Object.assign(field, {
+    tagName: "INPUT",
+    innerText: "",
+    id: "longDescription",
+    getAttribute: () => null,
+    matches: (selector) => selector.includes("longDescription"),
+    events: [],
+    focused: 0,
+    blurred: 0,
+    scrollIntoView: () => {},
+    getBoundingClientRect: () => ({ left: 0, top: 0, width: 80, height: 20 }),
+  });
+  field.dispatchEvent = () => {};
+  field.focus = () => (field.focused += 1);
+  field.blur = () => (field.blurred += 1);
+  // A field with a maxlength keeps a prefix and drops the rest, exactly as a
+  // real one does. Modelled on the READ rather than the write, because the
+  // page code assigns through the PROTOTYPE's setter -- deliberately, so a
+  // framework watching the property sees the change -- and an instance setter
+  // would never be called.
+  Object.defineProperty(field, "value", {
+    get() {
+      return String(this._value ?? "").slice(0, 8);
+    },
+    configurable: true,
+  });
+  onScreen = [field];
+  globalThis.document.querySelectorAll = () => onScreen;
+
+  const answer = performInPage({
+    action: "type",
+    value: "a description far longer than the box",
+    locators: [{ strategy: "css_path", query: "#longDescription" }],
+  });
+
+  assert.equal(answer.ok, true, JSON.stringify(answer));
+  assert.equal(answer.result.short.kept, 8);
+  assert.equal(answer.result.short.asked, 37);
+  assert.equal(answer.result.short.truncated, true);
+});
+
+test("a box that took what it was given says nothing", () => {
+  const field = new HTMLInputElement();
+  Object.assign(field, {
+    tagName: "INPUT",
+    innerText: "",
+    id: "customerType",
+    getAttribute: () => null,
+    matches: (selector) => selector.includes("customerType"),
+    scrollIntoView: () => {},
+    getBoundingClientRect: () => ({ left: 0, top: 0, width: 80, height: 20 }),
+  });
+  field.dispatchEvent = () => {};
+  field.focus = () => {};
+  field.blur = () => {};
+  onScreen = [field];
+  globalThis.document.querySelectorAll = () => onScreen;
+
+  const answer = performInPage({
+    action: "type",
+    value: "GV3",
+    locators: [{ strategy: "css_path", query: "#customerType" }],
+  });
+
+  assert.equal(answer.result.short, null);
+});

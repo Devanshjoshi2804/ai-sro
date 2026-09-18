@@ -105,6 +105,37 @@ export function performInPage(payload) {
     return found;
   };
 
+  /** What the field would not take, where it took less than it was given.
+   * Set by `type` and read into the reply; null when the box holds exactly
+   * what it was asked to. */
+  let short = null;
+
+  /** What the field ended up holding, against what it was asked to hold.
+   *
+   * The browser truncates, and it does it silently and BEFORE the request.
+   * `Warehouse.Description` on this deployment stops at about 28 characters
+   * with no error and no warning -- observed live, §5 of the knowledge base --
+   * so the shortened value is what goes into the body, comes back from the
+   * read, and appears in the photograph. Every belt the run has agrees,
+   * because every one of them is comparing the record to itself. The only
+   * moment the difference exists is here, in the page, between what was asked
+   * for and what the box will take.
+   *
+   * A prefix that is shorter is truncation: data is gone. Anything else --
+   * trimmed spaces, a case the field normalised, a character it refused -- is
+   * a difference worth saying and not worth stopping for.
+   */
+  const landed = (asked, got) => {
+    if (got === asked) return null;
+    return {
+      asked: asked.length,
+      kept: got.length,
+      // The one distinction that matters: a shorter prefix means the field
+      // took what it could and dropped the rest.
+      truncated: got.length < asked.length && asked.startsWith(got),
+    };
+  };
+
   const type = (el, text) => {
     el.focus();
     // Through the prototype's own setter, so a framework that watches the
@@ -135,6 +166,9 @@ export function performInPage(payload) {
       );
     }
     el.dispatchEvent(new Event("change", { bubbles: true }));
+    // Read back before the field is left, because leaving it is what commits
+    // whatever it decided to keep.
+    short = landed(String(text ?? ""), String(el.value ?? ""));
     // And then LEFT, which is when a field commits.
     //
     // A framework keeps its own value and takes the DOM's when the field is
@@ -303,6 +337,11 @@ export function performInPage(payload) {
         // The locator that actually worked, for the job to keep.
         matched: { strategy: locator.strategy, query: locator.query },
         control: naming(found[0]),
+        // What the box would not take. Null on every step that is not a type
+        // and on every field that took what it was given. See `landed`: this
+        // is the only moment the difference between what was asked for and
+        // what the warehouse will hold actually exists.
+        short,
       },
     };
   }
@@ -389,6 +428,9 @@ export function performInPage(payload) {
  * viewport -- the same space `viewportInPage` reports, so the picture the model
  * was shown and the point it answers with measure the same thing. */
 export function performAtInPage(payload) {
+  /** What the field would not take. See `landed` in `performInPage`: the same
+   * rule, and the same reason it can only be known here. */
+  let shortAt = null;
   const el = document.elementFromPoint(payload.x, payload.y);
   if (!el) {
     return {
@@ -487,6 +529,22 @@ export function performAtInPage(payload) {
         );
       }
       el.dispatchEvent(new Event("change", { bubbles: true }));
+      // Read back before the field is left, because leaving it is what
+      // commits whatever the box decided to keep. The browser truncates
+      // silently and BEFORE the request, so this is the only moment the
+      // difference exists -- see `landed` in `performInPage`.
+      {
+        const asked = String(payload.value ?? "");
+        const got = String(el.value ?? "");
+        shortAt =
+          got === asked
+            ? null
+            : {
+                asked: asked.length,
+                kept: got.length,
+                truncated: got.length < asked.length && asked.startsWith(got),
+              };
+      }
       // And left, so the framework behind the box takes the value. See the
       // same lines in the locator path's `type`.
       el.blur();
@@ -527,6 +585,7 @@ export function performAtInPage(payload) {
     result: {
       performed: true,
       matched_by: null,
+      short: shortAt,
       candidates: 1,
       detail: null,
       // What the point turned out to be. This is the expensive discovery --

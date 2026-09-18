@@ -222,7 +222,7 @@ found.
 | 3.5 | The card asks in the conversation, not in boxes | done `ca488370` |
 | 3.6 | The conversation is the spine — request, question, answer, run | done `37ecc5fb` |
 | 3.7 | A finished job is a result, with an OK that ends it | done `1ebb1a86` |
-| 3.8 | A card pile nobody answers — age out, or collapse, or clear | open |
+| 3.8 | A card pile nobody answers — ages out after a day | done |
 | 4 | Bind a value for a known field into the write | |
 | 5 | An undemonstrated field must prove it landed | |
 | 6 | The card says what it will write | |

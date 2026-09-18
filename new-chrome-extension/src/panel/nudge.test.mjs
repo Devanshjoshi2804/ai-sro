@@ -14,7 +14,8 @@
 
 import assert from "node:assert";
 
-const { LIFETIME_MS, endOfDay, fire, mute, onCall, shouldFire, sweep } = await import("./nudge.js");
+const { KEPT_MS, LIFETIME_MS, endOfDay, fire, mute, onCall, shouldFire, sweep } =
+  await import("./nudge.js");
 
 const T0 = Date.parse("2026-09-03T12:00:00Z");
 const PAGE = "https://wms.example/ui/suppliers/new";
@@ -218,6 +219,32 @@ test("an offer that was never about a page goes quiet rather than ending", () =>
 
   assert.strictEqual(tomorrow[0].state, "open", "still askable");
   assert.strictEqual(tomorrow[0].missed, true, "nothing said it had been missed");
+});
+
+test("a request nobody answered goes after a day, not for ever", () => {
+  // `keeps` was written to mean "a request nobody answered has not stopped
+  // being a request", which is true for an afternoon and not for a week.
+  // Measured on the deployment 2026-09-18: thirteen cards stacked in one
+  // panel, six of them from the day before, and the only thing between an
+  // operator and an unbounded column was pressing No thanks on each.
+  const card = fire(
+    { id: "mail_m-9", title: "Create a Customer Type", starts_on: "wms.example/ui/customer-types",
+      source: "rig", workflow_id: "wfl_1", keeps: true, expires_at: endOfDay(T0) },
+    T0,
+  );
+
+  // Quiet at the end of its day, and still there to be answered.
+  const tonight = sweep([card], { url: null, now: endOfDay(T0) + 1 });
+  assert.strictEqual(tonight[0].state, "open", "it ended the same day it arrived");
+  assert.strictEqual(tonight[0].missed, true);
+
+  // Gone a day after it ARRIVED, not a day after its day ended: a mail at
+  // 23:50 would otherwise get ten minutes.
+  const stillHere = sweep(tonight, { url: null, now: T0 + KEPT_MS - 1000 });
+  assert.strictEqual(stillHere[0].state, "open", "a card went before its day was up");
+
+  const gone = sweep(stillHere, { url: null, now: T0 + KEPT_MS + 1000 });
+  assert.strictEqual(gone[0].state, "expired", "yesterday's card is still on the panel");
 });
 
 test("an arrival offer is swept exactly as it always was", () => {

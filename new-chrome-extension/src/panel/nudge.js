@@ -177,6 +177,15 @@ export function onCall(nudges, { url, method }, now) {
  * walked away, which ended every open nudge on the next beat and reported the
  * lot as expired while they were still standing on the page.
  */
+export const KEPT_MS = 24 * 60 * 60 * 1000;
+/** How long a request nobody answered stays on the panel.
+
+ * A day, measured from when it arrived rather than from the end of that day:
+ * a mail at 23:50 would otherwise get ten minutes. Long enough that anything
+ * arriving while somebody was on the floor is still there when they come back,
+ * short enough that a Monday morning panel is about Monday.
+ */
+
 export function sweep(nudges, { url, now, tabId }) {
   const here = url === null || url === undefined ? null : page(url);
   return nudges.map((nudge) => {
@@ -184,11 +193,27 @@ export function sweep(nudges, { url, now, tabId }) {
     const old = nudge.expiresAt
       ? now >= nudge.expiresAt
       : now - Date.parse(nudge.at) >= LIFETIME_MS;
-    // Kept: it goes quiet and stays askable. The one thing that changes is
-    // that the panel can now say "three arrived while you were away", which is
-    // the difference between a request nobody has answered and one nobody was
-    // ever shown.
-    if (nudge.keeps) return old && !nudge.missed ? { ...nudge, missed: true } : nudge;
+    // Kept: it goes quiet and stays askable, for a day. The quiet is what lets
+    // the panel say "three arrived while you were away", which is the
+    // difference between a request nobody has answered and one nobody was ever
+    // shown.
+    //
+    // And then it goes. `keeps` was written to mean "a request nobody answered
+    // has not stopped being a request", which is true for an afternoon and not
+    // for a week: measured on the deployment 2026-09-18, thirteen cards stacked
+    // in one panel, six of them from the day before, and the only thing between
+    // an operator and an unbounded column was pressing No thanks on each.
+    //
+    // Nobody acts on Tuesday's card on Thursday. The request is still in the
+    // mail if it mattered, and the mail is where somebody would go looking --
+    // so what a stale card costs is the panel's credibility, and what letting
+    // it go costs is nothing.
+    if (nudge.keeps) {
+      if (!old) return nudge;
+      const dead = now - Date.parse(nudge.at) >= KEPT_MS;
+      if (dead) return { ...nudge, state: "expired", endedAt: now };
+      return nudge.missed ? nudge : { ...nudge, missed: true };
+    }
     // Leaving the page is a fact about one tab. A navigation in tab B says
     // nothing about the offer open in tab A, so when the caller names the tab
     // only that tab's nudges can have left; a caller without one (the older

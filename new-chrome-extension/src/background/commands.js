@@ -23,6 +23,7 @@ import {
   viewportInPage,
 } from "./in-page.js";
 import { hideDriving, showDriving } from "./showing.js";
+import { SIGN_IN, fillTheLoginForm, whatTheSignInCameTo } from "./sign-in.js";
 import { state } from "./state.js";
 
 /** Runs whose abort has arrived. Their later commands are refused rather than
@@ -890,6 +891,44 @@ async function uiUrl(payload, runId) {
   };
 }
 
+/** Fill this system's own login page and submit it.
+ *
+ * The driving lives in `sign-in.js`, which is where the reasoning is. This is
+ * the half that needs a tab: find the one this run is driving, run the fill
+ * inside it, and hold it while the page goes wherever a login goes.
+ */
+async function signIn(payload, runId) {
+  const tab = await tabForRun(payload, runId);
+  if (!tab) return failure("no_tab_for_system", noPage(payload.origin));
+  if (!payload.password && !payload.username)
+    return failure("not_actionable", "a sign-in with nothing to sign in with");
+  try {
+    const [got] = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      world: "MAIN",
+      args: [
+        {
+          username: String(payload.username || ""),
+          password: String(payload.password || ""),
+          where: SIGN_IN,
+        },
+      ],
+      // The module's own function, handed over as-is: `executeScript`
+      // serialises it to run in the page, so there is one copy of what a login
+      // looks like rather than one here and one there.
+      func: fillTheLoginForm,
+    });
+    const came = whatTheSignInCameTo(got?.result, failure);
+    if (came.ok) hold(tab.id, 8000);
+    return came;
+  } catch (error) {
+    return failure(
+      "not_actionable",
+      `the sign-in could not be driven: ${error}`,
+    );
+  }
+}
+
 /** Whether the page in that tab is asking somebody to sign in.
  *
  * A dead session is the commonest reason a run cannot find anything, and until
@@ -1408,6 +1447,8 @@ export async function perform(command, source = "backend") {
         return await screenshot(command.payload || {}, command.run_id);
       case "navigate":
         return await navigate(command.payload || {}, command.run_id);
+      case "sign_in":
+        return await signIn(command.payload || {}, command.run_id);
       case "tab.open":
         return await openTab(command.payload || {});
       case "calls.since":

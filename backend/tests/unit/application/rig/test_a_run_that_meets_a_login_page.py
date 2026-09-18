@@ -11,10 +11,17 @@ The page in front of them was a login form the whole time.
 
 from __future__ import annotations
 
-from sro.application.execution.run_workflow import _ask_for_the_password, _said_signed_out
+from sro.application.execution.run_workflow import (
+    _ask_for_the_password,
+    _said_signed_out,
+    _sign_in_here,
+)
+from sro.application.ports.channel import Reply
 from sro.domain.execution.belts import StepVerdict
 from sro.domain.execution.planning import Look
 from sro.domain.execution.secrets import secret_key_of
+from sro.domain.execution.workflow_run import RunStep
+from sro.domain.shared.identifiers import DeviceId
 from sro.domain.shared.prices import Answer
 from tests import factories as f
 
@@ -116,5 +123,104 @@ async def _nothing_stored(_key: str) -> str | None:
     return None
 
 
+KEPT = "a password nobody logs"
+
+
 async def _stored(_key: str) -> str | None:
-    return "a password nobody logs"
+    return KEPT
+
+
+async def test_the_credential_reaches_the_browser_and_the_record_holds_none_of_it() -> None:
+    """The whole reason the sign-in lives in one command.
+
+    A run record is read by a person, by the panel, and by the model asked to
+    rescue the next step. None of those has any business holding a credential
+    -- which is the rule `without_secrets` keeps for every other step that
+    types one.
+    """
+    channel = _Channel(Reply(ok=True, result={"did": ["entered the username", "submitted"]}))
+    step = RunStep(order=2, says="s", verdict="failed", reason="control_not_found")
+
+    went = await _sign_in_here(
+        channel=channel,
+        tenant_id=f.TENANT,
+        device_id=DeviceId("dev_1"),
+        run_id="run_1",
+        origin="https://wms.example.com",
+        where="https://wms.example.com/login",
+        secret_for=_stored,
+        record=step,
+    )
+
+    assert went is True
+    # It reached the browser.
+    (sent,) = channel.sent
+    assert sent["kind"] == "sign_in"
+    assert sent["payload"]["password"] == KEPT
+    # And nothing of it reached the record.
+    assert KEPT not in step.reason
+    assert "signed in again (entered the username, submitted)" in step.reason
+
+
+async def test_a_browser_that_refused_the_sign_in_leaves_the_step_failed() -> None:
+    """A sign-in that did not happen must not read as one that did: the step is
+    still failed and still about to ask for a password."""
+    channel = _Channel(Reply(ok=False, error_kind="not_actionable", error_detail="a second factor"))
+    step = RunStep(order=2, says="s", verdict="failed", reason="control_not_found")
+
+    went = await _sign_in_here(
+        channel=channel,
+        tenant_id=f.TENANT,
+        device_id=DeviceId("dev_1"),
+        run_id="run_1",
+        origin="https://wms.example.com",
+        where="https://wms.example.com/login",
+        secret_for=_stored,
+        record=step,
+    )
+
+    assert went is False
+    assert "a second factor" in step.reason
+
+
+async def test_nothing_stored_is_no_sign_in_and_no_command() -> None:
+    """A run with an empty vault asks for the password instead, which is the
+    next thing this does -- and a command sent with a blank credential would
+    submit a login form with nothing in it."""
+    channel = _Channel(Reply(ok=True, result={}))
+    step = RunStep(order=2, says="s", verdict="failed", reason="control_not_found")
+
+    went = await _sign_in_here(
+        channel=channel,
+        tenant_id=f.TENANT,
+        device_id=DeviceId("dev_1"),
+        run_id="run_1",
+        origin="https://wms.example.com",
+        where="https://wms.example.com/login",
+        secret_for=_nothing_stored,
+        record=step,
+    )
+
+    assert went is False
+    assert channel.sent == [], "it tried to sign in with nothing"
+
+
+class _Channel:
+    """One reply, and what it was asked."""
+
+    def __init__(self, reply: Reply) -> None:
+        self._reply = reply
+        self.sent: list[dict[str, object]] = []
+
+    async def send(
+        self,
+        tenant_id: object,
+        device_id: object,
+        *,
+        kind: str,
+        run_id: str,
+        payload: dict[str, object],
+        **_rest: object,
+    ) -> Reply:
+        self.sent.append({"kind": kind, "run_id": run_id, "payload": payload})
+        return self._reply

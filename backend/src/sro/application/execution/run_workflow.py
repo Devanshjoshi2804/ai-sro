@@ -508,6 +508,65 @@ def _said(kind: str, payload: Mapping[str, object]) -> str:
     return ""
 
 
+async def _sign_in_here(
+    *,
+    channel: Channel,
+    tenant_id: TenantId,
+    device_id: DeviceId,
+    run_id: str,
+    origin: str | None,
+    where: str,
+    secret_for: SecretFor | None,
+    record: RunStep,
+) -> bool:
+    """Fill this system's login page with what the vault holds. True if it went.
+
+    The credential is read here and put in one command. It is not returned, not
+    logged, and not written to the record -- `record.sent` keeps what the
+    extension was asked to DO and never what it was given, which is the same
+    rule `without_secrets` keeps for every other step that types one.
+
+    False for every reason there is: no vault, nothing stored, a browser that
+    refused, a page that took neither box. Each of them leaves the step exactly
+    as it was -- failed, and about to ask for a password -- because a sign-in
+    that did not happen must not read as one that did.
+    """
+    system = origin_of_url(where) or where
+    if not system or secret_for is None:
+        return False
+    try:
+        password = await secret_for(secret_key_of(tenant_id.value, system, "password"))
+        username = await secret_for(secret_key_of(tenant_id.value, system, "username"))
+    except Exception:
+        logger.info("%s: the vault could not be asked to sign in", run_id)
+        return False
+    if not password:
+        return False
+    answered = await channel.send(
+        tenant_id,
+        device_id,
+        kind="sign_in",
+        run_id=run_id,
+        payload={"origin": origin, "username": username or "", "password": password},
+    )
+    # What it DID, which is the half worth keeping. A run record read by a
+    # person, by the panel and by the model asked to rescue the next step, and
+    # none of those has any business holding a credential.
+    steps = (answered.result or {}).get("did")
+    did = ", ".join(str(one) for one in steps) if isinstance(steps, list) else ""
+    logger.info(
+        "%s: signing in to %s -- %s",
+        run_id,
+        system,
+        did if answered.ok else f"refused: {answered.detail}",
+    )
+    if not answered.ok:
+        record.reason = f"{record.reason}; the sign-in was refused: {answered.detail}"
+        return False
+    record.reason = f"{record.reason}; signed in again ({did})"
+    return True
+
+
 async def _ask_for_the_password(
     sent: Mapping[str, object] | None,
     where: str,
@@ -1484,6 +1543,11 @@ async def run_workflow(
             # step stops and says why -- and the job is still there to be run
             # again with the form filled, which is a decision for a person
             # rather than a fallback for a ladder.
+            # Whether this step has already been signed in for. Per STEP, so a
+            # run whose session dies twice can recover twice -- and once within
+            # a step, so a wrong password cannot be spent over and over against
+            # an account with a lockout policy.
+            signed_in_here = False
             never_filled = bool(
                 replay is not None
                 and collapsed
@@ -2441,6 +2505,31 @@ async def run_workflow(
                 # side asking and the side storing have to spell it the same or
                 # the value is invisible to the one thing that needs it.
                 if verdict.state == "failed" and after.signed_out:
+                    # Sign in and try the step again, where there IS something
+                    # to sign in with.
+                    #
+                    # `KeepSessionsOpen` has done this for years against a
+                    # hosted browser, and the runs that matter drive the
+                    # operator's own Chrome, which nothing could sign in. So a
+                    # session that died mid-shift left a stopped run and a
+                    # person whose only way on was to do the whole job by hand.
+                    #
+                    # Once per step and no more. A login that did not take is a
+                    # wrong password or a second factor, and a run that tried
+                    # again would spend an account's lockout budget on a
+                    # credential that is not going to start working.
+                    if not signed_in_here and await _sign_in_here(
+                        channel=channel,
+                        tenant_id=tenant_id,
+                        device_id=device_id,
+                        run_id=run.id,
+                        origin=origin,
+                        where=after.url or origin or "",
+                        secret_for=secret_for,
+                        record=record,
+                    ):
+                        signed_in_here = True
+                        continue
                     record.sent = await _ask_for_the_password(
                         record.sent, after.url or origin or "", tenant_id, secret_for
                     )

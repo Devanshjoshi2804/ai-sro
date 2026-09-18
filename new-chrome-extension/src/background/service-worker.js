@@ -635,8 +635,10 @@ async function offerFromMail(offer) {
   if (
     awaiting &&
     (!awaiting.thread || awaiting.thread === (offer.thread || ""))
-  )
+  ) {
     await state.setAwaitingMail(null);
+    await say(`no longer waiting on ${awaiting.to}: an offer arrived`);
+  }
   const shape = (await shapesFor()).find((one) => one.id === offer.workflow_id);
   const now = Date.now();
   const made = fire(
@@ -1633,12 +1635,14 @@ async function handle(message, sender) {
         // What the panel draws a live wait from. Only where a mail actually
         // went: "waiting for a reply" under a mail that was never sent is the
         // panel telling somebody a story about itself.
-        if (answered.sent_to)
+        if (answered.sent_to) {
           await state.setAwaitingMail({
             to: answered.sent_to,
             at: Date.now(),
             thread: message.mailThread || "",
           });
+          await say(`waiting on a reply from ${answered.sent_to}`);
+        }
         return { ok: true, sent_to: answered.sent_to || "" };
       } catch (error) {
         return { ok: false, error: error.problem?.detail || error.message };

@@ -2031,7 +2031,15 @@ function show(thread, { asked = false } = {}) {
     .map((one) => `${one.triggerId}:${one.at}`)
     .join(",");
   const asking = (lastStatus?.waiting || []).map((one) => one.id).join(",");
-  const now = `${thread.id}:${(thread.messages || []).map((message) => message.id).join(",")}|${mine}|${answerSeen}|${missed}|${asking}|${hostOf(tabHere.url || "")}`;
+  // And the wait on a mailbox, which changes with the CLOCK rather than with
+  // anything said. Everything else in this signature is a thing that happened;
+  // this one is a thing that is still happening, and a line reading "last read
+  // 40s ago" that only redraws when somebody speaks is a line that lies for as
+  // long as the conversation is quiet -- which is the whole of the time it is
+  // on screen. The look's own timestamp is what moves it: once per look, not
+  // once per poll.
+  const waitingOn = `${lastStatus?.mail?.awaiting?.at || ""}:${lastStatus?.mail?.lookedAt || ""}:${lastStatus?.mail?.looking ? "r" : ""}`;
+  const now = `${thread.id}:${(thread.messages || []).map((message) => message.id).join(",")}|${mine}|${answerSeen}|${missed}|${asking}|${waitingOn}|${hostOf(tabHere.url || "")}`;
   if (now === drawn) return;
   if (!asked && drawn !== null && document.activeElement?.tagName === "INPUT")
     return;

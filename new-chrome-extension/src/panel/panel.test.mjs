@@ -2127,6 +2127,35 @@ test("Home says nothing about a mailbox when no mail is waiting", async () => {
   );
 });
 
+test("a wait that only the clock moves still redraws the conversation", async () => {
+  // Every other thing in the redraw signature is something that HAPPENED. A
+  // wait is something that is still happening: "last read 40s ago" redrawn
+  // only when somebody speaks is a line that is wrong for the whole of the
+  // time it is on screen, which is exactly when nobody is speaking.
+  const thread = { id: "thr_1", messages: [] };
+  const { ids, locally } = panel({ deviceId: "dev-1" });
+
+  locally(
+    {
+      deviceId: "dev-1",
+      mail: { awaiting: { to: "a@b.c", at: 1000 }, looking: false, lookedAt: 2000 },
+    },
+    thread,
+  );
+  const first = words(ids["said"]);
+  locally(
+    {
+      deviceId: "dev-1",
+      // The same wait, one look later. Nothing was said by anybody.
+      mail: { awaiting: { to: "a@b.c", at: 1000 }, looking: true, lookedAt: 9000 },
+    },
+    thread,
+  );
+
+  assert.notEqual(words(ids["said"]), first, "the conversation froze on a stale wait");
+  assert.match(words(ids["said"]), /reading the mailbox/);
+});
+
 for (const [name, fn] of tests) {
   try {
     await fn();

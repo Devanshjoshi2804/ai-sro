@@ -14,7 +14,10 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
+from sro.application.chat.about_an_offer import AskAboutTheOffer
+from sro.application.context import RequestContext
 from sro.application.execution.declared import declared_limits, screen_for
+from sro.domain.chat.asking import Pending
 from sro.domain.execution.learned_step import LearnedStep, limits_for
 from sro.domain.knowledge.entry import (
     EntryKind,
@@ -23,9 +26,12 @@ from sro.domain.knowledge.entry import (
     KnowledgeId,
 )
 from sro.domain.observation.gesture import Action, Gesture
+from sro.domain.shared.identifiers import PrincipalId
 from sro.domain.skill.workflow import Step, Workflow
 from tests import factories as f
-from tests.unit.fakes import FakeUnitOfWork
+from tests.unit.fakes import FakeClock, FakeIdFactory, FakeUnitOfWork
+
+CTX = RequestContext(tenant_id=f.TENANT, principal_id=PrincipalId("devansh"))
 
 SCREEN = "https://wms.example.com/#wm.config/wm.config.partners.customers.types////"
 
@@ -103,6 +109,50 @@ async def test_the_form_an_operator_actually_uses_beats_the_manual() -> None:
     limits = await declared_limits(uow, f.TENANT, ["Customer Type"], SCREEN)
 
     assert limits == {"Customer Type": 4}
+
+
+async def test_the_question_carries_the_limit_before_anybody_has_overflowed_it() -> None:
+    """The moment a limit is worth knowing is BEFORE somebody answers.
+
+    What reaches this door on the request is the offer's `too_long` map, which
+    holds a name only where a value already overflows -- so a question asking
+    for a value nobody had yet stored `"limits": {}`, and `answered` refuses a
+    too-long answer by consulting exactly that map. Measured on the deployment
+    2026-09-18: somebody typed `has reply arrived` into the panel while the
+    question stood, seventeen characters were taken for a four-character field,
+    and the run typed them into the form for the WMS to refuse.
+    """
+    # The dictionary alone here. Which of the two declarations wins is
+    # `test_the_form_an_operator_actually_uses_beats_the_manual`; what this is
+    # about is whether the question carries either of them.
+    uow = await _knows(FakeUnitOfWork(), _field("customerType", ["Customer Type"], 60))
+    await uow.workflows.save(
+        Workflow(
+            id="wfl_1",
+            tenant=f.TENANT.value,
+            title="Create a Customer Type",
+            narrative="open the screen, type the code, save",
+            steps=[Step(order=0, says="type the code", system=None, cites=["g"])],
+            parameters=[{"name": "Customer Type", "seen_values": ["GGD"]}],
+        )
+    )
+
+    asked = await AskAboutTheOffer(uow, FakeClock(), FakeIdFactory()).execute(
+        CTX,
+        # Exactly what the card sends: nothing overflows, so nothing is capped.
+        Pending(
+            workflow_id="wfl_1",
+            title="Create a Customer Type",
+            values={},
+            missing=("Customer Type",),
+            limits={},
+        ),
+    )
+
+    assert "Customer Type takes 60 characters" in asked
+    threads = await uow.threads.list_for_tenant(f.TENANT, opened_by=CTX.principal_id, limit=1)
+    decision = threads[0].messages[-1].decision
+    assert decision is not None and decision["limits"] == {"Customer Type": 60}
 
 
 async def test_another_screen_s_form_lends_this_one_nothing() -> None:

@@ -37,6 +37,7 @@ from dataclasses import replace
 
 from sro.application.chat.announce import SayWhatHappened
 from sro.application.context import RequestContext
+from sro.application.execution.declared import declared_limits, names_of, screen_for
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
 from sro.domain.chat.asking import NEEDS, Pending, opening, unusable
@@ -68,6 +69,35 @@ class AskAboutTheOffer:
         # and nobody else, exactly as it did.
         self._drafts: DraftsForTheAsker | None = drafts
 
+    async def _what_the_boxes_hold(self, ctx: RequestContext, pending: Pending) -> dict[str, int]:
+        """Every limit known for the names this question is about.
+
+        The smaller of the two where both say something: a limit is a ceiling,
+        and two ceilings mean the lower one is the truth. The browser's is kept
+        rather than overwritten because it can know something this cannot --
+        `too_long` is computed against what a run actually found.
+
+        Silent about every failure. A job that cannot be read, a deployment
+        with nothing documented, a name nothing declares -- all of them mean
+        the question is asked exactly as it was asked before, which is what
+        happened for every one of these until now.
+        """
+        known = dict(pending.limits)
+        if not pending.workflow_id:
+            return known
+        try:
+            async with self._uow as uow:
+                job = await uow.workflows.get(ctx.tenant_id, pending.workflow_id)
+            async with self._uow as uow:
+                screen = await screen_for(uow, ctx.tenant_id, job)
+                declared = await declared_limits(uow, ctx.tenant_id, names_of(job), screen)
+        except Exception:
+            logger.exception("the declared limits could not be read for %s", pending.workflow_id)
+            return known
+        for name, holds in declared.items():
+            known[name] = min(holds, known[name]) if name in known else holds
+        return known
+
     async def execute(
         self,
         ctx: RequestContext,
@@ -95,6 +125,22 @@ class AskAboutTheOffer:
         #
         # Order kept and duplicates dropped: a name can be both unsupplied and
         # capped, and asking for it twice is the form this replaces.
+        # The limits this job's boxes are documented to hold, read here rather
+        # than taken from the browser.
+        #
+        # What arrives on the request is the offer's `too_long` map, which
+        # holds a name only where a value ALREADY overflows. So the question
+        # asked for a value nobody had yet carried no limit at all -- and
+        # `answered` refuses a too-long answer by consulting exactly that map.
+        # Measured on the deployment 2026-09-18: the question for `Customer
+        # Type` stored `"limits": {}`, a seventeen-character answer was taken
+        # for a four-character field, and the run typed it into the form and
+        # was refused by the WMS.
+        #
+        # The moment a limit is worth knowing is BEFORE somebody answers. So
+        # the job's own declared limits are read for every name it is about,
+        # and the question says the number the first time it asks.
+        pending = replace(pending, limits=await self._what_the_boxes_hold(ctx, pending))
         pending = replace(
             pending,
             missing=tuple(

@@ -11,6 +11,7 @@ from sro.domain.chat.asking import (
     let_go,
     pending_job,
     question,
+    unusable,
 )
 from sro.domain.chat.thread import Message, MessageId, Speaker
 
@@ -121,3 +122,31 @@ def test_a_blank_answer_changes_nothing() -> None:
     pending = Pending(workflow_id="wfl_1", title="t", values={}, missing=("Customer Type",))
 
     assert answered(pending, "   ") == pending
+
+
+def test_a_value_the_box_will_not_take_is_as_outstanding_as_one_nobody_gave() -> None:
+    """More so, because the person believes they have already answered it.
+
+    Measured on the deployment 2026-09-18: a mail carrying a ten-character code
+    for a four-character field had nothing MISSING, so the offer read as ready
+    and the door asked nothing on the one press it exists to answer.
+    """
+    limits = {"Customer Type": 4, "Description": 28}
+
+    assert unusable({"Customer Type": "NEWSROTEST"}, limits) == ("Customer Type",)
+    # Exactly what the box takes is not too long for it.
+    assert unusable({"Customer Type": "NSRO"}, limits) == ()
+    assert unusable({"Customer Type": "NSROT"}, limits) == ("Customer Type",)
+    # A name nothing has measured is not judged, and a blank is missing rather
+    # than unusable -- `missing` already names it.
+    assert unusable({"Something Else": "x" * 90}, limits) == ()
+    assert unusable({"Customer Type": ""}, limits) == ()
+
+
+def test_what_is_outstanding_keeps_the_order_it_was_given_in() -> None:
+    """The sentence a person reads asks for a code then a description every
+    time, rather than in whatever order a dict happened to iterate."""
+    limits = {"Customer Type": 4, "Description": 3}
+    values = {"Customer Type": "NEWSROTEST", "Description": "north dock"}
+
+    assert unusable(values, limits) == ("Customer Type", "Description")

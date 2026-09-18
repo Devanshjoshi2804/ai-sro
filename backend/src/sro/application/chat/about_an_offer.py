@@ -32,12 +32,13 @@ answer means rather than two.
 from __future__ import annotations
 
 import logging
+from dataclasses import replace
 
 from sro.application.chat.announce import SayWhatHappened
 from sro.application.context import RequestContext
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
-from sro.domain.chat.asking import NEEDS, Pending, question
+from sro.domain.chat.asking import NEEDS, Pending, question, unusable
 from sro.domain.shared.identifiers import PrincipalId
 
 logger = logging.getLogger(__name__)
@@ -59,6 +60,24 @@ class AskAboutTheOffer:
         and a refusal would make that an error path instead of the ordinary
         one.
         """
+        # What is outstanding is what nobody supplied AND what was supplied in
+        # a form the box will not take.
+        #
+        # The second half is the case this door was built for and the case it
+        # first got wrong: an offer read out of a mail carrying a ten-character
+        # code for a four-character field has nothing MISSING, so it read as
+        # ready and asked nothing at all. Measured on the deployment
+        # 2026-09-18: `asked about mail_1a0b3da3e11ad236 in the conversation:
+        # nothing to ask`, on the one press this exists to answer.
+        #
+        # Order kept and duplicates dropped: a name can be both unsupplied and
+        # capped, and asking for it twice is the form this replaces.
+        pending = replace(
+            pending,
+            missing=tuple(
+                dict.fromkeys((*pending.missing, *unusable(pending.values, pending.limits)))
+            ),
+        )
         if pending.ready:
             return ""
         asked = question(pending)

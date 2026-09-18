@@ -180,6 +180,26 @@ def question(pending: Pending) -> str:
     return f"{asked} takes {holds} characters. What should it be?"
 
 
+def unusable(values: Mapping[str, str], limits: Mapping[str, int]) -> tuple[str, ...]:
+    """Names holding a value the box will not take, in the order given.
+
+    A value that will not fit is not a value. It is as outstanding as a name
+    nobody supplied at all -- more so, because the person believes they have
+    already answered it -- and the only difference is what the question has to
+    say to get a usable answer back.
+
+    The run path has always folded these together: `_too_long_for` puts the
+    names on `run.needs` beside the ones nothing could find, and one question
+    loop handles both. This is the same rule for an offer, which has not run
+    and so has no `needs` of its own to put them on.
+    """
+    return tuple(
+        name
+        for name, value in values.items()
+        if name in limits and isinstance(value, str) and len(value) > limits[name]
+    )
+
+
 def too_long_for(pending: Pending, said: str) -> int | None:
     """The limit this answer breaks, or None if it fits.
 

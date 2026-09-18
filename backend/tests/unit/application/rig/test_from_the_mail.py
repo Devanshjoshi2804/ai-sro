@@ -665,3 +665,58 @@ async def test_an_offer_that_needs_nothing_asks_nothing() -> None:
 
     assert await AskAboutTheOffer(uow, FakeClock(), FakeIdFactory()).execute(CTX, pending) == ""
     assert await _thread(uow) is None
+
+
+async def test_an_offer_whose_only_fault_is_a_value_that_will_not_fit_is_asked_about() -> None:
+    """The press this door exists for, and the one it first got wrong.
+
+    Measured on the deployment 2026-09-18: a mail carrying a ten-character code
+    for a four-character field has nothing MISSING -- it supplied both values --
+    so the offer read as ready and the door answered `nothing to ask` on the
+    one press it was built to answer. A value the box will not take is as
+    outstanding as one nobody gave; more so, because the person believes they
+    have already answered it.
+    """
+    uow = FakeUnitOfWork()
+    pending = Pending(
+        workflow_id=JOB,
+        title="Create a Customer Type",
+        values={
+            "Customer Type": "NEWSROTEST",
+            "Customer Type Description": "Leaning new SRO type 048",
+        },
+        missing=(),
+        limits={"Customer Type": 4},
+    )
+
+    asked = await AskAboutTheOffer(uow, FakeClock(), FakeIdFactory()).execute(CTX, pending)
+
+    assert asked == "Customer Type takes 4 characters. What should it be?"
+    thread = await _thread(uow)
+    assert thread is not None
+    decision = thread.messages[-1].decision
+    assert decision is not None
+    assert decision["missing"] == ["Customer Type"]
+    # The value that will not fit rides along rather than being cleared: the
+    # person is answering about it, and the run needs everything else intact.
+    assert decision["values"]["Customer Type Description"] == "Leaning new SRO type 048"
+
+
+async def test_a_name_both_unsupplied_and_capped_is_asked_about_once() -> None:
+    """Asking twice for one word is the form this replaces."""
+    uow = FakeUnitOfWork()
+    pending = Pending(
+        workflow_id=JOB,
+        title="Create a Customer Type",
+        values={"Customer Type": "NEWSROTEST"},
+        missing=("Customer Type",),
+        limits={"Customer Type": 4},
+    )
+
+    await AskAboutTheOffer(uow, FakeClock(), FakeIdFactory()).execute(CTX, pending)
+
+    thread = await _thread(uow)
+    assert thread is not None
+    decision = thread.messages[-1].decision
+    assert decision is not None
+    assert decision["missing"] == ["Customer Type"]

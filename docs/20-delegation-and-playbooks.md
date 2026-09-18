@@ -230,10 +230,45 @@ found.
 | 3.13 | An answer that completes a request starts it, without a second card | done `8bb6b2eb` |
 | 3.14 | **The page is not the page this step is about — and what kind of not** | done |
 | 3.15 | **Credentials for any system, entered once, used unattended** | done `bf4ee957` |
-| 4 | Bind a value for a known field into the write | |
-| 5 | An undemonstrated field must prove it landed | |
+| 4 | Bind a value for a known field into the write | done `6642215e` |
+| 5 | An undemonstrated field must prove it landed | done `122a16d2` |
 | 6 | The card says what it will write | half done `54926cba` |
 | 7 | Composition — needs 3.1, 3.2, and a compensation story | last; 3.1 waits on this |
+
+### 4 and 5 — one piece, and why they could not be built apart
+
+A job's parameters are what two demonstrations proved VARY, and the form posts
+far more than that: 46 keys in the one real body here, 44 of them
+byte-identical across all three recordings. So `Department: Inbound` names a
+slot this write already sends -- as the empty string a form sends for a box
+nobody touched -- and the value had nowhere to go.
+
+**Why the runs the rig itself does cannot fix this.** They are kept out of the
+evidence plane on purpose: *a replay's clicks and the calls they set off, mined
+as though somebody had done them, is the system learning a task from a robot
+imitating a person -- and then offering it back as something worth automating.*
+So a job's parameter set is frozen at whatever two people happened to do, and
+forty rig runs teach it nothing. 4 and 5 come at it from the other side.
+
+**4 is a join, and the join `write_plan` refuses.** That refusal is exact and
+stands: a body key is not derivable from a label, and a suffix match is
+ambiguous on the only real body there is. What is different is the SOURCE. The
+dictionary is a declaration somebody wrote down, and reading one is not
+inferring a correspondence from the shape of two strings. Where two keys answer
+to one label -- `Description` names ten of them here -- it refuses exactly as
+the limits do.
+
+**5 is what makes 4 safe, and it is not a separate feature.** Nothing
+demonstrated the slot, so a 201 says nothing about it: the request went, and
+the field may have been ignored, renamed or dropped. So a value is written only
+where the demonstrations' own answers echoed that key, and then the run reads it
+back and checks it -- unconditionally, where a demonstrated slot is checked only
+when the echo evidence exists. A slot no read can settle is not filled at all.
+
+Three further refusals, each a line between filling a form and inventing an
+API: a key no recorded body carries is never added; the evidence wins wherever
+both could bind one slot; and demonstrations that answered nothing fill nothing,
+because `None` is "no evidence about echoing" and not evidence of echoing.
 
 ### 6 — what is said before the press, and what is not yet
 

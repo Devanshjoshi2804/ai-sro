@@ -107,7 +107,7 @@ from sro.domain.execution.write_plan import begins_again_at, seen_values
 from sro.domain.knowledge.entry import EntryKind
 from sro.domain.shared.errors import Conflict, DomainError, NotFound
 from sro.domain.shared.identifiers import DeviceId, PrincipalId
-from sro.domain.skill.reversals import undoes
+from sro.domain.skill.reversals import addresses, undoes
 from sro.domain.skill.shape import resumes_at
 from sro.domain.skill.workflow import cited_ids
 
@@ -986,17 +986,22 @@ class GetWorkflowRun:
                 raise NotFound("no such run")
             return run
 
-    async def undo_for(self, ctx: RequestContext, run: WorkflowRun) -> str | None:
+    async def undo_for(self, ctx: RequestContext, run: WorkflowRun) -> tuple[str, str, str] | None:
         """Which of this tenant's jobs takes back what this run made, if any.
 
         Asked only of a run that is over and made something: a run still going
         may make more, and a run that made nothing has nothing to take back --
         and this is a read of every job's evidence, on a door the panel polls.
 
-        Answers an id and never starts anything. What a press would have to do
-        -- address each created record by whatever the warehouse called it --
-        is a mapping this has no evidence for, and a wrong mapping deletes the
-        wrong record.
+        Answers WHAT and never starts anything: the job that takes it back, and
+        the one record it would address. The second half is what this said it
+        lacked -- *a mapping this has no evidence for, and a wrong mapping
+        deletes the wrong record* -- and the evidence arrived with `made_by`: a
+        step that created something records what the warehouse called it.
+
+        `addresses` refuses anything but one record named one way, for the
+        reason that sentence gives. A run that made two would need two deletes,
+        and an undo that takes back half of what a run did is worse than none.
         """
         if run.outcome == "running" or not any(step.made for step in run.steps):
             return None
@@ -1008,7 +1013,16 @@ class GetWorkflowRun:
             gestures = {
                 gesture.id: gesture for gesture in await uow.gestures.gestures_for(ctx.tenant_id)
             }
-            return undoes(made, gestures, known)
+            takes_back = undoes(made, gestures, known)
+            if takes_back is None:
+                return None
+            # And which record. Without it the panel can name a job and not
+            # press it, which is where this has stood since it was written.
+            which = addresses([step.made for step in run.steps if step.made])
+            if which is None:
+                return None
+            field, names = which
+            return takes_back, field, names
 
 
 class AbortWorkflowRun:

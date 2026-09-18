@@ -1999,6 +1999,33 @@ async function handle(message, sender) {
         return { ok: false, error: error.problem?.detail || error.message };
       }
     }
+    case "undo-rig-run": {
+      // Take back what a run made, by running the job that deletes it.
+      //
+      // An ordinary rig run of an ordinary mined job, and deliberately not a
+      // special path: the delete goes through the same ladder, the same write
+      // gate and the same belts as anything else, and an undo that skipped
+      // them would be the one write in this system nobody checked.
+      //
+      // Its own case rather than `start-rig-run`, which finds and claims an
+      // OFFER -- there is no offer behind an undo, and passing a nudge id that
+      // does not exist would be refused for the wrong reason.
+      if (!message.workflowId || !message.values)
+        return { ok: false, error: "an undo with nothing to undo" };
+      try {
+        const run = await api.rigStart({
+          workflow_id: message.workflowId,
+          device_id: await state.deviceId(),
+          values: message.values,
+          live: true,
+          allow_focus: true,
+        });
+        await say(`taking back what ${message.workflowId} made: run ${run.id}`);
+        return { ok: true, run_id: run.id };
+      } catch (error) {
+        return { ok: false, error: error.problem?.detail || error.message };
+      }
+    }
     case "start-rig-run": {
       // Yes, on an offer the rig made. The press is in the panel, where
       // somebody can read what it says; the run is started here, because the

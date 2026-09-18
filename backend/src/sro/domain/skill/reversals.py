@@ -20,7 +20,7 @@ somebody deletes a warehouse equipment type in front of the recorder.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 
 from sro.domain.execution.evidence import recorded_call
 from sro.domain.observation.gesture import Gesture
@@ -39,6 +39,40 @@ retire a record, and it is also how every other edit is made -- reading one as
 an undo would offer to "take back" a job by overwriting the record it made.
 The day a tenant's evidence shows a disable being demonstrated as its own job,
 that job is the undo and this is where it is recognised."""
+
+
+def addresses(made: Sequence[Mapping[str, str]]) -> tuple[str, str] | None:
+    """Which record an undo would address, out of what a run read back.
+
+    The mapping `undo` has said it lacked since it was written: *what a press
+    would have to do -- address each created record by whatever the warehouse
+    called it -- is a mapping nothing here has evidence for, and a wrong
+    mapping deletes the wrong record.* It has evidence for it now. A step that
+    created something records what the warehouse called it, and `made_by` keeps
+    the identifying fields and nothing else.
+
+    **Exactly one record, named by exactly one field.** Everything else is a
+    refusal, and each is the same refusal wearing a different hat:
+
+    - A run that made two records would need two deletes, and an undo that
+      takes back half of what a run did is worse than none -- somebody presses
+      it, sees the card go quiet, and believes the warehouse is back where it
+      started.
+    - A record named two ways is a record this cannot name at all. `made_by`
+      keeps `id`, `code`, `name`, `number` and `key`, and a warehouse that
+      answered with two of them has not said which one addresses it.
+
+    A wrong guess here removes somebody else's record, which is the one thing
+    an undo must never do.
+    """
+    named = [one for one in made if one]
+    if len(named) != 1:
+        return None
+    only = named[0]
+    if len(only) != 1:
+        return None
+    ((field, names),) = only.items()
+    return (field, names.strip()) if names.strip() else None
 
 
 def undoes(made: Workflow, gestures: dict[str, Gesture], among: Sequence[Workflow]) -> str | None:

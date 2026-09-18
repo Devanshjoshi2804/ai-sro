@@ -14,7 +14,7 @@ type in front of the recorder.
 from __future__ import annotations
 
 from sro.domain.observation.gesture import Action, Call, Gesture, Target
-from sro.domain.skill.reversals import undoes
+from sro.domain.skill.reversals import addresses, undoes
 from sro.domain.skill.workflow import Step, Workflow
 
 WMS = "https://wms.test"
@@ -140,3 +140,36 @@ def test_a_delete_two_segments_deeper_is_not_this_undo() -> None:
     )
 
     assert undoes(_job("wfl-made", "ges-made"), gestures, [_job("wfl-gone", "ges-gone")]) is None
+
+
+# -- which record an undo would address ----------------------------------------
+
+
+def test_one_record_named_one_way_is_what_an_undo_addresses() -> None:
+    """The mapping `undo` has said it lacked since it was written. The evidence
+    arrived with `made_by`: a step that created something records what the
+    warehouse called it."""
+    assert addresses([{"customerType": "GGD"}]) == ("customerType", "GGD")
+
+
+def test_a_run_that_made_two_records_is_offered_no_undo() -> None:
+    """It would need two deletes, and an undo that takes back half of what a
+    run did is worse than none -- somebody presses it, sees the card go quiet,
+    and believes the warehouse is back where it started."""
+    assert addresses([{"customerType": "GGD"}, {"customerType": "GKB"}]) is None
+
+
+def test_a_record_named_two_ways_is_a_record_this_cannot_name() -> None:
+    """`made_by` keeps `id`, `code`, `name`, `number` and `key`. A warehouse
+    that answered with two of them has not said which one addresses it, and a
+    wrong guess removes somebody else's record."""
+    assert addresses([{"id": "4471", "code": "GGD"}]) is None
+
+
+def test_a_run_that_made_nothing_addresses_nothing() -> None:
+    assert addresses([]) is None
+    assert addresses([{}]) is None
+
+
+def test_a_name_that_is_only_whitespace_is_not_a_name() -> None:
+    assert addresses([{"customerType": "   "}]) is None

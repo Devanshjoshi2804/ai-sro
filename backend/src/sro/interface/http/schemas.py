@@ -3503,15 +3503,23 @@ class WorkflowRunModel(BaseModel):
     exists: a job whose own evidence shows somebody deleting the records this
     one creates.
 
-    An id and never a start. What a press would have to do -- address each
-    created record by whatever the warehouse called it -- is a mapping nothing
-    here has evidence for, and a wrong mapping deletes the wrong record. Null
-    on a run still going, on one that made nothing, and on a tenant that has
-    never deleted one of these in front of the recorder, which is every tenant
-    today."""
+    An id, still, and never a start: what presses it is a person. Null on a run
+    still going, on one that made nothing, on a tenant that has never deleted
+    one of these in front of the recorder, and on a run whose record this
+    cannot name -- see `undoes_by`."""
+
+    undoes_by: dict[str, str] | None = None
+    """Which record that job would address, as the warehouse named it.
+
+    The mapping `undo` said it lacked, and the evidence arrived with `made_by`:
+    a step that created something records what the warehouse called it. One
+    record named one way or nothing -- a run that made two would need two
+    deletes, and an undo that takes back half of what a run did is worse than
+    none, because somebody presses it, sees the card go quiet, and believes the
+    warehouse is back where it started."""
 
     @classmethod
-    def of(cls, run: WorkflowRun, undo: str | None = None) -> WorkflowRunModel:
+    def of(cls, run: WorkflowRun, undo: tuple[str, str, str] | None = None) -> WorkflowRunModel:
         return cls(
             id=run.id,
             tenant=run.tenant,
@@ -3539,7 +3547,8 @@ class WorkflowRunModel(BaseModel):
             needs=list(run.needs),
             unasked=list(run.unasked),
             wrong_because=run.wrong_because,
-            undo=undo,
+            undo=undo[0] if undo else None,
+            undoes_by={undo[1]: undo[2]} if undo else None,
         )
 
 

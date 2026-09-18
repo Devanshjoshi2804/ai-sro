@@ -2184,6 +2184,79 @@ test("Home keeps one request and counts the rest", async () => {
   assert.match(said, /3 more waiting/);
 });
 
+test("a rig run that can be taken back offers it, and names what it removes", async () => {
+  // The rig's result card has never had an undo, and the reason was written
+  // into panel.js: "a run the rig drove has neither a reversal nor anywhere to
+  // send It's wrong". It was true -- the backend answered an id and could not
+  // say which record a press would address.
+  const { cards } = panel({
+    deviceId: "dev-1",
+    finished: {
+      id: "run_1", source: "rig", status: "held",
+      values: { "Customer Type": "GGD" }, steps: [], needs: [],
+      undo: "wfl_delete",
+      undoes_by: { customerType: "GGD" },
+    },
+  });
+
+  const card = cards.find((one) => words(one).includes("Undo it"));
+  assert.ok(card, "a run that can be taken back offered nothing");
+  // The BUTTON, not the sentence about it. The note says "Undo it" too, so a
+  // search over the card's words passes with the button gone -- which is how
+  // this test first passed against a card that only talked about undoing.
+  assert.ok(pressable(card, "Undo it"), "the card said it could and gave nothing to press");
+  // Named BEFORE the press, which is ADR 014's rule for the skill reversal
+  // beside this one: the operator reads what it will do.
+  assert.match(words(card), /deletes customerType GGD/);
+});
+
+test("a rig run with no undo behind it offers none", async () => {
+  const { cards } = panel({
+    deviceId: "dev-1",
+    finished: {
+      id: "run_1", source: "rig", status: "held",
+      values: { "Customer Type": "GGD" }, steps: [], needs: [],
+    },
+  });
+
+  assert.equal(
+    cards.map((one) => pressable(one, "Undo it")).find(Boolean),
+    undefined,
+  );
+});
+
+test("an undo that cannot name the record is not offered", async () => {
+  // Both or neither: a press that cannot say what it removes is not a press
+  // anybody consented to.
+  const { cards } = panel({
+    deviceId: "dev-1",
+    finished: {
+      id: "run_1", source: "rig", status: "held",
+      values: { "Customer Type": "GGD" }, steps: [], needs: [],
+      undo: "wfl_delete",
+    },
+  });
+
+  assert.equal(
+    cards.map((one) => pressable(one, "Undo it")).find(Boolean),
+    undefined,
+  );
+});
+
+/** A button on this card with exactly that label, or nothing.
+ *
+ * By the element and never by the card's words: a note that TALKS about a
+ * press reads the same as a press to anything searching text, and a card that
+ * only talks about undoing is exactly the card this must not accept. */
+function pressable(el, label) {
+  if (el?.tag === "button" && String(el.textContent || "").trim() === label) return el;
+  for (const kid of el?.kids || []) {
+    const found = pressable(kid, label);
+    if (found) return found;
+  }
+  return null;
+}
+
 for (const [name, fn] of tests) {
   try {
     await fn();

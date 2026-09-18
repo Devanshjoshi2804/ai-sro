@@ -1080,8 +1080,43 @@ function madeCard(run, wrote, ending) {
   );
   holder.append(steps);
 
+  // What takes it back, where this tenant has been seen doing it.
+  //
+  // The rig's result card has never offered one. The reason was written into
+  // this file -- "a run the rig drove has neither a reversal nor anywhere to
+  // send It's wrong" -- and it was true: the backend answered an id and could
+  // not say which record a press would address, so a button here would have
+  // been a button that deletes something nobody named.
+  //
+  // It can say now. `undoes_by` is the record as the warehouse named it, and
+  // `undo` is the mined job whose own evidence shows somebody deleting records
+  // of this kind. Both, or neither: a press that cannot name what it removes
+  // is not a press anybody consented to.
+  const back =
+    run.undo && run.undoes_by ? Object.entries(run.undoes_by)[0] : null;
+  if (back) {
+    const says = document.createElement("p");
+    says.className = "detail";
+    says.dataset.kind = "undo";
+    // Named before the press and not after it, which is ADR 014's rule for the
+    // skill reversal beside this one: the operator reads what it will do.
+    says.textContent = `“Undo it” runs a job that deletes ${back[0]} ${back[1]}.`;
+    holder.append(says);
+  }
+
   const row = document.createElement("div");
   row.className = "row";
+  if (back) {
+    const undo = document.createElement("button");
+    undo.type = "button";
+    undo.className = "quiet";
+    undo.textContent = "Undo it";
+    undo.addEventListener("click", () => {
+      undo.disabled = true;
+      void undoTheRun(run, back, undo);
+    });
+    row.append(undo);
+  }
   const ok = document.createElement("button");
   ok.type = "button";
   ok.textContent = "OK";
@@ -1095,6 +1130,34 @@ function madeCard(run, wrote, ending) {
   row.append(ok);
   holder.append(row);
   return holder;
+}
+
+/** Start the job that takes back what this run made.
+ *
+ * An ordinary rig run of an ordinary mined job, started with the one value that
+ * names the record -- not a special path, and deliberately so: the delete goes
+ * through the same ladder, the same write gate and the same belts as any other
+ * job, and an undo that skipped them would be the one write in this system
+ * nobody checked.
+ */
+async function undoTheRun(run, [field, names], button) {
+  try {
+    const started = await ask({
+      kind: "undo-rig-run",
+      workflowId: run.undo,
+      values: { [field]: names },
+    });
+    if (started?.ok === false) {
+      button.disabled = false;
+      said(started.error || "that job could not be started");
+      return;
+    }
+    said(`taking back ${field} ${names}`);
+    goToTheRun();
+  } catch (error) {
+    button.disabled = false;
+    said(error.message);
+  }
 }
 
 /** The operator has read it. Clears only the copy this panel draws -- the run

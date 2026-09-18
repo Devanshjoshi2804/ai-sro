@@ -216,6 +216,12 @@ export const api = {
       // records -- a whitelist nobody adds to is a card that silently draws
       // nothing and looks like code that was never changed.
       values: run.values || {},
+      // And what takes it back. Added here, in `finishing.js`, and drawn on
+      // the card -- all three, because this is the whitelist whose own comment
+      // above records what happens when one of them is forgotten: a card that
+      // silently draws nothing and looks like code nobody changed.
+      undo: run.undo || null,
+      undoes_by: run.undoes_by || null,
       // What it read out of the mail, so the card can say where a value it
       // was never given came from.
       gathered: run.gathered || {},
@@ -394,8 +400,7 @@ export const api = {
    * Reported from here because the id exists here first: the credential to
    * drive a run lives in this worker, so the backend cannot know it until the
    * browser says so. */
-  runStarted: (body) =>
-    call("/v1/chat/run-started", { method: "POST", body }),
+  runStarted: (body) => call("/v1/chat/run-started", { method: "POST", body }),
 
   /** Send the drafted mail the operator has just read.
    *

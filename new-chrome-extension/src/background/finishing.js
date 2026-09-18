@@ -39,7 +39,10 @@ export async function noteFinished(active) {
   // run, two resources behind two doors. The spelling is the persisted one.
   const source = active.source === "rig" ? "rig" : "backend";
   try {
-    const run = source === "rig" ? await api.rigRun(active.runId) : await api.run(active.runId);
+    const run =
+      source === "rig"
+        ? await api.rigRun(active.runId)
+        : await api.run(active.runId);
     // The one status both vocabularies share, and it means the same thing in
     // each: the quiet window landed between two of the run's own steps rather
     // than after its last one. Nothing is stored and `state.activeRun()` is
@@ -80,6 +83,10 @@ export async function noteFinished(active) {
       // named nothing and looked exactly like a card that had not been
       // changed.
       values: run.values || {},
+      // The second of the two whitelists this has to pass. `values` was added
+      // to one and not the other once already.
+      undo: run.undo || null,
+      undoes_by: run.undoes_by || null,
       gathered: run.gathered || {},
       watched: Boolean(run.watched),
       at: Date.now(),

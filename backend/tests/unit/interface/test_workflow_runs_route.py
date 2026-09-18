@@ -743,6 +743,9 @@ def test_a_finished_run_reaches_the_wire_whole() -> None:
         # reads this to stop offering to report it twice.
         "wrong_because": None,
         "undo": None,
+        # And which record it would address, which is null for the same reason
+        # and one more: a run that made nothing has nothing to name.
+        "undoes_by": None,
     }
 
 

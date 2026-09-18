@@ -95,6 +95,50 @@ def test_a_step_that_held_under_a_dialog_is_left_alone() -> None:
     assert _said_signed_out(held, Look("u", None, "", dialog="Saved")) is held
 
 
+def test_a_failure_on_another_screen_says_which_screen() -> None:
+    """The plainest of the three, and the one seen last.
+
+    Not a login, no dialog, and a control nothing matched -- because the screen
+    this step was demonstrated on is not the screen in front of it. On the
+    deployment 2026-09-18 a run reported a missing tab item while the browser
+    sat on the Warehouse configuration screen, after the operator had signed
+    back in and landed somewhere else.
+    """
+    said = _said_signed_out(
+        _failed(),
+        Look("https://wms.test/portal#wm.config/warehouse", None, ""),
+        "https://wms.test/portal#wm.config/customers.types",
+    )
+
+    assert "the browser is on" in said.reason
+    assert "warehouse" in said.reason
+    assert "customers.types" in said.reason
+    assert "control_not_found" in said.reason
+
+
+def test_the_same_screen_reached_by_another_url_is_not_another_screen() -> None:
+    """`same_screen` and not string equality, which is the comparison this
+    makes everywhere else: the query is where a session token and one visit's
+    particulars live, and a run reporting a wrong screen every time one differed
+    would be noise somebody learns to read past."""
+    same = _failed()
+    said = _said_signed_out(
+        same,
+        Look("https://wms.test/portal?siteId=SG#wm.config/customers.types////", None, ""),
+        "https://wms.test/portal?siteId=MY#wm.config/customers.types////",
+    )
+
+    assert said is same
+
+
+def test_a_step_with_no_screen_to_compare_says_what_it_always_said() -> None:
+    """Plenty of steps name no page. A run that invented a screen to be wrong
+    about would be worse than one that said nothing."""
+    same = _failed()
+
+    assert _said_signed_out(same, Look("https://wms.test/x", None, ""), None) is same
+
+
 def test_a_failure_anywhere_else_says_what_it_always_said() -> None:
     same = _failed()
 

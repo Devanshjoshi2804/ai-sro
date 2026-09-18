@@ -602,7 +602,7 @@ async def _ask_for_the_password(
     return kept
 
 
-def _said_signed_out(verdict: StepVerdict, look: Look) -> StepVerdict:
+def _said_signed_out(verdict: StepVerdict, look: Look, screen: str | None = None) -> StepVerdict:
     """The same verdict, saying what was on the screen instead.
 
     `control_not_found: no control matched` is true and says nothing about
@@ -632,6 +632,29 @@ def _said_signed_out(verdict: StepVerdict, look: Look) -> StepVerdict:
         return replace(
             verdict,
             reason=f"the screen is showing: {look.dialog.strip()} ({verdict.reason})",
+        )
+    # And the plainest of the three: the browser is somewhere else.
+    #
+    # Not a login, no dialog, and a control nothing matched -- because the
+    # screen this step was demonstrated on is not the screen in front of it.
+    # A redirect, a half-finished navigation, an operator who clicked away.
+    # Seen on the deployment 2026-09-18: a run reported a missing tab item
+    # while the browser sat on the Warehouse configuration screen, after the
+    # operator had signed back in and landed somewhere else.
+    #
+    # `same_screen` and not string equality, which is the comparison this
+    # already makes everywhere else: a query string and a fragment's
+    # particulars are not a different screen.
+    if screen and look.url and not same_screen(look.url, screen):
+        return replace(
+            verdict,
+            # The urls themselves. `screen_of` answers what a set of VISITS
+            # agree on, which is not this question -- and a person reading a
+            # step record wants the address they can go and look at.
+            reason=(
+                f"the browser is on {look.url}, and this step was demonstrated "
+                f"on {screen} ({verdict.reason})"
+            ),
         )
     return verdict
 
@@ -2506,7 +2529,7 @@ async def run_workflow(
                 # The verdict stands; what changes is what it SAYS. A run that
                 # renamed the failure would be a run deciding it knows why the
                 # step failed, and what this knows is only what is on screen.
-                verdict = _said_signed_out(verdict, after)
+                verdict = _said_signed_out(verdict, after, route)
                 # And where nothing is stored to sign in WITH, the refusal
                 # carries the key, so the panel can ask for it.
                 #

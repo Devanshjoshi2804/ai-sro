@@ -37,6 +37,7 @@ because a release says only that the wait ended and a stop releases it too.
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import hashlib
 import json
@@ -151,6 +152,14 @@ a run can still be stopped having done whole records rather than half of one.
 K_STEP_SLACK = 3
 """Attempts a run may make beyond its step count before it stops. A model
 looping on a form is money spent and a warehouse confused."""
+
+K_STILL_COMING_S = 2.0
+"""How long a step waits for a page that had not finished arriving.
+
+Long enough for a panel to draw, short enough that it costs less than the rung
+it replaces -- a model call about a half-drawn screen is seconds and money,
+and this is neither. One wait per step: a screen still coming after this is
+stuck, and waiting again turns a fault into a hang."""
 
 GatherValues = Callable[[Sequence[str]], Awaitable[Gathered]]
 """Go and find the values this run was not given, or say which are missing.
@@ -682,6 +691,7 @@ async def _where(
         digest="",
         signed_out=bool(where.ok and where.result.get("signed_out")),
         dialog=str(where.result.get("dialog") or "") if where.ok else "",
+        loading=bool(where.ok and where.result.get("loading")),
     )
 
 
@@ -738,6 +748,7 @@ async def _look(
         # the one kind that already knows where it is.
         signed_out=bool(where.ok and where.result.get("signed_out")),
         dialog=str(where.result.get("dialog") or "") if where.ok else "",
+        loading=bool(where.ok and where.result.get("loading")),
     )
 
 
@@ -1589,6 +1600,8 @@ async def run_workflow(
             # a step, so a wrong password cannot be spent over and over against
             # an account with a lockout policy.
             signed_in_here = False
+            # And whether it has already been given a moment to finish drawing.
+            waited_here = False
             never_filled = bool(
                 replay is not None
                 and collapsed
@@ -2545,6 +2558,29 @@ async def run_workflow(
                 # normalise the field identically for exactly this reason: the
                 # side asking and the side storing have to spell it the same or
                 # the value is invisible to the one thing that needs it.
+                # A page that had not finished arriving gets a moment, and the
+                # same rung again.
+                #
+                # This is the one of the screen's answers a run can DO
+                # something about rather than only report. A step that failed
+                # against a half-drawn screen otherwise spends the rest of its
+                # ladder on it -- a model call about a page that was not there
+                # yet, then a sight rung photographing a spinner -- and reports
+                # a missing control that appeared a second after it gave up.
+                #
+                # Once per step, like the sign-in. A screen that is still
+                # coming after one wait is a screen that is stuck, and a run
+                # that waited again would turn a fault into a hang.
+                if verdict.state == "failed" and after.loading and not waited_here:
+                    waited_here = True
+                    logger.info(
+                        "%s step %d: the page had not finished; waiting %.1fs and trying again",
+                        run.id,
+                        step.order,
+                        K_STILL_COMING_S,
+                    )
+                    await asyncio.sleep(K_STILL_COMING_S)
+                    continue
                 if verdict.state == "failed" and after.signed_out:
                     # Sign in and try the step again, where there IS something
                     # to sign in with.

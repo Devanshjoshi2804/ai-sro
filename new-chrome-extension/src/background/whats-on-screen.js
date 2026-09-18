@@ -38,6 +38,18 @@ export const A_LOGIN =
 export const A_DIALOG =
   'dialog[open], [role="dialog"], [role="alertdialog"], .x-message-box, .modal.show';
 
+/** A page that has not finished, by the things that say so.
+ *
+ * `document.readyState` is the page's own word for it and costs nothing. The
+ * two selectors are for the case it cannot answer: a single-page application
+ * finished loading its document minutes ago and is now fetching the screen,
+ * and `readyState` has said `complete` the whole time. `role="progressbar"` is
+ * the page declaring it; `.x-mask-loading` is what ExtJS puts over a panel it
+ * is filling, which is the framework these systems are built with.
+ */
+export const STILL_COMING =
+  '[role="progressbar"], .x-mask-loading, .x-mask.x-mask-msg';
+
 /** How much of what a dialog says to carry back.
  *
  * Enough for "Record already exists" and for the sentence under it. A modal
@@ -64,6 +76,12 @@ export function whatIsOnThisPage(said) {
   const dialog = seen(said.dialog)[0];
   return {
     signed_out: seen(said.login).length > 0,
+    // Still coming, which is the one of these a run can do something about
+    // other than stop: what a half-drawn screen needs is a moment, and every
+    // rung of the ladder spent on it is a model call answering a question
+    // about a page that was not there yet.
+    loading:
+      document.readyState !== "complete" || seen(said.loading).length > 0,
     // The innermost text and not the outer box's: a dialog wrapper often
     // contains the whole page behind it, and "what the dialog said" would then
     // be the screen read out.

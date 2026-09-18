@@ -28,6 +28,7 @@ import {
   A_DIALOG,
   A_LOGIN,
   K_SAID,
+  STILL_COMING,
   whatIsOnThisPage,
 } from "./whats-on-screen.js";
 import { state } from "./state.js";
@@ -949,15 +950,23 @@ async function whatThePageSays(tabId) {
     const [got] = await chrome.scripting.executeScript({
       target: { tabId },
       world: "MAIN",
-      args: [{ login: A_LOGIN, dialog: A_DIALOG, cap: K_SAID }],
+      args: [
+        {
+          login: A_LOGIN,
+          dialog: A_DIALOG,
+          loading: STILL_COMING,
+          cap: K_SAID,
+        },
+      ],
       func: whatIsOnThisPage,
     });
     return {
       signed_out: Boolean(got?.result?.signed_out),
       dialog: String(got?.result?.dialog || ""),
+      loading: Boolean(got?.result?.loading),
     };
   } catch {
-    return { signed_out: false, dialog: "" };
+    return { signed_out: false, dialog: "", loading: false };
   }
 }
 

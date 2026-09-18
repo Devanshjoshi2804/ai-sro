@@ -185,6 +185,20 @@ class Look:
     -- it is the evidence, and it is the whole answer to why the step did
     nothing."""
 
+    loading: bool = False
+    """The page has not finished arriving.
+
+    The one of these a run can do something about other than stop. What a
+    half-drawn screen needs is a moment, and every rung of the ladder spent on
+    one is a model call answering a question about a page that was not there
+    yet -- then a `sight` rung photographing a spinner, and a step reporting a
+    missing control that appeared a second after it gave up.
+
+    `document.readyState`, and a visible progress bar or panel mask for the
+    case it cannot answer: a single-page application finished its document
+    minutes ago and is now fetching the screen, and `readyState` has said
+    `complete` the whole time."""
+
 
 @dataclass(frozen=True, slots=True)
 class Planned:

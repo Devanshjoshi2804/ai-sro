@@ -35,6 +35,8 @@ function page(...all) {
   const matches = (one, css) => {
     if (css.includes("password"))
       return one.kind === "password" || one.kind === "current-password";
+    if (css.includes("progressbar"))
+      return one.role === "progressbar" || /x-mask/.test(one.className);
     return (
       one.kind === "dialog" ||
       one.role === "dialog" ||
@@ -43,6 +45,7 @@ function page(...all) {
     );
   };
   globalThis.document = {
+    readyState: "complete",
     querySelectorAll: (css) => all.filter((one) => matches(one, css)),
   };
   return all;
@@ -50,7 +53,13 @@ function page(...all) {
 
 const { whatIsOnThisPage, A_LOGIN, A_DIALOG, K_SAID } =
   await import("./whats-on-screen.js");
-const ASK = { login: A_LOGIN, dialog: A_DIALOG, cap: K_SAID };
+const { STILL_COMING } = await import("./whats-on-screen.js");
+const ASK = {
+  login: A_LOGIN,
+  dialog: A_DIALOG,
+  loading: STILL_COMING,
+  cap: K_SAID,
+};
 
 test("a password box is a login and nothing else has to be", () => {
   page(el("password"));
@@ -103,10 +112,39 @@ test("a dialog with a page inside it is cut to what a person reads", () => {
   assert.equal(whatIsOnThisPage(ASK).dialog.length, K_SAID);
 });
 
-test("a page with neither says neither", () => {
+test("a page with none of them says none of them", () => {
   page(el("text"), el("button"));
 
-  assert.deepEqual(whatIsOnThisPage(ASK), { signed_out: false, dialog: "" });
+  assert.deepEqual(whatIsOnThisPage(ASK), {
+    signed_out: false,
+    dialog: "",
+    loading: false,
+  });
+});
+
+test("a document that has not finished is still coming", () => {
+  // What a half-drawn screen needs is a moment, and every rung of the ladder
+  // spent on it is a model call answering a question about a page that was not
+  // there yet.
+  page(el("text"));
+  globalThis.document.readyState = "loading";
+
+  assert.equal(whatIsOnThisPage(ASK).loading, true);
+});
+
+test("a spinner over a finished document is still coming too", () => {
+  // The case `readyState` cannot answer: a single-page application finished
+  // its document minutes ago and is now fetching the screen, and `readyState`
+  // has said `complete` the whole time.
+  page(el("div", { className: "x-mask-loading" }));
+
+  assert.equal(whatIsOnThisPage(ASK).loading, true);
+});
+
+test("a spinner nobody can see is not a page still coming", () => {
+  page(el("div", { className: "x-mask-loading", hidden: true }));
+
+  assert.equal(whatIsOnThisPage(ASK).loading, false);
 });
 
 for (const [name, fn] of tests) {

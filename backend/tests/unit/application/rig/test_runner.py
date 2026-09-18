@@ -443,6 +443,34 @@ async def test_a_dialog_over_the_page_reaches_both_readers_too() -> None:
     assert looked.dialog == "Record already exists"
 
 
+async def test_a_page_still_arriving_reaches_both_readers() -> None:
+    """The one answer a run can DO something about rather than only report: a
+    step that failed against a half-drawn screen otherwise spends the rest of
+    its ladder on it and reports a missing control that appeared a second after
+    it gave up."""
+    said = {"url": "https://wms.test/x", "loading": True}
+
+    where = await _where(
+        FakeChannel({"ui.url": [Reply(ok=True, result=said)]}), TENANT, DEVICE, "run_1", None
+    )
+    looked = await _look(
+        FakeChannel(
+            {
+                "ui.url": [Reply(ok=True, result=said)],
+                "screenshot": [Reply(ok=True, result={"text_digest": "d"})],
+            }
+        ),
+        TENANT,
+        DEVICE,
+        "run_1",
+        None,
+        False,
+    )
+
+    assert where.loading is True
+    assert looked.loading is True
+
+
 async def test_a_browser_that_answered_nothing_is_not_reported_signed_out() -> None:
     """This is a reason to stop, and it must never be one invented by a failure
     to look: a page that cannot be asked is not a page asking for a password."""

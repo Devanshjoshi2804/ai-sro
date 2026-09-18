@@ -148,7 +148,9 @@ async def _held() -> FakeUnitOfWork:
 
 
 def _look(uow: FakeUnitOfWork, mailbox: _Mailbox, reads: _Reads, gather: Any = None) -> FromTheMail:
-    return FromTheMail(uow, mailbox, reads, model="m", gather=gather)
+    return FromTheMail(
+        uow, mailbox, reads, model="m", gather=gather, clock=FakeClock(), ids=FakeIdFactory()
+    )
 
 
 class _Gathers:
@@ -873,6 +875,59 @@ async def test_the_reply_itself_answers_when_the_mailbox_search_finds_nothing() 
     (one,) = looked.offered
     assert one.values["Customer Type"] == "QQI"
     assert one.missing == []
+
+
+async def test_a_question_a_reply_answered_stops_standing() -> None:
+    """The panel said two things at once.
+
+    A reply answered the question, the card was built with the value on it --
+    and the conversation went on asking. So Home showed "NGSL, want me to do
+    it?" and, underneath, "what should Customer Type be?", which is a system
+    that does not know what it knows. Seen on the deployment 2026-09-18.
+    """
+    uow = await _held()
+    thread = await StartThread(uow, FakeClock(), FakeIdFactory()).execute(CTX)
+    thread.say(
+        Message(
+            id=MessageId("msg_asked"),
+            speaker=Speaker.ASSISTANT,
+            text="What should Customer Type be?",
+            said_at=FakeClock().now(),
+            decision={
+                "kind": NEEDS,
+                "workflow_id": JOB,
+                "title": "Create a Customer Type",
+                "values": {"Customer Type Description": "Leaning new SRO type 059"},
+                "missing": ["Customer Type"],
+                "items": [],
+                "mail_thread": "t-37",
+                "watched": True,
+            },
+        )
+    )
+    await uow.threads.save(thread)
+    mailbox = _Mailbox(
+        search=_found("m-1"), **{"m-1": _mail("customer type :- NGSL", thread="t-37")}
+    )
+    reads = _Reads(
+        {
+            "workflow_id": JOB,
+            "values": [{"name": "Customer Type", "value": "NGSL"}],
+            "missing": [],
+            "sure": True,
+        }
+    )
+
+    looked = await _look(uow, mailbox, reads, _Gathers()).execute(CTX)
+
+    (one,) = looked.offered
+    assert one.values["Customer Type"] == "NGSL"
+    # And the conversation has stopped asking, because it has been answered.
+    said = await _thread(uow)
+    assert pending_job(said.messages) is None, "the question outlived its own answer"
+    # It says so, rather than going quiet: the thread is where this started.
+    assert "NGSL" in said.messages[-1].text
+    assert "Home" in said.messages[-1].text
 
 
 async def test_a_reply_on_another_conversation_is_not_an_answer_to_this_one() -> None:

@@ -52,6 +52,7 @@ from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime, timedelta
 from types import MappingProxyType
 
+from sro.application.chat.announce import SayWhatHappened
 from sro.application.chat.read_threads import ReadThreads
 from sro.application.chat.understand import understand
 from sro.application.context import RequestContext
@@ -59,9 +60,11 @@ from sro.application.execution.declared import declared_limits, names_of, screen
 from sro.application.execution.gather import GatherContext
 from sro.application.ports.model import Asker, asker_or_refuse
 from sro.application.ports.repositories import UnitOfWork
+from sro.application.ports.system import Clock, IdFactory
 from sro.application.ports.tools import ToolCaller, ToolsUnavailable
 from sro.domain.chat.asked_by import mails_behind, texts
-from sro.domain.chat.asking import Pending, pending_job
+from sro.domain.chat.asking import NEEDS, Pending, pending_job, question
+from sro.domain.chat.thread import Said, Speaker
 from sro.domain.execution.learned_step import limits_for, too_long
 from sro.domain.execution.waiting import read_wait, still_waiting
 from sro.domain.execution.workflow_run import WorkflowRun
@@ -214,12 +217,20 @@ class FromTheMail:
         *,
         model: str,
         gather: GatherContext | None = None,
+        clock: Clock | None = None,
+        ids: IdFactory | None = None,
     ) -> None:
         self._uow = uow
         self._tools = tools
         self._asker = asker
         self._model = model
         self._gather = gather
+        # Only for closing a question a reply has answered, which is the one
+        # thing this door writes into the operator's own conversation. Optional
+        # so nothing that builds this for a test has to grow two arguments to
+        # go on testing what it was testing.
+        self._clock = clock
+        self._ids = ids
 
     async def execute(self, ctx: RequestContext, *, limit: int = K_LOOK) -> LookedInTheMail:
         """One look. Nothing runs, and nothing is written down about the mail.
@@ -589,6 +600,7 @@ class FromTheMail:
             len(asked.missing) - len(missing),
             len(asked.missing),
         )
+        await self._the_question_is_answered(ctx, asked, values, missing, said_by=subject)
         return Offered(
             message=message,
             workflow_id=asked.workflow_id,
@@ -643,6 +655,84 @@ class FromTheMail:
                 ", ".join(sorted(got)),
             )
         return got
+
+    async def _the_question_is_answered(
+        self,
+        ctx: RequestContext,
+        asked: Pending,
+        values: Mapping[str, str],
+        missing: Sequence[str],
+        *,
+        said_by: str = "",
+    ) -> None:
+        """Close the standing question, because a reply has answered it.
+
+        The card is built and the conversation was left asking. So the panel
+        said two things at once -- here is NGSL, press to run it, and also what
+        should Customer Type be -- which is a system that does not know what it
+        knows. Seen on the deployment 2026-09-18.
+
+        `pending_job` reads the last thing the ASSISTANT decided, so what ends
+        a question is the assistant deciding something else. Where the reply
+        answered everything that was outstanding, that is a note saying so.
+        Where it answered some of it, the question that is left is asked again
+        with the new values on it, so the thread carries the progress rather
+        than repeating its first sentence.
+
+        Silent on every failure: a conversation that could not be written to
+        is a stale question, and a stale question is not worth losing the card
+        that answers it.
+        """
+        if self._clock is None or self._ids is None:
+            return
+        try:
+            found = await ReadThreads(self._uow).current(ctx)
+            if found is None:
+                return
+            filled = {name: values[name] for name in asked.missing if values.get(name)}
+            named = ", ".join(f"{name} {value}" for name, value in filled.items())
+            about = f" to {said_by}" if said_by.strip() else ""
+            still = Pending(
+                workflow_id=asked.workflow_id,
+                title=asked.title,
+                values=dict(values),
+                missing=tuple(missing),
+                items=asked.items,
+                watched=asked.watched,
+                limits=asked.limits,
+                from_step=asked.from_step,
+                mail_thread=asked.mail_thread,
+            )
+            said = f"A reply{about} answered: {named or 'nothing I could use'}." + (
+                f" {question(still)}" if missing else " It is on your Home tab to start."
+            )
+            await SayWhatHappened(self._uow, self._clock, self._ids).execute(
+                ctx,
+                for_operator=ctx.principal_id,
+                text=said,
+                # ASSISTANT either way: this is the thing that decides whether a
+                # question is still standing, and a SYSTEM note leaves the old
+                # one to be found by the next sentence somebody types.
+                speaker=Speaker.ASSISTANT,
+                decision=(
+                    {
+                        "kind": NEEDS,
+                        "workflow_id": still.workflow_id,
+                        "title": still.title,
+                        "values": dict(still.values),
+                        "items": [dict(one) for one in still.items],
+                        "missing": list(still.missing),
+                        "watched": still.watched,
+                        "limits": dict(still.limits),
+                        "from_step": still.from_step,
+                        "mail_thread": still.mail_thread,
+                    }
+                    if missing
+                    else {"kind": Said.NOTE, "workflow_id": still.workflow_id}
+                ),
+            )
+        except Exception:
+            logger.exception("the answered question could not be closed")
 
     async def _what_will_not_fit(
         self, ctx: RequestContext, offered: Sequence[Offered], jobs: Sequence[Workflow]

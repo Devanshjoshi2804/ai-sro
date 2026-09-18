@@ -1057,6 +1057,10 @@ class Container:
             # The same one a run uses. An offer that names the values it is
             # about is an offer somebody can answer; the run gathers anyway, so
             # this is the same work moved to where the decision is made.
+            # For the one thing this door says in the operator's own thread:
+            # that a reply has answered the question standing there.
+            clock=self.clock,
+            ids=self.ids,
             gather=GatherContext(
                 tools=self.tools, asker=self.asker, model=self.settings.gemini_plan_model
             )

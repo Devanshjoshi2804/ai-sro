@@ -1174,6 +1174,64 @@ test("it shows what it made and offers to take it back", async () => {
   assert.ok(!/come out right/i.test(said), "it is still asking a survey question");
 });
 
+test("a rig run that held names the record it wrote", async () => {
+  // The card said "the run finished — 1 step skipped, and the rest done on the
+  // page" and stopped: true, and it never named the record. An operator who
+  // authorised a write is owed the write, not a report on the mechanism that
+  // performed it.
+  const { cards } = panel(
+    {
+      deviceId: "dev-1",
+      capturing: true,
+      watched: [{ tabId: 7, host: "wms.example", since: new Date().toISOString() }],
+      finished: {
+        id: "run-1",
+        source: "rig",
+        status: "held",
+        values: {
+          "Customer Type": "NSSR",
+          "Customer Type Description": "Leaning new SRO type 050 for the north dock staging lanes",
+        },
+        steps: [
+          { index: 0, says: "open the mail", outcome: "not_needed" },
+          { index: 5, says: "Save", outcome: "held", matched_by: "component" },
+        ],
+      },
+    },
+    { id: 7, host: "wms.example", url: "https://wms.example/portal" },
+  );
+
+  const said = cards.map(words).join(" ");
+  assert.match(said, /NSSR/, "it did not name what it wrote");
+  assert.match(said, /Leaning new SRO type 050/, "it did not name the description");
+  // And still says how it ended, after it.
+  assert.match(said, /skipped/i);
+});
+
+test("a rig run that stopped claims to have written nothing", async () => {
+  // The one lie this surface must never tell. A run that stopped either wrote
+  // nothing or wrote something nobody has confirmed.
+  const { cards } = panel(
+    {
+      deviceId: "dev-1",
+      capturing: true,
+      watched: [{ tabId: 7, host: "wms.example", since: new Date().toISOString() }],
+      finished: {
+        id: "run-2",
+        source: "rig",
+        status: "stopped",
+        values: { "Customer Type": "NSSR" },
+        steps: [{ index: 3, says: "press Add", outcome: "failed", reason: "the session expired" }],
+      },
+    },
+    { id: 7, host: "wms.example", url: "https://wms.example/portal" },
+  );
+
+  const said = cards.map(words).join(" ");
+  assert.doesNotMatch(said, /NSSR/, "a stopped run claimed to have written the value");
+  assert.match(said, /session expired/);
+});
+
 test("with no way to reverse it, it says so rather than offering a dead button", async () => {
   const { cards } = panel(
     {

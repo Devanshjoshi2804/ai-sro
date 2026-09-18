@@ -915,6 +915,36 @@ const RIG_ENDINGS = {
  * says the browser could not reach the system, and "the run stopped" says a
  * person should go and look at something.
  */
+/** What a run that held actually wrote, named.
+ *
+ * Only for a run that HELD: a run that stopped wrote nothing, or wrote
+ * something nobody has confirmed, and a card claiming otherwise is the one
+ * lie this surface must never tell.
+ *
+ * Values and not step records, for the reason `finished` gives. Trimmed,
+ * because a description may hold two thousand characters and this is a
+ * headline.
+ */
+function whatItWrote(run) {
+  if (run.status !== "held") return "";
+  const said = Object.values(run.values || {})
+    .map((one) => String(one || "").trim())
+    .filter(Boolean)
+    .map((one) => (one.length > K_WROTE ? `${one.slice(0, K_WROTE)}…` : one));
+  return said.length ? said.join(", ") : "";
+}
+
+/** How much of one written value the card repeats back. Enough to recognise
+ * the record by, not enough to push the steps off the screen. */
+const K_WROTE = 60;
+
+/** A sentence that now follows something else. `The run finished…` reads badly
+ * after a dash; `the run finished…` does not. Only the first letter, and only
+ * where it is a letter: a value that starts with a digit is left alone. */
+function lowerFirst(said) {
+  return /^[A-Z][a-z]/.test(said) ? said[0].toLowerCase() + said.slice(1) : said;
+}
+
 function howItEnded(run) {
   const steps = run.steps || [];
   if (steps.some((step) => step.outcome === "awaiting"))
@@ -1002,11 +1032,31 @@ function finished(status) {
     const short = (run.needs || []).length
       ? `I could not find ${run.needs.join(", ")} — I have asked in the conversation.`
       : howItEnded(run);
+    // And WHAT it made, first, because that is the thing somebody came to the
+    // card to read.
+    //
+    // The card said "the run finished — 1 step skipped, and the rest done on
+    // the page" and stopped: true, and it never named the record. An operator
+    // who authorised a write is owed the write, not a report on the mechanism
+    // that performed it.
+    //
+    // From the run's own values rather than from the warehouse's answer. The
+    // step that created it records `made` from the response body, and for a
+    // write performed on the PAGE there is no body to read -- the browser sees
+    // the call and its status, not what came back, and it stays that way
+    // deliberately: a create's answer is a row of somebody's data. What this
+    // says is therefore what the run WROTE, which the 201 and the screen belt
+    // between them confirm landed.
+    const wrote = whatItWrote(run);
     return runCard(
       {
         run,
         skill: null,
-        message: { text: short || RIG_ENDINGS[run.status] || "The run ended." },
+        message: {
+          text: wrote
+            ? `${wrote} — ${lowerFirst(short || "done")}`
+            : short || RIG_ENDINGS[run.status] || "The run ended.",
+        },
       },
       { onSecret: keepSecret },
     );

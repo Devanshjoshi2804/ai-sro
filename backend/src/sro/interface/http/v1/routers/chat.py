@@ -69,7 +69,9 @@ async def ask_about_an_offer(
         mail_thread=body.mail_thread,
         watched=body.watched,
     )
-    return AskAboutOfferResponse(asked=await container.ask_about_the_offer().execute(ctx, pending))
+    return AskAboutOfferResponse(
+        asked=await container.ask_about_the_offer().execute(ctx, pending, about=body.about)
+    )
 
 
 @router.post("/chat/run-started", status_code=status.HTTP_204_NO_CONTENT)

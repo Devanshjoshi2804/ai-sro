@@ -228,7 +228,7 @@ found.
 | 3.11 | A question about the waiting is answered about the waiting | done `111dae90` |
 | 3.12 | Home keeps one request; the rest go behind a counted tray | done `65aa1784` |
 | 3.13 | An answer that completes a request starts it, without a second card | done `8bb6b2eb` |
-| 3.14 | **The page is not the page this step is about — and what kind of not** | 3 of 5 |
+| 3.14 | **The page is not the page this step is about — and what kind of not** | done |
 | 3.15 | **Credentials for any system, entered once, used unattended** | done `bf4ee957` |
 | 4 | Bind a value for a known field into the write | |
 | 5 | An undemonstrated field must prove it landed | |
@@ -250,15 +250,17 @@ four more of exactly the same shape:
   demonstrated on did not already exist. `67b6b46c` carries what it said.
 - ~~**signed in, wrong screen**~~ — a redirect or a half-finished navigation
   left the browser somewhere else. `a71a5865`.
-- **permission denied** — the operator can reach the screen and not the action,
-  which is a fact about the account and not about the job. Not built: structure
-  cannot answer it. The honest signal is the document's own status, 401 or 403,
-  which the extension already records per call.
-- **the page never finished loading** — a spinner where a form should be. Also
-  not built, and the reason to do it next is that it is the one of the five
-  that WAITING fixes, which nothing here currently does.
+- ~~**the page never finished loading**~~ — a spinner where a form should be.
+  `d6356513`, and it is the only one of the five that is FIXED rather than
+  explained: two seconds and the same rung again, once per step.
+- ~~**permission denied**~~ — the operator can reach the screen and not the
+  action. `e0956418`. Structure could never answer it; the status could, and
+  the calls the driven tab made were already being asked for -- just only for
+  the step's own endpoint and only for writes, so a 403 on anything else went
+  unread. `401` and `403` told apart, because they are two problems with two
+  fixes.
 
-Each of the three built says what is there and changes no verdict: a run that
+Four of the five say what is there and change no verdict: a run that
 renamed a failure would be a run deciding it knows why a step failed, and what
 it knows is what is on the screen. The original reason is kept beside it,
 because the selector may be broken as well.

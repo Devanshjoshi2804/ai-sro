@@ -39,6 +39,10 @@ class Read:
     answers: bool
     value: str = ""
     why: str = ""
+    about: str = ""
+    """What it was instead, where it was not an answer: `the_wait`,
+    `another_task`, or `something_else`. Empty where nothing read it."""
+
     spent: Answer | None = None
 
 
@@ -81,6 +85,11 @@ class IsItAnAnswer:
             answers=answers,
             value=value if answers else "",
             why=str(data.get("why") or ""),
+            # `the_wait` where the reading named nothing: a person who is
+            # waiting is usually asking about the waiting, and being answered
+            # about the wait costs a sentence where being sent to the task
+            # resolver costs a wall of text about a screen nobody mentioned.
+            about=str(data.get("about") or "") or "the_wait",
             spent=answer,
         )
 

@@ -74,6 +74,20 @@ talking about a different job, commenting, or thinking aloud. A person waiting \
 for an answer to arrive from somewhere else often asks about the waiting, and \
 that is not them answering.
 
+When it is not an answer, say what it IS instead:
+
+- `the_wait` -- about this request, or about the mail that was sent about it, \
+or about what this system is doing right now. "has the reply arrived", "check \
+now", "any update", "are you still going".
+- `another_task` -- asking for a DIFFERENT piece of work to be done. "create \
+an equipment type instead", "cancel that and show me the orders".
+- `something_else` -- anything else at all.
+
+`the_wait` is the common one, and the one to prefer when you are unsure \
+between it and `another_task`: a person who is waiting is usually asking about \
+the waiting, and answering them about the wait costs a sentence where starting \
+the wrong job costs a record in a warehouse.
+
 If you are not sure, say it is not an answer. A question left standing costs \
 one more sentence. A wrong value is typed into a live warehouse system.
 
@@ -84,9 +98,14 @@ IS_IT_AN_ANSWER_SCHEMA: dict[str, object] = {
     # No `additionalProperties`: the developer API refuses a schema carrying
     # it, and `test_no_schema_in_the_package_uses_what_the_developer_api_refuses`
     # walks every `*_SCHEMA` in the package to keep it that way.
-    "required": ["answers", "value", "why"],
+    "required": ["answers", "value", "why", "about"],
     "properties": {
         "answers": {"type": "boolean"},
+        "about": {
+            "type": "string",
+            "enum": ["the_wait", "another_task", "something_else"],
+            "description": "What the sentence is about, when it is not an answer.",
+        },
         "value": {
             "type": "string",
             "description": "The value itself when this answers, else an empty string.",

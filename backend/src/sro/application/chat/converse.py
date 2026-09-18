@@ -168,10 +168,23 @@ class Converse:
             # A sentence that is not an answer falls through to everything
             # below and is treated as what it is. The question is not consumed,
             # so it is still standing when they do answer it.
-            answered_it = await self._is_it_an_answer(ctx, waiting, text)
+            answered_it, about = await self._is_it_an_answer(ctx, waiting, text)
             if answered_it is not None:
                 return await self._answer_the_question(
                     ctx, thread_id=thread_id, text=answered_it, pending=waiting
+                )
+            # About the waiting, which is what a person who is waiting asks
+            # about. Answered here and not handed on.
+            #
+            # `check now` went to the task resolver, which is a door for "what
+            # work do you want done" -- so it planned one, and answered two
+            # words about a mailbox with a wall of text about Check In and
+            # Check Out screens nobody had mentioned. Seen on the deployment
+            # 2026-09-18, 16:42.
+            if about != "another_task":
+                await self._also_said(ctx, thread_id=thread_id, text=text)
+                return await self._ask_it_again(
+                    ctx, thread_id=thread_id, pending=waiting, said_before=said_before
                 )
             # Said, answered, and then asked again.
             #
@@ -184,7 +197,9 @@ class Converse:
             await self._carry_on(
                 ctx, thread_id=thread_id, text=text, system=system, parameters=parameters
             )
-            return await self._ask_it_again(ctx, thread_id=thread_id, pending=waiting)
+            return await self._ask_it_again(
+                ctx, thread_id=thread_id, pending=waiting, said_before=said_before
+            )
         return await self._carry_on(
             ctx, thread_id=thread_id, text=text, system=system, parameters=parameters
         )
@@ -307,8 +322,33 @@ class Converse:
             await uow.commit()
         return thread
 
+    async def _also_said(self, ctx: RequestContext, *, thread_id: ThreadId, text: str) -> None:
+        """Write down what they said, without acting on it.
+
+        The sentence is theirs and it was said: a conversation that answers a
+        person without showing what they asked reads, a minute later, as the
+        system talking to itself.
+        """
+        async with self._uow as uow:
+            thread = await uow.threads.get(ctx.tenant_id, thread_id)
+            thread.say(
+                Message(
+                    id=self._ids.new_message_id(),
+                    speaker=Speaker.OPERATOR,
+                    text=text,
+                    said_at=self._clock.now(),
+                )
+            )
+            await uow.threads.save(thread)
+            await uow.commit()
+
     async def _ask_it_again(
-        self, ctx: RequestContext, *, thread_id: ThreadId, pending: Pending
+        self,
+        ctx: RequestContext,
+        *,
+        thread_id: ThreadId,
+        pending: Pending,
+        said_before: Sequence[Message] = (),
     ) -> Thread:
         """Put the standing question back, under whatever was just said.
 
@@ -323,7 +363,7 @@ class Converse:
                 Message(
                     id=self._ids.new_message_id(),
                     speaker=Speaker.ASSISTANT,
-                    text=f"I am still waiting on this one. {question(pending)}",
+                    text=f"{_nothing_back(said_before)}{question(pending)}",
                     said_at=self._clock.now(),
                     decision={
                         "kind": NEEDS,
@@ -345,7 +385,7 @@ class Converse:
 
     async def _is_it_an_answer(
         self, ctx: RequestContext, pending: Pending, text: str
-    ) -> str | None:
+    ) -> tuple[str | None, str]:
         """The value to take, or None where that sentence was not an answer.
 
         Never None where nothing could read it. A deployment with no model, a
@@ -359,10 +399,10 @@ class Converse:
         Customer Type be" has been given a question with no good answer.
         """
         if let_go(text) or self._answers is None:
-            return text
+            return text, ""
         read = await self._answers.execute(ctx, pending, text)
         if read.answers:
-            return read.value or text
+            return read.value or text, ""
         logger.info(
             "%s: %r is not an answer to %s (%s)",
             ctx.tenant_id.value,
@@ -370,7 +410,7 @@ class Converse:
             pending.asking_for,
             read.why[:80],
         )
-        return None
+        return None, read.about
 
     async def _answer_the_question(
         self, ctx: RequestContext, *, thread_id: ThreadId, text: str, pending: Pending
@@ -1201,6 +1241,28 @@ def _awaiting(thread: Thread) -> str | None:
             return str(matched) if matched else None
         return None
     return None
+
+
+def _nothing_back(said: Sequence[Message]) -> str:
+    """ "Nothing back from them yet" -- where a mail is what is being waited on.
+
+    Read off the thread rather than guessed: the last mail this conversation
+    sent, and the fact that its answer has not arrived. The second half needs
+    no checking. A reply that had been read would have filled the value, and
+    this sentence is only ever written while the question is still standing.
+
+    Empty for a question nobody was mailed about, which is most of them: a run
+    that came up short in front of a person asks the person.
+    """
+    for message in reversed(list(said)):
+        decision = message.decision if isinstance(message.decision, dict) else None
+        if not decision or decision.get("kind") != "mail_sent":
+            continue
+        if not decision.get("sent"):
+            return ""
+        to = str(decision.get("to") or "")
+        return f"Nothing back from {to} yet. " if to else "Nothing back yet. "
+    return "I am still waiting on this one. "
 
 
 def _gathered(thread: Thread, skill_id: str | None) -> dict[str, str]:

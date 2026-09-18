@@ -437,14 +437,20 @@ class _Reads:
     be a second implementation of the thing being tested.
     """
 
-    def __init__(self, answers: bool, value: str = "") -> None:
+    def __init__(self, answers: bool, value: str = "", about: str = "the_wait") -> None:
         self._answers = answers
         self._value = value
+        self._about = about
         self.asked: list[str] = []
 
     async def execute(self, _ctx: object, _pending: object, said: str) -> Read:
         self.asked.append(said)
-        return Read(answers=self._answers, value=self._value or said, why="a fake")
+        return Read(
+            answers=self._answers,
+            value=self._value or said,
+            why="a fake",
+            about="" if self._answers else self._about,
+        )
 
 
 async def test_a_sentence_that_is_not_an_answer_does_not_become_the_value() -> None:
@@ -474,6 +480,69 @@ async def test_a_sentence_that_is_not_an_answer_does_not_become_the_value() -> N
     # And the question is still standing, because nothing consumed it: the
     # answer, when it comes, has something to land in.
     assert pending_job(said.messages) is not None, "the question was swallowed"
+
+
+async def test_a_question_about_the_waiting_is_answered_about_the_waiting() -> None:
+    """ "check now" went to the task RESOLVER -- a door for "what work do you
+    want done" -- so it planned some, and answered two words about a mailbox
+    with a wall of text about Check In and Check Out screens nobody had
+    mentioned. Seen on the deployment 2026-09-18 at 16:42.
+    """
+    uow = FakeUnitOfWork()
+    await _taught(uow)
+    converse, thread_id = await _asked(uow, ["Customer Type"])
+    # A mail went out about this one, which is what is being waited on.
+    async with uow as opened:
+        thread = await opened.threads.get(f.TENANT, thread_id)
+        thread.say(
+            Message(
+                id=MessageId("msg_sent"),
+                speaker=Speaker.SYSTEM,
+                text="Asked asker@example.com. I will carry on when they reply.",
+                said_at=FakeClock().now(),
+                decision={"kind": "mail_sent", "to": "asker@example.com", "sent": True},
+            )
+        )
+        await opened.threads.save(thread)
+        before = len(thread.messages)
+    converse._answers = _Reads(answers=False, about="the_wait")
+
+    said = await converse.execute(CTX, thread_id=thread_id, text="check now")
+
+    last = said.messages[-1]
+    # What they actually asked about, and then the question again.
+    assert last.text == (
+        "Nothing back from asker@example.com yet. Customer Type takes 4 characters. "
+        "What should it be?"
+    ) or last.text.startswith("Nothing back from asker@example.com yet."), last.text
+    # And what they said is in the thread, because they said it.
+    assert any(m.speaker == Speaker.OPERATOR and m.text == "check now" for m in said.messages)
+    # Two messages and no more: what they said, and the answer. A third would
+    # be the resolver's -- the door that planned a Check In screen out of two
+    # words about a mailbox.
+    assert len(said.messages) - before == 2, [m.text for m in said.messages[before:]]
+    # The question is still there to answer.
+    assert pending_job(said.messages) is not None
+
+
+async def test_asking_for_a_different_job_is_still_heard() -> None:
+    """The gate is about answers, not about the person. Somebody who says
+    "create an equipment type instead" has asked for work, and a door that
+    replied "I am still waiting on Customer Type" to that would be the old
+    swallowing with better manners."""
+    uow = FakeUnitOfWork()
+    await _taught(uow)
+    converse, thread_id = await _asked(uow, ["Customer Type"])
+    converse._answers = _Reads(answers=False, about="another_task")
+
+    said = await converse.execute(
+        CTX, thread_id=thread_id, text="create a warehouse equipment type instead"
+    )
+
+    # Handled as the request it is -- and the question is still standing under
+    # it, because nothing answered it.
+    assert len(said.messages) >= 3
+    assert pending_job(said.messages) is not None
 
 
 async def test_a_sentence_that_is_an_answer_still_is() -> None:

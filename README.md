@@ -120,3 +120,9 @@ deliberately does not cover.
 [docs/18-deployment.md](docs/18-deployment.md) — running it on a VM: the two
 images, the compose stack, and the five things that are quiet when wrong. It is
 honest about what is missing; read it before promising a deployment date.
+
+[docs/19-what-the-warehouse-actually-does.md](docs/19-what-the-warehouse-actually-does.md)
+— measured against the captured knowledge base: of 89 mined form models, 88 are
+configuration screens and one is operational. The "fill a form and save" shape
+this system proves is real and lives almost entirely in low-volume master data.
+Read it before deciding what to build next.

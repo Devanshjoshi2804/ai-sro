@@ -215,7 +215,7 @@ found.
 | 2.8 | The card asks before the press, once the limit is known | done `3b198284` |
 | 2.9 | Ask the asker — drafted reply, previewed, one per run | done, untested live |
 | 3 | A job declares its fields — `field-dictionary.json` as source | done `0732894d` |
-| 3.1 | **A step names the prior steps whose output it uses** (CrewAI) | not yet — see below |
+| 3.1 | **A step names the prior steps whose output it uses** (CrewAI) | done `2a2ee2e9`, unused |
 | 3.2 | **A dormant pause keyed by an external id** (LangGraph) | done `fcce6029` |
 | 3.3 | **Learned facts written back as a reviewable diff** (Robot Framework) | done `48a98d2f` |
 | 3.4 | One request, two mails, one card | done `797ed1d0` |
@@ -235,7 +235,12 @@ found.
 | 6 | The card says what it will write | |
 | 7 | Composition — needs 3.1, 3.2, and a compensation story | last; 3.1 waits on this |
 
-### 3.1 — deliberately not built, and what would change that
+### 3.1 — built as scaffolding, and unused on purpose
+
+Built at the operator's request after I argued against it. The argument stands
+and is recorded here rather than quietly dropped, because the day this field is
+still empty in six months is the day to ask whether composition is really
+coming.
 
 The idea is right and the case is absent. Measured on the deployment
 2026-09-19: **thirteen runs have made a record and not one has made two.** A
@@ -251,7 +256,16 @@ from, and the run card says so: `Customer Type: DDLS — read from your mail
 ("customer type :- DDLS")`. A value an operator typed needs no provenance;
 they were standing there and they meant it.
 
-Two things would make the rest real, and either is the moment to build it:
+`Step.uses` now exists, is checked, is stored, and binds: what an earlier step
+made reaches a later one as `step<order>.<field>`, namespaced so a create
+answering `{"id": ...}` and a job with a parameter called `id` are never
+silently the same value. A step that uses a later step, or one that is not
+there, is refused at the door.
+
+**Nothing writes it.** Measured after deploying it: every step of every job in
+this deployment has `uses = []`.
+
+Two things would fill it, and either is the moment the rest becomes real:
 
 1. **A job that makes two records**, where the second needs the first's id.
    Then `RunStep.made` -- which already keeps what the warehouse called each

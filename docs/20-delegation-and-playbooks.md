@@ -218,7 +218,7 @@ found.
 | 3.1 | **A step names the prior steps whose output it uses** (CrewAI) | stolen |
 | 3.2 | **A dormant pause keyed by an external id** (LangGraph) | done `fcce6029` |
 | 3.3 | **Learned facts written back as a reviewable diff** (Robot Framework) | stolen |
-| 3.4 | One request, two mails, one card | open |
+| 3.4 | One request, two mails, one card | done `797ed1d0` |
 | 3.5 | The card asks in the conversation, not in boxes | done `ca488370` |
 | 3.6 | The conversation is the spine — request, question, answer, run | done `37ecc5fb` |
 | 3.7 | A finished job is a result, with an OK that ends it | done `1ebb1a86` |

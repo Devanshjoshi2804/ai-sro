@@ -1584,6 +1584,141 @@ test("the run an answer starts is said into the conversation that authorised it"
   threadSaid = null;
 });
 
+test("one request arriving as two mails makes one card", async () => {
+  // A request and its "Confirmed - please create the customer type in WMS as
+  // discussed" are two MESSAGES, and the claim that stops a mail being read
+  // twice is per message id. So each was read, each understood as the same
+  // job, and each offered: two identical `Create a Customer Type — GV2` cards
+  // for one request, on the deployment 2026-09-18, and pressing both would try
+  // to make the record twice.
+  ready();
+  const asked = (message, values) => ({
+    read: 1,
+    why: "offered Create a Customer Type",
+    offered: [
+      {
+        message,
+        workflow_id: "wfl_wa",
+        title: "Create a Customer Type",
+        values,
+        missing: [],
+        thread: "t-same",
+        subject: "Customer type for the SRO pilot",
+      },
+    ],
+  });
+
+  mailLooked = asked("m-100", { "Customer Type": "GV2" });
+  await send({ kind: "look-in-the-mail" });
+  await until(() => openOnes().length === 1, "the request made no card");
+
+  // The confirmation, a minute later: a new message id, the same conversation.
+  held.set("sro.mailLooked", null);
+  mailLooked = asked("m-101", { "Customer Type": "GV2" });
+  await send({ kind: "look-in-the-mail" });
+  await new Promise((done) => setTimeout(done, 30));
+
+  assert.equal(openOnes().length, 1, "one request drew two cards");
+});
+
+test("the same job asked for on another thread is another request", async () => {
+  // The conversation identifies a request, not the job: two people asking for
+  // a customer type on separate threads are asking for two.
+  ready();
+  const asked = (message, thread) => ({
+    read: 1,
+    why: "offered Create a Customer Type",
+    offered: [
+      {
+        message,
+        workflow_id: "wfl_wa",
+        title: "Create a Customer Type",
+        values: { "Customer Type": "GV2" },
+        missing: [],
+        thread,
+      },
+    ],
+  });
+
+  mailLooked = asked("m-200", "t-one");
+  await send({ kind: "look-in-the-mail" });
+  await until(() => openOnes().length === 1, "the first request made no card");
+
+  held.set("sro.mailLooked", null);
+  mailLooked = asked("m-201", "t-two");
+  await send({ kind: "look-in-the-mail" });
+  await until(() => openOnes().length === 2, "a second request was folded into the first");
+});
+
+test("two different jobs on one thread are two requests", async () => {
+  // A conversation can turn to something else. What makes two mails one
+  // request is the thread AND the job, not the thread alone.
+  ready();
+  shapesServed = [SHAPE, { ...SHAPE, id: "wfl_other", title: "Create a Work Area" }];
+  const asked = (message, workflow) => ({
+    read: 1,
+    why: "offered something",
+    offered: [
+      {
+        message,
+        workflow_id: workflow,
+        title: workflow === "wfl_wa" ? "Create a Customer Type" : "Create a Work Area",
+        values: { "Customer Type": "GV2" },
+        missing: [],
+        thread: "t-same",
+      },
+    ],
+  });
+
+  mailLooked = asked("m-300", "wfl_wa");
+  await send({ kind: "look-in-the-mail" });
+  await until(() => openOnes().length === 1, "the first request made no card");
+
+  held.set("sro.mailLooked", null);
+  mailLooked = asked("m-301", "wfl_other");
+  await send({ kind: "look-in-the-mail" });
+  await until(
+    () => openOnes().length === 2,
+    "a different job on the same thread was folded into the first",
+  );
+});
+
+test("a request answered on a thread does not block the next one", async () => {
+  // Only an OPEN card is the same request still standing. One that was
+  // answered, dismissed or swept has had its say, and a genuinely new request
+  // on that thread deserves its own card.
+  ready();
+  const asked = (message) => ({
+    read: 1,
+    why: "offered Create a Customer Type",
+    offered: [
+      {
+        message,
+        workflow_id: "wfl_wa",
+        title: "Create a Customer Type",
+        values: { "Customer Type": "GV2" },
+        missing: [],
+        thread: "t-done",
+      },
+    ],
+  });
+
+  mailLooked = asked("m-400");
+  await send({ kind: "look-in-the-mail" });
+  await until(() => openOnes().length === 1, "the first request made no card");
+  const [first] = openOnes();
+  await send({ kind: "drop-nudge", nudgeId: first.id });
+  assert.equal(openOnes().length, 0, "the dismissal did not take");
+
+  held.set("sro.mailLooked", null);
+  mailLooked = asked("m-401");
+  await send({ kind: "look-in-the-mail" });
+  await until(
+    () => openOnes().length === 1,
+    "a new request was refused because an answered one had the same thread",
+  );
+});
+
 test("a tab that records half is repaired once, and only once", async () => {
   // The reload is a repair, and a repair that did not work is not worth
   // repeating: the fresh page reports the same fault a second later and the

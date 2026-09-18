@@ -654,6 +654,33 @@ async function offerFromMail(offer) {
   const kept = await serially(async () => {
     const held = await state.nudges();
     if (held.some((one) => one.candidateId === made.candidateId)) return "already held";
+    // One request, one card, however many mails it arrives in.
+    //
+    // A request and its "Confirmed - please create the customer type in WMS as
+    // discussed" are two MESSAGES, and the claim that stops a mail being read
+    // twice is per message id -- so each was read, each understood as the same
+    // job, and each offered. Seen on the deployment 2026-09-18: two identical
+    // `Create a Customer Type — GV2` cards for one request, and pressing both
+    // would try to make the record twice.
+    //
+    // The conversation is what identifies a request, which is why this is the
+    // thread and not the values: a follow-up that corrects the code is still
+    // the same request, and two people asking for the same code on separate
+    // threads are two.
+    //
+    // Only against an OPEN one. An offer that was answered, dismissed or swept
+    // has had its say, and a genuinely new request on that thread a week later
+    // deserves its own card.
+    if (
+      made.mailThread &&
+      held.some(
+        (one) =>
+          one.state === "open" &&
+          one.workflowId === made.workflowId &&
+          one.mailThread === made.mailThread,
+      )
+    )
+      return "the same request is already on a card";
     await state.setNudges([made, ...held].slice(0, MAX_NUDGES));
     return "";
   });

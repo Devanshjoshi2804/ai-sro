@@ -20,6 +20,7 @@ from dataclasses import replace
 
 from sro.domain.execution.verified_writes import VerifiedWrite
 from sro.domain.execution.write_plan import (
+    begins_again_at,
     scaffolding_for,
     seen_values,
     wanted_by,
@@ -850,3 +851,49 @@ def test_a_different_value_with_nowhere_to_go_still_refuses() -> None:
     )
 
     assert plan is None
+
+
+# -- where a run that came up short has to start over ---------------------------
+
+
+def test_a_resumed_run_goes_back_to_where_the_form_was_built() -> None:
+    """Not to the step that stopped.
+
+    That one re-types a field into whatever is on the screen a minute later,
+    and the operator may well have navigated off the half-filled form by then:
+    the step acts on a screen that is not the one it was recorded against.
+    """
+    by_id = {"t4": _typing("t4", 4), "t5": _typing("t5", 5)}
+    job = _job(
+        Step(order=2, says="open the screen", system=HOST, cites=[]),
+        Step(order=3, says="press Add", system=HOST, cites=[]),
+        Step(order=4, says="type the code", system=HOST, cites=["t4"]),
+        Step(order=5, says="type the description", system=HOST, cites=["t5"]),
+    )
+
+    # Stopped typing the description: back to opening the screen, because
+    # nothing between them wrote.
+    assert begins_again_at(job, by_id, stopped_at=5) == 2
+
+
+def test_a_resumed_run_never_starts_on_the_far_side_of_a_write() -> None:
+    """The whole safety argument, and the same one `scaffolding_for` makes: a
+    write that went out and may have landed is not a step to try again."""
+    by_id = {"g1": _saving("g1", CREATED), "t7": _typing("t7", 7), "t8": _typing("t8", 8)}
+    job = _job(
+        Step(order=2, says="open the screen", system=HOST, cites=[]),
+        _step("g1"),
+        Step(order=7, says="press Add again", system=HOST, cites=["t7"]),
+        Step(order=8, says="type the second code", system=HOST, cites=["t8"]),
+    )
+
+    # The save at step 6 is behind it, so the rebuild starts AFTER it -- never
+    # at step 2, which would create the first record a second time.
+    assert begins_again_at(job, by_id, stopped_at=8) == 7
+
+
+def test_a_run_that_stopped_on_its_own_first_step_starts_there() -> None:
+    """There is nothing before it to rebuild from."""
+    job = _job(Step(order=2, says="open the screen", system=HOST, cites=[]))
+
+    assert begins_again_at(job, {}, stopped_at=2) == 2

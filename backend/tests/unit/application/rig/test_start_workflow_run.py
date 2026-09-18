@@ -1011,8 +1011,10 @@ async def test_the_question_says_which_step_the_run_had_reached() -> None:
     assert threads, "no question was asked"
     decision = threads[0].messages[-1].decision
     assert decision is not None
-    # The step that STOPPED, not the first one and not the one after it: the
-    # steps under it completed, this one did not, and the ones over it never
-    # ran.
-    assert decision["from_step"] == 4
+    # NOT the step that stopped. That one re-types a field into whatever is on
+    # screen a minute later, and the operator may have walked off the
+    # half-filled form. So it goes back to the beginning of the block that
+    # built the screen -- here the job's first step, because nothing in it
+    # writes until the end.
+    assert decision["from_step"] == 0
     assert decision["from_run"] == run.id

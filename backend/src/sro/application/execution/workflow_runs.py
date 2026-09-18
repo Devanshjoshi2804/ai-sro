@@ -103,7 +103,7 @@ from sro.domain.execution.workflow_run import (
     already_running,
     new_run_id,
 )
-from sro.domain.execution.write_plan import seen_values
+from sro.domain.execution.write_plan import begins_again_at, seen_values
 from sro.domain.knowledge.entry import EntryKind
 from sro.domain.shared.errors import Conflict, DomainError, NotFound
 from sro.domain.shared.identifiers import DeviceId, PrincipalId
@@ -600,6 +600,20 @@ class StartWorkflowRun:
         async with self._uow as uow:
             learnt = await uow.workflows.learned_for(run.workflow_id)
             workflow = await uow.workflows.get(ctx.tenant_id, run.workflow_id)
+            # Which of this job's steps wrote, so the resumed one can be told
+            # where it may safely start over. Read here rather than inferred
+            # from the run's own record: what a STEP does is a fact about the
+            # job and its evidence, and a run that stopped early performed too
+            # few of them to say.
+            cited = (
+                await uow.gestures.gestures_for(
+                    ctx.tenant_id,
+                    ids=tuple(sorted({one for step in workflow.steps for one in step.cites})),
+                )
+                if workflow
+                else ()
+            )
+        by_id = {gesture.id: gesture for gesture in cited}
         steps = workflow.steps if workflow else []
         limits = limits_for(
             steps,
@@ -622,11 +636,23 @@ class StartWorkflowRun:
             items=tuple(dict(one) for one in run.items),
             watched=run.watched,
             limits=limits,
-            # Where this run got to, so the one the answer starts does not
-            # re-walk it. See `Pending.from_step` for why resuming AT the
-            # stopped step is safe: every way `needs` is set happens before
-            # that step's command goes out.
-            from_step=run.steps[-1].order if run.steps else 0,
+            # Where the run the answer starts has to begin.
+            #
+            # Not the step that stopped, which is where this started: that one
+            # re-types a field into whatever is on the screen a minute later,
+            # and the operator may well have navigated off the half-filled form
+            # by then. So it goes back to the beginning of the block that BUILT
+            # that screen -- pressing Add, opening the tab, the typing before
+            # it -- and rebuilds the form the value is going into.
+            #
+            # `begins_again_at` partitions at the last write for the reason
+            # everything here does: a write that may have landed is not a step
+            # to try again, and nothing it returns is on the far side of one.
+            from_step=(
+                begins_again_at(workflow, by_id, stopped_at=run.steps[-1].order)
+                if workflow and run.steps
+                else 0
+            ),
         )
         await SayWhatHappened(self._uow, self._clock, self._ids).execute(
             ctx,

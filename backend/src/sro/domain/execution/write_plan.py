@@ -448,6 +448,44 @@ def write_plan_for(
     )
 
 
+def begins_again_at(workflow: Workflow, by_id: Mapping[str, Gesture], *, stopped_at: int) -> int:
+    """Where a run has to start over so the screen the stopped step needed is
+    there again.
+
+    A run that came up short of a value ends in front of a half-filled form.
+    Resuming at the step that stopped re-types one field into whatever is on
+    the screen a minute later -- which is right if the form is still open, and
+    wrong every other way it can go: the operator navigated off it, the session
+    timed out, the page reset. The step then acts on a screen that is not the
+    one it was recorded against.
+
+    So the run goes back to the beginning of the block that BUILT that screen:
+    the first step after the last write before it. Everything from there to the
+    stopped step is scaffolding and keystrokes -- pressing Add, opening a tab,
+    typing into a form nothing has posted yet -- and re-performing it rebuilds
+    the form the value is going into.
+
+    **Nothing in that stretch wrote, and that is the whole safety argument.**
+    The partition is at the last write precisely so a resumed run cannot
+    re-perform one: a write that went out and may have landed is not a step to
+    try again, and this returns a step strictly after every write the run
+    performed. The same rule, and the same reasoning, as `scaffolding_for` --
+    which is why they compute the same boundary and sit next to each other.
+
+    `stopped_at` itself where there is nothing before it to rebuild from, which
+    is a run that stopped on its own first step.
+    """
+    from sro.domain.execution.evidence import writes
+
+    ordered = sorted(workflow.steps, key=lambda step: step.order)
+    before = [step for step in ordered if step.order < stopped_at]
+    since = 0
+    for position, step in enumerate(before):
+        if writes(step, by_id):
+            since = position + 1
+    return before[since].order if since < len(before) else stopped_at
+
+
 def scaffolding_for(
     workflow: Workflow, by_id: Mapping[str, Gesture], *, write_step: int
 ) -> tuple[int, ...]:

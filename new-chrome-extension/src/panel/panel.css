@@ -384,8 +384,12 @@ body {
 .panes {
   margin-left: auto;
   display: inline-flex;
-  gap: 2px;
-  padding: 2px;
+  align-items: center;
+  /* Room between them. At 2px five glyphs read as one smudged control, and the
+     thing a person is aiming at on a panel beside a warehouse screen is a
+     shape they can hit without looking twice. */
+  gap: 6px;
+  padding: 3px 5px;
   border: 1px solid var(--line-soft);
   border-radius: 999px;
   background: var(--brand-surface-2);
@@ -399,8 +403,8 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 28px;
+  width: 32px;
+  height: 30px;
   gap: 6px;
   padding: 0;
   border: 0;
@@ -412,7 +416,7 @@ body {
      this cluster was drawing 12px glyphs while the file said 13.
      Sixteen because these are shapes rather than letters: a glyph at body size
      is a smudge on a panel somebody glances at from a warehouse aisle. */
-  font: 600 16px/1 inherit;
+  font: 600 18px/1 inherit;
   cursor: pointer;
   /* The one transition on this control. A segment that snaps is a segment
      somebody presses twice to see whether it worked. */
@@ -469,13 +473,24 @@ body {
 
 /* The one number a person on the wrong pane needs. Toned, never accented:
  * `brand.css` says state colours are not the accent, and this is a state. */
+/* On the corner of its own icon, not in the row beside it.
+ *
+ * Inline, it was a third item inside a 32-pixel square: the square grew, the
+ * cluster spread, and an eleven-request badge shunted the clock along the
+ * strip. A count is a mark ON a thing, and the thing it is on is the tray. */
 .pane-count {
-  min-width: 18px;
-  padding: 1px 5px;
+  position: absolute;
+  top: -3px;
+  right: -4px;
+  min-width: 16px;
+  padding: 0 4px;
   border-radius: 999px;
+  /* Against the strip behind it, so a badge over a glyph still reads as two
+     things rather than one busy one. */
+  border: 1.5px solid var(--brand-surface-2);
   background: var(--warn);
   color: var(--card);
-  font: 700 11px/1.5 inherit;
+  font: 700 10.5px/1.6 inherit;
   text-align: center;
 }
 

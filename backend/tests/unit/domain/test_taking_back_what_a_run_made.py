@@ -108,3 +108,35 @@ def test_a_job_is_not_its_own_undo() -> None:
     creates = _job("wfl_make", "ges-made")
 
     assert undoes(creates, gestures, [creates, creates]) is None
+
+
+def test_an_id_with_no_digit_in_it_is_still_one_record() -> None:
+    """The case that kept this dark on the real deployment.
+
+    `path_shape` blanks a segment carrying a DIGIT, which is right for
+    `/equipmentTypes/4471` and silent for `/customerTypes/GDD` -- so the id
+    survived the blanking, the delete's shape carried the record it happened to
+    be demonstrated on, and it could never equal `collection/*`.
+
+    Measured 2026-09-19: this tenant had held `Create a Customer Type` and
+    `Delete a Customer Type` for weeks, and this answered None every time.
+    """
+    gestures = _store(
+        ("ges-made", "POST", TYPES, 201),
+        ("ges-gone", "DELETE", f"{TYPES}/GDD", 204),
+    )
+
+    assert undoes(_job("wfl-made", "ges-made"), gestures, [_job("wfl-gone", "ges-gone")]) == (
+        "wfl-gone"
+    )
+
+
+def test_a_delete_two_segments_deeper_is_not_this_undo() -> None:
+    """One more segment, which is what deleting a member of a collection is. A
+    delete of something inside a member is a different thing entirely."""
+    gestures = _store(
+        ("ges-made", "POST", TYPES, 201),
+        ("ges-gone", "DELETE", f"{TYPES}/GDD/subsites/SG", 204),
+    )
+
+    assert undoes(_job("wfl-made", "ges-made"), gestures, [_job("wfl-gone", "ges-gone")]) is None

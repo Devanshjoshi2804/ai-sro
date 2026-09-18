@@ -52,20 +52,44 @@ def undoes(made: Workflow, gestures: dict[str, Gesture], among: Sequence[Workflo
     The two endpoints are not the same string and must not be compared as one.
     A create addresses the collection -- `POST /wm/equipmentTypes` -- and a
     delete addresses one record in it -- `DELETE /wm/equipmentTypes/4471`,
-    whose shape is the collection's plus the id. A DELETE to the collection
+    whose path is the collection's plus the id. A DELETE to the collection
     ITSELF is not an undo of one record: it is whatever that warehouse means by
     emptying it, and this would be a poor place to find that out.
+
+    **One more segment, and never `path_shape`'s `*`.** That function blanks a
+    segment carrying a DIGIT, which is right for `/equipmentTypes/4471` and
+    silent for `/customerTypes/GDD` -- so the id survived the blanking, the
+    delete's shape carried the record it happened to be demonstrated on, and it
+    could never equal `collection/*`. Measured on this deployment 2026-09-19:
+    the tenant has held `Create a Customer Type` and `Delete a Customer Type`
+    for weeks, and this answered None every time.
+
+    Comparing the SEGMENTS needs no rule about what an id looks like, which is
+    the right amount to know: that a delete addresses one member of the
+    collection a create posts to is structural, and what that member is called
+    is the warehouse's business.
     """
     creates = _endpoint(made, gestures, statuses={K_CREATED})
     if creates is None:
+        return None
+    collection = _pieces(creates)
+    if not collection:
         return None
     for other in among:
         if other.id == made.id:
             continue
         removes = _endpoint(other, gestures, methods=REMOVES)
-        if removes is not None and removes == f"{creates}/*":
+        if removes is None:
+            continue
+        member = _pieces(removes)
+        if len(member) == len(collection) + 1 and member[:-1] == collection:
             return other.id
     return None
+
+
+def _pieces(shape: str) -> list[str]:
+    """A path shape in segments, with the empties dropped."""
+    return [one for one in shape.split("/") if one]
 
 
 def _endpoint(

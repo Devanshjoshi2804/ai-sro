@@ -223,10 +223,62 @@ found.
 | 3.6 | The conversation is the spine — request, question, answer, run | done `37ecc5fb` |
 | 3.7 | A finished job is a result, with an OK that ends it | done `1ebb1a86` |
 | 3.8 | A card pile nobody answers — ages out after a day | done |
+| 3.9 | The wait for a reply is something you can watch | done `42a14ce7` |
+| 3.10 | A standing question only takes what is an answer | done `fe5c1f37` |
+| 3.11 | A question about the waiting is answered about the waiting | done `111dae90` |
+| 3.12 | Home keeps one request; the rest go behind a counted tray | done `65aa1784` |
+| 3.13 | An answer that completes a request starts it, without a second card | done `8bb6b2eb` |
+| 3.14 | **The page is not the page this step is about — and what kind of not** | next after 3.15 |
+| 3.15 | **Credentials for any system, entered once, used unattended** | asked for, not planned |
 | 4 | Bind a value for a known field into the write | |
 | 5 | An undemonstrated field must prove it landed | |
 | 6 | The card says what it will write | |
 | 7 | Composition — needs 3.1, 3.2, and a compensation story | last |
+
+### 3.14 — the page is not the page this step is about
+
+A run that cannot find its control says `control_not_found: no control matched`,
+which is true and says nothing about why. `f4cfd4c8` fixed one case of it: a
+password field on the page means the session has gone, and the step says so
+instead of blaming a selector. That is one special case, and there are at least
+four more of exactly the same shape:
+
+- **signed in, wrong screen** — a redirect or a half-finished navigation left
+  the browser somewhere else. Seen 2026-09-18: a run reported a missing tab item
+  while the page sat on Warehouse configuration after an operator re-login.
+- **an error dialog** over the form, which every control is behind.
+- **a confirmation popup** the demonstration never met, because the record it
+  was demonstrated on did not already exist.
+- **permission denied** — the operator can reach the screen and not the action,
+  which is a fact about the account and not about the job.
+
+Each has a different answer: sign in and resume, navigate and retry, read the
+dialog and stop with what it said, answer the popup, stop and name the
+permission. What they share is a question nothing currently asks — *what is on
+the screen, if it is not the thing this step is about* — and the case for doing
+them together rather than one at a time is that a fifth one will arrive next
+week, and a ladder of special cases has no rung for it.
+
+Not Blue Yonder's problem. Every system has a login, a dialog and a permission
+model, and a workflow mined on a good day knows about none of them.
+
+### 3.15 — credentials for any system
+
+`KeepSessionsOpen` already signs systems back in before their sessions die:
+credentials encrypted in the vault, a half-life learned per system, never while
+somebody is demonstrating, never during an outage. Its one driver drives a
+Steel browser over a debugger URL, and the runs that matter drive the
+operator's own Chrome, which nothing can sign in.
+
+Two halves, and the second is a policy decision rather than a technical one:
+
+1. **Entering them.** A form in the extension's options page that posts to
+   `POST /v1/secrets` and into the vault. Never through a chat, never through a
+   model, never into a transcript — which is the whole reason the vault exists.
+2. **Using them in the operator's browser.** Buildable: the driver protocol,
+   the vault and the keeper are all there. What changes is where the secrets
+   travel — today the backend to a server-side browser, under this to an
+   extension on a laptop. That widening is the org's call to make explicitly.
 
 ### Proven on the deployment, and not
 
@@ -246,6 +298,32 @@ them**, and every one was found by an operator looking at a panel.
 | The spine — run message with its card under it | round 28 |
 | The result card naming the record | round 29 |
 | A card ending itself when acted on | round 29 |
+| The mail to whoever asked — drafted, previewed, sent, threaded | round 32 |
+| A reply read for the value IN it, rather than searched for | round 36, `WDSL` |
+| The limit on the question the first time it is asked | round 36 |
+| A sentence that is not an answer, refused four times running | round 36–37 |
+| A question about the waiting, answered about the waiting | round 37 |
+| The whole loop, mail with no code to `201` | round 38, `DDLS` |
+
+Round 38 is the one to point at: a request arrived naming a description and no
+code, the card could not answer it, the question went into the conversation and
+a mail went to whoever asked, the reply came back as `customer type :- DDLS`,
+the value was read out of that sentence, and one press drove six steps of a
+real WMS to `POST /data/WM/wm/customerTypes 201`. Nothing was typed into the
+panel but a press.
+
+### What a green suite was worth, again
+
+Eight more faults reached the deployment on 2026-09-18 with everything passing
+behind them. Two were fakes being more agreeable than the real thing -- a test
+written with `at` as a NUMBER while the worker stores an ISO string, so
+"newest first" sorted nothing and every request dated to 1 January 1970; a
+guard asserted on a fake element whose `disabled` does not stop a listener.
+Three were wires one layer from where the test looked: the claim keyed on a run
+id that is empty on the half with no run, the badge counting a field the panel
+had stopped using, the redraw signature with no notion of a clock. Each was
+found by an operator looking at a panel, and each is now pinned by a test that
+fails when the fix is removed -- checked by removing it.
 
 | built, never exercised against the real thing | |
 |---|---|

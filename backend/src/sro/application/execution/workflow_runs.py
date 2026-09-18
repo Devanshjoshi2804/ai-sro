@@ -91,6 +91,7 @@ from sro.application.ports.system import Clock, IdFactory
 from sro.application.ports.vault import CredentialVault, VaultUnavailable
 from sro.application.shared.refusals import OverCap
 from sro.domain.chat.asking import NEEDS, Pending, question
+from sro.domain.chat.thread import Speaker
 from sro.domain.execution.evidence import unperformable
 from sro.domain.execution.gathering import Gathered
 from sro.domain.execution.learned_step import limits_for
@@ -627,6 +628,9 @@ class StartWorkflowRun:
             # question in the wrong conversation is worse than none.
             for_operator=PrincipalId(run.started_by) if run.started_by else ctx.principal_id,
             text=_asking(run.needs, title, limits) + question(pending),
+            # A question, not an announcement: `pending_job` reads back what the
+            # ASSISTANT last decided, so this is what makes the answer findable.
+            speaker=Speaker.ASSISTANT,
             decision={
                 "kind": NEEDS,
                 "workflow_id": pending.workflow_id,

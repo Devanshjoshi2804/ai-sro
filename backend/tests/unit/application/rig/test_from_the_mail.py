@@ -17,7 +17,7 @@ from sro.application.chat.about_an_offer import AskAboutTheOffer
 from sro.application.chat.from_the_mail import FromTheMail
 from sro.application.context import RequestContext
 from sro.application.ports.tools import ToolResult, ToolsUnavailable
-from sro.domain.chat.asking import NEEDS, Pending
+from sro.domain.chat.asking import NEEDS, Pending, pending_job
 from sro.domain.execution.gathering import Found, Gathered
 from sro.domain.execution.waiting import as_said, waiting_on
 from sro.domain.execution.workflow_run import WorkflowRun
@@ -720,3 +720,39 @@ async def test_a_name_both_unsupplied_and_capped_is_asked_about_once() -> None:
     decision = thread.messages[-1].decision
     assert decision is not None
     assert decision["missing"] == ["Customer Type"]
+
+
+async def test_a_question_this_door_asks_is_one_the_answering_door_can_find() -> None:
+    """The writer and the reader, against each other rather than a fixture.
+
+    Every test of the answering path built its own question by hand, with
+    `Speaker.ASSISTANT` on it, because that is what `pending_job` reads. What
+    actually WROTE questions used `Speaker.SYSTEM`, so no question this system
+    has ever asked was findable -- the run path's included, since `5a2d10b1`.
+
+    Measured on the deployment 2026-09-18: three questions standing in the
+    thread, an operator's sentence going past all three to the skill resolver,
+    and `Nobody has demonstrated that` as the answer to `What should Customer
+    Type be?`.
+
+    A fixture agreeing with the reader proves the reader agrees with itself.
+    """
+    uow = FakeUnitOfWork()
+    pending = Pending(
+        workflow_id=JOB,
+        title="Create a Customer Type",
+        values={},
+        missing=("Customer Type",),
+        limits={"Customer Type": 4},
+    )
+
+    await AskAboutTheOffer(uow, FakeClock(), FakeIdFactory()).execute(CTX, pending)
+
+    thread = await _thread(uow)
+    assert thread is not None
+    waiting = pending_job(thread.messages)
+    assert waiting is not None, (
+        "the question this door asked cannot be found by the door that answers it"
+    )
+    assert waiting.asking_for == "Customer Type"
+    assert waiting.limits == {"Customer Type": 4}

@@ -43,12 +43,28 @@ class SayWhatHappened:
         for_operator: PrincipalId,
         text: str,
         decision: dict[str, object],
+        speaker: Speaker = Speaker.SYSTEM,
     ) -> None:
         """Say it in `for_operator`'s thread, not the caller's.
 
         The two differ whenever something happens on an operator's behalf, and
         a message in the wrong conversation is worse than none: the operator
         never sees it, and somebody else sees work they did not do.
+
+        **A question is the assistant speaking; an announcement is not.**
+        `SYSTEM` is this door's default and the right one for what it was built
+        to say -- a run finished, a skill was induced, things that HAPPENED
+        rather than things anybody said. A question is the other kind, and the
+        difference is load-bearing rather than cosmetic: `pending_job` reads
+        back "the last thing the ASSISTANT decided", so a question filed as
+        SYSTEM is one nothing can find.
+
+        Measured on the deployment 2026-09-18. Three questions stood in the
+        thread reading `Customer Type takes 4 characters. What should it be?`,
+        the operator typed a sentence, and it went past all three to the skill
+        resolver, which answered `Nobody has demonstrated that`. Every question
+        this door has ever asked was invisible to the reader that exists to
+        answer it, including the run path's since `5a2d10b1`.
         """
         owner = RequestContext(ctx.tenant_id, for_operator)
         found = await ReadThreads(self._uow).current(owner) or await StartThread(
@@ -59,7 +75,7 @@ class SayWhatHappened:
             thread.say(
                 Message(
                     id=self._ids.new_message_id(),
-                    speaker=Speaker.SYSTEM,
+                    speaker=speaker,
                     text=text,
                     said_at=self._clock.now(),
                     decision=decision,

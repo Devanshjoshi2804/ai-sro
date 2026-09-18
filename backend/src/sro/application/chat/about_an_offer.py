@@ -39,6 +39,7 @@ from sro.application.context import RequestContext
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
 from sro.domain.chat.asking import NEEDS, Pending, question, unusable
+from sro.domain.chat.thread import Speaker
 from sro.domain.shared.identifiers import PrincipalId
 
 logger = logging.getLogger(__name__)
@@ -88,6 +89,8 @@ class AskAboutTheOffer:
             # is one they never see.
             for_operator=PrincipalId(ctx.principal_id.value),
             text=asked,
+            # A question, not an announcement -- see `SayWhatHappened.execute`.
+            speaker=Speaker.ASSISTANT,
             decision={
                 "kind": NEEDS,
                 "workflow_id": pending.workflow_id,

@@ -216,13 +216,65 @@ found.
 | 2.9 | Ask the asker — drafted reply, previewed, one per run | next |
 | 3 | A job declares its fields — `field-dictionary.json` as source | done `0732894d` |
 | 3.1 | **A step names the prior steps whose output it uses** (CrewAI) | stolen |
-| 3.2 | **A dormant pause keyed by an external id** (LangGraph) | done |
+| 3.2 | **A dormant pause keyed by an external id** (LangGraph) | done `fcce6029` |
 | 3.3 | **Learned facts written back as a reviewable diff** (Robot Framework) | stolen |
-| 3.4 | One request, two mails, one card | found 2026-09-18 |
+| 3.4 | One request, two mails, one card | open |
+| 3.5 | The card asks in the conversation, not in boxes | done `ca488370` |
+| 3.6 | The conversation is the spine — request, question, answer, run | done `37ecc5fb` |
+| 3.7 | A finished job is a result, with an OK that ends it | done `1ebb1a86` |
+| 3.8 | A card pile nobody answers — age out, or collapse, or clear | open |
 | 4 | Bind a value for a known field into the write | |
 | 5 | An undemonstrated field must prove it landed | |
 | 6 | The card says what it will write | |
 | 7 | Composition — needs 3.1, 3.2, and a compensation story | last |
+
+### Proven on the deployment, and not
+
+Everything above is unit- and mutation-tested. What that is worth was measured
+today: **seven faults reached a running deployment with a green suite behind
+them**, and every one was found by an operator looking at a panel.
+
+| proven live 2026-09-18 | |
+|---|---|
+| A limit read off the captured form, before any run hit one | `Customer Type: 4` |
+| The card refusing the press and saying why | round 26–29 |
+| The question asked in the conversation, with context | round 26–29 |
+| An answer refused for still not fitting | |
+| The answer starting the job, and the run reaching 201 | four records |
+| The run resuming at the rebuild point | |
+| `awaiting` written on the run row | round 28 |
+| The spine — run message with its card under it | round 28 |
+| The result card naming the record | round 29 |
+| A card ending itself when acted on | round 29 |
+
+| built, never exercised against the real thing | |
+|---|---|
+| The opening naming the mail's subject | fixed `7b379c4f`, untested live |
+| A reply carrying a waiting run on (3.2's consumer) | |
+| A page repairing itself when it holds nothing | `3b525a0e` |
+| The OK that ends a result card | `1ebb1a86` |
+| The optimistic echo and thinking mark | only visible on screen |
+
+### What the fakes agreed with, and Postgres did not
+
+Twice today a unit suite passed a defect because a fake was more agreeable
+than the store, and both are worth remembering as a class rather than as two
+bugs:
+
+- **`SayWhatHappened` wrote questions as `SYSTEM`; `pending_job` reads
+  `ASSISTANT`.** Every question this system had ever asked was invisible to
+  the door that answers it, since `5a2d10b1`. Every test passed, because each
+  built its own question by hand with the speaker the READER wants.
+- **`_settle_the_wait` saved and never committed.** `FakeUnitOfWork` counts
+  commits and requires none, so it agreed with the code rather than with
+  Postgres. Two integration tests now: one for the mechanism, one driving the
+  method itself, because the first alone would let anybody delete the commit
+  again.
+
+And three times a wire broke one layer from where it was checked — the field
+dictionary's screen, the run's `values` through two whitelists, and `about`
+through the route. The last was a `str.replace` with no assertion, which
+reported success and changed nothing.
 
 3.2 turned out to be half-built already, and the half that was missing was not
 the durable part. `asking.py` has always said *the state is the thread*: a run

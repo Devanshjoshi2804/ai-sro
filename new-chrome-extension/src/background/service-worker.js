@@ -1538,6 +1538,16 @@ async function handle(message, sender) {
     case "set-paused":
       await state.setPaused(Boolean(message.paused));
       return settle();
+    case "forget-run":
+      // The operator has read what the run made. The card is a result, not a
+      // record: the run itself is on the backend for as long as the tenant
+      // keeps it, and this clears only the copy this panel draws.
+      //
+      // Their press and nothing else. It used to go when the hour ran out or
+      // when the next run started, so a card somebody had not looked at yet
+      // could vanish, and one they had finished with sat there for an hour.
+      await state.setFinishedRun(null);
+      return status();
     case "clear-error":
       // The panel's dismiss. `lastError` is the last one, not a live one, so
       // it outlives whatever fixed it; without this the amber stays until the

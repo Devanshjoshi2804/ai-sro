@@ -1579,6 +1579,25 @@ test("the run an answer starts is said into the conversation that authorised it"
   threadSaid = null;
 });
 
+test("a finished card ends when the operator says they have read it", async () => {
+  // Their press and nothing else. It used to go when the hour ran out or when
+  // the next run started, so a card nobody had looked at could vanish and one
+  // they had finished with sat there for an hour.
+  ready();
+  held.set("sro.finishedRun", {
+    id: "run-9",
+    source: "rig",
+    status: "held",
+    values: { "Customer Type": "NEX" },
+    steps: [],
+    at: Date.now(),
+  });
+
+  await send({ kind: "forget-run" });
+
+  assert.equal(held.get("sro.finishedRun"), null, "the card the operator dismissed is still held");
+});
+
 test("taking an offer up into the conversation ends the card", async () => {
   // The first version of this left the card open, reasoning that the offer had
   // been "taken up" rather than accepted and that the RUN would end it -- and

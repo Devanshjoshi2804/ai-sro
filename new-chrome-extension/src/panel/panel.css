@@ -1234,3 +1234,110 @@ a:focus-visible {
     opacity: 0.8;
   }
 }
+
+/* A job that finished, as the thing it is rather than a report on itself.
+ *
+ * The values are the card. What ran, what it cost and which rung matched are
+ * how it happened, and how is what you go and look for when the answer
+ * surprises you -- so they fold away underneath.
+ */
+.made {
+  position: relative;
+  padding: 16px 14px 12px;
+  border-radius: 12px;
+  background: var(--card);
+  /* Room for the border to travel in without the text moving when it does. */
+  isolation: isolate;
+}
+
+/* The border, moving.
+ *
+ * A pseudo-element rather than a border: an animated `border-color` cannot
+ * travel around an edge, and animating the element's own background would put
+ * the movement behind the words. This paints a conic sweep one pixel outside
+ * the card and lets the card sit on top of it.
+ */
+.made::before {
+  content: "";
+  position: absolute;
+  inset: -1.5px;
+  border-radius: 13.5px;
+  z-index: -1;
+  background: conic-gradient(
+    from var(--sweep, 0deg),
+    var(--accent) 0deg,
+    var(--accent) 40deg,
+    var(--line) 120deg,
+    var(--line) 360deg
+  );
+  animation: made-sweep 2.4s linear infinite;
+}
+
+/* `@property` so the angle can be animated at all: a plain custom property is
+ * a string to the engine and jumps from one keyframe to the next. Where it is
+ * unsupported the sweep simply does not move, and the border is still there. */
+@property --sweep {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@keyframes made-sweep {
+  to {
+    --sweep: 360deg;
+  }
+}
+
+/* Read, so it stops. A card that pulses forever is one people learn not to
+ * see, and the press is what says somebody has read it. */
+.made[data-read="true"]::before {
+  animation: none;
+}
+
+.made-what {
+  margin: 0 0 6px;
+  font-size: 19px;
+  line-height: 1.25;
+  font-weight: 600;
+  color: var(--ink);
+  /* A description can be long. Breaking inside a word is uglier than a line
+   * that runs on, but a value that overflows the panel is unreadable. */
+  overflow-wrap: anywhere;
+}
+
+.made-steps {
+  margin-top: 10px;
+}
+
+.made-steps summary {
+  cursor: pointer;
+  color: var(--ink-mute);
+  font-size: 12px;
+  list-style: none;
+}
+
+.made-steps summary::-webkit-details-marker {
+  display: none;
+}
+
+.made-steps summary::before {
+  content: "▸ ";
+}
+
+.made-steps[open] summary::before {
+  content: "▾ ";
+}
+
+/* Folded away, the run card inside carries no heading of its own: the card
+ * above it already said what happened. */
+.made-steps .run > .what:empty {
+  display: none;
+}
+
+/* Somebody who has asked for less movement gets the border and no sweep. The
+ * border is the part that carries the meaning. */
+@media (prefers-reduced-motion: reduce) {
+  .made::before {
+    animation: none;
+  }
+}

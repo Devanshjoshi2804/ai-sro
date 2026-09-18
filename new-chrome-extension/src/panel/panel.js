@@ -915,6 +915,74 @@ const RIG_ENDINGS = {
  * says the browser could not reach the system, and "the run stopped" says a
  * person should go and look at something.
  */
+/** What a finished job made, as the thing it is.
+ *
+ * Big, because it is the answer. Bordered and moving, because a run finishing
+ * is the one moment on this surface worth catching an eye that was elsewhere
+ * -- and the movement stops the moment somebody has read it, which is what the
+ * press is for. A card that pulses forever is a card people learn to stop
+ * seeing.
+ *
+ * The steps stay, folded. Nobody reads them when the answer is what they
+ * expected, and everybody wants them the one time it is not.
+ */
+function madeCard(run, wrote, ending) {
+  const holder = document.createElement("div");
+  holder.className = "made";
+  holder.dataset.runId = run.id;
+
+  const what = document.createElement("p");
+  what.className = "made-what";
+  what.textContent = wrote;
+  holder.append(what);
+
+  const how = document.createElement("p");
+  how.className = "detail";
+  how.textContent = ending || "";
+  holder.append(how);
+
+  // The machinery, for the time it is wanted. `<details>` because it is the
+  // one disclosure the browser already gets right -- keyboard, screen reader
+  // and all -- and this panel has no business reimplementing it.
+  const steps = document.createElement("details");
+  steps.className = "made-steps";
+  const summary = document.createElement("summary");
+  summary.textContent = `How it went — ${(run.steps || []).length} steps`;
+  steps.append(summary);
+  steps.append(
+    runCard({ run, skill: null, message: { text: "" } }, { onSecret: keepSecret }),
+  );
+  holder.append(steps);
+
+  const row = document.createElement("div");
+  row.className = "row";
+  const ok = document.createElement("button");
+  ok.type = "button";
+  ok.textContent = "OK";
+  ok.addEventListener("click", () => {
+    // The sweep stops on the press, not when the refresh lands. A border still
+    // travelling under a button somebody has just pressed reads as a press
+    // that did not register.
+    holder.dataset.read = "true";
+    void forgetRun(ok);
+  });
+  row.append(ok);
+  holder.append(row);
+  return holder;
+}
+
+/** The operator has read it. Clears only the copy this panel draws -- the run
+ * itself is on the backend for as long as the tenant keeps it. */
+async function forgetRun(button) {
+  button.disabled = true;
+  try {
+    await ask({ kind: "forget-run" });
+  } catch (error) {
+    said(error.message);
+  }
+  await refresh();
+}
+
 /** What a run that held actually wrote, named.
  *
  * Only for a run that HELD: a run that stopped wrote nothing, or wrote
@@ -1048,6 +1116,18 @@ function finished(status) {
     // says is therefore what the run WROTE, which the 201 and the screen belt
     // between them confirm landed.
     const wrote = whatItWrote(run);
+    // A job that finished is a RESULT, and a result is not a report.
+    //
+    // The card drew six rows of machinery -- which rung matched, what each
+    // step cost -- above the one thing somebody came to read, which is what
+    // now exists in the warehouse that did not exist a minute ago. That is the
+    // right card while a run is going and the wrong one once it has gone: the
+    // steps are how, and how is a thing you go and look for when the answer
+    // surprises you.
+    //
+    // So the values are the card, the steps fold away behind them, and it ends
+    // when the operator says they have read it rather than when an hour is up.
+    if (wrote) return madeCard(run, wrote, short);
     return runCard(
       {
         run,

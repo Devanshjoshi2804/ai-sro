@@ -1208,6 +1208,69 @@ test("a rig run that held names the record it wrote", async () => {
   assert.match(said, /skipped/i);
 });
 
+test("a finished job is a result, with the steps folded and an OK that ends it", async () => {
+  // The card drew six rows of machinery -- which rung matched, what each step
+  // cost -- above the one thing somebody came to read, which is what now
+  // exists in the warehouse that did not a minute ago.
+  const { cards, sent } = panel(
+    {
+      deviceId: "dev-1",
+      capturing: true,
+      watched: [{ tabId: 7, host: "wms.example", since: new Date().toISOString() }],
+      finished: {
+        id: "run-3",
+        source: "rig",
+        status: "held",
+        values: { "Customer Type": "NEX", "Customer Type Description": "Leaning new SRO type 051" },
+        steps: [
+          { index: 0, says: "open the mail", outcome: "not_needed" },
+          { index: 5, says: "Save", outcome: "held", matched_by: "component" },
+        ],
+      },
+    },
+    { id: 7, host: "wms.example", url: "https://wms.example/portal" },
+  );
+
+  const made = (function find(el) {
+    if (el?.className === "made") return el;
+    for (const kid of el?.kids || []) {
+      const got = find(kid);
+      if (got) return got;
+    }
+    return null;
+  })({ kids: cards });
+  assert.ok(made, "a finished job still drew the ordinary run card");
+
+  // The values are the card.
+  const big = (made.kids || []).find((one) => one.className === "made-what");
+  assert.ok(big, "nothing was drawn big");
+  assert.match(big.textContent, /NEX/);
+  assert.match(big.textContent, /Leaning new SRO type 051/);
+
+  // The machinery is there and folded.
+  const steps = (made.kids || []).find((one) => one.className === "made-steps");
+  assert.ok(steps, "the steps are gone rather than folded");
+  assert.ok(!steps.open, "the steps are unfolded");
+
+  // And it ends when they say so.
+  const ok = (function find(el) {
+    if (el?.textContent === "OK") return el;
+    for (const kid of el?.kids || []) {
+      const got = find(kid);
+      if (got) return got;
+    }
+    return null;
+  })(made);
+  assert.ok(ok, "no way to dismiss it");
+  ok.listeners[0]();
+  assert.equal(made.dataset.read, "true", "the border went on sweeping under the press");
+  await new Promise((done) => setImmediate(done));
+  assert.ok(
+    sent.some((one) => one.kind === "forget-run"),
+    "OK did not end the card",
+  );
+});
+
 test("a rig run that stopped claims to have written nothing", async () => {
   // The one lie this surface must never tell. A run that stopped either wrote
   // nothing or wrote something nobody has confirmed.

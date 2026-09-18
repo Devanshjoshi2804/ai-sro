@@ -603,21 +603,37 @@ async def _ask_for_the_password(
 
 
 def _said_signed_out(verdict: StepVerdict, look: Look) -> StepVerdict:
-    """The same verdict, saying that the browser is at a login page.
+    """The same verdict, saying what was on the screen instead.
 
-    Only for a failure, and only where the page actually asks for a password:
-    a held step in front of a login form is a step that held, and the run has
-    no business editorialising about it.
+    `control_not_found: no control matched` is true and says nothing about
+    why, and the two things that most often put it there are both visible: a
+    login page, and a dialog over the form. Neither renames the verdict -- a
+    run that decided WHY a step failed would be a run guessing, and what this
+    knows is only what is on the screen. The original reason is kept beside
+    it, because the selector may be broken as well.
+
+    Only for a failure. A step that held in front of a dialog is a step that
+    held: plenty of screens confirm a save in one.
     """
-    if verdict.state != "failed" or not look.signed_out:
+    if verdict.state != "failed":
         return verdict
-    return replace(
-        verdict,
-        reason=(
-            "the browser is at a sign-in page -- this system's session has gone. "
-            f"Sign in and start it again. ({verdict.reason})"
-        ),
-    )
+    if look.signed_out:
+        return replace(
+            verdict,
+            reason=(
+                "the browser is at a sign-in page -- this system's session has gone. "
+                f"Sign in and start it again. ({verdict.reason})"
+            ),
+        )
+    if look.dialog.strip():
+        # What it SAID, first and in full. A person reading this is looking for
+        # the sentence the warehouse put on the screen, and every word this
+        # wraps around it is a word between them and it.
+        return replace(
+            verdict,
+            reason=f"the screen is showing: {look.dialog.strip()} ({verdict.reason})",
+        )
+    return verdict
 
 
 async def _where(
@@ -642,6 +658,7 @@ async def _where(
         screenshot=None,
         digest="",
         signed_out=bool(where.ok and where.result.get("signed_out")),
+        dialog=str(where.result.get("dialog") or "") if where.ok else "",
     )
 
 
@@ -697,6 +714,7 @@ async def _look(
         # only route steps would ever notice a login page, and a route step is
         # the one kind that already knows where it is.
         signed_out=bool(where.ok and where.result.get("signed_out")),
+        dialog=str(where.result.get("dialog") or "") if where.ok else "",
     )
 
 

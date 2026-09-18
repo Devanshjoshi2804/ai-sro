@@ -60,6 +60,41 @@ def test_a_step_that_held_in_front_of_a_login_page_is_left_alone() -> None:
     assert _said_signed_out(held, Look("u", None, "", signed_out=True)) is held
 
 
+def test_a_failure_under_a_dialog_says_what_the_dialog_said() -> None:
+    """The case this deployment's own ledger already names.
+
+    `Existing Carriers duplicate check is SERVER-side: the form accepts the
+    click and only then shows an in-app 'Record already exists' modal.` A step
+    that clicked Save and then found nothing is a step whose answer is on the
+    screen, in a box, in words -- and the run reported a missing control.
+    """
+    said = _said_signed_out(
+        _failed(),
+        Look("u", None, "", dialog="Record already exists. Choose another code."),
+    )
+
+    # What the warehouse said, first and in full: a person reading this is
+    # looking for that sentence, and every word wrapped around it is a word
+    # between them and it.
+    assert said.reason.startswith("the screen is showing: Record already exists.")
+    assert "control_not_found" in said.reason
+
+
+def test_a_login_page_is_named_before_a_dialog_on_the_same_screen() -> None:
+    """Both at once is a login in a modal, which is a login: signing in is the
+    thing to do about it, and "the screen is showing" is not."""
+    said = _said_signed_out(_failed(), Look("u", None, "", signed_out=True, dialog="Sign in"))
+
+    assert "session has gone" in said.reason
+
+
+def test_a_step_that_held_under_a_dialog_is_left_alone() -> None:
+    """Plenty of screens confirm a save in one."""
+    held = StepVerdict("held", "status", "201", Answer())
+
+    assert _said_signed_out(held, Look("u", None, "", dialog="Saved")) is held
+
+
 def test_a_failure_anywhere_else_says_what_it_always_said() -> None:
     same = _failed()
 

@@ -24,6 +24,12 @@ import {
 } from "./in-page.js";
 import { hideDriving, showDriving } from "./showing.js";
 import { SIGN_IN, fillTheLoginForm, whatTheSignInCameTo } from "./sign-in.js";
+import {
+  A_DIALOG,
+  A_LOGIN,
+  K_SAID,
+  whatIsOnThisPage,
+} from "./whats-on-screen.js";
 import { state } from "./state.js";
 
 /** Runs whose abort has arrived. Their later commands are refused rather than
@@ -887,7 +893,7 @@ async function uiUrl(payload, runId) {
   if (!tab) return failure("no_tab_for_system", noPage(payload.origin));
   return {
     ok: true,
-    result: { url: tab.url, signed_out: await askingToSignIn(tab.id) },
+    result: { url: tab.url, ...(await whatThePageSays(tab.id)) },
   };
 }
 
@@ -929,39 +935,29 @@ async function signIn(payload, runId) {
   }
 }
 
-/** Whether the page in that tab is asking somebody to sign in.
+/** What the page in that tab has to say about itself.
  *
- * A dead session is the commonest reason a run cannot find anything, and until
- * now it came back as `control_not_found`: no control matched, which is true
- * and says nothing. An operator reading that goes looking for a broken
- * selector. Measured on the deployment 2026-09-18 -- a session expired, the
- * operator spent minutes signing back in, and every run in between reported a
- * missing tab item.
+ * The reading lives in `whats-on-screen.js`, which is where the reasoning is.
+ * This is the half that needs a tab.
  *
- * A PASSWORD FIELD and nothing else. The same rule `check_session.py` keeps
- * server-side, and it keeps it for the reason that matters: any heuristic on
- * words fires on a warehouse screen that happens to mention a password, and a
- * run that stopped saying "you are signed out" in front of a working screen
- * would be worse than one that says nothing.
- *
- * False for every failure. A page that cannot be asked is not a page that is
- * asking for a password, and this must never be the reason a run stops.
+ * Empty for every failure. A page that cannot be asked is not a page that is
+ * asking for a password or showing a dialog, and neither must ever be a thing
+ * a run concluded because a probe threw.
  */
-async function askingToSignIn(tabId) {
+async function whatThePageSays(tabId) {
   try {
     const [got] = await chrome.scripting.executeScript({
       target: { tabId },
       world: "MAIN",
-      func: () =>
-        Boolean(
-          document.querySelector(
-            'input[type="password"], input[autocomplete="current-password"]',
-          ),
-        ),
+      args: [{ login: A_LOGIN, dialog: A_DIALOG, cap: K_SAID }],
+      func: whatIsOnThisPage,
     });
-    return Boolean(got?.result);
+    return {
+      signed_out: Boolean(got?.result?.signed_out),
+      dialog: String(got?.result?.dialog || ""),
+    };
   } catch {
-    return false;
+    return { signed_out: false, dialog: "" };
   }
 }
 

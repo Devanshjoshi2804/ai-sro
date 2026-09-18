@@ -169,6 +169,22 @@ class Look:
     False wherever nothing could be asked. This is a reason to stop and it must
     never be a reason invented by a failure to look."""
 
+    dialog: str = ""
+    """What a dialog over the page says, where there is one.
+
+    The other half of the same question, and the case this deployment's own
+    ledger already names: `Existing Carriers duplicate check is SERVER-side:
+    the form accepts the click and only then shows an in-app 'Record already
+    exists' modal.` A step that clicked Save and then found nothing is a step
+    whose answer is on the screen, in a box, in words -- and the run reported a
+    missing control.
+
+    The dialog is found by STRUCTURE, like the login: a `<dialog open>`, a
+    `role="dialog"`, or the one class name the framework these systems are
+    built with uses. What is carried back is its TEXT, which is not a heuristic
+    -- it is the evidence, and it is the whole answer to why the step did
+    nothing."""
+
 
 @dataclass(frozen=True, slots=True)
 class Planned:

@@ -416,6 +416,33 @@ async def test_a_browser_at_a_login_page_says_so_in_both_readers() -> None:
     assert looked.signed_out is True
 
 
+async def test_a_dialog_over_the_page_reaches_both_readers_too() -> None:
+    """The other half of the same question, and the case this deployment's own
+    ledger names: `the form accepts the click and only then shows an in-app
+    'Record already exists' modal`."""
+    said = {"url": "https://wms.test/x", "dialog": "Record already exists"}
+
+    where = await _where(
+        FakeChannel({"ui.url": [Reply(ok=True, result=said)]}), TENANT, DEVICE, "run_1", None
+    )
+    looked = await _look(
+        FakeChannel(
+            {
+                "ui.url": [Reply(ok=True, result=said)],
+                "screenshot": [Reply(ok=True, result={"text_digest": "d"})],
+            }
+        ),
+        TENANT,
+        DEVICE,
+        "run_1",
+        None,
+        False,
+    )
+
+    assert where.dialog == "Record already exists"
+    assert looked.dialog == "Record already exists"
+
+
 async def test_a_browser_that_answered_nothing_is_not_reported_signed_out() -> None:
     """This is a reason to stop, and it must never be one invented by a failure
     to look: a page that cannot be asked is not a page asking for a password."""

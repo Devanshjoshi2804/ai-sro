@@ -210,6 +210,12 @@ export const api = {
       // 10:49: `watched=true` on the row, "nobody was watching" on the card.
       watched: Boolean(run.watched),
       needs: run.needs || [],
+      // What the run wrote, so the card can name the record rather than only
+      // reporting the machinery that made it. Added here THIRD, after the row
+      // and the card, which is precisely the mistake the paragraph above
+      // records -- a whitelist nobody adds to is a card that silently draws
+      // nothing and looks like code that was never changed.
+      values: run.values || {},
       // What it read out of the mail, so the card can say where a value it
       // was never given came from.
       gathered: run.gathered || {},

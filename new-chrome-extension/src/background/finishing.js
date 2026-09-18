@@ -69,6 +69,17 @@ export async function noteFinished(active) {
       // as the run closed -- and this is what tells the panel to take them
       // there rather than leave them reading "The run stopped".
       needs: run.needs || [],
+      // What it wrote, so the card can name the record rather than only
+      // reporting the machinery that made it.
+      //
+      // This projection is a SUBSET of the run and that is deliberate -- a
+      // stored copy of every field would be a second, staler run row in
+      // browser storage. It is also the third place today a wire broke one
+      // layer from where it was checked: `WorkflowRunModel` carries `values`,
+      // and nothing carried it this far, so a card built to name the record
+      // named nothing and looked exactly like a card that had not been
+      // changed.
+      values: run.values || {},
       gathered: run.gathered || {},
       watched: Boolean(run.watched),
       at: Date.now(),

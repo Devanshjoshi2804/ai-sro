@@ -459,7 +459,44 @@ async function theCardGetsWhatItDraws() {
   assert.equal(mapped.doing, "looking in your mail");
 }
 
+/** The card names the record a run wrote, and could not, because this
+ * projection is a SUBSET of the run and `values` was not in it.
+ *
+ * `WorkflowRunModel` carries them and `api.rigRun` maps them; nothing carried
+ * them this far. So a card built to name the record named nothing, and looked
+ * exactly like a card that had not been changed. */
+async function theStoredRunCarriesWhatItWrote() {
+  await state.setActiveRun({ runId: "run_w", at: Date.now(), source: "rig" });
+  answer = async () =>
+    new Response(
+      JSON.stringify({
+        id: "run_w",
+        outcome: "held",
+        values: {
+          "Customer Type": "NSSR",
+          "Customer Type Description": "Leaning new SRO type 050",
+        },
+        steps: [],
+      }),
+      { status: 200, headers: { "content-type": "application/json" } },
+    );
+
+  await noteFinished({ runId: "run_w", source: "rig" });
+
+  const held = await state.finishedRun();
+  assert.ok(held, "nothing was stored for a finished run");
+  assert.deepEqual(
+    held.values,
+    {
+      "Customer Type": "NSSR",
+      "Customer Type Description": "Leaning new SRO type 050",
+    },
+    "the card cannot name what the run wrote",
+  );
+}
+
 await demo();
+await theStoredRunCarriesWhatItWrote();
 await whoIsAskedHowItEnded();
 ageBound();
 keyedOnThePress();

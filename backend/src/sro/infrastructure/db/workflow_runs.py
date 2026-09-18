@@ -386,10 +386,12 @@ class SqlWorkflowRunRepository(WorkflowRunRepository):
     ) -> WorkflowRun | None:
         """Against the expression index 0062 adds, and never on a blank.
 
-        A run that named no thread stored no `awaiting` at all, so there is
-        nothing here for `""` to match -- but a caller that passed one through
-        would otherwise ask Postgres for every row whose JSON says nothing,
-        which is the query that finds the wrong run rather than no run.
+        `waiting_on` refuses to build a wait with no conversation in it, so
+        nothing WRITES a blank thread -- but a hand edit, a restore, or a row
+        from a deployment that did can leave one, and without this guard a
+        caller asking about `""` matches it. That is one run answering a reply
+        to something else entirely, which is a warehouse record written from
+        somebody's unrelated sentence.
         """
         if not server.strip() or not thread.strip():
             return None

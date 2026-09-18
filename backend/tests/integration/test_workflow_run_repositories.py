@@ -260,6 +260,88 @@ class TestWorkflowRuns:
         async with SqlUnitOfWork(session_factory) as uow:
             assert await uow.workflow_runs.in_flight(TENANT, DeviceId("dev_1")) is None
 
+    async def test_a_run_is_found_again_by_the_conversation_it_answers_to(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """The question is asked inside a JSON document, which is the reason
+        this is here and not only against the fake: `awaiting ->> 'thread'` is
+        a string nothing type-checks, and a typo in it answers "no run is
+        waiting" for every reply anybody ever sends.
+        """
+        waiting = _run(
+            device_id="dev_a",
+            outcome="stopped",
+            needs=["Customer Type"],
+            awaiting={"server": "gmail", "thread": "t-9", "until": "2099-01-01T00:00:00+00:00"},
+        )
+        # Started LATER, so the newest-first ordering would hand this one back
+        # if the tenant clause were missing: a thread id is somebody else's
+        # mail, and a reply to it resuming this tenant's run is the boundary
+        # undone by an ORDER BY.
+        elsewhere = _run(
+            device_id="dev_b",
+            tenant=OTHER_TENANT.value,
+            outcome="stopped",
+            started_at="2026-09-06T10:00:00+00:00",
+            awaiting={"server": "gmail", "thread": "t-9", "until": "2099-01-01T00:00:00+00:00"},
+        )
+        # A run whose stored thread is blank. Nothing writes one -- `waiting_on`
+        # refuses to build a wait with no conversation in it -- but a hand
+        # edit or an older row can, and a blank matching a blank is one run
+        # answering a reply to something else entirely.
+        blank = _run(
+            device_id="dev_e",
+            outcome="stopped",
+            awaiting={"server": "gmail", "thread": "", "until": "2099-01-01T00:00:00+00:00"},
+        )
+        plain = _run(device_id="dev_c", outcome="held")
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            for one in (waiting, elsewhere, blank, plain):
+                await uow.workflow_runs.save(one)
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            found = await uow.workflow_runs.waiting_on(TENANT, server="gmail", thread="t-9")
+            # The document is read back whole, not only matched on.
+            assert found is not None and found.id == waiting.id
+            assert found.awaiting == waiting.awaiting
+            assert found.needs == ["Customer Type"]
+            # Another tenant's conversation is not this tenant's.
+            assert found.tenant == TENANT.value
+
+            # A thread nobody named, a connector nobody named, and a run that
+            # named neither: three ways of asking about nothing.
+            assert await uow.workflow_runs.waiting_on(TENANT, server="gmail", thread="t-8") is None
+            assert await uow.workflow_runs.waiting_on(TENANT, server="slack", thread="t-9") is None
+            assert await uow.workflow_runs.waiting_on(TENANT, server="gmail", thread="") is None
+            assert await uow.workflow_runs.waiting_on(TENANT, server="", thread="t-9") is None
+
+    async def test_a_run_that_stopped_waiting_is_found_by_nobody(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """Cleared rather than left to expire: seven days of a finished run
+        claiming every reply to its own thread is seven days of the next
+        request on it being swallowed by the last one."""
+        run = _run(
+            device_id="dev_d",
+            outcome="held",
+            awaiting={"server": "gmail", "thread": "t-7", "until": "2099-01-01T00:00:00+00:00"},
+        )
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflow_runs.save(run)
+            await uow.commit()
+
+        run.awaiting = None
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflow_runs.save(run)
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            assert await uow.workflow_runs.waiting_on(TENANT, server="gmail", thread="t-7") is None
+            saved = await uow.workflow_runs.get(TENANT, run.id)
+            assert saved is not None and saved.awaiting is None
+
     async def test_the_tally_is_one_group_by_and_never_loads_a_run(
         self,
         engine: AsyncEngine,

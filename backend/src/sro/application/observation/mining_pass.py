@@ -23,6 +23,7 @@ from sro.application.intent.spend import over_cap
 from sro.application.ports.model import Asker
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.shared.locks import one_at_a_time
+from sro.domain.execution.uses_edges import uses_edges
 from sro.domain.observation.gesture import Gesture, Intent
 from sro.domain.observation.identity import Resolution, resolve, shape_key
 from sro.domain.observation.mining import MiningPass
@@ -672,6 +673,24 @@ async def _one_pass(
             # equipment type" whose evidence shows three added in a row is a
             # job that can be asked for three at a time -- and until somebody
             # asks for three, it runs exactly as it always did.
+            # Which step took its value from which, read off the evidence.
+            #
+            # Before `validate`, because validate REFUSES a bad edge -- a step
+            # using a later one, or one that is not there -- and an edge this
+            # wrote is exactly as suspect as an edge a model wrote. The rule
+            # here only ever looks backwards, so the check should never fire;
+            # a producer trusted because it is careful is a producer nobody
+            # checks.
+            for order, used in uses_edges(proposal, by_id).items():
+                for step in proposal.steps:
+                    if step.order == order:
+                        step.uses = used
+                        logger.info(
+                            "%s: step %s uses the answer from step(s) %s",
+                            proposal.title,
+                            order,
+                            ", ".join(str(one) for one in used),
+                        )
             proposal.repeat = repeated_block(proposal, by_id)
             if proposal.repeat is not None:
                 logger.info(

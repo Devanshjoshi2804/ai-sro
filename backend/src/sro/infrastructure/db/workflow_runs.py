@@ -68,6 +68,7 @@ def _run_values(run: WorkflowRun) -> dict[str, Any]:
         "doing": run.doing,
         "gathered": {k: dict(v) for k, v in run.gathered.items()},
         "needs": list(run.needs),
+        "unasked": list(run.unasked),
         "unpriced": run.unpriced,
     }
 
@@ -147,6 +148,7 @@ def _row_to_run(row: WorkflowRunRow, steps: list[RunStep]) -> WorkflowRun:
             if isinstance(v, dict)
         },
         needs=[str(one) for one in (row.needs or [])],
+        unasked=[str(one) for one in (row.unasked or [])],
         from_step=row.from_step,
         items=[dict(item) for item in (row.items or [])],
         steps=steps,

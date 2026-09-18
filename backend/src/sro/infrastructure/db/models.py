@@ -875,6 +875,14 @@ class WorkflowRunRow(Base):
     needs: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list, server_default="[]")
     """Where each value came from, for values nobody typed. Empty for a run
     whose values came from a person."""
+    unasked: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list, server_default="[]")
+    """Names the request asked for that this job declares no parameter for.
+
+    Names and never values. A job's parameters are what two doings proved vary;
+    the form has more fields than that, and a mail naming one of them is an
+    ordinary request this job simply cannot take yet. Dropping it is right --
+    nothing demonstrated that slot -- and dropping it silently is the fault
+    this column exists to end."""
     wrong_because: Mapped[str | None] = mapped_column(Text)
     """What the operator said was wrong with what this run made.
 

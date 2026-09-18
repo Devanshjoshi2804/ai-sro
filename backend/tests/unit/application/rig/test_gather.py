@@ -173,6 +173,38 @@ async def test_a_value_with_no_message_behind_it_is_dropped_not_carried() -> Non
     assert not got.values
 
 
+async def test_a_value_this_job_cannot_take_is_named_rather_than_dropped_in_silence() -> None:
+    """A job's parameters are what two doings proved VARY.
+
+    `Create a Customer Type` declares two, because its two demonstrations
+    differed in two fields and nothing else -- and the form has a dozen more.
+    So a mail saying "code GV3, description X, Department Inbound" is an
+    ordinary request, and the run makes a record with no Department in it.
+
+    Dropping it is right: nothing demonstrated that slot, and a run that wrote
+    into it would be guessing at a warehouse. Dropping it SILENTLY is the shape
+    of every fault here worth having -- three things asked for, two in the
+    record, and nothing anywhere naming the third.
+    """
+    asker = _Steps(
+        {
+            "action": "done",
+            "values": [
+                {"name": CODE, "value": "GV3", "from_message": "m-1"},
+                {"name": "Department", "value": "Inbound", "from_message": "m-1"},
+            ],
+            "why": "the mail says both",
+        }
+    )
+
+    got = await _gather(_Mailbox({}), asker).execute(
+        CTX, job="Create a Customer Type", wanted=[CODE]
+    )
+
+    assert got.values.keys() == {CODE}, "it carried a field the job never had"
+    assert got.unasked == ("Department",)
+
+
 async def test_the_mailbox_is_asked_as_the_operator_and_no_one_else() -> None:
     """Each reads their own mail. The port takes the principal and this passes
     it down; a gather that reached another operator's mailbox would be the

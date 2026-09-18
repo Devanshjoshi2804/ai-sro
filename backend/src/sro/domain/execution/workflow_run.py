@@ -220,6 +220,23 @@ class WorkflowRun:
     Empty for every run whose values came from a person, which is most of them
     and all of them before 2026-09-16."""
 
+    unasked: list[str] = field(default_factory=list)
+    """What the request asked for that this job declares no parameter for.
+
+    A job's parameters are what two doings proved VARY. `Create a Customer
+    Type` declares two, because its two demonstrations differed in two fields
+    and nothing else -- and the form has a dozen more, every one of them an
+    ordinary thing for somebody to ask for.
+
+    Ask for one and the run makes a record without it. That is right: nothing
+    demonstrated that slot, and a run that wrote into it would be guessing at a
+    warehouse. Saying nothing about it is not right, and it is the shape of
+    every fault here worth having -- three things asked for, two in the record,
+    and nothing naming the third.
+
+    Names and never values. This is read by a panel and a log, and what
+    somebody wrote in their own mail is theirs."""
+
     needs: list[str] = field(default_factory=list)
     """What this run could not find a value for, and stopped to ask about.
 

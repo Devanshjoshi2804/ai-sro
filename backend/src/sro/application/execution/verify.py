@@ -59,6 +59,7 @@ from sro.domain.execution.belts import (
     mentions,
     record_carrying,
     status_of,
+    unreturned,
 )
 from sro.domain.execution.evidence import recorded_call, writes
 from sro.domain.execution.planning import Look
@@ -598,10 +599,20 @@ async def verify(
             found = record_carrying(body, confirm) if rewrote else None
             shown = found is not None if rewrote else mentions(body, values)
             if shown:
+                # Held on ANY value coming back, and specific about the ones
+                # that did not. See `unreturned`: a warehouse that silently
+                # shortens a field answers exactly like one that stored it, and
+                # every belt in this chain compares the record to itself.
+                missing_back = unreturned(body, values)
                 return StepVerdict(
                     "held",
                     "read",
-                    f"a read of {probe.url} shows the value this run supplied",
+                    f"a read of {probe.url} shows the value this run supplied"
+                    + (
+                        f" — and does not show what was sent for {', '.join(missing_back)}"
+                        if missing_back
+                        else ""
+                    ),
                     # What the warehouse called the record this step made, off
                     # the read-back rather than off the create's own answer.
                     #

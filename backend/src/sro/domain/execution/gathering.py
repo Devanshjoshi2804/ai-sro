@@ -124,6 +124,13 @@ class Gathered:
 
     why: str = ""
 
+    unasked: tuple[str, ...] = ()
+    """Names the reading offered that this job declares no parameter for.
+
+    Carried rather than dropped in silence. See `dropped`: a mail asking for a
+    field the job cannot take is a request half-done, and the half that went
+    missing has to be nameable by whoever reads the run."""
+
     @property
     def complete(self) -> bool:
         return not self.missing
@@ -157,6 +164,26 @@ def keep(values: Mapping[str, Found], wanted: Sequence[str]) -> dict[str, Found]
         for name, found in values.items()
         if name in allowed and found.value.strip() and found.from_message.strip()
     }
+
+
+def dropped(values: Mapping[str, Found], wanted: Sequence[str]) -> tuple[str, ...]:
+    """The names a reading offered that this job has no parameter for.
+
+    `keep` discards them, which is right -- a run that carried a field the job
+    never had would send a slot nothing demonstrated. Discarding them SILENTLY
+    is not right, and is the shape of every fault this system has had worth
+    having: a request that asked for three things, a record that holds two, and
+    nothing anywhere saying which one went missing.
+
+    A job's parameters are what two doings proved VARY. The form has far more
+    fields than that, and a mail naming one of them is a person asking for
+    something perfectly reasonable that this job simply cannot take yet. They
+    should be told, not ignored.
+
+    Names only, never values: this goes into a run record and a log line.
+    """
+    allowed = set(wanted)
+    return tuple(sorted(name for name in values if name not in allowed))
 
 
 def note(what: str, answered: str) -> str:

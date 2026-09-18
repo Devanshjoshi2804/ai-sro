@@ -843,6 +843,24 @@ async def run_workflow(
             name: {"value": f.value, "from_message": f.from_message, "quoting": f.quoting}
             for name, f in got.values.items()
         }
+        # What the mail asked for that this job cannot take.
+        #
+        # A job's parameters are what two doings proved VARY; the form has far
+        # more fields than that. So a mail saying "code GV3, description X,
+        # Department Inbound" is a perfectly reasonable request, and the run
+        # makes a record with no Department in it -- silently, because `keep`
+        # drops a name the job has no parameter for and said nothing about it.
+        #
+        # The dropping is right. The silence is the shape of every fault worth
+        # having here: a request that asked for three things, a record that
+        # holds two, and nothing anywhere naming the one that went missing.
+        if got.unasked:
+            run.unasked = list(got.unasked)
+            logger.info(
+                "%s: the mail also asked for %s, which this job has no parameter for",
+                run.id,
+                ", ".join(got.unasked),
+            )
         await _save(uow, run)
 
         # A value nobody typed and nobody could find is not a value.

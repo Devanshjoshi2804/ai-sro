@@ -733,6 +733,8 @@ def test_a_finished_run_reaches_the_wire_whole() -> None:
         # did it in front of somebody. False is the replay, and the default.
         "watched": False,
         "needs": [],
+        # Names the request asked for that this job has no parameter for.
+        "unasked": [],
         # What a run is doing when it has no step to show for it: reading a
         # mailbox. Empty here, and empty for a finished run always.
         "doing": "",

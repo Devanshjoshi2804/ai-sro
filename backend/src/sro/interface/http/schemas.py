@@ -3467,6 +3467,9 @@ class WorkflowRunModel(BaseModel):
 
     gathered: dict[str, dict[str, str]] = {}
     needs: list[str] = []
+    unasked: list[str] = []
+    """Names the request asked for that this job declares no parameter for.
+    Names and never values; see `WorkflowRun.unasked`."""
     """What it could not find a value for. The panel takes the conversation
     from here: the question is already in the operator's thread."""
     """Parameter -> where its value was read, for values nobody typed.
@@ -3524,6 +3527,7 @@ class WorkflowRunModel(BaseModel):
             doing=run.doing,
             gathered={k: dict(v) for k, v in run.gathered.items()},
             needs=list(run.needs),
+            unasked=list(run.unasked),
             wrong_because=run.wrong_because,
             undo=undo,
         )

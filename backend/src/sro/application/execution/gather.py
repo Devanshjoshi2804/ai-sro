@@ -45,6 +45,7 @@ from sro.domain.execution.gathering import (
     K_ROUNDS,
     Found,
     Gathered,
+    dropped,
     keep,
     note,
     still_wanted,
@@ -135,6 +136,11 @@ class GatherContext:
         exists to have fixed.
         """
         found: dict[str, Found] = {}
+        # Names the mail offered that this job declares no parameter for. A
+        # request asking for a field the job cannot take is a request half
+        # done, and silence about the other half is the fault this exists to
+        # stop being invisible.
+        unasked: set[str] = set()
         looked: list[str] = []
         history: list[str] = []
         spent = Answer()
@@ -175,6 +181,7 @@ class GatherContext:
                     values=found,
                     missing=missing,
                     looked=tuple(looked),
+                    unasked=tuple(sorted(unasked)),
                     why=_ran_out(found, missing),
                 )
             try:
@@ -207,6 +214,7 @@ class GatherContext:
                     values=found,
                     missing=still_wanted(wanted, found),
                     looked=tuple(looked),
+                    unasked=tuple(sorted(unasked)),
                     why=_ran_out(found, still_wanted(wanted, found)),
                 )
             spent = _also(spent, answer)
@@ -215,12 +223,17 @@ class GatherContext:
                     values=found,
                     missing=still_wanted(wanted, found),
                     looked=tuple(looked),
+                    unasked=tuple(sorted(unasked)),
                     why=answer.error or "the model returned nothing",
                 )
 
             action = str(answer.data.get("action") or "")
             if action == "done":
-                found.update(keep(_values_in(answer.data), wanted))
+                offered = _values_in(answer.data)
+                found.update(keep(offered, wanted))
+                # What it offered that this job has no parameter for, kept so
+                # somebody can be told. See `dropped`.
+                unasked |= set(dropped(offered, wanted))
                 break
 
             asked, said = await self._look(ctx, action, answer.data)
@@ -240,6 +253,7 @@ class GatherContext:
             values=found,
             missing=missing,
             looked=tuple(looked),
+            unasked=tuple(sorted(unasked)),
             why=_sentence(found, missing),
         )
 

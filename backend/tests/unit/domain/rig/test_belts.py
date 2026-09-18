@@ -10,6 +10,7 @@ from sro.domain.execution.belts import (
     mentions,
     state_verified,
     status_of,
+    unreturned,
 )
 from sro.domain.observation.gesture import Call, Gesture
 from sro.domain.skill.workflow import Step
@@ -364,3 +365,43 @@ def test_nothing_to_check_is_not_something_shown() -> None:
     for one; this says what the belt answers if anybody does."""
     assert not carries_in_slot('{"customerType":"GPDP"}', {})
     assert not carries_in_slot("not json", {"customerType": "GPDP"})
+
+
+def test_a_value_the_record_did_not_come_back_with_is_named() -> None:
+    """The failure that looks like a success, and the reason every belt misses
+    it.
+
+    A warehouse that silently shortens a field answers exactly like one that
+    stored it. Send a code and a long description, have the description
+    truncated on save, and the code comes back: `mentions` is satisfied, the
+    step holds by `read`, and the status and the screenshot agree -- because
+    every one of those compares the record to ITSELF. The status is the
+    server's own, the read-back is the record as stored, and a picture of the
+    resulting row looks right to a model that has no idea what was asked for.
+
+    So the step still holds -- one value back is the record back, and
+    requiring all of them was measured wrong at one correct create in six --
+    and what did not come back is named.
+    """
+    body = '{"customerType": "GV3", "longDescription": "leaning new SRO"}'
+    sent = {"Customer Type": "GV3", "Description": "leaning new SRO type 047"}
+
+    assert mentions(body, sent), "one value back is the record back"
+    assert unreturned(body, sent) == ("Description",)
+
+
+def test_a_record_that_came_back_whole_names_nothing() -> None:
+    body = '{"customerType": "GV3", "longDescription": "leaning new SRO"}'
+    assert unreturned(body, {"Customer Type": "GV3", "Description": "leaning new SRO"}) == ()
+    # And nothing supplied is nothing missing, rather than everything.
+    assert unreturned(body, {}) == ()
+
+
+def test_a_body_that_is_not_json_is_read_as_text_for_this_too() -> None:
+    """`mentions` falls back to substring for a body with no leaves to compare,
+    and so does this: the two have to agree about what came back, or a step
+    holds on a value this says is missing."""
+    body = "customerType=GV3&longDescription=leaning+new+SRO"
+    assert unreturned(body, {"Customer Type": "GV3", "Description": "a different thing"}) == (
+        "Description",
+    )

@@ -310,6 +310,42 @@ def _carried(
     return quantifier(bool(value) and value in leaves for value in values.values())
 
 
+def unreturned(body: str, values: Mapping[str, str]) -> tuple[str, ...]:
+    """The names this run supplied that the read did not come back carrying.
+
+    `mentions` asks whether ANY of them came back, and holds on one -- which is
+    right, and is why this exists beside it rather than instead of it. A record
+    read after a write is being asked "are you there", and one value answering
+    is the record answering. Requiring ALL of them was tried and measured
+    wrong: of 94 recorded creates, 16 send a value that appears nowhere in the
+    answer -- every one a `...Description` key holding the label its code
+    resolved to -- so `carries_every` failed roughly one correct create in six
+    and un-earned a job for being right.
+
+    But a warehouse that silently shortens a field answers the same way. Send a
+    code and a sixty-character description, have the description truncated on
+    save, and the code comes back, `mentions` is satisfied, and the step holds
+    by `read`. Every belt in the chain then agrees, because every one of them
+    compares the record to ITSELF: the status is the server's, the read-back is
+    the record as stored, and a picture of the grid row looks right to a model
+    with no idea what was asked for.
+
+    So the step still holds -- one value back is the record back -- and what
+    did NOT come back is named. A truncation stops being invisible without a
+    correct write being failed for it.
+
+    Names, never values: this is read by a panel and a log.
+    """
+    if not values:
+        return ()
+    try:
+        parsed = json.loads(body)
+    except ValueError:
+        return tuple(sorted(name for name, value in values.items() if value and value not in body))
+    leaves = set(_leaves(parsed))
+    return tuple(sorted(name for name, value in values.items() if value and value not in leaves))
+
+
 @dataclass(frozen=True, slots=True)
 class RunProof:
     """One live run that held, reduced to the two sets the rule compares:

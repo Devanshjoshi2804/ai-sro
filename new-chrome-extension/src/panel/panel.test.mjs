@@ -385,6 +385,47 @@ test("arriving on the conversation arrives at the end of it", async () => {
   assert.equal(scroll.scrollTop, 2400, "it left them at the top of the conversation");
 });
 
+test("a press whose answer is a question takes them to where it was asked", async () => {
+  // The question landed in the thread and the operator was left on Home, where
+  // no part of a conversation is on screen. Seen on the deployment 2026-09-18,
+  // twice: it is indistinguishable from the press doing nothing, and the
+  // sentence it wrote is one nobody ever read.
+  const nudge = {
+    id: "n_ask", source: "rig", state: "open", k: 0, at: "2026-09-18T09:31:00Z",
+    title: "Create a Customer Type", workflowId: "wfl_1",
+    values: { "Customer Type": "NEWSROTEST" }, items: [], missing: [],
+    tooLong: { "Customer Type": 4 },
+  };
+  const { ids, render, sent } = panel({ deviceId: "dev-1", nudges: [nudge] }, null, {
+    "ask-about-offer": { ok: true, asked: "Customer Type takes 4 characters. What should it be?" },
+    thread: { id: "thr_1", messages: [] },
+  });
+  render({ deviceId: "dev-1", nudges: [nudge] });
+
+  // Home, which is where the cards are and where the press happens.
+  assert.equal(ids["thread"].hidden, true, "the panel did not start on Home");
+
+  const card = [...(ids["cards"].kids || [])];
+  const yes = (function find(el) {
+    if (String(el?.textContent || "").trim() === "Yes, do it") return el;
+    for (const kid of el?.kids || []) {
+      const got = find(kid);
+      if (got) return got;
+    }
+    return null;
+  })({ kids: card });
+  assert.ok(yes, "no Yes on the card");
+  yes.listeners[0]();
+  await new Promise((done) => setImmediate(done));
+
+  // It asked, and it took them to the asking.
+  assert.ok(
+    sent.some((one) => one.kind === "ask-about-offer"),
+    "the press did not ask",
+  );
+  assert.equal(ids["thread"].hidden, false, "left them on Home, reading nothing");
+});
+
 test("a status landing does not move the view out from under them", async () => {
   // Somebody who has scrolled up is reading something, and the worker pushes a
   // status every couple of seconds.

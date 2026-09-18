@@ -1582,17 +1582,9 @@ function paintPanes() {
         if (picked === "history") return void openHistory();
         if (picked === "new") return void freshThread();
         if (picked === pane) return;
+        if (picked === "chat") return void goToTheConversation();
         pane = picked;
         paintPanes();
-        // Read it now rather than up to five seconds from now: the poll below
-        // runs only while Chat is showing, so arriving on it is exactly when
-        // the thread is most likely to be stale.
-        if (pane === "chat") {
-          void conversation();
-          // Their own press, so the view is theirs to move: arriving on the
-          // conversation means arriving at the end of it.
-          toTheNewest(true);
-        }
       },
     }),
   );
@@ -1684,6 +1676,39 @@ function toTheNewest(force = false) {
   const seen = Number(scroll.clientHeight) || 0;
   const at = Number(scroll.scrollTop) || 0;
   if (force || height - at - seen < K_AT_THE_BOTTOM) scroll.scrollTop = height;
+}
+
+/** Show the conversation, redrawn, at the end of it.
+ *
+ * One way to get there, because there are now two ways to be sent: picking the
+ * tab, and pressing a card whose answer is a question rather than a run.
+ *
+ * The second is what this was extracted for. A press on the Home pane wrote
+ * `Customer Type takes 4 characters. What should it be?` into the thread and
+ * left the operator looking at Home, where no part of it is visible -- the
+ * question was asked, correctly, into a pane nobody had been taken to. Seen on
+ * the deployment 2026-09-18, twice, and it reads exactly like nothing
+ * happened.
+ *
+ * `drawn = null` because the guard that stops a redraw replacing a composer
+ * somebody is typing in also stops the first draw after arriving here.
+ *
+ * Reading the thread now rather than up to five seconds from now: the poll
+ * runs only while Chat is showing, so arriving is exactly when it is most
+ * likely to be stale. And the scroll is forced -- arriving at a conversation
+ * means arriving at the end of it, which is where the question is.
+ */
+function goToTheConversation() {
+  pane = "chat";
+  paintPanes();
+  drawn = null;
+  // Twice, and both are needed. Now, so the switch lands at the end of what is
+  // already drawn rather than at the top of it -- a fetch away is long enough
+  // to read as a jump. And again when the thread comes back, because the
+  // message somebody is being sent here to read is one that was not on screen
+  // when the first scroll ran.
+  toTheNewest(true);
+  void conversation().then(() => toTheNewest(true));
 }
 
 /** Which half is on screen. Separate from drawing the tabs, because the tabs
@@ -1974,8 +1999,10 @@ async function askAboutOffer(nudge, button) {
     said(error.message);
   }
   await refresh();
-  drawn = null;
-  await conversation();
+  // And take them to it. The question is asked in the conversation, the card
+  // they pressed is on Home, and writing the one without going to the other is
+  // indistinguishable from nothing happening.
+  goToTheConversation();
 }
 
 /** A fire waiting on somebody, answered from the panel.

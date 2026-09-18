@@ -1079,6 +1079,63 @@ test("a mail that has gone is not offered again", () => {
   assert.equal(item.dataset.answered, "sent");
 });
 
+test("a mail that has gone and not been answered is drawn as a state, not a sentence", () => {
+  // A mail leaves over the operator's name and the reply arrives by a poll
+  // nobody can see. What that looked like was one sentence -- "I will carry on
+  // when they reply" -- and then a panel doing visibly nothing for as long as
+  // it took.
+  const [item] = messages(
+    ledger(
+      { id: "thr-1", messages: [] },
+      {
+        mail: {
+          awaiting: { to: "asker@example.com", at: Date.now() - 240000 },
+          looking: false,
+          lookedAt: Date.now() - 40000,
+        },
+      },
+      { onPress: () => {} },
+    ),
+  );
+
+  const said = words(item);
+  assert.match(said, /Waiting for asker@example\.com/);
+  // Every number is something this browser did, and it says which.
+  assert.match(said, /asked 4m ago/);
+  assert.match(said, /last read 40s ago/);
+  assert.equal(item.dataset.state, undefined, "it says it is reading when it is not");
+});
+
+test("while the mailbox is actually being read, it says so", () => {
+  const [item] = messages(
+    ledger(
+      { id: "thr-1", messages: [] },
+      {
+        mail: {
+          awaiting: { to: "asker@example.com", at: Date.now() - 1000 },
+          looking: true,
+          lookedAt: Date.now(),
+        },
+      },
+      { onPress: () => {} },
+    ),
+  );
+
+  assert.equal(item.dataset.state, "looking");
+  // The words carry it, not only the animation: a stylesheet may decline to
+  // run one, and a line that reads the same either way is the line this
+  // replaces.
+  assert.match(words(item), /reading the mailbox/);
+});
+
+test("nothing is waited on when no mail has gone", () => {
+  const drawn = messages(
+    ledger({ id: "thr-1", messages: [] }, { mail: { looking: false } }, { onPress: () => {} }),
+  );
+
+  assert.equal(drawn.length, 0, "it invented a wait");
+});
+
 for (const [name, fn] of tests) {
   try {
     await fn();

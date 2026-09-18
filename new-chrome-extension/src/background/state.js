@@ -40,6 +40,7 @@ const KEYS = {
   lastBeat: "sro.lastBeat",
   lastError: "sro.lastError",
   mailLooked: "sro.mailLooked",
+  awaitingMail: "sro.awaitingMail",
   queueEpoch: "sro.queueEpoch",
   pendingBatch: "sro.pendingBatch",
   shotTimes: "sro.shotTimes",
@@ -267,6 +268,17 @@ export const state = {
   setSaid: (lines) => write(KEYS.said, lines),
   mailLooked: () => read(KEYS.mailLooked, null),
   setMailLooked: (looked) => write(KEYS.mailLooked, looked),
+
+  /** The mail this browser has sent and is waiting on an answer to.
+   *
+   * In storage rather than in a variable for `said`'s reason -- the worker is
+   * evicted between beats as a matter of course, and a person who sent a mail
+   * five minutes ago is exactly who must still be told it is being watched
+   * for. One at a time: the panel asks one question at a time, so there is
+   * one outstanding request to wait on.
+   */
+  awaitingMail: () => read(KEYS.awaitingMail, null),
+  setAwaitingMail: (waiting) => write(KEYS.awaitingMail, waiting),
 
   /** Distinguishes one lifetime of the event queue from the next.
    *

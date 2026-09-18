@@ -1235,6 +1235,47 @@ a:focus-visible {
   }
 }
 
+/* A mail that has gone and an answer that has not come.
+ *
+ * Set apart from what was SAID, because it is not a thing anybody said: it is
+ * a state, redrawn every few seconds for as long as it lasts, and a bubble
+ * that looked like a sentence would have the conversation appearing to repeat
+ * itself. A dotted edge says "this is the panel's own note", the same way the
+ * time column says "this is when".
+ */
+.message[data-kind="awaiting-mail"] {
+  border-style: dashed;
+  background: transparent;
+}
+
+/* And while a mailbox is actually being read, the accent -- for the two or
+ * three seconds that is true. What is being animated is a fact: a request is
+ * out. Nothing here moves on its own when nothing is happening. */
+.message[data-kind="awaiting-mail"][data-state="looking"] {
+  border-color: var(--accent);
+  border-style: solid;
+}
+
+.message[data-kind="awaiting-mail"][data-state="looking"] .what {
+  animation: awaiting-breath 2s ease-in-out infinite;
+}
+
+@keyframes awaiting-breath {
+  0%,
+  100% {
+    opacity: 0.66;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .message[data-kind="awaiting-mail"][data-state="looking"] .what {
+    animation: none;
+  }
+}
+
 /* A job that finished, as the thing it is rather than a report on itself.
  *
  * The values are the card. What ran, what it cost and which rung matched are

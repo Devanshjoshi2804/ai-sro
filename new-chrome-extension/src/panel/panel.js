@@ -274,6 +274,15 @@ function render(status) {
     }
   }
 
+  // A mail that has gone out and not been answered.
+  //
+  // On Home as well as in the conversation, because the two panes answer two
+  // different questions and this is an answer to both: the conversation says
+  // what was said, and Home says what is true right now. What was true for as
+  // long as a reply took was a panel doing visibly nothing.
+  const waitingOnMail = mailCard(status);
+  if (waitingOnMail) cards.push(waitingOnMail);
+
   // A question nobody has answered, before anything about what is happening
   // now. It is the one thing on this panel that is waiting on THEM.
   if (status.question) cards.push(theQuestion(status.question));
@@ -360,6 +369,39 @@ function justArrived(nudge) {
     }
   }
   return (freshUntil.get(id) || 0) > Date.now();
+}
+
+/** Waiting on somebody's mailbox, said on Home.
+ *
+ * `tone: "live"` for the turning indicator the gather card already uses: one
+ * animation in this panel for "something is happening and you are not waiting
+ * on it", rather than a second one that means the same thing differently.
+ *
+ * Nothing here is an estimate. Who was asked, when they were asked, when this
+ * browser last read the mailbox, and whether it is reading one this second --
+ * every number is something this browser did.
+ */
+function mailCard(status) {
+  const mail = status.mail;
+  if (!mail?.awaiting) return null;
+  const to = mail.awaiting.to || "whoever was asked";
+  return card({
+    title: "Waiting on a reply",
+    says: mail.looking
+      ? `Reading the mailbox for ${to}'s answer`
+      : `Asked ${to} ${ago(mail.awaiting.at)}. Last read the mailbox ${ago(mail.lookedAt)}`,
+    tone: "live",
+  });
+}
+
+/** How long ago, in the roundest words that are still true. */
+function ago(at) {
+  const was = Number(at) || 0;
+  if (!was) return "not yet";
+  const seconds = Math.max(0, Math.round((Date.now() - was) / 1000));
+  if (seconds < 60) return `${seconds}s ago`;
+  const minutes = Math.round(seconds / 60);
+  return minutes < 60 ? `${minutes}m ago` : `${Math.round(minutes / 60)}h ago`;
 }
 
 /** A question this operator has not answered.
@@ -2037,6 +2079,10 @@ function show(thread, { asked = false } = {}) {
     // it the instant it leaves rather than when the reply lands. Named apart
     // from `waiting`, which is the list of fires waiting on somebody.
     sending: sendingNow,
+    // The mail this browser sent and is waiting on, and whether it is reading
+    // a mailbox at this instant. The conversation is where the draft was read
+    // and approved, so the conversation is where the waiting belongs.
+    mail: lastStatus?.mail || null,
   };
   openOffers = (thread.messages || []).filter(
     (message) =>

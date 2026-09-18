@@ -161,6 +161,10 @@ export function ledger(thread, local = {}, { onPress, runs } = {}) {
     // clock says: it is the most recent thing that happened by definition, and
     // a locally-stamped time can lose a race with the server's own.
     ...(local?.sending ? [{ at: "\uffff", sending: local.sending }] : []),
+    // And the mail that has gone out and not been answered. After everything
+    // said, for the sending entry's reason: it is true right now, and it goes
+    // on being true across however many polls it takes.
+    ...(local?.mail?.awaiting ? [{ at: "\ufffe", awaiting: local.mail }] : []),
   ].sort((a, b) => String(a.at || "").localeCompare(String(b.at || "")));
 
   let lastMinute = "";
@@ -179,7 +183,9 @@ export function ledger(thread, local = {}, { onPress, runs } = {}) {
             ? waitingOnYou(entry.waiting, onPress)
             : entry.sending
               ? sending(entry.sending)
-              : nudging(entry.nudge, onPress);
+              : entry.awaiting
+                ? waitingOnAMailbox(entry.awaiting)
+                : nudging(entry.nudge, onPress);
     const minute = hhmm(entry.at);
     // One cell per entry, filled only when the minute changes. Repeating 12:04
     // against three things said in the same minute is noise exactly where the
@@ -228,6 +234,65 @@ function sending({ text }) {
   thinking.append(dots);
   item.append(thinking);
   return item;
+}
+
+/** The mail that has gone and the answer that has not come.
+ *
+ * A mail leaves over the operator's name and the reply arrives by a poll they
+ * cannot see. What that looked like was one sentence -- "I will carry on when
+ * they reply" -- and then, for as long as it took, a panel doing nothing at
+ * all. Somebody watching it has no way to tell a system that is checking every
+ * two minutes from one that forgot.
+ *
+ * So the wait is drawn as what it is, continuously: who is being waited on,
+ * when the mailbox was last read, and -- while a read is actually out -- that
+ * one is happening this second. Nothing here is an estimate: every number is
+ * something this browser did.
+ */
+export function waitingOnAMailbox(mail, now = Date.now()) {
+  const item = document.createElement("li");
+  item.className = "message";
+  item.dataset.speaker = "system";
+  item.dataset.kind = "awaiting-mail";
+  if (mail.looking) item.dataset.state = "looking";
+
+  const what = document.createElement("p");
+  what.className = "what";
+  what.textContent = `Waiting for ${mail.awaiting?.to || "a reply"}.`;
+  item.append(what);
+
+  const how = document.createElement("p");
+  how.className = "detail thinking";
+  how.dataset.kind = "looking";
+  // The words say which of the two states this is, because the animation is
+  // the part a stylesheet can decline to run -- and a line that reads the same
+  // whether or not anything is happening is the line this replaces.
+  how.textContent = mail.looking
+    ? "reading the mailbox"
+    : `asked ${_ago(mail.awaiting?.at, now)} \u00b7 last read ${_ago(mail.lookedAt, now)}`;
+  if (mail.looking) {
+    const dots = document.createElement("span");
+    dots.className = "dots";
+    dots.textContent = "\u2026";
+    how.append(dots);
+  }
+  item.append(how);
+  return item;
+}
+
+/** How long ago, in the roundest words that are still true.
+ *
+ * Never "0 seconds ago" and never a date: what this is for is a person judging
+ * whether a thing is still happening, and past an hour the answer is the same
+ * whatever the number says.
+ */
+function _ago(at, now = Date.now()) {
+  const was = Number(at) || 0;
+  if (!was) return "not yet";
+  const seconds = Math.max(0, Math.round((now - was) / 1000));
+  if (seconds < 60) return `${seconds}s ago`;
+  const minutes = Math.round(seconds / 60);
+  return minutes < 60 ? `${minutes}m ago` : `${Math.round(minutes / 60)}h ago`;
 }
 
 /** A rule that almost fired, said out loud.

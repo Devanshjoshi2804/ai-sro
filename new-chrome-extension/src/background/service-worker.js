@@ -627,6 +627,16 @@ async function resumeTheJob(placed) {
  * the day it goes quiet instead, counted among the ones they missed.
  */
 async function offerFromMail(offer) {
+  // The answer came. Nothing is waiting on a mailbox any more, and a panel
+  // still saying so under the card that answered it is a panel arguing with
+  // itself. Cleared on the offer rather than on the reply being read, because
+  // the offer is the thing this browser can actually see arrive.
+  const awaiting = await state.awaitingMail();
+  if (
+    awaiting &&
+    (!awaiting.thread || awaiting.thread === (offer.thread || ""))
+  )
+    await state.setAwaitingMail(null);
   const shape = (await shapesFor()).find((one) => one.id === offer.workflow_id);
   const now = Date.now();
   const made = fire(
@@ -653,7 +663,8 @@ async function offerFromMail(offer) {
   );
   const kept = await serially(async () => {
     const held = await state.nudges();
-    if (held.some((one) => one.candidateId === made.candidateId)) return "already held";
+    if (held.some((one) => one.candidateId === made.candidateId))
+      return "already held";
     // One request, one card, however many mails it arrives in.
     //
     // A request and its "Confirmed - please create the customer type in WMS as
@@ -1019,7 +1030,9 @@ async function say(line) {
   try {
     await serially(async () => {
       const held = await state.said();
-      await state.setSaid([...held, String(line).slice(0, 300)].slice(-MAX_SAID));
+      await state.setSaid(
+        [...held, String(line).slice(0, 300)].slice(-MAX_SAID),
+      );
     });
   } catch {
     // Nothing. See above.
@@ -1382,11 +1395,18 @@ async function handle(message, sender) {
       // clever about the cause -- it tries once, and if the tab is still deaf
       // it goes on the card and waits to be asked, which is where it was
       // before any of this.
-      if (message.holding === false && deafTab >= 0 && !running && !repaired.has(deafTab)) {
+      if (
+        message.holding === false &&
+        deafTab >= 0 &&
+        !running &&
+        !repaired.has(deafTab)
+      ) {
         repaired.add(deafTab);
         try {
           await chrome.tabs.reload(deafTab);
-          await say(`tab ${deafTab} was recording half and was reloaded -- nothing typed in it`);
+          await say(
+            `tab ${deafTab} was recording half and was reloaded -- nothing typed in it`,
+          );
           halfDeaf.delete(deafTab);
           return { ok: true, reloaded: true };
         } catch (error) {
@@ -1610,6 +1630,15 @@ async function handle(message, sender) {
             ? `asked ${answered.sent_to} about ${message.messageId}`
             : `nothing was sent for ${message.messageId}`,
         );
+        // What the panel draws a live wait from. Only where a mail actually
+        // went: "waiting for a reply" under a mail that was never sent is the
+        // panel telling somebody a story about itself.
+        if (answered.sent_to)
+          await state.setAwaitingMail({
+            to: answered.sent_to,
+            at: Date.now(),
+            thread: message.mailThread || "",
+          });
         return { ok: true, sent_to: answered.sent_to || "" };
       } catch (error) {
         return { ok: false, error: error.problem?.detail || error.message };
@@ -1894,10 +1923,13 @@ async function handle(message, sender) {
         const held = await state.nudges();
         const one = held.find((n) => n.id === message.nudgeId);
         if (!one || one.source !== "rig") return { error: "no such offer" };
-        if (one.state !== "open") return { error: "this offer has already ended" };
+        if (one.state !== "open")
+          return { error: "this offer has already ended" };
         await state.setNudges(
           held.map((n) =>
-            n.id === one.id ? { ...n, state: "accepted", endedAt: Date.now() } : n,
+            n.id === one.id
+              ? { ...n, state: "accepted", endedAt: Date.now() }
+              : n,
           ),
         );
         return { nudge: one };
@@ -2549,6 +2581,14 @@ chrome.storage.onChanged?.addListener(() => {
  * card arrives the way every other message does, and this call has no second
  * path to keep working.
  */
+/** Whether the mailbox is being read RIGHT NOW, and when the last read ended.
+ *
+ * In memory and not in storage, unlike everything else about the look: this is
+ * true for the two seconds a fetch is out, and a flag that outlived the worker
+ * that set it would have the panel animating a call nobody is making.
+ */
+let readingTheMail = null;
+
 async function lookInTheMail() {
   const last = await state.mailLooked();
   const since = Date.now() - (last?.at || 0);
@@ -2557,6 +2597,7 @@ async function lookInTheMail() {
   // Written BEFORE the call, so a look that takes a while does not have four
   // more started on top of it by the ticks that land while it is out.
   await state.setMailLooked({ at: Date.now(), reached: true, answered: true });
+  readingTheMail = Date.now();
   try {
     const looked = await api.fromTheMail();
     // `answered`, beside `reached`: the deployment replied, so whatever it
@@ -2599,12 +2640,14 @@ async function lookInTheMail() {
         await say(`mail offer lost: ${error}`);
       }
     }
+    readingTheMail = null;
     return {
       ok: true,
       offered: kept,
       read: looked?.read || 0,
     };
   } catch (error) {
+    readingTheMail = null;
     // A door that is not there yet, a backend being restarted, a browser with
     // no credential. None of them is worth a red line in the panel: the look is
     // a background convenience and the operator can always type the request.
@@ -3148,6 +3191,22 @@ async function status(sender = null) {
     // The mails this browser recognised and nobody has answered yet. Held
     // here and nowhere else -- the panel is the same browser that read them.
     offers: await state.offers(),
+    // What this browser is waiting on from a mailbox, and whether it is
+    // reading one at this instant.
+    //
+    // A mail went out over the operator's name and the answer arrives by a
+    // background poll they cannot see. What that looked like was a sentence --
+    // "I will carry on when they reply" -- and then, for as long as it took,
+    // a panel doing nothing. This is the same fact said continuously: who is
+    // being waited on, when the mailbox was last read, and whether it is
+    // being read now.
+    mail: fromPage
+      ? undefined
+      : {
+          awaiting: await state.awaitingMail(),
+          looking: readingTheMail !== null,
+          lookedAt: (await state.mailLooked())?.at || 0,
+        },
     // And the rules that almost fired. Only for the panel, like the answer
     // below: the page-side pill has no room for it, and a rule that misses in
     // silence is the failure an operator cannot see.

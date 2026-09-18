@@ -2096,6 +2096,37 @@ test("every card is new to a panel that has just opened, and none of them shouts
   assert.strictEqual(card?.dataset?.fresh, undefined, "an open panel lit a card nothing did to");
 });
 
+test("a mail waiting on somebody is on Home as well as in the conversation", async () => {
+  // The two panes answer two different questions and this is an answer to
+  // both: the conversation says what was said, Home says what is true now.
+  const { cards } = panel({
+    deviceId: "dev-1",
+    mail: {
+      awaiting: { to: "asker@example.com", at: Date.now() - 120000 },
+      looking: false,
+      lookedAt: Date.now() - 30000,
+    },
+  });
+
+  const waiting = cards.find((one) => words(one).includes("Waiting on a reply"));
+  assert.ok(waiting, "Home said nothing about the mail it is waiting on");
+  assert.match(words(waiting), /Asked asker@example\.com 2m ago/);
+  assert.match(words(waiting), /Last read the mailbox 30s ago/);
+  // The turning indicator the gather card already uses, rather than a second
+  // animation meaning the same thing.
+  assert.equal(waiting.dataset.tone, "live");
+});
+
+test("Home says nothing about a mailbox when no mail is waiting", async () => {
+  const { cards } = panel({ deviceId: "dev-1", mail: { looking: false, lookedAt: 0 } });
+
+  assert.equal(
+    cards.find((one) => words(one).includes("Waiting on a reply")),
+    undefined,
+    "it invented a wait",
+  );
+});
+
 for (const [name, fn] of tests) {
   try {
     await fn();

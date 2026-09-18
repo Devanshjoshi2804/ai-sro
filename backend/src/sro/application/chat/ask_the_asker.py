@@ -302,6 +302,7 @@ class SendTheDraft:
                 f"I could not reach the mailbox to write to {to}.",
                 run_id,
                 message_id,
+                to,
                 sent=False,
             )
             return ""
@@ -326,6 +327,7 @@ class SendTheDraft:
             f"Asked {to}. I will carry on when they reply.",
             run_id,
             message_id,
+            to,
             sent=True,
         )
         logger.info("%s: asked %s about %s", ctx.tenant_id.value, to, run_id)
@@ -381,6 +383,7 @@ class SendTheDraft:
         text: str,
         run_id: str = "",
         draft_id: str = "",
+        to: str = "",
         *,
         sent: bool,
     ) -> None:
@@ -409,6 +412,11 @@ class SendTheDraft:
                         "kind": SENT,
                         "run_id": run_id,
                         "draft_id": draft_id,
+                        # Who is being waited ON. The sentence says it and the
+                        # panel had to read the sentence to know it, which is
+                        # a panel parsing prose to find a fact the decision
+                        # was already carrying everything else about.
+                        "to": to,
                         "sent": sent,
                     },
                 )

@@ -1154,6 +1154,22 @@ a:focus-visible {
   top: 52px;
   max-height: 62vh;
   overflow-y: auto;
+}
+
+/* The backlog uses the height it has.
+ *
+ * `history` is twelve lines of what happened and 62vh is generous for it. A
+ * queue of eleven decisions in the same box is a third of a screen of list
+ * with two thirds of empty panel under it, scrolling inside itself while the
+ * space it needs sits there unused. Seen on the deployment 2026-09-18.
+ *
+ * To the bottom, less the composer: the box under it is where somebody answers
+ * a question, and an overlay that covered it would make the panel feel stuck
+ * rather than busy.
+ */
+#history[data-kind="pending"] {
+  bottom: 62px;
+  max-height: none;
   padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: 12px;
@@ -1166,6 +1182,22 @@ a:focus-visible {
  * and the days carry a heading. */
 .pending .history-list li {
   display: block;
+  /* Tighter than a history line, because there are more of them and each one
+     carries a decision: eleven rows at card spacing is a scroll nobody reaches
+     the end of. */
+  padding: 8px 0;
+}
+
+/* The presses, sized for a list rather than for a card. The card on Home is
+   the one being decided now and its buttons are the size of that; these are a
+   queue being gone through. */
+.pending .row {
+  margin-top: 6px;
+}
+
+.pending .row button {
+  padding: 5px 11px;
+  font-size: 12px;
 }
 
 /* The day a group of requests arrived on. A request is a thing somebody asked

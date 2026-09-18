@@ -16,7 +16,7 @@ import { alreadyAnswered, composer, ledger, nudging } from "./ledger.js";
 import { runCard } from "./run-card.js";
 import { history } from "./history.js";
 import { panes } from "./panes.js";
-import { dayNamed, pending } from "./pending.js";
+import { dayNamed, pending, when } from "./pending.js";
 import { needsAPress, strip } from "./strip.js";
 import { today } from "./today.js";
 import { waiting } from "./waiting.js";
@@ -284,9 +284,7 @@ function render(status) {
         !nudge.missed &&
         !(nudge.tabId != null && nudge.tabId !== tabHere.tabId),
     );
-    const [newest, ...rest] = [...here].sort(
-      (a, b) => (b.at || 0) - (a.at || 0),
-    );
+    const [newest, ...rest] = [...here].sort((a, b) => when(b.at) - when(a.at));
     if (newest) {
       const one = nudging(newest, answered);
       if (justArrived(newest)) one.dataset.fresh = "1";
@@ -401,7 +399,7 @@ function justArrived(nudge) {
  */
 function theRest(rest) {
   const oldest = rest.reduce(
-    (was, one) => ((one.at || 0) < (was.at || 0) ? one : was),
+    (was, one) => (when(one.at) < when(was.at) ? one : was),
     rest[0],
   );
   return card({
@@ -1891,6 +1889,7 @@ async function openHistory() {
     over.append(said);
     return;
   }
+  over.dataset.kind = "history";
   over.replaceChildren(
     history(runs, {
       onClose: () => {
@@ -1922,6 +1921,9 @@ function theBacklog() {
     },
   });
   if (!drawn) return;
+  // Which overlay this is, so the stylesheet can give a queue the height it
+  // needs without giving history the same.
+  over.dataset.kind = "pending";
   over.hidden = false;
   over.replaceChildren(drawn);
   // The focus goes with it, or the escape key this listens for lands on

@@ -11,7 +11,7 @@ import { install, words } from "./test-support/fake-document.mjs";
 
 install();
 
-const { dayNamed, pending } = await import("./pending.js");
+const { dayNamed, pending, when } = await import("./pending.js");
 
 const NOW = Date.parse("2026-09-18T12:00:00Z");
 const HOUR = 3600000;
@@ -25,7 +25,7 @@ function one(over = {}) {
     workflowId: "wfl_1",
     values: { "Customer Type": "GU9" },
     missing: [],
-    at: NOW - HOUR,
+    at: new Date(NOW - HOUR).toISOString(),
     ...over,
   };
 }
@@ -45,7 +45,11 @@ test("the head says how many, and how much of it is today's", () => {
   // A backlog nobody can date reads as one undifferentiated pile. "Six, four
   // of them today" is a person deciding what to do this afternoon.
   const box = pending(
-    [one({ id: "a" }), one({ id: "b" }), one({ id: "c", at: NOW - 48 * HOUR })],
+    [
+      one({ id: "a" }),
+      one({ id: "b" }),
+      one({ id: "c", at: new Date(NOW - 48 * HOUR).toISOString() }),
+    ],
     { now: NOW },
   );
 
@@ -55,6 +59,19 @@ test("the head says how many, and how much of it is today's", () => {
 
 test("one waiting is not called 1 requests", () => {
   assert.match(words(pending([one()], { now: NOW })), /1 request waiting/);
+});
+
+test("an ISO string is when something happened, because that is what is stored", () => {
+  // `nudge.js` stamps `at` with `new Date(now).toISOString()`, and everything
+  // that reached for it read `Number(at)`, which is NaN. So every request in
+  // the list dated to 1 January 1970 and "newest first" sorted nothing, since
+  // `NaN - NaN` is not an order. Seen on the deployment 2026-09-18; the tests
+  // passed throughout because they were written with numbers.
+  assert.equal(when(new Date(NOW).toISOString()), NOW);
+  assert.equal(when(NOW), NOW);
+  assert.equal(when(undefined), 0);
+  assert.equal(when("not a date"), 0);
+  assert.equal(dayNamed(new Date(NOW - HOUR).toISOString(), NOW), "Today");
 });
 
 test("the days are named the way anybody says them", () => {
@@ -134,8 +151,8 @@ test("one press ends the row", () => {
 test("the newest is at the top, because that is the one anybody acts on", () => {
   const box = pending(
     [
-      one({ id: "old", at: NOW - 5 * HOUR }),
-      one({ id: "new", at: NOW - HOUR }),
+      one({ id: "old", at: new Date(NOW - 5 * HOUR).toISOString() }),
+      one({ id: "new", at: new Date(NOW - HOUR).toISOString() }),
     ],
     { now: NOW },
   );

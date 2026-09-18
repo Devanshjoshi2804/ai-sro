@@ -2171,7 +2171,7 @@ test("Home keeps one request and counts the rest", async () => {
     id: `n${n}`, source: "rig", state: "open", tabId: null, k: 0,
     title: "Create a Customer Type", workflowId: "wfl_1",
     values: { "Customer Type": `G${n}` }, items: [], missing: [],
-    at: Date.now() - n * hour,
+    at: new Date(Date.now() - n * hour).toISOString(),
   }));
   const { cards, render } = panel({ deviceId: "dev-1", nudges: many });
   render({ deviceId: "dev-1", nudges: many });

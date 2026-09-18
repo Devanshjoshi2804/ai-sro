@@ -22,9 +22,24 @@
 //
 // Pure over what it is given. The cards, and what to do when one is pressed.
 
+/** When something happened, in milliseconds, from either shape it is held in.
+ *
+ * A nudge's `at` is an ISO STRING -- `nudge.js` stamps it with
+ * `new Date(now).toISOString()` -- and everything that reached for it here
+ * read `Number(at)`, which is `NaN`. So every request in the list dated to the
+ * first of January 1970 and "newest first" sorted nothing at all, because
+ * `NaN - NaN` is not an order. The unit tests passed: they were written with
+ * numbers, which is the one shape the real thing never uses.
+ */
+export function when(at) {
+  if (typeof at === "number") return Number.isFinite(at) ? at : 0;
+  const parsed = Date.parse(String(at ?? ""));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 /** What a day is called at the top of its group. */
 export function dayNamed(at, now = Date.now()) {
-  const was = new Date(Number(at) || 0);
+  const was = new Date(when(at));
   const today = new Date(now);
   const midnight = (d) =>
     new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
@@ -96,7 +111,7 @@ export function pending(cards, { onClose, onPress, now = Date.now() } = {}) {
 
   // Newest first, and the days in the order the newest ones fall in.
   const byDay = new Map();
-  for (const one of [...waiting].sort((a, b) => (b.at || 0) - (a.at || 0))) {
+  for (const one of [...waiting].sort((a, b) => when(b.at) - when(a.at))) {
     const day = dayNamed(one.at, now);
     if (!byDay.has(day)) byDay.set(day, []);
     byDay.get(day).push(one);

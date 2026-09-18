@@ -103,6 +103,7 @@ def _replay_of(
     values: Mapping[str, str],
     verified_writes: tuple[VerifiedWrite, ...],
     seen: Mapping[str, frozenset[str]],
+    keys: Mapping[str, str] = MappingProxyType({}),
 ) -> tuple[dict[str, object], WritePlan | None] | None:
     """The recorded call as a payload, re-aimed at this run's values, and the
     plan that aimed it. `None` where it must not go out as it stands.
@@ -132,7 +133,7 @@ def _replay_of(
     if call is None or unreplayable(call):
         return None
     verified = verified_write_for(call, verified_writes) is not None
-    aimed = write_plan_for(step, by_id, values, verified_writes, seen)
+    aimed = write_plan_for(step, by_id, values, verified_writes, seen, keys)
     if aimed is None and values and verified:
         return None
     # And the same refusal for a run that was given NOTHING.
@@ -188,6 +189,7 @@ def replay_without_asking(
     values: Mapping[str, str],
     verified_writes: tuple[VerifiedWrite, ...],
     seen: Mapping[str, frozenset[str]] = MappingProxyType({}),
+    keys: Mapping[str, str] = MappingProxyType({}),
     starts_on: str | None = None,
 ) -> Planned | None:
     """The one command a step can be planned without asking anybody.
@@ -216,7 +218,7 @@ def replay_without_asking(
     call = recorded_call(step, by_id)
     if call is None or verified_write_for(call, verified_writes) is None:
         return None
-    sending = _replay_of(step, by_id, values, verified_writes, seen)
+    sending = _replay_of(step, by_id, values, verified_writes, seen, keys)
     if sending is None:
         return None
     payload, aimed = sending
@@ -305,6 +307,7 @@ async def plan_step(
     failed_look: Look | None = None,
     verified_writes: tuple[VerifiedWrite, ...] = (),
     seen: Mapping[str, frozenset[str]] = MappingProxyType({}),
+    keys: Mapping[str, str] = MappingProxyType({}),
     tenant_id: str = "",
     secret_for: SecretFor | None = None,
 ) -> Planned:
@@ -375,7 +378,7 @@ async def plan_step(
             return Planned(
                 "none", {}, "http.send planned for a step whose evidence carries no call", answer
             )
-        sending = _replay_of(step, by_id, values, verified_writes, seen)
+        sending = _replay_of(step, by_id, values, verified_writes, seen, keys)
         if sending is not None:
             payload, aimed = sending
             if starts_on:

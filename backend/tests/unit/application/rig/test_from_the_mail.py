@@ -1062,3 +1062,73 @@ async def test_a_reply_on_another_conversation_is_not_an_answer_to_this_one() ->
     await _look(uow, mailbox, reads, _Gathers()).execute(CTX)
 
     assert reads.saw, "a mail on another thread was taken as an answer to this question"
+
+
+async def test_a_field_the_job_cannot_vary_but_the_form_posts_is_carried_not_dropped() -> None:
+    """The whole offer-side chain for item 4, which is four places a value can
+    be silently dropped.
+
+    A job's parameters are what two doings proved VARY and the form posts far
+    more than that, so `Department: Inbound` was a reasonable request this
+    could only report as unwritable -- the name survived to the card and the
+    VALUE was thrown away before anything could use it.
+    """
+    uow = await _held()
+    await uow.knowledge.add(
+        KnowledgeEntry(
+            id=KnowledgeId("kb-field-departmentNumber"),
+            tenant_id=f.TENANT,
+            system="blue_yonder",
+            kind=EntryKind.FIELD,
+            key="departmentNumber",
+            title="departmentNumber",
+            body={"labels": ["Department"], "max_length": 40},
+            source="index/field-dictionary.json",
+            evidence=EvidenceLevel.ASSERTED,
+            observed_at=datetime.now(tz=UTC),
+        )
+    )
+    mailbox = _Mailbox(search=_found("m-1"), **{"m-1": _mail("create one in Inbound")})
+    reads = _Reads(
+        {
+            "workflow_id": JOB,
+            "values": [
+                {"name": "Customer Type", "value": "GV3"},
+                {"name": "Department", "value": "Inbound"},
+            ],
+            "missing": [],
+            "sure": True,
+        }
+    )
+
+    looked = await _look(uow, mailbox, reads, _Gathers()).execute(CTX)
+
+    (one,) = looked.offered
+    # No longer something this job cannot set, and the value is there to write.
+    assert one.unasked == []
+    assert one.values["Department"] == "Inbound"
+    # And which slot it goes in, decided by the dictionary rather than guessed.
+    assert one.placed == {"Department": "departmentNumber"}
+
+
+async def test_a_field_nothing_documents_is_still_something_this_job_cannot_set() -> None:
+    uow = await _held()
+    mailbox = _Mailbox(search=_found("m-1"), **{"m-1": _mail("create one in Inbound")})
+    reads = _Reads(
+        {
+            "workflow_id": JOB,
+            "values": [
+                {"name": "Customer Type", "value": "GV3"},
+                {"name": "Department", "value": "Inbound"},
+            ],
+            "missing": [],
+            "sure": True,
+        }
+    )
+
+    looked = await _look(uow, mailbox, reads, _Gathers()).execute(CTX)
+
+    (one,) = looked.offered
+    assert one.unasked == ["Department"]
+    assert "Department" not in one.values
+    assert one.placed == {}

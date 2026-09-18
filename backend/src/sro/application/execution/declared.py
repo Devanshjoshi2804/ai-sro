@@ -29,7 +29,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 
 from sro.application.ports.repositories import UnitOfWork
-from sro.domain.execution.field_notes import limits_named
+from sro.domain.execution.field_notes import keys_named, limits_named
 from sro.domain.knowledge.entry import EntryKind
 from sro.domain.shared.hosts import screen_of
 from sro.domain.shared.identifiers import TenantId
@@ -78,6 +78,42 @@ async def declared_limits(
             else ()
         )
     return limits_named(
+        names,
+        _slots(forms, screen),
+        {one.key: one.body for one in fields if isinstance(one.body, Mapping)},
+    )
+
+
+async def declared_keys(
+    uow: UnitOfWork, tenant_id: TenantId, names: Sequence[str], screen: str = ""
+) -> dict[str, str]:
+    """Which body key each of these screen names is posted as.
+
+    `declared_limits`' sibling and the same two sources in the same order, for
+    `keys_named`'s half of the join: that one asks how big the box is, this
+    asks which slot it is.
+
+    What it is FOR is a field no demonstration varied. A job's parameters are
+    what two doings proved vary and a form has far more fields than that, so a
+    request naming one more had nowhere to put it -- and the value was dropped
+    and, until `54926cba`, dropped silently.
+
+    Empty for a name nothing documents and for a label two keys answer to,
+    which is `keys_named`'s own refusal: a guess between ten keys called
+    `Description` is a value written into a slot nobody chose.
+    """
+    if not names:
+        return {}
+    async with uow as opened:
+        fields = await opened.knowledge.search(
+            tenant_id, kinds=(EntryKind.FIELD,), limit=K_EVERY_FIELD
+        )
+        forms = (
+            await opened.knowledge.search(tenant_id, kinds=(EntryKind.FORM,), limit=K_EVERY_FORM)
+            if screen.strip()
+            else ()
+        )
+    return keys_named(
         names,
         _slots(forms, screen),
         {one.key: one.body for one in fields if isinstance(one.body, Mapping)},

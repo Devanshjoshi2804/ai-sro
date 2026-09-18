@@ -65,6 +65,14 @@ class Understood:
     performs exactly as a job run for none, so a caller that ignores this is
     not wrong, only limited to the first thing somebody asked for."""
 
+    aside: dict[str, str] = field(default_factory=dict)
+    """What those fields were given, kept beside their names.
+
+    A form posts far more fields than a job varies, so where the dictionary
+    names the slot the write can fill it after all -- and it cannot fill a
+    value this threw away. Set aside rather than in `values`, because `values`
+    is what the job itself declares and this is not that."""
+
     unasked: list[str] = field(default_factory=list)
     """What the request asked for that this job has no parameter for.
 
@@ -159,6 +167,13 @@ async def understand(
     # A run says so after the press (`run.unasked`). Nobody can consent to a
     # write they cannot see, and after the press is after the record.
     unasked = sorted({k for k, _ in read if k not in declared})
+    # And what they SAID, not only which fields they named.
+    #
+    # The names alone let the card say "this job cannot set Department". The
+    # values are what makes it sometimes untrue: a form posts far more fields
+    # than a job varies, so where the dictionary names the slot the write can
+    # fill it after all -- and it cannot fill what was thrown away here.
+    aside = {k: v for k, v in read if k not in declared}
     items = _things(answer.data.get("items"), declared)
     # Read and ignored. `missing` stays in the schema because a model asked to
     # name what is absent picks values more carefully than one that is not --
@@ -193,7 +208,9 @@ async def understand(
         for name in declared
         if isinstance(name, str) and any(name not in one for one in supplied)
     )
-    return Understood(chosen.id, answer, values, missing, sure, also, items, unasked=unasked)
+    return Understood(
+        chosen.id, answer, values, missing, sure, also, items, aside=aside, unasked=unasked
+    )
 
 
 def _things(raw: object, declared: set[object]) -> list[dict[str, str]]:

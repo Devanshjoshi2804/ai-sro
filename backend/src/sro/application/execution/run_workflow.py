@@ -50,6 +50,7 @@ from datetime import UTC, datetime, timedelta
 from urllib.parse import urlparse
 
 from sro.application.execution.approvals import K_APPROVAL_WAIT_S, Approvals
+from sro.application.execution.declared import declared_keys, names_of, screen_for
 from sro.application.execution.effects import earned, forget_effects, record_effect
 from sro.application.execution.plan_step import (
     SecretFor,
@@ -1200,6 +1201,24 @@ async def run_workflow(
     # `replayable` adds the origins their page's own requests named, which is
     # what `http.send` replays a demonstrated call to.
     observed = seen_values(workflow)
+    # Which body key each value this run holds is posted as, where the job
+    # itself declares no parameter for it.
+    #
+    # A job's parameters are what two doings proved VARY, and the form posts
+    # far more than that -- so a request naming one more had nowhere to put it.
+    # `write_plan_for` fills the slot where the dictionary names it and the
+    # record can be made to prove it landed; this is where that join is read,
+    # once per run rather than once per step.
+    #
+    # Only the names the job does NOT declare. A parameter it does declare is
+    # bound from the evidence, which is stronger than a declaration and is
+    # `_assigned`'s own rule.
+    placeable = await declared_keys(
+        uow,
+        tenant_id,
+        [name for name in values if name not in set(names_of(workflow))],
+        await screen_for(uow, tenant_id, workflow),
+    )
     standing = stood_on(workflow, by_id)
     replayable = allowlist(workflow, by_id)
     ordered = sorted(workflow.steps, key=lambda s: s.order)
@@ -1277,6 +1296,7 @@ async def run_workflow(
                 values=leg.values,
                 verified_writes=verified_writes,
                 seen=observed,
+                keys=placeable,
             )
             is not None
         ):
@@ -1624,6 +1644,7 @@ async def run_workflow(
                     values=values,
                     verified_writes=verified_writes,
                     seen=observed,
+                    keys=placeable,
                     # THIS step's own screen, not the run's, and not only for
                     # the run's first command.
                     #
@@ -1909,6 +1930,7 @@ async def run_workflow(
                             # slot in a recorded body. Read off the stored job
                             # once, before the loop.
                             seen=observed,
+                            keys=placeable,
                             tenant_id=tenant_id.value,
                             secret_for=secret_for,
                             opened=openings > 0,

@@ -651,6 +651,10 @@ async def test_a_request_naming_a_field_this_job_has_no_parameter_for_says_which
     # value nothing asked for, arriving in a sentence a stranger could write.
     assert got.values == {"clientCode": "NEW9"}
     assert got.unasked == ["Department"]
+    # And what it SAID, kept beside the name: a form posts far more fields than
+    # a job varies, so where the dictionary names the slot the write can fill
+    # it after all -- and it cannot fill a value this threw away.
+    assert got.aside == {"Department": "Inbound"}
 
 
 async def test_a_request_this_job_can_write_whole_names_nothing_extra() -> None:

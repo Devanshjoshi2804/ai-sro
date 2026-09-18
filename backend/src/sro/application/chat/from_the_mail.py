@@ -56,7 +56,12 @@ from sro.application.chat.announce import SayWhatHappened
 from sro.application.chat.read_threads import ReadThreads
 from sro.application.chat.understand import understand
 from sro.application.context import RequestContext
-from sro.application.execution.declared import declared_limits, names_of, screen_for
+from sro.application.execution.declared import (
+    declared_keys,
+    declared_limits,
+    names_of,
+    screen_for,
+)
 from sro.application.execution.gather import GatherContext
 from sro.application.ports.model import Asker, asker_or_refuse
 from sro.application.ports.repositories import UnitOfWork
@@ -174,6 +179,23 @@ class Offered:
     -- and after the press is after the record: nobody can consent to a write
     they cannot see, and "I asked for a Department and it made one without
     one" is the fault this closes.
+    """
+
+    aside: Mapping[str, str] = field(default_factory=dict)
+    """What the fields in `unasked` were given.
+
+    The names say what this job cannot set; the values are what make that
+    sometimes untrue -- a form posts far more fields than a job varies, so
+    where the dictionary names the slot the write can fill it after all."""
+
+    placed: Mapping[str, str] = field(default_factory=dict)
+    """The fields this request named that the job has no parameter for, and the
+    body key each is posted as.
+
+    Named by the dictionary rather than the demonstrations, which is the whole
+    of item 4: a job's parameters are what two doings proved VARY and the form
+    posts far more than that. A name in here is one this write can fill after
+    all -- and the run proves it landed, because nothing demonstrated it.
     """
 
     started: bool = False
@@ -375,6 +397,7 @@ class FromTheMail:
             # reading of it. A set, because two readings of one conversation
             # name the same field twice.
             asked_for_too: set[str] = set()
+            said_besides: dict[str, str] = {}
             # The conversation first, because that is where the answer is.
             #
             # A reply that says "as discussed" was discussed in the mail above
@@ -417,6 +440,7 @@ class FromTheMail:
                             # mails up is still something the request asked for
                             # and this job cannot write.
                             asked_for_too.update(again.unasked)
+                            said_besides.update(again.aside)
                             missing = [name for name in missing if name not in values]
                             logger.info(
                                 "%s: %s -- the conversation gave %d of %d",
@@ -461,6 +485,10 @@ class FromTheMail:
                     # the second reading -- the whole conversation -- and it
                     # names fields the first sentence did not.
                     unasked=sorted({*got.unasked, *asked_for_too}),
+                    # What those fields were given. The names alone let the
+                    # card say what this job cannot set; the values are what
+                    # make it sometimes untrue.
+                    aside={**got.aside, **said_besides},
                 )
             )
         looked = LookedInTheMail(
@@ -823,6 +851,9 @@ class FromTheMail:
         """
         by_id = {one.id: one for one in jobs}
         limits: dict[str, dict[str, int]] = {}
+        # Per job, like the limits: a mailbox holding four requests for one job
+        # is the ordinary case and it is the same answer four times.
+        placeable: dict[str, dict[str, str]] = {}
         for workflow_id in sorted({one.workflow_id for one in offered}):
             job = by_id.get(workflow_id)
             if job is None:
@@ -845,12 +876,25 @@ class FromTheMail:
             )
             if found:
                 limits[workflow_id] = found
-        return tuple(
-            one
-            if one.workflow_id not in limits
-            else replace(one, too_long=too_long(one.values, limits[one.workflow_id]))
-            for one in offered
-        )
+            # And which of the fields this request named, that the job has no
+            # parameter for, the form nonetheless posts.
+            #
+            # A job's parameters are what two doings proved VARY and the form
+            # has far more fields than that, so `Department: Inbound` was a
+            # reasonable request this could only report as unwritable. Where
+            # the dictionary names the slot, the write can fill it -- and the
+            # run then proves it landed, because nothing demonstrated it.
+            asked = sorted(
+                {name for one in offered if one.workflow_id == workflow_id for name in one.unasked}
+            )
+            if asked:
+                placeable[workflow_id] = await declared_keys(
+                    self._uow,
+                    ctx.tenant_id,
+                    asked,
+                    await screen_for(self._uow, ctx.tenant_id, job),
+                )
+        return tuple(_told(one, limits, placeable) for one in offered)
 
     async def _recent(self, ctx: RequestContext, limit: int) -> list[str]:
         """The newest message ids, as this operator. Ids only: what each one
@@ -987,3 +1031,31 @@ def _also(running: Answer, answer: Answer) -> Answer:
 
 
 __all__ = ["FromTheMail", "LookedInTheMail", "Offered"]
+
+
+def _told(
+    one: Offered,
+    limits: Mapping[str, Mapping[str, int]],
+    placeable: Mapping[str, Mapping[str, str]],
+) -> Offered:
+    """One offer, told what its boxes will not hold and what it can write after
+    all.
+
+    A name the dictionary places is no longer unwritable, so it leaves
+    `unasked` and joins the values -- which is what makes the card's "this job
+    cannot set Department" true when it is said and absent when it is not.
+    """
+    holds = limits.get(one.workflow_id) or {}
+    keys = placeable.get(one.workflow_id) or {}
+    told = replace(one, too_long=too_long(one.values, holds)) if holds else one
+    if not keys:
+        return told
+    # Placed fields leave `unasked` -- they are no longer things this job
+    # cannot set -- and their values join the ones it was given, because the
+    # write is what fills them and the write reads `values`.
+    return replace(
+        told,
+        unasked=[name for name in told.unasked if name not in keys],
+        values={**told.values, **{name: told.aside[name] for name in keys if name in told.aside}},
+        placed=dict(keys),
+    )

@@ -94,7 +94,16 @@ export default [
     // Test files and the scripts run in node and reach for its own globals.
     files: ["src/**/*.test.mjs", "scripts/**/*.mjs"],
     languageOptions: {
-      globals: { ...browser, process: "readonly", Buffer: "readonly", __dirname: "readonly" },
+      globals: {
+        ...browser,
+        process: "readonly",
+        Buffer: "readonly",
+        __dirname: "readonly",
+        // Node's own, and the panel's tests reach for it: a fake that must let
+        // the microtask queue drain waits a TICK rather than a millisecond,
+        // and `setTimeout(0)` is not the same thing.
+        setImmediate: "readonly",
+      },
     },
   },
 ];

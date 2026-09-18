@@ -77,6 +77,7 @@ from datetime import datetime
 from sro.application.chat.announce import SayWhatHappened
 from sro.application.context import RequestContext
 from sro.application.execution.approvals import Approvals
+from sro.application.execution.declared import declared_limits, names_of, screen_for
 from sro.application.execution.gather import GatherContext
 from sro.application.execution.read_runs import NOT_IN_A_BROWSER_HERE, CannotStop
 from sro.application.execution.run_workflow import GatherValues, KnownFields, run_workflow
@@ -552,7 +553,20 @@ class StartWorkflowRun:
         async with self._uow as uow:
             learnt = await uow.workflows.learned_for(run.workflow_id)
             workflow = await uow.workflows.get(ctx.tenant_id, run.workflow_id)
-        limits = limits_for(workflow.steps if workflow else [], learnt)
+        steps = workflow.steps if workflow else []
+        limits = limits_for(
+            steps,
+            learnt,
+            # And what the vendor's own dictionary says, for the fields no run
+            # has hit yet. A job whose first request is too long would
+            # otherwise learn that by sending it.
+            await declared_limits(
+                self._uow,
+                ctx.tenant_id,
+                names_of(workflow) if workflow else [],
+                await screen_for(self._uow, ctx.tenant_id, workflow) if workflow else "",
+            ),
+        )
         pending = Pending(
             workflow_id=run.workflow_id,
             title=title,

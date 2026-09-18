@@ -28,6 +28,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
+from types import MappingProxyType
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # a domain type used in a signature, imported for the checker only
@@ -105,7 +106,11 @@ def learned_from(ord_: int, matched_by: str | None, result: object) -> LearnedSt
     return None
 
 
-def limits_for(steps: Sequence[Step], learned: Iterable[LearnedStep]) -> dict[str, int]:
+def limits_for(
+    steps: Sequence[Step],
+    learned: Iterable[LearnedStep],
+    declared: Mapping[str, int] = MappingProxyType({}),
+) -> dict[str, int]:
     """What the boxes behind a job's parameter names will hold, by name.
 
     A limit is learnt about a STEP, because a step is what typed into the box.
@@ -119,9 +124,20 @@ def limits_for(steps: Sequence[Step], learned: Iterable[LearnedStep]) -> dict[st
     limits and only the smaller one is true of the run: a value that fits the
     first box and not the second still stops the job, and a card that promised
     otherwise lied to the person who pressed.
+
+    `declared` is the same rule applied to a second kind of source. What a run
+    LEARNT is a measurement and what the vendor's dictionary and the captured
+    form DECLARE is a claim, and neither gets to overrule the other here: a
+    limit is a ceiling, so every ceiling anything names applies and the lowest
+    one binds. Being wrong low asks somebody to shorten a value further than
+    they had to. Being wrong high sends `NEWSROTEST`, keeps `NEWS`, and answers
+    201 -- see `application/execution/declared.py`.
+
+    Empty by default, which is every caller that has only ever had the
+    measurements and behaves exactly as it did.
     """
     holds = {one.ord: one.holds for one in learned if one.holds is not None}
-    limits: dict[str, int] = {}
+    limits: dict[str, int] = dict(declared)
     for step in steps:
         if (cap := holds.get(step.order)) is None:
             continue

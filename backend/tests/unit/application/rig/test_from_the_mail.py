@@ -10,12 +10,19 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping
+from datetime import UTC, datetime
 from typing import Any
 
 from sro.application.chat.from_the_mail import FromTheMail
 from sro.application.context import RequestContext
 from sro.application.ports.tools import ToolResult, ToolsUnavailable
 from sro.domain.execution.gathering import Found, Gathered
+from sro.domain.knowledge.entry import (
+    EntryKind,
+    EvidenceLevel,
+    KnowledgeEntry,
+    KnowledgeId,
+)
 from sro.domain.shared.identifiers import PrincipalId, TenantId
 from sro.domain.shared.prices import Answer
 from sro.domain.skill.workflow import Step, Workflow
@@ -466,3 +473,47 @@ async def test_an_offer_for_a_job_nothing_has_hit_a_limit_on_says_nothing_about_
 
     (one,) = looked.offered
     assert one.too_long == {}
+
+
+async def test_a_card_can_ask_about_a_limit_no_run_has_ever_hit() -> None:
+    """The whole point of a job declaring its fields.
+
+    `workflow_learned.holds` costs a wrong record to fill: a run types, the
+    browser silently keeps a prefix, and the run writes the number down for
+    next time. The vendor documented the same number years ago and it has been
+    in the store since the knowledge base was first ingested. So the FIRST
+    request too long for a field is asked about, rather than being the one that
+    teaches the job what it should already have known.
+    """
+    uow = await _held()
+    await uow.knowledge.add(
+        KnowledgeEntry(
+            id=KnowledgeId("kb-1"),
+            tenant_id=f.TENANT,
+            system="blue_yonder",
+            kind=EntryKind.FIELD,
+            key="longDescription",
+            title="Customer Type Description (longDescription)",
+            body={"labels": ["Customer Type Description"], "max_length": 20},
+            source="index/field-dictionary.json",
+            evidence=EvidenceLevel.ASSERTED,
+            observed_at=datetime.now(tz=UTC),
+        )
+    )
+    mailbox = _Mailbox(
+        search=_found("m-1"),
+        **{"m-1": _mail("please create the customer type in WMS as discussed")},
+    )
+    gather = _Gathers(
+        **{
+            "Customer Type": "GU9",
+            "Customer Type Description": "leaning new SRO type 044 for the north dock",
+        }
+    )
+
+    looked = await _look(uow, mailbox, _Reads(_reading(JOB, bare=True)), gather).execute(CTX)
+
+    (one,) = looked.offered
+    # Nothing was learnt; everything was already written down.
+    assert await uow.workflows.learned_for(JOB) == ()
+    assert one.too_long == {"Customer Type Description": 20}

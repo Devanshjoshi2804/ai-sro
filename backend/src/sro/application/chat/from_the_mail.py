@@ -53,6 +53,7 @@ from datetime import UTC, datetime, timedelta
 
 from sro.application.chat.understand import understand
 from sro.application.context import RequestContext
+from sro.application.execution.declared import declared_limits, names_of, screen_for
 from sro.application.execution.gather import GatherContext
 from sro.application.ports.model import Asker, asker_or_refuse
 from sro.application.ports.repositories import UnitOfWork
@@ -360,7 +361,7 @@ class FromTheMail:
                 )
             )
         looked = LookedInTheMail(
-            offered=await self._what_will_not_fit(offered, workflows),
+            offered=await self._what_will_not_fit(ctx, offered, workflows),
             read=read,
             why=_sentence(offered, read, unsure),
             spent=spent,
@@ -382,7 +383,7 @@ class FromTheMail:
         return looked
 
     async def _what_will_not_fit(
-        self, offered: Sequence[Offered], jobs: Sequence[Workflow]
+        self, ctx: RequestContext, offered: Sequence[Offered], jobs: Sequence[Workflow]
     ) -> tuple[Offered, ...]:
         """Each offer, told which of its values its own boxes are too small for.
 
@@ -393,13 +394,30 @@ class FromTheMail:
         A job nothing has been learnt about comes back exactly as it went in,
         which is most of them -- a limit exists only where a run has hit one.
         """
-        steps = {one.id: one.steps for one in jobs}
+        by_id = {one.id: one for one in jobs}
         limits: dict[str, dict[str, int]] = {}
-        async with self._uow as uow:
-            for workflow_id in sorted({one.workflow_id for one in offered}):
+        for workflow_id in sorted({one.workflow_id for one in offered}):
+            job = by_id.get(workflow_id)
+            if job is None:
+                continue
+            async with self._uow as uow:
                 learnt = await uow.workflows.learned_for(workflow_id)
-                if found := limits_for(steps.get(workflow_id, []), learnt):
-                    limits[workflow_id] = found
+            found = limits_for(
+                job.steps,
+                learnt,
+                # And what this job's fields are DOCUMENTED to hold, for the
+                # boxes no run has hit yet. The whole value of asking before
+                # the press is lost if the first request too long for a field
+                # still has to be sent to find that out.
+                await declared_limits(
+                    self._uow,
+                    ctx.tenant_id,
+                    names_of(job),
+                    await screen_for(self._uow, ctx.tenant_id, job),
+                ),
+            )
+            if found:
+                limits[workflow_id] = found
         return tuple(
             one
             if one.workflow_id not in limits

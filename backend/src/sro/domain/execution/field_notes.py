@@ -27,7 +27,7 @@ the application's to read, and this is the rule for reading it.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 
 
 def notes_on(sent: Mapping[str, str], known: Mapping[str, Mapping[str, object]]) -> tuple[str, ...]:
@@ -106,3 +106,75 @@ def _label(claim: Mapping[str, object], slot: str) -> str:
             if isinstance(label, str) and label.strip():
                 return label.strip()
     return slot
+
+
+def limits_named(
+    names: Iterable[str], *sources: Mapping[str, Mapping[str, object]]
+) -> dict[str, int]:
+    """What the boxes behind these screen names are DECLARED to hold.
+
+    A job's parameters are named the way the screen names them -- `Customer
+    Type Description` -- and everything already known about a field is filed
+    under the key the body posts it as, `longDescription`. The labels are the
+    join, and they are the only join: a body key is not derivable from a label
+    and guessing one is how a system starts writing into slots nothing
+    demonstrated.
+
+    **The smallest number wins, whatever said it.** The sources disagree by
+    construction and the disagreement is measured: the dictionary says
+    `customerType` holds 60, the real create form says 4, and the ledger's own
+    gotcha -- somebody sitting in front of the screen -- says `csttyp truncates
+    at 4 chars`. A limit is a ceiling, so the lowest ceiling is the one that
+    binds, and being wrong in this direction asks somebody to shorten a value
+    further than they had to. Being wrong in the other direction sends
+    `NEWSROTEST`, keeps `NEWS`, and answers 201.
+
+    **Silent where two keys answer to one label.** `Description` is a label on
+    ten different keys on this deployment, holding anywhere from 20 characters
+    to 2000, and a guess between them is a number this would state to somebody
+    as a fact. 23 of 378 labels are ambiguous that way; the other 355 are not,
+    and a screen's own form -- passed first -- resolves most of the rest,
+    because it says what THAT screen calls THAT slot.
+
+    Declared and never measured, which is why `limits_for` treats what a run
+    found out as another ceiling rather than as the answer. The manual is a
+    claim about the system; a truncation is the system.
+    """
+    wanted = {_flat(name): name for name in names if _flat(name)}
+    limits: dict[str, int] = {}
+    for source in sources:
+        seen: dict[str, int | None] = {}
+        for slot, claim in source.items():
+            limit = _limit(claim)
+            for label in (*_labels(claim), slot):
+                if (flat := _flat(label)) not in wanted:
+                    continue
+                # Two keys answering to one label, and this is the second: the
+                # label decides nothing here and must not be made to.
+                seen[flat] = None if flat in seen and seen[flat] != limit else limit
+        for flat, limit in seen.items():
+            if limit is None:
+                continue
+            name = wanted[flat]
+            limits[name] = min(limit, limits.get(name, limit))
+    return limits
+
+
+def _labels(claim: Mapping[str, object]) -> tuple[str, ...]:
+    """Every name a screen shows for this field, not only the first.
+
+    `longDescription` is `Customer Type Description` on one screen and
+    `Description` on another, and a job's parameter is named by the screen it
+    was demonstrated on.
+    """
+    labels = claim.get("labels")
+    if not isinstance(labels, list):
+        return ()
+    return tuple(one.strip() for one in labels if isinstance(one, str) and one.strip())
+
+
+def _flat(name: str) -> str:
+    """A label with the punctuation and case a screen and a mined parameter
+    disagree about taken out. `Customer Type:` and `customer type` are one
+    name."""
+    return "".join(one for one in name.lower() if one.isalnum())

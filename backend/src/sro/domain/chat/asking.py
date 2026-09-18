@@ -200,6 +200,57 @@ def unusable(values: Mapping[str, str], limits: Mapping[str, int]) -> tuple[str,
     )
 
 
+K_SHOWN = 90
+"""How much of an established value the opening repeats back.
+
+Enough to recognise a request by, not enough to fill the panel: a description
+may hold two thousand characters and a person checking which job this is about
+needs the first line of it."""
+
+
+def opening(pending: Pending, about: str = "") -> str:
+    """The first thing said when a job is taken up but cannot yet run.
+
+    The question alone is `Customer Type takes 4 characters. What should it
+    be?`, and in a conversation that is a sentence with no subject. The card it
+    came from said which request it was about, what had been read out of the
+    mail, and what would not fit -- and then handed over to a thread that knew
+    none of it. Somebody who steps away for a minute comes back to a bare
+    question about a field, with four identical-looking ones above it.
+
+    So the opening carries what the card carried: which job, which request
+    where there is one to name, what is already established, and what is being
+    asked for -- and then the question itself, which every answer after this
+    one gets on its own.
+
+    `about` is what the request was called. Empty for a job nobody named --
+    a press on a page rather than a mail -- and the sentence simply does not
+    claim one.
+    """
+    said = [f"{pending.title}{f' — {about}' if about.strip() else ''}."]
+    held = [
+        f"{name}: {_short(value)}"
+        for name, value in pending.values.items()
+        if name not in pending.missing and value.strip()
+    ]
+    if held:
+        said.append("I have " + "; ".join(held) + ".")
+    # What was supplied and will not fit is a different sentence from what was
+    # never supplied, and running them together is how somebody re-sends the
+    # value they already sent.
+    for name in pending.missing:
+        holds, was = pending.limits.get(name), pending.values.get(name, "")
+        if holds is not None and was.strip():
+            said.append(f"The request said {name} {_short(was)}, which is {len(was)} characters.")
+    said.append(question(pending))
+    return " ".join(said)
+
+
+def _short(value: str) -> str:
+    said = " ".join(value.split())
+    return said if len(said) <= K_SHOWN else said[:K_SHOWN] + "…"
+
+
 def too_long_for(pending: Pending, said: str) -> int | None:
     """The limit this answer breaks, or None if it fits.
 

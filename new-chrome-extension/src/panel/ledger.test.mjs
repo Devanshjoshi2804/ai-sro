@@ -938,6 +938,50 @@ test("a value inside a known limit is not asked about at all", () => {
   assert.deepEqual(pressed.map((each) => each[0]), ["start-rig-run"]);
 });
 
+test("a sentence that has been sent shows before the answer does", () => {
+  // What a sentence costs varies from nothing to several seconds. For that
+  // whole stretch the box emptied and the panel showed what it showed before,
+  // so the one thing the operator knows for certain -- that they pressed send
+  // -- was the one thing nothing on screen agreed with.
+  const item = messages(
+    ledger({ id: "thr-1", messages: [] }, {
+      sending: { text: "NSRO", at: "2026-09-18T10:20:00Z" },
+    }, { onPress: () => {} }),
+  ).at(-1);
+
+  assert.match(words(item), /NSRO/, "their own words are not on screen");
+  assert.equal(item.dataset.speaker, "operator");
+  // Marked as not yet answered, so a draw that never lands cannot be mistaken
+  // for one that did.
+  assert.equal(item.dataset.state, "sending");
+  // And something says an answer is being worked out.
+  assert.match(words(item), /thinking/i);
+});
+
+test("the sentence being sent is last, whatever the clock says", () => {
+  // A locally-stamped time can lose a race with the server's own, and a
+  // sentence that sorted above the reply to it reads as a panel out of order.
+  const item = messages(
+    ledger({
+      id: "thr-1",
+      messages: [
+        { id: "m1", speaker: "assistant", text: "What should Customer Type be?",
+          said_at: "2099-01-01T00:00:00Z" },
+      ],
+    }, { sending: { text: "NSRO", at: "2026-09-18T10:20:00Z" } }, { onPress: () => {} }),
+  ).at(-1);
+
+  assert.match(words(item), /NSRO/);
+});
+
+test("nothing in flight draws no sentence and no spinner", () => {
+  const drawn = messages(
+    ledger({ id: "thr-1", messages: [] }, {}, { onPress: () => {} }),
+  );
+
+  assert.equal(drawn.length, 0);
+});
+
 for (const [name, fn] of tests) {
   try {
     await fn();

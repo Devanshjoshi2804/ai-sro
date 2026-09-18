@@ -38,7 +38,7 @@ from sro.application.chat.announce import SayWhatHappened
 from sro.application.context import RequestContext
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
-from sro.domain.chat.asking import NEEDS, Pending, question, unusable
+from sro.domain.chat.asking import NEEDS, Pending, opening, unusable
 from sro.domain.chat.thread import Speaker
 from sro.domain.shared.identifiers import PrincipalId
 
@@ -53,7 +53,7 @@ class AskAboutTheOffer:
         self._clock = clock
         self._ids = ids
 
-    async def execute(self, ctx: RequestContext, pending: Pending) -> str:
+    async def execute(self, ctx: RequestContext, pending: Pending, *, about: str = "") -> str:
         """The question that was asked, or `""` where there was nothing to ask.
 
         Empty rather than an error for an offer that needs nothing: a caller
@@ -81,7 +81,10 @@ class AskAboutTheOffer:
         )
         if pending.ready:
             return ""
-        asked = question(pending)
+        # The whole of what the card said, carried into a conversation that was
+        # not standing beside it. Every answer after this one gets the short
+        # question -- the context is said once, where it is needed.
+        asked = opening(pending, about)
         await SayWhatHappened(self._uow, self._clock, self._ids).execute(
             ctx,
             # The person who pressed. An offer is answered by whoever it was

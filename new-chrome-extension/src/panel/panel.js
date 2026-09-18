@@ -1508,8 +1508,13 @@ async function conversation() {
   }
   $("thread-note").textContent = "";
   threadId = thread.id;
+  lastThread = thread;
   show(thread);
 }
+
+/** The last thread the server handed over, so a draw that is not from the
+ * server has something true to build on. */
+let lastThread = null;
 
 /** Draw a thread, if it says anything the one on screen does not.
  *
@@ -1812,6 +1817,7 @@ function show(thread, { asked = false } = {}) {
   if (!asked && drawn !== null && document.activeElement?.tagName === "INPUT")
     return;
   drawn = now;
+  if (thread !== lastThread && (thread.messages || []).length) lastThread = thread;
   // What only this browser knows, beside what the server holds: the mails it
   // recognised and the prompts it made on the page in front of somebody.
   // Neither is written down, and both belong in the order things happened.
@@ -1849,6 +1855,10 @@ function show(thread, { asked = false } = {}) {
     // Which system the operator is actually looking at, so an offer about
     // another one keeps its words and loses its buttons.
     here: hostOf(tabHere.url || ""),
+    // The sentence that has been sent and not yet answered, so the panel shows
+    // it the instant it leaves rather than when the reply lands. Named apart
+    // from `waiting`, which is the list of fires waiting on somebody.
+    sending: sendingNow,
   };
   openOffers = (thread.messages || []).filter(
     (message) =>
@@ -1867,9 +1877,11 @@ function show(thread, { asked = false } = {}) {
 
 /** What the operator typed, said into the thread.
  *
- * The post answers with the whole thread, so this re-renders from the answer
- * rather than appending locally: what is on screen is what the server recorded,
- * not a guess at it that would show the message twice when the guess was right.
+ * The post answers with the whole thread, so the SETTLED state re-renders from
+ * the answer rather than being appended locally: what stays on screen is what
+ * the server recorded, not a guess at it. What is drawn in the meantime is
+ * marked as not-yet-answered and replaced wholesale when the answer lands, so
+ * the two can never disagree.
  */
 async function say(text) {
   if (!threadId) return conversation();
@@ -1880,18 +1892,59 @@ async function say(text) {
     pane = "chat";
     paintPanes();
   }
+  // Their words, on screen, now.
+  //
+  // What a sentence costs varies from nothing to several seconds -- an answer
+  // to a standing question is decided without a model call, and a sentence the
+  // resolver has to place is two calls and a retrieval. For that whole stretch
+  // the box emptied and the panel showed exactly what it showed before, so the
+  // one thing the operator knows for certain -- that they pressed send -- was
+  // the one thing nothing on screen agreed with.
+  //
+  // Drawn from what is already held rather than fetched: this is the thread
+  // the reply will arrive in, plus the line they just wrote, plus a mark that
+  // something is being worked out. The server's answer replaces all of it a
+  // moment later, so nothing here is a claim about what was decided.
+  thinking(text);
+  let answered;
   try {
     // `tabId` so an offer the sentence turns into is drawn beside the tab the
     // operator is working in -- `show` only draws an OPEN nudge for this tab.
-    show(
-      await ask({ kind: "thread-say", threadId, text, tabId: tabHere.tabId }),
-      {
-        asked: true,
-      },
-    );
+    answered = await ask({
+      kind: "thread-say",
+      threadId,
+      text,
+      tabId: tabHere.tabId,
+    });
   } catch (error) {
     $("thread-note").textContent = error.message;
   }
+  // Cleared BEFORE the draw, not after it.
+  //
+  // With this in a `finally` the server's answer was drawn while the echo was
+  // still set, so the sentence appeared twice -- once as the thing that landed
+  // and once as the thing still in flight -- until some later poll happened to
+  // redraw. And a spinner left turning after a failure is the panel lying
+  // about what it is doing, so this runs on that path too.
+  sendingNow = null;
+  if (answered) show(answered, { asked: true });
+}
+
+/** The sentence just sent, and the fact that an answer is being worked out.
+ *
+ * Held here rather than pushed into the thread: the thread is the server's
+ * record of what was decided, and this is neither decided nor the server's.
+ * `show` folds it in and the next draw from the server drops it.
+ */
+let sendingNow = null;
+
+function thinking(text) {
+  sendingNow = { text, at: new Date().toISOString() };
+  // Past the signature guard, which is computed from what the SERVER holds --
+  // and nothing the server holds has changed yet, which is precisely the case
+  // this exists for.
+  drawn = null;
+  show(lastThread || { id: threadId, messages: [] }, { asked: true });
 }
 
 /** Something in the thread, answered.

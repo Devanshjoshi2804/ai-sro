@@ -639,11 +639,19 @@ async def test_an_offer_is_turned_into_a_question_in_the_operators_own_thread() 
         limits={"Customer Type": 4},
     )
 
-    asked = await AskAboutTheOffer(uow, FakeClock(), FakeIdFactory()).execute(CTX, pending)
+    asked = await AskAboutTheOffer(uow, FakeClock(), FakeIdFactory()).execute(
+        CTX, pending, about="Customer type for the SRO pilot, round twenty-six"
+    )
 
-    # The question says what the box holds, so the same value does not come
+    # Which job, which request, and what is already established -- the whole of
+    # what the card said, carried into a conversation that was not beside it.
+    assert asked.startswith(
+        "Create a Customer Type — Customer type for the SRO pilot, round twenty-six."
+    ), asked
+    assert "I have Customer Type Description: north dock." in asked, asked
+    # And the question says what the box holds, so the same value does not come
     # straight back.
-    assert asked == "Customer Type takes 4 characters. What should it be?"
+    assert asked.endswith("Customer Type takes 4 characters. What should it be?"), asked
     thread = await _thread(uow)
     assert thread is not None
     last = thread.messages[-1]
@@ -691,7 +699,10 @@ async def test_an_offer_whose_only_fault_is_a_value_that_will_not_fit_is_asked_a
 
     asked = await AskAboutTheOffer(uow, FakeClock(), FakeIdFactory()).execute(CTX, pending)
 
-    assert asked == "Customer Type takes 4 characters. What should it be?"
+    # What the request asked for and why it will not do, rather than a bare
+    # demand for a value they believe they already gave.
+    assert "The request said Customer Type NEWSROTEST, which is 10 characters." in asked, asked
+    assert asked.endswith("Customer Type takes 4 characters. What should it be?"), asked
     thread = await _thread(uow)
     assert thread is not None
     decision = thread.messages[-1].decision

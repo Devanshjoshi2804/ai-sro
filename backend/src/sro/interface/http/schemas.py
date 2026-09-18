@@ -3597,6 +3597,13 @@ class MailOfferModel(BaseModel):
     title: str
     values: dict[str, str]
     missing: list[str]
+    subject: str = ""
+    """What the request was called, so a conversation about it can say which.
+
+    A deliberate exception to the rule above, and `Offered.subject` argues it:
+    with four requests for one job open at once, the subject is the only thing
+    that tells them apart in a thread that is no longer beside the card."""
+
     thread: str = ""
     """The mail conversation this request arrived in.
 
@@ -3630,6 +3637,13 @@ class AskAboutOfferRequest(BaseModel):
     values: dict[str, str] = Field(default_factory=dict)
     missing: list[str] = Field(default_factory=list)
     items: list[dict[str, str]] = Field(default_factory=list)
+    about: str = ""
+    """What the request this offer came from was called.
+
+    So the conversation can name it. A question that says only "Customer Type
+    takes 4 characters" is a sentence with no subject, and there may be four
+    like it in the thread."""
+
     limits: dict[str, int] = Field(default_factory=dict)
     """What the box behind each name holds, where the offer was told.
 
@@ -3674,6 +3688,7 @@ class FromTheMailResponse(BaseModel):
                     title=one.title,
                     values=dict(one.values),
                     missing=list(one.missing),
+                    subject=one.subject,
                     thread=one.thread,
                     too_long=dict(one.too_long),
                 )

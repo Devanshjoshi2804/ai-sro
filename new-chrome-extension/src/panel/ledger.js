@@ -149,6 +149,10 @@ export function ledger(thread, local = {}, { onPress, runs } = {}) {
       at: card.asked_at,
       waiting: card,
     })),
+    // The sentence that has been sent and not yet answered. Last, whatever the
+    // clock says: it is the most recent thing that happened by definition, and
+    // a locally-stamped time can lose a race with the server's own.
+    ...(local?.sending ? [{ at: "\uffff", sending: local.sending }] : []),
   ].sort((a, b) => String(a.at || "").localeCompare(String(b.at || "")));
 
   let lastMinute = "";
@@ -165,7 +169,9 @@ export function ledger(thread, local = {}, { onPress, runs } = {}) {
           ? nearlyFired(entry.miss)
           : entry.waiting
             ? waitingOnYou(entry.waiting, onPress)
-            : nudging(entry.nudge, onPress);
+            : entry.sending
+              ? sending(entry.sending)
+              : nudging(entry.nudge, onPress);
     const minute = hhmm(entry.at);
     // One cell per entry, filled only when the minute changes. Repeating 12:04
     // against three things said in the same minute is noise exactly where the
@@ -180,6 +186,40 @@ export function ledger(thread, local = {}, { onPress, runs } = {}) {
   root.append(said);
 
   return root;
+}
+
+/** What was just said, and the fact that an answer is being worked out.
+ *
+ * Two elements rather than one, because they are two different claims: the
+ * operator's own words, which are certain, and a mark that something is
+ * happening, which is all this browser can honestly say about the reply.
+ *
+ * Both are replaced the moment the server answers -- nothing here is kept, and
+ * nothing here is a statement about what was decided.
+ */
+function sending({ text }) {
+  const item = document.createElement("li");
+  item.className = "message";
+  item.dataset.speaker = "operator";
+  item.dataset.state = "sending";
+  const what = document.createElement("p");
+  what.className = "what";
+  what.textContent = text;
+  item.append(what);
+
+  const thinking = document.createElement("p");
+  thinking.className = "detail thinking";
+  thinking.dataset.kind = "thinking";
+  // Three dots the stylesheet animates, and the word beside them for anybody
+  // whose browser is not animating anything -- a bare "..." that never moves
+  // is indistinguishable from a message somebody actually sent.
+  thinking.textContent = "thinking";
+  const dots = document.createElement("span");
+  dots.className = "dots";
+  dots.textContent = "\u2026";
+  thinking.append(dots);
+  item.append(thinking);
+  return item;
 }
 
 /** A rule that almost fired, said out loud.

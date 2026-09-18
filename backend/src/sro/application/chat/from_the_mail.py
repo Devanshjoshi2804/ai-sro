@@ -93,6 +93,11 @@ Three and not two: the first round is not the model's to choose (see
 `GatherContext`), so two rounds is one search the model actually directs, and
 the value is in a sibling mail that has to be found before it can be read."""
 
+K_SUBJECT = 120
+"""How much of a request's name travels with the offer. A subject line, not a
+forwarded chain of them: `Fwd: Re: Fwd:` prefixes stack, and what a person
+needs is enough to tell this request from the three like it."""
+
 K_BECAUSE = 400
 """How much of the request the gather is told, so it knows what it is looking
 for. The sentence that asked, not the mailbox."""
@@ -155,6 +160,17 @@ class Offered:
     title: str
     values: Mapping[str, str] = field(default_factory=dict)
     missing: Sequence[str] = ()
+
+    subject: str = ""
+    """What the request was called, so a conversation about it can say which.
+
+    A deliberate exception to `MailOfferModel`'s rule that the id travels and
+    the words do not, and worth naming as one. That rule is about not echoing
+    somebody's mail across a boundary to say what the id already says -- and it
+    already bends for `values`, because nobody can consent to a write they
+    cannot see. A subject is the same category: with four requests for the same
+    job open at once, it is the only thing that tells one from another in a
+    thread that is no longer standing next to the card."""
 
     thread: str = ""
     """The mail conversation this request arrived in.
@@ -246,7 +262,7 @@ class FromTheMail:
             if not await self._first_time(ctx, message, now=now):
                 continue
             try:
-                said, thread = await self._body(ctx, message)
+                said, thread, subject = await self._body(ctx, message)
             except ToolsUnavailable as gone:
                 return LookedInTheMail(
                     offered=tuple(offered), read=read, why=str(gone), spent=spent
@@ -269,7 +285,9 @@ class FromTheMail:
             # answer would be lost at precisely the moment it arrived.
             back = await self._answering(ctx, thread)
             if back is not None:
-                offered.append(await self._carrying_on(ctx, message, back, said, thread, titles))
+                offered.append(
+                    await self._carrying_on(ctx, message, back, said, thread, subject, titles)
+                )
                 continue
             got = await understand(said, workflows, asker, self._model, asked_by)
             spent = _also(spent, got.answer)
@@ -386,6 +404,7 @@ class FromTheMail:
                     values=values,
                     missing=missing,
                     thread=thread,
+                    subject=subject,
                 )
             )
         looked = LookedInTheMail(
@@ -436,6 +455,7 @@ class FromTheMail:
         back: WorkflowRun,
         said: str,
         thread: str,
+        subject: str,
         titles: Mapping[str, str],
     ) -> Offered:
         """The waiting run's offer again, with whatever the reply added.
@@ -475,6 +495,7 @@ class FromTheMail:
             values=values,
             missing=missing,
             thread=thread,
+            subject=subject,
         )
 
     async def _what_will_not_fit(
@@ -544,12 +565,15 @@ class FromTheMail:
             if isinstance(row, dict) and isinstance(row.get("id"), str)
         ][:limit]
 
-    async def _body(self, ctx: RequestContext, message: str) -> tuple[str, str]:
-        """What one message says, and the conversation it belongs to.
+    async def _body(self, ctx: RequestContext, message: str) -> tuple[str, str, str]:
+        """What one message says, the conversation it belongs to, and its name.
 
         The thread beside the words because a request rarely carries what it is
         about: "as discussed" was discussed in the mail above it, and which
         mail that is, is a fact Gmail already knows.
+
+        The subject beside both because a conversation about this request has
+        to be able to say which request. See `Offered.subject`.
         """
         answered = await self._tools.call(
             ctx.tenant_id, ctx.principal_id, SERVER, "get_message", {"id": message}
@@ -557,14 +581,18 @@ class FromTheMail:
         try:
             said = json.loads(answered.text)
         except ValueError:
-            return "", ""
+            return "", "", ""
         if not isinstance(said, dict):
-            return "", ""
+            return "", "", ""
         whole = " ".join(
             str(said.get(part) or "").strip() for part in ("subject", "body", "snippet")
         )
         whole = " ".join(whole.split())
-        return whole[:K_TEXT], str(said.get("thread_id") or "")
+        return (
+            whole[:K_TEXT],
+            str(said.get("thread_id") or ""),
+            " ".join(str(said.get("subject") or "").split())[:K_SUBJECT],
+        )
 
     async def _conversation(self, ctx: RequestContext, thread: str) -> str:
         """Every mail in one conversation, as one piece of text.

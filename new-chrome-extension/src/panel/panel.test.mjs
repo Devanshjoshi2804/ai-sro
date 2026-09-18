@@ -426,6 +426,97 @@ test("a press whose answer is a question takes them to where it was asked", asyn
   assert.equal(ids["thread"].hidden, false, "left them on Home, reading nothing");
 });
 
+test("a sentence shows the moment it is sent, not when the answer lands", async () => {
+  // What a sentence costs varies from nothing to several seconds: an answer to
+  // a standing question is decided without a model call, a sentence the
+  // resolver has to place is two calls and a retrieval. For that stretch the
+  // box emptied and nothing else changed, so the one thing the operator knew
+  // for certain -- that they pressed send -- was the one thing on screen that
+  // disagreed.
+  const { ids } = panel({ deviceId: "dev-1", nudges: [] }, null, {
+    thread: { id: "thr_1", messages: [] },
+    // An answer that never comes, which is the whole window under test.
+    "thread-say": new Promise(() => {}),
+  });
+  navTab(ids, "chat").listeners[0]();
+  await new Promise((done) => setImmediate(done));
+
+  const composer = (function find(el) {
+    if (el?.tag === "textarea" || el?.tag === "input") return el;
+    for (const kid of el?.kids || []) {
+      const got = find(kid);
+      if (got) return got;
+    }
+    return null;
+  })(ids["ask-bar"]);
+  assert.ok(composer, "no box to type in");
+  composer.value = "NSRO";
+  const send = (function walk(el, out = []) {
+    out.push(el);
+    for (const kid of el?.kids || []) walk(kid, out);
+    return out;
+  })(ids["ask-bar"]).find((el) => el?.textContent === "\u2191");
+  assert.ok(send, "no send control");
+  send.listeners[0]();
+  await new Promise((done) => setImmediate(done));
+
+  const drawnText = (function words(el) {
+    return [el?.textContent || "", ...(el?.kids || []).map(words)].join(" ");
+  })(ids["said"]);
+  assert.match(drawnText, /NSRO/, "their own words never reached the screen");
+  assert.match(drawnText, /thinking/i, "nothing said an answer was being worked out");
+});
+
+test("the answer replaces the sentence rather than standing beside it", async () => {
+  // Cleared after the draw instead of before it, the server's answer arrives
+  // while the echo is still set: the sentence appears twice, once as the thing
+  // that landed and once as the thing still in flight, until some later poll
+  // happens to redraw.
+  const { ids } = panel({ deviceId: "dev-1", nudges: [] }, null, {
+    thread: { id: "thr_1", messages: [] },
+    "thread-say": {
+      id: "thr_1",
+      messages: [
+        { id: "m1", speaker: "operator", text: "NSRO", said_at: "2026-09-18T10:20:01Z" },
+        { id: "m2", speaker: "assistant", text: "Running it now.",
+          said_at: "2026-09-18T10:20:02Z" },
+      ],
+    },
+  });
+  navTab(ids, "chat").listeners[0]();
+  await new Promise((done) => setImmediate(done));
+
+  const composer = (function find(el) {
+    if (el?.tag === "textarea" || el?.tag === "input") return el;
+    for (const kid of el?.kids || []) {
+      const got = find(kid);
+      if (got) return got;
+    }
+    return null;
+  })(ids["ask-bar"]);
+  composer.value = "NSRO";
+  const send = (function walk(el, out = []) {
+    out.push(el);
+    for (const kid of el?.kids || []) walk(kid, out);
+    return out;
+  })(ids["ask-bar"]).find((el) => el?.textContent === "\u2191");
+  assert.ok(send, "no send control");
+  send.listeners[0]();
+  await new Promise((done) => setImmediate(done));
+  await new Promise((done) => setImmediate(done));
+
+  const drawnText = (function words(el) {
+    return [el?.textContent || "", ...(el?.kids || []).map(words)].join(" ");
+  })(ids["said"]);
+  assert.match(drawnText, /Running it now\./, "the answer never drew");
+  assert.doesNotMatch(drawnText, /thinking/i, "it is still saying it is thinking");
+  assert.equal(
+    drawnText.split("NSRO").length - 1,
+    1,
+    `the sentence is on screen twice: ${drawnText}`,
+  );
+});
+
 test("a status landing does not move the view out from under them", async () => {
   // Somebody who has scrolled up is reading something, and the worker pushes a
   // status every couple of seconds.

@@ -1715,6 +1715,43 @@ async function handle(message, sender) {
         return { ok: false, error: error.problem?.detail || error.message };
       }
     }
+    case "ask-about-offer": {
+      // The same yes, for an offer that cannot simply run: something is
+      // missing, or something it holds will not fit the box it goes in. The
+      // question goes into the operator's own conversation and the existing
+      // answering path takes it from there -- one question, one answer, and
+      // when the last one lands the job starts on this press.
+      //
+      // The offer is NOT claimed. It has not been accepted or dismissed, it
+      // has been taken up, and marking a fate here would close it under
+      // somebody who is halfway through answering. What ends it is the run.
+      const held = await state.nudges();
+      const found = held.find((n) => n.id === message.nudgeId);
+      if (!found || found.source !== "rig")
+        return { ok: false, error: "no such offer" };
+      if (found.state !== "open")
+        return { ok: false, error: "this offer has already ended" };
+      try {
+        const asked = await api.askAboutOffer({
+          workflow_id: found.workflowId,
+          title: found.title || "",
+          values: found.values || {},
+          missing: found.missing || [],
+          items: Array.isArray(found.items) ? found.items : [],
+          // What the offer was told each box holds. Sent back rather than
+          // looked up again: a run that learned a limit in between would
+          // change the question under somebody already reading it.
+          limits: found.tooLong || {},
+          watched: true,
+        });
+        await say(
+          `asked about ${found.candidateId} in the conversation: ${asked.asked || "nothing to ask"}`,
+        );
+        return { ok: true, asked: asked.asked || "" };
+      } catch (error) {
+        return { ok: false, error: error.problem?.detail || error.message };
+      }
+    }
     case "start-rig-run": {
       // Yes, on an offer the rig made. The press is in the panel, where
       // somebody can read what it says; the run is started here, because the

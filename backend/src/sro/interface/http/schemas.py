@@ -3617,6 +3617,41 @@ class MailOfferModel(BaseModel):
     Empty for every job no run has hit a limit on, which is most of them."""
 
 
+class AskAboutOfferRequest(BaseModel):
+    """An offer the operator pressed that cannot simply be started.
+
+    Sent by the panel instead of drawing boxes on the card. What comes of it is
+    a question in their own conversation, which is where every other question
+    this system asks already lives.
+    """
+
+    workflow_id: str
+    title: str = ""
+    values: dict[str, str] = Field(default_factory=dict)
+    missing: list[str] = Field(default_factory=list)
+    items: list[dict[str, str]] = Field(default_factory=list)
+    limits: dict[str, int] = Field(default_factory=dict)
+    """What the box behind each name holds, where the offer was told.
+
+    Sent back rather than looked up again: the offer that reached the browser
+    carried these, and a second lookup could answer differently -- a run that
+    learned a limit in between would change the question under somebody who is
+    already reading it."""
+
+    watched: bool = True
+
+
+class AskAboutOfferResponse(BaseModel):
+    """What was asked, so the panel can say something happened.
+
+    Empty `asked` means the offer needed nothing after all and the caller
+    should start it -- a 200 with nothing to say, rather than an error on the
+    ordinary path.
+    """
+
+    asked: str
+
+
 class FromTheMailResponse(BaseModel):
     """What one look through the mailbox came to.
 

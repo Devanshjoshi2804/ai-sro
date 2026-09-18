@@ -375,6 +375,14 @@ export const api = {
    * and a request that says who authorised it is a signature nobody checked. */
   rigStart: (body) => call("/v1/workflow-runs", { method: "POST", body }),
 
+  /** Ask, in the operator's own conversation, for what an offer still needs.
+   *
+   * Nothing runs. What comes back is the question that was asked, or `""` for
+   * an offer that turned out to need nothing -- which the caller should then
+   * simply start. */
+  askAboutOffer: (body) =>
+    call("/v1/chat/about-an-offer", { method: "POST", body }),
+
   /** The most recent runs, newest first, whole rows.
    *
    * What the panel's history overlay is drawn from. `limit` rather than every

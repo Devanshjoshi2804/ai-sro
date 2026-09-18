@@ -13,9 +13,11 @@ from collections.abc import Mapping
 from datetime import UTC, datetime
 from typing import Any
 
+from sro.application.chat.about_an_offer import AskAboutTheOffer
 from sro.application.chat.from_the_mail import FromTheMail
 from sro.application.context import RequestContext
 from sro.application.ports.tools import ToolResult, ToolsUnavailable
+from sro.domain.chat.asking import NEEDS, Pending
 from sro.domain.execution.gathering import Found, Gathered
 from sro.domain.execution.waiting import as_said, waiting_on
 from sro.domain.execution.workflow_run import WorkflowRun
@@ -29,7 +31,7 @@ from sro.domain.shared.identifiers import PrincipalId, TenantId
 from sro.domain.shared.prices import Answer
 from sro.domain.skill.workflow import Step, Workflow
 from tests import factories as f
-from tests.unit.fakes import FakeUnitOfWork
+from tests.unit.fakes import FakeClock, FakeIdFactory, FakeUnitOfWork
 
 CTX = RequestContext(tenant_id=f.TENANT, principal_id=PrincipalId("devansh"))
 JOB = "wfl_1"
@@ -619,3 +621,47 @@ async def test_an_offer_names_the_conversation_it_was_read_out_of() -> None:
     looked = await _look(uow, mailbox, _Reads(_reading(JOB, bare=True)), _Gathers()).execute(CTX)
 
     assert looked.offered[0].thread == "t-7"
+
+
+async def test_an_offer_is_turned_into_a_question_in_the_operators_own_thread() -> None:
+    """The card's way into the loop the run path has always used.
+
+    Until this, the only way to reach `_answer_the_question` was to type a yes
+    in the chat. The card -- which is where people actually press -- drew boxes
+    instead, and `asking.py` spends four paragraphs on why that is wrong.
+    """
+    uow = FakeUnitOfWork()
+    pending = Pending(
+        workflow_id=JOB,
+        title="Create a Customer Type",
+        values={"Customer Type Description": "north dock"},
+        missing=("Customer Type",),
+        limits={"Customer Type": 4},
+    )
+
+    asked = await AskAboutTheOffer(uow, FakeClock(), FakeIdFactory()).execute(CTX, pending)
+
+    # The question says what the box holds, so the same value does not come
+    # straight back.
+    assert asked == "Customer Type takes 4 characters. What should it be?"
+    thread = await _thread(uow)
+    assert thread is not None
+    last = thread.messages[-1]
+    assert last.text == asked
+    assert last.decision is not None
+    assert last.decision["kind"] == NEEDS
+    # Everything established rides along, so the answer resumes rather than
+    # starting the job over.
+    assert last.decision["values"] == {"Customer Type Description": "north dock"}
+    assert last.decision["missing"] == ["Customer Type"]
+    assert last.decision["limits"] == {"Customer Type": 4}
+
+
+async def test_an_offer_that_needs_nothing_asks_nothing() -> None:
+    """A caller that got here about a job which turned out to be ready should
+    start it. An error would make the ordinary path an exceptional one."""
+    uow = FakeUnitOfWork()
+    pending = Pending(workflow_id=JOB, title="Create a Customer Type", values={}, missing=())
+
+    assert await AskAboutTheOffer(uow, FakeClock(), FakeIdFactory()).execute(CTX, pending) == ""
+    assert await _thread(uow) is None

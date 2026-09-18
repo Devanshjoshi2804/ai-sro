@@ -1888,6 +1888,11 @@ async function answered(answer, message, where, button, values) {
   if (answer === "start-rig-run" || answer === "drop-nudge") {
     return answeredOffer(answer, message, button, values);
   }
+  // The same yes, for an offer that cannot simply run. Nothing starts: the
+  // question lands in this conversation, the operator answers it in words, and
+  // the answer that completes the set starts the job on the press they have
+  // just given. The card draws no boxes for exactly this reason.
+  if (answer === "ask-about-offer") return askAboutOffer(message, button);
   // "Always, here." A rule rather than a run: nothing starts now, and the next
   // time this operator lands on the page this offer is about, their own
   // browser starts the job. Kept out of `answeredOffer` because that function
@@ -1945,6 +1950,26 @@ async function answeredOffer(answer, nudge, button, values) {
           : got.error || "nothing started",
       );
     }
+  } catch (error) {
+    said(error.message);
+  }
+  await refresh();
+  drawn = null;
+  await conversation();
+}
+
+/** An offer that needs something decided, handed to the conversation.
+ *
+ * The offer stays open in the worker rather than being reported answered: it
+ * has not been accepted or dismissed, it has been taken up, and the thing that
+ * ends it is the run that starts when the last question is answered. Reporting
+ * a fate here would close it under somebody mid-sentence.
+ */
+async function askAboutOffer(nudge, button) {
+  button.disabled = true;
+  try {
+    const got = await ask({ kind: "ask-about-offer", nudgeId: nudge.id });
+    said(got.ok ? got.asked || "asked below" : got.error || "nothing to ask");
   } catch (error) {
     said(error.message);
   }

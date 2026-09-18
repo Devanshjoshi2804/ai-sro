@@ -21,9 +21,16 @@ from __future__ import annotations
 
 from fastapi import APIRouter, status
 
+from sro.domain.chat.asking import Pending
 from sro.interface.http.asking import TenantOnly
 from sro.interface.http.deps import ContainerDep, ContextDep
-from sro.interface.http.schemas import ChatRequest, ChatResponse, FromTheMailResponse
+from sro.interface.http.schemas import (
+    AskAboutOfferRequest,
+    AskAboutOfferResponse,
+    ChatRequest,
+    ChatResponse,
+    FromTheMailResponse,
+)
 
 router = APIRouter(tags=["chat"], dependencies=[TenantOnly])
 
@@ -37,6 +44,30 @@ async def read_chat(body: ChatRequest, container: ContainerDep, ctx: ContextDep)
     the operator may walk away from it.
     """
     return ChatResponse.of(await container.read_chat().execute(ctx, utterance=body.utterance))
+
+
+@router.post("/chat/about-an-offer", status_code=status.HTTP_200_OK)
+async def ask_about_an_offer(
+    body: AskAboutOfferRequest, container: ContainerDep, ctx: ContextDep
+) -> AskAboutOfferResponse:
+    """Ask, in this operator's conversation, for what an offer still needs.
+
+    200 and no run. This is the card handing a decision to the place decisions
+    are made here: the question lands in the thread, the operator answers it in
+    words, and when the last answer lands the existing conversation path emits
+    the `job` decision the browser starts. Nothing about the job is settled by
+    this call.
+    """
+    pending = Pending(
+        workflow_id=body.workflow_id,
+        title=body.title,
+        values=body.values,
+        missing=tuple(body.missing),
+        items=tuple(body.items),
+        limits=body.limits,
+        watched=body.watched,
+    )
+    return AskAboutOfferResponse(asked=await container.ask_about_the_offer().execute(ctx, pending))
 
 
 @router.post("/chat/from-the-mail", status_code=status.HTTP_200_OK)

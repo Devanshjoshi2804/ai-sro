@@ -37,7 +37,7 @@ clock, a repository or a model.
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from sro.domain.chat.thread import Message, Speaker
 
@@ -137,6 +137,18 @@ class Pending:
     offer it decides what a yes means: start it and let the run find them, or
     ask for the first one here."""
 
+    limits: Mapping[str, int] = field(default_factory=dict)
+    """What the box behind a name will hold, where anything knows.
+
+    Carried so the question can say WHY it is being asked. A person sent a
+    value, it will not fit, and "What should Customer Type be?" gets the same
+    ten characters back -- they have no way to know the box takes four, because
+    the browser truncates in silence and nothing else has said so.
+
+    It is also what makes the asking a loop rather than one question: an answer
+    that still will not fit is not an answer, and `answered` keeps asking.
+    Empty for every name nothing has measured or documented, which is most."""
+
     @property
     def asking_for(self) -> str:
         """The one value this question is about."""
@@ -154,8 +166,31 @@ def question(pending: Pending) -> str:
     will see again on the form and in the record. A prettier rendering of
     `customertype-longDescription` would be this system choosing a name for a
     field somebody else named.
+
+    And the limit where there is one, because the two things that bring a job
+    here want two different questions. A value nobody could find is "what
+    should X be?". A value that will not fit is a person who HAS an answer and
+    has been given no reason to change it: asked the first way they send the
+    same ten characters back, and the loop is one nobody can get out of.
     """
-    return f"What should {pending.asking_for} be?"
+    asked = pending.asking_for
+    holds = pending.limits.get(asked)
+    if holds is None:
+        return f"What should {asked} be?"
+    return f"{asked} takes {holds} characters. What should it be?"
+
+
+def too_long_for(pending: Pending, said: str) -> int | None:
+    """The limit this answer breaks, or None if it fits.
+
+    Measured on the value as it will be TAKEN -- trimmed and cut to `K_SAID` --
+    rather than as it was typed, so the answer this reports on is the one that
+    would be sent.
+    """
+    asked = pending.asking_for
+    holds = pending.limits.get(asked)
+    value = said.strip()[:K_SAID]
+    return holds if holds is not None and len(value) > holds else None
 
 
 def pending_job(messages: Sequence[Message]) -> Pending | None:
@@ -186,8 +221,22 @@ def pending_job(messages: Sequence[Message]) -> Pending | None:
             missing=missing,
             items=tuple(_strings(one) for one in items) if isinstance(items, list | tuple) else (),
             watched=bool(decision.get("watched", True)),
+            limits=_numbers(decision.get("limits")),
         )
     return None
+
+
+def _numbers(said: object) -> dict[str, int]:
+    """A decision's limits, as whole numbers. JSON off a row, so anything that
+    is not a usable count is not one -- a bool is an int in Python, and
+    `limits: {"Code": true}` would otherwise read as a one-character field."""
+    if not isinstance(said, dict):
+        return {}
+    return {
+        str(key): value
+        for key, value in said.items()
+        if isinstance(value, int) and not isinstance(value, bool) and value > 0
+    }
 
 
 def _strings(said: object) -> dict[str, str]:
@@ -266,6 +315,14 @@ def answered(pending: Pending, said: str) -> Pending:
     value = said.strip()[:K_SAID]
     if not value or not pending.missing:
         return pending
+    # An answer the box still will not hold leaves the question standing.
+    #
+    # The alternative is accepting it and stopping the run in front of the
+    # form, which is the whole of what asking here was meant to replace: the
+    # person is at the keyboard, and telling them NOW costs one more sentence
+    # where telling them later costs the job.
+    if too_long_for(pending, said) is not None:
+        return pending
     asked = pending.missing[0]
     filled = {asked, *_twins(asked, pending.missing[1:])}
     return Pending(
@@ -275,6 +332,7 @@ def answered(pending: Pending, said: str) -> Pending:
         missing=tuple(name for name in pending.missing if name not in filled),
         items=pending.items,
         watched=pending.watched,
+        limits=pending.limits,
     )
 
 

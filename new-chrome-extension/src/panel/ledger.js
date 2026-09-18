@@ -452,6 +452,19 @@ export function alreadyAnswered(messages) {
   return done;
 }
 
+/** The names whose value this job's own box will not hold, with the limit.
+ *
+ * Pairs rather than the raw map, and only where there is actually a value too
+ * long for one: a limit is known for plenty of fields nobody has overfilled,
+ * and a card that recited every one of them would be reading out the manual.
+ */
+function _tooLong(nudge) {
+  return Object.entries(nudge.tooLong || {}).filter(([name, limit]) => {
+    const was = String(nudge.values?.[name] ?? "");
+    return was && was.length > limit;
+  });
+}
+
 export function nudging(nudge, onPress) {
   if (nudge.source === "rig" && nudge.state === "open")
     return offeringToFinish(nudge, onPress);
@@ -551,99 +564,43 @@ function offeringToFinish(nudge, onPress) {
     item.append(listed);
   }
 
-  // The values nobody has typed.
+  // No boxes. Not for what is missing, not for what will not fit.
   //
-  // A box each, and whether they have to be filled is the backend's answer
-  // rather than this panel's: a deployment that can read the operator's
-  // mailbox sends `canFind`, and the run goes and looks for whatever is left
-  // blank. Seen on the deployment 2026-09-16 -- four required boxes, two of
-  // them `customertype-customerType` and `customertype-longDescription`, the
-  // body keys a form posts, which nobody has ever typed -- for values sitting
-  // in the mail that asked for the job.
+  // The card used to grow one text input per name it still wanted, and then a
+  // second kind for a value the box would not hold, pre-filled with the number
+  // beside it. `asking.py` has the long version of what is wrong with the
+  // first: it asks everybody for what the run usually finds by itself, and on
+  // `Create a Customer Type` it drew FOUR boxes for two values, because that
+  // job declares each field twice -- the label a person reads and the body key
+  // a form posts. Seen on the deployment, 2026-09-18.
   //
-  // Still typeable where it can look: what a person types is merged OVER what
-  // the mailbox holds, so this is how somebody says which one they meant.
-  const fields = new Map();
-  const boxes = document.createElement("div");
-  boxes.className = "fields";
-  for (const name of nudge.missing || []) {
-    const field = document.createElement("input");
-    field.type = "text";
-    field.placeholder = nudge.canFind
-      ? `${name} \u2014 or leave it to me`
-      : name;
-    fields.set(name, field);
-    boxes.append(field);
-  }
-  if (nudge.canFind && fields.size) {
-    // Boxes for values nobody has to supply are a question dressed as a form.
-    //
-    // Where the run can read the mailbox, every one of these is answered by
-    // the mail that asked for the job -- and the card was still putting a row
-    // of empty inputs in front of somebody whose whole answer is "yes". Worse
-    // than noise: a job declaring one field under two names (a label and the
-    // body key a form posts) draws TWO boxes for one value, so the form is not
-    // only unnecessary, it is wrong about how many things there are.
-    //
-    // So the offer asks for a decision and nothing else, and says where the
-    // values come from. Typing stays available because a person who means a
-    // different value than the mail said has no other way to say so: what they
-    // type is merged OVER what the mailbox holds.
-    boxes.hidden = true;
-    const looking = document.createElement("p");
-    looking.className = "detail";
-    looking.textContent =
-      "I read what this needs out of the mail that asked for it.";
-    const mine = document.createElement("button");
-    mine.type = "button";
-    mine.className = "quiet";
-    mine.textContent = "I'll type them";
-    mine.addEventListener("click", () => {
-      boxes.hidden = false;
-      mine.remove();
-      [...fields.values()][0]?.focus?.();
-    });
-    item.append(looking, mine, boxes);
-  } else {
-    item.append(boxes);
-  }
+  // The second kind was better and still the same shape: a form, inside a
+  // card, inside a panel that is already a conversation.
+  //
+  // So a press that cannot start the job asks in the conversation instead, one
+  // question at a time, in words -- and the answer that lands last starts the
+  // run on the press already given. That loop is
+  // `converse._answer_the_question` and it was built for the run path long
+  // before the card could reach it.
+  const overlong = _tooLong(nudge);
+  const sortItOut = (nudge.missing || []).length > 0 || overlong.length > 0;
 
-  // The values this job's boxes are known not to hold.
+  // What this job's boxes are known not to hold, said before the press.
   //
-  // The run already refuses these -- it types, the browser silently keeps a
-  // prefix, and the run stops rather than write a record that does not say
-  // what was asked for. But it can only refuse standing in front of the box,
-  // which means somebody pressed, watched half a form fill, and got a question
-  // back for their trouble. The limit was learnt by an earlier run and is
-  // known NOW, so it is asked about now, while they are still deciding.
-  //
-  // A box rather than a warning: told "this will not fit" and sent away, a
-  // person comes back with another value that does not fit either, because
-  // nothing ever said what would. The number is the answer, and the box is
-  // where they give it.
-  const shortenings = new Map();
-  for (const [name, limit] of Object.entries(nudge.tooLong || {})) {
-    const was = String(nudge.values?.[name] ?? "");
-    if (!was || was.length <= limit) continue;
+  // The limit was learnt by an earlier run or read off the form the operator
+  // actually uses, so it is known NOW -- and somebody deciding is owed it
+  // while they are deciding, not in the middle of a form. Said rather than
+  // enforced with an input: the press hands it to the conversation, which asks
+  // for a shorter one and will not take an answer that is still too long.
+  for (const [name, limit] of overlong) {
     const asking = document.createElement("p");
     asking.className = "detail";
     asking.dataset.kind = "too-long";
-    const field = document.createElement("input");
-    field.type = "text";
-    field.value = was;
-    field.dataset.name = name;
-    const said = () => {
-      const now = String(field.value || "").length;
-      asking.textContent =
-        `${name} takes ${limit} characters and this is ${now}. ` +
-        (now > limit
-          ? `Shorten it by ${now - limit} and I will do the rest.`
-          : "That fits.");
-    };
-    said();
-    field.addEventListener("input", said);
-    shortenings.set(name, field);
-    item.append(asking, field);
+    const now = String(nudge.values?.[name] ?? "").length;
+    asking.textContent =
+      `${name} takes ${limit} characters and this is ${now}. ` +
+      `Press yes and I will ask you for a shorter one.`;
+    item.append(asking);
   }
 
   const yes = document.createElement("button");
@@ -654,21 +611,9 @@ function offeringToFinish(nudge, onPress) {
   no.className = "quiet";
   no.textContent = "No thanks";
 
-  // Blank is blank after trimming: a field of spaces is not an answer to a
-  // question the run is going to ask the system on the other side. Where the
-  // run can go and look, an unanswered box is not an unanswered question.
-  //
-  // A value known not to fit is not ready however it was arrived at: this is
-  // the one box `canFind` cannot answer for, because the mailbox is where the
-  // too-long value came from.
-  const ready = () =>
-    [...shortenings].every(
-      ([name, field]) =>
-        String(field.value || "").trim() &&
-        String(field.value || "").length <= nudge.tooLong[name],
-    ) &&
-    (nudge.canFind ||
-      [...fields.values()].every((field) => String(field.value || "").trim()));
+  // Always pressable. The press means "deal with this", and what it costs is
+  // either a run or a question -- never a disabled button with nothing in the
+  // card that tells somebody how to get past it.
   // One press ends the card. The ledger does not redraw when an offer is
   // answered, so without this the buttons of a refused offer are still live
   // under the operator's cursor -- and "No thanks" then "Yes" is a run started
@@ -677,26 +622,21 @@ function offeringToFinish(nudge, onPress) {
   // ever asking.
   let ended = false;
   const settle = () => {
-    yes.disabled = ended || !ready();
+    yes.disabled = ended;
     no.disabled = ended;
   };
   settle();
-  for (const field of [...fields.values(), ...shortenings.values()])
-    field.addEventListener("input", settle);
   yes.addEventListener("click", () => {
     if (ended) return;
-    // Only what was actually typed. A blank sent as "" is a TYPED blank at
-    // the door -- refused there whatever else is configured, and rightly: a
-    // person who typed a space has said something and a mailbox must not
-    // overrule them. A box nobody touched has said nothing.
-    const values = Object.fromEntries(
-      [...fields, ...shortenings]
-        .map(([name, field]) => [name, String(field.value || "").trim()])
-        .filter(([, value]) => value),
-    );
     ended = true;
     settle();
-    onPress?.("start-rig-run", nudge, item, yes, { values });
+    // Two ends to one press, and the card decides which by what it already
+    // knows: a job holding everything it needs runs, and one short of a value
+    // -- or carrying one its own box will not take -- becomes a question in
+    // the conversation. Both are the same yes.
+    onPress?.(sortItOut ? "ask-about-offer" : "start-rig-run", nudge, item, yes, {
+      values: {},
+    });
   });
   no.addEventListener("click", () => {
     if (ended) return;

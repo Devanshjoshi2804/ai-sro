@@ -39,6 +39,7 @@ from sro.domain.chat.asking import (
     pending_job,
     question,
     said_yes,
+    too_long_for,
 )
 from sro.domain.chat.thread import Message, Said, Speaker, Thread, ThreadId
 from sro.domain.execution.run import Run, RunId, RunStatus, StepDisposition
@@ -292,6 +293,11 @@ class Converse:
                 )
             else:
                 filled = answered(pending, text)
+                # An answer the box will not hold leaves the question standing,
+                # and saying so is the whole difference between a loop somebody
+                # can get out of and one they cannot. Silently re-asking the
+                # same question reads as a system that ignored them.
+                refused = too_long_for(pending, text)
                 said, decision = (
                     (
                         f"Running {filled.title} now.",
@@ -302,6 +308,7 @@ class Converse:
                             "values": dict(filled.values),
                             "items": [dict(one) for one in filled.items],
                             "missing": [],
+                            "limits": dict(filled.limits),
                             "can_find": self._can_gather,
                             # They already pressed yes. This is the same press
                             # arriving late, not a second one to ask for.
@@ -311,7 +318,13 @@ class Converse:
                     )
                     if filled.ready
                     else (
-                        question(filled),
+                        (
+                            f"That is {len(text.strip())} characters and "
+                            f"{filled.asking_for} takes {refused}. "
+                            f"What should {filled.asking_for} be?"
+                            if refused is not None
+                            else question(filled)
+                        ),
                         {
                             "kind": NEEDS,
                             "workflow_id": filled.workflow_id,
@@ -320,6 +333,7 @@ class Converse:
                             "items": [dict(one) for one in filled.items],
                             "missing": list(filled.missing),
                             "watched": filled.watched,
+                            "limits": dict(filled.limits),
                         },
                     )
                 )
@@ -366,6 +380,7 @@ class Converse:
                 "values": dict(offered.values),
                 "items": [dict(one) for one in offered.items],
                 "missing": [] if ready else list(offered.missing),
+                "limits": dict(offered.limits),
                 "can_find": self._can_gather,
                 "watched": offered.watched,
             }

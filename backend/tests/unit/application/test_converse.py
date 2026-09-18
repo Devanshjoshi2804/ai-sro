@@ -450,6 +450,10 @@ async def test_the_answer_to_a_question_is_taken_as_the_answer() -> None:
         "values": {"Customer Type": "GPP"},
         "items": [],
         "missing": ["longDescription"],
+        # What each box holds, so the next question can say why it is asking
+        # and an answer that still will not fit can be refused rather than
+        # carried into the form. Empty here: nothing has measured these.
+        "limits": {},
         "watched": True,
     }
 
@@ -569,3 +573,88 @@ async def test_a_sentence_that_is_not_a_yes_is_still_a_sentence() -> None:
 
     last = said.messages[-1]
     assert not (last.decision or {}).get("resume"), last.decision
+
+
+async def _asked_with_limits(
+    uow: FakeUnitOfWork, missing: list[str], limits: dict[str, int]
+) -> tuple[Converse, ThreadId]:
+    """A thread where the question knows what the box holds."""
+    converse = await _with_a_job(uow, None)
+    thread = await StartThread(uow, FakeClock(), FakeIdFactory()).execute(CTX)
+    thread.say(
+        Message(
+            id=MessageId("msg_asked"),
+            speaker=Speaker.ASSISTANT,
+            text="Customer Type takes 4 characters. What should it be?",
+            said_at=FakeClock().now(),
+            decision={
+                "kind": NEEDS,
+                "workflow_id": "wfl_1",
+                "title": "Create a Customer Type",
+                "values": {},
+                "missing": missing,
+                "items": [],
+                "limits": limits,
+                "watched": True,
+            },
+        )
+    )
+    await uow.threads.save(thread)
+    return converse, thread.id
+
+
+async def test_an_answer_the_box_will_not_hold_is_asked_about_again() -> None:
+    """The loop the card's box used to be.
+
+    A person answers with ten characters for a field that takes four. Accepting
+    it means a run that stops in front of the form, which is the whole of what
+    asking here replaces -- they are at the keyboard NOW, and one more sentence
+    is cheaper than the job.
+    """
+    uow = FakeUnitOfWork()
+    await _taught(uow)
+    converse, thread_id = await _asked_with_limits(uow, ["Customer Type"], {"Customer Type": 4})
+
+    said = await converse.execute(CTX, thread_id=thread_id, text="NEWSROTEST")
+
+    last = said.messages[-1]
+    # It says what was wrong, rather than repeating itself: a question asked
+    # twice in the same words reads as a system that ignored them.
+    assert "10 characters" in last.text, last.text
+    assert "takes 4" in last.text, last.text
+    assert last.decision is not None
+    # Nothing was accepted, so the same value is still wanted.
+    assert last.decision["missing"] == ["Customer Type"]
+    assert last.decision["values"] == {}
+    assert last.decision["limits"] == {"Customer Type": 4}
+
+
+async def test_an_answer_that_fits_ends_the_asking_and_starts_the_job() -> None:
+    """And the run starts on the press they already gave, which is the point of
+    doing this in the conversation rather than on the card."""
+    uow = FakeUnitOfWork()
+    await _taught(uow)
+    converse, thread_id = await _asked_with_limits(uow, ["Customer Type"], {"Customer Type": 4})
+
+    said = await converse.execute(CTX, thread_id=thread_id, text="NSRO")
+
+    last = said.messages[-1]
+    assert last.decision is not None
+    assert last.decision["kind"] == "job", last.text
+    assert last.decision["values"] == {"Customer Type": "NSRO"}
+    # The press arriving late, not a second one to ask for.
+    assert last.decision["resume"] is True
+
+
+async def test_the_question_says_what_the_box_holds_when_anything_knows() -> None:
+    """Asked without it, a person sends the same value back -- nothing has told
+    them the field takes four, because the browser truncates in silence."""
+    uow = FakeUnitOfWork()
+    await _taught(uow)
+    converse, thread_id = await _asked_with_limits(
+        uow, ["Customer Type", "longDescription"], {"longDescription": 28}
+    )
+
+    said = await converse.execute(CTX, thread_id=thread_id, text="GPP")
+
+    assert said.messages[-1].text == "longDescription takes 28 characters. What should it be?"

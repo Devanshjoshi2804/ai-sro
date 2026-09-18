@@ -455,53 +455,49 @@ test("an offer for one thing reads exactly as it always did", () => {
   assert.ok(!words(item).includes("things"));
 });
 
-test("a rig offer asks for what is missing and cannot start until it has it", () => {
+test("a rig offer short of a value asks in the conversation, not in a box", () => {
+  // The card used to grow a text input per name and disable the press until
+  // they were full. A panel that is already a conversation does not need a
+  // form in it, and the form was wrong as well as redundant: on `Create a
+  // Customer Type` it drew four boxes for two values, because that job
+  // declares each field under a label and a body key.
+  const pressed = [];
   const nudge = { id: "n_1", source: "rig", state: "open", title: "Create Work Area", k: 2,
     values: { workArea: "NEWTESTS" }, missing: ["description"], parameters: ["workArea", "description"], tabId: 1 };
-  const item = renderNudge(nudge);
+  const item = renderNudge(nudge, (...args) => pressed.push(args));
+
   assert.match(what(item), /NEWTESTS, so far\. Want me to finish it\?/);
-  const field = named(item, "description");
-  assert.ok(field);
+  assert.equal(of(item, "input").length, 0, "the card still draws a box");
+
+  // Pressable, always. A disabled button on a card with nothing in it to fill
+  // is a dead end somebody has to guess their way out of.
   const yes = labelled(item, /Yes, finish it/);
-  assert.equal(yes.disabled, true);
-  typing(field, "north dock");
   assert.equal(yes.disabled, false);
-  // Blank again is blank: a space is not an answer to a question the run needs.
-  typing(field, "   ");
-  assert.equal(yes.disabled, true, "a field of spaces started a run");
+  press(yes);
+  assert.deepEqual(pressed.map((each) => each[0]), ["ask-about-offer"]);
 });
 
-test("a card the run can gather for starts without the boxes being filled", () => {
+test("a card the run can gather for draws no boxes and simply starts", () => {
   // Seen on the deployment 2026-09-16: `Create a Customer Type` was offered
   // with four required boxes -- two of them `customertype-customerType` and
   // `customertype-longDescription`, the body keys a form posts, which nobody
   // has ever typed -- for values sitting in the mail that asked for the job.
   const pressed = [];
   const nudge = { id: "n_7", source: "rig", state: "open", title: "Create a Customer Type", k: 0,
-    values: {}, canFind: true, missing: ["Customer Type", "customertype-customerType"],
+    values: { "Customer Type": "GPP" }, canFind: true, missing: [],
     parameters: ["Customer Type", "customertype-customerType"], tabId: 1 };
   const item = renderNudge(nudge, (...args) => pressed.push(args));
 
   const yes = labelled(item, /Yes, do it/);
-  assert.equal(yes.disabled, false, "a run that can go and look still demanded the values");
-  // And does not ASK for them either. Four empty boxes in front of somebody
-  // whose whole answer is "yes" is a question dressed as a form -- and two of
-  // those four are the same field under its body key, so the form is wrong
-  // about how many things there are as well as unnecessary.
-  const boxes = of(item, "div").find((one) => one.className === "fields");
-  assert.ok(boxes && boxes.hidden, "the card put boxes in front of somebody with nothing to type");
-  assert.equal(of(boxes, "input").length, 2, "and the boxes are still there to reveal");
+  assert.equal(yes.disabled, false);
+  assert.equal(of(item, "input").length, 0, "the card still draws a box");
+  assert.equal(labelled(item, /I'll type them/), undefined, "the typing button is still there");
 
-  // Typing is still reachable, because a person who means a different value
-  // than the mail said has no other way to say so. One of them said, the other
-  // left: what they type is merged over what the mailbox holds.
-  press(labelled(item, /I'll type them/));
-  typing(named(item, "Customer Type \u2014 or leave it to me"), "GPP");
+  // Nothing outstanding, so the press is the run itself and carries no values
+  // of its own -- what it would have carried is already on the offer.
   press(yes);
-
-  // And the untouched box is NOT sent as "": a typed blank is refused at the
-  // door whatever else is configured, which would 400 every press of this card.
-  assert.deepEqual(pressed[0][4], { values: { "Customer Type": "GPP" } });
+  assert.deepEqual(pressed.map((each) => each[0]), ["start-rig-run"]);
+  assert.deepEqual(pressed[0][4], { values: {} });
 });
 
 test("a rig arrival nudge offers to do it from the start", () => {
@@ -510,19 +506,6 @@ test("a rig arrival nudge offers to do it from the start", () => {
   const item = renderNudge(nudge);
   assert.match(what(item), /want me to do it\?/);
   assert.ok(labelled(item, /Yes, do it/));
-});
-
-test("a rig offer hands the press the values that were typed into it", () => {
-  const pressed = [];
-  const nudge = { id: "n_4", source: "rig", state: "open", title: "Create Work Area", k: 1,
-    values: { workArea: "NEWTESTS" }, missing: ["description"], parameters: ["workArea", "description"], tabId: 1 };
-  const item = renderNudge(nudge, (...args) => pressed.push(args));
-  typing(named(item, "description"), "  north dock  ");
-  press(labelled(item, /Yes, finish it/));
-  // `start-rig-run` and not `nudge-answer`: the worker reports one fate per
-  // path, and an offer that took both would be counted twice.
-  assert.deepEqual(pressed.map((each) => each[0]), ["start-rig-run"]);
-  assert.deepEqual(pressed[0][4], { values: { description: "north dock" } });
 });
 
 test("one press ends the card, so a refused offer cannot then be started", () => {
@@ -538,16 +521,11 @@ test("one press ends the card, so a refused offer cannot then be started", () =>
     (...args) => pressed.push(args),
   );
   const yes = labelled(item, /Yes, finish it/);
-  typing(named(item, "description"), "north dock");
   assert.equal(yes.disabled, false);
 
   press(labelled(item, /No thanks/));
   assert.equal(yes.disabled, true, "No thanks left Yes live");
   assert.equal(labelled(item, /No thanks/).disabled, true, "No thanks could be pressed twice");
-
-  // Nor by typing into the box again: the input handler must not undo it.
-  typing(named(item, "description"), "somewhere else");
-  assert.equal(yes.disabled, true, "typing brought a spent offer back to life");
   press(yes);
   assert.deepEqual(pressed.map((each) => each[0]), ["drop-nudge"], "a spent card pressed twice");
 });
@@ -909,12 +887,14 @@ test("an offer with nothing read yet still asks plainly", () => {
   assert.match(words(item), /Create a Customer Type — want me to do it\?/);
 });
 
-test("a value the box will not hold is asked about before the press, not after", () => {
+test("a value the box will not hold is said before the press, and asked in words", () => {
   // The run already refuses this -- it types, the browser silently keeps 28
   // characters, and the run stops rather than write a record that does not say
   // what was asked for. It can only refuse standing in front of the box, so
   // the operator pressed, watched half a form fill, and got a question back.
-  // The limit was learnt by an earlier run and is known before the press.
+  // The limit is known before the press, so it is said before the press -- and
+  // the shorter value is asked for in the conversation, one question, in
+  // words, rather than in an input stapled to a card.
   const pressed = [];
   const nudge = {
     id: "n_long", source: "rig", state: "open", k: 0,
@@ -931,27 +911,11 @@ test("a value the box will not hold is asked about before the press, not after",
   // The limit and how far over, because "this will not fit" sends somebody
   // back with a second value that does not fit either.
   assert.match(words(item), /takes 28 characters and this is 43/);
-  assert.match(words(item), /Shorten it by 15/);
+  assert.match(words(item), /ask you for a shorter one/);
+  assert.equal(of(item, "input").length, 0, "the card still draws a box");
 
-  const yes = labelled(item, /Yes, do it/);
-  assert.equal(yes.disabled, true, "a press would have half-filled a form to reach a known no");
-
-  // Still too long is still no.
-  const field = of(item, "input").find(
-    (one) => one.dataset.name === "Customer Type Description",
-  );
-  assert.ok(field, "nowhere to shorten it");
-  typing(field, "leaning new SRO type 044 north");
-  assert.equal(yes.disabled, true, "thirty characters started a run into a 28-character box");
-
-  typing(field, "new SRO type 044");
-  assert.equal(yes.disabled, false);
-  press(yes);
-  assert.equal(
-    pressed[0][4].values["Customer Type Description"],
-    "new SRO type 044",
-    "the run was started with the value that would not fit",
-  );
+  press(labelled(item, /Yes, do it/));
+  assert.deepEqual(pressed.map((each) => each[0]), ["ask-about-offer"]);
 });
 
 test("a value inside a known limit is not asked about at all", () => {
@@ -962,17 +926,16 @@ test("a value inside a known limit is not asked about at all", () => {
     items: [], missing: [], canFind: true,
     tooLong: { "Customer Type Description": 28 },
   };
-  const item = renderNudge(nudge);
+  const pressed = [];
+  const item = renderNudge(nudge, (...args) => pressed.push(args));
   // Not merely pressable -- unmentioned. A card that says "this takes 28
   // characters and this is 10, that fits" about a value nobody asked about is
   // a job explaining its own internals to somebody deciding.
   assert.doesNotMatch(words(item), /28 characters/, words(item));
-  assert.equal(
-    of(item, "input").filter((one) => one.dataset.name).length,
-    0,
-    "a box to shorten a value that already fits",
-  );
   assert.equal(labelled(item, /Yes, do it/).disabled, false);
+  // And nothing to sort out, so the press is the run.
+  press(labelled(item, /Yes, do it/));
+  assert.deepEqual(pressed.map((each) => each[0]), ["start-rig-run"]);
 });
 
 for (const [name, fn] of tests) {

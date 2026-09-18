@@ -4,12 +4,13 @@ from __future__ import annotations
 
 from sro.application.chat.converse import Converse, StartThread
 from sro.application.chat.read_chat import ReadChat
+from sro.application.chat.reading_an_answer import Read
 from sro.application.chat.understand import Understood
 from sro.application.context import RequestContext
 from sro.application.intent.plan_task import PlanTask
 from sro.application.intent.resolve import ResolveIntent
 from sro.application.knowledge.retrieve import Retrieve
-from sro.domain.chat.asking import NEEDS
+from sro.domain.chat.asking import NEEDS, pending_job
 from sro.domain.chat.thread import Message, MessageId, Speaker, ThreadId
 from sro.domain.execution.run import RunId
 from sro.domain.shared.identifiers import SkillId
@@ -426,6 +427,87 @@ async def _asked(uow: FakeUnitOfWork, missing: list[str]) -> tuple[Converse, Thr
     )
     await uow.threads.save(thread)
     return converse, thread.id
+
+
+class _Reads:
+    """A reading of whether a sentence answers the standing question.
+
+    Takes the verdict rather than computing one: what is under test is what
+    this door DOES with each verdict, and a fake that decided for itself would
+    be a second implementation of the thing being tested.
+    """
+
+    def __init__(self, answers: bool, value: str = "") -> None:
+        self._answers = answers
+        self._value = value
+        self.asked: list[str] = []
+
+    async def execute(self, _ctx: object, _pending: object, said: str) -> Read:
+        self.asked.append(said)
+        return Read(answers=self._answers, value=self._value or said, why="a fake")
+
+
+async def test_a_sentence_that_is_not_an_answer_does_not_become_the_value() -> None:
+    """The one this was built for.
+
+    Measured on the deployment 2026-09-18. A question stood asking for
+    `Customer Type`. The operator had already sent the answer by MAIL and was
+    watching for it to land, so they typed `has reply arrived` into the panel
+    to ask this system a question. It was taken as the value, a run started one
+    millisecond later, and `HAS REPLY ARRIVED` was typed into a four-character
+    box in a live warehouse system.
+    """
+    uow = FakeUnitOfWork()
+    await _taught(uow)
+    converse, thread_id = await _asked(uow, ["Customer Type"])
+    converse._answers = _Reads(answers=False)
+
+    said = await converse.execute(CTX, thread_id=thread_id, text="has reply arrived")
+
+    last = said.messages[-1]
+    assert last.decision is None or last.decision.get("kind") != "job", (
+        "a sentence nobody meant as an answer started a run"
+    )
+    assert "has reply arrived" not in str(last.decision or {}), (
+        "it was written down as the value anyway"
+    )
+    # And the question is still standing, because nothing consumed it: the
+    # answer, when it comes, has something to land in.
+    assert pending_job(said.messages) is not None, "the question was swallowed"
+
+
+async def test_a_sentence_that_is_an_answer_still_is() -> None:
+    """The reading is a gate, not a wall. What it says answers, answers."""
+    uow = FakeUnitOfWork()
+    await _taught(uow)
+    converse, thread_id = await _asked(uow, ["Customer Type"])
+    reads = _Reads(answers=True, value="S057")
+    converse._answers = reads
+
+    said = await converse.execute(CTX, thread_id=thread_id, text="the code is S057")
+
+    last = said.messages[-1]
+    assert last.decision is not None and last.decision["kind"] == "job"
+    # The VALUE the reading pulled out, not the sentence around it. A form
+    # typed with "the code is S057" is a wrong record with a reason.
+    assert last.decision["values"] == {"Customer Type": "S057"}
+
+
+async def test_letting_go_is_never_handed_to_a_reading() -> None:
+    """ "No" ends the question. A reading asked whether "no" answers "what
+    should Customer Type be" has been given a question with no good answer,
+    and the one word a person uses to get out of a loop must not depend on how
+    it is read."""
+    uow = FakeUnitOfWork()
+    await _taught(uow)
+    converse, thread_id = await _asked(uow, ["Customer Type"])
+    reads = _Reads(answers=False)
+    converse._answers = reads
+
+    said = await converse.execute(CTX, thread_id=thread_id, text="no")
+
+    assert reads.asked == [], "the way out of the loop went through a model"
+    assert said.messages[-1].text == "Dropped Create a Customer Type."
 
 
 async def test_the_answer_to_a_question_is_taken_as_the_answer() -> None:

@@ -18,6 +18,7 @@ from collections.abc import Sequence
 from dataclasses import replace
 
 from sro.application.chat.read_chat import ReadChat
+from sro.application.chat.reading_an_answer import IsItAnAnswer
 from sro.application.chat.understand import Understood
 from sro.application.context import RequestContext
 from sro.application.execution.derived_read import Asked, AskTheSystem
@@ -82,10 +83,15 @@ class Converse:
         suggest: SuggestNext | None = None,
         reads_jobs: ReadChat | None = None,
         can_gather: bool = False,
+        answers: IsItAnAnswer | None = None,
     ) -> None:
         self._uow = uow
         self._resolver = resolver
         self._reads_jobs = reads_jobs
+        # Whether a sentence typed while a question stands is the answer to it.
+        # Optional: a deployment without one takes every sentence, exactly as
+        # this door did before the reading existed.
+        self._answers = answers
         self._clock = clock
         self._ids = ids
         self._execute = execute
@@ -148,9 +154,59 @@ class Converse:
             said_before = (await uow.threads.get(ctx.tenant_id, thread_id)).messages
         waiting = pending_job(said_before)
         if waiting is not None:
-            return await self._answer_the_question(
-                ctx, thread_id=thread_id, text=text, pending=waiting
+            # And only if it IS one. A question standing here used to take
+            # whatever was typed next, which is right for `GU9` and wrong for
+            # everything else somebody types while they wait -- and what they
+            # type while waiting is usually about the waiting.
+            #
+            # Measured on the deployment 2026-09-18: the operator had sent the
+            # answer by mail and typed `has reply arrived` to ask this system
+            # whether it had landed. It was taken as the value, a run started a
+            # millisecond later, and `HAS REPLY ARRIVED` went into a
+            # four-character box in a live warehouse system.
+            #
+            # A sentence that is not an answer falls through to everything
+            # below and is treated as what it is. The question is not consumed,
+            # so it is still standing when they do answer it.
+            answered_it = await self._is_it_an_answer(ctx, waiting, text)
+            if answered_it is not None:
+                return await self._answer_the_question(
+                    ctx, thread_id=thread_id, text=answered_it, pending=waiting
+                )
+            # Said, answered, and then asked again.
+            #
+            # The asking again is not politeness. `pending_job` reads the LAST
+            # thing the assistant decided, so an ordinary reply written under a
+            # standing question buries it -- the sentence gets its answer and
+            # the question is gone, which is the same swallowing by a longer
+            # road. Repeating it is also what a person does: they answer what
+            # they were asked, and then say what they are still waiting for.
+            await self._carry_on(
+                ctx, thread_id=thread_id, text=text, system=system, parameters=parameters
             )
+            return await self._ask_it_again(ctx, thread_id=thread_id, pending=waiting)
+        return await self._carry_on(
+            ctx, thread_id=thread_id, text=text, system=system, parameters=parameters
+        )
+
+    async def _carry_on(
+        self,
+        ctx: RequestContext,
+        *,
+        thread_id: ThreadId,
+        text: str,
+        system: str | None = None,
+        parameters: dict[str, str] | None = None,
+    ) -> Thread:
+        """Everything this door does with a sentence that answers no question.
+
+        The body of `execute` from the question check down, unchanged and
+        named, so that a sentence which turned out NOT to be an answer can be
+        handled the ordinary way rather than being dropped for not fitting a
+        box it was never about.
+        """
+        async with self._uow as uow:
+            said_before = (await uow.threads.get(ctx.tenant_id, thread_id)).messages
         # And a job this conversation has just offered, agreed to.
         #
         # Measured on the deployment, 2026-09-17 at 03:17. The assistant said
@@ -250,6 +306,71 @@ class Converse:
             await uow.threads.save(thread)
             await uow.commit()
         return thread
+
+    async def _ask_it_again(
+        self, ctx: RequestContext, *, thread_id: ThreadId, pending: Pending
+    ) -> Thread:
+        """Put the standing question back, under whatever was just said.
+
+        The same decision it was asked with, so the state rides along intact --
+        what is established, what is still missing, where the run had got to.
+        A question re-asked with a thinner decision than the one it replaces is
+        a question that loses an answer somebody already gave.
+        """
+        async with self._uow as uow:
+            thread = await uow.threads.get(ctx.tenant_id, thread_id)
+            thread.say(
+                Message(
+                    id=self._ids.new_message_id(),
+                    speaker=Speaker.ASSISTANT,
+                    text=f"I am still waiting on this one. {question(pending)}",
+                    said_at=self._clock.now(),
+                    decision={
+                        "kind": NEEDS,
+                        "workflow_id": pending.workflow_id,
+                        "title": pending.title,
+                        "values": dict(pending.values),
+                        "items": [dict(one) for one in pending.items],
+                        "missing": list(pending.missing),
+                        "watched": pending.watched,
+                        "limits": dict(pending.limits),
+                        "from_step": pending.from_step,
+                        "mail_thread": pending.mail_thread,
+                    },
+                )
+            )
+            await uow.threads.save(thread)
+            await uow.commit()
+        return thread
+
+    async def _is_it_an_answer(
+        self, ctx: RequestContext, pending: Pending, text: str
+    ) -> str | None:
+        """The value to take, or None where that sentence was not an answer.
+
+        Never None where nothing could read it. A deployment with no model, a
+        reading that raised, a cap spent -- all of them behave as this door
+        behaved before the reading existed, because a panel that quietly stops
+        accepting answers when a model is unreachable is worse than one that
+        takes too many.
+
+        `let_go` first and without asking anybody: "no" and "never mind" end
+        the question, and a reading asked whether "no" answers "what should
+        Customer Type be" has been given a question with no good answer.
+        """
+        if let_go(text) or self._answers is None:
+            return text
+        read = await self._answers.execute(ctx, pending, text)
+        if read.answers:
+            return read.value or text
+        logger.info(
+            "%s: %r is not an answer to %s (%s)",
+            ctx.tenant_id.value,
+            text[:40],
+            pending.asking_for,
+            read.why[:80],
+        )
+        return None
 
     async def _answer_the_question(
         self, ctx: RequestContext, *, thread_id: ThreadId, text: str, pending: Pending

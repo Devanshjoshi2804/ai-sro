@@ -24,6 +24,7 @@ from sro.application.chat.converse import Converse, StartThread
 from sro.application.chat.from_the_mail import FromTheMail
 from sro.application.chat.read_chat import ReadChat
 from sro.application.chat.read_threads import ReadThreads
+from sro.application.chat.reading_an_answer import IsItAnAnswer
 from sro.application.connection.browsers import Browsers
 from sro.application.connection.check_session import CheckSession
 from sro.application.connection.connect_system import (
@@ -1017,6 +1018,11 @@ class Container:
             # actually do: a deployment with no connector still demands the
             # values, because on that one nothing can go and find them.
             can_gather=self.can_gather,
+            # Whether what somebody typed while a question stands is the answer
+            # to it. The fast model, for `read_chat`'s reason: an operator is
+            # standing at the panel waiting to find out what happens to the
+            # sentence they just pressed Enter on.
+            answers=IsItAnAnswer(self.asker, model=self.settings.gemini_plan_model),
         )
 
     def ask_about_the_offer(self) -> AskAboutTheOffer:

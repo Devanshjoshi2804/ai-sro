@@ -19,6 +19,7 @@ from sro.application.analytics.audit import ReadAudit
 from sro.application.analytics.summary import ReadSummary
 from sro.application.capture.devices import ReadRoster, RestoreDevice, RevokeDevice
 from sro.application.chat.about_an_offer import AskAboutTheOffer, SayTheRunStarted
+from sro.application.chat.ask_the_asker import DraftForTheAsker, SendTheDraft
 from sro.application.chat.converse import Converse, StartThread
 from sro.application.chat.from_the_mail import FromTheMail
 from sro.application.chat.read_chat import ReadChat
@@ -161,6 +162,7 @@ from sro.application.trigger.fire_trigger import FireTrigger
 from sro.application.trigger.read_triggers import DeleteTrigger, ReadTriggers, SetTriggerEnabled
 from sro.application.trigger.receive_inbound import ReceiveInbound
 from sro.config import Settings, get_settings
+from sro.domain.chat.asking import Pending
 from sro.domain.shared.prices import DaySpend
 from sro.infrastructure.agent.channel import SocketChannel
 from sro.infrastructure.agent.drivers import RemoteAgents
@@ -1021,6 +1023,14 @@ class Container:
         """The card's way into the conversation the chat door already runs."""
         return AskAboutTheOffer(self.unit_of_work(), self.clock, self.ids)
 
+    def draft_for_the_asker(self) -> DraftForTheAsker:
+        """Write the mail to whoever asked. It cannot send one."""
+        return DraftForTheAsker(self.unit_of_work(), self.tools, self.clock, self.ids)
+
+    def send_the_draft(self) -> SendTheDraft:
+        """Send the mail a person read and pressed. It cannot write one."""
+        return SendTheDraft(self.unit_of_work(), self.tools, self.clock, self.ids)
+
     def say_the_run_started(self) -> SayTheRunStarted:
         """The other half of the spine: what came of the answer."""
         return SayTheRunStarted(self.unit_of_work(), self.clock, self.ids)
@@ -1146,7 +1156,17 @@ class Container:
             # What names the message a run writes when it comes up short and
             # asks the operator for what it could not find.
             ids=self.ids,
+            # And the mail to whoever sent the request, for the case the panel
+            # cannot answer: the operator did not write it and does not know.
+            # A closure for `gather`'s reason -- the drafter needs this
+            # request's own tenant and operator, and the runner has no
+            # `RequestContext` to give it.
+            asker_drafts=self._drafting,
         )
+
+    async def _drafting(self, ctx: RequestContext, run_id: str, pending: Pending) -> bool:
+        """Bound to one request, so the mailbox is read as the right person."""
+        return await self.draft_for_the_asker().execute(ctx, run_id, pending)
 
     def list_workflow_runs(self) -> ListWorkflowRuns:
         """The runs of mined jobs, newest first. Not `list_runs` above, which

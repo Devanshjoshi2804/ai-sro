@@ -154,6 +154,21 @@ TOOLS = [
                 "to": {"type": "string"},
                 "subject": {"type": "string"},
                 "body": {"type": "string"},
+                "thread_id": {
+                    "type": "string",
+                    "description": (
+                        "Reply inside this conversation rather than starting a new one. "
+                        "A reply that lands on its own thread cannot be matched back to "
+                        "what it answers."
+                    ),
+                },
+                "in_reply_to": {
+                    "type": "string",
+                    "description": (
+                        "The RFC822 Message-Id being answered, for mail clients that "
+                        "thread on headers rather than on Gmail's own thread id."
+                    ),
+                },
             },
             "required": ["to", "body"],
         },
@@ -516,10 +531,22 @@ def _send(token: str, arguments: dict[str, Any]) -> str:
     mail["To"] = str(arguments.get("to", ""))
     mail["Subject"] = str(arguments.get("subject", ""))
     mail.set_content(str(arguments.get("body", "")))
+    # Threaded two ways, because two different things do the threading.
+    #
+    # `threadId` is what GMAIL uses, and it is what makes the reply findable:
+    # this system matches an arriving mail to the run waiting on it by thread
+    # id, so a reply that starts its own conversation answers nobody. The
+    # `In-Reply-To` header is what every OTHER mail client uses, and without it
+    # the person who receives this sees an orphan.
+    within = str(arguments.get("thread_id", "")).strip()
+    answering = str(arguments.get("in_reply_to", "")).strip()
+    if answering:
+        mail["In-Reply-To"] = answering
+        mail["References"] = answering
     raw = base64.urlsafe_b64encode(mail.as_bytes()).decode()
     answer = httpx.post(
         f"{GMAIL}/messages/send",
-        json={"raw": raw},
+        json={"raw": raw, **({"threadId": within} if within else {})},
         headers={"Authorization": f"Bearer {token}"},
         timeout=30.0,
     )

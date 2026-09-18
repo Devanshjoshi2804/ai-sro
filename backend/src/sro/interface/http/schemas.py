@@ -3672,6 +3672,28 @@ class AskAboutOfferResponse(BaseModel):
     asked: str
 
 
+class SendTheDraftRequest(BaseModel):
+    """A drafted mail the operator has read and is authorising.
+
+    An id and never the words. What goes out is re-read from the thread the
+    draft was shown in, so what is sent and what was read cannot be two
+    different things -- a body accepted here would put every guarantee about a
+    person having seen what they authorised on a browser being honest."""
+
+    thread_id: str
+    message_id: str
+
+
+class SentTheDraftResponse(BaseModel):
+    """Who it went to, or `""` where nothing was sent.
+
+    Empty is an ordinary answer and not an error: a draft already sent, one
+    nobody can find, a run since asked about another way. None of those is a
+    500, and none of them means try again."""
+
+    sent_to: str
+
+
 class RunStartedRequest(BaseModel):
     """A run this browser has just started, said into the conversation.
 

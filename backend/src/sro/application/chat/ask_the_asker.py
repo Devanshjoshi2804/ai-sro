@@ -1,0 +1,285 @@
+"""Draft a mail to whoever asked, and -- separately -- send the one approved.
+
+Two use cases in one module because they are two halves of one rule, and the
+rule is the reason this exists at all: **what drafts never sends, and what
+sends never drafts.** A mail cannot be unsent, it leaves the company over the
+operator's name, and the only thing standing between a model's reading of a
+situation and somebody's inbox is a person who read the words first. Splitting
+them is what makes that structural rather than a promise -- there is no path
+through `DraftForTheAsker` that reaches the mailbox.
+
+The case: a request arrives naming a description and no code. The run goes
+looking, the thread does not say either, and the run ends short. The panel
+asks the operator, which is right and often enough -- but the operator did not
+write the request and may not know. The person who does is whoever sent it,
+and until now nothing could reach them.
+
+**One draft per run.** A run that stopped twice does not write twice, and a
+person does not get two mails about one request. The check is the run's own
+row rather than a counter here, because a worker restart must not buy anybody
+a second mail.
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+
+from sro.application.chat.announce import SayWhatHappened
+from sro.application.context import RequestContext
+from sro.application.ports.repositories import UnitOfWork
+from sro.application.ports.system import Clock, IdFactory
+from sro.application.ports.tools import ToolCaller, ToolsUnavailable
+from sro.domain.chat.asking import Pending
+from sro.domain.chat.asking_the_asker import draft_for, worth_asking
+from sro.domain.chat.thread import Message, Speaker, ThreadId
+from sro.domain.execution.waiting import read_wait
+from sro.domain.shared.identifiers import PrincipalId
+
+logger = logging.getLogger(__name__)
+
+SERVER = "gmail"
+
+DRAFTED = "mail_draft"
+"""The decision kind of a mail written and not sent. Named here because two
+sides read it: this door writes it, and the panel draws the words with a press
+under them."""
+
+
+class DraftForTheAsker:
+    """Write the mail, put it in front of the operator, and stop.
+
+    Nothing here can send. The tool caller it holds is used to READ the
+    conversation -- who asked, and what the message id is to reply to -- and
+    the only write it makes is into the operator's own thread.
+    """
+
+    def __init__(self, uow: UnitOfWork, tools: ToolCaller, clock: Clock, ids: IdFactory) -> None:
+        self._uow = uow
+        self._tools = tools
+        self._clock = clock
+        self._ids = ids
+
+    async def execute(self, ctx: RequestContext, run_id: str, pending: Pending) -> bool:
+        """Whether a draft was put in front of somebody.
+
+        False for every ordinary reason -- the run came from no mailbox, it
+        needs nothing, a draft already went out for it -- and those are not
+        failures. A run nobody can ask about is the case this is an exception
+        to, not the case it is for.
+        """
+        if not worth_asking(pending):
+            return False
+        async with self._uow as uow:
+            run = await uow.workflow_runs.get(ctx.tenant_id, run_id)
+        waiting = read_wait(run.awaiting) if run else None
+        if waiting is None or waiting.server != SERVER:
+            return False
+        # One per run, read off the row rather than counted here: a worker that
+        # restarted between two stops must not buy anybody a second mail.
+        if run is not None and run.asked_the_asker:
+            logger.info("%s: %s has already asked whoever sent it", ctx.tenant_id.value, run_id)
+            return False
+
+        asked_by, replying_to, about = await self._who_asked(ctx, waiting.thread)
+        if not asked_by:
+            logger.info(
+                "%s: %s has nobody to ask -- the conversation names no sender",
+                ctx.tenant_id.value,
+                run_id,
+            )
+            return False
+
+        subject, body = draft_for(pending, about=about, signed=ctx.principal_id.value)
+        await SayWhatHappened(self._uow, self._clock, self._ids).execute(
+            ctx,
+            for_operator=PrincipalId(run.started_by)
+            if run and run.started_by
+            else ctx.principal_id,
+            text=f"I can ask {asked_by}. This is what I would send — read it first.",
+            # SYSTEM, not ASSISTANT: `pending_job` reads back the last thing the
+            # ASSISTANT decided, and a draft standing where the question should
+            # be would eat the operator's next sentence.
+            speaker=Speaker.SYSTEM,
+            decision={
+                "kind": DRAFTED,
+                "run_id": run_id,
+                "to": asked_by,
+                "subject": subject,
+                "body": body,
+                "thread": waiting.thread,
+                "in_reply_to": replying_to,
+            },
+        )
+        logger.info("%s: drafted a mail to %s about %s", ctx.tenant_id.value, asked_by, run_id)
+        return True
+
+    async def _who_asked(self, ctx: RequestContext, thread: str) -> tuple[str, str, str]:
+        """Who to answer, which message to answer, and what it was called.
+
+        The FIRST message of the conversation, not the last: a thread the
+        operator has replied to would otherwise have this system writing to the
+        operator about the operator's own request. The first message is the
+        request, and whoever sent it is who to ask.
+        """
+        try:
+            answered = await self._tools.call(
+                ctx.tenant_id, ctx.principal_id, SERVER, "get_thread", {"id": thread}
+            )
+        except ToolsUnavailable as gone:
+            logger.info("%s: the conversation could not be read: %s", ctx.tenant_id.value, gone)
+            return "", "", ""
+        try:
+            said = json.loads(answered.text)
+        except ValueError:
+            return "", "", ""
+        rows = said.get("messages") if isinstance(said, dict) else None
+        if not isinstance(rows, list) or not rows:
+            return "", "", ""
+        first = rows[0] if isinstance(rows[0], dict) else {}
+        return (
+            _address(str(first.get("from") or "")),
+            str(first.get("rfc822_message_id") or first.get("id") or ""),
+            " ".join(str(first.get("subject") or "").split()),
+        )
+
+
+def _address(sender: str) -> str:
+    """The address out of `Tanisha Pradhan <tanisha@example.com>`.
+
+    A display name is not something to send to, and a header with none is
+    already an address. Nothing is invented where neither is there: an empty
+    answer means nobody to ask, which is a thing this door says rather than
+    guesses past.
+    """
+    said = sender.strip()
+    if "<" in said and ">" in said:
+        said = said[said.index("<") + 1 : said.index(">")].strip()
+    return said if "@" in said else ""
+
+
+class SendTheDraft:
+    """Send the mail the operator read, and nothing else.
+
+    **The words are taken from the thread, never from the caller.** The panel
+    sends an id; this re-reads the draft that was actually put in front of
+    somebody and sends that. A door that sent a body handed to it would be a
+    door where the words that go out and the words that were read are two
+    different things, and every guarantee this system makes about a person
+    having seen what they authorised would rest on a browser being honest.
+
+    The press is the authorisation and it is the only one. Nothing here
+    decides that a mail should go -- it decides that this mail, which somebody
+    has read, may.
+    """
+
+    def __init__(self, uow: UnitOfWork, tools: ToolCaller, clock: Clock, ids: IdFactory) -> None:
+        self._uow = uow
+        self._tools = tools
+        self._clock = clock
+        self._ids = ids
+
+    async def execute(self, ctx: RequestContext, thread_id: ThreadId, message_id: str) -> str:
+        """The address it went to, or `""` where nothing was sent.
+
+        Raises nothing for an ordinary refusal. A draft already sent, a draft
+        nobody can find, a run that has since been asked about another way --
+        all are reasons not to send, and none of them is an error worth a 500.
+        """
+        async with self._uow as uow:
+            thread = await uow.threads.get(ctx.tenant_id, thread_id)
+        draft = _the_draft(thread.messages, message_id)
+        if draft is None:
+            logger.info("%s: no draft to send under %s", ctx.tenant_id.value, message_id)
+            return ""
+
+        run_id = str(draft.get("run_id") or "")
+        async with self._uow as uow:
+            run = await uow.workflow_runs.get(ctx.tenant_id, run_id) if run_id else None
+            # Claimed before the send, not after. Between a check and a mailbox
+            # sits a network call, and a second press landing in that gap is a
+            # second mail about one request -- which is the one thing the
+            # column exists to stop.
+            if run is not None:
+                if run.asked_the_asker:
+                    logger.info("%s: %s was already asked", ctx.tenant_id.value, run_id)
+                    return ""
+                run.asked_the_asker = True
+                await uow.workflow_runs.save(run)
+                await uow.commit()
+
+        to = str(draft.get("to") or "")
+        try:
+            await self._tools.call(
+                ctx.tenant_id,
+                ctx.principal_id,
+                SERVER,
+                "send_message",
+                {
+                    "to": to,
+                    "subject": str(draft.get("subject") or ""),
+                    "body": str(draft.get("body") or ""),
+                    # Inside the conversation it answers. A reply that starts
+                    # its own thread cannot be matched back to the run waiting
+                    # on it, so the person answers into a void.
+                    "thread_id": str(draft.get("thread") or ""),
+                    "in_reply_to": str(draft.get("in_reply_to") or ""),
+                },
+            )
+        except ToolsUnavailable as gone:
+            # The claim stands. A send that may have gone out and cannot be
+            # shown to have is not one to try again -- the same rule the write
+            # ladder keeps, and for a stronger reason: a duplicate mail cannot
+            # be deleted afterwards.
+            logger.warning(
+                "%s: the mail to %s may not have gone: %s", ctx.tenant_id.value, to, gone
+            )
+            await self._say(ctx, thread_id, f"I could not reach the mailbox to write to {to}.")
+            return ""
+
+        await self._say(ctx, thread_id, f"Asked {to}. I will carry on when they reply.")
+        logger.info("%s: asked %s about %s", ctx.tenant_id.value, to, run_id)
+        return to
+
+    async def _say(self, ctx: RequestContext, thread_id: ThreadId, text: str) -> None:
+        """What happened, in the conversation the draft was read in."""
+        async with self._uow as uow:
+            thread = await uow.threads.get(ctx.tenant_id, thread_id)
+            thread.say(
+                Message(
+                    id=self._ids.new_message_id(),
+                    speaker=Speaker.SYSTEM,
+                    text=text,
+                    said_at=self._clock.now(),
+                    decision={"kind": SENT},
+                )
+            )
+            await uow.threads.save(thread)
+            await uow.commit()
+
+
+SENT = "mail_sent"
+"""The decision kind of a draft that went. The panel reads it to stop drawing
+the press under words that have already left."""
+
+
+def _the_draft(messages: object, message_id: str) -> dict[str, object] | None:
+    """The drafted mail with that id, if it is still the last word on it.
+
+    By id and not "the newest draft": two runs can both be waiting, and a press
+    on the older card must not send the newer mail.
+    """
+    for message in reversed(list(messages if isinstance(messages, tuple | list) else ())):
+        decision = getattr(message, "decision", None)
+        if not isinstance(decision, dict) or decision.get("kind") != DRAFTED:
+            continue
+        # Both sides through `str`: a message id is an `Identifier`, and a
+        # caller holding one compares unequal to the same id read back off a
+        # row as text. The two were never going to match by accident, which is
+        # the worst kind of mismatch -- every draft would quietly refuse.
+        if str(getattr(message, "id", "")) == str(message_id):
+            return decision
+    return None
+
+
+__all__ = ["DRAFTED", "SENT", "DraftForTheAsker", "SendTheDraft"]

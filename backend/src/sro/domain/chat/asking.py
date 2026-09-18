@@ -275,6 +275,14 @@ def opening(pending: Pending, about: str = "") -> str:
     return " ".join(said)
 
 
+def shortened(value: str) -> str:
+    """One value, trimmed to something a sentence can carry. Named rather than
+    private because the mail to the asker renders the same values and must trim
+    them the same way -- two answers to "how much of this do we repeat back"
+    is how one surface quotes a paragraph and another quotes a line."""
+    return _short(value)
+
+
 def _short(value: str) -> str:
     said = " ".join(value.split())
     return said if len(said) <= K_SHOWN else said[:K_SHOWN] + "…"

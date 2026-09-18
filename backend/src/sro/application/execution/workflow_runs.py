@@ -71,7 +71,7 @@ a run, and this one releases it to let the write out. Both reach the register
 from __future__ import annotations
 
 import logging
-from collections.abc import Mapping, Sequence
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from datetime import datetime
 
 from sro.application.chat.announce import SayWhatHappened
@@ -122,6 +122,16 @@ __all__ = [
 ]
 
 logger = logging.getLogger(__name__)
+
+
+DraftsForTheAsker = Callable[[RequestContext, str, Pending], Awaitable[bool]]
+"""Write a mail to whoever asked, for a run that came up short.
+
+A callable rather than the use case, for `GatherValues`' reason: this object
+is built once per request and the drafter needs the request's own tenant and
+operator. Optional throughout -- a deployment with no mailbox runs exactly as
+it did, stopping with the question and asking nobody else.
+"""
 
 
 class RunRefused(Exception):
@@ -200,8 +210,10 @@ class StartWorkflowRun:
         retrieve: Retrieve | None = None,
         gather: GatherContext | None = None,
         ids: IdFactory | None = None,
+        asker_drafts: DraftsForTheAsker | None = None,
     ) -> None:
         self._uow = uow
+        self._asker_drafts: DraftsForTheAsker | None = asker_drafts
         # Where a password comes from when a step types one. `None` is a
         # deployment with no vault configured: the run still happens, and a
         # step that needs a password refuses with the key it wanted rather
@@ -690,6 +702,28 @@ class StartWorkflowRun:
                 "from_run": run.id,
             },
         )
+        # And whoever sent the request, where there is one and a way to reach
+        # them.
+        #
+        # The question above goes to the operator, which is right and usually
+        # enough. It is not enough for the case this whole path was built
+        # around: a mail asking for a customer type by description, no code in
+        # it, none in the thread, and an operator who did not write the request
+        # and has no way of knowing. The person who does is whoever sent it.
+        #
+        # Drafted, never sent. What leaves here is words in the operator's own
+        # conversation with a press under them, and the press is the only thing
+        # that reaches a mailbox.
+        #
+        # Nothing here can stop the question that has already been asked: a
+        # deployment with no connector, a thread that cannot be read, a run
+        # nobody can trace to a request -- all of them mean no draft and none
+        # of them means no question.
+        if self._asker_drafts is not None:
+            try:
+                await self._asker_drafts(ctx, run.id, pending)
+            except Exception:
+                logger.exception("%s could not be drafted a mail about", run.id)
 
     def _gathering(
         self, ctx: RequestContext, job: str, seen: Mapping[str, frozenset[str]]

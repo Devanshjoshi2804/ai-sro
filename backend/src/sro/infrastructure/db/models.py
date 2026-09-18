@@ -883,6 +883,13 @@ class WorkflowRunRow(Base):
     ordinary request this job simply cannot take yet. Dropping it is right --
     nothing demonstrated that slot -- and dropping it silently is the fault
     this column exists to end."""
+    asked_the_asker: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
+    """Whether this run has already written to whoever sent the request. One
+    mail per run: a worker that restarted between two stops would otherwise buy
+    somebody a second mail about one request, and a mail cannot be unsent."""
+
     awaiting: Mapped[Any] = mapped_column(JSONB, nullable=True)
     """The outside conversation this run ended waiting to hear back on.
 

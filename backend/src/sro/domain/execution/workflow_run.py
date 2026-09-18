@@ -253,6 +253,13 @@ class WorkflowRun:
 
     Empty for every run that found everything, which is nearly all of them."""
 
+    asked_the_asker: bool = False
+    """Whether this run has already written to whoever sent the request.
+
+    One mail per run, and read off the row rather than counted in a process: a
+    worker that restarted between one stop and the next would otherwise buy
+    somebody a second mail about one request. A mail cannot be unsent."""
+
     awaiting: dict[str, str] | None = None
     """The outside conversation this run ended waiting to hear back on.
 

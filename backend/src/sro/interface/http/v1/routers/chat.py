@@ -22,6 +22,7 @@ from __future__ import annotations
 from fastapi import APIRouter, status
 
 from sro.domain.chat.asking import Pending
+from sro.domain.chat.thread import ThreadId
 from sro.interface.http.asking import TenantOnly
 from sro.interface.http.deps import ContainerDep, ContextDep
 from sro.interface.http.schemas import (
@@ -31,6 +32,8 @@ from sro.interface.http.schemas import (
     ChatResponse,
     FromTheMailResponse,
     RunStartedRequest,
+    SendTheDraftRequest,
+    SentTheDraftResponse,
 )
 
 router = APIRouter(tags=["chat"], dependencies=[TenantOnly])
@@ -71,6 +74,23 @@ async def ask_about_an_offer(
     )
     return AskAboutOfferResponse(
         asked=await container.ask_about_the_offer().execute(ctx, pending, about=body.about)
+    )
+
+
+@router.post("/chat/send-the-draft", status_code=status.HTTP_200_OK)
+async def send_the_draft(
+    body: SendTheDraftRequest, container: ContainerDep, ctx: ContextDep
+) -> SentTheDraftResponse:
+    """Send the mail the operator read. The press is the authorisation.
+
+    The one door in this system that writes to somebody outside it, and the
+    narrowest: it takes two ids and no words. What goes out is the draft that
+    was put in front of a person, read back from their own thread.
+    """
+    return SentTheDraftResponse(
+        sent_to=await container.send_the_draft().execute(
+            ctx, ThreadId(body.thread_id), body.message_id
+        )
     )
 
 

@@ -70,6 +70,7 @@ def _run_values(run: WorkflowRun) -> dict[str, Any]:
         "needs": list(run.needs),
         "unasked": list(run.unasked),
         "awaiting": dict(run.awaiting) if run.awaiting else None,
+        "asked_the_asker": run.asked_the_asker,
         "unpriced": run.unpriced,
     }
 
@@ -150,6 +151,7 @@ def _row_to_run(row: WorkflowRunRow, steps: list[RunStep]) -> WorkflowRun:
         },
         needs=[str(one) for one in (row.needs or [])],
         unasked=[str(one) for one in (row.unasked or [])],
+        asked_the_asker=bool(row.asked_the_asker),
         awaiting=(
             {str(key): str(value) for key, value in row.awaiting.items()}
             if isinstance(row.awaiting, dict)

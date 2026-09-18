@@ -1865,7 +1865,27 @@ function show(thread, { asked = false } = {}) {
       ["offer", "mail_match"].includes(message.decision?.kind || "") &&
       !alreadyAnswered(thread.messages).has(message.decision.candidate_id),
   ).length;
-  $("said").replaceChildren(ledger(thread, local, { onPress: answered }));
+  // The runs the conversation can draw under a message that names one.
+  //
+  // The ledger has had this branch since the skills path existed and it has
+  // never fired, because nothing ever passed a map: `runs.get?.(run_id)` on
+  // `undefined` is silently nothing. So a thread that said "Running X…" said
+  // only that, and what came of it was on the other pane.
+  //
+  // Built from the two runs this browser actually holds -- the one performing
+  // and the one that just finished -- rather than fetched: those are the two a
+  // conversation can be about, and a map of every run this tenant ever did
+  // would be a page load to draw one card.
+  const runs = new Map();
+  for (const one of [lastStatus?.performing, lastStatus?.finished]) {
+    const id = one?.run?.id || one?.runId || one?.id;
+    if (!id) continue;
+    runs.set(
+      id,
+      one === lastStatus?.finished ? finished({ finished: one }) : performing({ performing: one }),
+    );
+  }
+  $("said").replaceChildren(ledger(thread, local, { onPress: answered, runs }));
   // After the words are in, because the height it scrolls to is the height
   // they made. `asked` is the operator's own send, which is always theirs to
   // move the view for.

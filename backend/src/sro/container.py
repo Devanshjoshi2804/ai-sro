@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, AsyncSession, a
 from sro.application.analytics.audit import ReadAudit
 from sro.application.analytics.summary import ReadSummary
 from sro.application.capture.devices import ReadRoster, RestoreDevice, RevokeDevice
-from sro.application.chat.about_an_offer import AskAboutTheOffer
+from sro.application.chat.about_an_offer import AskAboutTheOffer, SayTheRunStarted
 from sro.application.chat.converse import Converse, StartThread
 from sro.application.chat.from_the_mail import FromTheMail
 from sro.application.chat.read_chat import ReadChat
@@ -1020,6 +1020,10 @@ class Container:
     def ask_about_the_offer(self) -> AskAboutTheOffer:
         """The card's way into the conversation the chat door already runs."""
         return AskAboutTheOffer(self.unit_of_work(), self.clock, self.ids)
+
+    def say_the_run_started(self) -> SayTheRunStarted:
+        """The other half of the spine: what came of the answer."""
+        return SayTheRunStarted(self.unit_of_work(), self.clock, self.ids)
 
     def from_the_mail(self) -> FromTheMail:
         """The rung that reads an arriving mail for what it asks.

@@ -383,6 +383,14 @@ export const api = {
   askAboutOffer: (body) =>
     call("/v1/chat/about-an-offer", { method: "POST", body }),
 
+  /** Say, in the operator's conversation, which run came of their answer.
+   *
+   * Reported from here because the id exists here first: the credential to
+   * drive a run lives in this worker, so the backend cannot know it until the
+   * browser says so. */
+  runStarted: (body) =>
+    call("/v1/chat/run-started", { method: "POST", body }),
+
   /** The most recent runs, newest first, whole rows.
    *
    * What the panel's history overlay is drawn from. `limit` rather than every

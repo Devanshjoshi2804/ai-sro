@@ -199,6 +199,7 @@ const rigServer = async (url, options = {}) => {
   if (path === "/v1/threads/thr-1/messages")
     return json(threadSaid || { id: "thr-1", messages: [] });
   if (path === "/v1/chat") return chatRead ? json(chatRead) : json({ detail: "no model" }, 503);
+  if (path === "/v1/chat/run-started") return json({}, 204);
   if (path === "/v1/chat/about-an-offer")
     return askedAbout
       ? json(askedAbout, askedAbout.detail ? 503 : 200)
@@ -1544,6 +1545,38 @@ test("a look that fails is not a red line in the panel", async () => {
 
   assert.equal(looked.ok, true);
   assert.match(looked.skipped, /no model/);
+});
+
+test("the run an answer starts is said into the conversation that authorised it", async () => {
+  // The thread holds the request, the question and the answer, and stopped one
+  // line short of what came of them -- so the conversation said "Running X…"
+  // and the run itself was only ever visible on the other pane.
+  ready();
+  threadSaid = {
+    id: "thr-1",
+    messages: [
+      { id: "m1", speaker: "operator", text: "NSRO", said_at: "2026-09-18T11:20:01Z" },
+      {
+        id: "m2", speaker: "assistant", text: "Running Create a Customer Type now.",
+        said_at: "2026-09-18T11:20:02Z",
+        decision: {
+          kind: "job", workflow_id: "wfl_wa", resume: true, from_step: 0,
+          title: "Create a Customer Type", values: { workArea: "NSRO" }, watched: true,
+        },
+      },
+    ],
+  };
+
+  await send({ kind: "thread-say", threadId: "thr-1", text: "NSRO", tabId: TAB });
+  await until(
+    () => calls.some((call) => call.path === "/v1/chat/run-started"),
+    "the thread was never told which run came of the answer",
+  );
+
+  const told = JSON.parse(calls.find((call) => call.path === "/v1/chat/run-started").body);
+  assert.equal(told.run_id, "run-9");
+  assert.equal(told.title, "Create a Customer Type");
+  threadSaid = null;
 });
 
 test("taking an offer up into the conversation ends the card", async () => {

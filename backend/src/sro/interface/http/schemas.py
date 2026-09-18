@@ -3672,6 +3672,18 @@ class AskAboutOfferResponse(BaseModel):
     asked: str
 
 
+class RunStartedRequest(BaseModel):
+    """A run this browser has just started, said into the conversation.
+
+    Reported by the browser because the browser is what started it -- the
+    credential to drive a run lives in the worker, so the id exists there
+    first. What it buys is a thread that holds the whole piece of work rather
+    than everything up to the moment it began."""
+
+    run_id: str
+    title: str = ""
+
+
 class FromTheMailResponse(BaseModel):
     """What one look through the mailbox came to.
 

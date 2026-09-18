@@ -39,7 +39,7 @@ from sro.application.context import RequestContext
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
 from sro.domain.chat.asking import NEEDS, Pending, opening, unusable
-from sro.domain.chat.thread import Speaker
+from sro.domain.chat.thread import Said, Speaker
 from sro.domain.shared.identifiers import PrincipalId
 
 logger = logging.getLogger(__name__)
@@ -122,4 +122,47 @@ class AskAboutTheOffer:
         return asked
 
 
-__all__ = ["AskAboutTheOffer"]
+class SayTheRunStarted:
+    """Put a run into the conversation that authorised it.
+
+    The thread is the spine of a piece of work: the request arrives, the
+    question is asked, the answer lands, and until now the story stopped
+    there. The run started in the worker, its card was drawn on Home, and
+    nothing in the conversation said which run came of the sentence somebody
+    had just typed -- so the one place that holds the whole decision held
+    everything except its result.
+
+    A `run` message with the id on it is all the panel needs: the ledger has
+    drawn a live card under one since the skills path existed, and the rig
+    path never wrote one.
+
+    Said by the browser rather than by the door that decided it, which is
+    backwards-looking but true: the run is started in the worker, because the
+    credential lives there, so the worker is the only thing that knows the id.
+    """
+
+    def __init__(self, uow: UnitOfWork, clock: Clock, ids: IdFactory) -> None:
+        self._uow = uow
+        self._clock = clock
+        self._ids = ids
+
+    async def execute(self, ctx: RequestContext, *, run_id: str, title: str) -> None:
+        if not run_id.strip():
+            return
+        await SayWhatHappened(self._uow, self._clock, self._ids).execute(
+            ctx,
+            for_operator=PrincipalId(ctx.principal_id.value),
+            text=f"Running {title}…" if title.strip() else "Running it…",
+            # SYSTEM and not ASSISTANT, which is the distinction `announce`
+            # draws: this is a thing that HAPPENED, not a thing anybody said.
+            # It also must not be mistaken for a question -- `pending_job`
+            # reads back the last thing the assistant decided, and a run
+            # announcement standing where a question should be would answer
+            # the next sentence into nothing.
+            speaker=Speaker.SYSTEM,
+            decision={"kind": Said.RUN, "run_id": run_id, "title": title},
+        )
+        logger.info("%s: %s is running as %s", ctx.tenant_id.value, title or "a job", run_id)
+
+
+__all__ = ["AskAboutTheOffer", "SayTheRunStarted"]

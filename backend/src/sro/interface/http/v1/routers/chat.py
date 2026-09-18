@@ -30,6 +30,7 @@ from sro.interface.http.schemas import (
     ChatRequest,
     ChatResponse,
     FromTheMailResponse,
+    RunStartedRequest,
 )
 
 router = APIRouter(tags=["chat"], dependencies=[TenantOnly])
@@ -69,6 +70,17 @@ async def ask_about_an_offer(
         watched=body.watched,
     )
     return AskAboutOfferResponse(asked=await container.ask_about_the_offer().execute(ctx, pending))
+
+
+@router.post("/chat/run-started", status_code=status.HTTP_204_NO_CONTENT)
+async def run_started(body: RunStartedRequest, container: ContainerDep, ctx: ContextDep) -> None:
+    """Say, in this operator's conversation, which run came of it.
+
+    204 and nothing back: the caller already holds the run, and what this does
+    is put it where the rest of the decision already lives. Nothing is started
+    or changed by it.
+    """
+    await container.say_the_run_started().execute(ctx, run_id=body.run_id, title=body.title)
 
 
 @router.post("/chat/from-the-mail", status_code=status.HTTP_200_OK)

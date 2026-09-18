@@ -457,6 +457,9 @@ async def test_the_answer_to_a_question_is_taken_as_the_answer() -> None:
         # Where the run that asked had got to. Zero here: this question was
         # asked before any step ran.
         "from_step": 0,
+        # And which outside conversation it answers to, so the run an answer
+        # starts is findable by a reply. Empty: nothing asked for this by mail.
+        "mail_thread": "",
         "watched": True,
     }
 

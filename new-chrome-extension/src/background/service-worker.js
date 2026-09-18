@@ -586,6 +586,19 @@ async function resumeTheJob(placed) {
       at: Date.now(),
       source: "rig",
     });
+    // And say so where the decision was made. The thread holds the request,
+    // the question and the answer; without this it stops one line short of
+    // what came of them, and the run is only visible on the other pane.
+    //
+    // After the run is claimed and never before: a message naming a run that
+    // failed to start is a thread saying something happened that did not.
+    // Failing to SAY it is not failing to run it, so this cannot take the run
+    // down with it.
+    try {
+      await api.runStarted({ run_id: started.id, title: placed.title || "" });
+    } catch (error) {
+      console.warn("[sro] the run started and the thread was not told", error);
+    }
     void pollRigRun();
     return started.id;
   } catch (error) {

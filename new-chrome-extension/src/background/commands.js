@@ -884,7 +884,46 @@ function pageOf(url) {
 async function uiUrl(payload, runId) {
   const tab = await tabForRun(payload, runId);
   if (!tab) return failure("no_tab_for_system", noPage(payload.origin));
-  return { ok: true, result: { url: tab.url } };
+  return {
+    ok: true,
+    result: { url: tab.url, signed_out: await askingToSignIn(tab.id) },
+  };
+}
+
+/** Whether the page in that tab is asking somebody to sign in.
+ *
+ * A dead session is the commonest reason a run cannot find anything, and until
+ * now it came back as `control_not_found`: no control matched, which is true
+ * and says nothing. An operator reading that goes looking for a broken
+ * selector. Measured on the deployment 2026-09-18 -- a session expired, the
+ * operator spent minutes signing back in, and every run in between reported a
+ * missing tab item.
+ *
+ * A PASSWORD FIELD and nothing else. The same rule `check_session.py` keeps
+ * server-side, and it keeps it for the reason that matters: any heuristic on
+ * words fires on a warehouse screen that happens to mention a password, and a
+ * run that stopped saying "you are signed out" in front of a working screen
+ * would be worse than one that says nothing.
+ *
+ * False for every failure. A page that cannot be asked is not a page that is
+ * asking for a password, and this must never be the reason a run stops.
+ */
+async function askingToSignIn(tabId) {
+  try {
+    const [got] = await chrome.scripting.executeScript({
+      target: { tabId },
+      world: "MAIN",
+      func: () =>
+        Boolean(
+          document.querySelector(
+            'input[type="password"], input[autocomplete="current-password"]',
+          ),
+        ),
+    });
+    return Boolean(got?.result);
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -950,7 +989,10 @@ async function screenshot(payload, runId) {
   // being already active inside Chrome says nothing about that.
   const forward = payload.allow_focus
     ? await bringForward(tab, true)
-    : { tab: tab.active ? tab : null, why: "this run may not bring the page forward" };
+    : {
+        tab: tab.active ? tab : null,
+        why: "this run may not bring the page forward",
+      };
   const visible = forward.tab;
   if (!visible) {
     return failure(
@@ -975,11 +1017,18 @@ async function screenshot(payload, runId) {
   // So the measuring gets a budget, and missing it costs the digest rather
   // than the picture. `screenSizeInPage` is three property reads -- the
   // viewport the model answers in, which is the part that is not optional.
-  let seen = await within(K_MEASURE_MS, inPage(visible.id, viewportInPage, [], "ISOLATED"));
+  let seen = await within(
+    K_MEASURE_MS,
+    inPage(visible.id, viewportInPage, [], "ISOLATED"),
+  );
   let slow = "";
   if (!seen) {
     slow = `the page took longer than ${K_MEASURE_MS}ms to measure`;
-    seen = (await within(K_MEASURE_MS, inPage(visible.id, screenSizeInPage, [], "ISOLATED"))) || {};
+    seen =
+      (await within(
+        K_MEASURE_MS,
+        inPage(visible.id, screenSizeInPage, [], "ISOLATED"),
+      )) || {};
   }
 
   let dataUrl;
@@ -1044,7 +1093,8 @@ async function screenshot(payload, runId) {
  * photograph whatever is in front of it.
  */
 async function bringForward(tab, allowFocus) {
-  if (!allowFocus) return { tab: null, why: "this run may not bring the page forward" };
+  if (!allowFocus)
+    return { tab: null, why: "this run may not bring the page forward" };
   try {
     await chrome.windows.update(tab.windowId, { focused: true });
     return { tab: await chrome.tabs.update(tab.id, { active: true }), why: "" };
@@ -1053,7 +1103,10 @@ async function bringForward(tab, allowFocus) {
     // what Chrome said about it: this used to return `null` for three
     // different faults -- no permission, a closed window, a tab id that had
     // gone stale -- and the run recorded the same six words for all of them.
-    return { tab: null, why: `the page could not be brought forward: ${error}` };
+    return {
+      tab: null,
+      why: `the page could not be brought forward: ${error}`,
+    };
   }
 }
 

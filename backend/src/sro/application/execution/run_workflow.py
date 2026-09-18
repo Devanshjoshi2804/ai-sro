@@ -44,7 +44,7 @@ import logging
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from collections.abc import Set as AbstractSet
 from contextlib import suppress
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 from urllib.parse import urlparse
 
@@ -505,6 +505,24 @@ def _said(kind: str, payload: Mapping[str, object]) -> str:
     return ""
 
 
+def _said_signed_out(verdict: StepVerdict, look: Look) -> StepVerdict:
+    """The same verdict, saying that the browser is at a login page.
+
+    Only for a failure, and only where the page actually asks for a password:
+    a held step in front of a login form is a step that held, and the run has
+    no business editorialising about it.
+    """
+    if verdict.state != "failed" or not look.signed_out:
+        return verdict
+    return replace(
+        verdict,
+        reason=(
+            "the browser is at a sign-in page -- this system's session has gone. "
+            f"Sign in and start it again. ({verdict.reason})"
+        ),
+    )
+
+
 async def _where(
     channel: Channel,
     tenant_id: TenantId,
@@ -522,7 +540,12 @@ async def _where(
         tenant_id, device_id, kind="ui.url", run_id=run_id, payload={"origin": origin}
     )
     url = str(where.result.get("url")) if where.ok and where.result.get("url") else None
-    return Look(url=url, screenshot=None, digest="")
+    return Look(
+        url=url,
+        screenshot=None,
+        digest="",
+        signed_out=bool(where.ok and where.result.get("signed_out")),
+    )
 
 
 async def _look(
@@ -573,6 +596,10 @@ async def _look(
         width=width,
         height=height,
         refused=refused,
+        # Read off the same answer the url came in. Both readers carry it or
+        # only route steps would ever notice a login page, and a route step is
+        # the one kind that already knows where it is.
+        signed_out=bool(where.ok and where.result.get("signed_out")),
     )
 
 
@@ -2346,6 +2373,20 @@ async def run_workflow(
                         model=plan_model,
                     )
                 )
+                # A step that failed in front of a login page failed for one
+                # reason, and it is not the one it was about to report.
+                #
+                # `control_not_found: no control matched` is true and says
+                # nothing: somebody reading it goes looking for a broken
+                # selector. Measured on the deployment 2026-09-18 -- a session
+                # expired, the operator spent minutes signing back in, and
+                # every run in between blamed a missing tab item. The page in
+                # front of it was a login form the whole time.
+                #
+                # The verdict stands; what changes is what it SAYS. A run that
+                # renamed the failure would be a run deciding it knows why the
+                # step failed, and what this knows is only what is on screen.
+                verdict = _said_signed_out(verdict, after)
                 _bill(record, verdict.answer)
                 record.verdict, record.verdict_by = verdict.state, verdict.by
                 record.reason = verdict.reason

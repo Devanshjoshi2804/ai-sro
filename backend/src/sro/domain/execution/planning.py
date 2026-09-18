@@ -146,6 +146,25 @@ class Look:
 
     Empty where a picture arrived, and where there was never one asked for."""
 
+    signed_out: bool = False
+    """The page in front of the browser is asking somebody to sign in.
+
+    A dead session is the commonest reason a run cannot find anything, and it
+    arrived as `control_not_found` -- no control matched, which is true and
+    says nothing about why. Somebody reading that goes looking for a broken
+    selector. Measured on the deployment 2026-09-18: a session expired, the
+    operator spent minutes signing back in, and every run in between blamed a
+    missing tab item.
+
+    A password field on the page and nothing else, which is the rule
+    `check_session` keeps server-side and keeps for the reason that matters --
+    any heuristic on WORDS fires on a warehouse screen that mentions a
+    password, and a run that stopped saying "you are signed out" in front of a
+    working screen would be worse than one that says nothing.
+
+    False wherever nothing could be asked. This is a reason to stop and it must
+    never be a reason invented by a failure to look."""
+
 
 @dataclass(frozen=True, slots=True)
 class Planned:

@@ -46,6 +46,7 @@ from sro.application.execution.run_workflow import (
     _result,
     _saw_nothing,
     _target_origin,
+    _where,
     _withheld,
     fail_orphans,
     run_workflow,
@@ -382,6 +383,48 @@ async def test_a_url_the_browser_did_not_actually_answer_is_not_where_it_is() ->
     ):
         channel = FakeChannel({"ui.url": [reply]})
         assert (await _look(channel, TENANT, DEVICE, "run_1", None, False)).url is None
+
+
+async def test_a_browser_at_a_login_page_says_so_in_both_readers() -> None:
+    """Both, or only a route step would ever notice a login page -- and a route
+    step is the one kind that already knows where it is.
+
+    Measured on the deployment 2026-09-18: a session expired, and every run in
+    between reported `control_not_found: no control matched`, which is true and
+    sends whoever reads it looking for a broken selector.
+    """
+    said = {"url": "https://wms.test/login", "signed_out": True}
+
+    where = await _where(
+        FakeChannel({"ui.url": [Reply(ok=True, result=said)]}), TENANT, DEVICE, "run_1", None
+    )
+    looked = await _look(
+        FakeChannel(
+            {
+                "ui.url": [Reply(ok=True, result=said)],
+                "screenshot": [Reply(ok=True, result={"text_digest": "Sign in"})],
+            }
+        ),
+        TENANT,
+        DEVICE,
+        "run_1",
+        None,
+        False,
+    )
+
+    assert where.signed_out is True
+    assert looked.signed_out is True
+
+
+async def test_a_browser_that_answered_nothing_is_not_reported_signed_out() -> None:
+    """This is a reason to stop, and it must never be one invented by a failure
+    to look: a page that cannot be asked is not a page asking for a password."""
+    for reply in (
+        Reply(ok=False, error_kind="no_tab", error_detail="x"),
+        Reply(ok=True, result={}),
+    ):
+        got = await _where(FakeChannel({"ui.url": [reply]}), TENANT, DEVICE, "run_1", None)
+        assert got.signed_out is False, reply
 
 
 async def test_a_picture_that_will_not_decode_is_no_picture_either() -> None:

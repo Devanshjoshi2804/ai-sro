@@ -725,6 +725,27 @@ function offeringToFinish(nudge, onPress) {
     item.append(asking);
   }
 
+  // What the request asked for that this job cannot write, before the press.
+  //
+  // A job's parameters are what two demonstrations proved VARY, and the form
+  // has far more fields than that -- so "code GV3, description X, Department
+  // Inbound" is a perfectly reasonable request, and this made a record with no
+  // Department in it and said nothing. The run says so afterwards, and after
+  // the press is after the record.
+  //
+  // Said and not enforced, like the limit above it: the job is still worth
+  // doing for the two fields it does hold, and what somebody needs is to know
+  // before they press that the third is not coming.
+  if ((nudge.unasked || []).length) {
+    const cannot = document.createElement("p");
+    cannot.className = "detail";
+    cannot.dataset.kind = "unasked";
+    cannot.textContent =
+      `This job cannot set ${nudge.unasked.join(", ")}. ` +
+      `It will write the rest.`;
+    item.append(cannot);
+  }
+
   const yes = document.createElement("button");
   yes.type = "button";
   yes.textContent = nudge.k > 0 ? "Yes, finish it" : "Yes, do it";

@@ -3659,6 +3659,15 @@ class MailOfferModel(BaseModel):
 
     Empty for every job no run has hit a limit on, which is most of them."""
 
+    unasked: list[str] = []
+    """What the request asked for that this job has no parameter for.
+
+    Sent so the card can say it BEFORE the press. A job's parameters are what
+    two doings proved vary and a form has far more fields than that, so `code
+    GV3, description X, Department Inbound` is a reasonable request answered by
+    a record with no Department in it. The run says so afterwards; after the
+    press is after the record."""
+
     started: bool = False
     """A run is already going for this one, so there is nothing to offer.
 
@@ -3779,6 +3788,7 @@ class FromTheMailResponse(BaseModel):
                     subject=one.subject,
                     thread=one.thread,
                     too_long=dict(one.too_long),
+                    unasked=list(one.unasked),
                     started=one.started,
                 )
                 for one in looked.offered

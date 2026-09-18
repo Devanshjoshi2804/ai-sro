@@ -621,3 +621,44 @@ async def test_the_examples_are_read_off_the_gestures_the_jobs_cite() -> None:
 
     (job,) = json.loads(str(asker.asked[0]["evidence"]))["jobs"]
     assert job["asked_by"] == ["please create a client for the Coventry dock"]
+
+
+async def test_a_request_naming_a_field_this_job_has_no_parameter_for_says_which() -> None:
+    """The dropping is right and the silence was the fault.
+
+    A job's parameters are what two doings proved VARY, and the form has far
+    more fields than that -- so `code NEW9, and put it in Inbound` is a
+    perfectly reasonable request, answered here by a record with no Department
+    in it and nothing anywhere saying so. The run says it after the press, and
+    after the press is after the record.
+    """
+    got = await understand(
+        "create client NEW9 in Inbound",
+        WFS,
+        FakeAsker(
+            _answer(
+                "wfl_1",
+                [
+                    {"name": "clientCode", "value": "NEW9"},
+                    {"name": "Department", "value": "Inbound"},
+                ],
+            )
+        ),
+        "m",
+    )
+
+    # Still dropped from the values: a key the workflow never declared is a
+    # value nothing asked for, arriving in a sentence a stranger could write.
+    assert got.values == {"clientCode": "NEW9"}
+    assert got.unasked == ["Department"]
+
+
+async def test_a_request_this_job_can_write_whole_names_nothing_extra() -> None:
+    got = await understand(
+        "create client NEW9",
+        WFS,
+        FakeAsker(_answer("wfl_1", [{"name": "clientCode", "value": "NEW9"}])),
+        "m",
+    )
+
+    assert got.unasked == []

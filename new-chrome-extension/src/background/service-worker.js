@@ -673,6 +673,10 @@ async function offerFromMail(offer) {
       thread: offer.thread || "",
       subject: offer.subject || "",
       too_long: offer.too_long || {},
+      // What the request asked for that this job cannot write. Carried so the
+      // card can say it before the press rather than the run saying it after
+      // -- after the press is after the record.
+      unasked: offer.unasked || [],
       can_find: true,
       parameters: (shape?.parameters || []).map((one) => one.name),
       expires_at: endOfDay(now),

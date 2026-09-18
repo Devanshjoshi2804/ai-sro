@@ -65,6 +65,19 @@ class Understood:
     performs exactly as a job run for none, so a caller that ignores this is
     not wrong, only limited to the first thing somebody asked for."""
 
+    unasked: list[str] = field(default_factory=list)
+    """What the request asked for that this job has no parameter for.
+
+    Dropped from `values`, which is right -- a key the workflow never declared
+    is a value nothing asked for. Named here because the silence was the fault:
+    a job's parameters are what two doings proved VARY and the form has far
+    more fields than that, so `code GV3, description X, Department Inbound` is
+    a reasonable request answered by a record with no Department in it and
+    nothing anywhere saying so.
+
+    The run already says this after the press. Nobody can consent to a write
+    they cannot see, and after the press is after the record."""
+
 
 async def understand(
     utterance: str,
@@ -131,7 +144,21 @@ async def understand(
         for p in (raw if isinstance(raw, list) else ())
         if isinstance(p, dict)
     )
-    values = {k: v for k, v in pairs if isinstance(k, str) and k in declared and isinstance(v, str)}
+    read = [(k, v) for k, v in pairs if isinstance(k, str) and isinstance(v, str)]
+    values = {k: v for k, v in read if k in declared}
+    # What the request asked for that this job cannot write.
+    #
+    # The dropping above is right: a key the workflow never declared is a value
+    # nothing asked for, arriving in a sentence a stranger could have written.
+    # The SILENCE is the fault. A job's parameters are what two doings proved
+    # VARY, and the form has far more fields than that -- so a mail saying
+    # "code GV3, description X, Department Inbound" is a perfectly reasonable
+    # request, and this made a record with no Department in it and said nothing
+    # anywhere.
+    #
+    # A run says so after the press (`run.unasked`). Nobody can consent to a
+    # write they cannot see, and after the press is after the record.
+    unasked = sorted({k for k, _ in read if k not in declared})
     items = _things(answer.data.get("items"), declared)
     # Read and ignored. `missing` stays in the schema because a model asked to
     # name what is absent picks values more carefully than one that is not --
@@ -166,7 +193,7 @@ async def understand(
         for name in declared
         if isinstance(name, str) and any(name not in one for one in supplied)
     )
-    return Understood(chosen.id, answer, values, missing, sure, also, items)
+    return Understood(chosen.id, answer, values, missing, sure, also, items, unasked=unasked)
 
 
 def _things(raw: object, declared: set[object]) -> list[dict[str, str]]:

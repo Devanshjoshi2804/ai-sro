@@ -642,6 +642,36 @@ test("an offer about a page carries a third answer: a standing rule", () => {
   assert.equal(labelled(item, /Yes, do it/).disabled, false, "making a rule ended the offer");
 });
 
+test("a request naming a field this job cannot write says so before the press", () => {
+  // A job's parameters are what two demonstrations proved VARY, and the form
+  // has far more fields than that -- so "code GV3, description X, Department
+  // Inbound" is a perfectly reasonable request, and this made a record with no
+  // Department in it and said nothing. The run says so AFTER the press, and
+  // after the press is after the record.
+  const item = renderNudge({
+    id: "n_12", state: "open", source: "rig", title: "Create a Customer Type",
+    startsOn: "wms.test/portal", workflowId: "wfl_1", k: 0,
+    values: { "Customer Type": "GV3" }, missing: [],
+    unasked: ["Department", "Region"],
+  });
+
+  assert.match(words(item), /cannot set Department, Region/);
+  // Said and not enforced: the job is still worth doing for the fields it does
+  // hold, and what somebody needs is to know before they press.
+  assert.ok(labelled(item, /Yes, do it/));
+  assert.equal(labelled(item, /Yes, do it/).disabled, false);
+});
+
+test("a request this job can write whole says nothing about fields", () => {
+  const item = renderNudge({
+    id: "n_13", state: "open", source: "rig", title: "Create a Customer Type",
+    startsOn: "wms.test/portal", workflowId: "wfl_1", k: 0,
+    values: { "Customer Type": "GV3" }, missing: [], unasked: [],
+  });
+
+  assert.doesNotMatch(words(item), /cannot set/);
+});
+
 test("an offer that names no page cannot become a rule about one", () => {
   const item = renderNudge({
     id: "n_10", state: "open", source: "rig", title: "Create an equipment type",

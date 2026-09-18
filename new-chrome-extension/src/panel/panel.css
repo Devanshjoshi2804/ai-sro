@@ -1322,6 +1322,16 @@ a:focus-visible {
   }
 }
 
+/* A field the request named and this job cannot write.
+ *
+ * Toned like the limit beside it rather than accented: it is a fact about what
+ * the press will and will not do, and a person still presses. An alarm here
+ * would be an alarm on every request that named one extra field.
+ */
+.message .detail[data-kind="unasked"] {
+  color: var(--warn);
+}
+
 /* A mail that has gone and an answer that has not come.
  *
  * Set apart from what was SAID, because it is not a thing anybody said: it is

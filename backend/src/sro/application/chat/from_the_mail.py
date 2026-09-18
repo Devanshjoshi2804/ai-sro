@@ -167,6 +167,15 @@ class Offered:
     values: Mapping[str, str] = field(default_factory=dict)
     missing: Sequence[str] = ()
 
+    unasked: Sequence[str] = ()
+    """What the request asked for that this job has no parameter for.
+
+    Said on the card, before the press. The run says it after -- `run.unasked`
+    -- and after the press is after the record: nobody can consent to a write
+    they cannot see, and "I asked for a Department and it made one without
+    one" is the fault this closes.
+    """
+
     started: bool = False
     """A run is already going for this one, so there is nothing to offer.
 
@@ -362,6 +371,10 @@ class FromTheMail:
             # moved to where the decision is actually made, so a wrong reading
             # is caught before the record instead of after it.
             values, missing = dict(got.values), list(got.missing)
+            # Named by the request and not a parameter of this job, from every
+            # reading of it. A set, because two readings of one conversation
+            # name the same field twice.
+            asked_for_too: set[str] = set()
             # The conversation first, because that is where the answer is.
             #
             # A reply that says "as discussed" was discussed in the mail above
@@ -399,6 +412,11 @@ class FromTheMail:
                             )
                         else:
                             values |= dict(again.values)
+                            # The whole conversation names fields the first
+                            # sentence did not -- "and put it in Inbound" two
+                            # mails up is still something the request asked for
+                            # and this job cannot write.
+                            asked_for_too.update(again.unasked)
                             missing = [name for name in missing if name not in values]
                             logger.info(
                                 "%s: %s -- the conversation gave %d of %d",
@@ -438,6 +456,11 @@ class FromTheMail:
                     missing=missing,
                     thread=thread,
                     subject=subject,
+                    # What the request asked for that this job cannot write,
+                    # said on the card rather than after the press. `again` is
+                    # the second reading -- the whole conversation -- and it
+                    # names fields the first sentence did not.
+                    unasked=sorted({*got.unasked, *asked_for_too}),
                 )
             )
         looked = LookedInTheMail(

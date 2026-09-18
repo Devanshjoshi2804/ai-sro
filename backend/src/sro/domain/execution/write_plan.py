@@ -66,6 +66,7 @@ from __future__ import annotations
 import json
 from collections.abc import Mapping
 from dataclasses import dataclass
+from types import MappingProxyType
 
 from sro.domain.execution.evidence import READ_METHODS, recorded_call
 from sro.domain.execution.planning import unreplayable
@@ -310,6 +311,7 @@ def _assigned(
     bodies: list[dict[str, object]],
     values: Mapping[str, str],
     seen: Mapping[str, frozenset[str]],
+    elsewhere: frozenset[str] = frozenset(),
 ) -> dict[str, str] | None:
     """Which parameter owns which slot, or None where that is not a fact.
 
@@ -369,7 +371,16 @@ def _assigned(
     # called. A DIFFERENT value with nowhere to go is still the transformed
     # case and still refuses -- that is the one this rule was written for.
     carried = {values[name] for name in placed}
-    if any(name not in placed and values[name] not in carried for name in values):
+    # `elsewhere` is the names that have a DECLARED slot to go to, which is the
+    # other half of "must have somewhere to go". A value that binds to a
+    # dictionary-named key is not a value with nowhere to go, and refusing the
+    # whole plan for it would mean a request naming one extra field falls back
+    # to the interface for every field -- the opposite of what naming it was
+    # for.
+    if any(
+        name not in placed and name not in elsewhere and values[name] not in carried
+        for name in values
+    ):
         return None
     return claimed
 
@@ -380,6 +391,7 @@ def write_plan_for(
     values: Mapping[str, str],
     verified: tuple[VerifiedWrite, ...],
     seen: Mapping[str, frozenset[str]],
+    keys: Mapping[str, str] = MappingProxyType({}),
 ) -> WritePlan | None:
     """The call this step would send with this run's values in it, or None.
 
@@ -414,7 +426,24 @@ def write_plan_for(
         return None
 
     slots = _slots(bodies)
-    claimed = _assigned(slots, bodies, values, seen)
+    echoed = _echoed(step, by_id, call)
+    # Worked out BEFORE the assignment, because the assignment has to know
+    # about it: a value with a declared slot to go to is not a value with
+    # nowhere to go, and refusing the whole plan for one would send every field
+    # through the interface because a request named one extra.
+    also = _undemonstrated(keys, values, bodies[0], slots, echoed)
+    # Every name with a declared slot, not only the ones actually filled.
+    #
+    # "Every value must have somewhere to go" exists for the TRANSFORMED case:
+    # a value that should have gone into a varied slot and did not means the
+    # demonstration's value goes out in its place, silently, because the
+    # endpoint answers 201 either way. A field the dictionary names is not that
+    # case -- nothing is being substituted for it, the slot goes out as the
+    # empty string the form sends for a box nobody touched -- and refusing the
+    # whole replay for it would send every field through the interface, which
+    # cannot set that field either. The cost would be paid for nothing.
+    named = frozenset(keys)
+    claimed = _assigned(slots, bodies, values, seen, named)
     if claimed is None:
         return None
     if not claimed:
@@ -430,22 +459,86 @@ def write_plan_for(
         # evidence it was never going to have, for a body nobody rewrote.
         return None
 
+    # And the fields nobody demonstrated, where the record can be made to prove
+    # them.
+    #
+    # A job's slots are what two doings proved VARY, and the form posts far
+    # more than that -- 46 keys, 44 of them byte-identical across all three
+    # bodies. So a request naming `Department: Inbound` has named a slot this
+    # write already sends, as the empty string the form sends for a box nobody
+    # touched, and the value had nowhere to go.
+    #
+    # `keys` is `field_notes.keys_named`: the declared label-to-key join, with
+    # its own refusals. Not the suffix match this module argues against at
+    # length -- that argument is about INFERRING a correspondence from two
+    # strings, and this is reading one somebody wrote down.
     aimed = dict(bodies[0])
     for slot, parameter in claimed.items():
         aimed[slot] = values[parameter]
-    echoed = _echoed(step, by_id, call)
+    aimed.update(also)
     return WritePlan(
         method=call.method.upper(),
         url=call.url,
         body=json.dumps(aimed, ensure_ascii=False),
-        filled=dict(claimed),
+        filled={**claimed, **{slot: slot for slot in also}},
         confirm={
-            slot: values[parameter]
-            for slot, parameter in claimed.items()
-            if echoed is None or slot in echoed
+            **{
+                slot: values[parameter]
+                for slot, parameter in claimed.items()
+                if echoed is None or slot in echoed
+            },
+            # Unconditionally, which is the whole of what makes the binding
+            # above safe: a slot no demonstration exercised has to PROVE it
+            # landed rather than be trusted to a status. `_undemonstrated`
+            # refuses any slot that cannot be read back, so everything here is
+            # provable by construction.
+            **also,
         },
         entry=entry,
     )
+
+
+def _undemonstrated(
+    keys: Mapping[str, str],
+    values: Mapping[str, str],
+    body: Mapping[str, object],
+    slots: frozenset[str],
+    echoed: frozenset[str] | None,
+) -> dict[str, str]:
+    """Values for slots no demonstration varied, and only the provable ones.
+
+    Four refusals, and each is the difference between filling a form and
+    inventing an API.
+
+    **A slot the body already sends.** Adding a key no recorded body carried is
+    this system deciding what the endpoint accepts, from a dictionary that
+    describes a screen. The form posts every field it has; a box nobody touched
+    goes out as the empty string, and filling that is editing a request rather
+    than composing one.
+
+    **Not a slot the evidence already binds.** `_assigned` decided those from
+    what the operator was seen typing, which is stronger than a declaration.
+
+    **Only where the server echoes it.** This is item 5 and it is the reason
+    item 4 is safe at all: nothing demonstrated this slot, so a status proves
+    nothing about it -- the request went and the field may have been ignored,
+    renamed or silently dropped. A slot the demonstrations' own answers gave
+    back can be read back and checked. One they never echoed cannot, and a
+    value written where nobody can confirm it is exactly the wrong record this
+    whole ladder exists to prevent.
+
+    **And never where the demonstrations answered nothing at all.** `None` is
+    "no evidence about echoing", which is not evidence of echoing.
+    """
+    if not keys or echoed is None:
+        return {}
+    filled: dict[str, str] = {}
+    for name, slot in keys.items():
+        value = values.get(name)
+        if value is None or slot in slots or slot not in body or slot not in echoed:
+            continue
+        filled[slot] = value
+    return filled
 
 
 def begins_again_at(workflow: Workflow, by_id: Mapping[str, Gesture], *, stopped_at: int) -> int:

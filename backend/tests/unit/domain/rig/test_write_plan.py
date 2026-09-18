@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 from dataclasses import replace
 
+from sro.domain.execution.field_notes import keys_named
 from sro.domain.execution.verified_writes import VerifiedWrite
 from sro.domain.execution.write_plan import (
     begins_again_at,
@@ -897,3 +898,123 @@ def test_a_run_that_stopped_on_its_own_first_step_starts_there() -> None:
     job = _job(Step(order=2, says="open the screen", system=HOST, cites=[]))
 
     assert begins_again_at(job, {}, stopped_at=2) == 2
+
+
+# -- a field nobody demonstrated, and what makes filling it safe ---------------
+
+DECLARED = keys_named(["Department"], {"departmentNumber": {"labels": ["Department"]}})
+"""The join `field_notes.keys_named` makes, which is what the runner hands in.
+`_slots` never names `departmentNumber` -- both doings send it empty, so it
+does not vary -- and the form posts it all the same, which is what makes it
+fillable at all."""
+
+
+def test_a_field_no_doing_varied_is_filled_from_the_declared_key() -> None:
+    """The case this exists for.
+
+    A job's slots are what two doings proved VARY, and the form posts 46 keys.
+    So `Department: Inbound` is a reasonable request naming a slot this write
+    already sends -- as the empty string the form sends for a box nobody
+    touched -- and the value had nowhere to go.
+    """
+    plan = write_plan_for(
+        _step("g1", "g2"),
+        {
+            "g1": _answered("g1", CREATED, {"customerType": "GGD", "departmentNumber": ""}),
+            "g2": _answered(
+                "g2",
+                {**CREATED, "customerType": "GKB"},
+                {"customerType": "GKB", "departmentNumber": ""},
+            ),
+        },
+        {CODE: "GPDP", "Department": "Inbound"},
+        LEDGER,
+        {CODE: SEEN[CODE]},
+        DECLARED,
+    )
+
+    assert plan is not None
+    sent = json.loads(plan.body or "{}")
+    assert sent["departmentNumber"] == "Inbound"
+    # And it must prove it landed. Nothing demonstrated this slot, so a status
+    # says nothing about it: the request went, and the field may have been
+    # ignored, renamed or silently dropped.
+    assert plan.confirm["departmentNumber"] == "Inbound"
+
+
+def test_a_field_the_server_never_echoes_is_not_filled_at_all() -> None:
+    """Item 5, and the reason item 4 is safe. A slot no later read can be
+    checked against is a value written where nobody can confirm it -- which is
+    the wrong record this whole ladder exists to prevent."""
+    plan = write_plan_for(
+        _step("g1", "g2"),
+        {
+            "g1": _answered("g1", CREATED, {"customerType": "GGD"}),
+            "g2": _answered("g2", {**CREATED, "customerType": "GKB"}, {"customerType": "GKB"}),
+        },
+        {CODE: "GPDP", "Department": "Inbound"},
+        LEDGER,
+        {CODE: SEEN[CODE]},
+        DECLARED,
+    )
+
+    assert plan is not None
+    assert json.loads(plan.body or "{}")["departmentNumber"] == ""
+    assert "departmentNumber" not in plan.confirm
+
+
+def test_demonstrations_that_answered_nothing_fill_nothing_undemonstrated() -> None:
+    """`None` is "no evidence about echoing", which is not evidence of
+    echoing."""
+    plan = write_plan_for(
+        _step("g1", "g2"),
+        _twice(),
+        {CODE: "GPDP", "Department": "Inbound"},
+        LEDGER,
+        {CODE: SEEN[CODE]},
+        DECLARED,
+    )
+
+    assert plan is not None
+    assert json.loads(plan.body or "{}")["departmentNumber"] == ""
+
+
+def test_a_declared_key_no_recorded_body_carries_is_not_added() -> None:
+    """Adding a key no body ever sent is this system deciding what the endpoint
+    accepts, from a dictionary that describes a screen."""
+    plan = write_plan_for(
+        _step("g1", "g2"),
+        {
+            "g1": _answered("g1", CREATED, {"customerType": "GGD", "invented": "x"}),
+            "g2": _answered(
+                "g2", {**CREATED, "customerType": "GKB"}, {"customerType": "GKB", "invented": "x"}
+            ),
+        },
+        {CODE: "GPDP", "Nowhere": "Inbound"},
+        LEDGER,
+        {CODE: SEEN[CODE]},
+        keys_named(["Nowhere"], {"invented": {"labels": ["Nowhere"]}}),
+    )
+
+    assert plan is not None
+    assert "invented" not in json.loads(plan.body or "{}")
+
+
+def test_the_evidence_wins_where_both_could_bind_one_slot() -> None:
+    """`_assigned` decided from what the operator was seen typing, which is
+    stronger than a declaration."""
+    plan = write_plan_for(
+        _step("g1", "g2"),
+        {
+            "g1": _answered("g1", CREATED, {"customerType": "GGD"}),
+            "g2": _answered("g2", {**CREATED, "customerType": "GKB"}, {"customerType": "GKB"}),
+        },
+        {CODE: "GPDP", "Customer Type": "OTHER"},
+        LEDGER,
+        {CODE: SEEN[CODE]},
+        keys_named(["Customer Type"], {"customerType": {"labels": ["Customer Type"]}}),
+    )
+
+    assert plan is not None
+    assert json.loads(plan.body or "{}")["customerType"] == "GPDP"
+    assert plan.filled["customerType"] == CODE

@@ -2158,6 +2158,11 @@ async function answered(answer, message, where, button, values) {
   // the answer that completes the set starts the job on the press they have
   // just given. The card draws no boxes for exactly this reason.
   if (answer === "ask-about-offer") return askAboutOffer(message, button);
+  // The mail to whoever asked, sent or let go. Nothing leaves the mailbox
+  // without this press, and this press sends nothing but the words already on
+  // screen: the backend re-reads them from the thread.
+  if (answer === "send-draft") return sendTheDraft(message, button);
+  if (answer === "drop-draft") return dropTheDraft(button);
   // "Always, here." A rule rather than a run: nothing starts now, and the next
   // time this operator lands on the page this offer is about, their own
   // browser starts the job. Kept out of `answeredOffer` because that function
@@ -2221,6 +2226,46 @@ async function answeredOffer(answer, nudge, button, values) {
   await refresh();
   drawn = null;
   await conversation();
+}
+
+/** Send the drafted mail, having read it.
+ *
+ * The id and not the words. What goes out is what the backend put in front of
+ * the operator, read back from their own thread -- so the mail that leaves and
+ * the mail that was read are the same by construction rather than by this
+ * panel being careful.
+ */
+async function sendTheDraft(message, button) {
+  button.disabled = true;
+  try {
+    const got = await ask({
+      kind: "send-draft",
+      threadId,
+      messageId: message.id,
+    });
+    said(
+      got.ok
+        ? got.sent_to
+          ? `asked ${got.sent_to}`
+          : "nothing was sent"
+        : got.error || "nothing was sent",
+    );
+  } catch (error) {
+    said(error.message);
+  }
+  drawn = null;
+  await conversation();
+}
+
+/** "No, I'll ask them myself."
+ *
+ * Nothing is reported and nothing is stored: the draft was an offer to write,
+ * and declining to write a mail is not an event worth a row. The words stay in
+ * the thread, because they were said.
+ */
+async function dropTheDraft(button) {
+  button.disabled = true;
+  said("left it with you");
 }
 
 /** An offer that needs something decided, handed to the conversation.

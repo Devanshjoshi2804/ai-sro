@@ -1341,3 +1341,27 @@ a:focus-visible {
     animation: none;
   }
 }
+
+/* The mail this system would send, before anybody has agreed to it.
+ *
+ * Set apart from the sentence above it and readable as what it is: a person is
+ * being asked to authorise these exact words leaving the company over their
+ * name, and words they have to squint at are words they will press past.
+ */
+.draft {
+  margin: 8px 0 10px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--line);
+  background: var(--ground);
+  border-radius: 0 8px 8px 0;
+  font-family: inherit;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--ink-soft);
+  /* A mail is plain text and its line breaks are the shape it is read in --
+   * but a long line must wrap rather than scroll a 360px panel sideways. */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 260px;
+  overflow-y: auto;
+}

@@ -213,7 +213,7 @@ found.
 | 2.6 | A limit found once is remembered on the job | done `b60a60c2` |
 | 2.7 | A value that will not fit is asked about | done `5a2d10b1` |
 | 2.8 | The card asks before the press, once the limit is known | done `3b198284` |
-| 2.9 | Ask the asker — drafted reply, previewed, one per run | next |
+| 2.9 | Ask the asker — drafted reply, previewed, one per run | done, untested live |
 | 3 | A job declares its fields — `field-dictionary.json` as source | done `0732894d` |
 | 3.1 | **A step names the prior steps whose output it uses** (CrewAI) | stolen |
 | 3.2 | **A dormant pause keyed by an external id** (LangGraph) | done `fcce6029` |

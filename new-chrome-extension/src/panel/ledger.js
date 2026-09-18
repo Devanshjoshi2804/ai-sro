@@ -62,6 +62,10 @@ const KINDS = {
     { answer: "do", label: "Do it", quiet: false },
     { answer: "not-here", label: "Not for this page", quiet: true },
   ],
+  mail_draft: [
+    { answer: "send-draft", label: "Send it", quiet: false },
+    { answer: "drop-draft", label: "No, I\u2019ll ask them myself", quiet: true },
+  ],
   result: [
     { answer: "undo", label: "Undo that", quiet: false },
     {
@@ -488,6 +492,12 @@ export function alreadyAnswered(messages) {
     if (decision?.kind === "answered" && decision.candidate_id) {
       done.set(decision.candidate_id, decision.answer || "answered");
     }
+    // A mail that went. Keyed on the run rather than the message, because what
+    // must not be offered twice is asking one person about one request -- and
+    // the backend says so on its own line further down the thread.
+    if (decision?.kind === "mail_sent" && decision.run_id) {
+      done.set(decision.run_id, "sent");
+    }
   }
   return done;
 }
@@ -791,6 +801,32 @@ function saying(
         ),
       );
     }
+  } else if (kind === "mail_draft") {
+    // The mail, whole, before anything can send it.
+    //
+    // This is the one thing this system writes that leaves the company, over
+    // the operator's name, to somebody outside every system here -- and it
+    // cannot be unsent. The press is the authorisation and an authorisation
+    // given without reading is not one, so the words are on the card rather
+    // than behind a disclosure: nobody expands a `<details>` before pressing a
+    // button they have already decided about.
+    //
+    // Already sent is not a thing to offer again. `mail_sent` further down the
+    // thread is the answer to this one.
+    if (spent.get(message.decision.run_id) !== "sent") {
+      const to = document.createElement("p");
+      to.className = "detail";
+      to.textContent = `To ${message.decision.to} — ${message.decision.subject}`;
+      item.append(to);
+
+      const body = document.createElement("pre");
+      body.className = "draft";
+      // `textContent` on a `<pre>`: the mail is plain text, its line breaks
+      // are the shape somebody reads it in, and nothing in it is markup.
+      body.textContent = String(message.decision.body || "");
+      item.append(body);
+      item.append(pressing(KINDS.mail_draft, message, item, onPress));
+    } else item.dataset.answered = "sent";
   } else if (kind === "result") {
     item.append(pressing(KINDS.result, message, item, onPress));
   } else if (kind === "run" && runs) {

@@ -982,6 +982,73 @@ test("nothing in flight draws no sentence and no spinner", () => {
   assert.equal(drawn.length, 0);
 });
 
+test("a drafted mail is shown whole, with the press under it", () => {
+  // The one thing this system writes that leaves the company, over the
+  // operator's name, to somebody outside every system here -- and it cannot be
+  // unsent. An authorisation given without reading is not one, so the words
+  // are on the card rather than behind a disclosure: nobody expands a details
+  // element before pressing a button they have already decided about.
+  const pressed = [];
+  const item = messages(
+    ledger({
+      id: "thr-1",
+      messages: [
+        {
+          id: "m-draft",
+          speaker: "system",
+          text: "I can ask tanisha@example.com. This is what I would send — read it first.",
+          said_at: "2026-09-18T13:00:00Z",
+          decision: {
+            kind: "mail_draft",
+            run_id: "run_1",
+            to: "tanisha@example.com",
+            subject: "Re: Customer type for the SRO pilot",
+            body: "I am working on Create a Customer Type from your request.\n\nCustomer Type needs to be 4 characters or fewer.",
+          },
+        },
+      ],
+    }, {}, { onPress: (...args) => pressed.push(args) }),
+  )[0];
+
+  const said = words(item);
+  assert.match(said, /To tanisha@example\.com/);
+  assert.match(said, /Re: Customer type for the SRO pilot/);
+  // The body, in full: this is what they are authorising.
+  assert.match(said, /Customer Type needs to be 4 characters or fewer/);
+
+  press(labelled(item, /Send it/));
+  assert.deepEqual(pressed.map((each) => each[0]), ["send-draft"]);
+  assert.ok(labelled(item, /ask them myself/), "no way to decline");
+});
+
+test("a mail that has gone is not offered again", () => {
+  // The claim is taken before the mailbox is reached, so a second press could
+  // send a second mail about one request -- or worse, one nobody can tell went.
+  const item = messages(
+    ledger({
+      id: "thr-1",
+      messages: [
+        {
+          id: "m-draft", speaker: "system", text: "This is what I would send.",
+          said_at: "2026-09-18T13:00:00Z",
+          decision: {
+            kind: "mail_draft", run_id: "run_1", to: "tanisha@example.com",
+            subject: "Re: it", body: "the words",
+          },
+        },
+        {
+          id: "m-sent", speaker: "system", text: "Asked tanisha@example.com.",
+          said_at: "2026-09-18T13:01:00Z",
+          decision: { kind: "mail_sent", run_id: "run_1", sent: true },
+        },
+      ],
+    }, {}, { onPress: () => {} }),
+  )[0];
+
+  assert.equal(labelled(item, /Send it/), undefined, "it still offers to send a mail that went");
+  assert.equal(item.dataset.answered, "sent");
+});
+
 for (const [name, fn] of tests) {
   try {
     await fn();

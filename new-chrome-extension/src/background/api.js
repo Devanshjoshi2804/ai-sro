@@ -397,6 +397,15 @@ export const api = {
   runStarted: (body) =>
     call("/v1/chat/run-started", { method: "POST", body }),
 
+  /** Send the drafted mail the operator has just read.
+   *
+   * Two ids and no words. What goes out is re-read from the thread the draft
+   * was shown in, so what is sent and what was read cannot be two different
+   * things -- a body sent from here would make that guarantee rest on this
+   * browser being honest. */
+  sendTheDraft: (body) =>
+    call("/v1/chat/send-the-draft", { method: "POST", body }),
+
   /** The most recent runs, newest first, whole rows.
    *
    * What the panel's history overlay is drawn from. `limit` rather than every

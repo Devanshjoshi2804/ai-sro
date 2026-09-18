@@ -234,15 +234,38 @@ class SendTheDraft:
             logger.warning(
                 "%s: the mail to %s may not have gone: %s", ctx.tenant_id.value, to, gone
             )
-            await self._say(ctx, thread_id, f"I could not reach the mailbox to write to {to}.")
+            await self._say(
+                ctx,
+                thread_id,
+                f"I could not reach the mailbox to write to {to}.",
+                run_id,
+                sent=False,
+            )
             return ""
 
-        await self._say(ctx, thread_id, f"Asked {to}. I will carry on when they reply.")
+        await self._say(
+            ctx, thread_id, f"Asked {to}. I will carry on when they reply.", run_id, sent=True
+        )
         logger.info("%s: asked %s about %s", ctx.tenant_id.value, to, run_id)
         return to
 
-    async def _say(self, ctx: RequestContext, thread_id: ThreadId, text: str) -> None:
-        """What happened, in the conversation the draft was read in."""
+    async def _say(
+        self,
+        ctx: RequestContext,
+        thread_id: ThreadId,
+        text: str,
+        run_id: str = "",
+        *,
+        sent: bool,
+    ) -> None:
+        """What happened, in the conversation the draft was read in.
+
+        `sent` is whether it actually went. Both answers end the press -- the
+        claim is taken either way, and a send that may have gone out is not one
+        to try again -- but the row must not say a mail was sent when nobody
+        knows whether it was. One kind, one honest flag, rather than a line
+        reading `mail_sent` under the words "I could not reach the mailbox".
+        """
         async with self._uow as uow:
             thread = await uow.threads.get(ctx.tenant_id, thread_id)
             thread.say(
@@ -251,7 +274,9 @@ class SendTheDraft:
                     speaker=Speaker.SYSTEM,
                     text=text,
                     said_at=self._clock.now(),
-                    decision={"kind": SENT},
+                    # The run, so the panel can stop offering a press under
+                    # words that have already left.
+                    decision={"kind": SENT, "run_id": run_id, "sent": sent},
                 )
             )
             await uow.threads.save(thread)
@@ -259,8 +284,12 @@ class SendTheDraft:
 
 
 SENT = "mail_sent"
-"""The decision kind of a draft that went. The panel reads it to stop drawing
-the press under words that have already left."""
+"""The decision kind of a draft that is spent, sent or not.
+
+The panel reads it to stop drawing a press under words that have already left
+-- or that may have. `sent` on the decision says which, because the claim is
+taken before the mailbox is reached and a send that cannot be shown to have
+failed must not be retried either."""
 
 
 def _the_draft(messages: object, message_id: str) -> dict[str, object] | None:

@@ -1594,6 +1594,27 @@ async function handle(message, sender) {
     case "set-paused":
       await state.setPaused(Boolean(message.paused));
       return settle();
+    case "send-draft": {
+      // The one press in this system that writes to somebody outside it.
+      //
+      // The worker holds the credential and nothing else: which words go out
+      // is the backend's to decide, from the draft it put in the thread. This
+      // carries the operator's yes and two ids.
+      try {
+        const answered = await api.sendTheDraft({
+          thread_id: message.threadId,
+          message_id: message.messageId,
+        });
+        await say(
+          answered.sent_to
+            ? `asked ${answered.sent_to} about ${message.messageId}`
+            : `nothing was sent for ${message.messageId}`,
+        );
+        return { ok: true, sent_to: answered.sent_to || "" };
+      } catch (error) {
+        return { ok: false, error: error.problem?.detail || error.message };
+      }
+    }
     case "forget-run":
       // The operator has read what the run made. The card is a result, not a
       // record: the run itself is on the backend for as long as the tenant

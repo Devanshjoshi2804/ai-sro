@@ -51,6 +51,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime, timedelta
 
+from sro.application.chat.read_threads import ReadThreads
 from sro.application.chat.understand import understand
 from sro.application.context import RequestContext
 from sro.application.execution.declared import declared_limits, names_of, screen_for
@@ -59,6 +60,7 @@ from sro.application.ports.model import Asker, asker_or_refuse
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.tools import ToolCaller, ToolsUnavailable
 from sro.domain.chat.asked_by import mails_behind, texts
+from sro.domain.chat.asking import Pending, pending_job
 from sro.domain.execution.learned_step import limits_for, too_long
 from sro.domain.execution.waiting import read_wait, still_waiting
 from sro.domain.execution.workflow_run import WorkflowRun
@@ -289,6 +291,13 @@ class FromTheMail:
                     await self._carrying_on(ctx, message, back, said, thread, subject, titles)
                 )
                 continue
+            # Or a question standing in the conversation that this answers.
+            asked = await self._was_asked(ctx, thread)
+            if asked is not None:
+                offered.append(
+                    await self._answered_by_mail(ctx, message, asked, said, thread, subject)
+                )
+                continue
             got = await understand(said, workflows, asker, self._model, asked_by)
             spent = _also(spent, got.answer)
             # Silence where it is not sure, and where it named no job at all.
@@ -448,6 +457,34 @@ class FromTheMail:
             return None
         return waiting
 
+    async def _was_asked(self, ctx: RequestContext, thread: str) -> Pending | None:
+        """A question standing in the operator's conversation about this mail.
+
+        The other half of `_answering`, and the half the reply actually lands
+        in. A run is only waiting when a RUN went looking and came back short;
+        an offer that could not be answered from the mail asks before anything
+        starts, so the commonest shape -- a request with a field missing --
+        produces a question and no run at all.
+
+        Wired only to the run, a reply to that question fell through to the
+        ordinary reading, where "the code is GPX" names no job, is dropped, and
+        is dropped for good: the message id is claimed before it is read. The
+        answer would be lost at the moment it arrived, which is the exact
+        failure the whole path exists to prevent.
+
+        The operator's own conversation, because that is where the question
+        was put and this look runs as them.
+        """
+        if not thread.strip():
+            return None
+        found = await ReadThreads(self._uow).current(ctx)
+        if found is None:
+            return None
+        async with self._uow as uow:
+            conversation = await uow.threads.get(ctx.tenant_id, found.id)
+        waiting = pending_job(conversation.messages)
+        return waiting if waiting is not None and waiting.mail_thread == thread else None
+
     async def _carrying_on(
         self,
         ctx: RequestContext,
@@ -492,6 +529,62 @@ class FromTheMail:
             message=message,
             workflow_id=back.workflow_id,
             title=titles.get(back.workflow_id, back.workflow_id),
+            values=values,
+            missing=missing,
+            thread=thread,
+            subject=subject,
+        )
+
+    async def _answered_by_mail(
+        self,
+        ctx: RequestContext,
+        message: str,
+        asked: Pending,
+        said: str,
+        thread: str,
+        subject: str,
+    ) -> Offered:
+        """The standing question, with whatever the reply answered of it.
+
+        **A card and not a run**, and the difference is consent rather than
+        caution. Everything a job writes has been on a card the operator read
+        before pressing -- that is what `2.8` and the limit work are for, and
+        what "the card says what it will write" means. A value that arrives
+        AFTER the press has been read by nobody: the operator authorised this
+        job with the values they could see, not whatever later turns up in a
+        mailbox.
+
+        It is the same reasoning the panel's own answer does NOT need. There,
+        the person supplying the value is the person who pressed; here they are
+        two different people, and the second is outside every system this
+        company runs.
+
+        So the reply is read, the value is filled in, and the card comes back
+        naming it. One press, on something visible.
+        """
+        values = dict(asked.values)
+        missing = [name for name in asked.missing if name not in values or not values[name]]
+        if missing and self._gather is not None:
+            found = await self._gather.execute(
+                ctx,
+                job=asked.title,
+                wanted=missing,
+                because=said[:K_BECAUSE],
+                rounds=K_OFFER_ROUNDS,
+            )
+            values |= {name: one.value for name, one in found.values.items()}
+            missing = [name for name in missing if name not in values]
+        logger.info(
+            "%s: a reply answers the question standing on %s (%d of %d)",
+            ctx.tenant_id.value,
+            thread,
+            len(asked.missing) - len(missing),
+            len(asked.missing),
+        )
+        return Offered(
+            message=message,
+            workflow_id=asked.workflow_id,
+            title=asked.title,
             values=values,
             missing=missing,
             thread=thread,

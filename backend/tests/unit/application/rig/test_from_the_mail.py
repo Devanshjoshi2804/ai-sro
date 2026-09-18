@@ -14,10 +14,12 @@ from datetime import UTC, datetime
 from typing import Any
 
 from sro.application.chat.about_an_offer import AskAboutTheOffer
+from sro.application.chat.converse import StartThread
 from sro.application.chat.from_the_mail import FromTheMail
 from sro.application.context import RequestContext
 from sro.application.ports.tools import ToolResult, ToolsUnavailable
 from sro.domain.chat.asking import NEEDS, Pending, pending_job
+from sro.domain.chat.thread import Message, MessageId, Speaker
 from sro.domain.execution.gathering import Found, Gathered
 from sro.domain.execution.waiting import as_said, waiting_on
 from sro.domain.execution.workflow_run import WorkflowRun
@@ -767,3 +769,85 @@ async def test_a_question_this_door_asks_is_one_the_answering_door_can_find() ->
     )
     assert waiting.asking_for == "Customer Type"
     assert waiting.limits == {"Customer Type": 4}
+
+
+async def test_a_reply_answers_the_question_standing_in_the_conversation() -> None:
+    """The commonest shape, and the one the run-only lookup missed.
+
+    A request with a field missing is answered on the card, before anything
+    starts -- so there is no run waiting, and a reply to the mail this system
+    sent fell through to the ordinary reading, where "the code is GPX" names no
+    job and is dropped for good: the id is claimed before it is read.
+    """
+    uow = await _held()
+    thread = await StartThread(uow, FakeClock(), FakeIdFactory()).execute(CTX)
+    thread.say(
+        Message(
+            id=MessageId("msg_asked"),
+            speaker=Speaker.ASSISTANT,
+            text="What should Customer Type be?",
+            said_at=FakeClock().now(),
+            decision={
+                "kind": NEEDS,
+                "workflow_id": JOB,
+                "title": "Create a Customer Type",
+                "values": {"Customer Type Description": "Leaning new SRO type 054"},
+                "missing": ["Customer Type"],
+                "items": [],
+                "mail_thread": "t-32",
+                "watched": True,
+            },
+        )
+    )
+    await uow.threads.save(thread)
+    mailbox = _Mailbox(search=_found("m-1"), **{"m-1": _mail("The code is GPX.", thread="t-32")})
+    gather = _Gathers(**{"Customer Type": "GPX"})
+    # A reading that would have thrown it away, to prove nothing consults it.
+    reads = _Reads(_reading(None))
+
+    looked = await _look(uow, mailbox, reads, gather).execute(CTX)
+
+    (one,) = looked.offered
+    assert one.workflow_id == JOB
+    # What the question already held, and what the reply answered.
+    assert one.values == {
+        "Customer Type Description": "Leaning new SRO type 054",
+        "Customer Type": "GPX",
+    }
+    assert one.missing == []
+    assert reads.saw == [], "the reply was read as a fresh request"
+
+
+async def test_a_reply_on_another_conversation_is_not_an_answer_to_this_one() -> None:
+    """A question stands for one request. A mail on a different thread is a
+    different request, whatever it happens to say."""
+    uow = await _held()
+    thread = await StartThread(uow, FakeClock(), FakeIdFactory()).execute(CTX)
+    thread.say(
+        Message(
+            id=MessageId("msg_asked"),
+            speaker=Speaker.ASSISTANT,
+            text="What should Customer Type be?",
+            said_at=FakeClock().now(),
+            decision={
+                "kind": NEEDS,
+                "workflow_id": JOB,
+                "title": "Create a Customer Type",
+                "values": {},
+                "missing": ["Customer Type"],
+                "items": [],
+                "mail_thread": "t-32",
+                "watched": True,
+            },
+        )
+    )
+    await uow.threads.save(thread)
+    mailbox = _Mailbox(
+        search=_found("m-1"),
+        **{"m-1": _mail("please create the customer type as discussed", thread="t-other")},
+    )
+    reads = _Reads(_reading(JOB, bare=True))
+
+    await _look(uow, mailbox, reads, _Gathers()).execute(CTX)
+
+    assert reads.saw, "a mail on another thread was taken as an answer to this question"

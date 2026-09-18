@@ -87,11 +87,14 @@ from sro.domain.execution.field_notes import notes_on
 from sro.domain.execution.gathering import Gathered
 from sro.domain.execution.learned_step import LearnedStep, learned_from
 from sro.domain.execution.planning import Look, Planned
-from sro.domain.execution.secrets import without_secrets
+from sro.domain.execution.secrets import secret_key_of, without_secrets
 from sro.domain.execution.verified_writes import VerifiedWrite
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun, new_run_id
 from sro.domain.execution.write_plan import scaffolding_for, seen_values
 from sro.domain.observation.gesture import Gesture
+from sro.domain.shared.hosts import (
+    origin_of as origin_of_url,
+)
 from sro.domain.shared.hosts import same_screen, screen_of, system_of
 from sro.domain.shared.identifiers import DeviceId, TenantId
 from sro.domain.shared.prices import Answer
@@ -503,6 +506,41 @@ def _said(kind: str, payload: Mapping[str, object]) -> str:
         except ValueError:
             return ""
     return ""
+
+
+async def _ask_for_the_password(
+    sent: Mapping[str, object] | None,
+    where: str,
+    tenant_id: TenantId,
+    secret_for: SecretFor | None,
+) -> dict[str, object] | None:
+    """The refusal, carrying the vault key this system's password belongs under.
+
+    Only where there is nothing stored yet: a run that stopped at a login page
+    with a credential already in the vault has a different problem -- the
+    password is wrong, or the system wants a second factor -- and asking for it
+    again would be this system's answer to everything.
+
+    Left exactly as it was on every other path, including when the vault cannot
+    be reached. A refusal that grew a password box because a vault timed out
+    would have somebody typing their credential to fix an outage.
+    """
+    system = origin_of_url(where) or where
+    if not system or secret_for is None:
+        return dict(sent) if sent else None
+    key = secret_key_of(tenant_id.value, system, "password")
+    try:
+        if await secret_for(key):
+            return dict(sent) if sent else None
+    except Exception:
+        logger.info("%s could not be looked up; not asking for it", key)
+        return dict(sent) if sent else None
+    kept: dict[str, object] = dict(sent) if sent else {"kind": "none"}
+    was = kept.get("payload")
+    payload: dict[str, object] = dict(was) if isinstance(was, Mapping) else {}
+    payload["needs_secret"] = {"system": system, "field": "password", "key": key}
+    kept["payload"] = payload
+    return kept
 
 
 def _said_signed_out(verdict: StepVerdict, look: Look) -> StepVerdict:
@@ -2387,6 +2425,25 @@ async def run_workflow(
                 # renamed the failure would be a run deciding it knows why the
                 # step failed, and what this knows is only what is on screen.
                 verdict = _said_signed_out(verdict, after)
+                # And where nothing is stored to sign in WITH, the refusal
+                # carries the key, so the panel can ask for it.
+                #
+                # The box already exists: a step that types a password and
+                # finds the vault empty refuses with `needs_secret`, and the
+                # run card draws "this job needs your password for <system>"
+                # and a field. What never reached it is this case -- a job
+                # mined from an already-signed-in session has no login step at
+                # all, so nothing ever asked, and the operator was left with a
+                # run that stopped and a sentence about a session.
+                #
+                # Same key either way. `secret_key_of` and `secret_key_for`
+                # normalise the field identically for exactly this reason: the
+                # side asking and the side storing have to spell it the same or
+                # the value is invisible to the one thing that needs it.
+                if verdict.state == "failed" and after.signed_out:
+                    record.sent = await _ask_for_the_password(
+                        record.sent, after.url or origin or "", tenant_id, secret_for
+                    )
                 _bill(record, verdict.answer)
                 record.verdict, record.verdict_by = verdict.state, verdict.by
                 record.reason = verdict.reason

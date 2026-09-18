@@ -232,8 +232,25 @@ found.
 | 3.15 | **Credentials for any system, entered once, used unattended** | done `bf4ee957` |
 | 4 | Bind a value for a known field into the write | |
 | 5 | An undemonstrated field must prove it landed | |
-| 6 | The card says what it will write | |
+| 6 | The card says what it will write | half done `54926cba` |
 | 7 | Composition — needs 3.1, 3.2, and a compensation story | last; 3.1 waits on this |
+
+### 6 — what is said before the press, and what is not yet
+
+`54926cba` closes the half that was silent. A job's parameters are what two
+demonstrations proved VARY and a form has far more fields than that, so a
+request naming one the job has no parameter for was answered by a record
+without it and nothing anywhere said so. The reading now names what it dropped,
+the offer carries it, and the card says it with both buttons still live:
+*This job cannot set Department, Region. It will write the rest.* Said and not
+enforced, like the limit beside it.
+
+What the card still does not say is the WRITE. It names the values it holds and
+what it cannot take; it does not say "this will create a Customer Type record
+on the SG site with these two fields, by pressing Save on that screen". The
+difference matters for a job with several writes in it, and this deployment's
+one job has exactly one -- which is why the gap has not bitten and why it is
+worth doing before a second job arrives rather than after.
 
 ### 3.1 — built as scaffolding, and unused on purpose
 

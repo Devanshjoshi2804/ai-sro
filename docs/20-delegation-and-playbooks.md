@@ -215,9 +215,9 @@ found.
 | 2.8 | The card asks before the press, once the limit is known | done `3b198284` |
 | 2.9 | Ask the asker — drafted reply, previewed, one per run | done, untested live |
 | 3 | A job declares its fields — `field-dictionary.json` as source | done `0732894d` |
-| 3.1 | **A step names the prior steps whose output it uses** (CrewAI) | stolen |
+| 3.1 | **A step names the prior steps whose output it uses** (CrewAI) | not yet — see below |
 | 3.2 | **A dormant pause keyed by an external id** (LangGraph) | done `fcce6029` |
-| 3.3 | **Learned facts written back as a reviewable diff** (Robot Framework) | stolen |
+| 3.3 | **Learned facts written back as a reviewable diff** (Robot Framework) | done `48a98d2f` |
 | 3.4 | One request, two mails, one card | done `797ed1d0` |
 | 3.5 | The card asks in the conversation, not in boxes | done `ca488370` |
 | 3.6 | The conversation is the spine — request, question, answer, run | done `37ecc5fb` |
@@ -233,7 +233,37 @@ found.
 | 4 | Bind a value for a known field into the write | |
 | 5 | An undemonstrated field must prove it landed | |
 | 6 | The card says what it will write | |
-| 7 | Composition — needs 3.1, 3.2, and a compensation story | last |
+| 7 | Composition — needs 3.1, 3.2, and a compensation story | last; 3.1 waits on this |
+
+### 3.1 — deliberately not built, and what would change that
+
+The idea is right and the case is absent. Measured on the deployment
+2026-09-19: **thirteen runs have made a record and not one has made two.** A
+step consuming an earlier step's output has no producer -- mining emits no such
+edge -- and no instance to consume. Building `Step.uses` now is a field nothing
+writes, read by a binder nothing calls, kept green by tests written against
+both.
+
+The half of CrewAI's lesson that pays today is the inspectable one -- *how does
+this step get that value* -- and it is already built and already on screen. A
+gathered value carries the message it came from and the words it was quoted
+from, and the run card says so: `Customer Type: DDLS — read from your mail
+("customer type :- DDLS")`. A value an operator typed needs no provenance;
+they were standing there and they meant it.
+
+Two things would make the rest real, and either is the moment to build it:
+
+1. **A job that makes two records**, where the second needs the first's id.
+   Then `RunStep.made` -- which already keeps what the warehouse called each
+   record -- becomes something to bind from, and the edge is worth declaring.
+2. **Composition (7)**, where a person joins two jobs and has to say how the
+   second gets the first's output. That is the same edge, declared by hand
+   instead of mined.
+
+And a cheap producer for (1) when it arrives, in this codebase's own style:
+the edge is DISCOVERABLE from evidence rather than guessed -- a value typed in
+step 5 that equals what step 2's response returned is a `uses` edge, and the
+recorded calls already hold both halves.
 
 ### 3.14 — the page is not the page this step is about
 

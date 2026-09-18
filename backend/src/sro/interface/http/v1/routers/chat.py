@@ -73,7 +73,9 @@ async def ask_about_an_offer(
         watched=body.watched,
     )
     return AskAboutOfferResponse(
-        asked=await container.ask_about_the_offer().execute(ctx, pending, about=body.about)
+        asked=await container.ask_about_the_offer().execute(
+            ctx, pending, about=body.about, mail_thread=body.mail_thread
+        )
     )
 
 

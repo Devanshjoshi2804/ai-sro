@@ -32,6 +32,7 @@ answer means rather than two.
 from __future__ import annotations
 
 import logging
+from collections.abc import Awaitable, Callable
 from dataclasses import replace
 
 from sro.application.chat.announce import SayWhatHappened
@@ -44,16 +45,37 @@ from sro.domain.shared.identifiers import PrincipalId
 
 logger = logging.getLogger(__name__)
 
+DraftsForTheAsker = Callable[[RequestContext, Pending, str], Awaitable[bool]]
+"""Write a mail to whoever sent the request, for a job stopping short of a
+value. A callable rather than the use case, so the drafter can be bound to this
+request's own tenant and operator."""
+
 
 class AskAboutTheOffer:
     """Ask, in the operator's own conversation, for what an offer still needs."""
 
-    def __init__(self, uow: UnitOfWork, clock: Clock, ids: IdFactory) -> None:
+    def __init__(
+        self,
+        uow: UnitOfWork,
+        clock: Clock,
+        ids: IdFactory,
+        drafts: DraftsForTheAsker | None = None,
+    ) -> None:
         self._uow = uow
         self._clock = clock
         self._ids = ids
+        # Optional throughout: a deployment with no mailbox asks the operator
+        # and nobody else, exactly as it did.
+        self._drafts: DraftsForTheAsker | None = drafts
 
-    async def execute(self, ctx: RequestContext, pending: Pending, *, about: str = "") -> str:
+    async def execute(
+        self,
+        ctx: RequestContext,
+        pending: Pending,
+        *,
+        about: str = "",
+        mail_thread: str = "",
+    ) -> str:
         """The question that was asked, or `""` where there was nothing to ask.
 
         Empty rather than an error for an offer that needs nothing: a caller
@@ -113,6 +135,19 @@ class AskAboutTheOffer:
                 "watched": pending.watched,
             },
         )
+        # And whoever sent the request, where the offer names a mail.
+        #
+        # Both places a job stops short of a value ask the same person, and
+        # wiring the draft only to the run made it unreachable for the case it
+        # was built for: a mail with no code in it is answered here, before any
+        # run starts, so a run never comes up short and never asks anybody.
+        #
+        # Nothing here can stop the question that has already been asked.
+        if self._drafts is not None and mail_thread.strip():
+            try:
+                await self._drafts(ctx, pending, mail_thread)
+            except Exception:
+                logger.exception("a mail to whoever asked could not be drafted")
         logger.info(
             "%s: asking about %s in the conversation -- %d value(s) still wanted",
             ctx.tenant_id.value,

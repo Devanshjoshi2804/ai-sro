@@ -121,7 +121,7 @@ async def test_a_draft_is_put_in_front_of_somebody_and_nothing_is_sent() -> None
     uow, mailbox = FakeUnitOfWork(), _Mailbox()
     await _a_run(uow)
 
-    assert await _drafter(uow, mailbox).execute(CTX, "run_1", _pending()) is True
+    assert await _drafter(uow, mailbox).execute(CTX, _pending(), run_id="run_1") is True
 
     assert mailbox.sent == [], "a draft reached the mailbox without anybody pressing anything"
     threads = await uow.threads.list_for_tenant(f.TENANT, opened_by=PrincipalId("devansh"), limit=1)
@@ -140,7 +140,7 @@ async def test_the_words_sent_are_the_words_that_were_read() -> None:
     two different things."""
     uow, mailbox = FakeUnitOfWork(), _Mailbox()
     await _a_run(uow)
-    await _drafter(uow, mailbox).execute(CTX, "run_1", _pending())
+    await _drafter(uow, mailbox).execute(CTX, _pending(), run_id="run_1")
     threads = await uow.threads.list_for_tenant(f.TENANT, opened_by=PrincipalId("devansh"), limit=1)
     drafted = threads[0].messages[-1]
 
@@ -164,7 +164,7 @@ async def test_one_mail_per_run_however_many_presses() -> None:
     is taken before the send for exactly that."""
     uow, mailbox = FakeUnitOfWork(), _Mailbox()
     await _a_run(uow)
-    await _drafter(uow, mailbox).execute(CTX, "run_1", _pending())
+    await _drafter(uow, mailbox).execute(CTX, _pending(), run_id="run_1")
     threads = await uow.threads.list_for_tenant(f.TENANT, opened_by=PrincipalId("devansh"), limit=1)
     drafted = threads[0].messages[-1]
     sender = SendTheDraft(uow, mailbox, FakeClock(), FakeIdFactory())
@@ -181,7 +181,7 @@ async def test_a_run_that_has_already_asked_is_not_drafted_for_again() -> None:
     uow, mailbox = FakeUnitOfWork(), _Mailbox()
     await _a_run(uow, asked=True)
 
-    assert await _drafter(uow, mailbox).execute(CTX, "run_1", _pending()) is False
+    assert await _drafter(uow, mailbox).execute(CTX, _pending(), run_id="run_1") is False
 
 
 async def test_a_run_from_no_mailbox_asks_nobody() -> None:
@@ -193,7 +193,7 @@ async def test_a_run_from_no_mailbox_asks_nobody() -> None:
     run.awaiting = None
     await uow.workflow_runs.save(run)
 
-    assert await _drafter(uow, mailbox).execute(CTX, "run_1", _pending()) is False
+    assert await _drafter(uow, mailbox).execute(CTX, _pending(), run_id="run_1") is False
     assert mailbox.sent == []
 
 
@@ -204,14 +204,14 @@ async def test_a_conversation_naming_no_sender_is_left_alone() -> None:
     mailbox = _Mailbox(sender="somebody with no address at all")
     await _a_run(uow)
 
-    assert await _drafter(uow, mailbox).execute(CTX, "run_1", _pending()) is False
+    assert await _drafter(uow, mailbox).execute(CTX, _pending(), run_id="run_1") is False
 
 
 async def test_a_run_short_of_nothing_writes_to_nobody() -> None:
     uow, mailbox = FakeUnitOfWork(), _Mailbox()
     await _a_run(uow)
 
-    assert await _drafter(uow, mailbox).execute(CTX, "run_1", _pending(missing=())) is False
+    assert await _drafter(uow, mailbox).execute(CTX, _pending(missing=()), run_id="run_1") is False
 
 
 async def test_a_mailbox_that_could_not_be_reached_keeps_the_claim() -> None:
@@ -220,7 +220,7 @@ async def test_a_mailbox_that_could_not_be_reached_keeps_the_claim() -> None:
     a duplicate mail cannot be deleted afterwards."""
     uow, mailbox = FakeUnitOfWork(), _Mailbox()
     await _a_run(uow)
-    await _drafter(uow, mailbox).execute(CTX, "run_1", _pending())
+    await _drafter(uow, mailbox).execute(CTX, _pending(), run_id="run_1")
     threads = await uow.threads.list_for_tenant(f.TENANT, opened_by=PrincipalId("devansh"), limit=1)
     drafted = threads[0].messages[-1]
     mailbox.unavailable = True
@@ -240,7 +240,7 @@ async def test_a_press_on_one_draft_does_not_send_another() -> None:
     """Two runs can both be waiting. By id and never "the newest draft"."""
     uow, mailbox = FakeUnitOfWork(), _Mailbox()
     await _a_run(uow)
-    await _drafter(uow, mailbox).execute(CTX, "run_1", _pending())
+    await _drafter(uow, mailbox).execute(CTX, _pending(), run_id="run_1")
     threads = await uow.threads.list_for_tenant(f.TENANT, opened_by=PrincipalId("devansh"), limit=1)
     drafted = threads[0].messages[-1]
 
@@ -251,3 +251,43 @@ async def test_a_press_on_one_draft_does_not_send_another() -> None:
     assert nothing == ""
     assert mailbox.sent == []
     assert drafted.decision is not None
+
+
+async def test_an_offer_short_of_a_value_asks_the_asker_before_any_run() -> None:
+    """The case this was built for, and the one it could not reach.
+
+    A mail with no code in it is answered on the card, in the conversation,
+    before anything starts -- so no run ever comes up short and, wired only to
+    the run, nobody was ever asked. Both places a job stops short reach the
+    same person.
+    """
+    uow, mailbox = FakeUnitOfWork(), _Mailbox()
+
+    drafted = await _drafter(uow, mailbox).execute(CTX, _pending(), thread=THREAD)
+
+    assert drafted is True
+    assert mailbox.sent == []
+    threads = await uow.threads.list_for_tenant(f.TENANT, opened_by=PrincipalId("devansh"), limit=1)
+    decision = threads[0].messages[-1].decision
+    assert decision is not None and decision["kind"] == DRAFTED
+    assert decision["to"] == "tanisha@example.com"
+    assert decision["thread"] == THREAD
+    # No run behind it, and that is not a reason to refuse: the run column is
+    # what stops a SECOND mail once one exists.
+    assert decision["run_id"] == ""
+
+
+async def test_one_draft_per_request_before_a_run_exists() -> None:
+    """Two presses on one card would otherwise put two drafts in front of
+    somebody, and the second is a mail they can send after the first has gone."""
+    uow, mailbox = FakeUnitOfWork(), _Mailbox()
+    drafter = _drafter(uow, mailbox)
+
+    assert await drafter.execute(CTX, _pending(), thread=THREAD) is True
+    assert await drafter.execute(CTX, _pending(), thread=THREAD) is False
+
+
+async def test_an_offer_naming_no_mail_asks_nobody() -> None:
+    uow, mailbox = FakeUnitOfWork(), _Mailbox()
+
+    assert await _drafter(uow, mailbox).execute(CTX, _pending()) is False

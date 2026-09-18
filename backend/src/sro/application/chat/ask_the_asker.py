@@ -26,6 +26,7 @@ import json
 import logging
 
 from sro.application.chat.announce import SayWhatHappened
+from sro.application.chat.read_threads import ReadThreads
 from sro.application.context import RequestContext
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
@@ -60,28 +61,46 @@ class DraftForTheAsker:
         self._clock = clock
         self._ids = ids
 
-    async def execute(self, ctx: RequestContext, run_id: str, pending: Pending) -> bool:
+    async def execute(
+        self, ctx: RequestContext, pending: Pending, *, thread: str = "", run_id: str = ""
+    ) -> bool:
         """Whether a draft was put in front of somebody.
 
-        False for every ordinary reason -- the run came from no mailbox, it
-        needs nothing, a draft already went out for it -- and those are not
-        failures. A run nobody can ask about is the case this is an exception
-        to, not the case it is for.
+        Called from both places a job stops short of a value, because there are
+        two and only one of them has a run behind it. A card that cannot be
+        answered from what the mail said asks in the conversation before
+        anything starts; a run that goes looking and comes back empty asks
+        after. The person who can answer is the same person either way, and
+        wiring this only to the second made it unreachable for the case it was
+        built for -- a mail with no code in it never reaches a run.
+
+        `thread` is the conversation to write into, and it wins over the run's
+        own: an offer has one before any run exists.
+
+        False for every ordinary reason -- no mailbox behind it, nothing
+        missing, somebody already asked. None of those is a failure.
         """
         if not worth_asking(pending):
             return False
         async with self._uow as uow:
-            run = await uow.workflow_runs.get(ctx.tenant_id, run_id)
+            run = await uow.workflow_runs.get(ctx.tenant_id, run_id) if run_id else None
         waiting = read_wait(run.awaiting) if run else None
-        if waiting is None or waiting.server != SERVER:
+        conversation = thread.strip() or (waiting.thread if waiting else "")
+        if not conversation:
             return False
         # One per run, read off the row rather than counted here: a worker that
         # restarted between two stops must not buy anybody a second mail.
         if run is not None and run.asked_the_asker:
             logger.info("%s: %s has already asked whoever sent it", ctx.tenant_id.value, run_id)
             return False
+        # And one per REQUEST, for the half that has no run yet. Two presses on
+        # one card would otherwise put two drafts in front of somebody, and the
+        # second is a mail they can send after the first has gone.
+        if await self._already_drafted(ctx, conversation):
+            logger.info("%s: %s is already drafted for", ctx.tenant_id.value, conversation)
+            return False
 
-        asked_by, replying_to, about = await self._who_asked(ctx, waiting.thread)
+        asked_by, replying_to, about = await self._who_asked(ctx, conversation)
         if not asked_by:
             logger.info(
                 "%s: %s has nobody to ask -- the conversation names no sender",
@@ -107,12 +126,38 @@ class DraftForTheAsker:
                 "to": asked_by,
                 "subject": subject,
                 "body": body,
-                "thread": waiting.thread,
+                "thread": conversation,
                 "in_reply_to": replying_to,
             },
         )
-        logger.info("%s: drafted a mail to %s about %s", ctx.tenant_id.value, asked_by, run_id)
+        logger.info(
+            "%s: drafted a mail to %s about %s",
+            ctx.tenant_id.value,
+            asked_by,
+            run_id or conversation,
+        )
         return True
+
+    async def _already_drafted(self, ctx: RequestContext, conversation: str) -> bool:
+        """Whether somebody already has a draft in front of them for this mail.
+
+        Read off the operator's own thread, which is where the draft was put:
+        there is no run to hang a flag on before one starts, and the thread is
+        already the record of what has been said. A draft that was SENT is not
+        a reason to refuse another either -- the run column covers that, and
+        this covers the window before it exists.
+        """
+        found = await ReadThreads(self._uow).current(ctx)
+        if found is None:
+            return False
+        async with self._uow as uow:
+            thread = await uow.threads.get(ctx.tenant_id, found.id)
+        return any(
+            isinstance(message.decision, dict)
+            and message.decision.get("kind") == DRAFTED
+            and message.decision.get("thread") == conversation
+            for message in thread.messages
+        )
 
     async def _who_asked(self, ctx: RequestContext, thread: str) -> tuple[str, str, str]:
         """Who to answer, which message to answer, and what it was called.

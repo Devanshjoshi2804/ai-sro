@@ -1021,7 +1021,7 @@ class Container:
 
     def ask_about_the_offer(self) -> AskAboutTheOffer:
         """The card's way into the conversation the chat door already runs."""
-        return AskAboutTheOffer(self.unit_of_work(), self.clock, self.ids)
+        return AskAboutTheOffer(self.unit_of_work(), self.clock, self.ids, self._drafting_for)
 
     def draft_for_the_asker(self) -> DraftForTheAsker:
         """Write the mail to whoever asked. It cannot send one."""
@@ -1166,7 +1166,12 @@ class Container:
 
     async def _drafting(self, ctx: RequestContext, run_id: str, pending: Pending) -> bool:
         """Bound to one request, so the mailbox is read as the right person."""
-        return await self.draft_for_the_asker().execute(ctx, run_id, pending)
+        return await self.draft_for_the_asker().execute(ctx, pending, run_id=run_id)
+
+    async def _drafting_for(self, ctx: RequestContext, pending: Pending, thread: str) -> bool:
+        """The same, for an offer -- which names its mail before any run has
+        been started to hang one on."""
+        return await self.draft_for_the_asker().execute(ctx, pending, thread=thread)
 
     def list_workflow_runs(self) -> ListWorkflowRuns:
         """The runs of mined jobs, newest first. Not `list_runs` above, which

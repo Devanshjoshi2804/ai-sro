@@ -148,6 +148,27 @@ seeing the screen it is writing to.
 """
 
 
+def _asking(needs: Sequence[str], title: str, limits: Mapping[str, int]) -> str:
+    """The sentence that opens the question, in the words of what went wrong.
+
+    Two different things bring a run here and they want two different
+    questions. A value nobody could find is "I could not find X". A value that
+    would not fit is "X holds 28 characters" -- and asking that one the first
+    way gets the same value back, because nothing has told the person their
+    description is twice the length the box takes. The browser did not say so:
+    it truncated in silence, which is why the limit had to be discovered at
+    all.
+    """
+    capped = [name for name in needs if name in limits]
+    if not capped:
+        return f"I could not find {', '.join(needs)} for {title}. "
+    said = ", ".join(f"{name} holds {limits[name]} characters" for name in capped)
+    rest = [name for name in needs if name not in limits]
+    return f"For {title}, {said} — longer than what I was given. " + (
+        f"I could not find {', '.join(rest)} either. " if rest else ""
+    )
+
+
 class StartWorkflowRun:
     """Claim the row for one press, then drive it.
 
@@ -522,6 +543,21 @@ class StartWorkflowRun:
         """
         if not run.needs or self._ids is None:
             return
+        # What the boxes behind these names will hold, where a run has found
+        # out. A question that asks for a value again without saying why the
+        # last one would not do gets the same value back -- the person has no
+        # way to know the field stops at 28 characters, because the browser
+        # never said so and neither did we.
+        limits: dict[str, int] = {}
+        async with self._uow as uow:
+            learnt = {one.ord: one for one in await uow.workflows.learned_for(run.workflow_id)}
+            workflow = await uow.workflows.get(ctx.tenant_id, run.workflow_id)
+        for step in workflow.steps if workflow else []:
+            holds = (learnt.get(step.order) or None) and learnt[step.order].holds
+            if holds is None:
+                continue
+            for name in step.parameters:
+                limits[name] = holds
         pending = Pending(
             workflow_id=run.workflow_id,
             title=title,
@@ -535,7 +571,7 @@ class StartWorkflowRun:
             # The person this run was for, not whoever is at the door: a
             # question in the wrong conversation is worse than none.
             for_operator=PrincipalId(run.started_by) if run.started_by else ctx.principal_id,
-            text=f"I could not find {', '.join(run.needs)} for {title}. " + question(pending),
+            text=_asking(run.needs, title, limits) + question(pending),
             decision={
                 "kind": NEEDS,
                 "workflow_id": pending.workflow_id,

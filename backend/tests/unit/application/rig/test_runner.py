@@ -5683,6 +5683,11 @@ async def test_a_limit_found_once_is_not_found_again_the_hard_way() -> None:
 
     assert again.outcome == "stopped"
     assert "holds 4 characters and was given 9" in again.steps[0].reason, again.steps[0].reason
+    # And it is asked about rather than merely refused: the name goes on the
+    # row, and the conversation turns it into a question somebody answers --
+    # the same road a value nobody could find already takes. A run that stops
+    # dead here is an operator who pressed once and got a dead card.
+    assert again.needs == ["clientCode"], again.needs
     assert not [one for one in quiet.sent if one["kind"] == "ui.perform"], (
         "it typed into a box it already knew was too small"
     )

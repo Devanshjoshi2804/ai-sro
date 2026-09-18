@@ -576,6 +576,22 @@ async def _look(
     )
 
 
+def _too_long_for(step: Step, values: Mapping[str, str], holds: int) -> list[str]:
+    """Which of this step's parameters the box will not hold.
+
+    The step says which parameters it fills and the run says what they are, so
+    the name to ask about is arithmetic rather than a guess. Named rather than
+    described, for the reason `run.needs` exists at all: a name parsed back out
+    of an English sentence is a name that breaks the first time the sentence is
+    reworded.
+    """
+    return [
+        name
+        for name in step.parameters
+        if isinstance(values.get(name), str) and len(values[name]) > holds
+    ]
+
+
 def _result(reply: Reply, *, wrote: bool = False) -> dict[str, object]:
     """What the extension answered -- not what it answered WITH.
 
@@ -2083,6 +2099,14 @@ async def run_workflow(
                 holds = (learned.get(step.order) or LearnedStep(step.order, "", "", "")).holds
                 asked_for = planned.payload.get("value")
                 if holds is not None and isinstance(asked_for, str) and len(asked_for) > holds:
+                    # Asked about, not merely refused. The same road a value
+                    # nobody could find takes: the names go on the row, and the
+                    # conversation turns them into a question somebody answers
+                    # -- and the run starts again on the yes they already gave.
+                    # A run that stops dead here is an operator who pressed
+                    # once and got a dead card, which is the thing
+                    # `_ask_for_values` was built to end.
+                    run.needs = _too_long_for(step, values, holds)
                     verdict = StepVerdict(
                         "failed",
                         "read",
@@ -2137,6 +2161,7 @@ async def run_workflow(
                     kept = cut.get("kept")
                     if isinstance(kept, int):
                         await uow.workflows.remember_limit(workflow.id, step.order, kept)
+                        run.needs = _too_long_for(step, values, kept)
                     verdict = StepVerdict(
                         "failed",
                         "read",

@@ -75,7 +75,7 @@ from sro.domain.chat.reading import ChatReading
 from sro.domain.chat.thread import MessageId, Thread, ThreadId
 from sro.domain.connection.connection import Connection, ConnectionId, ConnectionStatus
 from sro.domain.execution.belts import RunProof, state_verified
-from sro.domain.execution.learned_step import LearnedStep
+from sro.domain.execution.learned_step import LearnedStep, Taught, changed_by
 from sro.domain.execution.model_call import ModelCall
 from sro.domain.execution.run import Medium, Run, RunId
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun, already_running
@@ -1850,6 +1850,9 @@ class FakeWorkflowRepository:
         self.stale: dict[tuple[str, int], tuple[str | None, str]] = {}
         # What runs have found out about steps whose recorded identity missed.
         self.learned: dict[tuple[str, int], LearnedStep] = {}
+        # Append-only, like the store's: a history that can be edited is a
+        # history nobody can rely on.
+        self.taught: dict[str, list[Taught]] = {}
         self.effects: dict[tuple[str, str, int], tuple[str, str]] = {}
         self.runs = runs if runs is not None else FakeWorkflowRunRepository()
         self._saved = count()
@@ -1910,21 +1913,38 @@ class FakeWorkflowRepository:
     async def clear_stale(self, workflow_id: str, ord_: int) -> None:
         self.stale.pop((workflow_id, ord_), None)
 
-    async def remember_locator(self, workflow_id: str, learned: LearnedStep) -> None:
+    async def remember_locator(
+        self, workflow_id: str, learned: LearnedStep, *, by_run: str = ""
+    ) -> None:
+        # The history BEFORE the overwrite, because the overwrite is what
+        # destroys the answer it is compared against -- the store's order, kept
+        # here so a test of the history is a test of what the store does.
+        self.taught.setdefault(workflow_id, []).extend(
+            changed_by(self.learned.get((workflow_id, learned.ord)), learned, by_run=by_run)
+        )
         # One row per step, the last answer winning: the locator that worked
         # most recently is the current answer about that step.
         self.learned[(workflow_id, learned.ord)] = learned
 
-    async def remember_limit(self, workflow_id: str, ord_: int, holds: int) -> None:
+    async def remember_limit(
+        self, workflow_id: str, ord_: int, holds: int, *, by_run: str = ""
+    ) -> None:
         # Its own columns, the store's rule: a truncation must not erase a
         # locator and a locator must not erase a limit, so each keeps what the
         # other learnt.
         was = self.learned.get((workflow_id, ord_))
-        self.learned[(workflow_id, ord_)] = (
+        now = (
             LearnedStep(ord_, was.strategy, was.query, was.found_by, holds)
             if was is not None
             else LearnedStep(ord_, "", "", "typed", holds)
         )
+        self.taught.setdefault(workflow_id, []).extend(
+            changed_by(was, replace(now, found_by="typed"), by_run=by_run)
+        )
+        self.learned[(workflow_id, ord_)] = now
+
+    async def taught_itself(self, workflow_id: str, limit: int = 50) -> tuple[Taught, ...]:
+        return tuple(reversed(self.taught.get(workflow_id, [])))[:limit]
 
     async def learned_for(self, workflow_id: str) -> tuple[LearnedStep, ...]:
         return tuple(one for (workflow, _), one in self.learned.items() if workflow == workflow_id)

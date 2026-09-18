@@ -1143,6 +1143,51 @@ class WorkflowLearnedRow(Base):
     learned_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class WorkflowLearnedHistoryRow(Base):
+    """What a job taught itself, kept rather than overwritten.
+
+    `WorkflowLearnedRow` above is one row per step and the last answer wins.
+    That is right for the question it answers -- what should the next run try
+    first -- and it means a job rewrites its own behaviour with nothing left
+    behind. A locator learned from a screenshot that quietly replaced one
+    learned from a component is a job that drifted, and the only record of it
+    was the difference between two runs nobody compared.
+
+    Append-only and never updated: a history that can be edited is a history
+    nobody can rely on. Read by nobody in the hot path, so a job that has
+    learned four hundred times costs a run nothing.
+    """
+
+    __tablename__ = "workflow_learned_history"
+    # The one query this table is for: what has this job taught itself, newest
+    # first. Declared here as well as in the migration, because the schema the
+    # code describes and the schema the migrations build are held equal by a
+    # test -- and an index in one and not the other is a query that is fast in
+    # development and a sequential scan in production.
+    __table_args__ = (Index("ix_workflow_learned_history_job", "workflow_id", "at"),)
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    workflow_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    ord: Mapped[int] = mapped_column(Integer, nullable=False)
+    about: Mapped[str] = mapped_column(Text, nullable=False)
+    """`locator` or `holds`. One table rather than two: they are the same event
+    -- a job changed its mind about a step -- and a reader wants them in one
+    order."""
+
+    was: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    now: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    """What it was and what it became, both as text including the limit: the
+    reader is a person, and `4` beside `60` says what a nullable integer column
+    would say less clearly."""
+
+    by_run: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    found_by: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    """Which run taught it and which rung produced it, so somebody reading a
+    surprising locator can go and look at the run that found it."""
+
+    at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 class WorkflowEffectRow(Base):
     """One write a live run made and the verifier then saw hold by STATE -- a
     status the server answered, or a read that showed the record.

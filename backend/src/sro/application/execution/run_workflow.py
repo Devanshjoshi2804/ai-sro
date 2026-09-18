@@ -2400,7 +2400,9 @@ async def run_workflow(
                     # the fact was a locator.
                     kept = cut.get("kept")
                     if isinstance(kept, int):
-                        await uow.workflows.remember_limit(workflow.id, step.order, kept)
+                        await uow.workflows.remember_limit(
+                            workflow.id, step.order, kept, by_run=run.id
+                        )
                         run.needs = _too_long_for(step, values, kept)
                     verdict = StepVerdict(
                         "failed",
@@ -2727,7 +2729,7 @@ async def run_workflow(
                             reply.result,
                         )
                         if found is not None:
-                            await uow.workflows.remember_locator(workflow.id, found)
+                            await uow.workflows.remember_locator(workflow.id, found, by_run=run.id)
                     elif planned.kind == "ui.perform":
                         # The step was found the strong way again: a warning
                         # that never clears is a warning nobody reads.

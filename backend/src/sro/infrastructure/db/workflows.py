@@ -29,6 +29,7 @@ nothing else.
 
 from __future__ import annotations
 
+import logging
 from collections import defaultdict
 from datetime import UTC, datetime
 from typing import Any
@@ -40,7 +41,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from sro.application.ports.repositories import WorkflowRepository
 from sro.domain.execution.belts import RunProof, state_verified
-from sro.domain.execution.learned_step import LearnedStep
+from sro.domain.execution.learned_step import LearnedStep, Taught, changed_by
 from sro.domain.observation.identity import ShapeKey
 from sro.domain.observation.mining import MiningPass
 from sro.domain.shared.errors import Conflict, NotFound
@@ -51,6 +52,7 @@ from sro.infrastructure.db.codec import when
 from sro.infrastructure.db.models import (
     MiningPassRow,
     WorkflowEffectRow,
+    WorkflowLearnedHistoryRow,
     WorkflowLearnedRow,
     WorkflowRow,
     WorkflowRunRow,
@@ -149,6 +151,9 @@ def _row_to_pass(row: MiningPassRow) -> MiningPass:
         unplaced=row.unplaced,
         error=row.error,
     )
+
+
+logger = logging.getLogger(__name__)
 
 
 class SqlWorkflowRepository(WorkflowRepository):
@@ -289,7 +294,9 @@ class SqlWorkflowRepository(WorkflowRepository):
             )
         )
 
-    async def remember_limit(self, workflow_id: str, ord_: int, holds: int) -> None:
+    async def remember_limit(
+        self, workflow_id: str, ord_: int, holds: int, *, by_run: str = ""
+    ) -> None:
         """What this step's box will take, learnt once.
 
         Its own method rather than a field on `remember_locator`, because the
@@ -300,6 +307,23 @@ class SqlWorkflowRepository(WorkflowRepository):
         erasing a limit -- so each writes only its own columns, and a step can
         carry both.
         """
+        # A limit is learnt on a step whose locator matched perfectly well, so
+        # what is compared here carries the locator this step already has --
+        # otherwise every measured limit would read as a locator being erased.
+        already = next(
+            (one for one in await self.learned_for(workflow_id) if one.ord == ord_), None
+        )
+        await self._keep_what_changed(
+            workflow_id,
+            LearnedStep(
+                ord=ord_,
+                strategy=already.strategy if already else "",
+                query=already.query if already else "",
+                found_by="typed",
+                holds=holds,
+            ),
+            by_run=by_run,
+        )
         statement = pg_insert(WorkflowLearnedRow).values(
             workflow_id=workflow_id,
             ord=ord_,
@@ -322,7 +346,12 @@ class SqlWorkflowRepository(WorkflowRepository):
             )
         )
 
-    async def remember_locator(self, workflow_id: str, learned: LearnedStep) -> None:
+    async def remember_locator(
+        self, workflow_id: str, learned: LearnedStep, *, by_run: str = ""
+    ) -> None:
+        # Before the upsert, because the upsert is what destroys the answer it
+        # is compared against.
+        await self._keep_what_changed(workflow_id, learned, by_run=by_run)
         # The stale row's shape, and for its reason: one row per step, the
         # later notice winning, because the last locator that worked is the
         # current answer about that step.
@@ -344,6 +373,73 @@ class SqlWorkflowRepository(WorkflowRepository):
                     "learned_at": statement.excluded.learned_at,
                 },
             )
+        )
+
+    async def _keep_what_changed(
+        self, workflow_id: str, now: LearnedStep, *, by_run: str = ""
+    ) -> None:
+        """Append what this step just learned that it did not already know.
+
+        Read-then-write, and deliberately not a transaction of its own: it runs
+        inside the run's, so a history row and the learned row it describes
+        arrive together or not at all. A history that disagrees with the thing
+        it is a history of is worse than none.
+
+        Silent on every failure. This is a record FOR somebody, and a run that
+        fell over because it could not write one would have turned reading into
+        a reason to stop working.
+        """
+        try:
+            was = next(
+                (one for one in await self.learned_for(workflow_id) if one.ord == now.ord),
+                None,
+            )
+            at = datetime.now(tz=UTC)
+            for change in changed_by(was, now, by_run=by_run):
+                self._session.add(
+                    WorkflowLearnedHistoryRow(
+                        # The step and the moment, which is what makes it
+                        # unique: one step cannot change its mind twice in the
+                        # same microsecond, and a uuid here would be a second
+                        # thing to explain.
+                        id=f"lrn_{workflow_id}_{change.ord}_{change.about}_{at.timestamp()}"[:64],
+                        workflow_id=workflow_id,
+                        ord=change.ord,
+                        about=change.about,
+                        was=change.was,
+                        now=change.now,
+                        by_run=change.by_run,
+                        found_by=change.found_by,
+                        at=at,
+                    )
+                )
+        except Exception:
+            logger.exception("what %s taught itself could not be written down", workflow_id)
+
+    async def taught_itself(self, workflow_id: str, limit: int = 50) -> tuple[Taught, ...]:
+        """What this job has changed its mind about, newest first.
+
+        The one query the history is for. A history nobody can read in one page
+        is a log, which is why there is a limit and why it is small.
+        """
+        rows = (
+            await self._session.execute(
+                select(WorkflowLearnedHistoryRow)
+                .where(WorkflowLearnedHistoryRow.workflow_id == workflow_id)
+                .order_by(WorkflowLearnedHistoryRow.at.desc())
+                .limit(limit)
+            )
+        ).scalars()
+        return tuple(
+            Taught(
+                ord=row.ord,
+                about=row.about,
+                was=row.was,
+                now=row.now,
+                by_run=row.by_run,
+                found_by=row.found_by,
+            )
+            for row in rows
         )
 
     async def learned_for(self, workflow_id: str) -> tuple[LearnedStep, ...]:

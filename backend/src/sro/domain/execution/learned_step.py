@@ -76,6 +76,89 @@ class LearnedStep:
         return bool(self.strategy and self.query)
 
 
+@dataclass(frozen=True, slots=True)
+class Taught:
+    """One thing a job changed its mind about, and what it changed from.
+
+    A learned fact is stored as one row per step with the last answer winning,
+    which is right for the question a run asks -- what should I try first --
+    and leaves nothing behind. A locator learned from a screenshot that quietly
+    replaced one learned from a component is a job that drifted, and the only
+    record of it was the difference between two runs nobody compared.
+
+    So a change is a thing with a shape: what it was about, what it was, what
+    it became, which run taught it and how. A confirmation is not a change --
+    see `changed_by` -- because four hundred rows saying "the same locator
+    again" bury the four that matter.
+    """
+
+    ord: int
+    about: str
+    was: str
+    now: str
+    by_run: str = ""
+    found_by: str = ""
+
+    @property
+    def worth_keeping(self) -> bool:
+        """Whether this is a change at all.
+
+        A run that found what the run before it found has taught nothing. And
+        the FIRST answer is worth keeping: `was` empty and `now` set is a job
+        learning something it never knew, which is the row somebody reads to
+        find out where a locator nobody demonstrated came from.
+        """
+        return self.now.strip() != self.was.strip()
+
+
+LOCATOR = "locator"
+HOLDS = "holds"
+"""What a change can be about. Two constants rather than two tables: they are
+the same event -- a job changed its mind about a step -- and a reader wants
+them in one order."""
+
+
+def changed_by(
+    was: LearnedStep | None, now: LearnedStep, *, by_run: str = ""
+) -> tuple[Taught, ...]:
+    """What this step just learned that it did not already know.
+
+    Both halves in one pass, because a run can change both at once: the rung
+    that found a control by picture also measured what its box would hold.
+
+    A locator is compared as `strategy=query`, which is what makes it the same
+    locator: the two together are the answer, and the rung that produced it is
+    recorded beside the change rather than folded into the comparison -- the
+    same query found twice is the same answer however it was found the second
+    time, and a row per rung would say a job had drifted when nothing moved.
+    """
+    changes = [
+        Taught(
+            ord=now.ord,
+            about=LOCATOR,
+            was=_as_locator(was),
+            now=_as_locator(now),
+            by_run=by_run,
+            found_by=now.found_by,
+        ),
+        Taught(
+            ord=now.ord,
+            about=HOLDS,
+            was="" if was is None or was.holds is None else str(was.holds),
+            now="" if now.holds is None else str(now.holds),
+            by_run=by_run,
+            found_by=now.found_by,
+        ),
+    ]
+    return tuple(one for one in changes if one.worth_keeping)
+
+
+def _as_locator(step: LearnedStep | None) -> str:
+    if step is None or not step.usable:
+        return ""
+    return f"{step.strategy}={step.query}"
+
+
 def learned_from(ord_: int, matched_by: str | None, result: object) -> LearnedStep | None:
     """What this step's reply is worth keeping, or None.
 

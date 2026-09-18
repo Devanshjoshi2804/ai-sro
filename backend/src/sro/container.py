@@ -62,6 +62,7 @@ from sro.application.execution.run_from_preview import RunFromPreview
 from sro.application.execution.self_heal import SelfHeal
 from sro.application.execution.stops import Stops
 from sro.application.execution.vision_step import PerformWithVision
+from sro.application.execution.what_a_job_taught import ReadWhatAJobTaught
 from sro.application.execution.workflow_runs import (
     AbortWorkflowRun,
     ApproveWorkflowStep,
@@ -1024,6 +1025,10 @@ class Container:
             # sentence they just pressed Enter on.
             answers=IsItAnAnswer(self.asker, model=self.settings.gemini_plan_model),
         )
+
+    def read_what_a_job_taught(self) -> ReadWhatAJobTaught:
+        """What a job has changed its mind about, for somebody to read."""
+        return ReadWhatAJobTaught(self.unit_of_work())
 
     def ask_about_the_offer(self) -> AskAboutTheOffer:
         """The card's way into the conversation the chat door already runs."""

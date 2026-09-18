@@ -7,7 +7,7 @@ behind them stay free to change.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import asdict
 from datetime import datetime
 from typing import Annotated, Any
@@ -31,6 +31,7 @@ from sro.application.observation.read_shots import PlayableShot
 from sro.application.skill.read_workflows import CitedEvidence, KnownWorkflow
 from sro.domain.chat.reading import ChatReading
 from sro.domain.chat.thread import Thread
+from sro.domain.execution.learned_step import Taught
 from sro.domain.execution.run import Medium, Run, StepOutcome
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
 from sro.domain.lookup.plan import Asked, Lookup
@@ -3581,6 +3582,41 @@ class WorkflowStepApprovedModel(BaseModel):
     Not a refusal. The row naming who let the write out is committed either
     way, and answering 409 would be claiming the authorisation did not happen.
     What this says is narrower and truer: nobody was listening."""
+
+
+class LearnedChangeModel(BaseModel):
+    """One thing a job changed its mind about.
+
+    `was` empty is the job learning something it never knew, which is the row
+    somebody reads to find out where a locator nobody demonstrated came from.
+    """
+
+    ord: int
+    about: str
+    was: str
+    now: str
+    by_run: str
+    found_by: str
+
+
+class LearnedChangesResponse(BaseModel):
+    changes: list[TaughtModel]
+
+    @classmethod
+    def of(cls, changes: Sequence[Taught]) -> LearnedChangesResponse:
+        return cls(
+            changes=[
+                LearnedChangeModel(
+                    ord=one.ord,
+                    about=one.about,
+                    was=one.was,
+                    now=one.now,
+                    by_run=one.by_run,
+                    found_by=one.found_by,
+                )
+                for one in changes
+            ]
+        )
 
 
 class MailOfferModel(BaseModel):

@@ -15,7 +15,7 @@ from sro.domain.chat.reading import ChatReading
 from sro.domain.chat.thread import Thread, ThreadId
 from sro.domain.connection.connection import Connection, ConnectionId
 from sro.domain.execution.belts import RunProof
-from sro.domain.execution.learned_step import LearnedStep
+from sro.domain.execution.learned_step import LearnedStep, Taught
 from sro.domain.execution.model_call import ModelCall
 from sro.domain.execution.run import Run, RunId
 from sro.domain.execution.workflow_run import WorkflowRun
@@ -949,7 +949,9 @@ class WorkflowRepository(Protocol):
         """
         ...
 
-    async def remember_locator(self, workflow_id: str, learned: LearnedStep) -> None:
+    async def remember_locator(
+        self, workflow_id: str, learned: LearnedStep, *, by_run: str = ""
+    ) -> None:
         """What a run found when the job's own identity for a control did not.
 
         `mark_stale` above says a step is about to break; this says what the
@@ -963,7 +965,21 @@ class WorkflowRepository(Protocol):
         """Every step of this job that a run has found a working locator for."""
         ...
 
-    async def remember_limit(self, workflow_id: str, ord_: int, holds: int) -> None:
+    async def taught_itself(self, workflow_id: str, limit: int = 50) -> tuple[Taught, ...]:
+        """What this job has changed its mind about, newest first.
+
+        The reviewable half of learning. `remember_locator` and
+        `remember_limit` store the CURRENT answer and overwrite what was there,
+        which is right for the run asking what to try first and leaves a job
+        rewriting its own behaviour with nothing behind it.
+
+        Bounded, and small: a history nobody can read in one page is a log.
+        """
+        ...
+
+    async def remember_limit(
+        self, workflow_id: str, ord_: int, holds: int, *, by_run: str = ""
+    ) -> None:
         """How many characters this step's box turned out to take.
 
         Learnt on a step whose locator matched perfectly well, which is why it

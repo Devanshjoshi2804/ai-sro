@@ -136,12 +136,25 @@ async def screen_for(uow: UnitOfWork, tenant_id: TenantId, workflow: Workflow) -
     that says `customerType` holds 60 when the form an operator uses says 4.
     Worth one read of the cited gestures to avoid.
 
-    Every step's citations and not the first's, because the field a request is
-    too long for is not always filled on the screen the job opens on: a job
-    that navigates and then types would otherwise be measured against the page
-    it started from.
+    Only the steps that fill a parameter, which is narrower than it first
+    looks and had to be. Measured on QA 2026-09-18 against the real `Create a
+    Customer Type`: its six steps open a MAIL, navigate to the WMS, press Add,
+    type twice and Save -- so the citations of all six are two systems, and
+    `screen_of` anchors on the first url it is given and answers with the Gmail
+    inbox. The form half then matched nothing, `Customer Type` came back as the
+    manual's 60 rather than the real form's 4, and a card would have accepted
+    `NEWSROTEST`, sent it, kept `NEWS` and been answered 201.
+
+    Narrower is also more true. A limit is a fact about the box a value is
+    typed into, so the screen worth asking about is the one the typing happens
+    on -- not the one the job opens on, and not a collapse across both.
+
+    Empty where no step declares a parameter, and the dictionary answers alone.
+    That is the honest reading rather than a fallback to every step: a job with
+    no typing step has no form to be measured against, and widening the net to
+    find one is how the Gmail url got in here.
     """
-    cites = tuple(sorted({one for step in workflow.steps for one in step.cites}))
+    cites = tuple(sorted({one for step in workflow.steps if step.parameters for one in step.cites}))
     if not cites:
         return ""
     async with uow as opened:

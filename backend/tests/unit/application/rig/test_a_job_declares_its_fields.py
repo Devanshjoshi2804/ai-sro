@@ -22,6 +22,7 @@ from sro.domain.knowledge.entry import (
     KnowledgeEntry,
     KnowledgeId,
 )
+from sro.domain.observation.gesture import Action, Gesture
 from sro.domain.skill.workflow import Step, Workflow
 from tests import factories as f
 from tests.unit.fakes import FakeUnitOfWork
@@ -193,3 +194,80 @@ async def test_the_screen_a_job_is_on_is_what_its_own_demonstrations_agree_on() 
     )
 
     assert await screen_for(uow, f.TENANT, bare) == ""
+
+
+def _gesture(gesture_id: str, url: str) -> Gesture:
+    return Gesture(
+        id=gesture_id,
+        tenant=f.TENANT.value,
+        stream_id="str-1",
+        batch_id="bat-1",
+        at=1_739_314_800.0,
+        url=url,
+        page_url=url,
+        system="wms",
+        tab_id=7,
+        frame_url=None,
+        action=Action(kind="click", at=1_739_314_800.0, url=url),
+    )
+
+
+async def test_the_screen_is_where_the_typing_happens_not_where_the_job_opens() -> None:
+    """Measured on QA 2026-09-18, against the real `Create a Customer Type`.
+
+    Its six steps open a MAIL, navigate to the WMS, press Add, type twice and
+    Save. Given all six steps' citations, `screen_of` anchors on the first url
+    it is handed and answers with the Gmail inbox -- so the form half matched
+    nothing, `Customer Type` came back as the manual's 60 rather than the real
+    form's 4, and a card would have accepted `NEWSROTEST`, sent it, kept `NEWS`
+    and been answered 201.
+
+    A limit is a fact about the box a value is typed into.
+    """
+    uow = FakeUnitOfWork()
+    mail = "https://mail.google.com/mail/u/0/#inbox/FMfcgz"
+    await uow.gestures.add_gestures(
+        tuple(
+            _gesture(one, url)
+            for one, url in (("g-mail", mail), ("g-type", SCREEN), ("g-save", SCREEN))
+        )
+    )
+    job = Workflow(
+        id="wfl_1",
+        tenant=f.TENANT.value,
+        title="Create a Customer Type",
+        narrative="open the mail, go to the WMS, type, save",
+        steps=[
+            Step(order=1, says="open the email", system=None, cites=["g-mail"]),
+            Step(
+                order=4,
+                says="type the code",
+                system=None,
+                cites=["g-type"],
+                parameters=["Customer Type"],
+            ),
+            Step(order=6, says="press Save", system=None, cites=["g-save"]),
+        ],
+    )
+
+    screen = await screen_for(uow, f.TENANT, job)
+
+    assert "mail.google.com" not in screen, screen
+    assert screen.startswith(SCREEN[: SCREEN.index("#")]), screen
+
+
+async def test_a_job_that_types_nowhere_names_no_screen() -> None:
+    """The honest reading rather than a fallback to every step: a job with no
+    typing step has no form to be measured against, and widening the net to
+    find one is how the Gmail url got in here."""
+    uow = FakeUnitOfWork()
+    await uow.gestures.add_gestures((_gesture("g-1", SCREEN),))
+    job = Workflow(
+        id="wfl_1",
+        tenant=f.TENANT.value,
+        title="Navigate to Receiving",
+        narrative="open the screen",
+        steps=[Step(order=0, says="click", system=None, cites=["g-1"])],
+    )
+
+    assert await screen_for(uow, f.TENANT, job) == ""

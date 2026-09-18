@@ -285,6 +285,10 @@ function panel(status, here = null, replies = {}) {
     // rather than off a card: what a tab switch has to change is this, and
     // every card is drawn from it.
     where: () => vm.runInContext("JSON.stringify(tabHere)", sandbox),
+    // Standing in the conversation, which is where an operator who has just
+    // answered a question is. What arrives on Home while they are here is the
+    // case `justArrived` exists for.
+    toChat: () => vm.runInContext('pane = "chat"; paintPanes();', sandbox),
     // Exposed so a test can simulate the panel's own two-second poll --
     // `refresh()` calling `render(status)` again with nothing changed --
     // separately from whatever else a click already triggered.
@@ -2049,6 +2053,47 @@ test("pressing Yes on a rule that fired actually answers it", async () => {
   assert.deepEqual(sentOf(made.sent, "answer-waiting"), [
     { kind: "answer-waiting", confirmationId: "cnf_1", answer: "approve" },
   ]);
+});
+
+test("a card that arrives while the operator is reading the conversation fetches them", async () => {
+  // An answer that comes back by mail lands on Home. The person who asked for
+  // it is in the conversation, where they answered the question -- so the card
+  // they have been waiting for appeared behind the other tab, with nothing
+  // anywhere to say it had. Seen on the deployment 2026-09-18.
+  const nudge = {
+    id: "mail_1", source: "rig", state: "open", kind: "mail",
+    title: "Create a Customer Type", workflowId: "wfl_1",
+    values: { "Customer Type": "N056" }, items: [], missing: [],
+  };
+  const { ids, render, toChat } = panel({ deviceId: "dev-1", nudges: [] });
+
+  render({ deviceId: "dev-1", nudges: [] });
+  // Reading the conversation, which is where the question was answered.
+  toChat();
+  assert.equal(ids["thread"].hidden, false, "the panel is not on the conversation");
+
+  // Twice: the cards column is drawn from the PREVIOUS status, so a nudge
+  // reaches the screen on the poll after the one that carried it.
+  render({ deviceId: "dev-1", nudges: [nudge] });
+  render({ deviceId: "dev-1", nudges: [nudge] });
+
+  assert.equal(ids["thread"].hidden, true, "the card arrived and nobody was sent to it");
+  const [card] = [...(ids["cards"].kids || [])];
+  assert.equal(card?.dataset?.fresh, "1", "nothing says which card is the new one");
+});
+
+test("every card is new to a panel that has just opened, and none of them shouts", async () => {
+  const nudge = {
+    id: "mail_1", source: "rig", state: "open", kind: "mail",
+    title: "Create a Customer Type", workflowId: "wfl_1",
+    values: {}, items: [], missing: [],
+  };
+  const { ids, render } = panel({ deviceId: "dev-1", nudges: [nudge] });
+
+  render({ deviceId: "dev-1", nudges: [nudge] });
+
+  const [card] = [...(ids["cards"].kids || [])];
+  assert.strictEqual(card?.dataset?.fresh, undefined, "an open panel lit a card nothing did to");
 });
 
 for (const [name, fn] of tests) {

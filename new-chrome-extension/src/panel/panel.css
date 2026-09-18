@@ -1342,6 +1342,41 @@ a:focus-visible {
   }
 }
 
+/* A card that has just arrived, for the twenty seconds after it does.
+ *
+ * The same moving border the result card uses, for the same reason: it is the
+ * one thing on the panel that was not there a moment ago. An answer that comes
+ * back by mail puts a card on Home while the operator is reading the
+ * conversation -- the panel switches to Home for it, and this is what says
+ * which of the cards there is the one they were sent to see.
+ */
+.message[data-fresh] {
+  position: relative;
+  isolation: isolate;
+}
+
+.message[data-fresh]::before {
+  content: "";
+  position: absolute;
+  inset: -1.5px;
+  border-radius: 11.5px;
+  z-index: -1;
+  background: conic-gradient(
+    from var(--sweep, 0deg),
+    var(--accent) 0deg,
+    var(--accent) 40deg,
+    var(--line) 120deg,
+    var(--line) 360deg
+  );
+  animation: made-sweep 2.4s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .message[data-fresh]::before {
+    animation: none;
+  }
+}
+
 /* The mail this system would send, before anybody has agreed to it.
  *
  * Set apart from the sentence above it and readable as what it is: a person is

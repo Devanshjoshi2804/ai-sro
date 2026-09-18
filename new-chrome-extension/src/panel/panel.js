@@ -268,7 +268,9 @@ function render(status) {
     for (const nudge of lastStatus?.nudges || status.nudges || []) {
       if (nudge.state !== "open" || nudge.missed) continue;
       if (nudge.tabId != null && nudge.tabId !== tabHere.tabId) continue;
-      cards.push(nudging(nudge, answered));
+      const one = nudging(nudge, answered);
+      if (justArrived(nudge)) one.dataset.fresh = "1";
+      cards.push(one);
     }
   }
 
@@ -312,6 +314,7 @@ function render(status) {
   $("here").hidden = Boolean(status.teaching) || !status.deviceId;
   $("thread").hidden = Boolean(status.teaching) || !status.deviceId;
   lastStatus = status;
+  drawnCardsOnce = true;
   toTheQuestion(status.finished);
   paintPanes();
   // What arrived while nobody was looking, above everything. Painted from the
@@ -320,6 +323,43 @@ function render(status) {
   // conversation -- and after `lastStatus` is set, which is what it reads.
   paintWaiting();
   return status;
+}
+
+const K_FRESH_MS = 20000;
+/** How long a card that has just arrived keeps its moving border. Long enough
+ * to be on screen when somebody is sent here to look at it, short enough that
+ * a panel left open does not have four cards asking for attention at once. */
+
+const seenCards = new Set();
+const freshUntil = new Map();
+let drawnCardsOnce = false;
+
+/** Whether this card is new since the last draw -- and, if it is, send the
+ * operator to it.
+ *
+ * An answer that arrives by mail lands on Home while the person who asked for
+ * it is reading the conversation, so the card they have been waiting for
+ * appears behind the other tab with nothing to say it did. The same reasoning
+ * as `goToTheConversation` when a run asks a question: the panel moves to
+ * where the thing that needs a person is, rather than leaving them to find it.
+ *
+ * Only after a first draw. Every card is new to a panel that has just opened,
+ * and a panel that jumped to Home and lit up four borders on open would be
+ * shouting about nothing that happened.
+ */
+function justArrived(nudge) {
+  const id = nudge.id;
+  if (!id) return false;
+  if (!seenCards.has(id)) {
+    seenCards.add(id);
+    if (drawnCardsOnce) {
+      freshUntil.set(id, Date.now() + K_FRESH_MS);
+      // The pane, not a redraw: this is called from inside the draw, and
+      // `paintPanes` runs at the end of it.
+      pane = "home";
+    }
+  }
+  return (freshUntil.get(id) || 0) > Date.now();
 }
 
 /** A question this operator has not answered.
@@ -950,7 +990,10 @@ function madeCard(run, wrote, ending) {
   summary.textContent = `How it went — ${(run.steps || []).length} steps`;
   steps.append(summary);
   steps.append(
-    runCard({ run, skill: null, message: { text: "" } }, { onSecret: keepSecret }),
+    runCard(
+      { run, skill: null, message: { text: "" } },
+      { onSecret: keepSecret },
+    ),
   );
   holder.append(steps);
 
@@ -1010,7 +1053,9 @@ const K_WROTE = 60;
  * after a dash; `the run finished…` does not. Only the first letter, and only
  * where it is a letter: a value that starts with a digit is left alone. */
 function lowerFirst(said) {
-  return /^[A-Z][a-z]/.test(said) ? said[0].toLowerCase() + said.slice(1) : said;
+  return /^[A-Z][a-z]/.test(said)
+    ? said[0].toLowerCase() + said.slice(1)
+    : said;
 }
 
 function howItEnded(run) {
@@ -1019,7 +1064,8 @@ function howItEnded(run) {
     return "The run stopped to ask.";
   const failed = [...steps].reverse().find((step) => step.outcome === "failed");
   const why = String(failed?.reason || "").trim();
-  if (why) return `The run stopped — ${why.slice(0, K_WHY)}${why.length > K_WHY ? "…" : ""}`;
+  if (why)
+    return `The run stopped — ${why.slice(0, K_WHY)}${why.length > K_WHY ? "…" : ""}`;
   // A run that held having skipped steps did not do what its rows say it did.
   // Measured on the deployment, 2026-09-17 at 14:20: four of six steps came
   // back `not_needed` -- the page would not take the click, so the form was
@@ -1040,7 +1086,8 @@ function howItEnded(run) {
   // done on the page carries the locator that found its button, which is what
   // `matched_by` is; a replayed call has none.
   const skipped = steps.filter((step) => step.outcome === "not_needed").length;
-  if (run.status !== "held" || !skipped) return RIG_ENDINGS[run.status] || "The run ended.";
+  if (run.status !== "held" || !skipped)
+    return RIG_ENDINGS[run.status] || "The run ended.";
   const wrote = [...steps].reverse().find((step) => step.outcome === "held");
   const many = `${skipped} ${skipped === 1 ? "step" : "steps"}`;
   return wrote?.matched_by
@@ -1947,7 +1994,8 @@ function show(thread, { asked = false } = {}) {
   if (!asked && drawn !== null && document.activeElement?.tagName === "INPUT")
     return;
   drawn = now;
-  if (thread !== lastThread && (thread.messages || []).length) lastThread = thread;
+  if (thread !== lastThread && (thread.messages || []).length)
+    lastThread = thread;
   // What only this browser knows, beside what the server holds: the mails it
   // recognised and the prompts it made on the page in front of somebody.
   // Neither is written down, and both belong in the order things happened.
@@ -2012,7 +2060,9 @@ function show(thread, { asked = false } = {}) {
     if (!id) continue;
     runs.set(
       id,
-      one === lastStatus?.finished ? finished({ finished: one }) : performing({ performing: one }),
+      one === lastStatus?.finished
+        ? finished({ finished: one })
+        : performing({ performing: one }),
     );
   }
   $("said").replaceChildren(ledger(thread, local, { onPress: answered, runs }));

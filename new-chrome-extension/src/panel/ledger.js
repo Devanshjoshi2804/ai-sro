@@ -814,10 +814,18 @@ function saying(
     // Already sent is not a thing to offer again. `mail_sent` further down the
     // thread is the answer to this one.
     if (spent.get(message.decision.run_id) !== "sent") {
+      // Who and what, on their own lines. A mail is read as a mail -- the
+      // recipient, then the subject, then the words -- and one run-on line is
+      // the shape of a log entry, not of something somebody is authorising.
       const to = document.createElement("p");
       to.className = "detail";
-      to.textContent = `To ${message.decision.to} — ${message.decision.subject}`;
+      to.textContent = `To ${message.decision.to}`;
       item.append(to);
+
+      const subject = document.createElement("p");
+      subject.className = "detail subject";
+      subject.textContent = message.decision.subject || "";
+      item.append(subject);
 
       const body = document.createElement("pre");
       body.className = "draft";

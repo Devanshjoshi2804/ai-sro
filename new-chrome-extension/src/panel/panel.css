@@ -1391,6 +1391,13 @@ a:focus-visible {
   grid-column: 2;
 }
 
+/* The subject reads as the subject: it is the line somebody recognises the
+   request by, and at detail weight it disappears into the address above it. */
+.message[data-kind="mail_draft"] .subject {
+  color: var(--ink);
+  font-weight: 600;
+}
+
 /* The press sits under the mail rather than beside it: a button level with the
    first line of a mail somebody has not read yet is a button pressed before
    the mail was read. */

@@ -18,6 +18,7 @@ from sqlalchemy import event, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
+from sro.application.context import RequestContext
 from sro.domain.execution.run import Run, RunId
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun, new_run_id
 from sro.domain.shared.errors import Conflict
@@ -25,6 +26,14 @@ from sro.domain.shared.identifiers import DeviceId, PrincipalId, SkillId, Tenant
 from sro.domain.skill import PromotionStage
 from sro.infrastructure.db.models import WorkflowRunStepRow
 from sro.infrastructure.db.repositories import SqlUnitOfWork
+
+
+class _Clock:
+    """Enough of a clock for the one method under test."""
+
+    def now(self) -> datetime:
+        return datetime(2026, 9, 18, tzinfo=UTC)
+
 
 TENANT = TenantId("acme")
 OTHER_TENANT = TenantId("other-corp")
@@ -316,6 +325,99 @@ class TestWorkflowRuns:
             assert await uow.workflow_runs.waiting_on(TENANT, server="slack", thread="t-9") is None
             assert await uow.workflow_runs.waiting_on(TENANT, server="gmail", thread="") is None
             assert await uow.workflow_runs.waiting_on(TENANT, server="", thread="t-9") is None
+
+    async def test_clearing_a_wait_without_committing_does_not_clear_it(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """The shape of a real defect, kept as a test rather than a memory.
+
+        `_settle_the_wait` saved the cleared row and never committed, so the
+        clear was rolled back on the way out and the run went on naming a
+        conversation it had finished with -- for seven days, swallowing every
+        reply to that thread. Every unit test passed: `FakeUnitOfWork` does not
+        require a commit, so it agreed with the code rather than with the
+        store. Measured on the deployment 2026-09-18.
+        """
+        run = _run(
+            device_id="dev_f",
+            outcome="held",
+            awaiting={"server": "gmail", "thread": "t-6", "until": "2099-01-01T00:00:00+00:00"},
+        )
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflow_runs.save(run)
+            await uow.commit()
+
+        # Saved and NOT committed, which is what the defect did.
+        async with SqlUnitOfWork(session_factory) as uow:
+            found = await uow.workflow_runs.get(TENANT, run.id)
+            assert found is not None
+            found.awaiting = None
+            await uow.workflow_runs.save(found)
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            still = await uow.workflow_runs.get(TENANT, run.id)
+            assert still is not None
+            assert still.awaiting is not None, (
+                "an uncommitted clear appeared to stick, so this test cannot "
+                "catch the defect it was written for"
+            )
+
+        # And committed, which is what it does now.
+        async with SqlUnitOfWork(session_factory) as uow:
+            found = await uow.workflow_runs.get(TENANT, run.id)
+            assert found is not None
+            found.awaiting = None
+            await uow.workflow_runs.save(found)
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            gone = await uow.workflow_runs.get(TENANT, run.id)
+            assert gone is not None and gone.awaiting is None
+            assert await uow.workflow_runs.waiting_on(TENANT, server="gmail", thread="t-6") is None
+
+    async def test_the_settling_itself_survives_the_unit_of_work_closing(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """The call site, not just the mechanism.
+
+        The test above proves an uncommitted write rolls back. It does not stop
+        anybody removing the commit from `_settle_the_wait` again, because the
+        unit tests cannot see the difference -- `FakeUnitOfWork` does not
+        require one. So this drives the real method against real Postgres and
+        reads the row back in a session of its own.
+        """
+        from sro.application.execution.approvals import Approvals
+        from sro.application.execution.stops import Stops
+        from sro.application.execution.workflow_runs import StartWorkflowRun
+
+        run = _run(
+            device_id="dev_g",
+            outcome="held",
+            awaiting={"server": "gmail", "thread": "t-5", "until": "2099-01-01T00:00:00+00:00"},
+        )
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflow_runs.save(run)
+            await uow.commit()
+
+        starter = StartWorkflowRun(
+            SqlUnitOfWork(session_factory),
+            channel=None,  # type: ignore[arg-type]
+            asker=None,
+            plan_model="m",
+            rescue_model="m",
+            clock=_Clock(),
+            cap_usd=1.0,
+            stops=Stops(),
+            approvals=Approvals(),
+        )
+        await starter._settle_the_wait(
+            RequestContext(tenant_id=TENANT, principal_id=PrincipalId("operator")), run
+        )
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            settled = await uow.workflow_runs.get(TENANT, run.id)
+            assert settled is not None
+            assert settled.awaiting is None, "the clear did not survive the unit of work closing"
 
     async def test_a_run_that_stopped_waiting_is_found_by_nobody(
         self, session_factory: async_sessionmaker[AsyncSession]

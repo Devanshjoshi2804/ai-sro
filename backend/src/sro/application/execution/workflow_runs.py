@@ -572,6 +572,16 @@ class StartWorkflowRun:
                 return
             saved.awaiting = None
             await uow.workflow_runs.save(saved)
+            # And committed. Without this the clear is rolled back when the
+            # unit of work exits, and the row goes on naming a conversation it
+            # is no longer waiting on -- for seven days, swallowing every reply
+            # to that thread as an answer to a job that finished.
+            #
+            # The unit tests passed: `FakeUnitOfWork` does not require a commit
+            # to have happened, so it agreed with the code rather than with the
+            # store. Measured on the deployment 2026-09-18 -- a run held, needs
+            # empty, `awaiting` still set.
+            await uow.commit()
 
     async def _ask_for_values(self, ctx: RequestContext, run: WorkflowRun, title: str) -> None:
         """Turn a run that came up short into a question somebody can answer.

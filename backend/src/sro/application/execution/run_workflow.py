@@ -93,6 +93,7 @@ from sro.domain.execution.verified_writes import VerifiedWrite
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun, new_run_id
 from sro.domain.execution.write_plan import scaffolding_for, seen_values
 from sro.domain.observation.gesture import Gesture
+from sro.domain.observation.trim import path_shape
 from sro.domain.shared.hosts import (
     origin_of as origin_of_url,
 )
@@ -611,7 +612,59 @@ async def _ask_for_the_password(
     return kept
 
 
-def _said_signed_out(verdict: StepVerdict, look: Look, screen: str | None = None) -> StepVerdict:
+async def _refused_by_the_system(
+    *,
+    channel: Channel,
+    tenant_id: TenantId,
+    device_id: DeviceId,
+    run_id: str,
+    since: float,
+) -> str:
+    """What the system itself refused during this step, if it refused anything.
+
+    The last of the five, and the only one no amount of looking at a screen can
+    answer: an operator who can reach a screen and not the action on it sees a
+    page that looks exactly right and a control that does nothing. What says so
+    is the status, and the calls the driven tab made are already asked for --
+    `by_what_the_page_called` reads them to settle a step, but only for the
+    step's own demonstrated endpoint and only where the evidence recorded a
+    write. A 403 on anything else went unread.
+
+    `401` and `403` told apart, because they are two different problems with
+    two different fixes: nobody is signed in, and this account may not do this.
+
+    Empty for everything else, including a browser that would not answer. A
+    step that failed for an ordinary reason must not be told it was refused.
+    """
+    got = await channel.send(
+        tenant_id, device_id, kind="calls.since", run_id=run_id, payload={"since": since}
+    )
+    if not got.ok:
+        return ""
+    made = got.result.get("calls") if isinstance(got.result, dict) else None
+    for call in reversed(made if isinstance(made, list) else []):
+        if not isinstance(call, dict):
+            continue
+        status = call.get("status")
+        if status not in (401, 403):
+            continue
+        where = f"{str(call.get('method', '')).upper()} {path_shape(str(call.get('url', '')))}"
+        return (
+            f"this system refused the request: {where} returned 403. "
+            "The screen is reachable and the action is not -- which is a fact "
+            "about this account rather than about the job."
+            if status == 403
+            else f"this system answered {where} with 401 -- nobody is signed in."
+        )
+    return ""
+
+
+def _said_what_is_there(
+    verdict: StepVerdict,
+    look: Look,
+    screen: str | None = None,
+    refused: str = "",
+) -> StepVerdict:
     """The same verdict, saying what was on the screen instead.
 
     `control_not_found: no control matched` is true and says nothing about
@@ -634,6 +687,10 @@ def _said_signed_out(verdict: StepVerdict, look: Look, screen: str | None = None
                 f"Sign in and start it again. ({verdict.reason})"
             ),
         )
+    # What the system itself said, before anything read off the screen: a 403
+    # is the whole answer, and the screen above it looks entirely normal.
+    if refused:
+        return replace(verdict, reason=f"{refused} ({verdict.reason})")
     if look.dialog.strip():
         # What it SAID, first and in full. A person reading this is looking for
         # the sentence the warehouse put on the screen, and every word this
@@ -2542,7 +2599,20 @@ async def run_workflow(
                 # The verdict stands; what changes is what it SAYS. A run that
                 # renamed the failure would be a run deciding it knows why the
                 # step failed, and what this knows is only what is on screen.
-                verdict = _said_signed_out(verdict, after, route)
+                # Asked only of a step that failed, and only once: a round
+                # trip per failure is cheap, and one per step is not.
+                refused = (
+                    await _refused_by_the_system(
+                        channel=channel,
+                        tenant_id=tenant_id,
+                        device_id=device_id,
+                        run_id=run.id,
+                        since=sent_at,
+                    )
+                    if verdict.state == "failed"
+                    else ""
+                )
+                verdict = _said_what_is_there(verdict, after, route, refused)
                 # And where nothing is stored to sign in WITH, the refusal
                 # carries the key, so the panel can ask for it.
                 #

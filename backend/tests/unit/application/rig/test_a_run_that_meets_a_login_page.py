@@ -13,7 +13,8 @@ from __future__ import annotations
 
 from sro.application.execution.run_workflow import (
     _ask_for_the_password,
-    _said_signed_out,
+    _refused_by_the_system,
+    _said_what_is_there,
     _sign_in_here,
 )
 from sro.application.ports.channel import Reply
@@ -31,7 +32,9 @@ def _failed(reason: str = "control_not_found: no control matched") -> StepVerdic
 
 
 def test_a_failure_at_a_login_page_says_the_session_has_gone() -> None:
-    said = _said_signed_out(_failed(), Look(url="u", screenshot=None, digest="", signed_out=True))
+    said = _said_what_is_there(
+        _failed(), Look(url="u", screenshot=None, digest="", signed_out=True)
+    )
 
     assert "session has gone" in said.reason
     assert "Sign in and start it again" in said.reason
@@ -45,7 +48,9 @@ def test_the_verdict_itself_is_not_rewritten() -> None:
     """What changes is what it SAYS. A run that renamed the failure would be a
     run deciding it knows why the step failed, and what this knows is only what
     is on the screen."""
-    said = _said_signed_out(_failed(), Look(url="u", screenshot=None, digest="", signed_out=True))
+    said = _said_what_is_there(
+        _failed(), Look(url="u", screenshot=None, digest="", signed_out=True)
+    )
 
     assert said.state == "failed"
     assert said.by == "none"
@@ -57,7 +62,7 @@ def test_a_step_that_held_in_front_of_a_login_page_is_left_alone() -> None:
     reasons that have nothing to do with this run."""
     held = StepVerdict("held", "screen", "the record was created", Answer())
 
-    assert _said_signed_out(held, Look("u", None, "", signed_out=True)) is held
+    assert _said_what_is_there(held, Look("u", None, "", signed_out=True)) is held
 
 
 def test_a_failure_under_a_dialog_says_what_the_dialog_said() -> None:
@@ -68,7 +73,7 @@ def test_a_failure_under_a_dialog_says_what_the_dialog_said() -> None:
     that clicked Save and then found nothing is a step whose answer is on the
     screen, in a box, in words -- and the run reported a missing control.
     """
-    said = _said_signed_out(
+    said = _said_what_is_there(
         _failed(),
         Look("u", None, "", dialog="Record already exists. Choose another code."),
     )
@@ -83,7 +88,7 @@ def test_a_failure_under_a_dialog_says_what_the_dialog_said() -> None:
 def test_a_login_page_is_named_before_a_dialog_on_the_same_screen() -> None:
     """Both at once is a login in a modal, which is a login: signing in is the
     thing to do about it, and "the screen is showing" is not."""
-    said = _said_signed_out(_failed(), Look("u", None, "", signed_out=True, dialog="Sign in"))
+    said = _said_what_is_there(_failed(), Look("u", None, "", signed_out=True, dialog="Sign in"))
 
     assert "session has gone" in said.reason
 
@@ -92,7 +97,7 @@ def test_a_step_that_held_under_a_dialog_is_left_alone() -> None:
     """Plenty of screens confirm a save in one."""
     held = StepVerdict("held", "status", "201", Answer())
 
-    assert _said_signed_out(held, Look("u", None, "", dialog="Saved")) is held
+    assert _said_what_is_there(held, Look("u", None, "", dialog="Saved")) is held
 
 
 def test_a_failure_on_another_screen_says_which_screen() -> None:
@@ -104,7 +109,7 @@ def test_a_failure_on_another_screen_says_which_screen() -> None:
     sat on the Warehouse configuration screen, after the operator had signed
     back in and landed somewhere else.
     """
-    said = _said_signed_out(
+    said = _said_what_is_there(
         _failed(),
         Look("https://wms.test/portal#wm.config/warehouse", None, ""),
         "https://wms.test/portal#wm.config/customers.types",
@@ -122,7 +127,7 @@ def test_the_same_screen_reached_by_another_url_is_not_another_screen() -> None:
     particulars live, and a run reporting a wrong screen every time one differed
     would be noise somebody learns to read past."""
     same = _failed()
-    said = _said_signed_out(
+    said = _said_what_is_there(
         same,
         Look("https://wms.test/portal?siteId=SG#wm.config/customers.types////", None, ""),
         "https://wms.test/portal?siteId=MY#wm.config/customers.types////",
@@ -136,13 +141,32 @@ def test_a_step_with_no_screen_to_compare_says_what_it_always_said() -> None:
     about would be worse than one that said nothing."""
     same = _failed()
 
-    assert _said_signed_out(same, Look("https://wms.test/x", None, ""), None) is same
+    assert _said_what_is_there(same, Look("https://wms.test/x", None, ""), None) is same
+
+
+def test_a_system_that_refused_the_request_says_so_before_the_screen() -> None:
+    """The one no amount of looking at a screen can answer.
+
+    An operator who can reach a screen and not the action on it sees a page
+    that looks exactly right and a control that does nothing. What says so is
+    the status.
+    """
+    said = _said_what_is_there(
+        _failed(),
+        Look("https://wms.test/elsewhere", None, ""),
+        "https://wms.test/here",
+        refused="this system refused the request: POST /customerTypes returned 403.",
+    )
+
+    # Before the wrong screen, which is also true and is not the answer.
+    assert said.reason.startswith("this system refused the request")
+    assert "control_not_found" in said.reason
 
 
 def test_a_failure_anywhere_else_says_what_it_always_said() -> None:
     same = _failed()
 
-    assert _said_signed_out(same, Look("u", None, "", signed_out=False)) is same
+    assert _said_what_is_there(same, Look("u", None, "", signed_out=False)) is same
 
 
 async def test_a_run_stopped_at_a_login_page_asks_for_the_password_it_has_none_of() -> None:
@@ -303,3 +327,78 @@ class _Channel:
     ) -> Reply:
         self.sent.append({"kind": kind, "run_id": run_id, "payload": payload})
         return self._reply
+
+
+async def test_a_403_among_the_calls_is_this_account_and_a_401_is_nobody() -> None:
+    """Two different problems with two different fixes: nobody is signed in,
+    and this account may not do this. `by_what_the_page_called` reads these
+    calls already -- but only for the step's own demonstrated endpoint and only
+    where the evidence recorded a write, so a 403 on anything else went
+    unread."""
+    for status, expected in ((403, "refused the request"), (401, "nobody is signed in")):
+        channel = _Channel(
+            Reply(
+                ok=True,
+                result={
+                    "calls": [
+                        {"method": "get", "url": "https://wms.test/ping", "status": 200},
+                        {
+                            "method": "post",
+                            "url": "https://wms.test/customerTypes",
+                            "status": status,
+                        },
+                    ]
+                },
+            )
+        )
+
+        said = await _refused_by_the_system(
+            channel=channel,
+            tenant_id=f.TENANT,
+            device_id=DeviceId("dev_1"),
+            run_id="run_1",
+            since=0.0,
+        )
+
+        assert expected in said, status
+
+
+async def test_an_ordinary_failure_is_not_told_it_was_refused() -> None:
+    channel = _Channel(
+        Reply(ok=True, result={"calls": [{"method": "get", "url": "u", "status": 200}]})
+    )
+
+    assert (
+        await _refused_by_the_system(
+            channel=channel,
+            tenant_id=f.TENANT,
+            device_id=DeviceId("dev_1"),
+            run_id="run_1",
+            since=0.0,
+        )
+        == ""
+    )
+
+
+async def test_a_browser_that_would_not_answer_says_nothing_about_a_refusal() -> None:
+    """Carrying calls in the payload as well, which is the case the guard is
+    for: a reply that failed is not evidence, whatever else came with it."""
+    channel = _Channel(
+        Reply(
+            ok=False,
+            error_kind="not_actionable",
+            error_detail="x",
+            result={"calls": [{"method": "post", "url": "https://wms.test/x", "status": 403}]},
+        )
+    )
+
+    assert (
+        await _refused_by_the_system(
+            channel=channel,
+            tenant_id=f.TENANT,
+            device_id=DeviceId("dev_1"),
+            run_id="run_1",
+            since=0.0,
+        )
+        == ""
+    )

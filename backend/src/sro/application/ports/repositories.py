@@ -949,6 +949,14 @@ class WorkflowRepository(Protocol):
         """Every step of this job that a run has found a working locator for."""
         ...
 
+    async def remember_limit(self, workflow_id: str, ord_: int, holds: int) -> None:
+        """How many characters this step's box turned out to take.
+
+        Learnt on a step whose locator matched perfectly well, which is why it
+        is not part of `remember_locator`: writing the two together would have
+        a truncation erase a locator, or a locator erase a limit."""
+        ...
+
     async def clear_stale(self, workflow_id: str, ord_: int) -> None:
         """The step matched properly again. A warning that never clears is a
         warning nobody reads. Idempotent: clearing a step that was never weak

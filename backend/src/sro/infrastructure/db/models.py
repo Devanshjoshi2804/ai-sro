@@ -1103,6 +1103,9 @@ class WorkflowLearnedRow(Base):
     strategy: Mapped[str] = mapped_column(Text, nullable=False)
     query: Mapped[str] = mapped_column(Text, nullable=False)
     found_by: Mapped[str] = mapped_column(Text, nullable=False)
+    holds: Mapped[int | None] = mapped_column(Integer)
+    """How many characters this step's box will take, where a run has found
+    out. Null until one has, and on every step that is not a typing step."""
     learned_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 

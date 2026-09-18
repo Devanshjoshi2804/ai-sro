@@ -289,6 +289,39 @@ class SqlWorkflowRepository(WorkflowRepository):
             )
         )
 
+    async def remember_limit(self, workflow_id: str, ord_: int, holds: int) -> None:
+        """What this step's box will take, learnt once.
+
+        Its own method rather than a field on `remember_locator`, because the
+        two are learnt at different moments and about different things: a
+        locator is learnt when the recorded identity failed, and a limit is
+        learnt on a step whose locator matched perfectly well. Writing them
+        together would mean a truncation erasing a locator, or a locator
+        erasing a limit -- so each writes only its own columns, and a step can
+        carry both.
+        """
+        statement = pg_insert(WorkflowLearnedRow).values(
+            workflow_id=workflow_id,
+            ord=ord_,
+            # Empty rather than absent, for a step that has never needed a
+            # locator learnt: the columns are not null, and "" is honestly what
+            # is known about a locator nobody has had to find.
+            strategy="",
+            query="",
+            found_by="typed",
+            holds=holds,
+            learned_at=datetime.now(tz=UTC),
+        )
+        await self._session.execute(
+            statement.on_conflict_do_update(
+                index_elements=["workflow_id", "ord"],
+                set_={
+                    "holds": statement.excluded.holds,
+                    "learned_at": statement.excluded.learned_at,
+                },
+            )
+        )
+
     async def remember_locator(self, workflow_id: str, learned: LearnedStep) -> None:
         # The stale row's shape, and for its reason: one row per step, the
         # later notice winning, because the last locator that worked is the
@@ -320,7 +353,13 @@ class SqlWorkflowRepository(WorkflowRepository):
             )
         ).scalars()
         return tuple(
-            LearnedStep(ord=row.ord, strategy=row.strategy, query=row.query, found_by=row.found_by)
+            LearnedStep(
+                ord=row.ord,
+                strategy=row.strategy,
+                query=row.query,
+                found_by=row.found_by,
+                holds=row.holds,
+            )
             for row in rows
         )
 

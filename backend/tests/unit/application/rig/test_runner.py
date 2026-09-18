@@ -5620,6 +5620,74 @@ async def test_a_field_that_would_not_take_the_value_stops_the_run() -> None:
     assert len([one for one in channel.sent if one["kind"] == "ui.perform"]) == 1
 
 
+async def test_a_limit_found_once_is_not_found_again_the_hard_way() -> None:
+    """The difference between learning and repeating.
+
+    `learned_step.py` says what repeating costs, about locators: three runs in
+    one afternoon working out the same control's name and writing it into a log
+    line, so that at the end of the afternoon the job knew exactly what it knew
+    at the start.
+
+    A field's limit is the same shape of fact and is learnt the same way. The
+    first run finds it the hard way -- types, has a prefix silently kept, and
+    stops. Every run after knows before it opens a form, so it stops without
+    half-filling one in front of somebody to reach a conclusion already
+    written down.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    truncating = FakeChannel(
+        {
+            **_looks(4),
+            "ui.perform": [
+                Reply(
+                    ok=True,
+                    result={
+                        "performed": True,
+                        "matched_by": "component",
+                        "candidates": 1,
+                        "short": {"asked": 9, "kept": 4, "truncated": True},
+                    },
+                )
+            ],
+        }
+    )
+
+    # The run's own value, not the demonstration's: `value_for` takes the
+    # demonstrated one when a run supplies none, so a plan that merely NAMES a
+    # long value does not send one.
+    first = await _ran(
+        uow,
+        workflow,
+        channel=truncating,
+        asker=FakeAsker(_plan("type", "TOOLONGXX")),
+        values={"clientCode": "TOOLONGXX"},
+        earned=True,
+    )
+    assert first.outcome == "stopped"
+
+    # What it found out, kept on the job rather than in a log line.
+    (learnt,) = await uow.workflows.learned_for(workflow.id)
+    assert learnt.holds == 4
+
+    # And the next run does not touch the form to find it out again.
+    quiet = FakeChannel({**_looks(4), "ui.perform": []})
+    again = await _ran(
+        uow,
+        workflow,
+        channel=quiet,
+        asker=FakeAsker(_plan("type", "TOOLONGXX")),
+        values={"clientCode": "TOOLONGXX"},
+        earned=True,
+    )
+
+    assert again.outcome == "stopped"
+    assert "holds 4 characters and was given 9" in again.steps[0].reason, again.steps[0].reason
+    assert not [one for one in quiet.sent if one["kind"] == "ui.perform"], (
+        "it typed into a box it already knew was too small"
+    )
+
+
 async def test_a_field_that_merely_tidied_the_value_does_not_stop_the_run() -> None:
     """A field that trimmed a space or fixed a case changed what it was given
     and did not LOSE any of it. Stopping for that would stop correct runs on a

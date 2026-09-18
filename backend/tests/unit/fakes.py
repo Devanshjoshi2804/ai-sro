@@ -1900,6 +1900,17 @@ class FakeWorkflowRepository:
         # most recently is the current answer about that step.
         self.learned[(workflow_id, learned.ord)] = learned
 
+    async def remember_limit(self, workflow_id: str, ord_: int, holds: int) -> None:
+        # Its own columns, the store's rule: a truncation must not erase a
+        # locator and a locator must not erase a limit, so each keeps what the
+        # other learnt.
+        was = self.learned.get((workflow_id, ord_))
+        self.learned[(workflow_id, ord_)] = (
+            LearnedStep(ord_, was.strategy, was.query, was.found_by, holds)
+            if was is not None
+            else LearnedStep(ord_, "", "", "typed", holds)
+        )
+
     async def learned_for(self, workflow_id: str) -> tuple[LearnedStep, ...]:
         return tuple(one for (workflow, _), one in self.learned.items() if workflow == workflow_id)
 

@@ -54,6 +54,17 @@ class LearnedStep:
     """Which rung produced it, so a reader can tell a name a picture found from
     one a css path did."""
 
+    holds: int | None = None
+    """How many characters this step's box will take, where a run found out.
+
+    A field truncates in the browser, before the request, and the only moment
+    the difference exists is between the value the step was given and the value
+    the box ends up holding. Catching that every time is repeating; this is the
+    half that makes it learning.
+
+    None until a run has been told otherwise -- which is every step that does
+    not type, and every typing step whose value has always fitted."""
+
     @property
     def usable(self) -> bool:
         return bool(self.strategy and self.query)

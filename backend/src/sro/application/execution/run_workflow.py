@@ -85,7 +85,7 @@ from sro.domain.execution.evidence import (
 )
 from sro.domain.execution.field_notes import notes_on
 from sro.domain.execution.gathering import Gathered
-from sro.domain.execution.learned_step import learned_from
+from sro.domain.execution.learned_step import LearnedStep, learned_from
 from sro.domain.execution.planning import Look, Planned
 from sro.domain.execution.secrets import without_secrets
 from sro.domain.execution.verified_writes import VerifiedWrite
@@ -2068,6 +2068,33 @@ async def run_workflow(
                 # because of it can be told from the ones it was already
                 # making. Taken here and not after the reply: a form submit
                 # posts before the click's own answer comes back.
+                # A box already known not to take this does not get filled.
+                #
+                # The limit was learnt by a run that found it the hard way: it
+                # typed, the browser silently kept a prefix, and the run
+                # stopped. Knowing that and typing anyway would half-fill a
+                # form in front of somebody to reach the same conclusion --
+                # which is the difference between a system that learns and one
+                # that repeats, and the whole point of writing the limit down.
+                #
+                # Checked here rather than at the door, because the value for
+                # a step is not known until it is planned: a run may supply it,
+                # a mailbox may, and a body may carry it.
+                holds = (learned.get(step.order) or LearnedStep(step.order, "", "", "")).holds
+                asked_for = planned.payload.get("value")
+                if holds is not None and isinstance(asked_for, str) and len(asked_for) > holds:
+                    verdict = StepVerdict(
+                        "failed",
+                        "read",
+                        f"this field holds {holds} characters and was given "
+                        f"{len(asked_for)}, so the record would not say what was "
+                        "asked for",
+                    )
+                    record.verdict, record.verdict_by = verdict.state, verdict.by
+                    record.reason = verdict.reason
+                    logger.info("%s step %d %s", run.id, step.order, verdict.reason)
+                    await _save(uow, run)
+                    break
                 sent_at = datetime.now(tz=UTC).timestamp()
                 reply = await channel.send(
                     tenant_id, device_id, kind=planned.kind, run_id=run.id, payload=planned.payload
@@ -2102,6 +2129,14 @@ async def run_workflow(
                 # ordinary forms.
                 cut = record.result.get("short")
                 if isinstance(cut, dict) and cut.get("truncated"):
+                    # Learnt, not merely reported. A limit found once and
+                    # forgotten is this job discovering the same fact every
+                    # run -- which is what `learned_step.py` calls repeating
+                    # rather than learning, and it says what that cost when
+                    # the fact was a locator.
+                    kept = cut.get("kept")
+                    if isinstance(kept, int):
+                        await uow.workflows.remember_limit(workflow.id, step.order, kept)
                     verdict = StepVerdict(
                         "failed",
                         "read",

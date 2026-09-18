@@ -1387,6 +1387,85 @@ async def test_the_record_keeps_what_the_browser_answered_not_what_it_answered_w
     }, "the three facts and the write marker; not the body, not the cookie"
 
 
+async def test_a_step_that_uses_an_earlier_one_is_planned_with_what_it_made() -> None:
+    """3.1's other half, through the loop rather than beside it.
+
+    `uses_edges` finds the edge and `_what_earlier_steps_made` reads the
+    record, and both were proved on their own -- which left the one line
+    between them, in a loop nothing ran, deciding whether a value the warehouse
+    minted reaches the step that needs it. That line is what composition is:
+    a later step cannot take an earlier one's output any other way.
+
+    Read off a row this run did not write, which is the case the binding was
+    built for: a run that is resumed re-reads what it made from the store, and
+    a binding that only worked out of a local would be empty for exactly the
+    half of a job that comes back after a pause.
+    """
+    uow = await _fixture()
+    ids = _ids(uow)
+    workflow = Workflow(
+        id="wfl_chain",
+        tenant=ELSEWHERE,
+        title="make one, then name it",
+        narrative="n",
+        systems=["http://127.0.0.1:63319"],
+        steps=[
+            Step(order=0, says="save it", system=None, cites=[ids[-1]]),
+            Step(
+                order=1,
+                says="type the code",
+                system=None,
+                cites=[ids[0]],
+                parameters=["clientCode"],
+                uses=[0],
+            ),
+        ],
+        parameters=[{"name": "clientCode", "seen_values": ["A", "B"]}],
+    )
+    await uow.workflows.save(workflow)
+    await uow.workflow_runs.save(
+        _bare_run(
+            id="run_chain",
+            workflow_id=workflow.id,
+            device_id=DEVICE.value,
+            live=True,
+            from_step=1,
+            values={"clientCode": "A"},
+            steps=[
+                _step_record(
+                    order=0,
+                    of_step=0,
+                    verdict="held",
+                    verdict_by="status",
+                    made={"id": "4471"},
+                )
+            ],
+        )
+    )
+    channel = FakeChannel({**_looks(4), "ui.perform": [_performed()]})
+    asker = FakeAsker(_plan("type", "4471"), Answer(data={"held": True, "why": ""}))
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        values={"clientCode": "A"},
+        run_id="run_chain",
+        from_step=1,
+        earned=True,
+    )
+
+    assert run.outcome == "held"
+    planned = asker.asked[0]["evidence"]
+    assert '"step0.id": "4471"' in str(planned), (
+        "the step that uses step 0 was planned without what step 0 made"
+    )
+    # Under the run's own values and never over them: what a person supplied is
+    # what they asked for.
+    assert '"clientCode": "A"' in str(planned)
+
+
 async def test_a_failed_reply_keeps_the_error_kind_as_its_own_field() -> None:
     uow = await _fixture()
     workflow = await _workflow(uow)

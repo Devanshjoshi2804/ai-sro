@@ -185,7 +185,16 @@ class DraftForTheAsker:
         first = rows[0] if isinstance(rows[0], dict) else {}
         return (
             _address(str(first.get("from") or "")),
-            str(first.get("rfc822_message_id") or first.get("id") or ""),
+            # The mail's OWN id and nothing else. Gmail's internal id used to
+            # stand in for it, and a wrong `In-Reply-To` is worse than none:
+            # the header names a message the receiving client has never heard
+            # of, so it draws an orphan AND has thrown away the subject it
+            # would otherwise have threaded on.
+            #
+            # Measured on the deployment 2026-09-18: the mail this system sent
+            # arrived in the recipient's mailbox as a new conversation rather
+            # than under the request it was answering.
+            str(first.get("rfc822_message_id") or ""),
             " ".join(str(first.get("subject") or "").split()),
         )
 

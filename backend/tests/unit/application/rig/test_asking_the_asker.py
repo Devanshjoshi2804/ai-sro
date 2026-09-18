@@ -36,9 +36,17 @@ THREAD = "t-9"
 class _Mailbox:
     """A connector that answers, and remembers every send it was asked for."""
 
-    def __init__(self, *, sender: str = "Tanisha Pradhan <tanisha@example.com>") -> None:
+    def __init__(
+        self,
+        *,
+        sender: str = "Tanisha Pradhan <tanisha@example.com>",
+        rfc822: str | None = "<abc@mail>",
+    ) -> None:
         self.sent: list[dict[str, str]] = []
         self._sender = sender
+        # The mail's OWN id, which a connector that predates carrying one does
+        # not send. `None` is that mailbox.
+        self._rfc822 = rfc822
         self.unavailable = False
 
     @property
@@ -70,7 +78,11 @@ class _Mailbox:
                             "id": "m-1",
                             "from": self._sender,
                             "subject": "Customer type for the SRO pilot",
-                            "rfc822_message_id": "<abc@mail>",
+                            **(
+                                {"rfc822_message_id": self._rfc822}
+                                if self._rfc822 is not None
+                                else {}
+                            ),
                             "body": "please set one up",
                         },
                         {"id": "m-2", "from": "devansh <devansh@greyorange.com>", "body": "ok"},
@@ -173,6 +185,30 @@ async def test_one_mail_per_run_however_many_presses() -> None:
     assert await sender.execute(CTX, threads[0].id, drafted.id) == ""
 
     assert len(mailbox.sent) == 1, "one request, two mails"
+
+
+async def test_a_conversation_whose_mail_has_no_own_id_threads_on_nothing() -> None:
+    """A wrong `In-Reply-To` is worse than none.
+
+    Gmail's internal id used to stand in for the mail's own: the header then
+    names a message the receiving client has never heard of, so it draws an
+    orphan AND has thrown away the subject it would otherwise have threaded on.
+    Measured on the deployment 2026-09-18 -- the mail this system sent arrived
+    in the recipient's mailbox as a new conversation rather than under the
+    request it was answering.
+    """
+    uow, mailbox = FakeUnitOfWork(), _Mailbox(rfc822=None)
+    await _a_run(uow)
+
+    assert await _drafter(uow, mailbox).execute(CTX, _pending(), run_id="run_1") is True
+
+    threads = await uow.threads.list_for_tenant(f.TENANT, opened_by=PrincipalId("devansh"), limit=1)
+    decision = threads[0].messages[-1].decision
+    assert decision is not None
+    # Empty, and the mail still goes: an orphan in somebody's inbox is a
+    # nuisance and a mail nobody sent is a request nobody answers.
+    assert decision["in_reply_to"] == ""
+    assert decision["to"] == "tanisha@example.com"
 
 
 async def test_a_run_that_has_already_asked_is_not_drafted_for_again() -> None:

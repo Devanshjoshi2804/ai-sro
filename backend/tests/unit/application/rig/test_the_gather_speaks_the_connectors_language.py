@@ -15,6 +15,7 @@ was a spelling.
 from __future__ import annotations
 
 import importlib.util
+import json
 from pathlib import Path
 from types import ModuleType
 from typing import Any
@@ -58,3 +59,64 @@ def test_the_connector_this_gather_looks_in_is_one_it_could_be_pointed_at() -> N
     """`SERVER` is the connector's own name in `SRO_MCP_SERVERS`, and the
     connector announces the same one at `initialize`."""
     assert SERVER == "gmail"
+
+
+def test_a_conversation_carries_each_mail_s_own_id() -> None:
+    """The half a reply is threaded on, and the same two-program gap.
+
+    `ask_the_asker` reads `rfc822_message_id` off a thread and puts it in
+    `In-Reply-To`. The connector sent Gmail's internal id and nothing else, so
+    the header named a message the receiving client had never heard of and it
+    drew an orphan. Measured on the deployment 2026-09-18: the mail this system
+    sent arrived in the recipient's mailbox as a new conversation rather than
+    under the request it was answering.
+
+    Read out of the module rather than asserted about Gmail, for this file's
+    own reason: what is under test is that two programs agree about a name.
+    """
+    module = _connector()
+    thread = {
+        "id": "t-1",
+        "messages": [
+            {
+                "id": "1a0b5053",
+                "payload": {
+                    "headers": [
+                        {"name": "Message-ID", "value": "<abc@mail.example>"},
+                        {"name": "From", "value": "asker@example.com"},
+                        {"name": "Subject", "value": "a customer type"},
+                    ],
+                    "body": {},
+                },
+            }
+        ],
+    }
+    module.httpx = _Answers(thread)  # type: ignore[attr-defined]
+
+    said = json.loads(module._thread("token", {"id": "t-1"}))
+
+    (one,) = said["messages"]
+    # The mail's own id, and Gmail's kept beside it: the first is what a reply
+    # is threaded on and the second is what this system claims a message by.
+    assert one["rfc822_message_id"] == "<abc@mail.example>"
+    assert one["id"] == "1a0b5053"
+
+
+class _Answers:
+    """`httpx`, answering one body. The connector calls `httpx.get` directly."""
+
+    def __init__(self, body: dict[str, Any]) -> None:
+        self._body = body
+
+    def get(self, *_args: Any, **_kwargs: Any) -> Any:
+        return _Said(self._body)
+
+
+class _Said:
+    def __init__(self, body: dict[str, Any]) -> None:
+        self._body = body
+        self.status_code = 200
+        self.text = json.dumps(body)
+
+    def json(self) -> dict[str, Any]:
+        return self._body

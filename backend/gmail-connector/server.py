@@ -486,6 +486,10 @@ def _get(token: str, arguments: dict[str, Any]) -> str:
             # 21:26: "gathered 0 of 2 ... the mailbox holds none of the values
             # this job needs", about values sitting one mail away.
             "thread_id": full.get("threadId", ""),
+            # The mail's own id, for the same reason `_thread` carries one: a
+            # reply names it in `In-Reply-To`, and Gmail's internal id is not
+            # one any other client can thread on.
+            "rfc822_message_id": head.get("message-id", ""),
             "from": head.get("from", ""),
             "subject": head.get("subject", ""),
             "body": _body_of(payload),
@@ -517,6 +521,19 @@ def _thread(token: str, arguments: dict[str, Any]) -> str:
         said.append(
             {
                 "id": one.get("id", ""),
+                # The mail's OWN id, which is not Gmail's id for it.
+                #
+                # `In-Reply-To` must carry an RFC822 `Message-Id` -- the
+                # `<...@host>` the sending client minted -- and this was
+                # sending Gmail's internal `1a0b...` instead, because it was
+                # the only id here. Gmail itself threads on `threadId` and
+                # never noticed; every other client saw a header naming a
+                # message it has never heard of and drew an orphan.
+                #
+                # Measured on the deployment 2026-09-18: the mail this system
+                # sent arrived in the recipient's mailbox as a NEW
+                # conversation, not under the request it was answering.
+                "rfc822_message_id": head.get("message-id", ""),
                 "from": head.get("from", ""),
                 "date": head.get("date", ""),
                 "subject": head.get("subject", ""),

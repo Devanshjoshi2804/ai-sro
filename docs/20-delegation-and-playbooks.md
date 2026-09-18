@@ -218,6 +218,7 @@ found.
 | 3.1 | **A step names the prior steps whose output it uses** (CrewAI) | stolen |
 | 3.2 | **A dormant pause keyed by an external id** (LangGraph) | done |
 | 3.3 | **Learned facts written back as a reviewable diff** (Robot Framework) | stolen |
+| 3.4 | One request, two mails, one card | found 2026-09-18 |
 | 4 | Bind a value for a known field into the write | |
 | 5 | An undemonstrated field must prove it landed | |
 | 6 | The card says what it will write | |
@@ -240,3 +241,18 @@ already been claimed. The answer was being lost at the moment it arrived.
 
 3.1 is the smallest useful step toward composition and does not require
 building a graph engine.
+
+3.4 was found by looking at a real operator's panel on 2026-09-18, not by a
+test. It held two identical `Create a Customer Type — GV2, leaning new SRO type
+046` cards, because that request arrived as two messages -- the request, and a
+`Confirmed - please create the customer type in WMS as discussed` reply -- and
+`_first_time` claims a MESSAGE id, so each was read, each was understood as the
+same job, and each was offered. One request, two cards, and pressing both makes
+the record twice.
+
+3.2 closes this only once a run is already waiting on the thread. Nothing was
+waiting here, so both were offered. What is missing is narrower: a second offer
+for a job on a thread that already has an OPEN offer is the same request, not a
+new one. The write claim still stands behind it -- two runs cannot both create
+the record -- so this is a panel somebody stops trusting rather than a duplicate
+in the warehouse.

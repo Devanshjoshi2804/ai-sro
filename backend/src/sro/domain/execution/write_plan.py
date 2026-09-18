@@ -247,6 +247,46 @@ def _echoed(step: Step, by_id: Mapping[str, Gesture], like: Call) -> frozenset[s
     return None if echoed is None else frozenset(echoed)
 
 
+def _returned(step: Step, by_id: Mapping[str, Gesture], like: Call) -> frozenset[str] | None:
+    """The keys the record came back HOLDING, whatever value they held.
+
+    `_echoed`'s weaker sibling, and the right question for a slot no
+    demonstration filled. That one asks whether the server gave a key back
+    unchanged, which is the test for trusting a value without looking. This
+    asks only whether the key is IN the record the server returned -- which is
+    what makes a read-back able to check it afterwards.
+
+    The difference is not academic and it is not small. Measured on this
+    deployment's own create, 2026-09-19: **46 keys sent, 43 in the record, 15
+    echoed unchanged.** The 28 that disagree are the boxes nobody touched --
+    sent as `""` and stored as `null` -- so the echo test excludes precisely
+    the fields a request might name and a demonstration never filled, which is
+    every field item 4 exists for.
+
+    A key present in the record is a key the server acknowledges. Whether it
+    accepted THIS value is a different question, and it is the one the
+    read-back answers at run time -- and fails the step on.
+
+    `all`, and `None` where no demonstration answered, both for `_echoed`'s
+    reasons: one doing that returned a key proves nothing if another did not,
+    and absence of evidence about a slot is not evidence about the slot.
+    """
+    returned: set[str] | None = None
+    for cited in step.cites:
+        gesture = by_id.get(cited)
+        if gesture is None:
+            continue
+        for call in gesture.requests:
+            if not _same_endpoint(call, like) or unreplayable(call):
+                continue
+            back = _record(call.response_body.text if call.response_body else None)
+            if back is None:
+                continue
+            held = set(back)
+            returned = held if returned is None else (returned & held)
+    return None if returned is None else frozenset(returned)
+
+
 def _slots(bodies: list[dict[str, object]]) -> frozenset[str]:
     """The keys the job varies: present in every doing, differing in at least one.
 
@@ -431,7 +471,10 @@ def write_plan_for(
     # about it: a value with a declared slot to go to is not a value with
     # nowhere to go, and refusing the whole plan for one would send every field
     # through the interface because a request named one extra.
-    also = _undemonstrated(keys, values, bodies[0], slots, echoed)
+    # `_returned` and not `_echoed`: the echo test is for trusting a value
+    # without looking, and this is the opposite -- a slot that will be looked
+    # at. See `_returned`, which carries the measurement.
+    also = _undemonstrated(keys, values, bodies[0], slots, _returned(step, by_id, call))
     # Every name with a declared slot, not only the ones actually filled.
     #
     # "Every value must have somewhere to go" exists for the TRANSFORMED case:
@@ -503,7 +546,7 @@ def _undemonstrated(
     values: Mapping[str, str],
     body: Mapping[str, object],
     slots: frozenset[str],
-    echoed: frozenset[str] | None,
+    returned: frozenset[str] | None,
 ) -> dict[str, str]:
     """Values for slots no demonstration varied, and only the provable ones.
 
@@ -519,23 +562,30 @@ def _undemonstrated(
     **Not a slot the evidence already binds.** `_assigned` decided those from
     what the operator was seen typing, which is stronger than a declaration.
 
-    **Only where the server echoes it.** This is item 5 and it is the reason
-    item 4 is safe at all: nothing demonstrated this slot, so a status proves
-    nothing about it -- the request went and the field may have been ignored,
-    renamed or silently dropped. A slot the demonstrations' own answers gave
-    back can be read back and checked. One they never echoed cannot, and a
+    **Only a slot the record comes back holding.** This is item 5 and it is the
+    reason item 4 is safe at all: nothing demonstrated this slot, so a status
+    proves nothing about it -- the request went and the field may have been
+    ignored, renamed or silently dropped. A key the server returns is one a
+    read-back can check; one it never returns cannot be checked at all, and a
     value written where nobody can confirm it is exactly the wrong record this
     whole ladder exists to prevent.
 
+    Returned, and deliberately not ECHOED. The echo test asks whether a value
+    came back unchanged, which is the test for trusting one without looking --
+    and 28 of the 46 keys in this deployment's create are boxes nobody touched,
+    sent as `""` and stored as `null`, so it would exclude exactly the fields
+    this is for. Whether the server accepts THIS value is what the read-back
+    answers, and fails the step on.
+
     **And never where the demonstrations answered nothing at all.** `None` is
-    "no evidence about echoing", which is not evidence of echoing.
+    "no evidence about the record's shape", which is not evidence about it.
     """
-    if not keys or echoed is None:
+    if not keys or returned is None:
         return {}
     filled: dict[str, str] = {}
     for name, slot in keys.items():
         value = values.get(name)
-        if value is None or slot in slots or slot not in body or slot not in echoed:
+        if value is None or slot in slots or slot not in body or slot not in returned:
             continue
         filled[slot] = value
     return filled

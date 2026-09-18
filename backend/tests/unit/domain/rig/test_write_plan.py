@@ -1018,3 +1018,77 @@ def test_the_evidence_wins_where_both_could_bind_one_slot() -> None:
     assert plan is not None
     assert json.loads(plan.body or "{}")["customerType"] == "GPDP"
     assert plan.filled["customerType"] == CODE
+
+
+def test_a_slot_the_record_returns_but_never_echoed_is_still_fillable() -> None:
+    """The difference between `_returned` and `_echoed`, measured.
+
+    On this deployment's own create, 2026-09-19: 46 keys sent, 43 in the
+    record, 15 echoed unchanged. The 28 that disagree are the boxes nobody
+    touched -- sent as `""` and stored as `null` -- so an echo test excludes
+    precisely the fields a request might name and a demonstration never
+    filled, which is every field this exists for.
+
+    Whether the server accepts THIS value is what the read-back answers, and
+    fails the step on.
+    """
+    answer = {"customerType": "GGD", "departmentNumber": None}
+    plan = write_plan_for(
+        _step("g1", "g2"),
+        {
+            "g1": _answered("g1", CREATED, answer),
+            "g2": _answered(
+                "g2", {**CREATED, "customerType": "GKB"}, {**answer, "customerType": "GKB"}
+            ),
+        },
+        {CODE: "GPDP", "Department": "Inbound"},
+        LEDGER,
+        {CODE: SEEN[CODE]},
+        DECLARED,
+    )
+
+    assert plan is not None
+    # Sent as "" by both doings and returned as null by both, so nothing
+    # echoed it -- and the record plainly holds the key.
+    assert json.loads(plan.body or "{}")["departmentNumber"] == "Inbound"
+    assert plan.confirm["departmentNumber"] == "Inbound"
+
+
+def test_a_slot_no_record_ever_held_is_not_filled() -> None:
+    """A key the server never returns cannot be checked at all, and a value
+    written where nobody can confirm it is the wrong record this ladder exists
+    to prevent."""
+    plan = write_plan_for(
+        _step("g1", "g2"),
+        {
+            "g1": _answered("g1", CREATED, {"customerType": "GGD"}),
+            "g2": _answered("g2", {**CREATED, "customerType": "GKB"}, {"customerType": "GKB"}),
+        },
+        {CODE: "GPDP", "Department": "Inbound"},
+        LEDGER,
+        {CODE: SEEN[CODE]},
+        DECLARED,
+    )
+
+    assert plan is not None
+    assert json.loads(plan.body or "{}")["departmentNumber"] == ""
+    assert "departmentNumber" not in plan.confirm
+
+
+def test_one_doing_that_returned_a_key_is_not_enough() -> None:
+    """`all`, not `any`: one doing that returned a key proves nothing if
+    another did not."""
+    plan = write_plan_for(
+        _step("g1", "g2"),
+        {
+            "g1": _answered("g1", CREATED, {"customerType": "GGD", "departmentNumber": None}),
+            "g2": _answered("g2", {**CREATED, "customerType": "GKB"}, {"customerType": "GKB"}),
+        },
+        {CODE: "GPDP", "Department": "Inbound"},
+        LEDGER,
+        {CODE: SEEN[CODE]},
+        DECLARED,
+    )
+
+    assert plan is not None
+    assert json.loads(plan.body or "{}")["departmentNumber"] == ""

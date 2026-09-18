@@ -1491,6 +1491,57 @@ async def test_a_failed_reply_keeps_the_error_kind_as_its_own_field() -> None:
     assert run.steps[0].matched_by is None, "a command that failed matched nothing"
 
 
+async def test_a_step_that_failed_somewhere_else_says_where_the_browser_is() -> None:
+    """3.14's wire, through the loop.
+
+    `_said_what_is_there` was proved beside the loop, and the loop's own call
+    passes it a fourth argument nothing exercised -- so a run that dropped
+    `route` would report `no control matched` while the operator sat looking at
+    a different screen, which is the sentence this exists to replace. Seen on
+    the deployment 2026-09-18, after a sign-in landed the browser somewhere
+    else.
+    """
+    uow = await _fixture()
+    # The job first, so the step AFTER this one still cites the evidence it was
+    # built from: `_ids` reads the repository, and a gesture added before the
+    # job is built lands on both steps -- which is one screen, not two, and no
+    # route at all.
+    workflow = await _workflow(uow)
+    original = _evidence(uow)[-1]
+    # A step that only moves the browser: one click, nothing typed, and the
+    # step after it recorded somewhere else. That is the only shape `route_for`
+    # answers for, and without it there is no screen to be wrong about.
+    moved = replace(
+        original,
+        id="ges_moved",
+        requests=[],
+        url="http://127.0.0.1:63319/list",
+        page_url="http://127.0.0.1:63319/list",
+        action=replace(original.action, kind="click", value=None),
+    )
+    await uow.gestures.add_gestures((moved,))
+    workflow.steps[0].cites = [moved.id]
+    workflow.steps[0].parameters = []
+    channel = FakeChannel(
+        {
+            **_looks(8),
+            "ui.url": [Reply(ok=True, result={"url": "http://127.0.0.1:63319/list"})] * 8,
+            "ui.perform": [Reply(ok=False, error_kind="timed_out", error_detail="gone")] * 3,
+        }
+    )
+
+    run = await _ran(
+        uow, workflow, channel=channel, asker=FakeAsker(_plan("click")), values={}, earned=True
+    )
+
+    said = run.steps[0].reason
+    assert "the browser is on http://127.0.0.1:63319/list" in said, (
+        "it never said where the browser actually was"
+    )
+    assert "demonstrated on http://127.0.0.1:63319/" in said, "it never said where the step belongs"
+    assert "gone" in said, "the original reason was replaced rather than kept beside it"
+
+
 def _only_run(uow: FakeUnitOfWork) -> WorkflowRun:
     assert isinstance(uow.workflow_runs, FakeWorkflowRunRepository)
     (row,) = uow.workflow_runs.rows.values()

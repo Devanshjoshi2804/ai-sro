@@ -21,12 +21,13 @@ const test = (name, fn) => tests.push([name, fn]);
 
 const tabs = (row) => row.kids.filter((kid) => kid.tag === "button");
 
-test("two halves and two things to do, in the order they are read", () => {
+test("two halves and three things to do, in the order they are read", () => {
   assert.deepEqual(PANES, ["home", "chat"]);
   const row = panes("home");
   assert.deepEqual(tabs(row).map((tab) => tab.dataset.pane), [
     "home",
     "chat",
+    "pending",
     "history",
     "new",
   ]);
@@ -50,12 +51,13 @@ test("only the halves are tabs; the other two are things to do", () => {
   assert.equal(made.getAttribute("aria-selected"), null);
 });
 
-test("history and a new conversation each say which was pressed", () => {
+test("the backlog, history and a new conversation each say which was pressed", () => {
   const picked = [];
   const row = panes("home", { onPick: (what) => picked.push(what) });
   tabs(row)[2].listeners.click[0]();
   tabs(row)[3].listeners.click[0]();
-  assert.deepEqual(picked, ["history", "new"]);
+  tabs(row)[4].listeners.click[0]();
+  assert.deepEqual(picked, ["pending", "history", "new"]);
 });
 
 test("the one you are on says so, to a screen reader as well as to an eye", () => {
@@ -68,19 +70,20 @@ test("the one you are on says so, to a screen reader as well as to an eye", () =
   assert.equal(home.getAttribute("role"), "tab");
 });
 
-test("what is waiting is counted on Home, from the other pane", () => {
-  // The one thing a person on the wrong pane needs to know.
+test("what is waiting is counted on the tray that holds it", () => {
+  // The one thing a person needs to know without opening anything.
   const row = panes("chat", { waiting: 3 });
 
   assert.match(words(row), /3/);
-  assert.equal(tabs(row)[0].getAttribute("aria-label"), "Home, 3 waiting");
+  assert.equal(tabs(row)[2].getAttribute("aria-label"), "Waiting for you, 3");
 });
 
-test("nothing is counted beside the pane you are already looking at", () => {
-  // A number describing the screen to itself. The cards are right there.
-  const row = panes("home", { waiting: 3 });
-
-  assert.doesNotMatch(words(row), /3/);
+test("the count is drawn on whichever pane you are standing on", () => {
+  // It used to be hidden on Home, and that was right when everything waiting
+  // WAS on Home -- the badge only said you had not been there. Home keeps the
+  // newest one now and the rest are behind the tray, so a count that vanished
+  // on Home would be hiding the queue from the pane it is nearest to.
+  assert.match(words(panes("home", { waiting: 3 })), /3/);
 });
 
 test("nothing waiting is no badge at all", () => {

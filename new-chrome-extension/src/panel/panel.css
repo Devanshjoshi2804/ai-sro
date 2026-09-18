@@ -1142,6 +1142,42 @@ a:focus-visible {
   box-shadow: 0 10px 30px rgb(0 0 0 / 35%);
 }
 
+/* The backlog, in the slot history uses. Same overlay, same furniture -- what
+ * differs is that every line here wants a decision, so the rows carry buttons
+ * and the days carry a heading. */
+.pending .history-list li {
+  display: block;
+}
+
+/* The day a group of requests arrived on. A request is a thing somebody asked
+ * for on a day, and "Tuesday" is how anybody talks about it -- a list of clock
+ * times with no days in it cannot tell an hour ago from a week ago. */
+.pending-day {
+  margin: 14px 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}
+
+.pending-day:first-of-type {
+  margin-top: 6px;
+}
+
+/* What it is still short of, marked as the different decision it is: pressing
+   yes on this opens a question rather than starting a job. */
+.pending .detail[data-kind="short"] {
+  color: var(--accent);
+}
+
+/* Answered here, and then plainly done with. The row stays -- the list does
+   not redraw on a press, and a line that vanished under the finger would leave
+   somebody unsure which one they just answered. */
+.pending li[data-answered] {
+  opacity: 0.45;
+}
+
 .history-head {
   display: flex;
   align-items: center;

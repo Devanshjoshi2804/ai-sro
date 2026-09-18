@@ -19,10 +19,12 @@
          it already lives, in panel.js. -->
     <div id="expanded" hidden></div>
 
-    <!-- What this browser has done lately, over the top of whatever is on
-         screen. An overlay and not a pane: history is something you glance at
-         and leave, and a pane is somewhere a person can be left. Built in
-         history.js, filled on the press that opens it. -->
+    <!-- What this browser has done lately, and what it is still waiting on
+         somebody to answer, over the top of whatever is on screen. Overlays
+         and not panes: both are things you glance at and leave, and a pane is
+         somewhere a person can be left. One slot, because one overlay at a
+         time is the whole point of one. Built in history.js and pending.js,
+         filled on the press that opens either. -->
     <div id="history" hidden></div>
 
     <!-- Three numbers, each measured. Absent on a day with nothing in it. -->

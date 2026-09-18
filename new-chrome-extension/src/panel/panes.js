@@ -44,6 +44,7 @@ export const PANES = ["home", "chat"];
 const CONTROLS = [
   { key: "home", pane: true, glyph: "⌂", says: "Home" },
   { key: "chat", pane: true, glyph: "☷", says: "Chat" },
+  { key: "pending", glyph: "▤", says: "Waiting for you" },
   { key: "history", glyph: "⏱", says: "Recent tasks" },
   { key: "new", glyph: "＋", says: "New conversation" },
 ];
@@ -81,13 +82,20 @@ export function panes(showing, { waiting = 0, onPick } = {}) {
       tab.setAttribute("role", "tab");
       tab.setAttribute("aria-selected", String(key === showing));
     }
-    if (key === "home" && waiting > 0 && showing !== "home") {
+    // The count rides on the tray, and on the tray only.
+    //
+    // It was on Home, and drawn only while you were on Chat -- which was right
+    // when everything waiting WAS on Home. It is not any more: Home keeps the
+    // newest one and the rest are in here, so a number on Home would be
+    // counting things that are not on it. Shown on whichever pane you are
+    // standing on, because the backlog is behind a door either way.
+    if (key === "pending" && waiting > 0) {
       const count = document.createElement("span");
       count.className = "pane-count";
       count.textContent = String(waiting);
       // Said as well as shown. A number sitting on a glyph reads as a badge
       // and nothing else; this is what it means.
-      tab.setAttribute("aria-label", `Home, ${waiting} waiting`);
+      tab.setAttribute("aria-label", `Waiting for you, ${waiting}`);
       tab.append(count);
     }
     tab.addEventListener("click", () => onPick?.(key));

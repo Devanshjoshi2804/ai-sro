@@ -16,6 +16,7 @@ import { alreadyAnswered, composer, ledger, nudging } from "./ledger.js";
 import { runCard } from "./run-card.js";
 import { history } from "./history.js";
 import { panes } from "./panes.js";
+import { dayNamed, pending } from "./pending.js";
 import { needsAPress, strip } from "./strip.js";
 import { today } from "./today.js";
 import { waiting } from "./waiting.js";
@@ -264,14 +265,35 @@ function render(status) {
   // Not the ones that are waiting: those are in the banner above, and a card
   // drawn twice is a card somebody answers twice. Not another tab's, either --
   // an offer about a page nobody is looking at is words without buttons.
+  //
+  // ONE of them, and the rest behind the tray.
+  //
+  // Home had eleven cards on it: two of them the same request twice, four from
+  // earlier in the day, and the one that had just arrived at the bottom. A
+  // panel that exists to say "here is the thing that needs you" was saying it
+  // eleven times, which is the same as not saying it. Measured on the
+  // deployment 2026-09-18.
+  //
+  // The newest, because that is the one anybody acts on -- nobody works
+  // Tuesday's request on Thursday, and the older ones are a list to go
+  // through rather than a thing in the way of the run happening now.
   if (!status.teaching) {
-    for (const nudge of lastStatus?.nudges || status.nudges || []) {
-      if (nudge.state !== "open" || nudge.missed) continue;
-      if (nudge.tabId != null && nudge.tabId !== tabHere.tabId) continue;
-      const one = nudging(nudge, answered);
-      if (justArrived(nudge)) one.dataset.fresh = "1";
+    const here = (lastStatus?.nudges || status.nudges || []).filter(
+      (nudge) =>
+        nudge.state === "open" &&
+        !nudge.missed &&
+        !(nudge.tabId != null && nudge.tabId !== tabHere.tabId),
+    );
+    const [newest, ...rest] = [...here].sort(
+      (a, b) => (b.at || 0) - (a.at || 0),
+    );
+    if (newest) {
+      const one = nudging(newest, answered);
+      if (justArrived(newest)) one.dataset.fresh = "1";
       cards.push(one);
     }
+    // And a way to the rest, which is a line rather than ten more cards.
+    if (rest.length) cards.push(theRest(rest));
   }
 
   // A mail that has gone out and not been answered.
@@ -369,6 +391,27 @@ function justArrived(nudge) {
     }
   }
   return (freshUntil.get(id) || 0) > Date.now();
+}
+
+/** The requests Home is not showing, as one line that opens them.
+ *
+ * Not a card per request, which is what this replaces. A person looking at
+ * Home is looking for the next thing to do; how much else is queued is a
+ * number, and the queue itself is somewhere to go.
+ */
+function theRest(rest) {
+  const oldest = rest.reduce(
+    (was, one) => ((one.at || 0) < (was.at || 0) ? one : was),
+    rest[0],
+  );
+  return card({
+    title: `${rest.length} more waiting`,
+    says:
+      rest.length === 1
+        ? `One more request, from ${dayNamed(oldest.at).toLowerCase()}.`
+        : `The oldest is from ${dayNamed(oldest.at).toLowerCase()}.`,
+    actions: [{ label: "Go through them", primary: true, act: theBacklog }],
+  });
 }
 
 /** Waiting on somebody's mailbox, said on Home.
@@ -1779,8 +1822,16 @@ function theNav() {
  * switching pane changes nothing `show()`'s signature can see.
  */
 function paintPanes() {
+  // Everything open, not only what was MISSED.
+  //
+  // The count used to mean "arrived while you were not looking", which was the
+  // right number when everything waiting was on Home and the badge only said
+  // you had not been there. Home keeps one now, so what the badge is for is
+  // the size of the queue behind the tray -- and a queue that counted only the
+  // ones you had never seen would say six, then four, then nothing, while six
+  // requests sat there unanswered.
   const missed = (lastStatus?.nudges || []).filter(
-    (one) => one.state === "open" && one.missed,
+    (one) => one.state === "open",
   ).length;
   // Only when it would say something different. This runs on every push from
   // the worker -- a status lands every couple of seconds -- and rebuilding two
@@ -1804,6 +1855,7 @@ function paintPanes() {
         // person can be left, and coming back tomorrow to find the panel
         // showing last week is how a surface stops being about now.
         if (picked === "history") return void openHistory();
+        if (picked === "pending") return void theBacklog();
         if (picked === "new") return void freshThread();
         if (picked === pane) return;
         if (picked === "chat") return void goToTheConversation();
@@ -1847,6 +1899,35 @@ async function openHistory() {
       },
     }),
   );
+}
+
+/** The backlog, over whatever you were doing.
+ *
+ * Drawn from the status this panel already has rather than fetched: these are
+ * this browser's own offers, held in `chrome.storage`, and the panel is the
+ * same browser. Nothing to wait for, so it opens instantly -- which is what
+ * makes it somewhere to glance rather than somewhere to go.
+ */
+function theBacklog() {
+  // The same slot history uses. One overlay at a time is the whole point of an
+  // overlay, and a second container would be a second thing to remember to
+  // hide.
+  const over = $("history");
+  const open = (lastStatus?.nudges || []).filter((one) => one.state === "open");
+  const drawn = pending(open, {
+    onPress: answered,
+    onClose: () => {
+      over.hidden = true;
+      over.replaceChildren();
+    },
+  });
+  if (!drawn) return;
+  over.hidden = false;
+  over.replaceChildren(drawn);
+  // The focus goes with it, or the escape key this listens for lands on
+  // whatever was focused behind the overlay.
+  drawn.tabIndex = -1;
+  drawn.focus?.();
 }
 
 /** How many runs the overlay asks for. The console is where a log is read. */

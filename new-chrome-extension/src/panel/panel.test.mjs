@@ -49,6 +49,7 @@ const SOURCE = [
   readFileSync(path.join(here, "run-card.js"), "utf-8"),
   readFileSync(path.join(here, "waiting.js"), "utf-8"),
   readFileSync(path.join(here, "panes.js"), "utf-8"),
+  readFileSync(path.join(here, "pending.js"), "utf-8"),
   readFileSync(path.join(here, "panel.js"), "utf-8"),
 ]
   .join("\n")
@@ -713,7 +714,10 @@ test("the other half hides the cards and brings the composer", async () => {
 });
 
 test("a request waiting is not drawn while the conversation is showing", async () => {
-  // The banner is Home's. On Chat what says so is the count on the tab.
+  // The banner is Home's. What says so anywhere else is the count on the tray,
+  // which is where everything waiting now lives -- Home keeps the newest one
+  // and the rest are behind that door, so a count on Home would be counting
+  // things that are not on it.
   const { ids } = panel({
     deviceId: "dev-1",
     nudges: [
@@ -730,7 +734,7 @@ test("a request waiting is not drawn while the conversation is showing", async (
 
   assert.equal(ids["waiting"].hidden, true);
   assert.match(
-    words(navTab(ids, "home")),
+    words(navTab(ids, "pending")),
     /1/,
     "nothing on Chat said a request was waiting",
   );
@@ -2154,6 +2158,30 @@ test("a wait that only the clock moves still redraws the conversation", async ()
 
   assert.notEqual(words(ids["said"]), first, "the conversation froze on a stale wait");
   assert.match(words(ids["said"]), /reading the mailbox/);
+});
+
+test("Home keeps one request and counts the rest", async () => {
+  // Home had eleven cards on it: two of them the same request twice, four
+  // from earlier in the day, and the one that had just arrived at the bottom.
+  // A panel that exists to say "here is the thing that needs you" was saying
+  // it eleven times, which is the same as not saying it. Deployment
+  // 2026-09-18.
+  const hour = 3600000;
+  const many = [0, 1, 2, 3].map((n) => ({
+    id: `n${n}`, source: "rig", state: "open", tabId: null, k: 0,
+    title: "Create a Customer Type", workflowId: "wfl_1",
+    values: { "Customer Type": `G${n}` }, items: [], missing: [],
+    at: Date.now() - n * hour,
+  }));
+  const { cards, render } = panel({ deviceId: "dev-1", nudges: many });
+  render({ deviceId: "dev-1", nudges: many });
+
+  const said = cards.map(words).join(" | ");
+  // The newest, and only it.
+  assert.match(said, /Customer Type: G0|G0/);
+  assert.doesNotMatch(said, /G3/, "Home drew the oldest request as well as the newest");
+  // And a way to the others, as one line rather than three more cards.
+  assert.match(said, /3 more waiting/);
 });
 
 for (const [name, fn] of tests) {

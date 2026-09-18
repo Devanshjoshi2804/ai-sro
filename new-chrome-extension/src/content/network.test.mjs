@@ -21,7 +21,7 @@ const NONCE = "test-realm-nonce";
  * with the page-realm patch on load; `answerHandshake` plays that half. With
  * it left out, nothing has ever proved it came from us, which is the whole
  * point of the exchange. */
-function makeSandbox({ withRules = true, answerHandshake = true } = {}) {
+function makeSandbox({ withRules = true, answerHandshake = true, fields = [] } = {}) {
   const sent = [];
   const listeners = {};
   const sandbox = {
@@ -45,6 +45,10 @@ function makeSandbox({ withRules = true, answerHandshake = true } = {}) {
     },
     chrome: { runtime: { sendMessage: (msg) => (sent.push(msg), Promise.resolve({ ok: true })) } },
     location: { href: "https://wms.example.test/orders" },
+    // Enough of a document for the one question `holdingSomething` asks of it:
+    // has anybody typed into this page. A tab that has is never reloaded to
+    // repair the recorder.
+    document: { querySelectorAll: () => fields },
     URL,
     URLSearchParams,
     TextEncoder,
@@ -310,4 +314,45 @@ console.log("network.test.mjs: ok");
     !quiet.some((message) => message.kind === "calls-not-recordable"),
     "a tab whose handshake succeeded reported itself broken",
   );
+}
+
+// And whether the page has anything to lose, because the fix is a reload.
+//
+// Reloading somebody's page to repair this system's own plumbing is the worst
+// trade it could make while they are half way through a form. It is no trade
+// at all on a page nobody has typed into, and asking for a press to fix a
+// fault they did not cause -- every time an extension update lands -- is a tax
+// for no benefit. So the page says which it is and the worker decides.
+{
+  const empty = makeSandbox({ answerHandshake: false, fields: [] });
+  await new Promise((resolve) => setTimeout(resolve, 1300));
+  const said = JSON.parse(JSON.stringify(empty.sent)).find(
+    (message) => message.kind === "calls-not-recordable",
+  );
+  assert.strictEqual(said?.holding, false, "an untouched page claimed it had something to lose");
+
+  const typed = makeSandbox({
+    answerHandshake: false,
+    fields: [{ type: "text", value: "NEWSROTEST", defaultValue: "", tagName: "INPUT" }],
+  });
+  await new Promise((resolve) => setTimeout(resolve, 1300));
+  const careful = JSON.parse(JSON.stringify(typed.sent)).find(
+    (message) => message.kind === "calls-not-recordable",
+  );
+  assert.strictEqual(
+    careful?.holding,
+    true,
+    "a half-filled form was offered up to be reloaded away",
+  );
+
+  // A field showing what it loaded with is not somebody's work.
+  const untouched = makeSandbox({
+    answerHandshake: false,
+    fields: [{ type: "text", value: "SG", defaultValue: "SG", tagName: "INPUT" }],
+  });
+  await new Promise((resolve) => setTimeout(resolve, 1300));
+  const same = JSON.parse(JSON.stringify(untouched.sent)).find(
+    (message) => message.kind === "calls-not-recordable",
+  );
+  assert.strictEqual(same?.holding, false, "a default value counted as typed");
 }

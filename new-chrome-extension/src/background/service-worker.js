@@ -1306,11 +1306,44 @@ async function handle(message, sender) {
       // where the handshake that made it trustworthy can only happen before any
       // page script exists.
       //
-      // Recorded rather than acted on. Reloading somebody's page out from under
-      // them is not this worker's call to make; saying that the tab records
-      // gestures and no calls is, because the alternative is a demonstration
-      // that quietly asserts nothing about the system it changes.
-      halfDeaf.add(sender?.tab?.id ?? -1);
+      // Reloading somebody's page out from under them is not this worker's
+      // call to make -- unless the page has nothing to lose, which is the one
+      // case where it is nobody's loss and everybody's gain.
+      //
+      // The rule stands where it matters. A page holding typed text, a ticked
+      // box, or its own beforeunload warning is a page somebody is working in,
+      // and the half-filled form is exactly the state this system spends its
+      // care protecting: it goes on the card and waits to be asked. A page
+      // holding none of those is repaired where it stands, because asking
+      // somebody to press a button to fix a fault they did not cause -- every
+      // time an extension update lands -- is a tax for no benefit.
+      //
+      // The page decides which it is, because only the page can see it.
+      //
+      // And nothing is reloaded at all while a run is in flight. Which tab a
+      // run is driving is held inside `commands.js` and not readable here, so
+      // the answer is the conservative one rather than the precise one: a run
+      // is a form being filled somewhere, and being wrong about where would
+      // reload the page out from under it mid-step.
+      const deafTab = sender?.tab?.id ?? -1;
+      const running = Boolean((await state.activeRun())?.runId);
+      if (message.holding === false && deafTab >= 0 && !running) {
+        try {
+          await chrome.tabs.reload(deafTab);
+          await say(`tab ${deafTab} was recording half and was reloaded -- nothing typed in it`);
+          halfDeaf.delete(deafTab);
+          return { ok: true, reloaded: true };
+        } catch (error) {
+          // A tab that will not reload is a tab to say something about, which
+          // is what the card below is for.
+          console.warn("[sro] a half-deaf tab could not be reloaded", error);
+        }
+      }
+      // Recorded rather than acted on: saying that the tab records gestures
+      // and no calls is this worker's call to make, because the alternative is
+      // a demonstration that quietly asserts nothing about the system it
+      // changes.
+      halfDeaf.add(deafTab);
       return { ok: true };
     }
     case "gesture":

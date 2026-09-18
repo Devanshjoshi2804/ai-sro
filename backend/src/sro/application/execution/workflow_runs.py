@@ -95,6 +95,7 @@ from sro.domain.execution.evidence import unperformable
 from sro.domain.execution.gathering import Gathered
 from sro.domain.execution.learned_step import limits_for
 from sro.domain.execution.verified_writes import VerifiedWrite
+from sro.domain.execution.waiting import as_said, waiting_on
 from sro.domain.execution.workflow_run import (
     RunStep,
     WorkflowRun,
@@ -246,8 +247,17 @@ class StartWorkflowRun:
         matched: int | None = None,
         items: Sequence[Mapping[str, str]] = (),
         run_id: str | None = None,
+        conversation: tuple[str, str] = ("", ""),
     ) -> WorkflowRun:
-        """The claimed row, or the refusal that stopped it being claimed."""
+        """The claimed row, or the refusal that stopped it being claimed.
+
+        `conversation` is the outside thread this run answers to, where it came
+        from one -- a request read out of somebody's mail. A run that comes up
+        short can then be found again by a reply to that mail, which is the one
+        address the panel does not have: the person who knows the missing value
+        is usually whoever sent the request, and they are not sitting in front
+        of this. See `domain/execution/waiting.py`.
+        """
         # Before the session is opened: neither refusal needs a database, and a
         # 503 that first took a connection is a 503 that made the outage
         # slightly worse.
@@ -407,6 +417,12 @@ class StartWorkflowRun:
                 started_at=now.isoformat(),
                 from_step=from_step,
                 items=things,
+                # Recorded at the start rather than at the stop, because the
+                # stop is not the only thing that can want it and a run that
+                # crashed still came from somewhere. Cleared below where the
+                # run ends with nothing outstanding: a finished job is not
+                # waiting to hear anything.
+                awaiting=as_said(waiting_on(*conversation, now=now)),
             )
             # Raises `Conflict` -- the same one the read above gives, in the
             # same words -- where the unique partial index refuses a second
@@ -524,7 +540,37 @@ class StartWorkflowRun:
             # Outside the unit of work, because asking opens its own: the run
             # is over and its row is written, and a question that shared the
             # run's transaction would be a question that vanishes with it.
+            await self._settle_the_wait(ctx, done)
             await self._ask_for_values(ctx, done, title)
+
+    async def _settle_the_wait(self, ctx: RequestContext, run: WorkflowRun) -> None:
+        """A run that came out whole is not waiting to hear anything.
+
+        The address was written at the start, before anybody knew how the run
+        would end, so the end is where it is either kept or let go. Kept is the
+        interesting half and needs no writing: the row already says which
+        conversation this run answers to, and a reply arriving there is the
+        answer to a question that is still open.
+
+        Let go is this. A job that found everything and wrote its record has
+        nothing outstanding, and a mail arriving on that thread a week later --
+        "thanks", or a fresh request -- must not be read as an answer to it.
+        Cleared rather than left to expire, because seven days of a finished
+        run claiming every reply to its own thread is seven days of the next
+        request being swallowed by the last one.
+        """
+        if not run.awaiting:
+            return
+        async with self._uow as uow:
+            # The committed row and not the copy in hand, which is what
+            # `run_workflow` handed back and may be a step behind what it
+            # saved. Whether anything is still outstanding is a question about
+            # the row a reply would find, so it is asked of that row.
+            saved = await uow.workflow_runs.get(ctx.tenant_id, run.id)
+            if saved is None or saved.needs:
+                return
+            saved.awaiting = None
+            await uow.workflow_runs.save(saved)
 
     async def _ask_for_values(self, ctx: RequestContext, run: WorkflowRun, title: str) -> None:
         """Turn a run that came up short into a question somebody can answer.

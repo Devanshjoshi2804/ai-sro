@@ -69,6 +69,7 @@ def _run_values(run: WorkflowRun) -> dict[str, Any]:
         "gathered": {k: dict(v) for k, v in run.gathered.items()},
         "needs": list(run.needs),
         "unasked": list(run.unasked),
+        "awaiting": dict(run.awaiting) if run.awaiting else None,
         "unpriced": run.unpriced,
     }
 
@@ -149,6 +150,11 @@ def _row_to_run(row: WorkflowRunRow, steps: list[RunStep]) -> WorkflowRun:
         },
         needs=[str(one) for one in (row.needs or [])],
         unasked=[str(one) for one in (row.unasked or [])],
+        awaiting=(
+            {str(key): str(value) for key, value in row.awaiting.items()}
+            if isinstance(row.awaiting, dict)
+            else None
+        ),
         from_step=row.from_step,
         items=[dict(item) for item in (row.items or [])],
         steps=steps,
@@ -374,6 +380,34 @@ class SqlWorkflowRunRepository(WorkflowRunRepository):
             .limit(1)
         )
         return busy
+
+    async def waiting_on(
+        self, tenant_id: TenantId, *, server: str, thread: str
+    ) -> WorkflowRun | None:
+        """Against the expression index 0062 adds, and never on a blank.
+
+        A run that named no thread stored no `awaiting` at all, so there is
+        nothing here for `""` to match -- but a caller that passed one through
+        would otherwise ask Postgres for every row whose JSON says nothing,
+        which is the query that finds the wrong run rather than no run.
+        """
+        if not server.strip() or not thread.strip():
+            return None
+        query = (
+            self._rows()
+            .where(
+                WorkflowRunRow.tenant_id == tenant_id.value,
+                WorkflowRunRow.awaiting.isnot(None),
+                WorkflowRunRow.awaiting["server"].astext == server.strip(),
+                WorkflowRunRow.awaiting["thread"].astext == thread.strip(),
+            )
+            # The last question asked about this conversation is the live one.
+            .order_by(WorkflowRunRow.started_at.desc(), WorkflowRunRow.id.desc())
+            .limit(1)
+        )
+        rows = (await self._session.execute(query)).scalars().all()
+        found = await self._with_steps(rows)
+        return found[0] if found else None
 
     async def awaiting(self, tenant_id: TenantId) -> tuple[tuple[str, int, str], ...]:
         query = (

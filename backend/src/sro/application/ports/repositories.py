@@ -851,6 +851,20 @@ class WorkflowRunRepository(Protocol):
         """
         ...
 
+    async def waiting_on(
+        self, tenant_id: TenantId, *, server: str, thread: str
+    ) -> WorkflowRun | None:
+        """The run that ended waiting to hear back on this outside conversation.
+
+        Newest first, because a thread somebody asks about twice has two runs
+        against it and the live question is the last one asked. Whether the
+        wait is still open is the caller's to decide -- `still_waiting` reads
+        the deadline -- because "nobody is holding this open any more" is a
+        different sentence from "nobody ever asked about this", and a caller
+        told `None` for both cannot say either.
+        """
+        ...
+
     async def approve(self, run_id: str, ord_: int, *, at: str, device_id: str | None) -> bool:
         """Whether this tap was the one that authorised the step.
 

@@ -612,6 +612,7 @@ async function offerFromMail(offer) {
       values: offer.values || {},
       items: [],
       missing: offer.missing || [],
+      thread: offer.thread || "",
       too_long: offer.too_long || {},
       can_find: true,
       parameters: (shape?.parameters || []).map((one) => one.name),
@@ -1784,6 +1785,14 @@ async function handle(message, sender) {
           // person watching can see happen. A trigger firing at three in the
           // morning never comes through here, and is left to replay.
           watched: true,
+          // The mail this request came out of, where it came out of one.
+          //
+          // An id, never a word of anybody's mail. It buys the run an address:
+          // one that comes up short can be found again by a REPLY to that
+          // mail, because the person who knows the missing value is usually
+          // whoever sent the request -- and they do not have this panel open.
+          // Empty for every press that was not a mail offer.
+          mail_thread: nudge.mailThread || "",
         });
       } catch (error) {
         // No run was started, so nothing was accepted. The offer goes back to

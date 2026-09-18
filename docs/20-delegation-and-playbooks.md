@@ -212,20 +212,31 @@ found.
 | 2.5 | Client-side truncation, caught in the page | done `07172ffb` |
 | 2.6 | A limit found once is remembered on the job | done `b60a60c2` |
 | 2.7 | A value that will not fit is asked about | done `5a2d10b1` |
-| 2.8 | The card asks before the press, once the limit is known | next |
-| 2.9 | Ask the asker — drafted reply, previewed, one per run | needs 3.2 |
-| 3 | A job declares its fields — `field-dictionary.json` as source | |
+| 2.8 | The card asks before the press, once the limit is known | done `3b198284` |
+| 2.9 | Ask the asker — drafted reply, previewed, one per run | next |
+| 3 | A job declares its fields — `field-dictionary.json` as source | done `0732894d` |
 | 3.1 | **A step names the prior steps whose output it uses** (CrewAI) | stolen |
-| 3.2 | **A dormant pause keyed by an external id** (LangGraph) | stolen |
+| 3.2 | **A dormant pause keyed by an external id** (LangGraph) | done |
 | 3.3 | **Learned facts written back as a reviewable diff** (Robot Framework) | stolen |
 | 4 | Bind a value for a known field into the write | |
 | 5 | An undemonstrated field must prove it landed | |
 | 6 | The card says what it will write | |
 | 7 | Composition — needs 3.1, 3.2, and a compensation story | last |
 
-3.2 is the one that unblocks 2.9: a run cannot sit open waiting for an email
-reply, and "ends dormant, resumed by the thread id" is exactly LangGraph's
-checkpointer pattern with a `thread_id` we already have.
+3.2 turned out to be half-built already, and the half that was missing was not
+the durable part. `asking.py` has always said *the state is the thread*: a run
+that comes up short ends, and the question lives in a row carrying everything
+established so far. What it had was one address — the panel — and the person
+who knows the missing value is usually whoever sent the mail. So a run now
+records the outside conversation it answers to, with a deadline (LangGraph's
+own warning: a pause without a timeout policy is abandoned, not paused), and a
+reply on that thread carries the waiting run on instead of being read as a
+fresh request.
+
+That last part fixed a present bug rather than preparing for a future one. A
+reply is a new message id, so it was read, understood as naming no job — two
+words with no job in them — and dropped, permanently, because the id had
+already been claimed. The answer was being lost at the moment it arrived.
 
 3.1 is the smallest useful step toward composition and does not require
 building a graph engine.

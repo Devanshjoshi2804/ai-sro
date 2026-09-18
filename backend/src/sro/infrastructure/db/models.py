@@ -883,6 +883,15 @@ class WorkflowRunRow(Base):
     ordinary request this job simply cannot take yet. Dropping it is right --
     nothing demonstrated that slot -- and dropping it silently is the fault
     this column exists to end."""
+    awaiting: Mapped[Any] = mapped_column(JSONB, nullable=True)
+    """The outside conversation this run ended waiting to hear back on.
+
+    `{"server": "gmail", "thread": "...", "until": "<iso>"}`, or null for every
+    run nobody outside was asked about. The question itself stays in the
+    operator's thread, which is where the state lives; this is the address a
+    reply is matched against, and the instant after which there is nothing left
+    to match. See `domain/execution/waiting.py`."""
+
     wrong_because: Mapped[str | None] = mapped_column(Text)
     """What the operator said was wrong with what this run made.
 
@@ -911,6 +920,24 @@ class WorkflowRunRow(Base):
             "device_id",
             unique=True,
             postgresql_where=text("outcome = 'running'"),
+        ),
+        # "Is any run of this tenant waiting to hear back on this thread", and
+        # that is the only question asked of it -- once per arriving mail, on
+        # every beat. Partial because almost no run names a conversation, and
+        # on the expressions rather than the column because a match is on two
+        # fields inside one document.
+        #
+        # Declared here as well as in migration 0062 for the reason the index
+        # above it is: the rest of the suite builds its schema from
+        # `Base.metadata`, so an index that lived only in the migration would
+        # keep every test green while the thing a deployment runs built
+        # something else. `test_the_migrations_run` compares the two.
+        Index(
+            "ix_workflow_runs_awaiting",
+            "tenant_id",
+            text("(awaiting ->> 'server')"),
+            text("(awaiting ->> 'thread')"),
+            postgresql_where=text("awaiting IS NOT NULL"),
         ),
     )
 

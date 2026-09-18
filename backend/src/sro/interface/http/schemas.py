@@ -3309,6 +3309,15 @@ class StartWorkflowRunRequest(BaseModel):
     one thing, which is most presses, and a job with no repeat is handed none
     of them whatever arrives here."""
 
+    mail_thread: str = ""
+    """The mail conversation this request came out of, where it came out of one.
+
+    An id and nothing anybody wrote. What it buys is an address: a run that
+    comes up short can be found again by a reply to that mail, because the
+    person who knows the missing value is usually whoever sent the request and
+    they are not the one with this panel open. Empty for every press that was
+    not a mail offer, which is most of them."""
+
     live: bool = False
     allow_focus: bool = True
 
@@ -3588,6 +3597,14 @@ class MailOfferModel(BaseModel):
     title: str
     values: dict[str, str]
     missing: list[str]
+    thread: str = ""
+    """The mail conversation this request arrived in.
+
+    An id and not a word of anybody's mail, like `message` beside it. It is
+    sent back when the job is started, so a run that comes up short can be
+    found again by a reply -- the person who knows the missing value is usually
+    whoever sent the request, and they do not have this panel open."""
+
     too_long: dict[str, int] = {}
     """Values this job's own boxes will not hold, and what they hold instead.
 
@@ -3622,6 +3639,7 @@ class FromTheMailResponse(BaseModel):
                     title=one.title,
                     values=dict(one.values),
                     missing=list(one.missing),
+                    thread=one.thread,
                     too_long=dict(one.too_long),
                 )
                 for one in looked.offered

@@ -60,6 +60,8 @@ from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.tools import ToolCaller, ToolsUnavailable
 from sro.domain.chat.asked_by import mails_behind, texts
 from sro.domain.execution.learned_step import limits_for, too_long
+from sro.domain.execution.waiting import read_wait, still_waiting
+from sro.domain.execution.workflow_run import WorkflowRun
 from sro.domain.shared.prices import Answer
 from sro.domain.skill.workflow import Workflow
 
@@ -154,6 +156,14 @@ class Offered:
     values: Mapping[str, str] = field(default_factory=dict)
     missing: Sequence[str] = ()
 
+    thread: str = ""
+    """The mail conversation this request arrived in.
+
+    Carried so the run started from this offer can be found again by a reply to
+    it. The person who knows the value a run could not find is usually whoever
+    sent the request, and they are not the person with the panel open -- see
+    `domain/execution/waiting.py`."""
+
     too_long: Mapping[str, int] = field(default_factory=dict)
     """The values this job's boxes will not hold, and what they hold instead.
 
@@ -244,6 +254,23 @@ class FromTheMail:
             if not said:
                 continue
             read += 1
+            # A reply to a request this system already acted on, and could not
+            # finish.
+            #
+            # The thread decides the job here, and the model does not get
+            # asked. Two reasons, and the second is the one that matters: the
+            # run waiting on this conversation already agreed which job it is,
+            # so a reading would be re-deciding a settled question -- and a
+            # bare reply is the exact sentence a reading cannot make anything
+            # of. Somebody answering "GU9" to "what should the Customer Type
+            # be?" has written two words with no job in them: `understand`
+            # answers `sure=False` or nothing at all, the arrival is dropped,
+            # and the id is already claimed so it is dropped for good. The
+            # answer would be lost at precisely the moment it arrived.
+            back = await self._answering(ctx, thread)
+            if back is not None:
+                offered.append(await self._carrying_on(ctx, message, back, said, thread, titles))
+                continue
             got = await understand(said, workflows, asker, self._model, asked_by)
             spent = _also(spent, got.answer)
             # Silence where it is not sure, and where it named no job at all.
@@ -358,6 +385,7 @@ class FromTheMail:
                     title=titles.get(got.workflow_id, got.workflow_id),
                     values=values,
                     missing=missing,
+                    thread=thread,
                 )
             )
         looked = LookedInTheMail(
@@ -381,6 +409,73 @@ class FromTheMail:
             looked.why,
         )
         return looked
+
+    async def _answering(self, ctx: RequestContext, thread: str) -> WorkflowRun | None:
+        """The run still waiting to hear back on this conversation, if any.
+
+        Still waiting: a run whose patience has run out is not holding this
+        open any more, and reading a reply into it would start a write somebody
+        asked for a week ago and has long since done by hand. Such an arrival
+        falls through to the ordinary reading, which is the right answer for it
+        -- a fresh request on an old thread is a fresh request.
+        """
+        if not thread.strip():
+            return None
+        async with self._uow as uow:
+            waiting = await uow.workflow_runs.waiting_on(
+                ctx.tenant_id, server=SERVER, thread=thread
+            )
+        if waiting is None or not still_waiting(read_wait(waiting.awaiting), datetime.now(tz=UTC)):
+            return None
+        return waiting
+
+    async def _carrying_on(
+        self,
+        ctx: RequestContext,
+        message: str,
+        back: WorkflowRun,
+        said: str,
+        thread: str,
+        titles: Mapping[str, str],
+    ) -> Offered:
+        """The waiting run's offer again, with whatever the reply added.
+
+        Everything that run established rides along, which is the whole point
+        of finding it: the operator pressed once, the gather spent its rounds,
+        and a second card starting from nothing would ask them to do all of it
+        again over one missing word.
+
+        What the reply itself says is read by the ordinary gather, against the
+        thread it arrived in -- the same call, with the same rounds, now
+        looking at a conversation that contains the answer.
+        """
+        values = dict(back.values)
+        missing = [name for name in back.needs if name not in values]
+        if missing and self._gather is not None:
+            found = await self._gather.execute(
+                ctx,
+                job=titles.get(back.workflow_id, back.workflow_id),
+                wanted=missing,
+                because=said[:K_BECAUSE],
+                rounds=K_OFFER_ROUNDS,
+            )
+            values |= {name: one.value for name, one in found.values.items()}
+            missing = [name for name in missing if name not in values]
+        logger.info(
+            "%s: a reply carries on %s (%d of %d answered)",
+            ctx.tenant_id.value,
+            back.id,
+            len(back.needs) - len(missing),
+            len(back.needs),
+        )
+        return Offered(
+            message=message,
+            workflow_id=back.workflow_id,
+            title=titles.get(back.workflow_id, back.workflow_id),
+            values=values,
+            missing=missing,
+            thread=thread,
+        )
 
     async def _what_will_not_fit(
         self, ctx: RequestContext, offered: Sequence[Offered], jobs: Sequence[Workflow]

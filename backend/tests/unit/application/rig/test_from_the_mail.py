@@ -17,6 +17,8 @@ from sro.application.chat.from_the_mail import FromTheMail
 from sro.application.context import RequestContext
 from sro.application.ports.tools import ToolResult, ToolsUnavailable
 from sro.domain.execution.gathering import Found, Gathered
+from sro.domain.execution.waiting import as_said, waiting_on
+from sro.domain.execution.workflow_run import WorkflowRun
 from sro.domain.knowledge.entry import (
     EntryKind,
     EvidenceLevel,
@@ -517,3 +519,103 @@ async def test_a_card_can_ask_about_a_limit_no_run_has_ever_hit() -> None:
     # Nothing was learnt; everything was already written down.
     assert await uow.workflows.learned_for(JOB) == ()
     assert one.too_long == {"Customer Type Description": 20}
+
+
+def _short(thread: str, *, needs: list[str], values: dict[str, str]) -> WorkflowRun:
+    """A run of this job that came up short and is waiting on that thread."""
+    return WorkflowRun(
+        id="run_1",
+        tenant=f.TENANT.value,
+        workflow_id=JOB,
+        device_id="dev-1",
+        values=values,
+        started_by="devansh",
+        live=True,
+        allow_focus=True,
+        started_at=datetime.now(tz=UTC).isoformat(),
+        outcome="failed",
+        needs=needs,
+        awaiting=as_said(waiting_on("gmail", thread, now=datetime.now(tz=UTC))),
+    )
+
+
+async def test_a_reply_carries_on_the_run_that_was_waiting_for_it() -> None:
+    """The one address the panel does not have.
+
+    A run came up short of the customer type. The person who knows it is
+    whoever sent the request, and they are not sitting in front of the panel --
+    so the question goes to their mailbox, and the answer comes back there.
+    Read as a fresh request it is two words that name no job at all, `sure`
+    goes false, and the arrival is dropped for good: the message id is claimed
+    before it is read.
+    """
+    uow = await _held()
+    await uow.workflow_runs.save(
+        _short("t-9", needs=["Customer Type"], values={"Customer Type Description": "north dock"})
+    )
+    mailbox = _Mailbox(search=_found("m-1"), **{"m-1": _mail("GU9", thread="t-9")})
+    gather = _Gathers(**{"Customer Type": "GU9"})
+    # A reading that would have thrown this away, to prove nothing consults it.
+    reads = _Reads(_reading(None))
+
+    looked = await _look(uow, mailbox, reads, gather).execute(CTX)
+
+    (one,) = looked.offered
+    assert one.workflow_id == JOB
+    # What the earlier run established rides along: the operator pressed once.
+    assert one.values == {"Customer Type Description": "north dock", "Customer Type": "GU9"}
+    assert one.missing == []
+    assert one.thread == "t-9"
+    # And the model was never asked to read the reply.
+    assert reads.saw == []
+
+
+async def test_a_reply_to_a_wait_that_ran_out_is_an_ordinary_new_request() -> None:
+    """A pause with no end to it is an abandonment. Past the deadline nobody is
+    holding the question open, and reading a reply into it would start a write
+    somebody asked for a week ago and has long since done by hand."""
+    uow = await _held()
+    stale = _short("t-9", needs=["Customer Type"], values={})
+    stale.awaiting = {"server": "gmail", "thread": "t-9", "until": "2001-01-01T00:00:00+00:00"}
+    await uow.workflow_runs.save(stale)
+    mailbox = _Mailbox(
+        search=_found("m-1"),
+        **{"m-1": _mail("please create the customer type as discussed", thread="t-9")},
+    )
+    reads = _Reads(_reading(JOB, bare=True))
+
+    looked = await _look(uow, mailbox, reads, _Gathers()).execute(CTX)
+
+    (one,) = looked.offered
+    # The ordinary path: read, and asked about from scratch.
+    assert reads.saw
+    assert one.missing == ["Customer Type", "Customer Type Description"]
+
+
+async def test_a_mail_on_a_thread_nothing_is_waiting_on_is_read_as_it_always_was() -> None:
+    uow = await _held()
+    mailbox = _Mailbox(
+        search=_found("m-1"),
+        **{"m-1": _mail("please create the customer type as discussed", thread="t-other")},
+    )
+    reads = _Reads(_reading(JOB, bare=True))
+
+    looked = await _look(uow, mailbox, reads, _Gathers()).execute(CTX)
+
+    assert reads.saw
+    (one,) = looked.offered
+    assert one.thread == "t-other"
+
+
+async def test_an_offer_names_the_conversation_it_was_read_out_of() -> None:
+    """So the run started from it can be found again by a reply. An id and
+    never a word of anybody's mail."""
+    uow = await _held()
+    mailbox = _Mailbox(
+        search=_found("m-1"),
+        **{"m-1": _mail("please create the customer type as discussed", thread="t-7")},
+    )
+
+    looked = await _look(uow, mailbox, _Reads(_reading(JOB, bare=True)), _Gathers()).execute(CTX)
+
+    assert looked.offered[0].thread == "t-7"

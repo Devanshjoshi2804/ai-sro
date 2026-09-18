@@ -139,6 +139,10 @@ export function fire(candidate, now, { tabId = null, visit = "" } = {}) {
     // instead. Learnt by an earlier run that typed a value and watched the
     // browser silently keep a prefix of it, so the card can say so BEFORE the
     // press rather than the run saying so in the middle of a form.
+    // The mail conversation this offer was read out of, where it was read out
+    // of one. Sent back when the job starts, so a run that comes up short can
+    // be found again by a reply to that mail.
+    mailThread: candidate.thread || "",
     tooLong: candidate.too_long || {},
     parameters: candidate.parameters || [],
   };

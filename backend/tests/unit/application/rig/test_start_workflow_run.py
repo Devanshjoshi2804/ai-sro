@@ -33,6 +33,7 @@ from sro.application.execution.workflow_runs import RunRefused, StartWorkflowRun
 from sro.application.ports.model import AskerUnavailable
 from sro.application.shared.refusals import OverCap
 from sro.domain.chat.reading import ChatReading
+from sro.domain.execution.waiting import K_PATIENCE, read_wait, still_waiting
 from sro.domain.execution.workflow_run import WorkflowRun
 from sro.domain.observation.gesture import Action, Gesture
 from sro.domain.shared.errors import Conflict, NotFound
@@ -195,10 +196,12 @@ async def _press(
     from_step: int = 0,
     matched: int | None = None,
     run_id: str | None = None,
+    conversation: tuple[str, str] = ("", ""),
 ) -> WorkflowRun:
     return await starter.execute(
         ctx or _ctx(),
         run_id=run_id,
+        conversation=conversation,
         workflow_id=workflow_id,
         device_id=device_id,
         values={"clientCode": "NEWTESTS"} if values is None else values,
@@ -895,3 +898,74 @@ async def test_a_row_the_loop_already_closed_is_left_as_the_loop_left_it() -> No
     again = await uow.workflow_runs.get(TENANT, claimed.id)
     assert again is not None and again.outcome == finished.outcome
     assert again.steps[-1].reason == finished.steps[-1].reason
+
+
+async def test_a_run_started_from_a_mail_records_the_conversation_it_answers_to() -> None:
+    """The address a reply finds it by.
+
+    Written at the start rather than at the stop, because the stop is not the
+    only thing that can want it: a run that crashed still came from somewhere,
+    and a row that only records its origin on the tidy path records it for the
+    runs nobody needs to chase.
+    """
+    uow = await _held()
+
+    run = await _press(_starter(uow), conversation=("gmail", "t-9"))
+
+    assert run.awaiting is not None
+    assert (run.awaiting["server"], run.awaiting["thread"]) == ("gmail", "t-9")
+    # And a deadline, because a pause with no end to it is an abandonment.
+    assert still_waiting(read_wait(run.awaiting), NOW)
+    assert not still_waiting(read_wait(run.awaiting), NOW + K_PATIENCE + timedelta(seconds=1))
+
+
+async def test_a_press_that_came_from_no_mailbox_waits_on_nothing() -> None:
+    """A blank address would match the next blank one: two runs neither of
+    which came out of a mailbox would answer each other's replies."""
+    uow = await _held()
+
+    assert (await _press(_starter(uow))).awaiting is None
+
+    other = await _held()
+    assert (await _press(_starter(other), conversation=("gmail", ""))).awaiting is None
+
+
+async def test_a_run_that_came_out_whole_stops_waiting_to_hear_anything() -> None:
+    """Cleared rather than left to expire.
+
+    Seven days of a finished run claiming every reply to its own thread is
+    seven days of the next request on it being swallowed by the last one --
+    "thanks, that worked" read as the answer to a question nobody still has.
+    """
+    uow = await _held()
+    run = await _press(_starter(uow), conversation=("gmail", "t-9"))
+
+    await _starter(uow)._settle_the_wait(_ctx(), run)
+
+    saved = await uow.workflow_runs.get(TENANT, run.id)
+    assert saved is not None and saved.awaiting is None
+    assert await uow.workflow_runs.waiting_on(TENANT, server="gmail", thread="t-9") is None
+
+
+async def test_a_run_still_short_of_a_value_keeps_its_address() -> None:
+    """Which needs no writing: the row already says which conversation this run
+    answers to, and the reply arriving there is the answer to a question that
+    is still open."""
+    uow = await _held()
+    run = await _press(_starter(uow), conversation=("gmail", "t-9"))
+    run.needs = ["Customer Type"]
+    await uow.workflow_runs.save(run)
+
+    await _starter(uow)._settle_the_wait(_ctx(), run)
+
+    found = await uow.workflow_runs.waiting_on(TENANT, server="gmail", thread="t-9")
+    assert found is not None and found.id == run.id
+
+
+async def test_nothing_is_waiting_on_a_conversation_nobody_named() -> None:
+    uow = await _held()
+    await _press(_starter(uow), conversation=("gmail", "t-9"))
+
+    assert await uow.workflow_runs.waiting_on(TENANT, server="gmail", thread="") is None
+    assert await uow.workflow_runs.waiting_on(TENANT, server="", thread="t-9") is None
+    assert await uow.workflow_runs.waiting_on(RIVAL, server="gmail", thread="t-9") is None

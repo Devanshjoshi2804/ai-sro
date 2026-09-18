@@ -253,6 +253,18 @@ class WorkflowRun:
 
     Empty for every run that found everything, which is nearly all of them."""
 
+    awaiting: dict[str, str] | None = None
+    """The outside conversation this run ended waiting to hear back on.
+
+    A run that comes up short asks, and until now it could only ask the person
+    with the panel open. The person who knows the answer is often somebody
+    else -- whoever sent the mail that asked for the job -- and an answer that
+    arrives in a mailbox has to be able to find the run waiting for it.
+
+    None for every run nobody outside was asked about. See
+    `domain/execution/waiting.py`, which holds the deadline: a pause with no
+    end to it is not a pause."""
+
     wrong_because: str | None = None
     """What the operator said was wrong with what this run made.
 

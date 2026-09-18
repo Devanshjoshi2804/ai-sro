@@ -50,6 +50,7 @@ import logging
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime, timedelta
+from types import MappingProxyType
 
 from sro.application.chat.read_threads import ReadThreads
 from sro.application.chat.understand import understand
@@ -247,6 +248,7 @@ class FromTheMail:
         by_id = {gesture.id: gesture for gesture in cited}
         asked_by = {w.id: mails for w in workflows if (mails := texts(mails_behind(w, by_id)))}
         titles = {w.id: w.title for w in workflows}
+        held = {w.id: w for w in workflows}
 
         try:
             arrivals = await self._recent(ctx, limit)
@@ -288,14 +290,14 @@ class FromTheMail:
             back = await self._answering(ctx, thread)
             if back is not None:
                 offered.append(
-                    await self._carrying_on(ctx, message, back, said, thread, subject, titles)
+                    await self._carrying_on(ctx, message, back, said, thread, subject, titles, held)
                 )
                 continue
             # Or a question standing in the conversation that this answers.
             asked = await self._was_asked(ctx, thread)
             if asked is not None:
                 offered.append(
-                    await self._answered_by_mail(ctx, message, asked, said, thread, subject)
+                    await self._answered_by_mail(ctx, message, asked, said, thread, subject, held)
                 )
                 continue
             got = await understand(said, workflows, asker, self._model, asked_by)
@@ -494,6 +496,7 @@ class FromTheMail:
         thread: str,
         subject: str,
         titles: Mapping[str, str],
+        held: Mapping[str, Workflow] = MappingProxyType({}),
     ) -> Offered:
         """The waiting run's offer again, with whatever the reply added.
 
@@ -508,6 +511,8 @@ class FromTheMail:
         """
         values = dict(back.values)
         missing = [name for name in back.needs if name not in values]
+        values |= await self._reply_says(ctx, said, held.get(back.workflow_id), missing)
+        missing = [name for name in missing if name not in values]
         if missing and self._gather is not None:
             found = await self._gather.execute(
                 ctx,
@@ -543,6 +548,7 @@ class FromTheMail:
         said: str,
         thread: str,
         subject: str,
+        held: Mapping[str, Workflow] = MappingProxyType({}),
     ) -> Offered:
         """The standing question, with whatever the reply answered of it.
 
@@ -564,6 +570,8 @@ class FromTheMail:
         """
         values = dict(asked.values)
         missing = [name for name in asked.missing if name not in values or not values[name]]
+        values |= await self._reply_says(ctx, said, held.get(asked.workflow_id), missing)
+        missing = [name for name in missing if name not in values]
         if missing and self._gather is not None:
             found = await self._gather.execute(
                 ctx,
@@ -590,6 +598,51 @@ class FromTheMail:
             thread=thread,
             subject=subject,
         )
+
+    async def _reply_says(
+        self,
+        ctx: RequestContext,
+        said: str,
+        job: Workflow | None,
+        wanted: Sequence[str],
+    ) -> dict[str, str]:
+        """The values this reply actually states, read out of the reply.
+
+        The one thing neither reply path did. A reply is the answer to a
+        question this system asked, and both paths handed it to the gather --
+        which does not READ it. `because` is a search QUERY there: the words
+        somebody wrote are typed into a mailbox search, the search comes back
+        with the thread or with nothing, and the value sitting in the sentence
+        is never looked at. Measured on the deployment 2026-09-18: a reply
+        saying `customer type :- QQI` to a question asking for Customer Type
+        was logged `a reply answers the question standing on ... (0 of 1)`, and
+        the card came back asking the same thing again.
+
+        The job is known here -- the thread settled it -- so the reading is
+        given that one job and nothing else to choose between. It is asked for
+        values, not for which job this is: re-deciding a settled question on
+        two words like `QQI` is how a bare answer ends up read as no job at
+        all and dropped.
+
+        Empty for every ordinary reason, and the gather still runs after it: a
+        reply that says nothing useful is the case the mailbox search exists
+        for.
+        """
+        if not wanted or job is None or self._asker is None or not said.strip():
+            return {}
+        read = await understand(said, [job], self._asker, self._model)
+        got = {
+            name: value
+            for name, value in read.values.items()
+            if name in set(wanted) and str(value).strip()
+        }
+        if got:
+            logger.info(
+                "%s: the reply itself answers %s",
+                ctx.tenant_id.value,
+                ", ".join(sorted(got)),
+            )
+        return got
 
     async def _what_will_not_fit(
         self, ctx: RequestContext, offered: Sequence[Offered], jobs: Sequence[Workflow]

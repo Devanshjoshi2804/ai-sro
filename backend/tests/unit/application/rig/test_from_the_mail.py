@@ -570,8 +570,11 @@ async def test_a_reply_carries_on_the_run_that_was_waiting_for_it() -> None:
     assert one.values == {"Customer Type Description": "north dock", "Customer Type": "GU9"}
     assert one.missing == []
     assert one.thread == "t-9"
-    # And the model was never asked to read the reply.
-    assert reads.saw == []
+    # And where the model IS asked to read the reply, it is handed the one job
+    # the thread already settled and nothing to choose between. A bare `GU9`
+    # re-classified against every job this tenant holds reads as no job at all
+    # and is dropped -- which is the failure this path exists to prevent.
+    assert [json.loads(seen)["jobs"][0]["id"] for seen in reads.saw] == [JOB]
 
 
 async def test_a_reply_to_a_wait_that_ran_out_is_an_ordinary_new_request() -> None:
@@ -815,7 +818,61 @@ async def test_a_reply_answers_the_question_standing_in_the_conversation() -> No
         "Customer Type": "GPX",
     }
     assert one.missing == []
-    assert reads.saw == [], "the reply was read as a fresh request"
+    # Read for its VALUES against the one settled job, never re-classified: a
+    # reading that named no job at all did not stop the answer landing.
+    assert [json.loads(seen)["jobs"][0]["id"] for seen in reads.saw] == [JOB]
+
+
+async def test_the_reply_itself_answers_when_the_mailbox_search_finds_nothing() -> None:
+    """The value is in the sentence somebody wrote, not somewhere to search for.
+
+    Both reply paths handed the reply to the gather, where `because` is a
+    search QUERY: the words are typed into a mailbox search and the value
+    sitting in them is never read. Measured on the deployment 2026-09-18 -- a
+    reply saying `customer type :- QQI` to a question asking for Customer Type
+    logged `a reply answers the question standing on ... (0 of 1)`, and the
+    card came back asking for the same field again.
+    """
+    uow = await _held()
+    thread = await StartThread(uow, FakeClock(), FakeIdFactory()).execute(CTX)
+    thread.say(
+        Message(
+            id=MessageId("msg_asked"),
+            speaker=Speaker.ASSISTANT,
+            text="What should Customer Type be?",
+            said_at=FakeClock().now(),
+            decision={
+                "kind": NEEDS,
+                "workflow_id": JOB,
+                "title": "Create a Customer Type",
+                "values": {"Customer Type Description": "Leaning new SRO type 055"},
+                "missing": ["Customer Type"],
+                "items": [],
+                "mail_thread": "t-33",
+                "watched": True,
+            },
+        )
+    )
+    await uow.threads.save(thread)
+    mailbox = _Mailbox(
+        search=_found("m-1"), **{"m-1": _mail("customer type :- QQI", thread="t-33")}
+    )
+    # A mailbox search that comes back with nothing, which is what it did.
+    gather = _Gathers()
+    reads = _Reads(
+        {
+            "workflow_id": JOB,
+            "values": [{"name": "Customer Type", "value": "QQI"}],
+            "missing": [],
+            "sure": True,
+        }
+    )
+
+    looked = await _look(uow, mailbox, reads, gather).execute(CTX)
+
+    (one,) = looked.offered
+    assert one.values["Customer Type"] == "QQI"
+    assert one.missing == []
 
 
 async def test_a_reply_on_another_conversation_is_not_an_answer_to_this_one() -> None:

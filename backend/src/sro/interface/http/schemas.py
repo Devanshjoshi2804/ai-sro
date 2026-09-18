@@ -3588,6 +3588,16 @@ class MailOfferModel(BaseModel):
     title: str
     values: dict[str, str]
     missing: list[str]
+    too_long: dict[str, int] = {}
+    """Values this job's own boxes will not hold, and what they hold instead.
+
+    Sent so the card can ask before the press rather than after it. The run
+    refuses a value that will not fit, and it can only refuse once it is
+    standing in front of the box -- by which time somebody has pressed and is
+    watching a form half-fill. The limit was learnt by an earlier run and is
+    known now, so the panel says it now.
+
+    Empty for every job no run has hit a limit on, which is most of them."""
 
 
 class FromTheMailResponse(BaseModel):
@@ -3612,6 +3622,7 @@ class FromTheMailResponse(BaseModel):
                     title=one.title,
                     values=dict(one.values),
                     missing=list(one.missing),
+                    too_long=dict(one.too_long),
                 )
                 for one in looked.offered
             ],

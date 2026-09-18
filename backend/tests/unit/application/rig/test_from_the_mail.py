@@ -390,3 +390,79 @@ async def test_a_request_in_no_conversation_does_not_ask_for_one() -> None:
 
     assert looked.offered, "it refused to offer at all"
     assert not [one for one in mailbox.asked if one[1] == "get_thread"], mailbox.asked
+
+
+async def test_an_offer_says_which_of_its_values_the_job_s_own_boxes_will_not_hold() -> None:
+    """Asked before the press, because it is known before the press.
+
+    The run already refuses a value that will not fit -- it types, the browser
+    silently keeps a prefix, and the run stops rather than write a record that
+    does not say what was asked for. It can only refuse standing in front of
+    the box, which means somebody pressed, watched half a form fill, and got a
+    question back. An earlier run found the limit and wrote it down; there is
+    no reason to spend a person's press rediscovering it.
+    """
+    uow = await _held()
+    await uow.workflows.save(
+        Workflow(
+            id=JOB,
+            tenant=f.TENANT.value,
+            title="Create a Customer Type",
+            narrative="open the screen, type the code, save",
+            steps=[
+                Step(
+                    order=0,
+                    says="type the description",
+                    system=None,
+                    cites=["g"],
+                    parameters=["Customer Type Description"],
+                )
+            ],
+            parameters=[
+                {"name": "Customer Type", "seen_values": ["GGD"]},
+                {"name": "Customer Type Description", "seen_values": ["leaning new SRO type 01"]},
+            ],
+        )
+    )
+    await uow.workflows.remember_limit(JOB, 0, 28)
+    mailbox = _Mailbox(
+        search=_found("m-1"),
+        **{"m-1": _mail("please create the customer type in WMS as discussed")},
+    )
+    gather = _Gathers(
+        **{
+            "Customer Type": "GU9",
+            "Customer Type Description": "leaning new SRO type 044 for the north dock",
+        }
+    )
+
+    looked = await _look(uow, mailbox, _Reads(_reading(JOB, bare=True)), gather).execute(CTX)
+
+    (one,) = looked.offered
+    # The one that will not fit, and what the box takes. Not the one that will.
+    assert one.too_long == {"Customer Type Description": 28}
+    # Still offered, with the value on it: the card asks for a shorter one, and
+    # a person who can answer in four words should not have to start again.
+    assert one.values["Customer Type Description"].startswith("leaning new SRO type 044")
+
+
+async def test_an_offer_for_a_job_nothing_has_hit_a_limit_on_says_nothing_about_limits() -> None:
+    """Which is most of them. A limit exists only where a run has found one,
+    and inventing one from silence would ask somebody to shorten a value that
+    was never too long."""
+    uow = await _held()
+    mailbox = _Mailbox(
+        search=_found("m-1"),
+        **{"m-1": _mail("please create the customer type in WMS as discussed")},
+    )
+    gather = _Gathers(
+        **{
+            "Customer Type": "GU9",
+            "Customer Type Description": "leaning new SRO type 044 for the north dock",
+        }
+    )
+
+    looked = await _look(uow, mailbox, _Reads(_reading(JOB, bare=True)), gather).execute(CTX)
+
+    (one,) = looked.offered
+    assert one.too_long == {}

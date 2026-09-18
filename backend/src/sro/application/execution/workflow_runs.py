@@ -92,6 +92,7 @@ from sro.application.shared.refusals import OverCap
 from sro.domain.chat.asking import NEEDS, Pending, question
 from sro.domain.execution.evidence import unperformable
 from sro.domain.execution.gathering import Gathered
+from sro.domain.execution.learned_step import limits_for
 from sro.domain.execution.verified_writes import VerifiedWrite
 from sro.domain.execution.workflow_run import (
     RunStep,
@@ -548,16 +549,10 @@ class StartWorkflowRun:
         # last one would not do gets the same value back -- the person has no
         # way to know the field stops at 28 characters, because the browser
         # never said so and neither did we.
-        limits: dict[str, int] = {}
         async with self._uow as uow:
-            learnt = {one.ord: one for one in await uow.workflows.learned_for(run.workflow_id)}
+            learnt = await uow.workflows.learned_for(run.workflow_id)
             workflow = await uow.workflows.get(ctx.tenant_id, run.workflow_id)
-        for step in workflow.steps if workflow else []:
-            holds = (learnt.get(step.order) or None) and learnt[step.order].holds
-            if holds is None:
-                continue
-            for name in step.parameters:
-                limits[name] = holds
+        limits = limits_for(workflow.steps if workflow else [], learnt)
         pending = Pending(
             workflow_id=run.workflow_id,
             title=title,

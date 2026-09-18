@@ -135,6 +135,11 @@ export function fire(candidate, now, { tabId = null, visit = "" } = {}) {
     // answer, not this browser's: the connector is a deployment's and a panel
     // cannot know whether this one has a mailbox it may read.
     canFind: Boolean(candidate.can_find),
+    // What this job's own boxes will not hold, by name, and what they hold
+    // instead. Learnt by an earlier run that typed a value and watched the
+    // browser silently keep a prefix of it, so the card can say so BEFORE the
+    // press rather than the run saying so in the middle of a form.
+    tooLong: candidate.too_long || {},
     parameters: candidate.parameters || [],
   };
 }

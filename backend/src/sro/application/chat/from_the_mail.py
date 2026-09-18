@@ -48,7 +48,7 @@ from __future__ import annotations
 import json
 import logging
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime, timedelta
 
 from sro.application.chat.understand import understand
@@ -58,7 +58,9 @@ from sro.application.ports.model import Asker, asker_or_refuse
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.tools import ToolCaller, ToolsUnavailable
 from sro.domain.chat.asked_by import mails_behind, texts
+from sro.domain.execution.learned_step import limits_for, too_long
 from sro.domain.shared.prices import Answer
+from sro.domain.skill.workflow import Workflow
 
 SERVER = "gmail"
 """The connector this looks in, named rather than every connector a deployment
@@ -150,6 +152,15 @@ class Offered:
     title: str
     values: Mapping[str, str] = field(default_factory=dict)
     missing: Sequence[str] = ()
+
+    too_long: Mapping[str, int] = field(default_factory=dict)
+    """The values this job's boxes will not hold, and what they hold instead.
+
+    Known here only because some earlier run found it out the hard way and
+    wrote it down. Carried on the OFFER, which is the point: the run already
+    refuses a value that will not fit, and refusing at that moment means a
+    person pressed, watched half a form fill, and got a question back. The
+    limit is known before the press, so it can be said before the press."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -349,7 +360,10 @@ class FromTheMail:
                 )
             )
         looked = LookedInTheMail(
-            offered=tuple(offered), read=read, why=_sentence(offered, read, unsure), spent=spent
+            offered=await self._what_will_not_fit(offered, workflows),
+            read=read,
+            why=_sentence(offered, read, unsure),
+            spent=spent,
         )
         # What the look CAME TO, not only what it threw away.
         #
@@ -366,6 +380,32 @@ class FromTheMail:
             looked.why,
         )
         return looked
+
+    async def _what_will_not_fit(
+        self, offered: Sequence[Offered], jobs: Sequence[Workflow]
+    ) -> tuple[Offered, ...]:
+        """Each offer, told which of its values its own boxes are too small for.
+
+        One read per job rather than per offer: a mailbox holding four requests
+        for the same job is the ordinary case, and it is the same answer four
+        times.
+
+        A job nothing has been learnt about comes back exactly as it went in,
+        which is most of them -- a limit exists only where a run has hit one.
+        """
+        steps = {one.id: one.steps for one in jobs}
+        limits: dict[str, dict[str, int]] = {}
+        async with self._uow as uow:
+            for workflow_id in sorted({one.workflow_id for one in offered}):
+                learnt = await uow.workflows.learned_for(workflow_id)
+                if found := limits_for(steps.get(workflow_id, []), learnt):
+                    limits[workflow_id] = found
+        return tuple(
+            one
+            if one.workflow_id not in limits
+            else replace(one, too_long=too_long(one.values, limits[one.workflow_id]))
+            for one in offered
+        )
 
     async def _recent(self, ctx: RequestContext, limit: int) -> list[str]:
         """The newest message ids, as this operator. Ids only: what each one

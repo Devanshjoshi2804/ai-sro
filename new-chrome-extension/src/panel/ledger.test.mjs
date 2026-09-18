@@ -909,6 +909,72 @@ test("an offer with nothing read yet still asks plainly", () => {
   assert.match(words(item), /Create a Customer Type — want me to do it\?/);
 });
 
+test("a value the box will not hold is asked about before the press, not after", () => {
+  // The run already refuses this -- it types, the browser silently keeps 28
+  // characters, and the run stops rather than write a record that does not say
+  // what was asked for. It can only refuse standing in front of the box, so
+  // the operator pressed, watched half a form fill, and got a question back.
+  // The limit was learnt by an earlier run and is known before the press.
+  const pressed = [];
+  const nudge = {
+    id: "n_long", source: "rig", state: "open", k: 0,
+    title: "Create a Customer Type",
+    values: {
+      "Customer Type": "GU9",
+      "Customer Type Description": "leaning new SRO type 044 for the north dock",
+    },
+    items: [], missing: [], canFind: true,
+    tooLong: { "Customer Type Description": 28 },
+  };
+  const item = renderNudge(nudge, (...args) => pressed.push(args));
+
+  // The limit and how far over, because "this will not fit" sends somebody
+  // back with a second value that does not fit either.
+  assert.match(words(item), /takes 28 characters and this is 43/);
+  assert.match(words(item), /Shorten it by 15/);
+
+  const yes = labelled(item, /Yes, do it/);
+  assert.equal(yes.disabled, true, "a press would have half-filled a form to reach a known no");
+
+  // Still too long is still no.
+  const field = of(item, "input").find(
+    (one) => one.dataset.name === "Customer Type Description",
+  );
+  assert.ok(field, "nowhere to shorten it");
+  typing(field, "leaning new SRO type 044 north");
+  assert.equal(yes.disabled, true, "thirty characters started a run into a 28-character box");
+
+  typing(field, "new SRO type 044");
+  assert.equal(yes.disabled, false);
+  press(yes);
+  assert.equal(
+    pressed[0][4].values["Customer Type Description"],
+    "new SRO type 044",
+    "the run was started with the value that would not fit",
+  );
+});
+
+test("a value inside a known limit is not asked about at all", () => {
+  const nudge = {
+    id: "n_fits", source: "rig", state: "open", k: 0,
+    title: "Create a Customer Type",
+    values: { "Customer Type Description": "north dock" },
+    items: [], missing: [], canFind: true,
+    tooLong: { "Customer Type Description": 28 },
+  };
+  const item = renderNudge(nudge);
+  // Not merely pressable -- unmentioned. A card that says "this takes 28
+  // characters and this is 10, that fits" about a value nobody asked about is
+  // a job explaining its own internals to somebody deciding.
+  assert.doesNotMatch(words(item), /28 characters/, words(item));
+  assert.equal(
+    of(item, "input").filter((one) => one.dataset.name).length,
+    0,
+    "a box to shorten a value that already fits",
+  );
+  assert.equal(labelled(item, /Yes, do it/).disabled, false);
+});
+
 for (const [name, fn] of tests) {
   try {
     await fn();

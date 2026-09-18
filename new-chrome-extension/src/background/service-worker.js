@@ -612,6 +612,7 @@ async function offerFromMail(offer) {
       values: offer.values || {},
       items: [],
       missing: offer.missing || [],
+      too_long: offer.too_long || {},
       can_find: true,
       parameters: (shape?.parameters || []).map((one) => one.name),
       expires_at: endOfDay(now),

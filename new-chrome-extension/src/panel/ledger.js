@@ -608,6 +608,44 @@ function offeringToFinish(nudge, onPress) {
     item.append(boxes);
   }
 
+  // The values this job's boxes are known not to hold.
+  //
+  // The run already refuses these -- it types, the browser silently keeps a
+  // prefix, and the run stops rather than write a record that does not say
+  // what was asked for. But it can only refuse standing in front of the box,
+  // which means somebody pressed, watched half a form fill, and got a question
+  // back for their trouble. The limit was learnt by an earlier run and is
+  // known NOW, so it is asked about now, while they are still deciding.
+  //
+  // A box rather than a warning: told "this will not fit" and sent away, a
+  // person comes back with another value that does not fit either, because
+  // nothing ever said what would. The number is the answer, and the box is
+  // where they give it.
+  const shortenings = new Map();
+  for (const [name, limit] of Object.entries(nudge.tooLong || {})) {
+    const was = String(nudge.values?.[name] ?? "");
+    if (!was || was.length <= limit) continue;
+    const asking = document.createElement("p");
+    asking.className = "detail";
+    asking.dataset.kind = "too-long";
+    const field = document.createElement("input");
+    field.type = "text";
+    field.value = was;
+    field.dataset.name = name;
+    const said = () => {
+      const now = String(field.value || "").length;
+      asking.textContent =
+        `${name} takes ${limit} characters and this is ${now}. ` +
+        (now > limit
+          ? `Shorten it by ${now - limit} and I will do the rest.`
+          : "That fits.");
+    };
+    said();
+    field.addEventListener("input", said);
+    shortenings.set(name, field);
+    item.append(asking, field);
+  }
+
   const yes = document.createElement("button");
   yes.type = "button";
   yes.textContent = nudge.k > 0 ? "Yes, finish it" : "Yes, do it";
@@ -619,9 +657,18 @@ function offeringToFinish(nudge, onPress) {
   // Blank is blank after trimming: a field of spaces is not an answer to a
   // question the run is going to ask the system on the other side. Where the
   // run can go and look, an unanswered box is not an unanswered question.
+  //
+  // A value known not to fit is not ready however it was arrived at: this is
+  // the one box `canFind` cannot answer for, because the mailbox is where the
+  // too-long value came from.
   const ready = () =>
-    nudge.canFind ||
-    [...fields.values()].every((field) => String(field.value || "").trim());
+    [...shortenings].every(
+      ([name, field]) =>
+        String(field.value || "").trim() &&
+        String(field.value || "").length <= nudge.tooLong[name],
+    ) &&
+    (nudge.canFind ||
+      [...fields.values()].every((field) => String(field.value || "").trim()));
   // One press ends the card. The ledger does not redraw when an offer is
   // answered, so without this the buttons of a refused offer are still live
   // under the operator's cursor -- and "No thanks" then "Yes" is a run started
@@ -634,7 +681,8 @@ function offeringToFinish(nudge, onPress) {
     no.disabled = ended;
   };
   settle();
-  for (const field of fields.values()) field.addEventListener("input", settle);
+  for (const field of [...fields.values(), ...shortenings.values()])
+    field.addEventListener("input", settle);
   yes.addEventListener("click", () => {
     if (ended) return;
     // Only what was actually typed. A blank sent as "" is a TYPED blank at
@@ -642,7 +690,7 @@ function offeringToFinish(nudge, onPress) {
     // person who typed a space has said something and a mailbox must not
     // overrule them. A box nobody touched has said nothing.
     const values = Object.fromEntries(
-      [...fields]
+      [...fields, ...shortenings]
         .map(([name, field]) => [name, String(field.value || "").trim()])
         .filter(([, value]) => value),
     );

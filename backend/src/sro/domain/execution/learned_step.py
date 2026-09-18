@@ -26,7 +26,12 @@ exists, and the same shape: one row per step, the last answer winning.
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:  # a domain type used in a signature, imported for the checker only
+    from sro.domain.skill.workflow import Step
 
 K_NAME = 80
 """How much of a control's name is kept. A button's accessible name is a few
@@ -98,3 +103,43 @@ def learned_from(ord_: int, matched_by: str | None, result: object) -> LearnedSt
         if name:
             return LearnedStep(ord_, "text", name[:K_NAME], str(matched_by))
     return None
+
+
+def limits_for(steps: Sequence[Step], learned: Iterable[LearnedStep]) -> dict[str, int]:
+    """What the boxes behind a job's parameter names will hold, by name.
+
+    A limit is learnt about a STEP, because a step is what typed into the box.
+    Everything that wants to use it ahead of time -- the question asked of
+    somebody whose value was too long, the card asked before the press -- knows
+    a parameter's name and not which step fills it. This is that translation,
+    in one place, because two copies of it drift the day a job fills one name
+    at two steps.
+
+    Which is the case the `min` is for. A name typed at two steps has two
+    limits and only the smaller one is true of the run: a value that fits the
+    first box and not the second still stops the job, and a card that promised
+    otherwise lied to the person who pressed.
+    """
+    holds = {one.ord: one.holds for one in learned if one.holds is not None}
+    limits: dict[str, int] = {}
+    for step in steps:
+        if (cap := holds.get(step.order)) is None:
+            continue
+        for name in step.parameters:
+            limits[name] = min(cap, limits.get(name, cap))
+    return limits
+
+
+def too_long(values: Mapping[str, str], limits: Mapping[str, int]) -> dict[str, int]:
+    """The values that will not fit, and what their box actually takes.
+
+    The limit and not a flag: "this will not fit" sends somebody back with a
+    value that does not fit either, and they have no way to know why -- the
+    browser truncates in silence and says nothing at all. What a person needs
+    in order to answer once is the number.
+    """
+    return {
+        name: limits[name]
+        for name, value in values.items()
+        if name in limits and isinstance(value, str) and len(value) > limits[name]
+    }

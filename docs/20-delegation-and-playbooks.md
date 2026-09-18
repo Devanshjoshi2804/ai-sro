@@ -233,7 +233,7 @@ found.
 | 4 | Bind a value for a known field into the write | done `6642215e` |
 | 5 | An undemonstrated field must prove it landed | done `122a16d2` |
 | 6 | The card says what it will write | half done `54926cba` |
-| 7 | Composition — needs 3.1, 3.2, and a compensation story | last; 3.1 waits on this |
+| 7 | Composition — needs 3.1, 3.2, and a compensation story | in progress; see below |
 
 ### 4 and 5 — one piece, and why they could not be built apart
 
@@ -330,6 +330,40 @@ And a cheap producer for (1) when it arrives, in this codebase's own style:
 the edge is DISCOVERABLE from evidence rather than guessed -- a value typed in
 step 5 that equals what step 2's response returned is a `uses` edge, and the
 recorded calls already hold both halves.
+
+### 7 — where composition stands
+
+Three preconditions, and the state of each.
+
+**3.1, the binding.** Built, stored, and now proved through the loop it runs
+in. `uses_edges` finds the edge off the evidence and `_what_earlier_steps_made`
+reads the record; the one line between them — in the loop — decides whether a
+value the warehouse minted reaches the step that needs it, and nothing
+exercised it until `63680227`. It is driven through a RESUMED row, which is the
+case the binding exists for: a run that comes back after a pause reads what it
+made from the store, and a binding that only worked out of a local would be
+empty for exactly that half of a job.
+
+**3.2, the dormant pause.** Done (`fcce6029`) and proved live: a run parks, the
+mail comes back, and the answer starts it.
+
+**The compensation story**, which is the part nothing in the field does for
+browser actions. Half of it is now real. `21312266` gave the result card an
+undo — a mined DELETE job, run through the same ladder, the same write gate and
+the same belts as anything else — and `7aa7645d` links the two runs: a run
+records which run it takes back. Without that the delete went off alone, so a
+failed undo read as a job that failed on its own rather than as *the record is
+still out there*, and two panels showing one card pressed two deletes at one
+record. The second press is now refused — but only where the first HELD. An
+undo that failed left the record where it was, and refusing the second attempt
+because the first did not work refuses the one press that might.
+
+What is left is the chain itself: two jobs run as one piece of work, with the
+first's output flowing into the second. Within a job that flow now exists; the
+producer that would recognise it ACROSS two jobs does not, and neither does an
+instance to recognise — the same measurement as 3.1's, thirteen runs and no
+job that makes two records. `TeachWorkflow` composes two joined candidates into
+one skill on the older plane, and the mined-workflow plane has no equivalent.
 
 ### 3.14 — the page is not the page this step is about
 

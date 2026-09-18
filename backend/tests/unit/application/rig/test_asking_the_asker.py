@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sro.application.chat.ask_the_asker import DRAFTED, DraftForTheAsker, SendTheDraft
@@ -291,3 +291,39 @@ async def test_an_offer_naming_no_mail_asks_nobody() -> None:
     uow, mailbox = FakeUnitOfWork(), _Mailbox()
 
     assert await _drafter(uow, mailbox).execute(CTX, _pending()) is False
+
+
+async def test_the_mail_this_system_sent_is_never_read_as_a_request() -> None:
+    """The look reads the mailbox for anything asking for a job, and our own
+    question reads exactly like one: "I am working on Create a Customer Type…
+    I still need Customer Type".
+
+    Measured on the deployment 2026-09-18: the mail went out and the next look
+    offered a card for it, which is this system asking itself to do the thing
+    it had just asked a person about.
+    """
+    uow, mailbox = FakeUnitOfWork(), _Mailbox()
+    await _a_run(uow)
+    await _drafter(uow, mailbox).execute(CTX, _pending(), run_id="run_1")
+    threads = await uow.threads.list_for_tenant(f.TENANT, opened_by=PrincipalId("devansh"), limit=1)
+    drafted = threads[0].messages[-1]
+
+    await SendTheDraft(uow, mailbox, FakeClock(), FakeIdFactory()).execute(
+        CTX, threads[0].id, drafted.id
+    )
+
+    # The id the connector answered with is claimed in the ledger a read
+    # claims, so `_first_time` refuses it and no look ever reads it.
+    async with uow as opened:
+        again = await opened.tool_calls.remember(
+            f.TENANT,
+            "mail:devansh:m-sent",
+            tool="read a mail for what it asks",
+            # The clock the claim was written on, not the wall clock: a window
+            # measured from today against a claim stamped in the fake's own
+            # past reads as stale, and the test would pass for the wrong
+            # reason -- it did.
+            at=FakeClock().now(),
+            stale_after=timedelta(days=30),
+        )
+    assert again is False, "this system's own mail can be read back as a request"

@@ -26,6 +26,7 @@ import json
 import logging
 
 from sro.application.chat.announce import SayWhatHappened
+from sro.application.chat.from_the_mail import K_REMEMBER
 from sro.application.chat.read_threads import ReadThreads
 from sro.application.context import RequestContext
 from sro.application.ports.repositories import UnitOfWork
@@ -255,7 +256,7 @@ class SendTheDraft:
 
         to = str(draft.get("to") or "")
         try:
-            await self._tools.call(
+            answered = await self._tools.call(
                 ctx.tenant_id,
                 ctx.principal_id,
                 SERVER,
@@ -288,11 +289,50 @@ class SendTheDraft:
             )
             return ""
 
+        # And the mail this system just wrote is not a request TO it.
+        #
+        # The look reads the mailbox for anything asking for a job, and what it
+        # was handed back was our own question: "I am working on Create a
+        # Customer Type... I still need Customer Type" reads, correctly, as
+        # somebody asking for a customer type. Measured on the deployment
+        # 2026-09-18 -- the mail went out and the next look offered a card for
+        # it, which is this system asking itself to do the thing it had just
+        # asked a person about.
+        #
+        # Claimed in the same ledger a read claims, because it is the same
+        # question -- "have I dealt with this message" -- and a second store
+        # for it is a second store to keep in step.
+        await self._never_read(ctx, answered)
         await self._say(
             ctx, thread_id, f"Asked {to}. I will carry on when they reply.", run_id, sent=True
         )
         logger.info("%s: asked %s about %s", ctx.tenant_id.value, to, run_id)
         return to
+
+    async def _never_read(self, ctx: RequestContext, answered: object) -> None:
+        """Claim the id of the mail just sent, so no look ever reads it.
+
+        Silent about everything it cannot do. A connector that answered without
+        an id, an answer that is not JSON, a ledger that refuses -- none of
+        them is a reason to tell somebody their mail did not go, because it
+        did. The cost of missing this is one card somebody dismisses.
+        """
+        try:
+            said = json.loads(getattr(answered, "text", "") or "{}")
+            sent_id = str(said.get("id") or "") if isinstance(said, dict) else ""
+            if not sent_id:
+                return
+            async with self._uow as uow:
+                await uow.tool_calls.remember(
+                    ctx.tenant_id,
+                    f"mail:{ctx.principal_id.value}:{sent_id}",
+                    tool="a mail this system sent, which is not a request",
+                    at=self._clock.now(),
+                    stale_after=K_REMEMBER,
+                )
+                await uow.commit()
+        except Exception:
+            logger.exception("the sent mail could not be claimed and may be read as a request")
 
     async def _say(
         self,

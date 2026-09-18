@@ -1365,3 +1365,35 @@ a:focus-visible {
   max-height: 260px;
   overflow-y: auto;
 }
+
+/* A drafted mail stacks; it does not sit in columns.
+ *
+ * `.message` is a flex ROW -- a fixed cell for the time, then everything the
+ * message is -- and that is right for a card whose content is one paragraph
+ * with a row of buttons beside it. A draft is four things: the sentence, who
+ * it goes to, the mail itself, and the press. As flex items those became four
+ * columns in a 360-pixel panel, each about eighty pixels wide, and the mail
+ * somebody is being asked to authorise was a ribbon of single words.
+ *
+ * A grid rather than `flex-direction: column`, so the time keeps its own cell
+ * and stays out of the text -- the same shape the row gives, turned upright.
+ */
+.message[data-kind="mail_draft"] {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  column-gap: 10px;
+  row-gap: 2px;
+  align-items: start;
+}
+
+/* Everything but the time lives in the second column, one under the next. */
+.message[data-kind="mail_draft"] > :not(.when) {
+  grid-column: 2;
+}
+
+/* The press sits under the mail rather than beside it: a button level with the
+   first line of a mail somebody has not read yet is a button pressed before
+   the mail was read. */
+.message[data-kind="mail_draft"] .row {
+  margin-top: 4px;
+}

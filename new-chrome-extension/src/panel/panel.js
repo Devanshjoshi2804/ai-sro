@@ -2525,11 +2525,11 @@ async function madeARule(nudge, button) {
     // The card said "every time you land here" on the press. It is not true,
     // so it is taken back rather than left standing.
     button.disabled = false;
-    button.textContent = "Always, here";
+    button.textContent = "Always on this page";
     said(got.error || "no rule was made");
   } catch (error) {
     button.disabled = false;
-    button.textContent = "Always, here";
+    button.textContent = "Always on this page";
     said(error.message);
   }
 }

@@ -624,7 +624,7 @@ test("no markup reaches the page, whatever a system answered", () => {
   assert.equal(asMarkup.length, before, "a system's answer was assigned as markup");
 });
 
-test("a rig offer carries a third answer: always, here", () => {
+test("an offer about a page carries a third answer: a standing rule", () => {
   // A rule rather than a run. Nothing starts on this press, so it does not end
   // the card -- somebody can make the rule and still say yes to the doing in
   // front of them.
@@ -635,7 +635,7 @@ test("a rig offer carries a third answer: always, here", () => {
     (answer) => pressed.push(answer),
   );
 
-  const always = labelled(item, /Always, here/);
+  const always = labelled(item, /Always on this page/);
   assert.ok(always, "the offer had no way to become a rule");
   press(always);
   assert.deepEqual(pressed, ["do-this-here"]);
@@ -648,7 +648,26 @@ test("an offer that names no page cannot become a rule about one", () => {
     startsOn: "", workflowId: "wfl_1", k: 0, values: {}, missing: [],
   });
 
-  assert.equal(labelled(item, /Always, here/), undefined);
+  assert.equal(labelled(item, /Always on this page/), undefined);
+});
+
+test("a request that came by mail is not offered as a standing rule", () => {
+  // The gate was "does this offer name a page", and every offer does: a mined
+  // job carries the screen it was recorded starting on. So one customer type,
+  // asked for once by mail, was offering to run itself every time anybody
+  // opened the Customer Types screen. Asked about it on 2026-09-18 and the
+  // honest answer was that the button should not have been there.
+  const item = renderNudge({
+    id: "n_11", state: "open", source: "rig", title: "Create a Customer Type",
+    startsOn: "wms.test/portal/page", workflowId: "wfl_1", k: 0,
+    values: { "Customer Type": "NGSL" }, missing: [],
+    thread: "1a0b571a6f1bf6a8", subject: "Customer type for the SRO pilot",
+  });
+
+  assert.equal(labelled(item, /Always on this page/), undefined);
+  // The two that ARE about this one request stay exactly as they were.
+  assert.ok(labelled(item, /Yes, do it/));
+  assert.ok(labelled(item, /No thanks/));
 });
 
 test("a rule that almost fired is drawn, and offers nothing to press", () => {

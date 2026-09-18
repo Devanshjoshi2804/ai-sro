@@ -774,16 +774,33 @@ function offeringToFinish(nudge, onPress) {
   });
 
   // The third answer, and a different kind of answer: yes to THIS one, no to
-  // this one, and "always, here". It writes a rule rather than starting a run
-  // -- nothing happens now -- so it does not end the card: somebody can make
-  // the rule and still press Yes for the doing in front of them.
+  // this one, and a standing rule. It writes the rule rather than starting a
+  // run -- nothing happens now -- so it does not end the card: somebody can
+  // make the rule and still press Yes for the doing in front of them.
   //
-  // Only where the offer names the page it is about. A rule made from an offer
-  // that named none would be a rule about nowhere.
+  // **Only where landing on a page is what the offer is about.**
+  //
+  // The gate was "does this offer name a page", and every offer does: a mined
+  // job carries the screen it was recorded starting on. So a request that
+  // arrived by MAIL -- one customer type, one code, asked for once -- was
+  // offering to run itself every time somebody opened the Customer Types
+  // screen, for ever. Asked about it on 2026-09-18, and the honest answer was
+  // that the button should not have been there.
+  //
+  // A mail-driven offer carries the conversation it came from. That is the
+  // difference between "this is what I do when I get here" and "somebody asked
+  // for this one thing".
   const always = document.createElement("button");
   always.type = "button";
   always.className = "quiet";
-  always.textContent = "Always, here";
+  // What it will do, in the words of the thing it does. "Always, here" reads
+  // as a place and says nothing about a rule being written, which is what it
+  // writes -- and a person who has to press a button to find out what it means
+  // has been given a button that means nothing.
+  always.textContent = "Always on this page";
+  always.title = nudge.startsOn
+    ? `Make a rule: whenever you open ${nudge.startsOn}, offer this job without waiting to be asked.`
+    : "Make a rule: whenever you open this page, offer this job without waiting to be asked.";
   always.addEventListener("click", () => {
     if (ended) return;
     always.disabled = true;
@@ -794,7 +811,7 @@ function offeringToFinish(nudge, onPress) {
   const row = document.createElement("div");
   row.className = "row";
   row.append(yes, no);
-  if (nudge.startsOn) row.append(always);
+  if (nudge.startsOn && !nudge.thread) row.append(always);
   item.append(row);
   return item;
 }

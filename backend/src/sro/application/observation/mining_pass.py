@@ -793,6 +793,28 @@ async def _one_pass(
             # both read an empty store and both saved.
             resolution = resolve(proposal, known + kept)
             result.resolutions.append(resolution)
+            # What became of it, said out loud.
+            #
+            # A pass reporting "0 job(s) kept of 7 proposed" is reporting three
+            # different things at once -- refused, recognised as one already
+            # stored, or the same evidence read twice -- and only the first of
+            # them is a problem. Measured on the deployment 2026-09-20: the
+            # operator demonstrated `Create a Client` three times, the miner
+            # kept it, and the passes after that said `0 kept` because it was
+            # being recognised. Nothing anywhere could tell that apart from the
+            # job being thrown away, and I read it as thrown away.
+            logger.info(
+                "%s: %s%s",
+                proposal.title,
+                {
+                    "new": "kept, nothing like it was stored",
+                    "same_job": "recognised as a job already stored",
+                    "same_occurrence": "this evidence has been read before",
+                }.get(resolution.kind, resolution.kind),
+                f" -- {resolution.workflow_id} at {resolution.score:.2f}"
+                if resolution.workflow_id
+                else "",
+            )
             placed.append(proposal)
             if resolution.kind == "new":
                 proposal.pass_id = pass_id

@@ -1780,3 +1780,31 @@ async def test_a_refused_proposal_says_which_gate_refused_it(
     assert "refused" in said, said
     assert "unknown gesture" in said, "it did not say which gate"
     assert "ges_never_captured" in said, "it did not say what about the job was wrong"
+
+
+async def test_a_pass_says_what_became_of_every_proposal(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """`0 job(s) kept of 7 proposed` reports three different things at once --
+    refused, recognised as one already stored, or the same evidence read twice
+    -- and only the first is a problem.
+
+    Measured on the deployment 2026-09-20: the operator demonstrated `Create a
+    Client` three times, the miner kept it, and every pass afterwards said
+    `0 kept` because it was being recognised. Nothing recorded could tell that
+    apart from the job being thrown away.
+    """
+    uow, ids = await _day()
+    original = [_rows(uow)[gesture_id] for gesture_id in ids]
+
+    with caplog.at_level(logging.INFO, logger="sro.application.observation.mining_pass"):
+        await _mine(uow, FakeAsker(_found(_proposal(ids))))
+        first = " ".join(record.getMessage() for record in caplog.records)
+        caplog.clear()
+        again = _redone(original, "SOMETHING-ELSE", "again", 10_000.0)
+        await uow.gestures.add_gestures(tuple(again))
+        await _mine(uow, FakeAsker(_found(_proposal([g.id for g in again]))))
+        second = " ".join(record.getMessage() for record in caplog.records)
+
+    assert "kept, nothing like it was stored" in first, first
+    assert "recognised as a job already stored" in second, second

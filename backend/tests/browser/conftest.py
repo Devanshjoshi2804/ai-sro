@@ -154,6 +154,45 @@ run that would start and be skipped a moment later.
 """
 
 
+_SHAPES: list[dict[str, object]] = [
+    {
+        "id": "wfl_lpn",
+        "title": "Adjust an LPN quantity",
+        # The page the job begins on, as a path -- the stub puts its own
+        # address in front. `/elsewhere` is a different page, so an offer that
+        # fired on the HOST rather than the page would be obvious.
+        "starts_on": "/",
+        "hosts": ["127.0.0.1"],
+        # Four rungs, because `recognise.match` scans k down from
+        # `shape.length - 1` and `offer_after` floors at 2: a shape of three or
+        # fewer can be served and never matched.
+        "shape": [
+            ["127.0.0.1", "input#client", "type"],
+            ["127.0.0.1", "input#qty", "type"],
+            ["127.0.0.1", "select#depot", "select"],
+            ["127.0.0.1", "button#save", "click"],
+        ],
+        "parameters": [{"name": "clientCode", "at": 0}],
+        "held_runs": 1,
+        "offer_after": 2,
+        "quiet_until": None,
+        "writes": [{"does": "create", "record": "orders", "on": "http://127.0.0.1", "step": "3"}],
+    }
+]
+"""One job the rig has proved, as `/v1/shapes` answers it.
+
+What the extension offers on arrival. It is named for the candidate below
+because the tests that read it were written when the offer came from the mining
+pipeline, and what they assert -- a pill on the page the job starts on, one
+card in the panel, nothing on another page -- is the same question about the
+surface that replaced it."""
+
+
+# Nothing in the extension asks for these any more. The panel dropped the
+# mining pipeline's offers (`candidatesFor`: "Dropped where it is read") and
+# the shape above is what arrives instead; the route below is kept because the
+# backend endpoint is still real and a future test of it should not have to
+# rebuild the stub. Every test that read it is gone or rewritten.
 _CANDIDATES: list[dict[str, object]] = [
     {
         "id": "cnd-here",
@@ -323,6 +362,7 @@ class _Stub(BaseHTTPRequestHandler):
     channels: ClassVar[queue.Queue[Channel]] = queue.Queue()
     purges: ClassVar[list[str]] = []
     candidate_queries: ClassVar[list[str]] = []
+    shape_queries: ClassVar[list[str]] = []
     answered_joins: ClassVar[list[dict[str, Any]]] = []
     merged: ClassVar[list[dict[str, Any]]] = []
     recordings: ClassVar[list[str]] = []
@@ -445,6 +485,37 @@ class _Stub(BaseHTTPRequestHandler):
                 self._send(404, json.dumps({"detail": "no such run"}).encode())
                 return
             self._send(200, json.dumps(run).encode())
+            return
+        if self.path.startswith("/v1/shapes"):
+            _Stub.shape_queries.append(self.path)
+            # The rig's jobs, as the extension asks for them on every page.
+            #
+            # This route did not exist here until 2026-09-19, and six browser
+            # tests had been failing since the worker stopped offering mining
+            # CANDIDATES and started offering the rig's own shapes
+            # (`candidatesFor`: "Dropped where it is read"). Nothing served
+            # shapes, so no offer could ever arrive in a real Chrome and the
+            # suite that exists to prove the pill and the card was red.
+            #
+            # `starts_on` gets this stub's address in front of it for
+            # `_CANDIDATES`' reason -- the port is minted per run and the
+            # extension compares host AND port -- and with the SCHEME, because
+            # the rig records the tab's whole url and `shapesFor` normalises it
+            # through `new URL(...)`. Served without one, every shape is
+            # dropped silently and nothing is ever offered.
+            here = self.headers.get("Host", "")
+            self._send(
+                200,
+                json.dumps(
+                    {
+                        "shapes": [
+                            {**shape, "starts_on": f"http://{here}{shape['starts_on']}"}
+                            for shape in _SHAPES
+                        ],
+                        "can_find": False,
+                    }
+                ).encode(),
+            )
             return
         if self.path.startswith("/v1/candidates"):
             _Stub.candidate_queries.append(self.path)
@@ -904,6 +975,16 @@ def demonstrations(stub: tuple[str, list[dict[str, Any]]]) -> tuple[list[str], l
 def candidate_queries(stub: tuple[str, list[dict[str, Any]]]) -> list[str]:
     """The `/v1/candidates` requests the panel made, as sent."""
     return _Stub.candidate_queries
+
+
+@pytest.fixture
+def shape_queries(stub: tuple[str, list[dict[str, Any]]]) -> list[str]:
+    """The `/v1/shapes` requests the extension made, as sent.
+
+    What `candidate_queries` was for, one pipeline later: the offer a browser
+    makes on arrival comes from the rig's proven jobs now, and the question
+    "did it ask at all" is the same question."""
+    return _Stub.shape_queries
 
 
 @pytest.fixture

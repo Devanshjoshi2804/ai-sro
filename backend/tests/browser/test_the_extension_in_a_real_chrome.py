@@ -1608,116 +1608,44 @@ def test_the_panel_can_stop_a_run_that_is_driving_this_browser(
     assert answer["error"]["kind"] == "aborted", answer
 
 
-def test_the_panel_shows_only_the_tasks_of_the_system_in_front_of_it(
-    browser: Any, stub: Any, candidate_queries: list[str]
+def test_the_panel_offers_the_job_that_starts_on_the_system_in_front_of_it(
+    browser: Any, stub: Any, shape_queries: list[str]
 ) -> None:
-    """'Tasks you keep doing *here*' is a different question from 'tasks you keep
-    doing', and it is the only one the console cannot ask. Narrowed by the
-    endpoint rather than after the fact: a busy morning elsewhere would
-    otherwise push the answer off a page of results."""
+    """ "Jobs you keep doing *here*" is a different question from "jobs you keep
+    doing", and it is the only one the console cannot ask.
+
+    **Rewritten 2026-09-19, and the rewrite is the finding.** This asked the
+    same question of `#candidates li` -- the mining pipeline's list, which the
+    panel dropped along with the offers behind it (`candidatesFor`: "Dropped
+    where it is read"). Nothing served `/v1/shapes` in this stub, so no offer
+    could arrive in a real Chrome at all, and six tests here had been failing
+    ever since without anybody reading them.
+    """
     api_url, _ = stub
     worker = _service_worker(browser)
     _sign_in(browser, worker, api_url)
 
     system = browser.new_page()
     system.goto(api_url)
+    _watch(browser, worker, system)
+    system.goto(api_url)
     panel = _panel(browser, worker)
 
-    panel.locator("#candidates li").first.wait_for(timeout=15_000)
-    shown = panel.locator("#candidates li").all_text_contents()
+    # `#cards`, which is Home. An offer is the truest thing on Home and was
+    # moved there from the conversation on 2026-09-16, when splitting the panel
+    # in two left the card a person was waiting to press behind the other tab.
+    card = panel.locator("#cards li[data-kind='nudge']").first
+    card.wait_for(timeout=15_000)
+    shown = panel.locator("#cards li[data-kind='nudge']").all_text_contents()
     panel.close()
     system.close()
 
-    assert any("host=127.0.0.1" in query for query in candidate_queries), (
-        f"the panel asked for every candidate rather than this system's: {candidate_queries}"
-    )
-    assert len(shown) == 1, (
-        f"something already decided, or from another system, was offered here: {shown}"
-    )
+    assert shape_queries, f"the panel asked for no jobs at all: {shape_queries}"
+    assert len(shown) == 1, f"something else was offered here too: {shown}"
     assert "Adjust an LPN quantity" in shown[0]
-    # A candidate somebody already said no to is not a question any more, and
-    # offering Teach on it would be offering a button the backend refuses.
-    assert all("already said no to" not in row for row in shown)
-    # A sentence a model wrote is never presented as a fact about the task.
-    assert "named by a model" in shown[0]
-
-
-def test_a_suggestion_the_panel_shows_is_one_a_person_can_answer(
-    browser: Any, stub: Any, answered_joins: list[dict[str, Any]]
-) -> None:
-    """The line `docs/15-observation-to-tasks.md` draws, made usable.
-
-    A model may notice that two candidates look like one piece of work and say
-    why; a person decides whether they are. Until somebody can answer, the
-    suggestion accumulates on a screen until the screen is ignored, and every
-    sweep asks it again.
-    """
-    api_url, _ = stub
-    worker = _service_worker(browser)
-    _sign_in(browser, worker, api_url)
-
-    system = browser.new_page()
-    system.goto(api_url)
-    panel = _panel(browser, worker)
-
-    row = panel.locator("#candidates li").first
-    row.wait_for(timeout=15_000)
-    assert "looks like the same task as another" in row.text_content(), (
-        "the suggestion the model made is not shown at all"
-    )
-
-    row.get_by_role("button", name="Same task").click()
-    panel.wait_for_timeout(1500)
-    after = panel.locator("#candidates li").first.text_content()
-    panel.close()
-    system.close()
-
-    assert answered_joins, "the panel answered nothing"
-    assert answered_joins[0]["other_id"] == "cnd-elsewhere"
-    assert answered_joins[0]["kind"] == "variant"
-    assert answered_joins[0]["answer"] == "same"
-    # And it stops asking: what comes back says who answered, not what a model
-    # noticed.
-    assert "cnd-here" in answered_joins[0]["path"]
-    # And it stops asking: the row states what was decided and by whom, rather
-    # than offering the same question again.
-    assert "said so" in after, f"the row is still asking a question somebody answered: {after!r}"
-
-
-def test_an_answered_workflow_is_something_the_panel_can_act_on(
-    browser: Any, stub: Any, merged: list[dict[str, Any]]
-) -> None:
-    """The half `docs/15` deliberately left out.
-
-    A model notices that two candidates are two halves of one job, a person
-    says yes -- and until this button, that answer changed nothing: an episode
-    breaks on a host change, so nothing in the miner can ever produce the pair
-    as one candidate.
-    """
-    api_url, _ = stub
-    worker = _service_worker(browser)
-    _sign_in(browser, worker, api_url)
-
-    system = browser.new_page()
-    system.goto(api_url)
-    panel = _panel(browser, worker)
-
-    row = panel.locator("#candidates li").first
-    row.wait_for(timeout=15_000)
-    assert "one job with another task" in row.text_content(), (
-        "the answered workflow is not shown at all"
-    )
-
-    row.get_by_role("button", name="Teach as one").click()
-    panel.wait_for_timeout(1500)
-    panel.close()
-    system.close()
-
-    assert merged, "the panel offered the button and asked nothing"
-    # This candidate and the one the person said it goes with -- never the
-    # unanswered variant suggestion sitting on the same row.
-    assert "cnd-here" in merged[0]["path"]
-    assert merged[0]["other_id"] == "cnd-elsewhere"
+    # And what one press would write, which is what item 6 put on this card:
+    # a person pressing yes is agreeing to a record being made in a warehouse.
+    assert "create an orders record" in shown[0], shown[0]
 
 
 def test_a_demonstration_bigger_than_one_batch_is_uploaded_whole(

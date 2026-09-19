@@ -1668,6 +1668,24 @@ async def run_workflow(
             run.steps.append(record)
             origin = origin_of(primary) if primary is not None else None
             mutates = writes(step, by_id)
+            # Whether this job's own write is still ahead of this step.
+            #
+            # A click the recorder heard nothing from is a possible write --
+            # a Save whose call was missed would otherwise be retried into a
+            # second record. That is right for the step a job WRITES at, and
+            # wrong for every step before it: opening a dropdown, pressing Add,
+            # filling a field. The demonstration says which is which, because
+            # it recorded the call on a later step.
+            #
+            # Measured on the deployment 2026-09-19, run `run_74a9a812`: the
+            # operator pressed Undo, the delete started, and its first step --
+            # "Opens the filter dropdown" -- failed `state unknown after a
+            # write; not retried`. One dropdown click ended the run, took its
+            # ladder away and suppressed the retry button, on a job whose
+            # DELETE was four steps further on.
+            writes_ahead = any(
+                later.order > step.order and writes(later, by_id) for later in ordered
+            )
 
             # The first thing is the proof.
             #
@@ -2232,14 +2250,25 @@ async def run_workflow(
                 # the SSO button click ended the run that way, and the result
                 # card then offered no "Try it again" either -- because a run
                 # whose write may have landed must not be pressed twice.
+                pressing = planned.payload.get("action") in ("click", "press")
                 may_write = (not leg.rescue) and (
                     mutates
+                    # A click at a point the MODEL chose is a click on whatever
+                    # is there now, on a page that has already moved under the
+                    # job: what the demonstrated control's traffic showed says
+                    # nothing about it. Every sight click is a possible write,
+                    # whatever the job does later.
+                    or (pressing and planned.kind == "ui.perform_at")
+                    # A click the recorder heard nothing from is a possible
+                    # write too -- unless this job's own write is still ahead
+                    # of it. Then the demonstration says what this step is:
+                    # scaffolding, opening a dropdown or a form, on the way to
+                    # a call it recorded somewhere later.
                     or (
-                        planned.payload.get("action") in ("click", "press")
-                        and (
-                            planned.kind == "ui.perform_at"
-                            or (planned.kind == "ui.perform" and _saw_nothing(step, by_id))
-                        )
+                        pressing
+                        and planned.kind == "ui.perform"
+                        and _saw_nothing(step, by_id)
+                        and not writes_ahead
                     )
                 )
 

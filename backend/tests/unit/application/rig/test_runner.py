@@ -1982,6 +1982,50 @@ async def test_a_click_that_signs_back_in_is_not_a_write() -> None:
     ]
 
 
+async def test_a_click_on_the_way_to_a_write_is_not_itself_the_write() -> None:
+    """Measured on the deployment 2026-09-19, run `run_74a9a812`. The operator
+    pressed Undo, the delete started, and its FIRST step -- "Opens the filter
+    dropdown" -- ended the run with *state unknown after a write; not
+    retried*. One dropdown click took the ladder away and suppressed the retry
+    button, on a job whose DELETE was four steps further on.
+
+    A click the recorder heard nothing from is a possible write, and that is
+    right for the step a job writes at. The demonstration says which step that
+    is: it recorded the call on a later one."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    # Step 0 is a silent click; the job's write is step 1, as `_workflow`
+    # records it.
+    silent = replace(_evidence(uow)[0], id="ges_open", requests=[])
+    await uow.gestures.add_gestures((silent,))
+    workflow.steps[0].cites = [silent.id]
+    workflow.steps[0].parameters = []
+    channel = FakeChannel(
+        {
+            **_looks(6),
+            "ui.perform": [Reply(ok=False, error_kind="control_not_found", error_detail="gone")]
+            * 4,
+        }
+    )
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=_PerSchemaAsker(
+            plan=_plan("click"), verdict=Answer(data={"held": False, "why": "no"})
+        ),
+        values={},
+    )
+
+    assert not any("state unknown after a write" in one.reason for one in run.steps), [
+        one.reason[:60] for one in run.steps
+    ]
+    assert not any((one.result or {}).get("wrote") for one in run.steps), [
+        one.result for one in run.steps
+    ]
+
+
 # The budget grows by the length of the way back in, and that line has no test.
 # One was written and deleted rather than left passing for the wrong reason: to
 # see it, four sign-in steps all have to HOLD, and each needs its own scripted

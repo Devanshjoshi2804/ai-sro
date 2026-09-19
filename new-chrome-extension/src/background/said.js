@@ -48,8 +48,23 @@ const MAX_CHARS = 300;
  * anything ends up holding a customer's name, and these lines leave the
  * browser on the next beat. A value a caller passes under any other name is
  * dropped rather than trusted.
+ *
+ * `command` is the one that spans both halves. The backend mints it, sends it
+ * down the socket and says it on every line while the command is in flight;
+ * this says the same id back, so a step that failed can be read from the side
+ * that sent it and the side that refused it without guessing which of the
+ * three `ui.perform`s in that second is the one that went wrong.
  */
-const ABOUT = ["run", "tab", "kind", "device", "workflow", "step", "error"];
+const ABOUT = [
+  "command",
+  "run",
+  "tab",
+  "kind",
+  "device",
+  "workflow",
+  "step",
+  "error",
+];
 
 /** Everything waiting to go up, oldest first. */
 export async function said() {

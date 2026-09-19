@@ -56,6 +56,7 @@ KNOWN = (
     "workflow",
     "thread",
     "pass_id",
+    "command",
 )
 """What a line may be attributed to, and the order a reader wants them in.
 
@@ -64,6 +65,11 @@ a value somebody put there in a hurry, and this is the plane that leaves the
 building. A name outside this list is refused by `about` rather than dropped
 quietly, so the refusal lands on whoever added it and not on whoever reads the
 logs six months later.
+
+`command` is the one that spans both halves of this system: the backend mints
+it, the browser answers with it, and both say it -- so a step that failed can
+be read from the side that sent it and the side that refused it without
+guessing which of the two `ui.perform`s in that second is which.
 """
 
 

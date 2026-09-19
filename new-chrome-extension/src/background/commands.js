@@ -1587,6 +1587,7 @@ export async function perform(command, source = "backend") {
     const answered = await theCommand(command);
     if (!answered.ok) {
       void say("warn", "a command was refused", {
+        command: command.command_id,
         kind: command.kind,
         run: command.run_id,
         error: answered.error?.kind,
@@ -1597,6 +1598,7 @@ export async function perform(command, source = "backend") {
     // Including a page that closed mid-command, which `executeScript` reports
     // by rejecting. An answer saying so is worth more than none.
     void say("error", `a command blew up in the browser: ${error}`, {
+      command: command.command_id,
       kind: command.kind,
       run: command.run_id,
     });

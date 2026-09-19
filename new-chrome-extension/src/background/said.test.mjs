@@ -42,6 +42,7 @@ test("a refusal is kept, because the worker that saw it will not last", async ()
   fresh();
 
   await say("warn", "a command was refused", {
+    command: "cmd_9f21",
     kind: "ui.perform",
     run: "run_4a57baf0",
     error: "no_tab_for_system",
@@ -55,6 +56,9 @@ test("a refusal is kept, because the worker that saw it will not last", async ()
   assert.match(kept[0], /^warn a command was refused/);
   assert.match(kept[0], /run=run_4a57baf0/);
   assert.match(kept[0], /error=no_tab_for_system/);
+  // The id the backend minted and said on its own lines while this command was
+  // in flight. Both halves of the step join on it.
+  assert.match(kept[0], /command=cmd_9f21/);
 });
 
 test("an ordinary line reaches the console and is not kept", async () => {

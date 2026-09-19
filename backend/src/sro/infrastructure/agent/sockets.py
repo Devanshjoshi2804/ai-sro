@@ -23,6 +23,7 @@ from typing import Protocol
 
 from sro.application.ports.agent import DeviceUnreachable
 from sro.domain.shared.identifiers import DeviceId, TenantId
+from sro.infrastructure.telemetry.whose import about
 
 logger = logging.getLogger(__name__)
 
@@ -253,7 +254,12 @@ class DeviceSockets:
             raise DeviceUnreachable(f"{device_id} stopped listening") from broken
 
         try:
-            return await asyncio.wait_for(waiting, timeout=deadline)
+            # Every line written while this command is in flight says which
+            # command it was -- and the browser's half of it says the same id
+            # back, so the two halves of a step join without guessing which of
+            # the three `ui.perform`s in that second is the one that failed.
+            with about(command=command_id):
+                return await asyncio.wait_for(waiting, timeout=deadline)
         except TimeoutError:
             return Answer(
                 ok=False,

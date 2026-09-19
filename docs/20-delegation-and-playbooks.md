@@ -270,6 +270,28 @@ API: a key no recorded body carries is never added; the evidence wins wherever
 both could bind one slot; and demonstrations that answered nothing fill nothing,
 because `None` is "no evidence about echoing" and not evidence of echoing.
 
+**Measured over both real tenants' jobs, 2026-09-19.** Standing: recorded — the
+plan was built off the stored bodies with a plant value; nothing was sent
+anywhere. Five jobs re-aim their write, and they aim it at the body's own keys:
+
+| job | what the plant value reached |
+|---|---|
+| `new` Create a Customer Type | `customerType`, `longDescription` |
+| `new` Create a Warehouse Equipment Type | `vehicleTypeId`, `longDescription`, `voiceCode`, `vehicleLimit` |
+| `new` Create a Work Area | `workArea`, `workAreaDescription` |
+| acme Create a Work Operation | `operationCode`, `longDescription` |
+| acme Create a Carrier Cross Reference | `carrier`, `serviceLevel`, `destinationName` |
+| acme Create a Work Area | `workAreaDescription`, `voiceCode` |
+
+And the ceiling, in the same measurement: acme's `Create a Customer Type` aims
+nothing, because each of its steps cites ONE doing. `_slots` is the diff
+between two bodies sent to the same endpoint, so a job mined from a single
+demonstration has no slots — and the declared keys it does have are dropped
+with them, since the plan refuses whole when nothing is claimed. Such a job is
+performed through the interface, which is safe and works; it is simply never
+deterministic. Two doings is what buys the deterministic write, and the mining
+pass already prefers them.
+
 ### 6 — what is said before the press, and what is not yet
 
 `54926cba` closes the half that was silent. A job's parameters are what two

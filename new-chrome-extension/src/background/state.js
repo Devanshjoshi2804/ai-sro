@@ -26,7 +26,6 @@ const KEYS = {
   apiUrl: "sro.apiUrl",
   consoleUrl: "sro.consoleUrl",
   policy: "sro.policy",
-  said: "sro.said",
   grants: "sro.grants",
   watches: "sro.watches",
   offers: "sro.offers",
@@ -53,6 +52,7 @@ const KEYS = {
   arrivals: "sro.arrivals",
   arrived: "sro.arrived",
   nearMisses: "sro.nearMisses",
+  said: "sro.said",
 };
 
 // Whichever deployment this build belongs to. `make gen-deployment` writes it;
@@ -168,6 +168,11 @@ export const state = {
   nearMisses: () => read(KEYS.nearMisses, []),
   setNearMisses: (misses) => write(KEYS.nearMisses, misses),
 
+  // What this browser did, kept where a person can read it after the worker
+  // that did it has been evicted. See `said.js`.
+  said: () => read(KEYS.said, []),
+  setSaid: (lines) => write(KEYS.said, lines),
+
   muted: () => read(KEYS.muted, {}),
   setMuted: (muted) => write(KEYS.muted, muted),
 
@@ -259,13 +264,6 @@ export const state = {
    * could be reached. Held here rather than in the panel because the panel is
    * one of several that may ask and is closed most of the day: the throttle
    * belongs to the browser, not to a window of it. */
-  /** What this browser decided, waiting for the next beat to carry it.
-   *
-   * In storage rather than in a variable, because the service worker is
-   * evicted between beats as a matter of course and the lines worth having
-   * are usually the ones written just before it went. */
-  said: () => read(KEYS.said, []),
-  setSaid: (lines) => write(KEYS.said, lines),
   mailLooked: () => read(KEYS.mailLooked, null),
   setMailLooked: (looked) => write(KEYS.mailLooked, looked),
 

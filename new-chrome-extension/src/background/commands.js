@@ -32,6 +32,7 @@ import {
   whatIsOnThisPage,
 } from "./whats-on-screen.js";
 import { samePage } from "./same-page.js";
+import { say } from "./said.js";
 import { state } from "./state.js";
 
 /** Runs whose abort has arrived. Their later commands are refused rather than
@@ -1578,7 +1579,37 @@ export async function perform(command, source = "backend") {
   // command counts and none of the ones it had already made do.
   if (command.run_id && ACTS.has(command.kind)) marks.set(command.run_id, seq);
 
+  // Every command's answer, where the answer is a refusal or a fault. Around
+  // the switch rather than inside each case: there are eleven of them, each
+  // refusing for reasons of its own, and a record kept in one of them is a
+  // record missing from the other ten. See `said.js`.
   try {
+    const answered = await theCommand(command);
+    if (!answered.ok) {
+      void say("warn", "a command was refused", {
+        kind: command.kind,
+        run: command.run_id,
+        error: answered.error?.kind,
+      });
+    }
+    return answered;
+  } catch (error) {
+    // Including a page that closed mid-command, which `executeScript` reports
+    // by rejecting. An answer saying so is worth more than none.
+    void say("error", `a command blew up in the browser: ${error}`, {
+      kind: command.kind,
+      run: command.run_id,
+    });
+    return failure(
+      "not_actionable",
+      `the command failed in the browser: ${error}`,
+    );
+  }
+}
+
+/** The command itself, once `perform` has claimed the run and the marks. */
+async function theCommand(command) {
+  {
     switch (command.kind) {
       case "ui.perform":
         return await uiPerform(command.payload || {}, command.run_id);
@@ -1607,12 +1638,5 @@ export async function perform(command, source = "backend") {
           `this extension has no ${command.kind}`,
         );
     }
-  } catch (error) {
-    // Including a page that closed mid-command, which `executeScript` reports
-    // by rejecting. An answer saying so is worth more than none.
-    return failure(
-      "not_actionable",
-      `the command failed in the browser: ${error}`,
-    );
   }
 }

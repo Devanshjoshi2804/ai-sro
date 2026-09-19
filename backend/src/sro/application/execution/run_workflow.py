@@ -102,6 +102,7 @@ from sro.domain.shared.hosts import same_screen, screen_of, system_of
 from sro.domain.shared.identifiers import DeviceId, TenantId
 from sro.domain.shared.prices import Answer
 from sro.domain.skill.repeats import K_MOST_ITEMS, Repeat
+from sro.domain.skill.signing_in import signs_in_at
 from sro.domain.skill.workflow import Step, Workflow
 
 KnownFields = Callable[[tuple[str, ...], str], Awaitable[Mapping[str, Mapping[str, object]]]]
@@ -328,6 +329,69 @@ async def _gestures_for(
         return {}
     found = await uow.gestures.gestures_for(tenant_id, ids=tuple(wanted))
     return {gesture.id: gesture for gesture in found}
+
+
+async def _the_way_back_in(
+    uow: UnitOfWork,
+    tenant_id: TenantId,
+    workflow: Workflow,
+    look: Look | None,
+    values: Mapping[str, str],
+    by_id: dict[str, Gesture],
+) -> tuple[Workflow | None, list[_Leg]]:
+    """The job that signs this run back in and its steps, where the tenant has
+    shown them.
+
+    A session expiring mid-flow is not an exception, it is a Tuesday: an
+    operator works in a system all day and the system logs them out. Until this
+    the run stopped and the request went nowhere until somebody noticed, which
+    on a job started from a mailbox can be hours.
+
+    **The way back in is mined evidence like anything else.** On the deployment
+    the operator has clicked through `blueyonderalphaus.b2clogin.com` many
+    times with the recorder on, and that is `Log in using Azure B2C SSO` --
+    two clicks, both on that host. `signing_in.signs_in_at` is the lookup, by
+    the host the browser actually sits on and never by a title.
+
+    The steps come back as ordinary legs, spliced into the itinerary ahead of
+    the step that met the page. Nothing here performs anything: they go through
+    the same ladder, the same write gate and the same belts as any other step,
+    and a password still comes out of the vault under `needs_secret` -- which
+    means a tenant that has stored none gets the refusal that asks for one,
+    rather than a run that guesses.
+
+    Empty unless the browser really is at a sign-in page. `signed_out` is read
+    off the page by the extension, not inferred from a failure: a step that
+    failed for its own reasons must not send the run wandering into a login.
+    """
+    if look is None or not look.signed_out:
+        return None, []
+    where = look.elsewhere or look.url or ""
+    known = await uow.workflows.known(tenant_id)
+    # Every job's evidence, in one read. The lookup is about WHERE the
+    # gestures happened, so it cannot be made without them -- and this run has
+    # loaded only its own job's cites. One query, and only ever on the failure
+    # that met a sign-in page.
+    cited = sorted({one for job in known for step in job.steps for one in step.cites})
+    seen = (
+        {one.id: one for one in await uow.gestures.gestures_for(tenant_id, ids=tuple(cited))}
+        if cited
+        else {}
+    )
+    back = signs_in_at(where, list(known), seen, not_this=workflow.id)
+    if back is None:
+        return None, []
+    job = next((one for one in known if one.id == back), None)
+    if job is None or not job.steps:
+        return None, []
+    # And into the run's own map, because everything downstream -- planning,
+    # the locator ladder, the belts -- reads a step's evidence from there.
+    by_id.update({one: seen[one] for step in job.steps for one in step.cites if one in seen})
+    if not all(any(one in by_id for one in step.cites) for step in job.steps):
+        return None, []
+    logger.info("%s signing back in at %s with %s", workflow.id, where, job.title)
+    legs = [_Leg(step, dict(values)) for step in sorted(job.steps, key=lambda one: one.order)]
+    return job, legs
 
 
 def _target_origin(planned: Planned) -> str | None:
@@ -1455,8 +1519,16 @@ async def run_workflow(
     # step -- with the tokens its plan already cost, and its own order -- rather
     # than a fabricated one whose order can collide on (run_id, ord).
     in_flight: RunStep | None = None
+    # A LIST walked by index rather than an iterator, because a run that meets
+    # a sign-in page splices the way back in ahead of the step that met it --
+    # see `_the_way_back_in`. Everything else about the walk is unchanged.
+    itinerary = list(itinerary)
+    signed_back_in = False
     try:
-        for position, leg in enumerate(itinerary):
+        position = -1
+        while position + 1 < len(itinerary):
+            position += 1
+            leg = itinerary[position]
             step, values = leg.step, leg.values
             # What the steps this one NAMES have made, under their own names.
             #
@@ -2916,6 +2988,56 @@ async def run_workflow(
                 await _save(uow, run)
                 continue
             if record.verdict not in ("held", "withheld"):
+                # A session that went is not a job that failed.
+                #
+                # The browser is at a sign-in page, the tenant has shown how to
+                # get through it, and the steps for that go in ahead of the one
+                # that met it -- so the run signs itself back in and tries
+                # again, through the same ladder as everything else.
+                #
+                # Once per run, and never twice: a second sign-in page after
+                # signing in is a system this run cannot get into, and a loop
+                # that kept trying would spend a budget it cannot see the end
+                # of on somebody's credentials.
+                _signing_in, back = (
+                    (None, [])
+                    if signed_back_in
+                    else await _the_way_back_in(
+                        uow, tenant_id, workflow, after_failed, values, by_id
+                    )
+                )
+                if signed_back_in and after_failed is not None and after_failed.signed_out:
+                    # Signed in once and the system is still asking. That is
+                    # not a session that went, it is one this run cannot get
+                    # into -- wrong credential, a second factor, an account
+                    # locked -- and trying again would spend somebody's
+                    # attempts on it.
+                    record.reason = (
+                        record.reason
+                        + " — the run signed back in and this system is still asking, so a"
+                        " person has to sign in here"
+                    ).strip()
+                if back and _signing_in is not None:
+                    signed_back_in = True
+                    # Where those steps may act: the sign-in job's OWN
+                    # evidence, and nothing wider. The run's allowlist is built
+                    # from the job being run, so without this the spliced steps
+                    # are refused for reaching a host this job never stood on
+                    # -- which is the right rule for the job and the wrong one
+                    # for the page it has been bounced to.
+                    standing = standing | stood_on(_signing_in, by_id)
+                    replayable = replayable | allowlist(_signing_in, by_id)
+                    itinerary[position + 1 : position + 1] = [*back, leg]
+                    # The rescue's own steps, and the retry. Without this the
+                    # budget below ends the run part way through signing in.
+                    budget += len(back) + 1
+                    record.verdict, record.verdict_by = "not_needed", "none"
+                    record.reason = (
+                        "this system's session had gone, so the run is signing back in "
+                        "and trying this step again: " + record.reason
+                    )
+                    await _save(uow, run)
+                    continue
                 run.outcome = "stopped"
                 break
         else:

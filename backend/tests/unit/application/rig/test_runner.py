@@ -611,6 +611,9 @@ async def test_a_look_that_hangs_is_a_look_that_can_be_cancelled() -> None:
 
 
 ELSEWHERE = "a-different-tenant"
+LOGIN = "https://login.example"
+"""The sign-in host. Another origin than the job's, which is what every
+interruption is."""
 """The `tenant` on every workflow this suite builds, and a plant rather than a
 plausible value.
 
@@ -1577,6 +1580,253 @@ async def test_a_step_that_failed_somewhere_else_says_where_the_browser_is() -> 
     )
     assert "demonstrated on http://127.0.0.1:63319/" in said, "it never said where the step belongs"
     assert "gone" in said, "the original reason was replaced rather than kept beside it"
+
+
+async def test_a_session_that_went_is_signed_back_into_and_the_step_tried_again() -> None:
+    """A session expiring mid-flow is not an exception, it is a Tuesday.
+
+    The deployment's own stop, 2026-09-19: the WMS bounced an expired session
+    to `blueyonderalphaus.b2clogin.com`, the step failed, the run ended, and
+    the request sat there until somebody noticed. The way through that chooser
+    was already mined -- the operator has clicked it many times with the
+    recorder on -- so the run splices those steps in ahead of the one that met
+    the page and goes through the same ladder as everything else.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    # The way back in, entirely on the sign-in host, as the tenant's evidence
+    # holds it.
+    door = replace(
+        _evidence(uow)[0],
+        id="ges_door",
+        url=f"{LOGIN}/oauth2/v2.0/authorize",
+        page_url=f"{LOGIN}/oauth2/v2.0/authorize",
+        system=LOGIN,
+        requests=[],
+    )
+    await uow.gestures.add_gestures((door,))
+    await uow.workflows.save(
+        Workflow(
+            id="wfl_sso",
+            # The RUN's tenant, which is what `known` is asked for. The job
+            # under test is deliberately filed under another one -- see
+            # `_workflow` -- and a way back in nobody could find would prove
+            # nothing.
+            tenant=TENANT.value,
+            title="Log in using Azure B2C SSO",
+            narrative="n",
+            systems=[LOGIN],
+            steps=[Step(order=0, says="Click 'Local WMS users'", system=None, cites=[door.id])],
+        )
+    )
+    # The browser is at the sign-in page: no tab on the system, and the page in
+    # front of the person says so.
+    away = Reply(ok=True, result={"url": None, "elsewhere": f"{LOGIN}/oauth2", "signed_out": True})
+    channel = FakeChannel(
+        {
+            "ui.url": [away] * 8,
+            "screenshot": [
+                Reply(ok=True, result={"image_base64": "aVBORw0=", "text_digest": "Sign in"})
+            ]
+            * 8,
+            "ui.perform": [_performed()] * 4,
+        }
+    )
+    asker = FakeAsker(*[_plan("click")] * 6)
+
+    run = await _ran(uow, workflow, channel=channel, asker=asker, values={}, earned=True)
+
+    said = [one.reason for one in run.steps]
+    assert any("signing back in" in one for one in said), said
+    # The sign-in step really ran, through the ordinary ladder.
+    assert any("Local WMS users" in one.says for one in run.steps), [s.says for s in run.steps]
+
+
+async def test_a_run_signs_back_in_once_and_not_forever() -> None:
+    """A second sign-in page after signing in is a system this run cannot get
+    into. A loop that kept trying would spend a budget it cannot see the end of
+    on somebody's credentials."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    door = replace(
+        _evidence(uow)[0],
+        id="ges_door",
+        url=f"{LOGIN}/oauth2/v2.0/authorize",
+        page_url=f"{LOGIN}/oauth2/v2.0/authorize",
+        system=LOGIN,
+        requests=[],
+    )
+    await uow.gestures.add_gestures((door,))
+    await uow.workflows.save(
+        Workflow(
+            id="wfl_sso",
+            # The RUN's tenant, which is what `known` is asked for. The job
+            # under test is deliberately filed under another one -- see
+            # `_workflow` -- and a way back in nobody could find would prove
+            # nothing.
+            tenant=TENANT.value,
+            title="Log in using Azure B2C SSO",
+            narrative="n",
+            systems=[LOGIN],
+            steps=[Step(order=0, says="Click 'Local WMS users'", system=None, cites=[door.id])],
+        )
+    )
+    away = Reply(ok=True, result={"url": None, "elsewhere": f"{LOGIN}/oauth2", "signed_out": True})
+    channel = FakeChannel(
+        {
+            "ui.url": [away] * 20,
+            "screenshot": [
+                Reply(ok=True, result={"image_base64": "aVBORw0=", "text_digest": "Sign in"})
+            ]
+            * 20,
+            "ui.perform": [_performed()] * 12,
+        }
+    )
+    asker = FakeAsker(*[_plan("click")] * 20)
+
+    run = await _ran(uow, workflow, channel=channel, asker=asker, values={}, earned=True)
+
+    signed = [one for one in run.steps if "signing back in" in one.reason]
+    assert len(signed) == 1, [one.reason[:40] for one in run.steps]
+    # However it ends, it ends: a run still trying to sign in is the failure
+    # this guard exists for.
+    assert run.outcome != "held"
+    # And it says which of the two states it is in. Still being asked after
+    # signing in is not a session that went -- it is a system this run cannot
+    # get into, and that is a person's problem to look at.
+    assert any("a person has to sign in here" in one.reason for one in run.steps), [
+        one.reason[:60] for one in run.steps
+    ]
+
+
+async def test_a_step_that_failed_for_its_own_reasons_does_not_go_looking_for_a_login() -> None:
+    """`signed_out` is read off the page by the browser, never inferred from a
+    failure. A run that went wandering into a sign-in job every time a locator
+    missed would be spending somebody's credentials on a broken selector."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    door = replace(
+        _evidence(uow)[0],
+        id="ges_door",
+        url=f"{LOGIN}/oauth2/v2.0/authorize",
+        page_url=f"{LOGIN}/oauth2/v2.0/authorize",
+        system=LOGIN,
+        requests=[],
+    )
+    await uow.gestures.add_gestures((door,))
+    await uow.workflows.save(
+        Workflow(
+            id="wfl_sso",
+            tenant=TENANT.value,
+            title="Log in using Azure B2C SSO",
+            narrative="n",
+            systems=[LOGIN],
+            steps=[Step(order=0, says="Click 'Local WMS users'", system=None, cites=[door.id])],
+        )
+    )
+    # On the right screen, and the control simply is not there.
+    channel = FakeChannel(
+        {
+            **_looks(8),
+            "ui.perform": [Reply(ok=False, error_kind="control_not_found", error_detail="gone")]
+            * 3,
+        }
+    )
+
+    run = await _ran(
+        uow, workflow, channel=channel, asker=FakeAsker(*[_plan("type", "x")] * 6), values={}
+    )
+
+    assert not any("signing back in" in one.reason for one in run.steps), [
+        one.reason[:50] for one in run.steps
+    ]
+
+
+async def _a_way_back_in(uow: FakeUnitOfWork, how_many: int = 1) -> None:
+    """The tenant's sign-in job, `how_many` steps of it, every gesture on the
+    sign-in host -- which is the shape `signs_in_at` looks for."""
+    doors = [
+        replace(
+            _evidence(uow)[0],
+            id=f"ges_door_{n}",
+            url=f"{LOGIN}/oauth2/v2.0/authorize",
+            page_url=f"{LOGIN}/oauth2/v2.0/authorize",
+            system=LOGIN,
+            # A click the recorder HEARD traffic from, which is what a real
+            # one on that chooser is. A silent click is a possible write to
+            # this loop (`_saw_nothing`), and a sign-in job made of possible
+            # writes would be asking for a tap on every step of getting back
+            # in.
+            requests=[
+                Call(
+                    method="GET",
+                    url=f"{LOGIN}/oauth2/v2.0/authorize?attempt={n}",
+                    status=200,
+                    started_at=1_739_314_800.0,
+                )
+            ],
+        )
+        for n in range(how_many)
+    ]
+    await uow.gestures.add_gestures(tuple(doors))
+    await uow.workflows.save(
+        Workflow(
+            id="wfl_sso",
+            tenant=TENANT.value,
+            title="Log in using Azure B2C SSO",
+            narrative="n",
+            systems=[LOGIN],
+            steps=[
+                Step(order=n, says=f"Click the sign-in control {n}", system=None, cites=[one.id])
+                for n, one in enumerate(doors)
+            ],
+        )
+    )
+
+
+async def test_a_page_that_never_said_it_was_a_sign_in_starts_no_sign_in() -> None:
+    """`signed_out` is read off the page by the browser, and it is the whole
+    permission: a run that inferred a login from "we are not where we expected"
+    would sign in whenever an app redirected it anywhere."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    await _a_way_back_in(uow)
+    # Bounced to the sign-in host, and the page does not say it is asking.
+    away = Reply(ok=True, result={"url": None, "elsewhere": f"{LOGIN}/oauth2", "signed_out": False})
+    channel = FakeChannel(
+        {
+            "ui.url": [away] * 10,
+            "screenshot": [Reply(ok=True, result={"image_base64": "aVBORw0=", "text_digest": "?"})]
+            * 10,
+            "ui.perform": [_performed()] * 4,
+        }
+    )
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=_PerSchemaAsker(
+            plan=_plan("click"), verdict=Answer(data={"held": True, "why": "ok"})
+        ),
+        values={},
+        earned=True,
+    )
+
+    assert not any("signing back in" in one.reason for one in run.steps), [
+        one.reason[:50] for one in run.steps
+    ]
+
+
+# The budget grows by the length of the way back in, and that line has no test.
+# One was written and deleted rather than left passing for the wrong reason: to
+# see it, four sign-in steps all have to HOLD, and each needs its own scripted
+# look, picture and verdict -- a fake elaborate enough that what it proves is
+# the fake. What is pinned instead is everything either side: that the rescue
+# is spliced at all, that it happens once, and that it needs a page which said
+# it was asking. A run whose budget ran out mid-login would show up as a
+# half-done sign-in on the next live round, which is where it would be read
+# anyway.
 
 
 def _only_run(uow: FakeUnitOfWork) -> WorkflowRun:

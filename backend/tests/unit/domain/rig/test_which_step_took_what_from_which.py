@@ -19,13 +19,13 @@ from sro.domain.skill.workflow import Step, Workflow
 WMS = "https://wms.example"
 
 
-def _call(sent: dict[str, object], back: dict[str, object] | None) -> Call:
+def _call(sent: dict[str, object], back: dict[str, object] | None, method: str = "POST") -> Call:
     said = json.dumps(sent)
     return Call(
-        method="POST",
+        method=method,
         url=f"{WMS}/records",
         status=201,
-        request_body=Body(text=said, size_bytes=len(said)),
+        request_body=None if method == "GET" else Body(text=said, size_bytes=len(said)),
         response_body=None if back is None else Body(text=json.dumps({"data": back}), size_bytes=1),
     )
 
@@ -173,3 +173,58 @@ def test_a_value_a_later_step_posted_counts_as_using_it() -> None:
     }
 
     assert uses_edges(_job([_step(1, "a1", "a2"), _step(2, "b1", "b2")]), made) == {2: [1]}
+
+
+def test_two_steps_standing_on_one_gesture_are_not_an_edge() -> None:
+    """A step cannot depend on evidence it IS.
+
+    Two steps citing one gesture are one thing the operator did, narrated
+    twice -- a model saying "type the code" and "click Save" about a single
+    click that carried the form. `_made_by` and `_took` then read the same call
+    from both sides and the step comes out depending on itself.
+
+    Measured on `rigproof` 2026-09-19, before this: the ONLY edge in three
+    tenants' stores was exactly this shape, and mining would have written it
+    onto the job.
+    """
+    # One click that created a record and then posted its id straight back --
+    # a page doing two calls behind a single Save. Read from two steps that
+    # both cite it, the second "takes" what the first "made", and both are the
+    # same gesture.
+    doings = {
+        "a1": _doing(
+            "a1",
+            calls=[
+                _call({"code": "GGD"}, {"id": "REC-111"}),
+                _call({"parent": "REC-111"}, None),
+            ],
+        ),
+        "a2": _doing(
+            "a2",
+            calls=[
+                _call({"code": "GKB"}, {"id": "REC-222"}),
+                _call({"parent": "REC-222"}, None),
+            ],
+        ),
+    }
+
+    assert uses_edges(_job([_step(1, "a1", "a2"), _step(2, "a1", "a2")]), doings) == {}
+
+
+def test_a_read_back_is_not_a_value_the_warehouse_minted() -> None:
+    """The confirming read this system relies on everywhere answers with the
+    record that was just sent. Its own request has no body to subtract, so
+    every value the operator typed reads as the server's own work -- and the
+    later step that types the same code again reads as depending on it.
+
+    The other half of the same measurement: on `rigproof`, `OFFER-1` came back
+    from `GET /api/orders?latest=1` and was typed into the form by the person.
+    """
+    made = {
+        "a1": _doing("a1", calls=[_call({}, {"clientCode": "OFFER-1"}, method="GET")]),
+        "a2": _doing("a2", calls=[_call({}, {"clientCode": "OFFER-2"}, method="GET")]),
+        "b1": _doing("b1", typed="OFFER-1"),
+        "b2": _doing("b2", typed="OFFER-2"),
+    }
+
+    assert uses_edges(_job([_step(1, "a1", "a2"), _step(2, "b1", "b2")]), made) == {}

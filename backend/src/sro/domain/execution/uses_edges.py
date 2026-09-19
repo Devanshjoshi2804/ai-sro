@@ -34,6 +34,7 @@ from __future__ import annotations
 import json
 from collections.abc import Mapping, Sequence
 
+from sro.domain.execution.evidence import READ_METHODS
 from sro.domain.observation.gesture import Call, Gesture
 from sro.domain.skill.workflow import Step, Workflow
 
@@ -61,6 +62,14 @@ def uses_edges(workflow: Workflow, by_id: Mapping[str, Gesture]) -> dict[int, li
         if not any(took):
             continue
         for earlier in ordered[:position]:
+            # Never a step that stands on the same evidence. Two steps citing
+            # one gesture are one thing the operator did, narrated twice -- and
+            # `_made_by` and `_took` then read the SAME call from both sides,
+            # so the "dependency" is a step on itself. Measured on `rigproof`
+            # 2026-09-19: the only edge in three tenants' stores was exactly
+            # this, `Create a client` step 2 on step 1, both citing one click.
+            if set(step.cites) & set(earlier.cites):
+                continue
             if _every_doing_took_it(took, made.get(earlier.order, [])):
                 edges.setdefault(step.order, []).append(earlier.order)
     return edges
@@ -138,7 +147,21 @@ def _doings(step: Step, by_id: Mapping[str, Gesture]) -> list[Gesture]:
 
 
 def _writes(gesture: Gesture) -> list[Call]:
-    return [call for call in gesture.requests if call.response_body is not None]
+    """The calls that could have MINTED something: mutations, with an answer.
+
+    A read is excluded, and it is the case that matters rather than a tidiness.
+    The confirming read-back this system relies on everywhere -- `GET
+    /api/orders?latest=1` after the POST -- answers with exactly the record
+    that was just sent, and its own request has no body to subtract, so every
+    value the operator typed reads as a value the warehouse minted. That is the
+    other half of the same measurement: on `rigproof`, `OFFER-1` and `PO-99001`
+    were typed into the form and came back as the server's own work.
+    """
+    return [
+        call
+        for call in gesture.requests
+        if call.response_body is not None and call.method.upper() not in READ_METHODS
+    ]
 
 
 def _record(text: str | None) -> list[tuple[str, str]]:

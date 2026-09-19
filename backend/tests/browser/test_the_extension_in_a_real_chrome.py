@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import base64
 import json
+import time
 from typing import Any
 
 import pytest
@@ -1646,6 +1647,58 @@ def test_the_panel_offers_the_job_that_starts_on_the_system_in_front_of_it(
     # And what one press would write, which is what item 6 put on this card:
     # a person pressing yes is agreeing to a record being made in a warehouse.
     assert "create an orders record" in shown[0], shown[0]
+
+
+def test_pressing_yes_on_the_card_starts_the_run_the_card_described(
+    browser: Any, stub: Any, rig_presses: list[dict[str, Any]]
+) -> None:
+    """The one press this product is for: a person reads a card and a warehouse
+    is written to.
+
+    Nothing in this suite watched it happen. The chain test that used to --
+    `test_offering_to_do_the_work.py` -- pressed the mining pipeline's card,
+    and that card and the whole pipeline behind it are gone; deleting it on
+    2026-09-19 left the gap this fills. Every half is tested elsewhere (the
+    card in `panel.test.mjs`, the body in `offering-worker.test.mjs`, the
+    refusals in `test_start_workflow_run.py`) and none of them presses a real
+    button in a real `chrome.runtime.sendMessage` round trip.
+    """
+    api_url, _ = stub
+    worker = _service_worker(browser)
+    _sign_in(browser, worker, api_url)
+
+    system = browser.new_page()
+    system.goto(api_url)
+    _watch(browser, worker, system)
+    system.goto(api_url)
+    panel = _panel(browser, worker)
+
+    card = panel.locator("#cards li[data-kind='nudge']").first
+    card.wait_for(timeout=15_000)
+    card.get_by_role("button", name="Yes, do it").click()
+
+    until = time.time() + 15.0
+    while time.time() < until and not rig_presses:
+        time.sleep(0.2)
+    panel.close()
+    system.close()
+
+    assert rig_presses, "the press started nothing"
+    [press] = rig_presses
+    assert press["workflow_id"] == "wfl_lpn"
+    # Live, and watched: the press came from an open panel, so the run does the
+    # job on the screen rather than replaying the call the demonstration made.
+    assert press["live"] is True
+    assert press["watched"] is True
+    assert press["device_id"] == "dev_browsertest", press
+    # `matched`, and never `from_step`: `k` counts shape entries and a step is
+    # several of them. Sent as a step count it marked steps done that nobody
+    # did.
+    assert "from_step" not in press, press
+    assert press["matched"] == 0, press
+    # Who authorised it is read off the credential. A body that says so is a
+    # signature nobody checked.
+    assert "started_by" not in press, press
 
 
 def test_a_demonstration_bigger_than_one_batch_is_uploaded_whole(

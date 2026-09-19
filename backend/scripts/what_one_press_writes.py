@@ -48,7 +48,7 @@ from sro.domain.execution.what_it_writes import what_it_writes
 from sro.domain.execution.workflow_run import WorkflowRun
 from sro.domain.observation.gesture import Gesture
 from sro.domain.shared.identifiers import TenantId
-from sro.domain.skill.reversals import addresses, undoes
+from sro.domain.skill.reversals import addresses, identifies, undoes
 from sro.domain.skill.workflow import Workflow
 from sro.infrastructure.knowledge.write_endpoints import load_verified_writes
 
@@ -197,18 +197,26 @@ def _what_can_be_taken_back(
     """
     print("\n5. what can be taken back")
     named = {job.id: job.title for job in jobs}
+    by_job = {job.id: job for job in jobs}
+    # Which job takes back which, and which field that job's delete addresses a
+    # record by -- the two halves the card needs before it can offer a press.
+    takes_back: dict[str, tuple[str, str | None]] = {}
     pairs = 0
     for job in jobs:
         other = undoes(job, dict(by_id), jobs)
         if other is not None:
             pairs += 1
-            print(f"   {job.title[:34]:36} is taken back by {named.get(other, other)!r}")
+            field = identifies(by_job[other], by_id)
+            takes_back[job.id] = (other, field)
+            says = f" by {field}" if field else " (and nothing says which field addresses it)"
+            print(f"   {job.title[:34]:36} is taken back by {named.get(other, other)!r}{says}")
     if not pairs:
         print("   no job of this tenant's undoes another")
     made = [run for run in runs if any(step.made for step in run.steps)]
     print(f"   {len(runs)} runs read, {len(made)} made a record this can name")
     for run in made[:5]:
-        which = addresses([step.made for step in run.steps if step.made])
+        _, field = takes_back.get(run.workflow_id, ("", None))
+        which = addresses([step.made for step in run.steps if step.made], field)
         print(f"      {run.id} {named.get(run.workflow_id, run.workflow_id)[:28]!r} {which}")
     print(f"   runs that say which run they take back: {sum(1 for r in runs if r.undoes_run)}")
 

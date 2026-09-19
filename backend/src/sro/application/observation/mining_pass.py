@@ -496,6 +496,10 @@ def _packed(gesture: Gesture, intent: Intent | None, linked: set[str]) -> Packed
         evidence=evidence,
         strength=strength(gesture, intent, linked),
         tokens=evidence_tokens(evidence),
+        # So a pooled gesture joins its own browser's run rather than a
+        # nameless one shared with every other pooled item. `pack` reads this
+        # to admit a chosen item's lead-up with it.
+        stream_id=gesture.stream_id,
     )
 
 

@@ -513,13 +513,14 @@ async def test_a_gesture_linked_across_two_systems_earns_its_place() -> None:
     and every pool test stayed green while fresh evidence quietly lost it.
     This pass has an empty pool.
 
-    Planted against `at`: the linked pair is the LATEST evidence of the day,
-    so a window ordered on time alone leaves it out. Sizes do not enter into
+    Planted against `at`: the linked pair is the EARLIEST evidence of the day,
+    so a window ordered on time alone -- `pack` breaks ties newest-first --
+    leaves it out. Sizes do not enter into
     it -- the budget here cannot hold anything, so K_MIN_GESTURES decides who
     is in and strength decides which.
     """
     uow, _, weak_ids = await _crowded_day(strong=0, weak=30)
-    await _link(uow, weak_ids[-2:], "CROSSES-TWO-SYSTEMS", "https://sap.example")
+    await _link(uow, weak_ids[:2], "CROSSES-TWO-SYSTEMS", "https://sap.example")
     asker = FakeAsker(_found())
 
     result = await _mine(uow, asker, kb=CROWDED_KB)
@@ -528,8 +529,8 @@ async def test_a_gesture_linked_across_two_systems_earns_its_place() -> None:
     day = str(asker.asked[0]["evidence"]).split("## Values appearing in more than one system")[0]
 
     assert result.window_size == 25
-    assert weak_ids[-1] in day and weak_ids[-2] in day, "a crossing is what pulls evidence in"
-    assert weak_ids[-3] not in day, "and it displaced an unlinked peer to do it"
+    assert weak_ids[0] in day and weak_ids[1] in day, "a crossing is what pulls evidence in"
+    assert weak_ids[5] not in day, "and it displaced an unlinked peer to do it"
 
 
 # --------------------------------------------------------------------------
@@ -598,16 +599,16 @@ async def test_evidence_the_budget_left_out_lands_in_the_pool() -> None:
     gestures and an operator day runs to a few thousand, so past one window the
     same tail lost every pass forever while the count faithfully said so."""
     uow, strong_ids, weak_ids = await _crowded_day(strong=20, weak=10)
-    read = strong_ids + weak_ids[:5]
+    read = strong_ids + weak_ids[-5:]
 
     result = await _mine(uow, FakeAsker(_found(_proposal(read))), kb=CROWDED_KB)
 
     assert result.rejections == []
     assert result.window_size == len(read)
-    assert result.left_out == len(weak_ids[5:])
+    assert result.left_out == len(weak_ids[:5])
     # The pass cited everything it read, so the pool holds exactly what the
     # budget refused. Before the fix it held nothing at all.
-    assert await _pool_ids(uow) == set(weak_ids[5:])
+    assert await _pool_ids(uow) == set(weak_ids[:5])
 
 
 async def test_evidence_the_window_never_showed_does_not_spend_its_patience() -> None:
@@ -621,7 +622,7 @@ async def test_evidence_the_window_never_showed_does_not_spend_its_patience() ->
 
     ages = {entry.gesture_id: (entry.age, entry.waited) for entry in await uow.pool.waiting(TENANT)}
     assert ages[strong_ids[0]] == (1, 0), "shown and not cited: one reading of patience spent"
-    assert ages[weak_ids[-1]] == (0, 1), "never shown: it waited, it did not read"
+    assert ages[weak_ids[0]] == (0, 1), "never shown: it waited, it did not read"
 
 
 async def test_an_entry_that_has_waited_longer_outranks_one_that_has_not() -> None:
@@ -636,7 +637,9 @@ async def test_an_entry_that_has_waited_longer_outranks_one_that_has_not() -> No
     the per-pass bonus and left the two equal -- would take the other one.
     """
     uow, _strong, weak_ids = await _crowded_day(strong=24, weak=2)
-    patient, hasty = weak_ids[1], weak_ids[0]
+    # The EARLIER of the two is the patient one: `pack` breaks a tie
+    # newest-first, so without its waiting bonus this is the one that loses.
+    patient, hasty = weak_ids[0], weak_ids[1]
     await uow.pool.add_unclaimed(TENANT, window_ids=(patient,), claimed=frozenset())
     # An empty window: a pass that packed nothing passed everything over.
     await uow.pool.age(TENANT, shown=())
@@ -657,9 +660,9 @@ async def test_a_gesture_the_budget_left_out_is_read_by_the_next_pass() -> None:
     workflow over the tail, and a tail still outside the window is refused for
     citing gestures the pass never saw."""
     uow, strong_ids, weak_ids = await _crowded_day(strong=20, weak=10)
-    tail = weak_ids[5:]
+    tail = weak_ids[:5]
     asker = FakeAsker(
-        _found(_proposal(strong_ids + weak_ids[:5])),
+        _found(_proposal(strong_ids + weak_ids[-5:])),
         _found(_proposal(tail, title="the tail")),
     )
 
@@ -683,7 +686,9 @@ async def test_a_retired_gesture_loses_its_bonus_and_not_its_place() -> None:
     place in a window with room (it was never removed from the running).
     """
     uow, strong_ids, weak_ids = await _crowded_day(strong=24, weak=5)
-    retiree = weak_ids[-1]
+    # The earliest weak gesture: `pack` breaks a tie newest-first, so once the
+    # bonus is gone this is the one fresh evidence beats.
+    retiree = weak_ids[0]
     await uow.pool.add_unclaimed(TENANT, window_ids=(retiree,), claimed=frozenset())
     for _ in range(K_POOL_AGE + 1):
         await uow.pool.age(TENANT)
@@ -693,13 +698,13 @@ async def test_a_retired_gesture_loses_its_bonus_and_not_its_place() -> None:
     tight = await _mine(uow, asker, kb=CROWDED_KB)
     roomy = await _mine(uow, asker)
 
-    # 24 strong and one weak, and the weak place goes to the earliest of them
+    # 24 strong and one weak, and the weak place goes to the latest of them
     # rather than to the retiree, which would have taken it at 1.5.
     assert tight.window_size == 25
     assert retiree not in str(asker.asked[0]["evidence"]), (
         "a retired entry competes without its bonus"
     )
-    assert weak_ids[0] in str(asker.asked[0]["evidence"]), (
+    assert weak_ids[-1] in str(asker.asked[0]["evidence"]), (
         "the place it lost went to fresh evidence"
     )
     # Same day, a budget with room for everything: it is still evidence.

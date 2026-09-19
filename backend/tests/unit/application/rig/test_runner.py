@@ -416,6 +416,43 @@ async def test_a_browser_at_a_login_page_says_so_in_both_readers() -> None:
     assert looked.signed_out is True
 
 
+async def test_a_browser_that_left_the_system_reaches_both_readers_too() -> None:
+    """The third of the same question, and the one the deployment stopped on.
+
+    A step reads the tab on the system it names; an interruption is on another
+    origin by definition. The browser answers with the page in front of the
+    person instead -- `url` empty because the step has NOT arrived, and
+    `elsewhere` saying where it went -- and both readers have to carry it or
+    the run goes on saying "the browser is on None".
+    """
+    said = {
+        "url": None,
+        "elsewhere": "https://login.example/oauth2/authorize",
+        "signed_out": True,
+    }
+
+    where = await _where(
+        FakeChannel({"ui.url": [Reply(ok=True, result=said)]}), TENANT, DEVICE, "run_1", None
+    )
+    looked = await _look(
+        FakeChannel(
+            {
+                "ui.url": [Reply(ok=True, result=said)],
+                "screenshot": [Reply(ok=True, result={"text_digest": "Sign in"})],
+            }
+        ),
+        TENANT,
+        DEVICE,
+        "run_1",
+        None,
+        False,
+    )
+
+    assert (where.url, where.elsewhere) == (None, "https://login.example/oauth2/authorize")
+    assert looked.elsewhere == "https://login.example/oauth2/authorize"
+    assert where.signed_out is True and looked.signed_out is True
+
+
 async def test_a_dialog_over_the_page_reaches_both_readers_too() -> None:
     """The other half of the same question, and the case this deployment's own
     ledger names: `the form accepts the click and only then shows an in-app

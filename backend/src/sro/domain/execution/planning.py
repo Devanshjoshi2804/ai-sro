@@ -150,6 +150,25 @@ class Look:
 
     Empty where a picture arrived, and where there was never one asked for."""
 
+    elsewhere: str = ""
+    """Where the browser actually is, when it is not on the origin at all.
+
+    A step reads the tab on the system it names, which is right for driving
+    and blinding for reading: an interruption is on ANOTHER origin by
+    definition -- a sign-in bounced to the platform's login host, a consent
+    screen, an error page a proxy served. The browser then answered nothing,
+    the look had no url, and the run said *the browser is on None* while the
+    person watched a sign-in page. Measured on the deployment 2026-09-19, run
+    `run_fdc7e7ff`.
+
+    So the browser now answers with the page in front of the person when it
+    cannot answer with the one the step wanted. `url` stays empty -- the step
+    has NOT arrived and nothing may read it as arrived -- and this says where
+    it went instead, which is what every sentence below needs to be legible.
+
+    Empty when the browser is where the step expected it, and when there was
+    no tab at all to ask about."""
+
     signed_out: bool = False
     """The page in front of the browser is asking somebody to sign in.
 

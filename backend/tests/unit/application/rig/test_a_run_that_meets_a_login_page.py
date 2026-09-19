@@ -402,3 +402,53 @@ async def test_a_browser_that_would_not_answer_says_nothing_about_a_refusal() ->
         )
         == ""
     )
+
+
+# -- and when the browser is not on this system at all -------------------------
+
+
+def test_a_browser_that_left_the_system_is_named_by_where_it_went() -> None:
+    """The deployment's own stop, 2026-09-19. The WMS bounced an expired
+    session to `blueyonderalphaus.b2clogin.com`, which is not the step's
+    origin -- so the browser could not answer where it was on the system, the
+    look had no url, and the step said *the browser is on None* while the
+    operator watched the sign-in page.
+
+    `elsewhere` is that page. The step still failed: it has not arrived, and
+    nothing may read it as arrived."""
+    said = _said_what_is_there(
+        _failed(),
+        Look("", None, "", elsewhere="https://login.example/oauth2/authorize"),
+        "https://wms.example/portal#customers",
+    )
+
+    assert "login.example" in said.reason
+    assert "None" not in said.reason
+    assert "demonstrated on https://wms.example/portal#customers" in said.reason
+
+
+def test_a_sign_in_page_is_still_a_sign_in_page_when_it_is_elsewhere() -> None:
+    """And it wins over the screen sentence, because it says what to DO. The
+    session going is the commonest reason a run stops, and the browser reads
+    the login off whatever page it is actually on now."""
+    said = _said_what_is_there(
+        _failed(),
+        Look("", None, "", elsewhere="https://login.example/oauth2", signed_out=True),
+        "https://wms.example/portal#customers",
+    )
+
+    assert "sign-in page" in said.reason
+    assert "Sign in and start it again" in said.reason
+
+
+def test_a_browser_that_is_where_it_should_be_says_nothing_about_elsewhere() -> None:
+    """`elsewhere` is only ever the answer to "you are not on the system": a
+    look that found the page carries none, and the sentence about the screen
+    stays the one it always was."""
+    said = _said_what_is_there(
+        _failed(),
+        Look("https://wms.example/portal#customers", None, ""),
+        "https://wms.example/portal#customers",
+    )
+
+    assert said.reason == _failed().reason, "it renamed a failure that was on the right screen"

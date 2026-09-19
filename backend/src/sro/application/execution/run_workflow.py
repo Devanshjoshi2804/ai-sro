@@ -736,14 +736,19 @@ def _said_what_is_there(
     # `same_screen` and not string equality, which is the comparison this
     # already makes everywhere else: a query string and a fragment's
     # particulars are not a different screen.
-    if screen and look.url and not same_screen(look.url, screen):
+    # `elsewhere` when the browser is not on this system at all, which is what
+    # every interruption looks like: the login host, a consent screen, an error
+    # page a proxy served. Reading only `url` left the run saying nothing about
+    # any of them.
+    where = look.url or look.elsewhere
+    if screen and where and not same_screen(where, screen):
         return replace(
             verdict,
             # The urls themselves. `screen_of` answers what a set of VISITS
             # agree on, which is not this question -- and a person reading a
             # step record wants the address they can go and look at.
             reason=(
-                f"the browser is on {look.url}, and this step was demonstrated "
+                f"the browser is on {where}, and this step was demonstrated "
                 f"on {screen} ({verdict.reason})"
             ),
         )
@@ -771,6 +776,7 @@ async def _where(
         url=url,
         screenshot=None,
         digest="",
+        elsewhere=str(where.result.get("elsewhere") or "") if where.ok else "",
         signed_out=bool(where.ok and where.result.get("signed_out")),
         dialog=str(where.result.get("dialog") or "") if where.ok else "",
         loading=bool(where.ok and where.result.get("loading")),
@@ -828,6 +834,7 @@ async def _look(
         # Read off the same answer the url came in. Both readers carry it or
         # only route steps would ever notice a login page, and a route step is
         # the one kind that already knows where it is.
+        elsewhere=str(where.result.get("elsewhere") or "") if where.ok else "",
         signed_out=bool(where.ok and where.result.get("signed_out")),
         dialog=str(where.result.get("dialog") or "") if where.ok else "",
         loading=bool(where.ok and where.result.get("loading")),
@@ -2623,6 +2630,11 @@ async def run_workflow(
                         (
                             f"the browser is on {after.url}"
                             if same_screen(after.url, route)
+                            # `elsewhere` where the browser is not on this
+                            # system at all: without it this said "the browser
+                            # is on None", which is the sentence a person read
+                            # on the deployment while looking at a sign-in
+                            # page.
                             else f"the browser is on {after.url}, not {route}"
                         ),
                     )

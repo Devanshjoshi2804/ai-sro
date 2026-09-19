@@ -891,11 +891,60 @@ function pageOf(url) {
 
 async function uiUrl(payload, runId) {
   const tab = await tabForRun(payload, runId);
-  if (!tab) return failure("no_tab_for_system", noPage(payload.origin));
+  if (tab)
+    return {
+      ok: true,
+      result: { url: tab.url, ...(await whatThePageSays(tab.id)) },
+    };
+
+  // The run is not where it thought it was -- so say where it IS.
+  //
+  // A sign-in page is on another origin by definition: the deployment's WMS
+  // bounces an expired session to `blueyonderalphaus.b2clogin.com`, and
+  // `tabForRun` will not answer with a tab that has left the step's origin,
+  // which is right for driving and blinding for reading. The run then got
+  // `no_tab_for_system`, built a look with no url at all, and reported "the
+  // browser is on None" -- measured on the deployment 2026-09-19, run
+  // `run_fdc7e7ff`, with the operator looking at the sign-in page the whole
+  // time.
+  //
+  // Reading is not driving. Nothing here performs anything in that tab; it
+  // answers with the page in front of the person, so `_said_what_is_there`
+  // can name a login, a dialog or a half-drawn page rather than a `None`. The
+  // step still fails -- it is not on the screen it was demonstrated on -- and
+  // it fails legibly.
+  const elsewhere = await whereItActuallyIs(runId);
+  if (!elsewhere) return failure("no_tab_for_system", noPage(payload.origin));
   return {
     ok: true,
-    result: { url: tab.url, ...(await whatThePageSays(tab.id)) },
+    result: {
+      url: null,
+      elsewhere: elsewhere.url,
+      ...(await whatThePageSays(elsewhere.id)),
+    },
   };
+}
+
+/** The tab this run is driving, wherever it has got to.
+ *
+ * `tabForRun` keeps a run on one tab AND on one origin, which is what stops a
+ * job crossing systems by accident. This asks the other question: whatever
+ * origin it is on now, which page is this run in front of? The run's pinned
+ * tab first, then the visible one, because an interruption -- a login, an
+ * exception dialog, a session that timed out -- lands in the tab the operator
+ * is looking at.
+ */
+async function whereItActuallyIs(runId) {
+  const usable = (tab) => tab?.url && /^https?:/.test(tab.url);
+  if (runId && latest?.runId === runId && latest.tabId !== undefined) {
+    const known = await chrome.tabs.get(latest.tabId).catch(() => null);
+    if (usable(known)) return known;
+  }
+  const [inFront] = await chrome.tabs.query({
+    active: true,
+    lastFocusedWindow: true,
+  });
+  return usable(inFront) ? inFront : null;
 }
 
 /** Fill this system's own login page and submit it.
@@ -905,7 +954,12 @@ async function uiUrl(payload, runId) {
  * inside it, and hold it while the page goes wherever a login goes.
  */
 async function signIn(payload, runId) {
-  const tab = await tabForRun(payload, runId);
+  // The run's tab wherever it has got to, and this is the one command that
+  // MUST look past the origin: a sign-in page is on another host by design --
+  // `blueyonderalphaus.b2clogin.com` for this deployment's WMS -- so a
+  // sign-in that only accepted a tab still on the step's own origin could
+  // never fire on the page it exists for.
+  const tab = (await tabForRun(payload, runId)) || (await whereItActuallyIs(runId));
   if (!tab) return failure("no_tab_for_system", noPage(payload.origin));
   if (!payload.password && !payload.username)
     return failure("not_actionable", "a sign-in with nothing to sign in with");

@@ -13,8 +13,10 @@ type in front of the recorder.
 
 from __future__ import annotations
 
-from sro.domain.observation.gesture import Action, Call, Gesture, Target
-from sro.domain.skill.reversals import addresses, undoes
+from dataclasses import replace
+
+from sro.domain.observation.gesture import Action, Body, Call, Gesture, Target
+from sro.domain.skill.reversals import addresses, identifies, undoes
 from sro.domain.skill.workflow import Step, Workflow
 
 WMS = "https://wms.test"
@@ -173,3 +175,73 @@ def test_a_run_that_made_nothing_addresses_nothing() -> None:
 
 def test_a_name_that_is_only_whitespace_is_not_a_name() -> None:
     assert addresses([{"customerType": "   "}]) is None
+
+
+# -- which field the delete addresses a record by ------------------------------
+
+
+def _deleting(body: str | None, url: str = f"{TYPES}/GDD") -> tuple[Workflow, dict[str, Gesture]]:
+    """The undo job, as its evidence records it: one DELETE, with whatever it
+    carried."""
+    gesture = _gesture("ges-gone", "DELETE", url, 200)
+    said = None if body is None else Body(text=body, size_bytes=len(body))
+    gesture.requests = [replace(gesture.requests[0], request_body=said)]
+    return _job("wfl_delete", "ges-gone"), {"ges-gone": gesture}
+
+
+def test_the_field_a_delete_addresses_a_record_by_is_read_off_the_delete() -> None:
+    """Not guessed from a name. `customerType` is the singular of
+    `customerTypes`, and that reasoning is what `write_plan` refuses at length
+    -- this needs none of it: the delete carries the record it is removing, so
+    the field is the one whose value is the segment in the path.
+
+    Measured on the deployment 2026-09-19: the pair was found and not one of
+    ninety-two runs could offer the button, because each run's `made` carries
+    `customerType` and `longDescription` both."""
+    job, gestures = _deleting('{"customerType": "GDD", "longDescription": "a type"}')
+
+    assert identifies(job, gestures) == "customerType"
+
+
+def test_a_delete_that_carried_nothing_says_nothing() -> None:
+    """Plenty of platforms answer a delete with an empty request. Then this
+    knows nothing, and the old rule -- one record named one way -- stands."""
+    job, gestures = _deleting(None)
+
+    assert identifies(job, gestures) is None
+
+
+def test_two_fields_carrying_the_addressed_value_name_nothing() -> None:
+    """A record this cannot address any better than a guess could."""
+    job, gestures = _deleting('{"customerType": "GDD", "code": "GDD"}')
+
+    assert identifies(job, gestures) is None
+
+
+def test_a_job_that_deletes_nothing_identifies_nothing() -> None:
+    made = _job("wfl_make", "ges-made")
+    gestures = _store(("ges-made", "POST", TYPES, 201))
+
+    assert identifies(made, gestures) is None
+
+
+def test_the_named_field_is_taken_out_of_a_record_that_says_more() -> None:
+    """What the deployment's runs actually hold: the two slots the read-back
+    confirmed. One of them addresses the record and the other describes it."""
+    made = [{"customerType": "GQX", "longDescription": "leaning new SRO type 007"}]
+
+    assert addresses(made, "customerType") == ("customerType", "GQX")
+
+
+def test_a_named_field_the_record_does_not_carry_addresses_nothing() -> None:
+    """The delete says it addresses by `customerType` and this run recorded no
+    such field. Nothing to press, rather than the first field that comes to
+    hand."""
+    assert addresses([{"longDescription": "a type"}], "customerType") is None
+
+
+def test_without_a_named_field_the_old_rule_stands() -> None:
+    """One record named one way, or nothing. A delete whose evidence does not
+    say which field it addresses leaves this exactly as it was."""
+    assert addresses([{"customerType": "GQX", "longDescription": "x"}]) is None
+    assert addresses([{"customerType": "GQX"}]) == ("customerType", "GQX")

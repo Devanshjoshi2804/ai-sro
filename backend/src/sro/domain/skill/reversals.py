@@ -20,6 +20,7 @@ somebody deletes a warehouse equipment type in front of the recorder.
 
 from __future__ import annotations
 
+import json
 from collections.abc import Mapping, Sequence
 
 from sro.domain.execution.evidence import recorded_call
@@ -41,7 +42,68 @@ The day a tenant's evidence shows a disable being demonstrated as its own job,
 that job is the undo and this is where it is recognised."""
 
 
-def addresses(made: Sequence[Mapping[str, str]]) -> tuple[str, str] | None:
+def identifies(undo: Workflow, gestures: Mapping[str, Gesture]) -> str | None:
+    """Which field of a record the undo's own delete addresses it by.
+
+    **Read off the delete, not guessed from a name.** A DELETE addresses one
+    member of a collection -- `DELETE /wm/customerTypes/GDD` -- and on this
+    platform it carries the record it is removing as its BODY. So the field
+    that identifies is the one whose value is the segment in the path, and no
+    part of that is a correspondence between two strings somebody hoped was
+    real: `customerType` is the singular of `customerTypes`, which is the
+    reasoning `write_plan` refuses at length and this does not need.
+
+    Measured on the deployment 2026-09-19, which is why it exists. The pair was
+    found -- `Create a Customer Type` is taken back by `Delete a Customer Type`
+    -- and not one of ninety-two runs could offer the button, because each
+    run's `made` carries `customerType` AND `longDescription` (the slots the
+    read-back confirmed) and `addresses` refuses a record named two ways. This
+    says which of the two the warehouse answers to.
+
+    Exactly one field, or nothing. Two keys carrying the value the path names
+    is a record this cannot address any better than a guess could.
+    """
+    for step in sorted(undo.steps, key=lambda one: one.order):
+        call = recorded_call(step, gestures)
+        if call is None or call.method.upper() not in REMOVES:
+            continue
+        member = _pieces(path_shape(call.url))
+        if not member:
+            return None
+        addressed = member[-1]
+        body = call.request_body.text if call.request_body is not None else None
+        named = [
+            key
+            for key, value in _record(body).items()
+            if value == addressed and key.strip() and value.strip()
+        ]
+        return named[0] if len(named) == 1 else None
+    return None
+
+
+def _record(text: str | None) -> dict[str, str]:
+    """A body's top-level string values, keyed. The envelope first, as
+    everything that reads a Blue Yonder body does."""
+    if not text:
+        return {}
+    try:
+        document = json.loads(text)
+    except ValueError:
+        return {}
+    if not isinstance(document, dict):
+        return {}
+    inner = document.get("data")
+    record = inner if isinstance(inner, dict) else document
+    return {
+        key: value.strip()
+        for key, value in record.items()
+        if isinstance(key, str) and isinstance(value, str)
+    }
+
+
+def addresses(
+    made: Sequence[Mapping[str, str]], field: str | None = None
+) -> tuple[str, str] | None:
     """Which record an undo would address, out of what a run read back.
 
     The mapping `undo` has said it lacked since it was written: *what a press
@@ -69,10 +131,16 @@ def addresses(made: Sequence[Mapping[str, str]]) -> tuple[str, str] | None:
     if len(named) != 1:
         return None
     only = named[0]
+    if field is not None:
+        # The delete's own evidence said which field it addresses, so a record
+        # carrying more than that one is no longer a record named two ways --
+        # it is a record named once and described alongside. See `identifies`.
+        says = only.get(field, "").strip()
+        return (field, says) if says else None
     if len(only) != 1:
         return None
-    ((field, names),) = only.items()
-    return (field, names.strip()) if names.strip() else None
+    ((only_field, names),) = only.items()
+    return (only_field, names.strip()) if names.strip() else None
 
 
 def undoes(made: Workflow, gestures: dict[str, Gesture], among: Sequence[Workflow]) -> str | None:

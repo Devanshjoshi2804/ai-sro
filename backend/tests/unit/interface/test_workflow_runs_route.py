@@ -58,7 +58,7 @@ from sro.config import Settings
 from sro.domain.chat.reading import ChatReading
 from sro.domain.execution.run import Run, RunId
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
-from sro.domain.observation.gesture import Action, Call, Gesture
+from sro.domain.observation.gesture import Action, Body, Call, Gesture
 from sro.domain.shared.identifiers import DeviceId, SkillId, TenantId
 from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.workflow import Step, Workflow
@@ -1903,6 +1903,54 @@ async def test_a_run_that_made_records_says_what_takes_them_back(
     assert answered.json()["steps"][0]["made"] == {"equipmentTypeId": "4471"}
 
 
+async def test_a_record_named_two_ways_is_addressed_by_the_field_the_delete_uses(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork
+) -> None:
+    """The deployment's own shape, and the reason the button was never offered.
+
+    A run's `made` carries the slots the read-back confirmed -- on QA that is
+    `customerType` AND `longDescription` -- and a record named two ways is a
+    record this cannot name. The delete says which of them it addresses: its
+    path ends in the record, and it carries that record as its body, so the
+    field is the one whose value is the segment. No part of that is
+    `customerType` being the singular of `customerTypes`.
+    """
+    made = await _a_job_that_creates(uow, "wfl_made", "ges_made", 201, "/wm/customerTypes")
+    await _a_job_that_creates(
+        uow,
+        "wfl_gone",
+        "ges_gone",
+        200,
+        "/wm/customerTypes/GDD",
+        "DELETE",
+        body='{"customerType": "GDD", "longDescription": "a type"}',
+    )
+    run = _run_that_made(made.id, {"customerType": "GQX", "longDescription": "type 007"})
+    await uow.workflow_runs.save(run)
+
+    answered = await client.get(f"/v1/workflow-runs/{run.id}")
+
+    assert answered.json()["undo"] == "wfl_gone"
+    assert answered.json()["undoes_by"] == {"customerType": "GQX"}, answered.json()["undoes_by"]
+
+
+async def test_a_delete_that_says_nothing_leaves_a_record_named_twice_unnamed(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork
+) -> None:
+    """The old rule, exactly. A platform whose delete carries no body tells
+    this nothing, and an undo that guessed between two fields would be the one
+    press that removes somebody else's record."""
+    made = await _a_job_that_creates(uow, "wfl_made", "ges_made", 201, "/wm/customerTypes")
+    await _a_job_that_creates(uow, "wfl_gone", "ges_gone", 204, "/wm/customerTypes/GDD", "DELETE")
+    run = _run_that_made(made.id, {"customerType": "GQX", "longDescription": "type 007"})
+    await uow.workflow_runs.save(run)
+
+    answered = await client.get(f"/v1/workflow-runs/{run.id}")
+
+    assert answered.json()["undo"] is None
+    assert answered.json()["undoes_by"] is None
+
+
 async def test_a_tenant_that_has_never_deleted_one_is_told_so_plainly(
     client: httpx.AsyncClient, uow: FakeUnitOfWork
 ) -> None:
@@ -1937,6 +1985,7 @@ async def _a_job_that_creates(
     status: int,
     path: str,
     method: str = "POST",
+    body: str | None = None,
 ) -> Workflow:
     await uow.gestures.add_gestures(
         (
@@ -1948,6 +1997,12 @@ async def _a_job_that_creates(
                         url=f"{WMS}{path}",
                         status=status,
                         started_at=1_739_314_800.0,
+                        # What a delete carries on this platform: the record it
+                        # is removing, which is how the field that addresses it
+                        # is read rather than guessed.
+                        request_body=None
+                        if body is None
+                        else Body(text=body, size_bytes=len(body)),
                     ),
                 ),
             ),

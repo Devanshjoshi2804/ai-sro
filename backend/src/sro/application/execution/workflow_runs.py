@@ -107,7 +107,7 @@ from sro.domain.execution.write_plan import begins_again_at, seen_values
 from sro.domain.knowledge.entry import EntryKind
 from sro.domain.shared.errors import Conflict, DomainError, NotFound
 from sro.domain.shared.identifiers import DeviceId, PrincipalId
-from sro.domain.skill.reversals import addresses, undoes
+from sro.domain.skill.reversals import addresses, identifies, undoes
 from sro.domain.skill.shape import resumes_at
 from sro.domain.skill.workflow import cited_ids
 
@@ -1041,7 +1041,17 @@ class GetWorkflowRun:
                 return None
             # And which record. Without it the panel can name a job and not
             # press it, which is where this has stood since it was written.
-            which = addresses([step.made for step in run.steps if step.made])
+            #
+            # `identifies` reads the undo's own delete for the field it
+            # addresses a record by -- the key in its body whose value is the
+            # segment in its path. Measured on the deployment 2026-09-19: the
+            # pair was found and not one of ninety-two runs could offer the
+            # button, because each run's `made` carries the two slots the
+            # read-back confirmed and a record named two ways is a record this
+            # cannot name. `None` where the delete does not say, which is the
+            # old rule exactly.
+            takes_it_by = identifies(next(one for one in known if one.id == takes_back), gestures)
+            which = addresses([step.made for step in run.steps if step.made], takes_it_by)
             if which is None:
                 return None
             field, names = which

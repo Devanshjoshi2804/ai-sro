@@ -17,9 +17,11 @@ What is left here is the arithmetic: given the pairs and the counsel, the shape.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass, field
+from urllib.parse import urlsplit
 
+from sro.domain.chat.asked_by import K_MAILBOXES
 from sro.domain.execution.evidence import primary_gesture, stood_on
 from sro.domain.execution.what_it_writes import what_it_writes
 from sro.domain.observation.gesture import Gesture
@@ -54,6 +56,21 @@ class Shape:
 
     def as_json(self) -> dict[str, object]:
         return asdict(self)
+
+
+def _all_in_a_mailbox(gestures: Sequence[Gesture]) -> bool:
+    """Whether every gesture of this job happened in a mailbox.
+
+    Every one, not any: a job that reads a request and then does it in the
+    warehouse is the shape this whole system is for, and it cites gestures on
+    both. `K_MAILBOXES` is the same named list `asked_by` reads requests out
+    of, for its own reason -- "any host that is not the warehouse" would call a
+    second warehouse system a mailbox.
+    """
+    return bool(gestures) and all(
+        urlsplit(one.url or one.system or "").netloc.split(":")[0] in K_MAILBOXES
+        for one in gestures
+    )
 
 
 def in_time_order(workflow: Workflow, by_id: Mapping[str, Gesture]) -> list[Gesture]:
@@ -218,6 +235,27 @@ def shape_of(
     if not cited:
         return None
     gestures = [gesture for gesture, _ in cited]
+    if _all_in_a_mailbox(gestures):
+        # A mailbox is where work is ASKED FOR, not work to repeat.
+        #
+        # An operator lives in their mail all day, so the miner mines what they
+        # do there: this deployment holds four `Compose Email`, two `Reply to
+        # Email` and two `Forward an Email`, none of them ever run but one. The
+        # matcher then offers one whenever the last two gestures look like its
+        # first two -- which, in a mailbox, is most of the time. Measured
+        # 2026-09-19: an operator working through six requests was offered
+        # `Forward an Email` on nearly every screen, and the one card that
+        # mattered sat under it.
+        #
+        # Worse than noise: the mail reader hesitated between `Create a
+        # Customer Type` and `Forward an Email` for a mail that plainly asked
+        # for the first, and said nothing at all rather than choose.
+        #
+        # This does not unmine them or hide them from the console -- they are
+        # still evidence, still readable, and `signing_in` still finds a mail
+        # sign-in job by the host it stands on. It stops them being OFFERED,
+        # which is the only place they cost anybody anything.
+        return None
     by_id = {g.id: g for g in gestures}
     first_step = min(workflow.steps, key=lambda s: s.order)
     first = primary_gesture(first_step, by_id) or gestures[0]

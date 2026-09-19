@@ -25,6 +25,7 @@ fixture. Four sections, each one a rule the product depends on:
     2. a Save that writes twice  the cascade the replay must refuse
     3. which step uses which     `Step.uses`, as the producer reads it today
     4. one job into another      the chain composition (7) has no instance of
+    5. what can be taken back    which job undoes which, and what the runs made
 
 Run it against a deployment by running it ON the deployment -- the settings
 already name that database, and a report about a store is worth what the store
@@ -44,10 +45,16 @@ from sro.domain.execution.evidence import READ_METHODS
 from sro.domain.execution.uses_edges import K_SHORTEST, uses_edges
 from sro.domain.execution.verified_writes import verified_write_for
 from sro.domain.execution.what_it_writes import what_it_writes
+from sro.domain.execution.workflow_run import WorkflowRun
 from sro.domain.observation.gesture import Gesture
 from sro.domain.shared.identifiers import TenantId
+from sro.domain.skill.reversals import addresses, undoes
 from sro.domain.skill.workflow import Workflow
 from sro.infrastructure.knowledge.write_endpoints import load_verified_writes
+
+K_RUNS = 500
+"""How many runs back to read. Every run this system has ever done, on every
+deployment there is: the number is a bound, not a window."""
 
 _LONG_AGO = datetime(2000, 1, 1, tzinfo=UTC)
 """Every tenant that has ever uploaded. `tenants_since` is the one tenant-blind
@@ -65,10 +72,13 @@ async def _look(tenant: str) -> None:
 
     head = f"{tenant}: {len(jobs)} jobs, {len(gestures)} gestures"
     print(f"\n{head}\n{'═' * len(head)}")
+    async with container.unit_of_work() as uow:
+        runs = list(await uow.workflow_runs.recent(who, limit=K_RUNS))
     _what_a_press_writes(jobs, by_id)
     _a_save_that_writes_twice(jobs, by_id, ledger)
     _which_step_uses_which(jobs, by_id)
     _one_job_into_another(jobs, by_id)
+    _what_can_be_taken_back(jobs, by_id, runs)
 
 
 def _what_a_press_writes(jobs: Sequence[Workflow], by_id: Mapping[str, Gesture]) -> None:
@@ -171,6 +181,36 @@ def _one_job_into_another(jobs: Sequence[Workflow], by_id: Mapping[str, Gesture]
                 print(f"   {first.title[:30]!r} -> {second.title[:30]!r}: {sorted(crossed)[:4]}")
     if not found:
         print(f"   none: 0 chains over {pairs} ordered pairs")
+
+
+def _what_can_be_taken_back(
+    jobs: Sequence[Workflow], by_id: Mapping[str, Gesture], runs: Sequence[WorkflowRun]
+) -> None:
+    """Section 5. The compensation story, as the store actually holds it.
+
+    Three questions in one: which job undoes which (`reversals.undoes`, matched
+    on the endpoint and never on a name), which runs made a record this system
+    could address, and how many runs say which run they take back.
+
+    The last is what `7aa7645d` added and is `0` until somebody presses an
+    undo. It is here so that the day it is not zero, the pair is readable.
+    """
+    print("\n5. what can be taken back")
+    named = {job.id: job.title for job in jobs}
+    pairs = 0
+    for job in jobs:
+        other = undoes(job, dict(by_id), jobs)
+        if other is not None:
+            pairs += 1
+            print(f"   {job.title[:34]:36} is taken back by {named.get(other, other)!r}")
+    if not pairs:
+        print("   no job of this tenant's undoes another")
+    made = [run for run in runs if any(step.made for step in run.steps)]
+    print(f"   {len(runs)} runs read, {len(made)} made a record this can name")
+    for run in made[:5]:
+        which = addresses([step.made for step in run.steps if step.made])
+        print(f"      {run.id} {named.get(run.workflow_id, run.workflow_id)[:28]!r} {which}")
+    print(f"   runs that say which run they take back: {sum(1 for r in runs if r.undoes_run)}")
 
 
 def _first_typed(by_id: Mapping[str, Gesture]) -> dict[str, float]:

@@ -2234,6 +2234,39 @@ test("pressing undo says which run it takes back", async () => {
   assert.strictEqual(press.undoesRun, "run_1");
 });
 
+test("an undo run's own card says which run it took back", async () => {
+  // The two are one piece of work. A delete that worked is quietly right
+  // either way; a delete that did NOT is what this is for -- the card that
+  // offered the undo has been answered and gone, so without this the failure
+  // reads as a job that failed on its own rather than as a record still
+  // sitting in the warehouse.
+  const { cards } = panel({
+    deviceId: "dev-1",
+    finished: {
+      id: "run_2", source: "rig", status: "held",
+      values: { "Customer Type": "GR9" }, steps: [], needs: [],
+      undoes_run: "run_1",
+    },
+  });
+
+  const said = cards.map(words).join(" | ");
+  assert.match(said, /took back what run run_1 made/);
+});
+
+test("an undo that did not finish says the record is still there", async () => {
+  const { cards } = panel({
+    deviceId: "dev-1",
+    finished: {
+      id: "run_2", source: "rig", status: "failed",
+      values: { "Customer Type": "GR9" }, steps: [], needs: [],
+      undoes_run: "run_1",
+    },
+  });
+
+  const said = cards.map(words).join(" | ");
+  assert.match(said, /that record is still there/);
+});
+
 test("a rig run with no undo behind it offers none", async () => {
   const { cards } = panel({
     deviceId: "dev-1",

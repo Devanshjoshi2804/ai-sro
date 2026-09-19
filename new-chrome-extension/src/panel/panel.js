@@ -1064,6 +1064,7 @@ function madeCard(run, wrote, ending) {
   how.textContent = ending || "";
   holder.append(how);
 
+
   // The machinery, for the time it is wanted. `<details>` because it is the
   // one disclosure the browser already gets right -- keyboard, screen reader
   // and all -- and this panel has no business reimplementing it.
@@ -1130,6 +1131,15 @@ function madeCard(run, wrote, ending) {
   row.append(ok);
   holder.append(row);
   return holder;
+}
+
+/** What this run took back, where it was an undo of another. */
+function tookBack(run) {
+  if (!run.undoes_run) return "";
+  return run.status === "held"
+    ? `This took back what run ${run.undoes_run} made.`
+    : `This was taking back what run ${run.undoes_run} made, and did not finish` +
+        ` — that record is still there.`;
 }
 
 /** Start the job that takes back what this run made.
@@ -1293,9 +1303,22 @@ function finished(status) {
     // pressed yes, something went looking on their behalf and came back one
     // word short, and the question about that word is in the conversation this
     // panel has just moved them to.
-    const short = (run.needs || []).length
-      ? `I could not find ${run.needs.join(", ")} — I have asked in the conversation.`
-      : howItEnded(run);
+    const short = [
+      (run.needs || []).length
+        ? `I could not find ${run.needs.join(", ")} — I have asked in the conversation.`
+        : howItEnded(run),
+      // And where this run is itself an undo, which run it took back.
+      //
+      // The two are one piece of work and nothing said so. A delete that
+      // worked is quietly right either way; a delete that did NOT is what this
+      // is for -- an undo that fails writes nothing, so it has no result card
+      // of its own to read, and the card that offered the press has been
+      // answered and gone. Without this the failure reads as a job that failed
+      // on its own rather than as a record still sitting in the warehouse.
+      tookBack(run),
+    ]
+      .filter(Boolean)
+      .join(" ");
     // And WHAT it made, first, because that is the thing somebody came to the
     // card to read.
     //

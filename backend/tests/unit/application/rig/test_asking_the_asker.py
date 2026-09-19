@@ -101,7 +101,7 @@ def _pending(**over: object) -> Pending:
         "limits": {"Customer Type": 4},
     }
     fields.update(over)
-    return Pending(**fields)  # type: ignore[arg-type]
+    return Pending(**fields)
 
 
 async def _a_run(uow: FakeUnitOfWork, *, thread: str = THREAD, asked: bool = False) -> WorkflowRun:
@@ -163,8 +163,8 @@ async def test_the_words_sent_are_the_words_that_were_read() -> None:
     assert to == "tanisha@example.com"
     (sent,) = mailbox.sent
     assert sent["to"] == "tanisha@example.com"
-    assert sent["body"] == drafted.decision["body"]  # type: ignore[index]
-    assert sent["subject"] == drafted.decision["subject"]  # type: ignore[index]
+    assert sent["body"] == drafted.decision["body"]
+    assert sent["subject"] == drafted.decision["subject"]
     # Inside the conversation it answers, or the reply lands where nothing is
     # waiting for it.
     assert sent["thread_id"] == THREAD

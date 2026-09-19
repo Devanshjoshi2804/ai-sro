@@ -175,6 +175,7 @@ def test_where_the_run_stopped_survives_the_answer_and_the_row() -> None:
 def test_a_step_a_row_cannot_be_read_as_is_the_start_of_the_job() -> None:
     """A bool is an int in Python, so `from_step: true` would otherwise resume
     a job at its second step -- and a negative is a row nothing wrote."""
+    said: object
     for said in (None, "4", True, False, -1, {}):
         assert _step(said) == 0, said
     assert _step(4) == 4

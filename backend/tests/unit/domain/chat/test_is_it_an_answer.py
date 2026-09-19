@@ -19,7 +19,7 @@ def _asking(**over: object) -> Pending:
         "missing": ("Customer Type",),
     }
     fields.update(over)
-    return Pending(**fields)  # type: ignore[arg-type]
+    return Pending(**fields)
 
 
 def test_a_code_is_a_value_and_costs_nothing_to_know_it() -> None:

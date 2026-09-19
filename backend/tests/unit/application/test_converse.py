@@ -466,7 +466,7 @@ async def test_a_sentence_that_is_not_an_answer_does_not_become_the_value() -> N
     uow = FakeUnitOfWork()
     await _taught(uow)
     converse, thread_id = await _asked(uow, ["Customer Type"])
-    converse._answers = _Reads(answers=False)
+    converse._answers = _Reads(answers=False)  # type: ignore[assignment]
 
     said = await converse.execute(CTX, thread_id=thread_id, text="has reply arrived")
 
@@ -505,7 +505,7 @@ async def test_a_question_about_the_waiting_is_answered_about_the_waiting() -> N
         )
         await opened.threads.save(thread)
         before = len(thread.messages)
-    converse._answers = _Reads(answers=False, about="the_wait")
+    converse._answers = _Reads(answers=False, about="the_wait")  # type: ignore[assignment]
 
     said = await converse.execute(CTX, thread_id=thread_id, text="check now")
 
@@ -533,7 +533,7 @@ async def test_asking_for_a_different_job_is_still_heard() -> None:
     uow = FakeUnitOfWork()
     await _taught(uow)
     converse, thread_id = await _asked(uow, ["Customer Type"])
-    converse._answers = _Reads(answers=False, about="another_task")
+    converse._answers = _Reads(answers=False, about="another_task")  # type: ignore[assignment]
 
     said = await converse.execute(
         CTX, thread_id=thread_id, text="create a warehouse equipment type instead"
@@ -551,7 +551,7 @@ async def test_a_sentence_that_is_an_answer_still_is() -> None:
     await _taught(uow)
     converse, thread_id = await _asked(uow, ["Customer Type"])
     reads = _Reads(answers=True, value="S057")
-    converse._answers = reads
+    converse._answers = reads  # type: ignore[assignment]
 
     said = await converse.execute(CTX, thread_id=thread_id, text="the code is S057")
 
@@ -571,7 +571,7 @@ async def test_letting_go_is_never_handed_to_a_reading() -> None:
     await _taught(uow)
     converse, thread_id = await _asked(uow, ["Customer Type"])
     reads = _Reads(answers=False)
-    converse._answers = reads
+    converse._answers = reads  # type: ignore[assignment]
 
     said = await converse.execute(CTX, thread_id=thread_id, text="no")
 

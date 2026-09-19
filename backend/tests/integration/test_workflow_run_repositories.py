@@ -436,7 +436,7 @@ class TestWorkflowRuns:
 
         starter = StartWorkflowRun(
             SqlUnitOfWork(session_factory),
-            channel=None,  # type: ignore[arg-type]
+            channel=None,
             asker=None,
             plan_model="m",
             rescue_model="m",

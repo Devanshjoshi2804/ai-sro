@@ -186,7 +186,7 @@ async def test_a_run_stopped_at_a_login_page_asks_for_the_password_it_has_none_o
     )
 
     assert asked is not None
-    wants = asked["payload"]["needs_secret"]  # type: ignore[index]
+    wants = asked["payload"]["needs_secret"]
     assert wants["system"] == "wms.example.com"
     assert wants["field"] == "password"
     # The same key the storing side builds, or the value is invisible to the

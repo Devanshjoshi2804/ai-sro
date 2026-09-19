@@ -35,6 +35,10 @@ const step = (over: Partial<workflowApi.WorkflowRunStepModel> = {}) => ({
   thought_tokens: 0,
   cost_usd: 0.0012,
   unpriced: false,
+  // What the step said about itself beyond its verdict. Required by the
+  // generated type since the committed OpenAPI document was brought back into
+  // step with the code; this fixture compiled against a stale one.
+  notes: [],
   ...over,
 });
 

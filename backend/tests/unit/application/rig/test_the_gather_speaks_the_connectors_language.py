@@ -91,7 +91,7 @@ def test_a_conversation_carries_each_mail_s_own_id() -> None:
             }
         ],
     }
-    module.httpx = _Answers(thread)  # type: ignore[attr-defined]
+    module.httpx = _Answers(thread)
 
     said = json.loads(module._thread("token", {"id": "t-1"}))
 

@@ -19,7 +19,7 @@ def _step(strategy: str = "component", query: str = "tabItem", **over: object) -
         "found_by": "evidence",
     }
     fields.update(over)
-    return LearnedStep(**fields)  # type: ignore[arg-type]
+    return LearnedStep(**fields)
 
 
 def test_a_run_that_found_what_the_last_one_found_taught_nothing() -> None:

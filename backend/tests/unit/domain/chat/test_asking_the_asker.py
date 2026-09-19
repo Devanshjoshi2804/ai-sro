@@ -25,7 +25,7 @@ def _short(**over: object) -> Pending:
         "missing": ("Customer Type",),
     }
     fields.update(over)
-    return Pending(**fields)  # type: ignore[arg-type]
+    return Pending(**fields)
 
 
 def test_a_value_that_will_not_fit_is_asked_about_with_the_number() -> None:

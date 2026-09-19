@@ -441,6 +441,50 @@ test("nothing is offered while this browser is performing a run", async () => {
   abort("run-live");
 });
 
+test("a finished card is re-read once, because the backend's answer moves", async () => {
+  // The row is a SNAPSHOT of the run the moment it ended, drawn for an hour.
+  // What the backend says about a finished run changes afterwards -- whether
+  // it can be taken back, whether it can be pressed again -- and twice on
+  // 2026-09-19 an operator sat in front of a card offering neither, on a run
+  // the deployment would by then have offered both for.
+  ready();
+  held.set("sro.deviceId", "dev-start-a17f");
+  held.set("sro.deviceSecret", "secret-start-33c9");
+  held.set("sro.token", "tok-start-6d20");
+  // As `finishing.js` left it when the run ended: no undo, no retry.
+  held.set("sro.finishedRun", {
+    id: "run-9",
+    source: "rig",
+    status: "held",
+    steps: [],
+    undo: null,
+    undoes_by: null,
+    try_again: false,
+    at: Date.now(),
+  });
+  rigRunServed = {
+    id: "run-9",
+    outcome: "held",
+    steps: [],
+    undo: "wfl_delete",
+    undoes_by: { "Customer Type": "GZ5" },
+    try_again: true,
+  };
+
+  const first = await send({ kind: "status" });
+  const again = await send({ kind: "status" });
+
+  assert.equal(first.finished.undo, "wfl_delete", "the card was drawn from the stale row");
+  assert.deepEqual(first.finished.undoes_by, { "Customer Type": "GZ5" });
+  // Once per worker life: a re-read on every poll is a call a second.
+  assert.equal(
+    calls.filter((call) => call.path === "/v1/workflow-runs/run-9").length,
+    1,
+    "it asked again on the second poll",
+  );
+  assert.equal(again.finished.undo, "wfl_delete", "the refreshed row was not kept");
+});
+
 test("an undo names the run it takes back", async () => {
   // The panel's press carries `undoesRun`, the body carries `undoes_run`, and
   // between them is the only thing that stops two open panels pressing two

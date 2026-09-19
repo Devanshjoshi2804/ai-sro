@@ -2591,6 +2591,37 @@ async function handle(message, sender) {
  */
 const watching = new Set();
 
+/** The last finished run, re-read from the backend once per worker life.
+ *
+ * The row is a SNAPSHOT: `finishing.js` stores what the run looked like the
+ * moment it ended, and the card is drawn from that for an hour. What the
+ * backend says about a finished run can change afterwards -- whether it can be
+ * taken back, whether it can be pressed again -- and twice on 2026-09-19 an
+ * operator sat in front of a card that offered neither, on a run the deployment
+ * would by then have offered both for.
+ *
+ * Once, and only for a row this worker did not write itself: a re-read on
+ * every status poll is a call a second, and a row written by the worker that
+ * is still running is as fresh as the backend was when it landed.
+ */
+let refreshed = null;
+
+async function freshlyFinished() {
+  const held = await finishedRun();
+  if (!held?.id || held.source !== "rig" || refreshed === held.id) return held;
+  refreshed = held.id;
+  try {
+    const now = await api.rigRun(held.id);
+    if (!now) return held;
+    await state.setFinishedRun({ ...held, ...now, at: held.at });
+    return await finishedRun();
+  } catch {
+    // A backend this browser cannot reach right now is not a reason to drop a
+    // card somebody is looking at.
+    return held;
+  }
+}
+
 /** How long to wait before pushing, so a burst of writes is one redraw.
  *
  * Every state change goes through `chrome.storage`, and a single gesture can
@@ -3250,7 +3281,7 @@ async function status(sender = null) {
     // held long past this run itself, unlike `performing` above, because an
     // operator coming back to look is what this is measured against rather
     // than the run going quiet. See `state.js`'s `finishedRun` for why an hour.
-    finished: await finishedRun(),
+    finished: await freshlyFinished(),
     deviceId,
     policy,
     apiUrl,

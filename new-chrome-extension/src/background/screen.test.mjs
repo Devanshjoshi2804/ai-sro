@@ -17,6 +17,9 @@ let captureDelay = 0;
 let measureDelay = 0;
 let activated = [];
 let raised = [];
+/** What the frames of the page answer, where a test has more than one. Null
+ * means the single-frame fake below. */
+let frames = null;
 
 const sleep = (ms) => new Promise((go) => setTimeout(go, ms));
 
@@ -48,10 +51,16 @@ globalThis.chrome = {
     },
   },
   scripting: {
-    executeScript: async ({ func }) => {
+    executeScript: async ({ func, target }) => {
       // The full measure is the slow one; the cheap probe answers at once.
       const whole = String(func).includes("querySelectorAll");
       if (whole && measureDelay) await sleep(measureDelay);
+      // As Chrome does it: without `allFrames` only the main frame answers,
+      // which is the whole of what this is about.
+      if (whole && frames)
+        return target?.allFrames
+          ? frames
+          : frames.filter((one) => one.frameId === 0);
       return [
         {
           result: whole
@@ -80,6 +89,7 @@ const fresh = () => {
   raised = [];
   captureDelay = 0;
   measureDelay = 0;
+  frames = null;
 };
 
 test("an ordinary look carries the picture and the names beside it", async () => {
@@ -163,4 +173,64 @@ test("the slow half is bounded on its own, not against the whole command", async
   assert.equal(said.ok, true, JSON.stringify(said));
   assert.equal(said.result.measured, false);
   assert.ok(said.result.image_base64, "the picture was lost to the digest's budget");
+});
+
+test("the names come from every frame, not from the portal's top bar", async () => {
+  // The fault itself. Measured on the deployment 2026-09-19: `Delete a
+  // Customer Type` failed five times on "Opens the filter dropdown", the
+  // control found and pressed every time, and the screen belt was given a
+  // digest of the portal's nav bar -- because the warehouse application runs
+  // in a frame and a look at the screen read the top document only.
+  fresh();
+  // The application's frame first in the list, so that "the top document's
+  // size" is a choice this makes rather than the order it was handed.
+  frames = [
+    {
+      frameId: 4,
+      result: { url: "https://wms.example/app", width: 900, height: 700, digest: "Customer Type A: 300,400" },
+    },
+    {
+      frameId: 0,
+      result: { url: "https://wms.example/portal", width: 1200, height: 800, digest: "Search: 858,20" },
+    },
+  ];
+
+  const said = await shot();
+
+  assert.equal(said.ok, true, JSON.stringify(said));
+  assert.match(said.result.text_digest, /Customer Type A: 300,400/);
+  assert.match(said.result.text_digest, /Search: 858,20/);
+  // The picture's own space, which is the top document's -- the frame is 900
+  // by 700 and the model answers coordinates in the window.
+  assert.equal(said.result.height, 800);
+  assert.equal(said.result.width, 1200);
+  assert.equal(said.result.measured, true);
+});
+
+test("a frame that throws does not cost the look the other frames", async () => {
+  fresh();
+  frames = [
+    { frameId: 0, error: { message: "blocked" } },
+    {
+      frameId: 4,
+      result: { url: "https://wms.example/app", width: 1200, height: 700, digest: "Customer Type A: 300,400" },
+    },
+  ];
+
+  const said = await shot();
+
+  assert.equal(said.ok, true, JSON.stringify(said));
+  assert.equal(said.result.text_digest, "Customer Type A: 300,400");
+  assert.equal(said.result.width, 1200);
+});
+
+test("a page whose every frame refuses is measured the cheap way", async () => {
+  fresh();
+  frames = [{ frameId: 0, error: { message: "blocked" } }];
+
+  const said = await shot();
+
+  assert.equal(said.ok, true, JSON.stringify(said));
+  assert.equal(said.result.text_digest, "");
+  assert.equal(said.result.width, 1200, "the cheap probe still gives the viewport");
 });

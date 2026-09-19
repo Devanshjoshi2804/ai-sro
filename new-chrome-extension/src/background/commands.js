@@ -361,6 +361,46 @@ async function inEveryFrame(tabId, func, args, world = "MAIN") {
   return null;
 }
 
+/** Every frame's answer, merged into one digest.
+ *
+ * `inEveryFrame` above takes the FIRST frame that answers, which for a look at
+ * the screen is always the top document -- and the top document of the
+ * warehouse portal is a nav bar with the application in a frame beneath it.
+ * Measured on the deployment 2026-09-19: `Delete a Customer Type` failed five
+ * times on "Opens the filter dropdown" and the digest each time was
+ * `Search: 858,20  Workstation: 664,20  SG: 606,20` -- the portal's own top
+ * bar, three frames away from anything the step had done.
+ *
+ * The top document's size is the answer's size, because that is the picture's
+ * space and what `ui.perform_at` acts in. The names come from every frame.
+ */
+async function lookAcrossFrames(tabId, func, args, world = "ISOLATED") {
+  const answers = await chrome.scripting.executeScript({
+    target: { tabId, allFrames: true },
+    world,
+    func,
+    args,
+  });
+  // A frame that threw answers `{result: undefined, error}` since Chrome 117,
+  // so refusing what is not an object is the whole of the guard: a page whose
+  // top document blocks injection is still described by the frame the
+  // application is actually in.
+  const said = answers
+    .map((one) => one?.result)
+    .filter((one) => one && typeof one === "object");
+  if (!said.length) return null;
+  // The top document, by frameId where Chrome gives one and by position
+  // otherwise -- `executeScript` answers the main frame first.
+  const at = answers.findIndex((one) => one?.frameId === 0);
+  const top = (at >= 0 ? answers[at]?.result : null) || said[0];
+  const digest = said
+    .map((one) => String(one.digest || "").trim())
+    .filter(Boolean)
+    .join("\n")
+    .slice(0, 8000);
+  return { ...top, digest };
+}
+
 /** Run one of the page-realm functions and hand back what it answered. */
 async function inPage(tabId, func, args, world = "MAIN") {
   const [answer] = await chrome.scripting.executeScript({
@@ -1135,7 +1175,7 @@ async function screenshot(payload, runId) {
   // viewport the model answers in, which is the part that is not optional.
   let seen = await within(
     K_MEASURE_MS,
-    inPage(visible.id, viewportInPage, [], "ISOLATED"),
+    lookAcrossFrames(visible.id, viewportInPage, []),
   );
   let slow = "";
   if (!seen) {

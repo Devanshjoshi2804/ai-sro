@@ -651,9 +651,51 @@ export function viewportInPage() {
   const K_NAMED = 200;
   const width = window.innerWidth;
   const height = window.innerHeight;
+  // Where this document sits in the picture the model is shown.
+  //
+  // The warehouse application runs in a frame -- `performAtInPage` learned
+  // that the hard way -- and a frame measures itself from its own top left.
+  // Names taken from inside it were being reported as though the frame were
+  // the window, which puts a control a hundred pixels below the nav bar at the
+  // very top of a picture where the nav bar is.
+  //
+  // `frameElement` is readable only from a same-origin parent. A frame from
+  // somewhere else keeps its own coordinates, which is the best that can be
+  // had from inside it and is still better than no names at all.
+  let dx = 0;
+  let dy = 0;
+  let acrossX = width;
+  let acrossY = height;
+  try {
+    const frame = window !== window.top ? window.frameElement : null;
+    if (frame) {
+      const box = frame.getBoundingClientRect();
+      dx = box.left;
+      dy = box.top;
+      acrossX = window.parent.innerWidth || width;
+      acrossY = window.parent.innerHeight || height;
+    }
+  } catch {
+    // A frame whose parent is somewhere else. Its own viewport it is, then.
+  }
   const seen = [];
+  // A dropdown's items are none of these.
+  //
+  // Measured on the deployment 2026-09-19: `Delete a Customer Type` failed
+  // five times running on "Opens the filter dropdown", every one of them with
+  // the control FOUND and pressed -- the screen belt read a digest with the
+  // portal's top bar in it and concluded nothing had opened. ExtJS floats its
+  // combo list as a `div` of `li`s appended to the body, and not one of them
+  // is an input, a button or a link, so no budget and no walk order could ever
+  // have described the thing the step exists to open.
+  //
+  // By ARIA role first, which is the web's own way of saying "this is a thing
+  // to choose" -- and `.x-boundlist-item` beside it for the same reason
+  // `.x-grid-cell` is already here: the one application this system is pointed
+  // at renders its lists before it labels them.
   const all = document.querySelectorAll(
-    "input, select, textarea, button, a, .x-grid-cell, label",
+    "input, select, textarea, button, a, .x-grid-cell, label," +
+      " [role=option], [role=menuitem], [role=treeitem], [role=tab], .x-boundlist-item",
   );
   // What the page is SAYING, before what it is offering.
   //
@@ -720,8 +762,8 @@ export function viewportInPage() {
     )
       .trim()
       .slice(0, 80);
-    const nx = Math.round(((rect.x + rect.width / 2) / width) * 1000);
-    const ny = Math.round(((rect.y + rect.height / 2) / height) * 1000);
+    const nx = Math.round(((rect.x + rect.width / 2 + dx) / acrossX) * 1000);
+    const ny = Math.round(((rect.y + rect.height / 2 + dy) / acrossY) * 1000);
     if (label) seen.push(`${label}: ${nx},${ny}`);
   }
   return {

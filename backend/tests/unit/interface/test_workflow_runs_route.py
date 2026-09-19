@@ -1892,7 +1892,15 @@ async def test_a_run_that_made_records_says_what_takes_them_back(
     has evidence for, and a wrong mapping deletes the wrong record.
     """
     made = await _a_job_that_creates(uow, "wfl_made", "ges_made", 201, "/wm/equipmentTypes")
-    await _a_job_that_creates(uow, "wfl_gone", "ges_gone", 204, "/wm/equipmentTypes/4471", "DELETE")
+    await _a_job_that_creates(
+        uow,
+        "wfl_gone",
+        "ges_gone",
+        204,
+        "/wm/equipmentTypes/4471",
+        "DELETE",
+        asks="Equipment Type",
+    )
     run = _run_that_made(made.id, {"equipmentTypeId": "4471"})
     await uow.workflow_runs.save(run)
 
@@ -1901,6 +1909,10 @@ async def test_a_run_that_made_records_says_what_takes_them_back(
     assert answered.status_code == 200, answered.text
     assert answered.json()["undo"] == "wfl_gone"
     assert answered.json()["steps"][0]["made"] == {"equipmentTypeId": "4471"}
+    # Under the name the UNDO asks for. The record is `equipmentTypeId` to the
+    # warehouse and `Equipment Type` to the job, and a press that sent the
+    # first would name a parameter the job does not have.
+    assert answered.json()["undoes_by"] == {"Equipment Type": "4471"}
 
 
 async def test_a_record_named_two_ways_is_addressed_by_the_field_the_delete_uses(
@@ -1923,7 +1935,8 @@ async def test_a_record_named_two_ways_is_addressed_by_the_field_the_delete_uses
         200,
         "/wm/customerTypes/GDD",
         "DELETE",
-        body='{"customerType": "GDD", "longDescription": "a type"}',
+        body='{"customerType": "GDD", "resourceId": "GDD", "longDescription": "a type"}',
+        asks="Customer Type",
     )
     run = _run_that_made(made.id, {"customerType": "GQX", "longDescription": "type 007"})
     await uow.workflow_runs.save(run)
@@ -1931,7 +1944,10 @@ async def test_a_record_named_two_ways_is_addressed_by_the_field_the_delete_uses
     answered = await client.get(f"/v1/workflow-runs/{run.id}")
 
     assert answered.json()["undo"] == "wfl_gone"
-    assert answered.json()["undoes_by"] == {"customerType": "GQX"}, answered.json()["undoes_by"]
+    # `GDD` is addressed as both `customerType` and `resourceId` in the delete,
+    # and the run recorded only the first: one side narrows the other. The
+    # press goes out under the name the job asks for.
+    assert answered.json()["undoes_by"] == {"Customer Type": "GQX"}, answered.json()["undoes_by"]
 
 
 async def test_a_delete_that_says_nothing_leaves_a_record_named_twice_unnamed(
@@ -1986,6 +2002,7 @@ async def _a_job_that_creates(
     path: str,
     method: str = "POST",
     body: str | None = None,
+    asks: str = "",
 ) -> Workflow:
     await uow.gestures.add_gestures(
         (
@@ -2015,6 +2032,10 @@ async def _a_job_that_creates(
         narrative="n",
         systems=[WMS],
         steps=[Step(order=0, says="s", system=WMS, cites=[gesture_id])],
+        # What the job calls the one thing it varies -- the screen's label, as
+        # every mined job names it. An undo with none cannot be filled from a
+        # created record at all.
+        parameters=[{"name": asks}] if asks else [],
     )
     await uow.workflows.save(job)
     return job

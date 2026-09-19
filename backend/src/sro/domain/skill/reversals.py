@@ -42,26 +42,27 @@ The day a tenant's evidence shows a disable being demonstrated as its own job,
 that job is the undo and this is where it is recognised."""
 
 
-def identifies(undo: Workflow, gestures: Mapping[str, Gesture]) -> str | None:
-    """Which field of a record the undo's own delete addresses it by.
+def identifies(undo: Workflow, gestures: Mapping[str, Gesture]) -> frozenset[str]:
+    """Which fields of a record the undo's own delete addresses it by.
 
-    **Read off the delete, not guessed from a name.** A DELETE addresses one
+    **Read off the delete, never guessed from a name.** A DELETE addresses one
     member of a collection -- `DELETE /wm/customerTypes/GDD` -- and on this
-    platform it carries the record it is removing as its BODY. So the field
-    that identifies is the one whose value is the segment in the path, and no
-    part of that is a correspondence between two strings somebody hoped was
-    real: `customerType` is the singular of `customerTypes`, which is the
-    reasoning `write_plan` refuses at length and this does not need.
+    platform it carries the record it is removing as its BODY. So the fields
+    that could identify are the ones whose value is the segment in the path,
+    and no part of that is `customerType` being the singular of
+    `customerTypes`, which is the correspondence `write_plan` refuses at
+    length.
 
-    Measured on the deployment 2026-09-19, which is why it exists. The pair was
-    found -- `Create a Customer Type` is taken back by `Delete a Customer Type`
-    -- and not one of ninety-two runs could offer the button, because each
-    run's `made` carries `customerType` AND `longDescription` (the slots the
-    read-back confirmed) and `addresses` refuses a record named two ways. This
-    says which of the two the warehouse answers to.
+    A SET, because the real answer is not one field. Measured on the
+    deployment 2026-09-19, the delete of `GDD` carries it twice -- as
+    `customerType` and as `resourceId` -- and either would address the record.
+    What settles it is the other side: `addresses` keeps whichever of these the
+    CREATE recorded making, and a run's `made` holds `customerType` and no
+    `resourceId`.
 
-    Exactly one field, or nothing. Two keys carrying the value the path names
-    is a record this cannot address any better than a guess could.
+    Empty where the delete carried nothing, which is every platform that
+    answers a delete with an empty request, and then nothing has changed: one
+    record named one way, or no button.
     """
     for step in sorted(undo.steps, key=lambda one: one.order):
         call = recorded_call(step, gestures)
@@ -69,16 +70,37 @@ def identifies(undo: Workflow, gestures: Mapping[str, Gesture]) -> str | None:
             continue
         member = _pieces(path_shape(call.url))
         if not member:
-            return None
+            return frozenset()
         addressed = member[-1]
         body = call.request_body.text if call.request_body is not None else None
-        named = [
+        return frozenset(
             key
             for key, value in _record(body).items()
             if value == addressed and key.strip() and value.strip()
-        ]
-        return named[0] if len(named) == 1 else None
-    return None
+        )
+    return frozenset()
+
+
+def asks_for(undo: Workflow) -> str | None:
+    """What the undo calls the value it needs, in its own vocabulary.
+
+    The press has to speak the JOB's language, not the warehouse's. `Delete a
+    Customer Type` declares one parameter and it is called `Customer Type` --
+    the screen's label, which is how every mined job names what varies -- while
+    the record it deletes is keyed `customerType` in the body. A press that
+    sent the body key would name a parameter this job does not have, and the
+    run would refuse it as a value nobody supplied.
+
+    One parameter or nothing. A delete that varies two things is a delete this
+    cannot fill from one created record, and guessing which of them wants the
+    id is the wrong kind of guess to make with a DELETE.
+    """
+    named = [
+        str(one["name"]).strip()
+        for one in undo.parameters
+        if isinstance(one, Mapping) and str(one.get("name", "")).strip()
+    ]
+    return named[0] if len(named) == 1 else None
 
 
 def _record(text: str | None) -> dict[str, str]:
@@ -102,7 +124,7 @@ def _record(text: str | None) -> dict[str, str]:
 
 
 def addresses(
-    made: Sequence[Mapping[str, str]], field: str | None = None
+    made: Sequence[Mapping[str, str]], by: frozenset[str] = frozenset()
 ) -> tuple[str, str] | None:
     """Which record an undo would address, out of what a run read back.
 
@@ -131,12 +153,20 @@ def addresses(
     if len(named) != 1:
         return None
     only = named[0]
-    if field is not None:
-        # The delete's own evidence said which field it addresses, so a record
-        # carrying more than that one is no longer a record named two ways --
-        # it is a record named once and described alongside. See `identifies`.
-        says = only.get(field, "").strip()
-        return (field, says) if says else None
+    if by:
+        # The delete's own evidence named the fields it addresses a record by,
+        # so a record carrying more than one thing is no longer a record named
+        # two ways -- it is a record named once and described alongside.
+        #
+        # The intersection, and it has to be exactly one. On the deployment the
+        # delete addresses `GDD` as both `customerType` and `resourceId` and
+        # the create records only the first, so one side narrows the other.
+        # Two survivors would be two names for one record again, and this
+        # refuses that for the reason it always has.
+        shared = [key for key in by if only.get(key, "").strip()]
+        if len(shared) != 1:
+            return None
+        return (shared[0], only[shared[0]].strip())
     if len(only) != 1:
         return None
     ((only_field, names),) = only.items()

@@ -107,7 +107,7 @@ from sro.domain.execution.write_plan import begins_again_at, seen_values
 from sro.domain.knowledge.entry import EntryKind
 from sro.domain.shared.errors import Conflict, DomainError, NotFound
 from sro.domain.shared.identifiers import DeviceId, PrincipalId
-from sro.domain.skill.reversals import addresses, identifies, undoes
+from sro.domain.skill.reversals import addresses, asks_for, identifies, undoes
 from sro.domain.skill.shape import resumes_at
 from sro.domain.skill.workflow import cited_ids
 
@@ -1050,12 +1050,23 @@ class GetWorkflowRun:
             # read-back confirmed and a record named two ways is a record this
             # cannot name. `None` where the delete does not say, which is the
             # old rule exactly.
-            takes_it_by = identifies(next(one for one in known if one.id == takes_back), gestures)
-            which = addresses([step.made for step in run.steps if step.made], takes_it_by)
+            undo_job = next(one for one in known if one.id == takes_back)
+            which = addresses(
+                [step.made for step in run.steps if step.made], identifies(undo_job, gestures)
+            )
             if which is None:
                 return None
-            field, names = which
-            return takes_back, field, names
+            _, names = which
+            # Under the name the UNDO asks for, not the one the warehouse
+            # answers with. `Delete a Customer Type` declares one parameter and
+            # it is called `Customer Type`; the record it removes is keyed
+            # `customerType` in the body. A press that sent the body key would
+            # name a parameter the job does not have, and the run would refuse
+            # it as a value nobody supplied.
+            asks = asks_for(undo_job)
+            if asks is None:
+                return None
+            return takes_back, asks, names
 
 
 class AbortWorkflowRun:

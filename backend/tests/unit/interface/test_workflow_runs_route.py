@@ -1952,6 +1952,67 @@ async def test_a_record_named_two_ways_is_addressed_by_the_field_the_delete_uses
     assert answered.json()["undoes_by"] == {"Customer Type": "GQX"}, answered.json()["undoes_by"]
 
 
+async def test_a_write_performed_on_the_page_is_still_something_to_take_back(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork
+) -> None:
+    """The deployment's own successful run, 2026-09-19. `run_b31b610d` typed
+    into the form, pressed Save, and held on `POST /data/WM/wm/customerTypes
+    returned 201` -- with `made = {}`, because the browser sees a call's status
+    and never what came back. So the card named the record it had just created
+    and could offer nothing to take it back.
+
+    What the run was asked for, then, under the name the undo asks by."""
+    made = await _a_job_that_creates(uow, "wfl_made", "ges_made", 201, "/wm/customerTypes")
+    await _a_job_that_creates(
+        uow,
+        "wfl_gone",
+        "ges_gone",
+        200,
+        "/wm/customerTypes/GDD",
+        "DELETE",
+        body='{"customerType": "GDD", "resourceId": "GDD"}',
+        asks="Customer Type",
+    )
+    run = _run_that_made(made.id, {})
+    # The marker a write carries, and no record: exactly what a page-performed
+    # create leaves behind.
+    run.steps[0].result = {"ok": True, "status": 201, "matched_by": "component", "wrote": True}
+    run.values = {"Customer Type": "GZ4", "Customer Type Description": "undo round four"}
+    await uow.workflow_runs.save(run)
+
+    answered = await client.get(f"/v1/workflow-runs/{run.id}")
+
+    assert answered.json()["undo"] == "wfl_gone"
+    assert answered.json()["undoes_by"] == {"Customer Type": "GZ4"}
+
+
+async def test_a_run_that_was_asked_for_nothing_the_undo_needs_offers_no_press(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork
+) -> None:
+    """The fallback is the run's own values, and only under the name the undo
+    asks by. A run carrying nothing by that name is a record this cannot
+    address, which is where it has always stopped."""
+    made = await _a_job_that_creates(uow, "wfl_made", "ges_made", 201, "/wm/customerTypes")
+    await _a_job_that_creates(
+        uow,
+        "wfl_gone",
+        "ges_gone",
+        200,
+        "/wm/customerTypes/GDD",
+        "DELETE",
+        body='{"customerType": "GDD"}',
+        asks="Customer Type",
+    )
+    run = _run_that_made(made.id, {})
+    run.steps[0].result = {"ok": True, "status": 201, "matched_by": "component", "wrote": True}
+    run.values = {"Something Else": "GZ4"}
+    await uow.workflow_runs.save(run)
+
+    answered = await client.get(f"/v1/workflow-runs/{run.id}")
+
+    assert answered.json()["undo"] is None
+
+
 async def test_a_delete_that_says_nothing_leaves_a_record_named_twice_unnamed(
     client: httpx.AsyncClient, uow: FakeUnitOfWork
 ) -> None:

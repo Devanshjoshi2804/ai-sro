@@ -78,6 +78,7 @@ from sro.application.chat.announce import SayWhatHappened
 from sro.application.context import RequestContext
 from sro.application.execution.approvals import Approvals
 from sro.application.execution.declared import declared_limits, names_of, screen_for
+from sro.application.execution.effects import wrote
 from sro.application.execution.gather import GatherContext
 from sro.application.execution.read_runs import NOT_IN_A_BROWSER_HERE, CannotStop
 from sro.application.execution.run_workflow import GatherValues, KnownFields, run_workflow
@@ -1026,7 +1027,15 @@ class GetWorkflowRun:
         reason that sentence gives. A run that made two would need two deletes,
         and an undo that takes back half of what a run did is worse than none.
         """
-        if run.outcome == "running" or not any(step.made for step in run.steps):
+        # A run still going may make more; a run that wrote nothing has
+        # nothing to take back.
+        #
+        # `wrote` beside `made`: a write performed on the page carries the
+        # marker and no record, because the browser sees a call's status and
+        # never what came back. Read on `made` alone this returned None for
+        # every run that did the job through the form -- which is every run a
+        # person watched.
+        if run.outcome == "running" or not any(step.made or wrote(step) for step in run.steps):
             return None
         async with self._uow as uow:
             known = list(await uow.workflows.known(ctx.tenant_id))
@@ -1054,6 +1063,30 @@ class GetWorkflowRun:
             which = addresses(
                 [step.made for step in run.steps if step.made], identifies(undo_job, gestures)
             )
+            asks = asks_for(undo_job)
+            if which is None and asks:
+                # A write performed on the PAGE has no record to read.
+                #
+                # `made` is filled from a response body, and the browser sees a
+                # call's status and never what came back -- deliberately, a
+                # create's answer is a row of somebody's data. So a run that
+                # typed into the form and pressed Save knows exactly what it
+                # wrote and carries no `made` at all. Measured on the
+                # deployment 2026-09-19, run `run_b31b610d`: `POST
+                # /data/WM/wm/customerTypes returned 201`, held by the status
+                # belt, `made = {}` -- and no undo could be offered for a
+                # record whose code is on the card in front of the operator.
+                #
+                # What the run was ASKED for, then, under the name the undo
+                # asks by. Not a guess about the warehouse: it is the value a
+                # person supplied, the write held, and the card already says
+                # it. Where the form transformed what was typed -- the ledger's
+                # own `csttyp truncates at 4 chars` -- the delete addresses a
+                # record that is not there and answers 404, which is the safe
+                # way round.
+                typed = str(run.values.get(asks, "")).strip()
+                if typed:
+                    which = (asks, typed)
             if which is None:
                 return None
             _, names = which
@@ -1063,7 +1096,6 @@ class GetWorkflowRun:
             # `customerType` in the body. A press that sent the body key would
             # name a parameter the job does not have, and the run would refuse
             # it as a value nobody supplied.
-            asks = asks_for(undo_job)
             if asks is None:
                 return None
             return takes_back, asks, names

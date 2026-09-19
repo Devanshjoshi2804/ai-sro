@@ -72,7 +72,7 @@ from sro.domain.execution.planning import (
 from sro.domain.execution.secrets import field_of, needs_a_secret, secret_key_for
 from sro.domain.execution.verified_writes import VerifiedWrite, verified_write_for
 from sro.domain.execution.write_plan import WritePlan, wanted_by, write_plan_for
-from sro.domain.observation.gesture import Gesture, Kind
+from sro.domain.observation.gesture import Call, Gesture, Kind
 from sro.domain.observation.trim import trim
 from sro.domain.shared.hosts import REDACTED, origin_of
 from sro.domain.shared.prices import Answer, Effort
@@ -218,6 +218,8 @@ def replay_without_asking(
     call = recorded_call(step, by_id)
     if call is None or verified_write_for(call, verified_writes) is None:
         return None
+    if _a_cascade(call, cited, verified_writes):
+        return None
     sending = _replay_of(step, by_id, values, verified_writes, seen, keys)
     if sending is None:
         return None
@@ -244,6 +246,45 @@ def replay_without_asking(
         confirm=dict(aimed.confirm) if aimed is not None else {},
         by="evidence",
     )
+
+
+def _a_cascade(call: Call, cited: list[Gesture], ledger: tuple[VerifiedWrite, ...]) -> bool:
+    """Whether the doing this call came from wrote more than once.
+
+    **One logical create is often several physical resources.** Creating a
+    client on the real platform fires four POSTs behind one Save -- addresses,
+    clients, clientWarehouse, packingConfigurations -- each carrying an id the
+    one before it returned (`knowledge-base/KNOWLEDGE-BASE.md` 3b, watched on
+    the live host). A replay sends ONE call. The record it makes is the first
+    of four, the status says 201, the belts agree, and the run reports `held`
+    over half a client.
+
+    Measured on this machine's store, 2026-09-19, over every mined job of three
+    tenants: four steps stand on a doing that wrote twice. `new`'s `Create a
+    Supplier` step 13 is the cascade proper -- `PUT /wm/addresses/{id}` then
+    `POST /wm/suppliers` -- and acme's `Create a Carrier Cross Reference` and
+    `Create a Work Operation` each POST twice into one collection, which is two
+    records from one press.
+
+    So the replay refuses and the ladder behind it clicks Save, which is what
+    the page is for: the page fires the whole cascade, in order, with the ids
+    it just received. Nothing is lost -- the deterministic path is an
+    optimisation over a step that already worked through the interface.
+
+    Counted per DOING and never across the step's cites. A step cites one
+    gesture per demonstration, so counting every cited call reads two doings of
+    one write as a cascade -- which on this store would have refused eight
+    steps instead of four, including the one this deployment runs live.
+
+    Only writes the LEDGER recognises. A page also fires keepalives, telemetry
+    and performance beacons from the same click -- `sessionKeepAlive` and
+    `webPerformanceEntries/batch` are in this evidence -- and a rule that
+    counted those would refuse every real write on the platform.
+    """
+    doing = next((one for one in cited if call in one.requests), None)
+    if doing is None:
+        return False
+    return sum(verified_write_for(one, ledger) is not None for one in doing.requests) > 1
 
 
 def _primary(step: Step, cited: list[Gesture]) -> Gesture | None:

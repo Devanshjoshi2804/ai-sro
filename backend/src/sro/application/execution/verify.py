@@ -52,6 +52,7 @@ from sro.application.ports.model import Asker
 from sro.domain.execution.belts import (
     SCREEN_INSTRUCTIONS,
     SCREEN_SCHEMA,
+    WAY_THROUGH_INSTRUCTIONS,
     StepVerdict,
     carries_every,
     confirming_read,
@@ -589,6 +590,13 @@ async def verify(
             )
 
     # 3. Visible state: last, and least.
+    #
+    # A step that changes nothing by itself -- no write in its own evidence, no
+    # value put anywhere. What a picture can settle about such a step is not
+    # what it was FOR; see `WAY_THROUGH_INSTRUCTIONS`.
+    changes_nothing = not writes(step, by_id) and not any(
+        gesture.action.kind in _PUTS_A_VALUE for gesture in cited
+    )
     if look_after.screenshot is None:
         # Nothing to see, and for some steps nothing to have seen. A step whose
         # own evidence carries no write and no typing changed nothing: it
@@ -616,11 +624,7 @@ async def verify(
         # it, or a re-mine took the evidence with it -- is the second, and it
         # stays `unclear`. What this rung asserts is that the traffic WAS
         # watched and none of it on the page's own origin mutated anything.
-        if (
-            not writes(step, by_id)
-            and any(_was_watched(gesture) for gesture in cited)
-            and not any(gesture.action.kind in _PUTS_A_VALUE for gesture in cited)
-        ):
+        if changes_nothing and any(_was_watched(gesture) for gesture in cited):
             return StepVerdict(
                 "held",
                 "performed",
@@ -658,7 +662,7 @@ async def verify(
     )
     judged = await asker.ask(
         model=model,
-        instructions=SCREEN_INSTRUCTIONS,
+        instructions=WAY_THROUGH_INSTRUCTIONS if changes_nothing else SCREEN_INSTRUCTIONS,
         evidence=evidence,
         schema=SCREEN_SCHEMA,
         image=look_after.screenshot,

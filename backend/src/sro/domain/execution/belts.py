@@ -64,6 +64,31 @@ text before and after, and the screen after. Answer whether the step HELD --
 whether the thing it was meant to do is now true on the screen -- and say why
 in one sentence. Do not assume success from the absence of an error."""
 
+WAY_THROUGH_INSTRUCTIONS = """
+You are checking one step of a warehouse job that changes nothing by itself.
+Its own recording sent no request and put no value anywhere: it opened a menu,
+focused a field, moved to a tab. The sentence describing it was written by
+another model from the recording, and it may be a guess about what the click
+was FOR -- so do not check it. Check only whether the job can go on: answer
+held=false if the screen is now showing something that stops it -- an error, a
+dialog waiting to be dismissed, a sign-in page, a blank or half-drawn screen
+-- and held=true otherwise, including when the screen looks exactly as it did
+before. Say why in one sentence."""
+"""The proposition a step that changes nothing can actually settle.
+
+Measured on the deployment 2026-09-19. `Delete a Customer Type` stopped six
+times running on its first step, *"Opens the filter dropdown."* -- a sentence a
+mining model wrote about a click on a combobox field that sent no request and
+typed nothing. The click landed every time (`matched_by = component`), the
+field was focused, and the screen belt was asked whether a dropdown had opened.
+It had not, and the job stopped, and it could never have done anything else:
+five of that job's six steps send no traffic at all, so five of six were being
+judged against a guess.
+
+A picture cannot settle what a click was FOR. It can settle whether the screen
+is now somewhere the job can continue from, which is the only thing the step
+after this one needs to be true."""
+
 
 @dataclass(frozen=True, slots=True)
 class StepVerdict:

@@ -35,7 +35,12 @@ from dataclasses import replace
 
 from sro.application.execution.verify import verify
 from sro.application.ports.channel import Reply
-from sro.domain.execution.belts import SCREEN_INSTRUCTIONS, SCREEN_SCHEMA, StepVerdict
+from sro.domain.execution.belts import (
+    SCREEN_INSTRUCTIONS,
+    SCREEN_SCHEMA,
+    WAY_THROUGH_INSTRUCTIONS,
+    StepVerdict,
+)
 from sro.domain.execution.planning import Look
 from sro.domain.observation.gesture import Gesture
 from sro.domain.shared.hosts import REDACTED
@@ -605,8 +610,13 @@ async def test_the_screen_belt_asks_the_named_model_against_the_verdict_schema()
     the answer parseable. Neither was asserted anywhere in the rig's suite, so
     a verifier that hardcoded a model name -- or asked for free text -- passed
     all 24."""
+    # A step that TYPES: no status, nothing to read back, and a proposition a
+    # picture can settle -- the right control with the wrong text in it is what
+    # the screen belt exists for. A step that changes nothing is asked
+    # something else; see the test below.
     saver = _saver()
     saver.requests = []
+    saver.action = replace(saver.action, kind="type", value="ABSC")
     asker = FakeAsker(Answer(data={"held": True, "why": "the row is there"}))
 
     await _verify(
@@ -628,6 +638,57 @@ async def test_the_screen_belt_asks_the_named_model_against_the_verdict_schema()
     # the one that promotes a step to held.
     assert asker.asked[0]["instructions"] == SCREEN_INSTRUCTIONS
     assert "Do not assume success from the absence of an error." in SCREEN_INSTRUCTIONS
+
+
+async def test_a_step_that_changes_nothing_is_asked_whether_the_job_can_go_on() -> None:
+    """The fault itself, measured on the deployment 2026-09-19.
+
+    `Delete a Customer Type` stopped six times running on step 1, *"Opens the
+    filter dropdown."* -- a sentence a mining model wrote about a click on a
+    combobox field that sent no request and typed nothing. The click landed
+    every time, and the belt was asked whether a dropdown had opened. It had
+    not. Five of that job's six steps send no traffic at all, so five of six
+    were being judged against a guess, and the job could never have finished.
+
+    The picture is still looked at. What it is asked is a question it can
+    answer.
+    """
+    clicker = _saver()
+    clicker.requests = []
+    asker = FakeAsker(Answer(data={"held": True, "why": "the screen is where it was"}))
+
+    verdict = await _verify(
+        clicker,
+        channel=FakeChannel(),
+        values={},
+        asker=asker,
+        look_after=Look("u", b"after", "Add Copy Delete"),
+        model="gemini-3.8-flash",
+    )
+
+    assert asker.asked[0]["instructions"] == WAY_THROUGH_INSTRUCTIONS
+    assert asker.asked[0]["image"] == b"after", "the picture is still looked at"
+    assert verdict.state == "held" and verdict.by == "screen"
+
+
+async def test_a_step_that_changes_nothing_still_fails_on_a_screen_it_cannot_go_on_from() -> None:
+    """The half that keeps this a belt. A dialog waiting to be dismissed stops
+    the next step whatever this one was for."""
+    clicker = _saver()
+    clicker.requests = []
+    asker = FakeAsker(Answer(data={"held": False, "why": "an error dialog is waiting"}))
+
+    verdict = await _verify(
+        clicker,
+        channel=FakeChannel(),
+        values={},
+        asker=asker,
+        look_after=Look("u", b"after", "says: The session has expired"),
+        model="gemini-3.8-flash",
+    )
+
+    assert verdict.state == "failed" and verdict.by == "screen"
+    assert "The session has expired" in verdict.reason
 
 
 async def test_a_read_with_no_value_to_look_for_is_never_sent() -> None:

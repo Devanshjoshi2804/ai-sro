@@ -338,6 +338,43 @@ the edge is DISCOVERABLE from evidence rather than guessed -- a value typed in
 step 5 that equals what step 2's response returned is a `uses` edge, and the
 recorded calls already hold both halves.
 
+### The chain nobody was looking at: one Save, several writes
+
+Found while measuring 7, and it is not a composition problem — it is a
+correctness one, and it was live.
+
+`KNOWLEDGE-BASE.md` 3b records it from the real host: **creating one client
+fires four POSTs behind a single Save** — addresses, clients, clientWarehouse,
+packingConfigurations — each carrying an id the one before it returned. The
+deterministic replay sends ONE call.
+
+Measured over every mined job of three tenants, 2026-09-19, counting only
+writes the verified-writes ledger recognises and counting them per doing:
+
+| job | step | what one doing wrote |
+|---|---|---|
+| `new` Create a Supplier | 13 | `PUT /wm/addresses/{id}`, `POST /wm/suppliers` |
+| acme Create a Carrier Cross Reference | 5, 6 | `POST /wm/carrierCrossReferences` twice |
+| acme Create a Work Operation | 11 | `POST /wm/workOperations` twice |
+
+Four steps. Each would have replayed one call, made half of what the operator
+made, come back 201, held on the status belt and reported `held` — which is the
+worst shape a failure can have, because nothing about it looks like one.
+
+`9f614151` refuses the replay for such a step and lets the ladder click Save,
+which is what the page is for: it fires the whole cascade with the ids it has
+just received. Two things the rule had to get right and both are checked by
+breaking them — counted per DOING (a step cites one gesture per demonstration,
+and counting across cites refuses eight steps including the live one), and only
+ledger-recognised writes (the same click fires `sessionKeepAlive` and
+`webPerformanceEntries/batch`).
+
+**What this says about measurement.** Three defects this week came out of
+running the real code over the real store rather than over its own fixtures:
+this one, the `uses` edge that was a step on itself (`995a0b53`), and the undo
+that compared a path shape as a string (`44652ee2`). The suite was green
+through all three.
+
 ### 7 — where composition stands
 
 Three preconditions, and the state of each.

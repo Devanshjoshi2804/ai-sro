@@ -29,6 +29,7 @@ import pytest
 
 from sro.application.observation.mining_pass import (
     MineResult,
+    _folded,
     fill_in_passwords,
     mine,
     propose,
@@ -1113,6 +1114,119 @@ async def test_a_job_already_holding_two_entries_for_one_field_is_folded() -> No
     seen = _seen(stored.parameters, "clientCode")
     assert "FROM-THE-OTHER-ENTRY" in seen, "the folded entry's values were thrown away"
     assert "SOMETHING-ELSE" in seen, "and this doing still widened it"
+
+
+def test_two_entries_sharing_no_name_are_one_control_if_the_typing_says_so() -> None:
+    """The fold itself, rather than through a pass: `learn_parameters` re-derives
+    parameters from the evidence afterwards and would merge these by value on
+    its own, so a test that only ran the pass could not see whether the fold did
+    anything.
+
+    Measured on the deployment 2026-09-19, `Delete a Customer Type`:
+
+        {"name": "Customer Type",  "seen_values": ["GDD"]}
+        {"key":  "filterComboBox", "seen_values": ["GDD", "GSQ", "GZ4"]}
+
+    No key on the first, no name in common with the second, and one field
+    between them -- the filter the customer type is typed into. A job declaring
+    two parameters demands two values before it will run, and nobody has ever
+    been asked for a `filterComboBox`.
+    """
+    folded = _folded(
+        [
+            {"name": "Customer Type", "seen_values": ["GDD"]},
+            {
+                "key": "filterComboBox",
+                "name": "filterComboBox",
+                "names": ["filterComboBox"],
+                "seen_values": ["GDD", "GSQ", "GZ4"],
+            },
+        ]
+    )
+
+    assert [one.get("name") for one in folded] == ["Customer Type"]
+    assert folded[0].get("key") == "filterComboBox", "it kept the name the form posts it by"
+    assert folded[0].get("seen_values") == ["GDD", "GSQ", "GZ4"], "every value observed"
+
+
+def test_two_controls_that_merely_crossed_on_one_value_are_still_two() -> None:
+    """Containment, not overlap. Two controls that each once held `SG` -- a site
+    code is in half the fields on this platform -- are two controls, and folding
+    them would take a parameter off a job that has it."""
+    folded = _folded(
+        [
+            {"name": "Warehouse", "seen_values": ["SG", "NL"]},
+            {"name": "Client Site", "seen_values": ["SG", "DE"]},
+        ]
+    )
+
+    assert [one.get("name") for one in folded] == ["Warehouse", "Client Site"]
+
+
+async def test_two_entries_sharing_no_name_are_folded_by_the_typing_they_read() -> None:
+    """An entry stored before controls were keyed carries a name the model
+    wrote and nothing else -- no key to compare, and no name in common with the
+    entry the evidence later produced. Two opinions about one control, agreeing
+    on nothing a string comparison can see.
+
+    Measured on the deployment 2026-09-19, `Delete a Customer Type`:
+
+        {"name": "Customer Type",  "seen_values": ["GDD"]}
+        {"key":  "filterComboBox", "seen_values": ["GDD", "GSQ", "GZ4"]}
+
+    One field -- the filter the customer type is typed into -- declared twice.
+    A job declaring two parameters demands two values before it will run, and
+    nobody has ever been asked for a `filterComboBox`, so the job stopped
+    before its first step on a name the operator cannot answer.
+    """
+    uow, ids = await _day()
+    original = [_rows(uow)[gesture_id] for gesture_id in ids]
+    await _mine(uow, FakeAsker(_found(_proposal(ids))))
+
+    stored = (await uow.workflows.known(TENANT))[0]
+    typed = _seen(stored.parameters, "clientCode")
+    stored.parameters = [
+        # The model's own word for it, from a pass before any of this was
+        # recorded: no key, and a name the evidence never produced.
+        {"name": "Client Code", "seen_values": typed[:1]},
+        # And what the evidence says, under the name the form posts it by.
+        {"key": "clientCode", "name": "clientCode", "names": ["clientCode"], "seen_values": typed},
+    ]
+    await uow.workflows.save(stored)
+
+    again = _redone(original, "SOMETHING-ELSE", "again", 10_000.0)
+    await uow.gestures.add_gestures(tuple(again))
+    await _mine(uow, FakeAsker(_found(_proposal([g.id for g in again]))))
+
+    stored = (await uow.workflows.known(TENANT))[0]
+    names = [parameter.get("name") for parameter in stored.parameters]
+    assert names == ["Client Code"], f"one control, one parameter; got {names}"
+
+
+async def test_two_controls_that_never_typed_the_same_thing_stay_apart() -> None:
+    """The values decide only where they are evidence. Two entries whose
+    observed values are disjoint are two controls, and an entry that has
+    observed nothing is evidence of nothing."""
+    uow, ids = await _day()
+    original = [_rows(uow)[gesture_id] for gesture_id in ids]
+    await _mine(uow, FakeAsker(_found(_proposal(ids))))
+
+    stored = (await uow.workflows.known(TENANT))[0]
+    stored.parameters = [
+        {"name": "Client Code", "seen_values": ["ACME-4471"]},
+        {"name": "Warehouse", "seen_values": ["SG"]},
+        {"name": "Never Typed", "seen_values": []},
+    ]
+    await uow.workflows.save(stored)
+
+    again = _redone(original, "SOMETHING-ELSE", "again", 10_000.0)
+    await uow.gestures.add_gestures(tuple(again))
+    await _mine(uow, FakeAsker(_found(_proposal([g.id for g in again]))))
+
+    stored = (await uow.workflows.known(TENANT))[0]
+    names = [parameter.get("name") for parameter in stored.parameters]
+    assert "Warehouse" in names, f"a different control was folded away; got {names}"
+    assert "Never Typed" in names, f"an empty entry matched something; got {names}"
 
 
 async def test_a_pass_that_learns_nothing_still_folds_what_is_already_wrong() -> None:

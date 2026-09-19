@@ -424,6 +424,28 @@ def _folded(parameters: list[dict[str, object]]) -> list[dict[str, object]]:
 
     The surviving name is the first one, which is the entry that has been on
     this job longest.
+
+    **And where the names cannot decide, the values do.** An entry stored
+    before controls were keyed carries a name the model wrote and nothing else,
+    so it shares no name with the entry the evidence later produced and no key
+    to compare -- two opinions about one control, agreeing on nothing a string
+    comparison can see.
+
+    Measured on the deployment 2026-09-19. `Delete a Customer Type` held
+
+        {"name": "Customer Type",   "seen_values": ["GDD"]}
+        {"key":  "filterComboBox",  "seen_values": ["GDD", "GSQ", "GZ4"]}
+
+    -- one field, the filter the customer type is typed into, declared twice.
+    A job declaring two parameters demands two values before it will run, and
+    nobody has ever been asked for a `filterComboBox`, so the job stopped
+    before its first step on a name the operator has no way to answer.
+
+    The same subtraction `_same_control` makes below and for the same reason:
+    one entry's every observed value already recorded against the other was
+    read off the same typing. It carries the same cost, stated there -- two
+    genuinely distinct controls that varied over one value set merge, and the
+    second loses its machine name.
     """
     kept: list[dict[str, object]] = []
     for parameter in parameters:
@@ -434,6 +456,7 @@ def _folded(parameters: list[dict[str, object]]) -> list[dict[str, object]]:
                 one
                 for one in kept
                 if same_control(_names_of(one), names, key=str(one.get("key") or ""), theirs=key)
+                or _same_typing(one, parameter)
             ),
             None,
         )
@@ -448,6 +471,24 @@ def _folded(parameters: list[dict[str, object]]) -> list[dict[str, object]]:
         more = [str(value) for value in theirs] if isinstance(theirs, list) else []
         already["seen_values"] = [*seen, *[one for one in more if one not in seen]]
     return kept
+
+
+def _values_of(parameter: dict[str, object]) -> set[str]:
+    seen = parameter.get("seen_values")
+    return {str(value) for value in seen} if isinstance(seen, list) else set()
+
+
+def _same_typing(one: dict[str, object], other: dict[str, object]) -> bool:
+    """Whether two stored parameters were read off the same typing.
+
+    Either one's values wholly inside the other's, which is what two readings
+    of one control look like when one of them has seen more doings than the
+    other. Two empties are not evidence of anything and never match.
+    """
+    mine, theirs = _values_of(one), _values_of(other)
+    if not mine or not theirs:
+        return False
+    return mine <= theirs or theirs <= mine
 
 
 def _same_control(

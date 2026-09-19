@@ -1700,9 +1700,11 @@ async def test_a_run_signs_back_in_once_and_not_forever() -> None:
 
 
 async def test_a_step_that_failed_for_its_own_reasons_does_not_go_looking_for_a_login() -> None:
-    """`signed_out` is read off the page by the browser, never inferred from a
-    failure. A run that went wandering into a sign-in job every time a locator
-    missed would be spending somebody's credentials on a broken selector."""
+    """A step that failed on the screen it was demonstrated on goes nowhere
+    near a sign-in: the browser is exactly where it should be, so there is no
+    interruption to get through. A run that went wandering into a sign-in job
+    every time a locator missed would be spending somebody's credentials on a
+    broken selector."""
     uow = await _fixture()
     workflow = await _workflow(uow)
     door = replace(
@@ -1784,21 +1786,30 @@ async def _a_way_back_in(uow: FakeUnitOfWork, how_many: int = 1) -> None:
     )
 
 
-async def test_a_page_that_never_said_it_was_a_sign_in_starts_no_sign_in() -> None:
-    """`signed_out` is read off the page by the browser, and it is the whole
-    permission: a run that inferred a login from "we are not where we expected"
-    would sign in whenever an app redirected it anywhere."""
+async def test_a_page_with_no_password_box_is_still_a_way_in_the_operator_knows() -> None:
+    """`A_LOGIN` is `input[type="password"]`, and the deployment's chooser has
+    none: two SSO buttons, `Local WMS users` and `Kenco Management Services`.
+    Measured 2026-09-19, run `run_db684040` -- it landed there, read
+    `signed_out: false`, and stopped.
+
+    What is not a guess is that the browser is off this step's system and the
+    tenant has a job whose every gesture is on that page. Nobody mines a job on
+    a host they were passing through."""
     uow = await _fixture()
     workflow = await _workflow(uow)
     await _a_way_back_in(uow)
-    # Bounced to the sign-in host, and the page does not say it is asking.
+    # Bounced to the sign-in host, and the page does not say it is asking --
+    # because it has no password box to say it with.
     away = Reply(ok=True, result={"url": None, "elsewhere": f"{LOGIN}/oauth2", "signed_out": False})
     channel = FakeChannel(
         {
             "ui.url": [away] * 10,
             "screenshot": [Reply(ok=True, result={"image_base64": "aVBORw0=", "text_digest": "?"})]
             * 10,
-            "ui.perform": [_performed()] * 4,
+            # The control is not there, because the page in front of the
+            # browser is not the page this step was demonstrated on.
+            "ui.perform": [Reply(ok=False, error_kind="control_not_found", error_detail="gone")]
+            * 4,
         }
     )
 
@@ -1808,6 +1819,52 @@ async def test_a_page_that_never_said_it_was_a_sign_in_starts_no_sign_in() -> No
         channel=channel,
         asker=_PerSchemaAsker(
             plan=_plan("click"), verdict=Answer(data={"held": True, "why": "ok"})
+        ),
+        values={},
+        earned=True,
+    )
+
+    assert any("signing back in" in one.reason for one in run.steps), [
+        one.reason[:50] for one in run.steps
+    ]
+
+
+async def test_a_job_on_this_system_is_not_a_way_back_into_it() -> None:
+    """The guard that keeps the lookup honest. On the screen it was
+    demonstrated on, a step that failed has met no interruption -- and this
+    tenant has plenty of jobs entirely on its own warehouse host. Running one
+    of those as a "way back in" is a run doing somebody else's job because a
+    locator missed.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    # A job entirely on the system the run is already on.
+    here = replace(_evidence(uow)[0], id="ges_here", requests=[])
+    await uow.gestures.add_gestures((here,))
+    await uow.workflows.save(
+        Workflow(
+            id="wfl_elsewhere_here",
+            tenant=TENANT.value,
+            title="Navigate to Receiving",
+            narrative="n",
+            systems=["http://127.0.0.1:63319"],
+            steps=[Step(order=0, says="Open Receiving", system=None, cites=[here.id])],
+        )
+    )
+    channel = FakeChannel(
+        {
+            **_looks(8),
+            "ui.perform": [Reply(ok=False, error_kind="control_not_found", error_detail="gone")]
+            * 3,
+        }
+    )
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=_PerSchemaAsker(
+            plan=_plan("type", "x"), verdict=Answer(data={"held": True, "why": "ok"})
         ),
         values={},
         earned=True,

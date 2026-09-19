@@ -111,3 +111,23 @@ test("a browser with no usable tab at all still says so plainly", async () => {
   assert.equal(said.ok, false);
   assert.equal(said.error.kind, "no_tab_for_system");
 });
+
+test("a navigate brings the run's own tab back rather than opening another", async () => {
+  // Measured on the deployment 2026-09-19: the system bounced the run to a
+  // sign-in host, every attempt opened a NEW tab at the page it wanted, and
+  // the operator ended up with six tabs of `blueyonderalphaus.b2clogin.com`
+  // with nothing driving any of them.
+  bouncedToSignIn();
+
+  // `allow_focus`, as a watched run carries: the operator pressed yes and is
+  // watching, so driving the tab in front of them is the point.
+  const said = await run("navigate", {
+    origin: ORIGIN,
+    url: `${ORIGIN}/portal`,
+    allow_focus: true,
+  });
+
+  assert.equal(said.ok, true, said.error?.detail);
+  assert.equal(tabs.length, 1, "it opened another tab instead of using the one it had");
+  assert.equal(tabs[0].id, 7);
+});

@@ -1266,7 +1266,16 @@ async function openTab(payload) {
 
 async function navigate(payload, runId) {
   if (!payload?.url) return failure("not_actionable", "navigate with no url");
-  let tab = await tabForRun(payload, runId);
+  // The run's own tab, wherever it has got to, before anything is opened.
+  //
+  // `tabForRun` will not answer with a tab that has left the step's origin,
+  // and a navigate is exactly the command for a tab that has: the system
+  // bounced it to a sign-in host and this is the instruction to come back.
+  // Without this the run opened a NEW tab on every attempt and left the old
+  // one sitting on the login -- measured on the deployment 2026-09-19, where
+  // an operator ended up with six tabs of `blueyonderalphaus.b2clogin.com`
+  // and nothing driving any of them.
+  let tab = (await tabForRun(payload, runId)) || (await whereItActuallyIs(runId));
   if (!tab) {
     // Nothing open on that system, and this command names the page it wants.
     //

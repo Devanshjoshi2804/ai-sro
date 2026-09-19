@@ -360,11 +360,23 @@ async def _the_way_back_in(
     means a tenant that has stored none gets the refusal that asks for one,
     rather than a run that guesses.
 
-    Empty unless the browser really is at a sign-in page. `signed_out` is read
-    off the page by the extension, not inferred from a failure: a step that
-    failed for its own reasons must not send the run wandering into a login.
+    **Not "this looks like a login" -- "the operator has been through this
+    page".** `A_LOGIN` is `input[type=password]`, and the deployment's chooser
+    has no password box at all: two SSO buttons, `Local WMS users` and
+    `Kenco Management Services`. Measured 2026-09-19, run `run_db684040`, which
+    landed there and read `signed_out: false`. A page recognised by its
+    controls will always miss the next platform's idea of a login.
+
+    What is not a guess is that the browser is somewhere this step's system is
+    not, and that the tenant has a job whose every gesture is on that page. An
+    operator does not mine a job on a host they were passing through; a job
+    entirely there is the way through it, whatever it looks like.
+
+    So: the step failed, the browser is off its own system -- or the page did
+    say it was asking -- and exactly one job of this tenant's is entirely
+    there. A step that failed on the right screen goes nowhere near this.
     """
-    if look is None or not look.signed_out:
+    if look is None or not (look.signed_out or look.elsewhere):
         return None, []
     where = look.elsewhere or look.url or ""
     known = await uow.workflows.known(tenant_id)

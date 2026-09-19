@@ -168,8 +168,10 @@ export const state = {
   nearMisses: () => read(KEYS.nearMisses, []),
   setNearMisses: (misses) => write(KEYS.nearMisses, misses),
 
-  // What this browser did, kept where a person can read it after the worker
-  // that did it has been evicted. See `said.js`.
+  // What this browser decided, waiting for the next beat to carry it up. In
+  // storage rather than in a variable, because the service worker is evicted
+  // between beats as a matter of course and the lines worth having are usually
+  // the ones written just before it went. See `said.js`.
   said: () => read(KEYS.said, []),
   setSaid: (lines) => write(KEYS.said, lines),
 

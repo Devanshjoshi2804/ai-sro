@@ -31,7 +31,7 @@ for (const level of ["log", "warn", "error"]) {
   console[level] = (...said) => shown.push([level, said.join(" ")]);
 }
 
-const { K_KEPT, forgetSaid, said, say } = await import("./said.js");
+const { MAX_SAID, narrate, said, say } = await import("./said.js");
 
 const fresh = () => {
   stored = {};
@@ -49,11 +49,12 @@ test("a refusal is kept, because the worker that saw it will not last", async ()
 
   const kept = await said();
   assert.equal(kept.length, 1);
-  assert.equal(kept[0].what, "a command was refused");
-  assert.equal(kept[0].run, "run_4a57baf0");
-  assert.equal(kept[0].error, "no_tab_for_system");
-  assert.equal(kept[0].level, "warn");
-  assert.ok(kept[0].at > 0, "and when");
+  // A string, because `HeartbeatRequest.said` is a list of them and there are
+  // browsers in the field that send strings. The ids ride on the end.
+  assert.equal(typeof kept[0], "string");
+  assert.match(kept[0], /^warn a command was refused/);
+  assert.match(kept[0], /run=run_4a57baf0/);
+  assert.match(kept[0], /error=no_tab_for_system/);
 });
 
 test("an ordinary line reaches the console and is not kept", async () => {
@@ -68,12 +69,14 @@ test("an ordinary line reaches the console and is not kept", async () => {
   assert.equal(shown.length, 1, "the console still has it");
 });
 
-test("a line worth reading afterwards is kept even when it is ordinary", async () => {
+test("narration is kept, because that is what it is for", async () => {
   fresh();
 
-  await say("info", "a run started", { run: "run_1" }, { keep: true });
+  await narrate("no longer waiting: an offer arrived", { run: "run_1" });
 
-  assert.equal((await said()).length, 1);
+  const kept = await said();
+  assert.equal(kept.length, 1);
+  assert.match(kept[0], /run=run_1/);
 });
 
 test("only ids are kept, whatever a caller passes", async () => {
@@ -89,20 +92,23 @@ test("only ids are kept, whatever a caller passes", async () => {
   });
 
   const [kept] = await said();
-  assert.deepEqual(Object.keys(kept).sort(), ["at", "level", "run", "what"]);
+  assert.match(kept, /run=run_1/);
+  assert.doesNotMatch(kept, /ACME-4471/, "a typed value must not ride along");
+  assert.doesNotMatch(kept, /hunter2/, "and nor must a password");
+  assert.doesNotMatch(kept, /Customer Type GGD/, "and nor must the page");
 });
 
 test("the ring keeps the newest and forgets the oldest", async () => {
   fresh();
 
-  for (let n = 0; n < K_KEPT + 20; n += 1) {
+  for (let n = 0; n < MAX_SAID + 20; n += 1) {
     await say("warn", `refusal ${n}`, {});
   }
 
   const kept = await said();
-  assert.equal(kept.length, K_KEPT);
-  assert.equal(kept[0].what, "refusal 20", "the oldest went");
-  assert.equal(kept.at(-1).what, `refusal ${K_KEPT + 19}`);
+  assert.equal(kept.length, MAX_SAID);
+  assert.match(kept[0], /refusal 20$/, "the oldest went");
+  assert.match(kept.at(-1), new RegExp(`refusal ${MAX_SAID + 19}$`));
 });
 
 test("a ring that cannot be written does not fail what it was logging about", async () => {
@@ -118,11 +124,18 @@ test("a ring that cannot be written does not fail what it was logging about", as
   assert.equal(shown.at(-1)[0], "error", "the console still has it");
 });
 
-test("forgetting takes the lot, because the buffer is this operator's", async () => {
+test("two refusals at once both survive", async () => {
+  // Read-modify-write over `chrome.storage` has no transaction. Before the
+  // lock, two refusals a millisecond apart both read the buffer and both wrote
+  // it back, and the second took the first with it -- invisibly, because the
+  // line simply is not there afterwards.
   fresh();
-  await say("warn", "a command was refused", {});
 
-  await forgetSaid();
+  await Promise.all([
+    say("warn", "one was refused", { run: "run_1" }),
+    say("warn", "another was refused", { run: "run_2" }),
+  ]);
 
-  assert.deepEqual(await said(), []);
+  const kept = await said();
+  assert.equal(kept.length, 2, kept.join(" | "));
 });

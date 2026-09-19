@@ -1,78 +1,106 @@
-// What this browser did, kept where a person can still read it afterwards.
+// What this browser did, in words, for the log on the other end.
 //
-// The backend's half of this is `sro.infrastructure.telemetry.whose`: every
-// line says whose work it was about, and a deployment collects them. This side
-// has had nothing at all. Fifty-six `console` calls write to a service
-// worker's devtools console, and that console dies with the worker -- which
-// this extension now knows happens constantly, because a worker evicted
-// between two commands is what lost a run its tab and cost an operator an
-// evening of sign-in loops.
+// `service-worker.js` has said things for a while: a line goes in a buffer,
+// the heartbeat carries it up, and the backend writes it beside its own. Its
+// own argument, which stands -- `run_workflow` narrates every rung it climbs
+// and the deployment's log reads like a transcript; the browser half of the
+// same run was a black box whose only voice was a service worker console that
+// cannot be reached from a server, from another machine, or by somebody
+// debugging at two in the morning.
 //
-// So what matters is written down. An operator says "I pressed it and nothing
-// happened", and the answer is in their own browser rather than gone.
+// Two things are added here and nothing is taken away.
 //
-// **Kept selectively, not everything.** A storage write per command is the
-// cost this codebase already refuses for a write per keystroke, and a ring
-// full of "sent ui.perform" is a ring with no room for the failure. So every
-// call reaches the console and only what a person would want afterwards --
-// a refusal, a fault, the start and end of a run -- is persisted.
+// **The command surface can say things now.** `say` lived in the worker, and
+// `commands.js` -- which is where every refusal and every fault actually
+// happens -- cannot import the module that imports it. Eleven command cases
+// each refused in silence.
 //
-// **Ids, never values.** The same rule the backend's plane holds: a run id, a
-// tab id, a command kind and an error kind say who and where; a typed value, a
-// password and a page's text say what, and none of them belong in a buffer
-// that exists to be handed to somebody else.
+// **A line says what it is about.** It was free text, so a refusal read
+// `no tab for https://keycloak...` and a reader had to guess which run, which
+// tab and which command. The backend learned the same lesson this week and
+// its half of it is `sro.infrastructure.telemetry.whose`: the ids ride
+// alongside rather than being written into the sentence by whoever remembered.
+//
+// The wire is unchanged on purpose. `HeartbeatRequest.said` is a list of
+// strings and there are browsers in the field that will go on sending
+// strings, so this renders the ids onto the end of the line rather than
+// shipping an object the backend would refuse. The rendering is the same
+// shape the backend's own `Plainly` formatter uses, so both halves of one run
+// read alike.
 
+import { serially } from "./serially.js";
 import { state } from "./state.js";
 
-/** How many entries the ring holds.
+/** How many lines wait for the next beat.
  *
- * Two hundred is a working day of the things worth keeping -- runs, refusals,
- * faults -- at the rate a single operator produces them, and about 40KB, which
- * is nothing against `chrome.storage.local`'s quota. It is NOT sized for one
- * entry per command, which is the shape this deliberately does not have. */
-export const K_KEPT = 200;
+ * The backend bounds this too -- `K_SAID_LINES` -- and a browser is not a
+ * trusted writer: a loop in here must not be able to fill a disk. The two
+ * numbers are the same number and must stay so; a browser that buffers more
+ * than the door accepts is a browser whose extra lines are refused whole. */
+export const MAX_SAID = 50;
 
-/** What a kept entry may be attributed to. Closed, for the reason the
- * backend's `KNOWN` is closed: a list that can hold anything ends up holding a
- * customer's name, and this buffer exists to be handed to somebody. */
+/** How much of one line is kept. The backend truncates again on the way in. */
+const MAX_CHARS = 300;
+
+/** What a line may be attributed to.
+ *
+ * Closed, for the reason the backend's `KNOWN` is closed: a list that can hold
+ * anything ends up holding a customer's name, and these lines leave the
+ * browser on the next beat. A value a caller passes under any other name is
+ * dropped rather than trusted.
+ */
 const ABOUT = ["run", "tab", "kind", "device", "workflow", "step", "error"];
 
-/** Everything kept, oldest first. */
+/** Everything waiting to go up, oldest first. */
 export async function said() {
   return (await state.said()) || [];
 }
 
-/** Write one line, to the console always and to the ring when it is worth
- * keeping afterwards.
+/** Say one line: to the console always, and into the buffer that ships.
  *
- * `level` is "info" | "warn" | "error". Anything but "info" is kept without
- * being asked: a warning nobody can read after the worker dies is a warning
- * that was never written. `keep` forces an info line into the ring, for the
- * few that a person reading afterwards needs -- a run starting, a run ending.
+ * `level` is "info" | "warn" | "error". Anything but "info" is buffered
+ * without being asked -- a warning nobody can read after the worker dies is a
+ * warning that was never written -- and `keep` buffers an ordinary line that a
+ * person would want afterwards anyway.
+ *
+ * Never throws and never blocks the caller on storage: this is a line about
+ * something that already happened, and a narration that can break the thing it
+ * narrates is worse than silence.
  */
 export async function say(level, what, about = {}, { keep = false } = {}) {
-  const mine = {};
-  for (const key of ABOUT) {
-    if (about[key] !== undefined && about[key] !== null) mine[key] = about[key];
-  }
-  const line = { at: Date.now(), level, what, ...mine };
-  const shown = `[sro] ${what}${Object.keys(mine).length ? ` ${JSON.stringify(mine)}` : ""}`;
-  if (level === "error") console.error(shown);
-  else if (level === "warn") console.warn(shown);
-  else console.log(shown);
+  const mine = ABOUT.filter(
+    (key) => about[key] !== undefined && about[key] !== null,
+  ).map((key) => `${key}=${about[key]}`);
+  const line = `${level} ${what}${mine.length ? ` [${mine.join(" ")}]` : ""}`;
+  if (level === "error") console.error(`[sro] ${line}`);
+  else if (level === "warn") console.warn(`[sro] ${line}`);
+  else console.log(`[sro] ${line}`);
   if (level === "info" && !keep) return line;
   try {
-    const held = await said();
-    await state.setSaid([...held, line].slice(-K_KEPT));
+    // Through the one lock, because two refusals a millisecond apart both read
+    // the buffer and both wrote it back, and the second took the first with
+    // it. The failure is invisible: the line simply is not there.
+    await serially(async () => {
+      const held = await said();
+      await state.setSaid([...held, line.slice(0, MAX_CHARS)].slice(-MAX_SAID));
+    });
   } catch {
-    // A ring that cannot be written is not a reason to fail the thing being
-    // logged about. The console still has it.
+    // Nothing. See above.
   }
   return line;
 }
 
-/** Forget everything kept. For the panel's own "clear", and for sign-out --
- * the buffer is this operator's, and it leaves with them. */
-export async function forgetSaid() {
-  await state.setSaid([]);
+/** This browser telling the story of what it decided.
+ *
+ * What `service-worker.js` has always done, under a name that says so. Every
+ * one of these is a decision a person reading a run afterwards wants -- an
+ * offer withdrawn, a reply waited for, a mail lost -- so they are kept without
+ * being asked, which is what the single-argument `say` did before it grew a
+ * level.
+ *
+ * `say` is the other thing: a level, for a refusal or a fault, from the
+ * command surface where those actually happen.
+ */
+export async function narrate(what, about = {}) {
+  return say("info", what, about, { keep: true });
 }

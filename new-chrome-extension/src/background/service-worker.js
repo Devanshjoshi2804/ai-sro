@@ -15,6 +15,8 @@ import {
   performing,
   RUN_QUIET_MS,
 } from "./commands.js";
+import { MAX_SAID, narrate } from "./said.js";
+import { serially } from "./serially.js";
 import * as queue from "./queue.js";
 import { redactUrl } from "../content/sensitivity.module.js";
 import {
@@ -640,7 +642,7 @@ async function offerFromMail(offer) {
     (!awaiting.thread || awaiting.thread === (offer.thread || ""))
   ) {
     await state.setAwaitingMail(null);
-    await say(`no longer waiting on ${awaiting.to}: an offer arrived`);
+    await narrate(`no longer waiting on ${awaiting.to}: an offer arrived`);
   }
   // A run the answer already started. There is nothing here to offer.
   //
@@ -654,7 +656,7 @@ async function offerFromMail(offer) {
   // leave the panel saying it was still waiting for a reply that had arrived
   // and already been acted on.
   if (offer.started) {
-    await say(
+    await narrate(
       `${offer.title || offer.workflow_id} is running on the answer that came back`,
     );
     return;
@@ -726,7 +728,7 @@ async function offerFromMail(offer) {
   // quietly. An offer the backend made and this browser did not keep is the
   // failure nobody could see, and "already held" and "kept" were the same
   // silence as each other and as a throw.
-  await say(
+  await narrate(
     kept
       ? `mail offer ${made.candidateId} not kept: ${kept}`
       : `mail offer ${made.candidateId} kept for ${made.workflowId} (${Object.keys(made.values || {}).length} value(s), ${(made.missing || []).length} missing)`,
@@ -1025,57 +1027,6 @@ function reportEndings(before, after) {
 // from a console tab on the same host), and not any rule this file could
 // invent about which origins are "ours". A watched tab is watched entirely --
 // every frame, every call it makes, wherever it navigates.
-
-/** Every change to a list this worker keeps in storage, one at a time -- the
- * watched tabs, the nudges, the tails.
- *
- * Read-modify-write over `chrome.storage` has no transaction: a tab closing
- * while another is being watched read the old list and wrote it back, and the
- * new watch vanished. That failure is invisible -- capture simply produces
- * nothing -- so it is worth the four lines.
- */
-let changes = Promise.resolve();
-
-function serially(job) {
-  const next = changes.then(job, job);
-  changes = next.then(
-    () => {},
-    () => {},
-  );
-  return next;
-}
-
-/** How many lines wait for the next beat. The backend bounds this too; a
- * browser is not a trusted writer, and a loop in here must not be able to fill
- * a disk. */
-const MAX_SAID = 50;
-
-/** Say what this browser just decided, for the log on the other end.
- *
- * `run_workflow` narrates every rung it climbs and the deployment's log reads
- * like a transcript. The browser half of the same run said nothing at all --
- * its only voice was a service worker console that cannot be reached from a
- * server, from another machine, or by somebody debugging at two in the
- * morning. Measured over 2026-09-17: four faults in the backend were each
- * found within one run of being narrated, and the one fault that lived in here
- * took four runs and was still not found.
- *
- * Never throws and never blocks: this is a line about something that already
- * happened, and a narration that can break the thing it narrates is worse than
- * silence.
- */
-async function say(line) {
-  try {
-    await serially(async () => {
-      const held = await state.said();
-      await state.setSaid(
-        [...held, String(line).slice(0, 300)].slice(-MAX_SAID),
-      );
-    });
-  } catch {
-    // Nothing. See above.
-  }
-}
 
 async function watchedTabs() {
   const watched = await state.watched();
@@ -1442,7 +1393,7 @@ async function handle(message, sender) {
         repaired.add(deafTab);
         try {
           await chrome.tabs.reload(deafTab);
-          await say(
+          await narrate(
             `tab ${deafTab} was recording half and was reloaded -- nothing typed in it`,
           );
           halfDeaf.delete(deafTab);
@@ -1663,7 +1614,7 @@ async function handle(message, sender) {
           thread_id: message.threadId,
           message_id: message.messageId,
         });
-        await say(
+        await narrate(
           answered.sent_to
             ? `asked ${answered.sent_to} about ${message.messageId}`
             : `nothing was sent for ${message.messageId}`,
@@ -1677,7 +1628,7 @@ async function handle(message, sender) {
             at: Date.now(),
             thread: message.mailThread || "",
           });
-          await say(`waiting on a reply from ${answered.sent_to}`);
+          await narrate(`waiting on a reply from ${answered.sent_to}`);
         }
         return { ok: true, sent_to: answered.sent_to || "" };
       } catch (error) {
@@ -1995,7 +1946,7 @@ async function handle(message, sender) {
           about: found.mailSubject || "",
           watched: true,
         });
-        await say(
+        await narrate(
           `asked about ${found.candidateId} in the conversation: ${asked.asked || "nothing to ask"}`,
         );
         return { ok: true, asked: asked.asked || "" };
@@ -2053,7 +2004,7 @@ async function handle(message, sender) {
           // comes up short can still be answered by a reply to that mail.
           mail_thread: message.mailThread || "",
         });
-        await say(
+        await narrate(
           message.undoesRun
             ? `taking back what ${message.workflowId} made: run ${run.id}`
             : `trying ${message.workflowId} again: run ${run.id}`,
@@ -2744,7 +2695,7 @@ async function lookInTheMail() {
     // `Create a Customer Type` from a mail, and no card ever appeared.
     let kept = 0;
     if (looked?.offered?.length || looked?.read)
-      await say(
+      await narrate(
         `looked in the mail -- ${looked?.read || 0} read, ${(looked?.offered || []).length} offered`,
       );
     for (const offer of looked?.offered || []) {
@@ -2758,7 +2709,7 @@ async function lookInTheMail() {
         await state.setLastError(
           `a request read from your mail was lost before it could be offered: ${error}`,
         );
-        await say(`mail offer lost: ${error}`);
+        await narrate(`mail offer lost: ${error}`);
       }
     }
     readingTheMail = null;

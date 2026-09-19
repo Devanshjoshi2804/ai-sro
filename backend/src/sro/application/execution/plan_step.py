@@ -48,6 +48,7 @@ from typing import get_args
 
 from sro.application.capture.rig_wire import headers_without_markers
 from sro.application.ports.model import Asker
+from sro.domain.execution.cascade import writes_of
 from sro.domain.execution.evidence import (
     Locator,
     locators_for,
@@ -284,7 +285,7 @@ def _a_cascade(call: Call, cited: list[Gesture], ledger: tuple[VerifiedWrite, ..
     doing = next((one for one in cited if call in one.requests), None)
     if doing is None:
         return False
-    return sum(verified_write_for(one, ledger) is not None for one in doing.requests) > 1
+    return len(writes_of(doing, ledger)) > 1
 
 
 def _primary(step: Step, cited: list[Gesture]) -> Gesture | None:

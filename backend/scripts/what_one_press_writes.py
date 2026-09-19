@@ -26,6 +26,8 @@ fixture. Four sections, each one a rule the product depends on:
     3. which step uses which     `Step.uses`, as the producer reads it today
     4. one job into another      the chain composition (7) has no instance of
     5. what can be taken back    which job undoes which, and what the runs made
+    6. one call into the next    a cascade: a write carrying an id the write
+                                 before it returned, both behind one press
 
 Run it against a deployment by running it ON the deployment -- the settings
 already name that database, and a report about a store is worth what the store
@@ -41,6 +43,7 @@ from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 
 from sro.container import build_container
+from sro.domain.execution.cascade import flows_in
 from sro.domain.execution.evidence import READ_METHODS
 from sro.domain.execution.uses_edges import K_SHORTEST, uses_edges
 from sro.domain.execution.verified_writes import verified_write_for
@@ -79,6 +82,7 @@ async def _look(tenant: str) -> None:
     _which_step_uses_which(jobs, by_id)
     _one_job_into_another(jobs, by_id)
     _what_can_be_taken_back(jobs, by_id, runs)
+    _one_call_into_the_next(jobs, by_id)
 
 
 def _what_a_press_writes(jobs: Sequence[Workflow], by_id: Mapping[str, Gesture]) -> None:
@@ -228,6 +232,38 @@ def _what_can_be_taken_back(
         press = f"{asks} = {which[1]}" if which and asks else "nothing to press"
         print(f"      {run.id} {named.get(run.workflow_id, run.workflow_id)[:26]!r} {press}")
     print(f"   runs that say which run they take back: {sum(1 for r in runs if r.undoes_run)}")
+
+
+def _one_call_into_the_next(jobs: Sequence[Workflow], by_id: Mapping[str, Gesture]) -> None:
+    """Section 6. The chain that is really there, one level below section 4.
+
+    `KNOWLEDGE-BASE.md` 3b, watched on the live host: creating one client fires
+    four POSTs behind a single Save -- addresses, clients, clientWarehouse,
+    packingConfigurations -- **each carrying an id the one before it
+    returned**. That is a value flowing out of one write's answer and into the
+    next write's body, which is what composition IS; it happens inside one
+    doing rather than between two jobs.
+
+    `domain/execution/cascade.flows_in` is the rule, so this and `plan_step`
+    read the evidence the same way.
+    """
+    print("\n6. one call into the next")
+    typed = _first_typed(by_id)
+    found = 0
+    for job in jobs:
+        for step in sorted(job.steps, key=lambda one: one.order):
+            for cited in step.cites:
+                doing = by_id.get(cited)
+                if doing is None:
+                    continue
+                for flow in flows_in(doing, typed):
+                    found += 1
+                    print(
+                        f"   {job.title[:28]:30} step {step.order}: {flow.key} from"
+                        f" {flow.made_at} sent on as {flow.into} to {flow.used_at}"
+                    )
+    if not found:
+        print("   none: no write carried a value the write before it returned")
 
 
 def _first_typed(by_id: Mapping[str, Gesture]) -> dict[str, float]:

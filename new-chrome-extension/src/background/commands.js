@@ -31,6 +31,7 @@ import {
   STILL_COMING,
   whatIsOnThisPage,
 } from "./whats-on-screen.js";
+import { samePage } from "./same-page.js";
 import { state } from "./state.js";
 
 /** Runs whose abort has arrived. Their later commands are refused rather than
@@ -645,25 +646,6 @@ function originOf(url) {
   }
 }
 
-/** Two URLs that are the same screen.
- *
- * Compared without the query, because a session id or a site code in it is not
- * what makes this the Work Areas page -- and with the fragment, because in an
- * application that routes on the fragment it is the only thing that says which
- * screen this is at all.
- */
-export function samePage(a, b) {
-  const parse = (raw) => {
-    try {
-      const url = new URL(raw);
-      return `${url.origin}${url.pathname}${url.hash}`.replace(/\/+$/, "");
-    } catch {
-      return null;
-    }
-  };
-  const one = parse(a);
-  return one !== null && one === parse(b);
-}
 
 /** Open a tab on that screen and wait for it to finish loading.
  *

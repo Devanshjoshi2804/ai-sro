@@ -12,13 +12,13 @@
 import { fire } from "../panel/nudge.js";
 import { diverged, match } from "./recognise.js";
 
-export function decideOffer({ tail, shapes, open, origin, now }) {
+export function decideOffer({ tail, shapes, open, origin, page = null, now }) {
   const rigOpen = open && open.source === "rig" && open.state === "open" && open.k > 0 ? open : null;
   // Leaving the path ends it. Carrying the job further does not: `diverged`
   // counts every prefix at least as long as the offer's as still on it, so the
   // match below is free to find the longer `k` and replace the offer with it.
   if (rigOpen && diverged(tail, rigOpen, shapes)) return { replace: null, end: "diverged" };
-  const found = match(tail, shapes);
+  const found = match(tail, shapes, page);
   if (!found) return { replace: null, end: null };
   // A shorter or equal prefix is the same offer said again, and an offer that
   // redraws itself on every keystroke is a flicker, not a prompt.

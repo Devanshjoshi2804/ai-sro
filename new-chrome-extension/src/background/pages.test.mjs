@@ -11,7 +11,8 @@
 
 import assert from "node:assert";
 
-import { opensFor, samePage } from "./commands.js";
+import { opensFor } from "./commands.js";
+import { samePage } from "./same-page.js";
 
 const WORK_AREAS =
   "https://wms.example/portal?siteId=SG&subsite=----#wm.config/wm.config.work.work.areas////";

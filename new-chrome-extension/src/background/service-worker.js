@@ -899,7 +899,17 @@ async function considerOffer(tabId, gesture) {
       const held = await state.nudges();
       const open =
         held.find((n) => n.state === "open" && n.tabId === tabId) || null;
-      const { replace, end } = decideOffer({ tail, shapes, open, origin, now });
+      // The screen the work is happening on, so a job that begins on another
+      // screen of the same application is not offered here. See
+      // `elsewhereInTheSameApp`.
+      const { replace, end } = decideOffer({
+        tail,
+        shapes,
+        open,
+        origin,
+        page: gesture.url || null,
+        now,
+      });
       if (end && open) return endOffer(open, end, held);
       if (!replace) return;
       const muted = await state.muted();

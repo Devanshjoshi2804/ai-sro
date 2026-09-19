@@ -26,6 +26,25 @@ K_NAMED = 6
 them; a body with a dozen matching names is a list, not a record."""
 
 
+K_CREATED = 201
+"""What a record being MADE looks like on the wire, and the only answer this
+names a record out of.
+
+Measured on the deployment 2026-09-19, which is why it is here. `Create a
+Customer Type` step 1 is "Navigate to the Customer Types screen": the page
+POSTs the grid's query, the warehouse answers `200` with `{"name":
+"customers"}` -- the collection's own name, metadata about a screen -- and
+this read it as a record the run had made. Three of that tenant's runs carry
+it, and `reversals.addresses` is happy with one field: the result card would
+offer *Undo it*, and the press would aim a DELETE at "customers".
+
+A 200 is not a create. An edit that answers with the record it changed made
+nothing either, and a delete answers with an empty body and has nothing to
+name. `reversals.K_CREATED` is the same number for the same reason, kept
+separate because that one is about recognising a job and this is about
+trusting an answer."""
+
+
 def made_by(call: Mapping[str, object]) -> dict[str, str]:
     """What the warehouse called the record this create made.
 
@@ -38,7 +57,24 @@ def made_by(call: Mapping[str, object]) -> dict[str, str]:
     is the handful of fields that NAME the row, and only where their values are
     short enough to be an identifier rather than a paragraph.
     """
+    if call.get("status") != K_CREATED:
+        # Nothing was made, so nothing is named. See `K_CREATED` above for the
+        # navigation step whose grid query this used to read as a record.
+        return {}
     text = call.get("body")
+    return names_in(text if isinstance(text, str) else None)
+
+
+def names_in(text: str | None) -> dict[str, str]:
+    """The identifying fields of a body, whatever the answer's status was.
+
+    `made_by` without its status rule, and the two are split because they
+    answer different questions. This one asks "does this answer name a record
+    at all", which is how `what_it_writes` tells a warehouse write from a
+    page's own chatter -- Gmail's hundred POSTs name nothing, a supplier's
+    address PUT names the address it edited. `made_by` asks the stronger
+    question, "what did this call MAKE", and an edit makes nothing.
+    """
     if not isinstance(text, str) or not text.strip():
         return {}
     try:
@@ -75,4 +111,4 @@ def made_by(call: Mapping[str, object]) -> dict[str, str]:
     return named
 
 
-__all__ = ["K_IDENTIFIES", "K_NAMED", "made_by"]
+__all__ = ["K_CREATED", "K_IDENTIFIES", "K_NAMED", "made_by"]

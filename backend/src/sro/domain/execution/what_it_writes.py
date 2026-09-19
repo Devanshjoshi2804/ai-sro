@@ -42,7 +42,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 
 from sro.domain.execution.evidence import READ_METHODS, primary_gesture
-from sro.domain.execution.records import made_by
+from sro.domain.execution.records import names_in
 from sro.domain.observation.gesture import Call, Gesture
 from sro.domain.observation.trim import path_shape
 from sro.domain.shared.hosts import system_of
@@ -95,7 +95,7 @@ def _made_something(call: Call) -> bool:
 
     A DELETE always; else `201`; else an answer that names the record. The
     last two are signals this codebase already keeps -- `reversals.K_CREATED`
-    and `records.made_by` -- and between them they separate the warehouse's
+    and `records.names_in` -- and between them they separate the warehouse's
     writes from the page's own chatter exactly, on both tenants' whole
     evidence.
 
@@ -108,7 +108,7 @@ def _made_something(call: Call) -> bool:
     if call.method.upper() in REMOVES or call.status == K_CREATED:
         return True
     text = call.response_body.text if call.response_body is not None else None
-    return bool(made_by({"body": text}))
+    return bool(names_in(text))
 
 
 def _what_it_addresses(method: str, shape: str) -> str:

@@ -54,6 +54,21 @@ def _saver() -> Gesture:
     return next(g for g in _gestures() if g.requests)
 
 
+def _creator() -> Gesture:
+    """The same Save, demonstrated against a warehouse rather than the local
+    server: its write answered `201`.
+
+    The fixture's own POST answers `200 {"ok": true}`, which is what the test
+    server says and not what a warehouse says. `expected_statuses` reads the
+    demonstration's status, so a create can only be proved against evidence
+    that recorded one."""
+    one = copy.deepcopy(_saver())
+    one.requests = [
+        replace(call, status=201) if call.method == "POST" else call for call in one.requests
+    ]
+    return one
+
+
 def _step(gesture: Gesture) -> Step:
     return Step(order=0, says="save", system=None, cites=[gesture.id])
 
@@ -980,16 +995,40 @@ async def test_with_no_read_to_make_a_re_aimed_write_still_holds_on_its_status()
 
 async def test_a_replayed_create_says_what_the_warehouse_called_the_record() -> None:
     """`made` is what an undo would address, and it was empty on every run this
-    system has ever recorded -- the `http.send` rung never called `made_by`."""
+    system has ever recorded -- the `http.send` rung never called `made_by`.
+
+    `201`, which the local fixture's server does not answer and a warehouse
+    does. Since 2026-09-19 nothing else names a record: a `200` on this path is
+    a page reading a screen, and three runs on the deployment carried the
+    Customer Types grid's own `{"name": "customers"}` as a record they had
+    made."""
     created = '{"@type":"ResponseBodyWrapper","data":{"resourceId":"GGD"}}'
 
+    verdict = await _verify(
+        _creator(),
+        channel=FakeChannel(),
+        values={},
+        sent_kind="http.send",
+        answer=Reply(ok=True, result={"status": 201, "body": created}),
+    )
+
+    assert (verdict.state, verdict.by) == ("held", "status")
+    assert verdict.made == {"resourceId": "GGD"}
+
+
+async def test_a_call_that_answered_200_made_no_record_to_name() -> None:
+    """The navigation step that looked like a create. Its own evidence writes
+    -- the grid is a POST -- so the rung fires, and what came back names the
+    SCREEN: `{"name": "customers"}`. One field, which is exactly what
+    `reversals.addresses` accepts, so the card offered to take back a record
+    nobody made."""
     verdict = await _verify(
         _saver(),
         channel=FakeChannel(),
         values={},
         sent_kind="http.send",
-        answer=Reply(ok=True, result={"status": 200, "body": created}),
+        answer=Reply(ok=True, result={"status": 200, "body": '{"name":"customers"}'}),
     )
 
     assert (verdict.state, verdict.by) == ("held", "status")
-    assert verdict.made == {"resourceId": "GGD"}
+    assert verdict.made == {}

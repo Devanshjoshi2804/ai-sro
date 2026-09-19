@@ -24,9 +24,17 @@ import pytest
 from sro.domain.execution.records import K_NAMED, made_by  # moved from verify, unchanged
 
 
-def _answered(body: object) -> dict[str, object]:
-    """A call as the runner records it: the response body, as text."""
-    return {"body": body if isinstance(body, str) else json.dumps(body)}
+def _answered(body: object, status: int = 201) -> dict[str, object]:
+    """A create as the runner records it: the answer, and the status it came
+    with.
+
+    `201` by default, because that is what this module is about and because
+    since 2026-09-19 nothing else names a record at all -- see the status tests
+    at the foot of this file."""
+    return {
+        "status": status,
+        "body": body if isinstance(body, str) else json.dumps(body),
+    }
 
 
 # -- what it keeps -------------------------------------------------------------
@@ -182,3 +190,29 @@ def test_a_field_that_identifies_nothing_does_not_stop_the_search() -> None:
     named = made_by(_answered({"description": "a long prose field", "qty": 12, "lineId": "L9"}))
 
     assert named == {"lineId": "L9"}
+
+
+# -- and only where something was made -----------------------------------------
+
+
+def test_an_answer_that_is_not_a_create_names_nothing() -> None:
+    """Measured on the deployment 2026-09-19, three runs deep.
+
+    `Create a Customer Type` step 1 is "Navigate to the Customer Types screen".
+    The page POSTs the grid's query, the warehouse answers `200` with
+    `{"name": "customers"}` -- the collection's own name, metadata about a
+    screen -- and this read it as a record the run had made. `addresses` is
+    happy with one field, so the result card offered *Undo it* and the press
+    would have aimed a DELETE at "customers".
+    """
+    assert made_by(_answered({"name": "customers"}, status=200)) == {}
+
+
+def test_an_answer_with_no_status_at_all_names_nothing() -> None:
+    """A reply that never said what happened is not one to write a record off."""
+    assert made_by({"body": json.dumps({"id": "A1"})}) == {}
+
+
+def test_a_create_still_names_what_it_made() -> None:
+    """The gate is a gate, not a wall."""
+    assert made_by(_answered({"id": "A1"})) == {"id": "A1"}

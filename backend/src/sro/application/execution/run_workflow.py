@@ -2217,11 +2217,29 @@ async def run_workflow(
                 # there now, on a page that has already moved under the job:
                 # what the demonstrated control's traffic showed says nothing
                 # about it. Every sight click is a possible write.
-                may_write = mutates or (
-                    planned.payload.get("action") in ("click", "press")
-                    and (
-                        planned.kind == "ui.perform_at"
-                        or (planned.kind == "ui.perform" and _saw_nothing(step, by_id))
+                # A step that signs back in is not a step that writes.
+                #
+                # `may_write` is deliberately wide -- every silent click is a
+                # possible write, because a click whose demonstration showed no
+                # traffic could be a Save. That rule is about the JOB's own
+                # steps. A spliced sign-in click is on the login host, cannot
+                # create a warehouse record, and paying the write rules for it
+                # costs the run twice: the approval gate parks on it, and a
+                # click that could not be confirmed ends the run with "state
+                # unknown after a write; not retried".
+                #
+                # Measured on the deployment 2026-09-19, run `run_d6e7a78`:
+                # the SSO button click ended the run that way, and the result
+                # card then offered no "Try it again" either -- because a run
+                # whose write may have landed must not be pressed twice.
+                may_write = (not leg.rescue) and (
+                    mutates
+                    or (
+                        planned.payload.get("action") in ("click", "press")
+                        and (
+                            planned.kind == "ui.perform_at"
+                            or (planned.kind == "ui.perform" and _saw_nothing(step, by_id))
+                        )
                     )
                 )
 

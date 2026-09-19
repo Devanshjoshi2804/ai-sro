@@ -1754,19 +1754,12 @@ async def _a_way_back_in(uow: FakeUnitOfWork, how_many: int = 1) -> None:
             url=f"{LOGIN}/oauth2/v2.0/authorize",
             page_url=f"{LOGIN}/oauth2/v2.0/authorize",
             system=LOGIN,
-            # A click the recorder HEARD traffic from, which is what a real
-            # one on that chooser is. A silent click is a possible write to
-            # this loop (`_saw_nothing`), and a sign-in job made of possible
-            # writes would be asking for a tap on every step of getting back
-            # in.
-            requests=[
-                Call(
-                    method="GET",
-                    url=f"{LOGIN}/oauth2/v2.0/authorize?attempt={n}",
-                    status=200,
-                    started_at=1_739_314_800.0,
-                )
-            ],
+            # SILENT, which is what a real click on that chooser is: the
+            # recorder heard no traffic from `Local WMS users (bf56-001-eus2)
+            # (SSO)`. To this loop a silent click is a possible write
+            # (`_saw_nothing`) -- which is exactly the rule a sign-in must not
+            # be judged by, and the fixture says so by being the same shape.
+            requests=[],
         )
         for n in range(how_many)
     ]
@@ -1935,6 +1928,57 @@ async def test_the_way_back_in_is_not_judged_by_the_other_jobs_rules() -> None:
     # live round is where it was found in the first place.
     assert not any(one.verdict in ("not_needed", "done_by_operator") for one in signing_in), [
         (one.says, one.verdict, one.reason[:60]) for one in signing_in
+    ]
+
+
+async def test_a_click_that_signs_back_in_is_not_a_write() -> None:
+    """Measured on the deployment 2026-09-19, run `run_d6e7a78`: the SSO
+    button click ended the run with *state unknown after a write; not
+    retried*, and the result card then offered no "Try it again" either --
+    because a run whose write may have landed must never be pressed twice.
+
+    `may_write` is deliberately wide: every silent click is a possible write,
+    since a click whose demonstration showed no traffic could be a Save. That
+    is a rule about the JOB's own steps. A spliced sign-in click is on the
+    login host and cannot create a warehouse record.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    await _a_way_back_in(uow, how_many=2)
+    away = Reply(ok=True, result={"url": None, "elsewhere": f"{LOGIN}/oauth2", "signed_out": True})
+    channel = FakeChannel(
+        {
+            "ui.url": [away] * 20,
+            "screenshot": [
+                Reply(ok=True, result={"image_base64": "aVBORw0=", "text_digest": "Sign in"})
+            ]
+            * 20,
+            # Performed, and nothing can confirm it on a page that still looks
+            # like a sign-in -- which is precisely where the write rules used
+            # to end the run.
+            "ui.perform": [_performed()] * 10,
+        }
+    )
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=_PerSchemaAsker(
+            plan=_plan("click"), verdict=Answer(data={"held": False, "why": "no"})
+        ),
+        values={},
+        earned=True,
+    )
+
+    signing_in = [one for one in run.steps if one.says.startswith("Click the sign-in control")]
+    assert signing_in, [one.says for one in run.steps]
+    assert not any("state unknown after a write" in one.reason for one in signing_in), [
+        one.reason[:60] for one in signing_in
+    ]
+    # And the marker that would stop the card offering another press.
+    assert not any((one.result or {}).get("wrote") for one in signing_in), [
+        one.result for one in signing_in
     ]
 
 

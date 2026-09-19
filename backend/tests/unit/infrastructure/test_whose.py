@@ -112,3 +112,40 @@ async def test_one_task_does_not_attribute_another_task_s_lines() -> None:
     assert seen["run_one"] == {"run": "run_one"}
     assert seen["run_two"] == {"run": "run_two"}
     assert whose() == {}, "and the caller is still attributed to nobody"
+
+
+# --- the door: what a request says about itself ------------------------------
+
+
+async def test_a_request_carries_who_asked_from_the_moment_it_is_known() -> None:
+    """The middleware gives a request an id before anything knows who is
+    asking; `get_context` is the first moment anything does, and `asking_device`
+    the first moment a browser has proved it is itself.
+
+    Asserted as an ordering rather than by driving FastAPI: what matters is
+    that each attribution lands and that leaving the request takes them all
+    with it, which is the property a multi-tenant deployment depends on.
+    """
+    seen: list[dict[str, object]] = []
+
+    async def one_request(tenant: str, principal: str) -> None:
+        with about(request=f"req_{tenant}"):
+            attribute(tenant=tenant, principal=principal)
+            await asyncio.sleep(0)
+            attribute(device=f"dev_{tenant}")
+            seen.append(whose())
+
+    await asyncio.gather(
+        one_request("greyorange", "rudy"),
+        one_request("acme", "someone-else"),
+    )
+
+    by_tenant = {one["tenant"]: one for one in seen}
+    assert by_tenant["greyorange"] == {
+        "request": "req_greyorange",
+        "tenant": "greyorange",
+        "principal": "rudy",
+        "device": "dev_greyorange",
+    }
+    assert by_tenant["acme"]["principal"] == "someone-else", "no tenant wore another's"
+    assert whose() == {}, "and nothing outlived either request"

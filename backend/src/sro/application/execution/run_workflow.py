@@ -52,6 +52,7 @@ from urllib.parse import urlparse
 from sro.application.execution.approvals import K_APPROVAL_WAIT_S, Approvals
 from sro.application.execution.declared import declared_keys, names_of, screen_for
 from sro.application.execution.effects import earned, forget_effects, record_effect
+from sro.application.execution.learn_from_rescue import learn_from_the_rescue
 from sro.application.execution.plan_step import (
     SecretFor,
     plan_by_sight,
@@ -1298,6 +1299,14 @@ async def run_workflow(
     # once: it is a handful of rows and every step of the loop would otherwise
     # ask for the same table.
     learned = {one.ord: one for one in await uow.workflows.learned_for(workflow.id)}
+    # And what the operator taught it by hand since the last run failed, which
+    # is a lesson nothing else in this system can learn: the ladder heals a
+    # control that moved, and a step that fails the same way every time on a
+    # control that never moved is repaired by the person who does it
+    # themselves. See `sro.domain.execution.rescued`.
+    taught = await learn_from_the_rescue(uow, tenant_id, workflow, by_id)
+    if taught is not None:
+        learned[taught.ord] = taught
     # Two sets, because they answer two questions. `standing` is where the
     # operator actually was and is where a plan may SEND the browser;
     # `replayable` adds the origins their page's own requests named, which is

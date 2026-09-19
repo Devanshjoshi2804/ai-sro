@@ -1445,12 +1445,20 @@ class FakeGestureRepository:
         self.rows.update(fresh)
 
     async def gestures_for(
-        self, tenant_id: TenantId, *, ids: tuple[str, ...] | None = None
+        self,
+        tenant_id: TenantId,
+        *,
+        ids: tuple[str, ...] | None = None,
+        after: float | None = None,
+        before: float | None = None,
     ) -> tuple[Gesture, ...]:
         found = [
             gesture
             for gesture in self.rows.values()
-            if gesture.tenant == tenant_id.value and (ids is None or gesture.id in ids)
+            if gesture.tenant == tenant_id.value
+            and (ids is None or gesture.id in ids)
+            and (after is None or gesture.at > after)
+            and (before is None or gesture.at <= before)
         ]
         # (at, id), as the store orders it: `at` is the browser's clock and
         # two gestures of one burst share it.

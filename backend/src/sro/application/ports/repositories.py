@@ -593,9 +593,20 @@ class GestureRepository(Protocol):
     async def add_gestures(self, gestures: tuple[Gesture, ...]) -> None: ...
 
     async def gestures_for(
-        self, tenant_id: TenantId, *, ids: tuple[str, ...] | None = None
+        self,
+        tenant_id: TenantId,
+        *,
+        ids: tuple[str, ...] | None = None,
+        after: float | None = None,
+        before: float | None = None,
     ) -> tuple[Gesture, ...]:
-        """Ordered by ``at``. ``ids`` narrows to a citation set."""
+        """Ordered by ``at``. ``ids`` narrows to a citation set.
+
+        ``after`` and ``before`` narrow to a window of the browser's own clock,
+        exclusive and inclusive -- what happened in the minutes after something
+        else, which is how a run asks what the operator did once it had
+        stopped.
+        """
         ...
 
     async def unread(self, tenant_id: TenantId, *, limit: int) -> tuple[Gesture, ...]:

@@ -6064,6 +6064,93 @@ async def test_the_next_run_tries_what_the_last_one_found_first() -> None:
     assert len(ladder) > 1, "the demonstration's own ladder was thrown away"
 
 
+async def test_a_step_the_operator_fixed_by_hand_is_what_the_next_run_tries() -> None:
+    """The lesson the ladder cannot learn.
+
+    A control that MOVED is healed by the run itself: a weaker rung finds it
+    and the next run tries that first. A step that fails the same way every
+    time, on a control that is exactly where the job says it is, is healed by
+    nobody -- measured on the deployment 2026-09-19, `Delete a Customer Type`
+    failed four times in twenty minutes and the operator opened that dropdown
+    by hand after every one of them, in a watched tab, with every gesture
+    captured.
+
+    So the rescue is the lesson. See `sro.domain.execution.rescued`.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    nothing_matched = Reply(
+        ok=False, error_kind="control_not_found", error_detail="nothing matched"
+    )
+    failed = await _ran(
+        uow,
+        workflow,
+        channel=FakeChannel(
+            {**_looks(8), "ui.perform": [nothing_matched] * 4, "ui.perform_at": [nothing_matched]}
+        ),
+        asker=_ByRung(
+            plan=_plan("type", "x"),
+            sight=Answer(
+                data={
+                    "found": True,
+                    "points_at": "the_control",
+                    "x": 4,
+                    "y": 5,
+                    "action": "type",
+                    "why": "there it is",
+                }
+            ),
+            verdicts=[Answer(data={"held": False, "why": "nothing happened"})] * 4,
+        ),
+        earned=True,
+    )
+    assert failed.outcome != "held" and failed.finished_at
+
+    # And then the operator does that step themselves, on the same screen, a
+    # moment later -- which the recorder captures like any other gesture.
+    assert isinstance(uow.gestures, FakeGestureRepository)
+    await uow.gestures.add_gestures(
+        (
+            Gesture(
+                id="g_by_hand",
+                tenant=TENANT.value,
+                stream_id="s",
+                batch_id="b",
+                at=datetime.fromisoformat(failed.finished_at).timestamp() + 4.0,
+                url="http://127.0.0.1:63319/form",
+                system="http://127.0.0.1:63319",
+                tab_id=1,
+                frame_url=None,
+                action=Action(
+                    kind="click",
+                    at=0.0,
+                    target=Target(role="textbox", name="Client code", css_path="form > input"),
+                ),
+            ),
+        )
+    )
+
+    channel = FakeChannel({**_looks(4), "ui.perform": [_performed("role_and_name"), _performed()]})
+    await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=FakeAsker(
+            _plan("type", "x"),
+            Answer(data={"held": True, "why": ""}),
+            _plan("click"),
+            Answer(data={"held": True, "why": ""}),
+        ),
+        earned=True,
+    )
+
+    sent = _payload(next(one for one in channel.sent if one["kind"] == "ui.perform"))
+    ladder = [(one["strategy"], one["query"]) for one in sent["locators"]]
+    assert ladder[0] == ("role_and_name", "textbox|Client code"), ladder
+    kept = await uow.workflows.learned_for(workflow.id)
+    assert [(one.ord, one.found_by) for one in kept] == [(0, "by_hand")]
+
+
 # --- which of the two ways this run does the job -----------------------------
 
 

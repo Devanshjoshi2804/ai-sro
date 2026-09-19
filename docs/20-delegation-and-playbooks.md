@@ -232,7 +232,7 @@ found.
 | 3.15 | **Credentials for any system, entered once, used unattended** | done `bf4ee957` |
 | 4 | Bind a value for a known field into the write | done `6642215e` |
 | 5 | An undemonstrated field must prove it landed | done `122a16d2` |
-| 6 | The card says what it will write | half done `54926cba` |
+| 6 | The card says what it will write | done `95911139` |
 | 7 | Composition — needs 3.1, 3.2, and a compensation story | in progress; see below |
 
 ### 4 and 5 — one piece, and why they could not be built apart
@@ -280,12 +280,19 @@ the offer carries it, and the card says it with both buttons still live:
 *This job cannot set Department, Region. It will write the rest.* Said and not
 enforced, like the limit beside it.
 
-What the card still does not say is the WRITE. It names the values it holds and
-what it cannot take; it does not say "this will create a Customer Type record
-on the SG site with these two fields, by pressing Save on that screen". The
-difference matters for a job with several writes in it, and this deployment's
-one job has exactly one -- which is why the gap has not bitten and why it is
-worth doing before a second job arrives rather than after.
+`95911139` closes the other half. `what_it_writes` reads the act off the step's
+own recorded call -- the same call `http.send` would replay -- and the card
+says it before the press: *It will create a customerTypes record on wms.test.*
+One line per writing step, because a job that posts twice makes two records.
+POST creates, PUT and PATCH change, DELETE removes, and a method nobody has a
+word for is left as itself; a delete names the collection and not the record's
+own id, which is `path_shape`'s blanking rule met honestly rather than read
+past.
+
+What it still does not say is the FIELDS the write carries -- "with these two
+fields, by pressing Save on that screen". The values are on the card already,
+one line up; what is missing is the join between them and the body, which is
+`write_plan`'s and is only sound where the binding is unambiguous.
 
 ### 3.1 — built as scaffolding, and unused on purpose
 

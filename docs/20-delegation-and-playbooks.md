@@ -397,6 +397,26 @@ this one, the `uses` edge that was a step on itself (`995a0b53`), and the undo
 that compared a path shape as a string (`44652ee2`). The suite was green
 through all three.
 
+### Two decisions taken on 2026-09-19, and what they cost
+
+**A job that deletes earns autonomy exactly as one that creates.** Asked,
+because a delete is the one write this system cannot undo with another job of
+its own, and answered by the person whose warehouse it is: *if delete is
+performed it should earn autonomy too.* So nothing special-cases a method —
+three live runs whose every write a state belt saw, and the job writes
+unasked, whatever the verb. `test_effects.py` pins it by name, and an exception
+added later fails there rather than passing quietly.
+
+The job this decides for is the undo: it runs through the same door as any
+other press, deliberately, so before this it would have asked for a tap every
+time, forever, however often it had been watched to work.
+
+**And the register it earns into was being emptied by writes that never
+happened.** See `f45f5bec` — seventeen live runs wiped it, eleven of which
+never reached the warehouse at all. That is why the question came up: with the
+register perpetually at zero, autonomy was not a policy anybody had chosen, it
+was a thing nothing could reach.
+
 ### What the deployment said, 2026-09-19
 
 Today's work was measured on the deployment it was written for -- tenant

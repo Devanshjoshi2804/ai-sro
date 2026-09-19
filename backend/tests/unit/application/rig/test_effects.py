@@ -462,3 +462,54 @@ async def test_a_server_that_broke_half_way_still_un_earns() -> None:
 
     assert await forget_effects(workflows, broke) == 3
     assert await earned(workflows, _TENANT, _WORKFLOW) is False
+
+
+# -- and a job that deletes earns the same way -------------------------------
+
+
+def _deleted(order: int = 1, *, verdict: str = "held", by: str = "status") -> RunStep:
+    """A step that removed a record: `204`, and the write marker the runner
+    sets at send time for anything that is not a read."""
+    return RunStep(
+        order=order,
+        says="confirm the deletion",
+        verdict=verdict,
+        verdict_by=by,
+        result={"ok": True, "status": 204, "matched_by": None, "wrote": True},
+    )
+
+
+async def test_a_job_that_deletes_earns_autonomy_exactly_as_one_that_creates() -> None:
+    """The operator's decision, 2026-09-19, asked and answered: *if delete is
+    performed it should earn autonomy too*.
+
+    Nothing here special-cases a method and this test is what keeps it that
+    way. The argument for an exception is real -- a delete is the one write
+    that cannot be undone by another job of this system -- and it was put to
+    the person whose warehouse it is, who said the rule is the rule: three live
+    runs whose every write a state belt saw, whatever the method.
+
+    An undo is the job this decides for. It runs through the same door as any
+    other press (`undo-rig-run` starts an ordinary run of an ordinary mined
+    job, deliberately), so before this it asked for a tap every time, forever,
+    however many times it had been watched to work.
+    """
+    workflows, runs = _store()
+    for i in range(3):
+        await _ran(workflows, runs, _run(f"run_gone_{i}", [_deleted()]))
+
+    assert await earned(workflows, _TENANT, _WORKFLOW) is True
+
+
+async def test_a_delete_that_could_not_be_shown_to_have_held_un_earns_the_same_way() -> None:
+    """And the other half of the same rule. A record that may or may not still
+    be there is exactly the state a person is asked about."""
+    workflows, runs = _store()
+    for i in range(3):
+        await _ran(workflows, runs, _run(f"run_gone_{i}", [_deleted()]))
+
+    spoiled = _run("run_bad", [_deleted(verdict="failed", by="screen")])
+    await runs.save(spoiled)
+
+    assert await forget_effects(workflows, spoiled) == 3
+    assert await earned(workflows, _TENANT, _WORKFLOW) is False

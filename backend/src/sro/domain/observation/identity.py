@@ -125,6 +125,19 @@ K_SAME_JOB = 0.5
 # begin with would fold two unrelated jobs into one. A ratio alone cannot tell
 # "half of two" from "half of twenty", so the overlap must also be real in
 # absolute terms.
+#
+# But it cannot ask for more shared steps than the smaller shape HAS, and it
+# did. A shape is a SET, so a job whose two steps touch the same control the
+# same way is one entry wide -- measured on the deployment 2026-09-19:
+#
+#     Log in to Keycloak  [keycloak, "name|Username or email", type]
+#                         [keycloak, "name|Username or email", type]
+#
+# Containment against the stored job of the same name was 1.0, a perfect
+# match, and `1 >= 2` refused it. So it was kept as a new job, and so was the
+# next reading of it, and the tenant ended the day with three `Log in to
+# Keycloak` -- each one offering itself on the sign-in page, so signing in
+# never made the card stop. A bar nothing can clear is not a bar.
 K_MIN_SHARED_STEPS = 2
 
 
@@ -155,6 +168,65 @@ class Resolution:
 
 def _shape_set(workflow: Workflow) -> set[tuple[str, ...]]:
     return {tuple(entry) for entry in workflow.shape_key}
+
+
+ANON = "anon|"
+"""What `target_identity` returns when it cannot name the control at all.
+
+It is the ABSENCE of a name, not a different name, and two shapes that differ
+only there are not two jobs. See `_shared`.
+"""
+
+
+def _shared(mine: set[tuple[str, ...]], theirs: set[tuple[str, ...]]) -> int:
+    """How many steps these two shapes have in common.
+
+    Equal entries, and then an unnamed step against a named one on the same
+    system doing the same thing. `target_identity` falls back to `anon|click`
+    whenever a recording gives it nothing to work with -- no component, no
+    role, no accessible name, no test id, no short text -- and whether it has
+    anything to work with is a property of THAT recording, not of the job.
+
+    Measured on the deployment 2026-09-19, tenant `greyorange`:
+
+        Reply to Email  [mail.google.com, "link|Reply",  click]
+                        [mail.google.com, "button|Send", click]
+        Reply to Email  [mail.google.com, "anon|click",  click]
+                        [mail.google.com, "button|Send", click]
+
+    Two rows, one job, mined three hours apart. The overlap was the Send button
+    and nothing else, which is one step, which is under the bar -- so the second
+    reading was kept as a NEW job rather than folded into the first. The same
+    day held three `Log in to Keycloak` and two `Navigate to Warehouse Sub-menu`
+    for the same reason, and each of them offers itself on the page it belongs
+    to: the operator signs in, the job is satisfied, and a duplicate still
+    thinks the page is its own and asks again.
+
+    Only across a matching system and kind: an unnamed click on the mailbox is
+    not the warehouse's Save button, and it is not a keystroke either.
+
+    ponytail: `anon` is the only aliasing here. Two recordings that both name a
+    control and disagree -- `viewport toolbar` against `toolbar button`, the
+    third duplicate of that day -- stay apart, because a rule that called those
+    the same would call every click on a system the same. The upgrade is
+    `skill.learned.same_control`'s alias set, which needs the names carried on
+    the shape and is a migration, not an edit.
+    """
+    left = set(mine)
+    right = set(theirs)
+    shared = left & right
+    left -= shared
+    right -= shared
+    # Sorted so a shape matching several candidates matches the same one every
+    # time. No bookkeeping to stop two unnamed steps claiming one named step:
+    # an entry carries its kind twice -- `anon|click` beside `click` -- so two
+    # unnamed entries of one system and kind are one entry by the time a set
+    # has been made of them.
+    named = sorted(one for one in right if not one[1].startswith(ANON))
+    for one in sorted(one for one in left if one[1].startswith(ANON)):
+        if any(other[0] == one[0] and other[2] == one[2] for other in named):
+            shared.add(one)
+    return len(shared)
 
 
 def resolve(proposal: Workflow, known: list[Workflow]) -> Resolution:
@@ -189,12 +261,28 @@ def resolve(proposal: Workflow, known: list[Workflow]) -> Resolution:
     best_contains = False
     for other in peers:
         theirs = _shape_set(other)
-        score = containment(shape, theirs)
+        # Containment over the SAME notion of a shared step the bar below uses.
+        # Two gates that disagree about what counts as shared is one gate: with
+        # `containment`'s raw set intersection here, a proposal whose unnamed
+        # step aliases a named one scored as though it had not, and `Reply to
+        # Email` cleared K_SAME_JOB at exactly 0.5 by arithmetic coincidence.
+        matched = _shared(shape, theirs)
+        score = matched / min(len(shape), len(theirs)) if shape and theirs else 0.0
         # Both bars first, then the best of whatever clears them -- not the best
         # overall and then the bars. A one-step stub is 1.0-contained by
         # anything beginning where it does; ranking before filtering lets it win
         # the comparison, fail the step count, and hide the real match behind it.
-        if score >= K_SAME_JOB and len(shape & theirs) >= K_MIN_SHARED_STEPS and score > best_score:
+        # Two shared steps, OR every step this proposal has. See
+        # K_MIN_SHARED_STEPS: the bar cannot ask a one-entry shape for two, and
+        # `min(K_MIN_SHARED_STEPS, len(shape), len(theirs))` is the wrong way to
+        # say so -- measured on the deployment 2026-09-19, it folded a two-step
+        # `Navigate to Warehouse Sub-menu` into `Navigate to Receiving`, whose
+        # own shape is one generic `tabItem` click repeated three times, on the
+        # strength of that one click. Wholly-contained is the honest reading:
+        # every distinct step this proposal has already exists in that job, so
+        # it is a fragment of it rather than a new job.
+        whole = matched >= K_MIN_SHARED_STEPS or matched == len(shape)
+        if score >= K_SAME_JOB and whole and score > best_score:
             best, best_score, best_contains = other, score, len(shape) > len(theirs)
     if best is not None:
         return Resolution("same_job", best.id, best_score, contains=best_contains)

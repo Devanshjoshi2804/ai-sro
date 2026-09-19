@@ -670,7 +670,13 @@ async def test_a_gesture_the_budget_left_out_is_read_by_the_next_pass() -> None:
     second = await _mine(uow, asker, kb=CROWDED_KB)
 
     assert [r.reason for r in second.rejections] == []
-    assert second.kept == 1
+    # Cited, not kept. The tail's proposal has the shape of the job the first
+    # pass already stored, so `resolve` now folds it in rather than minting a
+    # second row -- which is the point of `resolve` and not of this test. What
+    # this test is about is that the tail was SHOWN: nothing the window held
+    # went uncited, and a tail still outside the window would have been refused
+    # above for citing gestures the pass never saw.
+    assert second.unplaced == 0
     # The window is the same size; the bonus changed who is in it. The fresh
     # weak gestures that displaced the tail last pass are this pass's tail.
     assert second.window_size == 25

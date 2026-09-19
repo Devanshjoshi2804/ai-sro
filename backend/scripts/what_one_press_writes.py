@@ -151,7 +151,7 @@ def _one_job_into_another(jobs: Sequence[Workflow], by_id: Mapping[str, Gesture]
     reported 329 chains on a tenant that has none.
     """
     print("\n4. one job into another")
-    typed = _typed_in_each_stream(by_id)
+    typed = _first_typed(by_id)
     made = {job.id: _minted(job, by_id, typed) for job in jobs}
     took = {job.id: _taken(job, by_id) for job in jobs}
     pairs = found = 0
@@ -173,22 +173,29 @@ def _one_job_into_another(jobs: Sequence[Workflow], by_id: Mapping[str, Gesture]
         print(f"   none: 0 chains over {pairs} ordered pairs")
 
 
-def _typed_in_each_stream(by_id: Mapping[str, Gesture]) -> dict[tuple[str, str], float]:
-    """When each value was first typed or sent, per stream.
+def _first_typed(by_id: Mapping[str, Gesture]) -> dict[str, float]:
+    """When each value was first typed or sent by anybody, across every stream.
 
     A value the operator typed at 10:01 and the server echoed at 10:05 is not a
     value the server made, and without this every read-back reads as a mint.
+
+    Across streams and not within one, which the first version got wrong and
+    tenant `new` said so: a stream is a BROWSER's lifetime, so an operator who
+    signed in during an earlier one and then created a work area has a create
+    whose answer carries `RKUCHIYAGM` -- their own username, stamped by the
+    warehouse -- with no typing of it in that stream to subtract. Read per
+    stream, that is a work-area job "producing" a value the login job "takes",
+    which is two jobs sharing a person rather than a chain.
     """
-    first: dict[tuple[str, str], float] = {}
+    first: dict[str, float] = {}
     for gesture in by_id.values():
         for value in _put_in(gesture):
-            key = (gesture.stream_id, value)
-            first[key] = min(first.get(key, gesture.at), gesture.at)
+            first[value] = min(first.get(value, gesture.at), gesture.at)
     return first
 
 
 def _minted(
-    job: Workflow, by_id: Mapping[str, Gesture], typed: Mapping[tuple[str, str], float]
+    job: Workflow, by_id: Mapping[str, Gesture], typed: Mapping[str, float]
 ) -> list[tuple[str, float, str]]:
     made: list[tuple[str, float, str]] = []
     for gesture in _doings(job, by_id):
@@ -199,7 +206,7 @@ def _minted(
             for value in _values(call.response_body.text):
                 if value in sent:
                     continue
-                when = typed.get((gesture.stream_id, value))
+                when = typed.get(value)
                 if when is not None and when <= gesture.at:
                     continue
                 made.append((gesture.stream_id, gesture.at, value))

@@ -35,7 +35,7 @@ from sro.application.observation.mining_pass import (
     propose,
     rekey_workflows,
 )
-from sro.domain.observation.gesture import Gesture, Intent, ValueSeen
+from sro.domain.observation.gesture import Gesture, Intent, Target, ValueSeen
 from sro.domain.observation.pool import K_POOL_AGE
 from sro.domain.observation.trim import is_secret
 from sro.domain.observation.window import K_WINDOW_TOKENS, Packed, Window
@@ -1808,3 +1808,52 @@ async def test_a_pass_says_what_became_of_every_proposal(
 
     assert "kept, nothing like it was stored" in first, first
     assert "recognised as a job already stored" in second, second
+
+
+async def test_a_proposal_is_not_repointed_at_a_gesture_nobody_read() -> None:
+    """`validate` refuses a workflow citing a gesture outside the window --
+    rightly, since a job may only be built out of what was read. So the two
+    passes that ADD a citation must not reach past it.
+
+    Measured on the deployment 2026-09-20, one line apart, on nearly every
+    pass:
+
+        Delete a Customer Type: 1 step(s) repointed at the control the
+                                operator pressed
+        Delete a Customer Type: refused -- unknown gesture (ges_60e165c1)
+
+    A job the tenant already had, re-proposed and re-refused all evening, each
+    time at the price of the model call that proposed it. `with_the_press`
+    searched every gesture the tenant has ever produced and repointed the step
+    at one the model was never shown.
+    """
+    uow, strong_ids, _weak = await _crowded_day(strong=24, weak=0)
+    writing = _rows(uow)[strong_ids[0]]
+    # A click that landed on nothing built to be clicked -- a div -- which is
+    # what sends `with_the_press` looking for the real control. Strong enough
+    # to be in the window: it carries the same write the others do.
+    vague = replace(
+        writing,
+        id="ges_a_click_on_a_div",
+        at=2000.0,
+        action=replace(writing.action, at=2000.0, target=Target(tag="div")),
+    )
+    # And the control that was really pressed, a second later on the same
+    # system. Captured, no traffic, so the budget leaves it out -- and the
+    # model never saw it.
+    plain = replace(
+        writing,
+        id="ges_never_in_the_window",
+        at=2001.0,
+        requests=[],
+        action=replace(writing.action, at=2001.0, target=Target(tag="button", name="Save")),
+    )
+    await uow.gestures.add_gestures((vague, plain))
+
+    result = await _mine(
+        uow, FakeAsker(_found(_proposal([vague.id, strong_ids[0]]))), kb=CROWDED_KB
+    )
+
+    assert [(r.reason, r.detail) for r in result.rejections] == [], (
+        "a citation the pass added itself was refused as one the model invented"
+    )

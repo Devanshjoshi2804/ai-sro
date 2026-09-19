@@ -675,6 +675,26 @@ async def _one_pass(
         # cannot afford. "" for a gesture whose system could not be established,
         # which `validate` reads as "unknown" rather than as a system of its own.
         evidence = {item.gesture_id: by_id[item.gesture_id].system or "" for item in window.items}
+        # The same window, as gestures, for the two passes below that ADD a
+        # citation to a proposal.
+        #
+        # `validate` refuses a workflow citing a gesture outside the window --
+        # rightly: a job may only be built out of what was read. But
+        # `with_passwords` and `with_the_press` both searched `by_id`, which is
+        # every gesture this tenant has ever produced, so either could reach
+        # past the window and hand `validate` a citation it was bound to
+        # refuse. The proposal died for a citation the model never made.
+        #
+        # Measured on the deployment 2026-09-20, on nearly every pass:
+        #
+        #     Delete a Customer Type: 1 step(s) repointed at the control the
+        #                             operator pressed
+        #     Delete a Customer Type: refused -- unknown gesture (ges_60e165c1)
+        #
+        # -- the repoint and the refusal, one line apart, all evening. A job
+        # this tenant already has, re-proposed and re-refused every pass, at
+        # the price of the model call that proposed it.
+        shown = {item.gesture_id: by_id[item.gesture_id] for item in window.items}
 
         kept: list[Workflow] = []
         # Every proposal that survived `validate`, whether or not it was saved. A
@@ -701,7 +721,7 @@ async def _one_pass(
             # added from the evidence rather than asked for, and it is judged
             # like any other step: `validate` sees a step citing a real
             # gesture of this doing.
-            typed = with_passwords(proposal, by_id)
+            typed = with_passwords(proposal, shown)
             if typed:
                 logger.info(
                     "%s: %s credential step(s) the model could not see",
@@ -711,7 +731,7 @@ async def _one_pass(
             # And the opposite failure: a gesture the model could see and
             # passed over. A step that cites the login card rather than the
             # Sign In button inside it runs, answers ok, and signs nobody in.
-            pressed = with_the_press(proposal, by_id)
+            pressed = with_the_press(proposal, shown)
             if pressed:
                 logger.info(
                     "%s: %s step(s) repointed at the control the operator pressed",

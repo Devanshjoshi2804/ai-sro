@@ -47,12 +47,13 @@ globalThis.chrome = {
   },
   windows: { update: async () => ({}) },
   scripting: {
-    executeScript: async ({ target, func }) => {
-      const said = String(func);
-      if (said.includes("innerWidth"))
+    // Told apart by what each call is GIVEN rather than by the text of the
+    // function: `whatIsOnThisPage` is handed selectors, `fillTheLoginForm` is
+    // handed a username and a password, and the viewport probe neither.
+    executeScript: async ({ target, func, args }) => {
+      if (String(func).includes("innerWidth"))
         return [{ result: { url: SIGN_IN_PAGE, width: 1200, height: 800, digest: "" } }];
-      // `whatIsOnThisPage`, answering for the sign-in page the browser is on.
-      if (said.includes("signed_out"))
+      if (args?.[0]?.login !== undefined)
         return [{ result: { signed_out: true, dialog: "", loading: false } }];
       // `fillTheLoginForm`, which is what this test wants to see reached.
       // Its own answer shape: what it filled, and whether it submitted.
@@ -72,6 +73,21 @@ const bouncedToSignIn = () => {
     { id: 7, windowId: 1, active: true, status: "complete", url: SIGN_IN_PAGE },
   ];
   signedInAt = [];
+};
+
+/** The same, with the run having PINNED that tab first -- which is what every
+ * real run has done by the time it is bounced anywhere: the pin happens on the
+ * first command, while the tab is still on the system.
+ *
+ * It matters because the two commands that follow a wandering tab follow the
+ * run's OWN tab and never the one in front: navigating the page an operator is
+ * reading, or typing a password into it, is what the focus rule exists to
+ * prevent. */
+const drivingThenBounced = async () => {
+  tabs = [{ id: 7, windowId: 1, active: true, status: "complete", url: `${ORIGIN}/portal` }];
+  signedInAt = [];
+  await run("ui.url", { origin: ORIGIN });
+  tabs[0].url = SIGN_IN_PAGE;
 };
 
 const run = (kind, payload, runId = "run_1") =>
@@ -95,12 +111,15 @@ test("a look that finds no tab on the origin answers with the page in front of t
 test("a sign-in is driven in the tab the login actually happened in", async () => {
   // The one command that must look past the origin. A sign-in page is on
   // another host by design, so an origin-scoped lookup could never find one.
-  bouncedToSignIn();
+  await drivingThenBounced();
 
   const said = await run("sign_in", { origin: ORIGIN, username: "u", password: "p" });
 
   assert.equal(said.ok, true, said.error?.detail);
-  assert.deepEqual(signedInAt, [7]);
+  // Which TAB, which is the whole question: the run's own, not the one in
+  // front and not a new one. How many scripts the fill runs in it is the
+  // sign-in module's business.
+  assert.deepEqual([...new Set(signedInAt)], [7]);
 });
 
 test("a browser with no usable tab at all still says so plainly", async () => {
@@ -117,7 +136,7 @@ test("a navigate brings the run's own tab back rather than opening another", asy
   // sign-in host, every attempt opened a NEW tab at the page it wanted, and
   // the operator ended up with six tabs of `blueyonderalphaus.b2clogin.com`
   // with nothing driving any of them.
-  bouncedToSignIn();
+  await drivingThenBounced();
 
   // `allow_focus`, as a watched run carries: the operator pressed yes and is
   // watching, so driving the tab in front of them is the point.

@@ -935,11 +935,29 @@ async function uiUrl(payload, runId) {
  * is looking at.
  */
 async function whereItActuallyIs(runId) {
+  return (await theRunsOwnTab(runId)) || (await theTabInFront());
+}
+
+/** The tab this run pinned, wherever it has since got to, or null.
+ *
+ * `tabForRun` keeps a run on one tab AND on one origin. This drops the second
+ * half and keeps the first, which is what the two commands that must follow a
+ * wandering tab need: a navigate bringing it home, and a sign-in on the host
+ * it was bounced to.
+ *
+ * Never the tab in front. Navigating the page an operator is reading, or
+ * typing a password into it, is what `openAt` and the focus rule exist to
+ * prevent -- and a run that has pinned no tab has not driven anything yet.
+ */
+async function theRunsOwnTab(runId) {
+  if (!runId || latest?.runId !== runId || latest.tabId === undefined) return null;
+  const known = await chrome.tabs.get(latest.tabId).catch(() => null);
+  return known?.url && /^https?:/.test(known.url) ? known : null;
+}
+
+/** The visible tab, when there is a usable one. Reading only. */
+async function theTabInFront() {
   const usable = (tab) => tab?.url && /^https?:/.test(tab.url);
-  if (runId && latest?.runId === runId && latest.tabId !== undefined) {
-    const known = await chrome.tabs.get(latest.tabId).catch(() => null);
-    if (usable(known)) return known;
-  }
   const [inFront] = await chrome.tabs.query({
     active: true,
     lastFocusedWindow: true,
@@ -959,7 +977,7 @@ async function signIn(payload, runId) {
   // `blueyonderalphaus.b2clogin.com` for this deployment's WMS -- so a
   // sign-in that only accepted a tab still on the step's own origin could
   // never fire on the page it exists for.
-  const tab = (await tabForRun(payload, runId)) || (await whereItActuallyIs(runId));
+  const tab = (await tabForRun(payload, runId)) || (await theRunsOwnTab(runId));
   if (!tab) return failure("no_tab_for_system", noPage(payload.origin));
   if (!payload.password && !payload.username)
     return failure("not_actionable", "a sign-in with nothing to sign in with");
@@ -1275,7 +1293,7 @@ async function navigate(payload, runId) {
   // one sitting on the login -- measured on the deployment 2026-09-19, where
   // an operator ended up with six tabs of `blueyonderalphaus.b2clogin.com`
   // and nothing driving any of them.
-  let tab = (await tabForRun(payload, runId)) || (await whereItActuallyIs(runId));
+  let tab = (await tabForRun(payload, runId)) || (await theRunsOwnTab(runId));
   if (!tab) {
     // Nothing open on that system, and this command names the page it wants.
     //

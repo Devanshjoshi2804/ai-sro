@@ -149,6 +149,54 @@
   // payload key. The component model is the only view that survives a reload:
   // `xtype` is what the application calls the control, and `itemId` is what its
   // own code uses to find it.
+  // What kind of control this is, whether or not the page bothered to say.
+  //
+  // `getAttribute('role')` reads only what an author wrote down, and almost
+  // nobody writes `role="button"` on a `<button>` -- the browser knows it
+  // implicitly. So the one identity this system has for a control that carries
+  // no framework component and no test id was `name|<label>`, which reads
+  // exactly the same as an accessible name on a `<div>` -- and a `<div>` in a
+  // mailbox is labelled with the mail.
+  //
+  // Measured on the deployment 2026-09-20 over 732 gestures: 132 identities
+  // came through that branch, and they are two different things wearing one
+  // shape. `Username or email` (30), `Sign In` (14), `Subject` (5) are
+  // controls on an `<input>` or a `<button>`. `Devansh Joshi` (17),
+  // `Tanisha Pradhan` (13), `104` (7), `2,486` are a sender, a subject and a
+  // message count -- content, on a div, changing with every mail, and every
+  // change mints another job. `Reply to Email` reached five rows that way.
+  //
+  // The implicit role separates them at the source: an `<input>` becomes
+  // `textbox|Username or email` and the `<div>` keeps no role at all, so the
+  // identity below falls past `name|` to the text and then to `anon`, which is
+  // what an unidentifiable click honestly is.
+  //
+  // Only the roles this system actually meets. A full implicit-role table is
+  // the ARIA spec's own, it is long, and every row of it that nothing here has
+  // ever seen is a row nobody can check.
+  const roleOf = (el) => {
+    const written = el.getAttribute('role');
+    if (written) return written;
+    const tag = el.tagName.toLowerCase();
+    if (tag === 'button') return 'button';
+    if (tag === 'a') return el.hasAttribute('href') ? 'link' : null;
+    if (tag === 'select') return 'combobox';
+    if (tag === 'textarea') return 'textbox';
+    if (tag === 'summary') return 'button';
+    if (tag !== 'input') return null;
+    const type = (el.getAttribute('type') || 'text').toLowerCase();
+    if (type === 'checkbox') return 'checkbox';
+    if (type === 'radio') return 'radio';
+    if (type === 'range') return 'slider';
+    if (['button', 'submit', 'reset', 'image'].includes(type)) return 'button';
+    // `password` deliberately included: it is a textbox, and what keeps the
+    // secret out is the redaction that already runs over the value, not a
+    // missing role on the element.
+    if (['text', 'search', 'email', 'tel', 'url', 'password', 'number'].includes(type))
+      return 'textbox';
+    return null;
+  };
+
   const component = (el) => {
     if (!window.Ext || !Ext.getCmp) return null;
     let node = el;
@@ -200,7 +248,7 @@
     }
     return {
       tag: el.tagName.toLowerCase(),
-      role: el.getAttribute('role') || null,
+      role: roleOf(el),
       name: label(el),
       secret,
       text: secret ? null : (el.innerText || '').trim().slice(0, MAX_TEXT) || null,

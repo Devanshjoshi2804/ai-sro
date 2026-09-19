@@ -19,6 +19,7 @@ from sro.application.analytics.summary import Summary
 from sro.application.capture.devices import DeviceLine
 from sro.application.chat.from_the_mail import LookedInTheMail
 from sro.application.chat.understand import Understood
+from sro.application.execution.effects import can_try_again
 from sro.application.execution.pursuits import PursuitProgress
 from sro.application.execution.reversal import Reversal
 from sro.application.intent.match import Candidate
@@ -3526,6 +3527,25 @@ class WorkflowRunModel(BaseModel):
     none, because somebody presses it, sees the card go quiet, and believes the
     warehouse is back where it started."""
 
+    try_again: bool = False
+    """Whether this run can be started again with one press.
+
+    A run stops for reasons that have nothing to do with the job: the session
+    expired, a tab was closed, the browser could not be reached. Until now that
+    was a dead end -- the offer that started it is spent, so the request sat
+    there until somebody noticed and sent the mail again. Measured on the
+    deployment 2026-09-19: a run stopped on a sign-in page and the card offered
+    a person nothing but OK.
+
+    True only where **nothing this run did may have landed**. Every step that
+    wrote either never left the browser or was refused by the warehouse --
+    `effects.may_have_landed`, the same reading that decides whether a failed
+    write costs a job its autonomy. A second press after a write that might be
+    in the warehouse is how you get two records, and no button is better than
+    that.
+
+    False on a run that held: there is nothing to try again."""
+
     undoes_run: str | None = None
     """The run this one takes back, where it is an undo of one.
 
@@ -3566,6 +3586,7 @@ class WorkflowRunModel(BaseModel):
             undo=undo[0] if undo else None,
             undoes_by={undo[1]: undo[2]} if undo else None,
             undoes_run=run.undoes_run,
+            try_again=can_try_again(run),
         )
 
 

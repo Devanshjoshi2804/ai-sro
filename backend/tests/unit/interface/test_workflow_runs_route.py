@@ -773,6 +773,8 @@ def test_a_finished_run_reaches_the_wire_whole() -> None:
         # null, because a field that is null in the one test that reads the
         # whole wire is a field the mapping can drop without anybody noticing.
         "undoes_run": "run_before",
+        # This one HELD: there is nothing to try again.
+        "try_again": False,
     }
 
 

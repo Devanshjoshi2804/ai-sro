@@ -2234,6 +2234,45 @@ test("pressing undo says which run it takes back", async () => {
   assert.strictEqual(press.undoesRun, "run_1");
 });
 
+test("a run that stopped without writing offers one press to try it again", async () => {
+  // The deployment's dead end, 2026-09-19: a run stopped on a sign-in page,
+  // the offer that started it was spent, and the card offered a person nothing
+  // but OK -- so the request sat there until somebody re-sent the mail.
+  const { cards, sent } = panel({
+    deviceId: "dev-1",
+    finished: {
+      id: "run_1", source: "rig", status: "stopped",
+      workflow_id: "wfl_1", values: { "Customer Type": "GZ1" }, items: [],
+      steps: [], needs: [], try_again: true,
+    },
+  });
+
+  const card = cards.find((one) => pressable(one, "Try it again"));
+  assert.ok(card, "a run that can be tried again offered nothing");
+
+  await pressable(card, "Try it again").listeners[0]();
+
+  const press = sent.find((one) => one.kind === "retry-rig-run");
+  assert.ok(press, "the press started nothing");
+  assert.strictEqual(press.workflowId, "wfl_1");
+  assert.deepEqual(press.values, { "Customer Type": "GZ1" });
+});
+
+test("a run whose write may be in the warehouse offers no second press", async () => {
+  // `try_again` is the backend's answer and this card does not second-guess
+  // it: a press after a write nobody could confirm is two records.
+  const { cards } = panel({
+    deviceId: "dev-1",
+    finished: {
+      id: "run_1", source: "rig", status: "stopped",
+      workflow_id: "wfl_1", values: {}, items: [], steps: [], needs: [],
+      try_again: false,
+    },
+  });
+
+  assert.equal(cards.map((one) => pressable(one, "Try it again")).find(Boolean), undefined);
+});
+
 test("an undo run's own card says which run it took back", async () => {
   // The two are one piece of work. A delete that worked is quietly right
   // either way; a delete that did NOT is what this is for -- the card that

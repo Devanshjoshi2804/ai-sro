@@ -118,6 +118,29 @@ def may_have_landed(step: RunStep) -> bool:
     return not (isinstance(status, int) and 400 <= status < 500)
 
 
+def can_try_again(run: WorkflowRun) -> bool:
+    """Whether this run can be started again with one press.
+
+    A run stops for reasons that have nothing to do with the job -- a session
+    that expired, a tab closed, a browser that could not be reached -- and the
+    offer that started it is spent, so the request sits there until somebody
+    notices. On a job started from a mailbox that can be hours.
+
+    **Only where nothing it did may have landed.** Every step that wrote either
+    never left the browser or was refused by the warehouse: `may_have_landed`,
+    the same reading that decides whether a failed write costs a job its
+    autonomy, asked here about the other half of the same danger. A second
+    press after a write that might be in the warehouse is how a customer gets
+    two of something, and no button is better than that.
+
+    Nothing to try again on a run that held, and nothing to press on one still
+    going.
+    """
+    if run.outcome in ("running", "held"):
+        return False
+    return not any(wrote(step) and may_have_landed(step) for step in run.steps)
+
+
 async def forget_effects(workflows: WorkflowRepository, run: WorkflowRun) -> int:
     """A write that went out and did not hold un-earns the whole job.
 

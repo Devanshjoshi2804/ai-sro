@@ -5822,6 +5822,11 @@ export interface components {
             undoes_by?: {
                 [key: string]: string;
             } | null;
+            /**
+             * Try Again
+             * @default false
+             */
+            try_again: boolean;
             /** Undoes Run */
             undoes_run?: string | null;
         };

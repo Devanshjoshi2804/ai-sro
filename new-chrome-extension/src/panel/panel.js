@@ -1142,6 +1142,38 @@ function tookBack(run) {
         ` — that record is still there.`;
 }
 
+/** One press that runs the same job again, with the values it already had. */
+function tryAgainRow(run) {
+  const row = document.createElement("div");
+  row.className = "row";
+  const again = document.createElement("button");
+  again.type = "button";
+  again.textContent = "Try it again";
+  again.addEventListener("click", async () => {
+    again.disabled = true;
+    try {
+      const started = await ask({
+        kind: "retry-rig-run",
+        workflowId: run.workflow_id,
+        values: run.values || {},
+        items: run.items || [],
+      });
+      if (started?.ok === false) {
+        again.disabled = false;
+        said(started.error || "that job could not be started");
+        return;
+      }
+      said("trying it again");
+      goToTheRun();
+    } catch (error) {
+      again.disabled = false;
+      said(`that job could not be started: ${error.message}`);
+    }
+  });
+  row.append(again);
+  return row;
+}
+
 /** Start the job that takes back what this run made.
  *
  * An ordinary rig run of an ordinary mined job, started with the one value that
@@ -1347,7 +1379,7 @@ function finished(status) {
     // So the values are the card, the steps fold away behind them, and it ends
     // when the operator says they have read it rather than when an hour is up.
     if (wrote) return madeCard(run, wrote, short);
-    return runCard(
+    const card = runCard(
       {
         run,
         skill: null,
@@ -1359,6 +1391,20 @@ function finished(status) {
       },
       { onSecret: keepSecret },
     );
+    // And one press to try it again, where trying again is safe.
+    //
+    // A run stops for reasons that have nothing to do with the job -- a
+    // session that expired, a tab closed, a browser that could not be reached
+    // -- and the offer that started it is spent, so the request sat there
+    // until somebody noticed and sent the mail again. Measured on the
+    // deployment 2026-09-19: a run stopped on a sign-in page and this card
+    // offered a person nothing at all.
+    //
+    // `try_again` is the backend's answer, not this card's guess: it is true
+    // only where nothing the run did may have landed. A second press after a
+    // write nobody could confirm is two records.
+    if (run.try_again && run.workflow_id) card.append(tryAgainRow(run));
+    return card;
   }
   const ok = run.status === "succeeded";
   const made = ok ? Object.entries(run.derived || {}) : [];

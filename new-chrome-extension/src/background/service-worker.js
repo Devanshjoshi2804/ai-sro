@@ -2004,8 +2004,15 @@ async function handle(message, sender) {
         return { ok: false, error: error.problem?.detail || error.message };
       }
     }
+    case "retry-rig-run":
     case "undo-rig-run": {
-      // Take back what a run made, by running the job that deletes it.
+      // Run a mined job with values the panel already holds: the job that
+      // takes back what a run made, or the job that stopped for a reason that
+      // had nothing to do with it and is worth one more press.
+      //
+      // One case for both, because they are the same act -- an ordinary rig
+      // run of an ordinary mined job -- and the only difference is which run
+      // it names.
       //
       // An ordinary rig run of an ordinary mined job, and deliberately not a
       // special path: the delete goes through the same ladder, the same write
@@ -2022,13 +2029,26 @@ async function handle(message, sender) {
           workflow_id: message.workflowId,
           device_id: await state.deviceId(),
           values: message.values,
+          // The things a repeating job was asked to do, where there were any.
+          // A retry of a job that was making three records has to make the
+          // same three.
+          items: Array.isArray(message.items) ? message.items : [],
           live: true,
           allow_focus: true,
+          watched: true,
           // Which run this takes back. The backend refuses a second undo of
           // the same run, which is what a double press in two panels is.
           undoes_run: message.undoesRun || "",
+          // And the conversation the request came out of, so a retry that
+          // comes up short can still be answered by a reply to that mail.
+          mail_thread: message.mailThread || "",
         });
-        await say(`taking back what ${message.workflowId} made: run ${run.id}`);
+        await say(
+          message.undoesRun
+            ? `taking back what ${message.workflowId} made: run ${run.id}`
+            : `trying ${message.workflowId} again: run ${run.id}`,
+        );
+        await state.setActiveRun({ runId: run.id, at: Date.now(), source: "rig" });
         return { ok: true, run_id: run.id };
       } catch (error) {
         return { ok: false, error: error.problem?.detail || error.message };

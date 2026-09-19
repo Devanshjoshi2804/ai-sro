@@ -39632,6 +39632,11 @@
             ],
             "title": "Undoes By"
           },
+          "try_again": {
+            "type": "boolean",
+            "title": "Try Again",
+            "default": false
+          },
           "undoes_run": {
             "anyOf": [
               {

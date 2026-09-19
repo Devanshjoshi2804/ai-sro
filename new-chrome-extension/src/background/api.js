@@ -226,6 +226,15 @@ export const api = {
       // that failed reads as the record still being out there rather than as
       // a job that failed on its own.
       undoes_run: run.undoes_run || null,
+      // Whether a person may simply press it again: the run stopped and
+      // nothing it did may have landed. The backend decides it -- a second
+      // press after a write nobody could confirm is two records.
+      try_again: Boolean(run.try_again),
+      // And which job to press: `values` and `items` were already here, and
+      // this is the third thing a press needs. The run's own conversation is
+      // deliberately not carried -- a retry that comes up short asks in the
+      // panel, where the person who pressed it is.
+      workflow_id: run.workflow_id || "",
       // What it read out of the mail, so the card can say where a value it
       // was never given came from.
       gathered: run.gathered || {},

@@ -31,7 +31,12 @@ nothing away from the job, because that step sent nothing.
 
 from copy import deepcopy
 
-from sro.application.execution.effects import earned, forget_effects, record_effect
+from sro.application.execution.effects import (
+    can_try_again,
+    earned,
+    forget_effects,
+    record_effect,
+)
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
 from sro.domain.shared.identifiers import TenantId
 from tests.unit.fakes import FakeWorkflowRepository, FakeWorkflowRunRepository
@@ -513,3 +518,40 @@ async def test_a_delete_that_could_not_be_shown_to_have_held_un_earns_the_same_w
 
     assert await forget_effects(workflows, spoiled) == 3
     assert await earned(workflows, _TENANT, _WORKFLOW) is False
+
+
+# -- and whether a person may simply press it again ---------------------------
+
+
+def test_a_run_that_stopped_without_writing_can_be_tried_again() -> None:
+    """The deployment's own dead end, 2026-09-19: a run stopped on a sign-in
+    page, the offer that started it was spent, and the card offered a person
+    nothing but OK. Nothing it did reached the warehouse -- the step never got
+    past navigating -- so one press is safe."""
+    stopped = _run("run_1", [_read(verdict="held"), _never_sent(2)], outcome="stopped")
+
+    assert can_try_again(stopped) is True
+
+
+def test_a_run_whose_write_may_be_in_the_warehouse_is_not_offered_again() -> None:
+    """A second press after a write nobody could confirm is how a customer
+    gets two of something. No button is better than that."""
+    unknown = _run("run_2", [_wrote(verdict="failed", by="screen")], outcome="stopped")
+
+    assert can_try_again(unknown) is False
+
+
+def test_a_write_the_server_refused_leaves_the_press_available() -> None:
+    """422 wrote nothing, so trying again is the whole point -- and it is the
+    same reading `may_have_landed` makes for the register."""
+    refused = _run("run_3", [_wrote(verdict="failed", by="status", status=422)], outcome="stopped")
+
+    assert can_try_again(refused) is True
+
+
+def test_a_run_that_held_has_nothing_to_try_again() -> None:
+    assert can_try_again(_run("run_4", [_wrote()], outcome="held")) is False
+
+
+def test_a_run_still_going_is_not_pressable_either() -> None:
+    assert can_try_again(_run("run_5", [_wrote()], outcome="running")) is False

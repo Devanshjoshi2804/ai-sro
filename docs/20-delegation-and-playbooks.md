@@ -397,6 +397,47 @@ this one, the `uses` edge that was a step on itself (`995a0b53`), and the undo
 that compared a path shape as a string (`44652ee2`). The suite was green
 through all three.
 
+### What the deployment said, 2026-09-19
+
+Today's work was measured on the deployment it was written for -- tenant
+`greyorange`, 18 jobs, 610 gestures, 92 runs -- by running `make press-report`
+inside the API container after deploying it.
+
+| | |
+|---|---|
+| what one press writes | 3 jobs of 18: create a customerTypes, create an equipmentTypes, **remove** a customerTypes |
+| a Save that writes twice | none — the cascade refusal changes nothing here |
+| which step uses which | 0 edges over 63 steps |
+| one job into another | 0 chains over 306 ordered pairs |
+| what can be taken back | `Create a Customer Type` is taken back by `Delete a Customer Type` |
+
+**And it found a defect, minutes after deploying.** `Create a Customer Type`
+step 1 is "Navigate to the Customer Types screen": the page POSTs the grid's
+query, the warehouse answers `200` with `{"name": "customers"}` — the
+collection's own name — and `made_by` read it as a record the run had made.
+`addresses` accepts exactly one field, which is exactly what that is, so the
+result card offered *Undo it* and the press would have aimed a DELETE at
+"customers". Three of the tenant's runs carried it; `5da21de3` stops it (a
+record is named only out of a `201`) and the three rows were cleared.
+
+**Where the undo stands after that.** The pair is found. No run can offer the
+button, because each run's `made` carries two fields — `customerType` and
+`longDescription`, the slots the read-back confirmed — and one record named two
+ways is a record this cannot name at all.
+
+Which of the two addresses the record is not in the evidence. Every call this
+tenant has ever made to that collection is one of three shapes: `POST
+customerTypes`, `GET customerTypes`, `DELETE customerTypes/GDD`. The delete
+demonstrates `GDD` and the create demonstrates `GGD` and `GKB`, so no value
+joins the two jobs, and nothing reads a member back on the create side. A name
+join — `customerType` is the singular of `customerTypes` — is the guess
+`write_plan` argues against at length.
+
+So the next piece of the compensation story is a question, asked once per job
+and kept: *which of these names the record?* That is the shape this system
+already uses for the joins a model proposes and a person answers, and
+`workflow_learned_history` is where the answer would live.
+
 ### 7 — where composition stands
 
 Three preconditions, and the state of each.

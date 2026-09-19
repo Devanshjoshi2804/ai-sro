@@ -465,10 +465,36 @@ record. The second press is now refused — but only where the first HELD. An
 undo that failed left the record where it was, and refusing the second attempt
 because the first did not work refuses the one press that might.
 
-What is left is the chain itself: two jobs run as one piece of work, with the
-first's output flowing into the second. Within a job that flow now exists; the
-producer that would recognise it ACROSS two jobs does not, and neither does an
-instance to recognise. `TeachWorkflow` composes two joined candidates into one
+What is left is the chain itself — and the question it was being asked was the
+wrong one.
+
+**The chain is not between two jobs. It is inside one press.** Creating a
+client on the real platform fires four POSTs behind a single Save — addresses,
+clients, clientWarehouse, packingConfigurations — and the second carries an id
+the first returned. The research capture holds the exchange: `POST /wm/clients`
+carries `addressId: A000365896`, which no operator typed and `POST
+/wm/addresses` answered with (`KNOWLEDGE-BASE.md` 3b, watched on the live
+host). A value moving out of one write's answer and into the next write's body
+is exactly what composition is; it happens one level below where this was
+looking.
+
+`cascade.flows_in` (`be7df131`) finds it, by VALUE and never by name — a rule
+matching `addressId` to `addressId` would be the correspondence `write_plan`
+refuses, and would miss the platform calling one id two things, which the
+deployment's own delete does (`resourceId` and `customerType` at once).
+
+**So what blocks it is a demonstration, not the platform.** Measured over three
+tenants: four steps stand on a doing that writes twice and not one of those
+second writes carries what the first answered — `Create a Supplier` PUTs an
+address that already existed. The producer finds nothing today and lights up
+the first time somebody creates a client, or anything else with a cascade
+behind it, in front of the recorder. Two doings, because that is what mining
+needs to tell a slot from a constant.
+
+After that the piece with a real instance to test against is the executor: send
+the cascade in order, take the id out of each answer, substitute it into the
+next body — instead of `plan_step`'s present refusal, which hands such a step
+to the interface and is right until this exists. `TeachWorkflow` composes two joined candidates into one
 skill on the older plane, and the mined-workflow plane has no equivalent.
 
 **Measured 2026-09-19, over every workflow this machine's store holds.** The

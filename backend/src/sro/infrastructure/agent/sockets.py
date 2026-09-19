@@ -23,6 +23,7 @@ from typing import Protocol
 
 from sro.application.ports.agent import DeviceUnreachable
 from sro.domain.shared.identifiers import DeviceId, TenantId
+from sro.infrastructure.telemetry.otel import doing
 from sro.infrastructure.telemetry.whose import about
 
 logger = logging.getLogger(__name__)
@@ -258,7 +259,14 @@ class DeviceSockets:
             # command it was -- and the browser's half of it says the same id
             # back, so the two halves of a step join without guessing which of
             # the three `ui.perform`s in that second is the one that failed.
-            with about(command=command_id):
+            #
+            # And a span around the wait, because this is where a run's time
+            # actually goes: a browser on a slow page, an operator who has been
+            # asked to approve, a tab that stopped answering. A trace that
+            # measured only the request could say a run took four minutes and
+            # nothing about which command it spent them in.
+            with about(command=command_id), doing("browser.command", command=command_id) as span:
+                span.set_attribute("kind", kind)
                 return await asyncio.wait_for(waiting, timeout=deadline)
         except TimeoutError:
             return Answer(

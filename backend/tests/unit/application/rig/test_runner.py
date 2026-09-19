@@ -1875,6 +1875,69 @@ async def test_a_job_on_this_system_is_not_a_way_back_into_it() -> None:
     ]
 
 
+async def test_the_way_back_in_is_not_judged_by_the_other_jobs_rules() -> None:
+    """Measured on the deployment 2026-09-19, run `run_d6e7a78`. The rescue
+    spliced in correctly and then its FIRST click was recorded
+
+        not_needed — this step only opened the request, which was read before
+        the run began
+
+    because every per-step decision this run made up front is keyed on
+    `step.order`, the job being run has a mail-opening step 0, and another
+    job's steps start at 0 like everyone else's. The run then tried the SECOND
+    click on a page the first had never touched.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    await _a_way_back_in(uow, how_many=2)
+    away = Reply(ok=True, result={"url": None, "elsewhere": f"{LOGIN}/oauth2", "signed_out": True})
+    channel = FakeChannel(
+        {
+            "ui.url": [away] * 20,
+            "screenshot": [
+                Reply(ok=True, result={"image_base64": "aVBORw0=", "text_digest": "Sign in"})
+            ]
+            * 20,
+            # The control is not there: the page in front of the browser is
+            # the sign-in, not the screen the step was demonstrated on.
+            "ui.perform": [Reply(ok=False, error_kind="control_not_found", error_detail="gone")]
+            * 10,
+        }
+    )
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=_PerSchemaAsker(
+            plan=_plan("click"), verdict=Answer(data={"held": True, "why": "ok"})
+        ),
+        values={"clientCode": "THIRD"},
+        earned=True,
+        # Two rules on `order 0` for this run, which is what the sign-in job's
+        # own step 0 was being judged by: the operator did the first step
+        # themselves, and the write is replayable so the steps that only put
+        # the form on the screen are collapsed into the call.
+        from_step=1,
+        verified_writes=(VerifiedWrite(method="POST", path_pattern="/api/orders"),),
+    )
+
+    signing_in = [one for one in run.steps if one.says.startswith("Click the sign-in control")]
+    assert signing_in, [one.says for one in run.steps]
+    # Attempted, whatever came of them. `not_needed` is "this run does not
+    # need this step" and `done_by_operator` is "somebody already did it" --
+    # and neither was ever decided about THIS job.
+    #
+    # Of the two exemptions this pins one: the `from_step` rule, which this
+    # fixture can put on `order 0`. The collapse rule shares the same guard on
+    # the same line and is not reachable here -- the fixture's write does not
+    # collapse its scaffolding -- so it is read rather than tested, and the
+    # live round is where it was found in the first place.
+    assert not any(one.verdict in ("not_needed", "done_by_operator") for one in signing_in), [
+        (one.says, one.verdict, one.reason[:60]) for one in signing_in
+    ]
+
+
 # The budget grows by the length of the way back in, and that line has no test.
 # One was written and deleted rather than left passing for the wrong reason: to
 # see it, four sign-in steps all have to HOLD, and each needs its own scripted

@@ -229,6 +229,22 @@ class _Leg:
     values: Mapping[str, str]
     item: int | None = None
 
+    rescue: bool = False
+    """Whether this step belongs to ANOTHER job, spliced in to get through an
+    interruption -- signing back in, today.
+
+    Every per-step decision this run made up front is keyed on `step.order`,
+    and another job's steps start at 0 like everyone else's. Measured on the
+    deployment 2026-09-19, run `run_d6e7a78`: the sign-in job's first click was
+    recorded `not_needed -- this step only opened the request, which was read
+    before the run began`, because the job being run has a mail-opening step 0
+    and the orders collided. The run then tried the SECOND click on a page the
+    first had never touched.
+
+    So a rescue leg is exempt from all of them: what was already read, what was
+    collapsed into a call, what the operator did before the offer. None of
+    those were decided about this job."""
+
 
 def _itinerary(
     ordered: Sequence[Step],
@@ -402,7 +418,10 @@ async def _the_way_back_in(
     if not all(any(one in by_id for one in step.cites) for step in job.steps):
         return None, []
     logger.info("%s signing back in at %s with %s", workflow.id, where, job.title)
-    legs = [_Leg(step, dict(values)) for step in sorted(job.steps, key=lambda one: one.order)]
+    legs = [
+        _Leg(step, dict(values), rescue=True)
+        for step in sorted(job.steps, key=lambda one: one.order)
+    ]
     return job, legs
 
 
@@ -1559,7 +1578,7 @@ async def run_workflow(
             # see in the request.
             if step.uses:
                 values = {**_what_earlier_steps_made(run, step.uses), **values}
-            if step.order < from_step and leg.item in (None, 0):
+            if not leg.rescue and step.order < from_step and leg.item in (None, 0):
                 # The operator did this one before the offer was made. Recorded
                 # so the run reads whole, cited so a reviewer can see what it
                 # was, and never sent: the job is being finished, not redone.
@@ -1613,7 +1632,7 @@ async def run_workflow(
                 run.outcome = "stopped"
                 await _save(uow, run)
                 break
-            if step.order in collapsed or step.order in already_read:
+            if not leg.rescue and (step.order in collapsed or step.order in already_read):
                 # Recorded rather than dropped: the per-step audit trail is
                 # what a reviewer reads, and a job that silently performed four
                 # of its six steps would read as a job that lost two.
@@ -2367,7 +2386,7 @@ async def run_workflow(
                 # step that carries the call -- `scaffolding_for` returns what
                 # comes BEFORE it -- so this narrows the question to the one
                 # step that changes the warehouse.
-                opening_the_form = step.order in in_reserve
+                opening_the_form = not leg.rescue and step.order in in_reserve
                 if (
                     live
                     and may_write
@@ -2958,7 +2977,11 @@ async def run_workflow(
             # which is a decision for a person, and the reserve is for the case
             # where the page did nothing.
             took_it = bool(isinstance(record.result, dict) and record.result.get("ok"))
-            in_the_reserve = record.verdict not in ("held", "withheld") and step.order in in_reserve
+            in_the_reserve = (
+                not leg.rescue
+                and record.verdict not in ("held", "withheld")
+                and step.order in in_reserve
+            )
             if in_the_reserve and not took_it:
                 # Only a step the BROWSER would not do reaches here, and that
                 # is by construction rather than by a check: a step in the

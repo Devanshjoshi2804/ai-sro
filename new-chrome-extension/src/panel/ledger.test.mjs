@@ -672,6 +672,49 @@ test("a request this job can write whole says nothing about fields", () => {
   assert.doesNotMatch(words(item), /cannot set/);
 });
 
+test("the card says what the press would write, before it is pressed", () => {
+  // The card named the values and never the act. A person pressing yes is
+  // agreeing to a record being made in a warehouse, and until this the only
+  // place that was said was the run, afterwards.
+  const item = renderNudge({
+    id: "n_14", state: "open", source: "rig", title: "Create a Customer Type",
+    startsOn: "wms.test/portal", workflowId: "wfl_1", k: 0,
+    values: { "Customer Type": "GV3" }, missing: [],
+    writes: [{ does: "create", record: "customerTypes", on: "https://wms.test" }],
+  });
+
+  assert.match(words(item), /It will create a customerTypes record on wms\.test\./);
+});
+
+test("a job with two writes in it says both", () => {
+  // One line per writing step. A job that posts twice makes two records, and
+  // saying it once describes half of what the press does.
+  const item = renderNudge({
+    id: "n_15", state: "open", source: "rig", title: "Create and file it",
+    startsOn: "wms.test/portal", workflowId: "wfl_1", k: 0, values: {}, missing: [],
+    writes: [
+      { does: "create", record: "customerTypes", on: "https://wms.test" },
+      { does: "change", record: "clients", on: "https://wms.test" },
+    ],
+  });
+
+  assert.match(words(item), /create a customerTypes record/);
+  assert.match(words(item), /change a clients record/);
+});
+
+test("a job whose evidence says nothing about a write says nothing", () => {
+  // Empty is empty. A job whose gestures have aged out and one that only reads
+  // look the same from here, and inventing a sentence for either is the card
+  // telling somebody something nobody measured.
+  const item = renderNudge({
+    id: "n_16", state: "open", source: "rig", title: "Look something up",
+    startsOn: "wms.test/portal", workflowId: "wfl_1", k: 0, values: {}, missing: [],
+    writes: [],
+  });
+
+  assert.doesNotMatch(words(item), /It will/);
+});
+
 test("an offer that names no page cannot become a rule about one", () => {
   const item = renderNudge({
     id: "n_10", state: "open", source: "rig", title: "Create an equipment type",

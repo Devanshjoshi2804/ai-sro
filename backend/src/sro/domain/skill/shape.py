@@ -18,9 +18,10 @@ What is left here is the arithmetic: given the pairs and the counsel, the shape.
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 
 from sro.domain.execution.evidence import primary_gesture, stood_on
+from sro.domain.execution.what_it_writes import what_it_writes
 from sro.domain.observation.gesture import Gesture
 from sro.domain.observation.identity import shape_key, target_identity
 from sro.domain.shared.hosts import page_of, system_of
@@ -37,6 +38,12 @@ class Shape:
     hosts: list[str]
     shape: list[list[str]]
     parameters: list[dict[str, object]]
+    writes: list[dict[str, str]] = field(default_factory=list)
+    """What pressing this job would write, in step order. Empty where the
+    evidence shows no mutation -- and empty is said as nothing rather than as
+    "it writes nothing", because a job whose gestures have aged out and a job
+    that only reads look the same from here."""
+
     held_runs: int = 0
     offer_after: int = K_OFFER_AFTER
     quiet_until: str | None = None
@@ -278,6 +285,7 @@ def shape_of(
             for p in workflow.parameters
             if isinstance(p, dict) and p.get("name")
         ],
+        writes=what_it_writes(workflow, by_id),
         held_runs=held,
         # What this job's own offers say: resting on this browser, or offered
         # later. Capped at the last gesture but one, which is as late as

@@ -195,6 +195,20 @@ async def test_the_list_comes_back_under_the_shapes_key(
     assert body["shapes"][0]["parameters"] == [{"name": "clientCode", "at": 0}]
 
 
+async def test_a_shape_says_what_pressing_the_job_would_write(
+    client: httpx.AsyncClient, proven: Workflow
+) -> None:
+    """Item 6's other half, on the wire it reaches the card by. The offer card
+    named the values it holds and never the act, so "yes" was a press against
+    something nobody had described -- and this is where the description is
+    read: off the job's own evidence, served with its shape."""
+    body = (await client.get("/v1/shapes")).json()
+
+    assert body["shapes"][0]["writes"] == [
+        {"does": "create", "record": "orders", "on": HOST, "step": "2"}
+    ]
+
+
 async def test_every_proven_job_comes_back_and_in_the_order_it_was_served(
     client: httpx.AsyncClient,
     uow: FakeUnitOfWork,

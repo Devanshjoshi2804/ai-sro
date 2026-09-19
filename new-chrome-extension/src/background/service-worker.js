@@ -226,6 +226,9 @@ function rigArrivals(shapes, host) {
         values: {},
         missing: names,
         parameters: names,
+        // What pressing it would write, so the card can say it before the
+        // press. Served with the shape, which is where the evidence is read.
+        writes: shape.writes || [],
       };
     });
 }
@@ -679,6 +682,7 @@ async function offerFromMail(offer) {
       unasked: offer.unasked || [],
       can_find: true,
       parameters: (shape?.parameters || []).map((one) => one.name),
+      writes: shape?.writes || [],
       expires_at: endOfDay(now),
       keeps: true,
     },
@@ -755,6 +759,7 @@ async function offerFromJob(placed, tabId) {
       can_find:
         placed.can_find === undefined ? canFind : Boolean(placed.can_find),
       parameters: (shape?.parameters || []).map((one) => one.name),
+      writes: shape?.writes || [],
     },
     Date.now(),
   );

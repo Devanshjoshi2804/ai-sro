@@ -147,6 +147,11 @@ export function fire(candidate, now, { tabId = null, visit = "" } = {}) {
     mailSubject: candidate.subject || "",
     tooLong: candidate.too_long || {},
     parameters: candidate.parameters || [],
+    // What pressing this would WRITE, read off the job's own evidence: one
+    // entry per writing step, `{does, record, on}`. The card names the values
+    // it holds and what it cannot take; without this it never names the act,
+    // and "yes" is a press against something nobody described.
+    writes: candidate.writes || [],
   };
 }
 

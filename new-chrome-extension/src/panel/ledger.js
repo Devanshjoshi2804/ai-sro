@@ -746,6 +746,25 @@ function offeringToFinish(nudge, onPress) {
     item.append(cannot);
   }
 
+  // What the press would WRITE, before it is pressed.
+  //
+  // The two lines above say what this job cannot set and what will not fit;
+  // neither says the act. A person pressing yes is agreeing to a record being
+  // made in a warehouse, and until this the card named the values and left the
+  // thing itself unsaid. Read off the job's own evidence -- one line per
+  // writing step, so a job with two writes in it reads as two.
+  for (const write of nudge.writes || []) {
+    if (!write?.does || !write?.record) continue;
+    const doing = document.createElement("p");
+    doing.className = "detail";
+    doing.dataset.kind = "writes";
+    // The host and not the whole origin: `https://` in the middle of a
+    // sentence is noise a person has to read past.
+    const where = write.on ? ` on ${String(write.on).replace(/^https?:\/\//, "")}` : "";
+    doing.textContent = `It will ${write.does} a ${write.record} record${where}.`;
+    item.append(doing);
+  }
+
   const yes = document.createElement("button");
   yes.type = "button";
   yes.textContent = nudge.k > 0 ? "Yes, finish it" : "Yes, do it";

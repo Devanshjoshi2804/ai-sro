@@ -21,7 +21,7 @@ import json
 
 import pytest
 
-from sro.application.execution.verify import K_NAMED, made_by
+from sro.domain.execution.records import K_NAMED, made_by  # moved from verify, unchanged
 
 
 def _answered(body: object) -> dict[str, object]:

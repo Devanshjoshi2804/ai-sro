@@ -761,7 +761,11 @@ function offeringToFinish(nudge, onPress) {
     // The host and not the whole origin: `https://` in the middle of a
     // sentence is noise a person has to read past.
     const where = write.on ? ` on ${String(write.on).replace(/^https?:\/\//, "")}` : "";
-    doing.textContent = `It will ${write.does} a ${write.record} record${where}.`;
+    // "a addresses record" is what the store's own names do to a sentence:
+    // the record is called whatever the endpoint is called, and four of this
+    // tenant's eight begin with a vowel.
+    const a = /^[aeiou]/i.test(write.record) ? "an" : "a";
+    doing.textContent = `It will ${write.does} ${a} ${write.record} record${where}.`;
     item.append(doing);
   }
 

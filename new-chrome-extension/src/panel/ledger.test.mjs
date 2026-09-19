@@ -686,6 +686,18 @@ test("the card says what the press would write, before it is pressed", () => {
   assert.match(words(item), /It will create a customerTypes record on wms\.test\./);
 });
 
+test("the sentence takes the article the record's own name needs", () => {
+  // The record is called whatever the endpoint is called, and half of this
+  // tenant's are vowels: "It will change a addresses record".
+  const item = renderNudge({
+    id: "n_17", state: "open", source: "rig", title: "Create a Supplier",
+    startsOn: "wms.test/portal", workflowId: "wfl_1", k: 0, values: {}, missing: [],
+    writes: [{ does: "change", record: "addresses", on: "https://wms.test" }],
+  });
+
+  assert.match(words(item), /change an addresses record/);
+});
+
 test("a job with two writes in it says both", () => {
   // One line per writing step. A job that posts twice makes two records, and
   // saying it once describes half of what the press does.

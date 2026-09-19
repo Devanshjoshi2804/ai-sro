@@ -9,14 +9,14 @@ is the same call `http.send` would replay.
 from __future__ import annotations
 
 from sro.domain.execution.what_it_writes import what_it_writes
-from sro.domain.observation.gesture import Action, Call, Gesture, Target
+from sro.domain.observation.gesture import Action, Body, Call, Gesture, Target
 from sro.domain.skill.workflow import Step, Workflow
 
 WMS = "https://wms.test"
 TYPES = f"{WMS}/data/WM/wm/customerTypes"
 
 
-def _gesture(gesture_id: str, *calls: tuple[str, str, int]) -> Gesture:
+def _gesture(gesture_id: str, *calls: tuple[str, str, int], names: bool = True) -> Gesture:
     return Gesture(
         id=gesture_id,
         tenant="acme",
@@ -29,7 +29,13 @@ def _gesture(gesture_id: str, *calls: tuple[str, str, int]) -> Gesture:
         frame_url=None,
         action=Action(kind="click", at=100.0, url=WMS, target=Target(tag="button", name="Save")),
         requests=tuple(
-            Call(method=method, url=url, status=status, started_at=100.0)
+            Call(
+                method=method,
+                url=url,
+                status=status,
+                started_at=100.0,
+                response_body=Body(text='{"id": "REC-1"}', size_bytes=15) if names else None,
+            )
             for method, url, status in calls
         ),
     )
@@ -122,3 +128,69 @@ def test_the_writes_come_in_step_order() -> None:
     job.steps = list(reversed(job.steps))
 
     assert [one["step"] for one in what_it_writes(job, store)] == ["0", "1"]
+
+
+def test_a_page_talking_to_itself_is_not_a_write_anybody_is_warned_about() -> None:
+    """Every POST a page makes is not a record. Measured over both tenants'
+    evidence, 2026-09-19: Gmail alone made over a hundred of them -- `/log`,
+    `/sync/u/0/i/bv`, `batchexecute` -- and the warehouse's own pages fire
+    `sessionKeepAlive` and `webPerformanceEntries/batch` from the same click
+    that creates a record. Before this rule the card offered to "create a bv
+    record on mail.google.com"."""
+    chatter = _gesture(
+        "ges-0",
+        ("POST", "https://mail.google.com/sync/u/0/i/bv", 200),
+        ("POST", f"{WMS}/data/WM/wm/webPerformanceEntries/batch", 200),
+        names=False,
+    )
+
+    assert what_it_writes(_job("ges-0"), {"ges-0": chatter}) == []
+
+
+def test_a_create_whose_answer_names_nothing_is_still_a_create() -> None:
+    """`workOperations` answers 201 and names no record -- five of them in this
+    store. A rule that asked every write to name what it made would be silent
+    about a job that makes one."""
+    quiet = _gesture("ges-0", ("POST", f"{WMS}/data/WM/wm/workOperations", 201), names=False)
+
+    assert what_it_writes(_job("ges-0"), {"ges-0": quiet})[0]["record"] == "workOperations"
+
+
+def test_a_delete_is_never_asked_to_prove_itself() -> None:
+    """The answer to a delete is empty by nature. A rule that made one earn its
+    place would be silent about the press a person most needs warning about."""
+    gone = _gesture("ges-0", ("DELETE", f"{TYPES}/GDD", 204), names=False)
+
+    assert what_it_writes(_job("ges-0"), {"ges-0": gone}) == [
+        {"does": "remove", "record": "customerTypes", "on": WMS, "step": "0"}
+    ]
+
+
+def test_both_writes_of_one_save_are_named() -> None:
+    """One logical create is often several physical resources. `new`'s `Create
+    a Supplier` PUTs an address and POSTs the supplier from one click, and a
+    card built on the single call a replay would send named the address and
+    never the supplier."""
+    cascade = _gesture(
+        "ges-0",
+        ("PUT", f"{WMS}/data/WM/wm/addresses/A000010909", 200),
+        ("POST", f"{WMS}/data/WM/wm/suppliers", 201),
+    )
+
+    assert [one["record"] for one in what_it_writes(_job("ges-0"), {"ges-0": cascade})] == [
+        "addresses",
+        "suppliers",
+    ]
+
+
+def test_two_demonstrations_of_one_write_are_one_write() -> None:
+    """A step cites one gesture per doing. Reading every cited call says a job
+    demonstrated three times makes three records."""
+    store = {
+        "ges-0": _gesture("ges-0", ("POST", TYPES, 201)),
+        "ges-1": _gesture("ges-1", ("POST", TYPES, 201)),
+    }
+    job = _job("ges-0")
+    job.steps[0].cites = ["ges-0", "ges-1"]
+
+    assert len(what_it_writes(job, store)) == 1

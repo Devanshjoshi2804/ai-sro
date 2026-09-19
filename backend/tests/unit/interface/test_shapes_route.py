@@ -19,6 +19,7 @@ module's security claim is about -- left the whole suite green.
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
+from dataclasses import replace
 from datetime import timedelta
 
 import httpx
@@ -196,12 +197,23 @@ async def test_the_list_comes_back_under_the_shapes_key(
 
 
 async def test_a_shape_says_what_pressing_the_job_would_write(
-    client: httpx.AsyncClient, proven: Workflow
+    client: httpx.AsyncClient, uow: FakeUnitOfWork, evidence: dict[str, Gesture], proven: Workflow
 ) -> None:
     """Item 6's other half, on the wire it reaches the card by. The offer card
     named the values it holds and never the act, so "yes" was a press against
     something nobody had described -- and this is where the description is
-    read: off the job's own evidence, served with its shape."""
+    read: off the job's own evidence, served with its shape.
+
+    The save is re-stamped `201` because the local test server answers `200
+    {"ok": true}` and the real platform answers `201` with the record it made.
+    `what_it_writes` refuses to call an answer like the first one a write --
+    which is what keeps a hundred of Gmail's own POSTs off the card -- so the
+    fixture has to be the shape a warehouse really answers."""
+    saver = _saver(evidence)
+    post = next(one for one in saver.requests if one.method == "POST")
+    saver.requests[saver.requests.index(post)] = replace(post, status=201)
+    await uow.gestures.add_gestures(())  # the store holds the same object
+
     body = (await client.get("/v1/shapes")).json()
 
     assert body["shapes"][0]["writes"] == [

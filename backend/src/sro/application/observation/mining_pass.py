@@ -68,6 +68,7 @@ from sro.domain.skill.umbrella import (
     workflow_from,
 )
 from sro.domain.skill.workflow import Workflow, cited_ids, ordered_cites
+from sro.infrastructure.telemetry.whose import attribute
 
 __all__ = [
     "MineResult",
@@ -569,6 +570,10 @@ async def _one_pass(
     # day a pass is billed to is the day its caller meant.
     started_at = now.isoformat()
     pass_id = new_pass_id()
+    # So every line this pass writes -- what it proposed, what it refused and
+    # why, what it recognised -- says which tenant's day it was reading and
+    # which reading it was.
+    attribute(tenant=tenant_id.value, pass_id=pass_id)
 
     # ponytail: this reads the tenant's WHOLE HISTORY, not a day. Neither
     # `gestures_for` nor `intents_for` takes a time bound, so every pass

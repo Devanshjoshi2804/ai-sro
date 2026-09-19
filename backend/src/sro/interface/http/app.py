@@ -5,14 +5,17 @@ from __future__ import annotations
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from typing import Any
+from uuid import uuid4
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from sro.application.execution.run_workflow import fail_orphans
 from sro.config import Settings, get_settings
 from sro.container import Container, build_container, instrument
 from sro.domain.shared.prices import PRICES
+from sro.infrastructure.telemetry.whose import about
 from sro.interface.http.errors import install_error_handlers
 from sro.interface.http.schemas import PROBLEMS
 from sro.interface.http.v1.routers import (
@@ -136,7 +139,13 @@ def unpriced_models(settings: Settings) -> list[tuple[str, str]]:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    configure_logging(level="DEBUG" if get_settings().debug else "INFO")
+    settings = get_settings()
+    # JSON off a laptop and on everywhere else: a deployment's logs are
+    # collected and queried, and a developer's are read.
+    configure_logging(
+        level="DEBUG" if settings.debug else "INFO",
+        as_json=settings.environment != "local",
+    )
     container = build_container()
     app.state.container = container
 
@@ -169,6 +178,24 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 await container.engine.dispose()
 
 
+async def _attributing(request: Request, call_next: Any) -> Any:
+    """Every line a request writes says which request it was, and whose.
+
+    The tenant and the principal are on the credential, which `asking` resolves
+    per route and long after this runs -- so what this middleware can honestly
+    supply is the REQUEST: one id, on every line the handler writes, including
+    the ones written before anything has worked out who is asking. A route that
+    knows more says so itself with a nested `about`.
+
+    The id is the client's own where it sent one. A console and an extension
+    that carry `x-request-id` through can then be joined to what the backend
+    did with it, which is the join somebody debugging a button actually needs.
+    """
+    given = request.headers.get("x-request-id", "").strip()[:64]
+    with about(request=given or f"req_{uuid4().hex[:12]}"):
+        return await call_next(request)
+
+
 def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(
@@ -185,6 +212,11 @@ def create_app() -> FastAPI:
     origins = list(settings.cors_origins)
     if settings.environment == "local":
         origins.append("http://localhost:3000")
+
+    # Outermost, so a line written while CORS is being decided is attributed
+    # too, and so a request that never reaches a route still has an id on
+    # whatever it did write.
+    app.middleware("http")(_attributing)
 
     app.add_middleware(
         CORSMiddleware,

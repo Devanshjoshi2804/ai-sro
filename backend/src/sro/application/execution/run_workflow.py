@@ -105,6 +105,7 @@ from sro.domain.shared.prices import Answer
 from sro.domain.skill.repeats import K_MOST_ITEMS, Repeat
 from sro.domain.skill.signing_in import signs_in_at
 from sro.domain.skill.workflow import Step, Workflow
+from sro.infrastructure.telemetry.whose import attribute
 
 KnownFields = Callable[[tuple[str, ...], str], Awaitable[Mapping[str, Mapping[str, object]]]]
 """What the knowledge base says about these body keys, by key.
@@ -1172,6 +1173,16 @@ async def run_workflow(
             f" {saved.device_id} from step {saved.from_step}, not running for"
             f" {workflow.id} on {device_id.value} from step {from_step}"
         )
+    # Every line the rest of this run writes says which run it was, on whose
+    # tenant, in whose browser. `attribute` rather than a block because the
+    # work to attribute is the whole of what follows; see its own docstring for
+    # why that is sound inside a task.
+    attribute(
+        tenant=tenant_id.value,
+        device=device_id.value,
+        workflow=workflow.id,
+        run=run_id or "",
+    )
     run = saved or WorkflowRun(
         id=run_id or new_run_id(),
         tenant=tenant_id.value,

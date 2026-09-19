@@ -230,7 +230,7 @@ async def rekey_everything(container: Container) -> int:
 
 async def run() -> None:
     settings = get_settings()
-    configure_logging()
+    configure_logging(as_json=get_settings().environment != "local")
     logger.info("worker starting on revision %s", settings.revision)
     container = build_container(settings)
     activities = Activities(container)

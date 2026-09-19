@@ -368,9 +368,32 @@ because the first did not work refuses the one press that might.
 What is left is the chain itself: two jobs run as one piece of work, with the
 first's output flowing into the second. Within a job that flow now exists; the
 producer that would recognise it ACROSS two jobs does not, and neither does an
-instance to recognise — the same measurement as 3.1's, thirteen runs and no
-job that makes two records. `TeachWorkflow` composes two joined candidates into
-one skill on the older plane, and the mined-workflow plane has no equivalent.
+instance to recognise. `TeachWorkflow` composes two joined candidates into one
+skill on the older plane, and the mined-workflow plane has no equivalent.
+
+**Measured 2026-09-19, over every workflow this machine's store holds.** The
+question asked of the evidence directly: does any job take a value another job
+produced — same browsing stream, the later job's request carrying a value the
+earlier job's response minted?
+
+| tenant | jobs | ordered pairs | chains |
+|---|---|---|---|
+| acme | 10 | 90 | 0 |
+| new | 14 | 182 | 0 |
+| rigproof | 35 | 1190 | 0 |
+
+The first run of that probe said **329** on `rigproof`, and every one was the
+operator's own typed value coming back: `ACME-4471` and `PO-88213` typed into
+the form, echoed by a read-back, and counted as the warehouse's work. Whatever
+builds the cross-job producer has to subtract everything typed anywhere earlier
+in the stream, not only what the same call sent — the in-job rule's narrower
+version of that subtraction is what `995a0b53` fixes.
+
+That fix came out of the same measurement. Run over the store rather than over
+its own tests, `uses_edges` found exactly one edge in three tenants' 201 steps
+and it was a step depending on itself — two steps citing one click, and a
+confirming read counted as a producer. Both are fixed and the honest count is
+now zero everywhere, which is what it should have been.
 
 ### 3.14 — the page is not the page this step is about
 

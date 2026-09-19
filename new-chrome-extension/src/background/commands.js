@@ -588,8 +588,17 @@ async function tabForRun(payload, runId) {
     if (opened) tab = opened;
   }
 
-  if (tab && runId && latest?.runId === runId)
+  if (tab && runId && latest?.runId === runId) {
     latest = { ...latest, tabId: tab.id };
+    // Written through, not only held: this is the one moment the pin is
+    // learned, and the next command may be answered by a different worker.
+    void state.setActiveRun({
+      runId,
+      at: Date.now(),
+      source: latest.source,
+      tabId: tab.id,
+    });
+  }
   return tab;
 }
 
@@ -1516,6 +1525,27 @@ export async function perform(command, source = "backend") {
   if (command.run_id) {
     const now = Date.now();
     const isNewRun = latest?.runId !== command.run_id;
+    // A worker that was evicted mid-run does not know a new run from the one
+    // it was already driving, so the tab comes back from storage before
+    // anything decides there is no tab.
+    //
+    // Measured on the deployment 2026-09-19, runs `run_fd77a70d` and
+    // `run_4a57baf0`, two minutes apart and identical: step 0 held -- "the
+    // username RKUCHIYAGM has been successfully entered" -- and step 1 came
+    // back `no_tab_for_system` while the operator sat looking at that very
+    // page. The evidence has one tab, 148285749, on the sign-in host from
+    // 16:23:33 through both runs and past them; nothing moved, nothing
+    // closed. What moved was this worker, evicted between two commands, which
+    // the comment below already called the ordinary case.
+    //
+    // Step 0 survives it because a first step carries `starts_on` and can open
+    // the page again. Every step after the first carries none, so losing the
+    // pin is losing the run.
+    const carried = isNewRun ? await state.activeRun() : null;
+    const pinned =
+      carried?.runId === command.run_id && carried.tabId !== undefined
+        ? carried.tabId
+        : undefined;
     latest = isNewRun
       ? {
           runId: command.run_id,
@@ -1523,6 +1553,7 @@ export async function perform(command, source = "backend") {
           source,
           since: now,
           at: now,
+          ...(pinned === undefined ? {} : { tabId: pinned }),
           ...told(command),
         }
       : { ...latest, kind: command.kind, at: now, ...told(command) };
@@ -1537,13 +1568,17 @@ export async function perform(command, source = "backend") {
     // poll -- which only ever fires for an operator already staring at the
     // screen. `service-worker.js`'s `checkFinishing()` reads this instead,
     // off both the panel poll and the heartbeat alarm that fires whether the
-    // panel is open or not. Only `runId`, `at` and `source`: everything else
-    // `latest` carries -- `tabId`, the step count the band shows -- is for
-    // driving this run within this worker's own lifetime and is worthless to a
-    // worker that has since been evicted and restarted. `source` survives
-    // because the finish has to be asked of the process that started the run,
-    // and a restarted worker no longer has the channel to ask.
-    void state.setActiveRun({ runId: command.run_id, at: now, source });
+    // panel is open or not. `source` survives because the finish has to be
+    // asked of the process that started the run, and a restarted worker no
+    // longer has the channel to ask -- and `tabId` survives because the run
+    // has to go on driving the tab it pinned. What is left out is the step
+    // count the band shows, which is about drawing this worker's own band.
+    void state.setActiveRun({
+      runId: command.run_id,
+      at: now,
+      source,
+      ...(latest.tabId === undefined ? {} : { tabId: latest.tabId }),
+    });
     // A new run starting supersedes whatever the last one made. Left standing,
     // "Undo that" for the run before this one would sit under a card saying
     // this one is performing right now -- confusing even though neither fact

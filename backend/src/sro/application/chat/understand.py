@@ -196,7 +196,36 @@ async def understand(
         for one in (nearly if isinstance(nearly, list) else [])
         if isinstance(one, str) and one in by_id and one != chosen.id
     ]
-    sure = bool(answer.data.get("sure", True)) and not also
+    # An alternative the sentence cannot fill is not an alternative.
+    #
+    # Measured on the deployment 2026-09-19. A mail saying `customer type :-
+    # GZ2 / description :- undo round two` was read as `Create a Customer
+    # Type` -- the only job of that name, with eighty-seven runs behind it --
+    # and the model named `Forward an Email` as one it might have meant
+    # instead. `sure` went false and the mail path said nothing at all, so the
+    # request sat unread in a mailbox while the tenant held the job it asked
+    # for.
+    #
+    # The sentence settles it. `Forward an Email` declares recipients, and the
+    # mail names none of them; `Create a Customer Type` declares a code and a
+    # description, and the mail gives both. A job whose parameters this
+    # sentence cannot supply is not a job this sentence was asking for --
+    # which is a fact about the two, not a confidence.
+    #
+    # Only where the CHOSEN job is itself fully supplied: a sentence that
+    # fills neither is genuinely ambiguous, and this must not make it sure by
+    # eliminating everything.
+    named = {name for name, _ in read}
+    settled = (
+        bool(also) and _fills(chosen, named) and not any(_fills(by_id[one], named) for one in also)
+    )
+    if settled:
+        also = []
+    # `settled` overrides the model's own hedge, and only in the case it was
+    # measured on: it named alternatives, and the sentence fills this job's
+    # parameters and none of theirs. A model unsure for some OTHER reason
+    # names nothing to be unsure between, and is left exactly as it was.
+    sure = (bool(answer.data.get("sure", True)) or settled) and not also
     supplied = [{**values, **item} for item in items] or [values]
     # A thing the filter emptied still counts here. The operator said "these
     # two", and a run that quietly does one of them is a run that did not do
@@ -211,6 +240,20 @@ async def understand(
     return Understood(
         chosen.id, answer, values, missing, sure, also, items, aside=aside, unasked=unasked
     )
+
+
+def _fills(job: Workflow, said: set[str]) -> bool:
+    """Whether this sentence named every parameter that job declares.
+
+    Names only, because that is what the reading has: the model returns the
+    slots it recognised, and a job asking for a slot nobody named cannot be
+    what the sentence was about. A job that declares nothing is filled by
+    anything, which is honest -- there is nothing in it to tell apart.
+    """
+    declared = {
+        str(one.get("name")) for one in job.parameters if isinstance(one, dict) and one.get("name")
+    }
+    return declared <= said
 
 
 def _things(raw: object, declared: set[object]) -> list[dict[str, str]]:

@@ -15,7 +15,7 @@ in, and the row that carries the bill and never the sentence.
 """
 
 import json
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from datetime import UTC, datetime
 
 from sro.application.chat.understand import read_utterance, understand
@@ -666,3 +666,89 @@ async def test_a_request_this_job_can_write_whole_names_nothing_extra() -> None:
     )
 
     assert got.unasked == []
+
+
+# --- and an alternative the sentence cannot fill ------------------------------
+
+
+async def test_a_job_this_sentence_could_not_fill_is_not_an_alternative() -> None:
+    """Measured on the deployment 2026-09-19. A mail saying `customer type :-
+    GZ2 / description :- undo round two` was read as `Create a Customer Type`
+    -- the only job of that name, eighty-seven runs behind it -- and the model
+    named `Forward an Email` as one it might have meant. `sure` went false, the
+    mail path said nothing at all, and the request sat unread in a mailbox
+    while the tenant held the job it asked for.
+
+    The sentence settles it: one job's parameters are all named and the
+    other's are not, which is a fact about the two rather than a confidence.
+    """
+    got = await understand(
+        "customer type :- GZ2, description :- undo round two",
+        [*WFS, SECOND],
+        FakeAsker(
+            Answer(
+                data={
+                    "workflow_id": "wfl_1",
+                    "values": [{"name": "clientCode", "value": "GZ2"}],
+                    "missing": [],
+                    "sure": False,
+                    "also": ["wfl_2"],
+                }
+            )
+        ),
+        "m",
+    )
+
+    assert got.workflow_id == "wfl_1"
+    assert got.also == [], "it kept an alternative this sentence names nothing for"
+    assert got.sure is True
+
+
+async def test_an_alternative_the_sentence_could_equally_fill_still_stands() -> None:
+    """Two jobs the sentence supplies is the ambiguity this refusal is for, and
+    it is left exactly as it was."""
+    both = replace(SECOND, parameters=[{"name": "clientCode", "seen_values": ["A"]}])
+
+    got = await understand(
+        "make one with clientCode A",
+        [*WFS, both],
+        FakeAsker(
+            Answer(
+                data={
+                    "workflow_id": "wfl_1",
+                    "values": [{"name": "clientCode", "value": "A"}],
+                    "missing": [],
+                    "sure": True,
+                    "also": ["wfl_2"],
+                }
+            )
+        ),
+        "m",
+    )
+
+    assert got.also == ["wfl_2"]
+    assert got.sure is False
+
+
+async def test_a_sentence_that_fills_neither_stays_unsure() -> None:
+    """Eliminating everything is not choosing. A sentence that names no values
+    at all leaves the alternatives exactly where the model left them."""
+    got = await understand(
+        "make one of those",
+        [*WFS, SECOND],
+        FakeAsker(
+            Answer(
+                data={
+                    "workflow_id": "wfl_1",
+                    "values": [],
+                    "missing": [],
+                    "sure": False,
+                    "also": ["wfl_2"],
+                }
+            )
+        ),
+        "m",
+    )
+
+    assert got.also == ["wfl_2"]
+    assert got.sure is False

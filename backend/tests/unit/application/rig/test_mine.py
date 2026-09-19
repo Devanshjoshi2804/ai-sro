@@ -1754,3 +1754,29 @@ async def test_filling_the_same_job_twice_changes_nothing_the_second_time() -> N
 
     assert await fill_in_passwords(uow, tenant_id=TENANT) == 1
     assert await fill_in_passwords(uow, tenant_id=TENANT) == 0
+
+
+async def test_a_refused_proposal_says_which_gate_refused_it(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A job refused in silence is a job nobody can fix.
+
+    Measured on the deployment 2026-09-20: `Create a Client` was proposed on
+    two passes running -- the operator had just demonstrated it three times and
+    the miner even found the repeat -- and kept on neither. Which gate refused
+    it, and why, was not recoverable from anything this system stored: the pass
+    row carries a count and the log carried nothing.
+    """
+    uow, ids = await _day()
+    # A step citing a gesture no window ever held, which `validate` refuses.
+    proposal = _proposal(ids)
+    proposal["steps"][0]["cites"] = ["ges_never_captured"]
+
+    with caplog.at_level(logging.INFO, logger="sro.application.observation.mining_pass"):
+        result = await _mine(uow, FakeAsker(_found(proposal)))
+
+    assert len(result.rejections) == 1
+    said = " ".join(record.getMessage() for record in caplog.records)
+    assert "refused" in said, said
+    assert "unknown gesture" in said, "it did not say which gate"
+    assert "ges_never_captured" in said, "it did not say what about the job was wrong"

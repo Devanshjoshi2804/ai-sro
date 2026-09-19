@@ -747,6 +747,22 @@ async def _one_pass(
             rejection = validate(proposal, evidence) or work_only(proposal, by_id, ours=ours)
             if rejection is not None:
                 result.rejections.append(rejection)
+                # Said out loud, because a job refused in silence is a job
+                # nobody can fix. The pass has always carried these and only
+                # ever counted them, so the row a person reads says a number
+                # and the log says nothing at all.
+                #
+                # Measured on the deployment 2026-09-20: `Create a Client` was
+                # proposed on two passes running -- the operator had just
+                # demonstrated it three times, and the miner even found the
+                # repeat -- and kept on neither. Which gate refused it, and
+                # why, was not recoverable from anything this system stores.
+                logger.info(
+                    "%s: refused -- %s (%s)",
+                    rejection.workflow_title,
+                    rejection.reason,
+                    rejection.detail,
+                )
                 continue
             # Dropped rather than refused: the JOB is sound and only its
             # declaration of what varies is not, so refusing it would throw

@@ -161,59 +161,6 @@ test("a record reads downwards, and the fields it does not carry are left out", 
   );
 });
 
-test("the record the question names comes first, and says so", () => {
-  // "is there a customer type called KKYT" was answered with eight rows of
-  // whatever the system returned first, and KKYT was not among them -- an
-  // answer that contains the answer and does not show it.
-  const card = result(
-    read([
-      ...types(30),
-      { customerType: "KKYT", longDescription: "my sro is best" },
-    ]),
-    { asked: "is there a customer type called KKYT" },
-  );
-  const [first] = shown(card);
-
-  assert.match(words(first), /KKYT/, "the record asked about is not first");
-  assert.equal(
-    first.dataset.asked,
-    "1",
-    "the record asked about is not marked",
-  );
-});
-
-test("a word that describes the whole result names nothing in it", () => {
-  // Measured on the deployment 2026-09-21. Asked "is there a customer type
-  // called KKYT" over 110 records, `type` appeared in forty descriptions
-  // ("leaning new SRO type 004"). Forty were promoted ahead of the one the
-  // question named, and KKYT was not in the eight drawn.
-  const noisy = Array.from({ length: 40 }, (_, at) => ({
-    customerType: `CT${at}`,
-    longDescription: `leaning new SRO type ${at}`,
-  }));
-  const card = result(
-    read([...noisy, { customerType: "KKYT", longDescription: "mine" }]),
-    {
-      asked: "is there a customer type called KKYT",
-    },
-  );
-  const [first] = shown(card);
-
-  assert.match(
-    words(first),
-    /KKYT/,
-    `a word matching most of the result won: ${words(first)}`,
-  );
-});
-
-test("a question that names nothing in the records leaves the order alone", () => {
-  // A system's own order is a fact about the system, and shuffling what
-  // nobody asked about would be this panel inventing a ranking.
-  const card = result(read(types(5)), { asked: "how many are there" });
-
-  assert.match(words(shown(card)[0]), /CT0/);
-});
-
 test("a count nobody could state is never drawn as one", () => {
   // A page whose envelope did not say how large the set is. "50" would be a
   // fact about the request, not about the warehouse.

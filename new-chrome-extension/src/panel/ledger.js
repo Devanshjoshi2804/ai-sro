@@ -902,7 +902,7 @@ function saying(
     for (const one of message.decision.answers || []) {
       const line = document.createElement("li");
       line.dataset.ok = String(Boolean(one.ok));
-      const drawn = result(one, { asked: message.decision.question || "" });
+      const drawn = result(one);
       if (drawn) line.append(drawn);
       found.append(line);
     }

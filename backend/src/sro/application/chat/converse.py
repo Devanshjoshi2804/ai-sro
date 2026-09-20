@@ -1165,7 +1165,7 @@ class Converse:
                     decision={
                         "kind": LOOKED,
                         "question": text,
-                        "answers": [_seen(one) for one in found.looked],
+                        "answers": [_seen(one, text) for one in found.looked],
                     },
                 )
             )
@@ -1407,7 +1407,7 @@ def _ran_out(detail: str) -> bool:
     return any(word in said for word in K_RAN_OUT)
 
 
-def _seen(looked: Looked) -> dict[str, object]:
+def _seen(looked: Looked, question: str = "") -> dict[str, object]:
     """One answer, in the shape every surface draws it from. See
     `domain.lookup.answer.as_seen` -- the trimming is there so the card, the
     conversation and a model asked to read it all get the same answer."""
@@ -1418,6 +1418,7 @@ def _seen(looked: Looked) -> dict[str, object]:
         detail=looked.detail,
         answer=looked.answer,
         read=looked.read,
+        question=question,
     )
 
 

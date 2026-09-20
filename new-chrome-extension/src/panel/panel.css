@@ -1030,6 +1030,34 @@ button.danger:hover:not(:disabled) {
   min-width: 0;
 }
 
+/* An answer is read down the column, not across it.
+ *
+ * `.message` is a row: the time, then everything else beside it. For a
+ * `looked` message that put the QUESTION in a narrow left column and the
+ * records in what was left, which is the sideways reading this whole card was
+ * changed to avoid. The question is a heading here and the answer is under
+ * it, at the full width of the panel.
+ */
+.message[data-kind="looked"] {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 10px;
+}
+
+.message[data-kind="looked"] > .when {
+  grid-column: 1;
+}
+
+.message[data-kind="looked"] > .what {
+  grid-column: 2;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.message[data-kind="looked"] > .answers {
+  grid-column: 1 / -1;
+}
+
 /* -- a nudge ---------------------------------------------------------------- */
 
 /* The one entry that carries the accent, because it is the one asking to be

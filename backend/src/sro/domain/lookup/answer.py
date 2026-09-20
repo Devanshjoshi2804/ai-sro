@@ -25,9 +25,10 @@ structural to preserve and are trimmed by character, the way they always were.
 from __future__ import annotations
 
 import re
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 
 from sro.application.execution.answer import Answer
+from sro.domain.lookup.naming import named
 
 K_ANSWER_CHARS = 64 * 1024
 """How much of a body that is NOT records travels.
@@ -77,6 +78,33 @@ def trimmed(text: str | None) -> tuple[str | None, bool]:
     return text[:K_ANSWER_CHARS], True
 
 
+def _found(subject: str, matched: Sequence[Mapping[str, object]], of: int | None) -> str:
+    """The answer to a question that named something, rather than a count.
+
+    "is there a customer type called KKYT" is a yes and a record. It was
+    answered "There are 110 customer type: leaning SRO 4 (DPP), ..." -- true,
+    and not what anybody asked.
+    """
+    if not matched:
+        return f"No {subject} matched that."
+    shown = ", ".join(_describes(one) for one in matched[:3])
+    if len(matched) == 1:
+        rest = f" (of {of} {subject})" if of and of > 1 else ""
+        return f"Yes — {shown}{rest}."
+    more = len(matched) - min(3, len(matched))
+    tail = f", and {more} more" if more > 0 else ""
+    return f"{len(matched)} {subject} matched: {shown}{tail}."
+
+
+def _describes(record: Mapping[str, object]) -> str:
+    """One record, named the way `answer.py` names one: the ranked fields, best
+    first, so this is what a person would call it."""
+    values = [str(value) for value in record.values() if str(value or "").strip()]
+    if not values:
+        return "(unnamed)"
+    return values[0] if len(values) == 1 else f"{values[0]} ({values[1]})"
+
+
 def as_seen(
     *,
     system: str,
@@ -85,6 +113,7 @@ def as_seen(
     detail: str,
     answer: Mapping[str, object],
     read: Answer | None = None,
+    question: str = "",
 ) -> dict[str, object]:
     """One answer, as every surface draws it.
 
@@ -106,20 +135,36 @@ def as_seen(
         return {**seen, "body": kept, "truncated": cut, "read": None}
 
     subject = subject_of(target) or "record"
+    every = [dict(one) for one in read.sample]
+    # Which of them the question NAMED, where it named any. See
+    # `domain.lookup.naming`: the panel worked this out in JavaScript, the
+    # console would have worked it out again, and a rule with a copy per
+    # surface drifts on all of them.
+    matched = [dict(one) for one in named(question, every, subject)] if question else []
+    shown = matched or every
     return {
         **seen,
         "body": None,
         # The reader's own word for it, so a page nobody can size is never
         # reported as a total. See `Answer.counted`.
-        "truncated": read.truncated or len(read.sample) > K_SAMPLE,
+        "truncated": read.truncated or len(every) > K_SAMPLE,
         "read": {
             "rows": read.rows,
             "counted": read.counted,
             "partial": read.partial,
             "subject": subject,
-            "sentence": read.sentence(subject),
+            # The answer to what was ASKED where something was, and the
+            # collection's own count where nothing was.
+            "sentence": (
+                _found(subject, matched, read.counted) if matched else read.sentence(subject)
+            ),
             "columns": list(read.columns),
-            "records": [dict(one) for one in read.sample[:K_SAMPLE]],
+            "records": [dict(one) for one in shown[:K_SAMPLE]],
+            # How many of the collection these are, so a surface can say "1 of
+            # 110" and offer the rest rather than pretending the answer is the
+            # whole of it.
+            "matched": len(matched),
+            "of": read.counted,
         },
     }
 

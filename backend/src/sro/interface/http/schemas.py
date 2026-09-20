@@ -3102,7 +3102,11 @@ class LookedModel(BaseModel):
     seen: dict[str, object] = Field(default_factory=dict)
 
     @classmethod
-    def of(cls, looked: Looked) -> LookedModel:
+    def of(cls, looked: Looked, question: str = "") -> LookedModel:
+        """`question` so the answer can answer it. A lookup comes back with a
+        collection and the question was usually about one thing in it; which
+        records it NAMED is decided in `domain.lookup.naming`, once, rather
+        than by each surface that draws one."""
         seen = as_seen(
             system=looked.lookup.system,
             target=looked.lookup.target,
@@ -3110,6 +3114,7 @@ class LookedModel(BaseModel):
             detail=looked.detail,
             answer=looked.answer,
             read=looked.read,
+            question=question,
         )
         answer = dict(looked.answer)
         return cls(
@@ -3164,7 +3169,13 @@ class LookupResponse(BaseModel):
             refused=planned.refused,
             asks=AskedModel.of(planned.plan.asks) if planned.plan.asks else None,
             lookups=[LookupModel.of(one) for one in planned.plan.lookups],
-            answers=[LookedModel.of(one) for one in (answers.looked if answers else ())],
+            # The question travels with the answers, because an answer to a
+            # question that named something is that thing and not the
+            # collection it was in.
+            answers=[
+                LookedModel.of(one, planned.plan.question)
+                for one in (answers.looked if answers else ())
+            ],
             error=bill.error if bill else None,
             in_tokens=bill.in_tokens if bill else 0,
             out_tokens=bill.out_tokens if bill else 0,

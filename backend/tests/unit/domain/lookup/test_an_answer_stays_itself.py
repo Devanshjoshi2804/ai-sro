@@ -37,7 +37,12 @@ def _customer_types(n: int) -> list[dict[str, object]]:
     ]
 
 
-def _seen(rows: list[dict[str, object]], *, target: str = "/data/WM/wm/customerTypes") -> dict:
+def _seen(
+    rows: list[dict[str, object]],
+    *,
+    target: str = "/data/WM/wm/customerTypes",
+    asked: str = "is there a customer type called KKYT",
+) -> dict:
     body = _payload(rows)
     return as_seen(
         system="WM",
@@ -46,6 +51,7 @@ def _seen(rows: list[dict[str, object]], *, target: str = "/data/WM/wm/customerT
         detail="",
         answer={"status": 200, "body": body},
         read=read_answer(body, url=WMS),
+        question=asked,
     )
 
 
@@ -183,3 +189,46 @@ def test_more_records_than_a_surface_draws_do_not_all_cross() -> None:
     assert seen["truncated"] is True
     # And the count is still the count, not the size of what crossed.
     assert seen["read"]["counted"] == K_SAMPLE + 50
+
+
+# --- answering what was asked --------------------------------------------------
+
+
+def test_a_question_that_names_a_record_is_answered_with_that_record() -> None:
+    """ "is there a customer type called KKYT" is a yes and a record, not a
+    hundred and ten of them. It was answered "There are 110 customer type:
+    leaning SRO 4 (DPP), ..." -- true, and not what anybody asked."""
+    rows = [*_customer_types(40), {"customerType": "KKYT", "longDescription": "my sro is best"}]
+    read = _seen(rows)["read"]
+
+    assert read["matched"] == 1
+    assert [one["customerType"] for one in read["records"]] == ["KKYT"]
+    assert read["sentence"].startswith("Yes —"), read["sentence"]
+    assert "KKYT" in read["sentence"]
+
+
+def test_it_says_how_much_of_the_collection_that_was() -> None:
+    """So a surface can offer the rest rather than pretending the answer is
+    the whole of it."""
+    rows = [*_customer_types(40), {"customerType": "KKYT", "longDescription": "my sro is best"}]
+    read = _seen(rows)["read"]
+
+    assert read["of"] == 41
+    assert "of 41" in read["sentence"], read["sentence"]
+
+
+def test_a_question_about_the_collection_still_gets_the_collection() -> None:
+    read = _seen(_customer_types(5), asked="how many customer types are there")["read"]
+
+    assert read["matched"] == 0
+    assert len(read["records"]) == 5
+    assert read["sentence"].startswith("There are 5 customer type")
+
+
+def test_a_name_nothing_carries_is_answered_no() -> None:
+    read = _seen(_customer_types(5), asked="is there a customer type called ZZZZ")["read"]
+
+    # Nothing named, so the collection is what comes back -- and the sentence
+    # is the collection's, because "no" and "you did not ask about one of
+    # these" are different facts and only the records can tell them apart.
+    assert read["matched"] == 0

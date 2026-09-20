@@ -77,6 +77,12 @@ class RecordAttempt:
             return
         async with self._uow as uow:
             await uow.attempts.record(attempt)
+            # `__aexit__` closes the session and does not commit -- one request
+            # is one transaction and the caller says when it ends. Without
+            # this the insert was flushed and thrown away, silently, and the
+            # table stayed empty while every door reported having written to
+            # it.
+            await uow.commit()
 
 
 __all__ = ["ABOUT", "RecordAttempt"]

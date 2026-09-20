@@ -1064,7 +1064,6 @@ function madeCard(run, wrote, ending) {
   how.textContent = ending || "";
   holder.append(how);
 
-
   // The machinery, for the time it is wanted. `<details>` because it is the
   // one disclosure the browser already gets right -- keyboard, screen reader
   // and all -- and this panel has no business reimplementing it.
@@ -1743,18 +1742,41 @@ async function refresh() {
         runId: status.performing.runId,
         source: status.performing.source,
       });
-      status.performing = rig
-        ? {
-            ...status.performing,
-            // The rig plans one step at a time, so there is no total to count
-            // towards and the card says "step 3" rather than "step 3 of 7".
-            // `rigRun` maps the row; `steps` is what it has done so far.
-            skill: null,
-            step: Array.isArray(run.steps) ? run.steps.length : null,
-            of: null,
-            because: null,
-          }
-        : await _aboutTheSkill(status.performing, run);
+      // A run that has ENDED is not performing, whatever the worker still
+      // believes.
+      //
+      // The worker's own answer is `latest`, a module variable that says "a
+      // run is happening" until it goes quiet -- and a worker evicted in the
+      // middle of a run comes back with no memory of it at all, so the two
+      // ways that answer can be wrong point in opposite directions. The run's
+      // own row is the authority and the panel has just fetched it.
+      //
+      // Measured on the deployment 2026-09-20: `run_83efedf5` stopped at
+      // 13:35:55 and the panel was still drawing "A run is performing here"
+      // at 13:38, counting the seconds since a command that had already been
+      // refused. The operator was told something was happening for three
+      // minutes after it had stopped.
+      // Cleared, and nothing put in its place: what a finished run looks like
+      // on this panel is `finishedRun`, which the worker writes when it
+      // confirms one. A card invented here would be a second answer to that
+      // question, in a shape nobody else writes.
+      if (run?.outcome && run.outcome !== "running") {
+        status.performing = null;
+      } else {
+        status.performing = rig
+          ? {
+              ...status.performing,
+              // The rig plans one step at a time, so there is no total to
+              // count towards and the card says "step 3" rather than
+              // "step 3 of 7". `rigRun` maps the row; `steps` is what it has
+              // done so far.
+              skill: null,
+              step: Array.isArray(run.steps) ? run.steps.length : null,
+              of: null,
+              because: null,
+            }
+          : await _aboutTheSkill(status.performing, run);
+      }
     } catch {
       // A run the panel cannot read is still a run the panel can stop.
     }
@@ -2021,7 +2043,8 @@ async function openHistory() {
     // Asked separately, and never allowed to cost the runs: this browser's own
     // lines are the smaller half of the overlay, and a worker that cannot
     // answer for them is not a reason to show nothing at all.
-    said = (await ask({ kind: "what-this-browser-said" }).catch(() => [])) || [];
+    said =
+      (await ask({ kind: "what-this-browser-said" }).catch(() => [])) || [];
   } catch (error) {
     const said = document.createElement("p");
     said.className = "detail";

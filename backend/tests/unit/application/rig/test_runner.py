@@ -6151,6 +6151,74 @@ async def test_a_step_the_operator_fixed_by_hand_is_what_the_next_run_tries() ->
     assert [(one.ord, one.found_by) for one in kept] == [(0, "by_hand")]
 
 
+async def test_a_sign_in_whose_page_is_gone_after_a_step_held_is_done() -> None:
+    """Measured on the deployment 2026-09-20, run `run_83efedf5`.
+
+    The operator was already signed in. Step 0 typed the username and held;
+    the page went through; step 1 asked for a password on a screen that no
+    longer existed and the run failed `no_tab_for_system`. The card sat there,
+    and the operator -- looking at the warehouse, signed in -- was asked to
+    sign in.
+
+    A job that does nothing but sign in has one origin and one purpose, and
+    the thing that takes an identity provider's page away is the sign-in
+    completing.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    # Both steps on one origin, which is what makes this a way in rather than
+    # a job that goes on to do something.
+    channel = FakeChannel(
+        {
+            **_looks(8),
+            "ui.perform": [
+                _performed(),
+                *[Reply(ok=False, error_kind="no_tab_for_system", error_detail="no tab")] * 4,
+            ],
+        }
+    )
+    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True, "why": ""}))
+
+    run = await _ran(uow, workflow, channel=channel, asker=asker, values={}, earned=True)
+
+    assert run.outcome == "held", [(s.order, s.verdict, s.reason[:60]) for s in run.steps]
+    assert "already signed in" in run.steps[-1].reason
+
+
+async def test_a_sign_in_that_never_found_its_page_still_asks() -> None:
+    """A sign-in that could not reach its page from the very beginning has
+    signed nobody in. That is the case the park exists for, and it still
+    parks."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel(
+        {
+            **_looks(8),
+            "ui.perform": [Reply(ok=False, error_kind="no_tab_for_system", error_detail="no tab")]
+            * 5,
+        }
+    )
+    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True, "why": ""}))
+    approvals = Approvals()
+
+    task = asyncio.create_task(
+        _ran(
+            uow,
+            workflow,
+            channel=channel,
+            asker=asker,
+            values={},
+            earned=True,
+            approvals=approvals,
+        )
+    )
+    approvals.approve(await _parked(approvals))
+    run = await task
+
+    assert run.outcome != "held"
+    assert not any("already signed in" in one.reason for one in run.steps)
+
+
 # --- which of the two ways this run does the job -----------------------------
 
 

@@ -205,7 +205,15 @@ function panel(status, here = null, replies = {}) {
           // Deliberately nothing: every card under test is drawn by the
           // explicit `render` below, so a poll that raced it would be the
           // thing being asserted on.
-          if (message.kind === "status") return { deviceId: "" };
+          //
+          // Unless a fixture names one. A test of the POLL itself -- what
+          // `refresh()` makes of what the worker says -- has nothing to assert
+          // on if its status is thrown away, and the guard above silently
+          // discarded it: the test passed, on an empty status, for a reason
+          // that had nothing to do with what it was about.
+          if (message.kind === "status" && !("status" in replies)) {
+            return { deviceId: "" };
+          }
           // A reply the fixture actually named, object or list alike --
           // `resolve-intent`, `teach-candidate` and `skill` all answer with an
           // object, and a guard that only ever returned an object for
@@ -277,6 +285,13 @@ function panel(status, here = null, replies = {}) {
     ids,
     ports,
     watchers,
+    // The real poll, rather than `render` alone: `refresh()` asks the worker
+    // what it believes and then asks the RUN's own row, which is where a
+    // finished run is told apart from one still going.
+    refresh: async () => {
+      await sandbox.refresh();
+      return [...(ids["expanded"]?.kids || []), ...ids["cards"].kids];
+    },
     // What the browser does when the operator switches tabs: a different tab
     // is the active one, and then Chrome says so.
     switchTo: (tab) => {
@@ -2353,6 +2368,58 @@ function pressable(el, label) {
   return null;
 }
 
+test("a run that has ended is not drawn as one that is performing", async () => {
+  // Measured on the deployment 2026-09-20: `run_83efedf5` stopped at 13:35:55
+  // and the panel was still drawing "A run is performing here" at 13:38,
+  // counting the seconds since a command that had already been refused. The
+  // operator was told something was happening for three minutes after it had
+  // stopped.
+  //
+  // The worker's answer is a module variable that says "a run is happening"
+  // until it goes quiet. The run's own row is the authority, and the panel had
+  // already fetched it.
+  const it = panel(
+    { deviceId: "dev-1" },
+    null,
+    {
+      status: {
+        deviceId: "dev-1",
+        performing: { runId: "run_83efedf5", source: "rig", kind: "rig", step: 2 },
+      },
+      run: { id: "run_83efedf5", outcome: "stopped", steps: [{}, {}] },
+    },
+  );
+
+  const cards = await it.refresh();
+
+  assert.equal(
+    cards.find((one) => words(one).includes("is performing here")),
+    undefined,
+    "the panel drew a run that had stopped as one still going",
+  );
+});
+
+test("and one that is still running still is", async () => {
+  const it = panel(
+    { deviceId: "dev-1" },
+    null,
+    {
+      status: {
+        deviceId: "dev-1",
+        performing: { runId: "run_still", source: "rig", kind: "rig", step: 1 },
+      },
+      run: { id: "run_still", outcome: "running", steps: [{}] },
+    },
+  );
+
+  const cards = await it.refresh();
+
+  assert.ok(
+    cards.find((one) => words(one).includes("is performing here")),
+    "a run in flight stopped being drawn",
+  );
+});
+
 for (const [name, fn] of tests) {
   try {
     await fn();
@@ -2361,3 +2428,4 @@ for (const [name, fn] of tests) {
   }
 }
 console.log("panel.test.mjs: ok");
+

@@ -6311,6 +6311,59 @@ async def test_a_step_the_operator_fixed_by_hand_is_what_the_next_run_tries() ->
     assert [(one.ord, one.found_by) for one in kept] == [(0, "by_hand")]
 
 
+async def test_a_sign_in_whose_page_is_gone_because_it_worked_is_done() -> None:
+    """The other half, and the one a person sees as the system calling its own
+    success a failure.
+
+    Measured on the deployment 2026-09-20: step 0 typed the username, the
+    sign-in went through, and the browser was in the WMS portal saying
+    "Hello Rudy". Step 1 then failed `no_tab_for_system` on the Keycloak page
+    -- which no longer existed BECAUSE THE JOB HAD SUCCEEDED -- and the card
+    said "The run stopped".
+
+    Told apart from the run that had not signed in by where the browser is,
+    which is a thing this can go and ask: somewhere else, and not asking
+    anybody to sign in.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    gone = Reply(ok=False, error_kind="no_tab_for_system", error_detail="no tab")
+    channel = FakeChannel(
+        {
+            "ui.url": [
+                Reply(ok=True, result={"url": "http://127.0.0.1:63319/form"}),
+                Reply(ok=True, result={"url": "http://127.0.0.1:63319/form"}),
+                # And from here the run's own tab is in the warehouse, signed
+                # in. `signed_out` false is the whole of the difference.
+                *[
+                    Reply(
+                        ok=True,
+                        result={
+                            "url": None,
+                            "elsewhere": "https://wms.example/portal",
+                            "elsewhere_is_ours": True,
+                            "signed_out": False,
+                        },
+                    )
+                ]
+                * 10,
+            ],
+            "screenshot": [
+                Reply(ok=True, result={"image_base64": "aVBORw0=", "text_digest": "Save"})
+            ]
+            * 12,
+            "ui.perform": [_performed(), *[gone] * 8],
+        }
+    )
+    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True, "why": ""}))
+
+    run = await _ran(uow, workflow, channel=channel, asker=asker, values={}, earned=True)
+
+    assert run.outcome == "held", [(s.order, s.verdict, s.reason[:70]) for s in run.steps]
+    assert "signed in" in run.steps[-1].reason
+    assert "wms.example" in run.steps[-1].reason, "it did not say where the browser had got to"
+
+
 async def test_a_sign_in_whose_page_is_gone_asks_rather_than_calling_itself_done() -> None:
     """The rule that used to live here read this as "already signed in", and
     it was the wrong way round.
@@ -6330,9 +6383,27 @@ async def test_a_sign_in_whose_page_is_gone_asks_rather_than_calling_itself_done
     """
     uow = await _fixture()
     workflow = await _workflow(uow)
+    # The run's own tab, and a page still asking somebody to sign in. That is
+    # the whole of the difference from the run above, where the browser was in
+    # the warehouse: same job, same failure, same step held before it.
     channel = FakeChannel(
         {
-            **_looks(8),
+            "ui.url": [
+                Reply(
+                    ok=True,
+                    result={
+                        "url": None,
+                        "elsewhere": "https://keycloak.example/auth",
+                        "elsewhere_is_ours": True,
+                        "signed_out": True,
+                    },
+                )
+            ]
+            * 12,
+            "screenshot": [
+                Reply(ok=True, result={"image_base64": "aVBORw0=", "text_digest": "Sign in"})
+            ]
+            * 12,
             "ui.perform": [
                 _performed(),
                 *[Reply(ok=False, error_kind="no_tab_for_system", error_detail="no tab")] * 4,

@@ -395,7 +395,7 @@ function answering(answer) {
  * backend settles which was first, so the two cannot disagree about what was
  * decided -- only about how quickly they notice.
  */
-function waitingOnYou(card, onPress) {
+export function waitingOnYou(card, onPress) {
   const item = document.createElement("li");
   item.className = "message";
   item.dataset.speaker = "system";
@@ -760,7 +760,9 @@ function offeringToFinish(nudge, onPress) {
     doing.dataset.kind = "writes";
     // The host and not the whole origin: `https://` in the middle of a
     // sentence is noise a person has to read past.
-    const where = write.on ? ` on ${String(write.on).replace(/^https?:\/\//, "")}` : "";
+    const where = write.on
+      ? ` on ${String(write.on).replace(/^https?:\/\//, "")}`
+      : "";
     // "a addresses record" is what the store's own names do to a sentence:
     // the record is called whatever the endpoint is called, and four of this
     // tenant's eight begin with a vowel.

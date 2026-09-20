@@ -12,7 +12,17 @@
 // while one is running the panel is about that and nothing else.
 
 import { hostMatches } from "../background/scripts.js";
-import { alreadyAnswered, composer, ledger, nudging } from "./ledger.js";
+import {
+  alreadyAnswered,
+  composer,
+  ledger,
+  nudging,
+  waitingOnYou,
+} from "./ledger.js";
+// The same rendering of "which page is this" the worker matches rules by.
+// One function, so a card drawn here and a rule evaluated there cannot
+// disagree about which page somebody is on.
+import { page } from "./nudge.js";
 import { runCard } from "./run-card.js";
 import { history } from "./history.js";
 import { panes } from "./panes.js";
@@ -292,6 +302,31 @@ function render(status) {
     }
     // And a way to the rest, which is a line rather than ten more cards.
     if (rest.length) cards.push(theRest(rest));
+  }
+
+  // A standing rule that fired on THIS page and stopped to ask.
+  //
+  // `waitingOnYou`'s own docstring records the last time this card could not
+  // be seen: it was drawn in the console, another tab, which from where the
+  // operator was standing is indistinguishable from nothing having happened
+  // -- "I just logged in, nothing on panel". It moved into the panel and
+  // stopped one pane short. An arrival rule fires because of the page in
+  // front of somebody, and Home is the pane about the page in front of
+  // somebody; the conversation is where it was, behind the other tab.
+  //
+  // Measured on the deployment 2026-09-20: `trg_a925ce7d` fired on the
+  // Keycloak sign-in page at 17:25 and wrote two confirmations, both still
+  // `waiting`, while the operator looked at Home and saw a run card for a
+  // different job.
+  //
+  // Only the ones about the page they are on. `page` is the rule's own, put
+  // there by the worker, and a card about somewhere else belongs in the list
+  // rather than in the way of the page being worked.
+  if (!status.teaching) {
+    const here = page(tabHere.url || "").toLowerCase();
+    for (const card of status.waiting || [])
+      if (card.page && card.page === here && card.still_there !== false)
+        cards.push(waitingOnYou(card, answered));
   }
 
   // A mail that has gone out and not been answered.

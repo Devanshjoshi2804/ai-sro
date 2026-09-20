@@ -63,6 +63,26 @@ def signs_in_at(
     return found[0] if len(found) == 1 else None
 
 
+def is_a_way_in(job: Workflow, by_id: Mapping[str, Gesture]) -> bool:
+    """Whether this job does nothing but sign in somewhere.
+
+    `signs_in_at` asks which job gets a run back into a named page. This asks
+    the same thing of a job on its own: every gesture it cites happened on one
+    origin, and that is what a sign-in is -- a chooser, a form, a button, all
+    on the identity provider and nothing anywhere else. A job that touches a
+    second system is doing work there, whatever it did first.
+
+    Nothing about the title. `Log in using Azure B2C SSO` is a model's sentence
+    about a job, and a job that signed in and then created a customer type
+    would wear the same one.
+    """
+    cited = [by_id[one] for step in job.steps for one in step.cites if one in by_id]
+    if not cited:
+        return False
+    where = {origin_of(one.url or one.system or "") for one in cited}
+    return len(where) == 1 and bool(next(iter(where)))
+
+
 def _entirely_at(job: Workflow, origin: str, by_id: Mapping[str, Gesture]) -> bool:
     """Whether every gesture this job cites happened on that origin."""
     cited = [by_id[one] for step in job.steps for one in step.cites if one in by_id]
@@ -71,4 +91,4 @@ def _entirely_at(job: Workflow, origin: str, by_id: Mapping[str, Gesture]) -> bo
     return all(origin_of(one.url or one.system or "") == origin for one in cited)
 
 
-__all__ = ["signs_in_at"]
+__all__ = ["is_a_way_in", "signs_in_at"]

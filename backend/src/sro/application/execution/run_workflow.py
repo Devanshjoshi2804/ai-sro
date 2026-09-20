@@ -103,7 +103,7 @@ from sro.domain.shared.hosts import same_screen, screen_of, system_of
 from sro.domain.shared.identifiers import DeviceId, TenantId
 from sro.domain.shared.prices import Answer
 from sro.domain.skill.repeats import K_MOST_ITEMS, Repeat
-from sro.domain.skill.signing_in import signs_in_at
+from sro.domain.skill.signing_in import is_a_way_in, signs_in_at
 from sro.domain.skill.workflow import Step, Workflow
 from sro.infrastructure.telemetry.whose import attribute
 
@@ -2713,10 +2713,49 @@ async def run_workflow(
                 # fix, and this one painted over the password card: a skipped
                 # step asks for nothing.
                 #
-                # So a sign-in that cannot find its page asks, whatever held
-                # before it. That is `_let_in`, below, and it is the only
-                # honest answer from here -- the operator can see the screen
-                # and this cannot.
+                # So the question is not what held. It is WHERE THE BROWSER
+                # IS, which is a thing this can go and ask.
+                #
+                # A sign-in page that is gone because the sign-in worked leaves
+                # the browser somewhere else and not asking anybody to sign in.
+                # A sign-in page that is gone because this run lost its tab
+                # leaves the browser on that page still, with the form in front
+                # of the operator. Those are two different answers to `ui.url`
+                # and they were one answer to this.
+                #
+                # Measured on the deployment 2026-09-20, both halves:
+                #
+                #   run_28f14216  step 0 typed the username and held; the
+                #                 operator was looking at the Keycloak form
+                #                 with the password box empty. `signed_out`.
+                #                 -> ask, which is what this now does.
+                #   run_1dd7e8..  step 0 typed the username, the sign-in went
+                #                 through, and the browser was in the WMS
+                #                 portal saying "Hello Rudy". Step 1 failed
+                #                 `no_tab_for_system` on a page that no longer
+                #                 exists because the job had SUCCEEDED, and the
+                #                 card said "The run stopped".
+                #                 -> nothing left to do, which is this.
+                #
+                # `elsewhere_is_ours`, so the page read is the tab this run
+                # pinned and not whatever window happened to be in front. And
+                # only for a job that does nothing BUT sign in: a bigger job
+                # whose sign-in completed has the rest of itself to do, and
+                # ending its run here would be this same mistake wearing the
+                # other coat.
+                if not reply.ok and reply.error_kind in K_NOT_HERE and is_a_way_in(workflow, by_id):
+                    went = await _where(channel, tenant_id, device_id, run.id, origin)
+                    if went.elsewhere_is_ours and not went.signed_out:
+                        record.verdict, record.verdict_by = "skipped", "none"
+                        record.reason = (
+                            f"the page this signs in at is gone and the browser is on"
+                            f" {went.elsewhere} -- signed in"
+                        )
+                        run.outcome = "held"
+                        await _save(uow, run)
+                        return run
+                # Otherwise a sign-in that cannot find its page asks. The
+                # operator can see the screen and this cannot.
                 if (
                     live
                     and not asked_for_a_browser

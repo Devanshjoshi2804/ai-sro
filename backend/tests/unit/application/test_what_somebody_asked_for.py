@@ -164,6 +164,8 @@ def test_every_way_a_person_can_ask_this_system_for_something() -> None:
     assert asked == {
         "fire an arrival rule",  # a rule they made, firing where they arrived
         "ask for a job in words",  # a sentence that named a job, or did not
+        "ask a question",  # and one this system could look up, or could not
+        "say something in a conversation",  # what the thread made of it
         "approve a write",  # yes on a card
         "decline a write",  # no on a card
         "press a job",  # the button

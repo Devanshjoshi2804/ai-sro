@@ -13,6 +13,7 @@ from sro.application.execution.pursuits import PursuitProgress, PursuitState
 from sro.application.intent.pursue import compose
 from sro.domain.chat.thread import ThreadId
 from sro.domain.execution.run import Medium, RunId
+from sro.domain.observation.attempts import DONE, NOTHING
 from sro.domain.shared.errors import Conflict, InvariantViolation, NotFound
 from sro.domain.shared.identifiers import SkillId
 from sro.interface.http.deps import AboutThread, ContainerDep, ContextDep
@@ -238,5 +239,22 @@ async def say(
         system=body.system,
         parameters=body.parameters,
         run_id=RunId(body.run_id) if body.run_id else None,
+    )
+    # What this system made of what they said, in the thread's own vocabulary.
+    #
+    # `nothing` where the answer carried no decision at all -- the words went
+    # in and the thread went on as it was. Measured on the deployment
+    # 2026-09-20: an operator was asked for an Address, typed one, and the
+    # thread read the sentence as a fresh request and offered a different job
+    # while the first card went on waiting. Nothing anywhere recorded that
+    # their answer had not been taken as one.
+    last = thread.messages[-1] if thread.messages else None
+    decided = str((last.decision or {}).get("kind") or "") if last else ""
+    await container.record_attempt().execute(
+        ctx,
+        asked_for="say something in a conversation",
+        came_of=DONE if decided else NOTHING,
+        why="" if decided else "nothing was made of what was said",
+        about={"thread": thread_id, "run": body.run_id or ""},
     )
     return ThreadDetail.of_thread(thread)

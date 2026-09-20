@@ -24,7 +24,7 @@ def get_container(request: Request) -> Container:
     return container
 
 
-def get_context(
+async def get_context(
     container: Annotated[Container, Depends(get_container)],
     authorization: Annotated[str | None, Header()] = None,
 ) -> RequestContext:
@@ -33,6 +33,14 @@ def get_context(
     The 401 says a credential is needed and nothing else. Which part was wrong
     -- absent, expired, or signed by somebody else -- is only useful to
     somebody working out what to try next.
+
+    `async`, and that is load-bearing: FastAPI runs a SYNC dependency in a
+    threadpool, and `run_in_threadpool` gives it a COPY of the context. The
+    `attribute` below then set the tenant in the copy, which was thrown away
+    when the thread finished -- so every line an HTTP route wrote carried a
+    request id and no tenant at all, which is exactly the attribution this
+    plane exists for. Verifying a credential is a signature check and blocks
+    on nothing, so there was never a thread worth spending on it either.
     """
     if not authorization:
         raise HTTPException(

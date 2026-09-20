@@ -5,10 +5,11 @@ from __future__ import annotations
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from time import perf_counter
 from typing import Any
 from uuid import uuid4
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from sro.application.execution.run_workflow import fail_orphans
@@ -53,6 +54,13 @@ from sro.interface.http.v1.routers import (
     workflows,
 )
 from sro.observability import configure_logging
+
+logger = logging.getLogger("sro.http")
+"""The access log. Named for what it is rather than for this module: somebody
+turning the request line up or down is not looking for `sro.interface.http.app`.
+"""
+
+_QUIET = frozenset({"/health", "/metrics"})
 
 
 async def on_start(container: Container) -> int:
@@ -145,9 +153,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     configure_logging(
         level="DEBUG" if settings.debug else "INFO",
         as_json=settings.environment != "local",
-        louder_for=frozenset(
-            one.strip() for one in settings.louder_for.split(",") if one.strip()
-        ),
+        louder_for=frozenset(one.strip() for one in settings.louder_for.split(",") if one.strip()),
     )
     container = build_container()
     app.state.container = container
@@ -181,22 +187,80 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 await container.engine.dispose()
 
 
-async def _attributing(request: Request, call_next: Any) -> Any:
-    """Every line a request writes says which request it was, and whose.
+class Attributing:
+    """Every line a request writes says which request it was and whose -- and
+    one line per request says what came of it.
 
-    The tenant and the principal are on the credential, which `asking` resolves
-    per route and long after this runs -- so what this middleware can honestly
-    supply is the REQUEST: one id, on every line the handler writes, including
-    the ones written before anything has worked out who is asking. A route that
-    knows more says so itself with a nested `about`.
+    **Pure ASGI, and that is the whole reason this is a class.** Starlette runs
+    an `http` middleware's downstream app in a SEPARATE task, so every id a
+    route establishes -- the tenant and the principal off the credential, the
+    device, the thread -- is set in a context the middleware never sees. Those
+    ids ride on the task, so the line that reports the request has to be
+    written in the task that served it.
+
+    Which is the line this system did not have. uvicorn's access log is written
+    from the protocol layer once the response is done, outside the task the
+    handlers ran in: it carries the path and the status and nobody at all. On a
+    deployment with twenty tenants, the one line written for every request was
+    the one line that could not be attributed to any of them -- and a request
+    that reached a route and said nothing existed only there.
 
     The id is the client's own where it sent one. A console and an extension
     that carry `x-request-id` through can then be joined to what the backend
     did with it, which is the join somebody debugging a button actually needs.
     """
-    given = request.headers.get("x-request-id", "").strip()[:64]
-    with about(request=given or f"req_{uuid4().hex[:12]}"):
-        return await call_next(request)
+
+    def __init__(self, app: Any) -> None:
+        self._app = app
+
+    async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
+        if scope.get("type") != "http":
+            await self._app(scope, receive, send)
+            return
+        given = _header(scope, b"x-request-id")[:64]
+        status = 0
+
+        async def watched(message: Any) -> None:
+            nonlocal status
+            if message.get("type") == "http.response.start":
+                status = int(message.get("status") or 0)
+            await send(message)
+
+        began = perf_counter()
+        with about(request=given or f"req_{uuid4().hex[:12]}"):
+            try:
+                await self._app(scope, receive, watched)
+            finally:
+                _arrived(scope, status, (perf_counter() - began) * 1000)
+
+
+def _header(scope: Any, wanted: bytes) -> str:
+    for name, value in scope.get("headers") or ():
+        if name.lower() == wanted:
+            return str(value.decode("latin-1")).strip()
+    return ""
+
+
+def _arrived(scope: Any, status: int, took_ms: float) -> None:
+    """The one line per request, with whoever it turned out to be on it.
+
+    `0` where nothing ever started a response: the request was cut off, or the
+    server is going down under it. Said rather than skipped -- a request that
+    produced no response at all is the one somebody is looking for.
+
+    The health check is a line every fifteen seconds saying a process is a
+    process, which at INFO is six thousand lines a day of nothing between the
+    lines somebody is reading. It is still written, at DEBUG, because a
+    deployment where it STOPS is a deployment somebody wants the record of.
+    """
+    logger.log(
+        logging.DEBUG if scope.get("path") in _QUIET else logging.INFO,
+        "%s %s %s in %dms",
+        scope.get("method", "?"),
+        scope.get("path", "?"),
+        status or "no answer",
+        took_ms,
+    )
 
 
 def create_app() -> FastAPI:
@@ -216,11 +280,6 @@ def create_app() -> FastAPI:
     if settings.environment == "local":
         origins.append("http://localhost:3000")
 
-    # Outermost, so a line written while CORS is being decided is attributed
-    # too, and so a request that never reaches a route still has an id on
-    # whatever it did write.
-    app.middleware("http")(_attributing)
-
     app.add_middleware(
         CORSMiddleware,
         allow_origins=origins,
@@ -228,6 +287,13 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # Added LAST, which is what makes it outermost: Starlette inserts each
+    # addition at the front of the list and wraps the list in reverse. The
+    # attribution used to be added FIRST and was therefore INSIDE CORS -- so a
+    # preflight refused there wrote an unattributed line, and the access line
+    # below would have timed the handler rather than the request.
+    app.add_middleware(Attributing)
 
     if settings.otlp_endpoint:
         instrument(app)

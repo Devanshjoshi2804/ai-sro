@@ -233,9 +233,7 @@ async def run() -> None:
     _settings = get_settings()
     configure_logging(
         as_json=_settings.environment != "local",
-        louder_for=frozenset(
-            one.strip() for one in _settings.louder_for.split(",") if one.strip()
-        ),
+        louder_for=frozenset(one.strip() for one in _settings.louder_for.split(",") if one.strip()),
     )
     logger.info("worker starting on revision %s", settings.revision)
     container = build_container(settings)

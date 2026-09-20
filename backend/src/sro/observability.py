@@ -82,11 +82,28 @@ def _stream(shape: logging.Formatter, loud: Louder) -> logging.Handler:
 _UVICORNS = ("uvicorn.access", "uvicorn.error")
 """The two loggers this process does not own.
 
-`uvicorn.access` is the only record that a request ARRIVED -- every line this
-system writes about one is written after something inside it decided to speak,
-and a request that reached no route and said nothing existed only here. It is
-also the last plain-text line in a deployment whose logs are otherwise JSON,
-which is one parser away from a collector dropping it.
+Rendered the way everything else is, because they are otherwise the last
+plain-text lines in a deployment whose logs are JSON, which is one parser away
+from a collector dropping them.
+
+`uvicorn.error` is where a websocket opening and a protocol giving up are
+said, and it stays at whatever uvicorn set.
+"""
+
+_ACCESS = "uvicorn.access"
+"""And this one is turned down, because this system writes that line itself.
+
+uvicorn writes its access line from the protocol layer once the response is
+done, OUTSIDE the task the handlers ran in -- so it carries a path and a
+status and nobody at all, which on a deployment with twenty tenants makes the
+one line written for every request the one line that cannot be attributed to
+any of them. `interface.http.app.Attributing` writes the same fact from inside
+the request, with whoever it turned out to be on it. Two lines per request
+where one of them is the blind one is not a record, it is noise with a record
+in it.
+
+Turned down rather than silenced: uvicorn still says what it makes of a
+request nothing in this system ever saw.
 """
 
 
@@ -110,3 +127,6 @@ def _borrow_uvicorns(shape: logging.Formatter) -> None:
             if not any(isinstance(one, Attribution) for one in handler.filters):
                 handler.addFilter(Attribution())
             handler.setFormatter(shape)
+    access = logging.getLogger(_ACCESS)
+    if access.handlers:
+        access.setLevel(logging.WARNING)

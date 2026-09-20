@@ -312,3 +312,43 @@ def test_nothing_is_installed_where_uvicorn_installed_nothing() -> None:
         assert access.handlers == []
     finally:
         access.handlers = was
+
+
+def test_uvicorns_blind_access_line_is_turned_down() -> None:
+    """This system writes that line itself, from inside the request.
+
+    uvicorn writes its own from the protocol layer once the response is done,
+    outside the task the handlers ran in, so it carries a path and a status
+    and nobody at all. Two lines per request where one of them cannot be
+    attributed to a tenant is noise with a record in it.
+    """
+    from sro.observability import configure_logging
+
+    access = logging.getLogger("uvicorn.access")
+    theirs = logging.StreamHandler()
+    access.addHandler(theirs)
+    was_level = access.level
+    try:
+        configure_logging(as_json=True)
+        assert access.getEffectiveLevel() > logging.INFO, (
+            "uvicorn still writes an access line beside the attributed one"
+        )
+    finally:
+        access.removeHandler(theirs)
+        access.setLevel(was_level)
+
+
+def test_nothing_is_turned_down_where_uvicorn_installed_nothing() -> None:
+    """The same rule the borrowing already holds to. A process with no uvicorn
+    in it has no access log to turn down, and a level set on a logger nobody
+    made is a level that surprises whoever does."""
+    from sro.observability import configure_logging
+
+    access = logging.getLogger("uvicorn.access")
+    was, was_level = list(access.handlers), access.level
+    access.handlers, access.level = [], logging.NOTSET
+    try:
+        configure_logging(as_json=True)
+        assert access.level == logging.NOTSET
+    finally:
+        access.handlers, access.level = was, was_level
